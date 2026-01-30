@@ -1,0 +1,23 @@
+[package]
+name = "ritk-registration"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { workspace = true }
+burn = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+nalgebra = { workspace = true }
+ritk-io = { workspace = true }
+anyhow = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+walkdir = "2.4"
+
+[[example]]
+name = "rigid_registration"
+path = "examples/rigid_registration.rs"

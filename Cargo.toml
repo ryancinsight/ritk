@@ -1,0 +1,25 @@
+[workspace]
+members = [
+    "crates/ritk-core",
+    "crates/ritk-io",
+    "crates/ritk-registration",
+    "xtask",
+]
+resolver = "2"
+
+[workspace.dependencies]
+ritk-core = { path = "crates/ritk-core" }
+ritk-io = { path = "crates/ritk-io" }
+ritk-registration = { path = "crates/ritk-registration" }
+
+burn = { version = "0.16.0", features = ["wgpu", "train", "autodiff"] }
+burn-ndarray = "0.16.0" # For CPU testing
+dicom = "0.8.0"
+nifti = "0.16.0"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+bytemuck = "1.0"
+nalgebra = "0.33"
+tempfile = "3.10" # For testing

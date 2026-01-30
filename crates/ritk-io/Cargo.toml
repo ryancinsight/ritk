@@ -1,0 +1,19 @@
+[package]
+name = "ritk-io"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { workspace = true }
+dicom = { workspace = true }
+nifti = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+burn = { workspace = true }
+nalgebra = { workspace = true }
+ndarray = "0.15" # Compatible with nifti 0.16
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }
