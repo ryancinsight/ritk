@@ -45,8 +45,8 @@ impl<const D: usize> Direction<D> {
 
     /// Compute the determinant of the direction matrix.
     ///
-    /// Supports 2D and 3D matrices. For other dimensions, computes using
-    /// nalgebra's LU decomposition via try_inverse() logic.
+    /// Computes the determinant using cofactor expansion for D=2,3 and
+    /// Gaussian elimination (LU decomposition) for D>3.
     pub fn determinant(&self) -> f64 {
         match D {
             2 => {
@@ -66,10 +66,43 @@ impl<const D: usize> Direction<D> {
                 a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
             }
             _ => {
-                // For other dimensions, use the fact that det(A) = det(L) * det(U) for LU decomposition
-                // This is a simplified approach - we try to compute it from the inverse formula
-                // For a proper implementation, we'd need generic const expression support
-                0.0
+                // General implementation using Gaussian elimination
+                let mut m = self.0;
+                let mut det = 1.0;
+                
+                for i in 0..D {
+                    // Find pivot
+                    let mut pivot_idx = i;
+                    let mut pivot_val = m[(i, i)].abs();
+                    
+                    for k in (i + 1)..D {
+                        let val = m[(k, i)].abs();
+                        if val > pivot_val {
+                            pivot_val = val;
+                            pivot_idx = k;
+                        }
+                    }
+                    
+                    if pivot_val < 1e-10 {
+                        return 0.0;
+                    }
+                    
+                    if pivot_idx != i {
+                        m.swap_rows(i, pivot_idx);
+                        det = -det;
+                    }
+                    
+                    det *= m[(i, i)];
+                    
+                    for j in (i + 1)..D {
+                        let factor = m[(j, i)] / m[(i, i)];
+                        for k in i..D {
+                            m[(j, k)] -= factor * m[(i, k)];
+                        }
+                    }
+                }
+                
+                det
             }
         }
     }
