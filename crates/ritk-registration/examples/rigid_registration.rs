@@ -5,7 +5,7 @@
 //!
 //! 1. Load fixed and moving images from NIfTI files
 //! 2. Create a rigid transform with initial parameters
-//! 3. Set up the Advanced Mutual Information metric
+//! 3. Set up the Mutual Information metric
 //! 4. Configure the Multi-Resolution Schedule
 //! 5. Execute registration
 //! 6. Save the registered result

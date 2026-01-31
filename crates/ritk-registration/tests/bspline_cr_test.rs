@@ -4,14 +4,14 @@ use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::transform::{BSplineTransform, Transform};
 use ritk_core::spatial::{Point, Spacing, Direction};
-use ritk_registration::metric::{AdvancedCorrelationRatio, CorrelationDirection};
+use ritk_registration::metric::{CorrelationRatio, CorrelationDirection};
 use ritk_registration::registration::Registration;
 use ritk_registration::optimizer::AdamOptimizer;
 
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_bspline_acr_registration_small() {
+fn test_bspline_cr_registration_small() {
     let device = Default::default();
 
     // 1. Create small 3D images (20x20x20) for speed
@@ -62,14 +62,15 @@ fn test_bspline_acr_registration_small() {
     
     let transform = BSplineTransform::<B, 3>::new(grid_size, physical_size, coeffs);
 
-    // 3. Setup Optimizer and Metric (ACR)
+    // 3. Setup Optimizer and Metric (CR)
     let optimizer = AdamOptimizer::new(0.1);
     
     // Use fewer bins for speed (16 instead of 32)
-    let metric = AdvancedCorrelationRatio::new(
+    let metric = CorrelationRatio::new(
         16, // bins
         0.0, // min
         1.0, // max
+        1.0, // parzen_sigma
         CorrelationDirection::MovingGivenFixed
     );
     

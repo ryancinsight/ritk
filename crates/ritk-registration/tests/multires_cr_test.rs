@@ -4,14 +4,14 @@ use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::transform::TranslationTransform;
 use ritk_core::spatial::{Point, Spacing, Direction};
-use ritk_registration::metric::{AdvancedCorrelationRatio, CorrelationDirection};
+use ritk_registration::metric::{CorrelationRatio, CorrelationDirection};
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 
 type B = Autodiff<NdArray<f32>>;
 
 #[test]
-fn test_multires_acr_registration() {
+fn test_multires_cr_registration() {
     let device = Default::default();
 
     // 1. Create larger 3D images (40x40x40)
@@ -58,12 +58,13 @@ fn test_multires_acr_registration() {
     // 2. Initialize Transform
     let transform = TranslationTransform::<B, 3>::new(Tensor::zeros([3], &device));
 
-    // 3. Setup MultiRes with ACR
+    // 3. Setup MultiRes with CR
     // Note: Image values are 0.0 to 1.0
-    let metric = AdvancedCorrelationRatio::new(
+    let metric = CorrelationRatio::new(
         32, // bins
         0.0, // min
         1.0, // max
+        1.0, // parzen_sigma
         CorrelationDirection::MovingGivenFixed
     );
     let multires = MultiResolutionRegistration::new(metric);
