@@ -67,7 +67,10 @@ impl<B: Backend> GaussianFilter<B> {
             // Calculate kernel
             let pixel_sigma = sigma / spacing_val;
             let radius = (3.0 * pixel_sigma).ceil() as usize;
-            let width = (2 * radius + 1).min(self.max_kernel_width);
+            let mut width = (2 * radius + 1).min(self.max_kernel_width);
+            if width % 2 == 0 {
+                width -= 1;
+            }
             let actual_radius = (width - 1) / 2;
             
             let kernel = self.generate_kernel(pixel_sigma, actual_radius);

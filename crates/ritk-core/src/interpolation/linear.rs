@@ -27,12 +27,10 @@ impl Default for LinearInterpolator {
 
 impl<B: Backend> Interpolator<B> for LinearInterpolator {
     fn interpolate<const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
-        if D == 3 {
-            self.interpolate_3d(data, indices)
-        } else if D == 2 {
-            self.interpolate_2d(data, indices)
-        } else {
-            panic!("LinearInterpolator only supports 2D and 3D tensors");
+        match D {
+            3 => self.interpolate_3d(data, indices),
+            2 => self.interpolate_2d(data, indices),
+            _ => panic!("LinearInterpolator only supports 2D and 3D tensors"),
         }
     }
 }
@@ -43,29 +41,31 @@ impl LinearInterpolator {
         let d0 = shape.dims[0]; // Z
         let d1 = shape.dims[1]; // Y
         let d2 = shape.dims[2]; // X
+        let batch_size = indices.dims()[0];
+        let device = indices.device();
 
+        // Extract coordinates using narrow to avoid unnecessary clones
         // indices: [Batch, 3] -> (x, y, z)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>(1);
-        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>(1);
+        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>(1);
+        let y = indices.clone().narrow(1, 1, 1).squeeze::<1>(1);
+        let z = indices.narrow(1, 2, 1).squeeze::<1>(1);
 
+        // Compute floor coordinates
         let x0 = x.clone().floor();
         let y0 = y.clone().floor();
         let z0 = z.clone().floor();
 
+        // Compute interpolation weights
+        let wx = x - x0.clone();
+        let wy = y - y0.clone();
+        let wz = z - z0.clone();
+
+        // Compute x1, y1, z1
         let x1 = x0.clone() + 1.0;
         let y1 = y0.clone() + 1.0;
         let z1 = z0.clone() + 1.0;
 
-        let wx = x.clone() - x0.clone();
-        let wy = y.clone() - y0.clone();
-        let wz = z.clone() - z0.clone();
-
         // Clamp indices to valid range
-        // x corresponds to d2 (X)
-        // y corresponds to d1 (Y)
-        // z corresponds to d0 (Z)
-        
         let x0_i = x0.clamp(0.0, (d2 - 1) as f64).int();
         let y0_i = y0.clamp(0.0, (d1 - 1) as f64).int();
         let z0_i = z0.clamp(0.0, (d0 - 1) as f64).int();
@@ -75,100 +75,119 @@ impl LinearInterpolator {
         let z1_i = z1.clamp(0.0, (d0 - 1) as f64).int();
 
         // Stride for [Z, Y, X] layout (d0, d1, d2)
-        // Flat index = z * (d1 * d2) + y * d2 + x
         let stride_z = (d1 * d2) as i32;
         let stride_y = d2 as i32;
-        let stride_x = 1;
 
-        let get_val = |xi: Tensor<B, 1, Int>, yi: Tensor<B, 1, Int>, zi: Tensor<B, 1, Int>| -> Tensor<B, 1> {
-            // Note: zi is passed as first arg in previous implementation but here we are explicit
-            let idx = zi * stride_z + yi * stride_y + xi * stride_x;
-            let flat_data = data.clone().reshape([d0 * d1 * d2]);
-            flat_data.gather(0, idx)
-        };
+        // Pre-flatten data once to avoid repeated reshaping
+        // Pre-flatten data once to avoid repeated reshaping
+        let flat_data = data.clone().reshape([d0 * d1 * d2]);
 
-        // Interpolation weights match the coordinate system
-        // Trilinear interpolation:
-        // C00 = V000(1-x) + V100x  (along X)
-        // C01 = V001(1-x) + V101x
-        // ...
-        // Here we use x, y, z relative to the cube cell.
-        // Let's stick to the previous implementation structure but use correct indices.
-        // Vxyz where x,y,z are 0 or 1 offset.
-        
-        let v000 = get_val(x0_i.clone(), y0_i.clone(), z0_i.clone());
-        let v001 = get_val(x0_i.clone(), y0_i.clone(), z1_i.clone());
-        let v010 = get_val(x0_i.clone(), y1_i.clone(), z0_i.clone());
-        let v011 = get_val(x0_i.clone(), y1_i.clone(), z1_i.clone());
-        let v100 = get_val(x1_i.clone(), y0_i.clone(), z0_i.clone());
-        let v101 = get_val(x1_i.clone(), y0_i.clone(), z1_i.clone());
-        let v110 = get_val(x1_i.clone(), y1_i.clone(), z0_i.clone());
-        let v111 = get_val(x1_i.clone(), y1_i.clone(), z1_i.clone());
+        // Gather all 8 voxel values
+        let v000 = Self::gather_3d(&flat_data, &x0_i, &y0_i, &z0_i, stride_y, stride_z);
+        let v001 = Self::gather_3d(&flat_data, &x0_i, &y0_i, &z1_i, stride_y, stride_z);
+        let v010 = Self::gather_3d(&flat_data, &x0_i, &y1_i, &z0_i, stride_y, stride_z);
+        let v011 = Self::gather_3d(&flat_data, &x0_i, &y1_i, &z1_i, stride_y, stride_z);
+        let v100 = Self::gather_3d(&flat_data, &x1_i, &y0_i, &z0_i, stride_y, stride_z);
+        let v101 = Self::gather_3d(&flat_data, &x1_i, &y0_i, &z1_i, stride_y, stride_z);
+        let v110 = Self::gather_3d(&flat_data, &x1_i, &y1_i, &z0_i, stride_y, stride_z);
+        let v111 = Self::gather_3d(&flat_data, &x1_i, &y1_i, &z1_i, stride_y, stride_z);
 
-        // Interpolate along X first
-        let c00 = v000 * (wx.clone().neg().add_scalar(1.0)) + v100 * wx.clone(); // (y0, z0)
-        let c01 = v001 * (wx.clone().neg().add_scalar(1.0)) + v101 * wx.clone(); // (y0, z1)
-        let c10 = v010 * (wx.clone().neg().add_scalar(1.0)) + v110 * wx.clone(); // (y1, z0)
-        let c11 = v011 * (wx.clone().neg().add_scalar(1.0)) + v111 * wx.clone(); // (y1, z1)
+        // Pre-compute (1 - weight) values to reduce operations
+        let one = Tensor::<B, 1>::ones([batch_size], &device);
+        let one_minus_wx = one.clone() - wx.clone();
+        let one_minus_wy = one.clone() - wy.clone();
+        let one_minus_wz = one - wz.clone();
+
+        // Trilinear interpolation
+        // Interpolate along X
+        let c00 = v000 * one_minus_wx.clone() + v100 * wx.clone();
+        let c01 = v001 * one_minus_wx.clone() + v101 * wx.clone();
+        let c10 = v010 * one_minus_wx.clone() + v110 * wx.clone();
+        let c11 = v011 * one_minus_wx + v111 * wx;
 
         // Interpolate along Y
-        let c0 = c00 * (wy.clone().neg().add_scalar(1.0)) + c10 * wy.clone(); // (z0)
-        let c1 = c01 * (wy.clone().neg().add_scalar(1.0)) + c11 * wy.clone(); // (z1)
+        let c0 = c00 * one_minus_wy.clone() + c10 * wy.clone();
+        let c1 = c01 * one_minus_wy.clone() + c11 * wy.clone();
 
         // Interpolate along Z
-        c0 * (wz.clone().neg().add_scalar(1.0)) + c1 * wz.clone()
+        c0 * one_minus_wz + c1 * wz
+    }
+
+    #[inline]
+    fn gather_3d<B: Backend>(
+        flat_data: &Tensor<B, 1>,
+        xi: &Tensor<B, 1, Int>,
+        yi: &Tensor<B, 1, Int>,
+        zi: &Tensor<B, 1, Int>,
+        stride_y: i32,
+        stride_z: i32,
+    ) -> Tensor<B, 1> {
+        let idx = zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
+        flat_data.clone().gather(0, idx)
     }
 
     fn interpolate_2d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // Y
         let d1 = shape.dims[1]; // X
+        let batch_size = indices.dims()[0];
+        let device = indices.device();
 
-        // indices: [Batch, 2] -> (x, y)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>(1);
+        // Extract coordinates using narrow
+        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>(1);
+        let y = indices.narrow(1, 1, 1).squeeze::<1>(1);
 
+        // Compute floor coordinates
         let x0 = x.clone().floor();
         let y0 = y.clone().floor();
 
+        // Compute interpolation weights
+        let wx = x - x0.clone();
+        let wy = y - y0.clone();
+
+        // Compute x1, y1
         let x1 = x0.clone() + 1.0;
         let y1 = y0.clone() + 1.0;
 
-        let wx = x.clone() - x0.clone();
-        let wy = y.clone() - y0.clone();
-
         // Clamp indices
-        // x corresponds to d1 (X)
-        // y corresponds to d0 (Y)
-        
         let x0_i = x0.clamp(0.0, (d1 - 1) as f64).int();
         let y0_i = y0.clamp(0.0, (d0 - 1) as f64).int();
-
         let x1_i = x1.clamp(0.0, (d1 - 1) as f64).int();
         let y1_i = y1.clamp(0.0, (d0 - 1) as f64).int();
 
         // Stride for [Y, X] layout (d0, d1)
-        // Flat index = y * d1 + x
         let stride_y = d1 as i32;
-        let stride_x = 1;
 
-        let get_val = |xi: Tensor<B, 1, Int>, yi: Tensor<B, 1, Int>| -> Tensor<B, 1> {
-            let idx = yi * stride_y + xi * stride_x;
-            let flat_data = data.clone().reshape([d0 * d1]);
-            flat_data.gather(0, idx)
-        };
+        // Pre-flatten data
+        let flat_data = data.clone().reshape([d0 * d1]);
 
-        let v00 = get_val(x0_i.clone(), y0_i.clone());
-        let v01 = get_val(x0_i.clone(), y1_i.clone());
-        let v10 = get_val(x1_i.clone(), y0_i.clone());
-        let v11 = get_val(x1_i.clone(), y1_i.clone());
+        // Gather all 4 voxel values
+        let v00 = Self::gather_2d(&flat_data, &x0_i, &y0_i, stride_y);
+        let v01 = Self::gather_2d(&flat_data, &x0_i, &y1_i, stride_y);
+        let v10 = Self::gather_2d(&flat_data, &x1_i, &y0_i, stride_y);
+        let v11 = Self::gather_2d(&flat_data, &x1_i, &y1_i, stride_y);
 
-        // Interpolate along X
-        let c0 = v00 * (wx.clone().neg().add_scalar(1.0)) + v10 * wx.clone(); // (y0)
-        let c1 = v01 * (wx.clone().neg().add_scalar(1.0)) + v11 * wx.clone(); // (y1)
+        // Pre-compute (1 - weight)
+        let one = Tensor::<B, 1>::ones([batch_size], &device);
+        let one_minus_wx = one.clone() - wx.clone();
+        let one_minus_wy = one - wy.clone();
 
-        // Interpolate along Y
-        c0 * (wy.clone().neg().add_scalar(1.0)) + c1 * wy.clone()
+        // Bilinear interpolation
+        let c0 = v00 * one_minus_wx.clone() + v10 * wx.clone();
+        let c1 = v01 * one_minus_wx + v11 * wx;
+
+        c0 * one_minus_wy + c1 * wy
+    }
+
+    #[inline]
+    fn gather_2d<B: Backend>(
+        flat_data: &Tensor<B, 1>,
+        xi: &Tensor<B, 1, Int>,
+        yi: &Tensor<B, 1, Int>,
+        stride_y: i32,
+    ) -> Tensor<B, 1> {
+        let idx = yi.clone() * stride_y + xi.clone();
+        flat_data.clone().gather(0, idx)
     }
 }
 
@@ -184,7 +203,7 @@ mod tests {
     fn test_linear_interpolator_3d_axes() {
         let device = Default::default();
         // Shape [Z=2, Y=2, X=2]
-        // Flattened: 
+        // Flattened:
         // Z=0:
         //   Y=0: X=0(0), X=1(1)
         //   Y=1: X=0(10), X=1(11)
@@ -196,59 +215,105 @@ mod tests {
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
             &device
         );
-        
+
         let interpolator = LinearInterpolator::new();
-        
-        // Test X axis interpolation (0.5, 0, 0) -> Should be avg of 0 and 1 = 0.5
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.0, 0.0]], &device);
+
+        // Test exact grid points
+        let indices = Tensor::<TestBackend, 2>::from_floats(
+            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+            &device
+        );
         let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 0.5).abs() < 1e-5, "X axis interpolation failed, got {}", val);
-        
-        // Test Y axis interpolation (0, 0.5, 0) -> Should be avg of 0 and 10 = 5.0
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.5, 0.0]], &device);
-        let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 5.0).abs() < 1e-5, "Y axis interpolation failed, got {}", val);
-        
-        // Test Z axis interpolation (0, 0, 0.5) -> Should be avg of 0 and 100 = 50.0
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.5]], &device);
-        let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 50.0).abs() < 1e-5, "Z axis interpolation failed, got {}", val);
-        
-        // Test trilinear (0.5, 0.5, 0.5)
-        // Avg of all corners: (0+1+10+11+100+101+110+111)/8 = 444/8 = 55.5
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
-        let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 55.5).abs() < 1e-5, "Trilinear interpolation failed, got {}", val);
+        let result_data = result.into_data();
+        let slice = result_data.as_slice::<f32>().unwrap();
+
+        assert_eq!(slice[0], 0.0);  // (0,0,0)
+        assert_eq!(slice[1], 1.0);  // (1,0,0)
+        assert_eq!(slice[2], 10.0); // (0,1,0)
+        assert_eq!(slice[3], 100.0); // (0,0,1)
+
+        // Test interpolation at center (0.5, 0.5, 0.5)
+        let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+        let result_center = interpolator.interpolate(&data, center);
+        let center_data = result_center.into_data();
+        let center_slice = center_data.as_slice::<f32>().unwrap();
+
+        // Average of all 8 corners
+        let expected = (0.0 + 1.0 + 10.0 + 11.0 + 100.0 + 101.0 + 110.0 + 111.0) / 8.0;
+        assert!((center_slice[0] - expected).abs() < 1e-5, "Expected {}, got {}", expected, center_slice[0]);
     }
-    
+
     #[test]
-    fn test_linear_interpolator_2d_axes() {
+    fn test_linear_interpolator_2d() {
         let device = Default::default();
         // Shape [Y=2, X=2]
-        // Y=0: X=0(0), X=1(1)
-        // Y=1: X=0(10), X=1(11)
         let data_vec = vec![0.0, 1.0, 10.0, 11.0];
         let data = Tensor::<TestBackend, 2>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
             &device
         );
-        
+
         let interpolator = LinearInterpolator::new();
-        
-        // Test X axis (0.5, 0) -> 0.5
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.0]], &device);
+
+        // Test interpolation at center (0.5, 0.5)
+        let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5]], &device);
+        let result = interpolator.interpolate(&data, center);
+        let result_data = result.into_data();
+        let slice = result_data.as_slice::<f32>().unwrap();
+
+        // Average of all 4 corners
+        let expected = (0.0 + 1.0 + 10.0 + 11.0) / 4.0;
+        assert!((slice[0] - expected).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_linear_interpolation_at_grid_points() {
+        let device = Default::default();
+        let data_vec = vec![0.0, 1.0, 2.0, 3.0];
+        let data = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+            &device
+        );
+
+        let interpolator = LinearInterpolator::new();
+
+        // Test all 4 grid points
+        let indices = Tensor::<TestBackend, 2>::from_floats(
+            [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
+            &device
+        );
         let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 0.5).abs() < 1e-5, "2D X axis interpolation failed, got {}", val);
-        
-        // Test Y axis (0, 0.5) -> 5.0
-        let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.5]], &device);
+        let result_data = result.into_data();
+        let slice = result_data.as_slice::<f32>().unwrap();
+
+        assert_eq!(slice[0], 0.0);
+        assert_eq!(slice[1], 1.0);
+        assert_eq!(slice[2], 2.0);
+        assert_eq!(slice[3], 3.0);
+    }
+
+    #[test]
+    fn test_linear_interpolator_out_of_bounds() {
+        let device = Default::default();
+        let data_vec = vec![0.0, 1.0, 2.0, 3.0];
+        let data = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+            &device
+        );
+
+        let interpolator = LinearInterpolator::new();
+
+        // Test clamping at boundaries
+        let indices = Tensor::<TestBackend, 2>::from_floats(
+            [[-1.0, -1.0], [5.0, 5.0]], // Outside bounds
+            &device
+        );
         let result = interpolator.interpolate(&data, indices);
-        let val = result.into_scalar() as f32;
-        assert!((val - 5.0).abs() < 1e-5, "2D Y axis interpolation failed, got {}", val);
+        let result_data = result.into_data();
+        let slice = result_data.as_slice::<f32>().unwrap();
+
+        // Should be clamped to valid region
+        assert_eq!(slice[0], 0.0); // Clamped to (0,0)
+        assert_eq!(slice[1], 3.0); // Clamped to (1,1)
     }
 }

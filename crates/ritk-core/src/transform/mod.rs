@@ -10,6 +10,7 @@ pub mod versor;
 pub mod affine;
 pub mod bspline;
 pub mod chained;
+pub mod scale;
 
 pub use trait_::Transform;
 pub use translation::TranslationTransform;
@@ -18,3 +19,4 @@ pub use versor::VersorRigid3DTransform;
 pub use affine::AffineTransform;
 pub use bspline::BSplineTransform;
 pub use chained::ChainedTransform;
+pub use scale::ScaleTransform;

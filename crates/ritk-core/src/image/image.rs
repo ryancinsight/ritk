@@ -237,14 +237,17 @@ impl<B: Backend, const D: usize> Image<B, D> {
             &device,
         ).reshape([1, D]);
             
-        // 2. Prepare Transform Matrix T = D * S^-1
-        // T is such that index = (point - origin) @ T
-        // T_ij = D_ij / s_j
+        // 2. Prepare Transform Matrix T = (S^-1 * D^-1)^T = (D^-1)^T * S^-1
+        // I = (P - O) @ T
+        // T_rc = (D^-1)_cr / S_c
         
+        let inv_dir = self.direction.try_inverse().expect("Direction matrix must be invertible");
+
         let mut t_data = Vec::with_capacity(D * D);
         for r in 0..D {
             for c in 0..D {
-                let val = (self.direction[(r, c)] / self.spacing[c]) as f32;
+                // T[r, c] uses inv_dir[c, r] and spacing[c]
+                let val = (inv_dir[(c, r)] / self.spacing[c]) as f32;
                 t_data.push(val);
             }
         }

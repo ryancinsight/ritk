@@ -119,13 +119,19 @@ ritk/
 
 - **`Metric<B, D>`**: Core metric trait
 - **`MeanSquaredError`**: MSE similarity metric
-- **`MutualInformation`**: MI similarity metric (TODO)
-- **`NormalizedCrossCorrelation`**: NCC similarity metric (TODO)
+- **`MutualInformation`**: MI similarity metric
+- **`NormalizedCrossCorrelation`**: NCC similarity metric
+- **`LocalNormalizedCrossCorrelation`**: LNCC similarity metric
+- **`NormalizedMutualInformation`**: NMI similarity metric
+- **`CorrelationRatio`**: Correlation ratio metric
 
 ### Optimizers
 
 - **`Optimizer<M, B>`**: Core optimizer trait
-- **`GradientDescentOptimizer`**: Simple gradient descent with momentum
+- **`GradientDescent`**: Simple gradient descent
+- **`AdamOptimizer`**: Adam optimizer
+- **`Momentum`**: Gradient descent with momentum
+- **`LbfgsOptimizer`**: L-BFGS optimizer
 
 ### Registration
 
@@ -139,36 +145,38 @@ ritk/
 ### NIfTI Support
 
 - **`read_nifti<B, P>`**: Read NIfTI files
-- **`write_nifti<B, P>`**: Write NIfTI files (TODO)
+- **`write_nifti<B, P>`**: Write NIfTI files
 
 ### DICOM Support
 
 - **`read_dicom_series<B, P>`**: Read DICOM series
-- **`write_dicom<B, P>`**: Write DICOM files (TODO)
 
 ## Usage Example
 
 ```rust
-use ritk_core::{Image, Point3, Spacing3, Direction3};
+use burn::tensor::Tensor;
+use burn::backend::Autodiff;
+use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
-use ritk_registration::{Registration, MeanSquaredError, GradientDescentOptimizer};
+use ritk_registration::metric::MeanSquaredError;
+use ritk_registration::optimizer::GradientDescent;
+use ritk_registration::registration::Registration;
 use ritk_io::read_nifti;
 use burn_ndarray::NdArray;
 
-type Backend = NdArray<f32>;
+type Backend = Autodiff<NdArray<f32>>;
 
 // Load images
-let fixed = read_nifti::<Backend, _>("fixed.nii", &device)?;
-let moving = read_nifti::<Backend, _>("moving.nii", &device)?;
+let device = Default::default();
+let fixed: Image<Backend, 3> = read_nifti("fixed.nii", &device)?;
+let moving: Image<Backend, 3> = read_nifti("moving.nii", &device)?;
 
-// Create transform
-let translation = Tensor::zeros([3], &device);
-let rotation = Tensor::zeros([3], &device);
-let transform = RigidTransform::new(translation, rotation);
+// Create transform with center at origin
+let transform = RigidTransform::<Backend, 3>::identity(None, &device);
 
 // Create metric and optimizer
 let metric = MeanSquaredError::new();
-let optimizer = GradientDescentOptimizer::default_params();
+let optimizer = GradientDescent::new(0.01);
 
 // Run registration
 let mut registration = Registration::new(optimizer, metric);

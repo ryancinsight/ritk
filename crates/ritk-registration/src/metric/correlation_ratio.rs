@@ -1,6 +1,6 @@
-//! Advanced Correlation Ratio metric.
+//! Correlation Ratio metric.
 //!
-//! This module provides advanced correlation ratio
+//! This module provides correlation ratio
 //! based on elastix implementations.
 
 use burn::tensor::{Tensor, Int};
@@ -11,20 +11,22 @@ use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use super::trait_::{Metric, utils};
 use std::marker::PhantomData;
 
-/// Advanced Correlation Ratio Metric.
+/// Correlation Ratio Metric.
 ///
 /// Computes correlation ratio between two images using differentiable soft histogramming
 /// (Parzen window / Linear Partial Volume Estimation).
 /// This metric is asymmetric and measures how well one image
 /// can predict the other.
 #[derive(Clone, Debug)]
-pub struct AdvancedCorrelationRatio<B: Backend> {
+pub struct CorrelationRatio<B: Backend> {
     /// Number of histogram bins
     num_bins: usize,
     /// Minimum intensity value
     min_intensity: f32,
     /// Maximum intensity value
     max_intensity: f32,
+    /// Parzen window sigma (standard deviation)
+    parzen_sigma: f32,
     /// Direction of correlation
     direction: CorrelationDirection,
     /// Interpolator for resampling
@@ -42,24 +44,27 @@ pub enum CorrelationDirection {
     FixedGivenMoving,
 }
 
-impl<B: Backend> AdvancedCorrelationRatio<B> {
-    /// Create a new Advanced Correlation Ratio metric.
+impl<B: Backend> CorrelationRatio<B> {
+    /// Create a new Correlation Ratio metric.
     ///
     /// # Arguments
     /// * `num_bins` - Number of histogram bins
     /// * `min_intensity` - Minimum intensity value
     /// * `max_intensity` - Maximum intensity value
+    /// * `parzen_sigma` - Parzen window sigma (e.g. 1.0)
     /// * `direction` - Direction of correlation
     pub fn new(
         num_bins: usize,
         min_intensity: f32,
         max_intensity: f32,
+        parzen_sigma: f32,
         direction: CorrelationDirection,
     ) -> Self {
         Self {
             num_bins,
             min_intensity,
             max_intensity,
+            parzen_sigma,
             direction,
             interpolator: LinearInterpolator::new(),
             _phantom: PhantomData,
@@ -68,11 +73,11 @@ impl<B: Backend> AdvancedCorrelationRatio<B> {
 
     /// Create with default parameters.
     pub fn default_params() -> Self {
-        Self::new(32, 0.0, 255.0, CorrelationDirection::MovingGivenFixed)
+        Self::new(32, 0.0, 255.0, 1.0, CorrelationDirection::MovingGivenFixed)
     }
 
     /// Compute soft joint histogram between two images (flattened).
-    /// Uses linear kernel (triangle) for differentiability.
+    /// Uses Gaussian kernel for differentiability.
     fn compute_joint_histogram(&self, fixed: &Tensor<B, 1>, moving: &Tensor<B, 1>) -> Tensor<B, 2> {
         // Normalize intensities to [0, num_bins-1]
         let normalize = |t: Tensor<B, 1>| -> Tensor<B, 1> {
@@ -86,15 +91,17 @@ impl<B: Backend> AdvancedCorrelationRatio<B> {
         let moving_norm = normalize(moving.clone());
         
         let n = fixed.dims()[0];
-        let bins = Tensor::<B, 1, Int>::arange(0..self.num_bins as i64, &B::Device::default()).float();
+        let device = fixed.device();
+        let bins = Tensor::<B, 1, Int>::arange(0..self.num_bins as i64, &device).float();
         
         // Helper to compute weights [N, num_bins]
-        // w[i, b] = max(0, 1 - |val[i] - bin[b]|)
+        // Gaussian window: w[i, b] = exp(-0.5 * ((val[i] - bin[b]) / sigma)^2)
         let compute_weights = |vals: Tensor<B, 1>| -> Tensor<B, 2> {
             let vals_exp = vals.reshape([n, 1]);
             let bins_exp = bins.clone().reshape([1, self.num_bins]);
-            let dist = (vals_exp - bins_exp).abs();
-            (dist.neg() + 1.0).clamp_min(0.0)
+            let diff = vals_exp - bins_exp;
+            let exponent = diff.powf_scalar(2.0) * (-0.5 / (self.parzen_sigma * self.parzen_sigma));
+            exponent.exp()
         };
 
         let w_fixed = compute_weights(fixed_norm);
@@ -231,7 +238,7 @@ impl<B: Backend> AdvancedCorrelationRatio<B> {
     }
 }
 
-impl<B: Backend, const D: usize> Metric<B, D> for AdvancedCorrelationRatio<B> {
+impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
     fn forward(
         &self,
         fixed: &Image<B, D>,
@@ -277,7 +284,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for AdvancedCorrelationRatio<B> {
     }
 
     fn name(&self) -> &'static str {
-        "Advanced Correlation Ratio"
+        "Correlation Ratio"
     }
 }
 
@@ -289,27 +296,28 @@ mod tests {
     type TestBackend = NdArray<f32>;
 
     #[test]
-    fn test_advanced_cr_creation() {
-        let metric = AdvancedCorrelationRatio::<TestBackend>::default_params();
+    fn test_cr_creation() {
+        let metric = CorrelationRatio::<TestBackend>::default_params();
         assert_eq!(metric.num_bins, 32);
         assert_eq!(metric.min_intensity, 0.0);
         assert_eq!(metric.max_intensity, 255.0);
+        assert_eq!(metric.parzen_sigma, 1.0);
         assert_eq!(metric.direction, CorrelationDirection::MovingGivenFixed);
     }
 
     #[test]
-    fn test_advanced_cr_name() {
-        let metric = AdvancedCorrelationRatio::<TestBackend>::default_params();
-        assert_eq!(<AdvancedCorrelationRatio<TestBackend> as Metric<TestBackend, 3>>::name(&metric), "Advanced Correlation Ratio");
+    fn test_cr_name() {
+        let metric = CorrelationRatio::<TestBackend>::default_params();
+        assert_eq!(<CorrelationRatio<TestBackend> as Metric<TestBackend, 3>>::name(&metric), "Correlation Ratio");
     }
 
     #[test]
     fn test_correlation_directions() {
-        let metric1 = AdvancedCorrelationRatio::<TestBackend>::new(
-            32, 0.0, 255.0, CorrelationDirection::MovingGivenFixed,
+        let metric1 = CorrelationRatio::<TestBackend>::new(
+            32, 0.0, 255.0, 1.0, CorrelationDirection::MovingGivenFixed,
         );
-        let metric2 = AdvancedCorrelationRatio::<TestBackend>::new(
-            32, 0.0, 255.0, CorrelationDirection::FixedGivenMoving,
+        let metric2 = CorrelationRatio::<TestBackend>::new(
+            32, 0.0, 255.0, 1.0, CorrelationDirection::FixedGivenMoving,
         );
 
         assert_eq!(metric1.direction, CorrelationDirection::MovingGivenFixed);

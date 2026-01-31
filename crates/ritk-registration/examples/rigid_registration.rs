@@ -20,7 +20,7 @@ use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 use ritk_core::filter::ResampleImageFilter;
 use ritk_core::interpolation::LinearInterpolator;
-use ritk_registration::metric::AdvancedMutualInformation;
+use ritk_registration::metric::MutualInformation;
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_io::{read_nifti, write_nifti};
@@ -104,10 +104,10 @@ fn main() -> anyhow::Result<()> {
     // =======================================================================
     println!("\nStep 3: Configuring multi-resolution registration...");
 
-    // Metric: Advanced Mutual Information
+    // Metric: Mutual Information
     // 32 bins, 32 samples (not used here as we use full image), sigma=1.0
-    // Note: AMI uses soft histogramming on full image or sampled points
-    let metric = AdvancedMutualInformation::<Backend>::new(32, 0.0, 255.0, 1.0);
+    // Note: MI uses soft histogramming on full image or sampled points
+    let metric = MutualInformation::<Backend>::new(32, 0.0, 255.0, 1.0);
     
     // Schedule: 3 levels (4x, 2x, 1x)
     // We use a gentle schedule for this example
