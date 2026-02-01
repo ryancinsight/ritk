@@ -11,6 +11,7 @@ pub mod affine;
 pub mod bspline;
 pub mod chained;
 pub mod scale;
+pub mod displacement_field;
 
 pub use trait_::Transform;
 pub use translation::TranslationTransform;
@@ -20,3 +21,4 @@ pub use affine::AffineTransform;
 pub use bspline::BSplineTransform;
 pub use chained::ChainedTransform;
 pub use scale::ScaleTransform;
+pub use displacement_field::{DisplacementFieldTransform2D, DisplacementFieldTransform3D, DisplacementField2D, DisplacementField3D};

@@ -4,7 +4,7 @@ use burn::{
         Gelu,
     },
     prelude::*,
-    tensor::activation::softmax,
+    tensor::{activation::softmax, backend::Backend},
 };
 
 #[derive(Module, Debug)]

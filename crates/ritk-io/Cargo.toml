@@ -15,5 +15,7 @@ nalgebra = { workspace = true }
 ndarray = "0.15" # Compatible with nifti 0.16
 
 [dev-dependencies]
+burn = { workspace = true }
 burn-ndarray = { workspace = true }
+ritk-core = { workspace = true }
 tempfile = { workspace = true }

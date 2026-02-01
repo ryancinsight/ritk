@@ -7,6 +7,7 @@ use burn::{
         Gelu, LayerNorm, LayerNormConfig, PaddingConfig3d,
     },
     prelude::*,
+    tensor::backend::Backend,
 };
 use swin::{SwinTransformerBlock, SwinTransformerBlockConfig};
 pub use spatial_transform::SpatialTransformer;

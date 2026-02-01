@@ -1,7 +1,6 @@
 use burn::{
     module::Module,
-    tensor::{Tensor, Int},
-    prelude::*,
+    tensor::{Tensor, Int, backend::Backend},
 };
 use std::marker::PhantomData;
 

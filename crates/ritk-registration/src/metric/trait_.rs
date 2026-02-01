@@ -83,10 +83,13 @@ pub mod utils {
     ///
     /// # Returns
     /// Tensor of shape `[N, D]` containing continuous indices
-    pub fn generate_grid<B: Backend, const D: usize>(
+    pub fn generate_grid<B, const D: usize>(
         shape: [usize; D],
         device: &B::Device,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<B, 2>
+    where
+        B: Backend,
+    {
         match D {
             3 => {
                 let s: &[usize] = shape.as_slice();
@@ -110,10 +113,13 @@ pub mod utils {
     ///
     /// # Returns
     /// Tensor of shape `[N, 3]` containing continuous indices
-    pub fn generate_grid_3d<B: Backend>(
+    pub fn generate_grid_3d<B>(
         shape: [usize; 3],
         device: &B::Device,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<B, 2>
+    where
+        B: Backend,
+    {
         let d = shape[0];
         let h = shape[1];
         let w = shape[2];
@@ -144,10 +150,13 @@ pub mod utils {
     ///
     /// # Returns
     /// Tensor of shape `[N, 2]` containing continuous indices
-    pub fn generate_grid_2d<B: Backend>(
+    pub fn generate_grid_2d<B>(
         shape: [usize; 2],
         device: &B::Device,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<B, 2>
+    where
+        B: Backend,
+    {
         let h = shape[0];
         let w = shape[1];
         let total = h * w;
