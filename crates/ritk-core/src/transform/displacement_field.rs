@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_displacement_field_3d_creation() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let displacement = Tensor::<TestBackend, 4>::zeros([3, 16, 16, 16], &device);
         let transform = DisplacementFieldTransform3D::new(displacement);
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_displacement_field_2d_creation() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let displacement = Tensor::<TestBackend, 3>::zeros([2, 32, 32], &device);
         let transform = DisplacementFieldTransform2D::new(displacement);
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_displacement_field_3d_zeros() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let transform = DisplacementFieldTransform3D::zeros([16, 16, 16], &device);
         let disp = transform.displacement();
@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_displacement_field_2d_zeros() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let transform = DisplacementFieldTransform2D::zeros([32, 32], &device);
         let disp = transform.displacement();
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_displacement_3d_with_grid_spacing() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let displacement = Tensor::<TestBackend, 4>::zeros([3, 8, 8, 8], &device);
         let transform = DisplacementFieldTransform3D::new(displacement)
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn test_transform_points_3d() {
-        let device = Default::default();
+        let device = <TestBackend as burn::backend::Backend>::Device::default();
 
         let displacement = Tensor::<TestBackend, 4>::zeros([3, 8, 8, 8], &device);
         let transform = DisplacementFieldTransform3D::new(displacement);

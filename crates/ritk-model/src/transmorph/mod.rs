@@ -36,6 +36,9 @@ pub struct TransMorph<B: Backend> {
     
     // Head
     flow_head: Conv3d<B>,
+    
+    // Final Upsampling
+    final_up: ConvTranspose3d<B>,
 
     // Diffeomorphic Integration
     integration: Option<VecInt<B>>,
@@ -143,6 +146,11 @@ impl TransMorphConfig {
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
 
+        // Final Upsampling
+        let final_up = ConvTranspose3dConfig::new([self.out_channels, self.out_channels], [4, 4, 4])
+            .with_stride([4, 4, 4])
+            .init(device);
+
         let integration = if self.integrate {
             Some(VecInt::new(self.integration_steps))
         } else {
@@ -165,6 +173,7 @@ impl TransMorphConfig {
             up1,
             conv1,
             flow_head,
+            final_up,
             integration,
         }
     }
@@ -228,15 +237,13 @@ impl<B: Backend> TransMorph<B> {
         // Head
         let mut flow = self.flow_head.forward(d1); // [B, 3, D/4, H/4, W/4]
         
-        // Optional Integration
+        // Integration
         if let Some(integration) = &self.integration {
             flow = integration.forward(flow);
         }
         
-        // Upsample flow to original resolution?
-        // Typically handled by `spatial_transform` layer which can take low-res flow.
-        // We return the flow field.
-        flow
+        // Upsample flow to original resolution
+        self.final_up.forward(flow)
     }
 }
 
