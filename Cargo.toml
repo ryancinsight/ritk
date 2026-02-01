@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/ritk-core",
-    "crates/ritk-io",
+    "crates/ritk-io", "crates/ritk-model",
     "crates/ritk-registration",
     "xtask",
 ]
@@ -10,6 +10,7 @@ resolver = "2"
 [workspace.dependencies]
 ritk-core = { path = "crates/ritk-core" }
 ritk-io = { path = "crates/ritk-io" }
+ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
 
 burn = { version = "0.16.0", features = ["wgpu", "train", "autodiff"] }

@@ -1,0 +1,13 @@
+[package]
+name = "ritk-model"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { path = "../ritk-core" }
+burn = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }

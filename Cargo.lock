@@ -4576,6 +4576,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-model"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-core",
+ "tracing",
+]
+
+[[package]]
 name = "ritk-registration"
 version = "0.1.0"
 dependencies = [
@@ -4585,6 +4596,7 @@ dependencies = [
  "nalgebra",
  "ritk-core",
  "ritk-io",
+ "ritk-model",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",

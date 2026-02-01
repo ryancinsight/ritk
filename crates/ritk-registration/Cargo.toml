@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { workspace = true }
+ritk-model = { workspace = true }
 burn = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
@@ -21,3 +22,7 @@ walkdir = "2.4"
 [[example]]
 name = "rigid_registration"
 path = "examples/rigid_registration.rs"
+
+[[example]]
+name = "dl_registration"
+path = "examples/dl_registration.rs"

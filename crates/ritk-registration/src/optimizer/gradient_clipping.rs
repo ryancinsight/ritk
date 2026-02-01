@@ -3,7 +3,6 @@
 //! This module provides gradient clipping strategies to prevent exploding gradients
 //! during registration optimization, improving stability and convergence.
 
-use std::ops::Mul;
 
 /// Gradient clipping strategy.
 #[derive(Debug, Clone, Copy, PartialEq)]

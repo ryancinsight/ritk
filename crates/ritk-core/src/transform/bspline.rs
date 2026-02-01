@@ -107,6 +107,30 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     }
     
     fn transform_2d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let batch_size = points.shape().dims[0];
+        
+        // WGPU dispatch limit workaround
+        const CHUNK_SIZE: usize = 32768;
+
+        if batch_size <= CHUNK_SIZE {
+            self.transform_2d_chunk(points)
+        } else {
+            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
+                
+                let chunk_points = points.clone().slice([start..end]);
+                let chunk_result = self.transform_2d_chunk(chunk_points);
+                chunks.push(chunk_result);
+            }
+            Tensor::cat(chunks, 0)
+        }
+    }
+
+    fn transform_2d_chunk(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
         let batch_size = points.shape().dims[0];
         
@@ -181,6 +205,30 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     }
 
     fn transform_3d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let batch_size = points.shape().dims[0];
+        
+        // WGPU dispatch limit workaround
+        const CHUNK_SIZE: usize = 32768;
+
+        if batch_size <= CHUNK_SIZE {
+            self.transform_3d_chunk(points)
+        } else {
+            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
+                
+                let chunk_points = points.clone().slice([start..end]);
+                let chunk_result = self.transform_3d_chunk(chunk_points);
+                chunks.push(chunk_result);
+            }
+            Tensor::cat(chunks, 0)
+        }
+    }
+
+    fn transform_3d_chunk(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
         let batch_size = points.shape().dims[0];
         
