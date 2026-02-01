@@ -1,5 +1,6 @@
 pub mod swin;
 pub mod spatial_transform;
+pub mod integration;
 
 use burn::{
     nn::{
@@ -11,6 +12,7 @@ use burn::{
 };
 use swin::{SwinTransformerBlock, SwinTransformerBlockConfig};
 pub use spatial_transform::SpatialTransformer;
+pub use integration::VecInt;
 
 #[derive(Module, Debug)]
 pub struct TransMorph<B: Backend> {
@@ -34,6 +36,9 @@ pub struct TransMorph<B: Backend> {
     
     // Head
     flow_head: Conv3d<B>,
+
+    // Diffeomorphic Integration
+    integration: Option<VecInt<B>>,
 }
 
 #[derive(Module, Debug)]
@@ -55,6 +60,10 @@ pub struct TransMorphConfig {
     pub out_channels: usize, // 3 for 3D displacement field
     #[config(default = 4)]
     pub window_size: usize,
+    #[config(default = false)]
+    pub integrate: bool,
+    #[config(default = 7)]
+    pub integration_steps: usize,
 }
 
 impl TransMorphConfig {
@@ -121,28 +130,24 @@ impl TransMorphConfig {
         let up2 = ConvTranspose3dConfig::new([4 * dim, 2 * dim], [2, 2, 2])
             .with_stride([2, 2, 2])
             .init(device);
-        // Concat: 2*dim + 2*dim = 4*dim
         let conv2 = ConvBlockConfig::new(4 * dim, 2 * dim).init(device);
 
         // Up 1: 2*dim -> dim
         let up1 = ConvTranspose3dConfig::new([2 * dim, dim], [2, 2, 2])
             .with_stride([2, 2, 2])
             .init(device);
-        // Concat: dim + dim = 2*dim
         let conv1 = ConvBlockConfig::new(2 * dim, dim).init(device);
 
-        // Final upsampling to original resolution not strictly needed if we want low-res flow field,
-        // but typically we upsample to full res.
-        // Assuming we want full res flow field:
-        // Current res is 1/4 of input (due to initial patch embed 4x4x4).
-        // Let's add a final upsampling layer or use interpolation. 
-        // For TransMorph, it usually outputs 1/2 or 1/1 resolution.
-        // Let's assume we output at 1/4 res and upsample linearly, or add another up layer.
-        // For simplicity here, we output at 1/4 resolution (standard for VoxelMorph/TransMorph efficiency).
-        // Flow head: dim -> 3
+        // Head: dim -> out_channels (3)
         let flow_head = Conv3dConfig::new([dim, self.out_channels], [3, 3, 3])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
+
+        let integration = if self.integrate {
+            Some(VecInt::new(self.integration_steps))
+        } else {
+            None
+        };
 
         TransMorph {
             patch_embed,
@@ -160,6 +165,7 @@ impl TransMorphConfig {
             up1,
             conv1,
             flow_head,
+            integration,
         }
     }
 }
@@ -220,7 +226,12 @@ impl<B: Backend> TransMorph<B> {
         let d1 = self.conv1.forward(cat1);
 
         // Head
-        let flow = self.flow_head.forward(d1); // [B, 3, D/4, H/4, W/4]
+        let mut flow = self.flow_head.forward(d1); // [B, 3, D/4, H/4, W/4]
+        
+        // Optional Integration
+        if let Some(integration) = &self.integration {
+            flow = integration.forward(flow);
+        }
         
         // Upsample flow to original resolution?
         // Typically handled by `spatial_transform` layer which can take low-res flow.

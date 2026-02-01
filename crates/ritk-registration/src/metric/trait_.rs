@@ -190,11 +190,51 @@ pub mod utils {
     /// * `tensor` - The input tensor
     ///
     /// # Returns
-    /// Scalar tensor containing the variance
+    /// * `variance` - Scalar tensor containing the variance
     pub fn compute_variance<B: Backend>(tensor: Tensor<B, 1>) -> Tensor<B, 1> {
         let mean = tensor.clone().mean();
         let diff = tensor - mean;
         (diff.clone() * diff).mean()
+    }
+
+    /// Generate random points within the image bounds.
+    ///
+    /// # Arguments
+    /// * `shape` - The image shape
+    /// * `num_points` - Number of points to sample
+    /// * `device` - Device
+    ///
+    /// # Returns
+    /// * `points` - Tensor of shape `[num_points, D]`
+    pub fn generate_random_points<B, const D: usize>(
+        shape: [usize; D],
+        num_points: usize,
+        device: &B::Device,
+    ) -> Tensor<B, 2>
+    where
+        B: Backend,
+    {
+        // Use uniform distribution [0, 1] and scale
+        let random = Tensor::<B, 2>::random([num_points, D], burn::tensor::Distribution::Uniform(0.0, 1.0), device);
+        
+        let mut scales = Vec::with_capacity(D);
+        match D {
+            3 => {
+                // shape: [D, H, W] -> scales: [W, H, D] (x, y, z)
+                scales.push(shape[2] as f32 - 1.0); // W
+                scales.push(shape[1] as f32 - 1.0); // H
+                scales.push(shape[0] as f32 - 1.0); // D
+            },
+            2 => {
+                // shape: [H, W] -> scales: [W, H] (x, y)
+                scales.push(shape[1] as f32 - 1.0); // W
+                scales.push(shape[0] as f32 - 1.0); // H
+            },
+            _ => panic!("Only 2D and 3D supported"),
+        }
+        
+        let scale_tensor = Tensor::<B, 1>::from_data(TensorData::new(scales, Shape::new([D])), device).unsqueeze();
+        random * scale_tensor
     }
 }
 

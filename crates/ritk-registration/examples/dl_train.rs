@@ -28,6 +28,8 @@ fn run_training() {
         embed_dim: 48,
         out_channels: 3,
         window_size: 4,
+        integrate: true,
+        integration_steps: 5,
     };
 
     println!("Initializing model...");

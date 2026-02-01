@@ -28,6 +28,8 @@ pub struct MutualInformation<B: Backend> {
     max_intensity: f32,
     /// Parzen window sigma for histogram smoothing (in bin units)
     parzen_sigma: f32,
+    /// Sampling percentage (0.0 to 1.0) for stochastic optimization
+    sampling_percentage: Option<f32>,
     /// Interpolator
     interpolator: LinearInterpolator,
     /// Phantom data
@@ -48,9 +50,23 @@ impl<B: Backend> MutualInformation<B> {
             min_intensity,
             max_intensity,
             parzen_sigma,
+            sampling_percentage: None,
             interpolator: LinearInterpolator::new(),
             _phantom: PhantomData,
         }
+    }
+
+    /// Set the sampling percentage for stochastic optimization.
+    ///
+    /// # Arguments
+    /// * `percentage` - Percentage of pixels to sample (0.0 to 1.0)
+    pub fn with_sampling(mut self, percentage: f32) -> Self {
+        if percentage > 0.0 && percentage < 1.0 {
+            self.sampling_percentage = Some(percentage);
+        } else {
+            self.sampling_percentage = None;
+        }
+        self
     }
 
     /// Create with default parameters.
@@ -146,40 +162,50 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
         
-        // Generate the full grid of indices [N, D]
-        let fixed_indices = utils::generate_grid(fixed_shape, &device);
-        let [n, _] = fixed_indices.dims();
+        // 1. Generate Coordinates (Full Grid or Random Sample)
+        let (fixed_indices, n, use_sampling) = if let Some(p) = self.sampling_percentage {
+            let total_voxels = fixed_shape.iter().product::<usize>();
+            let num_samples = (total_voxels as f32 * p) as usize;
+            let indices = utils::generate_random_points(fixed_shape, num_samples, &device);
+            (indices, num_samples, true)
+        } else {
+            let indices = utils::generate_grid(fixed_shape, &device);
+            let [n, _] = indices.dims();
+            (indices, n, false)
+        };
         
         // Use a chunk size that respects wgpu dispatch limits.
         // The limit is often 65535 for one dimension. 
         // We choose a safe size that works for all intermediate operations (transforms, interpolation).
         const CHUNK_SIZE: usize = 32768; 
 
-        let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
-        
-        if n <= CHUNK_SIZE {
+        let joint_hist = if n <= CHUNK_SIZE {
             // Process all at once
             let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
             let moving_points = transform.transform_points(fixed_points);
             let moving_indices = moving.world_to_index_tensor(moving_points);
             let moving_values = self.interpolator.interpolate(moving.data(), moving_indices);
             
-            // For fixed values, we can slice the flattened data directly because generate_grid
-            // follows the standard layout (Z, Y, X or Y, X).
-            // But we must ensure the layout matches.
-            // Image data is typically [Z, Y, X] in memory.
-            // generate_grid iterates Z, Y, X.
-            // So flat fixed_indices[i] corresponds to flat fixed_data[i].
-            let fixed_values = fixed.data().clone().reshape([n]);
+            let fixed_values = if use_sampling {
+                // If sampling, interpolate fixed values at random coordinates
+                self.interpolator.interpolate(fixed.data(), fixed_indices)
+            } else {
+                // For full grid, we can slice directly (optimization)
+                fixed.data().clone().reshape([n])
+            };
             
-            joint_hist = self.compute_joint_histogram(&fixed_values, &moving_values);
+            self.compute_joint_histogram(&fixed_values, &moving_values)
         } else {
             // Process in chunks
             let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+            let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
             
-            // Flatten fixed data once to avoid repeated reshapes
-            let fixed_data_flat = fixed.data().clone().reshape([n]);
+            // Flatten fixed data once if not sampling
+            let fixed_data_flat = if !use_sampling {
+                Some(fixed.data().clone().reshape([n]))
+            } else {
+                None
+            };
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
@@ -189,19 +215,24 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 let chunk_indices = fixed_indices.clone().slice([start..end]);
                 
                 // Pipeline for this chunk
-                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
+                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices.clone());
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let chunk_moving_values = self.interpolator.interpolate(moving.data(), chunk_moving_indices);
                 
-                // Slice fixed values for this chunk
-                let chunk_fixed_values = fixed_data_flat.clone().slice([start..end]);
+                // Get fixed values
+                let chunk_fixed_values = if use_sampling {
+                    self.interpolator.interpolate(fixed.data(), chunk_indices)
+                } else {
+                    fixed_data_flat.as_ref().unwrap().clone().slice([start..end])
+                };
                 
                 // Compute partial histogram
                 let chunk_hist = self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values);
-                joint_hist = joint_hist + chunk_hist;
+                joint_hist_acc = joint_hist_acc + chunk_hist;
             }
-        }
+            joint_hist_acc
+        };
 
         // 3. Normalize to PDF
         let sum = joint_hist.clone().sum();
