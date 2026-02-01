@@ -62,7 +62,7 @@ impl<B: Backend> MutualInformation<B> {
     /// Uses linear kernel (triangle) for differentiability.
     fn compute_joint_histogram(&self, fixed: &Tensor<B, 1>, moving: &Tensor<B, 1>) -> Tensor<B, 2> {
         let device = fixed.device();
-        let n = fixed.dims()[0];
+        let [n] = fixed.dims();
         
         // Normalize intensities to [0, num_bins-1]
         let normalize = |t: Tensor<B, 1>| -> Tensor<B, 1> {
@@ -72,36 +72,59 @@ impl<B: Backend> MutualInformation<B> {
             t.clamp(0.0, self.num_bins as f32 - 1.0)
         };
 
-        let fixed_norm = normalize(fixed.clone()); // [N]
-        let moving_norm = normalize(moving.clone()); // [N]
-
         // Create bin centers [Bins]
         let bins = Tensor::<B, 1, burn::tensor::Int>::arange(0..self.num_bins as i64, &device).float();
-        
+        let bins_exp = bins.clone().reshape([1, self.num_bins]); // [1, Bins]
+        let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+
         // Vectorized Weight Computation
         // weights: [N, Bins]
         // Use Gaussian kernel for Parzen windowing:
         // W[i, b] = exp(-0.5 * ((val[i] - b) / sigma)^2)
         
-        let compute_weights = |vals: Tensor<B, 1>| -> Tensor<B, 2> {
-            let vals_exp = vals.reshape([n, 1]); // [N, 1]
-            let bins_exp = bins.clone().reshape([1, self.num_bins]); // [1, Bins]
+        let compute_weights = |vals: Tensor<B, 1>, size: usize| -> Tensor<B, 2> {
+            let vals_exp = vals.reshape([size, 1]); // [N, 1]
             
-            let diff = vals_exp - bins_exp; // [N, Bins]
-            let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+            let diff = vals_exp - bins_exp.clone(); // [N, Bins]
             let exponent = diff.powf_scalar(2.0) * (-0.5 / sigma_sq);
             exponent.exp()
         };
         
-        let w_fixed = compute_weights(fixed_norm); // [N, Bins]
-        let w_moving = compute_weights(moving_norm); // [N, Bins]
-        
-        // Joint Histogram = W_fixed^T * W_moving
-        // [Bins, N] * [N, Bins] -> [Bins, Bins]
-        let joint_hist = w_fixed.transpose().matmul(w_moving);
-        
-        // No additional smoothing needed as the weights are already Gaussian smoothed
-        joint_hist
+        // WGPU dispatch limit workaround
+        // The matmul (Bins, N) * (N, Bins) reduces along N.
+        // If N is too large, it exceeds dispatch limits.
+        const CHUNK_SIZE: usize = 32768;
+
+        if n <= CHUNK_SIZE {
+            let fixed_norm = normalize(fixed.clone());
+            let moving_norm = normalize(moving.clone());
+            
+            let w_fixed = compute_weights(fixed_norm, n);
+            let w_moving = compute_weights(moving_norm, n);
+            
+            w_fixed.transpose().matmul(w_moving)
+        } else {
+            let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                let current_chunk_size = end - start;
+                
+                let fixed_chunk = fixed.clone().slice([start..end]);
+                let moving_chunk = moving.clone().slice([start..end]);
+
+                let fixed_norm = normalize(fixed_chunk);
+                let moving_norm = normalize(moving_chunk);
+
+                let w_fixed = compute_weights(fixed_norm, current_chunk_size);
+                let w_moving = compute_weights(moving_norm, current_chunk_size);
+                
+                joint_hist = joint_hist + w_fixed.transpose().matmul(w_moving);
+            }
+            joint_hist
+        }
     }
 
     /// Compute Entropy of a distribution P.
@@ -120,18 +143,65 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         moving: &Image<B, D>,
         transform: &impl Transform<B, D>,
     ) -> Tensor<B, 1> {
-        // 1. Sampling
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
+        
+        // Generate the full grid of indices [N, D]
         let fixed_indices = utils::generate_grid(fixed_shape, &device);
-        let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
-        let moving_points = transform.transform_points(fixed_points);
-        let moving_indices = moving.world_to_index_tensor(moving_points);
-        let moving_values = self.interpolator.interpolate(moving.data(), moving_indices);
-        let fixed_values = fixed.data().clone().reshape([fixed_indices.dims()[0]]);
+        let [n, _] = fixed_indices.dims();
+        
+        // Use a chunk size that respects wgpu dispatch limits.
+        // The limit is often 65535 for one dimension. 
+        // We choose a safe size that works for all intermediate operations (transforms, interpolation).
+        const CHUNK_SIZE: usize = 32768; 
 
-        // 2. Compute Joint Histogram
-        let joint_hist = self.compute_joint_histogram(&fixed_values, &moving_values);
+        let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+        
+        if n <= CHUNK_SIZE {
+            // Process all at once
+            let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
+            let moving_points = transform.transform_points(fixed_points);
+            let moving_indices = moving.world_to_index_tensor(moving_points);
+            let moving_values = self.interpolator.interpolate(moving.data(), moving_indices);
+            
+            // For fixed values, we can slice the flattened data directly because generate_grid
+            // follows the standard layout (Z, Y, X or Y, X).
+            // But we must ensure the layout matches.
+            // Image data is typically [Z, Y, X] in memory.
+            // generate_grid iterates Z, Y, X.
+            // So flat fixed_indices[i] corresponds to flat fixed_data[i].
+            let fixed_values = fixed.data().clone().reshape([n]);
+            
+            joint_hist = self.compute_joint_histogram(&fixed_values, &moving_values);
+        } else {
+            // Process in chunks
+            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+            
+            // Flatten fixed data once to avoid repeated reshapes
+            let fixed_data_flat = fixed.data().clone().reshape([n]);
+
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                
+                // Slice indices for this chunk
+                let chunk_indices = fixed_indices.clone().slice([start..end]);
+                
+                // Pipeline for this chunk
+                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
+                let chunk_moving_points = transform.transform_points(chunk_fixed_points);
+                let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+                let chunk_moving_values = self.interpolator.interpolate(moving.data(), chunk_moving_indices);
+                
+                // Slice fixed values for this chunk
+                let chunk_fixed_values = fixed_data_flat.clone().slice([start..end]);
+                
+                // Compute partial histogram
+                let chunk_hist = self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values);
+                joint_hist = joint_hist + chunk_hist;
+            }
+        }
 
         // 3. Normalize to PDF
         let sum = joint_hist.clone().sum();

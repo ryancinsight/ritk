@@ -229,6 +229,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     /// ```
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
+        let [n_points, _] = points.dims();
         
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
@@ -256,9 +257,29 @@ impl<B: Backend, const D: usize> Image<B, D> {
             TensorData::new(t_data, burn::tensor::Shape::new([D, D])),
             &device,
         );
+        
+        // WGPU dispatch limit workaround
+        const CHUNK_SIZE: usize = 32768;
+
+        if n_points <= CHUNK_SIZE {
+            let diff = points - origin_tensor;
+            diff.matmul(t_tensor)
+        } else {
+            let mut chunks = Vec::new();
+            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
             
-        let diff = points - origin_tensor;
-        diff.matmul(t_tensor)
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+                let chunk_points = points.clone().slice([start..end]);
+                
+                let diff = chunk_points - origin_tensor.clone();
+                let result = diff.matmul(t_tensor.clone());
+                chunks.push(result);
+            }
+            
+            Tensor::cat(chunks, 0)
+        }
     }
 
     /// Batch transform continuous indices to physical points using tensors.
@@ -291,6 +312,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     /// ```
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = indices.device();
+        let [n_points, _] = indices.dims();
         
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
@@ -316,8 +338,28 @@ impl<B: Backend, const D: usize> Image<B, D> {
             &device,
         );
             
-        let rotated = indices.matmul(m_tensor);
-        rotated + origin_tensor
+        // WGPU dispatch limit workaround
+        const CHUNK_SIZE: usize = 32768;
+
+        if n_points <= CHUNK_SIZE {
+            let rotated = indices.matmul(m_tensor);
+            rotated + origin_tensor
+        } else {
+            let mut chunks = Vec::new();
+            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+                let chunk_indices = indices.clone().slice([start..end]);
+                
+                let rotated = chunk_indices.matmul(m_tensor.clone());
+                let result = rotated + origin_tensor.clone();
+                chunks.push(result);
+            }
+            
+            Tensor::cat(chunks, 0)
+        }
     }
 }
 

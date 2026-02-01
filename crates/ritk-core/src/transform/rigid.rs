@@ -125,14 +125,36 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
         // In row vector notation:
         // y = (x - c) @ R^T + c + t
 
+        let [n_points, _] = points.dims();
         let r = self.build_rotation_matrix();
         let t = self.translation.val().reshape([1, D]);
         let c = self.center.clone().reshape([1, D]);
 
-        let centered = points - c.clone();
-        let rotated = centered.matmul(r.transpose());
-        
-        rotated + c + t
+        // WGPU has a dispatch limit of 65535. 
+        // We chunk the points to avoid hitting this limit for large images.
+        const CHUNK_SIZE: usize = 32768; // Safe margin below 65535
+
+        if n_points <= CHUNK_SIZE {
+            let centered = points - c.clone();
+            let rotated = centered.matmul(r.transpose());
+            rotated + c + t
+        } else {
+            let mut chunks = Vec::new();
+            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+                let chunk_points = points.clone().slice([start..end]);
+                
+                let centered = chunk_points - c.clone();
+                let rotated = centered.matmul(r.clone().transpose());
+                let result = rotated + c.clone() + t.clone();
+                chunks.push(result);
+            }
+            
+            Tensor::cat(chunks, 0)
+        }
     }
 }
 

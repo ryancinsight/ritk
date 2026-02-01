@@ -105,19 +105,46 @@ where
         
         // 1. Generate grid of indices for output image
         let output_indices = self.generate_grid_indices(&device);
+        let [n_pixels, _] = output_indices.dims();
         
-        // 2. Convert output indices to output physical points
-        let output_points = self.indices_to_physical(output_indices.clone(), &device);
-        
-        // 3. Apply transform to get input physical points
-        // Transform maps Output Space -> Input Space
-        let input_points = self.transform.transform_points(output_points);
-        
-        // 4. Convert input physical points to input continuous indices
-        let input_indices = input.world_to_index_tensor(input_points);
-        
-        // 5. Interpolate values
-        let output_flat = self.interpolator.interpolate(input.data(), input_indices);
+        // WGPU dispatch limit workaround
+        const CHUNK_SIZE: usize = 32768;
+
+        let output_flat = if n_pixels <= CHUNK_SIZE {
+            // Process all at once
+            
+            // 2. Convert output indices to output physical points
+            let output_points = self.indices_to_physical(output_indices, &device);
+            
+            // 3. Apply transform to get input physical points
+            let input_points = self.transform.transform_points(output_points);
+            
+            // 4. Convert input physical points to input continuous indices
+            let input_indices = input.world_to_index_tensor(input_points);
+            
+            // 5. Interpolate values
+            self.interpolator.interpolate(input.data(), input_indices)
+        } else {
+            // Process in chunks
+            let num_chunks = (n_pixels + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n_pixels);
+                
+                let chunk_indices = output_indices.clone().slice([start..end]);
+                
+                // Pipeline for this chunk
+                let chunk_out_points = self.indices_to_physical(chunk_indices, &device);
+                let chunk_in_points = self.transform.transform_points(chunk_out_points);
+                let chunk_in_indices = input.world_to_index_tensor(chunk_in_points);
+                let chunk_values = self.interpolator.interpolate(input.data(), chunk_in_indices);
+                
+                chunks.push(chunk_values);
+            }
+            Tensor::cat(chunks, 0)
+        };
         
         // 6. Reshape to output size
         let output_data = output_flat.reshape(Shape::new(self.size));

@@ -6,3 +6,4 @@ pub mod filter;
 
 pub use image::Image;
 pub use spatial::{Point, Vector, Spacing, Direction};
+pub use filter::MultiResolutionPyramid;

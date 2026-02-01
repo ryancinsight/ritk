@@ -18,9 +18,24 @@ pub mod gradient_descent;
 pub mod momentum;
 pub mod adam;
 pub mod lbfgs;
+// pub mod adaptive_sgd;
+pub mod learning_rate;
+pub mod gradient_clipping;
+// pub mod hybrid;
 
 pub use trait_::{Optimizer, LearningRateScheduler, StepDecay};
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;
 pub use adam::AdamOptimizer;
 pub use lbfgs::{LbfgsOptimizer, LbfgsConfig};
+// pub use learning_rate::{
+//     LearningRateSchedule, ConstantLR, ExponentialDecay, CosineAnnealing,
+//     WarmupCosineAnnealing, ReduceLROnPlateau, LearningRateConfig
+// };
+// pub use gradient_clipping::{
+//     GradientClipper, ClipByValue, ClipByNorm, AdaptiveClip, GradientClippingConfig
+// };
+// pub use hybrid::{
+//     HybridOptimizer, HybridConfig, HybridStage, HybridStrategy,
+//     HybridOptimizerBuilder, HybridStageBuilder
+// };

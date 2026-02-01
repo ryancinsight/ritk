@@ -102,12 +102,11 @@ where
 
         // Apply stochastic sampling if enabled
         let update = if self.stochastic_rate > 0.0 {
-            // Sample a subset of gradients
-            let mask = Tensor::zeros([grads.dims()[0]], &B::Device::default());
-            let sampled_mask = mask.clone().where(mask.clone().greater_equal(
-                Tensor::random([grads.dims()[0]], &B::Device::default()).mul_scalar(self.stochastic_rate)
-            ));
-            velocity.clone() * sampled_mask
+            // Sample a subset of gradients using mask_where
+            let random_vals = Tensor::random([grads.dims()[0]], burn::tensor::Distribution::Uniform(0.0, 1.0), &B::Device::default());
+            let threshold = Tensor::zeros([grads.dims()[0]], &B::Device::default()).add_scalar(self.stochastic_rate);
+            let mask = random_vals.clone().mask_where(random_vals.clone().greater_equal(threshold), Tensor::ones([grads.dims()[0]], &B::Device::default()));
+            velocity.clone() * mask
         } else {
             velocity
         };

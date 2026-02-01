@@ -59,6 +59,13 @@ enum Commands {
         #[arg(short, long, default_value = "test_data")]
         data_dir: PathBuf,
     },
+
+    /// Prepare data for registration demo
+    PrepareRegistrationData {
+        /// Directory containing test datasets
+        #[arg(short, long, default_value = "test_data")]
+        data_dir: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -83,6 +90,9 @@ fn main() -> Result<()> {
         }
         Commands::Clean { data_dir } => {
             clean_datasets(&data_dir)?;
+        }
+        Commands::PrepareRegistrationData { data_dir } => {
+            prepare_registration_data(&data_dir)?;
         }
     }
     
@@ -283,5 +293,41 @@ fn clean_datasets(data_dir: &Path) -> Result<()> {
     } else {
         info!("No datasets to clean");
     }
+    Ok(())
+}
+
+fn prepare_registration_data(data_dir: &Path) -> Result<()> {
+    info!("Preparing registration data in: {}", data_dir.display());
+    
+    let registration_dir = data_dir.join("registration");
+    std::fs::create_dir_all(&registration_dir)?;
+    
+    // Source files
+    let template = data_dir.join("ants_example").join("mni152.nii.gz");
+    // Use same image for moving, just to verify pipeline works (visiblehuman was broken)
+    let subject = data_dir.join("ants_example").join("mni152.nii.gz"); 
+    
+    if !template.exists() {
+        warn!("Source files missing. Attempting to download...");
+        // Fallback to trigger download if missing
+        download_datasets("ants", data_dir, false)?;
+    }
+    
+    if !template.exists() {
+         warn!("Source files still missing after download attempt.");
+         return Ok(());
+    }
+    
+    // Target files
+    let fixed_path = registration_dir.join("brain_fixed.nii.gz");
+    let moving_path = registration_dir.join("brain_moving.nii.gz");
+    
+    info!("Copying {} -> {}", template.display(), fixed_path.display());
+    std::fs::copy(template, &fixed_path)?;
+    
+    info!("Copying {} -> {}", subject.display(), moving_path.display());
+    std::fs::copy(subject, &moving_path)?;
+    
+    info!("Registration data prepared successfully!");
     Ok(())
 }

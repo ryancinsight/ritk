@@ -85,17 +85,38 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         // In row vector notation (standard for Burn/PyTorch inputs [N, D]):
         // y = (x - c) @ A^T + c + t
 
+        let [n_points, _] = points.dims();
         let c = self.center.clone().reshape([1, D]);
         let t = self.translation.val().reshape([1, D]);
         let a = self.matrix.val();
+        
+        // WGPU has a dispatch limit of 65535. 
+        // We chunk the points to avoid hitting this limit for large images.
+        const CHUNK_SIZE: usize = 32768; // Safe margin below 65535
 
-        let centered = points - c.clone();
-        
-        // Matmul: [N, D] x [D, D]^T -> [N, D] x [D, D] (if transposed)
-        // Correct is: (x-c) * A^T
-        let rotated = centered.matmul(a.transpose());
-        
-        rotated + c + t
+        if n_points <= CHUNK_SIZE {
+            let centered = points - c.clone();
+            // Matmul: [N, D] x [D, D]^T -> [N, D] x [D, D] (if transposed)
+            // Correct is: (x-c) * A^T
+            let rotated = centered.matmul(a.transpose());
+            rotated + c + t
+        } else {
+            let mut chunks = Vec::new();
+            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+                let chunk_points = points.clone().slice([start..end]);
+                
+                let centered = chunk_points - c.clone();
+                let rotated = centered.matmul(a.clone().transpose());
+                let result = rotated + c.clone() + t.clone();
+                chunks.push(result);
+            }
+            
+            Tensor::cat(chunks, 0)
+        }
     }
 }
 

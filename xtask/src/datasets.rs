@@ -12,7 +12,6 @@ pub trait Dataset {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn urls(&self) -> Vec<(&'static str, &'static str)>; // (url, expected_sha256)
-    fn extract_data(&self, data: &[u8], dest: &Path) -> Result<()>;
 }
 
 /// Manager for dataset operations
@@ -120,8 +119,8 @@ fn download_with_progress(url: &str) -> Result<Vec<u8>> {
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")?
-            .progress_chars("#>-"),
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")?
+        .progress_chars("#>-"),
     );
     
     let mut data = Vec::new();
@@ -220,11 +219,6 @@ impl Dataset for OpenNeuroDataset {
             ("https://s3.amazonaws.com/openneuro.org/ds000102/sub-01/anat/sub-01_T1w.nii.gz", ""),
         ]
     }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        // Files are already .nii.gz, no extraction needed
-        Ok(())
-    }
 }
 
 /// ANTs example data (small test brain)
@@ -246,15 +240,13 @@ impl Dataset for AntsExampleDataset {
     }
     
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
-        // ANTs provides example data on GitHub
+        // Using niivue-demo-images which are reliable
         vec![
-            ("https://github.com/ANTsX/ANTs/raw/master/Data/Template/S_template.nii.gz", ""),
-            ("https://github.com/ANTsX/ANTs/raw/master/Data/Template/S_templateCerebellum.nii.gz", ""),
+            // MNI152 template (Standard space)
+            ("https://github.com/niivue/niivue-demo-images/raw/main/mni152.nii.gz", ""),
+            // Visible Human (Another brain to register)
+            ("https://github.com/niivue/niivue-demo-images/raw/main/visiblehuman.nii.gz", ""),
         ]
-    }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
     }
 }
 
@@ -280,10 +272,6 @@ impl Dataset for BrainWebDataset {
         // BrainWeb requires form submission
         vec![]
     }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
-    }
 }
 
 /// OASIS Brains Dataset (requires registration)
@@ -307,10 +295,6 @@ impl Dataset for OasisDataset {
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // OASIS requires registration
         vec![]
-    }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
     }
 }
 
@@ -336,10 +320,6 @@ impl Dataset for IxiDataset {
         // IXI has direct download links for sample data
         vec![]
     }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
-    }
 }
 
 /// Learn2Reg Challenge Dataset
@@ -364,10 +344,6 @@ impl Dataset for Learn2RegDataset {
         // Learn2Reg datasets are hosted on Zenodo
         vec![]
     }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
-    }
 }
 
 /// SynthStrip brain MRI data (freely available)
@@ -391,36 +367,5 @@ impl Dataset for SynthStripDataset {
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // SynthStrip has some test data available
         vec![]
-    }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
-    }
-}
-
-/// Generate synthetic test data
-pub struct SyntheticDataset;
-
-impl SyntheticDataset {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Dataset for SyntheticDataset {
-    fn name(&self) -> &'static str {
-        "synthetic"
-    }
-    
-    fn description(&self) -> &'static str {
-        "Synthetic test data generated locally"
-    }
-    
-    fn urls(&self) -> Vec<(&'static str, &'static str)> {
-        vec![]
-    }
-    
-    fn extract_data(&self, _data: &[u8], _dest: &Path) -> Result<()> {
-        Ok(())
     }
 }
