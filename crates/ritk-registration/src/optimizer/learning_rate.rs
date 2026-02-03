@@ -181,7 +181,9 @@ mod tests {
     fn test_inverse_time_decay() {
         let schedule = LearningRateSchedule::inverse_time_decay(0.1, 0.01);
         assert_eq!(schedule.get_learning_rate(0), 0.1);
-        assert!((schedule.get_learning_rate(100) - 0.0099).abs() < 0.001);
+        // Formula: lr = initial_lr / (1.0 + decay_rate * iteration)
+        // At iteration 100: 0.1 / (1.0 + 0.01 * 100) = 0.1 / 2.0 = 0.05
+        assert!((schedule.get_learning_rate(100) - 0.05).abs() < 0.001);
     }
 
     #[test]

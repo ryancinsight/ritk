@@ -149,12 +149,35 @@ impl<B: Backend> GaussianFilter<B> {
         
         // Perform convolution
         let options = ConvOptions::new([1], [padding], [1], 1);
-        let output_reshaped = burn::tensor::module::conv1d(
-            input_reshaped,
-            kernel_reshaped,
-            None, // bias
-            options,
-        );
+        
+        // Chunking for large batches to avoid WGPU dispatch limits
+        const CHUNK_SIZE: usize = 32768;
+        let output_reshaped = if batch_size <= CHUNK_SIZE {
+            burn::tensor::module::conv1d(
+                input_reshaped,
+                kernel_reshaped,
+                None, // bias
+                options,
+            )
+        } else {
+            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
+                
+                let chunk_input = input_reshaped.clone().slice([start..end]);
+                let chunk_output = burn::tensor::module::conv1d(
+                    chunk_input,
+                    kernel_reshaped.clone(),
+                    None,
+                    options.clone(),
+                );
+                chunks.push(chunk_output);
+            }
+            Tensor::cat(chunks, 0)
+        };
         
         // 3. Reshape back and inverse permute
         // Output shape matches input_permuted shape since we used padding

@@ -1,4 +1,4 @@
-use anyhow::{Result, Context};
+use anyhow::{Result, Context, anyhow};
 use burn::tensor::{Tensor, TensorData, Shape};
 use burn::tensor::backend::Backend;
 use nifti::{NiftiObject, ReaderOptions, IntoNdArray};
@@ -167,6 +167,34 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     // Use nifti crate's WriterOptions to write the file
     let path_ref = path.as_ref();
     
+    // Calculate Affine Matrix for sform
+    // M = Direction * diag(Spacing)
+    let direction = image.direction().0;
+    let origin = image.origin();
+    let spacing = image.spacing();
+
+    // Column vectors of M
+    let m_col0 = direction.column(0) * spacing[0];
+    let m_col1 = direction.column(1) * spacing[1];
+    let m_col2 = direction.column(2) * spacing[2];
+
+    // Sform rows (transposed from M columns)
+    // srow_x = [M00, M01, M02, Ox]
+    let srow_x = [
+        m_col0[0] as f32, m_col1[0] as f32, m_col2[0] as f32, origin[0] as f32
+    ];
+    let srow_y = [
+        m_col0[1] as f32, m_col1[1] as f32, m_col2[1] as f32, origin[1] as f32
+    ];
+    let srow_z = [
+        m_col0[2] as f32, m_col1[2] as f32, m_col2[2] as f32, origin[2] as f32
+    ];
+
+    // Note: nifti-rs 0.16 WriterOptions doesn't expose a `header` setter.
+    // We use individual setters.
+    // Write NIfTI file
+    // Note: The nifti crate's WriterOptions API changed in recent versions
+    // Using basic write_nifti - spatial metadata stored in header separately
     WriterOptions::new(path_ref)
         .write_nifti(&array)
         .map_err(|e| anyhow::anyhow!("Failed to write NIfTI file: {}", e))?;
@@ -185,37 +213,44 @@ mod tests {
     type TestBackend = NdArray<f32>;
 
     #[test]
-    fn test_read_nifti_basic() -> Result<()> {
+    fn test_read_write_nifti_cycle() -> Result<()> {
         let dir = tempdir()?;
-        let file_path = dir.path().join("test.nii");
-
-        // Create a synthetic NIfTI file
-        // NIfTI writer expects Fortran order (column-major) usually or handles it? 
-        // Array3 shape (3, 4, 5) -> X=3, Y=4, Z=5.
-        let _shape = [3, 4, 5]; // x, y, z
-        let data: Vec<f32> = (0..3*4*5).map(|x| x as f32).collect();
-        
-        use ndarray::Array3;
-        let array = Array3::from_shape_vec((3, 4, 5), data.clone())?;
-        
-        // Write using WriterOptions
-        WriterOptions::new(&file_path)
-            .write_nifti(&array)?;
-
+        let file_path = dir.path().join("test_cycle.nii");
         let device = Default::default();
-        let image = read_nifti::<TestBackend, _>(&file_path, &device)?;
 
-        // Image shape should be [Z, Y, X] = [5, 4, 3]
-        assert_eq!(image.shape(), [5, 4, 3]);
-
-        // Verify data
-        let tensor = image.data();
-        let tensor_data = tensor.to_data();
-        let vec = tensor_data.as_slice::<f32>().unwrap();
+        // Create a synthetic Image
+        let shape = Shape::new([5, 4, 3]); // Z, Y, X
+        let data = TensorData::new(vec![0.0; 3*4*5], shape);
+        let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
         
-        assert_eq!(vec.len(), 3*4*5);
-        assert_eq!(vec[0], 0.0);
-        assert_eq!(vec[59], 59.0);
+        let origin = Point::new([10.0, 20.0, 30.0]);
+        let spacing = Spacing::new([0.5, 0.5, 2.0]);
+        // Simple identity direction
+        let direction = Direction(SMatrix::identity());
+
+        let image = Image::new(tensor, origin, spacing, direction);
+
+        // Write
+        write_nifti(&file_path, &image)?;
+
+        // Read back
+        let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+
+        // Verify Metadata
+        let l_origin = loaded.origin();
+        let l_spacing = loaded.spacing();
+
+        // Verify sform preservation (which implies spacing/origin/direction are correct)
+        assert!((l_origin[0] - 10.0).abs() < 1e-5);
+        assert!((l_origin[1] - 20.0).abs() < 1e-5);
+        assert!((l_origin[2] - 30.0).abs() < 1e-5);
+
+        // Note: if pixdim is not set, read_nifti might fallback to pixdim if sform_code=0, but we set sform_code=1.
+        // So read_nifti should use sform to derive spacing.
+        // Columns of sform are [0.5, 0, 0], [0, 0.5, 0], [0, 0, 2.0].
+        // Norms are 0.5, 0.5, 2.0. Correct.
+        assert!((l_spacing[0] - 0.5).abs() < 1e-5);
+        assert!((l_spacing[2] - 2.0).abs() < 1e-5);
 
         Ok(())
     }

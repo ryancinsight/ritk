@@ -72,7 +72,7 @@ fn test_registration_translation_2d() {
     
     // Execute
     // High learning rate for simple problem
-    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1.0);
+    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1.0).unwrap();
     
     // Check result
     // TranslationTransform stores param.

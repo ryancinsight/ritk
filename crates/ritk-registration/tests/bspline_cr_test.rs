@@ -55,12 +55,19 @@ fn test_bspline_cr_registration_small() {
     // 2. Initialize BSpline Transform
     // Grid size 5x5x5
     let grid_size = [5, 5, 5];
-    let physical_size = [19.0, 19.0, 19.0]; // 0 to 19
     
     let num_control_points = 5 * 5 * 5;
     let coeffs = Tensor::<B, 2>::zeros([num_control_points, 3], &device);
     
-    let transform = BSplineTransform::<B, 3>::new(grid_size, physical_size, coeffs);
+    // Use from_spatial for simpler API with spatial types
+    let transform = BSplineTransform::<B, 3>::from_spatial(
+        grid_size,
+        &origin,
+        &spacing,
+        &direction,
+        coeffs,
+        &device,
+    );
 
     // 3. Setup Optimizer and Metric (CR)
     let optimizer = AdamOptimizer::new(0.1);
@@ -78,7 +85,7 @@ fn test_bspline_cr_registration_small() {
 
     // 4. Execute Registration
     // 50 iterations should be enough to see movement
-    let result_transform = registration.execute(&fixed, &moving, transform, 50, 0.1);
+    let result_transform = registration.execute(&fixed, &moving, transform, 50, 0.1).unwrap();
 
     // 5. Verify Result
     // Check deformation at the center (10, 10, 10)

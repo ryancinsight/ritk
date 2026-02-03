@@ -71,7 +71,7 @@ fn test_registration_versor_3d_rotation() {
     let mut registration = Registration::new(optimizer, metric);
 
     // Run registration
-    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2);
+    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2).unwrap();
 
     let r_est = result_transform.rotation().into_data();
     let r_vals = r_est.as_slice::<f32>().unwrap();

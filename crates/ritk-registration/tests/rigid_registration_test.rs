@@ -82,7 +82,7 @@ fn test_registration_rigid_3d() {
     let mut registration = Registration::new(optimizer, metric);
 
     // 4. Execute Registration
-    let result_transform = registration.execute(&fixed, &moving, transform, 300, 1e-1);
+    let result_transform = registration.execute(&fixed, &moving, transform, 300, 1e-1).unwrap();
 
     // 5. Verify Result
     let t_est = result_transform.translation().into_data();
@@ -149,7 +149,7 @@ fn test_registration_rigid_full() {
     let mut registration = Registration::new(optimizer, metric);
 
     // Rotation optimization might need lower LR or more steps
-    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2);
+    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2).unwrap();
 
     let r_est = result_transform.rotation().into_data();
     let r_vals = r_est.as_slice::<f32>().unwrap();

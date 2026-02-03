@@ -3,6 +3,25 @@
 //! This module provides gradient clipping strategies to prevent exploding gradients
 //! during registration optimization, improving stability and convergence.
 
+/// Clip gradients by global L2 norm.
+///
+/// # Arguments
+/// * `gradients` - The gradients to clip (as a slice of f64 values)
+/// * `max_norm` - Maximum global L2 norm
+///
+/// # Returns
+/// The clipped gradients as a Vec<f64>
+pub fn clip_gradients_l2(gradients: &[f64], max_norm: f64) -> Vec<f64> {
+    let total_norm_sq: f64 = gradients.iter().map(|x| x * x).sum();
+    let total_norm = total_norm_sq.sqrt();
+    
+    if total_norm > max_norm && total_norm > 0.0 {
+        let scale = max_norm / total_norm;
+        gradients.iter().map(|x| x * scale).collect()
+    } else {
+        gradients.to_vec()
+    }
+}
 
 /// Gradient clipping strategy.
 #[derive(Debug, Clone, Copy, PartialEq)]

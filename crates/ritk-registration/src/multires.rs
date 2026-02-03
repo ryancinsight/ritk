@@ -109,6 +109,14 @@ where
             let fixed_level = fixed_pyramid.get_level(i);
             let moving_level = moving_pyramid.get_level(i);
             
+            // Resample transform to current level resolution
+            transform = transform.resample(
+                fixed_level.shape(),
+                *fixed_level.origin(),
+                *fixed_level.spacing(),
+                *fixed_level.direction()
+            );
+
             let lr = schedule.learning_rates[i];
             let iters = schedule.iterations[i];
             
@@ -126,7 +134,7 @@ where
                 transform,
                 iters,
                 lr,
-            );
+            ).expect("Registration failed at multiresolution level");
         }
         
         transform

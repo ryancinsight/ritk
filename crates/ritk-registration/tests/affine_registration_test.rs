@@ -67,7 +67,7 @@ fn test_registration_affine_translation() {
     let mut registration = Registration::new(optimizer, metric);
 
     // 4. Execute Registration
-    let result_transform = registration.execute(&fixed, &moving, transform, 300, 1e-1);
+    let result_transform = registration.execute(&fixed, &moving, transform, 300, 1e-1).unwrap();
 
     // 5. Verify Result
     let t_est = result_transform.translation().into_data();
@@ -139,7 +139,7 @@ fn test_registration_affine_scaling() {
 
     // 4. Execute Registration
     // Scale optimization might be tricky, use reasonable LR
-    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2);
+    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1e-2).unwrap();
 
     // 5. Verify Result
     let m_est = result_transform.matrix().into_data();

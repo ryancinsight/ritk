@@ -1,58 +1,60 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Point, Spacing, Direction};
+// use ritk_core::spatial::{Point, Spacing, Direction};
+use ritk_core::transform::displacement_field::DisplacementField;
 use anyhow::{Result, ensure};
 
-/// A dense vector field representing displacement in physical space.
-/// 
-/// Unlike a scalar Image, this holds a vector at each voxel.
-/// The tensor shape is [Channels, D, H, W] where Channels = 3 for 3D.
-/// The vector components are in physical space units (mm), not indices.
-#[derive(Debug, Clone)]
-pub struct DisplacementField<B: Backend> {
-    /// Data tensor of shape [3, D, H, W] (Z, Y, X spatial ordering)
-    pub data: Tensor<B, 4>,
-    pub origin: Point<3>,
-    pub spacing: Spacing<3>,
-    pub direction: Direction<3>,
+/// Adapter for converting between ritk Images and Burn tensors
+pub struct ImageToTensorAdapter<B: Backend> {
+    device: B::Device,
 }
 
-impl<B: Backend> DisplacementField<B> {
-    pub fn new(data: Tensor<B, 4>, origin: Point<3>, spacing: Spacing<3>, direction: Direction<3>) -> Self {
-        // Validate shape
-        let dims = data.shape().dims;
-        assert_eq!(dims[0], 3, "DisplacementField must have 3 channels");
-        Self { data, origin, spacing, direction }
+impl<B: Backend> ImageToTensorAdapter<B> {
+    /// Create new adapter
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
     }
-    
-    /// Create from a model output tensor [Batch, 3, D, H, W].
-    /// Returns a vector of DisplacementFields, one for each item in the batch.
-    /// 
-    /// Requires a reference image to establish physical space.
-    pub fn from_batch(batch: Tensor<B, 5>, reference: &Image<B, 3>) -> Vec<Self> {
-        let dims = batch.shape().dims;
-        let (b, c, d, h, w) = (dims[0], dims[1], dims[2], dims[3], dims[4]);
-        
-        assert_eq!(c, 3, "Batch must have 3 channels");
-        let ref_shape = reference.shape();
-        assert_eq!([d, h, w], [ref_shape[0], ref_shape[1], ref_shape[2]], "Batch spatial dims must match reference image");
 
-        let mut fields = Vec::with_capacity(b);
-        // Iterate over batch dimension
-        // Note: Burn doesn't have a simple "split to vec" so we slice
-        for i in 0..b {
-            let slice = batch.clone().slice([i..i+1]); // [1, 3, D, H, W]
-            let squeezed = slice.squeeze::<4>(0); // [3, D, H, W]
-            
-            fields.push(Self::new(
-                squeezed,
-                *reference.origin(),
-                *reference.spacing(),
-                *reference.direction()
-            ));
-        }
-        fields
+    /// Get the device
+    pub fn device(&self) -> B::Device {
+        self.device.clone()
+    }
+
+    /// Convert 3D image to tensor [1, 1, D, H, W]
+    pub fn image_to_tensor_3d(&self, image: &Image<B, 3>) -> Result<Tensor<B, 5>> {
+        let dims = image.shape();
+        let (d, h, w) = (dims[0], dims[1], dims[2]);
+        // Ensure data is on the correct device
+        let data = image.data().clone().to_device(&self.device);
+        Ok(data.reshape([1, 1, d, h, w]))
+    }
+
+    /// Convert tensor [1, 3, D, H, W] to DisplacementField3D
+    pub fn tensor_to_displacement_field_3d(
+        &self,
+        tensor: &Tensor<B, 5>,
+        reference: &Image<B, 3>,
+    ) -> Result<DisplacementField<B, 3>> {
+        let [batch, channels, d, h, w] = tensor.dims();
+        ensure!(batch == 1, "Batch size must be 1");
+        ensure!(channels == 3, "Displacement field must have 3 channels");
+        
+        // Extract components
+        // Tensor is [1, 3, D, H, W]
+        // We want 3 tensors of [D, H, W]
+        let x = tensor.clone().slice([0..1, 0..1, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        let y = tensor.clone().slice([0..1, 1..2, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        let z = tensor.clone().slice([0..1, 2..3, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        
+        let components = vec![x, y, z];
+        
+        Ok(DisplacementField::new(
+            components,
+            reference.origin().clone(),
+            reference.spacing().clone(),
+            reference.direction().clone(),
+        ))
     }
 }
 

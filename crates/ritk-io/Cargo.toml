@@ -12,6 +12,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 burn = { workspace = true }
 nalgebra = { workspace = true }
+rayon = { workspace = true }
 ndarray = "0.15" # Compatible with nifti 0.16
 
 [dev-dependencies]

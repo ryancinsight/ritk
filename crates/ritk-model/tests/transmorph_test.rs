@@ -14,6 +14,8 @@ fn test_transmorph_forward() {
         embed_dim: 12, // Small dim
         out_channels: 3,
         window_size: 4,
+        integrate: false,
+        integration_steps: 7,
     };
     
     let model: TransMorph<Backend> = config.init(&device);
@@ -25,9 +27,12 @@ fn test_transmorph_forward() {
     
     let output = model.forward(input);
     
-    // Output should be [1, 3, 8, 8, 8] (since we downsample by 4 initially and output at that res)
-    let dims = output.dims();
-    println!("Output dims: {:?}", dims);
+    // Output should be [1, 3, 32, 32, 32] (full resolution due to final upsampling)
+    // The encoder downsamples by 4 initially, then 3 more times by 2 (total 32x downsampling in depth)
+    // But the decoder upsamples back to full resolution with final_up (4x4x4 stride 4)
+    let dims = output.flow.dims();
+    println!("Flow dims: {:?}", dims);
+    println!("Warped dims: {:?}", output.warped.dims());
     
-    assert_eq!(dims, [1, 3, 8, 8, 8]);
+    assert_eq!(dims, [1, 3, 32, 32, 32]);
 }

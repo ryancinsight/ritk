@@ -3,14 +3,78 @@
 //! This module provides linear interpolation for 2D and 3D data.
 
 use burn::tensor::{Tensor, Int};
-use burn::tensor::backend::Backend;
+use burn::tensor::backend::{Backend, AutodiffBackend};
+use burn::module::{Module, ModuleVisitor, ModuleMapper, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
+use burn::record::{Record, PrecisionSettings};
+use serde::{Serialize, Deserialize};
 use super::trait_::Interpolator;
 
 /// Linear Interpolator.
 ///
 /// Performs linear interpolation (bilinear for 2D, trilinear for 3D).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LinearInterpolator;
+
+impl<B: Backend> Record<B> for LinearInterpolator {
+    type Item<S: PrecisionSettings> = Self;
+
+    fn into_item<S: PrecisionSettings>(self) -> Self::Item<S> {
+        self
+    }
+
+    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, _device: &B::Device) -> Self {
+        item
+    }
+}
+
+impl<B: Backend> Module<B> for LinearInterpolator {
+    type Record = Self;
+
+    fn visit<V: ModuleVisitor<B>>(&self, _visitor: &mut V) {
+        // No tensors to visit
+    }
+
+    fn map<M: ModuleMapper<B>>(self, _mapper: &mut M) -> Self {
+        self
+    }
+
+    fn into_record(self) -> Self::Record {
+        self
+    }
+
+    fn load_record(self, record: Self::Record) -> Self {
+        record
+    }
+
+    fn collect_devices(&self, devices: Vec<B::Device>) -> Vec<B::Device> {
+        devices
+    }
+
+    fn to_device(self, _device: &B::Device) -> Self {
+        self
+    }
+
+    fn fork(self, _device: &B::Device) -> Self {
+        self
+    }
+}
+
+impl<B: AutodiffBackend> AutodiffModule<B> for LinearInterpolator {
+    type InnerModule = LinearInterpolator;
+
+    fn valid(&self) -> Self::InnerModule {
+        self.clone()
+    }
+}
+
+impl ModuleDisplayDefault for LinearInterpolator {
+    fn content(&self, content: Content) -> Option<Content> {
+        Some(content.set_top_level_type("LinearInterpolator"))
+    }
+}
+
+impl ModuleDisplay for LinearInterpolator {}
+
 
 impl LinearInterpolator {
     /// Create a new linear interpolator.

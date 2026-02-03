@@ -21,12 +21,13 @@ fn run_registration_wgpu() {
     println!("Using device: {:?}", device);
 
     // 1. Configuration
-    let config_reg = TransMorphConfig {
-        in_channels: 2,
-        embed_dim: 48, // Standard TransMorph dim
-        out_channels: 3,
-        window_size: 4, // Small window for example
-    };
+    let config_reg = TransMorphConfig::new()
+        .with_in_channels(2)
+        .with_embed_dim(48) // Standard TransMorph dim
+        .with_out_channels(3)
+        .with_window_size(4) // Small window for example
+        .with_integrate(false)
+        .with_integration_steps(7);
 
     println!("Initializing model...");
     let model_reg: TransMorph<Backend> = config_reg.init(&device);

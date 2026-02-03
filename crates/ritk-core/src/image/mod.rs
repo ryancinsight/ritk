@@ -5,6 +5,8 @@
 
 pub mod image;
 pub mod metadata;
+pub mod grid;
 
 pub use image::Image;
 pub use metadata::ImageMetadata;
+pub use grid::generate_grid;

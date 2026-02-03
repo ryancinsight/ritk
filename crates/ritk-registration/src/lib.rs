@@ -2,6 +2,7 @@ pub mod metric;
 pub mod optimizer;
 pub mod registration;
 pub mod multires;
+pub mod regularization;
 // pub mod multiresolution;
 pub mod error;
 pub mod validation;

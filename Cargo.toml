@@ -22,5 +22,7 @@ anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
 bytemuck = "1.0"
-nalgebra = "0.33"
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+rayon = "1.9"
 tempfile = "3.10" # For testing

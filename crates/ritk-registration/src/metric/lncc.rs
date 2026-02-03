@@ -64,17 +64,37 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         moving: &Image<B, D>,
         transform: &impl Transform<B, D>,
     ) -> Tensor<B, 1> {
-        // 1. Generate grid and transform (same as MSE)
+        // 1. Generate grid (Full, as we need the full spatial structure for convolution)
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
-        let fixed_indices = utils::generate_grid(fixed_shape, &device); // [N, D]
+        let fixed_indices = grid::generate_grid(fixed_shape, &device); // [N, D]
+        let [n, _] = fixed_indices.dims();
 
-        let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
-        let moving_points = transform.transform_points(fixed_points);
-        let moving_indices = moving.world_to_index_tensor(moving_points);
+        // 2. Resample moving image with chunking to avoid WGPU dispatch limits
+        const CHUNK_SIZE: usize = 32768;
         
-        // 2. Interpolate moving image
-        let moving_values_flat = self.interpolator.interpolate(moving.data(), moving_indices); // [N]
+        let moving_values_flat = if n <= CHUNK_SIZE {
+            let fixed_points = fixed.index_to_world_tensor(fixed_indices);
+            let moving_points = transform.transform_points(fixed_points);
+            let moving_indices = moving.world_to_index_tensor(moving_points);
+            self.interpolator.interpolate(moving.data(), moving_indices)
+        } else {
+            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+            
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                
+                let chunk_indices = fixed_indices.clone().slice([start..end]);
+                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
+                let chunk_moving_points = transform.transform_points(chunk_fixed_points);
+                let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+                let chunk_values = self.interpolator.interpolate(moving.data(), chunk_moving_indices);
+                chunks.push(chunk_values);
+            }
+            Tensor::cat(chunks, 0)
+        };
         
         // 3. Reshape back to spatial dimensions for convolution
         // fixed.shape() gives [D, H, W] etc.

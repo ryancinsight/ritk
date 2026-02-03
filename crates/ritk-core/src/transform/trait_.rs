@@ -4,6 +4,7 @@
 
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use crate::spatial::{Point, Spacing, Direction};
 
 /// Transform trait for spatial coordinate transformations.
 ///
@@ -31,4 +32,28 @@ pub trait Transform<B: Backend, const D: usize> {
     fn inverse(&self) -> Option<Box<dyn Transform<B, D>>> {
         None
     }
+}
+
+/// Trait for transforms that can be resampled to a new grid/resolution.
+///
+/// This is used in multi-resolution registration to adapt the transform
+/// (e.g., displacement field) when moving from coarse to fine levels.
+pub trait Resampleable<B: Backend, const D: usize> {
+    /// Resample the transform to match a new image grid.
+    ///
+    /// # Arguments
+    /// * `shape` - The new image shape
+    /// * `origin` - The new image origin
+    /// * `spacing` - The new image spacing
+    /// * `direction` - The new image direction
+    ///
+    /// # Returns
+    /// A new instance of the transform adapted to the new grid.
+    fn resample(
+        &self,
+        shape: [usize; D],
+        origin: Point<D>,
+        spacing: Spacing<D>,
+        direction: Direction<D>,
+    ) -> Self;
 }

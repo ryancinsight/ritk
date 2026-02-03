@@ -83,7 +83,7 @@ fn test_verify_registration_coordinates() {
     // Same for y: 5 + t = 6 => t = 1.
     // Expected t = [2.0, 1.0].
     
-    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1.0);
+    let result_transform = registration.execute(&fixed, &moving, transform, 500, 1.0).unwrap();
     
     let p = Tensor::<B, 2>::zeros([1, 2], &device);
     let t_p = result_transform.transform_points(p);

@@ -61,13 +61,20 @@ fn test_registration_bspline_3d() {
     // 2. Initialize BSpline Transform
     // Grid size 5x5x5 covers the 10x10x10 volume with spacing 2.5
     let grid_size = [5, 5, 5];
-    let physical_size = [9.0, 9.0, 9.0]; // 0 to 9
     
     // Initialize coefficients to zero
     let num_control_points = 5 * 5 * 5;
     let coeffs = Tensor::<B, 2>::zeros([num_control_points, 3], &device);
     
-    let transform = BSplineTransform::<B, 3>::new(grid_size, physical_size, coeffs);
+    // Use from_spatial for simpler API with spatial types
+    let transform = BSplineTransform::<B, 3>::from_spatial(
+        grid_size,
+        &origin,
+        &spacing,
+        &direction,
+        coeffs,
+        &device,
+    );
 
     // 3. Setup Optimizer and Metric
     let optimizer = AdamOptimizer::new(1e-1);
@@ -76,7 +83,7 @@ fn test_registration_bspline_3d() {
 
     // 4. Execute Registration
     // We expect the deformation field to learn a shift of ~ +1.0 in the center region.
-    let result_transform = registration.execute(&fixed, &moving, transform, 200, 1e-1);
+    let result_transform = registration.execute(&fixed, &moving, transform, 200, 1e-1).unwrap();
 
     // 5. Verify Result
     // Check deformation at the center (5, 5, 5)

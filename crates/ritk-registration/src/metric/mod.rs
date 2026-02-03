@@ -3,6 +3,7 @@
 //! This module contains various similarity metrics used for image registration.
 
 pub mod trait_;
+pub mod histogram;
 pub mod mse;
 pub mod mutual_information;
 pub mod ncc;

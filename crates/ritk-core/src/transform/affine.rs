@@ -5,7 +5,8 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use burn::module::{Module, Param};
-use super::trait_::Transform;
+use super::trait_::{Transform, Resampleable};
+use crate::spatial::{Point, Spacing, Direction};
 
 /// Affine Transform (Linear transformation + Translation).
 ///
@@ -89,6 +90,7 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         let c = self.center.clone().reshape([1, D]);
         let t = self.translation.val().reshape([1, D]);
         let a = self.matrix.val();
+        let a_t = a.transpose();
         
         // WGPU has a dispatch limit of 65535. 
         // We chunk the points to avoid hitting this limit for large images.
@@ -98,7 +100,11 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
             let centered = points - c.clone();
             // Matmul: [N, D] x [D, D]^T -> [N, D] x [D, D] (if transposed)
             // Correct is: (x-c) * A^T
-            let rotated = centered.matmul(a.transpose());
+            // Burn's matmul (A @ B)
+            // We want y = x * A^T.
+            // If A is [D, D], then transpose makes it [D, D].
+            // [N, D] * [D, D] -> [N, D].
+            let rotated = centered.matmul(a_t);
             rotated + c + t
         } else {
             let mut chunks = Vec::new();
@@ -110,13 +116,25 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
                 let chunk_points = points.clone().slice([start..end]);
                 
                 let centered = chunk_points - c.clone();
-                let rotated = centered.matmul(a.clone().transpose());
+                let rotated = centered.matmul(a_t.clone());
                 let result = rotated + c.clone() + t.clone();
                 chunks.push(result);
             }
             
             Tensor::cat(chunks, 0)
         }
+    }
+}
+
+impl<B: Backend, const D: usize> Resampleable<B, D> for AffineTransform<B, D> {
+    fn resample(
+        &self,
+        _shape: [usize; D],
+        _origin: Point<D>,
+        _spacing: Spacing<D>,
+        _direction: Direction<D>,
+    ) -> Self {
+        self.clone()
     }
 }
 

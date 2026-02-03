@@ -106,7 +106,7 @@ fn test_verify_affine_scale_recovery() {
     // If we only scale, t=0.
     // A should be diag(0.5, 0.5).
     
-    let result_transform = registration.execute(&fixed, &moving, transform, 2000, 0.5);
+    let result_transform = registration.execute(&fixed, &moving, transform, 2000, 0.5).unwrap();
     
     let matrix = result_transform.matrix();
     let data = matrix.into_data();

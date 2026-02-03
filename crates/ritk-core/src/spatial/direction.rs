@@ -4,6 +4,10 @@
 
 use nalgebra::SMatrix;
 use super::Vector;
+use serde::{Serialize, Deserialize};
+use burn::module::{Module, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
+use burn::record::{Record, PrecisionSettings};
+use burn::tensor::backend::{Backend, AutodiffBackend};
 
 /// Direction matrix representing image orientation.
 ///
@@ -13,8 +17,69 @@ use super::Vector;
 ///
 /// This is a thin wrapper around nalgebra's SMatrix to provide
 /// domain-specific functionality while maintaining all nalgebra operations.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Direction<const D: usize>(pub SMatrix<f64, D, D>);
+
+impl<B: Backend, const D: usize> Record<B> for Direction<D> {
+    type Item<S: PrecisionSettings> = Direction<D>;
+
+    fn into_item<S: PrecisionSettings>(self) -> Self::Item<S> {
+        self
+    }
+
+    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, _device: &B::Device) -> Self {
+        item
+    }
+}
+
+impl<B: Backend, const D: usize> Module<B> for Direction<D> {
+    type Record = Self;
+
+    fn visit<V: burn::module::ModuleVisitor<B>>(&self, _visitor: &mut V) {
+        // No tensors to visit
+    }
+
+    fn map<M: burn::module::ModuleMapper<B>>(self, _mapper: &mut M) -> Self {
+        self
+    }
+
+    fn into_record(self) -> Self::Record {
+        self
+    }
+
+    fn load_record(self, record: Self::Record) -> Self {
+        record
+    }
+
+    fn collect_devices(&self, devices: Vec<B::Device>) -> Vec<B::Device> {
+        devices
+    }
+
+    fn to_device(self, _device: &B::Device) -> Self {
+        self
+    }
+
+    fn fork(self, _device: &B::Device) -> Self {
+        self
+    }
+}
+
+impl<B: AutodiffBackend, const D: usize> AutodiffModule<B> for Direction<D> {
+    type InnerModule = Direction<D>;
+
+    fn valid(&self) -> Self::InnerModule {
+        self.clone()
+    }
+}
+
+impl<const D: usize> ModuleDisplayDefault for Direction<D> {
+    fn content(&self, content: Content) -> Option<Content> {
+        Some(content.set_top_level_type(&format!("Direction{}D", D)))
+    }
+}
+
+impl<const D: usize> ModuleDisplay for Direction<D> {}
+
 
 impl<const D: usize> Direction<D> {
     /// Create an identity direction matrix (no rotation).

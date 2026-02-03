@@ -41,25 +41,47 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         // 1. Generate grid of points in fixed image space (indices).
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
-        let fixed_indices = utils::generate_grid(fixed_shape, &device); // [N, D]
+        let fixed_indices = grid::generate_grid(fixed_shape, &device); // [N, D]
+        let [n, _] = fixed_indices.dims();
 
-        // 2. Transform fixed indices to physical points.
-        let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone()); // [N, D]
+        // 2. Transform and interpolate with chunking to avoid WGPU dispatch limits
+        const CHUNK_SIZE: usize = 32768;
 
-        // 3. Apply Transform to get corresponding points in moving image physical space.
-        let moving_points = transform.transform_points(fixed_points); // [N, D]
+        let moving_values = if n <= CHUNK_SIZE {
+            // Transform fixed indices to physical points
+            let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
+            
+            // Apply Transform to get corresponding points in moving image physical space
+            let moving_points = transform.transform_points(fixed_points); // [N, D]
+            
+            // Transform moving physical points to moving image indices
+            let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
+            
+            // Sample moving image at moving_indices
+            self.interpolator.interpolate(moving.data(), moving_indices) // [N]
+        } else {
+            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
 
-        // 4. Transform moving physical points to moving image indices.
-        let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, n);
 
-        // 5. Sample moving image at moving_indices.
-        let moving_values = self.interpolator.interpolate(moving.data(), moving_indices); // [N]
+                let chunk_indices = fixed_indices.clone().slice([start..end]);
+                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
+                let chunk_moving_points = transform.transform_points(chunk_fixed_points);
+                let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+                let chunk_values = self.interpolator.interpolate(moving.data(), chunk_moving_indices);
+                chunks.push(chunk_values);
+            }
+            Tensor::cat(chunks, 0)
+        };
 
-        // 6. Get fixed image values
+        // 3. Get fixed image values
         // Flatten fixed data to match grid order [N]
-        let fixed_values = fixed.data().clone().reshape([fixed_indices.dims()[0]]);
+        let fixed_values = fixed.data().clone().reshape([n]);
 
-        // 7. Calculate MSE
+        // 4. Calculate MSE
         let diff = moving_values - fixed_values;
         diff.powf_scalar(2.0).mean()
     }
