@@ -6,10 +6,20 @@
 use burn::tensor::{Tensor, Int};
 use burn::tensor::backend::Backend;
 use std::marker::PhantomData;
-use crate::metric::trait_::utils;
+use std::sync::{Arc, Mutex};
 use ritk_core::image::Image;
+use ritk_core::image::grid;
 use ritk_core::transform::Transform;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+
+#[derive(Debug)]
+struct HistogramCache<B: Backend> {
+    points: Tensor<B, 2>,
+    shape: Vec<usize>,
+    origin: Vec<f64>,
+    spacing: Vec<f64>,
+    direction: Vec<f64>,
+}
 
 /// Joint Histogram Calculator using Parzen windowing.
 #[derive(Clone, Debug)]
@@ -22,6 +32,8 @@ pub struct ParzenJointHistogram<B: Backend> {
     pub max_intensity: f32,
     /// Parzen window sigma for histogram smoothing
     pub parzen_sigma: f32,
+    /// Cache for fixed image points to avoid recomputation
+    cache: Arc<Mutex<Option<HistogramCache<B>>>>,
     /// Phantom data
     _phantom: PhantomData<B>,
 }
@@ -34,6 +46,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             min_intensity,
             max_intensity,
             parzen_sigma,
+            cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
         }
     }
@@ -128,16 +141,43 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
         
-        // 1. Generate Coordinates (Full Grid or Random Sample)
-        let (fixed_indices, n, use_sampling) = if let Some(p) = sampling_percentage {
+        // 1. Determine n and points strategy
+        let (fixed_indices, n, use_sampling, cached_points) = if let Some(p) = sampling_percentage {
             let total_voxels = fixed_shape.iter().product::<usize>();
             let num_samples = (total_voxels as f32 * p) as usize;
             let indices = grid::generate_random_points(fixed_shape, num_samples, &device);
-            (indices, num_samples, true)
+            (Some(indices), num_samples, true, None)
         } else {
-            let indices = grid::generate_grid(fixed_shape, &device);
-            let [n, _] = indices.dims();
-            (indices, n, false)
+            let total_voxels = fixed_shape.iter().product::<usize>();
+
+            // Check cache
+            let cached_points = {
+                let cache = self.cache.lock().unwrap();
+                if let Some(c) = cache.as_ref() {
+                    let current_shape = fixed.shape().to_vec();
+                    let current_origin: Vec<f64> = fixed.origin().0.iter().cloned().collect();
+                    let current_spacing: Vec<f64> = fixed.spacing().0.iter().cloned().collect();
+                    let current_direction: Vec<f64> = fixed.direction().0.iter().cloned().collect();
+
+                    if c.shape == current_shape &&
+                       c.origin == current_origin &&
+                       c.spacing == current_spacing &&
+                       c.direction == current_direction {
+                        Some(c.points.clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            };
+
+            if let Some(pts) = cached_points {
+                (None, total_voxels, false, Some(pts))
+            } else {
+                let indices = grid::generate_grid(fixed_shape, &device);
+                (Some(indices), total_voxels, false, None)
+            }
         };
         
         // Use a chunk size that respects wgpu dispatch limits.
@@ -145,13 +185,31 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
         if n <= CHUNK_SIZE {
             // Process all at once
-            let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
+            // If we have cached points, use them. Else compute.
+            let fixed_points = if let Some(pts) = cached_points {
+                pts
+            } else {
+                let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
+                // Only cache if NOT sampling and not using cache (implies miss)
+                if !use_sampling {
+                     let mut cache = self.cache.lock().unwrap();
+                     *cache = Some(HistogramCache {
+                        points: pts.clone(),
+                        shape: fixed.shape().to_vec(),
+                        origin: fixed.origin().0.iter().cloned().collect(),
+                        spacing: fixed.spacing().0.iter().cloned().collect(),
+                        direction: fixed.direction().0.iter().cloned().collect(),
+                     });
+                }
+                pts
+            };
+
             let moving_points = transform.transform_points(fixed_points);
             let moving_indices = moving.world_to_index_tensor(moving_points);
             let moving_values = interpolator.interpolate(moving.data(), moving_indices);
             
             let fixed_values = if use_sampling {
-                interpolator.interpolate(fixed.data(), fixed_indices)
+                interpolator.interpolate(fixed.data(), fixed_indices.unwrap())
             } else {
                 fixed.data().clone().reshape([n])
             };
@@ -162,6 +220,26 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
             
+            // Populate cache if needed (and we are not using cached points yet)
+            let all_fixed_points = if let Some(pts) = cached_points {
+                pts
+            } else if !use_sampling {
+                // Compute all points and cache
+                let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
+                let mut cache = self.cache.lock().unwrap();
+                *cache = Some(HistogramCache {
+                    points: pts.clone(),
+                    shape: fixed.shape().to_vec(),
+                    origin: fixed.origin().0.iter().cloned().collect(),
+                    spacing: fixed.spacing().0.iter().cloned().collect(),
+                    direction: fixed.direction().0.iter().cloned().collect(),
+                });
+                pts
+            } else {
+                // Sampling, no caching, use per-chunk computation
+                Tensor::zeros([1, 1], &device)
+            };
+
             // Flatten fixed data once if not sampling
             let fixed_data_flat = if !use_sampling {
                 Some(fixed.data().clone().reshape([n]))
@@ -169,21 +247,27 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 None
             };
 
+            let have_all_points = !use_sampling;
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
                 
-                // Slice indices for this chunk
-                let chunk_indices = fixed_indices.clone().slice([start..end]);
-                
                 // Pipeline for this chunk
-                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices.clone());
+                let chunk_fixed_points = if have_all_points {
+                    all_fixed_points.clone().slice([start..end])
+                } else {
+                    let chunk_indices = fixed_indices.as_ref().unwrap().clone().slice([start..end]);
+                    fixed.index_to_world_tensor(chunk_indices)
+                };
+
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let chunk_moving_values = interpolator.interpolate(moving.data(), chunk_moving_indices);
                 
                 // Get fixed values
                 let chunk_fixed_values = if use_sampling {
+                    let chunk_indices = fixed_indices.as_ref().unwrap().clone().slice([start..end]);
                     interpolator.interpolate(fixed.data(), chunk_indices)
                 } else {
                     fixed_data_flat.as_ref().unwrap().clone().slice([start..end])

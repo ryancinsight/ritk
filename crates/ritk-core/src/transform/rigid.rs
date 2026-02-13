@@ -5,7 +5,8 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use burn::module::{Module, Param};
-use super::trait_::Transform;
+use crate::spatial::{Point, Spacing, Direction};
+use super::trait_::{Transform, Resampleable};
 
 /// Rigid Transform (Rotation + Translation).
 ///
@@ -111,6 +112,19 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
         } else {
             panic!("RigidTransform only supports 2D and 3D");
         }
+    }
+}
+
+impl<B: Backend, const D: usize> Resampleable<B, D> for RigidTransform<B, D> {
+    fn resample(
+        &self,
+        _shape: [usize; D],
+        _origin: Point<D>,
+        _spacing: Spacing<D>,
+        _direction: Direction<D>,
+    ) -> Self {
+        // Rigid transform is independent of grid resolution
+        self.clone()
     }
 }
 
