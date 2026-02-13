@@ -22,5 +22,5 @@ fn test_load_series_path_leak() {
 
     // Check if the error message contains the path
     // After fix, we expect this assertion to pass (path is NOT in message)
-    assert!(!err_msg.contains(non_existent_path.to_str().unwrap()), "Error message leaks path: {}", err_msg);
+    assert!(!err_msg.contains(non_existent_path.to_string_lossy().as_ref()), "Error message leaks path: {}", err_msg);
 }
