@@ -197,8 +197,8 @@ pub fn load_dicom_series<B: Backend>(series: &DicomSeriesInfo, device: &B::Devic
              // Apply rescaling
              let rescaled: Vec<f32> = data.into_iter().map(|v| v * slope as f32 + intercept as f32).collect();
              
-             if rescaled.len() != (rows * cols) as usize {
-                 return Err(anyhow!("Slice data size mismatch: expected {}, got {}", rows*cols, rescaled.len()));
+             if rescaled.len() != rows as usize * cols as usize {
+                 return Err(anyhow!("Slice data size mismatch: expected {}, got {}", rows as usize * cols as usize, rescaled.len()));
              }
              
              Ok(rescaled)
