@@ -18,17 +18,17 @@ pub fn generate_random_points<B: Backend, const D: usize>(
     num_samples: usize,
     device: &B::Device,
 ) -> Tensor<B, 2> {
-    let mut dims = Vec::with_capacity(D);
-    for i in 0..D {
-        let max_val = (shape[i] as f32) - 1.0;
-        // random floats in [0, 1]
-        let rand = Tensor::<B, 1>::random([num_samples], Distribution::Uniform(0.0, 1.0), device);
-        let scaled = rand * max_val;
-        dims.push(scaled);
-    }
+    // Create a scaling tensor for each dimension
+    let max_vals: Vec<f32> = shape.iter().map(|&s| (s as f32) - 1.0).collect();
+    let max_vals_tensor = Tensor::<B, 1>::from_data(
+        TensorData::new(max_vals, Shape::new([D])),
+        device,
+    ).reshape([D, 1]);
 
-    // Stack dims: [N, D]
-    Tensor::stack(dims, 1)
+    // Generate all random numbers at once, scale, and transpose
+    Tensor::<B, 2>::random([D, num_samples], Distribution::Uniform(0.0, 1.0), device)
+        .mul(max_vals_tensor) // [D, N]
+        .transpose() // [N, D]
 }
 
 /// Generate a grid of continuous indices for the given image shape.
