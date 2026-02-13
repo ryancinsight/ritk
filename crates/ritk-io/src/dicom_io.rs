@@ -91,7 +91,7 @@ pub fn load_dicom_series<B: Backend>(series: &DicomSeriesInfo, device: &B::Devic
     // We read sequentially here or parallel? Parallel is better.
     let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> = series.file_paths.par_iter()
         .map(|p| {
-            let obj = open_file(p).with_context(|| format!("Failed to open {:?}", p))?;
+            let obj = open_file(p).context("Failed to open DICOM file")?;
             Ok((p.clone(), obj))
         })
         .collect::<Result<Vec<_>>>()?;
