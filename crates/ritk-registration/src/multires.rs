@@ -1,7 +1,7 @@
 use burn::tensor::backend::AutodiffBackend;
 use burn::module::AutodiffModule;
 use ritk_core::image::Image;
-use ritk_core::transform::Transform;
+use ritk_core::transform::{Transform, Resampleable};
 use ritk_core::filter::pyramid::MultiResolutionPyramid;
 use crate::metric::Metric;
 use crate::optimizer::Optimizer;
@@ -69,7 +69,7 @@ impl<B, M, T, const D: usize> MultiResolutionRegistration<B, M, T, D>
 where
     B: AutodiffBackend,
     M: Metric<B, D> + Clone,
-    T: Transform<B, D> + AutodiffModule<B>,
+    T: Transform<B, D> + AutodiffModule<B> + Resampleable<B, D>,
 {
     /// Create a new multi-resolution registration framework.
     pub fn new(metric: M) -> Self {

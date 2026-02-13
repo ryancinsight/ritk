@@ -5,7 +5,8 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use burn::module::{Module, Param};
-use super::trait_::Transform;
+use crate::spatial::{Point, Spacing, Direction};
+use super::trait_::{Transform, Resampleable};
 
 /// Simple Translation Transform.
 ///
@@ -39,6 +40,19 @@ impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D> 
         // Broadcast translation to [Batch, D]
         let t = self.translation.val().reshape([1, D]);
         points + t
+    }
+}
+
+impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, D> {
+    fn resample(
+        &self,
+        _shape: [usize; D],
+        _origin: Point<D>,
+        _spacing: Spacing<D>,
+        _direction: Direction<D>,
+    ) -> Self {
+        // Translation is independent of grid resolution
+        self.clone()
     }
 }
 

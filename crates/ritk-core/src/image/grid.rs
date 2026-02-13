@@ -1,5 +1,35 @@
-use burn::tensor::{Tensor, TensorData, Shape};
+use burn::tensor::{Tensor, TensorData, Shape, Distribution};
 use burn::tensor::backend::Backend;
+
+/// Generate random continuous indices for the given image shape.
+///
+/// Returns a tensor of shape `[N, D]` where N is num_samples.
+/// Samples are drawn uniformly from the continuous index space [0, shape[i]-1].
+///
+/// # Arguments
+/// * `shape` - The image shape `[D0, D1, ...]`
+/// * `num_samples` - The number of random samples to generate
+/// * `device` - The device to create the tensor on
+///
+/// # Returns
+/// Tensor of shape `[N, D]` containing random continuous indices
+pub fn generate_random_points<B: Backend, const D: usize>(
+    shape: [usize; D],
+    num_samples: usize,
+    device: &B::Device,
+) -> Tensor<B, 2> {
+    // Create a scaling tensor for each dimension
+    let max_vals: Vec<f32> = shape.iter().map(|&s| (s as f32) - 1.0).collect();
+    let max_vals_tensor = Tensor::<B, 1>::from_data(
+        TensorData::new(max_vals, Shape::new([D])),
+        device,
+    ).reshape([D, 1]);
+
+    // Generate all random numbers at once, scale, and transpose
+    Tensor::<B, 2>::random([D, num_samples], Distribution::Uniform(0.0, 1.0), device)
+        .mul(max_vals_tensor) // [D, N]
+        .transpose() // [N, D]
+}
 
 /// Generate a grid of continuous indices for the given image shape.
 ///
