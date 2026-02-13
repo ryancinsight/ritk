@@ -380,4 +380,19 @@ mod tests {
         assert_eq!(slice[0], 0.0); // Clamped to (0,0)
         assert_eq!(slice[1], 3.0); // Clamped to (1,1)
     }
+
+    #[test]
+    #[should_panic(expected = "LinearInterpolator only supports 2D and 3D tensors")]
+    fn test_linear_interpolator_unsupported_dim() {
+        let device = Default::default();
+        let data_vec = vec![0.0; 16];
+        let data = Tensor::<TestBackend, 4>::from_data(
+            TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
+            &device
+        );
+
+        let interpolator = LinearInterpolator::new();
+        let indices = Tensor::<TestBackend, 2>::zeros([1, 4], &device);
+        interpolator.interpolate(&data, indices);
+    }
 }
