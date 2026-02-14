@@ -6,6 +6,7 @@ use burn::tensor::{Tensor, TensorData, Shape};
 use burn::tensor::backend::Backend;
 use burn::module::{Module, Param};
 use super::trait_::Transform;
+use nalgebra::SMatrix;
 
 /// B-Spline Transform (Free-form deformation).
 ///
@@ -137,68 +138,29 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let dir_data_result = dir_tensor.to_data();
         let dir_slice = dir_data_result.as_slice::<f32>().unwrap();
         
-        // For a D x D matrix, compute inverse
-        // For small matrices (2x2, 3x3), we can compute the inverse analytically
-        match D {
-            2 => {
-                let a = dir_slice[0];
-                let b = dir_slice[1];
-                let c = dir_slice[2];
-                let d = dir_slice[3];
-                
-                let det = a * d - b * c;
-                if det.abs() < 1e-10 {
-                    // Singular matrix - return identity
-                    return vec![1.0, 0.0, 0.0, 1.0];
-                }
-                
-                let inv_det = 1.0 / det;
-                vec![
-                    d * inv_det, -b * inv_det,
-                    -c * inv_det, a * inv_det,
-                ]
+        // Convert to SMatrix
+        // nalgebra SMatrix uses column-major storage but indices are (row, col)
+        // We assume input tensor is row-major (standard for Burn/Tensor)
+        let mut mat = SMatrix::<f32, D, D>::zeros();
+        for r in 0..D {
+            for c in 0..D {
+                mat[(r, c)] = dir_slice[r * D + c];
             }
-            3 => {
-                let a = dir_slice[0];
-                let b = dir_slice[1];
-                let c = dir_slice[2];
-                let d = dir_slice[3];
-                let e = dir_slice[4];
-                let f = dir_slice[5];
-                let g = dir_slice[6];
-                let h = dir_slice[7];
-                let i = dir_slice[8];
-                
-                // Compute minors and cofactors
-                let m11 = e * i - f * h;
-                let m12 = -(d * i - f * g);
-                let m13 = d * h - e * g;
-                let m21 = -(b * i - c * h);
-                let m22 = a * i - c * g;
-                let m23 = -(a * h - b * g);
-                let m31 = b * f - c * e;
-                let m32 = -(a * f - c * d);
-                let m33 = a * e - b * d;
-                
-                let det = a * m11 + b * m12 + c * m13;
-                if det.abs() < 1e-10 {
-                    // Singular matrix - return identity
-                    return vec![
-                        1.0, 0.0, 0.0,
-                        0.0, 1.0, 0.0,
-                        0.0, 0.0, 1.0,
-                    ];
+        }
+
+        match mat.try_inverse() {
+            Some(inv) => {
+                let mut inv_data = Vec::with_capacity(D * D);
+                // Convert back to row-major vector
+                for r in 0..D {
+                    for c in 0..D {
+                        inv_data.push(inv[(r, c)]);
+                    }
                 }
-                
-                let inv_det = 1.0 / det;
-                vec![
-                    m11 * inv_det, m12 * inv_det, m13 * inv_det,
-                    m21 * inv_det, m22 * inv_det, m23 * inv_det,
-                    m31 * inv_det, m32 * inv_det, m33 * inv_det,
-                ]
-            }
-            _ => {
-                // For other sizes, return pseudo-identity
+                inv_data
+            },
+            None => {
+                // Return identity if singular (fallback)
                 let mut identity = vec![0.0f32; D * D];
                 for i in 0..D {
                     identity[i * D + i] = 1.0;
@@ -514,16 +476,167 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         
         points + masked_displacement
     }
+
+    fn transform_4d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let batch_size = points.shape().dims[0];
+        const CHUNK_SIZE: usize = 16384; // Smaller chunk for 4D
+
+        if batch_size <= CHUNK_SIZE {
+            self.transform_4d_chunk(points)
+        } else {
+            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let mut chunks = Vec::with_capacity(num_chunks);
+
+            for i in 0..num_chunks {
+                let start = i * CHUNK_SIZE;
+                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
+
+                let chunk_points = points.clone().slice([start..end]);
+                let chunk_result = self.transform_4d_chunk(chunk_points);
+                chunks.push(chunk_result);
+            }
+            Tensor::cat(chunks, 0)
+        }
+    }
+
+    fn transform_4d_chunk(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let device = points.device();
+        let batch_size = points.shape().dims[0];
+
+        let grid_coords = self.world_to_grid_tensor(points.clone());
+
+        // Mask
+        let zero_tensor = Tensor::<B, 1>::zeros([4], &device).reshape([1, 4]);
+        let size_tensor = Tensor::<B, 1>::from_floats(
+            [self.grid_size[0] as f32 - 1.0, self.grid_size[1] as f32 - 1.0, self.grid_size[2] as f32 - 1.0, self.grid_size[3] as f32 - 1.0],
+            &device
+        ).reshape([1, 4]);
+
+        let mask = grid_coords.clone().greater_equal(zero_tensor)
+            .equal(grid_coords.clone().lower_equal(size_tensor));
+        let valid_mask = mask.float().sum_dim(1).equal_elem(4.0).float();
+
+        // Interpolation
+        let grid_indices_float = grid_coords.clone().floor();
+        let u_vec = grid_coords - grid_indices_float.clone();
+        let base_index = grid_indices_float.int() - 1;
+
+        let ux = u_vec.clone().slice([0..batch_size, 0..1]).squeeze(1);
+        let uy = u_vec.clone().slice([0..batch_size, 1..2]).squeeze(1);
+        let uz = u_vec.clone().slice([0..batch_size, 2..3]).squeeze(1);
+        let uw = u_vec.clone().slice([0..batch_size, 3..4]).squeeze(1);
+
+        let bx = Self::compute_basis_tensor(ux);
+        let by = Self::compute_basis_tensor(uy);
+        let bz = Self::compute_basis_tensor(uz);
+        let bw = Self::compute_basis_tensor(uw);
+
+        // Weights: [Batch, 4, 4, 4, 4] -> [Batch, 256]
+        let weights = bx.unsqueeze_dim::<3>(2).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4) *
+                      by.unsqueeze_dim::<3>(1).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4) *
+                      bz.unsqueeze_dim::<3>(1).unsqueeze_dim::<4>(1).unsqueeze_dim::<5>(4) *
+                      bw.unsqueeze_dim::<3>(1).unsqueeze_dim::<4>(1).unsqueeze_dim::<5>(1);
+        let weights = weights.reshape([batch_size, 256, 1]);
+
+        let nx = self.grid_size[0] as i32;
+        let ny = self.grid_size[1] as i32;
+        let nz = self.grid_size[2] as i32;
+        let nw = self.grid_size[3] as i32;
+
+        let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+
+        let i_idx = range.clone().reshape([1, 4, 1, 1, 1]);
+        let j_idx = range.clone().reshape([1, 1, 4, 1, 1]);
+        let k_idx = range.clone().reshape([1, 1, 1, 4, 1]);
+        let l_idx = range.clone().reshape([1, 1, 1, 1, 4]);
+
+        let base_x = base_index.clone().slice([0..batch_size, 0..1]).unsqueeze_dim::<3>(2).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4);
+        let base_y = base_index.clone().slice([0..batch_size, 1..2]).unsqueeze_dim::<3>(2).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4);
+        let base_z = base_index.clone().slice([0..batch_size, 2..3]).unsqueeze_dim::<3>(2).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4);
+        let base_w = base_index.clone().slice([0..batch_size, 3..4]).unsqueeze_dim::<3>(2).unsqueeze_dim::<4>(3).unsqueeze_dim::<5>(4);
+
+        let idx_x = base_x + i_idx;
+        let idx_y = base_y + j_idx;
+        let idx_z = base_z + k_idx;
+        let idx_w = base_w + l_idx;
+
+        let zeros = Tensor::<B, 5, burn::tensor::Int>::zeros([1, 4, 4, 4, 4], &device);
+
+        let idx_x_flat = (idx_x + zeros.clone()).reshape([batch_size, 256]);
+        let idx_y_flat = (idx_y + zeros.clone()).reshape([batch_size, 256]);
+        let idx_z_flat = (idx_z + zeros.clone()).reshape([batch_size, 256]);
+        let idx_w_flat = (idx_w + zeros.clone()).reshape([batch_size, 256]);
+
+        let idx_x_clamped = idx_x_flat.clamp(0, nx - 1);
+        let idx_y_clamped = idx_y_flat.clamp(0, ny - 1);
+        let idx_z_clamped = idx_z_flat.clamp(0, nz - 1);
+        let idx_w_clamped = idx_w_flat.clamp(0, nw - 1);
+
+        let stride_w = nx * ny * nz;
+        let stride_z = nx * ny;
+        let stride_y = nx;
+
+        let flat_indices = idx_w_clamped * stride_w + idx_z_clamped * stride_z + idx_y_clamped * stride_y + idx_x_clamped;
+
+        let gather_indices = flat_indices.reshape([batch_size * 256]);
+        let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*256, 4]
+        let coeffs = coeffs.reshape([batch_size, 256, 4]);
+
+        let displacement = (coeffs * weights).sum_dim(1).squeeze(1);
+        points + displacement * valid_mask
+    }
+
+    fn transform_1d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let device = points.device();
+        let batch_size = points.shape().dims[0];
+
+        let grid_coords = self.world_to_grid_tensor(points.clone()); // [Batch, 1]
+
+        let zero_tensor = Tensor::<B, 1>::zeros([1], &device).reshape([1, 1]);
+        let size_tensor = Tensor::<B, 1>::from_floats(
+            [self.grid_size[0] as f32 - 1.0],
+            &device
+        ).reshape([1, 1]);
+
+        let mask = grid_coords.clone().greater_equal(zero_tensor)
+            .equal(grid_coords.clone().lower_equal(size_tensor));
+        let valid_mask = mask.float(); // [Batch, 1]
+
+        let grid_indices_float = grid_coords.clone().floor();
+        let u_vec = grid_coords - grid_indices_float.clone();
+        let base_index = grid_indices_float.int() - 1;
+
+        let ux = u_vec.squeeze(1);
+        let bx = Self::compute_basis_tensor(ux); // [Batch, 4]
+        let weights = bx.unsqueeze_dim::<3>(2); // [Batch, 4, 1]
+
+        let nx = self.grid_size[0] as i32;
+        let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+        let i_idx = range.reshape([1, 4]);
+
+        let base_x = base_index.clone().squeeze::<1>(1).unsqueeze_dim::<2>(1); // [Batch, 1]
+        let idx_x = base_x + i_idx; // [Batch, 4]
+
+        let idx_x_clamped = idx_x.clamp(0, nx - 1); // [Batch, 4]
+        let flat_indices = idx_x_clamped;
+
+        let gather_indices = flat_indices.reshape([batch_size * 4]);
+        let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*4, 1]
+        let coeffs = coeffs.reshape([batch_size, 4, 1]);
+
+        let displacement = (coeffs * weights).sum_dim(1).squeeze(1); // [Batch, 1]
+        points + displacement * valid_mask
+    }
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for BSplineTransform<B, D> {
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        if D == 2 {
-            self.transform_2d(points)
-        } else if D == 3 {
-            self.transform_3d(points)
-        } else {
-            panic!("BSplineTransform only supports 2D and 3D");
+        match D {
+            4 => self.transform_4d(points),
+            3 => self.transform_3d(points),
+            2 => self.transform_2d(points),
+            1 => self.transform_1d(points),
+            _ => panic!("BSplineTransform only supports 1D, 2D, 3D and 4D"),
         }
     }
 }
@@ -669,5 +782,78 @@ mod tests {
         
         assert!((result[0] - 100.0).abs() < 1e-5);
         assert!((result[1] - 100.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_bspline_transform_1d() {
+        let device = Default::default();
+        let grid_size = [4];
+        let origin = Tensor::<TestBackend, 1>::zeros([1], &device);
+        let spacing = Tensor::<TestBackend, 1>::from_floats([10.0], &device);
+        let direction = Tensor::<TestBackend, 2>::eye(1, &device);
+
+        let num_control_points = 4;
+        let mut coeffs_data = vec![0.0; num_control_points * 1];
+        // Index 1 (x=1) -> 2.0.
+        coeffs_data[1] = 2.0;
+
+        let coefficients = Tensor::from_floats(
+            burn::tensor::TensorData::new(coeffs_data, burn::tensor::Shape::new([num_control_points, 1])),
+            &device
+        );
+
+        let transform = BSplineTransform::<TestBackend, 1>::new(
+            grid_size,
+            origin,
+            spacing,
+            direction,
+            coefficients,
+        );
+
+        // Point at 10.0 corresponds to index 1.0.
+        // B-spline basis for index 1.0: B0(1)=1/6(0)=0, B1(1)=...
+        // Wait, index u=1.0. u is local.
+        // grid coord = 1.0. floor=1. u=0.0.
+        // Basis at u=0.0: B0=1/6, B1=4/6, B2=1/6, B3=0.
+        // Indices involved: floor-1, floor, floor+1, floor+2 => 0, 1, 2, 3.
+        // Coefficients: c0=0, c1=2.0, c2=0, c3=0.
+        // Displacement = c0*B0 + c1*B1 + c2*B2 + c3*B3
+        // = 0*1/6 + 2.0*4/6 + 0*1/6 + 0
+        // = 8/6 = 4/3 = 1.3333...
+
+        let points = Tensor::<TestBackend, 2>::from_floats([[10.0]], &device);
+        let transformed = transform.transform_points(points);
+        let result = transformed.into_data().as_slice::<f32>().unwrap()[0];
+
+        assert!((result - (10.0 + 4.0/3.0)).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_bspline_transform_4d_creation() {
+        let device = Default::default();
+        let grid_size = [4, 4, 4, 4];
+        let origin = Tensor::<TestBackend, 1>::zeros([4], &device);
+        let spacing = Tensor::<TestBackend, 1>::ones([4], &device);
+        let direction = Tensor::<TestBackend, 2>::eye(4, &device);
+
+        let num_control_points = 256;
+        let coefficients = Tensor::<TestBackend, 2>::zeros([num_control_points, 4], &device);
+
+        let transform = BSplineTransform::<TestBackend, 4>::new(
+            grid_size,
+            origin,
+            spacing,
+            direction,
+            coefficients,
+        );
+
+        assert_eq!(transform.grid_size(), grid_size);
+
+        // Basic transform test (identity)
+        let points = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5, 1.5]], &device);
+        let transformed = transform.transform_points(points.clone());
+        let result = transformed.sub(points).abs().sum();
+        let diff = result.into_data().as_slice::<f32>().unwrap()[0];
+        assert!(diff < 1e-6);
     }
 }
