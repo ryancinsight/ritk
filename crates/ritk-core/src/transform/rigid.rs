@@ -109,8 +109,12 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
             let row2 = Tensor::cat(vec![s, c], 0).reshape([1, 2]);
 
             Tensor::cat(vec![row1, row2], 0)
+        } else if D == 1 || D == 4 {
+            // For 1D and 4D, return identity rotation matrix.
+            // 4D rotation optimization is not yet supported.
+            Tensor::eye(D, &r.device())
         } else {
-            panic!("RigidTransform only supports 2D and 3D");
+            panic!("RigidTransform only supports 1D, 2D, 3D, and 4D");
         }
     }
 }
@@ -272,5 +276,37 @@ mod tests {
         assert!((slice[0] - 0.0).abs() < 1e-6);
         assert!((slice[1] - 1.0).abs() < 1e-6);
         assert!((slice[2] - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_rigid_transform_1d() {
+        let device = Default::default();
+        let translation = Tensor::<TestBackend, 1>::from_floats([1.0], &device);
+        let rotation = Tensor::<TestBackend, 1>::zeros([0], &device);
+        let center = Tensor::<TestBackend, 1>::zeros([1], &device);
+        let transform = RigidTransform::<TestBackend, 1>::new(translation, rotation, center);
+
+        let points = Tensor::<TestBackend, 2>::from_floats([[1.0]], &device);
+        let transformed = transform.transform_points(points);
+        let val = transformed.into_data().as_slice::<f32>().unwrap()[0];
+        assert_eq!(val, 2.0);
+    }
+
+    #[test]
+    fn test_rigid_transform_4d() {
+        let device = Default::default();
+        let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0, 1.0, 1.0], &device);
+        let rotation = Tensor::<TestBackend, 1>::zeros([6], &device); // Usually 6 for 4D but we ignore it
+        let center = Tensor::<TestBackend, 1>::zeros([4], &device);
+        let transform = RigidTransform::<TestBackend, 4>::new(translation, rotation, center);
+
+        let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0, 0.0]], &device);
+        let transformed = transform.transform_points(points);
+        let result = transformed.into_data().as_slice::<f32>().unwrap().to_vec();
+
+        assert_eq!(result[0], 1.0);
+        assert_eq!(result[1], 1.0);
+        assert_eq!(result[2], 1.0);
+        assert_eq!(result[3], 1.0);
     }
 }
