@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-burn = { workspace = true }
-nalgebra = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-bytemuck = { workspace = true }
-serde = { workspace = true }
+burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+bytemuck = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
-tempfile = { workspace = true }
+burn-ndarray = "0.19"
+tempfile = "3.10"
 proptest = "1.0"

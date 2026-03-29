@@ -110,8 +110,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedMutualInformation<B>
         let p_xy = joint_hist / (sum.unsqueeze_dim(1) + 1e-10);
 
         // 3. Marginals
-        let p_x = p_xy.clone().sum_dim(1).squeeze(1); // P(fixed)
-        let p_y = p_xy.clone().sum_dim(0).squeeze(0); // P(moving)
+        let p_x = p_xy.clone().sum_dim(1).squeeze::<1>(); // P(fixed)
+        let p_y = p_xy.clone().sum_dim(0).squeeze::<1>(); // P(moving)
 
         // 4. Entropies
         let h_x = self.histogram_calculator.compute_entropy(p_x);

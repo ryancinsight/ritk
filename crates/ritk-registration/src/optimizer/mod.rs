@@ -18,6 +18,7 @@ pub mod gradient_descent;
 pub mod momentum;
 pub mod adam;
 pub mod lbfgs;
+pub mod cma_es;
 // pub mod adaptive_sgd;
 pub mod learning_rate;
 pub mod gradient_clipping;
@@ -28,6 +29,7 @@ pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;
 pub use adam::AdamOptimizer;
 pub use lbfgs::{LbfgsOptimizer, LbfgsConfig};
+pub use cma_es::{CmaEsConfig, CmaEsOptimizer, CmaEsResult, StopReason};
 // pub use learning_rate::{
 //     LearningRateSchedule, ConstantLR, ExponentialDecay, CosineAnnealing,
 //     WarmupCosineAnnealing, ReduceLROnPlateau, LearningRateConfig

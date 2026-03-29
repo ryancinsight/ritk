@@ -87,8 +87,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         let p_xy = joint_hist / (sum.unsqueeze_dim(1) + 1e-10);
 
         // 3. Compute Marginals
-        let p_x = p_xy.clone().sum_dim(1).squeeze(1); // Sum over moving -> P(fixed)
-        let p_y = p_xy.clone().sum_dim(0).squeeze(0); // Sum over fixed -> P(moving)
+        let p_x = p_xy.clone().sum_dim(1).squeeze::<1>(); // Sum over moving -> P(fixed)
+        let p_y = p_xy.clone().sum_dim(0).squeeze::<1>(); // Sum over fixed -> P(moving)
 
         // 4. Compute Entropies
         let h_x = self.histogram_calculator.compute_entropy(p_x);

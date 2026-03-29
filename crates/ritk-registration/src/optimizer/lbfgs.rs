@@ -268,7 +268,7 @@ mod tests {
     use super::*;
     use burn::backend::Autodiff;
     use burn::module::{Module, Param};
-    use burn::tensor::Data;
+    use burn::tensor::TensorData as Data;
     use burn_ndarray::NdArray;
 
     type TestBackend = Autodiff<NdArray<f32>>;

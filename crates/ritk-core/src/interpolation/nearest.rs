@@ -45,10 +45,10 @@ impl NearestNeighborInterpolator {
         let d3 = shape.dims[3]; // X
 
         // indices: (x, y, z, w)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>(1);
-        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>(1);
-        let w = indices.clone().slice([0..indices.dims()[0], 3..4]).squeeze::<1>(1);
+        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
+        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
+        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>();
+        let w = indices.clone().slice([0..indices.dims()[0], 3..4]).squeeze::<1>();
 
         // Round to nearest integer and clamp
         let x_i = x.round().clamp(0.0, (d3 - 1) as f64).int();
@@ -74,9 +74,9 @@ impl NearestNeighborInterpolator {
         let d2 = shape.dims[2]; // X
 
         // indices: (x, y, z)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>(1);
-        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>(1);
+        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
+        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
+        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>();
 
         // Round to nearest integer and clamp
         let x_i = x.round().clamp(0.0, (d2 - 1) as f64).int();
@@ -99,8 +99,8 @@ impl NearestNeighborInterpolator {
         let d1 = shape.dims[1]; // X
 
         // indices: (x, y)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>(1);
+        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
+        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
 
         // Round to nearest integer
         let x_i = x.round().clamp(0.0, (d1 - 1) as f64).int();
@@ -120,7 +120,7 @@ impl NearestNeighborInterpolator {
         let d0 = shape.dims[0]; // X
 
         // indices: (x)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>(1);
+        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
 
         // Round to nearest integer
         let x_i = x.round().clamp(0.0, (d0 - 1) as f64).int();
