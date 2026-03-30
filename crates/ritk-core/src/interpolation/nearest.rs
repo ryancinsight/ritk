@@ -2,9 +2,9 @@
 //!
 //! This module provides nearest neighbor interpolation for 2D and 3D data.
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
 use super::trait_::Interpolator;
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Nearest Neighbor Interpolator.
 ///
@@ -25,7 +25,11 @@ impl Default for NearestNeighborInterpolator {
 }
 
 impl<B: Backend> Interpolator<B> for NearestNeighborInterpolator {
-    fn interpolate<const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate<const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         match D {
             4 => self.interpolate_4d(data, indices),
             3 => self.interpolate_3d(data, indices),
@@ -37,7 +41,11 @@ impl<B: Backend> Interpolator<B> for NearestNeighborInterpolator {
 }
 
 impl NearestNeighborInterpolator {
-    fn interpolate_4d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_4d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // W
         let d1 = shape.dims[1]; // Z
@@ -45,10 +53,12 @@ impl NearestNeighborInterpolator {
         let d3 = shape.dims[3]; // X
 
         // indices: (x, y, z, w)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
-        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>();
-        let w = indices.clone().slice([0..indices.dims()[0], 3..4]).squeeze::<1>();
+        // Use narrow + squeeze pattern to extract each coordinate
+        // narrow gives [N, 1], squeeze_dims removes dim 1 to get [N]
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
+        let w = indices.narrow(1, 3, 1).squeeze_dims(&[1]);
 
         // Round to nearest integer and clamp
         let x_i = x.round().clamp(0.0, (d3 - 1) as f64).int();
@@ -67,16 +77,20 @@ impl NearestNeighborInterpolator {
         flat_data.gather(0, idx)
     }
 
-    fn interpolate_3d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_3d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // Z
         let d1 = shape.dims[1]; // Y
         let d2 = shape.dims[2]; // X
 
         // indices: (x, y, z)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
-        let z = indices.clone().slice([0..indices.dims()[0], 2..3]).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.narrow(1, 2, 1).squeeze_dims(&[1]);
 
         // Round to nearest integer and clamp
         let x_i = x.round().clamp(0.0, (d2 - 1) as f64).int();
@@ -93,14 +107,18 @@ impl NearestNeighborInterpolator {
         flat_data.gather(0, idx)
     }
 
-    fn interpolate_2d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_2d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // Y
         let d1 = shape.dims[1]; // X
 
         // indices: (x, y)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
-        let y = indices.clone().slice([0..indices.dims()[0], 1..2]).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.narrow(1, 1, 1).squeeze_dims(&[1]);
 
         // Round to nearest integer
         let x_i = x.round().clamp(0.0, (d1 - 1) as f64).int();
@@ -115,12 +133,16 @@ impl NearestNeighborInterpolator {
         flat_data.gather(0, idx)
     }
 
-    fn interpolate_1d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_1d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // X
 
         // indices: (x)
-        let x = indices.clone().slice([0..indices.dims()[0], 0..1]).squeeze::<1>();
+        let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
 
         // Round to nearest integer
         let x_i = x.round().clamp(0.0, (d0 - 1) as f64).int();
@@ -141,17 +163,11 @@ mod tests {
     #[test]
     fn test_nearest_neighbor_interpolator_2d() {
         let device = Default::default();
-        let data = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 1.0], [2.0, 3.0]],
-            &device,
-        );
+        let data = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0], [2.0, 3.0]], &device);
         let interpolator = NearestNeighborInterpolator::new();
 
         // Test at integer coordinates
-        let indices = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 0.0], [1.0, 1.0]],
-            &device,
-        );
+        let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0], [1.0, 1.0]], &device);
         let values = interpolator.interpolate(&data, indices);
         let data_slice = values.to_data();
         let data_slice_ref = data_slice.as_slice::<f32>().unwrap();
@@ -163,17 +179,11 @@ mod tests {
     #[test]
     fn test_nearest_neighbor_interpolator_rounding() {
         let device = Default::default();
-        let data = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 1.0], [2.0, 3.0]],
-            &device,
-        );
+        let data = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0], [2.0, 3.0]], &device);
         let interpolator = NearestNeighborInterpolator::new();
 
         // Test at half coordinates (should round to nearest)
-        let indices = Tensor::<TestBackend, 2>::from_floats(
-            [[0.4, 0.4], [0.6, 0.6]],
-            &device,
-        );
+        let indices = Tensor::<TestBackend, 2>::from_floats([[0.4, 0.4], [0.6, 0.6]], &device);
         let values = interpolator.interpolate(&data, indices);
         let data_slice = values.to_data();
         let data_slice_ref = data_slice.as_slice::<f32>().unwrap();
@@ -189,18 +199,12 @@ mod tests {
         // data: [[0, 1],
         //        [2, 3]]
         // Y=0: 0, 1. Y=1: 2, 3.
-        let data = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 1.0], [2.0, 3.0]],
-            &device,
-        );
+        let data = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0], [2.0, 3.0]], &device);
         let interpolator = NearestNeighborInterpolator::new();
 
         // indices: (x, y)
         // (1, 0) -> x=1, y=0. Should correspond to col 1, row 0. Value 1.0.
-        let indices = Tensor::<TestBackend, 2>::from_floats(
-            [[1.0, 0.0]],
-            &device,
-        );
+        let indices = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0]], &device);
         let values = interpolator.interpolate(&data, indices);
         let val = values.into_data().as_slice::<f32>().unwrap()[0];
 
@@ -215,7 +219,11 @@ mod tests {
 
         // x=1.0 -> 20.0
         let indices = Tensor::<TestBackend, 2>::from_floats([[1.0]], &device);
-        let val = interpolator.interpolate(&data, indices).into_data().as_slice::<f32>().unwrap()[0];
+        let val = interpolator
+            .interpolate(&data, indices)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
         assert_eq!(val, 20.0);
     }
 
@@ -227,12 +235,16 @@ mod tests {
 
         let data = Tensor::<TestBackend, 4>::from_data(
             burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
-            &device
+            &device,
         );
         let interpolator = NearestNeighborInterpolator::new();
 
         let indices = Tensor::<TestBackend, 2>::from_floats([[1.0, 1.0, 1.0, 1.0]], &device);
-        let val = interpolator.interpolate(&data, indices).into_data().as_slice::<f32>().unwrap()[0];
+        let val = interpolator
+            .interpolate(&data, indices)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
         assert_eq!(val, 100.0);
     }
 }

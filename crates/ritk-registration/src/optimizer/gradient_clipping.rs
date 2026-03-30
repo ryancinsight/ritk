@@ -3,9 +3,9 @@
 //! This module provides gradient clipping strategies to prevent exploding gradients
 //! during registration optimization, improving stability and convergence.
 
-use burn::module::{AutodiffModule, ModuleVisitor, ParamId};
-use burn::tensor::{Tensor, backend::AutodiffBackend, ElementConversion};
+use burn::module::{AutodiffModule, ModuleVisitor, Param};
 use burn::optim::GradientsParams;
+use burn::tensor::{backend::AutodiffBackend, ElementConversion, Tensor};
 use std::marker::PhantomData;
 
 /// Clip gradients by global L2 norm.
@@ -19,7 +19,7 @@ use std::marker::PhantomData;
 pub fn clip_gradients_l2(gradients: &[f64], max_norm: f64) -> Vec<f64> {
     let total_norm_sq: f64 = gradients.iter().map(|x| x * x).sum();
     let total_norm = total_norm_sq.sqrt();
-    
+
     if total_norm > max_norm && total_norm > 0.0 {
         let scale = max_norm / total_norm;
         gradients.iter().map(|x| x * scale).collect()
@@ -52,7 +52,8 @@ where
     }
 
     impl<'a, B: AutodiffBackend> ModuleVisitor<B> for NormVisitor<'a, B> {
-        fn visit_float<const D: usize>(&mut self, id: ParamId, _tensor: &Tensor<B, D>) {
+        fn visit_float<const D: usize>(&mut self, param: &Param<burn::Tensor<B, D>>) {
+            let id = param.id;
             if let Some(grad) = self.grads.get::<B::InnerBackend, D>(id) {
                 let grad_norm = grad.powf_scalar(2.0).sum();
                 match &self.norm_sq {
@@ -63,7 +64,10 @@ where
         }
     }
 
-    let mut visitor = NormVisitor { grads: &grads, norm_sq: None };
+    let mut visitor = NormVisitor {
+        grads: &grads,
+        norm_sq: None,
+    };
     module.visit(&mut visitor);
 
     if let Some(total_norm_sq) = visitor.norm_sq {
@@ -79,7 +83,8 @@ where
             }
 
             impl<'a, B: AutodiffBackend> ModuleVisitor<B> for ScaleVisitor<'a, B> {
-                fn visit_float<const D: usize>(&mut self, id: ParamId, _tensor: &Tensor<B, D>) {
+                fn visit_float<const D: usize>(&mut self, param: &Param<burn::Tensor<B, D>>) {
+                    let id = param.id;
                     if let Some(grad) = self.grads.get::<B::InnerBackend, D>(id.clone()) {
                         let scaled_grad = grad.mul_scalar(self.scale);
                         self.grads.register(id, scaled_grad);
@@ -87,8 +92,8 @@ where
                 }
             }
 
-            let mut scale_visitor = ScaleVisitor::<B> { 
-                grads: &mut grads, 
+            let mut scale_visitor = ScaleVisitor::<B> {
+                grads: &mut grads,
                 scale,
                 _phantom: PhantomData,
             };
@@ -197,7 +202,7 @@ mod tests {
         let clipper = GradientClipping::l2_norm(1.0);
         let gradient = vec![2.0, 2.0, 2.0];
         let clipped = clipper.clip(&gradient);
-        
+
         // L2 norm of [2, 2, 2] is sqrt(12) ≈ 3.464
         // After clipping to 1.0, scale is 1.0/3.464 ≈ 0.289
         assert!((clipped[0] - 0.577).abs() < 0.01);
@@ -208,7 +213,7 @@ mod tests {
         let clipper = GradientClipping::l1_norm(1.0);
         let gradient = vec![2.0, 2.0, 2.0];
         let clipped = clipper.clip(&gradient);
-        
+
         // L1 norm of [2, 2, 2] is 6
         // After clipping to 1.0, scale is 1.0/6 ≈ 0.167
         assert!((clipped[0] - 0.333).abs() < 0.01);
@@ -219,7 +224,7 @@ mod tests {
         let clipper = GradientClipping::max_value(1.0);
         let gradient = vec![2.0, -2.0, 0.5];
         let clipped = clipper.clip(&gradient);
-        
+
         assert_eq!(clipped[0], 1.0);
         assert_eq!(clipped[1], -1.0);
         assert_eq!(clipped[2], 0.5);
@@ -230,7 +235,7 @@ mod tests {
         let clipper = GradientClipping::None;
         let gradient = vec![2.0, 2.0, 2.0];
         let clipped = clipper.clip(&gradient);
-        
+
         assert_eq!(clipped, gradient);
     }
 }

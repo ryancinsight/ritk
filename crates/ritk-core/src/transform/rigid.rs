@@ -2,11 +2,11 @@
 //!
 //! This module provides a rigid transform (rotation + translation).
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
+use super::trait_::{Resampleable, Transform};
+use crate::spatial::{Direction, Point, Spacing};
 use burn::module::{Module, Param};
-use crate::spatial::{Point, Spacing, Direction};
-use super::trait_::{Transform, Resampleable};
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Rigid Transform (Rotation + Translation).
 ///
@@ -43,10 +43,34 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     pub fn rotation(&self) -> Tensor<B, 1> {
         self.rotation.val().clone()
     }
-    
+
     /// Get the center of rotation.
     pub fn center(&self) -> Tensor<B, 1> {
         self.center.clone()
+    }
+
+    /// Get the affine transformation matrix.
+    ///
+    /// Returns a matrix of shape `[D+1, D+1]` representing the affine transform.
+    /// For 3D: [R, t'; 0, 1] where t' = t + c - R@c
+    pub fn matrix(&self) -> Tensor<B, 2> {
+        let r = self.build_rotation_matrix();
+        let t = self.translation.val();
+        let c = self.center.clone();
+        let rc = r.clone().matmul(c.clone().reshape([D, 1])).squeeze(); // R @ c
+        let t_prime = t + c - rc; // t + c - R@c
+
+        let mut matrix = Tensor::<B, 2>::zeros([D + 1, D + 1], &self.center.device());
+        // Set rotation part
+        matrix = matrix.slice_assign([0..D, 0..D], r);
+        // Set translation part
+        matrix = matrix.slice_assign([0..D, D..D + 1], t_prime.reshape([D, 1]));
+        // Set bottom right to 1
+        matrix = matrix.slice_assign(
+            [D..D + 1, D..D + 1],
+            Tensor::<B, 2>::ones([1, 1], &self.center.device()),
+        );
+        matrix
     }
 
     /// Create an identity rigid transform (no rotation, no translation).
@@ -62,14 +86,14 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Build the rotation matrix from Euler angles.
-    fn build_rotation_matrix(&self) -> Tensor<B, 2> {
+    pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         let r = self.rotation.val();
 
         if D == 3 {
             // Euler angles: x (alpha), y (beta), z (gamma)
             // R = R_z(gamma) * R_y(beta) * R_x(alpha)
             let alpha = r.clone().slice([0..1]); // x
-            let beta = r.clone().slice([1..2]);  // y
+            let beta = r.clone().slice([1..2]); // y
             let gamma = r.clone().slice([2..3]); // z
 
             let cx = alpha.clone().cos();
@@ -81,13 +105,29 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
 
             // Row 1
             let r11 = cz.clone().mul(cy.clone());
-            let r12 = cz.clone().mul(sy.clone()).mul(sx.clone()).sub(sz.clone().mul(cx.clone()));
-            let r13 = cz.clone().mul(sy.clone()).mul(cx.clone()).add(sz.clone().mul(sx.clone()));
+            let r12 = cz
+                .clone()
+                .mul(sy.clone())
+                .mul(sx.clone())
+                .sub(sz.clone().mul(cx.clone()));
+            let r13 = cz
+                .clone()
+                .mul(sy.clone())
+                .mul(cx.clone())
+                .add(sz.clone().mul(sx.clone()));
 
             // Row 2
             let r21 = sz.clone().mul(cy.clone());
-            let r22 = sz.clone().mul(sy.clone()).mul(sx.clone()).add(cz.clone().mul(cx.clone()));
-            let r23 = sz.clone().mul(sy.clone()).mul(cx.clone()).sub(cz.clone().mul(sx.clone()));
+            let r22 = sz
+                .clone()
+                .mul(sy.clone())
+                .mul(sx.clone())
+                .add(cz.clone().mul(cx.clone()));
+            let r23 = sz
+                .clone()
+                .mul(sy.clone())
+                .mul(cx.clone())
+                .sub(cz.clone().mul(sx.clone()));
 
             // Row 3
             let r31 = sy.clone().neg();
@@ -148,7 +188,7 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
         let t = self.translation.val().reshape([1, D]);
         let c = self.center.clone().reshape([1, D]);
 
-        // WGPU has a dispatch limit of 65535. 
+        // WGPU has a dispatch limit of 65535.
         // We chunk the points to avoid hitting this limit for large images.
         const CHUNK_SIZE: usize = 32768; // Safe margin below 65535
 
@@ -159,18 +199,18 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
-                
+
                 let centered = chunk_points - c.clone();
                 let rotated = centered.matmul(r.clone().transpose());
                 let result = rotated + c.clone() + t.clone();
                 chunks.push(result);
             }
-            
+
             Tensor::cat(chunks, 0)
         }
     }
@@ -191,10 +231,7 @@ mod tests {
         let center = Tensor::<TestBackend, 1>::zeros([2], &device);
         let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
 
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 0.0], [1.0, 1.0]],
-            &device,
-        );
+        let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0], [1.0, 1.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
@@ -214,10 +251,8 @@ mod tests {
         let center = Tensor::<TestBackend, 1>::zeros([3], &device);
         let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
 
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
-            &device,
-        );
+        let points =
+            Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
@@ -235,15 +270,13 @@ mod tests {
     fn test_rigid_transform_2d_rotation() {
         let device = Default::default();
         let translation = Tensor::<TestBackend, 1>::zeros([2], &device);
-        let rotation = Tensor::<TestBackend, 1>::from_floats([std::f32::consts::FRAC_PI_2], &device); // 90 degrees
+        let rotation =
+            Tensor::<TestBackend, 1>::from_floats([std::f32::consts::FRAC_PI_2], &device); // 90 degrees
         let center = Tensor::<TestBackend, 1>::zeros([2], &device);
         let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
 
         // Point (1, 0)
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[1.0, 0.0]],
-            &device,
-        );
+        let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
@@ -259,15 +292,13 @@ mod tests {
         let device = Default::default();
         let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
         // Rotate 90 deg around Z. Euler: x, y, z. So [0, 0, PI/2]
-        let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, std::f32::consts::FRAC_PI_2], &device);
+        let rotation =
+            Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, std::f32::consts::FRAC_PI_2], &device);
         let center = Tensor::<TestBackend, 1>::zeros([3], &device);
         let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
 
         // Point (1, 0, 0) should become (0, 1, 0)
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[1.0, 0.0, 0.0]],
-            &device,
-        );
+        let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0, 0.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();

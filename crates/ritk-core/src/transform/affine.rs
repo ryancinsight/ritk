@@ -2,11 +2,12 @@
 //!
 //! This module provides an affine transform (linear transformation + translation).
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
+use super::trait_::{Resampleable, Transform};
+use super::RigidTransform;
+use crate::spatial::{Direction, Point, Spacing};
 use burn::module::{Module, Param};
-use super::trait_::{Transform, Resampleable};
-use crate::spatial::{Point, Spacing, Direction};
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Affine Transform (Linear transformation + Translation).
 ///
@@ -19,9 +20,9 @@ use crate::spatial::{Point, Spacing, Direction};
 /// * c is a D-dimensional fixed center of rotation/scaling
 #[derive(Module, Debug)]
 pub struct AffineTransform<B: Backend, const D: usize> {
-    matrix: Param<Tensor<B, 2>>, // [D, D] linear transformation matrix
+    matrix: Param<Tensor<B, 2>>,      // [D, D] linear transformation matrix
     translation: Param<Tensor<B, 1>>, // [D] translation vector
-    center: Tensor<B, 1>, // [D] fixed center
+    center: Tensor<B, 1>,             // [D] fixed center
 }
 
 impl<B: Backend, const D: usize> AffineTransform<B, D> {
@@ -51,11 +52,32 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
         }
         let data = burn::tensor::TensorData::from(matrix_data.as_slice());
         let matrix = Tensor::<B, 1>::from_data(data, device).reshape([D, D]);
-        
+
         let translation = Tensor::<B, 1>::zeros([D], device);
         let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
-        
+
         Self::new(matrix, translation, center)
+    }
+
+    /// Create an affine transform from a rigid transform.
+    ///
+    /// # Arguments
+    /// * `rigid` - The rigid transform to convert
+    pub fn from_rigid(rigid: &RigidTransform<B, D>) -> Self {
+        let matrix = rigid.build_rotation_matrix();
+        let t = rigid.translation();
+        let c = rigid.center();
+        let rc = matrix.clone().matmul(c.clone().reshape([D, 1])).squeeze();
+        let translation = t + c.clone() - rc;
+
+        // Detach computed tensors from the autodiff graph to create fresh leaf tensors.
+        // build_rotation_matrix() and translation arithmetic produce non-leaf tensors
+        // that cannot be wrapped in Param::from_tensor().
+        let device = matrix.device();
+        let matrix_leaf = Tensor::from_data(matrix.into_data(), &device);
+        let translation_leaf = Tensor::from_data(translation.into_data(), &device);
+
+        Self::new(matrix_leaf, translation_leaf, c)
     }
 
     /// Get the transformation matrix.
@@ -91,8 +113,8 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         let t = self.translation.val().reshape([1, D]);
         let a = self.matrix.val();
         let a_t = a.transpose();
-        
-        // WGPU has a dispatch limit of 65535. 
+
+        // WGPU has a dispatch limit of 65535.
         // We chunk the points to avoid hitting this limit for large images.
         const CHUNK_SIZE: usize = 32768; // Safe margin below 65535
 
@@ -109,18 +131,18 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
-                
+
                 let centered = chunk_points - c.clone();
                 let rotated = centered.matmul(a_t.clone());
                 let result = rotated + c.clone() + t.clone();
                 chunks.push(result);
             }
-            
+
             Tensor::cat(chunks, 0)
         }
     }
@@ -150,10 +172,8 @@ mod tests {
         let device = Default::default();
         let transform = AffineTransform::<TestBackend, 3>::identity(None, &device);
 
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-            &device,
-        );
+        let points =
+            Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
@@ -171,59 +191,59 @@ mod tests {
     #[test]
     fn test_affine_transform_translation_with_center() {
         let device = Default::default();
-        
+
         // Matrix: Identity
         let matrix = Tensor::<TestBackend, 2>::eye(2, &device);
-        
+
         // Translation: [1.0, 1.0]
         let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0], &device);
-        
+
         // Center: [10.0, 10.0]
         let center = Tensor::<TestBackend, 1>::from_floats([10.0, 10.0], &device);
-        
+
         let transform = AffineTransform::<TestBackend, 2>::new(matrix, translation, center);
-        
+
         // Point at center: [10, 10]
         // T(c) = A(c-c) + c + t = 0 + c + t = c + t
         // Expected: [11, 11]
         let points = Tensor::<TestBackend, 2>::from_floats([[10.0, 10.0]], &device);
-        
+
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
         let slice = data.as_slice::<f32>().unwrap();
-        
+
         assert_eq!(slice[0], 11.0);
         assert_eq!(slice[1], 11.0);
     }
-    
+
     #[test]
     fn test_affine_transform_scale_with_center() {
         let device = Default::default();
-        
+
         // Matrix: Scale by 2.0
         // [2, 0]
         // [0, 2]
         let matrix = Tensor::<TestBackend, 2>::eye(2, &device) * 2.0;
-        
+
         // Translation: 0
         let translation = Tensor::<TestBackend, 1>::zeros([2], &device);
-        
+
         // Center: [1.0, 1.0]
         let center = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0], &device);
-        
+
         let transform = AffineTransform::<TestBackend, 2>::new(matrix, translation, center);
-        
+
         // Point: [2.0, 1.0] (1 unit right of center)
         // T(x) = A(x - c) + c
         // x - c = [1, 0]
         // A(x-c) = [2, 0]
         // + c = [3, 1]
         let points = Tensor::<TestBackend, 2>::from_floats([[2.0, 1.0]], &device);
-        
+
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
         let slice = data.as_slice::<f32>().unwrap();
-        
+
         assert!((slice[0] - 3.0).abs() < 1e-6);
         assert!((slice[1] - 1.0).abs() < 1e-6);
     }

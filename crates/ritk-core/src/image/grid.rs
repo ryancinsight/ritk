@@ -1,35 +1,5 @@
-use burn::tensor::{Tensor, TensorData, Shape, Distribution};
 use burn::tensor::backend::Backend;
-
-/// Generate random continuous indices for the given image shape.
-///
-/// Returns a tensor of shape `[N, D]` where N is num_samples.
-/// Samples are drawn uniformly from the continuous index space [0, shape[i]-1].
-///
-/// # Arguments
-/// * `shape` - The image shape `[D0, D1, ...]`
-/// * `num_samples` - The number of random samples to generate
-/// * `device` - The device to create the tensor on
-///
-/// # Returns
-/// Tensor of shape `[N, D]` containing random continuous indices
-pub fn generate_random_points<B: Backend, const D: usize>(
-    shape: [usize; D],
-    num_samples: usize,
-    device: &B::Device,
-) -> Tensor<B, 2> {
-    // Create a scaling tensor for each dimension
-    let max_vals: Vec<f32> = shape.iter().map(|&s| (s as f32) - 1.0).collect();
-    let max_vals_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(max_vals, Shape::new([D])),
-        device,
-    ).reshape([D, 1]);
-
-    // Generate all random numbers at once, scale, and transpose
-    Tensor::<B, 2>::random([D, num_samples], Distribution::Uniform(0.0, 1.0), device)
-        .mul(max_vals_tensor) // [D, N]
-        .transpose() // [N, D]
-}
+use burn::tensor::{Distribution, Shape, Tensor, TensorData};
 
 /// Generate a grid of continuous indices for the given image shape.
 ///
@@ -46,10 +16,7 @@ pub fn generate_random_points<B: Backend, const D: usize>(
 ///
 /// # Returns
 /// Tensor of shape `[N, D]` containing continuous indices
-pub fn generate_grid<B, const D: usize>(
-    shape: [usize; D],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid<B, const D: usize>(shape: [usize; D], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {
@@ -76,10 +43,7 @@ where
 ///
 /// # Returns
 /// Tensor of shape `[N, 3]` containing continuous indices
-pub fn generate_grid_3d<B>(
-    shape: [usize; 3],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid_3d<B>(shape: [usize; 3], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {
@@ -113,10 +77,7 @@ where
 ///
 /// # Returns
 /// Tensor of shape `[N, 2]` containing continuous indices
-pub fn generate_grid_2d<B>(
-    shape: [usize; 2],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid_2d<B>(shape: [usize; 2], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {
@@ -157,18 +118,14 @@ where
     B: Backend,
 {
     // Generate random values in [0, 1]
-    let random = Tensor::<B, 2>::random(
-        [num_samples, D],
-        Distribution::Uniform(0.0, 1.0),
-        device,
-    );
-    
+    let random = Tensor::<B, 2>::random([num_samples, D], Distribution::Uniform(0.0, 1.0), device);
+
     // Scale by shape for each dimension
     // We want coordinates in [0, dim_size - 1]
     // random * (dim_size - 1)
-    
+
     let mut scaled = random;
-    
+
     // Create scale tensor [1, D]
     // We use D-1, D-2... order because shape is usually [D, H, W] or [H, W]
     // But index 0 corresponds to first dimension in shape.
@@ -185,7 +142,7 @@ where
     // So point[0] corresponds to shape[2].
     // point[1] corresponds to shape[1].
     // point[2] corresponds to shape[0].
-    
+
     // Let's verify generate_grid_2d:
     // for y in 0..h, for x in 0..w
     // grid.push(x), grid.push(y)
@@ -193,28 +150,27 @@ where
     // shape is [H, W].
     // point[0] (x) corresponds to shape[1] (W).
     // point[1] (y) corresponds to shape[0] (H).
-    
+
     // So we need to scale dimension i of the point by the corresponding dimension of the shape.
     // For D=2: point=[x, y]. shape=[H, W].
     // Scale point[0] by (W-1). Scale point[1] by (H-1).
-    
+
     // For D=3: point=[x, y, z]. shape=[D, H, W].
     // Scale point[0] by (W-1). Scale point[1] by (H-1). Scale point[2] by (D-1).
-    
+
     // Generally: point[i] corresponds to shape[D - 1 - i].
-    
+
     let mut scale_factors = Vec::with_capacity(D);
     for i in 0..D {
         let dim_size = shape[D - 1 - i];
         scale_factors.push((dim_size as f32) - 1.0);
     }
-    
-    let scale_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(scale_factors, Shape::new([D])),
-        device,
-    ).reshape([1, D]);
-    
+
+    let scale_tensor =
+        Tensor::<B, 1>::from_data(TensorData::new(scale_factors, Shape::new([D])), device)
+            .reshape([1, D]);
+
     scaled = scaled * scale_tensor;
-    
+
     scaled
 }

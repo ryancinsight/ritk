@@ -2,12 +2,15 @@
 //!
 //! This module provides linear interpolation for 2D and 3D data.
 
-use burn::tensor::{Tensor, Int};
-use burn::tensor::backend::{Backend, AutodiffBackend};
-use burn::module::{Module, ModuleVisitor, ModuleMapper, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
-use burn::record::{Record, PrecisionSettings};
-use serde::{Serialize, Deserialize};
 use super::trait_::Interpolator;
+use burn::module::{
+    AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
+    ModuleVisitor,
+};
+use burn::record::{PrecisionSettings, Record};
+use burn::tensor::backend::{AutodiffBackend, Backend};
+use burn::tensor::{Int, Tensor};
+use serde::{Deserialize, Serialize};
 
 /// Linear Interpolator.
 ///
@@ -75,7 +78,6 @@ impl ModuleDisplayDefault for LinearInterpolator {
 
 impl ModuleDisplay for LinearInterpolator {}
 
-
 impl LinearInterpolator {
     /// Create a new linear interpolator.
     pub fn new() -> Self {
@@ -90,7 +92,11 @@ impl Default for LinearInterpolator {
 }
 
 impl<B: Backend> Interpolator<B> for LinearInterpolator {
-    fn interpolate<const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate<const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         match D {
             4 => self.interpolate_4d(data, indices),
             3 => self.interpolate_3d(data, indices),
@@ -102,7 +108,11 @@ impl<B: Backend> Interpolator<B> for LinearInterpolator {
 }
 
 impl LinearInterpolator {
-    fn interpolate_4d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_4d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // W (time/4th dim)
         let d1 = shape.dims[1]; // Z
@@ -111,12 +121,12 @@ impl LinearInterpolator {
         let batch_size = indices.dims()[0];
         let device = indices.device();
 
-        // Extract coordinates
+        // Extract coordinates: narrow gives [Batch, 1], squeeze_dims removes dim 1 to get [Batch]
         // indices: [Batch, 4] -> (x, y, z, w)
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.clone().narrow(1, 1, 1).squeeze::<1>();
-        let z = indices.clone().narrow(1, 2, 1).squeeze::<1>();
-        let w = indices.narrow(1, 3, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
+        let w = indices.narrow(1, 3, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -156,22 +166,54 @@ impl LinearInterpolator {
         let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
 
         // Gather all 16 values
-        let v0000 = Self::gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w);
-        let v0001 = Self::gather_4d(&flat_data, &x0_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w);
-        let v0010 = Self::gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w);
-        let v0011 = Self::gather_4d(&flat_data, &x0_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w);
-        let v0100 = Self::gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w);
-        let v0101 = Self::gather_4d(&flat_data, &x0_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w);
-        let v0110 = Self::gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w);
-        let v0111 = Self::gather_4d(&flat_data, &x0_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w);
-        let v1000 = Self::gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w);
-        let v1001 = Self::gather_4d(&flat_data, &x1_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w);
-        let v1010 = Self::gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w);
-        let v1011 = Self::gather_4d(&flat_data, &x1_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w);
-        let v1100 = Self::gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w);
-        let v1101 = Self::gather_4d(&flat_data, &x1_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w);
-        let v1110 = Self::gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w);
-        let v1111 = Self::gather_4d(&flat_data, &x1_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w);
+        let v0000 = Self::gather_4d(
+            &flat_data, &x0_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v0001 = Self::gather_4d(
+            &flat_data, &x0_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v0010 = Self::gather_4d(
+            &flat_data, &x0_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v0011 = Self::gather_4d(
+            &flat_data, &x0_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v0100 = Self::gather_4d(
+            &flat_data, &x0_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v0101 = Self::gather_4d(
+            &flat_data, &x0_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v0110 = Self::gather_4d(
+            &flat_data, &x0_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v0111 = Self::gather_4d(
+            &flat_data, &x0_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v1000 = Self::gather_4d(
+            &flat_data, &x1_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v1001 = Self::gather_4d(
+            &flat_data, &x1_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v1010 = Self::gather_4d(
+            &flat_data, &x1_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v1011 = Self::gather_4d(
+            &flat_data, &x1_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v1100 = Self::gather_4d(
+            &flat_data, &x1_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v1101 = Self::gather_4d(
+            &flat_data, &x1_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        );
+        let v1110 = Self::gather_4d(
+            &flat_data, &x1_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        );
+        let v1111 = Self::gather_4d(
+            &flat_data, &x1_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        );
 
         // Pre-compute (1 - weight)
         let one = Tensor::<B, 1>::ones([batch_size], &device);
@@ -217,11 +259,16 @@ impl LinearInterpolator {
         stride_z: i32,
         stride_w: i32,
     ) -> Tensor<B, 1> {
-        let idx = wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
+        let idx =
+            wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
         flat_data.clone().gather(0, idx)
     }
 
-    fn interpolate_3d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_3d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // Z
         let d1 = shape.dims[1]; // Y
@@ -230,10 +277,11 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinates using narrow to avoid unnecessary clones
+        // Extract coordinates: narrow gives [Batch, 1], squeeze_dims removes dim 1 to get [Batch]
         // indices: [Batch, 3] -> (x, y, z)
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.clone().narrow(1, 1, 1).squeeze::<1>();
-        let z = indices.narrow(1, 2, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.narrow(1, 2, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -311,7 +359,11 @@ impl LinearInterpolator {
         flat_data.clone().gather(0, idx)
     }
 
-    fn interpolate_2d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_2d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // Y
         let d1 = shape.dims[1]; // X
@@ -319,8 +371,8 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinates using narrow
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.narrow(1, 1, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.narrow(1, 1, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -375,14 +427,18 @@ impl LinearInterpolator {
         flat_data.clone().gather(0, idx)
     }
 
-    fn interpolate_1d<B: Backend, const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate_1d<B: Backend, const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let shape = data.shape();
         let d0 = shape.dims[0]; // X
         let batch_size = indices.dims()[0];
         let device = indices.device();
 
-        // Extract coordinate
-        let x = indices.clone().squeeze::<1>();
+        // Extract coordinate: [N, 1] -> [N]
+        let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinate
         let x0 = x.clone().floor();
@@ -415,8 +471,8 @@ impl LinearInterpolator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
     use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;
 
@@ -434,22 +490,27 @@ mod tests {
         let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
         let data = Tensor::<TestBackend, 3>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
 
         // Test exact grid points
         let indices = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-            &device
+            [
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            &device,
         );
         let result = interpolator.interpolate(&data, indices);
         let result_data = result.into_data();
         let slice = result_data.as_slice::<f32>().unwrap();
 
-        assert_eq!(slice[0], 0.0);  // (0,0,0)
-        assert_eq!(slice[1], 1.0);  // (1,0,0)
+        assert_eq!(slice[0], 0.0); // (0,0,0)
+        assert_eq!(slice[1], 1.0); // (1,0,0)
         assert_eq!(slice[2], 10.0); // (0,1,0)
         assert_eq!(slice[3], 100.0); // (0,0,1)
 
@@ -461,7 +522,12 @@ mod tests {
 
         // Average of all 8 corners
         let expected = (0.0 + 1.0 + 10.0 + 11.0 + 100.0 + 101.0 + 110.0 + 111.0) / 8.0;
-        assert!((center_slice[0] - expected).abs() < 1e-5, "Expected {}, got {}", expected, center_slice[0]);
+        assert!(
+            (center_slice[0] - expected).abs() < 1e-5,
+            "Expected {}, got {}",
+            expected,
+            center_slice[0]
+        );
     }
 
     #[test]
@@ -471,7 +537,7 @@ mod tests {
         let data_vec = vec![0.0, 1.0, 10.0, 11.0];
         let data = Tensor::<TestBackend, 2>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
@@ -493,7 +559,7 @@ mod tests {
         let data_vec = vec![0.0, 1.0, 2.0, 3.0];
         let data = Tensor::<TestBackend, 2>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
@@ -501,7 +567,7 @@ mod tests {
         // Test all 4 grid points
         let indices = Tensor::<TestBackend, 2>::from_floats(
             [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
-            &device
+            &device,
         );
         let result = interpolator.interpolate(&data, indices);
         let result_data = result.into_data();
@@ -519,7 +585,7 @@ mod tests {
         let data_vec = vec![0.0, 1.0, 2.0, 3.0];
         let data = Tensor::<TestBackend, 2>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
@@ -527,7 +593,7 @@ mod tests {
         // Test clamping at boundaries
         let indices = Tensor::<TestBackend, 2>::from_floats(
             [[-1.0, -1.0], [5.0, 5.0]], // Outside bounds
-            &device
+            &device,
         );
         let result = interpolator.interpolate(&data, indices);
         let result_data = result.into_data();
@@ -545,7 +611,7 @@ mod tests {
         let data_vec = vec![0.0, 10.0, 20.0, 30.0];
         let data = Tensor::<TestBackend, 1>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([4])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
@@ -567,12 +633,12 @@ mod tests {
         // Let's use 0 everywhere except one corner to test indexing.
         let mut data_vec = vec![0.0; 16];
         data_vec[15] = 100.0; // Index (1,1,1,1) is last element.
-        // Index is w*8 + z*4 + y*2 + x
-        // (1,1,1,1) = 1*8 + 1*4 + 1*2 + 1 = 15. Correct.
+                              // Index is w*8 + z*4 + y*2 + x
+                              // (1,1,1,1) = 1*8 + 1*4 + 1*2 + 1 = 15. Correct.
 
         let data = Tensor::<TestBackend, 4>::from_data(
             TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2, 2])),
-            &device
+            &device,
         );
 
         let interpolator = LinearInterpolator::new();
