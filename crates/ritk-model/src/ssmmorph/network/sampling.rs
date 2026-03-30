@@ -77,7 +77,10 @@ impl<B: Backend> GridSampler<B> {
 
     /// Create grid sampler with custom configuration
     pub fn with_config(config: GridSamplerConfig, device: B::Device) -> Self {
-        Self { config, _device: device }
+        Self {
+            config,
+            _device: device,
+        }
     }
 
     /// Sample input tensor at grid coordinates
@@ -98,9 +101,12 @@ impl<B: Backend> GridSampler<B> {
 
         // Compute valid mask for Zero padding
         let mask: Option<Tensor<B, 4>> = if self.config.padding_mode == GridPaddingMode::Zero {
-            let x_valid = ix.clone().greater_equal_elem(0.0).int() * ix.clone().lower_equal_elem((w_in - 1) as f32).int();
-            let y_valid = iy.clone().greater_equal_elem(0.0).int() * iy.clone().lower_equal_elem((h_in - 1) as f32).int();
-            let z_valid = iz.clone().greater_equal_elem(0.0).int() * iz.clone().lower_equal_elem((d_in - 1) as f32).int();
+            let x_valid = ix.clone().greater_equal_elem(0.0).int()
+                * ix.clone().lower_equal_elem((w_in - 1) as f32).int();
+            let y_valid = iy.clone().greater_equal_elem(0.0).int()
+                * iy.clone().lower_equal_elem((h_in - 1) as f32).int();
+            let z_valid = iz.clone().greater_equal_elem(0.0).int()
+                * iz.clone().lower_equal_elem((d_in - 1) as f32).int();
             Some((x_valid * y_valid * z_valid).float())
         } else {
             None
@@ -200,15 +206,20 @@ impl<B: Backend> GridSampler<B> {
     ) -> (Tensor<B, 4>, Tensor<B, 4>, Tensor<B, 4>) {
         let [batch, d_out, h_out, w_out, _] = grid.dims();
 
-        let x = grid.clone()
+        // Slice keeps dimensions: [B, D, H, W, 1]
+        // Squeeze removes the last dim: [B, D, H, W]
+        let x = grid
+            .clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 0..1])
-            .squeeze::<4>();
-        let y = grid.clone()
+            .squeeze_dims(&[4]);
+        let y = grid
+            .clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 1..2])
-            .squeeze::<4>();
-        let z = grid.clone()
+            .squeeze_dims(&[4]);
+        let z = grid
+            .clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 2..3])
-            .squeeze::<4>();
+            .squeeze_dims(&[4]);
 
         if self.config.align_corners {
             let ix = (x + 1.0) * ((w_in - 1) as f32) / 2.0;
@@ -334,9 +345,15 @@ impl<B: Backend> FlowComposer<B> {
 
         let flow_perm = flow.clone().permute([0, 2, 3, 4, 1]);
 
-        let flow_x = flow_perm.clone().slice([0..b, 0..d_out, 0..h_out, 0..w_out, 0..1]);
-        let flow_y = flow_perm.clone().slice([0..b, 0..d_out, 0..h_out, 0..w_out, 1..2]);
-        let flow_z = flow_perm.clone().slice([0..b, 0..d_out, 0..h_out, 0..w_out, 2..3]);
+        let flow_x = flow_perm
+            .clone()
+            .slice([0..b, 0..d_out, 0..h_out, 0..w_out, 0..1]);
+        let flow_y = flow_perm
+            .clone()
+            .slice([0..b, 0..d_out, 0..h_out, 0..w_out, 1..2]);
+        let flow_z = flow_perm
+            .clone()
+            .slice([0..b, 0..d_out, 0..h_out, 0..w_out, 2..3]);
 
         let flow_x_norm = flow_x.mul_scalar(2.0 / (w as f32 - 1.0));
         let flow_y_norm = flow_y.mul_scalar(2.0 / (h as f32 - 1.0));
