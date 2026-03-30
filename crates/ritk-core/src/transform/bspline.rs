@@ -266,29 +266,35 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     }
 
     /// Compute Cubic B-Spline basis functions.
+    ///
+    /// # Algorithm
+    /// Computes the 4 cubic B-spline basis functions for parameter u ∈ [0, 1):
+    /// - B0(u) = (1-u)³ / 6
+    /// - B1(u) = (3u³ - 6u² + 4) / 6
+    /// - B2(u) = (-3u³ + 3u² + 3u + 1) / 6
+    /// - B3(u) = u³ / 6
+    ///
+    /// # Performance
+    /// Minimizes allocations by computing powers once and reusing values.
     fn bspline_basis(u: Tensor<B, 1>) -> [Tensor<B, 1>; 4] {
-        // u is in [0, 1)
+        let u_clone = u.clone();
+        let u2 = u_clone.clone().powf_scalar(2.0);
+        let u3 = u_clone.clone().powf_scalar(3.0);
+
+        // Constant factors as scalars
         let one = 1.0;
-        let two = 2.0;
         let three = 3.0;
-        let four = 4.0;
         let six = 6.0;
 
         // B0 = (1-u)^3 / 6
-        let one_minus_u = u.clone().neg().add_scalar(one);
+        let one_minus_u = u_clone.clone().neg().add_scalar(one);
         let b0 = one_minus_u.powf_scalar(three) / six;
 
         // B1 = (3u^3 - 6u^2 + 4) / 6
-        let u2 = u.clone().powf_scalar(two);
-        let u3 = u.clone().powf_scalar(three);
-        let b1 = (u3.clone().mul_scalar(three) - u2.clone().mul_scalar(six)).add_scalar(four) / six;
+        let b1 = (u3.clone() * three - u2.clone() * 6.0 + 4.0) / six;
 
         // B2 = (-3u^3 + 3u^2 + 3u + 1) / 6
-        let b2 = (u3.clone().mul_scalar(-three)
-            + u2.clone().mul_scalar(three)
-            + u.clone().mul_scalar(three))
-        .add_scalar(one)
-            / six;
+        let b2 = (-u3.clone() * three + u2.clone() * three + u_clone * three + one) / six;
 
         // B3 = u^3 / 6
         let b3 = u3 / six;
@@ -299,13 +305,14 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute Cubic B-Spline basis functions and stack them into a tensor [Batch, 4].
     fn compute_basis_tensor(u: Tensor<B, 1>) -> Tensor<B, 2> {
         let [b0, b1, b2, b3] = Self::bspline_basis(u);
+
         // Stack along dim 1: [Batch, 1] -> [Batch, 4]
         Tensor::cat(
             vec![
-                b0.unsqueeze_dim::<2>(1),
-                b1.unsqueeze_dim::<2>(1),
-                b2.unsqueeze_dim::<2>(1),
-                b3.unsqueeze_dim::<2>(1),
+                b0.unsqueeze_dim(1),
+                b1.unsqueeze_dim(1),
+                b2.unsqueeze_dim(1),
+                b3.unsqueeze_dim(1),
             ],
             1,
         )
@@ -389,11 +396,11 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let base_x = base_index
             .clone()
             .slice([0..batch_size, 0..1])
-            .unsqueeze_dim::<3>(2);
+            .unsqueeze_dims(&[2]);
         let base_y = base_index
             .clone()
             .slice([0..batch_size, 1..2])
-            .unsqueeze_dim::<3>(2);
+            .unsqueeze_dims(&[2]);
 
         let idx_x = base_x + i_idx;
         let idx_y = base_y + j_idx;
@@ -412,10 +419,11 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let flat_indices = idx_y_clamped * nx + idx_x_clamped; // [Batch, 16]
 
         let gather_indices = flat_indices.reshape([batch_size * 16]);
-        let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*16, 2]
+        let coeffs = self.coefficients.val().select(0, gather_indices);
+        // [Batch*16, 2]
         let coeffs = coeffs.reshape([batch_size, 16, 2]);
 
-        let displacement = (coeffs * weights).sum_dim(1).squeeze(); // [Batch, 2]
+        let displacement = (coeffs * weights).sum_dim(1).squeeze_dims(&[1]); // [Batch, 2]
 
         // Apply Mask (Zero displacement if out of bounds)
         let masked_displacement = displacement * valid_mask;

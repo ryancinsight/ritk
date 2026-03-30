@@ -46,21 +46,23 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         let [n, _] = fixed_indices.dims();
 
         // 2. Transform and interpolate with chunking to avoid WGPU dispatch limits
-        const CHUNK_SIZE: usize = 32768;
+        // Use a smaller chunk size for better cache locality
+        const CHUNK_SIZE: usize = 16384;
 
         let moving_values = if n <= CHUNK_SIZE {
-            // Transform fixed indices to physical points
-            let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
+            // Batch process: Transform fixed indices to physical points
+            let fixed_points = fixed.index_to_world_tensor(fixed_indices);
 
-            // Apply Transform to get corresponding points in moving image physical space
-            let moving_points = transform.transform_points(fixed_points); // [N, D]
+            // Apply Transform to get corresponding points in moving image
+            let moving_points = transform.transform_points(fixed_points);
 
-            // Transform moving physical points to moving image indices
-            let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
-
-            // Sample moving image at moving_indices
-            self.interpolator.interpolate(moving.data(), moving_indices) // [N]
+            // Transform to moving image indices and sample in one go
+            let moving_indices = moving.world_to_index_tensor(moving_points);
+            self.interpolator.interpolate(moving.data(), moving_indices)
         } else {
+            // Optimize: Pre-calculate world tensors to avoid redundant conversions
+            let fixed_points_full = fixed.index_to_world_tensor(fixed_indices.clone());
+
             let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
             let mut chunks = Vec::with_capacity(num_chunks);
 
@@ -68,15 +70,19 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
 
-                let chunk_indices = fixed_indices.clone().slice([start..end]);
-                let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
+                // Slice points directly instead of re-computing from indices
+                let chunk_fixed_points = fixed_points_full.clone().slice([start..end]);
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+
+                // Avoid clone by using reference to interpolator
                 let chunk_values = self
                     .interpolator
                     .interpolate(moving.data(), chunk_moving_indices);
                 chunks.push(chunk_values);
             }
+
+            // Concatenate all chunks
             Tensor::cat(chunks, 0)
         };
 

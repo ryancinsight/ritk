@@ -312,7 +312,6 @@ impl LinearInterpolator {
         let stride_y = d2 as i32;
 
         // Pre-flatten data once to avoid repeated reshaping
-        // Pre-flatten data once to avoid repeated reshaping
         let flat_data = data.clone().reshape([d0 * d1 * d2]);
 
         // Gather all 8 voxel values
