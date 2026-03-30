@@ -80,7 +80,7 @@ impl<B: Backend> SwinTransformerBlock<B> {
         }
         
         let mask_windows = self.window_partition(img_mask);
-        let mask_windows = mask_windows.squeeze::<2>(2);
+        let mask_windows = mask_windows.squeeze::<2>();
         
         let attn_mask = mask_windows.clone().unsqueeze_dim::<3>(1) - mask_windows.unsqueeze_dim::<3>(2);
         

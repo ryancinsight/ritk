@@ -4,6 +4,7 @@ use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use ritk_core::image::grid;
 use ritk_core::image::Image;
+use ritk_core::image::grid;
 use ritk_core::transform::Transform;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use super::trait_::Metric;

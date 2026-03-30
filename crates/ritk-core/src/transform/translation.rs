@@ -51,6 +51,7 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, 
         _spacing: Spacing<D>,
         _direction: Direction<D>,
     ) -> Self {
+        // Translation is independent of grid resolution
         self.clone()
     }
 }

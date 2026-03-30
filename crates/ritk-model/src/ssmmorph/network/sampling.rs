@@ -202,13 +202,13 @@ impl<B: Backend> GridSampler<B> {
 
         let x = grid.clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 0..1])
-            .squeeze(4);
+            .squeeze::<4>();
         let y = grid.clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 1..2])
-            .squeeze(4);
+            .squeeze::<4>();
         let z = grid.clone()
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 2..3])
-            .squeeze(4);
+            .squeeze::<4>();
 
         if self.config.align_corners {
             let ix = (x + 1.0) * ((w_in - 1) as f32) / 2.0;

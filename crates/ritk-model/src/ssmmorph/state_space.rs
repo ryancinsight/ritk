@@ -284,7 +284,7 @@ impl<B: Backend> SelectiveStateSpace<B> {
         let c_expanded: Tensor<B, 4> = c.unsqueeze_dim(2);
         // h: [batch, seq, inner, state]
         // y: [batch, seq, inner]
-        (h * c_expanded).sum_dim(3).squeeze(3)
+        (h * c_expanded).sum_dim(3).squeeze::<3>()
     }
     
     /// Parallel Associative Scan (Hillis-Steele)

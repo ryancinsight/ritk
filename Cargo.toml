@@ -13,8 +13,8 @@ ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
 
-burn = { version = "0.16.0", features = ["wgpu", "train", "autodiff"] }
-burn-ndarray = "0.16.0" # For CPU testing
+burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+burn-ndarray = "0.19" # For CPU testing
 dicom = "0.8.0"
 nifti = "0.16.0"
 tokio = { version = "1.0", features = ["full"] }

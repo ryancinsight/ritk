@@ -10,15 +10,15 @@ use burn::{
 #[derive(Module, Debug)]
 pub struct AffineNetwork<B: Backend> {
     conv1: Conv3d<B>,
-    bn1: BatchNorm<B, 3>,
+    bn1: BatchNorm<B>,
     conv2: Conv3d<B>,
-    bn2: BatchNorm<B, 3>,
+    bn2: BatchNorm<B>,
     conv3: Conv3d<B>,
-    bn3: BatchNorm<B, 3>,
+    bn3: BatchNorm<B>,
     conv4: Conv3d<B>,
-    bn4: BatchNorm<B, 3>,
+    bn4: BatchNorm<B>,
     conv5: Conv3d<B>,
-    bn5: BatchNorm<B, 3>,
+    bn5: BatchNorm<B>,
     fc: Linear<B>,
     activation: Relu,
 }
@@ -136,7 +136,7 @@ impl<B: Backend> AffineNetwork<B> {
         // Mean over spatial dim: [B, C, 1]
         let x = x.mean_dim(2);
         // Squeeze: [B, C]
-        let x = x.squeeze::<2>(2);
+        let x = x.squeeze::<2>();
         
         let x = self.fc.forward(x);
         

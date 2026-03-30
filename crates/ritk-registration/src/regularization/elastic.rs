@@ -186,6 +186,7 @@ mod tests {
     fn test_elastic_weights() {
         type B = NdArray<f32>;
         let reg = ElasticRegularizer::hyperelastic(0.2, 0.02);
-        assert!((Regularizer::<B>::weight(&reg) - 0.2).abs() < 1e-6);
+        let weight = <ElasticRegularizer as Regularizer<B>>::weight(&reg);
+        assert!((weight - 0.2).abs() < 1e-6);
     }
 }

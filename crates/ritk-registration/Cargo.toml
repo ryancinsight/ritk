@@ -4,18 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ritk-core = { workspace = true }
-ritk-model = { workspace = true }
-burn = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
+ritk-core = { path = "../ritk-core" }
+ritk-model = { path = "../ritk-model" }
+burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
 
 [dev-dependencies]
-burn-ndarray = { workspace = true }
-nalgebra = { workspace = true }
-ritk-io = { workspace = true }
-anyhow = { workspace = true }
+burn-ndarray = "0.19"
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
+ritk-io = { path = "../ritk-io" }
+anyhow = "1.0"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 walkdir = "2.4"
 
