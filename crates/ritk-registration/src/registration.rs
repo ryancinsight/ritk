@@ -242,12 +242,13 @@ where
             // Backward pass
             let grads = loss.backward();
 
-            // TODO: Gradient clipping is currently disabled due to API changes in burn
-            // The clipping functionality is available in gradient_clipping module for
-            // manual use with f64 slices. For tensor-based clipping, future work will
-            // need to use burn's built-in gradient manipulation APIs.
+            let mut grads_params = GradientsParams::from_grads(grads, &transform);
 
-            let grads_params = GradientsParams::from_grads(grads, &transform);
+            // Apply gradient clipping if enabled
+            if self.config.enable_gradient_clipping {
+                use crate::optimizer::gradient_clipping::clip_grad_norm;
+                grads_params = clip_grad_norm(grads_params, &transform, self.config.max_gradient_norm);
+            }
 
             // Optimizer step
             transform = self.optimizer.step(transform, grads_params);

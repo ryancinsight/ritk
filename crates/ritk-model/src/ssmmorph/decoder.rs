@@ -59,9 +59,9 @@ impl SSMMorphDecoderConfig {
         let mut configs = Vec::new();
         let mut in_ch = self.bottleneck_channels;
         
-        // Iterate reversed, skipping the bottleneck itself (last channel)
-        // [C1, C2, C3, C4] -> [C3, C2, C1]
-        for &skip_ch in encoder_channels.iter().rev().skip(1) {
+        // Iterate reversed, matching each encoder stage
+        // [C1, C2, C3] -> [C3, C2, C1]
+        for &skip_ch in encoder_channels.iter().rev() {
             let out_ch = skip_ch;
             
             // Input is upsampled + skip connection
@@ -75,15 +75,6 @@ impl SSMMorphDecoderConfig {
             
             in_ch = out_ch;
         }
-        
-        // Add final stage (upsample to original resolution, no skip)
-        // Typically output channels = C1 / 2
-        let final_ch = encoder_channels.first().map(|c| c / 2).unwrap_or(16);
-        configs.push(DecoderStageConfig {
-            in_channels: in_ch,
-            out_channels: final_ch,
-            depth: self.blocks_per_stage,
-        });
         
         configs
     }
@@ -219,11 +210,9 @@ impl<B: Backend> SSMMorphDecoder<B> {
             .iter()
             .enumerate()
             .map(|(i, stage_config)| {
-                let skip_ch = if i < encoder_channels.len() - 1 {
-                    encoder_channels[encoder_channels.len() - 2 - i]
-                } else {
-                    0
-                };
+                // Match skip channel to encoder stage
+                // Decoder stage i corresponds to Encoder stage (N-1-i)
+                let skip_ch = encoder_channels[encoder_channels.len() - 1 - i];
                 
                 DecoderStage::new(
                     stage_config.in_channels,
@@ -236,8 +225,13 @@ impl<B: Backend> SSMMorphDecoder<B> {
             .collect();
             
         // Final projection
+        // Input channels must match the output of the last decoder stage
+        let final_in_channels = stage_configs.last()
+            .map(|c| c.out_channels)
+            .unwrap_or(config.bottleneck_channels);
+
         let proj_config = Conv3dConfig::new(
-            [config.out_channels, config.out_channels],
+            [final_in_channels, config.out_channels],
             [3, 3, 3],
         )
         .with_padding(PaddingConfig3d::Explicit(1, 1, 1))

@@ -269,9 +269,7 @@ fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<NaPoint3<f64>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
     // Basic compilation test
-    type TestBackend = NdArray<f32>;
     
     #[test]
     fn test_scan_empty_dir() {

@@ -3,6 +3,11 @@
 //! This module provides gradient clipping strategies to prevent exploding gradients
 //! during registration optimization, improving stability and convergence.
 
+use burn::module::{AutodiffModule, ModuleVisitor, ParamId};
+use burn::tensor::{Tensor, backend::AutodiffBackend, ElementConversion};
+use burn::optim::GradientsParams;
+use std::marker::PhantomData;
+
 /// Clip gradients by global L2 norm.
 ///
 /// # Arguments
@@ -21,6 +26,77 @@ pub fn clip_gradients_l2(gradients: &[f64], max_norm: f64) -> Vec<f64> {
     } else {
         gradients.to_vec()
     }
+}
+
+/// Clip gradients by global norm for Burn tensors.
+///
+/// # Arguments
+/// * `grads` - The gradients parameters
+/// * `module` - The module to clip gradients for
+/// * `max_norm` - The maximum global norm
+///
+/// # Returns
+/// The clipped gradients parameters
+pub fn clip_grad_norm<B, M>(
+    mut grads: GradientsParams,
+    module: &M,
+    max_norm: f64,
+) -> GradientsParams
+where
+    B: AutodiffBackend,
+    M: AutodiffModule<B>,
+{
+    struct NormVisitor<'a, B: AutodiffBackend> {
+        grads: &'a GradientsParams,
+        norm_sq: Option<Tensor<B::InnerBackend, 1>>,
+    }
+
+    impl<'a, B: AutodiffBackend> ModuleVisitor<B> for NormVisitor<'a, B> {
+        fn visit_float<const D: usize>(&mut self, id: ParamId, _tensor: &Tensor<B, D>) {
+            if let Some(grad) = self.grads.get::<B::InnerBackend, D>(id) {
+                let grad_norm = grad.powf_scalar(2.0).sum();
+                match &self.norm_sq {
+                    Some(n) => self.norm_sq = Some(n.clone().add(grad_norm)),
+                    None => self.norm_sq = Some(grad_norm),
+                }
+            }
+        }
+    }
+
+    let mut visitor = NormVisitor { grads: &grads, norm_sq: None };
+    module.visit(&mut visitor);
+
+    if let Some(total_norm_sq) = visitor.norm_sq {
+        let total_norm = total_norm_sq.sqrt().into_scalar().elem::<f64>();
+
+        if total_norm > max_norm {
+            let scale = max_norm / (total_norm + 1e-6);
+
+            struct ScaleVisitor<'a, B: AutodiffBackend> {
+                grads: &'a mut GradientsParams,
+                scale: f64,
+                _phantom: PhantomData<B>,
+            }
+
+            impl<'a, B: AutodiffBackend> ModuleVisitor<B> for ScaleVisitor<'a, B> {
+                fn visit_float<const D: usize>(&mut self, id: ParamId, _tensor: &Tensor<B, D>) {
+                    if let Some(grad) = self.grads.get::<B::InnerBackend, D>(id.clone()) {
+                        let scaled_grad = grad.mul_scalar(self.scale);
+                        self.grads.register(id, scaled_grad);
+                    }
+                }
+            }
+
+            let mut scale_visitor = ScaleVisitor::<B> { 
+                grads: &mut grads, 
+                scale,
+                _phantom: PhantomData,
+            };
+            module.visit(&mut scale_visitor);
+        }
+    }
+
+    grads
 }
 
 /// Gradient clipping strategy.

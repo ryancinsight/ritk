@@ -60,10 +60,15 @@ fn test_bspline_cr_registration_small() {
     let coeffs = Tensor::<B, 2>::zeros([num_control_points, 3], &device);
     
     // Use from_spatial for simpler API with spatial types
+    // We need a coarser spacing for the transform grid to cover the image
+    // Image is 20x20x20. Grid is 5x5x5.
+    // So spacing should be 20/4 = 5.0 to cover the whole image.
+    let transform_spacing = Spacing::new([5.0, 5.0, 5.0]);
+
     let transform = BSplineTransform::<B, 3>::from_spatial(
         grid_size,
         &origin,
-        &spacing,
+        &transform_spacing,
         &direction,
         coeffs,
         &device,

@@ -483,14 +483,45 @@ mod tests {
     }
     
     #[test]
-    fn test_cross_scan_3d() {
+    fn test_scan_3d_values() {
+        let device = <NdArray as Backend>::Device::default();
+        // Create tensor with unique values to verify permutation
+        let data: Vec<f32> = (0..24).map(|x| x as f32).collect();
+        let input = Tensor::<NdArray, 1>::from_data(data.as_slice(), &device)
+            .reshape([1, 1, 2, 3, 4]); // [B, C, D, H, W]
+            
+        // Test DepthForward: [D, H, W] -> [H, W, D]
+        // D=2, H=3, W=4
+        let scanned = Scan3D::scan(input.clone(), ScanDirection::DepthForward);
+        let merged = Scan3D::merge(scanned, 2, 3, 4, ScanDirection::DepthForward);
+        
+        let input_data = input.into_data().as_slice::<f32>().unwrap().to_vec();
+        let merged_data = merged.into_data().as_slice::<f32>().unwrap().to_vec();
+        
+        for (a, b) in input_data.iter().zip(merged_data.iter()) {
+            assert!((a - b).abs() < 1e-6, "Value mismatch: {} vs {}", a, b);
+        }
+    }
+
+    #[test]
+    fn test_cross_scan_identity() {
         let device = <NdArray as Backend>::Device::default();
         let config = CrossScanConfig::new_3d();
         let cross_scan = CrossScan::new(&config);
         
-        let input = Tensor::<NdArray, 5>::zeros([1, 16, 4, 8, 8], &device);
-        let sequences = cross_scan.apply(input);
+        // Random input
+        let input = Tensor::<NdArray, 5>::random([1, 2, 4, 4, 4], burn::tensor::Distribution::Uniform(0.0, 1.0), &device);
         
-        assert_eq!(sequences.len(), 6); // 6 directions for 3D
+        // Apply scan
+        let sequences = cross_scan.apply(input.clone());
+        
+        // Merge without modification (simulate Identity SSM)
+        let merged = cross_scan.merge_3d(sequences, 4, 4, 4, cross_scan.directions());
+        
+        // Should recover input
+        let diff = (input - merged).abs().sum();
+        let diff_val = diff.into_scalar();
+        
+        assert!(diff_val < 1e-5, "CrossScan Identity failed, diff: {}", diff_val);
     }
 }

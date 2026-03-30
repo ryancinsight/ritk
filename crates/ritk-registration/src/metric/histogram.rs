@@ -6,7 +6,7 @@
 use burn::tensor::{Tensor, Int};
 use burn::tensor::backend::Backend;
 use std::marker::PhantomData;
-use crate::metric::trait_::utils;
+use ritk_core::image::grid;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};

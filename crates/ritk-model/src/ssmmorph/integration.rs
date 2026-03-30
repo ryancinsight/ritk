@@ -9,6 +9,7 @@ use burn::tensor::cast::ToElement;
 use ritk_core::image::Image;
 use ritk_core::transform::displacement_field::{DisplacementField, DisplacementFieldTransform3D};
 use ritk_core::interpolation::LinearInterpolator;
+use ritk_core::spatial::{Point, Spacing, Direction};
 
 use super::network::{SSMMorph, SSMMorphConfig};
 use super::network::sampling::FlowComposer;
@@ -240,21 +241,89 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         inverse: &DisplacementFieldTransform3D<B>,
     ) -> f64 {
         // Compute composition error
-        // φ∘φ^{-1}(x) should equal x
-        let _composed = self.compose_transforms(forward, inverse);
+        // φ∘φ^{-1}(x) should equal x => displacement should be 0
+        let composed = self.compose_transforms(forward, inverse);
         
-        // Measure deviation from identity
-        // Simplified: return 0.0 for now
-        0.0
+        // Measure deviation from identity (MSE of displacement magnitude)
+        let field = composed.field();
+        let components = field.components();
+        
+        let mut mse = 0.0;
+        for c in components {
+            let sq = c.powf_scalar(2.0);
+            mse += sq.mean().into_scalar().to_f64();
+        }
+        
+        mse
     }
     
     fn compose_transforms(
         &self,
         t1: &DisplacementFieldTransform3D<B>,
-        _t2: &DisplacementFieldTransform3D<B>,
+        t2: &DisplacementFieldTransform3D<B>,
     ) -> DisplacementFieldTransform3D<B> {
-        // Simplified composition
-        t1.clone()
+        // Convert transforms to tensors [1, 3, D, H, W]
+        let flow1 = self.transform_to_tensor(t1);
+        let flow2 = self.transform_to_tensor(t2);
+        
+        // Use FlowComposer to compose flows
+        // u_comp(x) = u2(x) + u1(x + u2(x))
+        // Note: FlowComposer.compose(f1, f2) computes f1(x + f2(x)) + f2(x)
+        // So we pass (t1, t2)
+        let device = flow1.device();
+        let composer = FlowComposer::new(device);
+        let composed_flow = composer.compose(&flow1, &flow2);
+        
+        // Convert back to transform
+        // Use t1's spatial metadata
+        let field = t1.field();
+        self.tensor_to_transform(
+            &composed_flow, 
+            field.origin(), 
+            field.spacing(), 
+            field.direction()
+        )
+    }
+
+    fn transform_to_tensor(&self, transform: &DisplacementFieldTransform3D<B>) -> Tensor<B, 5> {
+        let field = transform.field();
+        let components = field.components();
+        
+        // components is [X, Y, Z] each [D, H, W]
+        // Reshape to [1, 1, D, H, W] and Cat along channel dim
+        let tensors: Vec<Tensor<B, 5>> = components.into_iter()
+            .map(|c| {
+                let [d, h, w] = c.dims();
+                c.reshape([1, 1, d, h, w])
+            })
+            .collect();
+            
+        Tensor::cat(tensors, 1)
+    }
+
+    fn tensor_to_transform(
+        &self, 
+        tensor: &Tensor<B, 5>, 
+        origin: &Point<3>, 
+        spacing: &Spacing<3>, 
+        direction: Direction<3>
+    ) -> DisplacementFieldTransform3D<B> {
+        // tensor is [1, 3, D, H, W]
+        let [_, _, d, h, w] = tensor.dims();
+        
+        // Extract channels
+        let x = tensor.clone().slice([0..1, 0..1, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        let y = tensor.clone().slice([0..1, 1..2, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        let z = tensor.clone().slice([0..1, 2..3, 0..d, 0..h, 0..w]).reshape([d, h, w]);
+        
+        let field = DisplacementField::new(
+            vec![x, y, z],
+            origin.clone(),
+            spacing.clone(),
+            direction
+        );
+        
+        DisplacementFieldTransform3D::new(field, LinearInterpolator::new())
     }
 }
 
@@ -262,6 +331,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
+    use ritk_core::spatial::{Point, Spacing, Direction};
 
     type TestBackend = NdArray<f32>;
     
@@ -281,5 +351,60 @@ mod tests {
         let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
         
         assert_eq!(diff_ssm.integration_steps, 7);
+    }
+
+    #[test]
+    fn test_validate_transform_identity() {
+        let device = Default::default();
+        let config = SSMMorphConfig::for_3d_registration();
+        let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
+
+        // Create identity transform
+        let d = 5; let h = 5; let w = 5;
+        let x = Tensor::zeros([d, h, w], &device);
+        let y = Tensor::zeros([d, h, w], &device);
+        let z = Tensor::zeros([d, h, w], &device);
+        
+        let origin = Point::new([0.0, 0.0, 0.0]);
+        let spacing = Spacing::new([1.0, 1.0, 1.0]);
+        let direction = Direction::identity();
+        
+        let field = DisplacementField::new(vec![x, y, z], origin.clone(), spacing.clone(), direction.clone());
+        let transform = DisplacementFieldTransform3D::new(field, LinearInterpolator::new());
+        
+        // Inverse of identity is identity
+        let inverse = transform.clone();
+        
+        let mse = diff_ssm.validate_transform(&transform, &inverse);
+        assert!(mse < 1e-6, "MSE for identity transform should be close to 0");
+    }
+
+    #[test]
+    fn test_validate_transform_translation() {
+        let device = Default::default();
+        let config = SSMMorphConfig::for_3d_registration();
+        let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
+
+        // Create translation transform (+1 in x)
+        let d = 5; let h = 5; let w = 5;
+        let x = Tensor::ones([d, h, w], &device);
+        let y = Tensor::zeros([d, h, w], &device);
+        let z = Tensor::zeros([d, h, w], &device);
+        
+        let origin = Point::new([0.0, 0.0, 0.0]);
+        let spacing = Spacing::new([1.0, 1.0, 1.0]);
+        let direction = Direction::identity();
+        
+        let field_fwd = DisplacementField::new(vec![x.clone(), y.clone(), z.clone()], origin.clone(), spacing.clone(), direction.clone());
+        let fwd = DisplacementFieldTransform3D::new(field_fwd, LinearInterpolator::new());
+        
+        // Inverse (-1 in x)
+        let x_inv = x.neg();
+        let field_inv = DisplacementField::new(vec![x_inv, y.clone(), z.clone()], origin.clone(), spacing.clone(), direction.clone());
+        let inv = DisplacementFieldTransform3D::new(field_inv, LinearInterpolator::new());
+        
+        let mse = diff_ssm.validate_transform(&fwd, &inv);
+        // Should be close to 0
+        assert!(mse < 1e-5, "MSE for translation transform composition should be close to 0, got {}", mse);
     }
 }

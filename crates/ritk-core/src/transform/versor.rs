@@ -6,7 +6,8 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
 use burn::module::{Module, Param};
-use super::trait_::Transform;
+use crate::spatial::{Point, Spacing, Direction};
+use super::trait_::{Transform, Resampleable};
 
 /// Versor Rigid Transform (Quaternion Rotation + Translation).
 ///
@@ -104,6 +105,18 @@ impl<B: Backend> VersorRigid3DTransform<B> {
         let row3 = Tensor::cat(vec![r31, r32, r33], 0).reshape([1, 3]);
 
         Tensor::cat(vec![row1, row2, row3], 0)
+    }
+}
+
+impl<B: Backend> Resampleable<B, 3> for VersorRigid3DTransform<B> {
+    fn resample(
+        &self,
+        _shape: [usize; 3],
+        _origin: Point<3>,
+        _spacing: Spacing<3>,
+        _direction: Direction<3>,
+    ) -> Self {
+        self.clone()
     }
 }
 

@@ -114,12 +114,18 @@ pub struct SelectiveStateSpace<B: Backend> {
     expand_factor: usize,
     /// dt rank for low-rank projection
     dt_rank: usize,
+    /// Effective dt rank (min(dt_rank, inner_dim))
+    effective_dt_rank: usize,
 }
 
 impl<B: Backend> SelectiveStateSpace<B> {
     /// Create new SelectiveStateSpace module
     pub fn new(config: &SelectiveStateSpaceConfig, device: &B::Device) -> Self {
         let inner_dim = config.input_dim * config.expand_factor;
+        
+        // Ensure dt_rank does not exceed inner_dim
+        // This prevents dimension mismatch for small models/tests
+        let effective_dt_rank = config.dt_rank.min(inner_dim);
         
         // Input projection expands channels
         let in_proj = LinearConfig::new(config.input_dim, inner_dim * 2).init(device);
@@ -128,7 +134,8 @@ impl<B: Backend> SelectiveStateSpace<B> {
         let out_proj = LinearConfig::new(inner_dim, config.output_dim).init(device);
         
         // Discretization step projection (low-rank)
-        let dt_proj = LinearConfig::new(config.dt_rank, inner_dim).init(device);
+        // Projects from effective_dt_rank to inner_dim
+        let dt_proj = LinearConfig::new(effective_dt_rank, inner_dim).init(device);
         
         // B and C projections (rank-reduced)
         let b_proj = LinearConfig::new(inner_dim, config.state_dim).init(device);
@@ -161,6 +168,7 @@ impl<B: Backend> SelectiveStateSpace<B> {
             state_dim: config.state_dim,
             expand_factor: config.expand_factor,
             dt_rank: config.dt_rank,
+            effective_dt_rank,
         }
     }
     
@@ -215,9 +223,12 @@ impl<B: Backend> SelectiveStateSpace<B> {
     
     /// Compute discretization step Δ from input
     fn compute_dt(&self, x: &Tensor<B, 3>) -> Tensor<B, 3> {
-        let [batch, seq, _] = x.dims();
-        let dt_rank = self.dt_rank;
+        let [batch, seq, inner] = x.dims();
+        let dt_rank = self.effective_dt_rank;
         
+        // Debug print
+        // println!("compute_dt: x dims {:?}, dt_rank {}", x.dims(), dt_rank);
+
         // First project to low-rank space
         // x: [batch, seq, inner]
         let x_rank = x.clone().slice([0..batch, 0..seq, 0..dt_rank]);
@@ -285,6 +296,11 @@ impl<B: Backend> SelectiveStateSpace<B> {
     ) -> Tensor<B, 4> {
         let [batch, seq_len, inner, state] = a_in.dims();
         
+        // Debug print for shapes
+        // if seq_len < 64 { // Reduce noise
+        //      println!("parallel_scan: [{}, {}, {}, {}]", batch, seq_len, inner, state);
+        // }
+
         let mut a = a_in;
         let mut u = u_in;
         
@@ -295,6 +311,9 @@ impl<B: Backend> SelectiveStateSpace<B> {
             let k = 1 << i;
             if k >= seq_len { break; }
             
+            // Debug print for slice
+            // println!("  step {}: k={}, seq_len={}, slicing {}..{}", i, k, seq_len, k, seq_len);
+
             // Slice views
             let a_curr = a.clone().slice([0..batch, k..seq_len, 0..inner, 0..state]);
             let u_curr = u.clone().slice([0..batch, k..seq_len, 0..inner, 0..state]);

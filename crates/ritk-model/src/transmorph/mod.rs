@@ -47,13 +47,14 @@ use crate::{
     transmorph::{
         swin::{SwinTransformerBlock, SwinTransformerBlockConfig},
         integration::VecInt,
-        spatial_transform::SpatialTransformer,
     },
 };
 
 pub mod swin;
 pub mod integration;
 pub mod spatial_transform;
+
+pub use spatial_transform::SpatialTransformer;
 
 /// Output from TransMorph forward pass
 #[derive(Debug, Clone)]

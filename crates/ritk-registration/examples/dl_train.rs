@@ -6,11 +6,13 @@ use burn::{
     module::Module,
 };
 use ritk_model::{
-    transmorph::{TransMorphConfig, TransMorph, SpatialTransformer},
+    ssmmorph::{SSMMorph, SSMMorphConfig, SSMMorphEncoderConfig},
+    ssmmorph::network::FlowComposer,
     affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
-    losses::{LocalNCCLoss, GlobalNCCLoss, GradLoss},
+    losses::{GradLoss, GradientPenalty},
     io::adapter::images_to_batch,
 };
+use ritk_registration::metric::dl_losses::{mse_loss, lncc_loss};
 use ritk_core::{
     image::Image,
     spatial::{Point3, Spacing3, Direction3},
@@ -20,9 +22,9 @@ use std::time::Instant;
 #[derive(Module, Debug)]
 pub struct CombinedModel<B: Backend> {
     affine: AffineNetwork<B>,
-    transmorph: TransMorph<B>,
+    ssmmorph: SSMMorph<B>,
     affine_stn: AffineTransform<B>,
-    stn: SpatialTransformer<B>,
+    composer: FlowComposer<B>,
 }
 
 impl<B: Backend> CombinedModel<B> {
@@ -31,22 +33,23 @@ impl<B: Backend> CombinedModel<B> {
         let affine = affine_config.init(device);
         let affine_stn = AffineTransform::new();
         
-        let transmorph_config = TransMorphConfig {
-            in_channels: 2,
-            embed_dim: 48,
-            out_channels: 3,
-            window_size: 4,
-            integrate: true,
-            integration_steps: 5,
-        };
-        let transmorph = transmorph_config.init(device);
-        let stn = SpatialTransformer::new();
+        let encoder_config = SSMMorphEncoderConfig::new()
+            .with_in_channels(2)
+            .with_base_channels(16)
+            .with_num_stages(3)
+            .with_blocks_per_stage(1);
+            
+        let ssmmorph_config = SSMMorphConfig::new(encoder_config)
+            .with_diffeomorphic(false); // Direct flow for simplicity in example
+            
+        let ssmmorph = SSMMorph::new(&ssmmorph_config, device);
+        let composer = FlowComposer::new(device.clone());
         
         Self {
             affine,
-            transmorph,
+            ssmmorph,
             affine_stn,
-            stn,
+            composer,
         }
     }
     
@@ -62,7 +65,8 @@ impl<B: Backend> CombinedModel<B> {
         // 2. Deformable Registration
         // Concatenate affine-registered moving image with fixed image
         let input_transmorph = Tensor::cat(vec![moving_affine.clone(), fixed.clone()], 1);
-        let flow = self.transmorph.forward(input_transmorph);
+        let tm_out = self.transmorph.forward(input_transmorph);
+        let flow = tm_out.flow;
         
         // Flow is now full resolution from TransMorph
         
@@ -91,7 +95,7 @@ fn run_training() {
     // 3. Loss Functions
     let _ncc_local = LocalNCCLoss::<MyBackend>::new(5, &device);
     let _ncc_global = GlobalNCCLoss::<MyBackend>::new();
-    let grad_loss = GradLoss::<MyBackend>::new();
+    let grad_loss = GradLoss::<MyBackend>::new(GradientPenalty::L2);
     let lambda_reg = 1.0; 
 
     // 4. Optimizer

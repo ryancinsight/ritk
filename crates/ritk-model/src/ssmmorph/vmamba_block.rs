@@ -215,28 +215,17 @@ impl<B: Backend> VMambaBlock<B> {
         directions: &[ScanDirection],
     ) -> Tensor<B, 5> {
         let [_batch, _channels, depth, height, width] = dims;
-        let device = sequences[0].device();
         
-        // Merge each sequence back to spatial
-        let mut merged = Vec::new();
-        for (seq, &dir) in sequences.into_iter().zip(directions.iter()) {
-            let spatial = if self.cross_scan.use_3d() {
-                super::cross_scan::Scan3D::merge(seq, depth, height, width, dir)
-            } else {
-                // For 2D case, we'd need different handling
-                // This is a simplified version assuming 3D
-                super::cross_scan::Scan3D::merge(seq, depth, height, width, dir)
-            };
-            merged.push(spatial);
+        if self.cross_scan.use_3d() {
+            self.cross_scan.merge_3d(sequences, depth, height, width, directions)
+        } else {
+            // If we are here with 5D dims but 2D config, it implies we treated 5D as batch of 2D?
+            // But VMambaBlock::forward assumes 3D structure.
+            // For now, delegate to cross_scan which will handle the logic or panic if mismatched.
+            // Since dims is 5D, merge_3d is the only logical choice for reconstruction.
+            // If cross_scan is 2D, we shouldn't have reached here with 5D input in forward().
+            panic!("VMambaBlock currently only supports 3D mode with 5D input");
         }
-        
-        // Average all directions
-        let sum = merged.into_iter().fold(
-            Tensor::zeros(dims, &device),
-            |acc, t| acc + t,
-        );
-        
-        sum / (directions.len() as f64)
     }
     
     /// Forward for 4D input (treat as single depth slice)

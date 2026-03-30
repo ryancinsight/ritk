@@ -145,7 +145,8 @@ mod tests {
     
     #[test]
     fn test_tv_weight() {
+        type B = NdArray<f32>;
         let reg = TotalVariationRegularizer::new(0.5);
-        assert!((reg.weight() - 0.5).abs() < 1e-6);
+        assert!((Regularizer::<B>::weight(&reg) - 0.5).abs() < 1e-6);
     }
 }

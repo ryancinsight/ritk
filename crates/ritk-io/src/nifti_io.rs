@@ -1,4 +1,4 @@
-use anyhow::{Result, Context, anyhow};
+use anyhow::{Result, Context};
 use burn::tensor::{Tensor, TensorData, Shape};
 use burn::tensor::backend::Backend;
 use nifti::{NiftiObject, ReaderOptions, IntoNdArray};
@@ -191,13 +191,45 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     ];
 
     // Note: nifti-rs 0.16 WriterOptions doesn't expose a `header` setter.
-    // We use individual setters.
-    // Write NIfTI file
-    // Note: The nifti crate's WriterOptions API changed in recent versions
-    // Using basic write_nifti - spatial metadata stored in header separately
+    // We use individual setters or patch the file post-write.
+    // Since nifti-rs 0.16 doesn't support setting sform directly easily, 
+    // we write the file then patch the header bytes for correctness.
+    
     WriterOptions::new(path_ref)
         .write_nifti(&array)
         .map_err(|e| anyhow::anyhow!("Failed to write NIfTI file: {}", e))?;
+
+    // Patch header with sform
+    patch_header_sform(path_ref, srow_x, srow_y, srow_z)
+        .context("Failed to patch NIfTI header with spatial information")?;
+
+    Ok(())
+}
+
+fn patch_header_sform(path: &Path, srow_x: [f32; 4], srow_y: [f32; 4], srow_z: [f32; 4]) -> Result<()> {
+    use std::fs::OpenOptions;
+    use std::io::{Seek, SeekFrom, Write};
+
+    let mut file = OpenOptions::new().write(true).open(path)?;
+    
+    // Set sform_code = 1 (Scanner Anat) at offset 254
+    // NIfTI-1 header offset for sform_code is 254 (short)
+    file.seek(SeekFrom::Start(254))?;
+    file.write_all(&1i16.to_le_bytes())?;
+
+    // Write srow_x at 280
+    file.seek(SeekFrom::Start(280))?;
+    for val in srow_x {
+        file.write_all(&val.to_le_bytes())?;
+    }
+    // srow_y at 296 (280 + 16)
+    for val in srow_y {
+        file.write_all(&val.to_le_bytes())?;
+    }
+    // srow_z at 312 (296 + 16)
+    for val in srow_z {
+        file.write_all(&val.to_le_bytes())?;
+    }
 
     Ok(())
 }
@@ -206,7 +238,6 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
-    use nifti::writer::WriterOptions;
     use tempfile::tempdir;
     use anyhow::Result;
 

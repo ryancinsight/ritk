@@ -8,7 +8,7 @@
 
 use burn::tensor::{Tensor, TensorData, Shape};
 use burn::tensor::backend::Backend;
-use burn::module::{Module, Param};
+use burn::module::Module;
 use crate::spatial::{Point, Spacing, Direction};
 use crate::transform::{Transform, Resampleable};
 use crate::interpolation::{Interpolator, LinearInterpolator};
@@ -22,7 +22,7 @@ pub struct DisplacementField<B: Backend, const D: usize> {
     /// Vector components stored as separate scalar tensors.
     /// Length must be equal to D.
     /// Each tensor has shape corresponding to the spatial dimensions (e.g., [Z, Y, X] for 3D).
-    components: Vec<Param<Tensor<B, D>>>,
+    components: Vec<Tensor<B, D>>,
     /// Physical coordinate of the first pixel (index 0,0,0).
     origin: Point<D>,
     /// Physical distance between pixels along each axis.
@@ -31,8 +31,8 @@ pub struct DisplacementField<B: Backend, const D: usize> {
     direction: Direction<D>,
     
     // Precomputed matrices for coordinate transformation
-    world_to_index_matrix: Param<Tensor<B, 2>>,
-    origin_tensor: Param<Tensor<B, 2>>,
+    world_to_index_matrix: Tensor<B, 2>,
+    origin_tensor: Tensor<B, 2>,
 }
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {
@@ -60,10 +60,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         
         let device = components[0].device();
 
-        // Wrap components in Param
-        let components = components.into_iter()
-            .map(|c| Param::from_tensor(c.require_grad()))
-            .collect();
+        // Components are stored as tensors directly.
+        // This allows creating DisplacementField from computed tensors (non-leaf).
 
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| origin[i] as f32).collect();
@@ -120,14 +118,14 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             origin,
             spacing,
             direction,
-            world_to_index_matrix: Param::from_tensor(world_to_index_matrix),
-            origin_tensor: Param::from_tensor(origin_tensor),
+            world_to_index_matrix,
+            origin_tensor,
         }
     }
 
     /// Get the components.
     pub fn components(&self) -> Vec<Tensor<B, D>> {
-        self.components.iter().map(|p| p.val()).collect()
+        self.components.clone()
     }
 
     /// Get the origin.
@@ -210,7 +208,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             
             // Interpolate each component
             for d in 0..D {
-                let comp = &self.components[d].val();
+                let comp = &self.components[d];
                 let val = interpolator.interpolate(comp, old_indices.clone());
                 component_chunks[d].push(val);
             }
@@ -225,6 +223,144 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         }
         
         Self::new(final_components, new_origin, new_spacing, new_direction)
+    }
+
+    /// Compose this displacement field with another one.
+    /// Result = self o other.
+    /// T(x) = self(other(x)) = other(x) + self(other(x))
+    /// The resulting field is defined on the grid of `other`.
+    pub fn compose(&self, other: &Self) -> Self {
+        let device = other.components[0].device();
+        // Burn 0.16 Shape.dims is Vec<usize>, convert to array [usize; D]
+        let shape_vec = other.components[0].shape().dims;
+        let shape_dims: [usize; D] = shape_vec.try_into().expect("Dimension mismatch");
+        
+        // 1. Generate grid indices [N, D]
+        let indices = crate::image::grid::generate_grid(shape_dims, &device);
+        let [n_points, _] = indices.dims();
+
+        // 2. Compute Physical Points P = Origin + Indices @ (D * S)^T
+        // We can compute M = (D * S)^T on CPU and upload
+        let m_data = match D {
+            2 => {
+                // D[c, r] * S[r]
+                // But we want (D*S)^T.
+                // (D*S)[r, c] = D[r, c] * S[c]? No.
+                // P = O + D * S * I.
+                // D is matrix, S is diagonal. I is vector.
+                // P = O + D * (S * I).
+                // With row vectors: P = O + (I * S) * D^T.
+                // Let's verify scaling.
+                // I * S (elementwise) scales each coord.
+                // Then matmul D^T.
+                // Or just construct M = diag(S) * D^T.
+                // M[c, r] = S[c] * D[r, c].
+                let sx = other.spacing[0]; // x
+                let sy = other.spacing[1]; // y
+                let d00 = other.direction[(0,0)];
+                let d01 = other.direction[(0,1)];
+                let d10 = other.direction[(1,0)];
+                let d11 = other.direction[(1,1)];
+                
+                // M = [sx*d00, sx*d10]
+                //     [sy*d01, sy*d11]
+                // Row 0: sx*d00, sx*d10 (x contrib to x, y)
+                // Row 1: sy*d01, sy*d11
+                // Wait.
+                // I = [x, y].
+                // P = [x', y'].
+                // P = x * col0(M) + y * col1(M).
+                // P = x * (S[0]*col0(D)) + y * (S[1]*col1(D)).
+                // So Row 0 of M should be S[0]*col0(D)^T = S[0]*row0(D^T).
+                // M[0, 0] = sx * d00
+                // M[0, 1] = sx * d10
+                // M[1, 0] = sy * d01
+                // M[1, 1] = sy * d11
+                vec![sx*d00, sx*d10, sy*d01, sy*d11]
+            },
+            3 => {
+                let sx = other.spacing[0];
+                let sy = other.spacing[1];
+                let sz = other.spacing[2];
+                let d = &other.direction;
+                // M row 0: sx * D col 0
+                // M row 1: sy * D col 1
+                // M row 2: sz * D col 2
+                vec![
+                    sx*d[(0,0)], sx*d[(1,0)], sx*d[(2,0)],
+                    sy*d[(0,1)], sy*d[(1,1)], sy*d[(2,1)],
+                    sz*d[(0,2)], sz*d[(1,2)], sz*d[(2,2)]
+                ]
+            },
+            _ => panic!("Only 2D/3D supported"),
+        };
+
+        let m_tensor = Tensor::<B, 2>::from_data(
+            TensorData::new(m_data, Shape::new([D, D])),
+            &device
+        );
+
+        let origin_vec: Vec<f32> = (0..D).map(|i| other.origin[i] as f32).collect();
+        let origin_tensor = Tensor::<B, 1>::from_data(
+            TensorData::new(origin_vec, Shape::new([D])),
+            &device
+        ).reshape([1, D]);
+
+        // 3. Process in chunks
+        const CHUNK_SIZE: usize = 32768;
+        let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let mut final_components = vec![Vec::new(); D];
+        
+        // We also need other.components flattened to add to physical points
+        let other_flat: Vec<Tensor<B, 1>> = other.components.iter()
+            .map(|c| c.clone().reshape([n_points]))
+            .collect();
+        
+        let interpolator = LinearInterpolator::new();
+
+        for i in 0..num_chunks {
+            let start = i * CHUNK_SIZE;
+            let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+            let chunk_indices = indices.clone().slice([start..end]);
+            
+            // Physical points P
+            let p = chunk_indices.matmul(m_tensor.clone()) + origin_tensor.clone();
+            
+            // Get u2 chunk
+            let mut u2_chunks = Vec::with_capacity(D);
+            for d in 0..D {
+                u2_chunks.push(other_flat[d].clone().slice([start..end]));
+            }
+            let u2 = Tensor::stack(u2_chunks.clone(), 1); // [Batch, D]
+            
+            // P' = P + u2
+            let p_prime = p + u2;
+            
+            // Interpolate self at P'
+            // Convert to indices in self
+            let self_indices = self.world_to_index_tensor(p_prime);
+            
+            // Interpolate each component of self
+            for d in 0..D {
+                let u1_val = interpolator.interpolate(&self.components[d], self_indices.clone());
+                // u1_val is [Batch]
+                
+                // Total = u2 + u1
+                // We have u2_chunks[d] which is [Batch]
+                let total_val = u2_chunks[d].clone() + u1_val;
+                final_components[d].push(total_val);
+            }
+        }
+        
+        // Concat and reshape
+        let mut new_components = Vec::with_capacity(D);
+        for d in 0..D {
+            let flat = Tensor::cat(final_components[d].clone(), 0);
+            let reshaped = flat.reshape(Shape::new(shape_dims));
+            new_components.push(reshaped);
+        }
+        
+        Self::new(new_components, other.origin.clone(), other.spacing.clone(), other.direction.clone())
     }
 
     /// Convert physical points to continuous indices in the field's grid.
@@ -243,8 +379,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         const CHUNK_SIZE: usize = 32768;
 
         if n_points <= CHUNK_SIZE {
-            let diff = points - self.origin_tensor.val();
-            diff.matmul(self.world_to_index_matrix.val())
+            let diff = points - self.origin_tensor.clone();
+            diff.matmul(self.world_to_index_matrix.clone())
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
@@ -254,8 +390,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
                 
-                let diff = chunk_points - self.origin_tensor.val();
-                let result = diff.matmul(self.world_to_index_matrix.val());
+                let diff = chunk_points - self.origin_tensor.clone();
+                let result = diff.matmul(self.world_to_index_matrix.clone());
                 chunks.push(result);
             }
             
