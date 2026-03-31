@@ -59,10 +59,6 @@ use crate::metric::{histogram::ParzenJointHistogram, Metric};
 pub struct MattesMutualInformation<B: Backend> {
     /// Number of intensity bins for the joint histogram
     num_bins: usize,
-    /// Minimum fixed-image intensity
-    min_intensity: f32,
-    /// Maximum fixed-image intensity
-    max_intensity: f32,
     /// Sampling fraction ∈ (0, 1]; 1.0 = use all voxels
     sampling_fraction: f32,
     /// Shared Parzen joint histogram calculator (reuses Gaussian kernel
@@ -94,8 +90,6 @@ impl<B: Backend> MattesMutualInformation<B> {
         let parzen_sigma = bin_width.max(1e-6);
         Self {
             num_bins,
-            min_intensity,
-            max_intensity,
             sampling_fraction: sampling_fraction.clamp(1e-4, 1.0),
             histogram: ParzenJointHistogram::new(
                 num_bins,

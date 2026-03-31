@@ -465,48 +465,7 @@ fn chol_solve_lower(chol: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
     x
 }
 
-/// Solve Aᵀ·x = b for x, where A is a lower-triangular matrix stored as ragged rows.
-/// Aᵀ is upper-triangular. Back-substitution gives A^{-T}·b.
-fn chol_solve_lower_t(chol: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
-    let n = chol.len();
-    let mut x = b.to_vec();
-    // Solve Aᵀ x = b  (A is lower-triangular, Aᵀ is upper-triangular)
-    // Work from last row to first: at row i (of Aᵀ), entries are chol[j][i] for j ≥ i
-    for i in (0..n).rev() {
-        // Diagonal: chol[i][i]
-        for j in (i + 1)..n {
-            x[i] -= chol[j][i] * x[j]; // Aᵀ[i][j] = A[j][i] = chol[j][i]
-        }
-        x[i] /= chol[i][i];
-    }
-    x
-}
-
-/// Deterministic pseudo-random N(0,1) sample using LCG + Box-Muller.
-///
-/// Produces `n` variates seeded by `seed`.  Used in place of `rand` to avoid
-/// adding a dependency; quality is sufficient for testing but not cryptography.
-fn lcg_standard_normal(n: usize, seed: usize) -> Vec<f64> {
-    let mut state = seed as u64 ^ 0xdeadbeef_cafebabe;
-    let mut out = Vec::with_capacity(n);
-    while out.len() < n {
-        state = state
-            .wrapping_mul(6_364_136_223_846_793_005)
-            .wrapping_add(1_442_695_040_888_963_407);
-        let u1 = (state >> 11) as f64 / (1u64 << 53) as f64 + 1e-30;
-        state = state
-            .wrapping_mul(6_364_136_223_846_793_005)
-            .wrapping_add(1_442_695_040_888_963_407);
-        let u2 = (state >> 11) as f64 / (1u64 << 53) as f64;
-        let mag = (-2.0 * u1.ln()).sqrt();
-        let angle = 2.0 * std::f64::consts::PI * u2;
-        out.push(mag * angle.cos());
-        if out.len() < n {
-            out.push(mag * angle.sin());
-        }
-    }
-    out
-}
+// Removed unused chol_solve_lower_t and lcg_standard_normal functions.
 
 #[cfg(test)]
 mod tests {

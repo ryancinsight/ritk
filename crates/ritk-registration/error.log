@@ -1,0 +1,89 @@
+warning: fields `min_intensity` and `max_intensity` are never read
+  --> crates\ritk-registration\src\metric\mattes_mutual_information.rs:63:5
+   |
+59 | pub struct MattesMutualInformation<B: Backend> {
+   |            ----------------------- fields in this struct
+...
+63 |     min_intensity: f32,
+   |     ^^^^^^^^^^^^^
+64 |     /// Maximum fixed-image intensity
+65 |     max_intensity: f32,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `MattesMutualInformation` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `chol_solve_lower_t` is never used
+   --> crates\ritk-registration\src\optimizer\cma_es.rs:470:4
+    |
+470 | fn chol_solve_lower_t(chol: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
+    |    ^^^^^^^^^^^^^^^^^^
+
+warning: function `lcg_standard_normal` is never used
+   --> crates\ritk-registration\src\optimizer\cma_es.rs:489:4
+    |
+489 | fn lcg_standard_normal(n: usize, seed: usize) -> Vec<f64> {
+    |    ^^^^^^^^^^^^^^^^^^^
+
+warning: `ritk-registration` (lib) generated 3 warnings
+    Checking ritk-registration v0.1.0 (D:\kwavers\ritk\crates\ritk-registration)
+warning: unused import: `burn::tensor::backend::Backend`
+ --> crates\ritk-registration\examples\full_registration.rs:2:5
+  |
+2 | use burn::tensor::backend::Backend;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ritk_core::transform::Transform`
+ --> crates\ritk-registration\examples\full_registration.rs:8:5
+  |
+8 | use ritk_core::transform::Transform;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0061]: this function takes 6 arguments but 2 arguments were supplied
+   --> crates\ritk-registration\examples\full_registration.rs:134:21
+    |
+134 |     let resampler = ResampleImageFilter::new(interpolator, 0.0);
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^------------------- multiple arguments are missing
+    |
+note: associated function defined here
+   --> crates\ritk-core\src\filter\resample.rs:58:12
+    |
+ 58 |     pub fn new(
+    |            ^^^
+help: provide the arguments
+    |
+134 |     let resampler = ResampleImageFilter::new(/* size */, /* origin */, /* spacing */, /* direction */, interpolator, 0.0);
+    |                                              +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0599]: no method named `execute` found for struct `ResampleImageFilter<B, T, I, D>` in the current scope
+   --> crates\ritk-registration\examples\full_registration.rs:137:33
+    |
+137 |     let moved_image = resampler.execute(&moving_image, &fixed_image, &final_transform);
+    |                                 ^^^^^^^ method not found in `ResampleImageFilter<_, _, _, _>`
+
+error[E0599]: no method named `tensor` found for struct `Image<B, D>` in the current scope
+   --> crates\ritk-registration\examples\full_registration.rs:140:35
+    |
+140 |     let fixed_slice = fixed_image.tensor().clone().slice([32..33, 0..64, 0..64]).into_data().as_slice::<f32>().unwrap().to_vec();
+    |                                   ^^^^^^ method not found in `Image<Autodiff<NdArray>, 3>`
+
+error[E0599]: no method named `tensor` found for struct `Image<B, D>` in the current scope
+   --> crates\ritk-registration\examples\full_registration.rs:141:37
+    |
+141 |     let moving_slice = moving_image.tensor().clone().slice([32..33, 0..64, 0..64]).into_data().as_slice::<f32>().unwrap().to_vec();
+    |                                     ^^^^^^ method not found in `Image<Autodiff<NdArray>, 3>`
+
+error[E0433]: cannot find module or crate `bytemuck` in this scope
+   --> crates\ritk-registration\examples\full_registration.rs:146:28
+    |
+146 |         let bytes: &[u8] = bytemuck::cast_slice(data);
+    |                            ^^^^^^^^ use of unresolved module or unlinked crate `bytemuck`
+    |
+    = help: if you wanted to use a crate named `bytemuck`, use `cargo add bytemuck` to add it to your `Cargo.toml`
+
+Some errors have detailed explanations: E0061, E0433, E0599.
+For more information about an error, try `rustc --explain E0061`.
+warning: `ritk-registration` (example "full_registration") generated 2 warnings
+error: could not compile `ritk-registration` (example "full_registration") due to 5 previous errors; 2 warnings emitted
