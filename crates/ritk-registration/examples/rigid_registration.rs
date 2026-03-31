@@ -90,7 +90,7 @@ fn main() -> anyhow::Result<()> {
         &device,
     );
     // Convert index center to physical point
-    let center_point = fixed.index_to_world_tensor(center.unsqueeze_dim(0)).squeeze(0);
+    let center_point = fixed.index_to_world_tensor(center.unsqueeze_dim(0)).squeeze();
     
     println!("  Rotation center (physical): {}", center_point);
 

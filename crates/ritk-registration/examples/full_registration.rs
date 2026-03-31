@@ -1,5 +1,6 @@
 use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use burn::backend::Autodiff;
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Point3, Spacing3, Direction3};
@@ -12,7 +13,7 @@ use ritk_core::filter::resample::ResampleImageFilter;
 use ritk_core::interpolation::LinearInterpolator;
 use std::time::Instant;
 
-type B = NdArray<f32>;
+type B = Autodiff<NdArray<f32>>;
 
 fn create_sphere_image(
     size: [usize; 3],
@@ -93,8 +94,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_gradient_clipping(1.0)
         .with_log_interval(10)
         .with_convergence_detection(ritk_registration::validation::ConvergenceChecker::new(
-             20, // window size
-             1e-5 // threshold
+             1e-5, // min_improvement
+             20 // patience / window size
         ));
 
     let mut registration = Registration::with_config(optimizer, metric, config);

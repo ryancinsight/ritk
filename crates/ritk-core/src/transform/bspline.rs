@@ -317,8 +317,8 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         
         let base_index = grid_indices_float.int() - 1; // [Batch, 2]
         
-        let ux = u_vec.clone().slice([0..batch_size, 0..1]).squeeze::<1>(); // [Batch]
-        let uy = u_vec.clone().slice([0..batch_size, 1..2]).squeeze::<1>(); // [Batch]
+        let ux = u_vec.clone().slice([0..batch_size, 0..1]).flatten::<1>(0, 1); // [Batch]
+        let uy = u_vec.clone().slice([0..batch_size, 1..2]).flatten::<1>(0, 1); // [Batch]
         
         let bx = Self::compute_basis_tensor(ux); // [Batch, 4]
         let by = Self::compute_basis_tensor(uy); // [Batch, 4]
@@ -360,7 +360,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*16, 2]
         let coeffs = coeffs.reshape([batch_size, 16, 2]);
         
-        let displacement = (coeffs * weights).sum_dim(1).squeeze::<2>(); // [Batch, 2]
+        let displacement = (coeffs * weights).sum_dim(1).flatten::<2>(1, 2); // [Batch, 2]
         
         // Apply Mask (Zero displacement if out of bounds)
         let masked_displacement = displacement * valid_mask;
@@ -417,9 +417,9 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         
         let base_index = grid_indices_float.int() - 1; // [Batch, 3]
         
-        let ux = u_vec.clone().slice([0..batch_size, 0..1]).squeeze::<1>();
-        let uy = u_vec.clone().slice([0..batch_size, 1..2]).squeeze::<1>();
-        let uz = u_vec.clone().slice([0..batch_size, 2..3]).squeeze::<1>();
+        let ux = u_vec.clone().slice([0..batch_size, 0..1]).flatten::<1>(0, 1);
+        let uy = u_vec.clone().slice([0..batch_size, 1..2]).flatten::<1>(0, 1);
+        let uz = u_vec.clone().slice([0..batch_size, 2..3]).flatten::<1>(0, 1);
         
         let bx = Self::compute_basis_tensor(ux);
         let by = Self::compute_basis_tensor(uy);
@@ -469,7 +469,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*64, 3]
         let coeffs = coeffs.reshape([batch_size, 64, 3]);
 
-        let displacement = (coeffs * weights).sum_dim(1).squeeze::<2>();
+        let displacement = (coeffs * weights).sum_dim(1).flatten::<2>(1, 2);
 
         // Apply Mask
         let masked_displacement = displacement * valid_mask;
@@ -521,10 +521,10 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let u_vec = grid_coords - grid_indices_float.clone();
         let base_index = grid_indices_float.int() - 1;
 
-        let ux = u_vec.clone().slice([0..batch_size, 0..1]).squeeze::<1>();
-        let uy = u_vec.clone().slice([0..batch_size, 1..2]).squeeze::<1>();
-        let uz = u_vec.clone().slice([0..batch_size, 2..3]).squeeze::<1>();
-        let uw = u_vec.clone().slice([0..batch_size, 3..4]).squeeze::<1>();
+        let ux = u_vec.clone().slice([0..batch_size, 0..1]).flatten::<1>(0, 1);
+        let uy = u_vec.clone().slice([0..batch_size, 1..2]).flatten::<1>(0, 1);
+        let uz = u_vec.clone().slice([0..batch_size, 2..3]).flatten::<1>(0, 1);
+        let uw = u_vec.clone().slice([0..batch_size, 3..4]).flatten::<1>(0, 1);
 
         let bx = Self::compute_basis_tensor(ux);
         let by = Self::compute_basis_tensor(uy);
@@ -582,7 +582,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*256, 4]
         let coeffs = coeffs.reshape([batch_size, 256, 4]);
 
-        let displacement = (coeffs * weights).sum_dim(1).squeeze::<2>();
+        let displacement = (coeffs * weights).sum_dim(1).flatten::<2>(1, 2);
         points + displacement * valid_mask
     }
 
@@ -606,7 +606,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let u_vec = grid_coords - grid_indices_float.clone();
         let base_index = grid_indices_float.int() - 1;
 
-        let ux = u_vec.squeeze::<1>();
+        let ux = u_vec.flatten::<1>(0, 1);
         let bx = Self::compute_basis_tensor(ux); // [Batch, 4]
         let weights = bx.unsqueeze_dim::<3>(2); // [Batch, 4, 1]
 
@@ -614,7 +614,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let range = Tensor::<B, 1, burn::tensor::Int>::from_ints([0, 1, 2, 3], &device);
         let i_idx = range.reshape([1, 4]);
 
-        let base_x = base_index.clone().squeeze::<1>().unsqueeze_dim::<2>(1); // [Batch, 1]
+        let base_x = base_index.clone(); // [Batch, 1]
         let idx_x = base_x + i_idx; // [Batch, 4]
 
         let idx_x_clamped = idx_x.clamp(0, nx - 1); // [Batch, 4]
@@ -624,7 +624,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let coeffs = self.coefficients.val().clone().select(0, gather_indices); // [Batch*4, 1]
         let coeffs = coeffs.reshape([batch_size, 4, 1]);
 
-        let displacement = (coeffs * weights).sum_dim(1).squeeze::<2>(); // [Batch, 1]
+        let displacement = (coeffs * weights).sum_dim(1).flatten::<2>(1, 2); // [Batch, 1]
         points + displacement * valid_mask
     }
 }

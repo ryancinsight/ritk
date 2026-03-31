@@ -5,11 +5,9 @@
 //! 2. Run tests: `cargo test --test real_data_test -- --ignored`
 
 use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 // use ritk_core::image::Image;
 use ritk_core::spatial::Point3; // Used in test
-use ritk_core::transform::{Transform, TranslationTransform};
 use ritk_io::read_nifti;
 use std::path::Path;
 
@@ -185,7 +183,7 @@ fn test_image_resampling() {
     
     // Create a simple translation transform
     let translation = Tensor::<B, 1>::from_floats([0.0, 0.0, 0.0], &device);
-    let transform = TranslationTransform::<B, 3>::new(translation);
+    let _transform = TranslationTransform::<B, 3>::new(translation);
     
     // Create interpolator
     let interpolator = LinearInterpolator::new();

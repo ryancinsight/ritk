@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 use burn::{
     backend::{wgpu::{Wgpu, WgpuDevice}, Autodiff},
     tensor::{Tensor, Distribution},
@@ -6,9 +7,9 @@ use burn::{
     module::Module,
 };
 use ritk_model::{
-    transmorph::{TransMorphConfig, TransMorph, SpatialTransformer},
+    transmorph::{TransMorphConfig, TransMorph, spatial_transform::SpatialTransformer},
     affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
-    losses::{LocalNCCLoss, GlobalNCCLoss, GradLoss},
+    losses::{LocalNCCLoss, GlobalNCCLoss, GradLoss, GradientPenalty},
     io::adapter::images_to_batch,
 };
 use ritk_core::{
@@ -62,7 +63,8 @@ impl<B: Backend> CombinedModel<B> {
         // 2. Deformable Registration
         // Concatenate affine-registered moving image with fixed image
         let input_transmorph = Tensor::cat(vec![moving_affine.clone(), fixed.clone()], 1);
-        let flow = self.transmorph.forward(input_transmorph);
+        let transmorph_out = self.transmorph.forward(input_transmorph);
+        let flow = transmorph_out.flow;
         
         // Flow is now full resolution from TransMorph
         
@@ -91,7 +93,7 @@ fn run_training() {
     // 3. Loss Functions
     let _ncc_local = LocalNCCLoss::<MyBackend>::new(5, &device);
     let _ncc_global = GlobalNCCLoss::<MyBackend>::new();
-    let grad_loss = GradLoss::<MyBackend>::new();
+    let grad_loss = GradLoss::<MyBackend>::new(GradientPenalty::L2);
     let lambda_reg = 1.0; 
 
     // 4. Optimizer

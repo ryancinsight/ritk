@@ -113,10 +113,10 @@ impl LinearInterpolator {
 
         // Extract coordinates
         // indices: [Batch, 4] -> (x, y, z, w)
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.clone().narrow(1, 1, 1).squeeze::<1>();
-        let z = indices.clone().narrow(1, 2, 1).squeeze::<1>();
-        let w = indices.narrow(1, 3, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
+        let y = indices.clone().narrow(1, 1, 1).flatten::<1>(0, 1);
+        let z = indices.clone().narrow(1, 2, 1).flatten::<1>(0, 1);
+        let w = indices.narrow(1, 3, 1).flatten::<1>(0, 1);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -231,9 +231,9 @@ impl LinearInterpolator {
 
         // Extract coordinates using narrow to avoid unnecessary clones
         // indices: [Batch, 3] -> (x, y, z)
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.clone().narrow(1, 1, 1).squeeze::<1>();
-        let z = indices.narrow(1, 2, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
+        let y = indices.clone().narrow(1, 1, 1).flatten::<1>(0, 1);
+        let z = indices.narrow(1, 2, 1).flatten::<1>(0, 1);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -319,8 +319,8 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinates using narrow
-        let x = indices.clone().narrow(1, 0, 1).squeeze::<1>();
-        let y = indices.narrow(1, 1, 1).squeeze::<1>();
+        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
+        let y = indices.narrow(1, 1, 1).flatten::<1>(0, 1);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -382,7 +382,7 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinate
-        let x = indices.clone().squeeze::<1>();
+        let x = indices.clone().flatten::<1>(0, 1);
 
         // Compute floor coordinate
         let x0 = x.clone().floor();

@@ -1,6 +1,6 @@
-use burn::tensor::{Tensor, TensorData, Shape};
+use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
-use ritk_core::transform::{Transform, RigidTransform, DisplacementField, DisplacementFieldTransform, DisplacementFieldTransform2D, DisplacementFieldTransform3D};
+use ritk_core::transform::{Transform, RigidTransform, DisplacementField, DisplacementFieldTransform2D};
 use ritk_core::spatial::{Point, Spacing, Direction};
 use ritk_core::interpolation::LinearInterpolator;
 use std::f32::consts::PI;

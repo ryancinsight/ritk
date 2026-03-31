@@ -2,7 +2,7 @@ use burn::{
     backend::wgpu::{Wgpu, WgpuDevice},
     tensor::{Tensor, Distribution},
 };
-use ritk_model::transmorph::{TransMorphConfig, TransMorph, SpatialTransformer};
+use ritk_model::transmorph::{TransMorphConfig, TransMorph, spatial_transform::SpatialTransformer};
 use std::time::Instant;
 
 fn main() {
@@ -21,13 +21,9 @@ fn run_registration_wgpu() {
     println!("Using device: {:?}", device);
 
     // 1. Configuration
-    let config_reg = TransMorphConfig::new()
-        .with_in_channels(2)
-        .with_embed_dim(48) // Standard TransMorph dim
-        .with_out_channels(3)
+    let config_reg = TransMorphConfig::new(2, 48, 3)
         .with_window_size(4) // Small window for example
-        .with_integrate(false)
-        .with_integration_steps(7);
+        .with_integrate(false);
 
     println!("Initializing model...");
     let model_reg: TransMorph<Backend> = config_reg.init(&device);
@@ -49,7 +45,8 @@ fn run_registration_wgpu() {
     // TransMorph takes concatenated input [B, 2, D, H, W]
     let input = Tensor::cat(vec![moving.clone(), fixed.clone()], 1); // [1, 2, 64, 64, 64]
     
-    let flow = model_reg.forward(input); // [1, 3, 16, 16, 16] (1/4 resolution)
+    let transmorph_output = model_reg.forward(input); // Output struct with warped and flow
+    let flow = transmorph_output.flow; // [1, 3, 16, 16, 16] (1/4 resolution)
     
     let duration = start.elapsed();
     println!("Registration took: {:?}", duration);
