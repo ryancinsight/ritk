@@ -2,7 +2,7 @@ use burn::{
     backend::wgpu::{Wgpu, WgpuDevice},
     tensor::{Tensor, Distribution},
 };
-use ritk_model::transmorph::{TransMorphConfig, TransMorph, SpatialTransformer};
+use ritk_model::transmorph::{TransMorphConfig, TransMorph, spatial_transform::SpatialTransformer};
 use std::time::Instant;
 
 fn main() {
@@ -45,8 +45,8 @@ fn run_registration_wgpu() {
     // TransMorph takes concatenated input [B, 2, D, H, W]
     let input = Tensor::cat(vec![moving.clone(), fixed.clone()], 1); // [1, 2, 64, 64, 64]
     
-    let tm_out = model_reg.forward(input); // [1, 3, 16, 16, 16] (1/4 resolution)
-    let flow = tm_out.flow;
+    let transmorph_output = model_reg.forward(input); // Output struct with warped and flow
+    let flow = transmorph_output.flow; // [1, 3, 16, 16, 16] (1/4 resolution)
     
     let duration = start.elapsed();
     println!("Registration took: {:?}", duration);

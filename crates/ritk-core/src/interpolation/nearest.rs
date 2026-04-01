@@ -53,7 +53,7 @@ impl NearestNeighborInterpolator {
         let d3 = shape.dims[3]; // X
 
         // indices: (x, y, z, w)
-        // Use narrow + squeeze pattern to extract each coordinate
+        // Use narrow + squeeze_dims pattern to extract each coordinate
         // narrow gives [N, 1], squeeze_dims removes dim 1 to get [N]
         let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
         let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);

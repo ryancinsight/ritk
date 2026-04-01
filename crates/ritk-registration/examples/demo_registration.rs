@@ -7,7 +7,7 @@
 //!   cargo run --example demo_registration
 
 use burn::backend::Autodiff;
-use burn::backend::wgpu::{Wgpu, AutoGraphicsApi};
+use burn::backend::wgpu::Wgpu;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
@@ -79,7 +79,7 @@ fn main() -> anyhow::Result<()> {
         fixed.shape()[1] as f32 / 2.0,
         fixed.shape()[2] as f32 / 2.0,
     ], &device);
-    let center_phys = fixed.index_to_world_tensor(center_idx.unsqueeze_dim(0)).squeeze(0);
+    let center_phys = fixed.index_to_world_tensor(center_idx.unsqueeze_dim(0)).squeeze();
     
     let transform = RigidTransform::<Backend, 3>::identity(Some(center_phys), &device);
     

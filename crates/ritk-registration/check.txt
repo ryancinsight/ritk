@@ -1,0 +1,20 @@
+    Checking ritk-registration v0.1.0 (D:\kwavers\ritk\crates\ritk-registration)
+error[E0124]: field `num_bins` is already declared
+  --> crates\ritk-registration\src\metric\mattes_mutual_information.rs:62:5
+   |
+61 |     num_bins: usize,
+   |     --------------- `num_bins` first declared here
+62 |     num_bins: usize,
+   |     ^^^^^^^^^^^^^^^ field already declared
+
+error[E0062]: field `num_bins` specified more than once
+  --> crates\ritk-registration\src\metric\mattes_mutual_information.rs:62:5
+   |
+61 |     num_bins: usize,
+   |     --------------- first use of `num_bins`
+62 |     num_bins: usize,
+   |     ^^^^^^^^^^^^^^^ used more than once
+
+Some errors have detailed explanations: E0062, E0124.
+For more information about an error, try `rustc --explain E0062`.
+error: could not compile `ritk-registration` (lib) due to 2 previous errors

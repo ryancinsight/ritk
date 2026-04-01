@@ -1,16 +1,14 @@
 use burn::tensor::Tensor;
-use burn::tensor::backend::{Backend, AutodiffBackend};
 use burn::backend::Autodiff;
 use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Point3, Spacing3, Direction3};
-use ritk_core::transform::AffineTransform;
-use ritk_core::transform::Transform;
-use ritk_registration::registration::{Registration, RegistrationConfig};
+use ritk_core::transform::translation::TranslationTransform;
+use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_core::filter::resample::ResampleImageFilter;
-use ritk_core::interpolation::LinearInterpolator;
+use ritk_core::interpolation::NearestNeighborInterpolator;
 use std::time::Instant;
 
 type B = Autodiff<NdArray<f32>>;
@@ -84,31 +82,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 32 + t = 27 => t = -5.
     // So we expect translation around [-5, 0, 0].
 
-    let initial_transform = AffineTransform::<B, 3>::identity(None, &device);
+    let initial_transform = TranslationTransform::<B, 3>::new(Tensor::zeros([3], &device));
     
     // 4. Setup Registration Components
+    // For binary shapes like simple spheres, Mean Squared Error is perfectly
+    // convex and stable, avoiding the sparse histogram divergence of Mutual Information.
     let metric = MeanSquaredError::new();
-    let optimizer = AdamOptimizer::new(1e-1); // High LR for fast convergence on simple problem
     
-    let config = RegistrationConfig::new()
-        .with_gradient_clipping(1.0)
-        .with_log_interval(10)
-        .with_convergence_detection(ritk_registration::validation::ConvergenceChecker::new(
-             1e-5, // min improvement
-             20 // patience
-        ));
+    let multires = MultiResolutionRegistration::new(metric);
 
-    let mut registration = Registration::with_config(optimizer, metric, config);
+    // Create a 3-level schedule (shrink by 4 -> 2 -> 1)
+    let schedule = RegistrationSchedule::default(3)
+        .with_iterations(vec![60, 30, 10])
+        .with_learning_rates(vec![1e-1, 5e-2, 1e-2]);
 
-    // 5. Run Registration
+    // 5. Run Multi-Resolution Registration
     let start = Instant::now();
-    let final_transform = registration.execute(
+    let final_transform = multires.execute(
         &fixed_image, 
         &moving_image, 
         initial_transform, 
-        200, // iterations
-        0.1  // learning rate
-    )?;
+        |lr| AdamOptimizer::new(lr),
+        schedule
+    );
     let duration = start.elapsed();
     
     println!("Registration completed in {:.2?}", duration);
@@ -127,6 +123,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         println!("FAILURE: Translation error too high.");
     }
+
+    // 7. Dump slices for visualization
+    println!("Resampling final moving image onto fixed grid...");
+    let interpolator = NearestNeighborInterpolator::new();
+    let resampler = ResampleImageFilter::new_from_reference(&fixed_image, final_transform.clone(), interpolator);
+    let moved_image = resampler.apply(&moving_image);
+
+    println!("Extracting middle slices (z=32)...");
+    let fixed_slice = fixed_image.data().clone().slice([32..33, 0..64, 0..64]).into_data().as_slice::<f32>().unwrap().to_vec();
+    let moving_slice = moving_image.data().clone().slice([32..33, 0..64, 0..64]).into_data().as_slice::<f32>().unwrap().to_vec();
+    let moved_slice = moved_image.data().clone().slice([32..33, 0..64, 0..64]).into_data().as_slice::<f32>().unwrap().to_vec();
+
+    let write_raw = |name: &str, data: &[f32]| {
+        let bytes: &[u8] = unsafe { 
+            std::slice::from_raw_parts(data.as_ptr() as *const u8, data.len() * 4) 
+        };
+        std::fs::write(name, bytes).unwrap();
+        println!("Wrote {}", name);
+    };
+
+    write_raw("fixed_slice.raw", &fixed_slice);
+    write_raw("moving_slice.raw", &moving_slice);
+    write_raw("moved_slice.raw", &moved_slice);
+
 
     Ok(())
 }

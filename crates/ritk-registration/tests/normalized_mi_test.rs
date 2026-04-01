@@ -1,5 +1,4 @@
 use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Point, Spacing, Direction};

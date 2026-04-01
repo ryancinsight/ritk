@@ -202,7 +202,7 @@ mod tests {
     fn test_ncc_identical() {
         let size = 10;
         let count = size * size * size;
-        let data: Vec<f32> = (0..count).map(|x| (x as f32)).collect(); // Gradient
+        let data: Vec<f32> = (0..count).map(|x| x as f32).collect(); // Gradient
         let image = create_test_image(data.clone(), [size, size, size]);
 
         let device = Default::default();
@@ -224,7 +224,7 @@ mod tests {
     fn test_ncc_linear_relationship() {
         let size = 10;
         let count = size * size * size;
-        let data1: Vec<f32> = (0..count).map(|x| (x as f32)).collect();
+        let data1: Vec<f32> = (0..count).map(|x| x as f32).collect();
         // data2 = 2 * data1 + 10. Linear relationship should still give NCC = 1.0
         let data2: Vec<f32> = data1.iter().map(|&x| 2.0 * x + 10.0).collect();
 
@@ -249,7 +249,7 @@ mod tests {
     fn test_ncc_inverse_relationship() {
         let size = 10;
         let count = size * size * size;
-        let data1: Vec<f32> = (0..count).map(|x| (x as f32)).collect();
+        let data1: Vec<f32> = (0..count).map(|x| x as f32).collect();
         // data2 = -data1. Inverse relationship should give NCC = -1.0, Loss = 1.0
         let data2: Vec<f32> = data1.iter().map(|&x| -x).collect();
 

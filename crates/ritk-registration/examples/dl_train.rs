@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 use burn::{
     backend::{
         wgpu::{Wgpu, WgpuDevice},
@@ -73,8 +74,8 @@ impl<B: Backend> CombinedModel<B> {
         // 2. Deformable Registration
         // Concatenate affine-registered moving image with fixed image
         let input_transmorph = Tensor::cat(vec![moving_affine.clone(), fixed.clone()], 1);
-        let tm_out = self.transmorph.forward(input_transmorph);
-        let flow = tm_out.flow;
+        let transmorph_out = self.transmorph.forward(input_transmorph);
+        let flow = transmorph_out.flow;
 
         // Flow is now full resolution from TransMorph
 
