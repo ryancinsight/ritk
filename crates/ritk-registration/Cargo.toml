@@ -26,3 +26,7 @@ path = "examples/rigid_registration.rs"
 [[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
+
+[[example]]
+name = "brain_ct_mri_registration"
+path = "examples/brain_ct_mri_registration.rs"

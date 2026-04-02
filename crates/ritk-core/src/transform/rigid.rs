@@ -49,6 +49,30 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
         self.center.clone()
     }
 
+    /// Get the affine transformation matrix.
+    ///
+    /// Returns a matrix of shape `[D+1, D+1]` representing the affine transform.
+    /// For 3D: [R, t'; 0, 1] where t' = t + c - R@c
+    pub fn matrix(&self) -> Tensor<B, 2> {
+        let r = self.build_rotation_matrix();
+        let t = self.translation.val();
+        let c = self.center.clone();
+        let rc = r.clone().matmul(c.clone().reshape([D, 1])).squeeze(); // R @ c
+        let t_prime = t + c - rc; // t + c - R@c
+
+        let mut matrix = Tensor::<B, 2>::zeros([D + 1, D + 1], &self.center.device());
+        // Set rotation part
+        matrix = matrix.slice_assign([0..D, 0..D], r);
+        // Set translation part
+        matrix = matrix.slice_assign([0..D, D..D + 1], t_prime.reshape([D, 1]));
+        // Set bottom right to 1
+        matrix = matrix.slice_assign(
+            [D..D + 1, D..D + 1],
+            Tensor::<B, 2>::ones([1, 1], &self.center.device()),
+        );
+        matrix
+    }
+
     /// Create an identity rigid transform (no rotation, no translation).
     ///
     /// # Arguments
@@ -62,7 +86,7 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Build the rotation matrix from Euler angles.
-    fn build_rotation_matrix(&self) -> Tensor<B, 2> {
+    pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         let r = self.rotation.val();
 
         if D == 3 {

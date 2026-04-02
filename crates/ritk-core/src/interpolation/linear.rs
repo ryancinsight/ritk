@@ -121,12 +121,12 @@ impl LinearInterpolator {
         let batch_size = indices.dims()[0];
         let device = indices.device();
 
-        // Extract coordinates
+        // Extract coordinates: narrow gives [Batch, 1], squeeze_dims removes dim 1 to get [Batch]
         // indices: [Batch, 4] -> (x, y, z, w)
-        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
-        let y = indices.clone().narrow(1, 1, 1).flatten::<1>(0, 1);
-        let z = indices.clone().narrow(1, 2, 1).flatten::<1>(0, 1);
-        let w = indices.narrow(1, 3, 1).flatten::<1>(0, 1);
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
+        let w = indices.narrow(1, 3, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -277,10 +277,11 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinates using narrow to avoid unnecessary clones
+        // Extract coordinates: narrow gives [Batch, 1], squeeze_dims removes dim 1 to get [Batch]
         // indices: [Batch, 3] -> (x, y, z)
-        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
-        let y = indices.clone().narrow(1, 1, 1).flatten::<1>(0, 1);
-        let z = indices.narrow(1, 2, 1).flatten::<1>(0, 1);
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+        let z = indices.narrow(1, 2, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -310,7 +311,6 @@ impl LinearInterpolator {
         let stride_z = (d1 * d2) as i32;
         let stride_y = d2 as i32;
 
-        // Pre-flatten data once to avoid repeated reshaping
         // Pre-flatten data once to avoid repeated reshaping
         let flat_data = data.clone().reshape([d0 * d1 * d2]);
 
@@ -370,8 +370,8 @@ impl LinearInterpolator {
         let device = indices.device();
 
         // Extract coordinates using narrow
-        let x = indices.clone().narrow(1, 0, 1).flatten::<1>(0, 1);
-        let y = indices.narrow(1, 1, 1).flatten::<1>(0, 1);
+        let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+        let y = indices.narrow(1, 1, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinates
         let x0 = x.clone().floor();
@@ -436,8 +436,8 @@ impl LinearInterpolator {
         let batch_size = indices.dims()[0];
         let device = indices.device();
 
-        // Extract coordinate
-        let x = indices.clone().flatten::<1>(0, 1);
+        // Extract coordinate: [N, 1] -> [N]
+        let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
 
         // Compute floor coordinate
         let x0 = x.clone().floor();
