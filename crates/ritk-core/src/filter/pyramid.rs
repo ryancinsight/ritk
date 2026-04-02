@@ -1,7 +1,7 @@
-use burn::tensor::backend::Backend;
-use crate::image::Image;
-use super::gaussian::GaussianFilter;
 use super::downsample::DownsampleFilter;
+use super::gaussian::GaussianFilter;
+use crate::image::Image;
+use burn::tensor::backend::Backend;
 
 /// Multi-resolution image pyramid.
 ///
@@ -26,15 +26,19 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
         shrink_factors: &[Vec<usize>],
         smoothing_sigmas: &[Vec<f64>],
     ) -> Self {
-        assert_eq!(shrink_factors.len(), smoothing_sigmas.len(), "Schedule lengths must match");
-        
+        assert_eq!(
+            shrink_factors.len(),
+            smoothing_sigmas.len(),
+            "Schedule lengths must match"
+        );
+
         let mut images = Vec::with_capacity(shrink_factors.len());
-        
+
         for (factors, sigmas) in shrink_factors.iter().zip(smoothing_sigmas.iter()) {
             // Optimization: if identity transform, just clone
             let is_identity_shrink = factors.iter().all(|&f| f == 1);
             let is_identity_smooth = sigmas.iter().all(|&s| s <= 1e-6);
-            
+
             if is_identity_shrink && is_identity_smooth {
                 images.push(input.clone());
                 continue;
@@ -48,7 +52,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             } else {
                 input.clone()
             };
-            
+
             // 2. Downsample
             let result = if !is_identity_shrink {
                 let downsampler = DownsampleFilter::new(factors.clone());
@@ -56,23 +60,23 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             } else {
                 smoothed
             };
-            
+
             images.push(result);
         }
-        
+
         Self { images }
     }
-    
+
     /// Get image at specific level.
     pub fn get_level(&self, level: usize) -> &Image<B, D> {
         &self.images[level]
     }
-    
+
     /// Get number of levels.
     pub fn levels(&self) -> usize {
         self.images.len()
     }
-    
+
     /// Create a default schedule for N levels with power-of-2 shrinking.
     ///
     /// Returns (shrink_factors, smoothing_sigmas)
@@ -81,16 +85,20 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
     pub fn default_schedule(levels: usize) -> (Vec<Vec<usize>>, Vec<Vec<f64>>) {
         let mut shrink_factors = Vec::with_capacity(levels);
         let mut smoothing_sigmas = Vec::with_capacity(levels);
-        
+
         for i in 0..levels {
             let exponent = (levels - 1 - i) as u32;
             let factor = 2usize.pow(exponent);
-            let sigma = if factor > 1 { 0.5 * (factor as f64) } else { 0.0 };
-            
+            let sigma = if factor > 1 {
+                0.5 * (factor as f64)
+            } else {
+                0.0
+            };
+
             shrink_factors.push(vec![factor; D]);
             smoothing_sigmas.push(vec![sigma; D]);
         }
-        
+
         (shrink_factors, smoothing_sigmas)
     }
 }

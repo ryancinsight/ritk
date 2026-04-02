@@ -16,16 +16,16 @@
 //! * **BendingEnergyRegularizer**: Bending energy for B-spline transforms
 //! * **TotalVariationRegularizer**: L1 norm of gradients (edge-preserving)
 
-pub mod trait_;
-pub mod diffusion;
-pub mod curvature;
-pub mod elastic;
 pub mod bending_energy;
+pub mod curvature;
+pub mod diffusion;
+pub mod elastic;
 pub mod total_variation;
+pub mod trait_;
 
-pub use trait_::Regularizer;
-pub use diffusion::DiffusionRegularizer;
-pub use curvature::CurvatureRegularizer;
-pub use elastic::ElasticRegularizer;
 pub use bending_energy::BendingEnergyRegularizer;
+pub use curvature::CurvatureRegularizer;
+pub use diffusion::DiffusionRegularizer;
+pub use elastic::ElasticRegularizer;
 pub use total_variation::TotalVariationRegularizer;
+pub use trait_::Regularizer;

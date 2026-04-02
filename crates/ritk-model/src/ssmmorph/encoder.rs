@@ -37,9 +37,9 @@
 //!    Bottleneck: [batch, 256, D/8, H/8, W/8]
 //! ```
 
-use burn::prelude::*;
 use burn::nn::conv::{Conv3d, Conv3dConfig};
 use burn::nn::PaddingConfig3d;
+use burn::prelude::*;
 
 use super::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
@@ -123,7 +123,7 @@ impl SSMMorphEncoderConfig {
         let mut out_ch = self.base_channels;
 
         for _ in 0..self.num_stages {
-            // We downsample at every stage to produce a bottleneck that is 
+            // We downsample at every stage to produce a bottleneck that is
             // smaller than the last feature map. This ensures the decoder
             // can upsample the bottleneck to match the last skip connection.
             let downsample = true;
@@ -171,13 +171,11 @@ impl<B: Backend> EncoderStage<B> {
     pub fn new(config: &EncoderStageConfig, device: &B::Device) -> Self {
         // Initial projection if channels change
         let proj = if config.in_channels != config.out_channels {
-            let proj_config = Conv3dConfig::new(
-                [config.in_channels, config.out_channels],
-                [3, 3, 3],
-            )
-            .with_stride([1, 1, 1])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .with_bias(false);
+            let proj_config =
+                Conv3dConfig::new([config.in_channels, config.out_channels], [3, 3, 3])
+                    .with_stride([1, 1, 1])
+                    .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
+                    .with_bias(false);
             Some(proj_config.init(device))
         } else {
             None
@@ -191,13 +189,11 @@ impl<B: Backend> EncoderStage<B> {
 
         // Downsampling layer
         let downsample = if config.downsample {
-            let ds_config = Conv3dConfig::new(
-                [config.out_channels, config.out_channels],
-                [3, 3, 3],
-            )
-            .with_stride([2, 2, 2])
-            .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
-            .with_bias(false);
+            let ds_config =
+                Conv3dConfig::new([config.out_channels, config.out_channels], [3, 3, 3])
+                    .with_stride([2, 2, 2])
+                    .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
+                    .with_bias(false);
             Some(ds_config.init(device))
         } else {
             None
@@ -419,4 +415,3 @@ mod tests {
         assert!(hq_config.use_drop_path);
     }
 }
-

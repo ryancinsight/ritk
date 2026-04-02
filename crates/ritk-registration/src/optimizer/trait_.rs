@@ -3,9 +3,20 @@
 //! This module defines the core Optimizer trait that all optimization algorithms
 //! must implement for training transforms in image registration.
 
-use burn::tensor::backend::AutodiffBackend;
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
+use burn::tensor::backend::AutodiffBackend;
+
+/// Lightweight optimizer telemetry for registration workflows.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OptimizerTelemetry {
+    /// Human-readable optimizer name.
+    pub algorithm: &'static str,
+    /// Number of parameter-update steps taken.
+    pub steps: usize,
+    /// Current learning rate, if applicable.
+    pub learning_rate: Option<f64>,
+}
 
 /// Optimizer trait for training transforms.
 ///
@@ -51,6 +62,9 @@ where
     /// # Arguments
     /// * `lr` - The new learning rate
     fn set_learning_rate(&mut self, lr: f64);
+
+    /// Current optimizer telemetry.
+    fn telemetry(&self) -> OptimizerTelemetry;
 }
 
 /// Learning rate scheduler trait.

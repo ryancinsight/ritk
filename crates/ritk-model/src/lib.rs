@@ -1,6 +1,6 @@
-pub mod transmorph;
-pub mod ssmmorph;
-pub mod losses;
 pub mod affine;
-pub mod io;
 pub mod interpolation;
+pub mod io;
+pub mod losses;
+pub mod ssmmorph;
+pub mod transmorph;

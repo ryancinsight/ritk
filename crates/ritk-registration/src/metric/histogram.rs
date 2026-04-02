@@ -3,14 +3,14 @@
 //! This module provides shared implementations for differentiable soft histogramming
 //! using Parzen windowing.
 
-use burn::tensor::{Tensor, Int};
 use burn::tensor::backend::Backend;
+use burn::tensor::{Int, Tensor};
+use ritk_core::image::grid;
+use ritk_core::image::Image;
+use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_core::transform::Transform;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
-use ritk_core::image::Image;
-use ritk_core::image::grid;
-use ritk_core::transform::Transform;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 
 #[derive(Debug)]
 struct HistogramCache<B: Backend> {
@@ -53,10 +53,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
     /// Compute soft joint histogram between two images (vectorized).
     /// Uses Gaussian kernel for differentiability.
-    pub fn compute_joint_histogram(&self, fixed: &Tensor<B, 1>, moving: &Tensor<B, 1>) -> Tensor<B, 2> {
+    pub fn compute_joint_histogram(
+        &self,
+        fixed: &Tensor<B, 1>,
+        moving: &Tensor<B, 1>,
+    ) -> Tensor<B, 2> {
         let device = fixed.device();
         let [n] = fixed.dims();
-        
+
         // Normalize intensities to [0, num_bins-1]
         let normalize = |t: Tensor<B, 1>| -> Tensor<B, 1> {
             let t = t - self.min_intensity;
@@ -74,15 +78,15 @@ impl<B: Backend> ParzenJointHistogram<B> {
         // weights: [N, Bins]
         // Use Gaussian kernel for Parzen windowing:
         // W[i, b] = exp(-0.5 * ((val[i] - b) / sigma)^2)
-        
+
         let compute_weights = |vals: Tensor<B, 1>, size: usize| -> Tensor<B, 2> {
             let vals_exp = vals.reshape([size, 1]); // [N, 1]
-            
+
             let diff = vals_exp - bins_exp.clone(); // [N, Bins]
             let exponent = diff.powf_scalar(2.0) * (-0.5 / sigma_sq);
             exponent.exp()
         };
-        
+
         // WGPU dispatch limit workaround
         // The matmul (Bins, N) * (N, Bins) reduces along N.
         // If N is too large, it exceeds dispatch limits.
@@ -91,10 +95,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
         if n <= CHUNK_SIZE {
             let fixed_norm = normalize(fixed.clone());
             let moving_norm = normalize(moving.clone());
-            
+
             let w_fixed = compute_weights(fixed_norm, n);
             let w_moving = compute_weights(moving_norm, n);
-            
+
             w_fixed.transpose().matmul(w_moving)
         } else {
             let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
@@ -104,7 +108,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
                 let current_chunk_size = end - start;
-                
+
                 let fixed_chunk = fixed.clone().slice([start..end]);
                 let moving_chunk = moving.clone().slice([start..end]);
 
@@ -113,7 +117,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let w_fixed = compute_weights(fixed_norm, current_chunk_size);
                 let w_moving = compute_weights(moving_norm, current_chunk_size);
-                
+
                 joint_hist = joint_hist + w_fixed.transpose().matmul(w_moving);
             }
             joint_hist
@@ -140,7 +144,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     ) -> Tensor<B, 2> {
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
-        
+
         // 1. Determine n and points strategy
         let (fixed_indices, n, use_sampling, cached_points) = if let Some(p) = sampling_percentage {
             let total_voxels = fixed_shape.iter().product::<usize>();
@@ -159,10 +163,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let current_spacing: Vec<f64> = fixed.spacing().0.iter().cloned().collect();
                     let current_direction: Vec<f64> = fixed.direction().0.iter().cloned().collect();
 
-                    if c.shape == current_shape &&
-                       c.origin == current_origin &&
-                       c.spacing == current_spacing &&
-                       c.direction == current_direction {
+                    if c.shape == current_shape
+                        && c.origin == current_origin
+                        && c.spacing == current_spacing
+                        && c.direction == current_direction
+                    {
                         Some(c.points.clone())
                     } else {
                         None
@@ -179,9 +184,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 (Some(indices), total_voxels, false, None)
             }
         };
-        
+
         // Use a chunk size that respects wgpu dispatch limits.
-        const CHUNK_SIZE: usize = 32768; 
+        const CHUNK_SIZE: usize = 32768;
 
         if n <= CHUNK_SIZE {
             // Process all at once
@@ -192,14 +197,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
                 // Only cache if NOT sampling and not using cache (implies miss)
                 if !use_sampling {
-                     let mut cache = self.cache.lock().unwrap();
-                     *cache = Some(HistogramCache {
+                    let mut cache = self.cache.lock().unwrap();
+                    *cache = Some(HistogramCache {
                         points: pts.clone(),
                         shape: fixed.shape().to_vec(),
                         origin: fixed.origin().0.iter().cloned().collect(),
                         spacing: fixed.spacing().0.iter().cloned().collect(),
                         direction: fixed.direction().0.iter().cloned().collect(),
-                     });
+                    });
                 }
                 pts
             };
@@ -207,19 +212,19 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let moving_points = transform.transform_points(fixed_points);
             let moving_indices = moving.world_to_index_tensor(moving_points);
             let moving_values = interpolator.interpolate(moving.data(), moving_indices);
-            
+
             let fixed_values = if use_sampling {
                 interpolator.interpolate(fixed.data(), fixed_indices.unwrap())
             } else {
                 fixed.data().clone().reshape([n])
             };
-            
+
             self.compute_joint_histogram(&fixed_values, &moving_values)
         } else {
             // Process in chunks
             let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
-            
+
             // Populate cache if needed (and we are not using cached points yet)
             let all_fixed_points = if let Some(pts) = cached_points {
                 pts
@@ -252,7 +257,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
-                
+
                 // Pipeline for this chunk
                 let chunk_fixed_points = if have_all_points {
                     all_fixed_points.clone().slice([start..end])
@@ -263,18 +268,24 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
-                let chunk_moving_values = interpolator.interpolate(moving.data(), chunk_moving_indices);
-                
+                let chunk_moving_values =
+                    interpolator.interpolate(moving.data(), chunk_moving_indices);
+
                 // Get fixed values
                 let chunk_fixed_values = if use_sampling {
                     let chunk_indices = fixed_indices.as_ref().unwrap().clone().slice([start..end]);
                     interpolator.interpolate(fixed.data(), chunk_indices)
                 } else {
-                    fixed_data_flat.as_ref().unwrap().clone().slice([start..end])
+                    fixed_data_flat
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                        .slice([start..end])
                 };
-                
+
                 // Compute partial histogram
-                let chunk_hist = self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values);
+                let chunk_hist =
+                    self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values);
                 joint_hist_acc = joint_hist_acc + chunk_hist;
             }
             joint_hist_acc

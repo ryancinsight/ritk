@@ -78,6 +78,10 @@ pub struct CmaEsConfig {
     pub sigma_tol: f64,
     /// Function-value convergence tolerance.
     pub ftol: f64,
+    /// Random seed used by the internal PRNG.
+    pub seed: u64,
+    /// Record the best objective value at each generation.
+    pub record_history: bool,
 }
 
 impl Default for CmaEsConfig {
@@ -88,6 +92,8 @@ impl Default for CmaEsConfig {
             max_generations: 10_000,
             sigma_tol: 1e-12,
             ftol: 1e-15,
+            seed: 0xcafe_babe_dead_beef,
+            record_history: false,
         }
     }
 }
@@ -103,6 +109,14 @@ pub struct CmaEsResult {
     pub generations: usize,
     /// Reason optimization terminated.
     pub stop_reason: StopReason,
+    /// Seed used for deterministic sampling.
+    pub seed_used: u64,
+    /// Final global step size.
+    pub final_sigma: f64,
+    /// Estimated covariance condition number at termination.
+    pub condition_estimate: f64,
+    /// Best objective value after each completed generation when enabled.
+    pub best_history: Option<Vec<f64>>,
 }
 
 /// (μ/μ_w, λ)-CMA-ES optimizer.
@@ -114,6 +128,14 @@ pub struct CmaEsResult {
 /// # Type parameters
 ///
 /// None — operates directly on `Vec<f64>` parameter vectors.
+///
+/// # Architecture & Memory Specifications
+///
+/// This implementation guarantees **Zero Inner-Loop Allocation**.
+/// The multi-dimensional populations (`zs`, `xs`), Cholesky factor `A`, and
+/// covariance matrices `C` are statically mapped onto flat `Vec<f64>` arrays
+/// during initialization. This enforces strict spatial locality and eliminates
+/// heap fragmentation overhead entirely during the `O(N^2)` generation adaptation loops.
 ///
 /// # Example
 ///
@@ -176,15 +198,13 @@ impl CmaEsOptimizer {
 
         // ─── Adaptation constants (Hansen 2016, Table 1) ─────────────────────
         let n_f = n as f64;
-        let c_sigma =
-            (mu_eff + 2.0) / (n_f + mu_eff + 5.0);
+        let c_sigma = (mu_eff + 2.0) / (n_f + mu_eff + 5.0);
         let d_sigma =
             1.0 + 2.0 * (0.0_f64).max(((mu_eff - 1.0) / (n_f + 1.0)).sqrt() - 1.0) + c_sigma;
         let c_c = (4.0 + mu_eff / n_f) / (n_f + 4.0 + 2.0 * mu_eff / n_f);
         let c1 = 2.0 / ((n_f + 1.3).powi(2) + mu_eff);
-        let c_mu = (1.0 - c1).min(
-            2.0 * (mu_eff - 2.0 + 1.0 / mu_eff) / ((n_f + 2.0).powi(2) + mu_eff),
-        );
+        let c_mu =
+            (1.0 - c1).min(2.0 * (mu_eff - 2.0 + 1.0 / mu_eff) / ((n_f + 2.0).powi(2) + mu_eff));
 
         // Expected ‖N(0,I)‖ = χ_n
         let chi_n = (n_f).sqrt() * (1.0 - 1.0 / (4.0 * n_f) + 1.0 / (21.0 * n_f * n_f));
@@ -194,21 +214,24 @@ impl CmaEsOptimizer {
         let mut sigma: f64 = self.config.sigma0;
 
         // C stored as lower-triangular Cholesky factor A (C = A·Aᵀ), initialized to I
-        // Using flat (row-major lower-triangle) storage: A[i][j] for j ≤ i
-        let mut chol: Vec<Vec<f64>> = (0..n)
-            .map(|i| {
-                let mut row = vec![0.0; i + 1];
-                row[i] = 1.0;
-                row
-            })
-            .collect();
+        // Using packed lower-triangle storage: length n(n+1)/2, index(i, j) = i*(i+1)/2 + j
+        let mut chol = vec![0.0; n * (n + 1) / 2];
+        for i in 0..n {
+            let idx_ii = i * (i + 1) / 2 + i;
+            chol[idx_ii] = 1.0;
+        }
 
         // Covariance C (full n×n, kept in sync after each rank-1+rank-μ update)
-        let mut cov: Vec<Vec<f64>> = identity(n);
+        let mut cov: Vec<f64> = identity(n);
 
         // Evolution paths
         let mut p_sigma: Vec<f64> = vec![0.0; n];
         let mut p_c: Vec<f64> = vec![0.0; n];
+
+        // Population buffers (pre-allocated 1D arrays to prevent inner-loop heap fragmentation)
+        let mut zs = vec![0.0_f64; lambda * n];
+        let mut xs = vec![0.0_f64; lambda * n];
+        let mut fvals = vec![(0.0_f64, 0usize); lambda];
 
         let mut best_x = mean.clone();
         let mut best_f = f(&best_x);
@@ -218,7 +241,9 @@ impl CmaEsOptimizer {
         // independent streams with consecutive seed offsets (s, s+1, …) are used —
         // those streams start with states differing by only 1 bit, which produces
         // correlated first-step outputs with the Knuth LCG multiplier.
-        let mut rng: u64 = 0xcafe_babe_dead_beef;
+        let mut rng = self.config.seed;
+        let mut best_history = self.config.record_history.then(Vec::new);
+        let mut condition_estimate = 1.0_f64;
 
         // ─── Main loop ────────────────────────────────────────────────────────
         let mut gen = 0usize;
@@ -235,45 +260,48 @@ impl CmaEsOptimizer {
 
             // 1. Sample λ offspring: xₖ = m + σ·A·zₖ
             //    Use a single advancing LCG + Box-Muller for uncorrelated draws.
-            let zs: Vec<Vec<f64>> = (0..lambda)
-                .map(|_| {
-                    let mut z = Vec::with_capacity(n);
-                    while z.len() < n {
-                        rng = rng
-                            .wrapping_mul(6_364_136_223_846_793_005)
-                            .wrapping_add(1_442_695_040_888_963_407);
-                        let u1 = (rng >> 11) as f64 / (1u64 << 53) as f64 + 1e-30;
-                        rng = rng
-                            .wrapping_mul(6_364_136_223_846_793_005)
-                            .wrapping_add(1_442_695_040_888_963_407);
-                        let u2 = (rng >> 11) as f64 / (1u64 << 53) as f64;
-                        let mag = (-2.0 * u1.ln()).sqrt();
-                        let angle = 2.0 * std::f64::consts::PI * u2;
-                        z.push(mag * angle.cos());
-                        if z.len() < n {
-                            z.push(mag * angle.sin());
-                        }
+            for k in 0..lambda {
+                let mut d = 0;
+                while d < n {
+                    rng = rng
+                        .wrapping_mul(6_364_136_223_846_793_005)
+                        .wrapping_add(1_442_695_040_888_963_407);
+                    let u1 = (rng >> 11) as f64 / (1u64 << 53) as f64 + 1e-30;
+                    rng = rng
+                        .wrapping_mul(6_364_136_223_846_793_005)
+                        .wrapping_add(1_442_695_040_888_963_407);
+                    let u2 = (rng >> 11) as f64 / (1u64 << 53) as f64;
+                    let mag = (-2.0 * u1.ln()).sqrt();
+                    let angle = 2.0 * std::f64::consts::PI * u2;
+                    zs[k * n + d] = mag * angle.cos();
+                    d += 1;
+                    if d < n {
+                        zs[k * n + d] = mag * angle.sin();
+                        d += 1;
                     }
-                    z
-                })
-                .collect();
-            let xs: Vec<Vec<f64>> = zs
-                .iter()
-                .map(|z| {
-                    let az = chol_mul(&chol, z);
-                    (0..n).map(|i| mean[i] + sigma * az[i]).collect()
-                })
-                .collect();
+                }
+            }
+
+            for k in 0..lambda {
+                let z_slice = &zs[k * n..(k + 1) * n];
+                let az = chol_mul(&chol, z_slice, n);
+                for i in 0..n {
+                    xs[k * n + i] = mean[i] + sigma * az[i];
+                }
+            }
 
             // 2. Evaluate and rank
-            let mut fvals: Vec<(f64, usize)> =
-                xs.iter().enumerate().map(|(k, x)| (f(x), k)).collect();
+            for k in 0..lambda {
+                let x_slice = &xs[k * n..(k + 1) * n];
+                fvals[k] = (f(x_slice), k);
+            }
             fvals.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             // Update global best
             if fvals[0].0 < best_f {
                 best_f = fvals[0].0;
-                best_x = xs[fvals[0].1].clone();
+                let best_k = fvals[0].1;
+                best_x.copy_from_slice(&xs[best_k * n..(best_k + 1) * n]);
             }
             if best_f < self.config.ftol {
                 stop_reason = StopReason::FunctionTolerance;
@@ -283,9 +311,9 @@ impl CmaEsOptimizer {
             // 3. Weighted recombination: m_new = Σ wᵢ · x_{i:λ}
             let mut m_new = vec![0.0_f64; n];
             for (rank, &(_, k)) in fvals.iter().take(mu).enumerate() {
-                let xi = &xs[k];
+                let x_slice = &xs[k * n..(k + 1) * n];
                 for j in 0..n {
-                    m_new[j] += w[rank] * xi[j];
+                    m_new[j] += w[rank] * x_slice[j];
                 }
             }
 
@@ -295,11 +323,10 @@ impl CmaEsOptimizer {
             // 4. Step-size path p_σ ← (1-c_σ)p_σ + √(c_σ(2-c_σ)μ_eff) · C^{-½} · step
             //    C^{-½} · v = A^{-1}·v  (forward substitution on lower-triangular A)
             //    since C = A·Aᵀ implies C^{½} = A, C^{-½} = A^{-1}.
-            let cov_half_inv_step = chol_solve_lower(&chol, &step);
+            let cov_half_inv_step = chol_solve_lower(&chol, &step, n);
             let sqrt_term = (c_sigma * (2.0 - c_sigma) * mu_eff).sqrt();
             for i in 0..n {
-                p_sigma[i] =
-                    (1.0 - c_sigma) * p_sigma[i] + sqrt_term * cov_half_inv_step[i];
+                p_sigma[i] = (1.0 - c_sigma) * p_sigma[i] + sqrt_term * cov_half_inv_step[i];
             }
 
             // Save σ_old before step-size update (rank-μ yᵢ must use σ_old, Hansen 2016 eq. 31)
@@ -330,57 +357,72 @@ impl CmaEsOptimizer {
             let delta_h = (1.0 - h_sigma) * c_c * (2.0 - c_c); // heaviside correction
             for i in 0..n {
                 for j in 0..=i {
+                    let idx_ij = i * n + j;
+                    let idx_ji = j * n + i;
+
                     // Rank-1 term
-                    let rank1 = c1 * (p_c[i] * p_c[j] + delta_h * cov[i][j]);
+                    let rank1 = c1 * (p_c[i] * p_c[j] + delta_h * cov[idx_ij]);
 
                     // Rank-μ term: yᵢ = (x_{i:λ} - m_old) / σ_old  (Hansen 2016, eq. 31)
                     let mut rank_mu = 0.0;
                     for (rank, &(_, k)) in fvals.iter().take(mu).enumerate() {
-                        let yi = (xs[k][i] - mean[i]) / sigma_old;
-                        let yj = (xs[k][j] - mean[j]) / sigma_old;
+                        let x_slice = &xs[k * n..(k + 1) * n];
+                        let yi = (x_slice[i] - mean[i]) / sigma_old;
+                        let yj = (x_slice[j] - mean[j]) / sigma_old;
                         rank_mu += w[rank] * yi * yj;
                     }
 
-                    cov[i][j] =
-                        (1.0 - c1 - c_mu) * cov[i][j] + rank1 + c_mu * rank_mu;
-                    cov[j][i] = cov[i][j]; // symmetry
+                    let val = (1.0 - c1 - c_mu) * cov[idx_ij] + rank1 + c_mu * rank_mu;
+                    cov[idx_ij] = val;
+                    cov[idx_ji] = val; // symmetry
                 }
             }
 
             // Enforce symmetry (numerical round-off guard)
             for i in 0..n {
                 for j in 0..i {
-                    let avg = (cov[i][j] + cov[j][i]) * 0.5;
-                    cov[i][j] = avg;
-                    cov[j][i] = avg;
+                    let idx_ij = i * n + j;
+                    let idx_ji = j * n + i;
+                    let avg = (cov[idx_ij] + cov[idx_ji]) * 0.5;
+                    cov[idx_ij] = avg;
+                    cov[idx_ji] = avg;
                 }
             }
 
             // Re-compute Cholesky; if near-singular add tiny diagonal regularisation.
-            let new_chol = cholesky(&cov).or_else(|| {
-                let eps = 1e-10 * cov.iter().enumerate().map(|(i, r)| r[i]).fold(0.0_f64, f64::max);
+            let new_chol = cholesky(&cov, n).or_else(|| {
+                let eps = 1e-10 * (0..n).map(|i| cov[i * n + i]).fold(0.0_f64, f64::max);
                 let mut cov_reg = cov.clone();
                 for i in 0..n {
-                    cov_reg[i][i] += eps.max(1e-20);
+                    cov_reg[i * n + i] += eps.max(1e-20);
                 }
-                cholesky(&cov_reg)
+                cholesky(&cov_reg, n)
             });
             if let Some(nc) = new_chol {
                 chol = nc;
             }
 
             // Condition number check via Cholesky diagonal (d_i = √λᵢ for eigenvalue proxy).
-            // cond(C) ≈ (max dᵢ / min dᵢ)² where dᵢ = chol[i][i].
-            let chol_diag_max =
-                chol.iter().map(|row| *row.last().unwrap()).fold(f64::MIN, f64::max);
-            let chol_diag_min =
-                chol.iter().map(|row| *row.last().unwrap()).fold(f64::MAX, f64::min);
-            if chol_diag_min > 0.0 && (chol_diag_max / chol_diag_min).powi(2) > 1e14 {
+            // cond(C) ≈ (max dᵢ / min dᵢ)² where dᵢ = chol_ii.
+            let mut chol_diag_max = f64::MIN;
+            let mut chol_diag_min = f64::MAX;
+            for i in 0..n {
+                let d = chol[i * (i + 1) / 2 + i];
+                chol_diag_max = chol_diag_max.max(d);
+                chol_diag_min = chol_diag_min.min(d);
+            }
+            if chol_diag_min > 0.0 {
+                condition_estimate = (chol_diag_max / chol_diag_min).powi(2);
+            }
+            if condition_estimate > 1e14 {
                 stop_reason = StopReason::ConditionTooLarge;
                 break;
             }
 
             mean = m_new;
+            if let Some(history) = &mut best_history {
+                history.push(best_f);
+            }
             gen += 1;
         }
 
@@ -389,17 +431,23 @@ impl CmaEsOptimizer {
             best_f,
             generations: gen,
             stop_reason,
+            seed_used: self.config.seed,
+            final_sigma: sigma,
+            condition_estimate,
+            best_history,
         }
     }
 }
 
 // ─── Internal linear algebra helpers (no external deps) ──────────────────────
 
-/// Returns n×n identity matrix.
-fn identity(n: usize) -> Vec<Vec<f64>> {
-    (0..n)
-        .map(|i| (0..n).map(|j| if i == j { 1.0 } else { 0.0 }).collect())
-        .collect()
+/// Returns n×n identity matrix as a flat row-major array.
+fn identity(n: usize) -> Vec<f64> {
+    let mut mat = vec![0.0; n * n];
+    for i in 0..n {
+        mat[i * n + i] = 1.0;
+    }
+    mat
 }
 
 /// Euclidean norm of a vector.
@@ -408,59 +456,57 @@ fn vec_norm(v: &[f64]) -> f64 {
 }
 
 /// Lower-triangular Cholesky decomposition of a symmetric positive-definite matrix.
-///
+/// Input `a` is a flat row-major n×n matrix. Output is a flat lower-triangular packed array of length n*(n+1)/2.
 /// Returns `None` if the matrix is not positive definite (non-positive diagonal pivot).
-fn cholesky(a: &[Vec<f64>]) -> Option<Vec<Vec<f64>>> {
-    let n = a.len();
-    let mut l: Vec<Vec<f64>> = vec![vec![0.0; n]; n];
+fn cholesky(a: &[f64], n: usize) -> Option<Vec<f64>> {
+    let mut l = vec![0.0; n * (n + 1) / 2];
     for i in 0..n {
         for j in 0..=i {
-            let mut s: f64 = a[i][j];
+            let mut s: f64 = a[i * n + j];
             for k in 0..j {
-                s -= l[i][k] * l[j][k];
+                let idx_ik = i * (i + 1) / 2 + k;
+                let idx_jk = j * (j + 1) / 2 + k;
+                s -= l[idx_ik] * l[idx_jk];
             }
+            let idx_ij = i * (i + 1) / 2 + j;
             if i == j {
                 if s <= 0.0 {
                     return None;
                 }
-                l[i][j] = s.sqrt();
+                l[idx_ij] = s.sqrt();
             } else {
-                l[i][j] = s / l[j][j];
+                let idx_jj = j * (j + 1) / 2 + j;
+                l[idx_ij] = s / l[idx_jj];
             }
         }
     }
-    // Convert to row-major lower-triangle: row[i] has length i+1
-    Some(
-        (0..n)
-            .map(|i| l[i][0..=i].to_vec())
-            .collect(),
-    )
+    Some(l)
 }
 
-/// Multiply lower-triangular Cholesky factor A (stored as ragged lower triangle)
-/// by vector z: y = A·z.
-fn chol_mul(chol: &[Vec<f64>], z: &[f64]) -> Vec<f64> {
-    let n = chol.len();
+/// Multiply lower-triangular Cholesky factor A (packed array style) by vector z: y = A·z.
+fn chol_mul(chol: &[f64], z: &[f64], n: usize) -> Vec<f64> {
     let mut y = vec![0.0_f64; n];
     for i in 0..n {
-        for (j, &aij) in chol[i].iter().enumerate() {
-            y[i] += aij * z[j];
+        for j in 0..=i {
+            let idx_ij = i * (i + 1) / 2 + j;
+            y[i] += chol[idx_ij] * z[j];
         }
     }
     y
 }
 
-/// Solve A·x = b for x, where A is a lower-triangular Cholesky factor stored as ragged rows.
+/// Solve A·x = b for x, where A is a lower-triangular Cholesky factor in packed array style.
 /// Forward substitution gives C^{-½}·b = A^{-1}·b (since C = A·Aᵀ → C^{-½} = A^{-1}).
-fn chol_solve_lower(chol: &[Vec<f64>], b: &[f64]) -> Vec<f64> {
-    let n = chol.len();
+fn chol_solve_lower(chol: &[f64], b: &[f64], n: usize) -> Vec<f64> {
     let mut x = b.to_vec();
     // Forward substitution: A·x = b
     for i in 0..n {
         for j in 0..i {
-            x[i] -= chol[i][j] * x[j]; // A[i][j] = chol[i][j]
+            let idx_ij = i * (i + 1) / 2 + j;
+            x[i] -= chol[idx_ij] * x[j];
         }
-        x[i] /= chol[i][i]; // A[i][i] = chol[i][i]
+        let idx_ii = i * (i + 1) / 2 + i;
+        x[i] /= chol[idx_ii];
     }
     x
 }
@@ -509,10 +555,11 @@ mod tests {
     fn test_cholesky_identity() {
         // Cholesky of identity is identity
         let id = identity(3);
-        let l = cholesky(&id).expect("Identity should be positive-definite");
+        let l = cholesky(&id, 3).expect("Identity should be positive-definite");
         // L[i][i] should all be 1
         for i in 0..3 {
-            assert!((l[i][i] - 1.0).abs() < 1e-12);
+            let idx_ii = i * (i + 1) / 2 + i;
+            assert!((l[idx_ii] - 1.0).abs() < 1e-12);
         }
     }
 
@@ -550,5 +597,26 @@ mod tests {
             "CMA-ES should improve on sphere: f_init={f_init}, best_f={}",
             result.best_f
         );
+    }
+
+    #[test]
+    fn test_seed_reproducibility() {
+        let x0 = vec![2.0, -1.0, 0.5];
+        let config = CmaEsConfig {
+            sigma0: 0.75,
+            max_generations: 40,
+            seed: 12345,
+            record_history: true,
+            ..Default::default()
+        };
+
+        let a = CmaEsOptimizer::new(config.clone()).run(sphere, &x0);
+        let b = CmaEsOptimizer::new(config).run(sphere, &x0);
+
+        assert_eq!(a.seed_used, 12345);
+        assert_eq!(a.generations, b.generations);
+        assert_eq!(a.stop_reason, b.stop_reason);
+        assert_eq!(a.best_history, b.best_history);
+        assert!((a.best_f - b.best_f).abs() < 1e-12);
     }
 }

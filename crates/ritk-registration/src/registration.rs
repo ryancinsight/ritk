@@ -8,32 +8,29 @@
 //! - Learning rate scheduling
 //! - Comprehensive error handling
 
-use burn::tensor::backend::AutodiffBackend;
+use crate::error::Result;
+use crate::metric::Metric;
+use crate::optimizer::{Optimizer, OptimizerTelemetry};
+use crate::progress::{
+    ConsoleProgressCallback, EarlyStoppingCallback, ProgressCallback, ProgressTracker,
+};
+use crate::validation::{
+    validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor,
+    ConvergenceChecker, ValidationConfig,
+};
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
+use burn::tensor::backend::AutodiffBackend;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
-use crate::metric::Metric;
-use crate::optimizer::Optimizer;
-use crate::error::Result;
-use crate::validation::{
-    ValidationConfig, validate_image_shapes, validate_tensor,
-    validate_learning_rate, validate_iterations,
-    ConvergenceChecker,
-};
-use crate::progress::{ProgressTracker, ProgressCallback, ConsoleProgressCallback, EarlyStoppingCallback};
-use std::sync::Arc;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
 /// Configuration for registration.
 #[derive(Debug, Clone)]
 pub struct RegistrationConfig {
     /// Validation configuration.
     pub validation: ValidationConfig,
-    /// Enable gradient clipping.
-    pub enable_gradient_clipping: bool,
-    /// Maximum gradient norm.
-    pub max_gradient_norm: f64,
     /// Enable early stopping.
     pub enable_early_stopping: bool,
     /// Early stopping patience.
@@ -52,8 +49,6 @@ impl Default for RegistrationConfig {
     fn default() -> Self {
         Self {
             validation: ValidationConfig::default(),
-            enable_gradient_clipping: true,
-            max_gradient_norm: 1000.0,
             enable_early_stopping: false,
             early_stopping_patience: 50,
             early_stopping_min_improvement: 1e-6,
@@ -68,19 +63,6 @@ impl RegistrationConfig {
     /// Create a new registration config with default settings.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Enable gradient clipping.
-    pub fn with_gradient_clipping(mut self, max_norm: f64) -> Self {
-        self.enable_gradient_clipping = true;
-        self.max_gradient_norm = max_norm;
-        self
-    }
-
-    /// Disable gradient clipping.
-    pub fn without_gradient_clipping(mut self) -> Self {
-        self.enable_gradient_clipping = false;
-        self
     }
 
     /// Enable early stopping.
@@ -116,6 +98,17 @@ impl RegistrationConfig {
         self.convergence_checker = None;
         self
     }
+}
+
+/// Summary returned by registration workflows that need execution diagnostics.
+#[derive(Debug)]
+pub struct RegistrationSummary<T> {
+    pub transform: T,
+    pub loss_history: Vec<f64>,
+    pub optimizer_telemetry: OptimizerTelemetry,
+    pub iterations_completed: usize,
+    pub final_loss: f64,
+    pub stopped_early: bool,
 }
 
 /// Registration framework with validation and progress tracking.
@@ -187,10 +180,24 @@ where
         &mut self,
         fixed: &Image<B, D>,
         moving: &Image<B, D>,
-        mut transform: T,
+        transform: T,
         iterations: usize,
         learning_rate: f64,
     ) -> Result<T> {
+        Ok(self
+            .execute_with_summary(fixed, moving, transform, iterations, learning_rate)?
+            .transform)
+    }
+
+    /// Execute registration and return execution diagnostics.
+    pub fn execute_with_summary(
+        &mut self,
+        fixed: &Image<B, D>,
+        moving: &Image<B, D>,
+        mut transform: T,
+        iterations: usize,
+        learning_rate: f64,
+    ) -> Result<RegistrationSummary<T>> {
         // Validate inputs
         validate_learning_rate(learning_rate)?;
         validate_iterations(iterations)?;
@@ -203,6 +210,8 @@ where
         self.progress_tracker.start();
 
         let mut loss_history = Vec::with_capacity(iterations);
+        let mut iterations_completed = 0usize;
+        let mut stopped_early = false;
 
         for i in 0..iterations {
             // Forward pass
@@ -219,12 +228,15 @@ where
             loss_history.push(loss_val);
 
             // Update progress
-            self.progress_tracker.update(i + 1, Some(iterations), loss_val, learning_rate);
+            self.progress_tracker
+                .update(i + 1, Some(iterations), loss_val, learning_rate);
+            iterations_completed = i + 1;
 
             // Check for early stopping
             if let Some(ref es) = self.early_stopping {
                 if es.should_stop() {
                     tracing::info!("Early stopping triggered at iteration {}", i + 1);
+                    stopped_early = true;
                     break;
                 }
             }
@@ -234,6 +246,7 @@ where
                 if let Some(ref checker) = self.config.convergence_checker {
                     if checker.check_convergence(&loss_history) {
                         tracing::info!("Convergence detected at iteration {}", i + 1);
+                        stopped_early = true;
                         break;
                     }
                 }
@@ -241,11 +254,6 @@ where
 
             // Backward pass
             let grads = loss.backward();
-
-            // TODO: Gradient clipping is currently disabled due to API changes in burn
-            // The clipping functionality is available in gradient_clipping module for
-            // manual use with f64 slices. For tensor-based clipping, future work will
-            // need to use burn's built-in gradient manipulation APIs.
 
             let grads_params = GradientsParams::from_grads(grads, &transform);
 
@@ -258,7 +266,17 @@ where
             learning_rate,
         );
 
-        Ok(transform)
+        let final_loss = *loss_history.last().unwrap_or(&f64::INFINITY);
+        let optimizer_telemetry = self.optimizer.telemetry();
+
+        Ok(RegistrationSummary {
+            transform,
+            loss_history,
+            optimizer_telemetry,
+            iterations_completed,
+            final_loss,
+            stopped_early,
+        })
     }
 
     /// Execute registration with custom progress tracker.
@@ -343,7 +361,6 @@ mod tests {
     #[test]
     fn test_registration_config_default() {
         let config = RegistrationConfig::default();
-        assert!(config.enable_gradient_clipping);
         assert!(!config.enable_early_stopping);
         assert_eq!(config.log_interval, 50);
     }
@@ -351,14 +368,31 @@ mod tests {
     #[test]
     fn test_registration_config_builder() {
         let config = RegistrationConfig::new()
-            .with_gradient_clipping(100.0)
             .with_early_stopping(10, 1e-5)
             .with_log_interval(25);
 
-        assert!(config.enable_gradient_clipping);
-        assert_eq!(config.max_gradient_norm, 100.0);
         assert!(config.enable_early_stopping);
         assert_eq!(config.early_stopping_patience, 10);
         assert_eq!(config.log_interval, 25);
+    }
+
+    #[test]
+    fn registration_summary_holds_execution_diagnostics() {
+        let summary = RegistrationSummary {
+            transform: 3_u32,
+            loss_history: vec![2.0, 1.0],
+            optimizer_telemetry: OptimizerTelemetry {
+                algorithm: "Test",
+                steps: 2,
+                learning_rate: Some(0.1),
+            },
+            iterations_completed: 2,
+            final_loss: 1.0,
+            stopped_early: false,
+        };
+
+        assert_eq!(summary.transform, 3);
+        assert_eq!(summary.optimizer_telemetry.steps, 2);
+        assert_eq!(summary.final_loss, 1.0);
     }
 }

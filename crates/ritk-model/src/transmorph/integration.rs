@@ -1,13 +1,13 @@
+use super::spatial_transform::SpatialTransformer;
 use burn::module::Module;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
-use super::spatial_transform::SpatialTransformer;
 
 /// Velocity Integration Module (Scaling and Squaring).
 ///
 /// Integrates a stationary velocity field to produce a diffeomorphic
 /// displacement field.
-/// 
+///
 /// $\phi = \exp(v)$
 ///
 /// Implemented via scaling and squaring:
@@ -43,7 +43,7 @@ impl<B: Backend> VecInt<B> {
         // Scale flow
         let scale = 1.0 / (2.0f32).powi(self.nsteps as i32);
         let mut flow = flow * scale;
-        
+
         // Squaring
         for _ in 0..self.nsteps {
             // flow = flow + flow \circ (Id + flow)
@@ -54,7 +54,7 @@ impl<B: Backend> VecInt<B> {
             let warped_flow = self.stn.forward(flow.clone(), flow.clone());
             flow = flow + warped_flow;
         }
-        
+
         flow
     }
 }

@@ -51,11 +51,11 @@
 //! - "Mamba: Linear-Time Sequence Modeling with Selective State Spaces" (Gu & Dao, 2023)
 
 // Core modules
-pub mod state_space;
 pub mod cross_scan;
-pub mod vmamba_block;
-pub mod encoder;
 pub mod decoder;
+pub mod encoder;
+pub mod state_space;
+pub mod vmamba_block;
 
 // Network module with hierarchical structure
 pub mod network;
@@ -64,67 +64,31 @@ pub mod network;
 pub mod integration;
 
 // Re-export core types
-pub use state_space::{
-    SelectiveStateSpaceConfig,
-    SelectiveStateSpace,
-    StateSpaceParameters,
-};
+pub use state_space::{SelectiveStateSpace, SelectiveStateSpaceConfig, StateSpaceParameters};
 
-pub use cross_scan::{
-    CrossScanConfig,
-    CrossScan,
-    ScanDirection,
-    Scan2D,
-    Scan3D,
-};
+pub use cross_scan::{CrossScan, CrossScanConfig, Scan2D, Scan3D, ScanDirection};
 
-pub use vmamba_block::{
-    VMambaBlockConfig,
-    VMambaBlock,
-    VMambaStage,
-};
+pub use vmamba_block::{VMambaBlock, VMambaBlockConfig, VMambaStage};
 
-pub use encoder::{
-    SSMMorphEncoderConfig,
-    SSMMorphEncoder,
-    EncoderStage,
-    EncoderStageConfig,
-};
+pub use encoder::{EncoderStage, EncoderStageConfig, SSMMorphEncoder, SSMMorphEncoderConfig};
 
-pub use decoder::{
-    SSMMorphDecoderConfig,
-    SSMMorphDecoder,
-    DecoderStage,
-    DecoderStageConfig,
-};
+pub use decoder::{DecoderStage, DecoderStageConfig, SSMMorphDecoder, SSMMorphDecoderConfig};
 
 // Network re-exports (primary API)
 pub use network::architecture::{
-    SSMMorphConfig,
-    SSMMorph,
-    SSMMorphOutput,
-    presets as network_presets,
+    presets as network_presets, SSMMorph, SSMMorphConfig, SSMMorphOutput,
 };
 
 // Additional network components
 pub use network::integration::{
-    IntegrationConfig,
-    VelocityFieldIntegrator,
-    TransformationComposer,
+    IntegrationConfig, TransformationComposer, VelocityFieldIntegrator,
 };
 
 pub use network::sampling::{
-    GridSampler,
-    GridSamplerConfig,
-    GridPaddingMode,
-    InterpolationMode,
-    FlowComposer,
+    FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig, InterpolationMode,
 };
 
 // Framework integration re-exports
 pub use integration::{
-    SSMMorphIntegration,
-    DiffeomorphicSSMMorph,
-    LossComponents,
-    SSMMorphAnalysis,
+    DiffeomorphicSSMMorph, LossComponents, SSMMorphAnalysis, SSMMorphIntegration,
 };

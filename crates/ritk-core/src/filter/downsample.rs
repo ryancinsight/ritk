@@ -1,6 +1,6 @@
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
 use crate::image::Image;
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Downsample filter.
 ///
@@ -28,28 +28,33 @@ impl<B: Backend> DownsampleFilter<B> {
         let mut data = image.data().clone();
         let device = data.device();
         let dims: [usize; D] = data.shape().dims();
-        
+
         let mut new_spacing = *image.spacing();
         // Origin remains the same if we start sampling at index 0
         // (Physical location of first pixel is unchanged)
-        
+
         for d in 0..D {
-            let factor = if d < self.factors.len() { self.factors[d] } else { self.factors[0] };
-            
+            let factor = if d < self.factors.len() {
+                self.factors[d]
+            } else {
+                self.factors[0]
+            };
+
             if factor <= 1 {
                 continue;
             }
-            
+
             let size = dims[d];
-            let _new_size = (size + factor - 1) / factor; // ceil division? or just floor? 
-            // Standard downsample usually floors: 0, factor, 2*factor...
-            // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
-            
+            let _new_size = (size + factor - 1) / factor; // ceil division? or just floor?
+                                                          // Standard downsample usually floors: 0, factor, 2*factor...
+                                                          // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
+
             let indices_vec: Vec<i32> = (0..size).step_by(factor).map(|x| x as i32).collect();
-            let indices = Tensor::<B, 1, burn::tensor::Int>::from_ints(indices_vec.as_slice(), &device);
-            
+            let indices =
+                Tensor::<B, 1, burn::tensor::Int>::from_ints(indices_vec.as_slice(), &device);
+
             data = data.select(d, indices);
-            
+
             // Update spacing
             new_spacing[d] *= factor as f64;
         }

@@ -2,12 +2,12 @@
 //!
 //! Direction matrices represent orientation of image axes in physical space.
 
-use nalgebra::SMatrix;
 use super::Vector;
-use serde::{Serialize, Deserialize};
-use burn::module::{Module, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
-use burn::record::{Record, PrecisionSettings};
-use burn::tensor::backend::{Backend, AutodiffBackend};
+use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use burn::record::{PrecisionSettings, Record};
+use burn::tensor::backend::{AutodiffBackend, Backend};
+use nalgebra::SMatrix;
+use serde::{Deserialize, Serialize};
 
 /// Direction matrix representing image orientation.
 ///
@@ -80,7 +80,6 @@ impl<const D: usize> ModuleDisplayDefault for Direction<D> {
 
 impl<const D: usize> ModuleDisplay for Direction<D> {}
 
-
 impl<const D: usize> Direction<D> {
     /// Create an identity direction matrix (no rotation).
     pub fn identity() -> Self {
@@ -96,11 +95,7 @@ impl<const D: usize> Direction<D> {
     pub fn is_orthogonal(&self) -> bool {
         let product = self.0 * self.0.transpose();
         let identity = Self::identity();
-        (0..D).all(|i| {
-            (0..D).all(|j| {
-                (product[(i, j)] - identity.0[(i, j)]).abs() < 1e-6
-            })
-        })
+        (0..D).all(|i| (0..D).all(|j| (product[(i, j)] - identity.0[(i, j)]).abs() < 1e-6))
     }
 
     /// Check if direction matrix is a proper rotation (det = 1).
@@ -114,9 +109,7 @@ impl<const D: usize> Direction<D> {
     /// Gaussian elimination (LU decomposition) for D>3.
     pub fn determinant(&self) -> f64 {
         match D {
-            2 => {
-                self.0[(0, 0)] * self.0[(1, 1)] - self.0[(0, 1)] * self.0[(1, 0)]
-            }
+            2 => self.0[(0, 0)] * self.0[(1, 1)] - self.0[(0, 1)] * self.0[(1, 0)],
             3 => {
                 let a = self.0[(0, 0)];
                 let b = self.0[(0, 1)];
@@ -127,19 +120,19 @@ impl<const D: usize> Direction<D> {
                 let g = self.0[(2, 0)];
                 let h = self.0[(2, 1)];
                 let i = self.0[(2, 2)];
-                
+
                 a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
             }
             _ => {
                 // General implementation using Gaussian elimination
                 let mut m = self.0;
                 let mut det = 1.0;
-                
+
                 for i in 0..D {
                     // Find pivot
                     let mut pivot_idx = i;
                     let mut pivot_val = m[(i, i)].abs();
-                    
+
                     for k in (i + 1)..D {
                         let val = m[(k, i)].abs();
                         if val > pivot_val {
@@ -147,18 +140,18 @@ impl<const D: usize> Direction<D> {
                             pivot_idx = k;
                         }
                     }
-                    
+
                     if pivot_val < 1e-10 {
                         return 0.0;
                     }
-                    
+
                     if pivot_idx != i {
                         m.swap_rows(i, pivot_idx);
                         det = -det;
                     }
-                    
+
                     det *= m[(i, i)];
-                    
+
                     for j in (i + 1)..D {
                         let factor = m[(j, i)] / m[(i, i)];
                         for k in i..D {
@@ -166,7 +159,7 @@ impl<const D: usize> Direction<D> {
                         }
                     }
                 }
-                
+
                 det
             }
         }
@@ -179,13 +172,15 @@ impl<const D: usize> Direction<D> {
 
     /// Get the axis directions as vectors.
     pub fn axis_directions(&self) -> Vec<Vector<D>> {
-        (0..D).map(|i| {
-            let mut v = Vector::zeros();
-            for j in 0..D {
-                v[j] = self.0[(j, i)];
-            }
-            v
-        }).collect()
+        (0..D)
+            .map(|i| {
+                let mut v = Vector::zeros();
+                for j in 0..D {
+                    v[j] = self.0[(j, i)];
+                }
+                v
+            })
+            .collect()
     }
 
     /// Get the inner nalgebra matrix.

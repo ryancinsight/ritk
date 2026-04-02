@@ -3,8 +3,8 @@
 //! This module defines the core Metric trait that all similarity metrics
 //! must implement for image registration.
 
-use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
 

@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     nn::{
         conv::{Conv3d, Conv3dConfig},
-        BatchNorm, BatchNormConfig, Linear, LinearConfig, Relu, PaddingConfig3d,
+        BatchNorm, BatchNormConfig, Linear, LinearConfig, PaddingConfig3d, Relu,
     },
     tensor::{backend::Backend, Tensor},
 };
@@ -39,7 +39,7 @@ impl Default for AffineNetworkConfig {
 impl AffineNetworkConfig {
     pub fn init<B: Backend>(&self, device: &B::Device) -> AffineNetwork<B> {
         let activation = Relu::new();
-        
+
         let conv1 = Conv3dConfig::new([2, self.channels[0]], [3, 3, 3])
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
@@ -73,14 +73,14 @@ impl AffineNetworkConfig {
         // Initialize final linear layer to identity transform
         // The output is 12 parameters for a 3x4 affine matrix
         let fc = LinearConfig::new(self.channels[4], 12).init(device);
-        
+
         // Custom initialization for identity transform
         // Identity matrix 3x4:
         // 1 0 0 0
         // 0 1 0 0
         // 0 0 1 0
         // Flattened: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
-        
+
         // Note: In Burn, we might need to load these weights manually or rely on optimizer to find it.
         // But strictly setting it to identity is better for stability.
         // However, Burn's public API for manual weight setting on initialized modules is via record.
@@ -90,7 +90,7 @@ impl AffineNetworkConfig {
         // But LinearConfig doesn't support custom bias init easily without loading a record.
         // We will proceed with standard init and let the network learn.
         // Optimization: In the forward pass, we can add the identity bias manually if we want to start from identity.
-        
+
         AffineNetwork {
             conv1,
             bn1,
@@ -125,7 +125,7 @@ impl<B: Backend> AffineNetwork<B> {
         let x = self.conv4.forward(x);
         let x = self.bn4.forward(x);
         let x = self.activation.forward(x);
-        
+
         let x = self.conv5.forward(x);
         let x = self.bn5.forward(x);
         let x = self.activation.forward(x);
@@ -136,20 +136,20 @@ impl<B: Backend> AffineNetwork<B> {
         // Mean over spatial dim: [B, C, 1]
         let x = x.mean_dim(2);
         // Squeeze: [B, C]
-        let x = x.squeeze::<2>();
-        
+        let [b, c, _] = x.dims();
+        let x = x.reshape([b, c]);
+
         let x = self.fc.forward(x);
-        
+
         // Add identity bias to start training from a near-identity transform
         // Identity: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]
         let batch_size = x.shape().dims[0];
         let identity = Tensor::<B, 1>::from_floats(
-            [1.0, 0.0, 0.0, 0.0, 
-             0.0, 1.0, 0.0, 0.0, 
-             0.0, 0.0, 1.0, 0.0], 
-            &x.device()
-        ).reshape([1, 12]);
-        
+            [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            &x.device(),
+        )
+        .reshape([1, 12]);
+
         x + identity.repeat(&[batch_size, 1])
     }
 }

@@ -47,9 +47,8 @@ impl ProgressInfo {
 
     /// Calculate progress percentage.
     pub fn progress_percent(&self) -> Option<f64> {
-        self.total_iterations.map(|total| {
-            (self.iteration as f64 / total as f64) * 100.0
-        })
+        self.total_iterations
+            .map(|total| (self.iteration as f64 / total as f64) * 100.0)
     }
 
     /// Calculate estimated remaining time.
@@ -59,7 +58,7 @@ impl ProgressInfo {
                 let avg_time_per_iter = self.elapsed.as_secs_f64() / self.iteration as f64;
                 let remaining_iters = total.saturating_sub(self.iteration);
                 self.estimated_remaining = Some(Duration::from_secs_f64(
-                    avg_time_per_iter * remaining_iters as f64
+                    avg_time_per_iter * remaining_iters as f64,
                 ));
             }
         }
@@ -128,17 +127,21 @@ impl ConsoleProgressCallback {
 
 impl ProgressCallback for ConsoleProgressCallback {
     fn on_progress(&self, info: &ProgressInfo) {
-        if info.iteration % self.log_interval == 0 || info.total_iterations == Some(info.iteration) {
+        if info.iteration % self.log_interval == 0 || info.total_iterations == Some(info.iteration)
+        {
             let progress = info.progress_percent().unwrap_or(0.0);
             let elapsed = format!("{:.2}s", info.elapsed.as_secs_f64());
-            let remaining = info.estimated_remaining
+            let remaining = info
+                .estimated_remaining
                 .map(|d| format!("{:.2}s", d.as_secs_f64()))
                 .unwrap_or_else(|| "N/A".to_string());
 
             tracing::info!(
                 "Iter {}/{} ({:.1}%) | Loss: {:.6} | LR: {:.2e} | Elapsed: {} | ETA: {}",
                 info.iteration,
-                info.total_iterations.map(|n| n.to_string()).unwrap_or_else(|| "?".to_string()),
+                info.total_iterations
+                    .map(|n| n.to_string())
+                    .unwrap_or_else(|| "?".to_string()),
                 progress,
                 info.loss,
                 info.learning_rate,
@@ -266,7 +269,11 @@ impl ProgressCallback for EarlyStoppingCallback {
         if let Some(min_loss) = self.min_loss {
             if info.loss <= min_loss {
                 *self.should_stop.lock().unwrap() = true;
-                tracing::info!("Early stopping: loss {} reached minimum threshold {}", info.loss, min_loss);
+                tracing::info!(
+                    "Early stopping: loss {} reached minimum threshold {}",
+                    info.loss,
+                    min_loss
+                );
                 return;
             }
         }
@@ -331,7 +338,13 @@ impl ProgressTracker {
     }
 
     /// Update progress.
-    pub fn update(&self, iteration: usize, total_iterations: Option<usize>, loss: f64, learning_rate: f64) {
+    pub fn update(
+        &self,
+        iteration: usize,
+        total_iterations: Option<usize>,
+        loss: f64,
+        learning_rate: f64,
+    ) {
         let start_time = *self.start_time.lock().unwrap();
         let elapsed = start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO);
 

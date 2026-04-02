@@ -36,23 +36,10 @@ pub mod integration;
 pub mod sampling;
 
 // Re-export main types for convenience
-pub use architecture::{
-    SSMMorph,
-    SSMMorphConfig,
-    SSMMorphOutput,
-    presets,
-};
+pub use architecture::{presets, SSMMorph, SSMMorphConfig, SSMMorphOutput};
 
-pub use integration::{
-    IntegrationConfig,
-    VelocityFieldIntegrator,
-    TransformationComposer,
-};
+pub use integration::{IntegrationConfig, TransformationComposer, VelocityFieldIntegrator};
 
 pub use sampling::{
-    GridSampler,
-    GridSamplerConfig,
-    GridPaddingMode,
-    InterpolationMode,
-    FlowComposer,
+    FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig, InterpolationMode,
 };

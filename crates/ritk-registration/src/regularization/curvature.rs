@@ -17,15 +17,14 @@
 //!
 //! ## When to use curvature regularization
 //!
+use super::trait_::utils::{laplacian, spatial_laplacian_3d};
+use super::trait_::Regularizer;
+use burn::tensor::backend::Backend;
 /// - When extremely smooth deformations are desired
 /// - For surfaces or thin structures
 /// - When bending energy is not sufficient
 /// - In deformable models for computational anatomy
-
 use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
-use super::trait_::Regularizer;
-use super::trait_::utils::{laplacian, spatial_laplacian_3d};
 
 /// Curvature regularizer for displacement fields.
 ///
@@ -75,11 +74,12 @@ impl<B: Backend> Regularizer<B> for CurvatureRegularizer {
                 let components = shape.dims[1];
                 let height = shape.dims[2];
                 let width = shape.dims[3];
-                let displacement_4d: Tensor<B, 4> = displacement.reshape([batch, components, height, width]);
-                
+                let displacement_4d: Tensor<B, 4> =
+                    displacement.reshape([batch, components, height, width]);
+
                 // Compute Laplacian
                 let laplacian = laplacian(displacement_4d);
-                
+
                 // Penalize squared Laplacian
                 laplacian.powf_scalar(2.0).mean().mul_scalar(self.weight)
             }
@@ -91,22 +91,25 @@ impl<B: Backend> Regularizer<B> for CurvatureRegularizer {
                 let depth = shape.dims[2];
                 let height = shape.dims[3];
                 let width = shape.dims[4];
-                let displacement_5d: Tensor<B, 5> = displacement.reshape([batch, components, depth, height, width]);
-                
+                let displacement_5d: Tensor<B, 5> =
+                    displacement.reshape([batch, components, depth, height, width]);
+
                 // Compute Laplacian
                 let laplacian = spatial_laplacian_3d(displacement_5d);
-                
+
                 // Penalize squared Laplacian
                 laplacian.powf_scalar(2.0).mean().mul_scalar(self.weight)
             }
-            _ => panic!("CurvatureRegularizer only supports 4D (2D) or 5D (3D) displacement fields"),
+            _ => {
+                panic!("CurvatureRegularizer only supports 4D (2D) or 5D (3D) displacement fields")
+            }
         }
     }
-    
+
     fn weight(&self) -> f64 {
         self.weight
     }
-    
+
     fn set_weight(&mut self, weight: f64) {
         self.weight = weight;
     }
@@ -121,13 +124,13 @@ mod tests {
     fn test_curvature_2d() {
         type Backend = NdArray;
         let device = Default::default();
-        
+
         let reg = CurvatureRegularizer::new(0.01);
-        
+
         // Uniform field should have zero curvature
         let displacement = Tensor::<Backend, 4>::ones([1, 2, 32, 32], &device);
         let loss: f32 = reg.compute_loss(displacement).into_scalar();
-        
+
         assert!(loss < 0.01);
     }
 }

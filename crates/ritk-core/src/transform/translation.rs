@@ -2,11 +2,11 @@
 //!
 //! This module provides a simple translation transform.
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
+use super::trait_::{Resampleable, Transform};
+use crate::spatial::{Direction, Point, Spacing};
 use burn::module::{Module, Param};
-use crate::spatial::{Point, Spacing, Direction};
-use super::trait_::{Transform, Resampleable};
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Simple Translation Transform.
 ///
@@ -69,10 +69,8 @@ mod tests {
         let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
         let transform = TranslationTransform::<TestBackend, 3>::new(translation);
 
-        let points = Tensor::<TestBackend, 2>::from_floats(
-            [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
-            &device,
-        );
+        let points =
+            Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();

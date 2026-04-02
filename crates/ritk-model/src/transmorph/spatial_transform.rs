@@ -1,9 +1,9 @@
+use crate::interpolation::trilinear_interpolation;
 use burn::{
     module::Module,
-    tensor::{Tensor, backend::Backend},
+    tensor::{backend::Backend, Tensor},
 };
 use std::marker::PhantomData;
-use crate::interpolation::trilinear_interpolation;
 
 #[derive(Module, Debug)]
 pub struct SpatialTransformer<B: Backend> {
@@ -12,13 +12,15 @@ pub struct SpatialTransformer<B: Backend> {
 
 impl<B: Backend> SpatialTransformer<B> {
     pub fn new() -> Self {
-        Self { phantom: PhantomData }
+        Self {
+            phantom: PhantomData,
+        }
     }
 
     pub fn forward(&self, image: Tensor<B, 5>, flow: Tensor<B, 5>) -> Tensor<B, 5> {
         // image: [B, C, D, H, W]
         // flow: [B, 3, D, H, W]
-        
+
         let [b, _c, d, h, w] = image.dims();
         let device = image.device();
 
@@ -33,12 +35,12 @@ impl<B: Backend> SpatialTransformer<B> {
         let d_range = Tensor::arange(0..d as i64, &device)
             .float()
             .reshape([1, 1, d, 1, 1]);
-            
+
         // H coords: [1, 1, 1, H, 1]
         let h_range = Tensor::arange(0..h as i64, &device)
             .float()
             .reshape([1, 1, 1, h, 1]);
-            
+
         // W coords: [1, 1, 1, 1, W]
         let w_range = Tensor::arange(0..w as i64, &device)
             .float()

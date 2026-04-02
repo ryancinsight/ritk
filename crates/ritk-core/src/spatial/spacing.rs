@@ -39,7 +39,9 @@ impl<const D: usize> Spacing<D> {
 
     /// Get the maximum spacing value.
     pub fn max_spacing(&self) -> f64 {
-        (0..D).map(|i| self[i]).fold(f64::NEG_INFINITY, |a, b| a.max(b))
+        (0..D)
+            .map(|i| self[i])
+            .fold(f64::NEG_INFINITY, |a, b| a.max(b))
     }
 }
 

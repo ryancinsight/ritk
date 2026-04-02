@@ -1,8 +1,8 @@
-use burn::tensor::{Tensor, Shape};
-use burn::tensor::backend::Backend;
-use burn::tensor::ops::ConvOptions;
 use crate::image::Image;
 use crate::spatial::Spacing;
+use burn::tensor::backend::Backend;
+use burn::tensor::ops::ConvOptions;
+use burn::tensor::{Shape, Tensor};
 
 /// Gaussian smoothing filter.
 ///
@@ -36,7 +36,7 @@ impl<B: Backend> GaussianFilter<B> {
     /// Apply the filter to an image.
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         let data = self.apply_tensor(image.data().clone(), image.spacing());
-        
+
         Image::new(
             data,
             image.origin().clone(),
@@ -50,15 +50,23 @@ impl<B: Backend> GaussianFilter<B> {
     /// # Arguments
     /// * `input` - Input tensor
     /// * `spacing` - Physical spacing of the data (used to determine kernel size)
-    pub fn apply_tensor<const D: usize>(&self, input: Tensor<B, D>, spacing: &Spacing<D>) -> Tensor<B, D> {
+    pub fn apply_tensor<const D: usize>(
+        &self,
+        input: Tensor<B, D>,
+        spacing: &Spacing<D>,
+    ) -> Tensor<B, D> {
         let mut data = input;
         let device = data.device();
 
         // Apply 1D convolution along each dimension
         for d in 0..D {
-            let sigma = if d < self.sigmas.len() { self.sigmas[d] } else { self.sigmas[0] };
+            let sigma = if d < self.sigmas.len() {
+                self.sigmas[d]
+            } else {
+                self.sigmas[0]
+            };
             let spacing_val = spacing[d];
-            
+
             // Skip if sigma is close to zero
             if sigma <= 1e-6 {
                 continue;
@@ -72,10 +80,10 @@ impl<B: Backend> GaussianFilter<B> {
                 width -= 1;
             }
             let actual_radius = (width - 1) / 2;
-            
+
             let kernel = self.generate_kernel(pixel_sigma, actual_radius);
             let kernel_tensor = Tensor::<B, 1>::from_floats(kernel.as_slice(), &device);
-            
+
             // Convolve along dimension d
             data = self.convolve_1d::<D>(data, kernel_tensor, d);
         }
@@ -105,15 +113,15 @@ impl<B: Backend> GaussianFilter<B> {
     }
 
     fn convolve_1d<const D: usize>(
-        &self, 
-        input: Tensor<B, D>, 
-        kernel: Tensor<B, 1>, 
-        dim: usize
+        &self,
+        input: Tensor<B, D>,
+        kernel: Tensor<B, 1>,
+        dim: usize,
     ) -> Tensor<B, D> {
         let shape = input.shape();
         let dims: [usize; D] = shape.dims();
         let _device = input.device();
-        
+
         // 1. Permute target dimension to the last
         let mut permute_indices = [0isize; D];
         let mut idx = 0;
@@ -123,10 +131,10 @@ impl<B: Backend> GaussianFilter<B> {
                 idx += 1;
             }
         }
-        permute_indices[D-1] = dim as isize;
-        
+        permute_indices[D - 1] = dim as isize;
+
         let input_permuted = input.clone().permute(permute_indices);
-        
+
         // 2. Flatten other dimensions into batch
         let last_dim_size = dims[dim];
         let mut batch_size = 1;
@@ -135,21 +143,21 @@ impl<B: Backend> GaussianFilter<B> {
                 batch_size *= dims[i];
             }
         }
-        
+
         // Reshape to [Batch, 1, Length] for conv1d
         // Input: [Batch, Channels=1, Length]
         let input_reshaped = input_permuted.reshape([batch_size, 1, last_dim_size]);
-        
+
         // Kernel: [OutChannels=1, InChannels=1, KernelSize]
         let kernel_size = kernel.dims()[0];
         let kernel_reshaped = kernel.reshape([1, 1, kernel_size]);
-        
+
         // Padding to maintain size
         let padding = kernel_size / 2;
-        
+
         // Perform convolution
         let options = ConvOptions::new([1], [padding], [1], 1);
-        
+
         // Chunking for large batches to avoid WGPU dispatch limits
         const CHUNK_SIZE: usize = 32768;
         let output_reshaped = if batch_size <= CHUNK_SIZE {
@@ -162,11 +170,11 @@ impl<B: Backend> GaussianFilter<B> {
         } else {
             let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
             let mut chunks = Vec::with_capacity(num_chunks);
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
-                
+
                 let chunk_input = input_reshaped.clone().slice([start..end]);
                 let chunk_output = burn::tensor::module::conv1d(
                     chunk_input,
@@ -178,12 +186,12 @@ impl<B: Backend> GaussianFilter<B> {
             }
             Tensor::cat(chunks, 0)
         };
-        
+
         // 3. Reshape back and inverse permute
         // Output shape matches input_permuted shape since we used padding
         // But we need to be careful if padding logic in conv1d changes size slightly (e.g. even kernel)
         // With stride 1 and padding = floor(k/2) and odd kernel, size should be preserved.
-        
+
         // Reshape back to permuted shape
         let mut permuted_shape = [0; D];
         let mut p_idx = 0;
@@ -193,21 +201,21 @@ impl<B: Backend> GaussianFilter<B> {
                 p_idx += 1;
             }
         }
-        permuted_shape[D-1] = last_dim_size; // Assuming size preserved
-        
+        permuted_shape[D - 1] = last_dim_size; // Assuming size preserved
+
         let output_permuted = output_reshaped.reshape(Shape::new(permuted_shape));
-        
+
         // Inverse permutation
         // We need to map back.
         // Current dims are [d_others..., d_target]
         // We want [d_0, d_1, ... d_D-1]
-        
+
         // Construct inverse indices
         let mut inv_permute_indices = [0isize; D];
         for (new_pos, &old_pos) in permute_indices.iter().enumerate() {
             inv_permute_indices[old_pos as usize] = new_pos as isize;
         }
-        
+
         output_permuted.permute(inv_permute_indices)
     }
 }

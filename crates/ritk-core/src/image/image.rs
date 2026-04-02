@@ -3,9 +3,9 @@
 //! This module provides the Image struct which represents medical images
 //! with tensor data and physical space metadata (origin, spacing, direction).
 
-use burn::tensor::{Tensor, TensorData};
+use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::backend::Backend;
-use crate::spatial::{Point, Spacing, Direction};
+use burn::tensor::{Tensor, TensorData};
 
 /// Medical image with physical metadata.
 ///
@@ -109,7 +109,11 @@ impl<B: Backend, const D: usize> Image<B, D> {
 
     /// Get the image shape as an array.
     pub fn shape(&self) -> [usize; D] {
-        self.data.shape().dims.try_into().expect("Tensor rank mismatch")
+        self.data
+            .shape()
+            .dims
+            .try_into()
+            .expect("Tensor rank mismatch")
     }
 
     /// Convert a continuous physical point to a continuous index.
@@ -145,12 +149,15 @@ impl<B: Backend, const D: usize> Image<B, D> {
         // index = (Direction^-1 * (point - origin)) / spacing
         // Note: This implementation assumes direction is orthogonal/rotation matrix usually, but we do full inverse.
         // Nalgebra operations are on CPU.
-        
+
         let diff = *point - self.origin;
         // Inverse direction
-        let inv_dir = self.direction.try_inverse().expect("Direction matrix must be invertible");
+        let inv_dir = self
+            .direction
+            .try_inverse()
+            .expect("Direction matrix must be invertible");
         let rotated = inv_dir * diff;
-        
+
         // Element-wise division by spacing
         let mut index = Point::<D>::origin();
         for i in 0..D {
@@ -158,7 +165,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         }
         index
     }
-    
+
     /// Convert a continuous index to a physical point.
     ///
     /// This transformation maps from index space to physical space using:
@@ -194,7 +201,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
         for i in 0..D {
             scaled_index[i] = index[i] * self.spacing[i];
         }
-        
+
         let rotated = self.direction * scaled_index;
         self.origin + rotated
     }
@@ -230,19 +237,23 @@ impl<B: Backend, const D: usize> Image<B, D> {
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
         let [n_points, _] = points.dims();
-        
+
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
         let origin_tensor = Tensor::<B, 1>::from_data(
             TensorData::new(origin_vec, burn::tensor::Shape::new([D])),
             &device,
-        ).reshape([1, D]);
-            
+        )
+        .reshape([1, D]);
+
         // 2. Prepare Transform Matrix T = (S^-1 * D^-1)^T = (D^-1)^T * S^-1
         // I = (P - O) @ T
         // T_rc = (D^-1)_cr / S_c
-        
-        let inv_dir = self.direction.try_inverse().expect("Direction matrix must be invertible");
+
+        let inv_dir = self
+            .direction
+            .try_inverse()
+            .expect("Direction matrix must be invertible");
 
         let mut t_data = Vec::with_capacity(D * D);
         for r in 0..D {
@@ -252,12 +263,12 @@ impl<B: Backend, const D: usize> Image<B, D> {
                 t_data.push(val);
             }
         }
-        
+
         let t_tensor = Tensor::<B, 2>::from_data(
             TensorData::new(t_data, burn::tensor::Shape::new([D, D])),
             &device,
         );
-        
+
         // WGPU dispatch limit workaround
         const CHUNK_SIZE: usize = 32768;
 
@@ -267,17 +278,17 @@ impl<B: Backend, const D: usize> Image<B, D> {
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
-                
+
                 let diff = chunk_points - origin_tensor.clone();
                 let result = diff.matmul(t_tensor.clone());
                 chunks.push(result);
             }
-            
+
             Tensor::cat(chunks, 0)
         }
     }
@@ -313,18 +324,19 @@ impl<B: Backend, const D: usize> Image<B, D> {
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = indices.device();
         let [n_points, _] = indices.dims();
-        
+
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
         let origin_tensor = Tensor::<B, 1>::from_data(
             TensorData::new(origin_vec, burn::tensor::Shape::new([D])),
             &device,
-        ).reshape([1, D]);
-            
+        )
+        .reshape([1, D]);
+
         // 2. Prepare Transform Matrix M = S * D^T
         // P = O + I @ M
         // M_rc = S_r * D_cr
-        
+
         let mut m_data = Vec::with_capacity(D * D);
         for r in 0..D {
             for c in 0..D {
@@ -332,12 +344,12 @@ impl<B: Backend, const D: usize> Image<B, D> {
                 m_data.push(val);
             }
         }
-        
+
         let m_tensor = Tensor::<B, 2>::from_data(
             TensorData::new(m_data, burn::tensor::Shape::new([D, D])),
             &device,
         );
-            
+
         // WGPU dispatch limit workaround
         const CHUNK_SIZE: usize = 32768;
 
@@ -347,17 +359,17 @@ impl<B: Backend, const D: usize> Image<B, D> {
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_indices = indices.clone().slice([start..end]);
-                
+
                 let rotated = chunk_indices.matmul(m_tensor.clone());
                 let result = rotated + origin_tensor.clone();
                 chunks.push(result);
             }
-            
+
             Tensor::cat(chunks, 0)
         }
     }
@@ -380,9 +392,9 @@ mod tests {
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         assert_eq!(image.shape(), [10, 10, 10]);
         assert_eq!(image.origin(), &origin);
         assert_eq!(image.spacing(), &spacing);
@@ -396,12 +408,12 @@ mod tests {
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         let point = Point3::new([5.0, 5.0, 5.0]);
         let index = image.transform_physical_point_to_continuous_index(&point);
-        
+
         assert!((index[0] - 5.0).abs() < 1e-6);
         assert!((index[1] - 5.0).abs() < 1e-6);
         assert!((index[2] - 5.0).abs() < 1e-6);
@@ -414,12 +426,12 @@ mod tests {
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         let index = Point3::new([5.0, 5.0, 5.0]);
         let point = image.transform_continuous_index_to_physical_point(&index);
-        
+
         assert!((point[0] - 5.0).abs() < 1e-6);
         assert!((point[1] - 5.0).abs() < 1e-6);
         assert!((point[2] - 5.0).abs() < 1e-6);
@@ -432,13 +444,13 @@ mod tests {
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         let original_point = Point3::new([3.5, 4.5, 5.5]);
         let index = image.transform_physical_point_to_continuous_index(&original_point);
         let transformed_point = image.transform_continuous_index_to_physical_point(&index);
-        
+
         assert!((original_point[0] - transformed_point[0]).abs() < 1e-6);
         assert!((original_point[1] - transformed_point[1]).abs() < 1e-6);
         assert!((original_point[2] - transformed_point[2]).abs() < 1e-6);
@@ -451,12 +463,12 @@ mod tests {
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([2.0, 2.0, 2.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         let point = Point3::new([10.0, 10.0, 10.0]);
         let index = image.transform_physical_point_to_continuous_index(&point);
-        
+
         assert!((index[0] - 5.0).abs() < 1e-6);
         assert!((index[1] - 5.0).abs() < 1e-6);
         assert!((index[2] - 5.0).abs() < 1e-6);
@@ -469,12 +481,12 @@ mod tests {
         let origin = Point3::new([10.0, 20.0, 30.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
         let direction = Direction3::identity();
-        
+
         let image = Image::new(data, origin, spacing, direction);
-        
+
         let point = Point3::new([15.0, 25.0, 35.0]);
         let index = image.transform_physical_point_to_continuous_index(&point);
-        
+
         assert!((index[0] - 5.0).abs() < 1e-6);
         assert!((index[1] - 5.0).abs() < 1e-6);
         assert!((index[2] - 5.0).abs() < 1e-6);

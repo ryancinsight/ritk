@@ -1,9 +1,9 @@
+pub mod filter;
 pub mod image;
+pub mod interpolation;
 pub mod spatial;
 pub mod transform;
-pub mod interpolation;
-pub mod filter;
 
-pub use image::Image;
-pub use spatial::{Point, Vector, Spacing, Direction};
 pub use filter::MultiResolutionPyramid;
+pub use image::Image;
+pub use spatial::{Direction, Point, Spacing, Vector};

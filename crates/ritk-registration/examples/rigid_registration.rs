@@ -16,14 +16,14 @@
 use burn::backend::Autodiff;
 use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
-use ritk_core::image::Image;
-use ritk_core::transform::RigidTransform;
 use ritk_core::filter::ResampleImageFilter;
+use ritk_core::image::Image;
 use ritk_core::interpolation::LinearInterpolator;
-use ritk_registration::metric::MutualInformation;
-use ritk_registration::optimizer::AdamOptimizer;
-use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
+use ritk_core::transform::RigidTransform;
 use ritk_io::{read_nifti, write_nifti};
+use ritk_registration::metric::MutualInformation;
+use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
+use ritk_registration::optimizer::AdamOptimizer;
 use std::path::Path;
 
 // Use autodiff backend for gradient-based optimization
@@ -34,9 +34,7 @@ fn main() -> anyhow::Result<()> {
     println!("================================\n");
 
     // Initialize tracing for logging
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     let device = Default::default();
 
@@ -65,14 +63,22 @@ fn main() -> anyhow::Result<()> {
     println!("  Loading fixed image: {}", fixed_path.display());
     let fixed: Image<Backend, 3> = read_nifti(fixed_path, &device)?;
     println!("  Fixed image shape: {:?}", fixed.shape());
-    println!("  Fixed image spacing: [{:.2}, {:.2}, {:.2}] mm", 
-        fixed.spacing()[0], fixed.spacing()[1], fixed.spacing()[2]);
+    println!(
+        "  Fixed image spacing: [{:.2}, {:.2}, {:.2}] mm",
+        fixed.spacing()[0],
+        fixed.spacing()[1],
+        fixed.spacing()[2]
+    );
 
     println!("  Loading moving image: {}", moving_path.display());
     let moving: Image<Backend, 3> = read_nifti(moving_path, &device)?;
     println!("  Moving image shape: {:?}", moving.shape());
-    println!("  Moving image spacing: [{:.2}, {:.2}, {:.2}] mm",
-        moving.spacing()[0], moving.spacing()[1], moving.spacing()[2]);
+    println!(
+        "  Moving image spacing: [{:.2}, {:.2}, {:.2}] mm",
+        moving.spacing()[0],
+        moving.spacing()[1],
+        moving.spacing()[2]
+    );
 
     // =======================================================================
     // Step 2: Initialize Rigid Transform
@@ -90,12 +96,14 @@ fn main() -> anyhow::Result<()> {
         &device,
     );
     // Convert index center to physical point
-    let center_point = fixed.index_to_world_tensor(center.unsqueeze_dim(0)).squeeze();
-    
+    let center_point = fixed
+        .index_to_world_tensor(center.unsqueeze_dim(0))
+        .squeeze();
+
     println!("  Rotation center (physical): {}", center_point);
 
     let transform = RigidTransform::<Backend, 3>::identity(Some(center_point), &device);
-    
+
     // Initialize translation (optional, if we want to start closer)
     // transform.set_translation(...);
 
@@ -107,8 +115,14 @@ fn main() -> anyhow::Result<()> {
     // Metric: Mutual Information
     // 32 bins, 32 samples (not used here as we use full image), sigma=1.0
     // Note: MI uses soft histogramming on full image or sampled points
-    let metric = MutualInformation::<Backend>::new(32, 0.0, 255.0, 1.0);
-    
+    let metric = MutualInformation::<Backend>::new(
+        ritk_registration::metric::MutualInformationVariant::Standard,
+        32,
+        0.0,
+        255.0,
+        1.0,
+    );
+
     // Schedule: 3 levels (4x, 2x, 1x)
     // We use a gentle schedule for this example
     let levels = 3;
@@ -126,16 +140,11 @@ fn main() -> anyhow::Result<()> {
     println!("\nStep 4: Executing registration...");
 
     let registration = MultiResolutionRegistration::new(metric);
-    
+
     let optimizer_factory = |lr| AdamOptimizer::new(lr);
 
-    let final_transform = registration.execute(
-        &fixed,
-        &moving,
-        transform,
-        optimizer_factory,
-        schedule,
-    );
+    let final_transform =
+        registration.execute(&fixed, &moving, transform, optimizer_factory, schedule);
 
     println!("  Registration complete!");
     // println!("  Final parameters: {}", final_transform.params());
@@ -150,35 +159,38 @@ fn main() -> anyhow::Result<()> {
         final_transform.clone(),
         LinearInterpolator::new(),
     ).with_default_pixel_value(0.0);
-    
+
     // Note: ResampleImageFilter usually applies transform from Output -> Input
     // If final_transform is Fixed -> Moving, this is correct for resampling Moving to Fixed space
     let registered = resampler.apply(&moving);
-    
+
     // Export the complete imageset for comparison
     let output_dir = Path::new("registration_output");
     std::fs::create_dir_all(output_dir)?;
-    
+
     // Save fixed image (reference space)
     let fixed_output = output_dir.join("fixed.nii.gz");
     println!("  Exporting fixed image to: {}", fixed_output.display());
     write_nifti(&fixed_output, &fixed)?;
-    
+
     // Save moving image (original)
     let moving_output = output_dir.join("moving.nii.gz");
     println!("  Exporting moving image to: {}", moving_output.display());
     write_nifti(&moving_output, &moving)?;
-    
+
     // Save registered result (moving aligned to fixed)
     let registered_output = output_dir.join("registered.nii.gz");
-    println!("  Exporting registered image to: {}", registered_output.display());
+    println!(
+        "  Exporting registered image to: {}",
+        registered_output.display()
+    );
     write_nifti(&registered_output, &registered)?;
-    
+
     // Also save individual result in current directory for convenience
     let result_path = Path::new("registered_rigid.nii.gz");
     println!("  Also saving result to: {}", result_path.display());
     write_nifti(result_path, &registered)?;
-    
+
     println!("\n================================");
     println!("Registration complete!");
     println!("Output files:");

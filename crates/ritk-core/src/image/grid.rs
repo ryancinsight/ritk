@@ -1,5 +1,5 @@
-use burn::tensor::{Tensor, TensorData, Shape, Distribution};
 use burn::tensor::backend::Backend;
+use burn::tensor::{Distribution, Shape, Tensor, TensorData};
 
 /// Generate random continuous indices for the given image shape.
 ///
@@ -20,10 +20,9 @@ pub fn generate_random_points<B: Backend, const D: usize>(
 ) -> Tensor<B, 2> {
     // Create a scaling tensor for each dimension
     let max_vals: Vec<f32> = shape.iter().map(|&s| (s as f32) - 1.0).collect();
-    let max_vals_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(max_vals, Shape::new([D])),
-        device,
-    ).reshape([D, 1]);
+    let max_vals_tensor =
+        Tensor::<B, 1>::from_data(TensorData::new(max_vals, Shape::new([D])), device)
+            .reshape([D, 1]);
 
     // Generate all random numbers at once, scale, and transpose
     Tensor::<B, 2>::random([D, num_samples], Distribution::Uniform(0.0, 1.0), device)
@@ -46,10 +45,7 @@ pub fn generate_random_points<B: Backend, const D: usize>(
 ///
 /// # Returns
 /// Tensor of shape `[N, D]` containing continuous indices
-pub fn generate_grid<B, const D: usize>(
-    shape: [usize; D],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid<B, const D: usize>(shape: [usize; D], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {
@@ -76,10 +72,7 @@ where
 ///
 /// # Returns
 /// Tensor of shape `[N, 3]` containing continuous indices
-pub fn generate_grid_3d<B>(
-    shape: [usize; 3],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid_3d<B>(shape: [usize; 3], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {
@@ -113,10 +106,7 @@ where
 ///
 /// # Returns
 /// Tensor of shape `[N, 2]` containing continuous indices
-pub fn generate_grid_2d<B>(
-    shape: [usize; 2],
-    device: &B::Device,
-) -> Tensor<B, 2>
+pub fn generate_grid_2d<B>(shape: [usize; 2], device: &B::Device) -> Tensor<B, 2>
 where
     B: Backend,
 {

@@ -1,11 +1,11 @@
-use burn::tensor::backend::AutodiffBackend;
-use burn::module::AutodiffModule;
-use ritk_core::image::Image;
-use ritk_core::transform::{Transform, Resampleable};
-use ritk_core::filter::pyramid::MultiResolutionPyramid;
 use crate::metric::Metric;
 use crate::optimizer::Optimizer;
 use crate::registration::Registration;
+use burn::module::AutodiffModule;
+use burn::tensor::backend::AutodiffBackend;
+use ritk_core::filter::pyramid::MultiResolutionPyramid;
+use ritk_core::image::Image;
+use ritk_core::transform::{Resampleable, Transform};
 use std::marker::PhantomData;
 
 /// Configuration for multi-resolution registration.
@@ -23,18 +23,22 @@ impl<const D: usize> RegistrationSchedule<D> {
         let mut smoothing_sigmas = Vec::with_capacity(levels);
         let mut iterations = Vec::with_capacity(levels);
         let mut learning_rates = Vec::with_capacity(levels);
-        
+
         for i in 0..levels {
             let exponent = (levels - 1 - i) as u32;
             let factor = 2usize.pow(exponent);
-            let sigma = if factor > 1 { 0.5 * (factor as f64) } else { 0.0 };
-            
+            let sigma = if factor > 1 {
+                0.5 * (factor as f64)
+            } else {
+                0.0
+            };
+
             shrink_factors.push(vec![factor; D]);
             smoothing_sigmas.push(vec![sigma; D]);
             iterations.push(100); // Default iterations
             learning_rates.push(1e-2); // Default LR
         }
-        
+
         Self {
             shrink_factors,
             smoothing_sigmas,
@@ -94,49 +98,59 @@ where
         mut transform: T,
         optimizer_factory: F,
         schedule: RegistrationSchedule<D>,
-    ) -> T 
+    ) -> T
     where
         F: Fn(f64) -> O,
         O: Optimizer<T, B>,
     {
         // 1. Create Pyramids
-        let fixed_pyramid = MultiResolutionPyramid::new(fixed, &schedule.shrink_factors, &schedule.smoothing_sigmas);
-        let moving_pyramid = MultiResolutionPyramid::new(moving, &schedule.shrink_factors, &schedule.smoothing_sigmas);
-        
+        let fixed_pyramid = MultiResolutionPyramid::new(
+            fixed,
+            &schedule.shrink_factors,
+            &schedule.smoothing_sigmas,
+        );
+        let moving_pyramid = MultiResolutionPyramid::new(
+            moving,
+            &schedule.shrink_factors,
+            &schedule.smoothing_sigmas,
+        );
+
         let levels = schedule.shrink_factors.len();
-        
+
         for i in 0..levels {
             let fixed_level = fixed_pyramid.get_level(i);
             let moving_level = moving_pyramid.get_level(i);
-            
+
             // Resample transform to current level resolution
             transform = transform.resample(
                 fixed_level.shape(),
                 *fixed_level.origin(),
                 *fixed_level.spacing(),
-                *fixed_level.direction()
+                *fixed_level.direction(),
             );
 
             let lr = schedule.learning_rates[i];
             let iters = schedule.iterations[i];
-            
+
             // Create fresh optimizer for this level
             let optimizer = optimizer_factory(lr);
             let mut registration = Registration::new(optimizer, self.metric.clone());
-            
-            tracing::info!("Starting level {}/{} with lr={}, iters={}", i+1, levels, lr, iters);
+
+            tracing::info!(
+                "Starting level {}/{} with lr={}, iters={}",
+                i + 1,
+                levels,
+                lr,
+                iters
+            );
             tracing::info!("  Fixed size: {:?}", fixed_level.data().shape());
             tracing::info!("  Moving size: {:?}", moving_level.data().shape());
-            
-            transform = registration.execute(
-                fixed_level,
-                moving_level,
-                transform,
-                iters,
-                lr,
-            ).expect("Registration failed at multiresolution level");
+
+            transform = registration
+                .execute(fixed_level, moving_level, transform, iters, lr)
+                .expect("Registration failed at multiresolution level");
         }
-        
+
         transform
     }
 }

@@ -2,11 +2,11 @@
 //!
 //! Vectors represent displacements, directions, and other vector quantities.
 
+use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use burn::record::{PrecisionSettings, Record};
+use burn::tensor::backend::{AutodiffBackend, Backend};
 use nalgebra::SVector;
-use serde::{Serialize, Deserialize};
-use burn::module::{Module, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
-use burn::record::{Record, PrecisionSettings};
-use burn::tensor::backend::{Backend, AutodiffBackend};
+use serde::{Deserialize, Serialize};
 
 /// A vector in D-dimensional space.
 ///
@@ -78,7 +78,6 @@ impl<const D: usize> ModuleDisplayDefault for Vector<D> {
 
 impl<const D: usize> ModuleDisplay for Vector<D> {}
 
-
 impl<const D: usize> Vector<D> {
     /// Create a new vector from components.
     pub fn new(components: [f64; D]) -> Self {
@@ -92,7 +91,10 @@ impl<const D: usize> Vector<D> {
 
     /// Create a new vector from a slice of components.
     pub fn from_slice(components: &[f64]) -> Self {
-        assert!(components.len() == D, "Component slice length must match dimension");
+        assert!(
+            components.len() == D,
+            "Component slice length must match dimension"
+        );
         let mut vector = Self::zeros();
         for i in 0..D {
             vector.0[i] = components[i];

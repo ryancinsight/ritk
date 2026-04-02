@@ -1,7 +1,7 @@
 //! Diffeomorphic Integration - Scaling and Squaring
 
-use burn::prelude::*;
 use super::sampling::FlowComposer;
+use burn::prelude::*;
 
 /// Configuration for diffeomorphic integration
 #[derive(Debug, Clone, Copy, PartialEq)]

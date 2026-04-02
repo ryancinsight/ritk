@@ -6,12 +6,12 @@
 //!
 //! $T(x) = x + D(x)$
 
-use burn::tensor::{Tensor, TensorData, Shape};
-use burn::tensor::backend::Backend;
-use burn::module::{Module, Param};
-use crate::spatial::{Point, Spacing, Direction};
-use crate::transform::{Transform, Resampleable};
 use crate::interpolation::{Interpolator, LinearInterpolator};
+use crate::spatial::{Direction, Point, Spacing};
+use crate::transform::{Resampleable, Transform};
+use burn::module::{Module, Param};
+use burn::tensor::backend::Backend;
+use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Displacement field data representing a vector field on a regular grid.
 ///
@@ -29,7 +29,7 @@ pub struct DisplacementField<B: Backend, const D: usize> {
     spacing: Spacing<D>,
     /// Orientation of the image axes.
     direction: Direction<D>,
-    
+
     // Precomputed matrices for coordinate transformation
     world_to_index_matrix: Param<Tensor<B, 2>>,
     origin_tensor: Param<Tensor<B, 2>>,
@@ -49,7 +49,11 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         spacing: Spacing<D>,
         direction: Direction<D>,
     ) -> Self {
-        assert_eq!(components.len(), D, "Number of components must match dimensionality");
+        assert_eq!(
+            components.len(),
+            D,
+            "Number of components must match dimensionality"
+        );
         // Verify all components have same shape
         if !components.is_empty() {
             let shape = components[0].shape();
@@ -57,45 +61,63 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 assert_eq!(c.shape(), shape, "All components must have the same shape");
             }
         }
-        
+
         let device = components[0].device();
 
         // Wrap components in Param
-        let components = components.into_iter()
+        let components = components
+            .into_iter()
             .map(|c| Param::from_tensor(c.require_grad()))
             .collect();
 
         // 1. Prepare Origin Tensor [1, D]
         let origin_vec: Vec<f32> = (0..D).map(|i| origin[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, Shape::new([D])),
-            &device,
-        ).reshape([1, D]);
-            
+        let origin_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
+                .reshape([1, D]);
+
         // 2. Prepare Transform Matrix T = (S^-1 * D^-1)^T
         // Invert direction matrix
         let inv_dir_vec = match D {
             2 => {
                 let m = nalgebra::Matrix2::new(
-                    direction[(0, 0)], direction[(0, 1)],
-                    direction[(1, 0)], direction[(1, 1)]
+                    direction[(0, 0)],
+                    direction[(0, 1)],
+                    direction[(1, 0)],
+                    direction[(1, 1)],
                 );
-                let inv = m.try_inverse().expect("Direction matrix must be invertible");
-                vec![inv[(0,0)], inv[(0,1)], inv[(1,0)], inv[(1,1)]]
-            },
+                let inv = m
+                    .try_inverse()
+                    .expect("Direction matrix must be invertible");
+                vec![inv[(0, 0)], inv[(0, 1)], inv[(1, 0)], inv[(1, 1)]]
+            }
             3 => {
                 let m = nalgebra::Matrix3::new(
-                    direction[(0, 0)], direction[(0, 1)], direction[(0, 2)],
-                    direction[(1, 0)], direction[(1, 1)], direction[(1, 2)],
-                    direction[(2, 0)], direction[(2, 1)], direction[(2, 2)]
+                    direction[(0, 0)],
+                    direction[(0, 1)],
+                    direction[(0, 2)],
+                    direction[(1, 0)],
+                    direction[(1, 1)],
+                    direction[(1, 2)],
+                    direction[(2, 0)],
+                    direction[(2, 1)],
+                    direction[(2, 2)],
                 );
-                let inv = m.try_inverse().expect("Direction matrix must be invertible");
+                let inv = m
+                    .try_inverse()
+                    .expect("Direction matrix must be invertible");
                 vec![
-                    inv[(0,0)], inv[(0,1)], inv[(0,2)],
-                    inv[(1,0)], inv[(1,1)], inv[(1,2)],
-                    inv[(2,0)], inv[(2,1)], inv[(2,2)]
+                    inv[(0, 0)],
+                    inv[(0, 1)],
+                    inv[(0, 2)],
+                    inv[(1, 0)],
+                    inv[(1, 1)],
+                    inv[(1, 2)],
+                    inv[(2, 0)],
+                    inv[(2, 1)],
+                    inv[(2, 2)],
                 ]
-            },
+            }
             _ => panic!("DisplacementField only supports 2D and 3D"),
         };
 
@@ -109,11 +131,9 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 t_data.push(val);
             }
         }
-        
-        let world_to_index_matrix = Tensor::<B, 2>::from_data(
-            TensorData::new(t_data, Shape::new([D, D])),
-            &device,
-        );
+
+        let world_to_index_matrix =
+            Tensor::<B, 2>::from_data(TensorData::new(t_data, Shape::new([D, D])), &device);
 
         Self {
             components,
@@ -167,47 +187,46 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
 
         // 1. Generate new grid indices [N, D]
         let new_indices = crate::image::grid::generate_grid(new_shape, &device);
-        
+
         // 2. Prepare transform matrix for new grid index -> world
         // Matrix M[k, c] = Direction[c, k] * Spacing[k]
         let mut m_data = Vec::with_capacity(D * D);
-        for k in 0..D { // Input dimension (index)
-            for c in 0..D { // Output dimension (physical)
+        for k in 0..D {
+            // Input dimension (index)
+            for c in 0..D {
+                // Output dimension (physical)
                 let val = (new_direction[(c, k)] * new_spacing[k]) as f32;
                 m_data.push(val);
             }
         }
-        let m_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(m_data, Shape::new([D, D])),
-            &device
-        );
-        
+        let m_tensor =
+            Tensor::<B, 2>::from_data(TensorData::new(m_data, Shape::new([D, D])), &device);
+
         let origin_vec: Vec<f32> = (0..D).map(|i| new_origin[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, Shape::new([D])),
-            &device
-        ).reshape([1, D]);
-        
+        let origin_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
+                .reshape([1, D]);
+
         // 3. Process in chunks
         let [n_points, _] = new_indices.dims();
         const CHUNK_SIZE: usize = 32768;
-        
+
         let mut component_chunks: Vec<Vec<Tensor<B, 1>>> = vec![Vec::new(); D];
-        
+
         let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-        
+
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
             let end = std::cmp::min(start + CHUNK_SIZE, n_points);
             let chunk_indices = new_indices.clone().slice([start..end]);
-            
+
             // World = Origin + Indices @ M
             let offset = chunk_indices.matmul(m_tensor.clone());
             let world = offset + origin_tensor.clone();
-            
+
             // Convert to old index space
             let old_indices = self.world_to_index_tensor(world);
-            
+
             // Interpolate each component
             for d in 0..D {
                 let comp = &self.components[d].val();
@@ -215,7 +234,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 component_chunks[d].push(val);
             }
         }
-        
+
         // 4. Concat and reshape
         let mut final_components = Vec::with_capacity(D);
         for d in 0..D {
@@ -223,7 +242,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             let reshaped = flat.reshape(Shape::new(new_shape));
             final_components.push(reshaped);
         }
-        
+
         Self::new(final_components, new_origin, new_spacing, new_direction)
     }
 
@@ -238,7 +257,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     /// A tensor of shape `[Batch, D]` containing continuous indices
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let [n_points, _] = points.dims();
-        
+
         // WGPU dispatch limit workaround (copied from Image implementation for consistency)
         const CHUNK_SIZE: usize = 32768;
 
@@ -248,17 +267,17 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
-            
+
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
-                
+
                 let diff = chunk_points - self.origin_tensor.val();
                 let result = diff.matmul(self.world_to_index_matrix.val());
                 chunks.push(result);
             }
-            
+
             Tensor::cat(chunks, 0)
         }
     }
@@ -291,7 +310,7 @@ impl<B: Backend, const D: usize> DisplacementFieldTransform<B, D> {
     pub fn field(&self) -> &DisplacementField<B, D> {
         &self.field
     }
-    
+
     /// Get the interpolator.
     pub fn interpolator(&self) -> &LinearInterpolator {
         &self.interpolator
@@ -302,7 +321,7 @@ impl<B: Backend, const D: usize> Transform<B, D> for DisplacementFieldTransform<
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         // 1. Convert physical points to field indices
         let indices = self.field.world_to_index_tensor(points.clone());
-        
+
         // 2. Interpolate each component
         let mut displacement_components = Vec::with_capacity(D);
         for i in 0..D {
@@ -311,10 +330,10 @@ impl<B: Backend, const D: usize> Transform<B, D> for DisplacementFieldTransform<
             let val = self.interpolator.interpolate(component, indices.clone());
             displacement_components.push(val);
         }
-        
+
         // 3. Stack components to get displacement vectors [Batch, D]
         let displacement = Tensor::stack(displacement_components, 1);
-        
+
         // 4. Add displacement to original points
         points + displacement
     }

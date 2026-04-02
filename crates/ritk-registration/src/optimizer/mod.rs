@@ -13,31 +13,14 @@
 //! let optimizer = config.init();
 //! ```
 
-pub mod trait_;
+pub mod adam;
+pub mod cma_es;
 pub mod gradient_descent;
 pub mod momentum;
-pub mod adam;
-pub mod lbfgs;
-pub mod cma_es;
-// pub mod adaptive_sgd;
-pub mod learning_rate;
-pub mod gradient_clipping;
-// pub mod hybrid;
+pub mod trait_;
 
-pub use trait_::{Optimizer, LearningRateScheduler, StepDecay};
+pub use adam::AdamOptimizer;
+pub use cma_es::{CmaEsConfig, CmaEsOptimizer, CmaEsResult, StopReason};
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;
-pub use adam::AdamOptimizer;
-pub use lbfgs::{LbfgsOptimizer, LbfgsConfig};
-pub use cma_es::{CmaEsConfig, CmaEsOptimizer, CmaEsResult, StopReason};
-// pub use learning_rate::{
-//     LearningRateSchedule, ConstantLR, ExponentialDecay, CosineAnnealing,
-//     WarmupCosineAnnealing, ReduceLROnPlateau, LearningRateConfig
-// };
-// pub use gradient_clipping::{
-//     GradientClipper, ClipByValue, ClipByNorm, AdaptiveClip, GradientClippingConfig
-// };
-// pub use hybrid::{
-//     HybridOptimizer, HybridConfig, HybridStage, HybridStrategy,
-//     HybridOptimizerBuilder, HybridStageBuilder
-// };
+pub use trait_::{LearningRateScheduler, Optimizer, OptimizerTelemetry, StepDecay};

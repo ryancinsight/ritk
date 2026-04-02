@@ -2,10 +2,10 @@
 //!
 //! This module provides a scale transform (scaling around a center).
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
-use burn::module::{Module, Param};
 use super::trait_::Transform;
+use burn::module::{Module, Param};
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Scale Transform.
 ///
@@ -69,10 +69,10 @@ impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D> {
         let s = self.scale.val().reshape([1, D]);
 
         let centered = points - c.clone();
-        
+
         // Element-wise multiplication broadcast
         let scaled = centered * s;
-        
+
         scaled + c
     }
 }
@@ -89,23 +89,20 @@ mod tests {
         let device = Default::default();
         let scale = Tensor::<B, 1>::from_floats([2.0, 0.5, 1.0], &device); // Scale X by 2, Y by 0.5, Z by 1
         let center = Tensor::<B, 1>::zeros([3], &device);
-        
+
         let transform = ScaleTransform::<B, 3>::new(scale, center);
-        
-        let points = Tensor::<B, 2>::from_floats([
-            [1.0, 2.0, 3.0],
-            [2.0, 4.0, 6.0]
-        ], &device);
-        
+
+        let points = Tensor::<B, 2>::from_floats([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]], &device);
+
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
-        
+
         // Point 1: [1*2, 2*0.5, 3*1] = [2, 1, 3]
         assert!((slice[0] - 2.0).abs() < 1e-6);
         assert!((slice[1] - 1.0).abs() < 1e-6);
         assert!((slice[2] - 3.0).abs() < 1e-6);
-        
+
         // Point 2: [2*2, 4*0.5, 6*1] = [4, 2, 6]
         assert!((slice[3] - 4.0).abs() < 1e-6);
         assert!((slice[4] - 2.0).abs() < 1e-6);
@@ -117,25 +114,25 @@ mod tests {
         let device = Default::default();
         let scale = Tensor::<B, 1>::from_floats([2.0, 2.0], &device);
         let center = Tensor::<B, 1>::from_floats([1.0, 1.0], &device);
-        
+
         let transform = ScaleTransform::<B, 2>::new(scale, center);
-        
+
         // Point at center should not move
         let points = Tensor::<B, 2>::from_floats([[1.0, 1.0]], &device);
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
-        
+
         assert!((slice[0] - 1.0).abs() < 1e-6);
         assert!((slice[1] - 1.0).abs() < 1e-6);
-        
+
         // Point at (2, 2). Relative to center (1, 1) is (1, 1).
         // Scale by 2 -> (2, 2). Add center -> (3, 3).
         let points = Tensor::<B, 2>::from_floats([[2.0, 2.0]], &device);
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
-        
+
         assert!((slice[0] - 3.0).abs() < 1e-6);
         assert!((slice[1] - 3.0).abs() < 1e-6);
     }

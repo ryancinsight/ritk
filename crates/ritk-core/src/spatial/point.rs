@@ -2,12 +2,12 @@
 //!
 //! Points represent positions in physical space.
 
-use nalgebra::Point as NaPoint;
 use super::Vector;
-use serde::{Serialize, Deserialize};
-use burn::module::{Module, ModuleDisplay, ModuleDisplayDefault, AutodiffModule, Content};
-use burn::record::{Record, PrecisionSettings};
-use burn::tensor::backend::{Backend, AutodiffBackend};
+use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use burn::record::{PrecisionSettings, Record};
+use burn::tensor::backend::{AutodiffBackend, Backend};
+use nalgebra::Point as NaPoint;
+use serde::{Deserialize, Serialize};
 
 /// A point in D-dimensional space.
 ///
@@ -79,7 +79,6 @@ impl<const D: usize> ModuleDisplayDefault for Point<D> {
 
 impl<const D: usize> ModuleDisplay for Point<D> {}
 
-
 impl<const D: usize> Point<D> {
     /// Create a new point from coordinates.
     pub fn new(coords: [f64; D]) -> Self {
@@ -93,7 +92,10 @@ impl<const D: usize> Point<D> {
 
     /// Create a new point from a slice of coordinates.
     pub fn from_slice(coords: &[f64]) -> Self {
-        assert!(coords.len() == D, "Coordinate slice length must match dimension");
+        assert!(
+            coords.len() == D,
+            "Coordinate slice length must match dimension"
+        );
         let mut point = Self::origin();
         for i in 0..D {
             point.0.coords[i] = coords[i];

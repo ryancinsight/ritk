@@ -2,9 +2,9 @@
 //!
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
-use burn::tensor::Tensor;
+use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::backend::Backend;
-use crate::spatial::{Point, Spacing, Direction};
+use burn::tensor::Tensor;
 
 /// Transform trait for spatial coordinate transformations.
 ///

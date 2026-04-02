@@ -7,11 +7,11 @@ use burn::prelude::*;
 use burn::tensor::cast::ToElement;
 
 use ritk_core::image::Image;
-use ritk_core::transform::displacement_field::{DisplacementField, DisplacementFieldTransform3D};
 use ritk_core::interpolation::LinearInterpolator;
+use ritk_core::transform::displacement_field::{DisplacementField, DisplacementFieldTransform3D};
 
-use super::network::{SSMMorph, SSMMorphConfig};
 use super::network::sampling::FlowComposer;
+use super::network::{SSMMorph, SSMMorphConfig};
 use crate::io::adapter::ImageToTensorAdapter;
 use crate::losses::{RegistrationLoss, RegistrationLossConfig};
 
@@ -32,13 +32,10 @@ impl<B: Backend> SSMMorphIntegration<B> {
     pub fn new(config: &SSMMorphConfig, device: &B::Device) -> Self {
         let network = SSMMorph::new(config, device);
         let adapter = ImageToTensorAdapter::new(device.clone());
-        
-        Self {
-            network,
-            adapter,
-        }
+
+        Self { network, adapter }
     }
-    
+
     /// Register two images using SSMMorph
     ///
     /// # Arguments
@@ -55,23 +52,22 @@ impl<B: Backend> SSMMorphIntegration<B> {
         // Convert images to tensors
         let fixed_tensor = self.adapter.image_to_tensor_3d(fixed)?;
         let moving_tensor = self.adapter.image_to_tensor_3d(moving)?;
-        
+
         // Forward pass through network
         let output = self.network.forward(fixed_tensor, moving_tensor);
-        
+
         // Convert displacement field to ritk transform
-        let displacement_field = self.adapter.tensor_to_displacement_field_3d(&output.displacement, fixed)?;
-        
+        let displacement_field = self
+            .adapter
+            .tensor_to_displacement_field_3d(&output.displacement, fixed)?;
+
         // Create transform from displacement field
         let interpolator = LinearInterpolator::new();
-        let transform = DisplacementFieldTransform3D::new(
-            displacement_field,
-            interpolator,
-        );
-        
+        let transform = DisplacementFieldTransform3D::new(displacement_field, interpolator);
+
         Ok(transform)
     }
-    
+
     /// Compute registration loss for training
     ///
     /// # Arguments
@@ -89,50 +85,59 @@ impl<B: Backend> SSMMorphIntegration<B> {
     ) -> (Tensor<B, 1>, LossComponents<B>) {
         // Forward pass
         let output = self.network.forward(fixed.clone(), moving.clone());
-        
+
         // Apply displacement field to moving image (using spatial transformer)
         let warped = self.warp_image(&moving, &output.displacement);
-        
+
         // Compute similarity loss
         let device = self.adapter.device();
         let loss_fn = RegistrationLoss::new(loss_config.clone(), &device);
         let sim_loss = loss_fn.similarity_loss(&fixed, &warped);
-        
+
         // Compute regularization loss on displacement field
         let reg_loss = loss_fn.regularization_loss(&output.displacement);
-        
+
         // Total loss
         let total_loss = sim_loss.clone() + reg_loss.clone().mul_scalar(loss_config.reg_weight);
-        
-        (total_loss, LossComponents {
-            similarity: sim_loss,
-            regularization: reg_loss,
-        })
+
+        (
+            total_loss,
+            LossComponents {
+                similarity: sim_loss,
+                regularization: reg_loss,
+            },
+        )
     }
-    
+
     /// Warp image using displacement field
     fn warp_image(&self, image: &Tensor<B, 5>, displacement: &Tensor<B, 5>) -> Tensor<B, 5> {
         // Use FlowComposer for warping
         let composer = FlowComposer::new(self.adapter.device());
         composer.warp(image, displacement)
     }
-    
+
     /// Get network output for analysis/debugging
-    pub fn analyze(&self, fixed: &Image<B, 3>, moving: &Image<B, 3>) -> anyhow::Result<SSMMorphAnalysis> {
+    pub fn analyze(
+        &self,
+        fixed: &Image<B, 3>,
+        moving: &Image<B, 3>,
+    ) -> anyhow::Result<SSMMorphAnalysis> {
         let fixed_tensor = self.adapter.image_to_tensor_3d(fixed)?;
         let moving_tensor = self.adapter.image_to_tensor_3d(moving)?;
-        
+
         let output = self.network.forward(fixed_tensor, moving_tensor);
-        
+
         // Analyze displacement field statistics
         let disp = output.displacement;
-        let disp_flat = disp.clone().reshape([disp.dims().iter().product::<usize>()]);
-        
+        let disp_flat = disp
+            .clone()
+            .reshape([disp.dims().iter().product::<usize>()]);
+
         let mean = disp_flat.clone().mean();
         let std = disp_flat.clone().var(0).sqrt();
         let min = disp_flat.clone().min();
         let max = disp_flat.max();
-        
+
         Ok(SSMMorphAnalysis {
             displacement_mean: mean.into_scalar().to_f64(),
             displacement_std: std.into_scalar().to_f64(),
@@ -186,13 +191,13 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
     /// Create new diffeomorphic SSMMorph
     pub fn new(config: &SSMMorphConfig, device: &B::Device) -> Self {
         let integration = SSMMorphIntegration::new(config, device);
-        
+
         Self {
             integration,
             integration_steps: config.integration_steps,
         }
     }
-    
+
     /// Register with full diffeomorphic constraints
     pub fn register_diffeomorphic(
         &self,
@@ -203,7 +208,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         // when config.diffeomorphic is true
         self.integration.register(fixed, moving)
     }
-    
+
     /// Compute inverse transformation (for validation)
     ///
     /// Diffeomorphic transformations are invertible by design.
@@ -218,7 +223,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         let forward_disp = forward_transform.field();
         let components = forward_disp.components();
         let neg_components: Vec<Tensor<B, 3>> = components.into_iter().map(|v| -v).collect();
-        
+
         // Create new field with negated components
         let inverse_disp = DisplacementField::new(
             neg_components,
@@ -226,13 +231,10 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
             forward_disp.spacing().clone(),
             forward_disp.direction().clone(),
         );
-        
-        DisplacementFieldTransform3D::new(
-            inverse_disp,
-            forward_transform.interpolator().clone(),
-        )
+
+        DisplacementFieldTransform3D::new(inverse_disp, forward_transform.interpolator().clone())
     }
-    
+
     /// Validate transformation quality (composition should be identity)
     pub fn validate_transform(
         &self,
@@ -242,12 +244,12 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         // Compute composition error
         // φ∘φ^{-1}(x) should equal x
         let _composed = self.compose_transforms(forward, inverse);
-        
+
         // Measure deviation from identity
         // Simplified: return 0.0 for now
         0.0
     }
-    
+
     fn compose_transforms(
         &self,
         t1: &DisplacementFieldTransform3D<B>,
@@ -264,22 +266,22 @@ mod tests {
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;
-    
+
     #[test]
     fn test_integration_creation() {
         let device = Default::default();
         let config = SSMMorphConfig::for_3d_registration();
         let integration = SSMMorphIntegration::<TestBackend>::new(&config, &device);
-        
+
         assert_eq!(integration.network.encoder.channels().len(), 4);
     }
-    
+
     #[test]
     fn test_diffeomorphic_wrapper() {
         let device = Default::default();
         let config = SSMMorphConfig::for_3d_registration();
         let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
-        
+
         assert_eq!(diff_ssm.integration_steps, 7);
     }
 }

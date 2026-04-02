@@ -2,8 +2,8 @@
 //!
 //! This module defines the core Interpolator trait that all interpolation methods must implement.
 
-use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Interpolator trait for sampling values at continuous coordinates.
 ///
@@ -22,5 +22,9 @@ pub trait Interpolator<B: Backend> {
     ///
     /// # Returns
     /// Tensor of sampled values `[Batch]`
-    fn interpolate<const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1>;
+    fn interpolate<const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1>;
 }

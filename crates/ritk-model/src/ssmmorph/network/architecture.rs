@@ -48,8 +48,8 @@
 
 use burn::prelude::*;
 
-use crate::ssmmorph::encoder::{SSMMorphEncoder, SSMMorphEncoderConfig};
 use crate::ssmmorph::decoder::{SSMMorphDecoder, SSMMorphDecoderConfig};
+use crate::ssmmorph::encoder::{SSMMorphEncoder, SSMMorphEncoderConfig};
 
 use super::integration::{IntegrationConfig, VelocityFieldIntegrator};
 use burn::module::Ignored;
@@ -157,18 +157,11 @@ impl<B: Backend> SSMMorph<B> {
 
         // Derive or use provided decoder config
         let decoder_config = config.decoder.clone().unwrap_or_else(|| {
-            SSMMorphDecoderConfig::from_encoder(
-                encoder.stage_channels(),
-                config.out_channels,
-            )
+            SSMMorphDecoderConfig::from_encoder(encoder.stage_channels(), config.out_channels)
         });
 
         // Create decoder
-        let decoder = SSMMorphDecoder::new(
-            &decoder_config,
-            encoder.stage_channels(),
-            device,
-        );
+        let decoder = SSMMorphDecoder::new(&decoder_config, encoder.stage_channels(), device);
 
         Self {
             encoder,
@@ -201,10 +194,8 @@ impl<B: Backend> SSMMorph<B> {
         let (encoder_features, bottleneck) = self.encoder.forward(input);
 
         // Decode
-        let displacement: Tensor<B, 5> = self.decoder.forward(
-            bottleneck.clone(),
-            &encoder_features,
-        );
+        let displacement: Tensor<B, 5> =
+            self.decoder.forward(bottleneck.clone(), &encoder_features);
 
         // Apply diffeomorphic integration if enabled
         let displacement = if *self.diffeomorphic {
@@ -251,8 +242,7 @@ pub mod presets {
     /// - Soft tissue contrast
     /// - High accuracy requirements
     pub fn brain_mri() -> SSMMorphConfig {
-        SSMMorphConfig::for_3d_registration()
-            .set_integration_steps(10)
+        SSMMorphConfig::for_3d_registration().set_integration_steps(10)
     }
 
     /// Configuration for abdominal CT registration
@@ -285,8 +275,7 @@ pub mod presets {
     /// - Fast inference needs
     /// - Smaller volumes
     pub fn cardiac_mri() -> SSMMorphConfig {
-        SSMMorphConfig::lightweight()
-            .set_integration_steps(5)
+        SSMMorphConfig::lightweight().set_integration_steps(5)
     }
 
     /// Configuration for real-time applications
@@ -294,8 +283,7 @@ pub mod presets {
     /// Fastest configuration with acceptable quality.
     /// Disables diffeomorphic integration for speed.
     pub fn realtime() -> SSMMorphConfig {
-        SSMMorphConfig::lightweight()
-            .without_diffeomorphic()
+        SSMMorphConfig::lightweight().without_diffeomorphic()
     }
 
     /// Configuration for research/high accuracy
@@ -380,8 +368,7 @@ mod tests {
     #[test]
     fn test_nondiffeomorphic_mode() {
         let device = Default::default();
-        let config = SSMMorphConfig::for_3d_registration()
-            .without_diffeomorphic();
+        let config = SSMMorphConfig::for_3d_registration().without_diffeomorphic();
         let network = SSMMorph::<TestBackend>::new(&config, &device);
 
         assert!(!network.is_diffeomorphic());

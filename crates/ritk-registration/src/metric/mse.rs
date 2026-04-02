@@ -1,12 +1,12 @@
 //! Mean Squared Error metric implementation.
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
-use ritk_core::image::Image;
-use ritk_core::image::grid;
-use ritk_core::transform::Transform;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use super::trait_::Metric;
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
+use ritk_core::image::grid;
+use ritk_core::image::Image;
+use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_core::transform::Transform;
 
 /// Mean Squared Error Metric.
 ///
@@ -51,13 +51,13 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         let moving_values = if n <= CHUNK_SIZE {
             // Transform fixed indices to physical points
             let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
-            
+
             // Apply Transform to get corresponding points in moving image physical space
             let moving_points = transform.transform_points(fixed_points); // [N, D]
-            
+
             // Transform moving physical points to moving image indices
             let moving_indices = moving.world_to_index_tensor(moving_points); // [N, D]
-            
+
             // Sample moving image at moving_indices
             self.interpolator.interpolate(moving.data(), moving_indices) // [N]
         } else {
@@ -72,7 +72,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
                 let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
-                let chunk_values = self.interpolator.interpolate(moving.data(), chunk_moving_indices);
+                let chunk_values = self
+                    .interpolator
+                    .interpolate(moving.data(), chunk_moving_indices);
                 chunks.push(chunk_values);
             }
             Tensor::cat(chunks, 0)
@@ -96,7 +98,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
-    use ritk_core::spatial::{Point3, Spacing3, Direction3};
+    use ritk_core::spatial::{Direction3, Point3, Spacing3};
     use ritk_core::transform::TranslationTransform;
 
     type B = NdArray<f32>;
@@ -115,8 +117,7 @@ mod tests {
                 }
             }
         }
-        let data = Tensor::<B, 1>::from_floats(data_vec.as_slice(), &device)
-            .reshape([d, d, d]);
+        let data = Tensor::<B, 1>::from_floats(data_vec.as_slice(), &device).reshape([d, d, d]);
 
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);
@@ -132,6 +133,10 @@ mod tests {
         let loss = metric.forward(&fixed, &moving, &transform);
         let loss_val = loss.into_scalar();
 
-        assert!(loss_val < 1e-5, "MSE should be 0 for identical images, got {}", loss_val);
+        assert!(
+            loss_val < 1e-5,
+            "MSE should be 0 for identical images, got {}",
+            loss_val
+        );
     }
 }

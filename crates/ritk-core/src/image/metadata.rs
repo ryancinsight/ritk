@@ -3,7 +3,7 @@
 //! This module provides types for representing image metadata
 //! such as origin, spacing, and direction.
 
-use crate::spatial::{Point, Spacing, Direction};
+use crate::spatial::{Direction, Point, Spacing};
 
 /// Image metadata containing physical space information.
 ///

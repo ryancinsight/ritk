@@ -1,12 +1,12 @@
-use burn::tensor::{Tensor, TensorData};
 use burn::backend::Autodiff;
+use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::TranslationTransform;
-use ritk_core::spatial::{Point, Spacing, Direction};
 use ritk_registration::metric::MeanSquaredError;
-use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
+use ritk_registration::optimizer::AdamOptimizer;
 
 type B = Autodiff<NdArray<f32>>;
 
@@ -17,17 +17,17 @@ fn test_multires_registration_translation() {
     // 1. Create larger 3D images (40x40x40)
     let d = 40;
     let shape = [d, d, d];
-    
+
     // Simple Gaussian blob
     let make_blob = |c: [f32; 3], s: f32| -> Vec<f32> {
-        let mut data = Vec::with_capacity(d*d*d);
+        let mut data = Vec::with_capacity(d * d * d);
         for z in 0..d {
             for y in 0..d {
                 for x in 0..d {
                     let dx = x as f32 - c[0];
                     let dy = y as f32 - c[1];
                     let dz = z as f32 - c[2];
-                    let dist2 = dx*dx + dy*dy + dz*dz;
+                    let dist2 = dx * dx + dy * dy + dz * dz;
                     data.push((-dist2 / (2.0 * s * s)).exp());
                 }
             }
@@ -52,7 +52,12 @@ fn test_multires_registration_translation() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(fixed_tensor, origin.clone(), spacing.clone(), direction.clone());
+    let fixed = Image::new(
+        fixed_tensor,
+        origin.clone(),
+        spacing.clone(),
+        direction.clone(),
+    );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Transform
@@ -64,11 +69,11 @@ fn test_multires_registration_translation() {
 
     // Schedule: 3 levels (Shrink 4, 2, 1)
     let mut schedule = RegistrationSchedule::<3>::default(3);
-    
+
     // Customize iterations and learning rates
     // Coarse level needs higher LR typically, or same.
-    schedule.iterations = vec![50, 50, 50]; 
-    schedule.learning_rates = vec![0.5, 0.2, 0.1]; 
+    schedule.iterations = vec![50, 50, 50];
+    schedule.learning_rates = vec![0.5, 0.2, 0.1];
 
     // 4. Execute
     // We use a closure to create a fresh Adam optimizer for each level

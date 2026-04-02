@@ -1,7 +1,7 @@
-use crate::optimizer::Optimizer;
+use crate::optimizer::{Optimizer, OptimizerTelemetry};
 use burn::module::AutodiffModule;
-use burn::optim::{GradientsParams, Adam, AdamConfig, Optimizer as BurnOptimizer};
 use burn::optim::adaptor::OptimizerAdaptor;
+use burn::optim::{Adam, AdamConfig, GradientsParams, Optimizer as BurnOptimizer};
 use burn::tensor::backend::AutodiffBackend;
 
 /// Adam optimizer.
@@ -10,6 +10,7 @@ use burn::tensor::backend::AutodiffBackend;
 pub struct AdamOptimizer<M: AutodiffModule<B>, B: AutodiffBackend> {
     optimizer: OptimizerAdaptor<Adam, M, B>,
     learning_rate: f64,
+    steps: usize,
 }
 
 impl<M: AutodiffModule<B>, B: AutodiffBackend> AdamOptimizer<M, B> {
@@ -22,6 +23,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> AdamOptimizer<M, B> {
         Self {
             optimizer: config.init(),
             learning_rate,
+            steps: 0,
         }
     }
 
@@ -40,6 +42,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> AdamOptimizer<M, B> {
         Self {
             optimizer: config.init(),
             learning_rate,
+            steps: 0,
         }
     }
 }
@@ -50,6 +53,7 @@ where
     B: AutodiffBackend,
 {
     fn step(&mut self, module: M, gradients: GradientsParams) -> M {
+        self.steps += 1;
         self.optimizer.step(self.learning_rate, module, gradients)
     }
 
@@ -59,5 +63,13 @@ where
 
     fn set_learning_rate(&mut self, lr: f64) {
         self.learning_rate = lr;
+    }
+
+    fn telemetry(&self) -> OptimizerTelemetry {
+        OptimizerTelemetry {
+            algorithm: "Adam",
+            steps: self.steps,
+            learning_rate: Some(self.learning_rate),
+        }
     }
 }

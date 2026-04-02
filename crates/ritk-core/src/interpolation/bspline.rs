@@ -3,9 +3,9 @@
 //! This module provides cubic B-Spline interpolation for smooth sampling
 //! of image values at continuous coordinates.
 
-use burn::tensor::Tensor;
-use burn::tensor::backend::Backend;
 use super::trait_::Interpolator;
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 
 /// Cubic B-Spline basis function.
 ///
@@ -45,11 +45,18 @@ impl Default for BSplineInterpolator {
 }
 
 impl<B: Backend> Interpolator<B> for BSplineInterpolator {
-    fn interpolate<const D: usize>(&self, data: &Tensor<B, D>, indices: Tensor<B, 2>) -> Tensor<B, 1> {
+    fn interpolate<const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
         let device = indices.device();
         let [n_points, rank] = indices.dims();
         assert_eq!(rank, D, "Indices rank must match data dimensionality");
-        assert!(D == 2 || D == 3, "B-Spline interpolation only supports 2D and 3D");
+        assert!(
+            D == 2 || D == 3,
+            "B-Spline interpolation only supports 2D and 3D"
+        );
 
         let shape = data.shape();
         let dims: Vec<usize> = shape.dims.into();
@@ -64,9 +71,7 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
         for i in 0..n_points {
             // Get coordinates for this point
             let coords_start = i * D;
-            let coords: Vec<f32> = (0..D)
-                .map(|d| indices_slice[coords_start + d])
-                .collect();
+            let coords: Vec<f32> = (0..D).map(|d| indices_slice[coords_start + d]).collect();
 
             let value = if D == 3 {
                 interpolate_point_3d(data, &coords, &dims, &device)
@@ -117,9 +122,12 @@ fn interpolate_point_3d<B: Backend, const D: usize>(
                 let weight = wx * wy * wz;
 
                 // Check bounds and sample
-                if xi >= 0 && xi < dims[0] as isize
-                    && yi >= 0 && yi < dims[1] as isize
-                    && zi >= 0 && zi < dims[2] as isize
+                if xi >= 0
+                    && xi < dims[0] as isize
+                    && yi >= 0
+                    && yi < dims[1] as isize
+                    && zi >= 0
+                    && zi < dims[2] as isize
                 {
                     let sample = data.clone().slice([
                         xi as usize..xi as usize + 1,
@@ -170,13 +178,10 @@ fn interpolate_point_2d<B: Backend, const D: usize>(
             let weight = wx * wy;
 
             // Check bounds and sample
-            if xi >= 0 && xi < dims[0] as isize
-                && yi >= 0 && yi < dims[1] as isize
-            {
-                let sample = data.clone().slice([
-                    xi as usize..xi as usize + 1,
-                    yi as usize..yi as usize + 1,
-                ]);
+            if xi >= 0 && xi < dims[0] as isize && yi >= 0 && yi < dims[1] as isize {
+                let sample = data
+                    .clone()
+                    .slice([xi as usize..xi as usize + 1, yi as usize..yi as usize + 1]);
                 let sample_scalar = sample.reshape([1]);
                 result = result.add(sample_scalar.mul_scalar(weight));
                 weight_sum += weight;
@@ -195,7 +200,7 @@ fn interpolate_point_2d<B: Backend, const D: usize>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Tensor, ElementConversion};
+    use burn::tensor::{ElementConversion, Tensor};
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;
@@ -206,14 +211,7 @@ mod tests {
 
         // Create a simple 3D volume
         let data = Tensor::<TestBackend, 3>::from_floats(
-            [[
-                [1.0, 2.0],
-                [3.0, 4.0],
-            ],
-            [
-                [5.0, 6.0],
-                [7.0, 8.0],
-            ]],
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
             &device,
         );
 
@@ -226,14 +224,22 @@ mod tests {
         let result = interpolator.interpolate(&data, indices);
         let val = result.into_scalar().elem::<f32>();
         // Value should be within reasonable range (cubic B-spline center coefficient is 2/3)
-        assert!(val >= 0.0 && val <= 8.0, "Interpolated value {} out of range", val);
+        assert!(
+            val >= 0.0 && val <= 8.0,
+            "Interpolated value {} out of range",
+            val
+        );
 
         // Test at interpolated point
         let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
         let result = interpolator.interpolate(&data, indices);
         let val = result.into_scalar().elem::<f32>();
         // Value should be between min and max
-        assert!(val >= 0.0 && val <= 8.0, "Interpolated value {} out of range", val);
+        assert!(
+            val >= 0.0 && val <= 8.0,
+            "Interpolated value {} out of range",
+            val
+        );
     }
 
     #[test]
@@ -241,13 +247,7 @@ mod tests {
         let device = Default::default();
 
         // Create a simple 2D image
-        let data = Tensor::<TestBackend, 2>::from_floats(
-            [
-                [1.0, 2.0],
-                [3.0, 4.0],
-            ],
-            &device,
-        );
+        let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
 
         let interpolator = BSplineInterpolator::new();
 
@@ -258,7 +258,11 @@ mod tests {
         let result = interpolator.interpolate(&data, indices);
         let val = result.into_scalar().elem::<f32>();
         // Value should be within reasonable range
-        assert!(val >= 0.0 && val <= 5.0, "Interpolated value {} out of range", val);
+        assert!(
+            val >= 0.0 && val <= 5.0,
+            "Interpolated value {} out of range",
+            val
+        );
     }
 
     #[test]

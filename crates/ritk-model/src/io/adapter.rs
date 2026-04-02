@@ -1,9 +1,9 @@
-use burn::tensor::Tensor;
 use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
 use ritk_core::image::Image;
 // use ritk_core::spatial::{Point, Spacing, Direction};
+use anyhow::{ensure, Result};
 use ritk_core::transform::displacement_field::DisplacementField;
-use anyhow::{Result, ensure};
 
 /// Adapter for converting between ritk Images and Burn tensors
 pub struct ImageToTensorAdapter<B: Backend> {
@@ -39,16 +39,25 @@ impl<B: Backend> ImageToTensorAdapter<B> {
         let [batch, channels, d, h, w] = tensor.dims();
         ensure!(batch == 1, "Batch size must be 1");
         ensure!(channels == 3, "Displacement field must have 3 channels");
-        
+
         // Extract components
         // Tensor is [1, 3, D, H, W]
         // We want 3 tensors of [D, H, W]
-        let x = tensor.clone().slice([0..1, 0..1, 0..d, 0..h, 0..w]).reshape([d, h, w]);
-        let y = tensor.clone().slice([0..1, 1..2, 0..d, 0..h, 0..w]).reshape([d, h, w]);
-        let z = tensor.clone().slice([0..1, 2..3, 0..d, 0..h, 0..w]).reshape([d, h, w]);
-        
+        let x = tensor
+            .clone()
+            .slice([0..1, 0..1, 0..d, 0..h, 0..w])
+            .reshape([d, h, w]);
+        let y = tensor
+            .clone()
+            .slice([0..1, 1..2, 0..d, 0..h, 0..w])
+            .reshape([d, h, w]);
+        let z = tensor
+            .clone()
+            .slice([0..1, 2..3, 0..d, 0..h, 0..w])
+            .reshape([d, h, w]);
+
         let components = vec![x, y, z];
-        
+
         Ok(DisplacementField::new(
             components,
             reference.origin().clone(),
@@ -64,18 +73,25 @@ impl<B: Backend> ImageToTensorAdapter<B> {
 /// Channel dimension is set to 1.
 pub fn images_to_batch<B: Backend>(images: Vec<Image<B, 3>>) -> Result<Tensor<B, 5>> {
     ensure!(!images.is_empty(), "Cannot batch empty list of images");
-    
+
     let ref_shape = images[0].shape();
     // Validate consistency
     for (i, img) in images.iter().enumerate().skip(1) {
-        ensure!(img.shape() == ref_shape, "Image {} shape mismatch: {:?} vs {:?}", i, img.shape(), ref_shape);
+        ensure!(
+            img.shape() == ref_shape,
+            "Image {} shape mismatch: {:?} vs {:?}",
+            i,
+            img.shape(),
+            ref_shape
+        );
     }
 
     let d = ref_shape[0];
     let h = ref_shape[1];
     let w = ref_shape[2];
 
-    let tensors: Vec<Tensor<B, 5>> = images.into_iter()
+    let tensors: Vec<Tensor<B, 5>> = images
+        .into_iter()
         .map(|img| {
             // Image data is [D, H, W]
             // Add Batch and Channel dims: [1, 1, D, H, W]

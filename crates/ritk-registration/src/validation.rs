@@ -3,9 +3,9 @@
 //! This module provides validation functions for ensuring numerical stability,
 //! input validity, and bounds checking in registration workflows.
 
-use burn::tensor::{Tensor, backend::Backend, ElementConversion};
-use ritk_core::image::Image;
 use crate::error::{RegistrationError, Result};
+use burn::tensor::{backend::Backend, ElementConversion, Tensor};
+use ritk_core::image::Image;
 
 /// Validation configuration.
 #[derive(Debug, Clone)]
@@ -141,21 +141,24 @@ pub fn clip_gradients<B: Backend, const D: usize>(
 /// Validate learning rate.
 pub fn validate_learning_rate(lr: f64) -> Result<()> {
     if lr <= 0.0 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Learning rate must be positive, got {}", lr),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Learning rate must be positive, got {}",
+            lr
+        )));
     }
 
     if lr > 10.0 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Learning rate too large: {}", lr),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Learning rate too large: {}",
+            lr
+        )));
     }
 
     if lr < 1e-10 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Learning rate too small: {}", lr),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Learning rate too small: {}",
+            lr
+        )));
     }
 
     Ok(())
@@ -170,26 +173,33 @@ pub fn validate_iterations(iterations: usize) -> Result<()> {
     }
 
     if iterations > 1_000_000 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Iterations too large: {}", iterations),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Iterations too large: {}",
+            iterations
+        )));
     }
 
     Ok(())
 }
 
 /// Validate histogram parameters for mutual information.
-pub fn validate_histogram_params(num_bins: usize, min_intensity: f32, max_intensity: f32) -> Result<()> {
+pub fn validate_histogram_params(
+    num_bins: usize,
+    min_intensity: f32,
+    max_intensity: f32,
+) -> Result<()> {
     if num_bins < 2 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Number of bins must be at least 2, got {}", num_bins),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Number of bins must be at least 2, got {}",
+            num_bins
+        )));
     }
 
     if num_bins > 1024 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("Number of bins too large: {}", num_bins),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "Number of bins too large: {}",
+            num_bins
+        )));
     }
 
     if min_intensity >= max_intensity {
@@ -211,9 +221,10 @@ pub fn validate_lbfgs_history_size(history_size: usize) -> Result<()> {
     }
 
     if history_size > 100 {
-        return Err(RegistrationError::invalid_configuration(
-            format!("L-BFGS history size too large: {}", history_size),
-        ));
+        return Err(RegistrationError::invalid_configuration(format!(
+            "L-BFGS history size too large: {}",
+            history_size
+        )));
     }
 
     Ok(())

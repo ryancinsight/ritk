@@ -3,12 +3,12 @@
 //! This module provides interpolation traits and implementations
 //! for sampling values at continuous coordinates.
 
-pub mod trait_;
+pub mod bspline;
 pub mod linear;
 pub mod nearest;
-pub mod bspline;
+pub mod trait_;
 
-pub use trait_::Interpolator;
+pub use bspline::BSplineInterpolator;
 pub use linear::LinearInterpolator;
 pub use nearest::NearestNeighborInterpolator;
-pub use bspline::BSplineInterpolator;
+pub use trait_::Interpolator;

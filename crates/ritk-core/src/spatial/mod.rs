@@ -3,15 +3,15 @@
 //! This module provides the fundamental spatial types used throughout ritk.
 //! All types are based on nalgebra for efficient linear algebra operations.
 
-pub mod point;
-pub mod vector;
-pub mod spacing;
 pub mod direction;
+pub mod point;
+pub mod spacing;
+pub mod vector;
 
-pub use point::Point;
-pub use vector::Vector;
-pub use spacing::Spacing;
 pub use direction::Direction;
+pub use point::Point;
+pub use spacing::Spacing;
+pub use vector::Vector;
 
 // Common type aliases for 2D and 3D
 pub type Point2 = Point<2>;
