@@ -25,6 +25,4 @@ tempfile = "3.10"
 name = "dicom_to_nifti"
 path = "examples/dicom_to_nifti.rs"
 
-[[example]]
-name = "inspect_dicom"
-path = "examples/inspect_dicom.rs"
+    

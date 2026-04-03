@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
 
     let rigid_transform = RigidTransform::<Backend, 3>::identity(Some(center_phys), &device);
 
-    let metric = MutualInformation::<Backend>::new(32, 0.0, 255.0, 1.0);
+    let metric = MutualInformation::<Backend>::new(ritk_registration::metric::MutualInformationVariant::Standard, 32, 0.0, 255.0, 1.0);
 
     let rigid_schedule = RegistrationSchedule::<3>::default(3)
         .with_iterations(vec![50, 50, 25])
@@ -107,9 +107,13 @@ fn main() -> anyhow::Result<()> {
 
     // 3. Affine Registration
     println!("\n=== Affine Registration ===");
-    let affine_transform = AffineTransform::<Backend, 3>::from_rigid(&rigid_result);
+    let affine_transform = AffineTransform::<Backend, 3>::new(
+        rigid_result.matrix(),
+        rigid_result.translation(),
+        rigid_result.center()
+    );
 
-    let metric2 = MutualInformation::<Backend>::new(32, 0.0, 255.0, 1.0);
+    let metric2 = MutualInformation::<Backend>::new(ritk_registration::metric::MutualInformationVariant::Standard, 32, 0.0, 255.0, 1.0);
     let affine_schedule = RegistrationSchedule::<3>::default(3)
         .with_iterations(vec![30, 30, 15])
         .with_learning_rates(vec![0.05, 0.02, 0.005]);

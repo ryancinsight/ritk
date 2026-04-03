@@ -318,3 +318,23 @@ mod tests {
         assert!(series.is_empty());
     }
 }
+
+use crate::domain::ImageReader;
+
+/// DIP boundary executing strict `ImageReader` invariants over standard DICOM datasets.
+pub struct DicomReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> DicomReader<B> {
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+}
+
+impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        read_dicom_series(path, &self.device)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    }
+}

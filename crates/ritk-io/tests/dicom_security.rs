@@ -1,5 +1,5 @@
 use burn_ndarray::NdArray;
-use ritk_io::dicom_io::{load_dicom_series, DicomSeriesInfo};
+use ritk_io::{load_dicom_series, DicomSeriesInfo};
 use std::path::PathBuf;
 
 #[test]

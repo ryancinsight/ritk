@@ -156,3 +156,41 @@ fn natural_cmp(a: &str, b: &str) -> std::cmp::Ordering {
         }
     }
 }
+
+use crate::domain::ImageReader;
+
+/// DIP boundary executing strict `ImageReader` invariants over standard PNG single slices.
+pub struct PngReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> PngReader<B> {
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+}
+
+impl<B: Backend> ImageReader<B, 3> for PngReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        read_png_to_image(path, &self.device)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    }
+}
+
+/// DIP boundary executing strict `ImageReader` invariants over PNG sequential volumes.
+pub struct PngSeriesReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> PngSeriesReader<B> {
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+}
+
+impl<B: Backend> ImageReader<B, 3> for PngSeriesReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        read_png_series(path, &self.device)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    }
+}

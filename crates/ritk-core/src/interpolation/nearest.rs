@@ -70,11 +70,12 @@ impl NearestNeighborInterpolator {
             .slice([0..indices.dims()[0], 3..4])
             .flatten::<1>(0, 1);
 
-        // Round to nearest integer and clamp
-        let x_i = x.round().clamp(0.0, (d3 - 1) as f64).int();
-        let y_i = y.round().clamp(0.0, (d2 - 1) as f64).int();
-        let z_i = z.round().clamp(0.0, (d1 - 1) as f64).int();
-        let w_i = w.round().clamp(0.0, (d0 - 1) as f64).int();
+        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
+        // Standard tensor .round() implements IEEE 754 half-to-even which biases bounds symmetrically.
+        let x_i = (x + 0.5).floor().clamp(0.0, (d3 - 1) as f64).int();
+        let y_i = (y + 0.5).floor().clamp(0.0, (d2 - 1) as f64).int();
+        let z_i = (z + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
+        let w_i = (w + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [W, Z, Y, X]
         let stride_w = (d1 * d2 * d3) as i32;
@@ -111,10 +112,10 @@ impl NearestNeighborInterpolator {
             .slice([0..indices.dims()[0], 2..3])
             .flatten::<1>(0, 1);
 
-        // Round to nearest integer and clamp
-        let x_i = x.round().clamp(0.0, (d2 - 1) as f64).int();
-        let y_i = y.round().clamp(0.0, (d1 - 1) as f64).int();
-        let z_i = z.round().clamp(0.0, (d0 - 1) as f64).int();
+        // Round to nearest integer and clamp using exact floor algebra
+        let x_i = (x + 0.5).floor().clamp(0.0, (d2 - 1) as f64).int();
+        let y_i = (y + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
+        let z_i = (z + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [Z, Y, X]
         let stride_z = (d1 * d2) as i32;
@@ -145,9 +146,9 @@ impl NearestNeighborInterpolator {
             .slice([0..indices.dims()[0], 1..2])
             .flatten::<1>(0, 1);
 
-        // Round to nearest integer
-        let x_i = x.round().clamp(0.0, (d1 - 1) as f64).int();
-        let y_i = y.round().clamp(0.0, (d0 - 1) as f64).int();
+        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
+        let x_i = (x + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
+        let y_i = (y + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [Y, X]
         let stride_y = d1 as i32;
@@ -172,8 +173,8 @@ impl NearestNeighborInterpolator {
             .slice([0..indices.dims()[0], 0..1])
             .flatten::<1>(0, 1);
 
-        // Round to nearest integer
-        let x_i = x.round().clamp(0.0, (d0 - 1) as f64).int();
+        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
+        let x_i = (x.clone() + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
 
         let idx = x_i;
         let flat_data = data.clone().reshape([d0]);

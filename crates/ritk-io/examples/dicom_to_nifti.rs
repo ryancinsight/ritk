@@ -10,6 +10,7 @@
 //!   cargo run --example dicom_to_nifti -- "D:\ritk\data\Paired MRI (T1, T2) and CT Scans Dataset\CT\DICOM\Patient_01" patient01_ct.nii.gz
 
 use burn_ndarray::NdArray;
+use ritk_core::image::Image;
 use ritk_io::{load_dicom_series, scan_dicom_directory, write_nifti};
 use std::env;
 
@@ -71,7 +72,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     // Load the selected series
-    let image = load_dicom_series::<Backend>(selected, &device)?;
+    let image: Image<Backend, 3> = load_dicom_series(selected, &device)?;
     println!("Loaded image with shape: {:?}", image.shape());
     println!("Spacing: {:?}", image.spacing());
     println!("Origin: {:?}", image.origin());

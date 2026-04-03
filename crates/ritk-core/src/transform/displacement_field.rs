@@ -31,8 +31,8 @@ pub struct DisplacementField<B: Backend, const D: usize> {
     direction: Direction<D>,
 
     // Precomputed matrices for coordinate transformation
-    world_to_index_matrix: Param<Tensor<B, 2>>,
-    origin_tensor: Param<Tensor<B, 2>>,
+    world_to_index_matrix: Tensor<B, 2>,
+    origin_tensor: Tensor<B, 2>,
 }
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {
@@ -140,8 +140,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             origin,
             spacing,
             direction,
-            world_to_index_matrix: Param::from_tensor(world_to_index_matrix),
-            origin_tensor: Param::from_tensor(origin_tensor),
+            world_to_index_matrix,
+            origin_tensor,
         }
     }
 
@@ -262,8 +262,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         const CHUNK_SIZE: usize = 32768;
 
         if n_points <= CHUNK_SIZE {
-            let diff = points - self.origin_tensor.val();
-            diff.matmul(self.world_to_index_matrix.val())
+            let diff = points - self.origin_tensor.clone();
+            diff.matmul(self.world_to_index_matrix.clone())
         } else {
             let mut chunks = Vec::new();
             let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
@@ -273,8 +273,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
                 let chunk_points = points.clone().slice([start..end]);
 
-                let diff = chunk_points - self.origin_tensor.val();
-                let result = diff.matmul(self.world_to_index_matrix.val());
+                let diff = chunk_points - self.origin_tensor.clone();
+                let result = diff.matmul(self.world_to_index_matrix.clone());
                 chunks.push(result);
             }
 

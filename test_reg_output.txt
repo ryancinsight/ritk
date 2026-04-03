@@ -1,0 +1,208 @@
+   Compiling windows-sys v0.61.2
+   Compiling regex-automata v0.4.13
+   Compiling naga v26.0.0
+   Compiling snafu-derive v0.8.9
+   Compiling av-scenechange v0.14.1
+   Compiling rgb v0.8.52
+   Compiling exr v1.74.0
+   Compiling num-complex v0.4.6
+   Compiling text_placeholder v0.5.1
+   Compiling ratatui v0.29.0
+   Compiling windows-sys v0.60.2
+   Compiling ndarray v0.16.1
+   Compiling simba v0.9.1
+   Compiling ndarray v0.15.6
+   Compiling rav1e v0.8.1
+   Compiling terminal_size v0.4.3
+   Compiling snafu v0.8.9
+   Compiling dirs-sys v0.5.0
+   Compiling colored v3.1.1
+   Compiling errno v0.3.14
+   Compiling tempfile v3.24.0
+   Compiling nu-ansi-term v0.50.3
+   Compiling is-terminal v0.4.17
+   Compiling winapi-util v0.1.11
+   Compiling dirs v6.0.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling supports-color v2.1.0
+   Compiling same-file v1.0.6
+   Compiling owo-colors v4.2.3
+   Compiling signal-hook v0.3.18
+   Compiling walkdir v2.5.0
+   Compiling image v0.24.9
+   Compiling regex v1.12.2
+   Compiling bstr v1.12.1
+   Compiling matchers v0.2.0
+   Compiling tracing-subscriber v0.3.22
+   Compiling sanitize-filename v0.6.0
+   Compiling cubecl-common v0.8.1
+   Compiling gix-validate v0.10.1
+   Compiling dicom-core v0.8.2
+   Compiling gix-path v0.10.22
+   Compiling gix-fs v0.17.0
+   Compiling gix-tempfile v19.0.1
+   Compiling nalgebra v0.33.2
+   Compiling nifti v0.16.0
+   Compiling cubecl-ir v0.8.1
+   Compiling burn-common v0.19.1
+   Compiling ravif v0.12.0
+   Compiling image v0.25.9
+   Compiling tracing-appender v0.2.4
+   Compiling cubecl-runtime v0.8.1
+   Compiling dicom-dictionary-std v0.8.1
+   Compiling dicom-encoding v0.8.2
+   Compiling cubecl-core v0.8.1
+   Compiling dicom-transfer-syntax-registry v0.8.2
+   Compiling dicom-parser v0.8.2
+   Compiling wgpu-hal v26.0.6
+   Compiling burn-dataset v0.19.1
+   Compiling dicom-ul v0.8.2
+   Compiling dicom-object v0.8.2
+   Compiling dicom-json v0.8.2
+   Compiling dicom-pixeldata v0.8.2
+   Compiling cubecl-std v0.8.1
+   Compiling dicom-dump v0.8.1
+   Compiling dicom v0.8.2
+   Compiling cubecl-reduce v0.8.1
+   Compiling cubecl-random v0.8.1
+   Compiling cubecl-quant v0.8.1
+   Compiling wgpu-core-deps-windows-linux-android v26.0.0
+   Compiling wgpu-core v26.0.1
+   Compiling cubecl-matmul v0.8.1
+   Compiling cubecl-convolution v0.8.1
+   Compiling wgpu v26.0.1
+   Compiling cubecl-wgpu v0.8.1
+   Compiling cubecl v0.8.1
+   Compiling burn-tensor v0.19.1
+   Compiling burn-ir v0.19.1
+   Compiling burn-core v0.19.1
+   Compiling burn-autodiff v0.19.1
+   Compiling burn-optim v0.19.1
+   Compiling burn-nn v0.19.1
+   Compiling burn-fusion v0.19.1
+   Compiling burn-ndarray v0.19.1
+   Compiling burn-cubecl-fusion v0.19.1
+   Compiling burn-train v0.19.1
+   Compiling burn-cubecl v0.19.1
+   Compiling burn-wgpu v0.19.1
+   Compiling burn v0.19.1
+   Compiling ritk-core v0.1.0 (D:\kwavers\ritk\crates\ritk-core)
+   Compiling ritk-model v0.1.0 (D:\kwavers\ritk\crates\ritk-model)
+   Compiling ritk-io v0.1.0 (D:\kwavers\ritk\crates\ritk-io)
+   Compiling ritk-registration v0.1.0 (D:\kwavers\ritk\crates\ritk-registration)
+    Finished `test` profile [unoptimized] target(s) in 2m 08s
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ Nextest run ID a820b413-4162-41f4-8d89-28d16dfd25c5 with nextest profile: default
+    Starting 61 tests across 17 binaries (3 tests skipped)
+        PASS [   0.085s] ( 1/61) ritk-registration metric::mutual_information::tests::test_mutual_information_consolidation
+        PASS [   0.085s] ( 2/61) ritk-registration optimizer::cma_es::tests::test_seed_reproducibility
+        PASS [   0.085s] ( 3/61) ritk-registration optimizer::cma_es::tests::test_covariance_stays_positive_definite
+        PASS [   0.101s] ( 4/61) ritk-registration error::tests::test_shape_mismatch
+        PASS [   0.101s] ( 5/61) ritk-registration progress::tests::test_progress_info
+        PASS [   0.101s] ( 6/61) ritk-registration optimizer::cma_es::tests::test_cholesky_identity
+        PASS [   0.101s] ( 7/61) ritk-registration metric::mutual_information::tests::test_sampling_clamp
+        PASS [   0.117s] ( 8/61) ritk-registration metric::ncc::tests::test_ncc_inverse_relationship
+        PASS [   0.116s] ( 9/61) ritk-registration optimizer::cma_es::tests::test_step_size_decreases_monotone_unimodal
+        PASS [   0.117s] (10/61) ritk-registration metric::ncc::tests::test_ncc_identical
+        PASS [   0.149s] (11/61) ritk-registration optimizer::cma_es::tests::test_sphere_convergence_5d
+        PASS [   0.149s] (12/61) ritk-registration progress::tests::test_progress_info_remaining
+        PASS [   0.149s] (13/61) ritk-registration progress::tests::test_progress_tracker
+        PASS [   0.149s] (14/61) ritk-registration metric::trait_::tests::test_normalization_mode_default
+        PASS [   0.164s] (15/61) ritk-registration optimizer::cma_es::tests::test_default_population_size
+        PASS [   0.165s] (16/61) ritk-registration error::tests::test_error_display
+        PASS [   0.164s] (17/61) ritk-registration progress::tests::test_early_stopping
+        PASS [   0.180s] (18/61) ritk-registration progress::tests::test_history_callback
+        PASS [   0.180s] (19/61) ritk-registration metric::correlation_ratio::tests::test_cr_name
+        PASS [   0.180s] (20/61) ritk-registration error::tests::test_error_creation
+        PASS [   0.196s] (21/61) ritk-registration metric::correlation_ratio::tests::test_cr_creation
+        PASS [   0.196s] (22/61) ritk-registration metric::ncc::tests::test_ncc_uncorrelated
+        PASS [   0.196s] (23/61) ritk-registration metric::mse::tests::test_mse_identity
+        PASS [   0.120s] (24/61) ritk-registration registration::tests::test_registration_config_default
+        PASS [   0.120s] (25/61) ritk-registration registration::tests::registration_summary_holds_execution_diagnostics
+        PASS [   0.120s] (26/61) ritk-registration registration::tests::test_registration_config_builder
+        PASS [   0.212s] (27/61) ritk-registration metric::ncc::tests::test_ncc_linear_relationship
+        PASS [   0.127s] (28/61) ritk-registration regularization::curvature::tests::test_curvature_2d
+        PASS [   0.127s] (29/61) ritk-registration regularization::bending_energy::tests::test_bending_energy_2d_uniform
+        PASS [   0.128s] (30/61) ritk-registration regularization::diffusion::tests::test_diffusion_2d
+        PASS [   0.128s] (31/61) ritk-registration regularization::elastic::tests::test_elastic_2d
+        PASS [   0.127s] (32/61) ritk-registration regularization::elastic::tests::test_elastic_weights
+        PASS [   0.127s] (33/61) ritk-registration regularization::total_variation::tests::test_tv_2d_uniform
+        PASS [   0.095s] (34/61) ritk-registration validation::tests::test_clip_gradients
+        PASS [   0.127s] (35/61) ritk-registration regularization::total_variation::tests::test_tv_weight
+        PASS [   0.111s] (36/61) ritk-registration validation::tests::test_validate_lbfgs_history_size
+        PASS [   0.111s] (37/61) ritk-registration validation::tests::test_validate_histogram_params
+        PASS [   0.111s] (38/61) ritk-registration validation::tests::test_validate_tensor_bounds
+        PASS [   0.127s] (39/61) ritk-registration validation::tests::test_validate_iterations
+        PASS [   0.112s] (40/61) ritk-registration validation::tests::test_validate_learning_rate
+        PASS [   0.126s] (41/61) ritk-registration::correlation_ratio_test test_cr_shift_sensitivity
+        PASS [   0.126s] (42/61) ritk-registration::correlation_ratio_test test_cr_perfect_match
+        PASS [   0.152s] (43/61) ritk-registration::mse_test test_mse_identity
+        PASS [   0.153s] (44/61) ritk-registration::mse_test test_mse_translation
+        PASS [   0.155s] (45/61) ritk-registration::normalized_mi_test test_nmi_perfect_match
+        PASS [   0.221s] (46/61) ritk-registration::lncc_test tests::test_lncc_perfect_match
+        PASS [   0.216s] (47/61) ritk-registration::normalized_mi_test test_nmi_shift_sensitivity
+        PASS [   0.275s] (48/61) ritk-registration::lncc_test tests::test_lncc_offset
+        PASS [   0.795s] (49/61) ritk-registration::displacement_registration_test test_displacement_registration_2d
+        PASS [   1.366s] (50/61) ritk-registration::registration_test test_registration_translation_2d
+        PASS [   1.351s] (51/61) ritk-registration::verify_registration test_verify_registration_coordinates
+        PASS [   7.739s] (52/61) ritk-registration::verify_affine test_verify_affine_scale_recovery
+        PASS [  17.770s] (53/61) ritk-registration::affine_registration_test test_registration_affine_translation
+        PASS [  17.756s] (54/61) ritk-registration::rigid_registration_test test_registration_rigid_3d
+        PASS [  22.202s] (55/61) ritk-registration::multires_registration_test test_multires_registration_translation
+        PASS [  29.783s] (56/61) ritk-registration::affine_registration_test test_registration_affine_scaling
+        PASS [  29.746s] (57/61) ritk-registration::rigid_registration_test test_registration_rigid_full
+        PASS [  29.816s] (58/61) ritk-registration::versor_registration_test test_registration_versor_3d_rotation
+        SLOW [> 60.000s] (ΓöÇΓöÇΓöÇΓöÇΓöÇ) ritk-registration::bspline_registration_test test_registration_bspline_3d
+        SLOW [> 60.000s] (ΓöÇΓöÇΓöÇΓöÇΓöÇ) ritk-registration::bspline_cr_test test_bspline_cr_registration_small
+        SLOW [> 60.000s] (ΓöÇΓöÇΓöÇΓöÇΓöÇ) ritk-registration::multires_cr_test test_multires_cr_registration
+        FAIL [  65.361s] (59/61) ritk-registration::bspline_registration_test test_registration_bspline_3d
+  stdout ΓöÇΓöÇΓöÇ
+
+    running 1 test
+    test test_registration_bspline_3d has been running for over 60 seconds
+    Transformed Center: [5.0, 5.0, 5.0]
+    Errors: x=1, y=1, z=1
+    test test_registration_bspline_3d ... FAILED
+
+    failures:
+
+    failures:
+        test_registration_bspline_3d
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.25s
+
+  stderr ΓöÇΓöÇΓöÇ
+
+    thread 'test_registration_bspline_3d' (253148) panicked at crates\ritk-registration\tests\bspline_registration_test.rs:107:5:
+    Error X too high: 1
+    stack backtrace:
+       0:     0x7ff762f2b56f - <<std[1ed802576cb174e7]::sys::backtrace::BacktraceLock>::print::DisplayBacktrace as core[665b22ac190dc797]::fmt::Display>::fmt
+       1:     0x7ff762f6a8e1 - core[665b22ac190dc797]::fmt::write
+       2:     0x7ff762f3b562 - <std[1ed802576cb174e7]::sys::stdio::windows::Stderr as std[1ed802576cb174e7]::io::Write>::write_fmt
+       3:     0x7ff762efaa51 - std[1ed802576cb174e7]::panicking::default_hook::{closure#0}
+       4:     0x7ff762f1b5ab - std[1ed802576cb174e7]::panicking::default_hook
+       5:     0x7ff762f1b8ea - std[1ed802576cb174e7]::panicking::panic_with_hook
+       6:     0x7ff762efab2d - std[1ed802576cb174e7]::panicking::panic_handler::{closure#0}
+       7:     0x7ff762eee44f - std[1ed802576cb174e7]::sys::backtrace::__rust_end_short_backtrace::<std[1ed802576cb174e7]::panicking::panic_handler::{closure#0}, !>
+       8:     0x7ff762efb81e - __rustc[9918a3938d88277d]::rust_begin_unwind
+       9:     0x7ff762f6b3bd - core[665b22ac190dc797]::panicking::panic_fmt
+      10:     0x7ff7604d8902 - bspline_registration_test[55045c5820a3b713]::test_registration_bspline_3d
+      11:     0x7ff7602d3953 - bspline_registration_test[55045c5820a3b713]::test_registration_bspline_3d::{closure#0}
+      12:     0x7ff760814ce6 - <bspline_registration_test[55045c5820a3b713]::test_registration_bspline_3d::{closure#0} as core[665b22ac190dc797]::ops::function::FnOnce<()>>::call_once
+      13:     0x7ff760cb6770 - test[96ddb751ec995500]::__rust_begin_short_backtrace::<core[665b22ac190dc797]::result::Result<(), alloc[f09a5332beea0e99]::string::String>, fn() -> core[665b22ac190dc797]::result::Result<(), alloc[f09a5332beea0e99]::string::String>>
+      14:     0x7ff760cc3253 - test[96ddb751ec995500]::run_test::{closure#0}
+      15:     0x7ff760cbd63c - std[1ed802576cb174e7]::sys::backtrace::__rust_begin_short_backtrace::<test[96ddb751ec995500]::run_test::{closure#1}, ()>
+      16:     0x7ff760cc5eb4 - <std[1ed802576cb174e7]::thread::lifecycle::spawn_unchecked<test[96ddb751ec995500]::run_test::{closure#1}, ()>::{closure#1} as core[665b22ac190dc797]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+      17:     0x7ff762f28b7d - <std[1ed802576cb174e7]::sys::thread::windows::Thread>::new::thread_start
+      18:     0x7ffdf38ae8d7 - <unknown>
+      19:     0x7ffdf566421c - <unknown>
+
+  Cancelling due to test failure: 2 tests still running
+        PASS [  91.674s] (60/61) ritk-registration::multires_cr_test test_multires_cr_registration
+        SLOW [>120.000s] (ΓöÇΓöÇΓöÇΓöÇΓöÇ) ritk-registration::bspline_cr_test test_bspline_cr_registration_small
+        SLOW [>180.000s] (ΓöÇΓöÇΓöÇΓöÇΓöÇ) ritk-registration::bspline_cr_test test_bspline_cr_registration_small
+        PASS [ 231.638s] (61/61) ritk-registration::bspline_cr_test test_bspline_cr_registration_small
+ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+     Summary [ 231.821s] 61 tests run: 60 passed (2 slow), 1 failed, 3 skipped
+        FAIL [  65.361s] (59/61) ritk-registration::bspline_registration_test test_registration_bspline_3d
+error: test run failed

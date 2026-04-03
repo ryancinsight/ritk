@@ -94,7 +94,9 @@ pub struct SelectiveStateSpace<B: Backend> {
     pub in_proj: Linear<B>,
     /// Output projection (contracts channels)
     pub out_proj: Linear<B>,
-    /// Project input to Δ (discretization step)
+    /// Project input to low-rank space
+    pub dt_in_proj: Linear<B>,
+    /// Project from low-rank space to Δ (discretization step)
     pub dt_proj: Linear<B>,
     /// Project input to B (input matrix, rank-reduced)
     pub b_proj: Linear<B>,
@@ -127,7 +129,8 @@ impl<B: Backend> SelectiveStateSpace<B> {
         // Output projection contracts back
         let out_proj = LinearConfig::new(inner_dim, config.output_dim).init(device);
 
-        // Discretization step projection (low-rank)
+        // Discretization step projection (low-rank contraction and expansion)
+        let dt_in_proj = LinearConfig::new(inner_dim, config.dt_rank).init(device);
         let dt_proj = LinearConfig::new(config.dt_rank, inner_dim).init(device);
 
         // B and C projections (rank-reduced)
@@ -151,6 +154,7 @@ impl<B: Backend> SelectiveStateSpace<B> {
         Self {
             in_proj,
             out_proj,
+            dt_in_proj,
             dt_proj,
             b_proj,
             c_proj,
@@ -219,12 +223,9 @@ impl<B: Backend> SelectiveStateSpace<B> {
 
     /// Compute discretization step Δ from input
     fn compute_dt(&self, x: &Tensor<B, 3>) -> Tensor<B, 3> {
-        let [batch, seq, _] = x.dims();
-        let dt_rank = self.dt_rank;
-
-        // First project to low-rank space
-        // x: [batch, seq, inner]
-        let x_rank = x.clone().slice([0..batch, 0..seq, 0..dt_rank]);
+        // First project to low-rank space analytically instead of slicing
+        // This corresponds to $s_\Delta(x_t) = \text{Linear}_{\text{dt\_rank}}(x_t)$
+        let x_rank = self.dt_in_proj.forward(x.clone());
 
         // Expand to full dimension
         let dt_unbounded = self.dt_proj.forward(x_rank);

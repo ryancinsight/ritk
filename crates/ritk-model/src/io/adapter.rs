@@ -3,7 +3,7 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 // use ritk_core::spatial::{Point, Spacing, Direction};
 use anyhow::{ensure, Result};
-use ritk_core::transform::displacement_field::DisplacementField;
+use ritk_core::transform::static_displacement_field::StaticDisplacementField;
 
 /// Adapter for converting between ritk Images and Burn tensors
 pub struct ImageToTensorAdapter<B: Backend> {
@@ -35,7 +35,7 @@ impl<B: Backend> ImageToTensorAdapter<B> {
         &self,
         tensor: &Tensor<B, 5>,
         reference: &Image<B, 3>,
-    ) -> Result<DisplacementField<B, 3>> {
+    ) -> Result<StaticDisplacementField<B, 3>> {
         let [batch, channels, d, h, w] = tensor.dims();
         ensure!(batch == 1, "Batch size must be 1");
         ensure!(channels == 3, "Displacement field must have 3 channels");
@@ -58,7 +58,7 @@ impl<B: Backend> ImageToTensorAdapter<B> {
 
         let components = vec![x, y, z];
 
-        Ok(DisplacementField::new(
+        Ok(StaticDisplacementField::new(
             components,
             reference.origin().clone(),
             reference.spacing().clone(),

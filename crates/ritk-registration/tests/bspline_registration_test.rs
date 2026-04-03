@@ -52,7 +52,8 @@ fn test_registration_bspline_3d() {
     let moving_tensor = Tensor::<B, 3>::from_data(TensorData::new(moving_data, shape), &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
-    let spacing = Spacing::new([1.0, 1.0, 1.0]);
+    // Grid size 5x5x5 covers the 10x10x10 volume with spacing 2.5
+    let spacing = Spacing::new([2.5, 2.5, 2.5]);
     let direction = Direction::identity();
 
     let fixed = Image::new(
@@ -71,9 +72,9 @@ fn test_registration_bspline_3d() {
     let num_control_points = 5 * 5 * 5;
     let coeffs = Tensor::<B, 2>::zeros([num_control_points, 3], &device);
 
-    // Use from_spatial for simpler API with spatial types
+    // Use from_spatial for simpler API with spatial types. Enable parameter gradients explicitly.
     let transform = BSplineTransform::<B, 3>::from_spatial(
-        grid_size, &origin, &spacing, &direction, coeffs, &device,
+        grid_size, &origin, &spacing, &direction, coeffs.require_grad(), &device,
     );
 
     // 3. Setup Optimizer and Metric
