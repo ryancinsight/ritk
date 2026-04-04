@@ -10,10 +10,10 @@ use ritk_core::image::Image;
 use ritk_core::interpolation::LinearInterpolator;
 use ritk_core::transform::static_displacement_field::{StaticDisplacementField, StaticDisplacementFieldTransform3D};
 
-use super::network::sampling::FlowComposer;
-use super::network::{SSMMorph, SSMMorphConfig};
-use crate::io::adapter::ImageToTensorAdapter;
-use crate::losses::{RegistrationLoss, RegistrationLossConfig};
+use ritk_model::ssmmorph::FlowComposer;
+use ritk_model::ssmmorph::{SSMMorph, SSMMorphConfig};
+use ritk_model::io::adapter::ImageToTensorAdapter;
+use crate::registration::dl_registration_loss::{RegistrationLoss, RegistrationLossConfig};
 
 /// Integration of SSMMorph with ritk registration pipeline
 pub struct SSMMorphIntegration<B: Backend> {
@@ -263,13 +263,13 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use burn_ndarray::{NdArray, NdArrayDevice};
 
     type TestBackend = NdArray<f32>;
 
     #[test]
     fn test_integration_creation() {
-        let device = Default::default();
+        let device = NdArrayDevice::default();
         let config = SSMMorphConfig::for_3d_registration();
         let integration = SSMMorphIntegration::<TestBackend>::new(&config, &device);
 
@@ -278,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_diffeomorphic_wrapper() {
-        let device = Default::default();
+        let device = NdArrayDevice::default();
         let config = SSMMorphConfig::for_3d_registration();
         let diff_ssm = DiffeomorphicSSMMorph::<TestBackend>::new(&config, &device);
 

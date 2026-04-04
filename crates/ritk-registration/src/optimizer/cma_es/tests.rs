@@ -59,8 +59,18 @@ fn test_covariance_stays_positive_definite() {
         ..Default::default()
     });
     let result = opt.run(sphere, &x0);
-    // Just verifying no panic and convergence is positive
-    assert!(result.best_f >= 0.0, "f ≥ 0 for sphere");
+    // CMA-ES property: covariance matrix condition number must remain bounded (< 1e14)
+    // and for the spherical problem, step-size progression strictly drives objective functionally well.
+    assert!(
+        result.condition_estimate >= 1.0 && result.condition_estimate < 1e4,
+        "Sphere problem covariance condition number exceeded analytical bounds: {}",
+        result.condition_estimate
+    );
+    assert!(
+        result.best_f < 1e-1,
+        "Objective value must functionally decrease: {}",
+        result.best_f
+    );
 }
 
 #[test]

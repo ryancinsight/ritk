@@ -10,14 +10,9 @@
 
 use crate::error::Result;
 use crate::metric::Metric;
-use crate::optimizer::{Optimizer, OptimizerTelemetry};
-use crate::progress::{
-    ConsoleProgressCallback, EarlyStoppingCallback, ProgressCallback, ProgressTracker,
-};
-use crate::validation::{
-    validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor,
-    ConvergenceChecker, ValidationConfig,
-};
+use crate::optimizer::Optimizer;
+use crate::progress::{ConsoleProgressCallback, EarlyStoppingCallback, ProgressCallback, ProgressTracker};
+use crate::validation::{validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor};
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
@@ -26,90 +21,14 @@ use ritk_core::transform::Transform;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-/// Configuration for registration.
-#[derive(Debug, Clone)]
-pub struct RegistrationConfig {
-    /// Validation configuration.
-    pub validation: ValidationConfig,
-    /// Enable early stopping.
-    pub enable_early_stopping: bool,
-    /// Early stopping patience.
-    pub early_stopping_patience: usize,
-    /// Early stopping minimum improvement.
-    pub early_stopping_min_improvement: f64,
-    /// Log interval for progress.
-    pub log_interval: usize,
-    /// Enable convergence detection.
-    pub enable_convergence_detection: bool,
-    /// Convergence checker.
-    pub convergence_checker: Option<ConvergenceChecker>,
-}
+pub mod config;
+pub mod summary;
+pub mod dl_ssm_registration;
+pub mod dl_registration_loss;
 
-impl Default for RegistrationConfig {
-    fn default() -> Self {
-        Self {
-            validation: ValidationConfig::default(),
-            enable_early_stopping: false,
-            early_stopping_patience: 50,
-            early_stopping_min_improvement: 1e-6,
-            log_interval: 50,
-            enable_convergence_detection: false,
-            convergence_checker: None,
-        }
-    }
-}
-
-impl RegistrationConfig {
-    /// Create a new registration config with default settings.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Enable early stopping.
-    pub fn with_early_stopping(mut self, patience: usize, min_improvement: f64) -> Self {
-        self.enable_early_stopping = true;
-        self.early_stopping_patience = patience;
-        self.early_stopping_min_improvement = min_improvement;
-        self
-    }
-
-    /// Disable early stopping.
-    pub fn without_early_stopping(mut self) -> Self {
-        self.enable_early_stopping = false;
-        self
-    }
-
-    /// Set log interval.
-    pub fn with_log_interval(mut self, interval: usize) -> Self {
-        self.log_interval = interval;
-        self
-    }
-
-    /// Enable convergence detection.
-    pub fn with_convergence_detection(mut self, checker: ConvergenceChecker) -> Self {
-        self.enable_convergence_detection = true;
-        self.convergence_checker = Some(checker);
-        self
-    }
-
-    /// Disable convergence detection.
-    pub fn without_convergence_detection(mut self) -> Self {
-        self.enable_convergence_detection = false;
-        self.convergence_checker = None;
-        self
-    }
-}
-
-/// Summary returned by registration workflows that need execution diagnostics.
-#[derive(Debug)]
-pub struct RegistrationSummary<T> {
-    pub transform: T,
-    pub loss_history: Vec<f64>,
-    pub optimizer_telemetry: OptimizerTelemetry,
-    pub iterations_completed: usize,
-    pub final_loss: f64,
-    pub stopped_early: bool,
-}
+pub use config::RegistrationConfig;
+pub use summary::RegistrationSummary;
+pub use dl_registration_loss::{RegistrationLoss, RegistrationLossConfig, SimilarityMetric, RegularizationType};
 
 /// Registration framework with validation and progress tracking.
 pub struct Registration<B, O, M, T, const D: usize>
@@ -355,44 +274,4 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_registration_config_default() {
-        let config = RegistrationConfig::default();
-        assert!(!config.enable_early_stopping);
-        assert_eq!(config.log_interval, 50);
-    }
-
-    #[test]
-    fn test_registration_config_builder() {
-        let config = RegistrationConfig::new()
-            .with_early_stopping(10, 1e-5)
-            .with_log_interval(25);
-
-        assert!(config.enable_early_stopping);
-        assert_eq!(config.early_stopping_patience, 10);
-        assert_eq!(config.log_interval, 25);
-    }
-
-    #[test]
-    fn registration_summary_holds_execution_diagnostics() {
-        let summary = RegistrationSummary {
-            transform: 3_u32,
-            loss_history: vec![2.0, 1.0],
-            optimizer_telemetry: OptimizerTelemetry {
-                algorithm: "Test",
-                steps: 2,
-                learning_rate: Some(0.1),
-            },
-            iterations_completed: 2,
-            final_loss: 1.0,
-            stopped_early: false,
-        };
-
-        assert_eq!(summary.transform, 3);
-        assert_eq!(summary.optimizer_telemetry.steps, 2);
-        assert_eq!(summary.final_loss, 1.0);
-    }
-}
+mod tests;

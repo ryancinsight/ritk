@@ -16,9 +16,9 @@ use ritk_core::{
 use ritk_model::{
     affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
     io::adapter::images_to_batch,
-    losses::{GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss},
     transmorph::{spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig},
 };
+use ritk_registration::registration::dl_registration_loss::{GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss};
 use std::time::Instant;
 
 #[derive(Module, Debug)]

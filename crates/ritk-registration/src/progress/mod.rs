@@ -8,10 +8,12 @@ pub mod early_stopping;
 pub mod history;
 pub mod info;
 pub mod tracker;
+pub mod convergence;
 
 pub use console::ConsoleProgressCallback;
 pub use early_stopping::EarlyStoppingCallback;
 pub use history::HistoryCallback;
+pub use convergence::ConvergenceChecker;
 pub use info::ProgressInfo;
 pub use tracker::ProgressTracker;
 

@@ -14,5 +14,6 @@ pub use progress::{
     ConsoleProgressCallback, EarlyStoppingCallback, HistoryCallback, ProgressCallback,
     ProgressInfo, ProgressTracker,
 };
-pub use validation::{ConvergenceChecker, ValidationConfig};
+pub use progress::ConvergenceChecker;
+pub use validation::ValidationConfig;
 // pub use enhanced_registration::{EnhancedRegistration, RegistrationConfig};

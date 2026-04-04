@@ -16,9 +16,8 @@
 //! ├── decoder/           - Hierarchical decoder with skip connections
 //! ├── network/           - Complete registration network
 //! │   ├── architecture/  - SSMMorph network definition
-//! │   ├── integration/   - Diffeomorphic integration
+//! │   ├── architecture/  - SSMMorph network definition
 //! │   └── sampling/      - Grid sampling and flow composition
-//! └── integration/       - ritk framework integration
 //! ```
 //!
 //! # Quick Start
@@ -60,9 +59,6 @@ pub mod vmamba_block;
 // Network module with hierarchical structure
 pub mod network;
 
-// Framework integration
-pub mod integration;
-
 // Re-export core types
 pub use state_space::{SelectiveStateSpace, SelectiveStateSpaceConfig, StateSpaceParameters};
 
@@ -86,9 +82,4 @@ pub use network::integration::{
 
 pub use network::sampling::{
     FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig, InterpolationMode,
-};
-
-// Framework integration re-exports
-pub use integration::{
-    DiffeomorphicSSMMorph, LossComponents, SSMMorphAnalysis, SSMMorphIntegration,
 };

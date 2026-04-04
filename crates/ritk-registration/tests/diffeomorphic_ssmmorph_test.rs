@@ -1,4 +1,4 @@
-use ritk_model::ssmmorph::integration::DiffeomorphicSSMMorph;
+use ritk_registration::registration::dl_ssm_registration::DiffeomorphicSSMMorph;
 use ritk_model::ssmmorph::SSMMorphConfig;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Point, Spacing, Direction};
