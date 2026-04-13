@@ -1,10 +1,12 @@
 [workspace]
 members = [
-    "crates/ritk-core",
-    "crates/ritk-io", "crates/ritk-model",
-    "crates/ritk-registration",
-    "crates/ritk-registration-classical",
-    "xtask",
+  "crates/ritk-core",
+  "crates/ritk-io",
+  "crates/ritk-model",
+  "crates/ritk-registration",
+  "crates/ritk-python",
+  "crates/ritk-cli",
+  "xtask",
 ]
 resolver = "2"
 
@@ -13,12 +15,13 @@ ritk-core = { path = "crates/ritk-core" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
-ritk-registration-classical = { path = "crates/ritk-registration-classical" }
 
 burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
+numpy = "0.22"
 dicom = "0.8.0"
-nifti = "0.16.0"
+nifti = "0.17.0"
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 thiserror = "2.0"

@@ -1,0 +1,26 @@
+[package]
+name = "ritk-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ritk"
+path = "src/main.rs"
+
+[dependencies]
+ritk-core = { path = "../ritk-core" }
+ritk-io = { path = "../ritk-io" }
+ritk-registration = { path = "../ritk-registration" }
+clap = { version = "4", features = ["derive"] }
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+burn = { version = "0.19" }
+burn-ndarray = "0.19"
+ndarray = "0.16"
+serde_json = "1.0"
+
+[dev-dependencies]
+tempfile = "3.10"
+burn = { version = "0.19" }

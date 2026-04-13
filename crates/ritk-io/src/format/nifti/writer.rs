@@ -68,7 +68,7 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
         origin[2] as f32,
     ];
 
-    // Note: nifti-rs 0.16 WriterOptions doesn't expose a `header` setter.
+    // Note: nifti-rs 0.17 WriterOptions doesn't expose a `header` setter.
     // We use individual setters.
     // Write NIfTI file
     // Note: The nifti crate's WriterOptions API changed in recent versions

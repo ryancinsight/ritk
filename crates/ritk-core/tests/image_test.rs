@@ -8,7 +8,6 @@ use std::f64::consts::PI;
 type Backend = NdArray<f32>;
 type Point3 = Point<3>;
 type Spacing3 = Spacing<3>;
-type Direction3 = Direction<3>;
 
 #[test]
 fn test_rotated_image_transform() {

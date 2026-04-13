@@ -10,6 +10,8 @@ burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
+ndarray = { version = "0.16", features = ["rayon"] }
+nalgebra = "0.33"
 
 [dev-dependencies]
 burn-ndarray = "0.19"

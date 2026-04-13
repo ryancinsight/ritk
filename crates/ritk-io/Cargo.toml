@@ -5,14 +5,14 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
-dicom = "*"
-dicom-core = "*"
-nifti = "*"
+dicom = { workspace = true }
+dicom-core = "0.8"
+nifti = { workspace = true }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
-burn = { version = "*", features = ["wgpu", "train", "autodiff"] }
-nalgebra = { version = "*", features = ["serde-serialize"] }
+burn = { workspace = true }
+nalgebra = { workspace = true }
 rayon = "1.9"
 ndarray = "0.16"
 image = "0.24"
