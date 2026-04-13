@@ -4,8 +4,8 @@ pub mod dim2;
 pub mod dim3;
 pub mod dim4;
 
-use crate::transform::Transform;
 use super::BSplineTransform;
+use crate::transform::Transform;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 

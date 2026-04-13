@@ -1,4 +1,4 @@
-//! Configuration mappings for hierarchical encodings 
+//! Configuration mappings for hierarchical encodings
 use burn::prelude::*;
 
 /// Configuration for encoder stage

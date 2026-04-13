@@ -14,14 +14,14 @@ pub enum GradientPenalty {
 }
 
 /// # Theorem: Local Normalized Cross Correlation (LNCC)
-/// The LNCC loss is a definitive statistical metric evaluating structural coherence between images 
+/// The LNCC loss is a definitive statistical metric evaluating structural coherence between images
 /// independent of global intensities by computing sample cross-correlation over localized kernels.
 /// Let $F(x)$ and $M(x)$ be the fixed and moving images.
 /// The LNCC over a local window $\Omega_x$ centered at $x$ is analytically defined as:
 /// $$ LNCC(x) = \frac{\text{Cov}_{\Omega_x}(F, M)}{\max(V_{\Omega_x}(F) \cdot V_{\Omega_x}(M), \epsilon)} $$
 ///
 /// Our continuous implementation minimizes the negation of the expected mean $ L(\theta) = - \mathbb{E}_x[LNCC(x)] $.
-/// 
+///
 /// **Proof of Invariance:** For strictly linear radiometric transforms $ M(x) = \alpha M'(x) + \beta $, the constants distribute and cancel through the localized covariance numerator and standard deviation product in the denominator, proving $LNCC(M(x), F(x)) = LNCC(M'(x), F(x))$.
 #[derive(Module, Debug)]
 pub struct LocalNCCLoss<B: Backend> {
@@ -109,7 +109,7 @@ impl<B: Backend> GlobalNCCLoss<B> {
 /// Enforces topological smoothness on the deformation field by penalizing high-frequency
 /// spatial gradients. Mathematically, it applies Sobolev space constraints to the
 /// unconstrained $L_2$ problem mapping.
-/// 
+///
 /// Letting $ \phi: \mathbb{R}^3 \to \mathbb{R}^3 $ represent the displacement field vector:
 /// $$ R(\phi) = \frac{1}{|\Omega|} \int_{\Omega} \lVert \nabla \phi(x) \rVert_p^p \,dx $$
 /// where $\lVert\cdot\rVert_p$ characterizes the spatial penalty (`GradientPenalty`).

@@ -5,9 +5,7 @@ use burn::{
 };
 
 use crate::transmorph::{
-    integration::VecInt,
-    spatial_transform::SpatialTransformer,
-    swin::SwinTransformerBlock,
+    integration::VecInt, spatial_transform::SpatialTransformer, swin::SwinTransformerBlock,
 };
 
 /// Output from TransMorph forward pass

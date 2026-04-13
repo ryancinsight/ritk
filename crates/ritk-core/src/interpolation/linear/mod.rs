@@ -219,10 +219,7 @@ mod tests {
 
         let interpolator = LinearInterpolator::new();
 
-        let indices = Tensor::<TestBackend, 2>::from_floats(
-            [[-1.0, -1.0], [5.0, 5.0]],
-            &device,
-        );
+        let indices = Tensor::<TestBackend, 2>::from_floats([[-1.0, -1.0], [5.0, 5.0]], &device);
         let result = interpolator.interpolate(&data, indices);
         let result_data = result.into_data();
         let slice = result_data.as_slice::<f32>().unwrap();

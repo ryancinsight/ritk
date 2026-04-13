@@ -3,8 +3,8 @@ use burn::nn::conv::{Conv3d, Conv3dConfig};
 use burn::nn::PaddingConfig3d;
 use burn::prelude::*;
 
-use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 use super::config::EncoderStageConfig;
+use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
 /// Single encoder stage with VMamba blocks and optional downsampling
 #[derive(Module, Debug)]

@@ -2,7 +2,6 @@
 //!
 //! This module provides a B-Spline free-form deformation transform.
 
-use super::trait_::Transform;
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -130,15 +129,14 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     pub fn coefficients(&self) -> Tensor<B, 2> {
         self.coefficients.val().clone()
     }
-
 }
-pub(crate) mod mapping;
 pub(crate) mod interpolation;
+pub(crate) mod mapping;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::transform::trait_::Transform;
     use burn_ndarray::NdArray;
-
     type TestBackend = NdArray<f32>;
 
     #[test]

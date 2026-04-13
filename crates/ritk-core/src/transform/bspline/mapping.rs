@@ -1,7 +1,7 @@
+use super::BSplineTransform;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use nalgebra::SMatrix;
-use super::BSplineTransform;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute inverse direction matrix as a flat vector of f32 values.
@@ -98,6 +98,4 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         let diff = points - origin_tensor;
         diff.matmul(t_tensor)
     }
-
 }
-

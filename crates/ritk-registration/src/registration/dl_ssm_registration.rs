@@ -8,12 +8,14 @@ use burn::tensor::cast::ToElement;
 
 use ritk_core::image::Image;
 use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::transform::static_displacement_field::{StaticDisplacementField, StaticDisplacementFieldTransform3D};
+use ritk_core::transform::static_displacement_field::{
+    StaticDisplacementField, StaticDisplacementFieldTransform3D,
+};
 
+use crate::registration::dl_registration_loss::{RegistrationLoss, RegistrationLossConfig};
+use ritk_model::io::adapter::ImageToTensorAdapter;
 use ritk_model::ssmmorph::FlowComposer;
 use ritk_model::ssmmorph::{SSMMorph, SSMMorphConfig};
-use ritk_model::io::adapter::ImageToTensorAdapter;
-use crate::registration::dl_registration_loss::{RegistrationLoss, RegistrationLossConfig};
 
 /// Integration of SSMMorph with ritk registration pipeline
 pub struct SSMMorphIntegration<B: Backend> {
@@ -232,7 +234,10 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
             forward_disp.direction().clone(),
         );
 
-        StaticDisplacementFieldTransform3D::new(inverse_disp, forward_transform.interpolator().clone())
+        StaticDisplacementFieldTransform3D::new(
+            inverse_disp,
+            forward_transform.interpolator().clone(),
+        )
     }
 
     /// Validate transformation quality (composition should be identity)

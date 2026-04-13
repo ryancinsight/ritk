@@ -1,6 +1,6 @@
+use crate::transform::bspline::BSplineTransform;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
-use crate::transform::bspline::BSplineTransform;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     pub(crate) fn transform_1d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {

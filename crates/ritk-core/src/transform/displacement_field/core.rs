@@ -23,11 +23,11 @@ pub struct DisplacementField<B: Backend, const D: usize> {
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {
     /// # Theorem: Discrete-to-Continuous Coordinate Projection
-    /// The construction of the index mapping matrix establishes an invertible affine transformation 
+    /// The construction of the index mapping matrix establishes an invertible affine transformation
     /// between discrete tensor voxel coordinates and the continuous physical domain $\mathbb{R}^D$.
     ///
-    /// Let $S$ be the diagonal matrix of physical spacing and $D_{ir}$ be the orthogonal 
-    /// direction cosine matrix. The transformation from index space $v$ to world coordinates $w$ 
+    /// Let $S$ be the diagonal matrix of physical spacing and $D_{ir}$ be the orthogonal
+    /// direction cosine matrix. The transformation from index space $v$ to world coordinates $w$
     /// is geometrically proven as:
     /// $$ w = v^T (S \cdot D_{ir}) + O $$
     ///
@@ -50,7 +50,11 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         if !components.is_empty() {
             let shape = components[0].shape();
             for c in &components[1..] {
-                assert_eq!(c.shape(), shape, "All components must have identical domains");
+                assert_eq!(
+                    c.shape(),
+                    shape,
+                    "All components must have identical domains"
+                );
             }
         }
 
@@ -74,20 +78,36 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                     direction[(1, 0)],
                     direction[(1, 1)],
                 );
-                let inv = m.try_inverse().expect("Direction matrix mathematically non-invertible");
+                let inv = m
+                    .try_inverse()
+                    .expect("Direction matrix mathematically non-invertible");
                 vec![inv[(0, 0)], inv[(0, 1)], inv[(1, 0)], inv[(1, 1)]]
             }
             3 => {
                 let m = nalgebra::Matrix3::new(
-                    direction[(0, 0)], direction[(0, 1)], direction[(0, 2)],
-                    direction[(1, 0)], direction[(1, 1)], direction[(1, 2)],
-                    direction[(2, 0)], direction[(2, 1)], direction[(2, 2)],
+                    direction[(0, 0)],
+                    direction[(0, 1)],
+                    direction[(0, 2)],
+                    direction[(1, 0)],
+                    direction[(1, 1)],
+                    direction[(1, 2)],
+                    direction[(2, 0)],
+                    direction[(2, 1)],
+                    direction[(2, 2)],
                 );
-                let inv = m.try_inverse().expect("Direction matrix mathematically non-invertible");
+                let inv = m
+                    .try_inverse()
+                    .expect("Direction matrix mathematically non-invertible");
                 vec![
-                    inv[(0, 0)], inv[(0, 1)], inv[(0, 2)],
-                    inv[(1, 0)], inv[(1, 1)], inv[(1, 2)],
-                    inv[(2, 0)], inv[(2, 1)], inv[(2, 2)],
+                    inv[(0, 0)],
+                    inv[(0, 1)],
+                    inv[(0, 2)],
+                    inv[(1, 0)],
+                    inv[(1, 1)],
+                    inv[(1, 2)],
+                    inv[(2, 0)],
+                    inv[(2, 1)],
+                    inv[(2, 2)],
                 ]
             }
             _ => panic!("DisplacementField restricted to verified topologies 2D and 3D"),

@@ -76,12 +76,12 @@ impl AffineNetworkConfig {
 
         // # Theorem: Affine Lie Group Tangent Space Expansion
         //
-        // The mapping of Deep Learning parameters over strict rigid affine deformations operates 
+        // The mapping of Deep Learning parameters over strict rigid affine deformations operates
         // continuously along the analytical $GL(D)$ target manifold. Mathematically executing this constraint
-        // implicitly projects the arbitrary network parameters as deviations spanning the local tangent 
+        // implicitly projects the arbitrary network parameters as deviations spanning the local tangent
         // vector space around the fundamental Identity Element map $I_{D+1}$.
         //
-        // Specifically, applying the standard $A = I + dA$ first-order Taylor limit explicitly bounds 
+        // Specifically, applying the standard $A = I + dA$ first-order Taylor limit explicitly bounds
         // initial optimization constraints structurally to small differential properties naturally stabilizing limits
         // and analytically enforcing exact geometric continuity equivalent to initializing an explicit
         // topological parameter record avoiding computational matrix derivations. By projecting the Identity

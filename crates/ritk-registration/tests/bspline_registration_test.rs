@@ -74,7 +74,12 @@ fn test_registration_bspline_3d() {
 
     // Use from_spatial for simpler API with spatial types. Enable parameter gradients explicitly.
     let transform = BSplineTransform::<B, 3>::from_spatial(
-        grid_size, &origin, &spacing, &direction, coeffs.require_grad(), &device,
+        grid_size,
+        &origin,
+        &spacing,
+        &direction,
+        coeffs.require_grad(),
+        &device,
     );
 
     // 3. Setup Optimizer and Metric

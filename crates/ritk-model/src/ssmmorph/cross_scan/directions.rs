@@ -1,5 +1,4 @@
 //! Directions for Cross-Scan implementations
-use burn::prelude::*;
 
 /// Scan direction for cross-scan operation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

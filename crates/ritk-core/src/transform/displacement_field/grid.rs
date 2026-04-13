@@ -4,7 +4,7 @@ use burn::tensor::Tensor;
 
 impl<B: Backend, const D: usize> DisplacementField<B, D> {
     /// Convert physical continuous points iteratively to indices isolated across chunked dimensional grids.
-    /// 
+    ///
     /// Follows the mathematically verified mapping $ v^T = (w - O) T $.
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let [n_points, _] = points.dims();

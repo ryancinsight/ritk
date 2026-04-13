@@ -146,7 +146,7 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
     // nifti-rs documentation says `into_ndarray` returns `ArrayD`.
     // We assume standard layout for now.
     // Note: Burn Data expects a flattened vector.
-    let data_vec = ndarray_volume.into_raw_vec();
+    let (data_vec, _raw_offset) = ndarray_volume.into_raw_vec_and_offset();
     let shape_burn = Shape::new([dim0, dim1, dim2]);
 
     let data = TensorData::new(data_vec, shape_burn);

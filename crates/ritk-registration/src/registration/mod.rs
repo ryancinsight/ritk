@@ -11,8 +11,12 @@
 use crate::error::Result;
 use crate::metric::Metric;
 use crate::optimizer::Optimizer;
-use crate::progress::{ConsoleProgressCallback, EarlyStoppingCallback, ProgressCallback, ProgressTracker};
-use crate::validation::{validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor};
+use crate::progress::{
+    ConsoleProgressCallback, EarlyStoppingCallback, ProgressCallback, ProgressTracker,
+};
+use crate::validation::{
+    validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor,
+};
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
@@ -22,13 +26,15 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 pub mod config;
-pub mod summary;
-pub mod dl_ssm_registration;
 pub mod dl_registration_loss;
+pub mod dl_ssm_registration;
+pub mod summary;
 
 pub use config::RegistrationConfig;
+pub use dl_registration_loss::{
+    RegistrationLoss, RegistrationLossConfig, RegularizationType, SimilarityMetric,
+};
 pub use summary::RegistrationSummary;
-pub use dl_registration_loss::{RegistrationLoss, RegistrationLossConfig, SimilarityMetric, RegularizationType};
 
 /// Registration framework with validation and progress tracking.
 pub struct Registration<B, O, M, T, const D: usize>

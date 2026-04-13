@@ -3,6 +3,7 @@ members = [
     "crates/ritk-core",
     "crates/ritk-io", "crates/ritk-model",
     "crates/ritk-registration",
+    "crates/ritk-registration-classical",
     "xtask",
 ]
 resolver = "2"
@@ -12,6 +13,7 @@ ritk-core = { path = "crates/ritk-core" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
+ritk-registration-classical = { path = "crates/ritk-registration-classical" }
 
 burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing

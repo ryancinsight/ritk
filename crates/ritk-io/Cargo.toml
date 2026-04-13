@@ -14,7 +14,7 @@ tracing = "0.1"
 burn = { version = "*", features = ["wgpu", "train", "autodiff"] }
 nalgebra = { version = "*", features = ["serde-serialize"] }
 rayon = "1.9"
-ndarray = "0.15"
+ndarray = "0.16"
 image = "0.24"
 
 [dev-dependencies]
@@ -24,5 +24,3 @@ tempfile = "3.10"
 [[example]]
 name = "dicom_to_nifti"
 path = "examples/dicom_to_nifti.rs"
-
-    

@@ -1,6 +1,6 @@
 use super::*;
-use burn_ndarray::NdArray;
 use burn::tensor::Tensor;
+use burn_ndarray::NdArray;
 
 #[test]
 fn test_transmorph_forward() {

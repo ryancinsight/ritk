@@ -1,12 +1,10 @@
-use burn::tensor::backend::Backend;
 use burn::nn::conv::Conv3dConfig;
 use burn::nn::PaddingConfig3d;
+use burn::tensor::backend::Backend;
 
 use crate::transmorph::{
-    integration::VecInt,
-    spatial_transform::SpatialTransformer,
+    integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,
     swin::SwinTransformerBlockConfig,
-    model::TransMorph,
 };
 
 #[derive(Debug, Clone)]

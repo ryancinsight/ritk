@@ -12,8 +12,7 @@ pub(crate) fn gather_4d<B: Backend>(
     stride_z: i32,
     stride_w: i32,
 ) -> Tensor<B, 1> {
-    let idx =
-        wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
+    let idx = wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
     flat_data.clone().gather(0, idx)
 }
 

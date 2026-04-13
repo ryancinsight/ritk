@@ -69,7 +69,12 @@ fn test_bspline_cr_registration_small() {
 
     // Use from_spatial for simpler API with spatial types
     let transform = BSplineTransform::<B, 3>::from_spatial(
-        grid_size, &origin, &bspline_spacing, &direction, coeffs, &device,
+        grid_size,
+        &origin,
+        &bspline_spacing,
+        &direction,
+        coeffs,
+        &device,
     );
 
     // 3. Setup Optimizer and Metric (CR)

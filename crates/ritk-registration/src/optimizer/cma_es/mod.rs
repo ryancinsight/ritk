@@ -55,8 +55,8 @@
 pub(crate) mod math;
 pub mod state;
 
+use math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
 pub use state::{CmaEsConfig, CmaEsResult, StopReason};
-use math::{cholesky, chol_mul, chol_solve_lower, identity, vec_norm};
 /// (μ/μ_w, λ)-CMA-ES optimizer.
 ///
 /// Derivative-free evolutionary strategy for non-convex continuous optimization.

@@ -64,7 +64,7 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
         let device = components[0].device();
 
         // Gather components directly without `Param` wrapping. We do NOT call `require_grad()` here,
-        // as the components may be generated intermediate tensors from an upstream network (e.g., SSMMorph). 
+        // as the components may be generated intermediate tensors from an upstream network (e.g., SSMMorph).
         // Leaf modules must configure their tracking requirements prior to initialization.
         let components = components;
 
@@ -354,4 +354,3 @@ pub type StaticDisplacementField2D<B> = StaticDisplacementField<B, 2>;
 pub type StaticDisplacementField3D<B> = StaticDisplacementField<B, 3>;
 pub type StaticDisplacementFieldTransform2D<B> = StaticDisplacementFieldTransform<B, 2>;
 pub type StaticDisplacementFieldTransform3D<B> = StaticDisplacementFieldTransform<B, 3>;
-
