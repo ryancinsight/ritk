@@ -36,6 +36,7 @@
 //! └── validation/   - Quality metrics (SSOT)
 //! ```
 
+pub mod bspline_ffd;
 pub mod classical;
 pub(crate) mod deformable_field_ops;
 pub mod demons;
@@ -66,6 +67,11 @@ pub use demons::{
     DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration, SymmetricDemonsRegistration,
     ThirionDemonsRegistration,
 };
+
+// ============================================================================
+// Re-exports — B-Spline FFD registration
+// ============================================================================
+pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult};
 
 // ============================================================================
 // Re-exports — SyN diffeomorphic registration

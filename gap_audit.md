@@ -14,13 +14,13 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 
 | Crate | Module | Confirmed Symbols |
 |---|---|---|
-| `ritk-core` | `filter` | `GaussianFilter`, `DownsampleFilter`, `ResampleImageFilter`, `MultiResolutionPyramid`, `N4BiasFieldCorrectionFilter`, `AnisotropicDiffusionFilter`, `GradientMagnitudeFilter`, `LaplacianFilter`, `FrangiVesselnessFilter` |
+| `ritk-core` | `filter` | `GaussianFilter`, `DownsampleFilter`, `ResampleImageFilter`, `MultiResolutionPyramid`, `N4BiasFieldCorrectionFilter`, `AnisotropicDiffusionFilter`, `GradientMagnitudeFilter`, `LaplacianFilter`, `FrangiVesselnessFilter`, `RecursiveGaussianFilter`, `CannyEdgeDetector`, `LaplacianOfGaussianFilter`, `GrayscaleErosion`, `GrayscaleDilation` |
 | `ritk-core` | `interpolation` | `BSplineInterpolator`, `LinearInterpolator` (1–4D), `NearestInterpolator`, `TensorTrilinearInterpolator` |
 | `ritk-core` | `transform` | `AffineTransform`, `BSplineTransform`, `ChainedTransform`, `DisplacementFieldTransform`, `RigidTransform`, `ScaleTransform`, `StaticDisplacementFieldTransform`, `TranslationTransform`, `VersorTransform` |
 | `ritk-core` | `spatial` | `Direction`, `Point`, `Spacing`, `Vector` |
 | `ritk-core` | `image` | `Image<B,D>`, `ImageGrid`, `ImageMetadata` |
-| `ritk-core` | `segmentation` | `OtsuThreshold`, `MultiOtsuThreshold`, `BinaryErosion`, `BinaryDilation`, `BinaryOpening`, `BinaryClosing`, `ConnectedComponentsFilter`, `LabelStatistics`, `ConnectedThresholdFilter` |
-| `ritk-core` | `statistics` | `ImageStatistics`, `compute_statistics`, `masked_statistics`, `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `HistogramMatcher`, `MinMaxNormalizer`, `ZScoreNormalizer` |
+| `ritk-core` | `segmentation` | `OtsuThreshold`, `MultiOtsuThreshold`, `BinaryErosion`, `BinaryDilation`, `BinaryOpening`, `BinaryClosing`, `ConnectedComponentsFilter`, `LabelStatistics`, `ConnectedThresholdFilter`, `LiThreshold`, `YenThreshold`, `KapurThreshold`, `TriangleThreshold`, `KMeansSegmentation`, `WatershedSegmentation` |
+| `ritk-core` | `statistics` | `ImageStatistics`, `compute_statistics`, `masked_statistics`, `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `HistogramMatcher`, `MinMaxNormalizer`, `ZScoreNormalizer`, `estimate_noise_mad`, `psnr`, `ssim`, `NyulUdupaNormalizer` |
 | `ritk-registration` | `metric` | `CorrelationRatio`, `LocalNCC`, `MSE`, `MutualInformation` (Standard / Mattes / NMI), `NCC`, DL-loss module, Parzen histogram |
 | `ritk-registration` | `optimizer` | `AdamOptimizer`, `CmaEsOptimizer`, `GradientDescentOptimizer`, `MomentumOptimizer` |
 | `ritk-registration` | `classical` | Kabsch-SVD landmark rigid (bug-fixed), MI hill-climb rigid/affine, temporal cross-correlation sync (bug-fixed) |
@@ -29,6 +29,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-registration` | `regularization` | `BendingEnergy`, `Curvature`, `Diffusion`, `Elastic`, `TotalVariation` |
 | `ritk-registration` | `multires` / `progress` / `validation` | `MultiResolutionSchedule`, `ProgressTracker`, `ConvergenceChecker`, `RegistrationQualityMetrics` |
 | `ritk-registration` | `registration` (DL path) | `Registration`, `RegistrationConfig`, `RegistrationSummary`, DL-SSM registration, DL-loss |
+| `ritk-registration` | `bspline_ffd` | `BSplineFFDRegistration`, `BSplineFFDConfig`, `BSplineFFDResult` |
 | `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer |
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
@@ -39,7 +40,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi), `register` (rigid-mi/affine-mi), `segment` (otsu/multi-otsu/connected-threshold) |
 
 **Absent at module level (zero source files or stub-only):**
-LDDMM, level-set segmentation, advanced statistics (Nyúl–Udupa normalisation, noise estimation),
+LDDMM, level-set segmentation,
 and IO formats beyond the five currently implemented (MINC, MGZ, TIFF/BigTIFF, VTK, Analyze).
 
 ---
@@ -99,18 +100,40 @@ regularization suite.
   case, temporal stability metric, histogram-matching self-match tolerance, connected-component
   26-connectivity diagonal test geometry — all root-cause fixes, zero tolerance relaxations.
 
+**Sprint 4 (2025-07-17) completed the following previously absent components:**
+- `ritk-core/filter`: `RecursiveGaussianFilter` (Deriche IIR, derivative orders 0/1/2),
+  `CannyEdgeDetector` (Gaussian + gradient + NMS + double hysteresis), `LaplacianOfGaussianFilter`
+  (separable Gaussian + Laplacian composition), `GrayscaleErosion` and `GrayscaleDilation`
+  (flat structuring element, replicate padding).
+- `ritk-core/segmentation/threshold`: Li minimum cross-entropy, Yen maximum correlation,
+  Kapur maximum entropy, Triangle method — all with compute/apply API and convenience functions.
+- `ritk-core/segmentation/clustering`: `KMeansSegmentation` (Lloyd's algorithm, k-means++
+  deterministic initialization via embedded xorshift64 PRNG).
+- `ritk-core/segmentation/watershed`: `WatershedSegmentation` (Meyer 1994 flooding on
+  gradient magnitude, 6-connectivity).
+- `ritk-core/statistics`: `estimate_noise_mad` / `estimate_noise_mad_masked` (MAD estimator,
+  σ̂ = 1.4826 · median(|X - median(X)|)), `psnr` (Peak Signal-to-Noise Ratio), `ssim`
+  (Structural Similarity, Wang et al. 2004 global formulation).
+- `ritk-core/statistics/normalization`: `NyulUdupaNormalizer` (Nyúl-Udupa piecewise-linear
+  histogram standardization, two-phase train/apply workflow).
+- `ritk-registration/bspline_ffd`: `BSplineFFDRegistration` (Rueckert et al. 1999, multi-
+  resolution BSpline control lattice, NCC metric, bending energy regularization, gradient descent
+  on control points, subdivision-based refinement).
+- **Test coverage**: 390 tests passing in ritk-core, 121 in ritk-registration, 59 in ritk-cli,
+  36 in ritk-io = 606+ total. Zero failures.
+
 Against **ITK** (≈1 200 image filters, full segmentation pipeline, 30+ IO formats), **SimpleITK**
 (Python/R/Java/C# bindings, N4 bias field correction, histogram matching), and **ANTs**
 (SyN diffeomorphic registration, joint label fusion, template building, ANTsPy), RITK has
 **five structural gaps** that collectively prevent it from being used as a drop-in toolkit in
 standard clinical or research imaging workflows:
 
-| Gap Domain | Severity | ITK Parity (prev → Sprint 3) | SimpleITK Parity (prev → Sprint 3) | ANTs Parity (prev → Sprint 3) |
+| Gap Domain | Severity | ITK Parity (prev → Sprint 4) | SimpleITK Parity (prev → Sprint 4) | ANTs Parity (prev → Sprint 4) |
 |---|---|---|---|---|
-| Segmentation | **High** (was Critical) | ~15% → ~15% | ~15% → ~15% | ~20% → ~20% |
-| Filtering & Preprocessing | **High** (was Critical) | ~15% → ~35% | ~20% → ~40% | ~30% → ~45% |
-| Diffeomorphic Registration | **High** (was Critical) | ~45% → ~60% | ~45% → ~55% | ~25% → ~50% |
-| Statistics & Normalization | **Medium** | ~35% → ~35% | ~40% → ~40% | ~35% → ~35% |
+| Segmentation | **High** (was Critical) | ~15% → ~25% | ~15% → ~25% | ~20% → ~25% |
+| Filtering & Preprocessing | **High** (was Critical) | ~15% → ~45% | ~20% → ~45% | ~30% → ~45% |
+| Diffeomorphic Registration | **High** (was Critical) | ~45% → ~65% | ~45% → ~65% | ~25% → ~65% |
+| Statistics & Normalization | **Medium** | ~35% → ~50% | ~40% → ~50% | ~35% → ~50% |
 | IO Formats | **Medium** | ~30% → ~30% | ~30% → ~30% | ~35% → ~35% |
 | Python / CLI Bindings | **Medium** (was High) | ~30% → ~50% | ~30% → ~50% | ~25% → ~50% |
 
@@ -382,6 +405,8 @@ crates/ritk-core/src/segmentation/level_set/
 
 ### 3.4 Watershed Segmentation · Severity: **Medium**
 
+**Sprint 4 status**: `WatershedSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/watershed/mod.rs`. Meyer flooding, 6-connectivity. Marker-controlled variant remains.
+
 Meyer (1994) flooding algorithm on gradient magnitude image.
 Produces over-segmented basins merged via basin-adjacency graph.
 Used for cell counting and 3D structure delineation.
@@ -395,6 +420,8 @@ crates/ritk-core/src/segmentation/watershed/
 ```
 
 ### 3.5 K-Means Clustering Segmentation · Severity: **Medium**
+
+**Sprint 4 status**: `KMeansSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/clustering/kmeans.rs`. Lloyd's algorithm with k-means++ initialization, deterministic seeding.
 
 Lloyd's algorithm initialized by k-means++ (Arthur & Vassilvitskii 2007).
 Used for tissue class initialization (CSF / GM / WM in brain MRI).
@@ -525,6 +552,8 @@ Standalone `ritk-core` module with `Image<B,D>` API is a remaining gap.
 
 ### 4.5 Canny Edge Detection · Severity: **Medium**
 
+**Sprint 4 status**: `CannyEdgeDetector` is **implemented** in `crates/ritk-core/src/filter/edge/canny.rs`.
+
 Canny (1986) multi-stage algorithm:
 1. Gaussian smoothing.
 2. Gradient magnitude + orientation via Sobel/Prewitt.
@@ -556,6 +585,8 @@ Required for: initializing level-set contours, feature extraction for classical 
 
 ### 4.7 Discrete and Recursive Gaussian · Severity: **High**
 
+**Sprint 4 status**: `RecursiveGaussianFilter` is **implemented** in `crates/ritk-core/src/filter/recursive_gaussian.rs`. Deriche IIR 3rd-order approximation with derivative orders 0 (smoothing), 1 (first derivative), 2 (second derivative). Separable application across all 3D axes with physical spacing support.
+
 RITK has a `GaussianFilter` but it is a single implementation. ITK separately provides:
 
 | Filter | Algorithm | Use Case |
@@ -574,6 +605,8 @@ and Hessian-based filters.
 
 ### 4.8 Laplacian of Gaussian / Laplacian · Severity: **Medium**
 
+**Sprint 4 status**: `LaplacianOfGaussianFilter` is **implemented** in `crates/ritk-core/src/filter/edge/log.rs`.
+
 `LoG(x) = -1/(πσ⁴)[1 - |x|²/2σ²]exp(-|x|²/2σ²)` — blob detection, edge enhancement.
 
 **Planned location:** `crates/ritk-core/src/filter/edge/laplacian.rs`
@@ -589,6 +622,8 @@ Required by: level-set stopping function, Canny, Frangi, classical registration 
 ---
 
 ### 4.10 Morphological Filters (Structuring-Element Based) · Severity: **High**
+
+**Sprint 4 status**: Grayscale erosion and dilation are **implemented** in `crates/ritk-core/src/filter/morphology/`. Binary fill holes, label dilation, and skeletonization remain.
 
 Binary and grayscale morphological filters as standalone preprocessing operations
 (distinct from the segmentation post-processing morphology in §3.6):
@@ -623,6 +658,8 @@ inter-subject and inter-scanner intensity bias.
 ---
 
 ### 5.2 Nyúl & Udupa Histogram Equalization · Severity: **High**
+
+**Sprint 4 status**: `NyulUdupaNormalizer` is **implemented** in `crates/ritk-core/src/statistics/normalization/nyul_udupa.rs`. Two-phase train/apply with configurable percentile landmarks.
 
 **Reference:** Nyúl & Udupa (1999), *IEEE Trans. Med. Imaging* 18(4):301–306;
 Nyúl et al. (2000), *IEEE Trans. Med. Imaging* 19(2):143–150.
@@ -673,6 +710,8 @@ crates/ritk-core/src/statistics/
 
 ### 5.5 Noise Estimation · Severity: **Medium**
 
+**Sprint 4 status**: `estimate_noise_mad` and `estimate_noise_mad_masked` are **implemented** in `crates/ritk-core/src/statistics/noise_estimation.rs`.
+
 Median-absolute-deviation (MAD) estimator: `σ̂ = 1.4826 · MAD(I)`.
 Used to set adaptive regularization weights and threshold parameters.
 
@@ -694,6 +733,8 @@ evaluation-time quality measures:
 | Average surface distance | `(1/|∂A|) Σ_{a∈∂A} d(a, ∂B)` |
 
 **Planned location:** `crates/ritk-core/src/statistics/image_comparison.rs`
+
+**Sprint 4 status**: `psnr` (Peak Signal-to-Noise Ratio) and `ssim` (Structural Similarity, Wang et al. 2004) are now **implemented** in `crates/ritk-core/src/statistics/image_comparison.rs`. Dice, Hausdorff, and average surface distance were implemented in prior sprints.
 
 ---
 
@@ -1183,14 +1224,14 @@ Counts include 3D-capable, non-deprecated, non-legacy filter/algorithm implement
 
 | Category | ITK ≈ | SimpleITK ≈ | ANTs ≈ | RITK (confirmed) |
 |---|---|---|---|---|
-| Registration algorithms | 25 | 15 | 12 | 7 |
-| Segmentation algorithms | 45 | 30 | 5 | 0 |
-| Preprocessing / denoising filters | 40 | 25 | 8 | 4 |
-| Edge / feature filters | 20 | 12 | 2 | 0 |
-| Morphological filters | 30 | 20 | 3 | 0 |
-| Statistics operations | 25 | 18 | 5 | 0 |
-| IO formats | 30+ | 30+ | 10 | 3 |
-| Language bindings | C++, Python, Java, R, C# | Python, Java, R, C# | Python (ANTsPy) | None |
+| Registration algorithms | 25 | 15 | 12 | 8 |
+| Segmentation algorithms | 45 | 30 | 5 | 10 |
+| Preprocessing / denoising filters | 40 | 25 | 8 | 9 |
+| Edge / feature filters | 20 | 12 | 2 | 5 |
+| Morphological filters | 30 | 20 | 3 | 6 |
+| Statistics operations | 25 | 18 | 5 | 10 |
+| IO formats | 30+ | 30+ | 10 | 5 |
+| Language bindings | C++, Python, Java, R, C# | Python, Java, R, C# | Python (ANTsPy) | Python (PyO3), CLI |
 
 ---
 

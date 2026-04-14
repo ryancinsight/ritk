@@ -1,9 +1,11 @@
-//! Image comparison metrics for segmentation evaluation.
+//! Image comparison metrics for segmentation and image quality evaluation.
 //!
-//! Provides three spatial overlap and surface distance metrics:
+//! Provides spatial overlap, surface distance, and image quality metrics:
 //! - [`dice_coefficient`]: volumetric overlap between two binary masks.
 //! - [`hausdorff_distance`]: maximum surface-to-surface distance.
 //! - [`mean_surface_distance`]: symmetric mean surface-to-surface distance.
+//! - [`psnr`]: Peak Signal-to-Noise Ratio between two images.
+//! - [`ssim`]: Structural Similarity Index (global, Wang et al. 2004).
 //!
 //! # Mathematical Specification
 //!
@@ -33,6 +35,27 @@
 //!   MSD(P, G) = ( MSD(∂P → ∂G) + MSD(∂G → ∂P) ) / 2
 //!
 //! Returns 0.0 when both boundary sets are empty.
+//!
+//! ## Peak Signal-to-Noise Ratio (PSNR)
+//! Given images I and R with N voxels and a peak signal value MAX:
+//!
+//!   MSE = (1/N) · Σ (Iᵢ − Rᵢ)²
+//!   PSNR = 10 · log₁₀(MAX² / MSE)
+//!
+//! Returns +∞ when MSE = 0 (identical images).
+//!
+//! ## Structural Similarity Index (SSIM)
+//! Global SSIM (Wang et al., IEEE Trans. Image Process. 13(4), 2004):
+//!
+//!   SSIM(x, y) = (2·μₓ·μᵧ + C₁)(2·σₓᵧ + C₂) / ((μₓ² + μᵧ² + C₁)(σₓ² + σᵧ² + C₂))
+//!
+//! where:
+//!   μₓ = (1/N)·Σ xᵢ,  μᵧ = (1/N)·Σ yᵢ
+//!   σₓ² = (1/N)·Σ (xᵢ − μₓ)²,  σᵧ² = (1/N)·Σ (yᵢ − μᵧ)²
+//!   σₓᵧ = (1/N)·Σ (xᵢ − μₓ)(yᵢ − μᵧ)
+//!   C₁ = (0.01·MAX)²,  C₂ = (0.03·MAX)²
+//!
+//! This implementation computes a single global SSIM over all voxels.
 
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -293,6 +316,125 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
     let msd_g_to_p = directed_msd(&boundary_g, &boundary_p);
 
     ((msd_p_to_g + msd_g_to_p) / 2.0) as f32
+}
+
+// ── Peak Signal-to-Noise Ratio ────────────────────────────────────────────────
+
+/// Compute the Peak Signal-to-Noise Ratio (PSNR) between two images.
+///
+/// # Arguments
+/// * `image`     – Test image.
+/// * `reference` – Reference (ground-truth) image with the same shape.
+/// * `max_val`   – Maximum possible signal value (e.g. 255.0 for 8-bit images).
+///
+/// # Returns
+/// PSNR in decibels (dB). Returns [`f32::INFINITY`] when the images are
+/// identical (MSE = 0).
+///
+/// # Formula
+/// ```text
+/// MSE  = (1/N) · Σ (Iᵢ − Rᵢ)²
+/// PSNR = 10 · log₁₀(MAX² / MSE)
+/// ```
+pub fn psnr<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    reference: &Image<B, D>,
+    max_val: f32,
+) -> f32 {
+    let diff = image.data().clone() - reference.data().clone();
+    let sq_diff = diff.clone() * diff;
+    let sum_sq_data = sq_diff.sum().into_data();
+    let sum_sq: f32 = sum_sq_data
+        .as_slice::<f32>()
+        .expect("f32 sum of squared differences")[0];
+
+    let n: f32 = image.shape().iter().product::<usize>() as f32;
+    let mse = sum_sq / n;
+
+    if mse < f32::EPSILON {
+        return f32::INFINITY;
+    }
+
+    10.0 * (max_val * max_val / mse).log10()
+}
+
+// ── Structural Similarity Index ───────────────────────────────────────────────
+
+/// Compute the global Structural Similarity Index (SSIM) between two images.
+///
+/// Uses the original Wang et al. (2004) formulation computed over all voxels
+/// as a single window rather than per-patch averaging.
+///
+/// # Arguments
+/// * `image`     – Test image.
+/// * `reference` – Reference (ground-truth) image with the same shape.
+/// * `max_val`   – Dynamic range of the pixel values (e.g. 255.0 for 8-bit).
+///
+/// # Returns
+/// SSIM ∈ \[−1, 1\]. Returns 1.0 for identical images.
+///
+/// # Formula
+/// ```text
+/// SSIM = (2·μₓ·μᵧ + C₁)(2·σₓᵧ + C₂) / ((μₓ² + μᵧ² + C₁)(σₓ² + σᵧ² + C₂))
+/// C₁ = (0.01·MAX)²,  C₂ = (0.03·MAX)²
+/// ```
+///
+/// # Reference
+/// Wang, Z., Bovik, A. C., Sheikh, H. R., & Simoncelli, E. P. (2004).
+/// Image quality assessment: from error visibility to structural similarity.
+/// *IEEE Trans. Image Process.*, 13(4), 600–612.
+pub fn ssim<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    reference: &Image<B, D>,
+    max_val: f32,
+) -> f32 {
+    let img_data = image.data().clone().into_data();
+    let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+
+    let ref_data = reference.data().clone().into_data();
+    let ref_slice = ref_data.as_slice::<f32>().expect("f32 reference tensor data");
+
+    let n = img_slice.len() as f64;
+
+    // ── Means ─────────────────────────────────────────────────────────────
+    let mu_x: f64 = img_slice.iter().map(|&v| v as f64).sum::<f64>() / n;
+    let mu_y: f64 = ref_slice.iter().map(|&v| v as f64).sum::<f64>() / n;
+
+    // ── Variances and covariance (population) ─────────────────────────────
+    let sigma_x_sq: f64 = img_slice
+        .iter()
+        .map(|&v| {
+            let d = v as f64 - mu_x;
+            d * d
+        })
+        .sum::<f64>()
+        / n;
+
+    let sigma_y_sq: f64 = ref_slice
+        .iter()
+        .map(|&v| {
+            let d = v as f64 - mu_y;
+            d * d
+        })
+        .sum::<f64>()
+        / n;
+
+    let sigma_xy: f64 = img_slice
+        .iter()
+        .zip(ref_slice.iter())
+        .map(|(&x, &y)| (x as f64 - mu_x) * (y as f64 - mu_y))
+        .sum::<f64>()
+        / n;
+
+    // ── Stability constants ───────────────────────────────────────────────
+    let c1 = (0.01 * max_val as f64).powi(2);
+    let c2 = (0.03 * max_val as f64).powi(2);
+
+    // ── SSIM ──────────────────────────────────────────────────────────────
+    let numerator = (2.0 * mu_x * mu_y + c1) * (2.0 * sigma_xy + c2);
+    let denominator = (mu_x * mu_x + mu_y * mu_y + c1) * (sigma_x_sq + sigma_y_sq + c2);
+
+    (numerator / denominator) as f32
 }
 
 #[cfg(test)]
@@ -646,5 +788,119 @@ mod tests {
         let from: Vec<Vec<f64>> = vec![];
         let to = vec![vec![1.0f64, 0.0], vec![2.0, 0.0]];
         assert_eq!(directed_hausdorff(&from, &to), 0.0);
+    }
+
+    // ── PSNR tests ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_psnr_identical_images_is_infinity() {
+        let img = make_mask_1d(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let result = psnr(&img, &img, 255.0);
+        assert!(
+            result.is_infinite() && result > 0.0,
+            "identical images → PSNR = +∞, got {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_psnr_known_value() {
+        // image = [0, 0], reference = [0.1, 0.1], max_val = 1.0.
+        // MSE = (0.01 + 0.01) / 2 = 0.01.
+        // PSNR = 10 · log₁₀(1.0 / 0.01) = 10 · log₁₀(100) = 20.0 dB.
+        let img = make_mask_1d(vec![0.0, 0.0]);
+        let reference = make_mask_1d(vec![0.1, 0.1]);
+        let result = psnr(&img, &reference, 1.0);
+        assert!(
+            (result - 20.0).abs() < 1e-3,
+            "expected PSNR ≈ 20.0 dB, got {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_psnr_symmetry() {
+        let a = make_mask_1d(vec![0.0, 1.0, 2.0, 3.0]);
+        let b = make_mask_1d(vec![0.5, 1.5, 2.5, 3.5]);
+        let psnr_ab = psnr(&a, &b, 10.0);
+        let psnr_ba = psnr(&b, &a, 10.0);
+        assert!(
+            (psnr_ab - psnr_ba).abs() < 1e-5,
+            "PSNR must be symmetric: {} vs {}",
+            psnr_ab,
+            psnr_ba
+        );
+    }
+
+    #[test]
+    fn test_psnr_larger_error_lower_value() {
+        // Larger MSE → lower PSNR.
+        let img = make_mask_1d(vec![0.0; 4]);
+        let small_err = make_mask_1d(vec![0.1; 4]);
+        let large_err = make_mask_1d(vec![1.0; 4]);
+        let psnr_small = psnr(&img, &small_err, 1.0);
+        let psnr_large = psnr(&img, &large_err, 1.0);
+        assert!(
+            psnr_small > psnr_large,
+            "smaller error → higher PSNR: {} should be > {}",
+            psnr_small,
+            psnr_large
+        );
+    }
+
+    // ── SSIM tests ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_ssim_identical_images_is_one() {
+        let img = make_mask_1d(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
+        let result = ssim(&img, &img, 5.0);
+        assert!(
+            (result - 1.0).abs() < 1e-5,
+            "identical images → SSIM = 1.0, got {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_ssim_negated_image_is_low() {
+        // Zero-mean image and its negation.
+        // image = [-1, -0.5, 0, 0.5, 1], negated = [1, 0.5, 0, -0.5, -1].
+        // μ_x = μ_y = 0, σ_x² = σ_y² = 0.5, σ_xy = −0.5.
+        // C₁ = (0.01)² = 1e-4, C₂ = (0.03)² = 9e-4.
+        // SSIM = (0 + C₁)(−1.0 + C₂) / ((0 + C₁)(1.0 + C₂)) ≈ −0.998.
+        let img = make_mask_1d(vec![-1.0, -0.5, 0.0, 0.5, 1.0]);
+        let neg = make_mask_1d(vec![1.0, 0.5, 0.0, -0.5, -1.0]);
+        let result = ssim(&img, &neg, 1.0);
+        assert!(
+            result < 0.0,
+            "negated image → SSIM < 0, got {}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_ssim_symmetry() {
+        let a = make_mask_1d(vec![1.0, 3.0, 5.0, 7.0]);
+        let b = make_mask_1d(vec![2.0, 4.0, 6.0, 8.0]);
+        let ssim_ab = ssim(&a, &b, 10.0);
+        let ssim_ba = ssim(&b, &a, 10.0);
+        assert!(
+            (ssim_ab - ssim_ba).abs() < 1e-5,
+            "SSIM must be symmetric: {} vs {}",
+            ssim_ab,
+            ssim_ba
+        );
+    }
+
+    #[test]
+    fn test_ssim_constant_identical_is_one() {
+        // Two identical constant images: SSIM = 1.0 (C₁ and C₂ cancel).
+        let img = make_mask_1d(vec![42.0; 10]);
+        let result = ssim(&img, &img, 255.0);
+        assert!(
+            (result - 1.0).abs() < 1e-5,
+            "identical constant images → SSIM = 1.0, got {}",
+            result
+        );
     }
 }
