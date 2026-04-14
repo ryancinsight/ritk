@@ -1,168 +1,212 @@
-# RITK - Rust Image Toolkit
+# RITK — Rust Image Toolkit
 
-A high-performance medical image registration toolkit built with Rust, leveraging ITK concepts and modern GPU acceleration through Burn.
+A high-performance medical image processing and registration toolkit built in Rust, inspired by ITK concepts with GPU acceleration through Burn.
 
 ## Overview
 
-RITK provides a comprehensive framework for medical image registration with:
-- **GPU Acceleration**: Built on Burn framework for efficient GPU computation
-- **Modern Architecture**: Deep vertical hierarchical structure with clear separation of concerns
-- **Medical Image Support**: DICOM and NIfTI file formats via dicom-rs and nifti-rs
-- **Flexible Transforms**: Translation, Rigid, Affine, and B-Spline transforms
-- **Multiple Metrics**: Mean Squared Error, Mutual Information, Normalized Cross-Correlation
-- **Autodiff Ready**: Built-in support for automatic differentiation and AI model training
+RITK provides a comprehensive framework for medical image analysis:
 
-## Architecture
+- **GPU Acceleration**: Built on the Burn framework for efficient GPU/CPU tensor computation with automatic differentiation
+- **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across six workspace crates
+- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF
+- **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM
+- **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
+- **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
+- **Python Bindings**: PyO3 + maturin with NumPy bridge
+- **CLI**: `ritk` binary with `convert`, `filter`, `register`, and `segment` subcommands
 
-### Design Principles
-
-1. **Single Source of Truth (SSOT)**: Each type and operation has a single, authoritative definition
-2. **Single Responsibility Principle (SRP)**: Each module has a clear, focused purpose
-3. **Separation of Concerns (SOC)**: Spatial types, transforms, interpolation, and I/O are cleanly separated
-4. **Domain-Level Naming**: No namespace bleeding - types are named by their domain (e.g., `Point`, `Vector`, `Spacing`)
-5. **No Excess Wrappers**: Direct use of underlying libraries (nalgebra, burn) without unnecessary abstraction layers
-
-### Crate Structure
+## Crate Structure
 
 ```
 ritk/
-├── Cargo.toml                 # Workspace configuration
+├── Cargo.toml                    # Workspace root
 ├── crates/
-│   ├── ritk-core/            # Core types and operations
-│   │   ├── src/
-│   │   │   ├── spatial/      # Spatial types (Point, Vector, Spacing, Direction)
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── point.rs
-│   │   │   │   ├── vector.rs
-│   │   │   │   ├── spacing.rs
-│   │   │   │   └── direction.rs
-│   │   │   ├── image/        # Image types and metadata
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── image.rs
-│   │   │   │   └── metadata.rs
-│   │   │   ├── transform/    # Transform types
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── trait_.rs
-│   │   │   │   ├── translation.rs
-│   │   │   │   ├── rigid.rs
-│   │   │   │   ├── affine.rs
-│   │   │   │   └── bspline.rs
-│   │   │   ├── interpolation/ # Interpolation methods
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── trait_.rs
-│   │   │   │   ├── linear.rs
-│   │   │   │   └── nearest.rs
-│   │   │   └── lib.rs
-│   │   └── Cargo.toml
-│   ├── ritk-io/              # I/O operations
-│   │   ├── src/
-│   │   │   ├── nifti/       # NIfTI file I/O
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── reader.rs
-│   │   │   │   └── writer.rs
-│   │   │   ├── dicom/       # DICOM file I/O
-│   │   │   │   ├── mod.rs
-│   │   │   │   ├── reader.rs
-│   │   │   │   └── writer.rs
-│   │   │   └── lib.rs
-│   │   └── Cargo.toml
-│   └── ritk-registration/     # Registration framework
-│       ├── src/
-│       │   ├── metric/       # Similarity metrics
-│       │   │   ├── mod.rs
-│       │   │   ├── trait_.rs
-│       │   │   ├── mse.rs
-│       │   │   ├── mutual_information.rs
-│       │   │   └── ncc.rs
-│       │   ├── optimizer/     # Optimizers
-│       │   │   ├── mod.rs
-│       │   │   ├── trait_.rs
-│       │   │   └── gradient_descent.rs
-│       │   ├── registration.rs
-│       │   └── lib.rs
-│       └── Cargo.toml
+│   ├── ritk-core/                # Core types, filters, segmentation, statistics
+│   │   └── src/
+│   │       ├── spatial/          # Point, Vector, Spacing, Direction (nalgebra)
+│   │       ├── image/            # Image<B,D> with physical metadata
+│   │       ├── transform/        # Transform trait + implementations
+│   │       ├── interpolation/    # Interpolator trait + implementations
+│   │       ├── filter/           # Image filters
+│   │       ├── segmentation/     # Segmentation algorithms
+│   │       └── statistics/       # Image statistics & normalization
+│   ├── ritk-io/                  # Format readers/writers
+│   │   └── src/format/
+│   │       ├── dicom/
+│   │       ├── nifti/
+│   │       ├── metaimage/        # .mha/.mhd
+│   │       ├── nrrd/
+│   │       ├── png/
+│   │       └── tiff/             # TIFF/BigTIFF
+│   ├── ritk-registration/        # Registration framework
+│   │   └── src/
+│   │       ├── metric/           # Similarity metrics
+│   │       ├── optimizer/        # Optimization algorithms
+│   │       ├── regularization/   # Deformation regularizers
+│   │       ├── classical/        # Kabsch SVD, MI-based rigid/affine
+│   │       ├── demons/           # Thirion, Diffeomorphic, Symmetric
+│   │       ├── diffeomorphic/    # Greedy SyN, Multi-Resolution SyN, BSpline SyN
+│   │       ├── bspline_ffd/      # BSpline free-form deformation
+│   │       ├── lddmm/           # Large Deformation Diffeomorphic Metric Mapping
+│   │       ├── registration/     # DL registration losses, SSM registration
+│   │       ├── validation/       # Registration quality assessment
+│   │       └── progress/         # Progress reporting
+│   ├── ritk-model/               # Deep-learning registration models
+│   │   └── src/
+│   │       ├── transmorph/       # TransMorph architecture
+│   │       ├── ssmmorph/         # SSMMorph architecture
+│   │       ├── affine/           # Learned affine alignment
+│   │       └── io/               # Model I/O
+│   ├── ritk-python/              # Python bindings (PyO3 + maturin)
+│   │   └── src/
+│   │       ├── filter.rs         # 14 filter functions
+│   │       ├── segmentation.rs   # 16 segmentation functions
+│   │       ├── registration.rs   # 8 registration functions
+│   │       ├── image.rs          # Image wrapper
+│   │       └── io.rs             # Format I/O
+│   └── ritk-cli/                 # CLI binary
+│       └── src/commands/
+│           ├── convert.rs
+│           ├── filter.rs
+│           ├── register.rs
+│           └── segment.rs
 ```
 
-## Core Types
+## Features
 
-### Spatial Types (`ritk-core::spatial`)
+### Core Types (`ritk-core`)
 
-- **`Point<D>`**: Physical coordinates (based on nalgebra)
-- **`Vector<D>`**: Spatial displacements and directions
-- **`Spacing<D>`**: Physical distance between pixels/voxels
-- **`Direction<D>`**: Image orientation matrix
+**Spatial types** — `Point<D>`, `Vector<D>`, `Spacing<D>`, `Direction<D>` backed by nalgebra.
 
-### Image Type (`ritk-core::image`)
+**Image** — `Image<B, D>` carrying tensor data plus physical metadata (origin, spacing, direction) with index↔physical coordinate transforms.
 
-- **`Image<B, D>`**: Medical image with physical metadata
-  - Tensor data on GPU/CPU
-  - Origin, spacing, direction metadata
-  - Coordinate transformations (index ↔ physical space)
+**Transforms**
 
-### Transforms (`ritk-core::transform`)
+| Transform | Description |
+|---|---|
+| Translation | Pure translation |
+| Rigid | Rotation + translation |
+| Affine | Full affine (12 DOF in 3-D) |
+| Scale | Axis-aligned scaling |
+| Versor | Unit-quaternion rotation (3-D) |
+| BSpline | Free-form deformation on a control-point lattice |
+| DisplacementField | Dense voxel-wise displacement |
+| ChainedTransform | Sequential composition of transforms |
+| CompositeTransform | Named composite with JSON serialization |
 
-- **`Transform<B, D>`**: Core transform trait
-- **`TranslationTransform<B, D>`**: Simple translation
-- **`RigidTransform<B, D>`**: Rotation + translation
-- **`AffineTransform<B, D>`**: General affine transformation
-- **`BSplineTransform<B, D>`**: Free-form deformation
+**Interpolation**
 
-### Interpolation (`ritk-core::interpolation`)
+| Method | Notes |
+|---|---|
+| Linear | Supports 1-D through 4-D |
+| Nearest Neighbor | Supports 1-D through 4-D |
+| BSpline | Cubic B-spline kernel |
+| Tensor Trilinear | Optimized separable 3-D path |
 
-- **`Interpolator<B>`**: Core interpolator trait
-- **`LinearInterpolator`**: Bilinear/trilinear interpolation
-- **`NearestNeighborInterpolator`**: Nearest neighbor interpolation
+**Filters**
 
-## Registration Framework (`ritk-registration`)
+| Category | Algorithms |
+|---|---|
+| Smoothing | Gaussian, Recursive Gaussian (Deriche), Median, Bilateral |
+| Diffusion | Anisotropic Diffusion (Perona–Malik) |
+| Edge Detection | Gradient Magnitude, Laplacian, Sobel, Canny, Laplacian of Gaussian |
+| Vesselness | Frangi (Hessian-based) |
+| Morphology | Grayscale Erosion, Grayscale Dilation |
+| Bias Correction | N4 Bias Field Correction (B-spline fitting) |
+| Resampling | Downsample, Resample, Multi-Resolution Pyramid |
 
-### Metrics
+**Segmentation**
 
-- **`Metric<B, D>`**: Core metric trait
-- **`MeanSquaredError`**: MSE similarity metric
-- **`MutualInformation`**: MI similarity metric
-- **`NormalizedCrossCorrelation`**: NCC similarity metric
-- **`LocalNormalizedCrossCorrelation`**: LNCC similarity metric
-- **`NormalizedMutualInformation`**: NMI similarity metric
-- **`CorrelationRatio`**: Correlation ratio metric
+| Category | Algorithms |
+|---|---|
+| Thresholding | Otsu, Multi-Otsu, Li, Yen, Kapur, Triangle |
+| Binary Morphology | Erosion, Dilation, Opening, Closing |
+| Labeling | Connected Components (Hoshen–Kopelman) |
+| Region Growing | Seeded region growing |
+| Clustering | K-Means |
+| Watershed | Marker-controlled watershed |
+| Level Sets | Chan–Vese, Geodesic Active Contour |
 
-### Optimizers
+**Statistics & Normalization**
 
-- **`Optimizer<M, B>`**: Core optimizer trait
-- **`GradientDescent`**: Simple gradient descent
-- **`AdamOptimizer`**: Adam optimizer
-- **`Momentum`**: Gradient descent with momentum
-- **`LbfgsOptimizer`**: L-BFGS optimizer
+| Category | Functions |
+|---|---|
+| Descriptive | Min, Max, Mean, Variance, Percentile (masked support) |
+| Comparison | Dice, Hausdorff Distance, Mean Surface Distance, PSNR, SSIM |
+| Normalization | Min-Max, Z-Score, Histogram Matching, Nyúl–Udupa Histogram Standardization |
+| Noise | MAD-based noise estimation |
 
-### Registration
+### I/O (`ritk-io`)
 
-- **`Registration<B, O, M, T, D>`**: Main registration framework
-  - Combines metric, optimizer, and transform
-  - Iterative optimization loop
-  - Automatic differentiation support
+| Format | Read | Write |
+|---|---|---|
+| DICOM (series) | ✓ | ✓ |
+| NIfTI (.nii/.nii.gz) | ✓ | ✓ |
+| MetaImage (.mha/.mhd) | ✓ | ✓ |
+| NRRD | ✓ | ✓ |
+| PNG | ✓ | ✓ |
+| TIFF / BigTIFF | ✓ | ✓ |
 
-## I/O Operations (`ritk-io`)
+### Registration (`ritk-registration`)
 
-### NIfTI Support
+**Metrics** — MSE, Mutual Information (Standard / Mattes / NMI), NCC, LNCC, Correlation Ratio, DL losses.
 
-- **`read_nifti<B, P>`**: Read NIfTI files
-- **`write_nifti<B, P>`**: Write NIfTI files
+**Optimizers** — Gradient Descent, Adam, Momentum, CMA-ES.
 
-### DICOM Support
+**Regularization** — Bending Energy, Curvature, Diffusion, Elastic, Total Variation.
 
-- **`read_dicom_series<B, P>`**: Read DICOM series
+**Registration Algorithms**
+
+| Algorithm | Category |
+|---|---|
+| Kabsch SVD | Classical rigid alignment |
+| MI-based rigid/affine | Classical iterative |
+| Thirion Demons | Deformable |
+| Diffeomorphic Demons | Deformable |
+| Symmetric Demons | Deformable |
+| Greedy SyN | Diffeomorphic |
+| Multi-Resolution SyN | Diffeomorphic |
+| BSpline SyN | Diffeomorphic |
+| BSpline FFD | Deformable |
+| LDDMM | Diffeomorphic |
+
+### Deep-Learning Models (`ritk-model`)
+
+| Model | Description |
+|---|---|
+| TransMorph | Transformer-based deformable registration |
+| SSMMorph | Statistical shape model registration |
+
+### Python Bindings (`ritk-python`)
+
+PyO3 + maturin package exposing:
+
+- **14 filter functions** (Gaussian, median, bilateral, Canny, Frangi, N4, etc.)
+- **16 segmentation functions** (Otsu family, morphology, connected components, watershed, level sets, etc.)
+- **8 registration functions** (Thirion/Diffeomorphic/Symmetric Demons, SyN, Multi-Res SyN, BSpline SyN, BSpline FFD, LDDMM)
+- NumPy ↔ `Image` zero-copy bridge
+- Format I/O for all supported formats
+
+### CLI (`ritk-cli`)
+
+```
+ritk convert  <input> <output>          # Format conversion
+ritk filter   <input> <output> [opts]   # Apply filters
+ritk register <fixed> <moving> [opts]   # Run registration
+ritk segment  <input> <output> [opts]   # Run segmentation
+```
 
 ## Usage Example
 
 ```rust
-use burn::tensor::Tensor;
 use burn::backend::Autodiff;
+use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::GradientDescent;
 use ritk_registration::registration::Registration;
 use ritk_io::read_nifti;
-use burn_ndarray::NdArray;
 
 type Backend = Autodiff<NdArray<f32>>;
 
@@ -171,86 +215,85 @@ let device = Default::default();
 let fixed: Image<Backend, 3> = read_nifti("fixed.nii", &device)?;
 let moving: Image<Backend, 3> = read_nifti("moving.nii", &device)?;
 
-// Create transform with center at origin
+// Set up registration components
 let transform = RigidTransform::<Backend, 3>::identity(None, &device);
-
-// Create metric and optimizer
 let metric = MeanSquaredError::new();
 let optimizer = GradientDescent::new(0.01);
 
 // Run registration
 let mut registration = Registration::new(optimizer, metric);
-let result = registration.execute(
-    &fixed,
-    &moving,
-    transform,
-    100,  // iterations
-    0.01, // learning rate
-);
+let result = registration.execute(&fixed, &moving, transform, 100, 0.01);
 ```
 
 ## Dependencies
 
-- **burn**: GPU/CPU tensor operations with autodiff
-- **nalgebra**: Linear algebra operations
-- **dicom**: DICOM file format support
-- **nifti**: NIfTI file format support
-- **thiserror**: Error handling
-- **anyhow**: Error propagation
-- **tracing**: Logging and instrumentation
+| Crate | Role |
+|---|---|
+| `burn` | GPU/CPU tensor ops with autodiff |
+| `nalgebra` | Linear algebra, spatial types |
+| `dicom` | DICOM format support |
+| `nifti` | NIfTI format support |
+| `rayon` | CPU parallelism |
+| `pyo3` / `numpy` | Python bindings |
+| `serde` | Serialization (transform I/O) |
+| `anyhow` / `thiserror` | Error handling |
+| `tracing` | Structured logging |
 
 ## Building
 
 ```bash
-# Build all crates
+# Build all crates (release)
 cargo build --release
 
-# Run tests
+# Run all tests
 cargo test --all
 
-# Run with GPU support (requires wgpu feature)
-cargo build --features wgpu
+# Build Python wheel
+cd crates/ritk-python && maturin develop --release
+
+# Install CLI
+cargo install --path crates/ritk-cli
 ```
 
 ## Testing
 
 ```bash
-# Run all tests
+# Full test suite
 cargo test --all
 
-# Run tests for specific crate
+# Per-crate
 cargo test -p ritk-core
 cargo test -p ritk-io
 cargo test -p ritk-registration
+cargo test -p ritk-model
 ```
 
 ## Future Work
 
-- [ ] Complete B-Spline transform implementation
-- [ ] Implement Mutual Information metric
-- [ ] Implement Normalized Cross-Correlation metric
-- [ ] Add multi-resolution registration
-- [ ] Implement more optimizers (Adam, L-BFGS)
-- [ ] Add resampling utilities
-- [ ] Implement DICOM writing
-- [ ] Add more interpolation methods (cubic, sinc)
-- [ ] Create example applications
-- [ ] Add Python bindings via PyO3
+- [ ] Sinc interpolation
+- [ ] Atlas-based segmentation
+- [ ] Groupwise registration
+- [ ] Longitudinal analysis pipeline
+- [ ] WGSL/compute-shader kernels for critical filters
+- [ ] ONNX model import for DL registration
+- [ ] Expand Python bindings to cover statistics and model inference
+- [ ] Publish to crates.io and PyPI
 
 ## License
 
-[Specify your license here]
+See workspace `Cargo.toml` or individual crate manifests for license terms.
 
 ## Contributing
 
-Contributions are welcome! Please ensure:
-- Code follows the existing architecture
-- Tests are included for new features
-- Documentation is updated
-- No namespace bleeding or excess wrappers
+Contributions are welcome. Requirements:
+
+- Follow the existing deep-hierarchy architecture (DIP, SSOT, SoC, SRP)
+- Include tests with analytically derived expected values
+- Update documentation alongside implementation changes
+- No namespace bleeding or unnecessary wrapper types
 
 ## Acknowledgments
 
-- Inspired by ITK (Insight Segmentation and Registration Toolkit)
-- Built with Burn framework for GPU acceleration
-- Uses nalgebra for efficient linear algebra
+- Inspired by [ITK](https://itk.org/) (Insight Segmentation and Registration Toolkit)
+- Built on [Burn](https://burn.dev/) for GPU-accelerated tensor computation
+- Uses [nalgebra](https://nalgebra.org/) for linear algebra

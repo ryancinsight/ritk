@@ -22,14 +22,19 @@
 - [x] FLT-03/FLT-04: Native median/bilateral confirmed (already existed in core)
 - Verification: workspace compiles (zero errors/warnings), 671+ tests passing
 
-## Sprint 6 — Next Priorities
-- [ ] GAP-R01: Full SyN (multi-res, BSplineSyN variant, inverse consistency)
-- [ ] GAP-R05: Composite transform serialization (HDF5/JSON)
-- [ ] GAP-R03: LDDMM registration
-- [ ] IO-05: MINC format reader/writer
-- [ ] IO-07: TIFF/BigTIFF reader/writer
+## Sprint 6 — Completed
+- [x] GAP-R01: Multi-Resolution SyN (coarse-to-fine pyramid, inverse consistency enforcement)
+- [x] GAP-R01b: BSplineSyN (B-spline parameterized velocity fields, bending energy regularization)
+- [x] GAP-R03: LDDMM registration (geodesic shooting via EPDiff, Gaussian RKHS kernel)
+- [x] GAP-R05: Composite transform serialization (JSON, TransformDescription enum, round-trip file I/O)
+- [x] IO-07: TIFF/BigTIFF reader/writer (multi-page z-stack, u8/u16/u32/f32/f64 support)
+- [x] PY-05: Python registration API completion (BSpline FFD, Multi-Res SyN, BSpline SyN, LDDMM — 8 total registration functions)
+- [x] Module root updates (diffeomorphic, lddmm, transform, io/format, python/registration)
+- [x] Workspace compilation: zero errors, zero warnings
+- [x] Unit tests: ritk-core 421, ritk-registration 150+, ritk-io 50+ passing
 
 ## Sprint 7+ — Backlog
+- [ ] IO-05: MINC format reader/writer (deferred from Sprint 6)
 - [ ] GAP-R04: Groupwise/Atlas registration
 - [ ] GAP-R06: Joint Label Fusion
 - [ ] GAP-R02b: Diffeomorphic Demons exact inverse

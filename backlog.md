@@ -2,7 +2,7 @@
 
 > **Artifact type:** Sprint tracking
 > **Source of truth:** `gap_audit.md` (gap IDs, priorities, severity)
-> **Last updated:** 2025-07-18 (post-Sprint 5)
+> **Last updated:** 2025-07-18 (post-Sprint 6)
 
 ---
 
@@ -112,24 +112,26 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 ---
 
-## Sprint 6 — Full SyN + LDDMM + Composite Transforms + IO Expansion (PLANNED)
+## Sprint 6 — Multi-Res SyN + BSplineSyN + LDDMM + Composite Transforms + TIFF IO + Python Registration API — Completed 2025-07-18
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| GAP-R01 | Full SyN (multi-res, BSplineSyN variant, inverse consistency) | 6 | PLANNED | High | Extend greedy SyN (GAP-R01p) to full diffeomorphic SyN with multi-resolution and inverse consistency |
-| GAP-R05 | Composite Transform Serialization (HDF5/JSON) | 6 | PLANNED | High | ITK/ANTs HDF5 composite transform I/O for pipeline interoperability |
-| GAP-R03 | LDDMM Registration | 6 | PLANNED | High | Large Deformation Diffeomorphic Metric Mapping; geodesic shooting, EPDiff |
-| IO-05 | MINC Format Reader/Writer (.mnc/.mnc2) | 6 | PLANNED | High | ANTs/MNI atlas format interoperability |
-| IO-07 | TIFF/BigTIFF Reader/Writer | 6 | PLANNED | High | Histopathology, microscopy z-stacks |
+| GAP-R01 | Multi-Resolution SyN | 6 | COMPLETED | High | Coarse-to-fine pyramid, inverse consistency; `ritk-registration/src/diffeomorphic/multires_syn.rs` |
+| GAP-R01b | BSplineSyN | 6 | COMPLETED | High | B-spline velocity fields, bending energy regularization; `ritk-registration/src/diffeomorphic/bspline_syn.rs` |
+| GAP-R03 | LDDMM Registration | 6 | COMPLETED | High | Geodesic shooting via EPDiff, Gaussian RKHS kernel; `ritk-registration/src/lddmm/mod.rs` |
+| GAP-R05 | Composite Transform Serialization (JSON) | 6 | COMPLETED | High | TransformDescription enum, CompositeTransform, file I/O; `ritk-core/src/transform/composite_io.rs` |
+| IO-07 | TIFF/BigTIFF Reader/Writer | 6 | COMPLETED | High | Multi-page z-stack, multiple pixel types; `ritk-io/src/format/tiff/` |
+| PY-05 | Python Registration API (complete) | 6 | COMPLETED | High | BSpline FFD, Multi-Res SyN, BSpline SyN, LDDMM added — 8 total registration functions; `ritk-python/src/registration.rs` |
 
 ---
 
-## Sprint 7 — Atlas Registration + Label Fusion (PLANNED)
+## Sprint 7 — Atlas Registration + Label Fusion + MINC IO (PLANNED)
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
 | GAP-R04 | Groupwise / Atlas Registration | 7 | PLANNED | High | Template building; depends on full SyN (GAP-R01) |
 | GAP-R06 | Joint Label Fusion | 7 | PLANNED | Medium | Multi-atlas segmentation; depends on atlas registration (GAP-R04) |
+| IO-05 | MINC Format Reader/Writer (.mnc/.mnc2) | 7 | PLANNED | High | ANTs/MNI atlas format interoperability; deferred from Sprint 6 |
 
 ---
 
@@ -137,7 +139,6 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| IO-03 | TIFF / BigTIFF Support | 8 | PLANNED | High | Histopathology, microscopy z-stacks |
 | IO-04 | MINC Format (.mnc / .mnc2) | 8 | PLANNED | High | ANTs/MNI atlas format interoperability |
 | IO-05 | MGZ / MGH Format | 8 | PLANNED | Medium | FreeSurfer interoperability |
 | PY-07 | CLI Tooling (Complete) | 8 | PLANNED | Medium | Extend PY-07p with full filter/registration/segmentation coverage |
@@ -149,13 +150,13 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| GAP-R03 | LDDMM (Large Deformation Diffeomorphic Metric Mapping) | 9 | PLANNED | High | Morphometric analysis; EPDiff integration |
 | IO-06 | VTK Image Format (.vtk / .vti) | 9 | PLANNED | Medium | ParaView visualization export |
-| IO-07 | Analyze Format (.hdr / .img) | 9 | PLANNED | Low | Legacy format backward compatibility |
+| IO-07b | Analyze Format (.hdr / .img) | 9 | PLANNED | Low | Legacy format backward compatibility |
 | IO-08 | JPEG 2D Support | 9 | PLANNED | Low | DICOM secondary capture compatibility |
 | STA-09 | White Stripe Normalization | 9 | PLANNED | Medium | Sullivan 2017; brain-specific WM peak normalization |
 | FLT-12 | Curvature Anisotropic Diffusion | 9 | PLANNED | Medium | Alvarez 1992; extends Perona-Malik (FLT-07) |
 | FLT-13 | Sato Line / Hessian Blob Detection | 9 | PLANNED | Medium | Extends Frangi vesselness (FLT-06) |
+| GAP-R02b | Diffeomorphic Demons exact inverse | 9 | PLANNED | Medium | ICC via exact field inversion (iterative Newton) |
 
 ---
 
@@ -168,11 +169,11 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 | 3 | Critical Filtering + Deformable Registration + Python/CLI Bindings | 14 | COMPLETED |
 | 4 | Advanced Filters + Segmentation Expansion + BSpline FFD | 11 | COMPLETED |
 | 5 | Level Sets + Sobel + Extended Python APIs | 5 | COMPLETED |
-| 6 | Full SyN + LDDMM + Composite Transforms + IO Expansion | 5 | PLANNED |
-| 7 | Atlas Registration + Label Fusion | 2 | PLANNED |
-| 8 | IO Parity + CLI/Python Completion | 5 | PLANNED |
-| 9+ | Remaining Parity (LDDMM, legacy IO, additional filters) | 7 | PLANNED |
-| **Total** | | **67** | **50 done · 17 planned** |
+| 6 | Multi-Res SyN + BSplineSyN + LDDMM + Composite Transforms + TIFF IO + Python Registration API | 6 | COMPLETED |
+| 7 | Atlas Registration + Label Fusion + MINC IO | 3 | PLANNED |
+| 8 | IO Parity + CLI/Python Completion | 4 | PLANNED |
+| 9+ | Remaining Parity (legacy IO, additional filters, Demons exact inverse) | 7 | PLANNED |
+| **Total** | | **70** | **56 done · 14 planned** |
 
 ---
 

@@ -42,6 +42,7 @@ pub(crate) mod deformable_field_ops;
 pub mod demons;
 pub mod diffeomorphic;
 pub mod error;
+pub mod lddmm;
 pub mod metric;
 pub mod multires;
 pub mod optimizer;
@@ -77,6 +78,17 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // Re-exports — SyN diffeomorphic registration
 // ============================================================================
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
+
+// ============================================================================
+// Re-exports — Multi-Resolution SyN and BSpline SyN
+// ============================================================================
+pub use diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration, BSplineSyNResult};
+pub use diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
+
+// ============================================================================
+// Re-exports — LDDMM registration
+// ============================================================================
+pub use lddmm::{LddmmConfig, LddmmRegistration, LddmmResult};
 
 // ============================================================================
 // Re-exports — Classical (non-ML) registration

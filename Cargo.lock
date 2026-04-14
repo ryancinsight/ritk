@@ -5637,6 +5637,7 @@ dependencies = [
  "nalgebra",
  "proptest",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror 2.0.18",
  "tracing",
@@ -5659,6 +5660,7 @@ dependencies = [
  "ritk-core",
  "tempfile",
  "thiserror 2.0.18",
+ "tiff 0.9.1",
  "tracing",
 ]
 

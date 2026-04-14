@@ -6,6 +6,7 @@
 pub mod affine;
 pub mod bspline;
 pub mod chained;
+pub mod composite_io;
 pub mod displacement_field;
 pub mod rigid;
 pub mod scale;
@@ -17,6 +18,7 @@ pub mod versor;
 pub use affine::AffineTransform;
 pub use bspline::BSplineTransform;
 pub use chained::ChainedTransform;
+pub use composite_io::{CompositeTransform, TransformDescription};
 pub use displacement_field::{
     DisplacementField, DisplacementField2D, DisplacementField3D, DisplacementFieldTransform,
     DisplacementFieldTransform2D, DisplacementFieldTransform3D,
