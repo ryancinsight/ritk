@@ -1,5 +1,7 @@
 //! Python-exposed image filtering functions.
 //!
+//! All filters delegate to `ritk-core::filter` implementations (SSOT).
+//!
 //! # Module structure
 //! - `gaussian_filter`:       Separable Gaussian smoothing.
 //! - `median_filter`:         Sliding-window median (rank filter).
@@ -10,14 +12,14 @@
 //! - `laplacian`:             Discrete Laplacian filter.
 //! - `frangi_vesselness`:     Frangi multiscale vesselness filter.
 
-use crate::image::{image_to_vec, into_py_image, vec_to_image_like, Backend, PyImage};
+use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::bias::N4Config;
 use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
 use ritk_core::filter::vesselness::FrangiConfig;
 use ritk_core::filter::{
-    AnisotropicDiffusionFilter, FrangiVesselnessFilter, GaussianFilter, GradientMagnitudeFilter,
-    LaplacianFilter, N4BiasFieldCorrectionFilter,
+    AnisotropicDiffusionFilter, BilateralFilter, FrangiVesselnessFilter, GaussianFilter,
+    GradientMagnitudeFilter, LaplacianFilter, MedianFilter, N4BiasFieldCorrectionFilter,
 };
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
@@ -69,13 +71,11 @@ pub fn gaussian_filter(image: &PyImage, sigma: f64) -> PyResult<PyImage> {
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn median_filter(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let (values, shape) = image_to_vec(image.inner.as_ref())?;
-    let filtered = median_3d(&values, shape, radius);
-    Ok(into_py_image(vec_to_image_like(
-        filtered,
-        shape,
-        image.inner.as_ref(),
-    )))
+    let filter = MedianFilter::new(radius);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
 }
 
 /// Apply a bilateral filter (edge-preserving smoothing).
@@ -105,148 +105,11 @@ pub fn bilateral_filter(
     spatial_sigma: f64,
     range_sigma: f64,
 ) -> PyResult<PyImage> {
-    let (values, shape) = image_to_vec(image.inner.as_ref())?;
-    let filtered = bilateral_3d(&values, shape, spatial_sigma, range_sigma);
-    Ok(into_py_image(vec_to_image_like(
-        filtered,
-        shape,
-        image.inner.as_ref(),
-    )))
-}
-
-// ── Inline median implementation ──────────────────────────────────────────────
-
-/// Sliding-window median on a 3-D volume stored in flat Z×Y×X order.
-///
-/// # Algorithm
-/// For each voxel (iz, iy, ix), collect all values in the axis-aligned cube
-/// `[iz±r, iy±r, ix±r]` (clamped to image bounds), sort them, and take the
-/// middle element.
-///
-/// # Complexity
-/// O(n · (2r+1)^3 · log((2r+1)^3)) per image.  For r=1: O(27n log 27).
-fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
-    let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
-    let r = radius as isize;
-    let mut output = vec![0.0_f32; nz * ny * nx];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut neighbors: Vec<f32> = Vec::with_capacity((2 * radius + 1).pow(3));
-
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            // Replicate (clamp) padding.
-                            let zz = (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
-                            let yy = (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
-                            let xx = (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
-                            neighbors.push(data[zz * ny * nx + yy * nx + xx]);
-                        }
-                    }
-                }
-
-                // Partial sort: O(n log n) for correctness; could use
-                // select_nth_unstable but sort is fine for typical radii.
-                neighbors
-                    .sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-                // For even-length neighborhoods take lower median (consistent
-                // with most medical imaging toolkits).
-                output[iz * ny * nx + iy * nx + ix] = neighbors[neighbors.len() / 2];
-            }
-        }
-    }
-
-    output
-}
-
-// ── Inline bilateral filter implementation ────────────────────────────────────
-
-/// Bilateral filter on a 3-D volume stored in flat Z×Y×X order.
-///
-/// # Algorithm
-/// For each center voxel p:
-///   - Neighbourhood radius r = ⌈3 · σ_s⌉.
-///   - For each neighbour q in [p±r]³:
-///       w(p, q) = exp(−d_s(p,q)² / 2σ_s²) · exp(−d_r(p,q)² / 2σ_r²)
-///   - Output(p) = Σ w(p,q)·I(q) / Σ w(p,q).
-///
-/// Out-of-bounds neighbours are skipped (not included in numerator or
-/// denominator), which is equivalent to treating them as having zero weight.
-/// When no valid neighbour exists (degenerate 0-voxel images), the input
-/// value is returned unchanged.
-///
-/// # Precision
-/// Accumulation is performed in f64 to avoid catastrophic cancellation.
-fn bilateral_3d(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64) -> Vec<f32> {
-    let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
-
-    // Guard against degenerate sigma values.
-    let spatial_sigma = spatial_sigma.max(1e-10);
-    let range_sigma = range_sigma.max(1e-10);
-
-    let r = (3.0 * spatial_sigma).ceil() as isize;
-    let inv_two_ss2 = 1.0 / (2.0 * spatial_sigma * spatial_sigma);
-    let inv_two_sr2 = 1.0 / (2.0 * range_sigma * range_sigma);
-
-    let mut output = vec![0.0_f32; nz * ny * nx];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let center_flat = iz * ny * nx + iy * nx + ix;
-                let center_val = data[center_flat] as f64;
-
-                let mut weighted_sum = 0.0_f64;
-                let mut weight_total = 0.0_f64;
-
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            let nz_i = iz as isize + dz;
-                            let ny_i = iy as isize + dy;
-                            let nx_i = ix as isize + dx;
-
-                            // Skip out-of-bounds voxels entirely (zero contribution).
-                            if nz_i < 0
-                                || nz_i >= nz as isize
-                                || ny_i < 0
-                                || ny_i >= ny as isize
-                                || nx_i < 0
-                                || nx_i >= nx as isize
-                            {
-                                continue;
-                            }
-
-                            let n_flat =
-                                nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;
-                            let n_val = data[n_flat] as f64;
-
-                            // Spatial distance squared (in voxel units).
-                            let spatial_d2 = (dz * dz + dy * dy + dx * dx) as f64;
-                            // Range distance squared.
-                            let range_d2 = (center_val - n_val) * (center_val - n_val);
-
-                            let w = (-spatial_d2 * inv_two_ss2 - range_d2 * inv_two_sr2).exp();
-
-                            weighted_sum += w * n_val;
-                            weight_total += w;
-                        }
-                    }
-                }
-
-                output[center_flat] = if weight_total > 1e-20 {
-                    (weighted_sum / weight_total) as f32
-                } else {
-                    data[center_flat]
-                };
-            }
-        }
-    }
-
-    output
+    let filter = BilateralFilter::new(spatial_sigma, range_sigma);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
 }
 
 // ── n4_bias_correction ────────────────────────────────────────────────────────

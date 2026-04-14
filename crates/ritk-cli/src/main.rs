@@ -6,7 +6,6 @@
 use clap::{Parser, Subcommand};
 
 mod commands;
-mod error;
 
 /// RITK — medical imaging toolkit command-line interface.
 ///
