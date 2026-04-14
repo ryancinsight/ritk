@@ -5652,6 +5652,7 @@ dependencies = [
  "burn-ndarray",
  "dicom",
  "dicom-core",
+ "flate2",
  "image 0.24.9",
  "nalgebra",
  "ndarray",

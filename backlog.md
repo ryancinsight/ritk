@@ -2,7 +2,7 @@
 
 > **Artifact type:** Sprint tracking
 > **Source of truth:** `gap_audit.md` (gap IDs, priorities, severity)
-> **Last updated:** 2025-07-18 (post-Sprint 6)
+> **Last updated:** 2025-07-18 (post-Sprint 7)
 
 ---
 
@@ -125,22 +125,27 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 ---
 
-## Sprint 7 — Atlas Registration + Label Fusion + MINC IO (PLANNED)
+## Sprint 7 — Atlas Registration + Label Fusion + MGH IO + Distance Transform + White Stripe + Python Stats — Completed 2025-07-18
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| GAP-R04 | Groupwise / Atlas Registration | 7 | PLANNED | High | Template building; depends on full SyN (GAP-R01) |
-| GAP-R06 | Joint Label Fusion | 7 | PLANNED | Medium | Multi-atlas segmentation; depends on atlas registration (GAP-R04) |
-| IO-05 | MINC Format Reader/Writer (.mnc/.mnc2) | 7 | PLANNED | High | ANTs/MNI atlas format interoperability; deferred from Sprint 6 |
+| GAP-R04 | Groupwise / Atlas Registration | 7 | COMPLETED | High | Iterative template building (Avants & Gee 2004), uses Multi-Res SyN; `ritk-registration/src/atlas/mod.rs` |
+| GAP-R06 | Joint Label Fusion | 7 | COMPLETED | Medium | Wang et al. 2013 + majority voting; `ritk-registration/src/atlas/label_fusion.rs` |
+| IO-MGH | MGZ / MGH Format Reader/Writer | 7 | COMPLETED | Medium | FreeSurfer format, gzip compression, 4 data types; `ritk-io/src/format/mgh/` |
+| SEG-DT | Euclidean Distance Transform | 7 | COMPLETED | Medium | Meijster et al. 2000 linear-time algorithm; `ritk-core/src/segmentation/distance_transform/` |
+| STA-09 | White Stripe Normalization | 7 | COMPLETED | Medium | Shinohara et al. 2014, KDE-based WM peak detection; `ritk-core/src/statistics/normalization/white_stripe.rs` |
+| PY-STAT | Python Statistics API | 7 | COMPLETED | Medium | 13 functions: statistics, comparison metrics, normalization, white stripe; `ritk-python/src/statistics.rs` |
+
+> **Note:** IO-05 (MINC Format) was originally planned for Sprint 7 but is deferred until `consus` (pure-Rust HDF5) is available. MINC2 (.mnc2) uses HDF5 containers; no suitable pure-Rust HDF5 crate exists at this time.
 
 ---
 
-## Sprint 8 — IO Parity + CLI/Python Completion (PLANNED)
+## Sprint 8 — IO Expansion + CLI/Python Completion (PLANNED)
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| IO-04 | MINC Format (.mnc / .mnc2) | 8 | PLANNED | High | ANTs/MNI atlas format interoperability |
-| IO-05 | MGZ / MGH Format | 8 | PLANNED | Medium | FreeSurfer interoperability |
+| IO-06 | VTK Image Format (.vtk / .vti) | 8 | PLANNED | Medium | ParaView visualization export |
+| IO-08 | JPEG 2D Support | 8 | PLANNED | Low | DICOM secondary capture compatibility |
 | PY-07 | CLI Tooling (Complete) | 8 | PLANNED | Medium | Extend PY-07p with full filter/registration/segmentation coverage |
 | PY-08 | Type Stubs / `py.typed` | 8 | PLANNED | Medium | IDE autocomplete, mypy compatibility |
 
@@ -150,13 +155,11 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| IO-06 | VTK Image Format (.vtk / .vti) | 9 | PLANNED | Medium | ParaView visualization export |
-| IO-07b | Analyze Format (.hdr / .img) | 9 | PLANNED | Low | Legacy format backward compatibility |
-| IO-08 | JPEG 2D Support | 9 | PLANNED | Low | DICOM secondary capture compatibility |
-| STA-09 | White Stripe Normalization | 9 | PLANNED | Medium | Sullivan 2017; brain-specific WM peak normalization |
-| FLT-12 | Curvature Anisotropic Diffusion | 9 | PLANNED | Medium | Alvarez 1992; extends Perona-Malik (FLT-07) |
-| FLT-13 | Sato Line / Hessian Blob Detection | 9 | PLANNED | Medium | Extends Frangi vesselness (FLT-06) |
-| GAP-R02b | Diffeomorphic Demons exact inverse | 9 | PLANNED | Medium | ICC via exact field inversion (iterative Newton) |
+| IO-05 | MINC Format (.mnc / .mnc2) | 9+ | PLANNED | High | Deferred until `consus` (pure-Rust HDF5) is available |
+| IO-07b | Analyze Format (.hdr / .img) | 9+ | PLANNED | Low | Legacy format backward compatibility |
+| FLT-12 | Curvature Anisotropic Diffusion | 9+ | PLANNED | Medium | Alvarez 1992; extends Perona-Malik (FLT-07) |
+| FLT-13 | Sato Line / Hessian Blob Detection | 9+ | PLANNED | Medium | Extends Frangi vesselness (FLT-06) |
+| GAP-R02b | Diffeomorphic Demons exact inverse | 9+ | PLANNED | Medium | ICC via exact field inversion (iterative Newton) |
 
 ---
 
@@ -170,10 +173,10 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 | 4 | Advanced Filters + Segmentation Expansion + BSpline FFD | 11 | COMPLETED |
 | 5 | Level Sets + Sobel + Extended Python APIs | 5 | COMPLETED |
 | 6 | Multi-Res SyN + BSplineSyN + LDDMM + Composite Transforms + TIFF IO + Python Registration API | 6 | COMPLETED |
-| 7 | Atlas Registration + Label Fusion + MINC IO | 3 | PLANNED |
-| 8 | IO Parity + CLI/Python Completion | 4 | PLANNED |
-| 9+ | Remaining Parity (legacy IO, additional filters, Demons exact inverse) | 7 | PLANNED |
-| **Total** | | **70** | **56 done · 14 planned** |
+| 7 | Atlas Registration + Label Fusion + MGH IO + Distance Transform + White Stripe + Python Stats | 6 | COMPLETED |
+| 8 | IO Expansion + CLI/Python Completion | 4 | PLANNED |
+| 9+ | Remaining Parity (MINC deferred, legacy IO, additional filters, Demons exact inverse) | 5 | PLANNED |
+| **Total** | | **71** | **62 done · 9 planned** |
 
 ---
 

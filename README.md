@@ -8,8 +8,8 @@ RITK provides a comprehensive framework for medical image analysis:
 
 - **GPU Acceleration**: Built on the Burn framework for efficient GPU/CPU tensor computation with automatic differentiation
 - **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across six workspace crates
-- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF
-- **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM
+- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ
+- **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
 - **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **Python Bindings**: PyO3 + maturin with NumPy bridge
@@ -28,8 +28,9 @@ ritk/
 │   │       ├── transform/        # Transform trait + implementations
 │   │       ├── interpolation/    # Interpolator trait + implementations
 │   │       ├── filter/           # Image filters
-│   │       ├── segmentation/     # Segmentation algorithms
+│   │       ├── segmentation/     # Segmentation algorithms + distance transform
 │   │       └── statistics/       # Image statistics & normalization
+│   │       └── statistics/       # Image statistics, normalization, comparison
 │   ├── ritk-io/                  # Format readers/writers
 │   │   └── src/format/
 │   │       ├── dicom/
@@ -37,7 +38,8 @@ ritk/
 │   │       ├── metaimage/        # .mha/.mhd
 │   │       ├── nrrd/
 │   │       ├── png/
-│   │       └── tiff/             # TIFF/BigTIFF
+│   │       ├── tiff/             # TIFF/BigTIFF
+│   │       └── mgh/              # MGH/MGZ (FreeSurfer)
 │   ├── ritk-registration/        # Registration framework
 │   │   └── src/
 │   │       ├── metric/           # Similarity metrics
@@ -48,6 +50,7 @@ ritk/
 │   │       ├── diffeomorphic/    # Greedy SyN, Multi-Resolution SyN, BSpline SyN
 │   │       ├── bspline_ffd/      # BSpline free-form deformation
 │   │       ├── lddmm/           # Large Deformation Diffeomorphic Metric Mapping
+│   │       ├── atlas/            # Groupwise atlas registration + label fusion
 │   │       ├── registration/     # DL registration losses, SSM registration
 │   │       ├── validation/       # Registration quality assessment
 │   │       └── progress/         # Progress reporting
@@ -62,6 +65,7 @@ ritk/
 │   │       ├── filter.rs         # 14 filter functions
 │   │       ├── segmentation.rs   # 16 segmentation functions
 │   │       ├── registration.rs   # 8 registration functions
+│   │       ├── statistics.rs     # 13 statistics/normalization/comparison functions
 │   │       ├── image.rs          # Image wrapper
 │   │       └── io.rs             # Format I/O
 │   └── ritk-cli/                 # CLI binary
@@ -114,6 +118,7 @@ ritk/
 | Morphology | Grayscale Erosion, Grayscale Dilation |
 | Bias Correction | N4 Bias Field Correction (B-spline fitting) |
 | Resampling | Downsample, Resample, Multi-Resolution Pyramid |
+| Distance Transform | Euclidean Distance Transform (Meijster et al. 2000) |
 
 **Segmentation**
 
@@ -133,7 +138,7 @@ ritk/
 |---|---|
 | Descriptive | Min, Max, Mean, Variance, Percentile (masked support) |
 | Comparison | Dice, Hausdorff Distance, Mean Surface Distance, PSNR, SSIM |
-| Normalization | Min-Max, Z-Score, Histogram Matching, Nyúl–Udupa Histogram Standardization |
+| Normalization | Min-Max, Z-Score, Histogram Matching, Nyúl–Udupa, White Stripe (Shinohara 2014) |
 | Noise | MAD-based noise estimation |
 
 ### I/O (`ritk-io`)
@@ -146,6 +151,7 @@ ritk/
 | NRRD | ✓ | ✓ |
 | PNG | ✓ | ✓ |
 | TIFF / BigTIFF | ✓ | ✓ |
+| MGH / MGZ (FreeSurfer) | ✓ | ✓ |
 
 ### Registration (`ritk-registration`)
 
@@ -169,6 +175,9 @@ ritk/
 | BSpline SyN | Diffeomorphic |
 | BSpline FFD | Deformable |
 | LDDMM | Diffeomorphic |
+| Groupwise Atlas | Template building (iterative SyN) |
+| Joint Label Fusion | Multi-atlas segmentation (Wang 2013) |
+| Majority Voting | Multi-atlas label fusion baseline |
 
 ### Deep-Learning Models (`ritk-model`)
 
@@ -184,6 +193,7 @@ PyO3 + maturin package exposing:
 - **14 filter functions** (Gaussian, median, bilateral, Canny, Frangi, N4, etc.)
 - **16 segmentation functions** (Otsu family, morphology, connected components, watershed, level sets, etc.)
 - **8 registration functions** (Thirion/Diffeomorphic/Symmetric Demons, SyN, Multi-Res SyN, BSpline SyN, BSpline FFD, LDDMM)
+- **13 statistics functions** (descriptive stats, Dice, Hausdorff, PSNR, SSIM, noise estimation, normalization, white stripe)
 - NumPy ↔ `Image` zero-copy bridge
 - Format I/O for all supported formats
 
@@ -271,12 +281,11 @@ cargo test -p ritk-model
 ## Future Work
 
 - [ ] Sinc interpolation
-- [ ] Atlas-based segmentation
-- [ ] Groupwise registration
+- [ ] MINC format reader/writer (pending [consus](https://github.com/ryancinsight/consus) pure-Rust HDF5)
 - [ ] Longitudinal analysis pipeline
 - [ ] WGSL/compute-shader kernels for critical filters
 - [ ] ONNX model import for DL registration
-- [ ] Expand Python bindings to cover statistics and model inference
+- [ ] Expand Python bindings to cover model inference
 - [ ] Publish to crates.io and PyPI
 
 ## License

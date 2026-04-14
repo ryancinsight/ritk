@@ -36,6 +36,7 @@
 //! └── validation/   - Quality metrics (SSOT)
 //! ```
 
+pub mod atlas;
 pub mod bspline_ffd;
 pub mod classical;
 pub(crate) mod deformable_field_ops;
@@ -89,6 +90,14 @@ pub use diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration
 // Re-exports — LDDMM registration
 // ============================================================================
 pub use lddmm::{LddmmConfig, LddmmRegistration, LddmmResult};
+
+// ============================================================================
+// Re-exports — Atlas / Groupwise registration + Label Fusion
+// ============================================================================
+pub use atlas::label_fusion::{
+    joint_label_fusion, majority_vote, LabelFusionConfig, LabelFusionResult,
+};
+pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 
 // ============================================================================
 // Re-exports — Classical (non-ML) registration

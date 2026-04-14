@@ -2,7 +2,8 @@
 //!
 //! Provides intensity thresholding, morphological operations, connected-component
 //! labeling, region-growing segmentation, clustering-based segmentation,
-//! watershed segmentation, and level set segmentation for medical images.
+//! watershed segmentation, level set segmentation, and distance transforms
+//! for medical images.
 //!
 //! # Module Structure
 //! - [`threshold`]: Otsu, Multi-Otsu, Li, Yen, Kapur, and Triangle intensity thresholding.
@@ -12,8 +13,10 @@
 //! - [`clustering`]: Clustering-based segmentation (K-Means).
 //! - [`watershed`]: Watershed segmentation (Meyer flooding algorithm).
 //! - [`level_set`]: Level set methods (Chan-Vese, Geodesic Active Contour).
+//! - [`distance_transform`]: Euclidean distance transform (Meijster et al. 2000).
 
 pub mod clustering;
+pub mod distance_transform;
 pub mod labeling;
 pub mod level_set;
 pub mod morphology;
@@ -22,8 +25,9 @@ pub mod threshold;
 pub mod watershed;
 
 pub use clustering::{kmeans_segment, KMeansSegmentation};
-pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
+pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
+pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
 pub use morphology::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryOpening, MorphologicalOperation,
 };

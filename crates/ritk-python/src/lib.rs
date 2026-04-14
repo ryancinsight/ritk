@@ -11,6 +11,7 @@ pub mod image;
 pub mod io;
 pub mod registration;
 pub mod segmentation;
+pub mod statistics;
 
 use pyo3::prelude::*;
 
@@ -25,5 +26,6 @@ fn _ritk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     filter::register(m)?;
     registration::register(m)?;
     segmentation::register(m)?;
+    statistics::register(m)?;
     Ok(())
 }

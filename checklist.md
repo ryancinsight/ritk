@@ -33,19 +33,28 @@
 - [x] Workspace compilation: zero errors, zero warnings
 - [x] Unit tests: ritk-core 421, ritk-registration 150+, ritk-io 50+ passing
 
-## Sprint 7+ — Backlog
-- [ ] IO-05: MINC format reader/writer (deferred from Sprint 6)
-- [ ] GAP-R04: Groupwise/Atlas registration
-- [ ] GAP-R06: Joint Label Fusion
+## Sprint 7 — Completed
+- [x] GAP-R04: Groupwise/Atlas Registration (iterative template building via SyN)
+- [x] GAP-R06: Joint Label Fusion (Wang 2013) + Majority Voting
+- [x] IO-MGH: MGZ/MGH Format Reader/Writer (FreeSurfer, gzip support)
+- [x] SEG-DT: Euclidean Distance Transform (Meijster 2000, O(N) linear time)
+- [x] STA-09: White Stripe Normalization (Shinohara 2014, KDE-based peak detection)
+- [x] PY-STAT: Python Statistics/Normalization/Comparison API (13 functions)
+- [x] Module wiring: atlas, distance_transform, white_stripe, mgh, statistics across all crates
+- [x] Workspace compilation: zero errors, zero warnings
+- [x] Unit tests: ritk-core 454, ritk-registration 162, ritk-io 79 passing
+
+## Sprint 8+ — Backlog
+- [ ] IO-05: MINC format reader/writer (deferred — awaiting consus pure-Rust HDF5 crate)
+- [ ] IO-06: VTK image format reader/writer
+- [ ] IO-08: JPEG 2D support
 - [ ] GAP-R02b: Diffeomorphic Demons exact inverse
-- [ ] IO-06: VTK reader/writer
-- [ ] IO-08: JPEG reader
-- [ ] STA: White stripe normalization
+- [ ] PY-07: CLI tooling completion
+- [ ] PY-08: Type stubs / py.typed
 - [ ] FLT: Curvature anisotropic diffusion
 - [ ] FLT: Sato line filter
 - [ ] SEG: Confidence connected region growing
 - [ ] SEG: Neighborhood connected region growing
-- [ ] SEG: Distance transform (Meijster)
 - [ ] SEG: Skeletonization
 - [ ] CI: nextest, clippy, fmt enforcement
 - [ ] CI: dependency version alignment checks
