@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
-burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+burn = { version = "0.19", features = ["wgpu", "autodiff"] }
 anyhow = "1.0"
 tracing = "0.1"
 

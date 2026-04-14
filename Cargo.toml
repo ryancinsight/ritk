@@ -16,7 +16,7 @@ ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
 
-burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+burn = { version = "0.19", features = ["wgpu", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"

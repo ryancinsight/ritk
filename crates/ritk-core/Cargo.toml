@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-burn = { version = "0.19", features = ["wgpu", "train", "autodiff"] }
+burn = { version = "0.19", features = ["wgpu", "autodiff"] }
 nalgebra = { version = "0.33", features = ["serde-serialize"] }
 anyhow = "1.0"
 thiserror = "2.0"
