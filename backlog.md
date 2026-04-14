@@ -2,7 +2,7 @@
 
 > **Artifact type:** Sprint tracking
 > **Source of truth:** `gap_audit.md` (gap IDs, priorities, severity)
-> **Last updated:** 2025-07-17 (post-Sprint 4)
+> **Last updated:** 2025-07-18 (post-Sprint 5)
 
 ---
 
@@ -100,25 +100,27 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 
 ---
 
-## Sprint 5 — Level Sets + Native Bilateral + Extended Python APIs (PLANNED)
+## Sprint 5 — Level Sets + Sobel + Extended Python APIs — Completed 2025-07-18
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| SEG-06 | Level Set Segmentation (Geodesic Active Contour, Chan-Vese, Shape Detection) | 5 | PLANNED | High | Depends on FLT-02 gradient magnitude (done). Sparse-field solver (Whitaker 1998) |
-| FLT-05b | Bilateral Filter (native Rust `Image<B,D>` API) | 5 | PLANNED | Medium | Tomasi-Manduchi 1998; promote Python-only impl to core Rust crate |
-| FLT-03b | Median Filter (native Rust `Image<B,D>` API) | 5 | PLANNED | Medium | Promote Python-only impl to core Rust crate with `Image<B,D>` trait API |
-| PY-05 | Python Registration API | 5 | PLANNED | High | Expose BSpline FFD, Demons, SyN from Python scripts |
-| PY-06 | Python Segmentation API | 5 | PLANNED | High | Expose threshold, region growing, morphology, watershed, k-means |
+| SEG-06 | Level Set Segmentation (Chan-Vese, Geodesic Active Contour) | 5 | COMPLETED | High | Chan-Vese 2001 region-based + GAC edge-based; sparse-field solver; `ritk-core/src/segmentation/level_set/` |
+| FLT-09b | Sobel Gradient Filter | 5 | COMPLETED | High | Dedicated Sobel convolution kernel; `ritk-core/src/filter/edge/` |
+| PY-06 | Extended Python Segmentation API (16 functions) | 5 | COMPLETED | High | Threshold (Otsu/Li/Yen/Kapur/Triangle/Multi-Otsu), region growing, morphology, watershed, k-means, level sets; `ritk-python/src/segmentation/` |
+| PY-05p | Extended Python Filter API (6 new functions, 14 total) | 5 | COMPLETED | High | Sobel, Laplacian, LoG, Canny, grayscale morphology, recursive Gaussian added; `ritk-python/src/filter/` |
+| FLT-03/04 | Native Median & Bilateral Confirmed | 5 | COMPLETED | Medium | Verified native Rust `Image<B,D>` implementations already present in `ritk-core/src/filter/` |
 
 ---
 
-## Sprint 6 — Full SyN + Composite Transforms (PLANNED)
+## Sprint 6 — Full SyN + LDDMM + Composite Transforms + IO Expansion (PLANNED)
 
 | ID | Feature | Sprint | Status | Priority | Notes |
 |---|---|---|---|---|---|
-| GAP-R01 | Full SyN (Symmetric Normalization) | 6 | PLANNED | High | Extend greedy SyN (GAP-R01p) to full diffeomorphic SyN with inverse consistency |
-| GAP-R02b | Diffeomorphic Demons with Exact Inverse | 6 | PLANNED | Medium | Exact inverse computation; new gap identified in Sprint 3 audit |
-| GAP-R05 | Composite Transform Serialization | 6 | PLANNED | High | ITK/ANTs HDF5 composite transform I/O for pipeline interoperability |
+| GAP-R01 | Full SyN (multi-res, BSplineSyN variant, inverse consistency) | 6 | PLANNED | High | Extend greedy SyN (GAP-R01p) to full diffeomorphic SyN with multi-resolution and inverse consistency |
+| GAP-R05 | Composite Transform Serialization (HDF5/JSON) | 6 | PLANNED | High | ITK/ANTs HDF5 composite transform I/O for pipeline interoperability |
+| GAP-R03 | LDDMM Registration | 6 | PLANNED | High | Large Deformation Diffeomorphic Metric Mapping; geodesic shooting, EPDiff |
+| IO-05 | MINC Format Reader/Writer (.mnc/.mnc2) | 6 | PLANNED | High | ANTs/MNI atlas format interoperability |
+| IO-07 | TIFF/BigTIFF Reader/Writer | 6 | PLANNED | High | Histopathology, microscopy z-stacks |
 
 ---
 
@@ -165,12 +167,12 @@ Recursive Gaussian, Canny, LoG, grayscale morphology, extended thresholds, clust
 | 2 | Segmentation Core + Statistics + IO Formats | 11 | COMPLETED |
 | 3 | Critical Filtering + Deformable Registration + Python/CLI Bindings | 14 | COMPLETED |
 | 4 | Advanced Filters + Segmentation Expansion + BSpline FFD | 11 | COMPLETED |
-| 5 | Level Sets + Native Bilateral/Median + Extended Python APIs | 5 | PLANNED |
-| 6 | Full SyN + Composite Transforms | 3 | PLANNED |
+| 5 | Level Sets + Sobel + Extended Python APIs | 5 | COMPLETED |
+| 6 | Full SyN + LDDMM + Composite Transforms + IO Expansion | 5 | PLANNED |
 | 7 | Atlas Registration + Label Fusion | 2 | PLANNED |
 | 8 | IO Parity + CLI/Python Completion | 5 | PLANNED |
 | 9+ | Remaining Parity (LDDMM, legacy IO, additional filters) | 7 | PLANNED |
-| **Total** | | **67** | **45 done · 22 planned** |
+| **Total** | | **67** | **50 done · 17 planned** |
 
 ---
 

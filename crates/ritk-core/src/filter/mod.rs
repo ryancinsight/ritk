@@ -17,6 +17,7 @@ pub use diffusion::AnisotropicDiffusionFilter;
 pub use downsample::DownsampleFilter;
 pub use edge::{
     CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
+    SobelFilter,
 };
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;

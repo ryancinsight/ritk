@@ -1,8 +1,8 @@
 //! Segmentation algorithms.
 //!
 //! Provides intensity thresholding, morphological operations, connected-component
-//! labeling, region-growing segmentation, clustering-based segmentation, and
-//! watershed segmentation for medical images.
+//! labeling, region-growing segmentation, clustering-based segmentation,
+//! watershed segmentation, and level set segmentation for medical images.
 //!
 //! # Module Structure
 //! - [`threshold`]: Otsu, Multi-Otsu, Li, Yen, Kapur, and Triangle intensity thresholding.
@@ -11,15 +11,18 @@
 //! - [`region_growing`]: Connected-threshold flood-fill region growing.
 //! - [`clustering`]: Clustering-based segmentation (K-Means).
 //! - [`watershed`]: Watershed segmentation (Meyer flooding algorithm).
+//! - [`level_set`]: Level set methods (Chan-Vese, Geodesic Active Contour).
 
 pub mod clustering;
 pub mod labeling;
+pub mod level_set;
 pub mod morphology;
 pub mod region_growing;
 pub mod threshold;
 pub mod watershed;
 
 pub use clustering::{kmeans_segment, KMeansSegmentation};
+pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use morphology::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryOpening, MorphologicalOperation,

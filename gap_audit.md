@@ -1,6 +1,6 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs Comparison
 
-**Audit Date:** 2025-07-14 (updated 2025-07-16)**
+**Audit Date:** 2025-07-14 (updated Sprint 5, 2025-07-18)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
 **Status:** Active — feeds `backlog.md` and `checklist.md`
@@ -14,12 +14,12 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 
 | Crate | Module | Confirmed Symbols |
 |---|---|---|
-| `ritk-core` | `filter` | `GaussianFilter`, `DownsampleFilter`, `ResampleImageFilter`, `MultiResolutionPyramid`, `N4BiasFieldCorrectionFilter`, `AnisotropicDiffusionFilter`, `GradientMagnitudeFilter`, `LaplacianFilter`, `FrangiVesselnessFilter`, `RecursiveGaussianFilter`, `CannyEdgeDetector`, `LaplacianOfGaussianFilter`, `GrayscaleErosion`, `GrayscaleDilation` |
+| `ritk-core` | `filter` | `GaussianFilter`, `DownsampleFilter`, `ResampleImageFilter`, `MultiResolutionPyramid`, `N4BiasFieldCorrectionFilter`, `AnisotropicDiffusionFilter`, `GradientMagnitudeFilter`, `LaplacianFilter`, `FrangiVesselnessFilter`, `RecursiveGaussianFilter`, `CannyEdgeDetector`, `LaplacianOfGaussianFilter`, `GrayscaleErosion`, `GrayscaleDilation`, `SobelFilter` |
 | `ritk-core` | `interpolation` | `BSplineInterpolator`, `LinearInterpolator` (1–4D), `NearestInterpolator`, `TensorTrilinearInterpolator` |
 | `ritk-core` | `transform` | `AffineTransform`, `BSplineTransform`, `ChainedTransform`, `DisplacementFieldTransform`, `RigidTransform`, `ScaleTransform`, `StaticDisplacementFieldTransform`, `TranslationTransform`, `VersorTransform` |
 | `ritk-core` | `spatial` | `Direction`, `Point`, `Spacing`, `Vector` |
 | `ritk-core` | `image` | `Image<B,D>`, `ImageGrid`, `ImageMetadata` |
-| `ritk-core` | `segmentation` | `OtsuThreshold`, `MultiOtsuThreshold`, `BinaryErosion`, `BinaryDilation`, `BinaryOpening`, `BinaryClosing`, `ConnectedComponentsFilter`, `LabelStatistics`, `ConnectedThresholdFilter`, `LiThreshold`, `YenThreshold`, `KapurThreshold`, `TriangleThreshold`, `KMeansSegmentation`, `WatershedSegmentation` |
+| `ritk-core` | `segmentation` | `OtsuThreshold`, `MultiOtsuThreshold`, `BinaryErosion`, `BinaryDilation`, `BinaryOpening`, `BinaryClosing`, `ConnectedComponentsFilter`, `LabelStatistics`, `ConnectedThresholdFilter`, `LiThreshold`, `YenThreshold`, `KapurThreshold`, `TriangleThreshold`, `KMeansSegmentation`, `WatershedSegmentation`, `ChanVeseSegmentation`, `GeodesicActiveContourSegmentation` |
 | `ritk-core` | `statistics` | `ImageStatistics`, `compute_statistics`, `masked_statistics`, `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `HistogramMatcher`, `MinMaxNormalizer`, `ZScoreNormalizer`, `estimate_noise_mad`, `psnr`, `ssim`, `NyulUdupaNormalizer` |
 | `ritk-registration` | `metric` | `CorrelationRatio`, `LocalNCC`, `MSE`, `MutualInformation` (Standard / Mattes / NMI), `NCC`, DL-loss module, Parzen histogram |
 | `ritk-registration` | `optimizer` | `AdamOptimizer`, `CmaEsOptimizer`, `GradientDescentOptimizer`, `MomentumOptimizer` |
@@ -34,14 +34,13 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
 | `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD) |
-| `ritk-python` | `filter` | `gaussian_filter`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness` |
+| `ritk-python` | `filter` | `gaussian_filter`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness`, `canny`, `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`, `grayscale_dilation` |
 | `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `syn_register` |
-| `ritk-python` | `segmentation` | `otsu_threshold`, `connected_components` (6- and 26-connectivity) |
+| `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour` |
 | `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi), `register` (rigid-mi/affine-mi), `segment` (otsu/multi-otsu/connected-threshold) |
 
 **Absent at module level (zero source files or stub-only):**
-LDDMM, level-set segmentation,
-and IO formats beyond the five currently implemented (MINC, MGZ, TIFF/BigTIFF, VTK, Analyze).
+LDDMM and IO formats beyond the five currently implemented (MINC, MGZ, TIFF/BigTIFF, VTK, Analyze).
 
 ---
 
@@ -122,25 +121,48 @@ regularization suite.
 - **Test coverage**: 390 tests passing in ritk-core, 121 in ritk-registration, 59 in ritk-cli,
   36 in ritk-io = 606+ total. Zero failures.
 
+**Sprint 5 (2025-07-18) completed the following previously absent components:**
+- `ritk-core/segmentation/level_set`: `ChanVeseSegmentation` (Chan & Vese 2001, region-based
+  active contour without edges, Mumford-Shah energy, curvature regularisation, interior/exterior
+  mean fitting), `GeodesicActiveContourSegmentation` (Caselles et al. 1997, edge-based geodesic
+  active contour, gradient stopping function g(|∇I|), curvature + advection PDE terms).
+- `ritk-core/filter`: `SobelFilter` (3D Sobel gradient — separable 3×3×3 Sobel convolution
+  producing gradient magnitude with physical spacing support).
+- `ritk-core/filter`: Confirmed native `Image<B,D>` implementations for `MedianFilter` and
+  `BilateralFilter` (previously mischaracterised as Python-only gaps; both operate directly
+  on `Image<B,D>` in ritk-core).
+- `ritk-python/segmentation`: Expanded from 2 → 16 functions: `otsu_threshold`, `li_threshold`,
+  `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`,
+  `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`,
+  `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour`.
+- `ritk-python/filter`: Expanded from 8 → 14 functions: added `canny`,
+  `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`,
+  `grayscale_dilation`.
+
 Against **ITK** (≈1 200 image filters, full segmentation pipeline, 30+ IO formats), **SimpleITK**
 (Python/R/Java/C# bindings, N4 bias field correction, histogram matching), and **ANTs**
 (SyN diffeomorphic registration, joint label fusion, template building, ANTsPy), RITK has
 **five structural gaps** that collectively prevent it from being used as a drop-in toolkit in
 standard clinical or research imaging workflows:
 
-| Gap Domain | Severity | ITK Parity (prev → Sprint 4) | SimpleITK Parity (prev → Sprint 4) | ANTs Parity (prev → Sprint 4) |
+| Gap Domain | Severity | ITK Parity (prev → Sprint 5) | SimpleITK Parity (prev → Sprint 5) | ANTs Parity (prev → Sprint 5) |
 |---|---|---|---|---|
-| Segmentation | **High** (was Critical) | ~15% → ~25% | ~15% → ~25% | ~20% → ~25% |
-| Filtering & Preprocessing | **High** (was Critical) | ~15% → ~45% | ~20% → ~45% | ~30% → ~45% |
+| Segmentation | **High** (was Critical) | ~15% → ~35% | ~15% → ~35% | ~20% → ~35% |
+| Filtering & Preprocessing | **High** (was Critical) | ~15% → ~55% | ~20% → ~55% | ~30% → ~55% |
 | Diffeomorphic Registration | **High** (was Critical) | ~45% → ~65% | ~45% → ~65% | ~25% → ~65% |
 | Statistics & Normalization | **Medium** | ~35% → ~50% | ~40% → ~50% | ~35% → ~50% |
 | IO Formats | **Medium** | ~30% → ~30% | ~30% → ~30% | ~35% → ~35% |
-| Python / CLI Bindings | **Medium** (was High) | ~30% → ~50% | ~30% → ~50% | ~25% → ~50% |
+| Python / CLI Bindings | **Medium** (was High) | ~30% → ~65% | ~30% → ~65% | ~25% → ~65% |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
 Filtering & Preprocessing from Critical to High severity. Addition of Thirion/Diffeomorphic/
 Symmetric Demons and greedy SyN moved Diffeomorphic Registration from Critical to High severity.
 The `ritk-cli` binary and extended Python bindings materially advanced CLI/Python parity.
+
+Sprint 5 level-set implementations (Chan-Vese, Geodesic Active Contour) raised Segmentation
+parity from ~25% to ~35%. 3D Sobel gradient filter plus confirmation of native Median/Bilateral
+`Image<B,D>` implementations raised Filtering from ~45% to ~55%. Full 16-function Python
+segmentation API and 14-function Python filter API raised Python/CLI parity from ~50% to ~65%.
 
 Parity percentages are estimated against the feature count of each reference toolkit relevant to
 medical 3D imaging use cases (excluding legacy 2D-only or deprecated filters).
@@ -378,30 +400,32 @@ crates/ritk-core/src/segmentation/region_growing/
 └── confidence_connected.rs
 ```
 
-### 3.3 Level Set Methods · Severity: **High**
+### 3.3 Level Set Methods · Severity: **Closed** (Chan-Vese and Geodesic Active Contour implemented, Sprint 5)
 
-| Algorithm | Reference |
-|---|---|
-| Geodesic Active Contour | Caselles et al. (1997), *IEEE Trans. Image Process.* 6(7):931–943 |
-| Shape Detection | Malladi et al. (1995), *IEEE Trans. Pattern Anal.* 17(2):158–175 |
-| Laplacian Level Set | ITK `LaplacianSegmentationLevelSetImageFilter` |
-| Chan-Vese | Chan & Vese (2001), *IEEE Trans. Image Process.* 10(2):266–277 |
-| Threshold Level Set | ITK `ThresholdSegmentationLevelSetImageFilter` |
+**Sprint 5 status**: `ChanVeseSegmentation` and `GeodesicActiveContourSegmentation` are
+**implemented** in `crates/ritk-core/src/segmentation/level_set/`.
+
+| Algorithm | Reference | Status |
+|---|---|---|
+| Chan-Vese | Chan & Vese (2001), *IEEE Trans. Image Process.* 10(2):266–277 | ✓ Implemented (Sprint 5) |
+| Geodesic Active Contour | Caselles et al. (1997), *IEEE Trans. Image Process.* 6(7):931–943 | ✓ Implemented (Sprint 5) |
+| Shape Detection | Malladi et al. (1995), *IEEE Trans. Pattern Anal.* 17(2):158–175 | ✗ Not yet |
+| Laplacian Level Set | ITK `LaplacianSegmentationLevelSetImageFilter` | ✗ Not yet |
+| Threshold Level Set | ITK `ThresholdSegmentationLevelSetImageFilter` | ✗ Not yet |
 
 Level sets evolve a signed-distance function φ under a PDE incorporating image gradient
 stopping terms and curvature regularization:
 `∂φ/∂t = F|∇φ|` where `F = g(|∇I|)(κ + α·advection)`.
 
-**Planned location:**
-```
-crates/ritk-core/src/segmentation/level_set/
-├── mod.rs           # LevelSetEvolution trait
-├── geodesic_active_contour.rs
-├── shape_detection.rs
-├── chan_vese.rs
-├── laplacian.rs
-└── sparse_field_solver.rs   # Narrow-band sparse-field evolution (Whitaker 1998)
-```
+**Implemented:**
+- `ChanVeseSegmentation`: Region-based active contour without edges (Mumford-Shah energy),
+  level-set evolution with curvature regularisation, interior/exterior mean fitting.
+- `GeodesicActiveContourSegmentation`: Edge-based geodesic active contour, gradient stopping
+  function g(|∇I|), curvature + advection PDE terms.
+
+**Remaining:** Shape detection, Laplacian level set, threshold level set, sparse-field solver.
+
+**Implemented location:** `crates/ritk-core/src/segmentation/level_set/`
 
 ### 3.4 Watershed Segmentation · Severity: **Medium**
 
@@ -529,24 +553,28 @@ at boundaries. Both verified against exact analytical solutions.
 
 ---
 
-### 4.3 Median Filter · Severity: **Closed** (implemented in Python binding)
+### 4.3 Median Filter · Severity: **Closed** (native `Image<B,D>` implementation confirmed, Sprint 5)
 
 Rank-order noise removal preserving edges. Removes salt-and-pepper noise without Gaussian
 blurring. Used as a fast pre-step before level-set initialization.
 
-Available as `ritk.filter.median_filter` in the Python binding (sliding-window CPU implementation).
-Standalone `ritk-core` module with `Image<B,D>` API is a remaining gap.
+**Sprint 5 status**: Native `Image<B,D>` implementation confirmed present in `ritk-core`.
+Also exposed as `ritk.filter.median_filter` in the Python binding.
+Previously mischaracterised as Python-only; the `ritk-core` `MedianFilter` operates directly
+on `Image<B,D>`.
 
 ---
 
-### 4.4 Bilateral Filter · Severity: **Medium** (was High — implemented in Python binding)
+### 4.4 Bilateral Filter · Severity: **Closed** (native `Image<B,D>` implementation confirmed, Sprint 5)
 
 Tomasi & Manduchi (1998). Joint spatial-range Gaussian weighting:
 
 `BF[I](x) = (1/W(x)) Σ_p I(p) · G_σs(|x-p|) · G_σr(|I(x)-I(p)|)`
 
-Available as `ritk.filter.bilateral_filter` in the Python binding.
-Standalone `ritk-core` module with `Image<B,D>` API is a remaining gap.
+**Sprint 5 status**: Native `Image<B,D>` implementation confirmed present in `ritk-core`.
+Also exposed as `ritk.filter.bilateral_filter` in the Python binding.
+Previously mischaracterised as Python-only; the `ritk-core` `BilateralFilter` operates directly
+on `Image<B,D>`.
 
 ---
 
@@ -613,11 +641,15 @@ and Hessian-based filters.
 
 ---
 
-### 4.9 Gradient Magnitude / Sobel · Severity: **High**
+### 4.9 3D Sobel Gradient Filter · Severity: **Closed** (implemented Sprint 5)
+
+**Sprint 5 status**: `SobelFilter` is **implemented** in `crates/ritk-core/src/filter/`.
+Separable 3×3×3 Sobel convolution producing gradient magnitude from central-difference
+approximations with physical spacing support. Complements the basic `GradientMagnitudeFilter`
+(§4.2b, Sprint 3) with the standard Sobel kernel weighting.
 
 Required by: level-set stopping function, Canny, Frangi, classical registration preconditioning.
-
-**Planned location:** `crates/ritk-core/src/filter/edge/gradient_magnitude.rs`
+Also exposed as `ritk.filter.sobel_gradient` in the Python binding (Sprint 5).
 
 ---
 
@@ -836,11 +868,13 @@ objects that embed JPEG-compressed pixel data.
 
 ## 7. Python Binding Gaps
 
-### 7.1 Python Bindings — Sprint 3 Updated · Severity: **Medium** (was High)
+### 7.1 Python Bindings — Sprint 5 Updated · Severity: **Medium** (was High)
 
 `ritk-python` is a PyO3 0.22 native extension (`cdylib`) with five submodules.
 `abi3-py39` enables CPython 3.9–3.14 compatibility without recompilation.
 Sprint 3 added 8 new functions to `ritk.filter` and 3 new functions to `ritk.registration`.
+Sprint 5 expanded `ritk.filter` to 14 functions and `ritk.segmentation` to 16 functions,
+providing full coverage of all implemented ritk-core segmentation and filter algorithms.
 
 Remaining gaps relative to SimpleITK / ANTsPy:
 - No `maturin develop` / wheel publish workflow verified end-to-end in CI.
@@ -848,8 +882,9 @@ Remaining gaps relative to SimpleITK / ANTsPy:
 - No type stubs (`.pyi` files) for IDE autocomplete.
 - `py.allow_threads` GIL release not yet applied to long-running filter/registration calls.
 - No N-class atlas-based segmentation (joint label fusion).
+- BSpline FFD registration not yet exposed in Python (`ritk.registration`).
 
-### 7.2 Python API Surface · Severity: **Medium** (was High — significantly expanded in Sprint 3)
+### 7.2 Python API Surface · Severity: **Medium** (was High — significantly expanded through Sprint 5)
 
 | Capability | SimpleITK Equivalent | ANTsPy Equivalent | RITK Status |
 |---|---|---|---|
@@ -863,20 +898,44 @@ Remaining gaps relative to SimpleITK / ANTsPy:
 | Gradient magnitude | `sitk.GradientMagnitude` | — | ✓ `ritk.filter.gradient_magnitude(img)` |
 | Laplacian | `sitk.Laplacian` | — | ✓ `ritk.filter.laplacian(img)` |
 | Vesselness | `sitk.ObjectnessMeasure` | — | ✓ `ritk.filter.frangi_vesselness(img, scales, α, β, γ)` |
+| Canny edge detection | `sitk.CannyEdgeDetection` | — | ✓ `ritk.filter.canny(img, low, high, sigma)` (Sprint 5) |
+| Laplacian of Gaussian | `sitk.LaplacianRecursiveGaussian` | — | ✓ `ritk.filter.laplacian_of_gaussian(img, sigma)` (Sprint 5) |
+| Recursive Gaussian | `sitk.RecursiveGaussian` | — | ✓ `ritk.filter.recursive_gaussian(img, sigma, order)` (Sprint 5) |
+| Sobel gradient | `sitk.SobelEdgeDetection` | — | ✓ `ritk.filter.sobel_gradient(img)` (Sprint 5) |
+| Grayscale erosion | `sitk.GrayscaleErode` | — | ✓ `ritk.filter.grayscale_erosion(img, radius)` (Sprint 5) |
+| Grayscale dilation | `sitk.GrayscaleDilate` | — | ✓ `ritk.filter.grayscale_dilation(img, radius)` (Sprint 5) |
 | Demons registration | `sitk.DemonsRegistrationFilter` | — | ✓ `ritk.registration.demons_register` (Thirion) |
 | Diffeomorphic Demons | `sitk.FastSymmetricForcesDemonsRegistration` | — | ✓ `ritk.registration.diffeomorphic_demons_register` |
 | Symmetric Demons | — | — | ✓ `ritk.registration.symmetric_demons_register` |
 | SyN registration | `sitk.SimpleElastix` | `ants.registration(type_of_transform='SyN')` | ✓ `ritk.registration.syn_register` (greedy SyN + local CC) |
 | Otsu thresholding | `sitk.OtsuThreshold` | `ants.get_mask` | ✓ `ritk.segmentation.otsu_threshold(img)` |
+| Li thresholding | `sitk.LiThreshold` | — | ✓ `ritk.segmentation.li_threshold(img)` (Sprint 5) |
+| Yen thresholding | `sitk.YenThreshold` | — | ✓ `ritk.segmentation.yen_threshold(img)` (Sprint 5) |
+| Kapur thresholding | `sitk.MaximumEntropyThreshold` | — | ✓ `ritk.segmentation.kapur_threshold(img)` (Sprint 5) |
+| Triangle thresholding | `sitk.TriangleThreshold` | — | ✓ `ritk.segmentation.triangle_threshold(img)` (Sprint 5) |
+| Multi-Otsu thresholding | `sitk.OtsuMultipleThresholds` | — | ✓ `ritk.segmentation.multi_otsu(img, classes)` (Sprint 5) |
 | Connected components | `sitk.ConnectedComponent` | — | ✓ `ritk.segmentation.connected_components(mask, connectivity)` |
+| Connected threshold | `sitk.ConnectedThreshold` | — | ✓ `ritk.segmentation.connected_threshold(img, seeds, lo, hi)` (Sprint 5) |
+| K-means segmentation | — | `ants.kmeans_segmentation` | ✓ `ritk.segmentation.kmeans(img, k)` (Sprint 5) |
+| Watershed | `sitk.MorphologicalWatershed` | — | ✓ `ritk.segmentation.watershed(img)` (Sprint 5) |
+| Binary erosion | `sitk.BinaryErode` | — | ✓ `ritk.segmentation.binary_erosion(mask, radius)` (Sprint 5) |
+| Binary dilation | `sitk.BinaryDilate` | — | ✓ `ritk.segmentation.binary_dilation(mask, radius)` (Sprint 5) |
+| Binary opening | `sitk.BinaryMorphologicalOpening` | — | ✓ `ritk.segmentation.binary_opening(mask, radius)` (Sprint 5) |
+| Binary closing | `sitk.BinaryMorphologicalClosing` | — | ✓ `ritk.segmentation.binary_closing(mask, radius)` (Sprint 5) |
+| Chan-Vese segmentation | — | — | ✓ `ritk.segmentation.chan_vese(img, iters)` (Sprint 5) |
+| Geodesic active contour | `sitk.GeodesicActiveContourLevelSet` | — | ✓ `ritk.segmentation.geodesic_active_contour(img, init)` (Sprint 5) |
 | Transform I/O | `sitk.ReadTransform` / `sitk.WriteTransform` | `ants.read_transform` | ✗ not yet implemented |
+| BSpline FFD registration | `sitk.ElastixImageFilter` | — | ✗ not yet exposed (core implemented Sprint 4) |
 | Joint label fusion | — | `ants.joint_label_fusion` | ✗ not yet implemented |
 | Atlas building | — | `ants.build_template` | ✗ not yet implemented |
 
-### 7.3 Implementation Status · Severity: **High** (implemented; gaps remain)
+### 7.3 Implementation Status · Severity: **Medium** (implemented; minor gaps remain)
 
 **Technology:** PyO3 0.22 with `maturin` build backend, `abi3-py39` stable ABI.
 **Interop:** `numpy` crate (`PyReadonlyArray3`, `IntoPyArray`) via `pyo3-numpy`.
+
+**Sprint 5 function counts:** 14 filter functions, 16 segmentation functions, 4 registration
+functions, 2 IO functions, image bridge — 36+ total Python-callable functions.
 
 ```
 crates/ritk-python/
@@ -886,9 +945,17 @@ crates/ritk-python/
 │   ├── lib.rs            # #[pymodule] fn _ritk — registers 5 submodules
 │   ├── image.rs          # PyImage(Arc<Image<NdArray,3>>), to_numpy(), shape/spacing/origin
 │   ├── io.rs             # read_image / write_image (NIfTI, PNG, DICOM, MetaImage, NRRD)
-│   ├── filter.rs         # gaussian_filter, median_filter, bilateral_filter
-│   ├── registration.rs   # demons_register (Thirion Demons, CPU trilinear warp)
-│   └── segmentation.rs   # otsu_threshold, connected_components (6/26-conn)
+│   ├── filter.rs         # 14 functions: gaussian, median, bilateral, n4_bias_correction,
+│   │                     #   anisotropic_diffusion, gradient_magnitude, laplacian,
+│   │                     #   frangi_vesselness, canny, laplacian_of_gaussian,
+│   │                     #   recursive_gaussian, sobel_gradient, grayscale_erosion,
+│   │                     #   grayscale_dilation
+│   ├── registration.rs   # demons_register, diffeomorphic_demons_register,
+│   │                     #   symmetric_demons_register, syn_register
+│   └── segmentation.rs   # 16 functions: otsu, li, yen, kapur, triangle, multi_otsu,
+│                         #   connected_components, connected_threshold, kmeans, watershed,
+│                         #   binary_erosion, binary_dilation, binary_opening, binary_closing,
+│                         #   chan_vese, geodesic_active_contour
 └── python/
     ├── ritk/__init__.py  # Imports from _ritk; surfaces ritk.Image at top level
     └── ritk/py.typed     # PEP 561 marker
@@ -899,6 +966,7 @@ crates/ritk-python/
 - Add `py.allow_threads` GIL release around long-running calls (filter, registration).
 - Generate `.pyi` type stubs for IDE autocomplete.
 - Add integration test comparing `ritk.io.read_image` output against SimpleITK reference values.
+- Expose BSpline FFD registration in `ritk.registration`.
 
 ### 7.4 CLI Tooling Gaps · Severity: **Medium**
 
@@ -948,7 +1016,7 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | SEG-03 | Otsu / multi-Otsu thresholding | **C** | S | Universal first-pass segmentation |
 | SEG-04 | Region growing | **C** | S | Interactive and seeded segmentation |
 | SEG-05 | Image statistics API | **C** | S | Required by normalization, thresholding, reporting |
-| SEG-06 | Level set segmentation | **H** | M | Deformable contours for organ segmentation |
+| SEG-06 | Level set segmentation | **Closed** (Sprint 5) | M | Chan-Vese + Geodesic Active Contour implemented |
 | SEG-07 | Watershed | **M** | S | Cell segmentation, oversegmentation baseline |
 | SEG-08 | K-means clustering | **M** | S | Tissue classification initialization |
 
@@ -957,10 +1025,10 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
 | FLT-01 | N4 bias field correction | **C** | M | Required first step for all MRI pipelines |
-| FLT-02 | Gradient magnitude / Sobel | **C** | S | Required by level sets, Canny, Frangi |
-| FLT-03 | Median filter | **H** | S | Salt-and-pepper noise removal |
+| FLT-02 | Gradient magnitude / Sobel | **Closed** (Sprint 3 + Sprint 5 3D Sobel) | S | Required by level sets, Canny, Frangi |
+| FLT-03 | Median filter | **Closed** (native `Image<B,D>` confirmed, Sprint 5) | S | Salt-and-pepper noise removal |
 | FLT-04 | Recursive Gaussian (Deriche IIR) | **H** | S | O(N) large-σ smoothing, derivative orders |
-| FLT-05 | Bilateral filter | **H** | S | Edge-preserving denoising |
+| FLT-05 | Bilateral filter | **Closed** (native `Image<B,D>` confirmed, Sprint 5) | S | Edge-preserving denoising |
 | FLT-06 | Frangi vesselness | **H** | M | Vascular / tubular structure enhancement |
 | FLT-07 | Anisotropic diffusion (Perona-Malik) | **H** | S | Structure-preserving noise reduction |
 | FLT-08 | Canny edge detection | **M** | S | Level-set initialization, feature extraction |
@@ -1001,8 +1069,8 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | PY-02 | NumPy array ↔ Image bridge | **C** | S | Required for DL pipeline integration |
 | PY-03 | Python image I/O (`read_image`) | **C** | S | First function any user calls |
 | PY-04 | Python filter API | **H** | S | N4, Gaussian, threshold from Python |
-| PY-05 | Python registration API | **H** | M | Register from Python scripts |
-| PY-06 | Python segmentation API | **H** | M | Depends on SEG-01–05 |
+| PY-05 | Python registration API | **H** (partial — existing Demons+SyN bindings remain, BSpline FFD not yet exposed) | M | Register from Python scripts |
+| PY-06 | Python segmentation API | **Closed** (Sprint 5 — all 16 segmentation algorithms exposed) | M | Full Python segmentation surface |
 | PY-07 | CLI tooling (`ritk-cli`) | **M** | M | Shell-script pipeline integration |
 | PY-08 | Type stubs / `py.typed` | **M** | S | IDE autocomplete, mypy compatibility |
 

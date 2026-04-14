@@ -11,15 +11,24 @@
 //! - `gradient_magnitude`:    Gradient magnitude via central differences.
 //! - `laplacian`:             Discrete Laplacian filter.
 //! - `frangi_vesselness`:     Frangi multiscale vesselness filter.
+//! - `canny_edge_detect`:     Canny edge detector (Gaussian smooth → gradient → NMS → hysteresis).
+//! - `laplacian_of_gaussian`: Laplacian of Gaussian (LoG) blob/edge detector.
+//! - `recursive_gaussian`:    Young–van Vliet recursive Gaussian (IIR, order 0/1/2).
+//! - `sobel_gradient`:        Sobel gradient magnitude.
+//! - `grayscale_erosion`:     Grayscale morphological erosion (flat cubic SE).
+//! - `grayscale_dilation`:    Grayscale morphological dilation (flat cubic SE).
 
 use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::bias::N4Config;
 use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
+use ritk_core::filter::recursive_gaussian::DerivativeOrder;
 use ritk_core::filter::vesselness::FrangiConfig;
 use ritk_core::filter::{
-    AnisotropicDiffusionFilter, BilateralFilter, FrangiVesselnessFilter, GaussianFilter,
-    GradientMagnitudeFilter, LaplacianFilter, MedianFilter, N4BiasFieldCorrectionFilter,
+    AnisotropicDiffusionFilter, BilateralFilter, CannyEdgeDetector, FrangiVesselnessFilter,
+    GaussianFilter, GradientMagnitudeFilter, GrayscaleDilation, GrayscaleErosion, LaplacianFilter,
+    LaplacianOfGaussianFilter, MedianFilter, N4BiasFieldCorrectionFilter, RecursiveGaussianFilter,
+    SobelFilter,
 };
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
@@ -297,6 +306,187 @@ pub fn frangi_vesselness(
     Ok(into_py_image(result))
 }
 
+// ── canny_edge_detect ─────────────────────────────────────────────────────────
+
+/// Apply the Canny edge detector to an image.
+///
+/// Pipeline: Gaussian smoothing (σ) → gradient magnitude → non-maximum
+/// suppression → double-threshold hysteresis.  Reference: Canny, J. (1986),
+/// *IEEE Trans. PAMI* 8(6):679–698.
+///
+/// Args:
+///     image:          Input PyImage.
+///     sigma:          Gaussian pre-smoothing σ in physical units (mm, default 1.0).
+///     low_threshold:  Lower hysteresis threshold on gradient magnitude (default 0.1).
+///     high_threshold: Upper hysteresis threshold on gradient magnitude (default 0.2).
+///
+/// Returns:
+///     Binary edge PyImage (1.0 = edge, 0.0 = non-edge), same shape and metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0, low_threshold=0.1, high_threshold=0.2))]
+pub fn canny_edge_detect(
+    image: &PyImage,
+    sigma: f64,
+    low_threshold: f64,
+    high_threshold: f64,
+) -> PyResult<PyImage> {
+    let detector = CannyEdgeDetector::new(sigma, low_threshold, high_threshold);
+    let result = detector
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── laplacian_of_gaussian ─────────────────────────────────────────────────────
+
+/// Apply the Laplacian of Gaussian (LoG) filter.
+///
+/// Computes ∇²(G_σ * I) by first applying separable Gaussian smoothing with
+/// standard deviation σ, then computing the discrete Laplacian via
+/// second-order finite differences.  Useful for blob detection and
+/// zero-crossing edge detection (Marr & Hildreth 1980).
+///
+/// Args:
+///     image: Input PyImage.
+///     sigma: Gaussian σ in physical units (mm, default 1.0).
+///
+/// Returns:
+///     PyImage of LoG values, same shape and metadata as input.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0))]
+pub fn laplacian_of_gaussian(image: &PyImage, sigma: f64) -> PyResult<PyImage> {
+    let filter = LaplacianOfGaussianFilter::new(sigma);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── recursive_gaussian ────────────────────────────────────────────────────────
+
+/// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.
+///
+/// Separable IIR approximation of the Gaussian and its first/second
+/// derivatives.  Constant-time per voxel regardless of σ (no explicit kernel
+/// construction).
+///
+/// Args:
+///     image: Input PyImage.
+///     sigma: Gaussian σ in physical units (mm, default 1.0).
+///     order: Derivative order — 0 = smoothing, 1 = first derivative,
+///            2 = second derivative (default 0).
+///
+/// Returns:
+///     Filtered PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     ValueError:    if `order` is not in {0, 1, 2}.
+///     RuntimeError:  on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, sigma=1.0, order=0))]
+pub fn recursive_gaussian(image: &PyImage, sigma: f64, order: usize) -> PyResult<PyImage> {
+    let derivative_order = match order {
+        0 => DerivativeOrder::Zero,
+        1 => DerivativeOrder::First,
+        2 => DerivativeOrder::Second,
+        _ => {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "recursive_gaussian: order must be 0, 1, or 2, got {order}"
+            )));
+        }
+    };
+    let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── sobel_gradient ────────────────────────────────────────────────────────────
+
+/// Compute the Sobel gradient magnitude of an image.
+///
+/// Applies the 3×3×3 Sobel operator along each axis, scaled by the image's
+/// physical spacing, then returns the Euclidean magnitude of the gradient
+/// vector.
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     PyImage of gradient magnitudes in (intensity / mm) units, same shape
+///     and metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+pub fn sobel_gradient(image: &PyImage) -> PyResult<PyImage> {
+    let spacing = image.inner.spacing();
+    let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── grayscale_erosion ─────────────────────────────────────────────────────────
+
+/// Apply grayscale morphological erosion with a flat cubic structuring element.
+///
+/// Each output voxel is the minimum of its (2r+1)³ cubic neighbourhood
+/// (replicate padding at boundaries).
+///
+/// Args:
+///     image:  Input PyImage.
+///     radius: Structuring element half-width in voxels (default 1 → 3×3×3).
+///
+/// Returns:
+///     Eroded PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn grayscale_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let filter = GrayscaleErosion::new(radius);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── grayscale_dilation ────────────────────────────────────────────────────────
+
+/// Apply grayscale morphological dilation with a flat cubic structuring element.
+///
+/// Each output voxel is the maximum of its (2r+1)³ cubic neighbourhood
+/// (replicate padding at boundaries).
+///
+/// Args:
+///     image:  Input PyImage.
+///     radius: Structuring element half-width in voxels (default 1 → 3×3×3).
+///
+/// Returns:
+///     Dilated PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn grayscale_dilation(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let filter = GrayscaleDilation::new(radius);
+    let result = filter
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
 // ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `filter` submodule.
@@ -310,6 +500,12 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(gradient_magnitude, &m)?)?;
     m.add_function(wrap_pyfunction!(laplacian, &m)?)?;
     m.add_function(wrap_pyfunction!(frangi_vesselness, &m)?)?;
+    m.add_function(wrap_pyfunction!(canny_edge_detect, &m)?)?;
+    m.add_function(wrap_pyfunction!(laplacian_of_gaussian, &m)?)?;
+    m.add_function(wrap_pyfunction!(recursive_gaussian, &m)?)?;
+    m.add_function(wrap_pyfunction!(sobel_gradient, &m)?)?;
+    m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
+    m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }
