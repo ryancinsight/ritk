@@ -1,68 +1,171 @@
-//! Python-exposed segmentation functions: Otsu thresholding and connected-component labeling.
+//! Python-exposed segmentation functions delegating to `ritk_core::segmentation`.
 //!
-//! # Implementation strategy
-//! Both algorithms are implemented inline on CPU-side `Vec<f32>` data, independent
-//! of the ritk-core segmentation module state.  This guarantees ritk-python compiles
-//! and runs correctly regardless of whether the ritk-core segmentation sub-modules
-//! are finalised.
+//! This module is a thin PyO3 binding layer.  All algorithmic work is performed
+//! by the authoritative implementations in `ritk_core::segmentation`:
 //!
-//! # Algorithms
+//! - **Otsu thresholding** → `ritk_core::segmentation::OtsuThreshold`
+//! - **Li thresholding** → `ritk_core::segmentation::LiThreshold`
+//! - **Yen thresholding** → `ritk_core::segmentation::YenThreshold`
+//! - **Kapur thresholding** → `ritk_core::segmentation::KapurThreshold`
+//! - **Triangle thresholding** → `ritk_core::segmentation::TriangleThreshold`
+//! - **Multi-Otsu thresholding** → `ritk_core::segmentation::MultiOtsuThreshold`
+//! - **Connected-component labeling** → `ritk_core::segmentation::connected_components`
+//! - **Connected-threshold region growing** → `ritk_core::segmentation::connected_threshold`
+//! - **K-Means clustering** → `ritk_core::segmentation::KMeansSegmentation`
+//! - **Watershed segmentation** → `ritk_core::segmentation::WatershedSegmentation`
+//! - **Binary erosion** → `ritk_core::segmentation::BinaryErosion`
+//! - **Binary dilation** → `ritk_core::segmentation::BinaryDilation`
+//! - **Binary opening** → `ritk_core::segmentation::BinaryOpening`
+//! - **Binary closing** → `ritk_core::segmentation::BinaryClosing`
+//! - **Chan-Vese level set** → `ritk_core::segmentation::ChanVeseSegmentation`
+//! - **Geodesic Active Contour** → `ritk_core::segmentation::GeodesicActiveContourSegmentation`
 //!
-//! ## Otsu's method (Otsu, 1979)
-//! Maximises between-class variance σ²_B(t) over a 256-bin histogram:
-//!
-//!   σ²_B(t) = w₀(t) · w₁(t) · (μ₀(t) − μ₁(t))²
-//!
-//! where w₀, w₁ are class probabilities and μ₀, μ₁ are class mean bin indices.
-//! Solved in O(n + L) using prefix-sum scan over L = 256 bins.
-//!
-//! ## Hoshen-Kopelman connected-component labeling (two-pass)
-//! - Pass 1: scan Z→Y→X; for each foreground voxel examine backward neighbours;
-//!   assign provisional labels via union-find with path-halving.
-//! - Pass 2: resolve all provisional labels to consecutive final labels [1, K].
-//! Complexity: O(n · α(n)) ≈ O(n).
+//! No algorithm logic is duplicated here; SSOT is maintained in `ritk-core`.
 
-use crate::image::{image_to_vec, into_py_image, vec_to_image_like, PyImage};
+use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
+use ritk_core::segmentation::{
+    connected_components as core_connected_components,
+    connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
+    BinaryOpening, ChanVeseSegmentation, GeodesicActiveContourSegmentation, KMeansSegmentation,
+    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold,
+    TriangleThreshold, WatershedSegmentation, YenThreshold,
+};
 
-// ── otsu_threshold ────────────────────────────────────────────────────────────
+// ── Threshold: Otsu ───────────────────────────────────────────────────────────
 
 /// Compute the Otsu threshold and produce a binary mask.
 ///
-/// Builds a 256-bin histogram from the image intensities and finds the threshold
-/// t* that maximises between-class variance.  Returns both the threshold value
-/// and a binary mask where voxels ≥ t* are 1.0 (foreground) and < t* are 0.0.
+/// Delegates to `ritk_core::segmentation::OtsuThreshold` (256-bin histogram,
+/// maximises between-class variance σ²_B).
 ///
 /// Args:
 ///     image: Input PyImage.
 ///
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
-///
-/// Raises:
-///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 pub fn otsu_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let (values, shape) = image_to_vec(image.inner.as_ref())?;
-
-    let threshold = compute_otsu_threshold(&values);
-
-    let mask_vec: Vec<f32> = values
-        .iter()
-        .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
-        .collect();
-
-    let mask_image = vec_to_image_like(mask_vec, shape, image.inner.as_ref());
-    Ok((threshold, into_py_image(mask_image)))
+    let filter = OtsuThreshold::new();
+    let threshold = filter.compute(image.inner.as_ref());
+    let mask = filter.apply(image.inner.as_ref());
+    Ok((threshold, into_py_image(mask)))
 }
 
-// ── connected_components ──────────────────────────────────────────────────────
+// ── Threshold: Li ─────────────────────────────────────────────────────────────
+
+/// Compute the Li minimum cross-entropy threshold and produce a binary mask.
+///
+/// Delegates to `ritk_core::segmentation::LiThreshold` (256-bin histogram,
+/// iterative cross-entropy minimisation, Li & Tam 1998).
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
+#[pyfunction]
+pub fn li_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let filter = LiThreshold::new();
+    let threshold = filter.compute(image.inner.as_ref());
+    let mask = filter.apply(image.inner.as_ref());
+    Ok((threshold, into_py_image(mask)))
+}
+
+// ── Threshold: Yen ────────────────────────────────────────────────────────────
+
+/// Compute the Yen maximum correlation threshold and produce a binary mask.
+///
+/// Delegates to `ritk_core::segmentation::YenThreshold` (256-bin histogram,
+/// Yen, Chang & Chang 1995).
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
+#[pyfunction]
+pub fn yen_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let filter = YenThreshold::new();
+    let threshold = filter.compute(image.inner.as_ref());
+    let mask = filter.apply(image.inner.as_ref());
+    Ok((threshold, into_py_image(mask)))
+}
+
+// ── Threshold: Kapur ──────────────────────────────────────────────────────────
+
+/// Compute the Kapur maximum entropy threshold and produce a binary mask.
+///
+/// Delegates to `ritk_core::segmentation::KapurThreshold` (256-bin histogram,
+/// Kapur, Sahoo & Wong 1985).
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
+#[pyfunction]
+pub fn kapur_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let filter = KapurThreshold::new();
+    let threshold = filter.compute(image.inner.as_ref());
+    let mask = filter.apply(image.inner.as_ref());
+    Ok((threshold, into_py_image(mask)))
+}
+
+// ── Threshold: Triangle ───────────────────────────────────────────────────────
+
+/// Compute the Triangle (Zack) threshold and produce a binary mask.
+///
+/// Delegates to `ritk_core::segmentation::TriangleThreshold` (256-bin histogram,
+/// Zack, Rogers & Latt 1977).
+///
+/// Args:
+///     image: Input PyImage.
+///
+/// Returns:
+///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
+#[pyfunction]
+pub fn triangle_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let filter = TriangleThreshold::new();
+    let threshold = filter.compute(image.inner.as_ref());
+    let mask = filter.apply(image.inner.as_ref());
+    Ok((threshold, into_py_image(mask)))
+}
+
+// ── Threshold: Multi-Otsu ─────────────────────────────────────────────────────
+
+/// Compute multi-class Otsu thresholds and produce a labeled image.
+///
+/// Delegates to `ritk_core::segmentation::MultiOtsuThreshold`. Returns K−1
+/// thresholds and a label image with class indices {0, 1, …, K−1} as f32.
+///
+/// Args:
+///     image:       Input PyImage.
+///     num_classes: Number of intensity classes (≥ 2). Default 3.
+///
+/// Returns:
+///     (thresholds, labeled_image): list of K−1 threshold values and labeled PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, num_classes=3))]
+pub fn multi_otsu_threshold(image: &PyImage, num_classes: usize) -> PyResult<(Vec<f32>, PyImage)> {
+    if num_classes < 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "num_classes must be ≥ 2",
+        ));
+    }
+    let filter = MultiOtsuThreshold::new(num_classes);
+    let thresholds = filter.compute(image.inner.as_ref());
+    let labeled = filter.apply(image.inner.as_ref());
+    Ok((thresholds, into_py_image(labeled)))
+}
+
+// ── Connected components ──────────────────────────────────────────────────────
 
 /// Label connected components in a binary mask.
 ///
-/// Applies Hoshen-Kopelman two-pass labeling.  Foreground voxels (value > 0.5)
-/// are labeled with consecutive integers [1, K] cast to f32; background voxels
-/// remain 0.0.
+/// Delegates to `ritk_core::segmentation::connected_components` (Hoshen-Kopelman
+/// two-pass labeling).  Foreground voxels (value > 0.5) receive consecutive
+/// integer labels [1, K] cast to f32; background voxels remain 0.0.
 ///
 /// Args:
 ///     mask:         Binary mask PyImage (values 0 or 1).
@@ -72,8 +175,7 @@ pub fn otsu_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 ///     (labeled_image, num_components): label image and component count K.
 ///
 /// Raises:
-///     RuntimeError: on internal tensor operation failure.
-///     ValueError:   if connectivity is not 6 or 26.
+///     ValueError: if connectivity is not 6 or 26.
 #[pyfunction]
 #[pyo3(signature = (mask, connectivity=6))]
 pub fn connected_components(mask: &PyImage, connectivity: u32) -> PyResult<(PyImage, usize)> {
@@ -83,253 +185,320 @@ pub fn connected_components(mask: &PyImage, connectivity: u32) -> PyResult<(PyIm
         )));
     }
 
-    let (values, shape) = image_to_vec(mask.inner.as_ref())?;
-    let (label_vec, num_components) = hoshen_kopelman(&values, shape, connectivity);
-
-    let label_image = vec_to_image_like(label_vec, shape, mask.inner.as_ref());
+    let (label_image, num_components) =
+        core_connected_components(mask.inner.as_ref(), connectivity);
     Ok((into_py_image(label_image), num_components))
 }
 
-// ── Otsu core ─────────────────────────────────────────────────────────────────
+// ── Connected-threshold region growing ────────────────────────────────────────
 
-const NUM_BINS: usize = 256;
-
-/// Compute the Otsu threshold over a flat slice of f32 values.
+/// Segment a region by connected-threshold flood-fill from a seed voxel.
 ///
-/// # Algorithm
-/// 1. Determine [x_min, x_max].  Return x_min for constant images.
-/// 2. Build a normalised L=256 bin histogram h[i].
-/// 3. Prefix-sum scan: at threshold index t, σ²_B(t) = w₀·w₁·(μ₀−μ₁)².
-/// 4. t* = argmax σ²_B; convert to intensity: x_min + t*/(L−1)·range.
-pub(crate) fn compute_otsu_threshold(values: &[f32]) -> f32 {
-    let n = values.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ───────────────────────────────────────────────────────
-    let x_min = values.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = values.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min; // constant image — degenerate case
-    }
-
-    let range = x_max - x_min;
-    let scale = (NUM_BINS - 1) as f32;
-
-    // ── Normalised histogram ─────────────────────────────────────────────────
-    let mut counts = [0u64; NUM_BINS];
-    for &v in values {
-        let bin = ((v - x_min) / range * scale).floor() as usize;
-        counts[bin.min(NUM_BINS - 1)] += 1;
-    }
-    let inv_n = 1.0_f64 / n as f64;
-    let h: [f64; NUM_BINS] = std::array::from_fn(|i| counts[i] as f64 * inv_n);
-
-    // ── Total mean (bin index units) ─────────────────────────────────────────
-    let total_mu: f64 = (0..NUM_BINS).map(|i| i as f64 * h[i]).sum();
-
-    // ── Prefix-sum scan ──────────────────────────────────────────────────────
-    // At threshold t: class 0 = bins [0, t−1], class 1 = bins [t, L−1].
-    let mut best_sigma2 = 0.0_f64;
-    let mut best_t = 0_usize;
-    let mut w0 = 0.0_f64; // Σ h[0..t−1]
-    let mut mu0_partial = 0.0_f64; // Σ i·h[i] for i ∈ [0, t−1]
-
-    for t in 1..NUM_BINS {
-        // Extend class 0 to include bin t−1.
-        w0 += h[t - 1];
-        mu0_partial += (t - 1) as f64 * h[t - 1];
-
-        let w1 = 1.0 - w0;
-        if w0 < 1e-12 || w1 < 1e-12 {
-            continue;
-        }
-
-        let mu0 = mu0_partial / w0;
-        let mu1 = (total_mu - mu0_partial) / w1;
-        let sigma2 = w0 * w1 * (mu0 - mu1) * (mu0 - mu1);
-
-        if sigma2 > best_sigma2 {
-            best_sigma2 = sigma2;
-            best_t = t;
-        }
-    }
-
-    // Convert best bin index to intensity units.
-    x_min + best_t as f32 / scale * range
-}
-
-// ── Union-Find ────────────────────────────────────────────────────────────────
-
-struct UnionFind {
-    parent: Vec<usize>,
-    rank: Vec<usize>,
-}
-
-impl UnionFind {
-    fn new(n: usize) -> Self {
-        Self {
-            parent: (0..n).collect(),
-            rank: vec![0; n],
-        }
-    }
-
-    /// Find with path-halving (iterative, safe).
-    fn find(&mut self, mut x: usize) -> usize {
-        while self.parent[x] != x {
-            self.parent[x] = self.parent[self.parent[x]]; // path halving
-            x = self.parent[x];
-        }
-        x
-    }
-
-    /// Union by rank.
-    fn union(&mut self, a: usize, b: usize) {
-        let ra = self.find(a);
-        let rb = self.find(b);
-        if ra == rb {
-            return;
-        }
-        match self.rank[ra].cmp(&self.rank[rb]) {
-            std::cmp::Ordering::Less => self.parent[ra] = rb,
-            std::cmp::Ordering::Greater => self.parent[rb] = ra,
-            std::cmp::Ordering::Equal => {
-                self.parent[rb] = ra;
-                self.rank[ra] += 1;
-            }
-        }
-    }
-}
-
-// ── Hoshen-Kopelman core ──────────────────────────────────────────────────────
-
-/// Two-pass Hoshen-Kopelman connected-component labeling on a flat Z×Y×X volume.
+/// Delegates to `ritk_core::segmentation::connected_threshold`. Grows a
+/// 6-connected region from `seed` including all reachable voxels with
+/// intensity in [lower, upper].
 ///
-/// Returns `(label_vec, num_components)` where `label_vec` has the same length
-/// as `mask`.
+/// Args:
+///     image: Input PyImage.
+///     seed:  Seed voxel as [z, y, x] indices.
+///     lower: Inclusive lower intensity bound.
+///     upper: Inclusive upper intensity bound.
 ///
-/// # Backward-neighbour sets
-/// 6-connectivity:  3 offsets (−z, −y, −x face neighbors in scan order).
-/// 26-connectivity: 13 offsets (all backward neighbors in a 3×3×3 cube).
-fn hoshen_kopelman(mask: &[f32], dims: [usize; 3], connectivity: u32) -> (Vec<f32>, usize) {
-    let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
-    let n = nz * ny * nx;
-
-    // Maximum provisional labels = n (worst case: every voxel is isolated).
-    // Labels are 1-based; index 0 is background in the union-find.
-    let mut uf = UnionFind::new(n + 1);
-    let mut provisional = vec![0usize; n];
-    let mut next_label = 1usize;
-
-    let flat = |z: usize, y: usize, x: usize| z * ny * nx + y * nx + x;
-
-    // Backward neighbours (already visited in Z→Y→X scan order).
-    let backward_6: &[(isize, isize, isize)] = &[(-1, 0, 0), (0, -1, 0), (0, 0, -1)];
-
-    let backward_26: &[(isize, isize, isize)] = &[
-        (-1, -1, -1),
-        (-1, -1, 0),
-        (-1, -1, 1),
-        (-1, 0, -1),
-        (-1, 0, 0),
-        (-1, 0, 1),
-        (-1, 1, -1),
-        (-1, 1, 0),
-        (-1, 1, 1),
-        (0, -1, -1),
-        (0, -1, 0),
-        (0, -1, 1),
-        (0, 0, -1),
-    ];
-
-    let offsets: &[(isize, isize, isize)] = if connectivity == 6 {
-        backward_6
-    } else {
-        backward_26
-    };
-
-    // ── Pass 1: assign provisional labels ────────────────────────────────────
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let center = flat(iz, iy, ix);
-                if mask[center] <= 0.5 {
-                    continue; // background
-                }
-
-                // Collect canonical labels of already-visited foreground neighbours.
-                let mut nbr_labels: Vec<usize> = Vec::with_capacity(offsets.len());
-                for &(dz, dy, dx) in offsets {
-                    let nz_i = iz as isize + dz;
-                    let ny_i = iy as isize + dy;
-                    let nx_i = ix as isize + dx;
-                    if nz_i < 0
-                        || nz_i >= nz as isize
-                        || ny_i < 0
-                        || ny_i >= ny as isize
-                        || nx_i < 0
-                        || nx_i >= nx as isize
-                    {
-                        continue;
-                    }
-                    let lbl = provisional[flat(nz_i as usize, ny_i as usize, nx_i as usize)];
-                    if lbl > 0 {
-                        nbr_labels.push(lbl);
-                    }
-                }
-
-                if nbr_labels.is_empty() {
-                    // No labelled neighbour — start a new component.
-                    provisional[center] = next_label;
-                    next_label += 1;
-                } else {
-                    // Union all neighbour labels; assign canonical root to center.
-                    let mut root = uf.find(nbr_labels[0]);
-                    for &lbl in &nbr_labels[1..] {
-                        let r = uf.find(lbl);
-                        if r != root {
-                            uf.union(root, r);
-                            root = uf.find(root);
-                        }
-                    }
-                    provisional[center] = root;
-                }
-            }
-        }
+/// Returns:
+///     Binary mask PyImage (1.0 = included, 0.0 = excluded).
+///
+/// Raises:
+///     ValueError: if lower > upper or seed is out of bounds.
+#[pyfunction]
+#[pyo3(signature = (image, seed, lower, upper))]
+pub fn connected_threshold_segment(
+    image: &PyImage,
+    seed: [usize; 3],
+    lower: f32,
+    upper: f32,
+) -> PyResult<PyImage> {
+    if lower > upper {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "lower bound ({lower}) must be ≤ upper bound ({upper})"
+        )));
     }
-
-    if next_label == 1 {
-        // No foreground voxels.
-        return (vec![0.0_f32; n], 0);
+    let shape = image.inner.shape();
+    if seed[0] >= shape[0] || seed[1] >= shape[1] || seed[2] >= shape[2] {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "seed {:?} is out of bounds for image shape {:?}",
+            seed, shape
+        )));
     }
-
-    // ── Pass 2: resolve provisional labels to consecutive final labels ─────────
-    // root_to_final[canonical_root] = final_label (1-based).
-    let mut root_to_final = vec![0usize; next_label];
-    let mut num_components = 0usize;
-
-    for i in 0..n {
-        if provisional[i] > 0 {
-            let root = uf.find(provisional[i]);
-            if root_to_final[root] == 0 {
-                num_components += 1;
-                root_to_final[root] = num_components;
-            }
-            provisional[i] = root_to_final[root];
-        }
-    }
-
-    let label_vec: Vec<f32> = provisional.iter().map(|&l| l as f32).collect();
-    (label_vec, num_components)
+    let result = core_connected_threshold(image.inner.as_ref(), seed, lower, upper);
+    Ok(into_py_image(result))
 }
 
-/// Register the `segmentation` submodule.
+// ── K-Means clustering ───────────────────────────────────────────────────────
+
+/// Segment an image into K clusters via K-Means (Lloyd's algorithm).
+///
+/// Delegates to `ritk_core::segmentation::KMeansSegmentation` with k-means++
+/// initialization. Each output voxel contains its cluster index (0..K−1) as f32.
+///
+/// Args:
+///     image: Input PyImage.
+///     k:     Number of clusters (≥ 1). Default 3.
+///
+/// Returns:
+///     Label PyImage with cluster indices.
+#[pyfunction]
+#[pyo3(signature = (image, k=3))]
+pub fn kmeans_segment(image: &PyImage, k: usize) -> PyResult<PyImage> {
+    if k < 1 {
+        return Err(pyo3::exceptions::PyValueError::new_err("k must be ≥ 1"));
+    }
+    let seg = KMeansSegmentation::new(k);
+    let result = seg.apply(image.inner.as_ref());
+    Ok(into_py_image(result))
+}
+
+// ── Watershed segmentation ───────────────────────────────────────────────────
+
+/// Segment a 3D image via Meyer's flooding watershed algorithm.
+///
+/// Delegates to `ritk_core::segmentation::WatershedSegmentation`. The input
+/// should be a gradient magnitude image. Each output voxel receives a basin
+/// label (≥ 1) or 0 for watershed boundaries.
+///
+/// Args:
+///     image: Input PyImage (typically gradient magnitude).
+///
+/// Returns:
+///     Label PyImage with basin indices and watershed boundaries (0).
+#[pyfunction]
+pub fn watershed_segment(image: &PyImage) -> PyResult<PyImage> {
+    let seg = WatershedSegmentation::new();
+    let result = seg
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── Binary erosion ───────────────────────────────────────────────────────────
+
+/// Apply binary erosion with a box structuring element.
+///
+/// Delegates to `ritk_core::segmentation::BinaryErosion`. For each voxel p,
+/// output[p] = 1.0 iff all voxels within the axis-aligned hypercube of
+/// half-width `radius` centred at p are foreground.
+///
+/// Args:
+///     image:  Binary mask PyImage.
+///     radius: Half-width of the box structuring element in voxels. Default 1.
+///
+/// Returns:
+///     Eroded binary mask PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn binary_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let op = BinaryErosion::new(radius);
+    let result = op.apply(image.inner.as_ref());
+    Ok(into_py_image(result))
+}
+
+// ── Binary dilation ──────────────────────────────────────────────────────────
+
+/// Apply binary dilation with a box structuring element.
+///
+/// Delegates to `ritk_core::segmentation::BinaryDilation`. For each voxel p,
+/// output[p] = 1.0 iff any voxel within the axis-aligned hypercube of
+/// half-width `radius` centred at p is foreground.
+///
+/// Args:
+///     image:  Binary mask PyImage.
+///     radius: Half-width of the box structuring element in voxels. Default 1.
+///
+/// Returns:
+///     Dilated binary mask PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn binary_dilation(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let op = BinaryDilation::new(radius);
+    let result = op.apply(image.inner.as_ref());
+    Ok(into_py_image(result))
+}
+
+// ── Binary opening ───────────────────────────────────────────────────────────
+
+/// Apply binary opening (erosion followed by dilation).
+///
+/// Delegates to `ritk_core::segmentation::BinaryOpening`. Removes small
+/// foreground regions while preserving the shape of larger structures.
+///
+/// Args:
+///     image:  Binary mask PyImage.
+///     radius: Half-width of the box structuring element in voxels. Default 1.
+///
+/// Returns:
+///     Opened binary mask PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn binary_opening(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let op = BinaryOpening::new(radius);
+    let result = op.apply(image.inner.as_ref());
+    Ok(into_py_image(result))
+}
+
+// ── Binary closing ───────────────────────────────────────────────────────────
+
+/// Apply binary closing (dilation followed by erosion).
+///
+/// Delegates to `ritk_core::segmentation::BinaryClosing`. Fills small
+/// background holes while preserving the shape of the foreground.
+///
+/// Args:
+///     image:  Binary mask PyImage.
+///     radius: Half-width of the box structuring element in voxels. Default 1.
+///
+/// Returns:
+///     Closed binary mask PyImage.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn binary_closing(image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let op = BinaryClosing::new(radius);
+    let result = op.apply(image.inner.as_ref());
+    Ok(into_py_image(result))
+}
+
+// ── Chan-Vese level set ──────────────────────────────────────────────────────
+
+/// Segment a 3D image via Chan-Vese level set evolution.
+///
+/// Delegates to `ritk_core::segmentation::ChanVeseSegmentation` (Active
+/// Contours Without Edges, Chan & Vese 2001). Evolves a level set function
+/// under an energy functional driven by region statistics (no edges required).
+///
+/// Args:
+///     image:          Input PyImage.
+///     mu:             Curvature (length) penalty weight. Default 0.25.
+///     nu:             Area penalty weight. Default 0.0.
+///     lambda1:        Data fidelity weight for inside region. Default 1.0.
+///     lambda2:        Data fidelity weight for outside region. Default 1.0.
+///     max_iterations: Maximum PDE evolution iterations. Default 200.
+///     dt:             Euler forward time step. Default 0.1.
+///     tolerance:      Convergence tolerance on max|Δφ|/dt. Default 1e-3.
+///
+/// Returns:
+///     Binary mask PyImage (1.0 = inside, 0.0 = outside).
+#[pyfunction]
+#[pyo3(signature = (image, mu=0.25, nu=0.0, lambda1=1.0, lambda2=1.0, max_iterations=200, dt=0.1, tolerance=1e-3))]
+pub fn chan_vese_segment(
+    image: &PyImage,
+    mu: f64,
+    nu: f64,
+    lambda1: f64,
+    lambda2: f64,
+    max_iterations: usize,
+    dt: f64,
+    tolerance: f64,
+) -> PyResult<PyImage> {
+    let mut seg = ChanVeseSegmentation::new();
+    seg.mu = mu;
+    seg.nu = nu;
+    seg.lambda1 = lambda1;
+    seg.lambda2 = lambda2;
+    seg.max_iterations = max_iterations;
+    seg.dt = dt;
+    seg.tolerance = tolerance;
+    let result = seg
+        .apply(image.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── Geodesic Active Contour ──────────────────────────────────────────────────
+
+/// Segment a 3D image via Geodesic Active Contour level set evolution.
+///
+/// Delegates to `ritk_core::segmentation::GeodesicActiveContourSegmentation`
+/// (Caselles, Kimmel & Sapiro 1997). Evolves an initial level set function
+/// toward image edges using the GAC PDE.
+///
+/// Args:
+///     image:              Input PyImage.
+///     initial_phi:        Initial level set function PyImage (same shape as image).
+///                         φ < 0 inside the initial contour, φ > 0 outside.
+///     propagation_weight: Balloon force ν (expansion if > 0). Default 1.0.
+///     curvature_weight:   Weight on curvature regularisation. Default 1.0.
+///     advection_weight:   Weight on ∇g·∇φ edge attraction. Default 1.0.
+///     edge_k:             Edge stopping sensitivity parameter k. Default 1.0.
+///     sigma:              Gaussian pre-smoothing σ for gradient. Default 1.0.
+///     dt:                 Euler forward time step Δt. Default 0.05.
+///     max_iterations:     Maximum PDE iterations. Default 200.
+///
+/// Returns:
+///     Binary mask PyImage (1.0 where φ < 0, 0.0 elsewhere).
+///
+/// Raises:
+///     RuntimeError: if image and initial_phi shapes do not match.
+#[pyfunction]
+#[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200))]
+pub fn geodesic_active_contour_segment(
+    image: &PyImage,
+    initial_phi: &PyImage,
+    propagation_weight: f64,
+    curvature_weight: f64,
+    advection_weight: f64,
+    edge_k: f64,
+    sigma: f64,
+    dt: f64,
+    max_iterations: usize,
+) -> PyResult<PyImage> {
+    let mut seg = GeodesicActiveContourSegmentation::new();
+    seg.propagation_weight = propagation_weight;
+    seg.curvature_weight = curvature_weight;
+    seg.advection_weight = advection_weight;
+    seg.edge_k = edge_k;
+    seg.sigma = sigma;
+    seg.dt = dt;
+    seg.max_iterations = max_iterations;
+    let result = seg
+        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── Submodule registration ────────────────────────────────────────────────────
+
+/// Register the `segmentation` submodule with all exposed functions.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "segmentation")?;
+
+    // Thresholding
     m.add_function(wrap_pyfunction!(otsu_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(li_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(yen_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(kapur_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(triangle_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(multi_otsu_threshold, &m)?)?;
+
+    // Labeling
     m.add_function(wrap_pyfunction!(connected_components, &m)?)?;
+
+    // Region growing
+    m.add_function(wrap_pyfunction!(connected_threshold_segment, &m)?)?;
+
+    // Clustering
+    m.add_function(wrap_pyfunction!(kmeans_segment, &m)?)?;
+
+    // Watershed
+    m.add_function(wrap_pyfunction!(watershed_segment, &m)?)?;
+
+    // Morphology
+    m.add_function(wrap_pyfunction!(binary_erosion, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_dilation, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_opening, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_closing, &m)?)?;
+
+    // Level set
+    m.add_function(wrap_pyfunction!(chan_vese_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
+
     parent.add_submodule(&m)?;
     Ok(())
 }
