@@ -210,6 +210,46 @@ impl ThirionDemonsRegistration {
             num_iterations: iter,
         })
     }
+
+    /// Compute the inverse displacement field of a registration result.
+    ///
+    /// # Mathematical Basis
+    ///
+    /// `DemonsResult` stores `disp = u` (the accumulated displacement field).
+    /// The inverse `u^{-1}` satisfies `u^{-1}(x) = −u(x + u^{-1}(x))` and is
+    /// approximated via fixed-point iteration (Christensen & Johnson 2001):
+    ///
+    ///   `u^{-1}_0(x)      = −u(x)`
+    ///   `u^{-1}_{k+1}(x)  = −u(x + u^{-1}_k(x))`
+    ///
+    /// Convergence is guaranteed when the Lipschitz constant of `u` is < 1,
+    /// which holds for well-regularised registration outputs.
+    ///
+    /// # Arguments
+    ///
+    /// - `result` — output of [`ThirionDemonsRegistration::register`].
+    /// - `dims`   — volume dimensions `[nz, ny, nx]` (must match registration).
+    ///
+    /// # Returns
+    ///
+    /// `(inv_disp_z, inv_disp_y, inv_disp_x)` — inverse displacement components
+    /// in voxel units.
+    pub fn invert_result(
+        &self,
+        result: &DemonsResult,
+        dims: [usize; 3],
+    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+        use super::inverse::{invert_displacement_field, InverseFieldConfig};
+        let config = InverseFieldConfig::default();
+        let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
+            &result.disp_z,
+            &result.disp_y,
+            &result.disp_x,
+            dims,
+            &config,
+        );
+        (inv_z, inv_y, inv_x)
+    }
 }
 
 // ── Shared helpers (also used by diffeomorphic.rs and symmetric.rs) ───────────

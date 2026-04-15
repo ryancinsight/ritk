@@ -2,15 +2,20 @@
 //!
 //! Applies one of the following filters to a 3-D medical image:
 //!
-//! | Filter       | Status         | Parameters                                   |
-//! |-------------|----------------|----------------------------------------------|
-//! | `gaussian`   | Implemented    | `--sigma <FLOAT>` (default 1.0 mm)           |
-//! | `n4-bias`    | Pending Sprint 3 merge | `--levels`, `--iterations`          |
-//! | `anisotropic`| Pending Sprint 3 merge | `--iterations`, `--conductance`     |
-//! | `frangi`     | Pending Sprint 3 merge | `--scales`, `--alpha`, `--beta`, `--gamma` |
-//!
-//! The three pending filters return a structured `Err` rather than panicking
-//! so the CLI remains usable for the filters that are available.
+//! | Filter              | Parameters                                         |
+//! |---------------------|----------------------------------------------------|
+//! | `gaussian`          | `--sigma`                                          |
+//! | `n4-bias`           | `--levels`, `--iterations`                         |
+//! | `anisotropic`       | `--iterations`, `--conductance`                    |
+//! | `gradient-magnitude`| (uses image spacing)                               |
+//! | `laplacian`         | (uses image spacing)                               |
+//! | `frangi`            | `--scales`, `--alpha`, `--beta`, `--gamma`         |
+//! | `median`            | `--radius`                                         |
+//! | `bilateral`         | `--sigma-spatial`, `--sigma-range`                  |
+//! | `canny`             | `--sigma`, `--low`, `--high`                       |
+//! | `sobel`             | (uses image spacing)                               |
+//! | `log`               | `--sigma`                                          |
+//! | `recursive-gaussian`| `--sigma`, `--order`                               |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -34,15 +39,17 @@ pub struct FilterArgs {
 
     /// Filter to apply.
     ///
-    /// Accepted values: `gaussian`, `n4-bias`, `anisotropic`, `frangi`.
+    /// Accepted values: `gaussian`, `n4-bias`, `anisotropic`, `frangi`,
+    /// `gradient-magnitude`, `laplacian`, `median`, `bilateral`, `canny`,
+    /// `sobel`, `log`, `recursive-gaussian`.
     #[arg(long, value_name = "FILTER")]
     pub filter: String,
 
-    // ── Gaussian ──────────────────────────────────────────────────────────
+    // ── Gaussian / LoG / Canny / Recursive-Gaussian ───────────────────────
     /// Gaussian standard deviation in physical units (mm).
     ///
     /// Applied uniformly in all three spatial dimensions.
-    /// Used by: `gaussian`.
+    /// Used by: `gaussian`, `canny`, `log`, `recursive-gaussian`.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub sigma: f64,
 
@@ -92,6 +99,48 @@ pub struct FilterArgs {
     /// Used by: `frangi`.
     #[arg(long, default_value = "15.0", value_name = "FLOAT")]
     pub gamma: f64,
+
+    // ── Bilateral ─────────────────────────────────────────────────────────
+    /// Spatial Gaussian sigma in voxels for the bilateral filter.
+    ///
+    /// Used by: `bilateral`.
+    #[arg(long, default_value = "3.0", value_name = "FLOAT")]
+    pub sigma_spatial: f64,
+
+    /// Intensity-range Gaussian sigma for the bilateral filter.
+    ///
+    /// Used by: `bilateral`.
+    #[arg(long, default_value = "50.0", value_name = "FLOAT")]
+    pub sigma_range: f64,
+
+    // ── Canny ─────────────────────────────────────────────────────────────
+    /// Lower hysteresis threshold for the Canny edge detector.
+    ///
+    /// Used by: `canny`.
+    #[arg(long, default_value = "0.1", value_name = "FLOAT")]
+    pub low: f32,
+
+    /// Upper hysteresis threshold for the Canny edge detector.
+    ///
+    /// Used by: `canny`.
+    #[arg(long, default_value = "0.3", value_name = "FLOAT")]
+    pub high: f32,
+
+    // ── Median ────────────────────────────────────────────────────────────
+    /// Neighbourhood half-width in voxels for the median filter.
+    /// A radius of 1 produces a 3×3×3 kernel (27 samples per voxel).
+    ///
+    /// Used by: `median`.
+    #[arg(long, default_value = "1", value_name = "INT")]
+    pub radius: usize,
+
+    // ── Recursive-Gaussian ────────────────────────────────────────────────
+    /// Derivative order for the recursive Gaussian filter.
+    /// 0 = smoothing, 1 = first derivative, 2 = second derivative.
+    ///
+    /// Used by: `recursive-gaussian`.
+    #[arg(long, default_value = "0", value_name = "INT")]
+    pub order: usize,
 }
 
 // ── Command handler ───────────────────────────────────────────────────────────
@@ -99,8 +148,6 @@ pub struct FilterArgs {
 /// Execute the `filter` subcommand.
 ///
 /// Dispatches to the appropriate filter implementation based on `args.filter`.
-/// Filters that are not yet available in `ritk-core` return a descriptive
-/// `Err` rather than panicking.
 ///
 /// # Errors
 /// Returns an error when:
@@ -123,10 +170,17 @@ pub fn run(args: FilterArgs) -> Result<()> {
         "gradient-magnitude" => run_gradient_magnitude(&args),
         "laplacian" => run_laplacian(&args),
         "frangi" => run_frangi(&args),
+        "median" => run_median(&args),
+        "bilateral" => run_bilateral(&args),
+        "canny" => run_canny(&args),
+        "sobel" => run_sobel(&args),
+        "log" => run_log(&args),
+        "recursive-gaussian" => run_recursive_gaussian(&args),
         other => Err(anyhow!(
             "Unknown filter '{other}'. \
              Available filters: gaussian, n4-bias, anisotropic, \
-             gradient-magnitude, laplacian, frangi."
+             gradient-magnitude, laplacian, frangi, median, bilateral, \
+             canny, sobel, log, recursive-gaussian."
         )),
     }
 }
@@ -347,6 +401,215 @@ fn run_frangi(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
+// ── Median filter ─────────────────────────────────────────────────────────────
+
+/// Apply a median filter with the given neighbourhood radius.
+///
+/// Radius 1 → 3×3×3 kernel (27 samples per voxel).
+fn run_median(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::MedianFilter;
+
+    let image = read_image(&args.input)?;
+    let filter = MedianFilter::new(args.radius);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied median (radius={}) to {} \u{2192} {}",
+        args.radius,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        radius = args.radius,
+        "filter: median complete"
+    );
+
+    Ok(())
+}
+
+// ── Bilateral filter ──────────────────────────────────────────────────────────
+
+/// Apply a bilateral filter preserving edges.
+///
+/// `--sigma-spatial` controls the spatial Gaussian (voxels),
+/// `--sigma-range` controls the intensity Gaussian.
+fn run_bilateral(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::BilateralFilter;
+
+    let image = read_image(&args.input)?;
+    let filter = BilateralFilter::new(args.sigma_spatial, args.sigma_range);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied bilateral (\u{03c3}_spatial={}, \u{03c3}_range={}) to {} \u{2192} {}",
+        args.sigma_spatial,
+        args.sigma_range,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        sigma_spatial = args.sigma_spatial,
+        sigma_range = args.sigma_range,
+        "filter: bilateral complete"
+    );
+
+    Ok(())
+}
+
+// ── Canny edge detector ───────────────────────────────────────────────────────
+
+/// Apply the Canny edge detector.
+///
+/// `--sigma` controls pre-smoothing, `--low` and `--high` set the
+/// hysteresis thresholds on gradient magnitude.
+fn run_canny(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::CannyEdgeDetector;
+
+    let image = read_image(&args.input)?;
+    let detector = CannyEdgeDetector::new(args.sigma, args.low as f64, args.high as f64);
+    let filtered = detector.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied canny (\u{03c3}={}, low={}, high={}) to {} \u{2192} {}",
+        args.sigma,
+        args.low,
+        args.high,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        sigma = args.sigma,
+        low = args.low,
+        high = args.high,
+        "filter: canny complete"
+    );
+
+    Ok(())
+}
+
+// ── Sobel filter ──────────────────────────────────────────────────────────────
+
+/// Apply the Sobel gradient magnitude filter.
+///
+/// Uses the image's physical spacing to compute properly scaled gradients.
+fn run_sobel(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::SobelFilter;
+
+    let image = read_image(&args.input)?;
+    let spacing = image.spacing();
+    let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied sobel to {} \u{2192} {}",
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        "filter: sobel complete"
+    );
+
+    Ok(())
+}
+
+// ── Laplacian of Gaussian (LoG) ───────────────────────────────────────────────
+
+/// Apply the Laplacian of Gaussian filter.
+///
+/// Computes G_σ * ∇²I by smoothing with Gaussian of standard deviation σ
+/// then computing the discrete Laplacian.
+fn run_log(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::LaplacianOfGaussianFilter;
+
+    let image = read_image(&args.input)?;
+    let filter = LaplacianOfGaussianFilter::new(args.sigma);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied log (\u{03c3}={}) to {} \u{2192} {}",
+        args.sigma,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        sigma = args.sigma,
+        "filter: log complete"
+    );
+
+    Ok(())
+}
+
+// ── Recursive Gaussian filter ─────────────────────────────────────────────────
+
+/// Apply the recursive Gaussian (Young–van Vliet IIR) filter.
+///
+/// `--order` selects the derivative: 0 = smooth, 1 = first, 2 = second.
+fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::recursive_gaussian::DerivativeOrder;
+    use ritk_core::filter::RecursiveGaussianFilter;
+
+    let order = match args.order {
+        0 => DerivativeOrder::Zero,
+        1 => DerivativeOrder::First,
+        2 => DerivativeOrder::Second,
+        other => {
+            return Err(anyhow!(
+                "Invalid --order {other} for recursive-gaussian. \
+                 Valid values: 0 (smooth), 1 (first derivative), 2 (second derivative)."
+            ));
+        }
+    };
+
+    let image = read_image(&args.input)?;
+    let filter = RecursiveGaussianFilter::new(args.sigma).with_derivative_order(order);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied recursive-gaussian (\u{03c3}={}, order={}) to {} \u{2192} {}",
+        args.sigma,
+        args.order,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        sigma = args.sigma,
+        order = args.order,
+        "filter: recursive-gaussian complete"
+    );
+
+    Ok(())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -357,6 +620,30 @@ mod tests {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
+
+    /// Default `FilterArgs` builder — sets every field to a reasonable default
+    /// and lets the caller override what is needed.
+    fn default_args(input: PathBuf, output: PathBuf, filter: &str) -> FilterArgs {
+        FilterArgs {
+            input,
+            output,
+            filter: filter.to_string(),
+            sigma: 1.0,
+            levels: 4,
+            iterations: 50,
+            conductance: 3.0,
+            scales: "0.5,1.0,2.0".to_string(),
+            alpha: 0.5,
+            beta: 0.5,
+            gamma: 15.0,
+            sigma_spatial: 3.0,
+            sigma_range: 50.0,
+            low: 0.1,
+            high: 0.3,
+            radius: 1,
+            order: 0,
+        }
+    }
 
     /// Build a 5×5×5 test image whose voxel values are `0, 1, 2, …, 124`.
     fn make_test_image() -> Image<Backend, 3> {
@@ -383,20 +670,7 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        run(FilterArgs {
-            input: input.clone(),
-            output: output.clone(),
-            filter: "gaussian".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 50,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "gaussian")).unwrap();
 
         assert!(output.exists(), "output file must be created");
     }
@@ -412,20 +686,7 @@ mod tests {
 
         ritk_io::write_metaimage(&input, &make_test_image()).unwrap();
 
-        run(FilterArgs {
-            input: input.clone(),
-            output: output.clone(),
-            filter: "gaussian".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 50,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "gaussian")).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
@@ -456,20 +717,9 @@ mod tests {
 
         ritk_io::write_metaimage(&input, &original).unwrap();
 
-        run(FilterArgs {
-            input: input.clone(),
-            output: output.clone(),
-            filter: "gaussian".to_string(),
-            sigma: 0.0,
-            levels: 4,
-            iterations: 50,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        })
-        .unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "gaussian");
+        args.sigma = 0.0;
+        run(args).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
         let result_data: Vec<f32> = result
@@ -487,14 +737,12 @@ mod tests {
         let result_sum: f32 = result_data.iter().sum();
         assert!(
             (orig_sum - result_sum).abs() < 1e-3 * orig_sum.abs().max(1.0),
-            "voxel sum must be preserved under σ=0 Gaussian (orig={orig_sum}, result={result_sum})"
+            "voxel sum must be preserved under \u{03c3}=0 Gaussian (orig={orig_sum}, result={result_sum})"
         );
     }
 
     // ── Positive: N4 bias-field correction creates output file ───────────────
 
-    /// N4 bias-field correction must complete without error and write an output
-    /// file of the same shape as the input.
     #[test]
     fn test_filter_n4_applies_correction() {
         let dir = tempdir().unwrap();
@@ -502,19 +750,10 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output: output.clone(),
-            filter: "n4-bias".to_string(),
-            sigma: 1.0,
-            levels: 1,
-            iterations: 5,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let mut args = default_args(input, output.clone(), "n4-bias");
+        args.levels = 1;
+        args.iterations = 5;
+        let result = run(args);
 
         assert!(result.is_ok(), "n4-bias must succeed: {:?}", result.err());
         assert!(output.exists(), "n4-bias must write output file");
@@ -529,19 +768,9 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output: output.clone(),
-            filter: "anisotropic".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 5,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let mut args = default_args(input, output.clone(), "anisotropic");
+        args.iterations = 5;
+        let result = run(args);
 
         assert!(
             result.is_ok(),
@@ -560,19 +789,9 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output: output.clone(),
-            filter: "frangi".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 5,
-            conductance: 3.0,
-            scales: "1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let mut args = default_args(input, output.clone(), "frangi");
+        args.scales = "1.0,2.0".to_string();
+        let result = run(args);
 
         assert!(result.is_ok(), "frangi must succeed: {:?}", result.err());
         assert!(output.exists(), "frangi must write output file");
@@ -587,19 +806,7 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output: output.clone(),
-            filter: "gradient-magnitude".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 5,
-            conductance: 3.0,
-            scales: "1.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let result = run(default_args(input, output.clone(), "gradient-magnitude"));
 
         assert!(
             result.is_ok(),
@@ -618,22 +825,183 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output: output.clone(),
-            filter: "laplacian".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 5,
-            conductance: 3.0,
-            scales: "1.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let result = run(default_args(input, output.clone(), "laplacian"));
 
         assert!(result.is_ok(), "laplacian must succeed: {:?}", result.err());
         assert!(output.exists(), "laplacian must write output file");
+    }
+
+    // ── Positive: median creates output file with preserved shape ─────────────
+
+    #[test]
+    fn test_filter_median_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "median"));
+
+        assert!(result.is_ok(), "median must succeed: {:?}", result.err());
+        assert!(output.exists(), "median must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "median output shape must match input"
+        );
+    }
+
+    // ── Positive: bilateral creates output file with preserved shape ──────────
+
+    #[test]
+    fn test_filter_bilateral_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "bilateral"));
+
+        assert!(
+            result.is_ok(),
+            "bilateral must succeed: {:?}",
+            result.err()
+        );
+        assert!(output.exists(), "bilateral must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "bilateral output shape must match input"
+        );
+    }
+
+    // ── Positive: canny creates binary edge output ────────────────────────────
+
+    #[test]
+    fn test_filter_canny_creates_output_with_binary_values() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "canny"));
+
+        assert!(result.is_ok(), "canny must succeed: {:?}", result.err());
+        assert!(output.exists(), "canny must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(filtered.shape(), [5, 5, 5], "canny output shape must match input");
+
+        // Canny output is binary: every voxel must be 0.0 or 1.0.
+        let td = filtered.data().clone().into_data();
+        let values = td.as_slice::<f32>().unwrap();
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "Canny output must be strictly binary (0.0 or 1.0), got {v}"
+            );
+        }
+    }
+
+    // ── Positive: sobel creates output file ───────────────────────────────────
+
+    #[test]
+    fn test_filter_sobel_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "sobel"));
+
+        assert!(result.is_ok(), "sobel must succeed: {:?}", result.err());
+        assert!(output.exists(), "sobel must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "sobel output shape must match input"
+        );
+    }
+
+    // ── Positive: log creates output file ─────────────────────────────────────
+
+    #[test]
+    fn test_filter_log_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "log"));
+
+        assert!(result.is_ok(), "log must succeed: {:?}", result.err());
+        assert!(output.exists(), "log must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "log output shape must match input"
+        );
+    }
+
+    // ── Positive: recursive-gaussian creates output file ──────────────────────
+
+    #[test]
+    fn test_filter_recursive_gaussian_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let result = run(default_args(input, output.clone(), "recursive-gaussian"));
+
+        assert!(
+            result.is_ok(),
+            "recursive-gaussian must succeed: {:?}",
+            result.err()
+        );
+        assert!(output.exists(), "recursive-gaussian must write output file");
+
+        let filtered =
+            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "recursive-gaussian output shape must match input"
+        );
+    }
+
+    // ── Positive: recursive-gaussian order=1 produces first derivative ────────
+
+    #[test]
+    fn test_filter_recursive_gaussian_order_1_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let mut args = default_args(input, output.clone(), "recursive-gaussian");
+        args.order = 1;
+        let result = run(args);
+
+        assert!(
+            result.is_ok(),
+            "recursive-gaussian order=1 must succeed: {:?}",
+            result.err()
+        );
+        assert!(output.exists(), "recursive-gaussian order=1 must write output file");
     }
 
     // ── Negative: unknown filter name returns error ───────────────────────────
@@ -645,25 +1013,34 @@ mod tests {
         let output = dir.path().join("out.nii");
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-        let result = run(FilterArgs {
-            input,
-            output,
-            filter: "bilateral".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 50,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let result = run(default_args(input, output, "nonexistent"));
 
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("Unknown filter 'bilateral'"),
+            msg.contains("Unknown filter 'nonexistent'"),
             "error must name the unknown filter, got: {msg}"
+        );
+    }
+
+    // ── Negative: invalid recursive-gaussian order returns error ──────────────
+
+    #[test]
+    fn test_filter_recursive_gaussian_invalid_order_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+
+        let mut args = default_args(input, output, "recursive-gaussian");
+        args.order = 5;
+        let result = run(args);
+
+        assert!(result.is_err(), "invalid order must yield an error");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("Invalid --order 5"),
+            "error must report the invalid order, got: {msg}"
         );
     }
 
@@ -675,19 +1052,7 @@ mod tests {
         let input = dir.path().join("does_not_exist.nii");
         let output = dir.path().join("out.nii");
 
-        let result = run(FilterArgs {
-            input,
-            output,
-            filter: "gaussian".to_string(),
-            sigma: 1.0,
-            levels: 4,
-            iterations: 50,
-            conductance: 3.0,
-            scales: "0.5,1.0,2.0".to_string(),
-            alpha: 0.5,
-            beta: 0.5,
-            gamma: 15.0,
-        });
+        let result = run(default_args(input, output, "gaussian"));
 
         assert!(result.is_err(), "missing input must yield an error");
     }

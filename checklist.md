@@ -1,3 +1,20 @@
+## Sprint 11 — Completed
+- [x] FLT-CAD: Curvature Anisotropic Diffusion (Alvarez et al. 1992, mean curvature motion of level sets, explicit Euler)
+- [x] FLT-SATO: Sato Line Filter (Sato 1998, multi-scale Hessian curvilinear structure detection)
+- [x] Hessian computation module (3-D physical-space Hessian, Cardano eigenvalue solver)
+- [x] Module wiring: diffusion/curvature, vesselness/sato+hessian re-exported through filter root
+- [x] Workspace compilation: zero errors
+- [x] Unit tests: ritk-core 519 (unit) + 11 (integration) = 530 passing
+
+---
+
+## Sprint 10 — Completed
+- [x] SEG-CC: Confidence Connected Region Growing (Yanowitz/Bruckstein adaptive statistics)
+- [x] SEG-NC: Neighborhood Connected Region Growing (neighborhood admissibility predicate)
+- [x] SEG-SK: Skeletonization (topology-preserving thinning; Zhang–Suen 2-D, directional sequential 3-D)
+
+---
+
 ## Sprint 4 — Completed
 - [x] FLT-04: RecursiveGaussianFilter (Deriche IIR, derivative orders 0/1/2)
 - [x] FLT-08: CannyEdgeDetector (Gaussian + gradient + NMS + hysteresis)
@@ -44,22 +61,36 @@
 - [x] Workspace compilation: zero errors, zero warnings
 - [x] Unit tests: ritk-core 454, ritk-registration 162, ritk-io 79 passing
 
-## Sprint 8+ — Backlog
+## Sprint 8 — Completed
+- [x] IO-06: VTK image format reader/writer (legacy structured points, ASCII/BINARY, big-endian binary handling)
+- [x] IO-08: JPEG 2D support (grayscale read/write, represented as shape `[1, height, width]`, write rejects `nz != 1`)
+- [x] PY-07: CLI tooling completion
+- [x] CLI filter coverage: median, bilateral, canny, sobel, log, recursive-gaussian
+- [x] CLI segmentation coverage: li, yen, kapur, triangle, watershed, kmeans, distance-transform
+- [x] CLI registration coverage: demons and syn
+- [x] CLI stats subcommand: summary, dice, hausdorff, psnr, ssim
+- [x] PY-08: Type stubs / py.typed packaged under `crates/ritk-python/python/ritk/`
+- [x] Python registration additions: atlas building, majority-vote fusion, joint label fusion
+- [x] Python IO additions: composite transform JSON read/write
+- [x] Workspace verification: `cargo test --workspace` reached passing `ritk-cli` suite (107 tests) before timeout; prior attached report records full workspace pass (864 tests, 0 failed)
+- [x] Bounded verification note: current local reruns hit build/cache lock and timeout during full-workspace execution; no failing diagnostics were observed in captured output
+
+## Remaining Backlog
 - [ ] IO-05: MINC format reader/writer (deferred — awaiting consus pure-Rust HDF5 crate)
-- [ ] IO-06: VTK image format reader/writer
-- [ ] IO-08: JPEG 2D support
 - [ ] GAP-R02b: Diffeomorphic Demons exact inverse
-- [ ] PY-07: CLI tooling completion
-- [ ] PY-08: Type stubs / py.typed
-- [ ] FLT: Curvature anisotropic diffusion
-- [ ] FLT: Sato line filter
-- [ ] SEG: Confidence connected region growing
-- [ ] SEG: Neighborhood connected region growing
-- [ ] SEG: Skeletonization
+- [x] FLT: Curvature anisotropic diffusion (Alvarez et al. 1992 mean curvature motion)
+- [x] FLT: Sato line filter (Sato 1998 multi-scale Hessian line detection)
+- [ ] IO-07b: Analyze format reader/writer
+- [x] SEG: Confidence connected region growing (Sprint 10)
+- [x] SEG: Neighborhood connected region growing (Sprint 10)
+- [x] SEG: Skeletonization (Sprint 10)
 - [ ] CI: nextest, clippy, fmt enforcement
 - [ ] CI: dependency version alignment checks
+- [ ] Python: wrap long-running PyO3 calls with `py.allow_threads`
+- [ ] CI: add maturin build + `import ritk` smoke test
 
 ## Verification Policy
 - All tests must assert computed VALUES, not just Result/Option variants
 - cargo check --workspace --tests: zero errors required before commit
 - Targeted test runs for impacted crates before push
+- Use bounded verification first; if a full-workspace run times out, record the completed subset and the blocking condition

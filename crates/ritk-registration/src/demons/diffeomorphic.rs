@@ -165,6 +165,43 @@ impl DiffeomorphicDemonsRegistration {
             num_iterations: iter,
         })
     }
+
+    /// Compute the inverse displacement field of a registration result.
+    ///
+    /// # Mathematical Basis
+    ///
+    /// `DemonsResult` stores `disp = φ = exp(v)` (the forward displacement).
+    /// Because the velocity field `v` is not retained after registration,
+    /// the inverse is computed by the fixed-point iterative method
+    /// (Christensen & Johnson 2001) applied directly to the stored displacement
+    /// field.  For SVF results this is equivalent to `exp(−v)` when the
+    /// iteration converges fully (Lipschitz constant of the stored field < 1).
+    ///
+    /// # Arguments
+    ///
+    /// - `result` — output of [`DiffeomorphicDemonsRegistration::register`].
+    /// - `dims`   — volume dimensions `[nz, ny, nx]` (must match registration).
+    ///
+    /// # Returns
+    ///
+    /// `(inv_disp_z, inv_disp_y, inv_disp_x)` — inverse displacement components
+    /// in voxel units.
+    pub fn invert_result(
+        &self,
+        result: &DemonsResult,
+        dims: [usize; 3],
+    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+        use super::inverse::{invert_displacement_field, InverseFieldConfig};
+        let config = InverseFieldConfig::default();
+        let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
+            &result.disp_z,
+            &result.disp_y,
+            &result.disp_x,
+            dims,
+            &config,
+        );
+        (inv_z, inv_y, inv_x)
+    }
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

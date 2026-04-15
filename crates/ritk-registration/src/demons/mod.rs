@@ -32,17 +32,19 @@
 /// ├── mod.rs           ← this file (re-exports)
 /// ├── thirion.rs       ← Thirion 1998 classic Demons
 /// ├── diffeomorphic.rs ← Vercauteren 2009 diffeomorphic variant
-/// └── symmetric.rs     ← Pennec 1999 symmetric-force variant
+/// ├── symmetric.rs     ← Pennec 1999 symmetric-force variant
+/// └── inverse.rs       ← Exact SVF inverse + iterative displacement inverse
 /// ```
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,
 /// field composition, scaling-and-squaring) live in
 /// [`crate::deformable_field_ops`] (crate-level SSOT).
-
 pub mod diffeomorphic;
+pub mod inverse;
 pub mod symmetric;
 pub mod thirion;
 
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
+pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
 pub use symmetric::SymmetricDemonsRegistration;
 pub use thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};

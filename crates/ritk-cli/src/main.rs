@@ -26,17 +26,20 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-    /// Convert an image between supported formats (NIfTI, MetaImage, NRRD, PNG).
+    /// Convert an image between supported formats (NIfTI, MetaImage, NRRD, PNG, MGH, TIFF).
     Convert(commands::convert::ConvertArgs),
 
-    /// Apply an image filter (gaussian, n4-bias, anisotropic, frangi).
+    /// Apply an image filter (gaussian, n4-bias, anisotropic, frangi, median, bilateral, canny, sobel, log, recursive-gaussian).
     Filter(commands::filter::FilterArgs),
 
-    /// Register two images using intensity-based or landmark-based methods.
+    /// Register two images using intensity-based or deformable methods.
     Register(commands::register::RegisterArgs),
 
-    /// Segment an image (otsu, multi-otsu, connected-threshold).
+    /// Segment an image (otsu, multi-otsu, connected-threshold, li, yen, kapur, triangle, watershed, kmeans, distance-transform).
     Segment(commands::segment::SegmentArgs),
+
+    /// Compute image statistics or comparison metrics.
+    Stats(commands::stats::StatsArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -52,5 +55,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Filter(args) => commands::filter::run(args),
         Commands::Register(args) => commands::register::run(args),
         Commands::Segment(args) => commands::segment::run(args),
+        Commands::Stats(args) => commands::stats::run(args),
     }
 }

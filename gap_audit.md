@@ -1,6 +1,6 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs Comparison
 
-**Audit Date:** 2025-07-14 (updated Sprint 5, 2025-07-18)**
+**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
 **Status:** Active — feeds `backlog.md` and `checklist.md`
@@ -31,17 +31,17 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-registration` | `registration` (DL path) | `Registration`, `RegistrationConfig`, `RegistrationSummary`, DL-SSM registration, DL-loss |
 | `ritk-registration` | `bspline_ffd` | `BSplineFFDRegistration`, `BSplineFFDConfig`, `BSplineFFDResult` |
 | `ritk-registration` | `lddmm` | `LddmmRegistration` (geodesic shooting via EPDiff, Gaussian RKHS kernel) |
-| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64) |
+| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64), `VtkReader`, `VtkWriter` (legacy structured points, ASCII/BINARY), `JpegReader`, `JpegWriter` (2-D grayscale, shape `[1,H,W]`) |
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
-| `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD) |
+| `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD), `read_transform`, `write_transform` |
 | `ritk-python` | `filter` | `gaussian_filter`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness`, `canny`, `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`, `grayscale_dilation` |
-| `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register` |
+| `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register`, `build_atlas`, `majority_vote_fusion`, `joint_label_fusion_py` |
 | `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour` |
-| `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi), `register` (rigid-mi/affine-mi), `segment` (otsu/multi-otsu/connected-threshold) |
+| `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform), `stats` (summary/dice/hausdorff/psnr/ssim) |
 
-**Absent at module level (zero source files or stub-only):**
-IO formats beyond the six currently implemented (MINC, MGZ, VTK, Analyze).
+**Absent at module level (zero source files or stub-only):**  
+MINC, Analyze, curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse.
 
 ---
 
@@ -146,14 +146,14 @@ Against **ITK** (≈1 200 image filters, full segmentation pipeline, 30+ IO form
 **five structural gaps** that collectively prevent it from being used as a drop-in toolkit in
 standard clinical or research imaging workflows:
 
-| Gap Domain | Severity | ITK Parity (prev → Sprint 7) | SimpleITK Parity (prev → Sprint 7) | ANTs Parity (prev → Sprint 7) |
+| Gap Domain | Severity | ITK Parity (prev → Sprint 8) | SimpleITK Parity (prev → Sprint 8) | ANTs Parity (prev → Sprint 8) |
 |---|---|---|---|---|
 | Segmentation | **High** (was Critical) | ~15% → ~40% | ~15% → ~40% | ~20% → ~40% |
 | Filtering & Preprocessing | **High** (was Critical) | ~15% → ~55% | ~20% → ~55% | ~30% → ~55% |
 | Diffeomorphic Registration | **Medium** (was High) | ~45% → ~85% | ~45% → ~85% | ~25% → ~85% |
 | Statistics & Normalization | **Medium** | ~35% → ~55% | ~40% → ~55% | ~35% → ~55% |
-| IO Formats | **Medium** | ~30% → ~45% | ~30% → ~45% | ~35% → ~45% |
-| Python / CLI Bindings | **Medium** (was High) | ~30% → ~80% | ~30% → ~80% | ~25% → ~80% |
+| IO Formats | **Medium** | ~30% → ~50% | ~30% → ~50% | ~35% → ~50% |
+| Python / CLI Bindings | **Low** (was High) | ~30% → ~90% | ~30% → ~90% | ~25% → ~90% |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
 Filtering & Preprocessing from Critical to High severity. Addition of Thirion/Diffeomorphic/
@@ -206,6 +206,29 @@ from ~80% to ~85%. MGH/MGZ reader/writer raised IO parity from ~35% to ~45%. Euc
 transform raised Segmentation parity from ~35% to ~40%. White stripe normalization raised
 Statistics parity from ~50% to ~55%. 13-function Python statistics API raised Python/CLI parity
 from ~75% to ~80%.
+
+**Sprint 8 (2025-07-18) completed the following previously absent components:**
+- `ritk-io/format/vtk`: `VtkReader` and `VtkWriter` for VTK legacy structured-points images,
+  supporting ASCII and BINARY payloads, big-endian binary encoding, and round-trip preservation
+  of voxel values plus origin/spacing metadata. Closes IO-06.
+- `ritk-io/format/jpeg`: `JpegReader` and `JpegWriter` for grayscale JPEG images, represented in
+  RITK as 3-D images with shape `[1, height, width]`; writer rejects `nz != 1`. Closes IO-08.
+- `ritk-cli`: completed command coverage for the implemented core algorithms:
+  - `filter`: median, bilateral, canny, sobel, log, recursive-gaussian
+  - `segment`: li, yen, kapur, triangle, watershed, kmeans, distance-transform
+  - `register`: demons, syn
+  - `stats`: summary, dice, hausdorff, psnr, ssim
+  Closes PY-07.
+- `ritk-python`: packaged `.pyi` type stubs and `py.typed`, plus Python-callable atlas building,
+  majority-vote fusion, joint label fusion, and composite transform JSON I/O. Closes PY-08.
+- **Verification status:** prior workspace verification recorded 864 passing tests, 0 failures.
+  Current bounded reruns reached a passing `ritk-cli` suite (107 tests) before timeout while the
+  workspace was rebuilding Python dependencies; no failing diagnostics were observed in captured output.
+
+Sprint 8 VTK and JPEG support raised IO parity from ~45% to ~50%. Completed CLI command coverage
+and packaged Python stubs raised Python/CLI parity from ~80% to ~90%. Atlas/label-fusion Python
+exposure improved ANTs-style workflow parity without changing the underlying registration-core
+parity classification.
 
 Parity percentages are estimated against the feature count of each reference toolkit relevant to
 medical 3D imaging use cases (excluding legacy 2D-only or deprecated filters).

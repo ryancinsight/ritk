@@ -8,12 +8,12 @@ RITK provides a comprehensive framework for medical image analysis:
 
 - **GPU Acceleration**: Built on the Burn framework for efficient GPU/CPU tensor computation with automatic differentiation
 - **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across six workspace crates
-- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ
+- **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ, VTK, JPEG
 - **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
 - **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
-- **Python Bindings**: PyO3 + maturin with NumPy bridge
-- **CLI**: `ritk` binary with `convert`, `filter`, `register`, and `segment` subcommands
+- **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
+- **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
 ## Crate Structure
 
@@ -39,7 +39,9 @@ ritk/
 │   │       ├── nrrd/
 │   │       ├── png/
 │   │       ├── tiff/             # TIFF/BigTIFF
-│   │       └── mgh/              # MGH/MGZ (FreeSurfer)
+│   │       ├── mgh/              # MGH/MGZ (FreeSurfer)
+│   │       ├── vtk/              # VTK legacy structured points
+│   │       └── jpeg/             # JPEG 2D grayscale
 │   ├── ritk-registration/        # Registration framework
 │   │   └── src/
 │   │       ├── metric/           # Similarity metrics
@@ -64,16 +66,17 @@ ritk/
 │   │   └── src/
 │   │       ├── filter.rs         # 14 filter functions
 │   │       ├── segmentation.rs   # 16 segmentation functions
-│   │       ├── registration.rs   # 8 registration functions
+│   │       ├── registration.rs   # 11 registration / atlas / label-fusion functions
 │   │       ├── statistics.rs     # 13 statistics/normalization/comparison functions
 │   │       ├── image.rs          # Image wrapper
-│   │       └── io.rs             # Format I/O
+│   │       └── io.rs             # Image + composite transform I/O
 │   └── ritk-cli/                 # CLI binary
 │       └── src/commands/
 │           ├── convert.rs
 │           ├── filter.rs
 │           ├── register.rs
-│           └── segment.rs
+│           ├── segment.rs
+│           └── stats.rs
 ```
 
 ## Features
@@ -125,9 +128,9 @@ ritk/
 | Category | Algorithms |
 |---|---|
 | Thresholding | Otsu, Multi-Otsu, Li, Yen, Kapur, Triangle |
-| Binary Morphology | Erosion, Dilation, Opening, Closing |
+| Binary Morphology | Erosion, Dilation, Opening, Closing, Skeletonization |
 | Labeling | Connected Components (Hoshen–Kopelman) |
-| Region Growing | Seeded region growing |
+| Region Growing | Connected threshold, Confidence connected, Neighborhood connected |
 | Clustering | K-Means |
 | Watershed | Marker-controlled watershed |
 | Level Sets | Chan–Vese, Geodesic Active Contour |
@@ -152,6 +155,10 @@ ritk/
 | PNG | ✓ | ✓ |
 | TIFF / BigTIFF | ✓ | ✓ |
 | MGH / MGZ (FreeSurfer) | ✓ | ✓ |
+| VTK legacy structured points (`.vtk`) | ✓ | ✓ |
+| JPEG (`.jpg`, `.jpeg`) | ✓ | ✓* |
+
+*JPEG write support is limited to 2-D grayscale images represented in RITK as shape `[1, height, width]`.
 
 ### Registration (`ritk-registration`)
 
@@ -192,9 +199,11 @@ PyO3 + maturin package exposing:
 
 - **14 filter functions** (Gaussian, median, bilateral, Canny, Frangi, N4, etc.)
 - **16 segmentation functions** (Otsu family, morphology, connected components, watershed, level sets, etc.)
-- **8 registration functions** (Thirion/Diffeomorphic/Symmetric Demons, SyN, Multi-Res SyN, BSpline SyN, BSpline FFD, LDDMM)
+- **11 registration functions** (Thirion/Diffeomorphic/Symmetric Demons, SyN, Multi-Res SyN, BSpline SyN, BSpline FFD, LDDMM, atlas building, majority-vote fusion, joint label fusion)
 - **13 statistics functions** (descriptive stats, Dice, Hausdorff, PSNR, SSIM, noise estimation, normalization, white stripe)
 - NumPy ↔ `Image` zero-copy bridge
+- Composite transform JSON I/O (`read_transform`, `write_transform`)
+- Packaged `.pyi` type stubs and `py.typed`
 - Format I/O for all supported formats
 
 ### CLI (`ritk-cli`)
@@ -204,6 +213,7 @@ ritk convert  <input> <output>          # Format conversion
 ritk filter   <input> <output> [opts]   # Apply filters
 ritk register <fixed> <moving> [opts]   # Run registration
 ritk segment  <input> <output> [opts]   # Run segmentation
+ritk stats    --input <path> [opts]     # Summary and comparison metrics
 ```
 
 ## Usage Example
@@ -258,7 +268,7 @@ cargo build --release
 # Run all tests
 cargo test --all
 
-# Build Python wheel
+# Build Python extension / install into current environment
 cd crates/ritk-python && maturin develop --release
 
 # Install CLI
@@ -282,6 +292,12 @@ cargo test -p ritk-model
 
 - [ ] Sinc interpolation
 - [ ] MINC format reader/writer (pending [consus](https://github.com/ryancinsight/consus) pure-Rust HDF5)
+- [ ] Analyze format reader/writer
+- [ ] Diffeomorphic Demons exact inverse
+- [x] Curvature anisotropic diffusion (Alvarez et al. 1992)
+- [x] Sato line / Hessian blob detection (Sato 1998)
+- [x] Confidence / neighborhood connected region growing
+- [x] Skeletonization (hole filling remains)
 - [ ] Longitudinal analysis pipeline
 - [ ] WGSL/compute-shader kernels for critical filters
 - [ ] ONNX model import for DL registration

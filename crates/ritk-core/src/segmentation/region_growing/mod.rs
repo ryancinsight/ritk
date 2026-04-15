@@ -1,34 +1,20 @@
-//! Connected-threshold region growing for 3-D images.
+//! Region growing segmentation algorithms for 3-D images.
 //!
-//! # Mathematical Specification
+//! Provides connected-threshold, confidence-connected, and neighborhood-connected
+//! region growing algorithms for medical image segmentation.
 //!
-//! Given an intensity image I and a seed voxel s ∈ ℤ³, the connected-threshold
-//! region R is the maximal connected set satisfying:
-//!
-//!   R = { p ∈ ℤ³ : p is reachable from s through voxels with lower ≤ I(p) ≤ upper }
-//!
-//! Reachability uses 6-connectivity (face-adjacent voxels only) to ensure that
-//! the segmented region is always a topologically connected 3-D object.
-//!
-//! # Algorithm — Breadth-First Flood Fill
-//!
-//! 1. Validate that I(seed) ∈ [lower, upper].
-//! 2. Push seed onto a FIFO queue; mark seed as visited.
-//! 3. While queue is non-empty:
-//!    a. Pop voxel p.
-//!    b. Set output(p) = 1.
-//!    c. For each 6-connected neighbour q of p:
-//!       - Skip if already visited.
-//!       - Skip if I(q) ∉ [lower, upper].
-//!       - Otherwise mark visited and enqueue.
-//! 4. Return binary mask.
-//!
-//! # Complexity
-//! - Time:  O(|R|) — each voxel is visited at most once.
-//! - Space: O(|R|) for the visited set and queue.
+//! # Module Structure
+//! - [`connected_threshold`]: Fixed-intensity-bounds flood-fill region growing.
+//! - [`confidence_connected`]: Adaptive statistics-based region growing.
+//! - [`neighborhood_connected`]: Neighborhood-admissibility-predicate region growing.
+
+pub mod confidence_connected;
+pub mod neighborhood_connected;
 
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+pub use confidence_connected::{confidence_connected, ConfidenceConnectedFilter};
+pub use neighborhood_connected::{neighborhood_connected, NeighborhoodConnectedFilter};
 use std::collections::VecDeque;
 
 // ── Public types ──────────────────────────────────────────────────────────────

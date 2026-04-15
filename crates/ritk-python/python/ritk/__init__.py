@@ -6,9 +6,10 @@ Python bindings for the RITK Rust library, exposing:
 
 - ``ritk.Image``          — Medical image with physical-space metadata (Z×Y×X, f32).
 - ``ritk.io``             — Read / write NIfTI, PNG, DICOM, MetaImage, NRRD.
-- ``ritk.filter``         — Gaussian, median, and bilateral filtering.
-- ``ritk.registration``   — Deformable Demons registration.
-- ``ritk.segmentation``   — Otsu thresholding, connected-component labeling.
+- ``ritk.filter``         — Gaussian, median, bilateral, anisotropic diffusion, edge detection, morphology.
+- ``ritk.registration``   — Deformable registration (Demons, SyN, BSpline FFD, LDDMM, atlas building).
+- ``ritk.segmentation``   — Thresholding, connected components, clustering, level sets, morphology.
+- ``ritk.statistics``     — Descriptive statistics, comparison metrics, normalization.
 
 Quick start
 -----------
@@ -24,6 +25,7 @@ from ritk._ritk import (
     io,  # noqa: F401
     registration,  # noqa: F401
     segmentation,  # noqa: F401
+    statistics,  # noqa: F401
 )
 from ritk._ritk import image as _image_mod  # noqa: F401 (submodule reference)
 
@@ -37,6 +39,7 @@ __all__ = [
     "filter",
     "registration",
     "segmentation",
+    "statistics",
 ]
 
 __version__ = "0.1.0"

@@ -1,6 +1,6 @@
 //! Shared command infrastructure for the RITK CLI.
 //!
-//! Declares the four subcommand modules and provides the shared IO helpers
+//! Declares the five subcommand modules and provides the shared IO helpers
 //! (`infer_format`, `read_image`, `write_image`, `write_image_inferred`) and
 //! the concrete `Backend` type alias used throughout all command handlers.
 
@@ -8,6 +8,7 @@ pub mod convert;
 pub mod filter;
 pub mod register;
 pub mod segment;
+pub mod stats;
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
@@ -28,7 +29,8 @@ pub(crate) type Backend = NdArray<f32>;
 /// Infer the image format string from a file-system path.
 ///
 /// Returns one of `"nifti"`, `"metaimage"`, `"nrrd"`, `"png"`, `"dicom"`,
-/// or `None` when the extension is not recognised.
+/// `"mgh"`, `"tiff"`, `"vtk"`, `"jpeg"`, or `None` when the extension is
+/// not recognised.
 ///
 /// `.nii.gz` is detected before the generic extension check so that the
 /// compound suffix is handled correctly.
@@ -46,6 +48,10 @@ pub(crate) fn infer_format(path: &Path) -> Option<&'static str> {
         "nrrd" | "nhdr" => Some("nrrd"),
         "png" => Some("png"),
         "dcm" | "dicom" => Some("dicom"),
+        "mgz" | "mgh" => Some("mgh"),
+        "tif" | "tiff" => Some("tiff"),
+        "vtk" => Some("vtk"),
+        "jpg" | "jpeg" => Some("jpeg"),
         _ => None,
     }
 }
@@ -75,6 +81,14 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
             .with_context(|| format!("Failed to read PNG file: {}", path.display())),
         "dicom" => ritk_io::read_dicom_series::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read DICOM series from: {}", path.display())),
+        "mgh" => ritk_io::read_mgh::<Backend, _>(path, &device)
+            .with_context(|| format!("Failed to read MGH file: {}", path.display())),
+        "tiff" => ritk_io::read_tiff::<Backend, _>(path, &device)
+            .with_context(|| format!("Failed to read TIFF file: {}", path.display())),
+        "vtk" => ritk_io::read_vtk::<Backend, _>(path, &device)
+            .with_context(|| format!("Failed to read VTK file: {}", path.display())),
+        "jpeg" => ritk_io::read_jpeg::<Backend, _>(path, &device)
+            .with_context(|| format!("Failed to read JPEG file: {}", path.display())),
         other => unreachable!("infer_format returned unexpected value: {other}"),
     }
 }
@@ -83,9 +97,10 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
 
 /// Write `image` to `path` using the explicitly supplied `format` string.
 ///
-/// Accepted format strings: `"nifti"`, `"metaimage"`, `"nrrd"`.
-/// `"png"` and `"dicom"` are recognised but unsupported (no writer exists in
-/// `ritk-io`); they return a descriptive `Err`.
+/// Accepted format strings: `"nifti"`, `"metaimage"`, `"nrrd"`, `"mgh"`,
+/// `"tiff"`.
+/// `"png"`, `"dicom"`, `"vtk"`, and `"jpeg"` are recognised but unsupported;
+/// they return a descriptive `Err`.
 ///
 /// # Errors
 /// Returns an error when the format is unsupported, unknown, or the writer
@@ -98,6 +113,10 @@ pub(crate) fn write_image(path: &Path, image: &Image<Backend, 3>, format: &str) 
             .with_context(|| format!("Failed to write MetaImage file: {}", path.display())),
         "nrrd" => ritk_io::write_nrrd::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write NRRD file: {}", path.display())),
+        "mgh" => ritk_io::write_mgh::<Backend, _>(image, path)
+            .with_context(|| format!("Failed to write MGH file: {}", path.display())),
+        "tiff" => ritk_io::write_tiff::<Backend, _>(image, path)
+            .with_context(|| format!("Failed to write TIFF file: {}", path.display())),
         "png" => Err(anyhow!(
             "PNG output is not supported: ritk-io has no write_png implementation. \
              Convert to NIfTI, MetaImage, or NRRD instead."
@@ -106,9 +125,13 @@ pub(crate) fn write_image(path: &Path, image: &Image<Backend, 3>, format: &str) 
             "DICOM output is not supported: ritk-io has no write_dicom implementation. \
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
+        "vtk" => ritk_io::write_vtk::<Backend, _>(path, image)
+            .with_context(|| format!("Failed to write VTK file: {}", path.display())),
+        "jpeg" => ritk_io::write_jpeg::<Backend, _>(path, image)
+            .with_context(|| format!("Failed to write JPEG file: {}", path.display())),
         other => Err(anyhow!(
             "Unrecognised output format '{other}'. \
-             Supported write formats: nifti, metaimage, nrrd."
+             Supported write formats: nifti, metaimage, nrrd, mgh, tiff."
         )),
     }
 }
@@ -172,6 +195,41 @@ mod tests {
     }
 
     #[test]
+    fn test_infer_format_mgh() {
+        assert_eq!(infer_format(Path::new("brain.mgh")), Some("mgh"));
+    }
+
+    #[test]
+    fn test_infer_format_mgz() {
+        assert_eq!(infer_format(Path::new("brain.mgz")), Some("mgh"));
+    }
+
+    #[test]
+    fn test_infer_format_tiff() {
+        assert_eq!(infer_format(Path::new("scan.tiff")), Some("tiff"));
+    }
+
+    #[test]
+    fn test_infer_format_tif() {
+        assert_eq!(infer_format(Path::new("scan.tif")), Some("tiff"));
+    }
+
+    #[test]
+    fn test_infer_format_vtk() {
+        assert_eq!(infer_format(Path::new("model.vtk")), Some("vtk"));
+    }
+
+    #[test]
+    fn test_infer_format_jpeg() {
+        assert_eq!(infer_format(Path::new("photo.jpeg")), Some("jpeg"));
+    }
+
+    #[test]
+    fn test_infer_format_jpg() {
+        assert_eq!(infer_format(Path::new("photo.jpg")), Some("jpeg"));
+    }
+
+    #[test]
     fn test_infer_format_unknown_returns_none() {
         assert_eq!(infer_format(Path::new("data.xyz")), None);
     }
@@ -226,6 +284,93 @@ mod tests {
         assert!(
             msg.contains("DICOM output is not supported"),
             "error message must explain DICOM limitation, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_write_image_vtk_succeeds() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+
+        let dir = tempfile::tempdir().unwrap();
+        let out_path = dir.path().join("out.vtk");
+
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let td = TensorData::new(vec![1.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let result = write_image(&out_path, &image, "vtk");
+        assert!(result.is_ok(), "VTK write must succeed: {:?}", result.err());
+        assert!(out_path.exists(), "VTK output file must exist");
+        assert!(
+            out_path.metadata().unwrap().len() > 0,
+            "VTK file must be non-empty"
+        );
+    }
+
+    #[test]
+    fn test_write_image_jpeg_nz_gt_1_returns_err() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        // nz=2 is invalid for JPEG — must be 1
+        let td = TensorData::new(vec![128.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let out_path = dir.path().join("out.jpg");
+        let result = write_image(&out_path, &image, "jpeg");
+        assert!(result.is_err(), "JPEG write with nz=2 must fail");
+        let err = result.unwrap_err();
+        let msg = format!("{:#}", err);
+        assert!(
+            msg.contains("nz=2"),
+            "error message must mention nz constraint, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_write_image_jpeg_2d_succeeds() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+
+        let dir = tempfile::tempdir().unwrap();
+        let out_path = dir.path().join("out.jpg");
+
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        // nz=1 is valid for JPEG
+        let td = TensorData::new(vec![128.0f32; 4], Shape::new([1, 2, 2]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let result = write_image(&out_path, &image, "jpeg");
+        assert!(
+            result.is_ok(),
+            "JPEG write with nz=1 must succeed: {:?}",
+            result.err()
+        );
+        assert!(out_path.exists(), "JPEG output file must exist");
+        assert!(
+            out_path.metadata().unwrap().len() > 0,
+            "JPEG file must be non-empty"
         );
     }
 

@@ -1,7 +1,10 @@
+pub mod analyze;
 pub mod dicom;
+pub mod jpeg;
 pub mod metaimage;
 pub mod mgh;
 pub mod nifti;
 pub mod nrrd;
 pub mod png;
 pub mod tiff;
+pub mod vtk;

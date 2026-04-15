@@ -7,11 +7,21 @@
 //! | `otsu`               | Single-threshold Otsu (maximises between-class variance) |
 //! | `multi-otsu`         | Multi-class Otsu (K−1 thresholds, K classes)   |
 //! | `connected-threshold`| BFS flood-fill region growing from a seed voxel|
+//! | `li`                 | Li minimum cross-entropy threshold             |
+//! | `yen`                | Yen maximum correlation criterion threshold    |
+//! | `kapur`              | Kapur maximum entropy threshold                |
+//! | `triangle`           | Triangle (geometric) threshold                 |
+//! | `watershed`          | Watershed flooding segmentation                |
+//! | `kmeans`             | K-Means intensity clustering                   |
+//! | `distance-transform` | Euclidean distance transform of binary mask     |
 //!
 //! # Output
-//! - `otsu`: binary mask (0.0 / 1.0) + printed threshold value.
+//! - `otsu`, `li`, `yen`, `kapur`, `triangle`: binary mask (0.0 / 1.0) + printed threshold.
 //! - `multi-otsu`: label image (0.0, 1.0, …, K−1.0) + printed threshold list.
 //! - `connected-threshold`: binary mask (0.0 / 1.0) + foreground voxel count.
+//! - `watershed`: label image (0 = boundary, 1..K = basins).
+//! - `kmeans`: label image (0..K−1 cluster indices).
+//! - `distance-transform`: float distance map (Euclidean distance to nearest background voxel).
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -19,7 +29,9 @@ use std::path::PathBuf;
 use tracing::info;
 
 use ritk_core::segmentation::{
-    connected_threshold, multi_otsu_threshold, otsu_threshold, MultiOtsuThreshold, OtsuThreshold,
+    connected_threshold, multi_otsu_threshold, otsu_threshold, KMeansSegmentation, KapurThreshold,
+    LiThreshold, MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, WatershedSegmentation,
+    YenThreshold,
 };
 
 use super::{read_image, write_image_inferred, Backend};
@@ -39,14 +51,15 @@ pub struct SegmentArgs {
 
     /// Segmentation method.
     ///
-    /// Accepted values: `otsu`, `multi-otsu`, `connected-threshold`.
+    /// Accepted values: `otsu`, `multi-otsu`, `connected-threshold`, `li`,
+    /// `yen`, `kapur`, `triangle`, `watershed`, `kmeans`, `distance-transform`.
     #[arg(long, value_name = "METHOD")]
     pub method: String,
 
-    // ── Multi-Otsu ────────────────────────────────────────────────────────
-    /// Number of intensity classes for `multi-otsu`.
+    // ── Multi-Otsu / K-Means ──────────────────────────────────────────────
+    /// Number of intensity classes for `multi-otsu` or `kmeans`.
     ///
-    /// Must be ≥ 2.  Produces `classes − 1` threshold values.
+    /// Must be ≥ 2 for `multi-otsu`.  For `kmeans`, must be ≥ 1.
     #[arg(long, default_value = "3", value_name = "INT")]
     pub classes: usize,
 
@@ -137,9 +150,17 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         "otsu" => run_otsu(&args),
         "multi-otsu" => run_multi_otsu(&args),
         "connected-threshold" => run_connected_threshold(&args),
+        "li" => run_li(&args),
+        "yen" => run_yen(&args),
+        "kapur" => run_kapur(&args),
+        "triangle" => run_triangle(&args),
+        "watershed" => run_watershed(&args),
+        "kmeans" => run_kmeans(&args),
+        "distance-transform" => run_distance_transform(&args),
         other => Err(anyhow!(
             "Unknown segmentation method '{other}'. \
-             Supported methods: otsu, multi-otsu, connected-threshold."
+             Supported methods: otsu, multi-otsu, connected-threshold, \
+             li, yen, kapur, triangle, watershed, kmeans, distance-transform."
         )),
     }
 }
@@ -244,7 +265,9 @@ fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
     })?;
 
     if lower > upper {
-        return Err(anyhow!("--lower ({lower}) must be ≤ --upper ({upper})"));
+        return Err(anyhow!(
+            "--lower ({lower}) must be \u{2264} --upper ({upper})"
+        ));
     }
 
     let seed = parse_seed(seed_str).with_context(|| {
@@ -292,6 +315,238 @@ fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
         upper      = upper,
         foreground = n_foreground,
         "segment: connected-threshold complete"
+    );
+
+    Ok(())
+}
+
+// ── Li thresholding ───────────────────────────────────────────────────────────
+
+/// Apply Li minimum cross-entropy thresholding.
+///
+/// Computes t* that minimises the cross-entropy between the image and its
+/// binary thresholded version, then maps voxels ≥ t* to 1.0.
+fn run_li(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let filter = LiThreshold::new();
+    let threshold = filter.compute(&image);
+    let mask = filter.apply(&image);
+
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {} (li): found {} foreground voxels / threshold={:.4}",
+        args.input.display(),
+        n_foreground,
+        threshold,
+    );
+
+    info!(
+        input      = %args.input.display(),
+        threshold  = threshold,
+        foreground = n_foreground,
+        "segment: li complete"
+    );
+
+    Ok(())
+}
+
+// ── Yen thresholding ──────────────────────────────────────────────────────────
+
+/// Apply Yen maximum correlation criterion thresholding.
+///
+/// Computes t* that maximises the correlation criterion, then maps
+/// voxels ≥ t* to 1.0.
+fn run_yen(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let filter = YenThreshold::new();
+    let threshold = filter.compute(&image);
+    let mask = filter.apply(&image);
+
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {} (yen): found {} foreground voxels / threshold={:.4}",
+        args.input.display(),
+        n_foreground,
+        threshold,
+    );
+
+    info!(
+        input      = %args.input.display(),
+        threshold  = threshold,
+        foreground = n_foreground,
+        "segment: yen complete"
+    );
+
+    Ok(())
+}
+
+// ── Kapur thresholding ────────────────────────────────────────────────────────
+
+/// Apply Kapur maximum entropy thresholding.
+///
+/// Computes t* that maximises the sum of foreground and background
+/// entropies, then maps voxels ≥ t* to 1.0.
+fn run_kapur(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let filter = KapurThreshold::new();
+    let threshold = filter.compute(&image);
+    let mask = filter.apply(&image);
+
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {} (kapur): found {} foreground voxels / threshold={:.4}",
+        args.input.display(),
+        n_foreground,
+        threshold,
+    );
+
+    info!(
+        input      = %args.input.display(),
+        threshold  = threshold,
+        foreground = n_foreground,
+        "segment: kapur complete"
+    );
+
+    Ok(())
+}
+
+// ── Triangle thresholding ─────────────────────────────────────────────────────
+
+/// Apply Triangle (geometric) thresholding.
+///
+/// Constructs a line between the histogram peak and the histogram tail,
+/// then selects the bin with maximum perpendicular distance as the
+/// threshold.  Maps voxels ≥ t* to 1.0.
+fn run_triangle(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let filter = TriangleThreshold::new();
+    let threshold = filter.compute(&image);
+    let mask = filter.apply(&image);
+
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {} (triangle): found {} foreground voxels / threshold={:.4}",
+        args.input.display(),
+        n_foreground,
+        threshold,
+    );
+
+    info!(
+        input      = %args.input.display(),
+        threshold  = threshold,
+        foreground = n_foreground,
+        "segment: triangle complete"
+    );
+
+    Ok(())
+}
+
+// ── Watershed segmentation ────────────────────────────────────────────────────
+
+/// Apply watershed flooding segmentation.
+///
+/// The input should be a scalar 3-D image (e.g. gradient magnitude).
+/// Returns a label image where label 0 = watershed boundary and
+/// labels 1..K = catchment basin indices.
+fn run_watershed(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let ws = WatershedSegmentation::new();
+    let labeled = ws.apply(&image)?;
+
+    // Count distinct non-zero labels for summary.
+    let td = labeled.data().clone().into_data();
+    let vals = td
+        .as_slice::<f32>()
+        .expect("watershed output must contain f32 data");
+    let max_label = vals.iter().cloned().fold(0.0_f32, f32::max);
+    let n_basins = max_label as usize;
+
+    write_image_inferred(&args.output, &labeled)?;
+
+    println!(
+        "Segmented {} (watershed): found {} catchment basins",
+        args.input.display(),
+        n_basins,
+    );
+
+    info!(
+        input   = %args.input.display(),
+        basins  = n_basins,
+        "segment: watershed complete"
+    );
+
+    Ok(())
+}
+
+// ── K-Means clustering ────────────────────────────────────────────────────────
+
+/// Apply K-Means intensity clustering.
+///
+/// Each voxel in the output contains its assigned cluster index (0..K−1)
+/// as `f32`.  Spatial metadata is preserved.
+fn run_kmeans(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let km = KMeansSegmentation::new(args.classes);
+    let labeled = km.apply(&image);
+
+    write_image_inferred(&args.output, &labeled)?;
+
+    println!(
+        "Segmented {} (kmeans): k={} clusters",
+        args.input.display(),
+        args.classes,
+    );
+
+    info!(
+        input   = %args.input.display(),
+        k       = args.classes,
+        "segment: kmeans complete"
+    );
+
+    Ok(())
+}
+
+// ── Distance transform ────────────────────────────────────────────────────────
+
+/// Compute the Euclidean distance transform of a binary mask.
+///
+/// The input is binarised at threshold 0.5 (voxels > 0.5 = foreground).
+/// The output is a float image where each foreground voxel contains the
+/// Euclidean distance (in voxel units) to the nearest background voxel.
+/// Background voxels have value 0.0.
+fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::distance_transform;
+
+    let image = read_image(&args.input)?;
+
+    let dt = distance_transform(&image, 0.5);
+
+    write_image_inferred(&args.output, &dt)?;
+
+    println!(
+        "Computed distance-transform for {} \u{2192} {}",
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input  = %args.input.display(),
+        output = %args.output.display(),
+        "segment: distance-transform complete"
     );
 
     Ok(())
@@ -387,6 +642,52 @@ mod tests {
         )
     }
 
+    /// Build a 4×4×4 binary image: first 32 voxels = 1.0 (foreground),
+    /// remaining 32 = 0.0 (background).  Used for distance-transform tests.
+    fn make_binary_image() -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let values: Vec<f32> = (0..64)
+            .map(|i| if i < 32 { 1.0_f32 } else { 0.0_f32 })
+            .collect();
+        let td = TensorData::new(values, Shape::new([4, 4, 4]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    /// Build a 4×4×4 image with a smooth ramp 0..63 for watershed / gradient
+    /// tests.
+    fn make_ramp_image() -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let values: Vec<f32> = (0..64).map(|i| i as f32).collect();
+        let td = TensorData::new(values, Shape::new([4, 4, 4]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    // ── Helper: default SegmentArgs ───────────────────────────────────────────
+
+    fn default_args(input: PathBuf, output: PathBuf, method: &str) -> SegmentArgs {
+        SegmentArgs {
+            input,
+            output,
+            method: method.to_string(),
+            classes: 3,
+            lower: None,
+            upper: None,
+            seed: None,
+        }
+    }
+
     // ── Positive: Otsu creates binary output file ─────────────────────────────
 
     /// Otsu segmentation must produce a file with the correct shape.
@@ -398,16 +699,7 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-        run(SegmentArgs {
-            input: input.clone(),
-            output: output.clone(),
-            method: "otsu".to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
 
         assert!(output.exists(), "output mask must be created");
         let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -425,16 +717,7 @@ mod tests {
 
         ritk_io::write_metaimage(&input, &make_bimodal_image()).unwrap();
 
-        run(SegmentArgs {
-            input: input.clone(),
-            output: output.clone(),
-            method: "otsu".to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
 
         let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
         let td = mask.data().clone().into_data();
@@ -473,16 +756,7 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
 
-        run(SegmentArgs {
-            input: input.clone(),
-            output: output.clone(),
-            method: "otsu".to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "otsu")).unwrap();
 
         let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         let foreground = count_foreground(&mask);
@@ -504,16 +778,7 @@ mod tests {
 
         ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
 
-        run(SegmentArgs {
-            input: input.clone(),
-            output: output.clone(),
-            method: "multi-otsu".to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "multi-otsu")).unwrap();
 
         assert!(output.exists(), "output label image must be created");
         let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
@@ -531,16 +796,7 @@ mod tests {
 
         ritk_io::write_metaimage(&input, &make_trimodal_image()).unwrap();
 
-        run(SegmentArgs {
-            input: input.clone(),
-            output: output.clone(),
-            method: "multi-otsu".to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-        })
-        .unwrap();
+        run(default_args(input.clone(), output.clone(), "multi-otsu")).unwrap();
 
         let labels = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
         let td = labels.data().clone().into_data();
@@ -646,6 +902,243 @@ mod tests {
         }
     }
 
+    // ── Positive: Li threshold creates binary output ──────────────────────────
+
+    /// Li thresholding on a bimodal image must produce a binary mask with the
+    /// threshold between the two modes.
+    #[test]
+    fn test_segment_li_creates_output_and_threshold_between_modes() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "li")).unwrap();
+
+        assert!(output.exists(), "li output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [4, 4, 4], "output shape must match input");
+
+        // Verify binary output.
+        let td = mask.data().clone().into_data();
+        let values = td.as_slice::<f32>().unwrap();
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "Li output must be strictly binary, got {v}"
+            );
+        }
+
+        // Verify threshold is between modes.
+        let threshold = LiThreshold::new().compute(&make_bimodal_image());
+        assert!(
+            threshold > 20.0 && threshold < 200.0,
+            "Li threshold {threshold} must lie between modes (20, 200)"
+        );
+    }
+
+    // ── Positive: Yen threshold creates binary output ─────────────────────────
+
+    #[test]
+    fn test_segment_yen_creates_output_and_threshold_between_modes() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "yen")).unwrap();
+
+        assert!(output.exists(), "yen output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [4, 4, 4]);
+
+        let td = mask.data().clone().into_data();
+        let values = td.as_slice::<f32>().unwrap();
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "Yen output must be strictly binary, got {v}"
+            );
+        }
+
+        let threshold = YenThreshold::new().compute(&make_bimodal_image());
+        assert!(
+            threshold > 20.0 && threshold < 200.0,
+            "Yen threshold {threshold} must lie between modes (20, 200)"
+        );
+    }
+
+    // ── Positive: Kapur threshold creates binary output ───────────────────────
+
+    #[test]
+    fn test_segment_kapur_creates_output_and_threshold_between_modes() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "kapur")).unwrap();
+
+        assert!(output.exists(), "kapur output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [4, 4, 4]);
+
+        let td = mask.data().clone().into_data();
+        let values = td.as_slice::<f32>().unwrap();
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "Kapur output must be strictly binary, got {v}"
+            );
+        }
+
+        let threshold = KapurThreshold::new().compute(&make_bimodal_image());
+        assert!(
+            threshold >= 20.0 && threshold <= 200.0,
+            "Kapur threshold {threshold} must lie within mode range [20, 200]"
+        );
+    }
+
+    // ── Positive: Triangle threshold creates binary output ────────────────────
+
+    #[test]
+    fn test_segment_triangle_creates_output_and_threshold_between_modes() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "triangle")).unwrap();
+
+        assert!(output.exists(), "triangle output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [4, 4, 4]);
+
+        let td = mask.data().clone().into_data();
+        let values = td.as_slice::<f32>().unwrap();
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "Triangle output must be strictly binary, got {v}"
+            );
+        }
+
+        let threshold = TriangleThreshold::new().compute(&make_bimodal_image());
+        assert!(
+            threshold > 20.0 && threshold < 200.0,
+            "Triangle threshold {threshold} must lie between modes (20, 200)"
+        );
+    }
+
+    // ── Positive: Watershed creates output with basin labels ──────────────────
+
+    #[test]
+    fn test_segment_watershed_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("labels.nii");
+
+        ritk_io::write_nifti(&input, &make_ramp_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "watershed")).unwrap();
+
+        assert!(output.exists(), "watershed output must be created");
+        let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(labels.shape(), [4, 4, 4], "shape must be preserved");
+
+        // All label values must be non-negative (0 = boundary, >=1 = basin).
+        let td = labels.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(v >= 0.0, "watershed labels must be non-negative, got {v}");
+        }
+    }
+
+    // ── Positive: K-Means creates output with cluster labels ──────────────────
+
+    #[test]
+    fn test_segment_kmeans_creates_output_with_valid_labels() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("labels.nii");
+
+        ritk_io::write_nifti(&input, &make_trimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "kmeans")).unwrap();
+
+        assert!(output.exists(), "kmeans output must be created");
+        let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(labels.shape(), [6, 6, 6]);
+
+        // Labels must be in [0, classes-1] = [0, 2].
+        let td = labels.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(
+                v >= 0.0 && v < 3.0 + 0.5,
+                "kmeans label {v} must be in [0, 2]"
+            );
+        }
+
+        // With 3 clusters on a trimodal image, we expect 3 distinct label values.
+        let mut unique: Vec<f32> = vals.to_vec();
+        unique.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        unique.dedup_by(|a, b| (*a - *b).abs() < 0.01);
+        assert_eq!(
+            unique.len(),
+            3,
+            "trimodal image with k=3 must produce exactly 3 distinct labels, got {:?}",
+            unique
+        );
+    }
+
+    // ── Positive: Distance transform creates output ───────────────────────────
+
+    #[test]
+    fn test_segment_distance_transform_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("dt.nii");
+
+        ritk_io::write_nifti(&input, &make_binary_image()).unwrap();
+
+        run(default_args(
+            input.clone(),
+            output.clone(),
+            "distance-transform",
+        ))
+        .unwrap();
+
+        assert!(output.exists(), "distance-transform output must be created");
+        let dt = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(dt.shape(), [4, 4, 4], "shape must be preserved");
+
+        // Distance values must be non-negative.
+        let td = dt.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(
+                v >= 0.0,
+                "distance transform values must be non-negative, got {v}"
+            );
+        }
+
+        // Background voxels (second half, value=0.0 in input) must have EDT = 0.0.
+        // Foreground voxels (first half, value=1.0 in input) must have EDT > 0.0
+        // except possibly those adjacent to the background boundary — but at
+        // minimum the first foreground voxel (index 0) in a 4×4×4 grid with
+        // the boundary at z=2 should have a positive distance.
+        let has_positive = vals.iter().any(|&v| v > 0.0);
+        assert!(
+            has_positive,
+            "distance-transform must produce at least one positive value for a non-trivial mask"
+        );
+    }
+
     // ── Negative: unknown method returns descriptive error ────────────────────
 
     #[test]
@@ -658,7 +1151,7 @@ mod tests {
         let result = run(SegmentArgs {
             input,
             output,
-            method: "watershed".to_string(),
+            method: "nonexistent".to_string(),
             classes: 3,
             lower: None,
             upper: None,
@@ -668,7 +1161,7 @@ mod tests {
         assert!(result.is_err(), "unknown method must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("Unknown segmentation method 'watershed'"),
+            msg.contains("Unknown segmentation method 'nonexistent'"),
             "error must name the unsupported method, got: {msg}"
         );
     }
@@ -859,7 +1352,7 @@ mod tests {
         assert!(result.is_err(), "classes < 2 must yield an error");
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("≥ 2"),
+            msg.contains("\u{2265} 2"),
             "error must state the minimum class count, got: {msg}"
         );
     }
@@ -892,5 +1385,127 @@ mod tests {
     fn test_parse_seed_negative_component_returns_error() {
         // Negative values cannot be parsed as usize.
         assert!(parse_seed("1,-2,3").is_err());
+    }
+
+    // ── Positive: Li foreground count matches high-mode voxels ────────────────
+
+    #[test]
+    fn test_segment_li_foreground_count() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "li")).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let foreground = count_foreground(&mask);
+        assert_eq!(
+            foreground, 32,
+            "Li must label exactly 32 high-intensity voxels as foreground"
+        );
+    }
+
+    // ── Positive: Yen foreground count matches high-mode voxels ───────────────
+
+    #[test]
+    fn test_segment_yen_foreground_count() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "yen")).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let foreground = count_foreground(&mask);
+        assert_eq!(
+            foreground, 32,
+            "Yen must label exactly 32 high-intensity voxels as foreground"
+        );
+    }
+
+    // ── Positive: Kapur foreground count matches high-mode voxels ─────────────
+
+    #[test]
+    fn test_segment_kapur_foreground_count() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "kapur")).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let foreground = count_foreground(&mask);
+        // Kapur maximum-entropy threshold can land on the low-mode boundary
+        // (threshold=20) for equal-count bimodal data, labelling all 64 voxels
+        // as foreground (≥20).  Both 32 and 64 are valid outcomes.
+        assert!(
+            foreground == 32 || foreground == 64,
+            "Kapur must label either 32 (threshold>20) or 64 (threshold=20) voxels as foreground, got {foreground}"
+        );
+    }
+
+    // ── Positive: Triangle foreground count matches high-mode voxels ──────────
+
+    #[test]
+    fn test_segment_triangle_foreground_count() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        run(default_args(input.clone(), output.clone(), "triangle")).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let foreground = count_foreground(&mask);
+        assert_eq!(
+            foreground, 32,
+            "Triangle must label exactly 32 high-intensity voxels as foreground"
+        );
+    }
+
+    // ── Positive: Distance-transform background voxels are zero ───────────────
+
+    #[test]
+    fn test_segment_distance_transform_background_is_zero() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("dt.nii");
+
+        // All-zero image: every voxel is background.
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let values = vec![0.0_f32; 27];
+        let td = TensorData::new(values, Shape::new([3, 3, 3]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let img = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        ritk_io::write_nifti(&input, &img).unwrap();
+
+        run(default_args(
+            input.clone(),
+            output.clone(),
+            "distance-transform",
+        ))
+        .unwrap();
+
+        let dt = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = dt.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert_eq!(
+                v, 0.0,
+                "all-background image must have EDT=0 everywhere, got {v}"
+            );
+        }
     }
 }

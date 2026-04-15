@@ -4,3 +4,4 @@
 .vscode
 *.iml
 .DS_Store
+crates/ritk-cli/out.vtk

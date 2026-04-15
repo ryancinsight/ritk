@@ -13,7 +13,10 @@ pub mod vesselness;
 
 pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
-pub use diffusion::AnisotropicDiffusionFilter;
+pub use diffusion::{
+    AnisotropicDiffusionFilter, ConductanceFunction, CurvatureAnisotropicDiffusionFilter,
+    CurvatureConfig, DiffusionConfig,
+};
 pub use downsample::DownsampleFilter;
 pub use edge::{
     CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
@@ -25,4 +28,4 @@ pub use morphology::{GrayscaleDilation, GrayscaleErosion};
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;
 pub use resample::ResampleImageFilter;
-pub use vesselness::FrangiVesselnessFilter;
+pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};

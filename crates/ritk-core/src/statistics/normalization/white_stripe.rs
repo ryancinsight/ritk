@@ -614,7 +614,7 @@ mod tests {
         // Extract the white stripe voxels from the normalized image.
         // The white stripe is defined on the ORIGINAL intensities,
         // so we identify them from the original data.
-        let mu_ws = result.mu;
+        let _mu_ws = result.mu;
         let sigma_ws = result.sigma;
 
         // Re-derive the white stripe bounds.

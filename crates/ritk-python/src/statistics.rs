@@ -39,6 +39,7 @@ use ritk_core::statistics::{
     mean_surface_distance as core_mean_surface_distance, psnr as core_psnr, ssim as core_ssim,
     ImageStatistics,
 };
+use std::sync::Arc;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -359,9 +360,12 @@ pub fn zscore_normalize(image: &PyImage) -> PyResult<PyImage> {
 /// Returns:
 ///     PyImage with matched histogram, same shape and spatial metadata as source.
 #[pyfunction]
-pub fn histogram_match(source: &PyImage, reference: &PyImage) -> PyResult<PyImage> {
-    let result = HistogramMatcher::new(256)
-        .match_histograms(source.inner.as_ref(), reference.inner.as_ref());
+pub fn histogram_match(py: Python<'_>, source: &PyImage, reference: &PyImage) -> PyResult<PyImage> {
+    let source_arc = Arc::clone(&source.inner);
+    let reference_arc = Arc::clone(&reference.inner);
+    let result = py.allow_threads(|| {
+        HistogramMatcher::new(256).match_histograms(source_arc.as_ref(), reference_arc.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -400,6 +404,7 @@ pub fn histogram_match(source: &PyImage, reference: &PyImage) -> PyResult<PyImag
 #[pyfunction]
 #[pyo3(signature = (image, mask=None, contrast=None, width=None))]
 pub fn white_stripe_normalize(
+    py: Python<'_>,
     image: &PyImage,
     mask: Option<&PyImage>,
     contrast: Option<&str>,
@@ -421,8 +426,14 @@ pub fn white_stripe_normalize(
         ..Default::default()
     };
 
-    let mask_ref = mask.map(|m| m.inner.as_ref());
-    let result = WhiteStripeNormalizer::normalize(image.inner.as_ref(), mask_ref, &config);
+    // Clone Arc handles before releasing the GIL — zero-cost, no voxel copying.
+    let image_arc = Arc::clone(&image.inner);
+    let mask_arc = mask.map(|m| Arc::clone(&m.inner));
+
+    let result = py.allow_threads(|| {
+        let mask_ref = mask_arc.as_ref().map(|arc| arc.as_ref());
+        WhiteStripeNormalizer::normalize(image_arc.as_ref(), mask_ref, &config)
+    });
 
     Ok((
         into_py_image(result.normalized),

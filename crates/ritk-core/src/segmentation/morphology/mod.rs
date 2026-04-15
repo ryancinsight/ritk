@@ -15,11 +15,13 @@ pub mod binary_closing;
 pub mod binary_dilation;
 pub mod binary_erosion;
 pub mod binary_opening;
+pub mod skeletonization;
 
 pub use binary_closing::BinaryClosing;
 pub use binary_dilation::BinaryDilation;
 pub use binary_erosion::BinaryErosion;
 pub use binary_opening::BinaryOpening;
+pub use skeletonization::Skeletonization;
 
 /// Trait for binary morphological operations.
 ///

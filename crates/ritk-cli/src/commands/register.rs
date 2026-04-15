@@ -9,17 +9,21 @@
 //! |-------------|-----|----------------------------------|
 //! | `rigid-mi`  | 6   | Rigid hill-climbing (MI)         |
 //! | `affine-mi` | 9   | Affine hill-climbing (MI)        |
+//! | `demons`    | dense| Thirion Demons deformable        |
+//! | `syn`       | dense| Greedy SyN diffeomorphic         |
 //!
 //! # Pipeline
 //!
 //! 1. Read fixed and moving images (format inferred from extension).
 //! 2. Optionally apply isotropic Gaussian smoothing (`--sigma-fixed`).
-//! 3. Convert both images to `ndarray::Array3<f64>`.
+//! 3. Convert both images to `ndarray::Array3<f64>` (for MI methods) or
+//!    flat `Vec<f32>` (for demons/SyN).
 //! 4. Run the selected registration method; initial transform is identity.
-//! 5. Apply the estimated 4×4 homogeneous transform to the moving image.
+//! 5. Apply the estimated 4×4 homogeneous transform to the moving image
+//!    (MI methods) or reconstruct from warped output (demons/SyN).
 //! 6. Write the warped image to `--output`.
 //! 7. Optionally serialise the 4×4 transform matrix to JSON at
-//!    `--output-transform`.
+//!    `--output-transform` (MI methods only).
 //! 8. Print a registration summary (iterations, MI, convergence status).
 
 use anyhow::{anyhow, Context, Result};
@@ -56,12 +60,13 @@ pub struct RegisterArgs {
 
     /// Registration method.
     ///
-    /// Accepted values: `rigid-mi`, `affine-mi`.
+    /// Accepted values: `rigid-mi`, `affine-mi`, `demons`, `syn`.
     #[arg(long, value_name = "METHOD")]
     pub method: String,
 
     /// Output path for the estimated transform (JSON array of 16 floats
     /// representing a row-major 4×4 homogeneous matrix).  Optional.
+    /// Only produced by `rigid-mi` and `affine-mi`.
     #[arg(long, value_name = "PATH")]
     pub output_transform: Option<PathBuf>,
 
@@ -116,6 +121,42 @@ fn array3_to_image(arr: ndarray::Array3<f64>, reference: &Image<Backend, 3>) -> 
     )
 }
 
+// ── Image ↔ flat Vec<f32> conversion (for demons / SyN) ──────────────────────
+
+/// Extract a flat `Vec<f32>` in Z-major order and the `[nz, ny, nx]` shape
+/// from a 3-D image.
+///
+/// # Panics
+/// Panics if the tensor data cannot be extracted as `f32`.
+fn image_to_flat_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
+    let shape = image.shape();
+    let td = image.data().clone().into_data();
+    let data: Vec<f32> = td
+        .as_slice::<f32>()
+        .expect("image tensor must contain f32 data")
+        .to_vec();
+    (data, [shape[0], shape[1], shape[2]])
+}
+
+/// Reconstruct an `Image<Backend, 3>` from flat `Vec<f32>` data and a
+/// `[nz, ny, nx]` shape, copying spatial metadata from `reference`.
+fn flat_vec_to_image(
+    data: Vec<f32>,
+    shape: [usize; 3],
+    reference: &Image<Backend, 3>,
+) -> Image<Backend, 3> {
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let td = TensorData::new(data, Shape::new(shape));
+    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+
+    Image::new(
+        tensor,
+        reference.origin().clone(),
+        reference.spacing().clone(),
+        reference.direction().clone(),
+    )
+}
+
 // ── Command handler ───────────────────────────────────────────────────────────
 
 /// Execute the `register` subcommand.
@@ -140,6 +181,21 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         "register: starting"
     );
 
+    match args.method.as_str() {
+        "rigid-mi" | "affine-mi" => run_mi_registration(&args),
+        "demons" => run_demons(&args),
+        "syn" => run_syn(&args),
+        other => Err(anyhow!(
+            "Unknown registration method '{other}'. \
+             Supported methods: rigid-mi, affine-mi, demons, syn."
+        )),
+    }
+}
+
+// ── MI-based registration (rigid / affine) ────────────────────────────────────
+
+/// Run rigid-mi or affine-mi registration via the classical MI engine.
+fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // ── 1. Read images ─────────────────────────────────────────────────────
     let fixed_img = super::read_image(&args.fixed)?;
     let moving_img = super::read_image(&args.moving)?;
@@ -180,12 +236,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         "affine-mi" => reg
             .affine_registration_mutual_info(&moving_arr, &fixed_arr, &identity)
             .with_context(|| "affine MI registration failed")?,
-        other => {
-            return Err(anyhow!(
-                "Unknown registration method '{other}'. \
-                 Supported methods: rigid-mi, affine-mi."
-            ));
-        }
+        _ => unreachable!("run_mi_registration called with non-MI method"),
     };
 
     // ── 6. Warp moving image with estimated transform ──────────────────────
@@ -232,7 +283,105 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         converged  = q.converged,
         mi         = q.mutual_information,
         final_cost = q.final_cost,
-        "register: complete"
+        "register: MI registration complete"
+    );
+
+    Ok(())
+}
+
+// ── Thirion Demons registration ───────────────────────────────────────────────
+
+/// Run Thirion Demons deformable registration.
+///
+/// Converts both images to flat `Vec<f32>`, runs the Thirion Demons
+/// algorithm, and reconstructs the output image from `result.warped`.
+fn run_demons(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::demons::{DemonsConfig, ThirionDemonsRegistration};
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = DemonsConfig {
+        max_iterations: args.iterations,
+        sigma_diffusion: 1.5,
+        sigma_fluid: 0.0,
+        max_step_length: 2.0,
+    };
+
+    let reg = ThirionDemonsRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "Thirion Demons registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=demons, iterations={}, final_mse={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        result.num_iterations,
+        result.final_mse,
+    );
+
+    info!(
+        method     = "demons",
+        iterations = result.num_iterations,
+        final_mse  = result.final_mse,
+        "register: demons complete"
+    );
+
+    Ok(())
+}
+
+// ── SyN diffeomorphic registration ────────────────────────────────────────────
+
+/// Run greedy SyN diffeomorphic registration.
+///
+/// Converts both images to flat `Vec<f32>`, runs SyN with local CC metric,
+/// and reconstructs the output image from `result.warped_moving` (the moving
+/// image warped towards the fixed image's midpoint).
+fn run_syn(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::diffeomorphic::{SyNConfig, SyNRegistration};
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = SyNConfig {
+        max_iterations: args.iterations,
+        sigma_smooth: 3.0,
+        cc_window_radius: 2,
+        ..Default::default()
+    };
+
+    let reg = SyNRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "SyN registration failed")?;
+
+    // SyN produces warped_moving: moving image warped to the midpoint.
+    let warped_img = flat_vec_to_image(result.warped_moving, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=syn, iterations={}, final_cc={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        result.num_iterations,
+        result.final_cc,
+    );
+
+    info!(
+        method     = "syn",
+        iterations = result.num_iterations,
+        final_cc   = result.final_cc,
+        "register: syn complete"
     );
 
     Ok(())
@@ -368,7 +517,7 @@ mod tests {
         assert_eq!(
             values.len(),
             16,
-            "transform must contain exactly 16 elements (row-major 4×4 matrix)"
+            "transform must contain exactly 16 elements (row-major 4\u{d7}4 matrix)"
         );
         for (i, &v) in values.iter().enumerate() {
             assert!(
@@ -434,6 +583,143 @@ mod tests {
         );
     }
 
+    // ── Positive: demons creates output file ──────────────────────────────
+
+    /// Running `demons` on identical fixed/moving images must produce a
+    /// warped output file whose shape matches the input.
+    #[test]
+    fn test_register_demons_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "demons".to_string(),
+            output_transform: None,
+            iterations: 3,
+            sigma_fixed: 0.0,
+        })
+        .unwrap();
+
+        assert!(output_path.exists(), "demons warped output file must be created");
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(
+            warped.shape(),
+            [4, 4, 4],
+            "demons warped image shape must match fixed image shape"
+        );
+    }
+
+    // ── Positive: demons identity registration has low MSE ────────────────
+
+    /// When fixed == moving, the Thirion Demons final MSE must be near zero.
+    #[test]
+    fn test_register_demons_identity_low_mse() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "demons".to_string(),
+            output_transform: None,
+            iterations: 5,
+            sigma_fixed: 0.0,
+        })
+        .unwrap();
+
+        // Verify the warped image has finite voxel values.
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = warped.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for (i, &v) in vals.iter().enumerate() {
+            assert!(v.is_finite(), "demons output voxel [{i}] must be finite, got {v}");
+        }
+    }
+
+    // ── Positive: syn creates output file ─────────────────────────────────
+
+    /// Running `syn` on identical fixed/moving images must produce a warped
+    /// output file whose shape matches the input.
+    #[test]
+    fn test_register_syn_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "syn".to_string(),
+            output_transform: None,
+            iterations: 3,
+            sigma_fixed: 0.0,
+        })
+        .unwrap();
+
+        assert!(output_path.exists(), "syn warped output file must be created");
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(
+            warped.shape(),
+            [4, 4, 4],
+            "syn warped image shape must match fixed image shape"
+        );
+    }
+
+    // ── Positive: syn identity registration produces finite voxels ────────
+
+    /// When fixed == moving, the SyN output voxels must all be finite.
+    #[test]
+    fn test_register_syn_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "syn".to_string(),
+            output_transform: None,
+            iterations: 3,
+            sigma_fixed: 0.0,
+        })
+        .unwrap();
+
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = warped.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for (i, &v) in vals.iter().enumerate() {
+            assert!(v.is_finite(), "syn output voxel [{i}] must be finite, got {v}");
+        }
+    }
+
     // ── Negative: unknown method returns descriptive error ────────────────
 
     /// Supplying an unknown method name must return `Err`, not panic.
@@ -452,7 +738,7 @@ mod tests {
             fixed: fixed_path,
             moving: moving_path,
             output: output_path,
-            method: "demons".to_string(),
+            method: "nonexistent".to_string(),
             output_transform: None,
             iterations: 3,
             sigma_fixed: 0.0,
@@ -461,7 +747,7 @@ mod tests {
         assert!(result.is_err(), "unknown method must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(
-            msg.contains("Unknown registration method 'demons'"),
+            msg.contains("Unknown registration method 'nonexistent'"),
             "error must name the unsupported method, got: {msg}"
         );
     }
@@ -535,5 +821,40 @@ mod tests {
             (orig_sum - recon_sum).abs() < 1e-3,
             "voxel sum must be preserved: orig={orig_sum}, recon={recon_sum}"
         );
+    }
+
+    // ── Boundary: image_to_flat_vec round-trip preserves values ───────────
+
+    /// Converting an image to flat vec and back must preserve voxel values.
+    #[test]
+    fn test_image_to_flat_vec_and_back_preserves_values() {
+        let image = make_ramp_image();
+        let (data, shape) = image_to_flat_vec(&image);
+
+        assert_eq!(shape, [4, 4, 4], "flat_vec shape must match image shape");
+        assert_eq!(data.len(), 64, "flat_vec length must equal total voxels");
+
+        // Verify individual values.
+        for (i, &v) in data.iter().enumerate() {
+            let expected = i as f32 * 4.0;
+            assert!(
+                (v - expected).abs() < 1e-5,
+                "flat_vec element [{i}]: expected {expected}, got {v}"
+            );
+        }
+
+        // Round-trip.
+        let reconstructed = flat_vec_to_image(data, shape, &image);
+        let recon_td = reconstructed.data().clone().into_data();
+        let recon_vals = recon_td.as_slice::<f32>().unwrap();
+        let orig_td = image.data().clone().into_data();
+        let orig_vals = orig_td.as_slice::<f32>().unwrap();
+
+        for (i, (&o, &r)) in orig_vals.iter().zip(recon_vals.iter()).enumerate() {
+            assert!(
+                (o - r).abs() < 1e-6,
+                "round-trip voxel [{i}]: orig={o}, recon={r}"
+            );
+        }
     }
 }
