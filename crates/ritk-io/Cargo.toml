@@ -18,6 +18,10 @@ ndarray = "0.16"
 image = "0.24"
 tiff = "0.9"
 flate2 = "1.0"
+consus-hdf5 = { workspace = true }
+consus-core = { workspace = true }
+consus-compression = { workspace = true }
+consus-io = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = "0.19"

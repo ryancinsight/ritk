@@ -122,7 +122,7 @@ pub(crate) fn write_image(path: &Path, image: &Image<Backend, 3>, format: &str) 
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
         "dicom" => Err(anyhow!(
-            "DICOM output is not supported: ritk-io has no write_dicom implementation. \
+            "DICOM output is not supported: ritk-io currently provides read-only series loading. \
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
         "vtk" => ritk_io::write_vtk::<Backend, _>(path, image)

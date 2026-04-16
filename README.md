@@ -291,8 +291,8 @@ cargo test -p ritk-model
 ## Future Work
 
 - [ ] Sinc interpolation
-- [ ] MINC format reader/writer (pending [consus](https://github.com/ryancinsight/consus) pure-Rust HDF5)
-- [ ] Analyze format reader/writer
+- [x] MINC format reader/writer (via [consus](https://github.com/ryancinsight/consus) pure-Rust HDF5)
+- [x] Analyze format reader/writer
 - [ ] Diffeomorphic Demons exact inverse
 - [x] Curvature anisotropic diffusion (Alvarez et al. 1992)
 - [x] Sato line / Hessian blob detection (Sato 1998)
@@ -300,7 +300,8 @@ cargo test -p ritk-model
 - [x] Skeletonization (hole filling remains)
 - [ ] Longitudinal analysis pipeline
 - [ ] WGSL/compute-shader kernels for critical filters
-- [ ] ONNX model import for DL registration
+
+- [x] ONNX model import for DL registration (RITK 0.20.1+, `onnx-ir` parsing, initializers, graph validation)
 - [ ] Expand Python bindings to cover model inference
 - [ ] Publish to crates.io and PyPI
 

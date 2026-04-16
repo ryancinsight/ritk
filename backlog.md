@@ -1,3 +1,13 @@
+## Sprint 13 — Completed
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| IO-09 | DICOM Read Metadata Slice | COMPLETED | High | Series-level capture plus per-slice geometry and rescale fields; `ritk-io/src/format/dicom/mod.rs` |
+| IO-05 | MINC2 Reader | COMPLETED | High | consus-hdf5 HDF5 parsing; `ritk-io/src/format/minc/reader.rs` |
+| IO-05 | MINC2 Writer | COMPLETED | High | Low-level HDF5 binary construction; `ritk-io/src/format/minc/writer.rs` |
+| DEP | consus Integration | COMPLETED | High | consus-hdf5/core/io/compression workspace dependencies |
+
+---
+
 ## Sprint 11 — Completed
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|

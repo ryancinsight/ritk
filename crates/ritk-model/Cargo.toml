@@ -7,7 +7,11 @@ edition = "2021"
 ritk-core = { path = "../ritk-core" }
 burn = { version = "0.19", features = ["wgpu", "autodiff"] }
 anyhow = "1.0"
+thiserror = "2.0"
+bytemuck = "1.0"
 tracing = "0.1"
+onnx-ir = "0.20.1"
+tempfile = "3.10"
 
 [dev-dependencies]
 burn-ndarray = "0.19"

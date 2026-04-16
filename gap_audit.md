@@ -1,9 +1,13 @@
-# RITK Gap Audit — ITK / SimpleITK / ANTs Comparison
+# RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
 **Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
 **Status:** Active — feeds `backlog.md` and `checklist.md`
+
+## Update Note
+
+`Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, and VTK.
 
 ---
 
@@ -31,7 +35,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-registration` | `registration` (DL path) | `Registration`, `RegistrationConfig`, `RegistrationSummary`, DL-SSM registration, DL-loss |
 | `ritk-registration` | `bspline_ffd` | `BSplineFFDRegistration`, `BSplineFFDConfig`, `BSplineFFDResult` |
 | `ritk-registration` | `lddmm` | `LddmmRegistration` (geodesic shooting via EPDiff, Gaussian RKHS kernel) |
-| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64), `VtkReader`, `VtkWriter` (legacy structured points, ASCII/BINARY), `JpegReader`, `JpegWriter` (2-D grayscale, shape `[1,H,W]`) |
+| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64), `VtkReader`, `VtkWriter` (legacy structured points, ASCII/BINARY), `JpegReader`, `JpegWriter` (2-D grayscale, shape `[1,H,W]`), `MincReader`, `MincWriter` (MINC2 via consus HDF5), `AnalyzeReader`, `AnalyzeWriter` (Analyze 7.5 `.hdr`/`.img`) |
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
 | `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD), `read_transform`, `write_transform` |
@@ -39,9 +43,10 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register`, `build_atlas`, `majority_vote_fusion`, `joint_label_fusion_py` |
 | `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour` |
 | `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform), `stats` (summary/dice/hausdorff/psnr/ssim) |
+| `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
 **Absent at module level (zero source files or stub-only):**  
-MINC, Analyze, curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse.
+Curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support.
 
 ---
 
@@ -61,6 +66,8 @@ regularization suite.
   normalisation — all mathematically specified and property-tested.
 - `ritk-io/format`: MetaImage (`.mha`/`.mhd`) and NRRD (`.nrrd`) readers/writers with full
   round-trip test coverage, ZYX ↔ XYZ axis permutation, and external-data-file support.
+
+- `ritk-io/format`: Analyze 7.5 reader/writer support for `.hdr` / `.img` pairs.
 
 **Sprint 3 (2025-07-16) completed the following previously absent components:**
 - `ritk-core/filter/bias`: `N4BiasFieldCorrectionFilter` (Tustison 2010) — B-spline surface
@@ -141,24 +148,35 @@ regularization suite.
   `grayscale_dilation`.
 
 Against **ITK** (≈1 200 image filters, full segmentation pipeline, 30+ IO formats), **SimpleITK**
-(Python/R/Java/C# bindings, N4 bias field correction, histogram matching), and **ANTs**
-(SyN diffeomorphic registration, joint label fusion, template building, ANTsPy), RITK has
-**five structural gaps** that collectively prevent it from being used as a drop-in toolkit in
-standard clinical or research imaging workflows:
+(Python/R/Java/C# bindings, N4 bias field correction, histogram matching), **VTK**
+(visualization, mesh/scene graph, polydata pipeline), and **Grassroots DICOM**
+(comprehensive DICOM object model and interoperability tooling), RITK has **five structural gaps**
+that collectively prevent it from being used as a drop-in toolkit in standard clinical or research
+imaging workflows:
 
-| Gap Domain | Severity | ITK Parity (prev → Sprint 8) | SimpleITK Parity (prev → Sprint 8) | ANTs Parity (prev → Sprint 8) |
-|---|---|---|---|---|
-| Segmentation | **High** (was Critical) | ~15% → ~40% | ~15% → ~40% | ~20% → ~40% |
-| Filtering & Preprocessing | **High** (was Critical) | ~15% → ~55% | ~20% → ~55% | ~30% → ~55% |
-| Diffeomorphic Registration | **Medium** (was High) | ~45% → ~85% | ~45% → ~85% | ~25% → ~85% |
-| Statistics & Normalization | **Medium** | ~35% → ~55% | ~40% → ~55% | ~35% → ~55% |
-| IO Formats | **Medium** | ~30% → ~50% | ~30% → ~50% | ~35% → ~50% |
-| Python / CLI Bindings | **Low** (was High) | ~30% → ~90% | ~30% → ~90% | ~25% → ~90% |
+| Gap Domain | Severity | ITK Parity | SimpleITK Parity | ANTs Parity | VTK / DICOM Relevance |
+|---|---|---|---|---|---|
+| Segmentation | **High** | ~40% | ~40% | ~40% | ITK / SimpleITK: still missing a broad set of region, deformable, and topology-preserving operators |
+| Filtering & Preprocessing | **High** | ~55% | ~55% | ~55% | ITK / SimpleITK: still missing the long tail of multiscale, PDE, and topology-aware filters |
+| Diffeomorphic Registration | **Medium** | ~85% | ~85% | ~85% | ANTs: still lacking exact-inverse Demons and some production-grade inverse-consistency controls |
+| Statistics & Normalization | **Medium** | ~55% | ~55% | ~55% | SimpleITK: broad utilities remain, but core normalization coverage is now substantial |
+| IO Formats | **Medium** | ~55% | ~55% | ~55% | ITK / VTK / DICOM: still missing full codec breadth, mesh/scene formats, and deep DICOM object coverage |
+| DICOM Read Metadata | **Medium** | N/A | N/A | N/A | DICOM: add series-level and slice-level metadata capture as a stable boundary for future round-trip support |
+| Python / CLI Bindings | **Low** | ~90% | ~90% | ~90% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
 Filtering & Preprocessing from Critical to High severity. Addition of Thirion/Diffeomorphic/
 Symmetric Demons and greedy SyN moved Diffeomorphic Registration from Critical to High severity.
 The `ritk-cli` binary and extended Python bindings materially advanced CLI/Python parity.
+The DICOM subsystem now has a read-side metadata slice that captures series identity plus per-slice geometry and rescale fields.
+
+The DICOM implementation remains series-centric. The remaining DICOM backlog is:
+- transfer syntax coverage audit
+- private tag and nested sequence preservation strategy
+- multi-frame / enhanced image support
+- generalized DICOM writer
+- non-image SOP-class policy
+- metadata-aware read-path validation for `DicomReadMetadata` and `DicomSliceMetadata`
 
 Sprint 5 level-set implementations (Chan-Vese, Geodesic Active Contour) raised Segmentation
 parity from ~25% to ~35%. 3D Sobel gradient filter plus confirmation of native Median/Bilateral
@@ -847,13 +865,22 @@ Required for interoperability with Slicer-based annotation workflows.
 
 ---
 
-### 6.3 MINC Format (.mnc / .mnc2) · Severity: **High**
+### 6.3 MINC Format (.mnc / .mnc2) · Severity: **Closed** (Sprint 12)
 
 The format of the MNI (Montreal Neurological Institute) standard brain atlases.
 HDF5-based (MNC2) with rich neuroimaging metadata. Used by ANTs for the MNI152 template.
 Without MINC support, ANTs-standard atlas workflows cannot load their reference templates.
 
-**Planned location:** `crates/ritk-io/src/format/minc/`
+**Sprint 12**: Implemented `MincReader` and `MincWriter`:
+- HDF5 parsing via `consus-hdf5` (pure-Rust, no C FFI)
+- Dimension metadata extraction (start, step, length, direction_cosines)
+- Spatial metadata derivation (origin, spacing, direction matrix)
+- Data type conversion (u8, i8, u16, i16, u32, i32, f32, f64 → f32)
+- Dimorder-aware axis mapping (default: zspace,yspace,xspace)
+- Writer constructs valid HDF5 binary with MINC2 group hierarchy
+- 27 unit tests covering conversion, spatial metadata, dimorder parsing
+
+**Implemented location:** `crates/ritk-io/src/format/minc/` (~900 lines: `mod.rs`, `reader.rs`, `writer.rs`)
 
 ---
 
@@ -1439,7 +1466,7 @@ Based on dependency ordering and severity scores:
 - PY-08: Type stubs / `py.typed`
 
 **Sprint 9+ — Remaining parity:**
-- IO-05: MINC (deferred until `consus` pure-Rust HDF5 is available)
+- IO-05: MINC — **Closed** (Sprint 12, via `consus` pure-Rust HDF5)
 - Remaining IO formats (Analyze)
 - Remaining filters (curvature anisotropic diffusion, Sato line)
 - GAP-R02b: Diffeomorphic Demons exact inverse

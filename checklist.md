@@ -1,3 +1,14 @@
+## Sprint 13 — Completed
+- [x] IO-09: DICOM read metadata slice (series-level capture, per-slice geometry, read-only API)
+- [x] IO-05: MINC2 format reader (consus-hdf5 HDF5 parsing, dimension metadata, spatial derivation, datatype conversion)
+- [x] IO-05: MINC2 format writer (low-level HDF5 binary construction, contiguous f32 LE storage)
+- [x] consus integration: added consus-hdf5, consus-core, consus-io, consus-compression workspace dependencies
+- [x] Module wiring: minc format module registered in format/mod.rs and re-exported in lib.rs
+- [x] Workspace compilation: zero errors, zero warnings
+- [x] Unit tests: 27 MINC-specific tests passing (reader: data type conversion, spatial metadata, dimorder, attribute extraction; writer: validation)
+
+---
+
 ## Sprint 11 — Completed
 - [x] FLT-CAD: Curvature Anisotropic Diffusion (Alvarez et al. 1992, mean curvature motion of level sets, explicit Euler)
 - [x] FLT-SATO: Sato Line Filter (Sato 1998, multi-scale Hessian curvilinear structure detection)
@@ -76,11 +87,11 @@
 - [x] Bounded verification note: current local reruns hit build/cache lock and timeout during full-workspace execution; no failing diagnostics were observed in captured output
 
 ## Remaining Backlog
-- [ ] IO-05: MINC format reader/writer (deferred — awaiting consus pure-Rust HDF5 crate)
+- [x] IO-05: MINC format reader/writer (Sprint 12 — consus pure-Rust HDF5 integration)
 - [ ] GAP-R02b: Diffeomorphic Demons exact inverse
 - [x] FLT: Curvature anisotropic diffusion (Alvarez et al. 1992 mean curvature motion)
 - [x] FLT: Sato line filter (Sato 1998 multi-scale Hessian line detection)
-- [ ] IO-07b: Analyze format reader/writer
+- [x] IO-07b: Analyze format reader/writer
 - [x] SEG: Confidence connected region growing (Sprint 10)
 - [x] SEG: Neighborhood connected region growing (Sprint 10)
 - [x] SEG: Skeletonization (Sprint 10)
