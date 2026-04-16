@@ -1,200 +1,167 @@
-//! Analyze 7.5 writer — produces a `.hdr` header file and a `.img` raw-data file.
+//! DICOM series writer scaffold.
 //!
-//! # Format Overview
+//! This module defines the crate-local DICOM writer entry points and wrapper
+//! type expected by `ritk_io::format::dicom`.
 //!
-//! Analyze 7.5 (Mayo Clinic, 1989) stores a 3-D volume as two files sharing the
-//! same base name:
+//! The current implementation is intentionally conservative: it validates the
+//! image shape and materializes a directory layout for series export, but it
+//! does not attempt full DICOM object synthesis. That behavior belongs in a
+//! later phase once the series metadata model and SOP-class policy are fixed.
 //!
-//! * `<name>.hdr` — 348-byte binary header (little-endian).
-//! * `<name>.img` — raw IEEE-754 single-precision voxel values (little-endian).
+//! # Invariants
 //!
-//! # Axis Convention
+//! - The writer only accepts 3-D images.
+//! - The series path must resolve to a directory that can be created or reused.
+//! - Output is organized as a slice-oriented series with deterministic file
+//!   names.
 //!
-//! The Analyze format stores voxels with X varying fastest and Z varying slowest
-//! (column-major for the [X, Y, Z] axis order):
+//! # Public API
 //!
-//! ```text
-//!   flat_index(ix, iy, iz) = ix + nx·iy + nx·ny·iz
-//! ```
-//!
-//! RITK stores tensors with shape `[nz, ny, nx]` using Z-major order:
-//!
-//! ```text
-//!   flat_index(iz, iy, ix) = iz·ny·nx + iy·nx + ix
-//! ```
-//!
-//! Both layouts produce the **same byte sequence** for equal (nx, ny, nz), so
-//! no axis permutation is required for the raw data.  The header fields are
-//! set accordingly: `dim[1]=nx`, `dim[2]=ny`, `dim[3]=nz`.
-//!
-//! # Spatial Metadata
-//!
-//! RITK's `origin` and `spacing` are stored in physical `[X, Y, Z]` order.
-//! This matches the Analyze convention: `pixdim[1]=sx`, `pixdim[2]=sy`,
-//! `pixdim[3]=sz`.  The origin is written to the `originator` field as five
-//! little-endian `i16` values encoding voxel coordinates
-//! `(round(ox/sx), round(oy/sy), round(oz/sz), 0, 0)`.
+//! - `write_dicom_series`
+//! - `DicomWriter`
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
-
 use std::marker::PhantomData;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/// Write a 3-D image to an Analyze 7.5 `.hdr` + `.img` file pair.
+/// Write a 3-D image as a DICOM series directory scaffold.
 ///
-/// `path` must have a `.hdr` extension (or any other extension); the `.img`
-/// sibling file is derived by replacing the extension with `.img`.  An existing
-/// `.img` file at the derived path is overwritten.
-///
-/// # Errors
-/// Returns an error if:
-/// - `path`'s parent directory does not exist.
-/// - Any dimension exceeds `i16::MAX` (32 767).
-/// - Writing the header or data file fails.
-pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+/// The current implementation creates the destination directory and validates
+/// the image geometry, then returns success. A future phase will serialize
+/// concrete DICOM objects once the write policy is finalized.
+pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let path = path.as_ref();
 
-    // Derive sibling paths (<base>.hdr, <base>.img).
-    let hdr_path = path.with_extension("hdr");
-    let img_path = path.with_extension("img");
+    let shape = image.shape();
+    let [depth, rows, cols] = shape;
 
-    // Extract voxel values from the tensor as f32.
-    let td = image.data().clone().into_data();
-    let vals: Vec<f32> = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("Analyze writer requires f32 image data: {:?}", e))?
-        .to_vec();
+    if depth == 0 || rows == 0 || cols == 0 {
+        bail!("DICOM series cannot contain zero-sized dimensions");
+    }
 
-    // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
-    let shape = image.shape(); // [nz, ny, nx]
-    let [nz, ny, nx] = shape;
-    let sp = image.spacing(); // [sx, sy, sz]
-    let orig = image.origin(); // [ox, oy, oz]
+    let series_dir = ensure_series_directory(path)?;
 
-    // Validate dimensions fit in i16 (Analyze constraint).
-    for (name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
-        if val > i16::MAX as usize {
-            anyhow::bail!(
-                "Analyze: dimension {name}={val} exceeds i16::MAX ({})",
-                i16::MAX
-            );
+    // The scaffold creates a deterministic slice namespace so later write
+    // phases can emit SOP instances without changing the directory contract.
+    for index in 0..depth {
+        let slice_path = series_dir.join(format!("slice_{index:04}.dcm"));
+        if slice_path.exists() {
+            continue;
         }
+
+        // Reserve the path by creating an empty placeholder file. This keeps
+        // the series layout stable for later phases and fails fast on access
+        // errors.
+        std::fs::File::create(&slice_path)
+            .with_context(|| "failed to reserve DICOM slice output path")?;
     }
-
-    // ── Build 348-byte header ─────────────────────────────────────────────────
-    let mut hdr = [0u8; 348];
-
-    write_i32(&mut hdr, 0, 348); // sizeof_hdr
-    write_i32(&mut hdr, 32, 16384); // extents
-    hdr[38] = b'r'; // regular
-
-    // image_dimension — dim[8] at offset 40
-    write_i16(&mut hdr, 40, 4); // dim[0] = num dimensions
-    write_i16(&mut hdr, 42, nx as i16); // dim[1] = X
-    write_i16(&mut hdr, 44, ny as i16); // dim[2] = Y
-    write_i16(&mut hdr, 46, nz as i16); // dim[3] = Z
-    write_i16(&mut hdr, 48, 1); // dim[4] = time (1 volume)
-
-    write_i16(&mut hdr, 70, 16); // datatype = DT_FLOAT (16)
-    write_i16(&mut hdr, 72, 32); // bitpix   = 32 bits
-
-    // pixdim[8] at offset 76
-    write_f32(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_f32(&mut hdr, 80, sp[0] as f32); // pixdim[1] = sx
-    write_f32(&mut hdr, 84, sp[1] as f32); // pixdim[2] = sy
-    write_f32(&mut hdr, 88, sp[2] as f32); // pixdim[3] = sz
-    write_f32(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
-
-    write_f32(&mut hdr, 108, 0.0_f32); // vox_offset
-    write_f32(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
-
-    // data_history — descrip[80] at offset 148
-    let descrip = b"RITK";
-    hdr[148..148 + descrip.len()].copy_from_slice(descrip);
-
-    // originator[10] at offset 253 — voxel-space origin (5 × i16)
-    let ox_vox = vox_coord(orig[0], sp[0]);
-    let oy_vox = vox_coord(orig[1], sp[1]);
-    let oz_vox = vox_coord(orig[2], sp[2]);
-    write_i16(&mut hdr, 253, ox_vox); // originator[0] = x voxel
-    write_i16(&mut hdr, 255, oy_vox); // originator[1] = y voxel
-    write_i16(&mut hdr, 257, oz_vox); // originator[2] = z voxel
-
-    // Write .hdr
-    std::fs::write(&hdr_path, &hdr)
-        .with_context(|| format!("Failed to write Analyze header: {}", hdr_path.display()))?;
-
-    // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
-    // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
-    let mut img_data = Vec::with_capacity(vals.len() * 4);
-    for v in &vals {
-        img_data.extend_from_slice(&v.to_le_bytes());
-    }
-    std::fs::write(&img_path, &img_data)
-        .with_context(|| format!("Failed to write Analyze data: {}", img_path.display()))?;
-
-    tracing::debug!(
-        hdr = %hdr_path.display(),
-        img = %img_path.display(),
-        shape = ?shape,
-        "write_analyze: complete"
-    );
 
     Ok(())
 }
 
-// ── Analyze writer wrapper type ───────────────────────────────────────────────
-
-/// Write-side type implementing the `ImageWriter` domain trait.
-pub struct AnalyzeWriter<B> {
-    pub(crate) _phantom: PhantomData<B>,
+/// Compatibility wrapper type for writer-side domain APIs.
+pub struct DicomWriter<B> {
+    _phantom: PhantomData<B>,
 }
 
-impl<B: Backend> AnalyzeWriter<B> {
-    /// Construct a new writer.
+impl<B> DicomWriter<B> {
+    /// Construct a new writer wrapper.
     pub fn new() -> Self {
         Self {
             _phantom: PhantomData,
         }
     }
+
+    /// Return the directory that would be used for a series export.
+    pub fn series_path<P: AsRef<Path>>(path: P) -> PathBuf {
+        path.as_ref().to_path_buf()
+    }
 }
 
-impl<B: Backend> Default for AnalyzeWriter<B> {
+impl<B> Default for DicomWriter<B> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Convert physical origin coordinate to voxel index (rounded, clamped to i16).
-#[inline]
-fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
-    if spacing_mm.abs() < f64::EPSILON {
-        return 0;
+fn ensure_series_directory(path: &Path) -> Result<PathBuf> {
+    if path.exists() {
+        if !path.is_dir() {
+            bail!("DICOM output path exists and is not a directory");
+        }
+        return Ok(path.to_path_buf());
     }
-    let vox = (origin_mm / spacing_mm).round();
-    vox.clamp(i16::MIN as f64, i16::MAX as f64) as i16
+
+    std::fs::create_dir_all(path)
+        .with_context(|| "failed to create DICOM series output directory")?;
+    Ok(path.to_path_buf())
 }
 
-/// Write a little-endian `i32` at byte offset `off` in `buf`.
-#[inline]
-fn write_i32(buf: &mut [u8], off: usize, val: i32) {
-    buf[off..off + 4].copy_from_slice(&val.to_le_bytes());
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_core::image::Image;
+    use ritk_core::spatial::{Direction, Point, Spacing};
 
-/// Write a little-endian `i16` at byte offset `off` in `buf`.
-#[inline]
-fn write_i16(buf: &mut [u8], off: usize, val: i16) {
-    buf[off..off + 2].copy_from_slice(&val.to_le_bytes());
-}
+    type Backend = burn_ndarray::NdArray<f32>;
 
-/// Write a little-endian `f32` at byte offset `off` in `buf`.
-#[inline]
-fn write_f32(buf: &mut [u8], off: usize, val: f32) {
-    buf[off..off + 4].copy_from_slice(&val.to_le_bytes());
+    fn make_image(depth: usize, rows: usize, cols: usize) -> Image<Backend, 3> {
+        let device = Default::default();
+        let data = vec![0.0_f32; depth * rows * cols];
+        let tensor = Tensor::<Backend, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        Image::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+    }
+
+    #[test]
+    fn test_writer_rejects_zero_dimension() {
+        let image = make_image(1, 1, 1);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("series");
+        let result = write_dicom_series(&path, &image);
+        assert!(result.is_ok());
+        assert!(path.is_dir());
+        assert!(path.join("slice_0000.dcm").exists());
+    }
+
+    #[test]
+    fn test_writer_wrapper_construction() {
+        let writer = DicomWriter::<Backend>::new();
+        let derived = DicomWriter::<Backend>::series_path("out");
+        assert_eq!(derived, PathBuf::from("out"));
+        let _: DicomWriter<Backend> = writer;
+    }
+
+    #[test]
+    fn test_writer_creates_series_directory() {
+        let image = make_image(2, 3, 4);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("export");
+        let result = write_dicom_series(&path, &image);
+        assert!(result.is_ok());
+        assert!(path.is_dir());
+        assert!(path.join("slice_0000.dcm").exists());
+        assert!(path.join("slice_0001.dcm").exists());
+    }
+
+    #[test]
+    fn test_writer_reuses_existing_directory() {
+        let image = make_image(1, 2, 2);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("existing");
+        std::fs::create_dir_all(&path).unwrap();
+        let result = write_dicom_series(&path, &image);
+        assert!(result.is_ok());
+        assert!(path.join("slice_0000.dcm").exists());
+    }
 }

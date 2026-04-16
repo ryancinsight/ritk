@@ -1,22 +1,38 @@
-//! Analyze 7.5 medical image format support.
+//! DICOM image format support.
 //!
-//! This module provides read/write access to Analyze 7.5 image pairs
-//! (`.hdr` + `.img`) through the `read_analyze` and `write_analyze` APIs.
+//! This module provides the canonical DICOM series entry points for `ritk-io`.
+//! The actual reader and writer implementations live in the sibling `reader`
+//! and `writer` modules.
+//!
+//! # Public API
+//!
+//! - `scan_dicom_directory`
+//! - `read_dicom_series`
+//! - `load_dicom_series`
+//! - `read_dicom_series_with_metadata`
+//! - `load_dicom_series_with_metadata`
+//! - `DicomSeriesInfo`
+//! - `DicomReadMetadata`
+//! - `DicomSliceMetadata`
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use ritk_io::format::analyze::{read_analyze, write_analyze};
+//! use ritk_io::format::dicom::{read_dicom_series, scan_dicom_directory};
 //!
-//! // Read an Analyze image pair (.hdr + .img)
-//! let image = read_analyze::<NdArray<f32>, _>("brain.hdr", &device)?;
-//!
-//! // Write an image as Analyze format
-//! write_analyze("output.hdr", &image)?;
+//! let series = scan_dicom_directory("study/")?;
+//! let image = read_dicom_series::<burn_ndarray::NdArray<f32>, _>("study/", &device)?;
 //! ```
+//!
+//! The module re-exports the reader and writer types so `ritk_io::read_*`
+//! and `ritk_io::write_*` remain the authoritative crate-level entry points.
 
 pub mod reader;
 pub mod writer;
 
-pub use reader::{read_analyze, AnalyzeReader};
-pub use writer::{write_analyze, AnalyzeWriter};
+pub use reader::{
+    load_dicom_series, load_dicom_series_with_metadata, read_dicom_series,
+    read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
+    DicomSliceMetadata,
+};
+pub use writer::{write_dicom_series, DicomWriter};

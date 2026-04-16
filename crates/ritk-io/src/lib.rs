@@ -6,6 +6,11 @@ pub use domain::{ImageReader, ImageWriter};
 pub use format::analyze::reader::AnalyzeReader;
 pub use format::analyze::writer::AnalyzeWriter;
 pub use format::analyze::{read_analyze, write_analyze};
+pub use format::dicom::{
+    load_dicom_series, load_dicom_series_with_metadata, read_dicom_series,
+    read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
+    DicomSliceMetadata, DicomWriter,
+};
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};

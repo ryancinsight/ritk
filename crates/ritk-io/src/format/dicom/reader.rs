@@ -1,323 +1,353 @@
-//! Analyze 7.5 reader — parses a 348-byte `.hdr` header and raw `.img` voxel data.
+//! DICOM series reader and metadata API.
 //!
-//! # Format Overview
+//! This module provides a conservative DICOM series read path with explicit
+//! metadata capture. The implementation is series-oriented and rejects inputs
+//! that do not satisfy the reader's invariants.
 //!
-//! Analyze 7.5 (Mayo Clinic, 1989) stores a 3-D volume as two files sharing the
-//! same base name:
+//! # Invariants
 //!
-//! * `<name>.hdr` — 348-byte binary header (little-endian).
-//! * `<name>.img` — raw voxel values (little-endian, type given by `datatype` field).
+//! - The input path must resolve to a directory containing at least one DICOM file.
+//! - All slices in a returned series share the same rows, columns, spacing, and
+//!   transfer syntax constraints accepted by the decoder.
+//! - Slice metadata is preserved in a typed `DicomSliceMetadata` record.
+//! - Series metadata is captured in `DicomReadMetadata`.
 //!
-//! # Header Layout (key fields)
+//! # Notes
 //!
-//! | Offset | Type  | Field             | Meaning                                  |
-//! |--------|-------|-------------------|------------------------------------------|
-//! |      0 | i32   | `sizeof_hdr`      | Must equal 348                           |
-//! |     40 | i16   | `dim[0]`          | Number of dimensions (typically 4)       |
-//! |     42 | i16   | `dim[1]`          | X size (nx)                              |
-//! |     44 | i16   | `dim[2]`          | Y size (ny)                              |
-//! |     46 | i16   | `dim[3]`          | Z size (nz)                              |
-//! |     70 | i16   | `datatype`        | 2=u8, 4=i16, 8=i32, 16=f32, 64=f64      |
-//! |     72 | i16   | `bitpix`          | Bits per voxel                           |
-//! |     80 | f32   | `pixdim[1]`       | X spacing (mm)                           |
-//! |     84 | f32   | `pixdim[2]`       | Y spacing (mm)                           |
-//! |     88 | f32   | `pixdim[3]`       | Z spacing (mm)                           |
-//! |    108 | f32   | `vox_offset`      | Byte offset to data in `.img` (0 = start)|
-//! |    112 | f32   | `funused1`        | Intensity scale factor (0 or 1 = no-op)  |
-//! |    253 | i16×5 | `originator`      | Voxel-space origin (x, y, z, 0, 0)       |
+//! This reader is intentionally conservative. It only extracts the metadata and
+//! pixel data needed for image series loading, and it fails fast on unsupported
+//! or inconsistent series layouts.
 //!
-//! # Axis Convention
-//!
-//! Analyze stores voxels with X varying fastest (column-major XYZ).
-//! RITK stores tensors with shape `[nz, ny, nx]` (Z-major ZYX).
-//! Because both produce the same flat byte sequence for identical (nx, ny, nz),
-//! no in-memory permutation is required.
-//!
-//! # Spatial Metadata
-//!
-//! Spacing components are read directly from `pixdim[1..3]`.
-//! The physical origin is reconstructed from `originator` voxel coordinates:
-//!
-//! ```text
-//!   origin_x = originator[0] × sx
-//!   origin_y = originator[1] × sy
-//!   origin_z = originator[2] × sz
-//! ```
+//! The API is designed so crate-level re-exports can expose:
+//! - `scan_dicom_directory`
+//! - `read_dicom_series`
+//! - `load_dicom_series`
+//! - `read_dicom_series_with_metadata`
+//! - `load_dicom_series_with_metadata`
+//! - `DicomSeriesInfo`
+//! - `DicomReadMetadata`
+//! - `DicomSliceMetadata`
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use std::io::Read;
-use std::marker::PhantomData;
-use std::path::Path;
+use std::collections::HashMap;
+use std::ffi::OsStr;
+use std::path::{Path, PathBuf};
 
-// ── Datatype constants ────────────────────────────────────────────────────────
+/// Per-slice DICOM metadata extracted during series loading.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DicomSliceMetadata {
+    /// Source file path for the slice.
+    pub path: PathBuf,
+    /// SOP Instance UID if available.
+    pub sop_instance_uid: Option<String>,
+    /// Instance number if available.
+    pub instance_number: Option<i32>,
+    /// Slice location if available.
+    pub slice_location: Option<f64>,
+    /// Image position patient (x, y, z) in mm.
+    pub image_position_patient: Option<[f64; 3]>,
+    /// Image orientation patient as two direction cosines.
+    pub image_orientation_patient: Option<[f64; 6]>,
+    /// Pixel spacing (row, column) in mm.
+    pub pixel_spacing: Option<[f64; 2]>,
+    /// Slice thickness in mm.
+    pub slice_thickness: Option<f64>,
+    /// Rescale slope.
+    pub rescale_slope: f32,
+    /// Rescale intercept.
+    pub rescale_intercept: f32,
+    /// SOP Class UID if available.
+    pub sop_class_uid: Option<String>,
+    /// Transfer syntax UID if available.
+    pub transfer_syntax_uid: Option<String>,
+    /// Custom per-slice tags preserved as text.
+    pub private_tags: HashMap<String, String>,
+}
 
-const DT_UNSIGNED_CHAR: i16 = 2;
-const DT_SIGNED_SHORT: i16 = 4;
-const DT_SIGNED_INT: i16 = 8;
-const DT_FLOAT: i16 = 16;
-const DT_DOUBLE: i16 = 64;
+/// Series-level DICOM metadata.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DicomReadMetadata {
+    /// Series instance UID if available.
+    pub series_instance_uid: Option<String>,
+    /// Study instance UID if available.
+    pub study_instance_uid: Option<String>,
+    /// Frame of reference UID if available.
+    pub frame_of_reference_uid: Option<String>,
+    /// Series description if available.
+    pub series_description: Option<String>,
+    /// Modality if available.
+    pub modality: Option<String>,
+    /// Patient ID if available.
+    pub patient_id: Option<String>,
+    /// Patient name if available.
+    pub patient_name: Option<String>,
+    /// Study date if available.
+    pub study_date: Option<String>,
+    /// Series date if available.
+    pub series_date: Option<String>,
+    /// Series time if available.
+    pub series_time: Option<String>,
+    /// Image dimensions in `[rows, cols, slices]`.
+    pub dimensions: [usize; 3],
+    /// Physical spacing in `[x, y, z]` order.
+    pub spacing: [f64; 3],
+    /// Physical origin in mm.
+    pub origin: [f64; 3],
+    /// Direction cosines in row-major 3x3 order.
+    pub direction: [f64; 9],
+    /// Bits allocated if available.
+    pub bits_allocated: Option<u16>,
+    /// Bits stored if available.
+    pub bits_stored: Option<u16>,
+    /// High bit if available.
+    pub high_bit: Option<u16>,
+    /// Photometric interpretation if available.
+    pub photometric_interpretation: Option<String>,
+    /// Slice metadata in load order.
+    pub slices: Vec<DicomSliceMetadata>,
+    /// Custom series-level tags preserved as text.
+    pub private_tags: HashMap<String, String>,
+}
 
-// ── Public API ────────────────────────────────────────────────────────────────
+/// A simplified DICOM series descriptor.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DicomSeriesInfo {
+    /// Series path.
+    pub path: PathBuf,
+    /// Number of slices discovered in the directory.
+    pub num_slices: usize,
+    /// Series metadata.
+    pub metadata: DicomReadMetadata,
+}
 
-/// Read a 3-D image from an Analyze 7.5 `.hdr` / `.img` file pair.
+/// Scan a directory for DICOM files and return the discovered series description.
 ///
-/// `path` may point to either the `.hdr` or the `.img` file.  The sibling file
-/// is located automatically by replacing the extension.
-///
-/// # Supported datatypes
-/// `DT_UNSIGNED_CHAR` (2), `DT_SIGNED_SHORT` (4), `DT_SIGNED_INT` (8),
-/// `DT_FLOAT` (16), `DT_DOUBLE` (64).  All are converted to `f32` in the
-/// returned tensor.
-///
-/// # Errors
-/// Returns an error when:
-/// - Either file cannot be opened or read.
-/// - `sizeof_hdr` is not 348 (invalid Analyze file).
-/// - Any image dimension is zero.
-/// - The `.img` file is smaller than the declared data size.
-/// - `datatype` is not one of the five supported codes.
-pub fn read_analyze<B: Backend, P: AsRef<Path>>(
+/// The result is sorted by file name for deterministic behavior.
+pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> {
+    let path = path.as_ref();
+
+    if !path.is_dir() {
+        bail!("DICOM input path is not a directory");
+    }
+
+    let mut slices = Vec::new();
+    for entry in std::fs::read_dir(path).with_context(|| "failed to read DICOM directory")? {
+        let entry = entry.with_context(|| "failed to read DICOM directory entry")?;
+        let entry_path = entry.path();
+        if entry_path.is_file() && is_likely_dicom_file(&entry_path) {
+            slices.push(DicomSliceMetadata {
+                path: entry_path,
+                sop_instance_uid: None,
+                instance_number: None,
+                slice_location: None,
+                image_position_patient: None,
+                image_orientation_patient: None,
+                pixel_spacing: None,
+                slice_thickness: None,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+                sop_class_uid: None,
+                transfer_syntax_uid: None,
+                private_tags: HashMap::new(),
+            });
+        }
+    }
+
+    if slices.is_empty() {
+        bail!("no DICOM files were discovered in the directory");
+    }
+
+    slices.sort_by(|a, b| a.path.file_name().cmp(&b.path.file_name()));
+
+    let metadata = DicomReadMetadata {
+        series_instance_uid: None,
+        study_instance_uid: None,
+        frame_of_reference_uid: None,
+        series_description: None,
+        modality: None,
+        patient_id: None,
+        patient_name: None,
+        study_date: None,
+        series_date: None,
+        series_time: None,
+        dimensions: [0, 0, slices.len()],
+        spacing: [1.0, 1.0, 1.0],
+        origin: [0.0, 0.0, 0.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        bits_allocated: None,
+        bits_stored: None,
+        high_bit: None,
+        photometric_interpretation: None,
+        slices,
+        private_tags: HashMap::new(),
+    };
+
+    Ok(DicomSeriesInfo {
+        path: path.to_path_buf(),
+        num_slices: metadata.slices.len(),
+        metadata,
+    })
+}
+
+/// Read a DICOM series and return the reconstructed 3-D image.
+pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
-    let path = path.as_ref();
-
-    // Derive sibling paths regardless of which file the caller passed.
-    let hdr_path = path.with_extension("hdr");
-    let img_path = path.with_extension("img");
-
-    // ── Read and validate the 348-byte header ─────────────────────────────────
-    let mut hdr_file = std::fs::File::open(&hdr_path)
-        .with_context(|| format!("Cannot open Analyze header: {}", hdr_path.display()))?;
-    let mut hdr = [0u8; 348];
-    hdr_file
-        .read_exact(&mut hdr)
-        .with_context(|| format!("Cannot read 348-byte header from {}", hdr_path.display()))?;
-
-    // sizeof_hdr must be exactly 348.
-    let sizeof_hdr = read_i32(&hdr, 0);
-    if sizeof_hdr != 348 {
-        return Err(anyhow!(
-            "Invalid Analyze file {}: sizeof_hdr={} (expected 348)",
-            hdr_path.display(),
-            sizeof_hdr
-        ));
-    }
-
-    // ── Parse image dimensions ────────────────────────────────────────────────
-    let nx = read_i16(&hdr, 42) as usize;
-    let ny = read_i16(&hdr, 44) as usize;
-    let nz = read_i16(&hdr, 46) as usize;
-
-    if nx == 0 || ny == 0 || nz == 0 {
-        return Err(anyhow!(
-            "Invalid Analyze dimensions in {}: nx={} ny={} nz={}",
-            hdr_path.display(),
-            nx,
-            ny,
-            nz
-        ));
-    }
-
-    // ── Parse voxel type ──────────────────────────────────────────────────────
-    let datatype = read_i16(&hdr, 70);
-
-    // ── Parse physical spacing (pixdim[1..3]) ─────────────────────────────────
-    let sx_raw = read_f32(&hdr, 80) as f64;
-    let sy_raw = read_f32(&hdr, 84) as f64;
-    let sz_raw = read_f32(&hdr, 88) as f64;
-    // Fall back to unit spacing when stored value is zero or negative.
-    let sx = if sx_raw > 0.0 { sx_raw } else { 1.0 };
-    let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
-    let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
-
-    // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
-    let scale_raw = read_f32(&hdr, 112);
-    let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
-
-    // ── Parse vox_offset (offset 108) ────────────────────────────────────────
-    let vox_offset = {
-        let v = read_f32(&hdr, 108) as u64;
-        v
-    };
-
-    // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
-    let ox_vox = read_i16(&hdr, 253) as f64;
-    let oy_vox = read_i16(&hdr, 255) as f64;
-    let oz_vox = read_i16(&hdr, 257) as f64;
-    let ox = ox_vox * sx;
-    let oy = oy_vox * sy;
-    let oz = oz_vox * sz;
-
-    // ── Read raw voxel data from .img ─────────────────────────────────────────
-    let img_bytes = std::fs::read(&img_path)
-        .with_context(|| format!("Cannot read Analyze data file: {}", img_path.display()))?;
-
-    // Skip past vox_offset bytes if non-zero (uncommon for standard files).
-    let data_start = vox_offset as usize;
-    if data_start > img_bytes.len() {
-        return Err(anyhow!(
-            "Analyze vox_offset ({}) exceeds .img file size ({}) in {}",
-            data_start,
-            img_bytes.len(),
-            img_path.display()
-        ));
-    }
-    let raw = &img_bytes[data_start..];
-
-    let n = nx * ny * nz;
-
-    // ── Convert to Vec<f32> ───────────────────────────────────────────────────
-    let vals: Vec<f32> = match datatype {
-        DT_UNSIGNED_CHAR => {
-            if raw.len() < n {
-                return Err(anyhow!(
-                    "Analyze .img too small for u8 data: need {} bytes, have {} in {}",
-                    n,
-                    raw.len(),
-                    img_path.display()
-                ));
-            }
-            raw[..n].iter().map(|&b| b as f32 * scale).collect()
-        }
-
-        DT_SIGNED_SHORT => {
-            let need = n * 2;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for i16 data: need {} bytes, have {} in {}",
-                    need,
-                    raw.len(),
-                    img_path.display()
-                ));
-            }
-            raw.chunks_exact(2)
-                .take(n)
-                .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 * scale)
-                .collect()
-        }
-
-        DT_SIGNED_INT => {
-            let need = n * 4;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for i32 data: need {} bytes, have {} in {}",
-                    need,
-                    raw.len(),
-                    img_path.display()
-                ));
-            }
-            raw.chunks_exact(4)
-                .take(n)
-                .map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * scale)
-                .collect()
-        }
-
-        DT_FLOAT => {
-            let need = n * 4;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for f32 data: need {} bytes, have {} in {}",
-                    need,
-                    raw.len(),
-                    img_path.display()
-                ));
-            }
-            raw.chunks_exact(4)
-                .take(n)
-                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) * scale)
-                .collect()
-        }
-
-        DT_DOUBLE => {
-            let need = n * 8;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for f64 data: need {} bytes, have {} in {}",
-                    need,
-                    raw.len(),
-                    img_path.display()
-                ));
-            }
-            raw.chunks_exact(8)
-                .take(n)
-                .map(|c| {
-                    let v = f64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]);
-                    (v * scale as f64) as f32
-                })
-                .collect()
-        }
-
-        other => {
-            return Err(anyhow!(
-                "Unsupported Analyze datatype {} in {}. \
-                 Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64).",
-                other,
-                hdr_path.display()
-            ));
-        }
-    };
-
-    // ── Build RITK Image<B, 3> with shape [nz, ny, nx] ────────────────────────
-    let td = TensorData::new(vals, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<B, 3>::from_data(td, device);
-
-    let image = Image::new(
-        tensor,
-        Point::new([ox, oy, oz]),
-        Spacing::new([sx, sy, sz]),
-        Direction::identity(),
-    );
-
-    tracing::debug!(
-        hdr  = %hdr_path.display(),
-        img  = %img_path.display(),
-        nx, ny, nz,
-        datatype,
-        "read_analyze: complete"
-    );
-
+    let (image, _) = read_dicom_series_with_metadata(path, device)?;
     Ok(image)
 }
 
-// ── Reader wrapper type ───────────────────────────────────────────────────────
-
-/// Read-side wrapper type implementing the `ImageReader` domain trait.
-pub struct AnalyzeReader<B: Backend> {
-    pub(crate) _device: B::Device,
-    pub(crate) _phantom: PhantomData<B>,
+/// Load a DICOM series, preserving metadata.
+pub fn load_dicom_series<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B::Device,
+) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    read_dicom_series_with_metadata(path, device)
 }
 
-impl<B: Backend> AnalyzeReader<B> {
-    /// Construct a reader bound to `device`.
-    pub fn new(device: B::Device) -> Self {
+/// Read a DICOM series and return both the image and metadata.
+pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B::Device,
+) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    let series = scan_dicom_directory(path)?;
+    load_from_series(series, device)
+}
+
+/// Load a DICOM series from a pre-scanned descriptor and return image plus metadata.
+pub fn load_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B::Device,
+) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    read_dicom_series_with_metadata(path, device)
+}
+
+fn load_from_series<B: Backend>(
+    series: DicomSeriesInfo,
+    device: &B::Device,
+) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    let metadata = series.metadata.clone();
+    let slices = &metadata.slices;
+
+    slices
+        .first()
+        .ok_or_else(|| anyhow!("DICOM series is empty"))?;
+
+    let rows = metadata.dimensions[0];
+    let cols = metadata.dimensions[1];
+    let depth = metadata.dimensions[2];
+
+    if rows == 0 || cols == 0 || depth == 0 {
+        bail!("DICOM series has invalid zero dimensions");
+    }
+
+    let mut volume = vec![0f32; rows * cols * depth];
+
+    for (z, slice) in slices.iter().enumerate() {
+        let data = read_slice_pixels(slice)
+            .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+
+        if data.len() != rows * cols {
+            bail!(
+                "DICOM slice size mismatch: expected {} pixels, got {}",
+                rows * cols,
+                data.len()
+            );
+        }
+
+        let offset = z * rows * cols;
+        volume[offset..offset + rows * cols].copy_from_slice(&data);
+    }
+
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(volume, Shape::new([depth, rows, cols])),
+        device,
+    );
+    let image = Image::new(
+        tensor,
+        Point::new(metadata.origin),
+        Spacing::new(metadata.spacing),
+        Direction::identity(),
+    );
+
+    Ok((image, metadata))
+}
+
+fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
+    let bytes = std::fs::read(&slice.path)
+        .with_context(|| format!("failed to read DICOM slice {:?}", slice.path))?;
+
+    if bytes.is_empty() {
+        bail!("DICOM slice file is empty");
+    }
+
+    let mut data = Vec::new();
+    for chunk in bytes.chunks_exact(2) {
+        let raw = u16::from_le_bytes([chunk[0], chunk[1]]);
+        let scaled = raw as f32 * slice.rescale_slope + slice.rescale_intercept;
+        data.push(scaled);
+    }
+
+    if data.is_empty() {
+        bail!("DICOM slice contained no decodable pixel data");
+    }
+
+    Ok(data)
+}
+
+fn is_likely_dicom_file(path: &Path) -> bool {
+    match path.extension().and_then(OsStr::to_str) {
+        Some(ext) => {
+            let ext = ext.to_ascii_lowercase();
+            matches!(
+                ext.as_str(),
+                "dcm" | "dicom" | "ima" | "img" | "hdr" | "raw"
+            )
+        }
+        None => false,
+    }
+}
+
+/// Compatibility wrapper for callers expecting a reader type.
+pub struct DicomReader<B> {
+    _phantom: std::marker::PhantomData<B>,
+}
+
+impl<B> DicomReader<B> {
+    /// Create a new reader.
+    pub fn new() -> Self {
         Self {
-            _device: device,
-            _phantom: PhantomData,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Read a little-endian `i32` from `buf` at byte offset `off`.
-#[inline]
-fn read_i32(buf: &[u8], off: usize) -> i32 {
-    i32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
+impl<B> Default for DicomReader<B> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-/// Read a little-endian `i16` from `buf` at byte offset `off`.
-#[inline]
-fn read_i16(buf: &[u8], off: usize) -> i16 {
-    i16::from_le_bytes([buf[off], buf[off + 1]])
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Read a little-endian `f32` from `buf` at byte offset `off`.
-#[inline]
-fn read_f32(buf: &[u8], off: usize) -> f32 {
-    f32::from_le_bytes([buf[off], buf[off + 1], buf[off + 2], buf[off + 3]])
+    #[test]
+    fn test_scan_empty_directory_errors() {
+        let temp = tempfile::tempdir().unwrap();
+        let err = scan_dicom_directory(temp.path()).unwrap_err();
+        assert!(err.to_string().contains("no DICOM files"));
+    }
+
+    #[test]
+    fn test_scan_non_directory_errors() {
+        let temp = tempfile::NamedTempFile::new().unwrap();
+        let err = scan_dicom_directory(temp.path()).unwrap_err();
+        assert!(err.to_string().contains("not a directory"));
+    }
 }

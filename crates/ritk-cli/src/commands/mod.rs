@@ -14,6 +14,7 @@ use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
+use ritk_io::read_dicom_series;
 use std::path::Path;
 
 // ── Shared backend ────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
             .with_context(|| format!("Failed to read NRRD file: {}", path.display())),
         "png" => ritk_io::read_png_to_image::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read PNG file: {}", path.display())),
-        "dicom" => ritk_io::read_dicom_series::<Backend, _>(path, &device)
+        "dicom" => read_dicom_series::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read DICOM series from: {}", path.display())),
         "mgh" => ritk_io::read_mgh::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read MGH file: {}", path.display())),
