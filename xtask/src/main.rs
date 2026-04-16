@@ -22,37 +22,37 @@ enum Commands {
         /// Dataset to download (all, oasis, learn2reg,ixi)
         #[arg(default_value = "all")]
         dataset: String,
-        
+
         /// Output directory for datasets
         #[arg(short, long, default_value = "test_data")]
         output: PathBuf,
-        
+
         /// Force re-download even if files exist
         #[arg(short, long)]
         force: bool,
     },
-    
+
     /// List available datasets
     ListDatasets,
-    
+
     /// Verify downloaded datasets
     VerifyDatasets {
         /// Directory containing test datasets
         #[arg(short, long, default_value = "test_data")]
         data_dir: PathBuf,
     },
-    
+
     /// Run integration tests with real data
     TestRealData {
         /// Directory containing test datasets
         #[arg(short, long, default_value = "test_data")]
         data_dir: PathBuf,
-        
+
         /// Test to run (all, io, registration)
         #[arg(default_value = "all")]
         test: String,
     },
-    
+
     /// Clean downloaded datasets
     Clean {
         /// Directory containing test datasets
@@ -72,11 +72,15 @@ fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
-    
+
     let cli = Cli::parse();
-    
+
     match cli.command {
-        Commands::DownloadDatasets { dataset, output, force } => {
+        Commands::DownloadDatasets {
+            dataset,
+            output,
+            force,
+        } => {
             download_datasets(&dataset, &output, force)?;
         }
         Commands::ListDatasets => {
@@ -95,17 +99,17 @@ fn main() -> Result<()> {
             prepare_registration_data(&data_dir)?;
         }
     }
-    
+
     Ok(())
 }
 
 fn download_datasets(name: &str, output: &Path, force: bool) -> Result<()> {
     info!("Downloading datasets to: {}", output.display());
-    
+
     std::fs::create_dir_all(output)?;
-    
+
     let manager = DatasetManager::new(output);
-    
+
     let datasets: Vec<Box<dyn Dataset>> = match name {
         "all" => vec![
             Box::new(datasets::OpenNeuroDataset::new()),
@@ -122,10 +126,13 @@ fn download_datasets(name: &str, output: &Path, force: bool) -> Result<()> {
         "brainweb" => vec![Box::new(datasets::BrainWebDataset::new())],
         "synthstrip" => vec![Box::new(datasets::SynthStripDataset::new())],
         _ => {
-            anyhow::bail!("Unknown dataset: {}. Use 'list-datasets' to see available options.", name);
+            anyhow::bail!(
+                "Unknown dataset: {}. Use 'list-datasets' to see available options.",
+                name
+            );
         }
     };
-    
+
     for dataset in datasets {
         info!("Downloading {}...", dataset.name());
         match manager.download(dataset.as_ref(), force) {
@@ -133,7 +140,7 @@ fn download_datasets(name: &str, output: &Path, force: bool) -> Result<()> {
             Err(e) => warn!("Failed to download {}: {}", dataset.name(), e),
         }
     }
-    
+
     info!("Dataset download complete!");
     Ok(())
 }
@@ -174,22 +181,22 @@ fn list_datasets() {
 
 fn verify_datasets(data_dir: &Path) -> Result<()> {
     info!("Verifying datasets in: {}", data_dir.display());
-    
+
     if !data_dir.exists() {
         warn!("Data directory does not exist: {}", data_dir.display());
         return Ok(());
     }
-    
+
     let manager = DatasetManager::new(data_dir);
     manager.verify()?;
-    
+
     info!("Dataset verification complete!");
     Ok(())
 }
 
 fn test_real_data(data_dir: &Path, test: &str) -> Result<()> {
     info!("Running real data tests from: {}", data_dir.display());
-    
+
     if !data_dir.exists() {
         anyhow::bail!(
             "Test data directory does not exist: {}. \
@@ -197,14 +204,14 @@ fn test_real_data(data_dir: &Path, test: &str) -> Result<()> {
             data_dir.display()
         );
     }
-    
+
     match test {
         "all" => run_all_tests(data_dir)?,
         "io" => run_io_tests(data_dir)?,
         "registration" => run_registration_tests(data_dir)?,
         _ => anyhow::bail!("Unknown test: {}", test),
     }
-    
+
     info!("Real data tests complete!");
     Ok(())
 }
@@ -217,7 +224,7 @@ fn run_all_tests(data_dir: &Path) -> Result<()> {
 
 fn run_io_tests(data_dir: &Path) -> Result<()> {
     info!("Running I/O tests...");
-    
+
     // Check for NIfTI files
     let nifti_files: Vec<_> = walkdir::WalkDir::new(data_dir)
         .into_iter()
@@ -229,7 +236,7 @@ fn run_io_tests(data_dir: &Path) -> Result<()> {
         })
         .take(5)
         .collect();
-    
+
     if nifti_files.is_empty() {
         warn!("No NIfTI files found for I/O testing");
     } else {
@@ -238,16 +245,16 @@ fn run_io_tests(data_dir: &Path) -> Result<()> {
             info!("  - {}", file.path().display());
         }
     }
-    
+
     Ok(())
 }
 
 fn run_registration_tests(data_dir: &Path) -> Result<()> {
     info!("Running registration tests...");
-    
+
     // Look for paired datasets
     let pairs = find_image_pairs(data_dir)?;
-    
+
     if pairs.is_empty() {
         warn!("No image pairs found for registration testing");
         info!("Download datasets first with: cargo xtask download-datasets");
@@ -257,31 +264,29 @@ fn run_registration_tests(data_dir: &Path) -> Result<()> {
             info!("  Fixed: {}, Moving: {}", fixed.display(), moving.display());
         }
     }
-    
+
     Ok(())
 }
 
 fn find_image_pairs(data_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
     let mut pairs = Vec::new();
-    
+
     // Look for standard pair patterns
     for entry in walkdir::WalkDir::new(data_dir).max_depth(3) {
         let entry = entry?;
         let path = entry.path();
-        
+
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
             if stem.ends_with("_fixed") {
-                let moving = path.with_file_name(format!(
-                    "{}_moving.nii.gz",
-                    &stem[..stem.len() - 6]
-                ));
+                let moving =
+                    path.with_file_name(format!("{}_moving.nii.gz", &stem[..stem.len() - 6]));
                 if moving.exists() {
                     pairs.push((path.to_path_buf(), moving));
                 }
             }
         }
     }
-    
+
     Ok(pairs)
 }
 
@@ -298,36 +303,36 @@ fn clean_datasets(data_dir: &Path) -> Result<()> {
 
 fn prepare_registration_data(data_dir: &Path) -> Result<()> {
     info!("Preparing registration data in: {}", data_dir.display());
-    
+
     let registration_dir = data_dir.join("registration");
     std::fs::create_dir_all(&registration_dir)?;
-    
+
     // Source files
     let template = data_dir.join("ants_example").join("mni152.nii.gz");
     // Use same image for moving, just to verify pipeline works (visiblehuman was broken)
-    let subject = data_dir.join("ants_example").join("mni152.nii.gz"); 
-    
+    let subject = data_dir.join("ants_example").join("mni152.nii.gz");
+
     if !template.exists() {
         warn!("Source files missing. Attempting to download...");
         // Fallback to trigger download if missing
         download_datasets("ants", data_dir, false)?;
     }
-    
+
     if !template.exists() {
-         warn!("Source files still missing after download attempt.");
-         return Ok(());
+        warn!("Source files still missing after download attempt.");
+        return Ok(());
     }
-    
+
     // Target files
     let fixed_path = registration_dir.join("brain_fixed.nii.gz");
     let moving_path = registration_dir.join("brain_moving.nii.gz");
-    
+
     info!("Copying {} -> {}", template.display(), fixed_path.display());
     std::fs::copy(template, &fixed_path)?;
-    
+
     info!("Copying {} -> {}", subject.display(), moving_path.display());
     std::fs::copy(subject, &moving_path)?;
-    
+
     info!("Registration data prepared successfully!");
     Ok(())
 }

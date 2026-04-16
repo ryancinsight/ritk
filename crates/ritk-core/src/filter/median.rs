@@ -167,10 +167,7 @@ mod tests {
 
         assert_eq!(out.shape(), dims);
         for (i, &v) in result.iter().enumerate() {
-            assert!(
-                (v - val).abs() < 1e-6,
-                "voxel {i}: expected {val}, got {v}"
-            );
+            assert!((v - val).abs() < 1e-6, "voxel {i}: expected {val}, got {v}");
         }
     }
 

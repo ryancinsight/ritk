@@ -109,8 +109,8 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use burn::tensor::backend::Backend as BurnBackend;
+    use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
@@ -156,8 +156,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists(), "output NIfTI must be created");
-        let recovered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             recovered.shape(),
             [3, 4, 5],
@@ -212,8 +211,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists(), "output NRRD must be created");
-        let recovered =
-            ritk_io::read_nrrd::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = ritk_io::read_nrrd::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -307,8 +305,7 @@ mod tests {
         .unwrap();
 
         assert!(output.exists());
-        let recovered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let recovered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 }

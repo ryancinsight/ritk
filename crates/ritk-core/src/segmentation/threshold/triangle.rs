@@ -91,8 +91,7 @@ impl TriangleThreshold {
             .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
-        let tensor =
-            Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
         Image::new(
             tensor,
@@ -176,10 +175,7 @@ fn compute_triangle_threshold_impl<B: Backend, const D: usize>(
     // (or N−1). Otherwise, the tail is the leftmost non-zero bin (or 0).
     let tail_bin = if peak_bin <= num_bins / 2 {
         // Tail on the right side.
-        counts
-            .iter()
-            .rposition(|&c| c > 0)
-            .unwrap_or(num_bins - 1)
+        counts.iter().rposition(|&c| c > 0).unwrap_or(num_bins - 1)
     } else {
         // Tail on the left side.
         counts.iter().position(|&c| c > 0).unwrap_or(0)

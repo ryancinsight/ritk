@@ -80,8 +80,7 @@ impl WatershedSegmentation {
 
         let labels = watershed_flooding(&vals, dims);
 
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
 
         Ok(Image::new(
             tensor,
@@ -158,7 +157,13 @@ fn watershed_flooding(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
             let ny_i = y as i64 + dy;
             let nx_i = x as i64 + dx;
 
-            if nz_i < 0 || nz_i >= nz as i64 || ny_i < 0 || ny_i >= ny as i64 || nx_i < 0 || nx_i >= nx as i64 {
+            if nz_i < 0
+                || nz_i >= nz as i64
+                || ny_i < 0
+                || ny_i >= ny as i64
+                || nx_i < 0
+                || nx_i >= nx as i64
+            {
                 continue;
             }
 
@@ -230,8 +235,7 @@ mod tests {
 
     fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -313,11 +317,7 @@ mod tests {
         let data: Vec<f32> = (0..n).map(|i| (i % 7) as f32 * 10.0).collect();
         let image = make_image_3d(data, dims);
         let result = WatershedSegmentation::new().apply(&image).unwrap();
-        assert_eq!(
-            result.shape(),
-            dims,
-            "output shape must match input shape"
-        );
+        assert_eq!(result.shape(), dims, "output shape must match input shape");
     }
 
     // ── Spatial metadata preserved ─────────────────────────────────────────────
@@ -341,15 +341,18 @@ mod tests {
         let dims = [3, 3, 3];
         let n: usize = dims.iter().product();
         // Gradient-like image with a saddle to force watershed boundaries.
-        let data: Vec<f32> = (0..n).map(|i| {
-            let z = i / 9;
-            let y = (i % 9) / 3;
-            let x = i % 3;
-            // Two minima at corners (0,0,0) and (2,2,2); ridge in between.
-            let d0 = ((z * z + y * y + x * x) as f32).sqrt();
-            let d1 = (((2 - z) * (2 - z) + (2 - y) * (2 - y) + (2 - x) * (2 - x)) as f32).sqrt();
-            d0.min(d1) * 50.0
-        }).collect();
+        let data: Vec<f32> = (0..n)
+            .map(|i| {
+                let z = i / 9;
+                let y = (i % 9) / 3;
+                let x = i % 3;
+                // Two minima at corners (0,0,0) and (2,2,2); ridge in between.
+                let d0 = ((z * z + y * y + x * x) as f32).sqrt();
+                let d1 =
+                    (((2 - z) * (2 - z) + (2 - y) * (2 - y) + (2 - x) * (2 - x)) as f32).sqrt();
+                d0.min(d1) * 50.0
+            })
+            .collect();
         let image = make_image_3d(data, dims);
         let result = WatershedSegmentation::new().apply(&image).unwrap();
         let labels = get_labels(&result);

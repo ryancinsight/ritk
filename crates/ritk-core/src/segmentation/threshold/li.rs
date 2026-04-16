@@ -84,8 +84,7 @@ impl LiThreshold {
             .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
-        let tensor =
-            Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
         Image::new(
             tensor,
@@ -310,11 +309,7 @@ mod tests {
         let mask = LiThreshold::new().apply(&image);
         let vals = get_slice_1d(&mask);
         for &v in &vals {
-            assert!(
-                v == 0.0 || v == 1.0,
-                "mask must be binary, found {}",
-                v
-            );
+            assert!(v == 0.0 || v == 1.0, "mask must be binary, found {}", v);
         }
     }
 

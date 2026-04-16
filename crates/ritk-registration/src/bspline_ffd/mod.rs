@@ -224,7 +224,12 @@ impl BSplineFFDRegistration {
             for iter in 0..config.max_iterations_per_level {
                 // 1. Evaluate dense displacement from current control points.
                 let (disp_z, disp_y, disp_x) = evaluate_bspline_displacement(
-                    &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims,
+                    &cp_z,
+                    &cp_y,
+                    &cp_x,
+                    &ctrl_dims,
+                    &ctrl_spacing,
+                    dims,
                 );
 
                 // 2. Warp moving image.
@@ -251,14 +256,21 @@ impl BSplineFFDRegistration {
 
                 // 5. Compute metric gradient w.r.t. control points.
                 let (grad_z, grad_y, grad_x) = compute_metric_gradient(
-                    fixed, moving, &warped, &disp_z, &disp_y, &disp_x,
-                    &ctrl_dims, &ctrl_spacing, dims, spacing,
+                    fixed,
+                    moving,
+                    &warped,
+                    &disp_z,
+                    &disp_y,
+                    &disp_x,
+                    &ctrl_dims,
+                    &ctrl_spacing,
+                    dims,
+                    spacing,
                 );
 
                 // 6. Compute bending-energy gradient w.r.t. control points.
-                let (be_gz, be_gy, be_gx) = bending_energy_gradient(
-                    &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing,
-                );
+                let (be_gz, be_gy, be_gx) =
+                    bending_energy_gradient(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
                 // 7. Gradient descent update.
                 let lr = config.learning_rate as f32;
@@ -289,9 +301,8 @@ impl BSplineFFDRegistration {
         }
 
         // ── Final warp ───────────────────────────────────────────────────
-        let (disp_z, disp_y, disp_x) = evaluate_bspline_displacement(
-            &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims,
-        );
+        let (disp_z, disp_y, disp_x) =
+            evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
         let warped_moving = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
 
         Ok(BSplineFFDResult {
@@ -581,16 +592,23 @@ fn compute_metric_gradient(
     };
 
     // Compute spatial gradient of the warped image.
-    let (gw_z, gw_y, gw_x) =
-        crate::deformable_field_ops::compute_gradient(warped, dims, spacing);
+    let (gw_z, gw_y, gw_x) = crate::deformable_field_ops::compute_gradient(warped, dims, spacing);
 
     // Accumulate gradient into control points.
     let mut grad_cz = vec![0.0_f64; cn];
     let mut grad_cy = vec![0.0_f64; cn];
     let mut grad_cx = vec![0.0_f64; cn];
 
-    let inv_n_sigma_f = if sigma_f > 1e-12 { 1.0 / (nf * sigma_f) } else { 0.0 };
-    let inv_n_sigma_w = if sigma_w > 1e-12 { 1.0 / (nf * sigma_w) } else { 0.0 };
+    let inv_n_sigma_f = if sigma_f > 1e-12 {
+        1.0 / (nf * sigma_f)
+    } else {
+        0.0
+    };
+    let inv_n_sigma_w = if sigma_w > 1e-12 {
+        1.0 / (nf * sigma_w)
+    } else {
+        0.0
+    };
     let inv_sigma_w = if sigma_w > 1e-12 { 1.0 / sigma_w } else { 0.0 };
 
     for iz in 0..nz {
@@ -617,8 +635,8 @@ fn compute_metric_gradient(
                 let w_tilde = warped[fi] as f64 - mean_w;
 
                 // ∂ρ/∂W(x) for the global NCC.
-                let drho_dw = inv_sigma_w
-                    * (f_tilde * inv_n_sigma_f - rho * w_tilde * inv_n_sigma_w);
+                let drho_dw =
+                    inv_sigma_w * (f_tilde * inv_n_sigma_f - rho * w_tilde * inv_n_sigma_w);
 
                 // Voxel-wise displacement gradient = drho_dw * ∇(warped).
                 let vg_z = drho_dw * gw_z[fi] as f64;
@@ -709,16 +727,13 @@ pub fn bending_energy(
                     let c = comp[flat(iz, iy, ix, cny, cnx)];
 
                     // Pure second derivatives.
-                    let dzz = (comp[flat(iz + 1, iy, ix, cny, cnx)]
-                        - 2.0 * c
+                    let dzz = (comp[flat(iz + 1, iy, ix, cny, cnx)] - 2.0 * c
                         + comp[flat(iz - 1, iy, ix, cny, cnx)])
                         / sz2;
-                    let dyy = (comp[flat(iz, iy + 1, ix, cny, cnx)]
-                        - 2.0 * c
+                    let dyy = (comp[flat(iz, iy + 1, ix, cny, cnx)] - 2.0 * c
                         + comp[flat(iz, iy - 1, ix, cny, cnx)])
                         / sy2;
-                    let dxx = (comp[flat(iz, iy, ix + 1, cny, cnx)]
-                        - 2.0 * c
+                    let dxx = (comp[flat(iz, iy, ix + 1, cny, cnx)] - 2.0 * c
                         + comp[flat(iz, iy, ix - 1, cny, cnx)])
                         / sx2;
 
@@ -739,7 +754,9 @@ pub fn bending_energy(
                         + comp[flat(iz, iy - 1, ix - 1, cny, cnx)])
                         / (4.0 * syx);
 
-                    energy += (dzz * dzz + dyy * dyy + dxx * dxx
+                    energy += (dzz * dzz
+                        + dyy * dyy
+                        + dxx * dxx
                         + 2.0 * dzy * dzy
                         + 2.0 * dzx * dzx
                         + 2.0 * dyx * dyx) as f64;
@@ -796,16 +813,13 @@ fn bending_energy_gradient(
                 for ix in 1..cnx.saturating_sub(1) {
                     let ci = flat(iz, iy, ix, cny, cnx);
                     let c = comp[ci] as f64;
-                    let dzz = (comp[flat(iz + 1, iy, ix, cny, cnx)] as f64
-                        - 2.0 * c
+                    let dzz = (comp[flat(iz + 1, iy, ix, cny, cnx)] as f64 - 2.0 * c
                         + comp[flat(iz - 1, iy, ix, cny, cnx)] as f64)
                         / sz2;
-                    let dyy = (comp[flat(iz, iy + 1, ix, cny, cnx)] as f64
-                        - 2.0 * c
+                    let dyy = (comp[flat(iz, iy + 1, ix, cny, cnx)] as f64 - 2.0 * c
                         + comp[flat(iz, iy - 1, ix, cny, cnx)] as f64)
                         / sy2;
-                    let dxx = (comp[flat(iz, iy, ix + 1, cny, cnx)] as f64
-                        - 2.0 * c
+                    let dxx = (comp[flat(iz, iy, ix + 1, cny, cnx)] as f64 - 2.0 * c
                         + comp[flat(iz, iy, ix - 1, cny, cnx)] as f64)
                         / sx2;
                     lap[ci] = dzz + dyy + dxx;
@@ -818,16 +832,13 @@ fn bending_energy_gradient(
                 for ix in 2..cnx.saturating_sub(2) {
                     let ci = flat(iz, iy, ix, cny, cnx);
                     let l = lap[ci];
-                    let lzz = (lap[flat(iz + 1, iy, ix, cny, cnx)]
-                        - 2.0 * l
+                    let lzz = (lap[flat(iz + 1, iy, ix, cny, cnx)] - 2.0 * l
                         + lap[flat(iz - 1, iy, ix, cny, cnx)])
                         / sz2;
-                    let lyy = (lap[flat(iz, iy + 1, ix, cny, cnx)]
-                        - 2.0 * l
+                    let lyy = (lap[flat(iz, iy + 1, ix, cny, cnx)] - 2.0 * l
                         + lap[flat(iz, iy - 1, ix, cny, cnx)])
                         / sy2;
-                    let lxx = (lap[flat(iz, iy, ix + 1, cny, cnx)]
-                        - 2.0 * l
+                    let lxx = (lap[flat(iz, iy, ix + 1, cny, cnx)] - 2.0 * l
                         + lap[flat(iz, iy, ix - 1, cny, cnx)])
                         / sx2;
                     out[ci] = (norm * (lzz + lyy + lxx)) as f32;
@@ -894,11 +905,7 @@ fn refine_control_grid(
     let mut new_x = vec![0.0_f32; nn];
 
     // Apply tensor-product subdivision.
-    for comp_pair in [
-        (cp_z, &mut new_z),
-        (cp_y, &mut new_y),
-        (cp_x, &mut new_x),
-    ] {
+    for comp_pair in [(cp_z, &mut new_z), (cp_y, &mut new_y), (cp_x, &mut new_x)] {
         let (old, new) = comp_pair;
         refine_component_3d(old, new, [cnz, cny, cnx], [nnz, nny, nnx]);
     }
@@ -908,12 +915,7 @@ fn refine_control_grid(
 
 /// Apply 3D B-spline subdivision to a single displacement component via three
 /// sequential 1D passes (separable).
-fn refine_component_3d(
-    old: &[f32],
-    new: &mut [f32],
-    old_dims: [usize; 3],
-    new_dims: [usize; 3],
-) {
+fn refine_component_3d(old: &[f32], new: &mut [f32], old_dims: [usize; 3], new_dims: [usize; 3]) {
     let [oz, oy, ox] = old_dims;
     let [nz, ny, nx] = new_dims;
 
@@ -925,14 +927,26 @@ fn refine_component_3d(
                 let ix = jx / 2;
                 let v = if jx % 2 == 0 {
                     // Even: (P[i-1] + 6*P[i] + P[i+1]) / 8
-                    let pm = if ix > 0 { old[flat(iz, iy, ix - 1, oy, ox)] } else { old[flat(iz, iy, 0, oy, ox)] };
+                    let pm = if ix > 0 {
+                        old[flat(iz, iy, ix - 1, oy, ox)]
+                    } else {
+                        old[flat(iz, iy, 0, oy, ox)]
+                    };
                     let p0 = old[flat(iz, iy, ix, oy, ox)];
-                    let pp = if ix + 1 < ox { old[flat(iz, iy, ix + 1, oy, ox)] } else { old[flat(iz, iy, ox - 1, oy, ox)] };
+                    let pp = if ix + 1 < ox {
+                        old[flat(iz, iy, ix + 1, oy, ox)]
+                    } else {
+                        old[flat(iz, iy, ox - 1, oy, ox)]
+                    };
                     (pm + 6.0 * p0 + pp) / 8.0
                 } else {
                     // Odd: (P[i] + P[i+1]) / 2
                     let p0 = old[flat(iz, iy, ix, oy, ox)];
-                    let pp = if ix + 1 < ox { old[flat(iz, iy, ix + 1, oy, ox)] } else { old[flat(iz, iy, ox - 1, oy, ox)] };
+                    let pp = if ix + 1 < ox {
+                        old[flat(iz, iy, ix + 1, oy, ox)]
+                    } else {
+                        old[flat(iz, iy, ox - 1, oy, ox)]
+                    };
                     (p0 + pp) / 2.0
                 };
                 tmp1[iz * oy * nx + iy * nx + jx] = v;
@@ -947,13 +961,25 @@ fn refine_component_3d(
             let iy = jy / 2;
             for jx in 0..nx {
                 let v = if jy % 2 == 0 {
-                    let pm = if iy > 0 { tmp1[iz * oy * nx + (iy - 1) * nx + jx] } else { tmp1[iz * oy * nx + jx] };
+                    let pm = if iy > 0 {
+                        tmp1[iz * oy * nx + (iy - 1) * nx + jx]
+                    } else {
+                        tmp1[iz * oy * nx + jx]
+                    };
                     let p0 = tmp1[iz * oy * nx + iy * nx + jx];
-                    let pp = if iy + 1 < oy { tmp1[iz * oy * nx + (iy + 1) * nx + jx] } else { tmp1[iz * oy * nx + (oy - 1) * nx + jx] };
+                    let pp = if iy + 1 < oy {
+                        tmp1[iz * oy * nx + (iy + 1) * nx + jx]
+                    } else {
+                        tmp1[iz * oy * nx + (oy - 1) * nx + jx]
+                    };
                     (pm + 6.0 * p0 + pp) / 8.0
                 } else {
                     let p0 = tmp1[iz * oy * nx + iy * nx + jx];
-                    let pp = if iy + 1 < oy { tmp1[iz * oy * nx + (iy + 1) * nx + jx] } else { tmp1[iz * oy * nx + (oy - 1) * nx + jx] };
+                    let pp = if iy + 1 < oy {
+                        tmp1[iz * oy * nx + (iy + 1) * nx + jx]
+                    } else {
+                        tmp1[iz * oy * nx + (oy - 1) * nx + jx]
+                    };
                     (p0 + pp) / 2.0
                 };
                 tmp2[iz * ny * nx + jy * nx + jx] = v;
@@ -967,13 +993,25 @@ fn refine_component_3d(
         for jy in 0..ny {
             for jx in 0..nx {
                 let v = if jz % 2 == 0 {
-                    let pm = if iz > 0 { tmp2[(iz - 1) * ny * nx + jy * nx + jx] } else { tmp2[jy * nx + jx] };
+                    let pm = if iz > 0 {
+                        tmp2[(iz - 1) * ny * nx + jy * nx + jx]
+                    } else {
+                        tmp2[jy * nx + jx]
+                    };
                     let p0 = tmp2[iz * ny * nx + jy * nx + jx];
-                    let pp = if iz + 1 < oz { tmp2[(iz + 1) * ny * nx + jy * nx + jx] } else { tmp2[(oz - 1) * ny * nx + jy * nx + jx] };
+                    let pp = if iz + 1 < oz {
+                        tmp2[(iz + 1) * ny * nx + jy * nx + jx]
+                    } else {
+                        tmp2[(oz - 1) * ny * nx + jy * nx + jx]
+                    };
                     (pm + 6.0 * p0 + pp) / 8.0
                 } else {
                     let p0 = tmp2[iz * ny * nx + jy * nx + jx];
-                    let pp = if iz + 1 < oz { tmp2[(iz + 1) * ny * nx + jy * nx + jx] } else { tmp2[(oz - 1) * ny * nx + jy * nx + jx] };
+                    let pp = if iz + 1 < oz {
+                        tmp2[(iz + 1) * ny * nx + jy * nx + jx]
+                    } else {
+                        tmp2[(oz - 1) * ny * nx + jy * nx + jx]
+                    };
                     (p0 + pp) / 2.0
                 };
                 new[jz * ny * nx + jy * nx + jx] = v;
@@ -1051,13 +1089,7 @@ mod tests {
             let t = i as f64 / 100.0;
             let b = cubic_bspline_1d(t);
             for (j, &val) in b.iter().enumerate() {
-                assert!(
-                    val >= -1e-15,
-                    "basis {}({}) = {} < 0",
-                    j,
-                    t,
-                    val
-                );
+                assert!(val >= -1e-15, "basis {}({}) = {} < 0", j, t, val);
             }
         }
     }
@@ -1076,7 +1108,8 @@ mod tests {
         let cp_y = vec![0.0_f32; cn];
         let cp_x = vec![0.0_f32; cn];
 
-        let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+        let warped =
+            warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
         for i in 0..image.len() {
             assert!(
@@ -1137,11 +1170,10 @@ mod tests {
 
         // Create a simple ramp in x: I(z,y,x) = x.
         let [nz, ny, nx] = dims;
-        let image: Vec<f32> = (0..nz * ny * nx)
-            .map(|fi| (fi % nx) as f32)
-            .collect();
+        let image: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
 
-        let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+        let warped =
+            warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
         // At interior voxels (away from boundary clamping), warped(z,y,x) ≈
         // moving(z, y, x + 2) = (x + 2). Near the right boundary, clamping
@@ -1348,8 +1380,7 @@ mod tests {
             ..Default::default()
         };
         let img = vec![0.0_f32; 8];
-        let result =
-            BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
+        let result = BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -1364,8 +1395,7 @@ mod tests {
             ..Default::default()
         };
         let img = vec![0.0_f32; 8];
-        let result =
-            BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
+        let result = BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),

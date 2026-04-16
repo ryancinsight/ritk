@@ -88,8 +88,7 @@ impl YenThreshold {
             .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
-        let tensor =
-            Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
         Image::new(
             tensor,
@@ -228,8 +227,7 @@ mod tests {
 
     fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -289,7 +287,9 @@ mod tests {
     fn test_apply_preserves_shape_and_metadata() {
         let dims = [2, 3, 4];
         let n = dims[0] * dims[1] * dims[2];
-        let data: Vec<f32> = (0..n).map(|i| if i < n / 2 { 10.0 } else { 200.0 }).collect();
+        let data: Vec<f32> = (0..n)
+            .map(|i| if i < n / 2 { 10.0 } else { 200.0 })
+            .collect();
         let image = make_image_3d(data, dims);
         let result = YenThreshold::new().apply(&image);
 

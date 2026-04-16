@@ -16,9 +16,7 @@ use clap::Args;
 use std::path::PathBuf;
 use tracing::info;
 
-use ritk_core::statistics::{
-    compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim,
-};
+use ritk_core::statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
 
 use super::{read_image, Backend};
 
@@ -82,9 +80,7 @@ pub fn run(args: StatsArgs) -> Result<()> {
 
 /// Load the reference image from `args.reference`, returning a descriptive
 /// error when the path is absent.
-fn require_reference(
-    args: &StatsArgs,
-) -> Result<ritk_core::image::Image<Backend, 3>> {
+fn require_reference(args: &StatsArgs) -> Result<ritk_core::image::Image<Backend, 3>> {
     let ref_path = args
         .reference
         .as_ref()
@@ -110,10 +106,10 @@ fn run_summary(args: &StatsArgs) -> Result<()> {
     println!("  p75:  {:.6}", s.percentiles[2]);
 
     info!(
-        min  = s.min,
-        max  = s.max,
+        min = s.min,
+        max = s.max,
         mean = s.mean,
-        std  = s.std,
+        std = s.std,
         "stats: summary complete"
     );
 
@@ -273,11 +269,7 @@ mod tests {
     }
 
     /// Helper: write a NIfTI image and return the path.
-    fn write_nifti_tmp(
-        dir: &std::path::Path,
-        name: &str,
-        image: &Image<Backend, 3>,
-    ) -> PathBuf {
+    fn write_nifti_tmp(dir: &std::path::Path, name: &str, image: &Image<Backend, 3>) -> PathBuf {
         let path = dir.join(name);
         ritk_io::write_nifti(&path, image).unwrap();
         path
@@ -306,11 +298,7 @@ mod tests {
     fn test_stats_summary_ramp_image_values() {
         let image = make_ramp_image();
         let s = compute_statistics(&image);
-        assert!(
-            (s.min - 0.0).abs() < 1e-4,
-            "min must be 0.0, got {}",
-            s.min
-        );
+        assert!((s.min - 0.0).abs() < 1e-4, "min must be 0.0, got {}", s.min);
         assert!(
             (s.max - 63.0).abs() < 1e-4,
             "max must be 63.0, got {}",
@@ -359,9 +347,7 @@ mod tests {
         // Mask A: first 32 voxels foreground.
         let a = make_binary_mask(32);
         // Mask B: last 32 voxels foreground.
-        let vals_b: Vec<f32> = (0..64)
-            .map(|i| if i >= 32 { 1.0 } else { 0.0 })
-            .collect();
+        let vals_b: Vec<f32> = (0..64).map(|i| if i >= 32 { 1.0 } else { 0.0 }).collect();
         let td_b = TensorData::new(vals_b, Shape::new([4, 4, 4]));
         let tensor_b = Tensor::<Backend, 3>::from_data(td_b, &device);
         let b = Image::new(
@@ -443,11 +429,7 @@ mod tests {
             metric: "hausdorff".to_string(),
             max_val: 255.0,
         });
-        assert!(
-            result.is_ok(),
-            "hausdorff must succeed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "hausdorff must succeed: {:?}", result.err());
 
         let img = read_image(&input).unwrap();
         let sp = img.spacing();
@@ -497,10 +479,7 @@ mod tests {
             max_val: 255.0,
         });
 
-        assert!(
-            result.is_err(),
-            "dice without --reference must return Err"
-        );
+        assert!(result.is_err(), "dice without --reference must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("--reference is required"),
@@ -521,10 +500,7 @@ mod tests {
             max_val: 255.0,
         });
 
-        assert!(
-            result.is_err(),
-            "psnr without --reference must return Err"
-        );
+        assert!(result.is_err(), "psnr without --reference must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("--reference is required"),
@@ -545,10 +521,7 @@ mod tests {
             max_val: 255.0,
         });
 
-        assert!(
-            result.is_err(),
-            "ssim without --reference must return Err"
-        );
+        assert!(result.is_err(), "ssim without --reference must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("--reference is required"),

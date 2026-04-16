@@ -28,10 +28,7 @@ pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
     let nx = shape[2];
 
     if nz != 1 {
-        anyhow::bail!(
-            "JPEG only supports 2D images (nz=1), got nz={}",
-            nz
-        );
+        anyhow::bail!("JPEG only supports 2D images (nz=1), got nz={}", nz);
     }
 
     tracing::debug!(

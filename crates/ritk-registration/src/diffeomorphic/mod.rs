@@ -44,11 +44,11 @@ use crate::deformable_field_ops::{
 };
 use crate::error::RegistrationError;
 
-pub mod multires_syn;
 pub mod bspline_syn;
+pub mod multires_syn;
 
-pub use multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 pub use bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration, BSplineSyNResult};
+pub use multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 

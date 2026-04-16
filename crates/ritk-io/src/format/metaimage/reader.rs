@@ -225,7 +225,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb { i16::from_be_bytes(b) } else { i16::from_le_bytes(b) }) as f32
+                    (if msb {
+                        i16::from_be_bytes(b)
+                    } else {
+                        i16::from_le_bytes(b)
+                    }) as f32
                 })
                 .collect())
         }
@@ -236,7 +240,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb { u16::from_be_bytes(b) } else { u16::from_le_bytes(b) }) as f32
+                    (if msb {
+                        u16::from_be_bytes(b)
+                    } else {
+                        u16::from_le_bytes(b)
+                    }) as f32
                 })
                 .collect())
         }
@@ -247,7 +255,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb { i32::from_be_bytes(b) } else { i32::from_le_bytes(b) }) as f32
+                    (if msb {
+                        i32::from_be_bytes(b)
+                    } else {
+                        i32::from_le_bytes(b)
+                    }) as f32
                 })
                 .collect())
         }
@@ -258,7 +270,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) }) as f32
+                    (if msb {
+                        u32::from_be_bytes(b)
+                    } else {
+                        u32::from_le_bytes(b)
+                    }) as f32
                 })
                 .collect())
         }
@@ -269,7 +285,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    if msb { f32::from_be_bytes(b) } else { f32::from_le_bytes(b) }
+                    if msb {
+                        f32::from_be_bytes(b)
+                    } else {
+                        f32::from_le_bytes(b)
+                    }
                 })
                 .collect())
         }
@@ -280,7 +300,11 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]];
-                    (if msb { f64::from_be_bytes(b) } else { f64::from_le_bytes(b) }) as f32
+                    (if msb {
+                        f64::from_be_bytes(b)
+                    } else {
+                        f64::from_le_bytes(b)
+                    }) as f32
                 })
                 .collect())
         }
@@ -397,12 +421,7 @@ mod tests {
         writeln!(f, "BinaryDataByteOrderMSB = False").unwrap();
         writeln!(f, "CompressedData = False").unwrap();
         writeln!(f, "TransformMatrix = 1 0 0 0 1 0 0 0 1").unwrap();
-        writeln!(
-            f,
-            "Offset = {} {} {}",
-            origin[0], origin[1], origin[2]
-        )
-        .unwrap();
+        writeln!(f, "Offset = {} {} {}", origin[0], origin[1], origin[2]).unwrap();
         writeln!(f, "CenterOfRotation = 0 0 0").unwrap();
         writeln!(
             f,
@@ -551,14 +570,8 @@ mod tests {
     #[test]
     fn test_missing_file_returns_error() {
         let device: <TestBackend as Backend>::Device = Default::default();
-        let result = read_metaimage::<TestBackend, _>(
-            "/nonexistent/path/file.mha",
-            &device,
-        );
-        assert!(
-            result.is_err(),
-            "Expected Err for missing file, got Ok"
-        );
+        let result = read_metaimage::<TestBackend, _>("/nonexistent/path/file.mha", &device);
+        assert!(result.is_err(), "Expected Err for missing file, got Ok");
     }
 
     /// A file that is missing a required header field must return an error.

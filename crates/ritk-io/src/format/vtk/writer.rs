@@ -48,8 +48,8 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     let nx = shape[2];
     let total_voxels = nx * ny * nz;
 
-    let origin = image.origin();   // [X, Y, Z] order
-    let spacing = image.spacing();  // [X, Y, Z] order
+    let origin = image.origin(); // [X, Y, Z] order
+    let spacing = image.spacing(); // [X, Y, Z] order
 
     let ox = origin[0];
     let oy = origin[1];
@@ -60,8 +60,17 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     let sz = spacing[2];
 
     tracing::debug!(
-        nx, ny, nz, ox, oy, oz, sx, sy, sz,
-        "VTK writer: emitting {} voxels", total_voxels
+        nx,
+        ny,
+        nz,
+        ox,
+        oy,
+        oz,
+        sx,
+        sy,
+        sz,
+        "VTK writer: emitting {} voxels",
+        total_voxels
     );
 
     // --- Write header ---
@@ -74,8 +83,7 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
         .with_context(|| "failed to write VTK version line")?;
     write!(writer, "RITK exported image\n")
         .with_context(|| "failed to write VTK description line")?;
-    write!(writer, "BINARY\n")
-        .with_context(|| "failed to write VTK encoding line")?;
+    write!(writer, "BINARY\n").with_context(|| "failed to write VTK encoding line")?;
     write!(writer, "DATASET STRUCTURED_POINTS\n")
         .with_context(|| "failed to write VTK dataset line")?;
     write!(writer, "DIMENSIONS {} {} {}\n", nx, ny, nz)
@@ -86,10 +94,8 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
         .with_context(|| "failed to write VTK SPACING")?;
     write!(writer, "POINT_DATA {}\n", total_voxels)
         .with_context(|| "failed to write VTK POINT_DATA")?;
-    write!(writer, "SCALARS scalars float 1\n")
-        .with_context(|| "failed to write VTK SCALARS")?;
-    write!(writer, "LOOKUP_TABLE default\n")
-        .with_context(|| "failed to write VTK LOOKUP_TABLE")?;
+    write!(writer, "SCALARS scalars float 1\n").with_context(|| "failed to write VTK SCALARS")?;
+    write!(writer, "LOOKUP_TABLE default\n").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
 

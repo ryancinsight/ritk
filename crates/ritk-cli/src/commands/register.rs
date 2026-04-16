@@ -328,9 +328,9 @@ fn run_demons(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method     = "demons",
+        method = "demons",
         iterations = result.num_iterations,
-        final_mse  = result.final_mse,
+        final_mse = result.final_mse,
         "register: demons complete"
     );
 
@@ -378,9 +378,9 @@ fn run_syn(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method     = "syn",
+        method = "syn",
         iterations = result.num_iterations,
-        final_cc   = result.final_cc,
+        final_cc = result.final_cc,
         "register: syn complete"
     );
 
@@ -609,7 +609,10 @@ mod tests {
         })
         .unwrap();
 
-        assert!(output_path.exists(), "demons warped output file must be created");
+        assert!(
+            output_path.exists(),
+            "demons warped output file must be created"
+        );
         let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(
             warped.shape(),
@@ -648,7 +651,10 @@ mod tests {
         let td = warped.data().clone().into_data();
         let vals = td.as_slice::<f32>().unwrap();
         for (i, &v) in vals.iter().enumerate() {
-            assert!(v.is_finite(), "demons output voxel [{i}] must be finite, got {v}");
+            assert!(
+                v.is_finite(),
+                "demons output voxel [{i}] must be finite, got {v}"
+            );
         }
     }
 
@@ -678,7 +684,10 @@ mod tests {
         })
         .unwrap();
 
-        assert!(output_path.exists(), "syn warped output file must be created");
+        assert!(
+            output_path.exists(),
+            "syn warped output file must be created"
+        );
         let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(
             warped.shape(),
@@ -716,7 +725,10 @@ mod tests {
         let td = warped.data().clone().into_data();
         let vals = td.as_slice::<f32>().unwrap();
         for (i, &v) in vals.iter().enumerate() {
-            assert!(v.is_finite(), "syn output voxel [{i}] must be finite, got {v}");
+            assert!(
+                v.is_finite(),
+                "syn output voxel [{i}] must be finite, got {v}"
+            );
         }
     }
 

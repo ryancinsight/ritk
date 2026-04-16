@@ -845,8 +845,7 @@ mod tests {
         assert!(result.is_ok(), "median must succeed: {:?}", result.err());
         assert!(output.exists(), "median must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             filtered.shape(),
             [5, 5, 5],
@@ -865,15 +864,10 @@ mod tests {
 
         let result = run(default_args(input, output.clone(), "bilateral"));
 
-        assert!(
-            result.is_ok(),
-            "bilateral must succeed: {:?}",
-            result.err()
-        );
+        assert!(result.is_ok(), "bilateral must succeed: {:?}", result.err());
         assert!(output.exists(), "bilateral must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             filtered.shape(),
             [5, 5, 5],
@@ -895,9 +889,12 @@ mod tests {
         assert!(result.is_ok(), "canny must succeed: {:?}", result.err());
         assert!(output.exists(), "canny must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        assert_eq!(filtered.shape(), [5, 5, 5], "canny output shape must match input");
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            filtered.shape(),
+            [5, 5, 5],
+            "canny output shape must match input"
+        );
 
         // Canny output is binary: every voxel must be 0.0 or 1.0.
         let td = filtered.data().clone().into_data();
@@ -924,8 +921,7 @@ mod tests {
         assert!(result.is_ok(), "sobel must succeed: {:?}", result.err());
         assert!(output.exists(), "sobel must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             filtered.shape(),
             [5, 5, 5],
@@ -947,8 +943,7 @@ mod tests {
         assert!(result.is_ok(), "log must succeed: {:?}", result.err());
         assert!(output.exists(), "log must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             filtered.shape(),
             [5, 5, 5],
@@ -974,8 +969,7 @@ mod tests {
         );
         assert!(output.exists(), "recursive-gaussian must write output file");
 
-        let filtered =
-            ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(
             filtered.shape(),
             [5, 5, 5],
@@ -1001,7 +995,10 @@ mod tests {
             "recursive-gaussian order=1 must succeed: {:?}",
             result.err()
         );
-        assert!(output.exists(), "recursive-gaussian order=1 must write output file");
+        assert!(
+            output.exists(),
+            "recursive-gaussian order=1 must write output file"
+        );
     }
 
     // ── Negative: unknown filter name returns error ───────────────────────────

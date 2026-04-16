@@ -150,8 +150,7 @@ impl ChanVeseSegmentation {
 
         let mask = self.evolve(&img, dims);
 
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(mask, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(mask, Shape::new(dims)), &device);
 
         Ok(Image::new(
             tensor,
@@ -218,9 +217,7 @@ impl ChanVeseSegmentation {
                 let diff1 = img_f64[i] - c1;
                 let diff2 = img_f64[i] - c2;
 
-                let force = self.mu * kappa[i]
-                    - self.nu
-                    - self.lambda1 * diff1 * diff1
+                let force = self.mu * kappa[i] - self.nu - self.lambda1 * diff1 * diff1
                     + self.lambda2 * diff2 * diff2;
 
                 let dphi = self.dt * dirac * force;
@@ -391,8 +388,7 @@ mod tests {
 
     fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -408,8 +404,7 @@ mod tests {
         spacing: [f64; 3],
     ) -> Image<B, 3> {
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new(origin),
@@ -546,7 +541,11 @@ mod tests {
         let data: Vec<f32> = (0..n)
             .map(|i| {
                 let ix = i % 10;
-                if ix < 5 { 20.0 } else { 180.0 }
+                if ix < 5 {
+                    20.0
+                } else {
+                    180.0
+                }
             })
             .collect();
         let image = make_image(data, dims);

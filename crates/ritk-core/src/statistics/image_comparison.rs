@@ -392,7 +392,9 @@ pub fn ssim<B: Backend, const D: usize>(
     let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
 
     let ref_data = reference.data().clone().into_data();
-    let ref_slice = ref_data.as_slice::<f32>().expect("f32 reference tensor data");
+    let ref_slice = ref_data
+        .as_slice::<f32>()
+        .expect("f32 reference tensor data");
 
     let n = img_slice.len() as f64;
 
@@ -871,11 +873,7 @@ mod tests {
         let img = make_mask_1d(vec![-1.0, -0.5, 0.0, 0.5, 1.0]);
         let neg = make_mask_1d(vec![1.0, 0.5, 0.0, -0.5, -1.0]);
         let result = ssim(&img, &neg, 1.0);
-        assert!(
-            result < 0.0,
-            "negated image → SSIM < 0, got {}",
-            result
-        );
+        assert!(result < 0.0, "negated image → SSIM < 0, got {}", result);
     }
 
     #[test]
