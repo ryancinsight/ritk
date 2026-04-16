@@ -91,19 +91,17 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     let img_path = path.with_extension("img");
 
     // ── Read and validate the 348-byte header ─────────────────────────────────
-    let mut hdr_file = std::fs::File::open(&hdr_path)
-        .with_context(|| format!("Cannot open Analyze header: {}", hdr_path.display()))?;
+    let mut hdr_file = std::fs::File::open(&hdr_path).context("Cannot open Analyze header")?;
     let mut hdr = [0u8; 348];
     hdr_file
         .read_exact(&mut hdr)
-        .with_context(|| format!("Cannot read 348-byte header from {}", hdr_path.display()))?;
+        .with_context(|| "Cannot read 348-byte header".to_string())?;
 
     // sizeof_hdr must be exactly 348.
     let sizeof_hdr = read_i32(&hdr, 0);
     if sizeof_hdr != 348 {
         return Err(anyhow!(
-            "Invalid Analyze file {}: sizeof_hdr={} (expected 348)",
-            hdr_path.display(),
+            "Invalid Analyze file: sizeof_hdr={} (expected 348)",
             sizeof_hdr
         ));
     }
@@ -115,8 +113,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 
     if nx == 0 || ny == 0 || nz == 0 {
         return Err(anyhow!(
-            "Invalid Analyze dimensions in {}: nx={} ny={} nz={}",
-            hdr_path.display(),
+            "Invalid Analyze dimensions: nx={} ny={} nz={}",
             nx,
             ny,
             nz
@@ -154,17 +151,15 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     let oz = oz_vox * sz;
 
     // ── Read raw voxel data from .img ─────────────────────────────────────────
-    let img_bytes = std::fs::read(&img_path)
-        .with_context(|| format!("Cannot read Analyze data file: {}", img_path.display()))?;
+    let img_bytes = std::fs::read(&img_path).context("Cannot read Analyze data file")?;
 
     // Skip past vox_offset bytes if non-zero (uncommon for standard files).
     let data_start = vox_offset as usize;
     if data_start > img_bytes.len() {
         return Err(anyhow!(
-            "Analyze vox_offset ({}) exceeds .img file size ({}) in {}",
+            "Analyze vox_offset ({}) exceeds .img file size ({})",
             data_start,
-            img_bytes.len(),
-            img_path.display()
+            img_bytes.len()
         ));
     }
     let raw = &img_bytes[data_start..];
@@ -176,10 +171,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
         DT_UNSIGNED_CHAR => {
             if raw.len() < n {
                 return Err(anyhow!(
-                    "Analyze .img too small for u8 data: need {} bytes, have {} in {}",
+                    "Analyze .img too small for u8 data: need {} bytes, have {}",
                     n,
-                    raw.len(),
-                    img_path.display()
+                    raw.len()
                 ));
             }
             raw[..n].iter().map(|&b| b as f32 * scale).collect()
@@ -189,10 +183,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
             let need = n * 2;
             if raw.len() < need {
                 return Err(anyhow!(
-                    "Analyze .img too small for i16 data: need {} bytes, have {} in {}",
+                    "Analyze .img too small for i16 data: need {} bytes, have {}",
                     need,
-                    raw.len(),
-                    img_path.display()
+                    raw.len()
                 ));
             }
             raw.chunks_exact(2)
@@ -205,10 +198,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
             let need = n * 4;
             if raw.len() < need {
                 return Err(anyhow!(
-                    "Analyze .img too small for i32 data: need {} bytes, have {} in {}",
+                    "Analyze .img too small for i32 data: need {} bytes, have {}",
                     need,
-                    raw.len(),
-                    img_path.display()
+                    raw.len()
                 ));
             }
             raw.chunks_exact(4)
@@ -221,10 +213,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
             let need = n * 4;
             if raw.len() < need {
                 return Err(anyhow!(
-                    "Analyze .img too small for f32 data: need {} bytes, have {} in {}",
+                    "Analyze .img too small for f32 data: need {} bytes, have {}",
                     need,
-                    raw.len(),
-                    img_path.display()
+                    raw.len()
                 ));
             }
             raw.chunks_exact(4)
@@ -237,10 +228,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
             let need = n * 8;
             if raw.len() < need {
                 return Err(anyhow!(
-                    "Analyze .img too small for f64 data: need {} bytes, have {} in {}",
+                    "Analyze .img too small for f64 data: need {} bytes, have {}",
                     need,
-                    raw.len(),
-                    img_path.display()
+                    raw.len()
                 ));
             }
             raw.chunks_exact(8)
@@ -254,10 +244,9 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 
         other => {
             return Err(anyhow!(
-                "Unsupported Analyze datatype {} in {}. \
+                "Unsupported Analyze datatype {}. \
                  Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64).",
-                other,
-                hdr_path.display()
+                other
             ));
         }
     };
@@ -273,13 +262,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
         Direction::identity(),
     );
 
-    tracing::debug!(
-        hdr  = %hdr_path.display(),
-        img  = %img_path.display(),
-        nx, ny, nz,
-        datatype,
-        "read_analyze: complete"
-    );
+    tracing::debug!(nx, ny, nz, datatype, "read_analyze: complete");
 
     Ok(image)
 }
