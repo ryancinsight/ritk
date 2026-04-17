@@ -28,7 +28,9 @@
 //! - Thirion, J.-P. (1998). Image matching as a diffusion process: an analogy
 //!   with Maxwell's demons. *Medical Image Analysis* 2(3):243–260.
 
-use crate::deformable_field_ops::{compute_gradient, gaussian_smooth_inplace, warp_image};
+use crate::deformable_field_ops::{
+    compute_gradient, gaussian_smooth_inplace, warp_image, warp_image_into,
+};
 use crate::error::RegistrationError;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -73,6 +75,18 @@ pub struct DemonsResult {
     pub disp_y: Vec<f32>,
     /// X-component of the final displacement field.
     pub disp_x: Vec<f32>,
+    /// Optional Z-component of the stationary velocity field whose exponential
+    /// map produced `disp_z`.
+    ///
+    /// Present for diffeomorphic Demons results. Absent for displacement-based
+    /// variants such as classic Thirion and symmetric Demons.
+    pub vel_z: Option<Vec<f32>>,
+    /// Optional Y-component of the stationary velocity field whose exponential
+    /// map produced `disp_y`.
+    pub vel_y: Option<Vec<f32>>,
+    /// Optional X-component of the stationary velocity field whose exponential
+    /// map produced `disp_x`.
+    pub vel_x: Option<Vec<f32>>,
     /// Mean-squared error between fixed and warped moving at the final iteration.
     pub final_mse: f64,
     /// Actual number of iterations performed (may be less than `max_iterations`
@@ -141,61 +155,54 @@ impl ThirionDemonsRegistration {
         // Pre-compute fixed-image gradient (constant across iterations).
         let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
 
-        let sigma_x = self.config.max_step_length;
-        let sigma_x2 = sigma_x * sigma_x;
-
         let mut final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         let mut iter = 0usize;
+        let mut m_warped = vec![0.0_f32; n];
+        let mut fz = vec![0.0_f32; n];
+        let mut fy = vec![0.0_f32; n];
+        let mut fx = vec![0.0_f32; n];
 
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
             // 1. Warp moving with current displacement.
-            let m_warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
+            warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
 
             // 2. Compute optical-flow forces.
-            let mut fz = vec![0.0_f32; n];
-            let mut fy = vec![0.0_f32; n];
-            let mut fx = vec![0.0_f32; n];
+            thirion_forces_into(
+                fixed,
+                &m_warped,
+                &grad_z,
+                &grad_y,
+                &grad_x,
+                self.config.max_step_length,
+                &mut fz,
+                &mut fy,
+                &mut fx,
+            );
 
-            for i in 0..n {
-                let diff = fixed[i] - m_warped[i];
-                let gz = grad_z[i];
-                let gy = grad_y[i];
-                let gx = grad_x[i];
-                let grad_sq = gz * gz + gy * gy + gx * gx;
-                let denom = grad_sq + diff * diff / sigma_x2 + 1e-5;
-                let scale = diff / denom;
-                fz[i] = scale * gz;
-                fy[i] = scale * gy;
-                fx[i] = scale * gx;
-            }
-
-            // 3. Clamp force magnitude.
-            clamp_field_magnitude(&mut fz, &mut fy, &mut fx, self.config.max_step_length);
-
-            // 4. Optional fluid regularisation (smooth forces before accumulation).
+            // 3. Optional fluid regularisation (smooth forces before accumulation).
             if self.config.sigma_fluid > 0.0 {
                 gaussian_smooth_inplace(&mut fz, dims, self.config.sigma_fluid);
                 gaussian_smooth_inplace(&mut fy, dims, self.config.sigma_fluid);
                 gaussian_smooth_inplace(&mut fx, dims, self.config.sigma_fluid);
             }
 
-            // 5. Accumulate displacement field.
+            // 4. Accumulate displacement field.
             for i in 0..n {
                 disp_z[i] += fz[i];
                 disp_y[i] += fy[i];
                 disp_x[i] += fx[i];
             }
 
-            // 6. Diffusive regularisation (smooth total field).
+            // 5. Diffusive regularisation (smooth total field).
             if self.config.sigma_diffusion > 0.0 {
                 gaussian_smooth_inplace(&mut disp_z, dims, self.config.sigma_diffusion);
                 gaussian_smooth_inplace(&mut disp_y, dims, self.config.sigma_diffusion);
                 gaussian_smooth_inplace(&mut disp_x, dims, self.config.sigma_diffusion);
             }
 
-            // 7. Compute current MSE.
+            // 6. Compute current MSE.
             final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         }
 
@@ -206,6 +213,9 @@ impl ThirionDemonsRegistration {
             disp_z,
             disp_y,
             disp_x,
+            vel_z: None,
+            vel_y: None,
+            vel_x: None,
             final_mse,
             num_iterations: iter,
         })
@@ -274,7 +284,7 @@ pub(super) fn compute_mse(
 
 /// Compute optical-flow Thirion forces given pre-computed fixed-image gradient.
 ///
-/// Returns `(fz, fy, fx)` force components.  Forces whose magnitude exceeds
+/// Returns `(fz, fy, fx)` force components. Forces whose magnitude exceeds
 /// `max_step_length` are rescaled.
 pub(super) fn thirion_forces(
     fixed: &[f32],
@@ -285,13 +295,40 @@ pub(super) fn thirion_forces(
     max_step_length: f32,
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let n = fixed.len();
-    let sigma_x2 = max_step_length * max_step_length;
-
     let mut fz = vec![0.0_f32; n];
     let mut fy = vec![0.0_f32; n];
     let mut fx = vec![0.0_f32; n];
 
-    for i in 0..n {
+    thirion_forces_into(
+        fixed,
+        m_warped,
+        grad_z,
+        grad_y,
+        grad_x,
+        max_step_length,
+        &mut fz,
+        &mut fy,
+        &mut fx,
+    );
+
+    (fz, fy, fx)
+}
+
+/// Compute optical-flow Thirion forces into caller-provided buffers.
+fn thirion_forces_into(
+    fixed: &[f32],
+    m_warped: &[f32],
+    grad_z: &[f32],
+    grad_y: &[f32],
+    grad_x: &[f32],
+    max_step_length: f32,
+    fz: &mut [f32],
+    fy: &mut [f32],
+    fx: &mut [f32],
+) {
+    let sigma_x2 = max_step_length * max_step_length;
+
+    for i in 0..fixed.len() {
         let diff = fixed[i] - m_warped[i];
         let gz = grad_z[i];
         let gy = grad_y[i];
@@ -304,9 +341,9 @@ pub(super) fn thirion_forces(
         fx[i] = scale * gx;
     }
 
-    clamp_field_magnitude(&mut fz, &mut fy, &mut fx, max_step_length);
-    (fz, fy, fx)
+    clamp_field_magnitude(fz, fy, fx, max_step_length);
 }
+
 
 /// Clamp per-voxel displacement/force magnitude to `max_length`.
 fn clamp_field_magnitude(fz: &mut [f32], fy: &mut [f32], fx: &mut [f32], max_length: f32) {

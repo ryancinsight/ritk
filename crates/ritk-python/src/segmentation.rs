@@ -19,6 +19,11 @@
 //! - **Binary closing** → `ritk_core::segmentation::BinaryClosing`
 //! - **Chan-Vese level set** → `ritk_core::segmentation::ChanVeseSegmentation`
 //! - **Geodesic Active Contour** → `ritk_core::segmentation::GeodesicActiveContourSegmentation`
+//! - **Confidence-connected region growing** → `ritk_core::segmentation::ConfidenceConnectedFilter`
+//! - **Neighbourhood-connected region growing** → `ritk_core::segmentation::NeighborhoodConnectedFilter`
+//! - **Skeletonization** → `ritk_core::segmentation::Skeletonization`
+//! - **Binary fill holes** → `ritk_core::segmentation::BinaryFillHoles`
+//! - **Morphological gradient** → `ritk_core::segmentation::MorphologicalGradient`
 //!
 //! No algorithm logic is duplicated here; SSOT is maintained in `ritk-core`.
 
@@ -29,8 +34,11 @@ use ritk_core::segmentation::{
     connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
     BinaryOpening, ChanVeseSegmentation, GeodesicActiveContourSegmentation, KMeansSegmentation,
     KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold,
+    BinaryFillHoles, ConfidenceConnectedFilter, MorphologicalGradient,
+    NeighborhoodConnectedFilter, Skeletonization,
     TriangleThreshold, WatershedSegmentation, YenThreshold,
 };
+use std::sync::Arc;
 
 // ── Threshold: Otsu ───────────────────────────────────────────────────────────
 
@@ -45,10 +53,14 @@ use ritk_core::segmentation::{
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn otsu_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let filter = OtsuThreshold::new();
-    let threshold = filter.compute(image.inner.as_ref());
-    let mask = filter.apply(image.inner.as_ref());
+pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let image = Arc::clone(&image.inner);
+    let (threshold, mask) = py.allow_threads(|| {
+        let filter = OtsuThreshold::new();
+        let threshold = filter.compute(image.as_ref());
+        let mask = filter.apply(image.as_ref());
+        (threshold, mask)
+    });
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -65,10 +77,14 @@ pub fn otsu_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn li_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let filter = LiThreshold::new();
-    let threshold = filter.compute(image.inner.as_ref());
-    let mask = filter.apply(image.inner.as_ref());
+pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let image = Arc::clone(&image.inner);
+    let (threshold, mask) = py.allow_threads(|| {
+        let filter = LiThreshold::new();
+        let threshold = filter.compute(image.as_ref());
+        let mask = filter.apply(image.as_ref());
+        (threshold, mask)
+    });
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -85,10 +101,14 @@ pub fn li_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn yen_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let filter = YenThreshold::new();
-    let threshold = filter.compute(image.inner.as_ref());
-    let mask = filter.apply(image.inner.as_ref());
+pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let image = Arc::clone(&image.inner);
+    let (threshold, mask) = py.allow_threads(|| {
+        let filter = YenThreshold::new();
+        let threshold = filter.compute(image.as_ref());
+        let mask = filter.apply(image.as_ref());
+        (threshold, mask)
+    });
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -105,10 +125,14 @@ pub fn yen_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn kapur_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let filter = KapurThreshold::new();
-    let threshold = filter.compute(image.inner.as_ref());
-    let mask = filter.apply(image.inner.as_ref());
+pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let image = Arc::clone(&image.inner);
+    let (threshold, mask) = py.allow_threads(|| {
+        let filter = KapurThreshold::new();
+        let threshold = filter.compute(image.as_ref());
+        let mask = filter.apply(image.as_ref());
+        (threshold, mask)
+    });
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -125,10 +149,14 @@ pub fn kapur_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn triangle_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let filter = TriangleThreshold::new();
-    let threshold = filter.compute(image.inner.as_ref());
-    let mask = filter.apply(image.inner.as_ref());
+pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+    let image = Arc::clone(&image.inner);
+    let (threshold, mask) = py.allow_threads(|| {
+        let filter = TriangleThreshold::new();
+        let threshold = filter.compute(image.as_ref());
+        let mask = filter.apply(image.as_ref());
+        (threshold, mask)
+    });
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -147,15 +175,23 @@ pub fn triangle_threshold(image: &PyImage) -> PyResult<(f32, PyImage)> {
 ///     (thresholds, labeled_image): list of K−1 threshold values and labeled PyImage.
 #[pyfunction]
 #[pyo3(signature = (image, num_classes=3))]
-pub fn multi_otsu_threshold(image: &PyImage, num_classes: usize) -> PyResult<(Vec<f32>, PyImage)> {
+pub fn multi_otsu_threshold(
+    py: Python<'_>,
+    image: &PyImage,
+    num_classes: usize,
+) -> PyResult<(Vec<f32>, PyImage)> {
     if num_classes < 2 {
         return Err(pyo3::exceptions::PyValueError::new_err(
             "num_classes must be ≥ 2",
         ));
     }
-    let filter = MultiOtsuThreshold::new(num_classes);
-    let thresholds = filter.compute(image.inner.as_ref());
-    let labeled = filter.apply(image.inner.as_ref());
+    let image = Arc::clone(&image.inner);
+    let (thresholds, labeled) = py.allow_threads(|| {
+        let filter = MultiOtsuThreshold::new(num_classes);
+        let thresholds = filter.compute(image.as_ref());
+        let labeled = filter.apply(image.as_ref());
+        (thresholds, labeled)
+    });
     Ok((thresholds, into_py_image(labeled)))
 }
 
@@ -178,15 +214,20 @@ pub fn multi_otsu_threshold(image: &PyImage, num_classes: usize) -> PyResult<(Ve
 ///     ValueError: if connectivity is not 6 or 26.
 #[pyfunction]
 #[pyo3(signature = (mask, connectivity=6))]
-pub fn connected_components(mask: &PyImage, connectivity: u32) -> PyResult<(PyImage, usize)> {
+pub fn connected_components(
+    py: Python<'_>,
+    mask: &PyImage,
+    connectivity: u32,
+) -> PyResult<(PyImage, usize)> {
     if connectivity != 6 && connectivity != 26 {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "connectivity must be 6 or 26, got {connectivity}"
         )));
     }
 
+    let mask = Arc::clone(&mask.inner);
     let (label_image, num_components) =
-        core_connected_components(mask.inner.as_ref(), connectivity);
+        py.allow_threads(|| core_connected_components(mask.as_ref(), connectivity));
     Ok((into_py_image(label_image), num_components))
 }
 
@@ -212,6 +253,7 @@ pub fn connected_components(mask: &PyImage, connectivity: u32) -> PyResult<(PyIm
 #[pyfunction]
 #[pyo3(signature = (image, seed, lower, upper))]
 pub fn connected_threshold_segment(
+    py: Python<'_>,
     image: &PyImage,
     seed: [usize; 3],
     lower: f32,
@@ -229,7 +271,8 @@ pub fn connected_threshold_segment(
             seed, shape
         )));
     }
-    let result = core_connected_threshold(image.inner.as_ref(), seed, lower, upper);
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| core_connected_threshold(image.as_ref(), seed, lower, upper));
     Ok(into_py_image(result))
 }
 
@@ -248,12 +291,15 @@ pub fn connected_threshold_segment(
 ///     Label PyImage with cluster indices.
 #[pyfunction]
 #[pyo3(signature = (image, k=3))]
-pub fn kmeans_segment(image: &PyImage, k: usize) -> PyResult<PyImage> {
+pub fn kmeans_segment(py: Python<'_>, image: &PyImage, k: usize) -> PyResult<PyImage> {
     if k < 1 {
         return Err(pyo3::exceptions::PyValueError::new_err("k must be ≥ 1"));
     }
-    let seg = KMeansSegmentation::new(k);
-    let result = seg.apply(image.inner.as_ref());
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let seg = KMeansSegmentation::new(k);
+        seg.apply(image.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -271,11 +317,13 @@ pub fn kmeans_segment(image: &PyImage, k: usize) -> PyResult<PyImage> {
 /// Returns:
 ///     Label PyImage with basin indices and watershed boundaries (0).
 #[pyfunction]
-pub fn watershed_segment(image: &PyImage) -> PyResult<PyImage> {
-    let seg = WatershedSegmentation::new();
-    let result = seg
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let seg = WatershedSegmentation::new();
+        seg.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -295,9 +343,12 @@ pub fn watershed_segment(image: &PyImage) -> PyResult<PyImage> {
 ///     Eroded binary mask PyImage.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn binary_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let op = BinaryErosion::new(radius);
-    let result = op.apply(image.inner.as_ref());
+pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let op = BinaryErosion::new(radius);
+        op.apply(image.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -317,9 +368,12 @@ pub fn binary_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
 ///     Dilated binary mask PyImage.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn binary_dilation(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let op = BinaryDilation::new(radius);
-    let result = op.apply(image.inner.as_ref());
+pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let op = BinaryDilation::new(radius);
+        op.apply(image.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -338,9 +392,12 @@ pub fn binary_dilation(image: &PyImage, radius: usize) -> PyResult<PyImage> {
 ///     Opened binary mask PyImage.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn binary_opening(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let op = BinaryOpening::new(radius);
-    let result = op.apply(image.inner.as_ref());
+pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let op = BinaryOpening::new(radius);
+        op.apply(image.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -359,9 +416,54 @@ pub fn binary_opening(image: &PyImage, radius: usize) -> PyResult<PyImage> {
 ///     Closed binary mask PyImage.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn binary_closing(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let op = BinaryClosing::new(radius);
-    let result = op.apply(image.inner.as_ref());
+pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let op = BinaryClosing::new(radius);
+        op.apply(image.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
+// ── Morphology: fill holes and gradient ───────────────────────────────────────────
+
+/// Fill enclosed background holes in a binary mask.
+///
+/// Uses 6-connected border flood-fill to identify exterior background voxels.
+/// All background voxels unreachable from any border face are set to foreground.
+///
+/// Args:
+///     image: Binary mask PyImage (values in {0.0, 1.0}).
+///
+/// Returns:
+///     Hole-filled binary mask, same shape and spatial metadata as input.
+#[pyfunction]
+pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let inner = Arc::clone(&image.inner);
+    let result = py.allow_threads(move || {
+        BinaryFillHoles.apply(inner.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
+/// Compute the morphological gradient (boundary extraction) of a binary mask.
+///
+/// Output is 1.0 at boundary voxels (in dilation but not erosion) and 0.0
+/// at interior foreground, exterior background, and all other voxels.
+///
+/// Args:
+///     image: Binary mask PyImage (values in {0.0, 1.0}).
+///     radius: Structuring element ball radius (default: 1).
+///
+/// Returns:
+///     Binary boundary mask, same shape and spatial metadata as input.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1))]
+pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let inner = Arc::clone(&image.inner);
+    let result = py.allow_threads(move || {
+        MorphologicalGradient::new(radius).apply(inner.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -463,6 +565,123 @@ pub fn geodesic_active_contour_segment(
     Ok(into_py_image(result))
 }
 
+// ── confidence_connected_segment ─────────────────────────────────────────────
+
+/// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
+///
+/// Iteratively grows a region from a seed voxel, adapting the intensity
+/// window based on the running mean ± k·σ of currently-included voxels.
+///
+/// Args:
+///     image:          Input PyImage.
+///     seed:           Seed voxel as [z, y, x] integer list.
+///     initial_lower:  Initial inclusive lower bound (first iteration, when σ=0).
+///     initial_upper:  Initial inclusive upper bound (first iteration, when σ=0).
+///     multiplier:     k for the adaptive k·σ window expansion (default 2.5).
+///     max_iterations: Maximum region-growing iterations (default 15).
+///
+/// Returns:
+///     Binary mask PyImage (1.0=foreground, 0.0=background).
+///
+/// Raises:
+///     ValueError:   if seed does not have exactly 3 elements.
+///     RuntimeError: on computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, seed, initial_lower, initial_upper, multiplier=2.5, max_iterations=15))]
+pub fn confidence_connected_segment(
+    py: Python<'_>,
+    image: &PyImage,
+    seed: Vec<usize>,
+    initial_lower: f32,
+    initial_upper: f32,
+    multiplier: f32,
+    max_iterations: usize,
+) -> PyResult<PyImage> {
+    if seed.len() != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "seed must have exactly 3 elements, got {}",
+            seed.len()
+        )));
+    }
+    let inner = Arc::clone(&image.inner);
+    let result = py.allow_threads(move || {
+        ConfidenceConnectedFilter::new([seed[0], seed[1], seed[2]], initial_lower, initial_upper)
+            .with_multiplier(multiplier)
+            .with_max_iterations(max_iterations)
+            .apply(inner.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
+// ── neighborhood_connected_segment ───────────────────────────────────────────
+
+/// Neighbourhood-connected region growing.
+///
+/// Grows a region from a seed: admits voxels whose rectangular neighbourhood
+/// (±radius in each direction) all satisfy the intensity bounds.
+///
+/// Args:
+///     image:  Input PyImage.
+///     seed:   Seed voxel as [z, y, x] integer list.
+///     lower:  Inclusive lower intensity bound.
+///     upper:  Inclusive upper intensity bound.
+///     radius: Neighbourhood half-radius (uniform in all 3 axes, default 1 → 3×3×3).
+///
+/// Returns:
+///     Binary mask PyImage (1.0=foreground, 0.0=background).
+///
+/// Raises:
+///     ValueError:   if seed does not have exactly 3 elements.
+///     RuntimeError: on computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, seed, lower, upper, radius=1))]
+pub fn neighborhood_connected_segment(
+    py: Python<'_>,
+    image: &PyImage,
+    seed: Vec<usize>,
+    lower: f32,
+    upper: f32,
+    radius: usize,
+) -> PyResult<PyImage> {
+    if seed.len() != 3 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "seed must have exactly 3 elements, got {}",
+            seed.len()
+        )));
+    }
+    let inner = Arc::clone(&image.inner);
+    let result = py.allow_threads(move || {
+        NeighborhoodConnectedFilter::new([seed[0], seed[1], seed[2]], lower, upper)
+            .with_radius([radius, radius, radius])
+            .apply(inner.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
+// ── skeletonization ───────────────────────────────────────────────────────────
+
+/// Topology-preserving morphological skeletonization.
+///
+/// Thins a binary mask to its medial axis (skeleton) while preserving
+/// connectivity (Zhang-Suen 2D, directional sequential thinning 3D).
+///
+/// Args:
+///     image: Binary mask PyImage (values in {0.0, 1.0}).
+///
+/// Returns:
+///     Binary skeleton mask, same shape and spatial metadata as input.
+///
+/// Raises:
+///     RuntimeError: on computation failure.
+#[pyfunction]
+pub fn skeletonization(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let inner = Arc::clone(&image.inner);
+    let result = py.allow_threads(move || {
+        Skeletonization::new().apply::<_, 3>(inner.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
 // ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `segmentation` submodule with all exposed functions.
@@ -494,10 +713,19 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(binary_dilation, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_opening, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_closing, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_fill_holes, &m)?)?;
+    m.add_function(wrap_pyfunction!(morphological_gradient, &m)?)?;
 
     // Level set
     m.add_function(wrap_pyfunction!(chan_vese_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
+
+    // Region growing (confidence / neighbourhood)
+    m.add_function(wrap_pyfunction!(confidence_connected_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(neighborhood_connected_segment, &m)?)?;
+
+    // Skeletonization
+    m.add_function(wrap_pyfunction!(skeletonization, &m)?)?;
 
     parent.add_submodule(&m)?;
     Ok(())

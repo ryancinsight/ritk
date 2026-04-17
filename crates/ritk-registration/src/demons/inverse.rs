@@ -43,7 +43,7 @@
 //! - Chen, M. & Smedby, Ö. (2012). Deformable image registration with
 //!   guaranteed correspondence completeness. *MICCAI*.
 
-use crate::deformable_field_ops::warp_image;
+use crate::deformable_field_ops::trilinear_interpolate;
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -158,35 +158,47 @@ pub fn invert_displacement_field(
     let mut inv_y: Vec<f32> = disp_y.iter().map(|&v| -v).collect();
     let mut inv_x: Vec<f32> = disp_x.iter().map(|&v| -v).collect();
 
+    let mut next_z = vec![0.0_f32; n];
+    let mut next_y = vec![0.0_f32; n];
+    let mut next_x = vec![0.0_f32; n];
+
     let mut iters = 0usize;
 
     for _ in 0..config.max_iterations {
         iters += 1;
 
         // u^{-1}_{k+1}(x) = −u(x + u^{-1}_k(x))
-        // warp_displacement samples `disp` at positions x shifted by `inv_k`.
-        let (warped_z, warped_y, warped_x) =
-            warp_displacement(disp_z, disp_y, disp_x, &inv_z, &inv_y, &inv_x, dims);
-
-        let new_z: Vec<f32> = warped_z.iter().map(|&v| -v).collect();
-        let new_y: Vec<f32> = warped_y.iter().map(|&v| -v).collect();
-        let new_x: Vec<f32> = warped_x.iter().map(|&v| -v).collect();
+        // The forward field is sampled once per voxel and all three components
+        // are updated in the same pass to reduce allocations and repeated
+        // coordinate arithmetic.
+        warp_displacement_into(
+            disp_z,
+            disp_y,
+            disp_x,
+            &inv_z,
+            &inv_y,
+            &inv_x,
+            dims,
+            &mut next_z,
+            &mut next_y,
+            &mut next_x,
+        );
 
         // Convergence check: max per-voxel Euclidean norm of the iterate change.
         // Accumulated in f64 to preserve precision when individual f32 changes
         // are small.
         let max_change = (0..n)
             .map(|i| {
-                let dz = (new_z[i] - inv_z[i]) as f64;
-                let dy = (new_y[i] - inv_y[i]) as f64;
-                let dx = (new_x[i] - inv_x[i]) as f64;
+                let dz = (next_z[i] - inv_z[i]) as f64;
+                let dy = (next_y[i] - inv_y[i]) as f64;
+                let dx = (next_x[i] - inv_x[i]) as f64;
                 (dz * dz + dy * dy + dx * dx).sqrt()
             })
             .fold(0.0_f64, f64::max);
 
-        inv_z = new_z;
-        inv_y = new_y;
-        inv_x = new_x;
+        std::mem::swap(&mut inv_z, &mut next_z);
+        std::mem::swap(&mut inv_y, &mut next_y);
+        std::mem::swap(&mut inv_x, &mut next_x);
 
         if max_change < config.tolerance {
             break;
@@ -203,17 +215,17 @@ pub fn invert_displacement_field(
 ///
 /// For each voxel at position `x = (iz, iy, ix)`:
 ///
-///   `result_c(x) = disp_c(x + query(x))`   for each component `c ∈ {z, y, x}`
+///   `result_c(x) = -disp_c(x + query(x))`   for each component `c ∈ {z, y, x}`
 ///
-/// This evaluates `u(x + u^{-1}_k(x))` in the fixed-point inverse iteration.
+/// This evaluates `-u(x + u^{-1}_k(x))` in the fixed-point inverse iteration.
 ///
 /// # Implementation note
 ///
-/// Each displacement component is a scalar field; sampling component `c` of
-/// `disp` at query-shifted positions is identical to the `warp_image` operation.
-/// `warp_image` is therefore called once per component — no additional
-/// allocations or custom interpolation code are required.
-fn warp_displacement(
+/// All three displacement components are sampled in one pass so the displaced
+/// coordinates are computed once per voxel and written into caller-provided
+/// buffers. This removes three temporary allocations per iteration and avoids
+/// repeating the same traversal for each component.
+fn warp_displacement_into(
     disp_z: &[f32],
     disp_y: &[f32],
     disp_x: &[f32],
@@ -221,16 +233,26 @@ fn warp_displacement(
     query_y: &[f32],
     query_x: &[f32],
     dims: [usize; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    // warp_image(data, dims, dz, dy, dx) computes for each voxel (iz, iy, ix):
-    //   output[i] = data[ (iz + dz[i], iy + dy[i], ix + dx[i]) ]
-    // which equals disp_c[ x + query(x) ] when query plays the role of the
-    // displacement argument.
-    (
-        warp_image(disp_z, dims, query_z, query_y, query_x),
-        warp_image(disp_y, dims, query_z, query_y, query_x),
-        warp_image(disp_x, dims, query_z, query_y, query_x),
-    )
+    out_z: &mut [f32],
+    out_y: &mut [f32],
+    out_x: &mut [f32],
+) {
+    let [nz, ny, nx] = dims;
+
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let fi = iz * ny * nx + iy * nx + ix;
+                let wz = iz as f32 + query_z[fi];
+                let wy = iy as f32 + query_y[fi];
+                let wx = ix as f32 + query_x[fi];
+
+                out_z[fi] = -trilinear_interpolate(disp_z, dims, wz, wy, wx);
+                out_y[fi] = -trilinear_interpolate(disp_y, dims, wz, wy, wx);
+                out_x[fi] = -trilinear_interpolate(disp_x, dims, wz, wy, wx);
+            }
+        }
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -238,8 +260,38 @@ fn warp_displacement(
 #[cfg(test)]
 mod tests {
     use super::{
-        invert_displacement_field, invert_velocity_field, warp_displacement, InverseFieldConfig,
+        invert_displacement_field, invert_velocity_field, warp_displacement_into,
+        InverseFieldConfig,
     };
+
+    fn warp_displacement(
+        disp_z: &[f32],
+        disp_y: &[f32],
+        disp_x: &[f32],
+        query_z: &[f32],
+        query_y: &[f32],
+        query_x: &[f32],
+        dims: [usize; 3],
+    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+        let n = dims[0] * dims[1] * dims[2];
+        let mut out_z = vec![0.0_f32; n];
+        let mut out_y = vec![0.0_f32; n];
+        let mut out_x = vec![0.0_f32; n];
+        warp_displacement_into(
+            disp_z, disp_y, disp_x, query_z, query_y, query_x, dims, &mut out_z, &mut out_y,
+            &mut out_x,
+        );
+        for v in &mut out_z {
+            *v = -*v;
+        }
+        for v in &mut out_y {
+            *v = -*v;
+        }
+        for v in &mut out_x {
+            *v = -*v;
+        }
+        (out_z, out_y, out_x)
+    }
 
     // ── Test 1 ────────────────────────────────────────────────────────────────
 

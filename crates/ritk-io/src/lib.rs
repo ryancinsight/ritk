@@ -7,7 +7,7 @@ pub use format::analyze::reader::AnalyzeReader;
 pub use format::analyze::writer::AnalyzeWriter;
 pub use format::analyze::{read_analyze, write_analyze};
 pub use format::dicom::{
-    load_dicom_series, load_dicom_series_with_metadata, read_dicom_series,
+    load_dicom_series, load_dicom_series_with_metadata, read_dicom_series, write_dicom_series,
     read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
     DicomSliceMetadata, DicomWriter,
 };

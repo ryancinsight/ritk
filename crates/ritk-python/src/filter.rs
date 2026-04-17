@@ -17,6 +17,8 @@
 //! - `sobel_gradient`:        Sobel gradient magnitude.
 //! - `grayscale_erosion`:     Grayscale morphological erosion (flat cubic SE).
 //! - `grayscale_dilation`:    Grayscale morphological dilation (flat cubic SE).
+//! - `curvature_anisotropic_diffusion`: Curvature anisotropic diffusion (Alvarez 1992).
+//! - `sato_line_filter`:    Sato multi-scale line filter (Sato 1998).
 
 use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
@@ -30,6 +32,9 @@ use ritk_core::filter::{
     LaplacianOfGaussianFilter, MedianFilter, N4BiasFieldCorrectionFilter, RecursiveGaussianFilter,
     SobelFilter,
 };
+use ritk_core::filter::diffusion::CurvatureConfig;
+use ritk_core::filter::vesselness::SatoConfig;
+use ritk_core::filter::{CurvatureAnisotropicDiffusionFilter, SatoLineFilter};
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
 
@@ -51,11 +56,14 @@ use ritk_core::filter::{
 ///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma))]
-pub fn gaussian_filter(image: &PyImage, sigma: f64) -> PyResult<PyImage> {
+pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyResult<PyImage> {
     // All three axes use the same physical sigma; GaussianFilter scales each
     // axis by the corresponding spacing value internally.
-    let filter = GaussianFilter::<Backend>::new(vec![sigma, sigma, sigma]);
-    let result = filter.apply(image.inner.as_ref());
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = GaussianFilter::<Backend>::new(vec![sigma, sigma, sigma]);
+        filter.apply(image.as_ref())
+    });
     Ok(into_py_image(result))
 }
 
@@ -79,11 +87,14 @@ pub fn gaussian_filter(image: &PyImage, sigma: f64) -> PyResult<PyImage> {
 ///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn median_filter(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let filter = MedianFilter::new(radius);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = MedianFilter::new(radius);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -110,14 +121,18 @@ pub fn median_filter(image: &PyImage, radius: usize) -> PyResult<PyImage> {
 ///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 pub fn bilateral_filter(
+    py: Python<'_>,
     image: &PyImage,
     spatial_sigma: f64,
     range_sigma: f64,
 ) -> PyResult<PyImage> {
-    let filter = BilateralFilter::new(spatial_sigma, range_sigma);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = BilateralFilter::new(spatial_sigma, range_sigma);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -145,21 +160,25 @@ pub fn bilateral_filter(
 #[pyfunction]
 #[pyo3(signature = (image, num_fitting_levels=4, num_iterations=50, noise_estimate=0.01))]
 pub fn n4_bias_correction(
+    py: Python<'_>,
     image: &PyImage,
     num_fitting_levels: usize,
     num_iterations: usize,
     noise_estimate: f64,
 ) -> PyResult<PyImage> {
-    let config = N4Config {
-        num_fitting_levels,
-        num_iterations,
-        noise_estimate,
-        ..Default::default()
-    };
-    let filter = N4BiasFieldCorrectionFilter::new(config);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let config = N4Config {
+            num_fitting_levels,
+            num_iterations,
+            noise_estimate,
+            ..Default::default()
+        };
+        let filter = N4BiasFieldCorrectionFilter::new(config);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -186,27 +205,31 @@ pub fn n4_bias_correction(
 #[pyfunction]
 #[pyo3(signature = (image, iterations=20, conductance=3.0, time_step=0.0625, exponential=true))]
 pub fn anisotropic_diffusion(
+    py: Python<'_>,
     image: &PyImage,
     iterations: usize,
     conductance: f64,
     time_step: f64,
     exponential: bool,
 ) -> PyResult<PyImage> {
-    let function = if exponential {
-        ConductanceFunction::Exponential
-    } else {
-        ConductanceFunction::Quadratic
-    };
-    let config = DiffusionConfig {
-        num_iterations: iterations,
-        conductance: conductance as f32,
-        time_step: time_step as f32,
-        function,
-    };
-    let filter = AnisotropicDiffusionFilter::new(config);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let function = if exponential {
+            ConductanceFunction::Exponential
+        } else {
+            ConductanceFunction::Quadratic
+        };
+        let config = DiffusionConfig {
+            num_iterations: iterations,
+            conductance: conductance as f32,
+            time_step: time_step as f32,
+            function,
+        };
+        let filter = AnisotropicDiffusionFilter::new(config);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -226,12 +249,15 @@ pub fn anisotropic_diffusion(
 /// Raises:
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
-pub fn gradient_magnitude(image: &PyImage) -> PyResult<PyImage> {
-    let spacing = image.inner.spacing();
-    let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let spacing = image.spacing();
+        let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -251,12 +277,15 @@ pub fn gradient_magnitude(image: &PyImage) -> PyResult<PyImage> {
 /// Raises:
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
-pub fn laplacian(image: &PyImage) -> PyResult<PyImage> {
-    let spacing = image.inner.spacing();
-    let filter = LaplacianFilter::new([spacing[0], spacing[1], spacing[2]]);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn laplacian(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let spacing = image.spacing();
+        let filter = LaplacianFilter::new([spacing[0], spacing[1], spacing[2]]);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -284,6 +313,7 @@ pub fn laplacian(image: &PyImage) -> PyResult<PyImage> {
 #[pyfunction]
 #[pyo3(signature = (image, scales=None, alpha=0.5, beta=0.5, gamma=15.0, bright_vessels=true))]
 pub fn frangi_vesselness(
+    py: Python<'_>,
     image: &PyImage,
     scales: Option<Vec<f64>>,
     alpha: f64,
@@ -291,18 +321,20 @@ pub fn frangi_vesselness(
     gamma: f64,
     bright_vessels: bool,
 ) -> PyResult<PyImage> {
-    let scales = scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]);
-    let config = FrangiConfig {
-        scales,
-        alpha,
-        beta,
-        gamma,
-        bright_vessels,
-    };
-    let filter = FrangiVesselnessFilter { config };
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let config = FrangiConfig {
+            scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
+            alpha,
+            beta,
+            gamma,
+            bright_vessels,
+        };
+        let filter = FrangiVesselnessFilter::new(config);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -328,15 +360,19 @@ pub fn frangi_vesselness(
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0, low_threshold=0.1, high_threshold=0.2))]
 pub fn canny_edge_detect(
+    py: Python<'_>,
     image: &PyImage,
     sigma: f64,
     low_threshold: f64,
     high_threshold: f64,
 ) -> PyResult<PyImage> {
-    let detector = CannyEdgeDetector::new(sigma, low_threshold, high_threshold);
-    let result = detector
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = CannyEdgeDetector::new(sigma, low_threshold, high_threshold);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -360,11 +396,14 @@ pub fn canny_edge_detect(
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0))]
-pub fn laplacian_of_gaussian(image: &PyImage, sigma: f64) -> PyResult<PyImage> {
-    let filter = LaplacianOfGaussianFilter::new(sigma);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = LaplacianOfGaussianFilter::new(sigma);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -426,12 +465,15 @@ pub fn recursive_gaussian(image: &PyImage, sigma: f64, order: usize) -> PyResult
 /// Raises:
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
-pub fn sobel_gradient(image: &PyImage) -> PyResult<PyImage> {
-    let spacing = image.inner.spacing();
-    let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let spacing = image.spacing();
+        let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -453,11 +495,14 @@ pub fn sobel_gradient(image: &PyImage) -> PyResult<PyImage> {
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn grayscale_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let filter = GrayscaleErosion::new(radius);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = GrayscaleErosion::new(radius);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
@@ -479,14 +524,97 @@ pub fn grayscale_erosion(image: &PyImage, radius: usize) -> PyResult<PyImage> {
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn grayscale_dilation(image: &PyImage, radius: usize) -> PyResult<PyImage> {
-    let filter = GrayscaleDilation::new(radius);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = GrayscaleDilation::new(radius);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 
+// ── curvature_anisotropic_diffusion ───────────────────────────────────────────
+
+/// Apply curvature anisotropic diffusion (Alvarez et al. 1992).
+///
+/// Evolves image level sets by mean curvature motion:
+///   ∂I/∂t = |∇I| · div(∇I / |∇I|) = |∇I| · κ
+///
+/// Args:
+///     image:      Input PyImage.
+///     iterations: Number of explicit Euler time steps (default 20).
+///     time_step:  Euler Δt (default 0.0625; stability requires Δt ≤ 1/6 for unit spacing).
+///
+/// Returns:
+///     Smoothed PyImage with identical shape and spatial metadata.
+///
+/// Raises:
+///     RuntimeError: on tensor extraction failure.
+#[pyfunction]
+#[pyo3(signature = (image, iterations=20, time_step=0.0625))]
+pub fn curvature_anisotropic_diffusion(
+    py: Python<'_>,
+    image: &PyImage,
+    iterations: usize,
+    time_step: f64,
+) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
+            num_iterations: iterations,
+            time_step: time_step as f32,
+        });
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── sato_line_filter ──────────────────────────────────────────────────────────
+
+/// Apply the Sato multi-scale line filter for curvilinear structure detection.
+///
+/// Detects tubular structures using multi-scale Hessian eigenvalue analysis
+/// (Sato et al. 1998). The output is the per-voxel maximum response over all scales.
+///
+/// Args:
+///     image:       Input PyImage.
+///     scales:      List of Gaussian σ values (physical units, mm). Default [1.0, 2.0, 3.0].
+///     alpha:       Cross-section anisotropy exponent [0.5, 2.0]. Default 0.5.
+///     bright_tubes: If True detect bright tubes on dark background (default True).
+///
+/// Returns:
+///     Line-enhanced PyImage with identical shape and metadata.
+///
+/// Raises:
+///     RuntimeError: on tensor extraction failure.
+#[pyfunction]
+#[pyo3(signature = (image, scales=None, alpha=0.5, bright_tubes=true))]
+pub fn sato_line_filter(
+    py: Python<'_>,
+    image: &PyImage,
+    scales: Option<Vec<f64>>,
+    alpha: f64,
+    bright_tubes: bool,
+) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = SatoLineFilter::new(SatoConfig {
+            scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
+            alpha,
+            bright_tubes,
+        });
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── Submodule registration ────────────────────────────────────────────────────
 // ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `filter` submodule.
@@ -506,6 +634,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sobel_gradient, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
+    m.add_function(wrap_pyfunction!(curvature_anisotropic_diffusion, &m)?)?;
+    m.add_function(wrap_pyfunction!(sato_line_filter, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }

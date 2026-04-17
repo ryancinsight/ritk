@@ -6,26 +6,26 @@ edition = "2021"
 [dependencies]
 ritk-core = { path = "../ritk-core" }
 dicom = { workspace = true }
-dicom-core = "0.8"
+dicom-core = { workspace = true }
 nifti = { workspace = true }
-anyhow = "1.0"
-thiserror = "2.0"
-tracing = "0.1"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
 burn = { workspace = true }
 nalgebra = { workspace = true }
-rayon = "1.9"
-ndarray = "0.16"
-image = "0.24"
-tiff = "0.9"
-flate2 = "1.0"
+rayon = { workspace = true }
+ndarray = { workspace = true }
+image = { workspace = true }
+tiff = { workspace = true }
+flate2 = { workspace = true }
 consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-compression = { workspace = true }
 consus-io = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = "0.19"
-tempfile = "3.10"
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }
 
 [[example]]
 name = "dicom_to_nifti"

@@ -29,8 +29,8 @@ pub use distance_transform::{distance_transform, distance_transform_squared, Dis
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
 pub use morphology::{
-    BinaryClosing, BinaryDilation, BinaryErosion, BinaryOpening, MorphologicalOperation,
-    Skeletonization,
+    BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
+    MorphologicalGradient, MorphologicalOperation, Skeletonization,
 };
 pub use region_growing::{
     confidence_connected, connected_threshold, neighborhood_connected, ConfidenceConnectedFilter,

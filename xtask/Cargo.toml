@@ -8,16 +8,16 @@ name = "xtask"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0"
-clap = { version = "4.0", features = ["derive"] }
-reqwest = { version = "0.11", features = ["blocking", "stream"] }
-flate2 = "1.0"
-tar = "0.4"
-zip = "0.6"
-indicatif = "0.17"
-dirs = "5.0"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-sha2 = "0.10"
-hex = "0.4"
-walkdir = "2.4"
+anyhow = { workspace = true }
+clap = { workspace = true }
+reqwest = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
+zip = { workspace = true }
+indicatif = { workspace = true }
+dirs = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+walkdir = { workspace = true }

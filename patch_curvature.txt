@@ -1,0 +1,40 @@
+
+// ── Curvature anisotropic diffusion ─────────────────────────────────────────────────
+
+/// Apply curvature anisotropic diffusion (Alvarez et al. 1992, mean curvature motion).
+///
+/// Evolves each voxel by the mean curvature of its level set surface:
+///   \u2202I/\u2202t = |\u2207I| \u00b7 div(\u2207I / |\u2207I|)
+///
+/// \u0394t \u2264 1/6 is required for stability with unit spacing.
+fn run_curvature(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::diffusion::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
+
+    let image = read_image(&args.input)?;
+    let config = CurvatureConfig {
+        num_iterations: args.iterations,
+        time_step: args.time_step as f32,
+    };
+    let filter = CurvatureAnisotropicDiffusionFilter::new(config);
+    let filtered = filter.apply(&image)?;
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied curvature (iters={}, dt={}) to {} \u{2192} {}",
+        args.iterations,
+        args.time_step,
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        iterations = args.iterations,
+        time_step = args.time_step,
+        "filter: curvature complete"
+    );
+
+    Ok(())
+}

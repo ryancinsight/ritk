@@ -16,6 +16,8 @@
 //! | `sobel`             | (uses image spacing)                               |
 //! | `log`               | `--sigma`                                          |
 //! | `recursive-gaussian`| `--sigma`, `--order`                               |
+//! | `curvature`         | `--iterations`, `--time-step`                      |
+//! | `sato`              | `--scales`, `--alpha`                              |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -41,7 +43,7 @@ pub struct FilterArgs {
     ///
     /// Accepted values: `gaussian`, `n4-bias`, `anisotropic`, `frangi`,
     /// `gradient-magnitude`, `laplacian`, `median`, `bilateral`, `canny`,
-    /// `sobel`, `log`, `recursive-gaussian`.
+    /// `sobel`, `log`, `recursive-gaussian`, `curvature`, `sato`.
     #[arg(long, value_name = "FILTER")]
     pub filter: String,
 
@@ -73,6 +75,14 @@ pub struct FilterArgs {
     /// Used by: `anisotropic`.
     #[arg(long, default_value = "3.0", value_name = "FLOAT")]
     pub conductance: f64,
+
+    // ── Curvature diffusion ────────────────────────────────────────────────────
+    /// Explicit Euler time step Δt for curvature anisotropic diffusion.
+    /// Stability requires Δt ≤ 1/6 for unit spacing.
+    ///
+    /// Used by: `curvature`.
+    #[arg(long, default_value = "0.0625", value_name = "FLOAT")]
+    pub time_step: f64,
 
     // ── Frangi vesselness ─────────────────────────────────────────────────
     /// Comma-separated list of vessel scale radii (mm) for multi-scale Frangi
@@ -176,11 +186,13 @@ pub fn run(args: FilterArgs) -> Result<()> {
         "sobel" => run_sobel(&args),
         "log" => run_log(&args),
         "recursive-gaussian" => run_recursive_gaussian(&args),
+        "curvature" => run_curvature(&args),
+        "sato" => run_sato(&args),
         other => Err(anyhow!(
             "Unknown filter '{other}'. \
              Available filters: gaussian, n4-bias, anisotropic, \
              gradient-magnitude, laplacian, frangi, median, bilateral, \
-             canny, sobel, log, recursive-gaussian."
+             canny, sobel, log, recursive-gaussian, curvature, sato."
         )),
     }
 }
@@ -293,7 +305,44 @@ fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Gradient magnitude ────────────────────────────────────────────────────────
+// -- Curvature anisotropic diffusion ------------------------------------------
+
+fn run_curvature(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::diffusion::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
+    let image = read_image(&args.input)?;
+    let config = CurvatureConfig {
+        num_iterations: args.iterations,
+        time_step: args.time_step as f32,
+    };
+    let filter = CurvatureAnisotropicDiffusionFilter::new(config);
+    let filtered = filter.apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied curvature (iters={}, dt={}) to {} -> {}",
+        args.iterations, args.time_step, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(),
+        iterations = args.iterations, time_step = args.time_step, "filter: curvature complete");
+    Ok(())
+}
+
+// -- Sato line filter ---------------------------------------------------------
+
+fn run_sato(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::vesselness::{SatoConfig, SatoLineFilter};
+    let image = read_image(&args.input)?;
+    let scales: Vec<f64> = args.scales.split(',').filter_map(|s| s.trim().parse::<f64>().ok()).collect();
+    let scales = if scales.is_empty() { vec![1.0, 2.0, 3.0] } else { scales };
+    let config = SatoConfig { scales: scales.clone(), alpha: args.alpha, bright_tubes: true };
+    let filter = SatoLineFilter::new(config);
+    let filtered = filter.apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied sato (scales={:?}, alpha={}) to {} -> {}",
+        scales, args.alpha, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(),
+        alpha = args.alpha, "filter: sato complete");
+    Ok(())
+}
+
+// -- Gradient magnitude ────────────────────────────────────────────────────────
 
 fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::GradientMagnitudeFilter;
@@ -632,6 +681,7 @@ mod tests {
             levels: 4,
             iterations: 50,
             conductance: 3.0,
+            time_step: 0.0625,
             scales: "0.5,1.0,2.0".to_string(),
             alpha: 0.5,
             beta: 0.5,
@@ -1053,4 +1103,35 @@ mod tests {
 
         assert!(result.is_err(), "missing input must yield an error");
     }
+
+    #[test]
+    fn test_filter_curvature_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "curvature");
+        args.iterations = 3;
+        let result = run(args);
+        assert!(result.is_ok(), "curvature must succeed: {:?}", result.err());
+        assert!(output.exists(), "curvature must write output file");
+        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
+    }
+
+    #[test]
+    fn test_filter_sato_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "sato");
+        args.scales = "1.0".to_string();
+        let result = run(args);
+        assert!(result.is_ok(), "sato must succeed: {:?}", result.err());
+        assert!(output.exists(), "sato must write output file");
+        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
+    }
 }
+

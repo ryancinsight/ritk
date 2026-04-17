@@ -47,7 +47,10 @@
 //!   *CVIU* 89(2–3):272–298.
 
 use super::thirion::{DemonsConfig, DemonsResult};
-use crate::deformable_field_ops::{compute_gradient, gaussian_smooth_inplace, warp_image};
+use crate::deformable_field_ops::{
+    compute_gradient, compute_gradient_into, compute_mse_streaming, gaussian_smooth_inplace,
+    warp_image, warp_image_into,
+};
 use crate::error::RegistrationError;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -116,29 +119,35 @@ impl SymmetricDemonsRegistration {
         let sigma_x = self.config.max_step_length;
         let sigma_x2 = sigma_x * sigma_x;
 
-        let initial_mse: f64 = {
-            let warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
-            fixed
-                .iter()
-                .zip(warped.iter())
-                .map(|(&f, &m)| ((f - m) as f64).powi(2))
-                .sum::<f64>()
-                / n as f64
-        };
-        let mut final_mse = initial_mse;
+        let mut m_warped = vec![0.0_f32; n];
+        let mut grad_mz = vec![0.0_f32; n];
+        let mut grad_my = vec![0.0_f32; n];
+        let mut grad_mx = vec![0.0_f32; n];
+        let mut fz = vec![0.0_f32; n];
+        let mut fy = vec![0.0_f32; n];
+        let mut fx = vec![0.0_f32; n];
+
+        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         let mut iter = 0usize;
 
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
-            // 1. Warp moving with current displacement.
-            let m_warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
+            // 1. Warp moving with current displacement into a reusable buffer.
+            warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
 
             // 2. Compute gradient of the warped moving image (changes each iteration).
-            let (grad_mz, grad_my, grad_mx) = compute_gradient(&m_warped, dims, spacing);
+            compute_gradient_into(
+                &m_warped,
+                dims,
+                spacing,
+                &mut grad_mz,
+                &mut grad_my,
+                &mut grad_mx,
+            );
 
-            // 3. Compute symmetric forces.
-            let (fz, fy, fx) = symmetric_forces(
+            // 3. Compute symmetric forces into reusable buffers.
+            symmetric_forces_into(
                 fixed,
                 &m_warped,
                 &grad_fz,
@@ -149,10 +158,12 @@ impl SymmetricDemonsRegistration {
                 &grad_mx,
                 sigma_x2,
                 self.config.max_step_length,
+                &mut fz,
+                &mut fy,
+                &mut fx,
             );
 
             // 4. Optional fluid regularisation (smooth forces before accumulation).
-            let (mut fz, mut fy, mut fx) = (fz, fy, fx);
             if self.config.sigma_fluid > 0.0 {
                 gaussian_smooth_inplace(&mut fz, dims, self.config.sigma_fluid);
                 gaussian_smooth_inplace(&mut fy, dims, self.config.sigma_fluid);
@@ -173,14 +184,8 @@ impl SymmetricDemonsRegistration {
                 gaussian_smooth_inplace(&mut disp_x, dims, self.config.sigma_diffusion);
             }
 
-            // 7. Compute current MSE.
-            let m_warped_new = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
-            final_mse = fixed
-                .iter()
-                .zip(m_warped_new.iter())
-                .map(|(&f, &m)| ((f - m) as f64).powi(2))
-                .sum::<f64>()
-                / n as f64;
+            // 7. Compute current MSE without materialising another warped image.
+            final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         }
 
         let warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
@@ -190,6 +195,9 @@ impl SymmetricDemonsRegistration {
             disp_z,
             disp_y,
             disp_x,
+            vel_z: None,
+            vel_y: None,
+            vel_x: None,
             final_mse,
             num_iterations: iter,
         })
@@ -208,7 +216,8 @@ impl SymmetricDemonsRegistration {
 /// The factor of 4 in the denominator arises from using the combined gradient
 /// (sum rather than average): the effective per-image gradient contribution is
 /// (gF + gM_w) / 2, so |avg_grad|² = |gF + gM_w|² / 4.
-fn symmetric_forces(
+/// Compute symmetric Demons forces into caller-provided buffers.
+fn symmetric_forces_into(
     fixed: &[f32],
     m_warped: &[f32],
     grad_fz: &[f32],
@@ -219,13 +228,12 @@ fn symmetric_forces(
     grad_mx: &[f32],
     sigma_x2: f32,
     max_step_length: f32,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    fz: &mut [f32],
+    fy: &mut [f32],
+    fx: &mut [f32],
+) {
     let n = fixed.len();
     let max2 = max_step_length * max_step_length;
-
-    let mut fz = vec![0.0_f32; n];
-    let mut fy = vec![0.0_f32; n];
-    let mut fx = vec![0.0_f32; n];
 
     for i in 0..n {
         let diff = fixed[i] - m_warped[i];
@@ -257,9 +265,10 @@ fn symmetric_forces(
         fy[i] = fyi;
         fx[i] = fxi;
     }
-
-    (fz, fy, fx)
 }
+
+
+
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 

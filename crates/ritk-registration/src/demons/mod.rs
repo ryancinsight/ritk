@@ -42,9 +42,11 @@
 pub mod diffeomorphic;
 pub mod inverse;
 pub mod symmetric;
+pub mod multires;
 pub mod thirion;
 
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
 pub use symmetric::SymmetricDemonsRegistration;
 pub use thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};
+pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};

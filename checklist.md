@@ -1,3 +1,67 @@
+## Sprint 21 — Completed
+- [x] PY-CLI-MULTIRES: Added `multires_demons_register` Python binding with levels/use_diffeomorphic/n_squarings params
+- [x] PY-CLI-MULTIRES: Added `multires-demons` CLI method with `--levels` and `--use-diffeomorphic` args
+- [x] PY-CLI-MULTIRES: 2 new CLI tests (output shape, identity MSE < 1e-3 with levels=1)
+- [x] SEG-MORPH-EXT: `BinaryFillHoles` (6-connected BFS, O(nz·ny·nx), encloses hollow sphere test)
+- [x] SEG-MORPH-EXT: `MorphologicalGradient` (delegates dilation/erosion, boundary extraction verified)
+- [x] SEG-MORPH-EXT: mod.rs updated with new module declarations and re-exports
+- [x] SEG-MORPH-EXT: 10 unit tests across both operations (positive, boundary, invariant)
+- [x] SEG-CLI-BINDINGS: Added `fill-holes` and `morphological-gradient` CLI methods
+- [x] SEG-CLI-BINDINGS: Added tests for enclosed-hole filling and boundary extraction
+- [x] DICOM-WRITE: `write_dicom_series` produces valid DICOM files (DICM magic at offset 128 verified)
+- [x] DICOM-WRITE: Per-slice f32→u16 rescaling with stored rescale slope/intercept tags
+- [x] DICOM-WRITE: Reader updated with `open_file` DICOM parse path + raw fallback
+- [x] DICOM-WRITE: `write_dicom_series` re-exported from `ritk_io`
+- [x] DICOM-WRITE: CLI DICOM write enabled (replaced error with real call)
+- [x] Verification: 551 ritk-core + 132 ritk-io + 120 ritk-cli + 175 ritk-registration = 978 tests, 0 failed
+- [x] Workspace: `cargo check --workspace` zero errors, zero warnings
+
+---
+
+## Sprint 20 — Completed
+- [x] PY-BIND-FLT: Added `curvature_anisotropic_diffusion` Python binding (delegates to `CurvatureAnisotropicDiffusionFilter`, `py.allow_threads`)
+- [x] PY-BIND-FLT: Added `sato_line_filter` Python binding (delegates to `SatoLineFilter`, `py.allow_threads`)
+- [x] PY-BIND-SEG: Added `confidence_connected_segment` Python binding with seed validation
+- [x] PY-BIND-SEG: Added `neighborhood_connected_segment` Python binding with uniform radius
+- [x] PY-BIND-SEG: Added `skeletonization` Python binding (D=3 const generic)
+- [x] PY-IO-EXT: Extended `read_image` to handle TIFF, VTK, MGH/MGZ, Analyze, JPEG
+- [x] PY-IO-EXT: Extended `write_image` to handle TIFF, VTK, MGH/MGZ, Analyze, JPEG
+- [x] CLI-FLT-EXT: Added `run_curvature` and `run_sato` functions to `commands/filter.rs`
+- [x] CLI-FLT-EXT: Added `--time-step` arg (f64, default 0.0625) to FilterArgs
+- [x] CLI-FLT-EXT: Added 2 output-creation tests (`test_filter_curvature_creates_output`, `test_filter_sato_creates_output`)
+- [x] CLI-SEG-EXT: Added `run_confidence_connected`, `run_neighborhood_connected`, `run_skeletonization` to `commands/segment.rs`
+- [x] CLI-SEG-EXT: Added `--multiplier` (f32, 2.5), `--max-iterations` (usize, 15), `--neighborhood-radius` (usize, 1) to SegmentArgs
+- [x] CLI-SEG-EXT: Added 11 tests (positive, binary-invariant, boundary-missing-args)
+- [x] GAP-R02b: Created `MultiResDemonsRegistration` with `MultiResDemonsConfig` (levels, use_diffeomorphic, n_squarings)
+- [x] GAP-R02b: Coarse-to-fine pyramid: Gaussian downsampling + strided subsampling, trilinear upsampling with scale correction
+- [x] GAP-R02b: Warm-start: upsampled coarser displacement injected as additive init at each finer level
+- [x] GAP-R02b: Thirion and Diffeomorphic variants both supported
+- [x] Verification: 541 ritk-core + 132 ritk-io + 118 ritk-cli + 175 ritk-registration = 966 tests, 0 failed
+- [x] Workspace: `cargo check --workspace` zero errors, zero warnings
+
+---
+
+## Sprint 19 — Completed
+- [x] PERF-R02: Added `compute_gradient_into` (zero-alloc, writes directly into caller slices; `compute_gradient` now delegates)
+- [x] PERF-R02: Added `warp_image_into` (writes into caller output buffer; `warp_image` now delegates)
+- [x] PERF-R02: Added `compute_mse_streaming` (streaming MSE without warped buffer; promotes to SSOT)
+- [x] PERF-R02: Removed duplicate `warp_image_into` from `thirion.rs` (now imported from `deformable_field_ops`)
+- [x] PERF-R02: Removed duplicate `warp_image_into`, `compute_gradient_into`, `compute_mse_streaming` from `symmetric.rs`
+- [x] PERF-R02: Simplified `compute_mse_direct` in `diffeomorphic.rs` to delegate to `compute_mse_streaming`
+- [x] PERF-R03: Replaced `convolve_axis` (inner-loop match) with `convolve_z`, `convolve_y`, `convolve_x` (branch-free)
+- [x] Verification: 170 unit tests + 3 integration tests — 0 failed; `cargo check -p ritk-registration` zero errors
+
+---
+
+## Sprint 18 — Completed
+- [x] PERF-DEM-01: Reduced clone-heavy scaling-and-squaring memory traffic in deformable field exponentiation
+- [x] PERF-DEM-02: Streamed Demons MSE evaluation to avoid full warped-image allocation in MSE-only paths
+- [x] PERF-DEM-03: Reused iteration buffers in Thirion and Symmetric Demons registration loops
+- [x] PERF-DEM-04: Fused inverse displacement vector-field warping to reduce temporary allocations and repeated coordinate traversal
+- [x] Verification: `cargo check -p ritk-registration` passed after optimization changes; residual warnings only
+
+---
+
 ## Sprint 13 — Completed
 - [x] IO-09: DICOM read metadata slice (series-level capture, per-slice geometry, read-only API)
 - [x] IO-05: MINC2 format reader (consus-hdf5 HDF5 parsing, dimension metadata, spatial derivation, datatype conversion)
@@ -88,17 +152,17 @@
 
 ## Remaining Backlog
 - [x] IO-05: MINC format reader/writer (Sprint 12 — consus pure-Rust HDF5 integration)
-- [ ] GAP-R02b: Diffeomorphic Demons exact inverse
+- [x] GAP-R02b: Diffeomorphic Demons exact inverse
 - [x] FLT: Curvature anisotropic diffusion (Alvarez et al. 1992 mean curvature motion)
 - [x] FLT: Sato line filter (Sato 1998 multi-scale Hessian line detection)
 - [x] IO-07b: Analyze format reader/writer
 - [x] SEG: Confidence connected region growing (Sprint 10)
 - [x] SEG: Neighborhood connected region growing (Sprint 10)
 - [x] SEG: Skeletonization (Sprint 10)
-- [ ] CI: nextest, clippy, fmt enforcement
-- [ ] CI: dependency version alignment checks
-- [ ] Python: wrap long-running PyO3 calls with `py.allow_threads`
-- [ ] CI: add maturin build + `import ritk` smoke test
+- [x] CI: nextest, clippy, fmt enforcement
+- [x] CI: dependency version alignment checks
+- [x] Python: wrap long-running PyO3 calls with `py.allow_threads`
+- [x] CI: add maturin build + `import ritk` smoke test
 
 ## Verification Policy
 - All tests must assert computed VALUES, not just Result/Option variants

@@ -8,13 +8,13 @@ name = "_ritk"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
-numpy = "0.22"
+pyo3 = { workspace = true }
+numpy = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-io = { path = "../ritk-io" }
 ritk-registration = { path = "../ritk-registration" }
-burn-ndarray = "0.19"
-burn = { version = "0.19", features = ["ndarray"] }
-anyhow = "1.0"
-thiserror = "2.0"
-nalgebra = { version = "0.33" }
+burn-ndarray = { workspace = true }
+burn = { workspace = true, features = ["ndarray"] }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+nalgebra = { workspace = true }

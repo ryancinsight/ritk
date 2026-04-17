@@ -28,8 +28,11 @@
 //! - Arsigny, V., Commowick, O., Pennec, X. & Ayache, N. (2006). A
 //!   Log-Euclidean Framework for Statistics on Diffeomorphisms. *MICCAI*.
 
+use super::inverse::invert_velocity_field;
 use super::thirion::{thirion_forces, DemonsConfig, DemonsResult};
-use crate::deformable_field_ops::{gaussian_smooth_inplace, scaling_and_squaring, warp_image};
+use crate::deformable_field_ops::{
+    compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring, warp_image,
+};
 use crate::error::RegistrationError;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -110,7 +113,15 @@ impl DiffeomorphicDemonsRegistration {
         let (grad_z, grad_y, grad_x) =
             crate::deformable_field_ops::compute_gradient(fixed, dims, spacing);
 
-        let mut final_mse = compute_mse_direct(fixed, moving, &vel_z, &vel_y, &vel_x, dims);
+        let mut final_mse = compute_mse_direct(
+            fixed,
+            moving,
+            &vel_z,
+            &vel_y,
+            &vel_x,
+            dims,
+            self.n_squarings,
+        );
         let mut iter = 0usize;
 
         for it in 0..self.config.max_iterations {
@@ -148,7 +159,15 @@ impl DiffeomorphicDemonsRegistration {
             }
 
             // 6. Update MSE using the current velocity field.
-            final_mse = compute_mse_direct(fixed, moving, &vel_z, &vel_y, &vel_x, dims);
+            final_mse = compute_mse_direct(
+                fixed,
+                moving,
+                &vel_z,
+                &vel_y,
+                &vel_x,
+                dims,
+                self.n_squarings,
+            );
         }
 
         // Final warp using the converged velocity field.
@@ -161,6 +180,9 @@ impl DiffeomorphicDemonsRegistration {
             disp_z: phi_z,
             disp_y: phi_y,
             disp_x: phi_x,
+            vel_z: Some(vel_z),
+            vel_y: Some(vel_y),
+            vel_x: Some(vel_x),
             final_mse,
             num_iterations: iter,
         })
@@ -170,12 +192,16 @@ impl DiffeomorphicDemonsRegistration {
     ///
     /// # Mathematical Basis
     ///
-    /// `DemonsResult` stores `disp = φ = exp(v)` (the forward displacement).
-    /// Because the velocity field `v` is not retained after registration,
-    /// the inverse is computed by the fixed-point iterative method
-    /// (Christensen & Johnson 2001) applied directly to the stored displacement
-    /// field.  For SVF results this is equivalent to `exp(−v)` when the
-    /// iteration converges fully (Lipschitz constant of the stored field < 1).
+    /// For diffeomorphic Demons, `DemonsResult` retains the stationary velocity
+    /// field `v` together with the forward displacement `φ = exp(v)`.
+    /// The exact inverse is therefore:
+    ///
+    ///   `φ^{-1} = exp(−v)`
+    ///
+    /// This implementation negates the stored SVF and exponentiates it with the
+    /// same scaling-and-squaring depth used for the forward map. If the result
+    /// does not carry SVF components, it falls back to fixed-point inversion of
+    /// the stored displacement field.
     ///
     /// # Arguments
     ///
@@ -191,22 +217,31 @@ impl DiffeomorphicDemonsRegistration {
         result: &DemonsResult,
         dims: [usize; 3],
     ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-        use super::inverse::{invert_displacement_field, InverseFieldConfig};
-        let config = InverseFieldConfig::default();
-        let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
-            &result.disp_z,
-            &result.disp_y,
-            &result.disp_x,
-            dims,
-            &config,
-        );
-        (inv_z, inv_y, inv_x)
+        match (&result.vel_z, &result.vel_y, &result.vel_x) {
+            (Some(vel_z), Some(vel_y), Some(vel_x)) => {
+                let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(vel_z, vel_y, vel_x);
+                scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, self.n_squarings)
+            }
+            _ => {
+                use super::inverse::{invert_displacement_field, InverseFieldConfig};
+                let config = InverseFieldConfig::default();
+                let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
+                    &result.disp_z,
+                    &result.disp_y,
+                    &result.disp_x,
+                    dims,
+                    &config,
+                );
+                (inv_z, inv_y, inv_x)
+            }
+        }
     }
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 /// Compute MSE after applying `exp(v)` to warp the moving image.
+///
 fn compute_mse_direct(
     fixed: &[f32],
     moving: &[f32],
@@ -214,15 +249,10 @@ fn compute_mse_direct(
     vel_y: &[f32],
     vel_x: &[f32],
     dims: [usize; 3],
+    n_squarings: usize,
 ) -> f64 {
-    let (phi_z, phi_y, phi_x) = scaling_and_squaring(vel_z, vel_y, vel_x, dims, 6);
-    let warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
-    fixed
-        .iter()
-        .zip(warped.iter())
-        .map(|(&f, &m)| ((f - m) as f64).powi(2))
-        .sum::<f64>()
-        / fixed.len() as f64
+    let (phi_z, phi_y, phi_x) = scaling_and_squaring(vel_z, vel_y, vel_x, dims, n_squarings);
+    compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -230,6 +260,7 @@ fn compute_mse_direct(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::deformable_field_ops::compose_fields;
 
     fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
@@ -360,7 +391,157 @@ mod tests {
         let image = make_test_image(dims);
         let zero = vec![0.0_f32; n];
         // With zero velocity field, the warp is identity and MSE should be zero.
-        let mse = compute_mse_direct(&image, &image, &zero, &zero, &zero, dims);
+        let mse = compute_mse_direct(&image, &image, &zero, &zero, &zero, dims, 6);
         assert!(mse < 1e-10, "zero velocity should give zero MSE, got {mse}");
+    }
+
+    /// Diffeomorphic Demons results must retain the stationary velocity field so
+    /// the exact inverse can be computed as `exp(-v)`.
+    #[test]
+    fn result_retains_stationary_velocity_field() {
+        let dims = [6usize, 6, 8];
+        let fixed = make_test_image(dims);
+        let moving = translate_x(&fixed, dims, 1);
+        let reg = DiffeomorphicDemonsRegistration::with_squarings(
+            DemonsConfig {
+                max_iterations: 10,
+                ..Default::default()
+            },
+            4,
+        );
+
+        let result = reg
+            .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
+            .unwrap();
+
+        let n = dims[0] * dims[1] * dims[2];
+        assert_eq!(
+            result.vel_z.as_ref().map(Vec::len),
+            Some(n),
+            "vel_z must be present and match voxel count"
+        );
+        assert_eq!(
+            result.vel_y.as_ref().map(Vec::len),
+            Some(n),
+            "vel_y must be present and match voxel count"
+        );
+        assert_eq!(
+            result.vel_x.as_ref().map(Vec::len),
+            Some(n),
+            "vel_x must be present and match voxel count"
+        );
+    }
+
+    /// The exact inverse computed from the retained stationary velocity field
+    /// must compose with the forward displacement to near identity.
+    #[test]
+    fn exact_inverse_composes_to_near_identity() {
+        let dims = [8usize, 8, 10];
+        let fixed = make_test_image(dims);
+        let moving = translate_x(&fixed, dims, 1);
+        let reg = DiffeomorphicDemonsRegistration::with_squarings(
+            DemonsConfig {
+                max_iterations: 20,
+                ..Default::default()
+            },
+            4,
+        );
+
+        let result = reg
+            .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
+            .unwrap();
+        let (inv_z, inv_y, inv_x) = reg.invert_result(&result, dims);
+        let (comp_z, comp_y, comp_x) = compose_fields(
+            &inv_z,
+            &inv_y,
+            &inv_x,
+            &result.disp_z,
+            &result.disp_y,
+            &result.disp_x,
+            dims,
+        );
+
+        let n = dims[0] * dims[1] * dims[2];
+        let mut max_err = 0.0_f32;
+        let mut mean_err = 0.0_f64;
+
+        for i in 0..n {
+            let err =
+                (comp_z[i] * comp_z[i] + comp_y[i] * comp_y[i] + comp_x[i] * comp_x[i]).sqrt();
+            max_err = max_err.max(err);
+            mean_err += err as f64;
+        }
+        mean_err /= n as f64;
+
+        assert!(
+            max_err < 0.35,
+            "forward/inverse composition max error {max_err:.6} exceeds 0.35 voxels"
+        );
+        assert!(
+            mean_err < 0.08,
+            "forward/inverse composition mean error {mean_err:.6} exceeds 0.08 voxels"
+        );
+    }
+
+    /// The inverse returned by `invert_result` must equal `exp(-v)` computed
+    /// directly from the retained stationary velocity field.
+    #[test]
+    fn invert_result_matches_negated_velocity_exponential() {
+        let dims = [6usize, 6, 8];
+        let fixed = make_test_image(dims);
+        let moving = translate_x(&fixed, dims, 1);
+        let reg = DiffeomorphicDemonsRegistration::with_squarings(
+            DemonsConfig {
+                max_iterations: 12,
+                ..Default::default()
+            },
+            5,
+        );
+
+        let result = reg
+            .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
+            .unwrap();
+        let (inv_z, inv_y, inv_x) = reg.invert_result(&result, dims);
+
+        let vel_z = result
+            .vel_z
+            .as_ref()
+            .expect("diffeomorphic Demons result must retain vel_z");
+        let vel_y = result
+            .vel_y
+            .as_ref()
+            .expect("diffeomorphic Demons result must retain vel_y");
+        let vel_x = result
+            .vel_x
+            .as_ref()
+            .expect("diffeomorphic Demons result must retain vel_x");
+
+        let neg_vel_z: Vec<f32> = vel_z.iter().map(|&v| -v).collect();
+        let neg_vel_y: Vec<f32> = vel_y.iter().map(|&v| -v).collect();
+        let neg_vel_x: Vec<f32> = vel_x.iter().map(|&v| -v).collect();
+
+        let (expected_z, expected_y, expected_x) =
+            scaling_and_squaring(&neg_vel_z, &neg_vel_y, &neg_vel_x, dims, reg.n_squarings);
+
+        for i in 0..expected_z.len() {
+            assert!(
+                (inv_z[i] - expected_z[i]).abs() < 1e-5,
+                "inv_z[{i}] mismatch: got {}, expected {}",
+                inv_z[i],
+                expected_z[i]
+            );
+            assert!(
+                (inv_y[i] - expected_y[i]).abs() < 1e-5,
+                "inv_y[{i}] mismatch: got {}, expected {}",
+                inv_y[i],
+                expected_y[i]
+            );
+            assert!(
+                (inv_x[i] - expected_x[i]).abs() < 1e-5,
+                "inv_x[{i}] mismatch: got {}, expected {}",
+                inv_x[i],
+                expected_x[i]
+            );
+        }
     }
 }

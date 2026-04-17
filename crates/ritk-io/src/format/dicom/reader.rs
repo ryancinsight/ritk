@@ -279,24 +279,31 @@ fn load_from_series<B: Backend>(
 }
 
 fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
+    use dicom::core::Tag;
+    use dicom::object::open_file;
+    if let Ok(obj) = open_file(&slice.path) {
+        if let Ok(pixel_elem) = obj.element(Tag(0x7FE0, 0x0010)) {
+            let pv = pixel_elem.value();
+            if let Ok(bytes) = pv.to_bytes() {
+                if bytes.len() >= 2 {
+                    let data: Vec<f32> = bytes.chunks_exact(2)
+                        .map(|c| {
+                            let raw = u16::from_le_bytes([c[0], c[1]]);
+                            raw as f32 * slice.rescale_slope + slice.rescale_intercept
+                        })
+                        .collect();
+                    if !data.is_empty() { return Ok(data); }
+                }
+            }
+        }
+    }
     let bytes = std::fs::read(&slice.path)
         .with_context(|| format!("failed to read DICOM slice {:?}", slice.path))?;
-
-    if bytes.is_empty() {
-        bail!("DICOM slice file is empty");
-    }
-
-    let mut data = Vec::new();
-    for chunk in bytes.chunks_exact(2) {
-        let raw = u16::from_le_bytes([chunk[0], chunk[1]]);
-        let scaled = raw as f32 * slice.rescale_slope + slice.rescale_intercept;
-        data.push(scaled);
-    }
-
-    if data.is_empty() {
-        bail!("DICOM slice contained no decodable pixel data");
-    }
-
+    if bytes.is_empty() { bail!("DICOM slice file is empty"); }
+    let data: Vec<f32> = bytes.chunks_exact(2)
+        .map(|c| { let raw = u16::from_le_bytes([c[0], c[1]]); raw as f32 * slice.rescale_slope + slice.rescale_intercept })
+        .collect();
+    if data.is_empty() { bail!("DICOM slice contained no decodable pixel data"); }
     Ok(data)
 }
 

@@ -64,36 +64,29 @@ pub(crate) fn trilinear_interpolate(data: &[f32], dims: [usize; 3], z: f32, y: f
 
 // ── Gradient ──────────────────────────────────────────────────────────────────
 
-/// Compute the gradient of `data` via central differences at interior voxels
-/// and one-sided first-order differences at boundaries.
+/// Write the gradient of data directly into caller-provided buffers.
 ///
-/// Each component is divided by the corresponding physical `spacing` so that
-/// the result is in (intensity / length) units.
-///
-/// # Returns
-/// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
-pub(crate) fn compute_gradient(
+/// Uses central differences at interior voxels and one-sided first-order
+/// differences at boundaries. No allocation occurs; all results are written
+/// into gz, gy, gx, each of length dims[0] * dims[1] * dims[2].
+pub(crate) fn compute_gradient_into(
     data: &[f32],
     dims: [usize; 3],
     spacing: [f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    gz: &mut [f32],
+    gy: &mut [f32],
+    gx: &mut [f32],
+) {
     let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
-
-    let mut gz = vec![0.0_f32; n];
-    let mut gy = vec![0.0_f32; n];
-    let mut gx = vec![0.0_f32; n];
 
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
                 let fi = flat(iz, iy, ix, ny, nx);
 
-                // ∂/∂z
                 gz[fi] = if nz == 1 {
                     0.0
                 } else if iz == 0 {
@@ -105,7 +98,6 @@ pub(crate) fn compute_gradient(
                         / (2.0 * sz)
                 };
 
-                // ∂/∂y
                 gy[fi] = if ny == 1 {
                     0.0
                 } else if iy == 0 {
@@ -117,7 +109,6 @@ pub(crate) fn compute_gradient(
                         / (2.0 * sy)
                 };
 
-                // ∂/∂x
                 gx[fi] = if nx == 1 {
                     0.0
                 } else if ix == 0 {
@@ -131,11 +122,58 @@ pub(crate) fn compute_gradient(
             }
         }
     }
+}
 
+/// Compute the gradient of `data` via central differences at interior voxels
+/// and one-sided first-order differences at boundaries.
+///
+/// Each component is divided by the corresponding physical `spacing` so that
+/// the result is in (intensity / length) units.
+///
+/// # Returns
+/// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
+pub(crate) fn compute_gradient(
+    data: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let n = dims[0] * dims[1] * dims[2];
+    let mut gz = vec![0.0_f32; n];
+    let mut gy = vec![0.0_f32; n];
+    let mut gx = vec![0.0_f32; n];
+    compute_gradient_into(data, dims, spacing, &mut gz, &mut gy, &mut gx);
     (gz, gy, gx)
 }
 
 // ── Image warping ─────────────────────────────────────────────────────────────
+
+/// Warp moving by the displacement field into a caller-provided buffer.
+///
+/// For each voxel p = (iz, iy, ix):
+///   output[p] = moving(iz + dz[p], iy + dy[p], ix + dx[p])
+/// sampled with trilinear interpolation and clamp-to-border BC.
+/// output must have length dims[0] * dims[1] * dims[2].
+pub(crate) fn warp_image_into(
+    moving: &[f32],
+    dims: [usize; 3],
+    dz: &[f32],
+    dy: &[f32],
+    dx: &[f32],
+    output: &mut [f32],
+) {
+    let [nz, ny, nx] = dims;
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let fi = flat(iz, iy, ix, ny, nx);
+                let wz = iz as f32 + dz[fi];
+                let wy = iy as f32 + dy[fi];
+                let wx = ix as f32 + dx[fi];
+                output[fi] = trilinear_interpolate(moving, dims, wz, wy, wx);
+            }
+        }
+    }
+}
 
 /// Warp `moving` by the displacement field `(dz, dy, dx)`.
 ///
@@ -149,10 +187,28 @@ pub(crate) fn warp_image(
     dy: &[f32],
     dx: &[f32],
 ) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
+    let n = dims[0] * dims[1] * dims[2];
     let mut warped = vec![0.0_f32; n];
+    warp_image_into(moving, dims, dz, dy, dx, &mut warped);
+    warped
+}
 
+/// Compute mean((fixed - warp(moving, D))^2) without materialising a warped buffer.
+///
+/// Streams trilinear samples of moving under displacement D = (dz, dy, dx) directly
+/// into a squared-error accumulator. No intermediate Vec<f32> is allocated.
+///
+/// Returns the mean squared error as f64.
+pub(crate) fn compute_mse_streaming(
+    fixed: &[f32],
+    moving: &[f32],
+    dims: [usize; 3],
+    dz: &[f32],
+    dy: &[f32],
+    dx: &[f32],
+) -> f64 {
+    let [nz, ny, nx] = dims;
+    let mut sum = 0.0_f64;
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
@@ -160,12 +216,13 @@ pub(crate) fn warp_image(
                 let wz = iz as f32 + dz[fi];
                 let wy = iy as f32 + dy[fi];
                 let wx = ix as f32 + dx[fi];
-                warped[fi] = trilinear_interpolate(moving, dims, wz, wy, wx);
+                let warped = trilinear_interpolate(moving, dims, wz, wy, wx);
+                let diff = (fixed[fi] - warped) as f64;
+                sum += diff * diff;
             }
         }
     }
-
-    warped
+    sum / fixed.len() as f64
 }
 
 // ── Gaussian smoothing ────────────────────────────────────────────────────────
@@ -189,31 +246,63 @@ fn gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
     k
 }
 
-/// Convolve `data` along `axis` (0=Z, 1=Y, 2=X) with `kernel` using replicate
-/// boundary condition; writes result into `output`.
-fn convolve_axis(data: &[f32], dims: [usize; 3], kernel: &[f64], axis: usize, output: &mut [f32]) {
+/// Convolve `data` along the Z axis with `kernel`; write result into `output`.
+/// Uses replicate-border boundary condition.
+fn convolve_z(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
     let [nz, ny, nx] = dims;
     let r = kernel.len() / 2;
-    let axis_len = [nz, ny, nx][axis];
-
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
-                let pos = [iz, iy, ix][axis];
                 let fi = flat(iz, iy, ix, ny, nx);
                 let mut acc = 0.0_f64;
-
                 for (ki, &kv) in kernel.iter().enumerate() {
-                    let src_pos = (pos as isize + ki as isize - r as isize)
+                    let src = (iz as isize + ki as isize - r as isize)
                         .max(0)
-                        .min(axis_len as isize - 1) as usize;
+                        .min(nz as isize - 1) as usize;
+                    acc += kv * data[flat(src, iy, ix, ny, nx)] as f64;
+                }
+                output[fi] = acc as f32;
+            }
+        }
+    }
+}
 
-                    let src = match axis {
-                        0 => flat(src_pos, iy, ix, ny, nx),
-                        1 => flat(iz, src_pos, ix, ny, nx),
-                        _ => flat(iz, iy, src_pos, ny, nx),
-                    };
-                    acc += kv * data[src] as f64;
+/// Convolve `data` along the Y axis with `kernel`; write result into `output`.
+fn convolve_y(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
+    let [nz, ny, nx] = dims;
+    let r = kernel.len() / 2;
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let fi = flat(iz, iy, ix, ny, nx);
+                let mut acc = 0.0_f64;
+                for (ki, &kv) in kernel.iter().enumerate() {
+                    let src = (iy as isize + ki as isize - r as isize)
+                        .max(0)
+                        .min(ny as isize - 1) as usize;
+                    acc += kv * data[flat(iz, src, ix, ny, nx)] as f64;
+                }
+                output[fi] = acc as f32;
+            }
+        }
+    }
+}
+
+/// Convolve `data` along the X axis with `kernel`; write result into `output`.
+fn convolve_x(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
+    let [nz, ny, nx] = dims;
+    let r = kernel.len() / 2;
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let fi = flat(iz, iy, ix, ny, nx);
+                let mut acc = 0.0_f64;
+                for (ki, &kv) in kernel.iter().enumerate() {
+                    let src = (ix as isize + ki as isize - r as isize)
+                        .max(0)
+                        .min(nx as isize - 1) as usize;
+                    acc += kv * data[flat(iz, iy, src, ny, nx)] as f64;
                 }
                 output[fi] = acc as f32;
             }
@@ -233,13 +322,13 @@ pub(crate) fn gaussian_smooth_inplace(data: &mut Vec<f32>, dims: [usize; 3], sig
     let n = data.len();
     let mut tmp = vec![0.0_f32; n];
 
-    convolve_axis(data, dims, &kernel, 0, &mut tmp);
+    convolve_z(data, dims, &kernel, &mut tmp);
     std::mem::swap(data, &mut tmp);
 
-    convolve_axis(data, dims, &kernel, 1, &mut tmp);
+    convolve_y(data, dims, &kernel, &mut tmp);
     std::mem::swap(data, &mut tmp);
 
-    convolve_axis(data, dims, &kernel, 2, &mut tmp);
+    convolve_x(data, dims, &kernel, &mut tmp);
     std::mem::swap(data, &mut tmp);
 }
 
@@ -266,6 +355,30 @@ pub(crate) fn compose_fields(
     let mut cy = vec![0.0_f32; n];
     let mut cx = vec![0.0_f32; n];
 
+    compose_fields_into(
+        phi1_z, phi1_y, phi1_x, phi2_z, phi2_y, phi2_x, dims, &mut cz, &mut cy, &mut cx,
+    );
+
+    (cz, cy, cx)
+}
+
+/// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
+///
+/// Output buffers must have length `dims[0] * dims[1] * dims[2]`.
+pub(crate) fn compose_fields_into(
+    phi1_z: &[f32],
+    phi1_y: &[f32],
+    phi1_x: &[f32],
+    phi2_z: &[f32],
+    phi2_y: &[f32],
+    phi2_x: &[f32],
+    dims: [usize; 3],
+    out_z: &mut [f32],
+    out_y: &mut [f32],
+    out_x: &mut [f32],
+) {
+    let [nz, ny, nx] = dims;
+
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
@@ -277,14 +390,12 @@ pub(crate) fn compose_fields(
                 let wx = ix as f32 + phi2_x[fi];
 
                 // Sample φ₁ at the displaced position.
-                cz[fi] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
-                cy[fi] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
-                cx[fi] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
+                out_z[fi] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
+                out_y[fi] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
+                out_x[fi] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
             }
         }
     }
-
-    (cz, cy, cx)
 }
 
 // ── Scaling-and-squaring (exponential map) ────────────────────────────────────
@@ -316,13 +427,28 @@ pub(crate) fn scaling_and_squaring(
     let mut phiy: Vec<f32> = vy.iter().map(|&v| v * scale).collect();
     let mut phix: Vec<f32> = vx.iter().map(|&v| v * scale).collect();
 
+    let n = phiz.len();
+    let mut next_z = vec![0.0_f32; n];
+    let mut next_y = vec![0.0_f32; n];
+    let mut next_x = vec![0.0_f32; n];
+
     // Squaring steps: φ ← φ ∘ φ.
     for _ in 0..n_steps {
-        let (nz, ny, nx) = (phiz.clone(), phiy.clone(), phix.clone());
-        let composed = compose_fields(&nz, &ny, &nx, &phiz, &phiy, &phix, dims);
-        phiz = composed.0;
-        phiy = composed.1;
-        phix = composed.2;
+        compose_fields_into(
+            &phiz,
+            &phiy,
+            &phix,
+            &phiz,
+            &phiy,
+            &phix,
+            dims,
+            &mut next_z,
+            &mut next_y,
+            &mut next_x,
+        );
+        std::mem::swap(&mut phiz, &mut next_z);
+        std::mem::swap(&mut phiy, &mut next_y);
+        std::mem::swap(&mut phix, &mut next_x);
     }
 
     (phiz, phiy, phix)

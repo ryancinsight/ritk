@@ -10,6 +10,11 @@
 //! | directory (DICOM)     | ✓    | ✗     | ritk-io DICOM        |
 //! | `.mha`, `.mhd`        | ✓    | ✓     | ritk-io MetaImage    |
 //! | `.nrrd`               | ✓    | ✓     | ritk-io NRRD         |
+//! | `.tif`, `.tiff`       | ✓    | ✓     | ritk-io TIFF         |
+//! | `.vtk`                | ✓    | ✓     | ritk-io VTK          |
+//! | `.mgh`, `.mgz`        | ✓    | ✓     | ritk-io MGH          |
+//! | `.hdr`, `.img`        | ✓    | ✓     | ritk-io Analyze      |
+//! | `.jpg`, `.jpeg`       | ✓    | ✓     | ritk-io JPEG         |
 //!
 //! # Error mapping
 //! All I/O errors are mapped to `PyIOError`.
@@ -36,6 +41,11 @@ type Backend = NdArray<f32>;
 /// - DICOM      (directory path) — reads the single series in the directory
 /// - MetaImage  (.mha, .mhd)    — full affine + voxel data
 /// - NRRD       (.nrrd)         — full affine + voxel data
+/// - TIFF       (.tif, .tiff)   — full affine + voxel data
+/// - VTK        (.vtk)          — full affine + voxel data
+/// - MGH        (.mgh, .mgz)    — full affine + voxel data
+/// - Analyze    (.hdr, .img)    — full affine + voxel data
+/// - JPEG       (.jpg, .jpeg)   — single-slice image data
 ///
 /// Args:
 ///     path: File path (string). For DICOM pass the directory path.
@@ -46,52 +56,81 @@ type Backend = NdArray<f32>;
 /// Raises:
 ///     IOError: on read failure or unsupported format.
 #[pyfunction]
-pub fn read_image(path: &str) -> PyResult<PyImage> {
-    let device = NdArrayDevice::default();
-    let p = Path::new(path);
+pub fn read_image(py: Python<'_>, path: &str) -> PyResult<PyImage> {
+    let path_owned = path.to_string();
+    py.allow_threads(move || {
+        let device = NdArrayDevice::default();
+        let p = Path::new(&path_owned);
 
-    let path_lower = path.to_lowercase();
+        let path_lower = path_owned.to_lowercase();
 
-    if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
-        // ── NIfTI ────────────────────────────────────────────────────────────
-        let image = ritk_io::read_nifti::<Backend, _>(p, &device)
-            .map_err(|e| PyIOError::new_err(format!("NIfTI read error: {e}")))?;
-        return Ok(into_py_image(image));
-    }
+        if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
+            let image = ritk_io::read_nifti::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("NIfTI read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
 
-    if path_lower.ends_with(".png") {
-        // ── PNG (single slice) ────────────────────────────────────────────────
-        let image = ritk_io::read_png_to_image::<Backend, _>(p, &device)
-            .map_err(|e| PyIOError::new_err(format!("PNG read error: {e}")))?;
-        return Ok(into_py_image(image));
-    }
+        if path_lower.ends_with(".png") {
+            let image = ritk_io::read_png_to_image::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("PNG read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
 
-    if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
-        let image = ritk_io::read_metaimage::<Backend, _>(p, &device)
-            .map_err(|e| PyIOError::new_err(format!("MetaImage read error: {e}")))?;
-        return Ok(into_py_image(image));
-    }
+        if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
+            let image = ritk_io::read_metaimage::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("MetaImage read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
 
-    if path_lower.ends_with(".nrrd") {
-        let image = ritk_io::read_nrrd::<Backend, _>(p, &device)
-            .map_err(|e| PyIOError::new_err(format!("NRRD read error: {e}")))?;
-        return Ok(into_py_image(image));
-    }
+        if path_lower.ends_with(".nrrd") {
+            let image = ritk_io::read_nrrd::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("NRRD read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
 
-    // ── DICOM directory (no recognised extension) ─────────────────────────────
-    if p.is_dir() {
-        let image = ritk_io::read_dicom_series::<Backend, _>(p, &device)
-            .map_err(|e| PyIOError::new_err(format!("DICOM read error: {e}")))?;
-        return Ok(into_py_image(image));
-    }
+        if p.is_dir() {
+            let image = ritk_io::read_dicom_series::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("DICOM read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
 
-    Err(PyIOError::new_err(format!(
-        "Unsupported path '{}'. Supported: \
-         .nii, .nii.gz (NIfTI), .png (single PNG slice), \
-         .mha, .mhd (MetaImage), .nrrd (NRRD), \
-         or a directory containing a DICOM series.",
-        path
-    )))
+        if path_lower.ends_with(".tif") || path_lower.ends_with(".tiff") {
+            let image = ritk_io::read_tiff::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("TIFF read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
+
+        if path_lower.ends_with(".vtk") {
+            let image = ritk_io::read_vtk::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("VTK read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
+
+        if path_lower.ends_with(".mgh") || path_lower.ends_with(".mgz") {
+            let image = ritk_io::read_mgh::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("MGH read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
+
+        if path_lower.ends_with(".hdr") || path_lower.ends_with(".img") {
+            let image = ritk_io::read_analyze::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("Analyze read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
+
+        if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
+            let image = ritk_io::read_jpeg::<Backend, _>(p, &device)
+                .map_err(|e| PyIOError::new_err(format!("JPEG read error: {e}")))?;
+            return Ok(into_py_image(image));
+        }
+        Err(PyIOError::new_err(format!(
+            "Unsupported path '{}'. Supported: \
+             .nii, .nii.gz (NIfTI), .png (single PNG slice), \
+             .mha, .mhd (MetaImage), .nrrd (NRRD), \
+             or a directory containing a DICOM series.",
+            path_owned
+        )))
+    })
 }
 
 // ── Public pyfunction: write_image ────────────────────────────────────────────
@@ -104,6 +143,11 @@ pub fn read_image(path: &str) -> PyResult<PyImage> {
 /// - NIfTI     (.nii, .nii.gz)
 /// - MetaImage (.mha, .mhd)
 /// - NRRD      (.nrrd)
+/// - TIFF      (.tif, .tiff)
+/// - VTK       (.vtk)
+/// - MGH       (.mgh, .mgz)
+/// - Analyze   (.hdr)
+/// - JPEG      (.jpg, .jpeg)
 ///
 /// Args:
 ///     image: PyImage to write.
@@ -112,39 +156,73 @@ pub fn read_image(path: &str) -> PyResult<PyImage> {
 /// Raises:
 ///     IOError: on write failure or unsupported format.
 #[pyfunction]
-pub fn write_image(image: &PyImage, path: &str) -> PyResult<()> {
-    let path_lower = path.to_lowercase();
+pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> PyResult<()> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let path_owned = path.to_string();
 
-    if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
-        ritk_io::write_nifti(path, image.inner.as_ref())
-            .map_err(|e| PyIOError::new_err(format!("NIfTI write error: {e}")))?;
-        return Ok(());
-    }
+    py.allow_threads(move || {
+        let path_lower = path_owned.to_lowercase();
 
-    if path_lower.ends_with(".png") {
-        return Err(PyIOError::new_err(
-            "PNG write is not yet implemented in ritk-io. \
-             Use .nii, .nii.gz, .mha, .mhd, or .nrrd instead.",
-        ));
-    }
+        if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
+            ritk_io::write_nifti(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("NIfTI write error: {e}")))?;
+            return Ok(());
+        }
 
-    if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
-        ritk_io::write_metaimage(path, image.inner.as_ref())
-            .map_err(|e| PyIOError::new_err(format!("MetaImage write error: {e}")))?;
-        return Ok(());
-    }
+        if path_lower.ends_with(".png") {
+            return Err(PyIOError::new_err(
+                "PNG write is not yet implemented in ritk-io. \
+                 Use .nii, .nii.gz, .mha, .mhd, or .nrrd instead.",
+            ));
+        }
 
-    if path_lower.ends_with(".nrrd") {
-        ritk_io::write_nrrd(path, image.inner.as_ref())
-            .map_err(|e| PyIOError::new_err(format!("NRRD write error: {e}")))?;
-        return Ok(());
-    }
+        if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
+            ritk_io::write_metaimage(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("MetaImage write error: {e}")))?;
+            return Ok(());
+        }
 
-    Err(PyIOError::new_err(format!(
-        "Unsupported write extension for path '{}'. \
-         Supported write formats: .nii, .nii.gz, .mha, .mhd, .nrrd",
-        path
-    )))
+        if path_lower.ends_with(".nrrd") {
+            ritk_io::write_nrrd(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("NRRD write error: {e}")))?;
+            return Ok(());
+        }
+
+        if path_lower.ends_with(".tif") || path_lower.ends_with(".tiff") {
+            ritk_io::write_tiff(image.as_ref(), &path_owned)
+                .map_err(|e| PyIOError::new_err(format!("TIFF write error: {e}")))?;
+            return Ok(());
+        }
+
+        if path_lower.ends_with(".vtk") {
+            ritk_io::write_vtk(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("VTK write error: {e}")))?;
+            return Ok(());
+        }
+
+        if path_lower.ends_with(".mgh") || path_lower.ends_with(".mgz") {
+            ritk_io::write_mgh(image.as_ref(), &path_owned)
+                .map_err(|e| PyIOError::new_err(format!("MGH write error: {e}")))?;
+            return Ok(());
+        }
+
+        if path_lower.ends_with(".hdr") {
+            ritk_io::write_analyze(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("Analyze write error: {e}")))?;
+            return Ok(());
+        }
+
+        if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
+            ritk_io::write_jpeg(&path_owned, image.as_ref())
+                .map_err(|e| PyIOError::new_err(format!("JPEG write error: {e}")))?;
+            return Ok(());
+        }
+        Err(PyIOError::new_err(format!(
+            "Unsupported write extension for path '{}'. \
+             Supported write formats: .nii, .nii.gz, .mha, .mhd, .nrrd",
+            path_owned
+        )))
+    })
 }
 
 // ── Public pyfunction: read_transform ─────────────────────────────────────────

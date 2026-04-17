@@ -14,6 +14,8 @@
 //! | `watershed`          | Watershed flooding segmentation                |
 //! | `kmeans`             | K-Means intensity clustering                   |
 //! | `distance-transform` | Euclidean distance transform of binary mask     |
+//! | `fill-holes`          | 6-connected binary hole fill                    |
+//! | `morphological-gradient` | Morphological gradient (dilation - erosion)  |
 //!
 //! # Output
 //! - `otsu`, `li`, `yen`, `kapur`, `triangle`: binary mask (0.0 / 1.0) + printed threshold.
@@ -29,9 +31,9 @@ use std::path::PathBuf;
 use tracing::info;
 
 use ritk_core::segmentation::{
-    connected_threshold, multi_otsu_threshold, otsu_threshold, KMeansSegmentation, KapurThreshold,
-    LiThreshold, MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, WatershedSegmentation,
-    YenThreshold,
+    connected_threshold, multi_otsu_threshold, otsu_threshold, BinaryFillHoles, KMeansSegmentation,
+    KapurThreshold, LiThreshold, MorphologicalGradient, MorphologicalOperation, MultiOtsuThreshold,
+    OtsuThreshold, TriangleThreshold, WatershedSegmentation, YenThreshold,
 };
 
 use super::{read_image, write_image_inferred, Backend};
@@ -77,6 +79,21 @@ pub struct SegmentArgs {
     /// Example: `--seed 4,5,6` sets z=4, y=5, x=6.
     #[arg(long, value_name = "Z,Y,X")]
     pub seed: Option<String>,
+
+    // -- Confidence-connected -----------------------------------------------
+    /// Multiplier k for adaptive k*sigma window in confidence-connected region growing.
+    #[arg(long, default_value = "2.5", value_name = "FLOAT")]
+    pub multiplier: f32,
+
+    /// Maximum iterations for confidence-connected region growing.
+    #[arg(long, default_value = "15", value_name = "INT")]
+    pub max_iterations: usize,
+
+    // -- Neighborhood-connected ---------------------------------------------
+    /// Neighbourhood half-radius (uniform, all 3 axes) for neighborhood-connected.
+    /// Radius 1 => 3x3x3 neighbourhood.
+    #[arg(long, default_value = "1", value_name = "INT")]
+    pub neighborhood_radius: usize,
 }
 
 // ── Seed parsing ──────────────────────────────────────────────────────────────
@@ -157,10 +174,17 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         "watershed" => run_watershed(&args),
         "kmeans" => run_kmeans(&args),
         "distance-transform" => run_distance_transform(&args),
+        "fill-holes" => run_fill_holes(&args),
+        "morphological-gradient" => run_morphological_gradient(&args),
+        "confidence-connected" => run_confidence_connected(&args),
+        "neighborhood-connected" => run_neighborhood_connected(&args),
+        "skeletonization" => run_skeletonization(&args),
         other => Err(anyhow!(
             "Unknown segmentation method '{other}'. \
              Supported methods: otsu, multi-otsu, connected-threshold, \
-             li, yen, kapur, triangle, watershed, kmeans, distance-transform."
+             li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
+             fill-holes, morphological-gradient, confidence-connected, \
+             neighborhood-connected, skeletonization."
         )),
     }
 }
@@ -552,7 +576,191 @@ fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
+/// Apply binary hole filling.
+///
+/// The input must be a binary mask (0.0 / 1.0). All background voxels not
+/// reachable from the border are converted to foreground.
+fn run_fill_holes(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+    let filled = BinaryFillHoles.apply(&image);
+
+    write_image_inferred(&args.output, &filled)?;
+
+    println!(
+        "Segmented {} (fill-holes) -> {}",
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input  = %args.input.display(),
+        output = %args.output.display(),
+        "segment: fill-holes complete"
+    );
+
+    Ok(())
+}
+
+/// Apply binary morphological gradient.
+///
+/// Produces a boundary mask from the binary input via dilation AND NOT erosion.
+fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+    let gradient = MorphologicalGradient::new(1).apply(&image);
+
+    write_image_inferred(&args.output, &gradient)?;
+
+    println!(
+        "Segmented {} (morphological-gradient) -> {}",
+        args.input.display(),
+        args.output.display(),
+    );
+
+    info!(
+        input  = %args.input.display(),
+        output = %args.output.display(),
+        "segment: morphological-gradient complete"
+    );
+
+    Ok(())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
+// -- Confidence-connected region growing --------------------------------------
+
+fn run_confidence_connected(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::ConfidenceConnectedFilter;
+
+    let lower = args
+        .lower
+        .ok_or_else(|| anyhow!("--lower is required for confidence-connected"))?;
+    let upper = args
+        .upper
+        .ok_or_else(|| anyhow!("--upper is required for confidence-connected"))?;
+    if lower > upper {
+        return Err(anyhow!("--lower ({lower}) must be <= --upper ({upper})"));
+    }
+    let seed_str = args
+        .seed
+        .as_deref()
+        .ok_or_else(|| anyhow!("--seed is required for confidence-connected (format: Z,Y,X)"))?;
+    let seed =
+        parse_seed(seed_str).with_context(|| format!("Failed to parse --seed '{seed_str}'"))?;
+
+    let image = read_image(&args.input)?;
+    let shape = image.shape();
+    if seed[0] >= shape[0] || seed[1] >= shape[1] || seed[2] >= shape[2] {
+        return Err(anyhow!(
+            "Seed [{},{},{}] is out of bounds for image shape [{}x{}x{}]",
+            seed[0],
+            seed[1],
+            seed[2],
+            shape[0],
+            shape[1],
+            shape[2],
+        ));
+    }
+
+    let filter = ConfidenceConnectedFilter::new(seed, lower, upper)
+        .with_multiplier(args.multiplier)
+        .with_max_iterations(args.max_iterations);
+    let mask = filter.apply(&image);
+    let n_foreground = count_foreground(&mask);
+
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: confidence-connected found {} foreground voxels (seed=[{},{},{}], range=[{:.4},{:.4}], k={})",
+        args.input.display(), n_foreground, seed[0], seed[1], seed[2], lower, upper, args.multiplier,
+    );
+
+    info!(
+        input = %args.input.display(), seed = ?seed, lower = lower, upper = upper,
+        multiplier = args.multiplier, foreground = n_foreground,
+        "segment: confidence-connected complete"
+    );
+    Ok(())
+}
+
+// -- Neighbourhood-connected region growing -----------------------------------
+
+fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::NeighborhoodConnectedFilter;
+
+    let lower = args
+        .lower
+        .ok_or_else(|| anyhow!("--lower is required for neighborhood-connected"))?;
+    let upper = args
+        .upper
+        .ok_or_else(|| anyhow!("--upper is required for neighborhood-connected"))?;
+    if lower > upper {
+        return Err(anyhow!("--lower ({lower}) must be <= --upper ({upper})"));
+    }
+    let seed_str = args
+        .seed
+        .as_deref()
+        .ok_or_else(|| anyhow!("--seed is required for neighborhood-connected (format: Z,Y,X)"))?;
+    let seed =
+        parse_seed(seed_str).with_context(|| format!("Failed to parse --seed '{seed_str}'"))?;
+
+    let image = read_image(&args.input)?;
+    let shape = image.shape();
+    if seed[0] >= shape[0] || seed[1] >= shape[1] || seed[2] >= shape[2] {
+        return Err(anyhow!(
+            "Seed [{},{},{}] is out of bounds for image shape [{}x{}x{}]",
+            seed[0],
+            seed[1],
+            seed[2],
+            shape[0],
+            shape[1],
+            shape[2],
+        ));
+    }
+
+    let r = args.neighborhood_radius;
+    let filter = NeighborhoodConnectedFilter::new(seed, lower, upper).with_radius([r, r, r]);
+    let mask = filter.apply(&image);
+    let n_foreground = count_foreground(&mask);
+
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: neighborhood-connected found {} foreground voxels (seed=[{},{},{}], range=[{:.4},{:.4}], radius={})",
+        args.input.display(), n_foreground, seed[0], seed[1], seed[2], lower, upper, r,
+    );
+
+    info!(
+        input = %args.input.display(), seed = ?seed, lower = lower, upper = upper,
+        radius = r, foreground = n_foreground,
+        "segment: neighborhood-connected complete"
+    );
+    Ok(())
+}
+
+// -- Skeletonization ----------------------------------------------------------
+
+fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::Skeletonization;
+
+    let image = read_image(&args.input)?;
+    let skeleton = Skeletonization::new().apply::<_, 3>(&image);
+    let n_skeleton = count_foreground(&skeleton);
+
+    write_image_inferred(&args.output, &skeleton)?;
+
+    println!(
+        "Computed skeleton for {} -> {} ({} skeleton voxels)",
+        args.input.display(),
+        args.output.display(),
+        n_skeleton,
+    );
+
+    info!(
+        input = %args.input.display(), output = %args.output.display(),
+        skeleton = n_skeleton, "segment: skeletonization complete"
+    );
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {
@@ -685,6 +893,9 @@ mod tests {
             lower: None,
             upper: None,
             seed: None,
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         }
     }
 
@@ -858,6 +1069,9 @@ mod tests {
             lower: Some(100.0),
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         })
         .unwrap();
 
@@ -888,6 +1102,9 @@ mod tests {
             lower: Some(100.0),
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         })
         .unwrap();
 
@@ -1156,6 +1373,9 @@ mod tests {
             lower: None,
             upper: None,
             seed: None,
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "unknown method must return Err");
@@ -1183,6 +1403,9 @@ mod tests {
             lower: None, // deliberately omitted
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "missing --lower must yield an error");
@@ -1210,6 +1433,9 @@ mod tests {
             lower: Some(100.0),
             upper: None, // deliberately omitted
             seed: Some("2,2,2".to_string()),
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "missing --upper must yield an error");
@@ -1237,6 +1463,9 @@ mod tests {
             lower: Some(100.0),
             upper: Some(255.0),
             seed: None, // deliberately omitted
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "missing --seed must yield an error");
@@ -1264,6 +1493,9 @@ mod tests {
             lower: Some(255.0),
             upper: Some(100.0), // lower > upper
             seed: Some("2,2,2".to_string()),
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "lower > upper must yield an error");
@@ -1293,6 +1525,9 @@ mod tests {
             lower: Some(100.0),
             upper: Some(255.0),
             seed: Some("99,99,99".to_string()), // far out of [5,5,5] bounds
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "out-of-bounds seed must yield an error");
@@ -1320,6 +1555,9 @@ mod tests {
             lower: Some(100.0),
             upper: Some(255.0),
             seed: Some("2,2".to_string()), // only two components
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "malformed seed must yield an error");
@@ -1347,6 +1585,9 @@ mod tests {
             lower: None,
             upper: None,
             seed: None,
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
         });
 
         assert!(result.is_err(), "classes < 2 must yield an error");
@@ -1507,5 +1748,258 @@ mod tests {
                 "all-background image must have EDT=0 everywhere, got {v}"
             );
         }
+    }
+
+    // -- confidence-connected: positive ---------------------------------------
+
+    #[test]
+    fn test_segment_confidence_connected_grows_region() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        // make_sphere_image: 5x5x5, center [2,2,2] and 6 neighbors have value 200.0, rest 10.0
+        let mut args = default_args(input.clone(), output.clone(), "confidence-connected");
+        args.lower = Some(150.0);
+        args.upper = Some(250.0);
+        args.seed = Some("2,2,2".to_string());
+        run(args).unwrap();
+
+        assert!(output.exists(), "output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "shape must match input");
+        let n_fg = count_foreground(&mask);
+        assert!(n_fg > 0, "must find at least one foreground voxel, got 0");
+    }
+
+    #[test]
+    fn test_segment_confidence_connected_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "confidence-connected");
+        args.lower = Some(150.0);
+        args.upper = Some(250.0);
+        args.seed = Some("2,2,2".to_string());
+        run(args).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = mask.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "all voxels must be 0.0 or 1.0, found {v}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_segment_confidence_connected_missing_lower_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        let mut args = default_args(input, output, "confidence-connected");
+        args.upper = Some(1.5);
+        args.seed = Some("2,2,2".to_string());
+        let result = run(args);
+        assert!(result.is_err(), "--lower missing must produce an error");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("--lower"),
+            "error must mention --lower, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_segment_confidence_connected_missing_upper_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        let mut args = default_args(input, output, "confidence-connected");
+        args.lower = Some(0.5);
+        args.seed = Some("2,2,2".to_string());
+        let result = run(args);
+        assert!(result.is_err(), "--upper missing must produce an error");
+    }
+
+    #[test]
+    fn test_segment_confidence_connected_missing_seed_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        let mut args = default_args(input, output, "confidence-connected");
+        args.lower = Some(0.5);
+        args.upper = Some(1.5);
+        let result = run(args);
+        assert!(result.is_err(), "--seed missing must produce an error");
+    }
+
+    // -- neighborhood-connected: positive -------------------------------------
+
+    #[test]
+    fn test_segment_neighborhood_connected_grows_region() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        // make_sphere_image: 5x5x5, center=200.0, rest=10.0.
+        // NeighborhoodConnected requires ALL voxels in the 3x3x3 neighbourhood to
+        // satisfy bounds. Use full range [0, 250] so both 10.0 and 200.0 qualify,
+        // allowing the region to grow from seed [2,2,2].
+        let mut args = default_args(input.clone(), output.clone(), "neighborhood-connected");
+        args.lower = Some(0.0);
+        args.upper = Some(250.0);
+        args.seed = Some("2,2,2".to_string());
+        run(args).unwrap();
+
+        assert!(output.exists(), "output mask must be created");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5]);
+        let n_fg = count_foreground(&mask);
+        assert!(n_fg > 0, "must find foreground voxels, got 0");
+    }
+
+    #[test]
+    fn test_segment_neighborhood_connected_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "neighborhood-connected");
+        args.lower = Some(0.0);
+        args.upper = Some(250.0);
+        args.seed = Some("2,2,2".to_string());
+        run(args).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = mask.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "all voxels must be 0.0 or 1.0, found {v}"
+            );
+        }
+    }
+
+    // -- skeletonization: positive --------------------------------------------
+
+    #[test]
+    fn test_segment_skeletonization_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("skeleton.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        run(default_args(
+            input.clone(),
+            output.clone(),
+            "skeletonization",
+        ))
+        .unwrap();
+
+        assert!(output.exists(), "skeleton output must be created");
+        let skel = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(skel.shape(), [5, 5, 5], "skeleton shape must match input");
+    }
+
+    #[test]
+    fn test_segment_skeletonization_strictly_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("skeleton.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        run(default_args(
+            input.clone(),
+            output.clone(),
+            "skeletonization",
+        ))
+        .unwrap();
+
+        let skel = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = skel.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "skeleton voxels must be 0.0 or 1.0, found {v}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_segment_fill_holes_fills_enclosed_cavity() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("filled.nii");
+
+        let mut mask = make_binary_image();
+        {
+            let td = mask.data().clone().into_data();
+            let mut values = td.as_slice::<f32>().unwrap().to_vec();
+            let center = 1 * 4 * 4 + 1 * 4 + 1;
+            values[center] = 0.0;
+            let device: <Backend as BurnBackend>::Device = Default::default();
+            let td = TensorData::new(values, Shape::new([4, 4, 4]));
+            let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+            mask = Image::new(
+                tensor,
+                Point::new([0.0; 3]),
+                Spacing::new([1.0; 3]),
+                Direction::identity(),
+            );
+        }
+
+        ritk_io::write_nifti(&input, &mask).unwrap();
+        run(default_args(input.clone(), output.clone(), "fill-holes")).unwrap();
+
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+
+        assert_eq!(vals.len(), 64);
+        assert!(
+            vals.iter().all(|&v| v == 1.0),
+            "fill-holes must convert the enclosed cavity to foreground"
+        );
+    }
+
+    #[test]
+    fn test_segment_morphological_gradient_extracts_boundary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("gradient.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        run(default_args(
+            input.clone(),
+            output.clone(),
+            "morphological-gradient",
+        ))
+        .unwrap();
+
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+
+        assert_eq!(vals.len(), 125);
+        assert!(
+            vals.iter().any(|&v| v == 1.0),
+            "morphological gradient must contain boundary voxels"
+        );
+        assert!(
+            vals.iter().all(|&v| v == 0.0 || v == 1.0),
+            "morphological gradient must be binary"
+        );
     }
 }

@@ -7,6 +7,8 @@
 
 ## Update Note
 
+**Sprint 21 (2025-07-XX):** `BinaryFillHoles` (6-connected border flood-fill) and `MorphologicalGradient` (dilation AND NOT erosion) added to `ritk-core/src/segmentation/morphology/`. `multires_demons_register` Python binding and `multires-demons` CLI method added. DICOM binary writer replaced with real `InMemDicomObject` + `FileMetaTableBuilder` implementation; DICM magic verified.
+
 `Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, and VTK.
 
 ---
@@ -156,13 +158,13 @@ imaging workflows:
 
 | Gap Domain | Severity | ITK Parity | SimpleITK Parity | ANTs Parity | VTK / DICOM Relevance |
 |---|---|---|---|---|---|
-| Segmentation | **High** | ~40% | ~40% | ~40% | ITK / SimpleITK: still missing a broad set of region, deformable, and topology-preserving operators |
+| Segmentation | **High** | ~45% | ~45% | ~45% | ITK / SimpleITK: still missing a broad set of region, deformable, and topology-preserving operators |
 | Filtering & Preprocessing | **High** | ~55% | ~55% | ~55% | ITK / SimpleITK: still missing the long tail of multiscale, PDE, and topology-aware filters |
 | Diffeomorphic Registration | **Medium** | ~85% | ~85% | ~85% | ANTs: still lacking exact-inverse Demons and some production-grade inverse-consistency controls |
 | Statistics & Normalization | **Medium** | ~55% | ~55% | ~55% | SimpleITK: broad utilities remain, but core normalization coverage is now substantial |
-| IO Formats | **Medium** | ~55% | ~55% | ~55% | ITK / VTK / DICOM: still missing full codec breadth, mesh/scene formats, and deep DICOM object coverage |
+| IO Formats | **Medium** | ~58% | ~58% | ~58% | ITK / VTK / DICOM: still missing full codec breadth, mesh/scene formats, and deep DICOM object coverage |
 | DICOM Read Metadata | **Medium** | N/A | N/A | N/A | DICOM: add series-level and slice-level metadata capture as a stable boundary for future round-trip support |
-| Python / CLI Bindings | **Low** | ~90% | ~90% | ~90% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
+| Python / CLI Bindings | **Low** | ~92% | ~92% | ~92% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
 Filtering & Preprocessing from Critical to High severity. Addition of Thirion/Diffeomorphic/
@@ -510,7 +512,7 @@ Used for tissue class initialization (CSF / GM / WM in brain MRI).
 
 **Planned location:** `crates/ritk-core/src/segmentation/clustering/kmeans.rs`
 
-### 3.6 Morphological Operations · Severity: **Critical**
+### 3.6 Morphological Operations · Severity: **Low**
 
 Essential post-processing for every segmentation pipeline.
 
@@ -520,10 +522,10 @@ Essential post-processing for every segmentation pipeline.
 | Dilation | `(A ⊕ B)(x) = max_{b∈B} A(x-b)` |
 | Opening | `A ∘ B = (A ⊖ B) ⊕ B` |
 | Closing | `A • B = (A ⊕ B) ⊖ B` |
-| Morphological gradient | `(A ⊕ B) − (A ⊖ B)` |
+| Morphological gradient | `(A ⊕ B) − (A ⊖ B)` — ✓ **MorphologicalGradient** (Sprint 21, `ritk-core/src/segmentation/morphology/morphological_gradient.rs`) |
 | Distance transform | Exact Euclidean via Meijster et al. (2000) — ✓ **Implemented** (Sprint 7, `ritk-core/src/segmentation/distance_transform/`, 19 tests) |
 | Skeletonization | Thinning via topology-preserving erosion |
-| Hole filling | Geodesic dilation constrained by mask |
+| Hole filling | Geodesic dilation constrained by mask — ✓ **BinaryFillHoles** (Sprint 21, `ritk-core/src/segmentation/morphology/fill_holes.rs`) |
 | Label voting | Majority vote in structuring element neighborhood |
 
 **Planned location:**
@@ -1077,6 +1079,8 @@ ANTs ships ~40 command-line executables (`antsRegistration`, `N4BiasFieldCorrect
 `antsBrainExtraction.sh`, etc.). SimpleITK ships utility CLIs via `SimpleITK` Python module.
 RITK has no CLI layer.
 
+**Sprint 21:** `multires-demons` method added to `crates/ritk-cli/src/commands/register.rs` with `--levels` (usize, default 3) and `--use-diffeomorphic` (flag) args. 2 new CLI tests added.
+
 **Planned location:**
 ```
 crates/ritk-cli/
@@ -1103,8 +1107,8 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
 | GAP-R01 | SyN registration | **Closed** (Sprint 6) | L | Multi-res SyN + BSplineSyN + inverse consistency |
-| GAP-R02 | Demons family | **C** | M | Fast deformable baseline; lung/cardiac motion standard |
-| GAP-R07 | BSpline FFD pipeline | **H** | M | Prerequisite for non-DL deformable; substrate (BSplineTransform) exists |
+| GAP-R02 | Demons family | **Closed** (Sprint 3) | M | Thirion, Diffeomorphic, Symmetric Demons all implemented |
+| GAP-R07 | BSpline FFD pipeline | **Closed** (Sprint 4) | M | BSplineFFDRegistration implemented |
 | GAP-R03 | LDDMM | **Closed** (Sprint 6) | L | Geodesic shooting via EPDiff, Gaussian RKHS kernel |
 | GAP-R04 | Groupwise/atlas | **Closed** (Sprint 7) | L | Iterative template building via Multi-Res SyN |
 | GAP-R05 | Composite transform I/O | **Closed** (Sprint 6) | S | JSON serialization, TransformDescription enum, round-trip file I/O |
@@ -1114,57 +1118,57 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
-| SEG-01 | Morphological operations | **C** | S | Post-processing for every segmentation output |
-| SEG-02 | Connected component labeling | **C** | S | Lesion counting, volume measurement |
-| SEG-03 | Otsu / multi-Otsu thresholding | **C** | S | Universal first-pass segmentation |
-| SEG-04 | Region growing | **C** | S | Interactive and seeded segmentation |
-| SEG-05 | Image statistics API | **C** | S | Required by normalization, thresholding, reporting |
+| SEG-01 | Morphological operations | **Closed** (Sprint 2) | S | Binary erosion/dilation/opening/closing; grayscale variants |
+| SEG-02 | Connected component labeling | **Closed** (Sprint 2) | S | Hoshen-Kopelman 6/26-connectivity, LabelStatistics |
+| SEG-03 | Otsu / multi-Otsu thresholding | **Closed** (Sprint 2) | S | Otsu, multi-Otsu, Li, Yen, Kapur, Triangle |
+| SEG-04 | Region growing | **Closed** (Sprint 2+10) | S | ConnectedThreshold, ConfidenceConnected, NeighborhoodConnected |
+| SEG-05 | Image statistics API | **Closed** (Sprint 2) | S | compute_statistics, masked stats, Dice, Hausdorff, MSD |
 | SEG-06 | Level set segmentation | **Closed** (Sprint 5) | M | Chan-Vese + Geodesic Active Contour implemented |
-| SEG-07 | Watershed | **M** | S | Cell segmentation, oversegmentation baseline |
-| SEG-08 | K-means clustering | **M** | S | Tissue classification initialization |
+| SEG-07 | Watershed | **Closed** (Sprint 4) | S | Meyer flooding, 6-connectivity |
+| SEG-08 | K-means clustering | **Closed** (Sprint 4) | S | k-means++ init, Lloyd iteration |
 | SEG-DT | Euclidean distance transform | **Closed** (Sprint 7) | S | Meijster 2000, linear-time separable algorithm |
 
 ### 8.3 Filtering
 
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
-| FLT-01 | N4 bias field correction | **C** | M | Required first step for all MRI pipelines |
+| FLT-01 | N4 bias field correction | **Closed** (Sprint 3) | M | Tustison 2010 B-spline Tikhonov, multi-resolution |
 | FLT-02 | Gradient magnitude / Sobel | **Closed** (Sprint 3 + Sprint 5 3D Sobel) | S | Required by level sets, Canny, Frangi |
 | FLT-03 | Median filter | **Closed** (native `Image<B,D>` confirmed, Sprint 5) | S | Salt-and-pepper noise removal |
-| FLT-04 | Recursive Gaussian (Deriche IIR) | **H** | S | O(N) large-σ smoothing, derivative orders |
+| FLT-04 | Recursive Gaussian (Deriche IIR) | **Closed** (Sprint 4) | S | Deriche IIR, derivative orders 0/1/2 |
 | FLT-05 | Bilateral filter | **Closed** (native `Image<B,D>` confirmed, Sprint 5) | S | Edge-preserving denoising |
-| FLT-06 | Frangi vesselness | **H** | M | Vascular / tubular structure enhancement |
-| FLT-07 | Anisotropic diffusion (Perona-Malik) | **H** | S | Structure-preserving noise reduction |
-| FLT-08 | Canny edge detection | **M** | S | Level-set initialization, feature extraction |
-| FLT-09 | Morphological filters (preprocessing) | **H** | S | Artifact removal before segmentation |
-| FLT-10 | Laplacian / LoG | **M** | S | Blob detection, sharpening |
+| FLT-06 | Frangi vesselness | **Closed** (Sprint 3+11) | M | Frangi 1998 multiscale + Sato 1998 line filter |
+| FLT-07 | Anisotropic diffusion (Perona-Malik) | **Closed** (Sprint 3+11) | S | Perona-Malik + curvature anisotropic diffusion |
+| FLT-08 | Canny edge detection | **Closed** (Sprint 4) | S | Gaussian + gradient + NMS + hysteresis |
+| FLT-09 | Morphological filters (preprocessing) | **Closed** (Sprint 4) | S | GrayscaleErosion, GrayscaleDilation (flat cubic SE) |
+| FLT-10 | Laplacian / LoG | **Closed** (Sprint 3+4) | S | LaplacianFilter, LaplacianOfGaussianFilter |
 
 ### 8.4 Statistics & Preprocessing
 
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
-| STA-01 | Image statistics API | **C** | S | Foundation for all normalization methods |
-| STA-02 | Histogram matching | **C** | S | Mandatory in multi-atlas pipelines |
-| STA-03 | Z-score / min-max normalization | **C** | S | Universal DL preprocessing step |
-| STA-04 | Nyúl & Udupa normalization | **H** | S | Multi-site MRI standardization |
-| STA-05 | Label statistics | **H** | S | Quantitative reporting on segmentations |
-| STA-06 | Noise estimation (MAD) | **M** | S | Adaptive regularization parameter setting |
-| STA-07 | Image comparison metrics (Dice, HD) | **H** | S | Segmentation evaluation |
-| STA-08 | PSNR / SSIM | **M** | S | Image reconstruction quality |
+| STA-01 | Image statistics API | **Closed** (Sprint 2) | S | compute_statistics, masked stats, Dice, Hausdorff, MSD |
+| STA-02 | Histogram matching | **Closed** (Sprint 2) | S | HistogramMatcher piecewise linear mapping |
+| STA-03 | Z-score / min-max normalization | **Closed** (Sprint 2) | S | ZScoreNormalizer, MinMaxNormalizer |
+| STA-04 | Nyul-Udupa normalization | **Closed** (Sprint 4) | S | Two-phase train/apply piecewise-linear standardization |
+| STA-05 | Label statistics | **Closed** (Sprint 2) | S | LabelStatistics: count, centroid, bounding box per component |
+| STA-06 | Noise estimation (MAD) | **Closed** (Sprint 4) | S | estimate_noise_mad, estimate_noise_mad_masked |
+| STA-07 | Image comparison metrics (Dice, HD) | **Closed** (Sprint 2) | S | Dice, Hausdorff, mean surface distance |
+| STA-08 | PSNR / SSIM | **Closed** (Sprint 4) | S | PSNR, SSIM Wang et al. 2004 |
 | STA-09 | White stripe normalization | **Closed** (Sprint 7) | S | KDE-based WM peak detection (Shinohara 2014) |
 
 ### 8.5 IO
 
 | Gap ID | Feature | Priority | Effort | Justification |
 |---|---|---|---|---|
-| IO-01 | MetaImage (.mha/.mhd) | **C** | S | Default ITK format; Learn2Reg / MSD benchmarks |
-| IO-02 | NRRD | **H** | S | 3D Slicer interoperability |
+| IO-01 | MetaImage (.mha/.mhd) | **Closed** (Sprint 2) | S | Full round-trip, ZYX/XYZ permutation, external data file |
+| IO-02 | NRRD | **Closed** (Sprint 2) | S | Full round-trip, space directions, space origin |
 | IO-03 | TIFF / BigTIFF | **Closed** (Sprint 6) | M | Multi-page z-stack, u8/u16/u32/f32/f64 |
-| IO-04 | MINC (.mnc2) | **H** | M | ANTs/MNI atlas format |
+| IO-04 | MINC (.mnc2) | **Closed** (Sprint 13) | M | consus-hdf5 pure-Rust HDF5 parsing |
 | IO-05 | MGZ / MGH | **Closed** (Sprint 7) | S | FreeSurfer format, gzip compression, 4 data types |
-| IO-06 | VTK image | **M** | S | ParaView visualization export |
-| IO-07 | Analyze (.hdr/.img) | **L** | S | Legacy format backward compatibility |
-| IO-08 | JPEG 2D | **L** | S | DICOM secondary capture compatibility |
+| IO-06 | VTK image | **Closed** (Sprint 8) | S | Legacy structured-points ASCII/BINARY |
+| IO-07 | Analyze (.hdr/.img) | **Closed** (Sprint 2) | S | Full round-trip hdr/img pair |
+| IO-08 | JPEG 2D | **Closed** (Sprint 8) | S | Grayscale read/write, [1,H,W] representation |
 
 ### 8.6 Python / CLI Bindings
 
@@ -1173,7 +1177,7 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | PY-01 | PyO3 Python module (`ritk-python`) | **C** | M | Categorical adoption blocker |
 | PY-02 | NumPy array ↔ Image bridge | **C** | S | Required for DL pipeline integration |
 | PY-03 | Python image I/O (`read_image`) | **C** | S | First function any user calls |
-| PY-04 | Python filter API | **H** | S | N4, Gaussian, threshold from Python |
+| PY-04 | Python filter API | **Closed** (Sprint 20) | S | 16 filter functions including curvature and sato |
 | PY-05 | Python registration API | **Closed** (Sprint 6 — 8 registration functions exposed) | M | BSpline FFD, Multi-Res SyN, BSpline SyN, LDDMM added |
 | PY-06 | Python segmentation API | **Closed** (Sprint 5 — all 16 segmentation algorithms exposed) | M | Full Python segmentation surface |
 | PY-07 | CLI tooling (`ritk-cli`) | **M** | M | Shell-script pipeline integration |

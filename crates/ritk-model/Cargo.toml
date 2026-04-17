@@ -5,13 +5,13 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
-burn = { version = "0.19", features = ["wgpu", "autodiff"] }
-anyhow = "1.0"
-thiserror = "2.0"
-bytemuck = "1.0"
-tracing = "0.1"
-onnx-ir = "0.20.1"
-tempfile = "3.10"
+burn = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+bytemuck = { workspace = true }
+tracing = { workspace = true }
+onnx-ir = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = "0.19"
+burn-ndarray = { workspace = true }

@@ -36,15 +36,66 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
         timeout-minutes: 10
 
-  test:
-    name: Test Suite
+  dependency-alignment:
+    name: Workspace Dependency Alignment
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Enforce workspace dependency inheritance
+        run: cargo metadata --format-version 1 --no-deps > /tmp/metadata.json && python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          root = pathlib.Path.cwd()
+          metadata = json.loads(pathlib.Path("/tmp/metadata.json").read_text())
+          workspace_root = pathlib.Path(metadata["workspace_root"])
+          failures = []
+
+          for package in metadata["packages"]:
+              manifest_path = pathlib.Path(package["manifest_path"])
+              if manifest_path.parent == workspace_root:
+                  continue
+
+              text = manifest_path.read_text()
+              for dep in package["dependencies"]:
+                  source = dep.get("source")
+                  path = dep.get("path")
+                  if path is not None:
+                      continue
+                  if source is None:
+                      continue
+
+                  name = dep["name"]
+                  if f"{name} = {{ workspace = true" not in text and f"{name}={{ workspace = true" not in text:
+                      failures.append(f"{manifest_path.relative_to(workspace_root)}: dependency '{name}' is not inherited from workspace")
+
+          if failures:
+              print("Workspace dependency alignment check failed:")
+              for failure in failures:
+                  print(f" - {failure}")
+              sys.exit(1)
+
+          print("Workspace dependency alignment check passed.")
+          PY
+
+  test:
+    name: Test Suite (nextest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: dependency-alignment
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@cargo-nextest
 
       - name: Cache Cargo registry and build artifacts
         uses: actions/cache@v4
@@ -58,8 +109,8 @@ jobs:
           restore-keys: |
             cargo-ubuntu-stable-
 
-      - name: Run tests
-        run: cargo test --workspace --lib --tests
+      - name: Run tests with nextest
+        run: cargo nextest run --workspace --lib --tests
 
   python-wheel:
     name: Python Wheel (smoke test)

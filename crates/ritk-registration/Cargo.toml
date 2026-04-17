@@ -6,20 +6,20 @@ edition = "2021"
 [dependencies]
 ritk-core = { path = "../ritk-core" }
 ritk-model = { path = "../ritk-model" }
-burn = { version = "0.19", features = ["wgpu", "autodiff"] }
-anyhow = "1.0"
-thiserror = "2.0"
-tracing = "0.1"
-ndarray = { version = "0.16", features = ["rayon"] }
-nalgebra = "0.33"
+burn = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+ndarray = { workspace = true }
+nalgebra = { workspace = true }
 
 [dev-dependencies]
-burn-ndarray = "0.19"
-nalgebra = { version = "0.33", features = ["serde-serialize"] }
+burn-ndarray = { workspace = true }
+nalgebra = { workspace = true }
 ritk-io = { path = "../ritk-io" }
-anyhow = "1.0"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-walkdir = "2.4"
+anyhow = { workspace = true }
+tracing-subscriber = { workspace = true }
+walkdir = { workspace = true }
 
 [[example]]
 name = "rigid_registration"

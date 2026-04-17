@@ -122,10 +122,8 @@ pub(crate) fn write_image(path: &Path, image: &Image<Backend, 3>, format: &str) 
             "PNG output is not supported: ritk-io has no write_png implementation. \
              Convert to NIfTI, MetaImage, or NRRD instead."
         )),
-        "dicom" => Err(anyhow!(
-            "DICOM output is not supported: ritk-io currently provides read-only series loading. \
-             Convert to NIfTI, MetaImage, or NRRD instead."
-        )),
+        "dicom" => ritk_io::write_dicom_series::<Backend, _>(path, image)
+            .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
         "vtk" => ritk_io::write_vtk::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write VTK file: {}", path.display())),
         "jpeg" => ritk_io::write_jpeg::<Backend, _>(path, image)
@@ -265,27 +263,20 @@ mod tests {
     }
 
     #[test]
-    fn test_write_image_dicom_returns_err() {
+    fn test_write_image_dicom_creates_directory() {
         use burn::tensor::{Shape, Tensor, TensorData};
         use ritk_core::image::Image;
         use ritk_core::spatial::{Direction, Point, Spacing};
-
+        let dir = tempfile::tempdir().unwrap();
+        let out_path = dir.path().join("dicom_series");
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(
-            tensor,
-            Point::new([0.0; 3]),
-            Spacing::new([1.0; 3]),
-            Direction::identity(),
-        );
-        let result = write_image(Path::new("out.dcm"), &image, "dicom");
-        assert!(result.is_err(), "DICOM write must return an error");
-        let msg = result.unwrap_err().to_string();
-        assert!(
-            msg.contains("DICOM output is not supported"),
-            "error message must explain DICOM limitation, got: {msg}"
-        );
+        let image = Image::new(tensor, Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]), Direction::identity());
+        let result = write_image(&out_path, &image, "dicom");
+        assert!(result.is_ok(), "DICOM write must succeed: {:?}", result.err());
+        assert!(out_path.is_dir(), "DICOM output directory must exist");
     }
 
     #[test]

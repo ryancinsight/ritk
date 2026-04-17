@@ -9,6 +9,7 @@
 //! - **Diffeomorphic Demons** (`diffeomorphic_demons_register`) — `DiffeomorphicDemonsRegistration`
 //! - **Symmetric Demons** (`symmetric_demons_register`) — `SymmetricDemonsRegistration`
 //! - **Greedy SyN** (`syn_register`) — `SyNRegistration`
+//! - **Multi-Resolution Demons** (`multires_demons_register`) — `MultiResDemonsRegistration`
 
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
@@ -19,8 +20,8 @@ use ritk_registration::atlas::label_fusion::{
 use ritk_registration::atlas::{AtlasConfig, AtlasRegistration};
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration};
 use ritk_registration::demons::{
-    DemonsConfig, DiffeomorphicDemonsRegistration, SymmetricDemonsRegistration,
-    ThirionDemonsRegistration,
+    DemonsConfig, DiffeomorphicDemonsRegistration, MultiResDemonsConfig,
+    MultiResDemonsRegistration, SymmetricDemonsRegistration, ThirionDemonsRegistration,
 };
 use ritk_registration::diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration};
 use ritk_registration::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
@@ -284,6 +285,100 @@ pub fn symmetric_demons_register(
     Ok((into_py_image(warped_image), into_py_image(disp_image)))
 }
 
+
+// ── multires_demons_register ─────────────────────────────────────────────────
+
+/// Register a moving image to a fixed image using multi-resolution Demons.
+///
+/// Coarse-to-fine pyramid with warm-started displacement injection.
+/// Supports both Thirion (classic) and Diffeomorphic variants.
+///
+/// Args:
+///     fixed:              Fixed (reference) image.
+///     moving:             Moving image to register.
+///     max_iterations:     Base iteration count (scaled per pyramid level, default 50).
+///     sigma_diffusion:    Displacement field Gaussian smoothing sigma in voxels (default 1.0).
+///     levels:             Number of pyramid levels >= 1 (default 3). With 3 levels,
+///                         downsampling factors are [4, 2, 1].
+///     use_diffeomorphic:  When True, use DiffeomorphicDemons at each level (default False).
+///     n_squarings:        Scaling-and-squaring steps when use_diffeomorphic=True (default 6).
+///
+/// Returns:
+///     (warped_moving, displacement_field) — same convention as demons_register.
+///     displacement_field has shape [3·Z, Y, X].
+///
+/// Raises:
+///     RuntimeError: if image shapes do not match or registration fails.
+#[pyfunction]
+#[pyo3(signature = (fixed, moving, max_iterations=50, sigma_diffusion=1.0, levels=3, use_diffeomorphic=false, n_squarings=6))]
+pub fn multires_demons_register(
+    py: Python<'_>,
+    fixed: &PyImage,
+    moving: &PyImage,
+    max_iterations: usize,
+    sigma_diffusion: f64,
+    levels: usize,
+    use_diffeomorphic: bool,
+    n_squarings: usize,
+) -> PyResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+
+    if fixed_shape != moving_shape {
+        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+            "fixed shape {:?} != moving shape {:?}; images must have identical shapes",
+            fixed_shape, moving_shape
+        )));
+    }
+
+    let fixed_origin = fixed.inner.origin().clone();
+    let fixed_spacing = fixed.inner.spacing().clone();
+    let fixed_direction = fixed.inner.direction().clone();
+    let [nz, ny, nx] = fixed_shape;
+
+    let result = py
+        .allow_threads(|| {
+            let config = MultiResDemonsConfig {
+                base_config: DemonsConfig {
+                    max_iterations,
+                    sigma_diffusion,
+                    sigma_fluid: 0.0,
+                    max_step_length: 2.0,
+                },
+                levels,
+                use_diffeomorphic,
+                n_squarings,
+            };
+            MultiResDemonsRegistration::new(config)
+                .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+
+    let warped_image = vec_to_image(
+        result.warped,
+        fixed_shape,
+        fixed_origin,
+        fixed_spacing,
+        fixed_direction,
+    );
+
+    let n = nz * ny * nx;
+    let mut disp_packed = Vec::with_capacity(3 * n);
+    disp_packed.extend_from_slice(&result.disp_z);
+    disp_packed.extend_from_slice(&result.disp_y);
+    disp_packed.extend_from_slice(&result.disp_x);
+
+    let disp_image = vec_to_image(
+        disp_packed,
+        [3 * nz, ny, nx],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
+
+    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+}
 // ── syn_register ──────────────────────────────────────────────────────────────
 
 /// Register a moving image to a fixed image using greedy SyN.
@@ -1026,6 +1121,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(diffeomorphic_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(symmetric_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(multires_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(syn_register, &m)?)?;
     m.add_function(wrap_pyfunction!(bspline_ffd_register, &m)?)?;
     m.add_function(wrap_pyfunction!(multires_syn_register, &m)?)?;
