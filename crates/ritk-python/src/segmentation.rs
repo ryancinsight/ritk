@@ -19,6 +19,8 @@
 //! - **Binary closing** → `ritk_core::segmentation::BinaryClosing`
 //! - **Chan-Vese level set** → `ritk_core::segmentation::ChanVeseSegmentation`
 //! - **Geodesic Active Contour** → `ritk_core::segmentation::GeodesicActiveContourSegmentation`
+//! - **Shape Detection level set** → `ritk_core::segmentation::ShapeDetectionSegmentation`
+//! - **Threshold Level Set** → `ritk_core::segmentation::ThresholdLevelSet`
 //! - **Confidence-connected region growing** → `ritk_core::segmentation::ConfidenceConnectedFilter`
 //! - **Neighbourhood-connected region growing** → `ritk_core::segmentation::NeighborhoodConnectedFilter`
 //! - **Skeletonization** → `ritk_core::segmentation::Skeletonization`
@@ -33,10 +35,10 @@ use ritk_core::segmentation::{
     connected_components as core_connected_components,
     connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
     BinaryOpening, ChanVeseSegmentation, GeodesicActiveContourSegmentation, KMeansSegmentation,
-    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold,
+    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold, ShapeDetectionSegmentation,
     BinaryFillHoles, ConfidenceConnectedFilter, MorphologicalGradient,
     NeighborhoodConnectedFilter, Skeletonization,
-    TriangleThreshold, WatershedSegmentation, YenThreshold,
+    TriangleThreshold, ThresholdLevelSet, WatershedSegmentation, YenThreshold,
 };
 use std::sync::Arc;
 
@@ -565,6 +567,108 @@ pub fn geodesic_active_contour_segment(
     Ok(into_py_image(result))
 }
 
+// ── shape_detection_segment ──────────────────────────────────────────────────
+/// Shape-detection level set segmentation.
+///
+/// Uses a speed function that slows evolution at edges detected by a
+/// gradient-magnitude filter (Canny edges), enabling detection of topological
+/// changes during iteration.
+///
+/// Args:
+/// image: Input PyImage.
+/// initial_phi: Initial level set function (signed distance).
+/// curvature_weight: Weight of curvature term (default 1.0).
+/// propagation_weight: Weight of propagation term (default 1.0).
+/// advection_weight: Weight of advection term (default 1.0).
+/// edge_k: K parameter for edge potential (default 1.0).
+/// sigma: Smoothing sigma for gradient filter (default 1.0).
+/// dt: Time step (default 0.05).
+/// max_iterations: Maximum iterations (default 200).
+/// tolerance: Convergence tolerance (default 1e-3).
+///
+/// Returns:
+/// Evolved level set function as PyImage.
+///
+/// Raises:
+/// RuntimeError: if computation fails.
+#[pyfunction]
+#[pyo3(signature = (image, initial_phi, curvature_weight=1.0, propagation_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
+pub fn shape_detection_segment(
+    image: &PyImage,
+    initial_phi: &PyImage,
+    curvature_weight: f64,
+    propagation_weight: f64,
+    advection_weight: f64,
+    edge_k: f64,
+    sigma: f64,
+    dt: f64,
+    max_iterations: usize,
+    tolerance: f64,
+) -> PyResult<PyImage> {
+    let mut seg = ShapeDetectionSegmentation::new();
+    seg.curvature_weight = curvature_weight;
+    seg.propagation_weight = propagation_weight;
+    seg.advection_weight = advection_weight;
+    seg.edge_k = edge_k;
+    seg.sigma = sigma;
+    seg.dt = dt;
+    seg.max_iterations = max_iterations;
+    seg.tolerance = tolerance;
+    let result = seg
+        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+// ── threshold_level_set_segment ─────────────────────────────────────────────
+/// Threshold-based level set segmentation.
+///
+/// Evolves a level set using a speed function derived from intensity
+/// thresholds. The region between lower_threshold and upper_threshold has
+/// zero speed; outside this band propagation occurs.
+///
+/// Args:
+/// image: Input PyImage.
+/// initial_phi: Initial level set function (signed distance).
+/// lower_threshold: Lower intensity threshold.
+/// upper_threshold: Upper intensity threshold.
+/// propagation_weight: Weight of propagation term (default 1.0).
+/// curvature_weight: Weight of curvature term (default 0.2).
+/// dt: Time step (default 0.05).
+/// max_iterations: Maximum iterations (default 200).
+/// tolerance: Convergence tolerance (default 1e-3).
+///
+/// Returns:
+/// Evolved level set function as PyImage.
+///
+/// Raises:
+/// RuntimeError: if computation fails.
+#[pyfunction]
+#[pyo3(signature = (image, initial_phi, lower_threshold, upper_threshold, propagation_weight=1.0, curvature_weight=0.2, dt=0.05, max_iterations=200, tolerance=1e-3))]
+pub fn threshold_level_set_segment(
+    image: &PyImage,
+    initial_phi: &PyImage,
+    lower_threshold: f64,
+    upper_threshold: f64,
+    propagation_weight: f64,
+    curvature_weight: f64,
+    dt: f64,
+    max_iterations: usize,
+    tolerance: f64,
+) -> PyResult<PyImage> {
+    let mut seg = ThresholdLevelSet::new(lower_threshold, upper_threshold);
+    seg.propagation_weight = propagation_weight;
+    seg.curvature_weight = curvature_weight;
+    seg.dt = dt;
+    seg.max_iterations = max_iterations;
+    seg.tolerance = tolerance;
+    let result = seg
+        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+
 // ── confidence_connected_segment ─────────────────────────────────────────────
 
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
@@ -719,6 +823,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     // Level set
     m.add_function(wrap_pyfunction!(chan_vese_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(shape_detection_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(threshold_level_set_segment, &m)?)?;
 
     // Region growing (confidence / neighbourhood)
     m.add_function(wrap_pyfunction!(confidence_connected_segment, &m)?)?;

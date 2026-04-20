@@ -18,6 +18,12 @@
 
 pub mod chan_vese;
 pub mod geodesic_active_contour;
+pub(crate) mod helpers;
 
 pub use chan_vese::ChanVeseSegmentation;
 pub use geodesic_active_contour::GeodesicActiveContourSegmentation;
+pub mod shape_detection;
+pub mod threshold_level_set;
+
+pub use shape_detection::ShapeDetectionSegmentation;
+pub use threshold_level_set::ThresholdLevelSet;

@@ -68,6 +68,8 @@
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
+use super::helpers;
+
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Geodesic Active Contour level set segmentation.
@@ -137,15 +139,15 @@ impl GeodesicActiveContourSegmentation {
     /// Apply GAC segmentation to a 3D image with an explicit initial level set.
     ///
     /// # Arguments
-    /// - `image`: input scalar 3D image.
-    /// - `initial_phi`: initial level set function (same shape as `image`).
+    /// - : input scalar 3D image.
+    /// - : initial level set function (same shape as ).
     ///   φ < 0 inside the initial contour, φ > 0 outside.
     ///
     /// # Returns
     /// Binary mask image: 1.0 where φ < 0 (inside), 0.0 elsewhere.
     ///
     /// # Errors
-    /// Returns `Err` if tensor data cannot be read as `f32` or shapes mismatch.
+    /// Returns  if tensor data cannot be read as  or shapes mismatch.
     pub fn apply<B: Backend>(
         &self,
         image: &Image<B, 3>,
@@ -170,55 +172,60 @@ impl GeodesicActiveContourSegmentation {
             .to_vec();
 
         let phi_td = initial_phi.data().clone().into_data();
-        let mut phi: Vec<f32> = phi_td
+        let phi_f32: Vec<f32> = phi_td
             .as_slice::<f32>()
             .map_err(|e| anyhow::anyhow!("GAC requires f32 phi data: {:?}", e))?
             .to_vec();
 
+        // Convert to f64 for the entire PDE pipeline.
+        let img_f64: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
+
         // Precompute smoothed image.
         let smoothed = if self.sigma > 0.0 {
-            gaussian_smooth_3d(&img_vals, dims, self.sigma)
+            helpers::gaussian_smooth_3d(&img_f64, dims, self.sigma)
         } else {
-            img_vals.clone()
+            img_f64.clone()
         };
 
         // Precompute gradient magnitude of smoothed image.
-        let grad_mag = compute_gradient_magnitude(&smoothed, dims);
+        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
 
         // Precompute edge stopping function g and its gradient ∇g.
-        let g = compute_edge_stopping(&grad_mag, self.edge_k);
-        let (g_grad_z, g_grad_y, g_grad_x) = compute_field_gradient(&g, dims);
+        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
+        let (g_grad_z, g_grad_y, g_grad_x) = helpers::compute_field_gradient(&g, dims);
 
         let n = phi.len();
-        let mut phi_new = vec![0.0_f32; n];
+        let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = vec![0.0_f64; n];
 
         for _iter in 0..self.max_iterations {
             // Compute curvature and gradient of phi.
-            let kappa = compute_curvature(&phi, dims);
-            let (phi_gz, phi_gy, phi_gx) = compute_field_gradient(&phi, dims);
+            helpers::compute_curvature_into(&phi, dims, &mut kappa);
+            let (phi_gz, phi_gy, phi_gx) = helpers::compute_field_gradient(&phi, dims);
 
             let mut max_change: f64 = 0.0;
 
             for i in 0..n {
                 let grad_phi_mag =
-                    (phi_gz[i] * phi_gz[i] + phi_gy[i] * phi_gy[i] + phi_gx[i] * phi_gx[i]).sqrt();
+                    (phi_gz[i] * phi_gz[i] + phi_gy[i] * phi_gy[i] + phi_gx[i] * phi_gx[i])
+                        .sqrt();
 
                 // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
-                let curv = self.curvature_weight
-                    * (g[i] as f64)
-                    * (kappa[i] as f64)
-                    * (grad_phi_mag as f64);
+                let curv =
+                    self.curvature_weight * g[i] * kappa[i] * grad_phi_mag;
 
                 // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
-                let prop = self.propagation_weight * (g[i] as f64) * (grad_phi_mag as f64);
+                let prop = self.propagation_weight * g[i] * grad_phi_mag;
 
                 // Advection term (attracts toward edges): −w_a·∇g·∇φ
                 let advection = self.advection_weight
-                    * ((g_grad_z[i] * phi_gz[i] + g_grad_y[i] * phi_gy[i] + g_grad_x[i] * phi_gx[i])
-                        as f64);
+                    * (g_grad_z[i] * phi_gz[i]
+                        + g_grad_y[i] * phi_gy[i]
+                        + g_grad_x[i] * phi_gx[i]);
 
                 let dphi = self.dt * (curv - prop - advection);
-                phi_new[i] = phi[i] + dphi as f32;
+                phi_new[i] = phi[i] + dphi;
 
                 let change = dphi.abs() / self.dt;
                 if change > max_change {
@@ -256,260 +263,31 @@ impl Default for GeodesicActiveContourSegmentation {
     }
 }
 
-// ── Private helpers ────────────────────────────────────────────────────────────
+// ── Test-only wrappers ─────────────────────────────────────────────────────────────────────────
+//
+// The existing tests call  and 
+// with f32 data. These thin wrappers delegate to the shared f64 helpers and
+// convert back to f32, preserving the test-facing signatures without modifying
+// any test function.
 
-/// Clamp-based index accessor for a flat 3D array.
-#[inline]
-fn idx(z: i64, y: i64, x: i64, nz: usize, ny: usize, nx: usize) -> usize {
-    let cz = z.clamp(0, nz as i64 - 1) as usize;
-    let cy = y.clamp(0, ny as i64 - 1) as usize;
-    let cx = x.clamp(0, nx as i64 - 1) as usize;
-    cz * ny * nx + cy * nx + cx
-}
-
-/// Compute gradient magnitude |∇I| via central finite differences.
-///
-/// For each voxel, |∇I| = sqrt((∂I/∂z)² + (∂I/∂y)² + (∂I/∂x)²)
-/// where partial derivatives use central differences with clamped boundaries.
-fn compute_gradient_magnitude(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-    let mut grad = vec![0.0_f32; n];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let dz = (data[idx(iz as i64 + 1, iy as i64, ix as i64, nz, ny, nx)]
-                    - data[idx(iz as i64 - 1, iy as i64, ix as i64, nz, ny, nx)])
-                    * 0.5;
-                let dy = (data[idx(iz as i64, iy as i64 + 1, ix as i64, nz, ny, nx)]
-                    - data[idx(iz as i64, iy as i64 - 1, ix as i64, nz, ny, nx)])
-                    * 0.5;
-                let dx = (data[idx(iz as i64, iy as i64, ix as i64 + 1, nz, ny, nx)]
-                    - data[idx(iz as i64, iy as i64, ix as i64 - 1, nz, ny, nx)])
-                    * 0.5;
-                grad[i] = (dz * dz + dy * dy + dx * dx).sqrt();
-            }
-        }
-    }
-
-    grad
-}
-
-/// Compute edge stopping function g(s) = 1 / (1 + (s/k)²).
-///
-/// # Invariant
-/// ∀ s ≥ 0: 0 < g(s) ≤ 1, with g(0) = 1 and lim_{s→∞} g(s) = 0.
+#[cfg(test)]
 fn compute_edge_stopping(grad_mag: &[f32], k: f64) -> Vec<f32> {
-    let k2 = (k * k) as f32;
-    grad_mag
+    let grad_f64: Vec<f64> = grad_mag.iter().map(|&v| v as f64).collect();
+    helpers::compute_edge_stopping(&grad_f64, k)
         .iter()
-        .map(|&s| 1.0 / (1.0 + (s * s) / k2))
+        .map(|&v| v as f32)
         .collect()
 }
 
-/// Compute the 3D gradient of a scalar field via central differences.
-///
-/// Returns (∂f/∂z, ∂f/∂y, ∂f/∂x) as three flat vectors.
-fn compute_field_gradient(data: &[f32], dims: [usize; 3]) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-    let mut gz = vec![0.0_f32; n];
-    let mut gy = vec![0.0_f32; n];
-    let mut gx = vec![0.0_f32; n];
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                gz[i] = (data[idx(iz as i64 + 1, iy as i64, ix as i64, nz, ny, nx)]
-                    - data[idx(iz as i64 - 1, iy as i64, ix as i64, nz, ny, nx)])
-                    * 0.5;
-                gy[i] = (data[idx(iz as i64, iy as i64 + 1, ix as i64, nz, ny, nx)]
-                    - data[idx(iz as i64, iy as i64 - 1, ix as i64, nz, ny, nx)])
-                    * 0.5;
-                gx[i] = (data[idx(iz as i64, iy as i64, ix as i64 + 1, nz, ny, nx)]
-                    - data[idx(iz as i64, iy as i64, ix as i64 - 1, nz, ny, nx)])
-                    * 0.5;
-            }
-        }
-    }
-
-    (gz, gy, gx)
-}
-
-/// Compute mean curvature κ = div(∇φ / |∇φ|) via central finite differences.
-///
-/// The curvature is computed as:
-/// ```text
-///   κ = [(φ_yy + φ_zz)·φ_x² − 2·φ_x·φ_y·φ_xy − 2·φ_x·φ_z·φ_xz
-///        + (φ_xx + φ_zz)·φ_y² − 2·φ_y·φ_z·φ_yz
-///        + (φ_xx + φ_yy)·φ_z²]
-///       / (|∇φ|³ + ε)
-/// ```
-/// where ε = 1e-10 prevents division by zero.
-fn compute_curvature(phi: &[f32], dims: [usize; 3]) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-    let mut kappa = vec![0.0_f32; n];
-    let eps: f32 = 1e-10;
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let i = iz * ny * nx + iy * nx + ix;
-                let zz = iz as i64;
-                let yy = iy as i64;
-                let xx = ix as i64;
-
-                // First derivatives (central differences).
-                let phi_z = (phi[idx(zz + 1, yy, xx, nz, ny, nx)]
-                    - phi[idx(zz - 1, yy, xx, nz, ny, nx)])
-                    * 0.5;
-                let phi_y = (phi[idx(zz, yy + 1, xx, nz, ny, nx)]
-                    - phi[idx(zz, yy - 1, xx, nz, ny, nx)])
-                    * 0.5;
-                let phi_x = (phi[idx(zz, yy, xx + 1, nz, ny, nx)]
-                    - phi[idx(zz, yy, xx - 1, nz, ny, nx)])
-                    * 0.5;
-
-                // Second derivatives.
-                let phi_zz = phi[idx(zz + 1, yy, xx, nz, ny, nx)] - 2.0 * phi[i]
-                    + phi[idx(zz - 1, yy, xx, nz, ny, nx)];
-                let phi_yy = phi[idx(zz, yy + 1, xx, nz, ny, nx)] - 2.0 * phi[i]
-                    + phi[idx(zz, yy - 1, xx, nz, ny, nx)];
-                let phi_xx = phi[idx(zz, yy, xx + 1, nz, ny, nx)] - 2.0 * phi[i]
-                    + phi[idx(zz, yy, xx - 1, nz, ny, nx)];
-
-                // Cross derivatives.
-                let phi_zy = (phi[idx(zz + 1, yy + 1, xx, nz, ny, nx)]
-                    - phi[idx(zz + 1, yy - 1, xx, nz, ny, nx)]
-                    - phi[idx(zz - 1, yy + 1, xx, nz, ny, nx)]
-                    + phi[idx(zz - 1, yy - 1, xx, nz, ny, nx)])
-                    * 0.25;
-                let phi_zx = (phi[idx(zz + 1, yy, xx + 1, nz, ny, nx)]
-                    - phi[idx(zz + 1, yy, xx - 1, nz, ny, nx)]
-                    - phi[idx(zz - 1, yy, xx + 1, nz, ny, nx)]
-                    + phi[idx(zz - 1, yy, xx - 1, nz, ny, nx)])
-                    * 0.25;
-                let phi_yx = (phi[idx(zz, yy + 1, xx + 1, nz, ny, nx)]
-                    - phi[idx(zz, yy + 1, xx - 1, nz, ny, nx)]
-                    - phi[idx(zz, yy - 1, xx + 1, nz, ny, nx)]
-                    + phi[idx(zz, yy - 1, xx - 1, nz, ny, nx)])
-                    * 0.25;
-
-                let grad_mag_sq = phi_z * phi_z + phi_y * phi_y + phi_x * phi_x;
-                let grad_mag_cubed = (grad_mag_sq.sqrt()) * grad_mag_sq;
-
-                let numer = (phi_yy + phi_zz) * phi_x * phi_x
-                    - 2.0 * phi_x * phi_y * phi_yx
-                    - 2.0 * phi_x * phi_z * phi_zx
-                    + (phi_xx + phi_zz) * phi_y * phi_y
-                    - 2.0 * phi_y * phi_z * phi_zy
-                    + (phi_xx + phi_yy) * phi_z * phi_z;
-
-                kappa[i] = numer / (grad_mag_cubed + eps);
-            }
-        }
-    }
-
-    kappa
-}
-
-/// 3D Gaussian smoothing via separable convolution with truncated kernel.
-///
-/// Kernel radius = ceil(3·σ). Clamped boundary conditions.
-fn gaussian_smooth_3d(data: &[f32], dims: [usize; 3], sigma: f64) -> Vec<f32> {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-
-    if sigma <= 0.0 {
-        return data.to_vec();
-    }
-
-    let radius = (3.0 * sigma).ceil() as i64;
-    let kernel = build_gaussian_kernel_1d(sigma, radius);
-
-    // Separable: smooth along x, then y, then z.
-    let mut buf = data.to_vec();
-    let mut tmp = vec![0.0_f32; n];
-
-    // Smooth along x (axis 2).
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut sum = 0.0_f32;
-                for (ki, &w) in kernel.iter().enumerate() {
-                    let dx = ki as i64 - radius;
-                    let sx = (ix as i64 + dx).clamp(0, nx as i64 - 1) as usize;
-                    sum += w * buf[iz * ny * nx + iy * nx + sx];
-                }
-                tmp[iz * ny * nx + iy * nx + ix] = sum;
-            }
-        }
-    }
-    std::mem::swap(&mut buf, &mut tmp);
-
-    // Smooth along y (axis 1).
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut sum = 0.0_f32;
-                for (ki, &w) in kernel.iter().enumerate() {
-                    let dy = ki as i64 - radius;
-                    let sy = (iy as i64 + dy).clamp(0, ny as i64 - 1) as usize;
-                    sum += w * buf[iz * ny * nx + sy * nx + ix];
-                }
-                tmp[iz * ny * nx + iy * nx + ix] = sum;
-            }
-        }
-    }
-    std::mem::swap(&mut buf, &mut tmp);
-
-    // Smooth along z (axis 0).
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut sum = 0.0_f32;
-                for (ki, &w) in kernel.iter().enumerate() {
-                    let dz = ki as i64 - radius;
-                    let sz = (iz as i64 + dz).clamp(0, nz as i64 - 1) as usize;
-                    sum += w * buf[sz * ny * nx + iy * nx + ix];
-                }
-                tmp[iz * ny * nx + iy * nx + ix] = sum;
-            }
-        }
-    }
-
-    tmp
-}
-
-/// Build a normalised 1D Gaussian kernel with the given sigma and radius.
-///
-/// Kernel length = 2·radius + 1. Sum of weights = 1.
+#[cfg(test)]
 fn build_gaussian_kernel_1d(sigma: f64, radius: i64) -> Vec<f32> {
-    let len = (2 * radius + 1) as usize;
-    let mut kernel = Vec::with_capacity(len);
-    let inv_2sigma2 = 1.0 / (2.0 * sigma * sigma);
-    let mut sum = 0.0_f64;
-
-    for i in 0..len {
-        let d = (i as i64 - radius) as f64;
-        let w = (-d * d * inv_2sigma2).exp();
-        kernel.push(w as f32);
-        sum += w;
-    }
-
-    let inv_sum = 1.0 / sum as f32;
-    for w in &mut kernel {
-        *w *= inv_sum;
-    }
-
-    kernel
+    helpers::build_gaussian_kernel_1d(sigma, radius as usize)
+        .iter()
+        .map(|&v| v as f32)
+        .collect()
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// ── Tests ──────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

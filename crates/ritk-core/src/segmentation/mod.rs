@@ -27,7 +27,10 @@ pub mod watershed;
 pub use clustering::{kmeans_segment, KMeansSegmentation};
 pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
-pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
+pub use level_set::{
+    ChanVeseSegmentation, GeodesicActiveContourSegmentation, ShapeDetectionSegmentation,
+    ThresholdLevelSet,
+};
 pub use morphology::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
     MorphologicalGradient, MorphologicalOperation, Skeletonization,

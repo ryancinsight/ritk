@@ -10,13 +10,18 @@
 //! | `hausdorff` | Yes                    | Hausdorff distance on binary masks         |
 //! | `psnr`      | Yes                    | Peak signal-to-noise ratio                 |
 //! | `ssim`      | Yes                    | Structural similarity index                |
+//! | `mean-surface-distance` | Yes           | Symmetric mean surface distance (mm)       |
+//! | `noise-estimate`        | No            | MAD-based Gaussian noise sigma estimate    |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
 use std::path::PathBuf;
 use tracing::info;
 
-use ritk_core::statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
+use ritk_core::statistics::{
+    compute_statistics, dice_coefficient, estimate_noise_mad, hausdorff_distance,
+    mean_surface_distance, psnr, ssim,
+};
 
 use super::{read_image, Backend};
 
@@ -36,7 +41,7 @@ pub struct StatsArgs {
 
     /// Metric to compute.
     ///
-    /// Accepted values: `summary`, `dice`, `hausdorff`, `psnr`, `ssim`.
+    /// Accepted values: `summary`, `dice`, `hausdorff`, `psnr`, `ssim`, `mean-surface-distance` (alias `msd`), `noise-estimate`.
     #[arg(long, value_name = "METRIC")]
     pub metric: String,
 
@@ -69,9 +74,11 @@ pub fn run(args: StatsArgs) -> Result<()> {
         "hausdorff" => run_hausdorff(&args),
         "psnr" => run_psnr(&args),
         "ssim" => run_ssim(&args),
+        "mean-surface-distance" | "msd" => run_mean_surface_distance(&args),
+        "noise-estimate" => run_noise_estimate(&args),
         other => Err(anyhow!(
             "Unknown metric '{other}'. \
-             Available: summary, dice, hausdorff, psnr, ssim."
+             Available: summary, dice, hausdorff, psnr, ssim, mean-surface-distance, noise-estimate."
         )),
     }
 }
@@ -211,6 +218,54 @@ fn run_ssim(args: &StatsArgs) -> Result<()> {
 
     Ok(())
 }
+
+// ── Mean surface distance ─────────────────────────────────────────────────────
+
+/// Compute the symmetric mean surface distance between two binary masks.
+///
+/// Physical spacing from the input image is used for distance computation.
+fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+    let reference = require_reference(args)?;
+
+    let sp = image.spacing();
+    let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
+
+    let value = mean_surface_distance(&image, &reference, &spacing);
+
+    println!(
+        "Mean surface distance: {:.6} mm (input={}, reference={})",
+        value,
+        args.input.display(),
+        args.reference.as_ref().unwrap().display(),
+    );
+
+    info!(msd = value, "stats: mean-surface-distance complete");
+
+    Ok(())
+}
+
+// ── Noise estimate ────────────────────────────────────────────────────────────
+
+/// Estimate Gaussian noise standard deviation using the MAD estimator.
+///
+/// Formula: sigma_hat = 1.4826 * MAD(I).  No reference image required.
+fn run_noise_estimate(args: &StatsArgs) -> Result<()> {
+    let image = read_image(&args.input)?;
+
+    let sigma = estimate_noise_mad(&image);
+
+    println!(
+        "Noise estimate (MAD): sigma_hat = {:.6} (input={})",
+        sigma,
+        args.input.display(),
+    );
+
+    info!(sigma = sigma, "stats: noise-estimate complete");
+
+    Ok(())
+}
+
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -568,5 +623,57 @@ mod tests {
         });
 
         assert!(result.is_err(), "missing input must yield an error");
+
+    }
+    // ── Positive: mean-surface-distance identical masks returns 0.0 ──────
+
+    #[test]
+    fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
+        let dir = tempdir().unwrap();
+        let mask = make_binary_mask(32);
+        let path_a = write_nifti_tmp(dir.path(), "a.nii", &mask);
+        let path_b = write_nifti_tmp(dir.path(), "b.nii", &mask);
+
+        let args = StatsArgs {
+            input: path_a,
+            reference: Some(path_b),
+            metric: "mean-surface-distance".to_string(),
+            max_val: 255.0,
+        };
+        run(args).expect("mean-surface-distance must succeed");
+    }
+
+    // ── Positive: noise-estimate on constant image returns without error ──
+
+    #[test]
+    fn test_stats_noise_estimate_constant_image_returns_zero() {
+        let dir = tempdir().unwrap();
+        let img = make_constant_image(128.0);
+        let path = write_nifti_tmp(dir.path(), "const.nii", &img);
+
+        let args = StatsArgs {
+            input: path,
+            reference: None,
+            metric: "noise-estimate".to_string(),
+            max_val: 255.0,
+        };
+        run(args).expect("noise-estimate must succeed");
+    }
+
+    // ── Negative: mean-surface-distance without --reference returns error ─
+
+    #[test]
+    fn test_stats_mean_surface_distance_without_reference_returns_error() {
+        let dir = tempdir().unwrap();
+        let mask = make_binary_mask(32);
+        let path = write_nifti_tmp(dir.path(), "a.nii", &mask);
+
+        let args = StatsArgs {
+            input: path,
+            reference: None,
+            metric: "mean-surface-distance".to_string(),
+            max_val: 255.0,
+        };
+        assert!(run(args).is_err(), "must error without --reference");
     }
 }

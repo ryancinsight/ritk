@@ -16,6 +16,8 @@
 //! | `distance-transform` | Euclidean distance transform of binary mask     |
 //! | `fill-holes`          | 6-connected binary hole fill                    |
 //! | `morphological-gradient` | Morphological gradient (dilation - erosion)  |
+//! | `shape-detection`        | Shape Detection level set (Malladi, Sethian & Vemuri 1995) |
+//! | `threshold-level-set`    | Threshold Level Set (Whitaker 1998)            |
 //!
 //! # Output
 //! - `otsu`, `li`, `yen`, `kapur`, `triangle`: binary mask (0.0 / 1.0) + printed threshold.
@@ -24,6 +26,7 @@
 //! - `watershed`: label image (0 = boundary, 1..K = basins).
 //! - `kmeans`: label image (0..K−1 cluster indices).
 //! - `distance-transform`: float distance map (Euclidean distance to nearest background voxel).
+//! - `shape-detection`, `threshold-level-set`: binary mask (0.0 / 1.0) + foreground voxel count.
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -88,12 +91,73 @@ pub struct SegmentArgs {
     /// Maximum iterations for confidence-connected region growing.
     #[arg(long, default_value = "15", value_name = "INT")]
     pub max_iterations: usize,
-
     // -- Neighborhood-connected ---------------------------------------------
     /// Neighbourhood half-radius (uniform, all 3 axes) for neighborhood-connected.
     /// Radius 1 => 3x3x3 neighbourhood.
     #[arg(long, default_value = "1", value_name = "INT")]
     pub neighborhood_radius: usize,
+    // -- Shape-detection / Threshold-level-set ----------------------------
+    /// Path to initial level set φ image for `shape-detection` or `threshold-level-set`.
+    #[arg(long, value_name = "PATH")]
+    pub initial_phi: Option<PathBuf>,
+    /// Curvature weight for level-set methods.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub curvature_weight: f32,
+    /// Propagation (balloon) weight for level-set methods.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub propagation_weight: f32,
+    /// Advection weight for shape-detection.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub advection_weight: f32,
+    /// Edge-stopping sensitivity k for shape-detection.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub edge_k: f32,
+    /// Gaussian pre-smoothing σ for shape-detection.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub sigma: f32,
+    /// Euler forward time step Δt for level-set methods.
+    #[arg(long, default_value = "0.05", value_name = "FLOAT")]
+    pub dt: f32,
+    /// Maximum iterations for level-set methods (shape-detection, threshold-level-set).
+    #[arg(long = "level-set-max-iterations", default_value = "200", value_name = "INT")]
+    pub level_set_max_iterations: usize,
+    /// Convergence tolerance on max |dφ|/dt.
+    #[arg(long, default_value = "1e-3", value_name = "FLOAT")]
+    pub tolerance: f32,
+    /// Lower intensity threshold for threshold-level-set.
+    #[arg(long, value_name = "FLOAT")]
+    pub lower_threshold: Option<f32>,
+    /// Upper intensity threshold for threshold-level-set.
+    #[arg(long, value_name = "FLOAT")]
+    pub upper_threshold: Option<f32>,
+}
+
+impl Default for SegmentArgs {
+    fn default() -> Self {
+        Self {
+            input: PathBuf::default(),
+            output: PathBuf::default(),
+            method: String::default(),
+            classes: 3,
+            lower: None,
+            upper: None,
+            seed: None,
+            multiplier: 2.5,
+            max_iterations: 15,
+            neighborhood_radius: 1,
+            initial_phi: None,
+            curvature_weight: 1.0,
+            propagation_weight: 1.0,
+            advection_weight: 1.0,
+            edge_k: 1.0,
+            sigma: 1.0,
+            dt: 0.05,
+            level_set_max_iterations: 200,
+            tolerance: 1e-3,
+            lower_threshold: None,
+            upper_threshold: None,
+        }
+    }
 }
 
 // ── Seed parsing ──────────────────────────────────────────────────────────────
@@ -178,14 +242,15 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         "morphological-gradient" => run_morphological_gradient(&args),
         "confidence-connected" => run_confidence_connected(&args),
         "neighborhood-connected" => run_neighborhood_connected(&args),
-        "skeletonization" => run_skeletonization(&args),
+        "shape-detection" => run_shape_detection(&args), "threshold-level-set" => run_threshold_level_set(&args), "skeletonization" => run_skeletonization(&args),
         other => Err(anyhow!(
-            "Unknown segmentation method '{other}'. \
-             Supported methods: otsu, multi-otsu, connected-threshold, \
-             li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
-             fill-holes, morphological-gradient, confidence-connected, \
-             neighborhood-connected, skeletonization."
-        )),
+                   "Unknown segmentation method '{other}'. \
+                   Supported methods: otsu, multi-otsu, connected-threshold, \
+                   li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
+                   fill-holes, morphological-gradient, confidence-connected, \
+                   neighborhood-connected, shape-detection, threshold-level-set, \
+                   skeletonization."
+               )),
     }
 }
 
@@ -737,6 +802,108 @@ fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
+// -- Shape-detection level set ------------------------------------------
+
+fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::ShapeDetectionSegmentation;
+
+    let phi_path = args
+        .initial_phi
+        .as_ref()
+        .ok_or_else(|| anyhow!("--initial-phi is required for shape-detection"))?;
+
+    let image = read_image(&args.input)?;
+    let initial_phi = read_image(phi_path)?;
+
+    let mut seg = ShapeDetectionSegmentation::new();
+    seg.curvature_weight = args.curvature_weight as f64;
+    seg.propagation_weight = args.propagation_weight as f64;
+    seg.advection_weight = args.advection_weight as f64;
+    seg.edge_k = args.edge_k as f64;
+    seg.sigma = args.sigma as f64;
+    seg.dt = args.dt as f64;
+    seg.max_iterations = args.level_set_max_iterations;
+    seg.tolerance = args.tolerance as f64;
+
+    let mask = seg
+        .apply(&image, &initial_phi)
+        .with_context(|| "shape-detection segmentation failed")?;
+    let n_foreground = count_foreground(&mask);
+
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: shape-detection found {} foreground voxels",
+        args.input.display(),
+        n_foreground,
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        foreground = n_foreground,
+        "segment: shape-detection complete"
+    );
+    Ok(())
+}
+
+// -- Threshold level set --------------------------------------------------
+
+fn run_threshold_level_set(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::ThresholdLevelSet;
+
+    let phi_path = args
+        .initial_phi
+        .as_ref()
+        .ok_or_else(|| anyhow!("--initial-phi is required for threshold-level-set"))?;
+    let lower = args
+        .lower_threshold
+        .ok_or_else(|| anyhow!("--lower-threshold is required for threshold-level-set"))?;
+    let upper = args
+        .upper_threshold
+        .ok_or_else(|| anyhow!("--upper-threshold is required for threshold-level-set"))?;
+    if lower > upper {
+        return Err(anyhow!(
+            "--lower-threshold ({lower}) must be <= --upper-threshold ({upper})"
+        ));
+    }
+
+    let image = read_image(&args.input)?;
+    let initial_phi = read_image(phi_path)?;
+
+    let mut seg = ThresholdLevelSet::new(lower as f64, upper as f64);
+    seg.propagation_weight = args.propagation_weight as f64;
+    seg.curvature_weight = args.curvature_weight as f64;
+    seg.dt = args.dt as f64;
+    seg.max_iterations = args.level_set_max_iterations;
+    seg.tolerance = args.tolerance as f64;
+
+    let mask = seg
+        .apply(&image, &initial_phi)
+        .with_context(|| "threshold-level-set segmentation failed")?;
+    let n_foreground = count_foreground(&mask);
+
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: threshold-level-set found {} foreground voxels (range=[{:.4},{:.4}])",
+        args.input.display(),
+        n_foreground,
+        lower,
+        upper,
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        lower = lower,
+        upper = upper,
+        foreground = n_foreground,
+        "segment: threshold-level-set complete"
+    );
+    Ok(())
+}
+
 // -- Skeletonization ----------------------------------------------------------
 
 fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
@@ -889,13 +1056,7 @@ mod tests {
             input,
             output,
             method: method.to_string(),
-            classes: 3,
-            lower: None,
-            upper: None,
-            seed: None,
-            multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         }
     }
 
@@ -1070,8 +1231,7 @@ mod tests {
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         })
         .unwrap();
 
@@ -1103,8 +1263,7 @@ mod tests {
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         })
         .unwrap();
 
@@ -1374,8 +1533,7 @@ mod tests {
             upper: None,
             seed: None,
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "unknown method must return Err");
@@ -1404,8 +1562,7 @@ mod tests {
             upper: Some(255.0),
             seed: Some("2,2,2".to_string()),
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "missing --lower must yield an error");
@@ -1434,8 +1591,7 @@ mod tests {
             upper: None, // deliberately omitted
             seed: Some("2,2,2".to_string()),
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "missing --upper must yield an error");
@@ -1464,8 +1620,7 @@ mod tests {
             upper: Some(255.0),
             seed: None, // deliberately omitted
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "missing --seed must yield an error");
@@ -1494,8 +1649,7 @@ mod tests {
             upper: Some(100.0), // lower > upper
             seed: Some("2,2,2".to_string()),
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "lower > upper must yield an error");
@@ -1526,8 +1680,7 @@ mod tests {
             upper: Some(255.0),
             seed: Some("99,99,99".to_string()), // far out of [5,5,5] bounds
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "out-of-bounds seed must yield an error");
@@ -1556,8 +1709,7 @@ mod tests {
             upper: Some(255.0),
             seed: Some("2,2".to_string()), // only two components
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "malformed seed must yield an error");
@@ -1586,8 +1738,7 @@ mod tests {
             upper: None,
             seed: None,
             multiplier: 2.5,
-            max_iterations: 15,
-            neighborhood_radius: 1,
+            ..Default::default()
         });
 
         assert!(result.is_err(), "classes < 2 must yield an error");
@@ -1943,35 +2094,59 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("filled.nii");
 
-        let mut mask = make_binary_image();
-        {
-            let td = mask.data().clone().into_data();
-            let mut values = td.as_slice::<f32>().unwrap().to_vec();
-            let center = 1 * 4 * 4 + 1 * 4 + 1;
-            values[center] = 0.0;
-            let device: <Backend as BurnBackend>::Device = Default::default();
-            let td = TensorData::new(values, Shape::new([4, 4, 4]));
-            let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-            mask = Image::new(
-                tensor,
-                Point::new([0.0; 3]),
-                Spacing::new([1.0; 3]),
-                Direction::identity(),
-            );
+        // 7x7x7 hollow sphere: shell at 2 <= dist <= 3 from centre (3,3,3) = 1.0 (foreground).
+        // Interior (dist < 2) and exterior (dist > 3) = 0.0.
+        // After fill-holes, all interior voxels (dist < 2) must become 1.0.
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let (nz, ny, nx) = (7usize, 7usize, 7usize);
+        let n = nz * ny * nx;
+        let mut vals = vec![0.0_f32; n];
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let d2 = ((iz as i32 - 3).pow(2)
+                        + (iy as i32 - 3).pow(2)
+                        + (ix as i32 - 3).pow(2)) as f32;
+                    if d2 >= 4.0 && d2 <= 9.0 {
+                        vals[iz * ny * nx + iy * nx + ix] = 1.0;
+                    }
+                }
+            }
         }
+        let td = TensorData::new(vals, Shape::new([nz, ny, nx]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let hollow_sphere = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
 
-        ritk_io::write_nifti(&input, &mask).unwrap();
+        ritk_io::write_nifti(&input, &hollow_sphere).unwrap();
         run(default_args(input.clone(), output.clone(), "fill-holes")).unwrap();
 
         let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         let td = result.data().clone().into_data();
-        let vals = td.as_slice::<f32>().unwrap();
+        let out_vals = td.as_slice::<f32>().unwrap();
 
-        assert_eq!(vals.len(), 64);
-        assert!(
-            vals.iter().all(|&v| v == 1.0),
-            "fill-holes must convert the enclosed cavity to foreground"
-        );
+        // All interior voxels (d2 < 4) must now be foreground.
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let d2 = ((iz as i32 - 3).pow(2)
+                        + (iy as i32 - 3).pow(2)
+                        + (ix as i32 - 3).pow(2)) as f32;
+                    if d2 < 4.0 {
+                        assert_eq!(
+                            out_vals[iz * ny * nx + iy * nx + ix],
+                            1.0,
+                            "interior voxel ({},{},{}) at d2={} must be filled",
+                            iz, iy, ix, d2
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]
@@ -2002,4 +2177,202 @@ mod tests {
             "morphological gradient must be binary"
         );
     }
+    // -- Shape-detection: phi signed-distance helper -------------------------
+
+    fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let mut data = vec![0.0_f32; n];
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let dist = ((iz as f64 - center[0]).powi(2)
+                        + (iy as f64 - center[1]).powi(2)
+                        + (ix as f64 - center[2]).powi(2))
+                    .sqrt();
+                    data[iz * ny * nx + iy * nx + ix] = (dist - radius) as f32;
+                }
+            }
+        }
+        let td = TensorData::new(data, Shape::new(dims));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    // -- shape-detection tests ----------------------------------------------
+
+    #[test]
+    fn test_segment_shape_detection_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        let image = make_sphere_image();
+        let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
+        ritk_io::write_nifti(&input, &image).unwrap();
+        ritk_io::write_nifti(&phi_path, &phi).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "shape-detection");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 50;
+        run(args).unwrap();
+        assert!(output.exists(), "output file must exist");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "shape must be preserved");
+    }
+
+    #[test]
+    fn test_segment_shape_detection_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        let image = make_sphere_image();
+        let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
+        ritk_io::write_nifti(&input, &image).unwrap();
+        ritk_io::write_nifti(&phi_path, &phi).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "shape-detection");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 50;
+        run(args).unwrap();
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = mask.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
+        }
+    }
+
+    #[test]
+    fn test_segment_shape_detection_missing_phi_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        let args = default_args(input.clone(), output.clone(), "shape-detection");
+        let result = run(args);
+        assert!(result.is_err(), "--initial-phi missing must produce error");
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("--initial-phi"), "error must mention --initial-phi, got: {msg}");
+    }
+
+    // -- threshold-level-set tests -----------------------------------------
+
+    #[test]
+    fn test_segment_threshold_level_set_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        let image = make_sphere_image();
+        let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
+        ritk_io::write_nifti(&input, &image).unwrap();
+        ritk_io::write_nifti(&phi_path, &phi).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.initial_phi = Some(phi_path);
+        args.lower_threshold = Some(5.0);
+        args.upper_threshold = Some(250.0);
+        args.level_set_max_iterations = 50;
+        run(args).unwrap();
+        assert!(output.exists(), "output file must exist");
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "shape must be preserved");
+    }
+
+    #[test]
+    fn test_segment_threshold_level_set_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        let image = make_sphere_image();
+        let phi = make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0);
+        ritk_io::write_nifti(&input, &image).unwrap();
+        ritk_io::write_nifti(&phi_path, &phi).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.initial_phi = Some(phi_path);
+        args.lower_threshold = Some(5.0);
+        args.upper_threshold = Some(250.0);
+        args.level_set_max_iterations = 50;
+        run(args).unwrap();
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = mask.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
+        }
+    }
+
+    #[test]
+    fn test_segment_threshold_level_set_missing_phi_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.lower_threshold = Some(5.0);
+        args.upper_threshold = Some(250.0);
+        let result = run(args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("--initial-phi"));
+    }
+
+    #[test]
+    fn test_segment_threshold_level_set_missing_lower_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.initial_phi = Some(phi_path);
+        args.upper_threshold = Some(250.0);
+        let result = run(args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("--lower-threshold"));
+    }
+
+    #[test]
+    fn test_segment_threshold_level_set_missing_upper_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.initial_phi = Some(phi_path);
+        args.lower_threshold = Some(5.0);
+        let result = run(args);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("--upper-threshold"));
+    }
+
+    #[test]
+    fn test_segment_threshold_level_set_lower_gt_upper_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
+        let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
+        args.initial_phi = Some(phi_path);
+        args.lower_threshold = Some(250.0);
+        args.upper_threshold = Some(5.0);
+        let result = run(args);
+        assert!(result.is_err());
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("must be") && msg.contains("<="),
+            "error must explain bound constraint, got: {msg}"
+        );
+    }
+
 }

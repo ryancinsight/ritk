@@ -75,6 +75,7 @@
 
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -206,7 +207,7 @@ impl ChanVeseSegmentation {
             let (c1, c2) = compute_region_means(&img_f64, &phi, eps);
 
             // ── 2. Compute curvature κ = div(∇φ/|∇φ|) ───────────────────
-            compute_curvature(&phi, dims, &mut kappa);
+            compute_curvature_into(&phi, dims, &mut kappa);
 
             // ── 3. Evolve φ ──────────────────────────────────────────────
             let mut max_dphi = 0.0_f64;
@@ -240,20 +241,6 @@ impl ChanVeseSegmentation {
             .map(|&v| if v >= 0.0 { 1.0_f32 } else { 0.0_f32 })
             .collect()
     }
-}
-
-// ── Regularised Heaviside & Dirac ──────────────────────────────────────────────
-
-/// Regularised Heaviside: H_ε(z) = 0.5 · (1 + (2/π) · arctan(z/ε)).
-#[inline]
-fn regularised_heaviside(z: f64, eps: f64) -> f64 {
-    0.5 * (1.0 + (2.0 / std::f64::consts::PI) * (z / eps).atan())
-}
-
-/// Regularised Dirac delta: δ_ε(z) = (ε/π) / (ε² + z²).
-#[inline]
-fn regularised_dirac(z: f64, eps: f64) -> f64 {
-    (eps / std::f64::consts::PI) / (eps * eps + z * z)
 }
 
 // ── Region mean computation ────────────────────────────────────────────────────
@@ -292,89 +279,13 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
     (c1, c2)
 }
 
-// ── Curvature computation ──────────────────────────────────────────────────────
 
-/// Compute mean curvature κ = div(∇φ/|∇φ|) for each voxel via central finite
-/// differences with clamped (Neumann) boundary conditions.
-///
-/// The computation expands the divergence into second-derivative terms following
-/// the standard discretisation of the curvature of a level set function on a
-/// regular grid. A small constant (1e-10) is added to |∇φ| in the denominator
-/// to prevent division by zero in flat regions.
+/// Test-only delegation wrapper preserving the old `compute_curvature` name.
+/// Tests call this via `use super::*;`; production code uses `compute_curvature_into` directly.
+#[cfg(test)]
 fn compute_curvature(phi: &[f64], dims: [usize; 3], kappa: &mut [f64]) {
-    let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
-    debug_assert_eq!(phi.len(), n);
-    debug_assert_eq!(kappa.len(), n);
-
-    let idx = |z: usize, y: usize, x: usize| -> usize { z * ny * nx + y * nx + x };
-
-    // Clamped index helpers.
-    let cz = |z: isize| -> usize { z.clamp(0, nz as isize - 1) as usize };
-    let cy = |y: isize| -> usize { y.clamp(0, ny as isize - 1) as usize };
-    let cx = |x: isize| -> usize { x.clamp(0, nx as isize - 1) as usize };
-
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let i = idx(iz, iy, ix);
-
-                // Central first derivatives.
-                let phi_xp = phi[idx(iz, iy, cx(ix as isize + 1))];
-                let phi_xm = phi[idx(iz, iy, cx(ix as isize - 1))];
-                let phi_yp = phi[idx(iz, cy(iy as isize + 1), ix)];
-                let phi_ym = phi[idx(iz, cy(iy as isize - 1), ix)];
-                let phi_zp = phi[idx(cz(iz as isize + 1), iy, ix)];
-                let phi_zm = phi[idx(cz(iz as isize - 1), iy, ix)];
-
-                let phi_x = (phi_xp - phi_xm) * 0.5;
-                let phi_y = (phi_yp - phi_ym) * 0.5;
-                let phi_z = (phi_zp - phi_zm) * 0.5;
-
-                // Central second derivatives.
-                let phi_xx = phi_xp - 2.0 * phi[i] + phi_xm;
-                let phi_yy = phi_yp - 2.0 * phi[i] + phi_ym;
-                let phi_zz = phi_zp - 2.0 * phi[i] + phi_zm;
-
-                // Cross derivatives.
-                let phi_xy = (phi[idx(iz, cy(iy as isize + 1), cx(ix as isize + 1))]
-                    - phi[idx(iz, cy(iy as isize + 1), cx(ix as isize - 1))]
-                    - phi[idx(iz, cy(iy as isize - 1), cx(ix as isize + 1))]
-                    + phi[idx(iz, cy(iy as isize - 1), cx(ix as isize - 1))])
-                    * 0.25;
-
-                let phi_xz = (phi[idx(cz(iz as isize + 1), iy, cx(ix as isize + 1))]
-                    - phi[idx(cz(iz as isize + 1), iy, cx(ix as isize - 1))]
-                    - phi[idx(cz(iz as isize - 1), iy, cx(ix as isize + 1))]
-                    + phi[idx(cz(iz as isize - 1), iy, cx(ix as isize - 1))])
-                    * 0.25;
-
-                let phi_yz = (phi[idx(cz(iz as isize + 1), cy(iy as isize + 1), ix)]
-                    - phi[idx(cz(iz as isize + 1), cy(iy as isize - 1), ix)]
-                    - phi[idx(cz(iz as isize - 1), cy(iy as isize + 1), ix)]
-                    + phi[idx(cz(iz as isize - 1), cy(iy as isize - 1), ix)])
-                    * 0.25;
-
-                let grad_sq = phi_x * phi_x + phi_y * phi_y + phi_z * phi_z;
-                let grad_mag = (grad_sq + 1e-10).sqrt();
-                let grad_sq_safe = grad_sq + 1e-10;
-
-                // κ = (φ_xx(φ_y²+φ_z²) + φ_yy(φ_x²+φ_z²) + φ_zz(φ_x²+φ_y²)
-                //     - 2φ_x φ_y φ_xy - 2φ_x φ_z φ_xz - 2φ_y φ_z φ_yz)
-                //   / |∇φ|³
-                let numerator = phi_xx * (phi_y * phi_y + phi_z * phi_z)
-                    + phi_yy * (phi_x * phi_x + phi_z * phi_z)
-                    + phi_zz * (phi_x * phi_x + phi_y * phi_y)
-                    - 2.0 * phi_x * phi_y * phi_xy
-                    - 2.0 * phi_x * phi_z * phi_xz
-                    - 2.0 * phi_y * phi_z * phi_yz;
-
-                kappa[i] = numerator / (grad_sq_safe * grad_mag);
-            }
-        }
-    }
+    compute_curvature_into(phi, dims, kappa);
 }
-
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

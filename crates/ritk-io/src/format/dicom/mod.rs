@@ -35,4 +35,4 @@ pub use reader::{
     read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
     DicomSliceMetadata,
 };
-pub use writer::{write_dicom_series, DicomWriter};
+pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};

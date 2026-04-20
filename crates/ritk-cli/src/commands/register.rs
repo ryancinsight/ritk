@@ -1,31 +1,34 @@
 //! `ritk register` — image registration command.
 //!
-//! Registers a moving image to a fixed reference image using intensity-based
-//! optimisation with mutual information (MI) as the similarity metric.
+//! Registers a moving image to a fixed reference image.
 //!
 //! # Supported methods
 //!
-//! | Method      | DOF | Algorithm                        |
-//! |-------------|-----|----------------------------------|
-//! | `rigid-mi`  | 6   | Rigid hill-climbing (MI)         |
-//! | `affine-mi` | 9   | Affine hill-climbing (MI)        |
-//! | `demons`    | dense| Thirion Demons deformable        |
-//! | `syn`       | dense| Greedy SyN diffeomorphic         |
-//! | `multires-demons` | dense| Multi-resolution Thirion/Diffeomorphic Demons |
+//! | Method            | DOF   | Algorithm                                        |
+//! |-------------------|-------|--------------------------------------------------|
+//! | `rigid-mi`        | 6     | Rigid hill-climbing (MI)                         |
+//! | `affine-mi`       | 9     | Affine hill-climbing (MI)                        |
+//! | `demons`          | dense | Thirion Demons deformable                        |
+//! | `multires-demons` | dense | Multi-resolution Thirion/Diffeomorphic Demons    |
+//! | `syn`             | dense | Greedy SyN diffeomorphic                         |
+//! | `bspline-ffd`     | dense | B-Spline FFD deformable (Rueckert 1999)          |
+//! | `multires-syn`    | dense | Multi-resolution SyN (coarse-to-fine pyramid)    |
+//! | `bspline-syn`     | dense | BSpline SyN (B-spline velocity fields)           |
+//! | `lddmm`           | dense | LDDMM geodesic shooting (EPDiff, Gaussian RKHS)  |
 //!
 //! # Pipeline
 //!
 //! 1. Read fixed and moving images (format inferred from extension).
 //! 2. Optionally apply isotropic Gaussian smoothing (`--sigma-fixed`).
 //! 3. Convert both images to `ndarray::Array3<f64>` (for MI methods) or
-//!    flat `Vec<f32>` (for demons/SyN).
+//!    flat `Vec<f32>` (for deformable methods).
 //! 4. Run the selected registration method; initial transform is identity.
 //! 5. Apply the estimated 4×4 homogeneous transform to the moving image
-//!    (MI methods) or reconstruct from warped output (demons/SyN).
+//!    (MI methods) or reconstruct from warped output (deformable methods).
 //! 6. Write the warped image to `--output`.
 //! 7. Optionally serialise the 4×4 transform matrix to JSON at
 //!    `--output-transform` (MI methods only).
-//! 8. Print a registration summary (iterations, MI, convergence status).
+//! 8. Print a registration summary (iterations, metric value, convergence status).
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
@@ -87,6 +90,34 @@ pub struct RegisterArgs {
     /// Use Diffeomorphic Demons at each pyramid level (default: Thirion Demons).
     #[arg(long, default_value = "false", value_name = "BOOL")]
     pub use_diffeomorphic: bool,
+
+    /// Regularization weight for BSpline FFD and BSpline SyN bending energy (default 0.001).
+    #[arg(long, default_value = "0.001", value_name = "FLOAT")]
+    pub regularization_weight: f64,
+
+    /// Control point spacing in voxels for BSpline FFD and BSpline SyN (default 8).
+    #[arg(long, default_value = "8", value_name = "INT")]
+    pub control_spacing: usize,
+
+    /// NCC window radius in voxels for SyN-family methods (default 2).
+    #[arg(long, default_value = "2", value_name = "INT")]
+    pub cc_radius: usize,
+
+    /// Enforce inverse consistency in Multi-Resolution SyN (default false).
+    #[arg(long, default_value = "false", value_name = "BOOL")]
+    pub inverse_consistency: bool,
+
+    /// Number of LDDMM time-discretization steps (default 10).
+    #[arg(long, default_value = "10", value_name = "INT")]
+    pub num_time_steps: usize,
+
+    /// RKHS Gaussian kernel sigma for LDDMM regularization (default 3.0).
+    #[arg(long, default_value = "3.0", value_name = "FLOAT")]
+    pub kernel_sigma: f64,
+
+    /// Learning rate for BSpline FFD and LDDMM gradient descent (default 0.01).
+    #[arg(long, default_value = "0.01", value_name = "FLOAT")]
+    pub learning_rate: f64,
 }
 
 // ── Image ↔ ndarray conversion ────────────────────────────────────────────────
@@ -195,9 +226,13 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         "demons" => run_demons(&args),
         "multires-demons" => run_multires_demons(&args),
         "syn" => run_syn(&args),
+        "bspline-ffd" => run_bspline_ffd(&args),
+        "multires-syn" => run_multires_syn(&args),
+        "bspline-syn" => run_bspline_syn(&args),
+        "lddmm" => run_lddmm(&args),
         other => Err(anyhow!(
             "Unknown registration method '{other}'. \
-             Supported methods: rigid-mi, affine-mi, demons, multires-demons, syn."
+             Supported methods: rigid-mi, affine-mi, demons, multires-demons, syn, \n             bspline-ffd, multires-syn, bspline-syn, lddmm."
         )),
     }
 }
@@ -452,6 +487,234 @@ fn run_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
+// ── BSpline FFD registration ───────────────────────────────────────────────
+
+/// Run B-Spline Free-Form Deformation registration.
+///
+/// Rueckert et al. (1999): Multi-resolution control-lattice FFD with NCC metric
+/// and bending-energy regularization.  Control-point spacing halves at each
+/// successive level.
+fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration};
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = BSplineFFDConfig {
+        initial_control_spacing: [
+            args.control_spacing,
+            args.control_spacing,
+            args.control_spacing,
+        ],
+        num_levels: args.levels,
+        max_iterations_per_level: args.iterations,
+        learning_rate: args.learning_rate,
+        regularization_weight: args.regularization_weight,
+        ..Default::default()
+    };
+
+    let result = BSplineFFDRegistration::register(
+        &fixed_vals,
+        &moving_vals,
+        fixed_shape,
+        [1.0, 1.0, 1.0],
+        &config,
+    )
+    .with_context(|| "BSpline FFD registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped_moving, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=bspline-ffd, levels={}, iterations={}, final_metric={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        args.levels,
+        result.num_iterations,
+        result.final_metric,
+    );
+
+    info!(
+        method = "bspline-ffd",
+        levels = args.levels,
+        iterations = result.num_iterations,
+        final_metric = result.final_metric,
+        "register: bspline-ffd complete"
+    );
+
+    Ok(())
+}
+
+// ── Multi-resolution SyN registration ────────────────────────────────────────────
+
+/// Run Multi-Resolution SyN diffeomorphic registration.
+///
+/// Avants & Gee coarse-to-fine pyramid SyN: Gaussian downsampling with
+/// level-doubling velocity fields and optional inverse consistency enforcement.
+fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::diffeomorphic::multires_syn::{
+        MultiResSyNConfig, MultiResSyNRegistration,
+    };
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = MultiResSyNConfig {
+        num_levels: args.levels,
+        iterations_per_level: vec![args.iterations; args.levels],
+        sigma_smooth: args.sigma_fixed,
+        convergence_threshold: 1e-6,
+        convergence_window: 10,
+        n_squarings: 6,
+        cc_window_radius: args.cc_radius,
+        enforce_inverse_consistency: args.inverse_consistency,
+    };
+
+    let reg = MultiResSyNRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "Multi-resolution SyN registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped_moving, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=multires-syn, levels={}, iterations={}, final_cc={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        args.levels,
+        result.num_iterations,
+        result.final_cc,
+    );
+
+    info!(
+        method = "multires-syn",
+        levels = args.levels,
+        iterations = result.num_iterations,
+        final_cc = result.final_cc,
+        "register: multires-syn complete"
+    );
+
+    Ok(())
+}
+
+// ── BSpline SyN registration ──────────────────────────────────────────────
+
+/// Run BSpline SyN diffeomorphic registration.
+///
+/// Symmetric diffeomorphic registration with B-spline-parameterized velocity
+/// fields.  Provides intrinsic smoothness from B-spline basis and bending-energy
+/// regularization.
+fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::diffeomorphic::bspline_syn::{
+        BSplineSyNConfig, BSplineSyNRegistration,
+    };
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = BSplineSyNConfig {
+        max_iterations: args.iterations,
+        control_spacing: [
+            args.control_spacing,
+            args.control_spacing,
+            args.control_spacing,
+        ],
+        sigma_smooth: args.sigma_fixed,
+        convergence_threshold: 1e-6,
+        convergence_window: 10,
+        n_squarings: 6,
+        cc_window_radius: args.cc_radius,
+        regularization_weight: args.regularization_weight,
+    };
+
+    let reg = BSplineSyNRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "BSpline SyN registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped_moving, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=bspline-syn, iterations={}, final_cc={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        result.num_iterations,
+        result.final_cc,
+    );
+
+    info!(
+        method = "bspline-syn",
+        iterations = result.num_iterations,
+        final_cc = result.final_cc,
+        "register: bspline-syn complete"
+    );
+
+    Ok(())
+}
+
+// ── LDDMM registration ────────────────────────────────────────────────────
+
+/// Run LDDMM (Large Deformation Diffeomorphic Metric Mapping) registration.
+///
+/// Geodesic shooting via EPDiff with a Gaussian RKHS kernel (Miller 2006).
+/// The initial velocity field parameterizes the geodesic; the deformation
+/// phi_1 at t=1 warps the moving image.
+fn run_lddmm(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = LddmmConfig {
+        max_iterations: args.iterations,
+        num_time_steps: args.num_time_steps,
+        kernel_sigma: args.kernel_sigma,
+        learning_rate: args.learning_rate,
+        ..Default::default()
+    };
+
+    let reg = LddmmRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "LDDMM registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped_moving, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} \u{2192} {} (method=lddmm, iterations={}, time_steps={}, final_metric={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        result.num_iterations,
+        args.num_time_steps,
+        result.final_metric,
+    );
+
+    info!(
+        method = "lddmm",
+        iterations = result.num_iterations,
+        time_steps = args.num_time_steps,
+        final_metric = result.final_metric,
+        "register: lddmm complete"
+    );
+
+    Ok(())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -506,6 +769,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -542,6 +812,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -577,6 +854,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -634,6 +918,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -681,6 +972,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -720,6 +1018,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -760,6 +1065,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -799,6 +1111,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -837,6 +1156,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         });
 
         assert!(result.is_err(), "unknown method must return Err");
@@ -869,6 +1195,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 3,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         });
 
         assert!(result.is_err(), "missing fixed image must yield an error");
@@ -979,6 +1312,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 1,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -1018,6 +1358,13 @@ mod tests {
             sigma_fixed: 0.0,
             levels: 1,
             use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
         })
         .unwrap();
 
@@ -1032,4 +1379,321 @@ mod tests {
             );
         }
     }
+
+    // ── BSpline FFD: output shape ──────────────────────────────────────────────────────
+
+    #[test]
+    fn test_register_bspline_ffd_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "bspline-ffd".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("bspline-ffd must succeed");
+
+        assert!(output_path.exists(), "output must exist");
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
+    }
+
+
+    #[test]
+    fn test_register_bspline_ffd_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "bspline-ffd".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("bspline-ffd must succeed");
+
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = out.data().clone().into_data();
+        let vals: &[f32] = td.as_slice().unwrap();
+        assert!(
+            vals.iter().all(|v| v.is_finite()),
+            "all output voxels must be finite"
+        );
+    }
+
+    // ── Multi-resolution SyN: output shape ─────────────────────────────────────────────
+
+    #[test]
+    fn test_register_multires_syn_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "multires-syn".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("multires-syn must succeed");
+
+        assert!(output_path.exists(), "output must exist");
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
+    }
+
+
+    #[test]
+    fn test_register_multires_syn_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "multires-syn".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("multires-syn must succeed");
+
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = out.data().clone().into_data();
+        let vals: &[f32] = td.as_slice().unwrap();
+        assert!(
+            vals.iter().all(|v| v.is_finite()),
+            "all output voxels must be finite"
+        );
+    }
+
+    // ── BSpline SyN: output shape ─────────────────────────────────────────────────────
+
+    #[test]
+    fn test_register_bspline_syn_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "bspline-syn".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("bspline-syn must succeed");
+
+        assert!(output_path.exists(), "output must exist");
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
+    }
+
+
+    #[test]
+    fn test_register_bspline_syn_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "bspline-syn".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("bspline-syn must succeed");
+
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = out.data().clone().into_data();
+        let vals: &[f32] = td.as_slice().unwrap();
+        assert!(
+            vals.iter().all(|v| v.is_finite()),
+            "all output voxels must be finite"
+        );
+    }
+
+    // ── LDDMM: output shape ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_register_lddmm_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "lddmm".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("lddmm must succeed");
+
+        assert!(output_path.exists(), "output must exist");
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
+    }
+
+
+    #[test]
+    fn test_register_lddmm_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let img = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &img).unwrap();
+        ritk_io::write_nifti(&moving_path, &img).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "lddmm".to_string(),
+            output_transform: None,
+            iterations: 2,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+        })
+        .expect("lddmm must succeed");
+
+        let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = out.data().clone().into_data();
+        let vals: &[f32] = td.as_slice().unwrap();
+        assert!(
+            vals.iter().all(|v| v.is_finite()),
+            "all output voxels must be finite"
+        );
+    }
+
 }

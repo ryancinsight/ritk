@@ -24,6 +24,7 @@
 //! - [`zscore_normalize`]:       Z-score standardization (zero mean, unit variance).
 //! - [`histogram_match`]:        CDF-based histogram matching to a reference image.
 //! - [`white_stripe_normalize`]: Shinohara et al. (2014) white stripe MRI normalization.
+//! - [`nyul_udupa_normalize`]:    Nyul-Udupa piecewise-linear histogram standardization.
 
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
@@ -31,7 +32,9 @@ use pyo3::types::PyDict;
 use ritk_core::statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
-use ritk_core::statistics::normalization::{HistogramMatcher, MinMaxNormalizer, ZScoreNormalizer};
+use ritk_core::statistics::normalization::{
+    HistogramMatcher, MinMaxNormalizer, NyulUdupaNormalizer, ZScoreNormalizer,
+};
 use ritk_core::statistics::{
     compute_statistics as core_compute_statistics, dice_coefficient as core_dice_coefficient,
     estimate_noise_mad, estimate_noise_mad_masked, hausdorff_distance as core_hausdorff_distance,
@@ -444,9 +447,63 @@ pub fn white_stripe_normalize(
     ))
 }
 
+
+// ── nyul_udupa_normalize ──────────────────────────────────────────────────────
+
+/// Normalize an image using Nyul-Udupa piecewise-linear histogram standardization.
+///
+/// Learns standard intensity landmarks from `training_images` (which may include
+/// `image` itself for single-image standardization) and applies the piecewise-linear
+/// mapping to `image`.
+///
+/// Reference: Nyul & Udupa (1999), *IEEE Trans. Med. Imaging* 18(4):301-306.
+///
+/// Args:
+///     image:           Image to normalize.
+///     training_images: List of PyImage used to learn the standard landmarks.
+///                      Must contain at least one image.
+///
+/// Returns:
+///     Normalized PyImage with the same shape and spatial metadata as `image`.
+///
+/// Raises:
+///     RuntimeError: if training_images is empty or normalization fails.
+#[pyfunction]
+pub fn nyul_udupa_normalize(
+    py: Python<'_>,
+    image: &PyImage,
+    training_images: Vec<PyRef<'_, PyImage>>,
+) -> PyResult<PyImage> {
+    if training_images.is_empty() {
+        return Err(pyo3::exceptions::PyRuntimeError::new_err(
+            "training_images must contain at least one image",
+        ));
+    }
+
+    // Clone Arc pointers before releasing the GIL (PyRef cannot cross GIL boundary).
+    let training_arcs: Vec<_> = training_images
+        .iter()
+        .map(|py_img| py_img.inner.clone())
+        .collect();
+    let input_arc = image.inner.clone();
+
+    let normalized = py
+        .allow_threads(|| {
+            let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
+                training_arcs.iter().map(|a| a.as_ref()).collect();
+            let mut normalizer = NyulUdupaNormalizer::new();
+            normalizer.learn_standard(&refs);
+            normalizer
+                .apply(input_arc.as_ref())
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+
+    Ok(into_py_image(normalized))
+}
 // ── Submodule registration ────────────────────────────────────────────────────
 
-/// Register the `statistics` submodule and all 13 exposed functions into `parent`.
+/// Register the `statistics` submodule and all 14 exposed functions into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "statistics")?;
     m.add_function(wrap_pyfunction!(compute_statistics, &m)?)?;
@@ -462,6 +519,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(zscore_normalize, &m)?)?;
     m.add_function(wrap_pyfunction!(histogram_match, &m)?)?;
     m.add_function(wrap_pyfunction!(white_stripe_normalize, &m)?)?;
+    m.add_function(wrap_pyfunction!(nyul_udupa_normalize, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }
