@@ -1,1 +1,0 @@
-error: could not compile `ritk-model` (lib) due to 29 previous errors; 24 warnings emitted

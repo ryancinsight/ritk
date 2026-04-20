@@ -25,6 +25,11 @@
 - [x] STREAM-C: DICOM-SORT — Slice sorting by z-position, InstanceNumber, filename (COMPLETED)
 - [x] STREAM-C: DICOM-ORIGIN — Origin/direction from first-slice IPP/IOP (COMPLETED)
 - [x] STREAM-C: DICOM-META-WRITE — Fixed duplicate bit-depth tags in write_dicom_series_with_metadata (COMPLETED)
+- [x] STREAM-C: DICOM-WRITE-REGRESSION — Added binary-level regression asserting BitsAllocated, BitsStored, and HighBit each appear exactly once and precede Pixel Data in written slices
+- [x] STREAM-C: PY-WHEEL-SMOKE-LS — Extended Python wheel smoke coverage to install `pytest`, import `ritk`, construct NumPy-backed images, execute `ritk.segmentation.laplacian_level_set_segment`, assert output shape plus finite values, and run `pytest crates/ritk-python/tests -q` against the built wheel
+- [x] STREAM-C: PY-SEG-INTEGRATION-TESTS — Added Python integration tests covering connected-components value semantics plus Chan-Vese, Geodesic Active Contour, Shape Detection, Threshold Level Set, and Laplacian level-set shape/finite-value invariants
+- [x] STREAM-C: CLI-LAPLACIAN-LS — Added `laplacian-level-set` CLI integration with dispatch, documentation alignment, and tests covering output shape preservation, binary output invariant, and required `--initial-phi` validation
+- [x] STREAM-C: REPO-CLEANUP-GENERATED — Removed temporary base64 fragments, patch scripts, generated helper scripts, and transient log/output files from the repository root
 - [x] Verification: cargo check --workspace zero errors (131 ritk-cli tests, 0 failed)
 - [x] Verification: cargo test -p ritk-cli 131/131 tests pass
 

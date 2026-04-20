@@ -18,6 +18,7 @@
 //! | `morphological-gradient` | Morphological gradient (dilation - erosion)  |
 //! | `shape-detection`        | Shape Detection level set (Malladi, Sethian & Vemuri 1995) |
 //! | `threshold-level-set`    | Threshold Level Set (Whitaker 1998)            |
+//! | `laplacian-level-set`    | Laplacian Level Set                             |
 //!
 //! # Output
 //! - `otsu`, `li`, `yen`, `kapur`, `triangle`: binary mask (0.0 / 1.0) + printed threshold.
@@ -26,7 +27,7 @@
 //! - `watershed`: label image (0 = boundary, 1..K = basins).
 //! - `kmeans`: label image (0..K−1 cluster indices).
 //! - `distance-transform`: float distance map (Euclidean distance to nearest background voxel).
-//! - `shape-detection`, `threshold-level-set`: binary mask (0.0 / 1.0) + foreground voxel count.
+//! - `shape-detection`, `threshold-level-set`, `laplacian-level-set`: binary mask (0.0 / 1.0) + foreground voxel count.
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
@@ -35,8 +36,8 @@ use tracing::info;
 
 use ritk_core::segmentation::{
     connected_threshold, multi_otsu_threshold, otsu_threshold, BinaryFillHoles, KMeansSegmentation,
-    KapurThreshold, LiThreshold, MorphologicalGradient, MorphologicalOperation, MultiOtsuThreshold,
-    OtsuThreshold, TriangleThreshold, WatershedSegmentation, YenThreshold,
+    KapurThreshold, LaplacianLevelSet, LiThreshold, MorphologicalGradient, MorphologicalOperation,
+    MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, WatershedSegmentation, YenThreshold,
 };
 
 use super::{read_image, write_image_inferred, Backend};
@@ -96,13 +97,16 @@ pub struct SegmentArgs {
     /// Radius 1 => 3x3x3 neighbourhood.
     #[arg(long, default_value = "1", value_name = "INT")]
     pub neighborhood_radius: usize,
-    // -- Shape-detection / Threshold-level-set ----------------------------
-    /// Path to initial level set φ image for `shape-detection` or `threshold-level-set`.
+    // -- Shape-detection / Threshold-level-set / Laplacian-level-set ------
+    /// Path to initial level set φ image for `shape-detection`, `threshold-level-set`, or `laplacian-level-set`.
     #[arg(long, value_name = "PATH")]
     pub initial_phi: Option<PathBuf>,
     /// Curvature weight for level-set methods.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub curvature_weight: f32,
+    /// Gaussian pre-smoothing σ for shape-detection and laplacian-level-set.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub sigma: f32,
     /// Propagation (balloon) weight for level-set methods.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub propagation_weight: f32,
@@ -112,14 +116,15 @@ pub struct SegmentArgs {
     /// Edge-stopping sensitivity k for shape-detection.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub edge_k: f32,
-    /// Gaussian pre-smoothing σ for shape-detection.
-    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
-    pub sigma: f32,
     /// Euler forward time step Δt for level-set methods.
     #[arg(long, default_value = "0.05", value_name = "FLOAT")]
     pub dt: f32,
-    /// Maximum iterations for level-set methods (shape-detection, threshold-level-set).
-    #[arg(long = "level-set-max-iterations", default_value = "200", value_name = "INT")]
+    /// Maximum iterations for level-set methods (shape-detection, threshold-level-set, laplacian-level-set).
+    #[arg(
+        long = "level-set-max-iterations",
+        default_value = "200",
+        value_name = "INT"
+    )]
     pub level_set_max_iterations: usize,
     /// Convergence tolerance on max |dφ|/dt.
     #[arg(long, default_value = "1e-3", value_name = "FLOAT")]
@@ -130,6 +135,26 @@ pub struct SegmentArgs {
     /// Upper intensity threshold for threshold-level-set.
     #[arg(long, value_name = "FLOAT")]
     pub upper_threshold: Option<f32>,
+    // -- Connected-components -------------------------------------------------
+    /// Connectivity for connected-components: 6 (faces) or 26 (faces+edges+corners).
+    #[arg(long, default_value = "6", value_name = "INT")]
+    pub connectivity: u32,
+    // -- Chan-Vese -----------------------------------------------------------
+    /// Length (curvature) penalty weight μ for chan-vese.
+    #[arg(long, default_value = "0.1", value_name = "FLOAT")]
+    pub mu: f64,
+    /// Area penalty weight ν for chan-vese. Positive penalises large regions.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub nu: f64,
+    /// Data fidelity weight for inside region in chan-vese.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub lambda1: f64,
+    /// Data fidelity weight for outside region in chan-vese.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub lambda2: f64,
+    /// Regularisation width ε for Heaviside/Dirac in chan-vese.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub epsilon: f64,
 }
 
 impl Default for SegmentArgs {
@@ -156,6 +181,12 @@ impl Default for SegmentArgs {
             tolerance: 1e-3,
             lower_threshold: None,
             upper_threshold: None,
+            connectivity: 6,
+            mu: 0.1,
+            nu: 0.0,
+            lambda1: 1.0,
+            lambda2: 1.0,
+            epsilon: 1.0,
         }
     }
 }
@@ -221,12 +252,11 @@ fn count_foreground(image: &ritk_core::image::Image<Backend, 3>) -> usize {
 /// - An unknown method name is supplied.
 pub fn run(args: SegmentArgs) -> Result<()> {
     info!(
-        input  = %args.input.display(),
-        output = %args.output.display(),
-        method = %args.method,
-        "segment: starting"
+    input = %args.input.display(),
+    output = %args.output.display(),
+    method = %args.method,
+    "segment: starting"
     );
-
     match args.method.as_str() {
         "otsu" => run_otsu(&args),
         "multi-otsu" => run_multi_otsu(&args),
@@ -242,15 +272,22 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         "morphological-gradient" => run_morphological_gradient(&args),
         "confidence-connected" => run_confidence_connected(&args),
         "neighborhood-connected" => run_neighborhood_connected(&args),
-        "shape-detection" => run_shape_detection(&args), "threshold-level-set" => run_threshold_level_set(&args), "skeletonization" => run_skeletonization(&args),
+        "shape-detection" => run_shape_detection(&args),
+        "threshold-level-set" => run_threshold_level_set(&args),
+        "laplacian-level-set" => run_laplacian_level_set(&args),
+        "skeletonization" => run_skeletonization(&args),
+        "connected-components" => run_connected_components(&args),
+        "chan-vese" => run_chan_vese(&args),
+        "geodesic-active-contour" => run_geodesic_active_contour(&args),
         other => Err(anyhow!(
-                   "Unknown segmentation method '{other}'. \
-                   Supported methods: otsu, multi-otsu, connected-threshold, \
-                   li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
-                   fill-holes, morphological-gradient, confidence-connected, \
-                   neighborhood-connected, shape-detection, threshold-level-set, \
-                   skeletonization."
-               )),
+            "Unknown segmentation method '{}'. \
+        Supported methods: otsu, multi-otsu, connected-threshold, \
+        li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
+        fill-holes, morphological-gradient, confidence-connected, \
+        neighborhood-connected, shape-detection, threshold-level-set, \
+        laplacian-level-set, skeletonization, connected-components, chan-vese, geodesic-active-contour.",
+            other
+        )),
     }
 }
 
@@ -904,7 +941,164 @@ fn run_threshold_level_set(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// -- Skeletonization ----------------------------------------------------------
+// -- Laplacian level set --------------------------------------------------
+
+fn run_laplacian_level_set(args: &SegmentArgs) -> Result<()> {
+    let phi_path = args
+        .initial_phi
+        .as_ref()
+        .ok_or_else(|| anyhow!("--initial-phi is required for laplacian-level-set"))?;
+
+    let image = read_image(&args.input)?;
+    let initial_phi = read_image(phi_path)?;
+
+    let mut seg = LaplacianLevelSet::new();
+    seg.propagation_weight = args.propagation_weight as f64;
+    seg.curvature_weight = args.curvature_weight as f64;
+    seg.sigma = args.sigma as f64;
+    seg.dt = args.dt as f64;
+    seg.max_iterations = args.level_set_max_iterations;
+    seg.tolerance = args.tolerance as f64;
+
+    let mask = seg
+        .apply(&image, &initial_phi)
+        .with_context(|| "laplacian-level-set segmentation failed")?;
+    let n_foreground = count_foreground(&mask);
+
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: laplacian-level-set found {} foreground voxels",
+        args.input.display(),
+        n_foreground,
+    );
+
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        foreground = n_foreground,
+        propagation = args.propagation_weight,
+        curvature = args.curvature_weight,
+        sigma = args.sigma,
+        "segment: laplacian-level-set complete"
+    );
+    Ok(())
+}
+
+// -- Connected components -------------------------------------------------
+
+fn run_connected_components(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::ConnectedComponentsFilter;
+
+    let image = read_image(&args.input)?;
+    let mut filter = ConnectedComponentsFilter::new();
+    filter.connectivity = args.connectivity;
+    let (labels, stats) = filter.apply(&image);
+    write_image_inferred(&args.output, &labels)?;
+
+    println!(
+        "Labeled {}: connected-components found {} components (connectivity={})",
+        args.input.display(),
+        stats.len(),
+        args.connectivity,
+    );
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        n_components = stats.len(),
+        connectivity = args.connectivity,
+        "segment: connected-components complete"
+    );
+    Ok(())
+}
+
+// -- Chan-Vese active contours --------------------------------------------
+
+fn run_chan_vese(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::ChanVeseSegmentation;
+
+    let image = read_image(&args.input)?;
+
+    let mut seg = ChanVeseSegmentation::new();
+    seg.mu = args.mu;
+    seg.nu = args.nu;
+    seg.lambda1 = args.lambda1;
+    seg.lambda2 = args.lambda2;
+    seg.epsilon = args.epsilon;
+    seg.dt = args.dt as f64;
+    seg.max_iterations = args.level_set_max_iterations;
+    seg.tolerance = args.tolerance as f64;
+
+    let mask = seg
+        .apply(&image)
+        .with_context(|| "chan-vese segmentation failed")?;
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: chan-vese found {} foreground voxels",
+        args.input.display(),
+        n_foreground,
+    );
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        foreground = n_foreground,
+        mu = args.mu,
+        nu = args.nu,
+        lambda1 = args.lambda1,
+        lambda2 = args.lambda2,
+        "segment: chan-vese complete"
+    );
+    Ok(())
+}
+
+// -- Geodesic active contour ----------------------------------------------
+
+fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
+    use ritk_core::segmentation::GeodesicActiveContourSegmentation;
+
+    let phi_path = args
+        .initial_phi
+        .as_ref()
+        .ok_or_else(|| anyhow!("--initial-phi is required for geodesic-active-contour"))?;
+    let image = read_image(&args.input)?;
+    let initial_phi = read_image(phi_path)?;
+
+    let mut seg = GeodesicActiveContourSegmentation::new();
+    seg.propagation_weight = args.propagation_weight as f64;
+    seg.curvature_weight = args.curvature_weight as f64;
+    seg.advection_weight = args.advection_weight as f64;
+    seg.edge_k = args.edge_k as f64;
+    seg.sigma = args.sigma as f64;
+    seg.dt = args.dt as f64;
+    seg.max_iterations = args.level_set_max_iterations;
+    seg.tolerance = args.tolerance as f64;
+
+    let mask = seg
+        .apply(&image, &initial_phi)
+        .with_context(|| "geodesic-active-contour segmentation failed")?;
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {}: geodesic-active-contour found {} foreground voxels",
+        args.input.display(),
+        n_foreground,
+    );
+    info!(
+        input = %args.input.display(),
+        output = %args.output.display(),
+        foreground = n_foreground,
+        propagation = args.propagation_weight,
+        curvature = args.curvature_weight,
+        advection = args.advection_weight,
+        "segment: geodesic-active-contour complete"
+    );
+    Ok(())
+}
+
+// -- Skeletonization ------------------------------------------------------
 
 fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
     use ritk_core::segmentation::Skeletonization;
@@ -2141,7 +2335,10 @@ mod tests {
                             out_vals[iz * ny * nx + iy * nx + ix],
                             1.0,
                             "interior voxel ({},{},{}) at d2={} must be filled",
-                            iz, iy, ix, d2
+                            iz,
+                            iy,
+                            ix,
+                            d2
                         );
                     }
                 }
@@ -2258,7 +2455,10 @@ mod tests {
         let result = run(args);
         assert!(result.is_err(), "--initial-phi missing must produce error");
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("--initial-phi"), "error must mention --initial-phi, got: {msg}");
+        assert!(
+            msg.contains("--initial-phi"),
+            "error must mention --initial-phi, got: {msg}"
+        );
     }
 
     // -- threshold-level-set tests -----------------------------------------
@@ -2335,7 +2535,10 @@ mod tests {
         args.upper_threshold = Some(250.0);
         let result = run(args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("--lower-threshold"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("--lower-threshold"));
     }
 
     #[test]
@@ -2351,7 +2554,10 @@ mod tests {
         args.lower_threshold = Some(5.0);
         let result = run(args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("--upper-threshold"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("--upper-threshold"));
     }
 
     #[test]
@@ -2375,4 +2581,306 @@ mod tests {
         );
     }
 
+    // -- Connected-components tests -----------------------------------------
+
+    fn make_binary_image_with_components(
+        dims: [usize; 3],
+        components: &[(usize, usize, usize, usize, usize, usize)],
+    ) -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let mut vals = vec![0.0_f32; n];
+        for &(z0, y0, x0, z1, y1, x1) in components {
+            for iz in z0..z1 {
+                for iy in y0..y1 {
+                    for ix in x0..x1 {
+                        vals[iz * ny * nx + iy * nx + ix] = 1.0;
+                    }
+                }
+            }
+        }
+        let td = TensorData::new(vals, Shape::new(dims));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    #[test]
+    fn test_segment_connected_components_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("mask.nii");
+        let output = dir.path().join("labels.nii");
+
+        // Create two separate foreground regions
+        let image =
+            make_binary_image_with_components([8, 8, 8], &[(2, 2, 2, 4, 4, 4), (5, 5, 5, 7, 7, 7)]);
+
+        ritk_io::write_nifti(&input, &image).unwrap();
+
+        let args = default_args(input.clone(), output.clone(), "connected-components");
+        let result = run(args);
+        assert!(result.is_ok(), "connected-components should succeed");
+
+        let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(labels.shape(), [8, 8, 8], "output shape must match input");
+    }
+
+    #[test]
+    fn test_segment_connected_components_output_labels_are_valid() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("mask.nii");
+        let output = dir.path().join("labels.nii");
+
+        // Create two separated components
+        let image =
+            make_binary_image_with_components([6, 6, 6], &[(1, 1, 1, 3, 3, 3), (4, 4, 4, 6, 6, 6)]);
+
+        ritk_io::write_nifti(&input, &image).unwrap();
+
+        let args = default_args(input.clone(), output.clone(), "connected-components");
+        run(args).unwrap();
+
+        let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let vals = labels.data().clone().into_data();
+        let slice = vals.as_slice::<f32>().unwrap();
+
+        // Labels must be 0, 1, or 2 (background + two components)
+        for &v in slice {
+            assert!(
+                v == 0.0 || v == 1.0 || v == 2.0,
+                "label must be 0, 1, or 2, got {}",
+                v
+            );
+        }
+
+        // Both component labels must be present
+        let has_label_1 = slice.iter().any(|&v| v == 1.0);
+        let has_label_2 = slice.iter().any(|&v| v == 2.0);
+        assert!(has_label_1, "label 1 must be present");
+        assert!(has_label_2, "label 2 must be present");
+    }
+
+    #[test]
+    fn test_segment_connected_components_connectivity_26() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("mask.nii");
+        let output = dir.path().join("labels.nii");
+
+        // Create a diagonal pattern: 26-connectivity should merge these
+        let image =
+            make_binary_image_with_components([4, 4, 4], &[(1, 1, 1, 2, 2, 2), (2, 2, 2, 3, 3, 3)]);
+
+        ritk_io::write_nifti(&input, &image).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "connected-components");
+        args.connectivity = 26;
+        run(args).unwrap();
+
+        let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let vals = labels.data().clone().into_data();
+        let slice = vals.as_slice::<f32>().unwrap();
+
+        // With 26-connectivity, diagonal neighbors are connected
+        let has_label_1 = slice.iter().any(|&v| v == 1.0);
+        assert!(
+            has_label_1,
+            "component must be labeled with 26-connectivity"
+        );
+    }
+
+    // -- Chan-Vese tests ----------------------------------------------------
+
+    #[test]
+    fn test_segment_chan_vese_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "chan-vese");
+        args.level_set_max_iterations = 10;
+
+        let result = run(args);
+        assert!(result.is_ok(), "chan-vese should succeed");
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
+    }
+
+    #[test]
+    fn test_segment_chan_vese_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "chan-vese");
+        args.level_set_max_iterations = 50;
+
+        run(args).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let vals = mask.data().clone().into_data();
+        let slice = vals.as_slice::<f32>().unwrap();
+
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    }
+
+    // Note: chan-vese does not require --initial-phi, so no missing-phi test needed
+
+    // -- Geodesic active contour tests --------------------------------------
+
+    #[test]
+    fn test_segment_geodesic_active_contour_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 10;
+
+        let result = run(args);
+        assert!(result.is_ok(), "geodesic-active-contour should succeed");
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
+    }
+
+    #[test]
+    fn test_segment_geodesic_active_contour_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 50;
+
+        run(args).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let vals = mask.data().clone().into_data();
+        let slice = vals.as_slice::<f32>().unwrap();
+
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    }
+
+    #[test]
+    fn test_segment_geodesic_active_contour_missing_phi_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
+        let result = run(args);
+        assert!(result.is_err(), "--initial-phi missing must produce error");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("--initial-phi"),
+            "error must mention --initial-phi, got: {msg}"
+        );
+    }
+
+    // -- Laplacian level set tests -----------------------------------------
+
+    #[test]
+    fn test_segment_laplacian_level_set_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 10;
+
+        let result = run(args);
+        assert!(result.is_ok(), "laplacian-level-set should succeed");
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(mask.shape(), [5, 5, 5], "output shape must match input");
+    }
+
+    #[test]
+    fn test_segment_laplacian_level_set_output_is_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let phi_path = dir.path().join("phi.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+        ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+        args.initial_phi = Some(phi_path);
+        args.level_set_max_iterations = 50;
+
+        run(args).unwrap();
+
+        let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let vals = mask.data().clone().into_data();
+        let slice = vals.as_slice::<f32>().unwrap();
+
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    }
+
+    #[test]
+    fn test_segment_laplacian_level_set_missing_phi_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("mask.nii");
+
+        ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
+
+        let args = default_args(input.clone(), output.clone(), "laplacian-level-set");
+        let result = run(args);
+        assert!(result.is_err(), "--initial-phi missing must produce error");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("--initial-phi"),
+            "error must mention --initial-phi, got: {msg}"
+        );
+    }
 }

@@ -70,3 +70,36 @@ def geodesic_active_contour_segment(
     dt: float = 0.05,
     max_iterations: int = 200,
 ) -> Image: ...
+def shape_detection_segment(
+    image: Image,
+    initial_phi: Image,
+    curvature_weight: float = 0.2,
+    propagation_weight: float = 1.0,
+    advection_weight: float = 1.0,
+    edge_k: float = 1.0,
+    sigma: float = 1.0,
+    dt: float = 0.05,
+    max_iterations: int = 200,
+    tolerance: float = 1e-3,
+) -> Image: ...
+def threshold_level_set_segment(
+    image: Image,
+    initial_phi: Image,
+    lower_threshold: float,
+    upper_threshold: float,
+    propagation_weight: float = 1.0,
+    curvature_weight: float = 0.2,
+    dt: float = 0.05,
+    max_iterations: int = 200,
+    tolerance: float = 1e-3,
+) -> Image: ...
+def laplacian_level_set_segment(
+    image: Image,
+    initial_phi: Image,
+    propagation_weight: float = 1.0,
+    curvature_weight: float = 0.2,
+    sigma: float = 1.0,
+    dt: float = 0.05,
+    max_iterations: int = 200,
+    tolerance: float = 1e-3,
+) -> Image: ...

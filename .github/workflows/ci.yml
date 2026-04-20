@@ -139,5 +139,8 @@ jobs:
 
       - name: Smoke test wheel
         run: |
+          pip install pytest
           pip install --find-links /tmp/ritk-wheel ritk
           python -c "import ritk; print(ritk.__version__)"
+          python -c "import numpy as np; import ritk; img = ritk.Image(np.zeros((5, 5, 5), dtype=np.float32)); phi = ritk.Image(np.ones((5, 5, 5), dtype=np.float32)); out = ritk.segmentation.laplacian_level_set_segment(img, phi, propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.1, max_iterations=1, tolerance=1e-6); arr = out.numpy(); assert arr.shape == (5, 5, 5); assert np.isfinite(arr).all()"
+          pytest crates/ritk-python/tests -q

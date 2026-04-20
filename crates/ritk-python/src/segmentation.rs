@@ -35,7 +35,7 @@ use ritk_core::segmentation::{
     connected_components as core_connected_components,
     connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
     BinaryOpening, ChanVeseSegmentation, GeodesicActiveContourSegmentation, KMeansSegmentation,
-    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold, ShapeDetectionSegmentation,
+    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold, LaplacianLevelSet, ShapeDetectionSegmentation,
     BinaryFillHoles, ConfidenceConnectedFilter, MorphologicalGradient,
     NeighborhoodConnectedFilter, Skeletonization,
     TriangleThreshold, ThresholdLevelSet, WatershedSegmentation, YenThreshold,
@@ -669,6 +669,54 @@ pub fn threshold_level_set_segment(
 }
 
 
+// -- laplacian_level_set_segment -----------------------------------------
+
+/// Laplacian level set segmentation.
+///
+/// Evolves a level set using a speed function derived from the image Laplacian.
+/// Positive propagation speed is applied where L(I) < 0 (local bright maxima).
+///
+/// Args:
+///     image: Input PyImage.
+///     initial_phi: Initial level set function (signed distance).
+///     propagation_weight: Weight of Laplacian propagation term (default 1.0).
+///     curvature_weight: Weight of curvature regularisation term (default 0.2).
+///     sigma: Gaussian pre-smoothing standard deviation (default 1.0).
+///     dt: Euler time step (default 0.05).
+///     max_iterations: Maximum PDE iterations (default 200).
+///     tolerance: Convergence tolerance on max|delta phi|/dt (default 1e-3).
+///
+/// Returns:
+///     Binary mask PyImage (1.0=foreground, 0.0=background).
+///
+/// Raises:
+///     RuntimeError: if computation fails.
+#[pyfunction]
+#[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
+pub fn laplacian_level_set_segment(
+    image: &PyImage,
+    initial_phi: &PyImage,
+    propagation_weight: f64,
+    curvature_weight: f64,
+    sigma: f64,
+    dt: f64,
+    max_iterations: usize,
+    tolerance: f64,
+) -> PyResult<PyImage> {
+    let mut seg = LaplacianLevelSet::new();
+    seg.propagation_weight = propagation_weight;
+    seg.curvature_weight = curvature_weight;
+    seg.sigma = sigma;
+    seg.dt = dt;
+    seg.max_iterations = max_iterations;
+    seg.tolerance = tolerance;
+    let result = seg
+        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    Ok(into_py_image(result))
+}
+
+
 // ── confidence_connected_segment ─────────────────────────────────────────────
 
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
@@ -825,6 +873,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(shape_detection_segment, &m)?)?;
     m.add_function(wrap_pyfunction!(threshold_level_set_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(laplacian_level_set_segment, &m)?)?;
 
     // Region growing (confidence / neighbourhood)
     m.add_function(wrap_pyfunction!(confidence_connected_segment, &m)?)?;

@@ -126,14 +126,15 @@ ritk/
 **Segmentation**
 
 | Category | Algorithms |
+| Segmentation | Algorithms |
 |---|---|
 | Thresholding | Otsu, Multi-Otsu, Li, Yen, Kapur, Triangle |
-| Binary Morphology | Erosion, Dilation, Opening, Closing, Skeletonization |
+| Binary Morphology | Erosion, Dilation, Opening, Closing, Skeletonization, Fill Holes, Morphological Gradient |
 | Labeling | Connected Components (Hoshen–Kopelman) |
 | Region Growing | Connected threshold, Confidence connected, Neighborhood connected |
 | Clustering | K-Means |
 | Watershed | Marker-controlled watershed |
-| Level Sets | Chan–Vese, Geodesic Active Contour |
+| Level Sets | Chan–Vese, Geodesic Active Contour, Shape Detection, Threshold Level Set, Laplacian Level Set |
 
 **Statistics & Normalization**
 
@@ -214,6 +215,27 @@ ritk filter   <input> <output> [opts]   # Apply filters
 ritk register <fixed> <moving> [opts]   # Run registration
 ritk segment  <input> <output> [opts]   # Run segmentation
 ritk stats    --input <path> [opts]     # Summary and comparison metrics
+```
+
+Current `ritk segment --method` coverage includes:
+
+- Thresholding: `otsu`, `multi-otsu`, `li`, `yen`, `kapur`, `triangle`
+- Region / labeling: `connected-threshold`, `connected-components`
+- Morphology: `fill-holes`, `morphological-gradient`, `skeletonization`
+- Region growing: `confidence-connected`, `neighborhood-connected`
+- Clustering / topology: `kmeans`, `watershed`, `distance-transform`
+- Level sets: `chan-vese`, `geodesic-active-contour`, `shape-detection`, `threshold-level-set`, `laplacian-level-set`
+
+Selected method-specific options:
+
+- `connected-components`: `--connectivity`
+- `chan-vese`: `--mu`, `--nu`, `--lambda1`, `--lambda2`, `--epsilon`
+- `geodesic-active-contour`: `--initial-phi`, `--propagation-weight`, `--curvature-weight`, `--advection-weight`, `--edge-k`, `--sigma`, `--dt`, `--level-set-max-iterations`
+- `shape-detection`: `--initial-phi`, `--propagation-weight`, `--curvature-weight`, `--advection-weight`, `--edge-k`, `--sigma`, `--dt`, `--level-set-max-iterations`, `--tolerance`
+- `threshold-level-set`: `--initial-phi`, `--lower-threshold`, `--upper-threshold`, `--propagation-weight`, `--curvature-weight`, `--dt`, `--level-set-max-iterations`, `--tolerance`
+- `confidence-connected`: `--seed`, `--multiplier`, `--max-iterations`
+- `neighborhood-connected`: `--seed`, `--lower`, `--upper`, `--neighborhood-radius`
+```
 ```
 
 ## Usage Example

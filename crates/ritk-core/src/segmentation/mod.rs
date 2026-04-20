@@ -28,7 +28,8 @@ pub use clustering::{kmeans_segment, KMeansSegmentation};
 pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use level_set::{
-    ChanVeseSegmentation, GeodesicActiveContourSegmentation, ShapeDetectionSegmentation,
+    ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,
+    ShapeDetectionSegmentation,
     ThresholdLevelSet,
 };
 pub use morphology::{

@@ -792,4 +792,80 @@ mod tests {
         let result = write_dicom_series_with_metadata(&path, &image, Some(&meta));
         assert!(result.is_err(), "zero depth must be rejected");
     }
+
+    #[test]
+    fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
+        let meta = make_test_metadata();
+        let image = make_image_with_spatial(1, 4, 4, 42.0, meta.origin, meta.spacing);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("pixel_tag_order_series");
+        write_dicom_series_with_metadata(&path, &image, Some(&meta))
+            .expect("metadata write must succeed");
+
+        let dcm_path = path.join("slice_0000.dcm");
+        let bytes = std::fs::read(&dcm_path).expect("slice file must exist");
+
+        let bits_allocated = [0x28, 0x00, 0x00, 0x01];
+        let bits_stored = [0x28, 0x00, 0x01, 0x01];
+        let high_bit = [0x28, 0x00, 0x02, 0x01];
+        let pixel_data = [0xE0, 0x7F, 0x10, 0x00];
+
+        fn find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
+            haystack
+                .windows(needle.len())
+                .enumerate()
+                .filter_map(|(idx, window)| (window == needle).then_some(idx))
+                .collect()
+        }
+
+        let bits_allocated_pos = find_all(&bytes, &bits_allocated);
+        let bits_stored_pos = find_all(&bytes, &bits_stored);
+        let high_bit_pos = find_all(&bytes, &high_bit);
+        let pixel_data_pos = find_all(&bytes, &pixel_data);
+
+        assert_eq!(
+            bits_allocated_pos.len(),
+            1,
+            "BitsAllocated tag must appear exactly once, got {:?}",
+            bits_allocated_pos
+        );
+        assert_eq!(
+            bits_stored_pos.len(),
+            1,
+            "BitsStored tag must appear exactly once, got {:?}",
+            bits_stored_pos
+        );
+        assert_eq!(
+            high_bit_pos.len(),
+            1,
+            "HighBit tag must appear exactly once, got {:?}",
+            high_bit_pos
+        );
+        assert_eq!(
+            pixel_data_pos.len(),
+            1,
+            "PixelData tag must appear exactly once, got {:?}",
+            pixel_data_pos
+        );
+
+        let pixel_data_offset = pixel_data_pos[0];
+        assert!(
+            bits_allocated_pos[0] < pixel_data_offset,
+            "BitsAllocated must precede PixelData: {:?} vs {}",
+            bits_allocated_pos,
+            pixel_data_offset
+        );
+        assert!(
+            bits_stored_pos[0] < pixel_data_offset,
+            "BitsStored must precede PixelData: {:?} vs {}",
+            bits_stored_pos,
+            pixel_data_offset
+        );
+        assert!(
+            high_bit_pos[0] < pixel_data_offset,
+            "HighBit must precede PixelData: {:?} vs {}",
+            high_bit_pos,
+            pixel_data_offset
+        );
+    }
 }

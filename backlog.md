@@ -40,6 +40,11 @@
 | DICOM-SORT | Slice sorting by z-position, then InstanceNumber, then filename | COMPLETED | High | Deterministic ordering independent of filesystem | 
 | DICOM-ORIGIN | Origin and direction from first-slice ImagePositionPatient and ImageOrientationPatient | COMPLETED | High | Direction = row/col cross-product; origin from first IPP |
 | DICOM-META-WRITE | write_dicom_series_with_metadata with spatial reference tags | COMPLETED | High | Fixed duplicate bit-depth tag emission after Pixel Data; tags now emitted exactly once before Pixel Data |
+| DICOM-WRITE-REGRESSION | DICOM writer regression coverage for Image Pixel Module ordering | COMPLETED | High | Added binary-level regression asserting BitsAllocated, BitsStored, and HighBit each appear exactly once and precede Pixel Data in written slices |
+| PY-WHEEL-SMOKE-LS | Python wheel smoke coverage for level-set bindings | COMPLETED | Medium | CI wheel smoke test now installs `pytest`, imports `ritk`, constructs NumPy-backed images, executes `ritk.segmentation.laplacian_level_set_segment`, asserts output shape plus finite values, and runs `pytest crates/ritk-python/tests -q` against the built wheel |
+| PY-SEG-INTEGRATION-TESTS | Python segmentation integration tests for connected components and level-set bindings | COMPLETED | Medium | Added Python tests covering connected-components value semantics plus Chan-Vese, Geodesic Active Contour, Shape Detection, Threshold Level Set, and Laplacian level-set shape/finite-value invariants |
+| CLI-LAPLACIAN-LS | CLI Laplacian level-set integration | COMPLETED | High | Added `laplacian-level-set` dispatch and CLI tests covering output shape preservation, binary output invariant, and required `--initial-phi` validation |
+| REPO-CLEANUP-GENERATED | Root-level generated and stale patch/log artifact cleanup | COMPLETED | Medium | Removed temporary base64 fragments, patch scripts, generated helper scripts, and transient log/output files from the repository root |
 
 
 ## Sprint 21 — Completed

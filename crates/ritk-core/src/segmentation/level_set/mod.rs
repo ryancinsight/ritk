@@ -27,3 +27,6 @@ pub mod threshold_level_set;
 
 pub use shape_detection::ShapeDetectionSegmentation;
 pub use threshold_level_set::ThresholdLevelSet;
+
+pub mod laplacian;
+pub use laplacian::LaplacianLevelSet;
