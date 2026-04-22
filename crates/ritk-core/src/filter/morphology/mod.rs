@@ -31,3 +31,14 @@ pub mod grayscale_erosion;
 
 pub use grayscale_dilation::GrayscaleDilation;
 pub use grayscale_erosion::GrayscaleErosion;
+
+pub mod hit_or_miss;
+pub mod label_morphology;
+pub mod top_hat;
+
+pub use hit_or_miss::HitOrMissTransform;
+pub use label_morphology::{
+    LabelDilation, LabelErosion, LabelOpening, LabelClosing,
+    MorphologicalReconstruction, ReconstructionMode,
+};
+pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};

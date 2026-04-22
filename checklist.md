@@ -1,3 +1,110 @@
+## Sprint 28 -- Planned
+
+- [ ] NIFTI-SFORM-FIX: persist sform/pixdim in NIfTI writer so spacing round-trips correctly
+- [ ] DICOM-MULTIFRAME-WRITE: write multi-frame DICOM objects from 3D Image<B,3>
+- [ ] DICOM-NONIMAGE-SOP: define explicit accept/reject policy for non-image SOP classes
+- [ ] VTK-STRUCTGRID-IO: VTK legacy reader/writer for STRUCTURED_GRID and UNSTRUCTURED_GRID datasets
+- [ ] ITK-CONFIDENCE-CONNECTED: confidence-connected region growing (iterative mean+-k*sigma)
+- [ ] ITK-SKELETONIZATION: topology-preserving thinning via iterative boundary erosion
+- [ ] PY-CI-MATRIX: Python wheel smoke tests across supported Python versions
+
+## Sprint 26 -- Completed
+
+- [x] VTK-POLYDATA-XML: VTK XML PolyData (.vtp) reader/writer in ritk-io/src/format/vtk/polydata_xml/
+  - parse_vtp: find_tag/find_section/attr_val/parse_cells/parse_attrs; no single-quote char literals
+  - write_vtp_str: raw string format literals; write_cells + write_attr; correct HashMap/Vec<u32> types
+  - 13 tests (triangle parse, empty, scalars, lines, vectors round-trips, error paths)
+- [x] VTK-SCENE: VtkScene + VtkActor + RenderProperties in ritk-io/src/domain/vtk_scene.rs
+  - RenderProperties::default(): white, opacity=1.0, point_size=2.0, line_width=1.0
+  - VtkScene: add_actor, actor_by_name, remove_actor, actor_count; ordered actor list
+  - 7 tests (empty, add, find, remove, defaults, ordering)
+- [x] ITK-MORPHOLOGY: 3 new filters in ritk-core/src/filter/morphology/
+  - HitOrMissTransform: (M erode SE1) AND (Mc erode ring-SE2); ring excludes origin; 5 tests
+  - WhiteTopHatFilter: f - opening(f); BTH: closing(f) - f; both clamped >=0; 10 tests
+  - LabelDilation: min-label-ID priority expansion into background voxels; 5 tests
+  - All exported from filter/morphology/mod.rs and filter/mod.rs
+- [x] ITKSNAP-OVERLAY: overlay composition state in ritk-core/src/annotation/overlay.rs
+  - ImageOverlay, ContourOverlay, MaskOverlay, OverlayState; Serde derives; 8 tests
+  - Colormap enum (Grayscale/Hot/Cool/Jet/Custom); opacity/visibility controls
+- [x] ANTS-WORKFLOW: preprocessing pipeline in ritk-registration/src/preprocessing.rs
+  - PreprocessingPipeline: Clamp, Masking, IntensityNormalization(ZScore/MinMax), Smoothing, N4BiasCorrection
+  - Sequential execution; identity pipeline is identity; 9 tests
+- [x] PY-BINDINGS: 4 new Python functions in ritk-python/src/filter.rs
+  - white_top_hat, black_top_hat, hit_or_miss, label_dilation; GIL-safe allow_threads
+- [x] CLI-BINDINGS: 6 new CLI filter commands in ritk-cli/src/commands/filter.rs
+  - grayscale-erosion, grayscale-dilation, white-top-hat, black-top-hat, hit-or-miss, label-dilation
+- [x] Verification: cargo check --workspace zero errors; 674 ritk-core + 191 ritk-io + 184 ritk-registration + 160 ritk-cli = 1209 tests, 0 failures
+
+## Sprint 27 -- Completed
+
+- [x] DICOM-MULTIFRAME: MultiFrameInfo + load_dicom_multiframe<B> in ritk-io/src/format/dicom/multiframe.rs; 3 tests
+- [x] DICOM-WRITER-GENERAL: DicomObjectWriter (model_to_in_mem + write_object) in writer_object.rs; 5 tests
+- [x] DICOM-TRANSFER-SYNTAX: TransferSyntaxKind enum (11 UIDs + Unknown), is_compressed/lossless/supported; 8 tests
+- [x] ITK-RESAMPLE: Resample subcommand (ritk-cli) + resample_image Python binding; 5 CLI tests
+- [x] PY-PARITY-HARNESS: 10 analytically-derived parity tests in ritk-core/tests/parity.rs; all 10 pass
+- [x] VTK-STRUCT-GRID: VtkStructuredGrid + VtkUnstructuredGrid + VtkDataObject new variants; 9 tests
+- [x] ITK-MORPHOLOGY-EXTENDED: LabelErosion + LabelOpening + LabelClosing + MorphologicalReconstruction; 21 tests
+
+## Sprint 25 -- Completed
+
+- [x] VTK-DATA-MODEL: VtkDataObject enum + VtkPolyData data type in ritk-io/src/domain/vtk_data_object.rs
+  - VtkPolyData: points, vertices, lines, polygons, triangle_strips, point_data, cell_data
+  - AttributeArray enum: Scalars, Vectors, Normals, TextureCoords
+  - VtkPolyData::validate() enforces index bounds and attribute length invariants
+  - VtkDataObject::PolyData wraps VtkPolyData; extensible for StructuredGrid, UnstructuredGrid
+  - 8 unit tests (invariant checks, multi-type cell count, attribute validation)
+- [x] VTK-PIPELINE: VtkSource, VtkFilter, VtkSink traits + VtkPipeline execution model in ritk-io/src/domain/vtk_pipeline.rs
+  - VtkPipeline::new(source) + add_filter + set_sink + execute; composition law verified
+  - Send + Sync trait bounds for safe multi-thread use
+  - 5 unit tests (source-only, identity filter, sink call count, translate filter, chained cumulative)
+- [x] VTK-POLYDATA-READER: VTK legacy ASCII + BINARY POLYDATA format reader in ritk-io/src/format/vtk/polydata/reader.rs
+  - parse_polydata(reader) parses POINTS, VERTICES, LINES, POLYGONS, TRIANGLE_STRIPS
+  - POINT_DATA and CELL_DATA with SCALARS, VECTORS, NORMALS attribute arrays
+  - Big-endian binary encoding for BINARY files (f32/f64 points, i32 connectivity)
+  - 8 tests: triangle parse, lines, point_data scalars, cell_data, multiple cell types, vectors/normals, error paths
+- [x] VTK-POLYDATA-WRITER: VTK legacy ASCII POLYDATA writer in ritk-io/src/format/vtk/polydata/writer.rs
+  - write_vtk_polydata writes all cell types and attribute arrays; omits empty sections
+  - total_size = sum of (cell.len() + 1) for all cells in section
+  - 7 tests: triangle round-trip, empty polydata, scalars, all cell types, bad-path error, validate after round-trip, vectors
+- [x] ITK-INTENSITY-FILTERS: 5 new filters in ritk-core/src/filter/intensity/
+  - RescaleIntensityFilter: (I - I_min)/(I_max - I_min) * (out_max - out_min) + out_min; 5 tests
+  - IntensityWindowingFilter: clamp to [w_min, w_max] then rescale to [out_min, out_max]; 5 tests
+  - ThresholdImageFilter: Below/Above/Outside modes, conditional pixel replacement; 6 tests
+  - SigmoidImageFilter: (max-min)/(1+exp(-(I-alpha)/beta))+min; Sethian 1996; 5 tests
+  - BinaryThresholdImageFilter: indicator function scaled to {fg, bg}; 5 tests
+  - All 5 filters exported from filter/mod.rs; 26 unit tests total
+- [x] ITK-INTENSITY-PYTHON: 7 new Python functions in ritk-python/src/filter.rs
+  - rescale_intensity, intensity_windowing, threshold_below, threshold_above, threshold_outside, sigmoid_filter, binary_threshold
+  - All use py.allow_threads; registered in filter submodule
+- [x] ITK-INTENSITY-CLI: 7 new filter methods in ritk-cli/src/commands/filter.rs
+  - rescale-intensity, intensity-windowing, threshold-below, threshold-above, threshold-outside, sigmoid, binary-threshold
+  - 10 new FilterArgs fields; run_* functions with tracing; 7 integration tests
+- [x] ITKSNAP-WORKFLOW: annotation primitives in ritk-core/src/annotation/
+  - LabelTable + LabelEntry: CRUD, visibility, next_free_id, Serde; 8 tests
+  - LabelMap: ZYX-layout dense label volume, mask_for_label, count_label, present_labels; 8 tests
+  - AnnotationState: points, contours (>=2 pts), polylines (>=2 pts), JSON roundtrip; 9 tests
+  - UndoRedoStack<S: Clone>: branching undo, push clears future, history non-empty invariant; 10 tests
+  - pub mod annotation added to ritk-core/src/lib.rs; 35 tests total
+- [x] Verification: cargo check --workspace zero errors; 644 ritk-core + 171 ritk-io + 160 ritk-cli = 975 tests, 0 failures
+
+## Sprint 24 -- Completed
+
+- [x] DICOM-OBJ-MODEL: full element preservation wired in reader.rs
+  - Added tag_key, known_handled_tags, parse_sequence_item free functions
+  - Full element preservation loop iterates all non-handled elements per slice
+  - Private tags, text elements, sequence items, and binary elements captured in slice_meta.preservation
+  - Sequence items recursively parsed into DicomValue::Sequence (depth-limited to 8)
+  - Binary elements preserved as DicomPreservedElement with raw bytes
+- [x] DICOM-WRITER-EMIT: preservation emission wired in write_dicom_series_with_metadata
+  - Added str_to_vr, writer_tag_key, writer_exclusion_tags, sequence_item_to_dicom, emit_preservation_nodes helpers
+  - emit_preservation_nodes called before PixelData to maintain Image Pixel Module ordering invariant
+  - Private text tags, sequence nodes, and raw bytes all emitted from preservation set
+- [x] DICOM-ROUND-TRIP-TESTS: 3 new tests in writer.rs
+  - test_preservation_private_text_round_trip: private tag (0009,0010) survives write
+  - test_preservation_sequence_round_trip: SQ element with nested item survives write; value verified
+  - test_preservation_raw_bytes_round_trip: raw OB bytes (0xDE 0xAD 0xBE 0xEF) survive write
+- [x] DICOM-SECURITY-TEST-FIX: updated dicom_security.rs to use preservation path instead of stale private_tags HashMap
+- [x] Verification: cargo check --workspace zero errors; 147/147 ritk-io tests pass (144 unit + 3 integration)
 
 ## Sprint 23 -- Completed
 - [x] CLI-REG-BSPLINE-FFD: run_bspline_ffd added to register.rs; BSplineFFDConfig with control_spacing/levels/learning_rate/regularization_weight

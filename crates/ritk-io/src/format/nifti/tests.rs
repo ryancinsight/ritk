@@ -9,7 +9,6 @@ use tempfile::tempdir;
 type TestBackend = NdArray<f32>;
 
 #[test]
-#[ignore] // Ignoring existing broken test for sform/origin preservation
 fn test_read_write_nifti_cycle() -> Result<()> {
     let dir = tempdir()?;
     let file_path = dir.path().join("test_cycle.nii");

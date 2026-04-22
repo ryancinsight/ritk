@@ -35,6 +35,20 @@ use ritk_core::filter::{
 use ritk_core::filter::diffusion::CurvatureConfig;
 use ritk_core::filter::vesselness::SatoConfig;
 use ritk_core::filter::{CurvatureAnisotropicDiffusionFilter, SatoLineFilter};
+use ritk_core::filter::{
+    BinaryThresholdImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
+    SigmoidImageFilter, ThresholdImageFilter,
+};
+
+
+use ritk_core::filter::{LabelErosion, LabelOpening, LabelClosing, MorphologicalReconstruction, ReconstructionMode, ResampleImageFilter};
+use ritk_core::interpolation::linear::LinearInterpolator;
+use ritk_core::interpolation::{BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator};
+use ritk_core::transform::translation::TranslationTransform;
+use ritk_core::spatial::Spacing as CoreSpacing;
+use burn::tensor::{Shape, Tensor, TensorData};
+use burn::tensor::backend::Backend as BurnBackend;
+
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
 
@@ -617,6 +631,272 @@ pub fn sato_line_filter(
 // ── Submodule registration ────────────────────────────────────────────────────
 // ── Submodule registration ────────────────────────────────────────────────────
 
+// -- rescale_intensity ----------------------------------------------------------
+
+/// Linearly rescale image intensity to [out_min, out_max].
+///
+/// output(x) = (I(x) - I_min) / (I_max - I_min) * (out_max - out_min) + out_min
+///
+/// Args:
+///     image:   Input PyImage.
+///     out_min: Minimum output value (default 0.0).
+///     out_max: Maximum output value (default 1.0).
+///
+/// Returns:
+///     Rescaled PyImage with identical shape and spatial metadata.
+#[pyfunction]
+#[pyo3(signature = (image, out_min=0.0_f32, out_max=1.0_f32))]
+pub fn rescale_intensity(py: Python<'_>, image: &PyImage, out_min: f32, out_max: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = RescaleIntensityFilter::new(out_min, out_max);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Clamp to [window_min, window_max] then rescale to [out_min, out_max].
+///
+/// Pixels below window_min map to out_min; pixels above window_max map to out_max.
+///
+/// Args:
+///     image:      Input PyImage.
+///     window_min: Lower intensity window bound.
+///     window_max: Upper intensity window bound.
+///     out_min:    Minimum output value (default 0.0).
+///     out_max:    Maximum output value (default 1.0).
+#[pyfunction]
+#[pyo3(signature = (image, window_min, window_max, out_min=0.0_f32, out_max=1.0_f32))]
+pub fn intensity_windowing(py: Python<'_>, image: &PyImage, window_min: f32, window_max: f32, out_min: f32, out_max: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = IntensityWindowingFilter::new(window_min, window_max, out_min, out_max);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Set pixels strictly below threshold to outside_value; keep others unchanged.
+#[pyfunction]
+#[pyo3(signature = (image, threshold, outside_value=0.0_f32))]
+pub fn threshold_below(py: Python<'_>, image: &PyImage, threshold: f32, outside_value: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = ThresholdImageFilter::below(threshold, outside_value);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Set pixels strictly above threshold to outside_value; keep others unchanged.
+#[pyfunction]
+#[pyo3(signature = (image, threshold, outside_value=0.0_f32))]
+pub fn threshold_above(py: Python<'_>, image: &PyImage, threshold: f32, outside_value: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = ThresholdImageFilter::above(threshold, outside_value);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Set pixels outside [lower, upper] to outside_value; keep interior pixels unchanged.
+#[pyfunction]
+#[pyo3(signature = (image, lower, upper, outside_value=0.0_f32))]
+pub fn threshold_outside(py: Python<'_>, image: &PyImage, lower: f32, upper: f32, outside_value: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = ThresholdImageFilter::outside(lower, upper, outside_value);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Sigmoid intensity transform: output = (max-min)/(1+exp(-(I-alpha)/beta)) + min.
+///
+/// Args:
+///     image:      Input PyImage.
+///     alpha:      Inflection point (input value where output = (max+min)/2).
+///     beta:       Transition width (larger = more gradual sigmoid).
+///     min_output: Minimum output value (default 0.0).
+///     max_output: Maximum output value (default 1.0).
+#[pyfunction]
+#[pyo3(signature = (image, alpha, beta, min_output=0.0_f32, max_output=1.0_f32))]
+pub fn sigmoid_filter(py: Python<'_>, image: &PyImage, alpha: f32, beta: f32, min_output: f32, max_output: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = SigmoidImageFilter::new(alpha, beta, min_output, max_output);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Binary threshold: foreground if I in [lower_threshold, upper_threshold], else background.
+///
+/// Args:
+///     image:            Input PyImage.
+///     lower_threshold:  Inclusive lower bound.
+///     upper_threshold:  Inclusive upper bound.
+///     foreground:       Value for pixels inside the interval (default 1.0).
+///     background:       Value for pixels outside the interval (default 0.0).
+#[pyfunction]
+#[pyo3(signature = (image, lower_threshold, upper_threshold, foreground=1.0_f32, background=0.0_f32))]
+pub fn binary_threshold(py: Python<'_>, image: &PyImage, lower_threshold: f32, upper_threshold: f32, foreground: f32, background: f32) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = BinaryThresholdImageFilter::new(lower_threshold, upper_threshold, foreground, background);
+        filter.apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+
+// ── label_erosion ──────────────────────────────────────────────────────────────
+
+/// Erode labeled regions in a 3-D label volume.
+#[pyfunction]
+#[pyo3(signature = (image, radius=1_usize))]
+pub fn label_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let img = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        LabelErosion::new(radius).apply(img.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── label_opening ─────────────────────────────────────────────────────────────
+
+/// Opening on a 3-D label volume (erosion followed by dilation).
+#[pyfunction]
+#[pyo3(signature = (image, radius=1_usize))]
+pub fn label_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let img = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        LabelOpening::new(radius).apply(img.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── label_closing ─────────────────────────────────────────────────────────────
+
+/// Closing on a 3-D label volume (dilation followed by erosion).
+#[pyfunction]
+#[pyo3(signature = (image, radius=1_usize))]
+pub fn label_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let img = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        LabelClosing::new(radius).apply(img.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── morphological_reconstruction ─────────────────────────────────────────────
+
+/// Geodesic morphological reconstruction.
+#[pyfunction]
+#[pyo3(signature = (marker, mask, mode = "dilation"))]
+pub fn morphological_reconstruction(
+    py: Python<'_>,
+    marker: &PyImage,
+    mask: &PyImage,
+    mode: &str,
+) -> PyResult<PyImage> {
+    let recon_mode = match mode {
+        "dilation" => ReconstructionMode::Dilation,
+        "erosion"  => ReconstructionMode::Erosion,
+        other => return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "Unknown reconstruction mode '{}'. Use 'dilation' or 'erosion'.", other
+        ))),
+    };
+    let marker_arc = std::sync::Arc::clone(&marker.inner);
+    let mask_arc   = std::sync::Arc::clone(&mask.inner);
+    let result = py.allow_threads(|| {
+        MorphologicalReconstruction::new(recon_mode)
+            .apply(marker_arc.as_ref(), mask_arc.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+// ── resample_image ────────────────────────────────────────────────────────────
+
+/// Resample a 3-D image to new voxel spacing.
+///
+/// Output size N_d_prime = max(1, round(N_d * S_d / S_d_prime)).
+#[pyfunction]
+#[pyo3(signature = (image, spacing_z=1.0_f64, spacing_y=1.0_f64, spacing_x=1.0_f64, mode="linear"))]
+pub fn resample_image(
+    py: Python<'_>,
+    image: &PyImage,
+    spacing_z: f64,
+    spacing_y: f64,
+    spacing_x: f64,
+    mode: &str,
+) -> PyResult<PyImage> {
+    if spacing_z <= 0.0 || spacing_y <= 0.0 || spacing_x <= 0.0 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "spacing values must be positive, got ({spacing_z},{spacing_y},{spacing_x})"
+        )));
+    }
+    let mode = mode.to_string();
+    let inner = std::sync::Arc::clone(&image.inner);
+
+    let result = py.allow_threads(move || -> Result<_, String> {
+        let orig_dims = inner.shape();
+        let orig_sp   = *inner.spacing();
+        let orig_orig = *inner.origin();
+        let orig_dir  = *inner.direction();
+
+        let new_nz = ((orig_dims[0] as f64 * orig_sp[0]) / spacing_z).round().max(1.0) as usize;
+        let new_ny = ((orig_dims[1] as f64 * orig_sp[1]) / spacing_y).round().max(1.0) as usize;
+        let new_nx = ((orig_dims[2] as f64 * orig_sp[2]) / spacing_x).round().max(1.0) as usize;
+
+        let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let zero_t = Tensor::<Backend, 1>::from_data(
+            TensorData::new(vec![0.0f32; 3], Shape::new([3])), &device
+        );
+
+        match mode.as_str() {
+            "nearest" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx], orig_orig, new_sp, orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                NearestNeighborInterpolator::new(),
+            ).apply(inner.as_ref())),
+            "linear" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx], orig_orig, new_sp, orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                LinearInterpolator::new(),
+            ).apply(inner.as_ref())),
+            "bspline" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx], orig_orig, new_sp, orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                BSplineInterpolator::new(),
+            ).apply(inner.as_ref())),
+            "lanczos4" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx], orig_orig, new_sp, orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                Lanczos4Interpolator::new(),
+            ).apply(inner.as_ref())),
+            other => Err(format!(
+                "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos4", other
+            )),
+        }
+    }).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+
+    Ok(into_py_image(result))
+}
+
 /// Register the `filter` submodule.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "filter")?;
@@ -636,6 +916,59 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
     m.add_function(wrap_pyfunction!(curvature_anisotropic_diffusion, &m)?)?;
     m.add_function(wrap_pyfunction!(sato_line_filter, &m)?)?;
+    m.add_function(wrap_pyfunction!(rescale_intensity, &m)?)?;
+    m.add_function(wrap_pyfunction!(intensity_windowing, &m)?)?;
+    m.add_function(wrap_pyfunction!(threshold_below, &m)?)?;
+    m.add_function(wrap_pyfunction!(threshold_above, &m)?)?;
+    m.add_function(wrap_pyfunction!(threshold_outside, &m)?)?;
+    m.add_function(wrap_pyfunction!(sigmoid_filter, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_threshold, &m)?)?;
+
+// -- white_top_hat
+
+#[pyfunction]
+pub fn white_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| ritk_core::filter::WhiteTopHatFilter::new(radius).apply(image.as_ref()).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string())));
+    Ok(into_py_image(result?))
+}
+
+// -- black_top_hat
+
+#[pyfunction]
+pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| ritk_core::filter::BlackTopHatFilter::new(radius).apply(image.as_ref()).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string())));
+    Ok(into_py_image(result?))
+}
+
+// -- hit_or_miss
+
+#[pyfunction]
+pub fn hit_or_miss(py: Python<'_>, image: &PyImage, fg_radius: usize, bg_radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| ritk_core::filter::HitOrMissTransform::new(fg_radius, bg_radius).apply(image.as_ref()).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string())));
+    Ok(into_py_image(result?))
+}
+
+// -- label_dilation
+
+#[pyfunction]
+pub fn label_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| ritk_core::filter::LabelDilation::new(radius).apply(image.as_ref()).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string())));
+    Ok(into_py_image(result?))
+}
+
+    m.add_function(wrap_pyfunction!(white_top_hat, &m)?)?;
+    m.add_function(wrap_pyfunction!(black_top_hat, &m)?)?;
+    m.add_function(wrap_pyfunction!(hit_or_miss, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_dilation, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_erosion, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_opening, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_closing, &m)?)?;
+    m.add_function(wrap_pyfunction!(morphological_reconstruction, &m)?)?;
+    m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }

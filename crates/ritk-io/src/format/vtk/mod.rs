@@ -10,6 +10,14 @@
 //! The reader handles both `ASCII` and `BINARY` encodings. The writer
 //! always emits `BINARY` with big-endian `float` scalars.
 
+pub mod polydata;
+pub use polydata::{read_vtk_polydata, write_vtk_polydata};
+pub mod struct_grid;
+pub mod unstruct_grid;
+pub use struct_grid::{read_vtk_structured_grid, write_vtk_structured_grid};
+pub use unstruct_grid::{read_vtk_unstructured_grid, write_vtk_unstructured_grid};
+
+
 pub mod reader;
 pub mod writer;
 
@@ -608,3 +616,6 @@ LOOKUP_TABLE default
         );
     }
 }
+
+pub mod polydata_xml;
+pub use polydata_xml::{read_vtp_polydata, write_vtp_polydata};

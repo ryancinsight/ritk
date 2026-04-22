@@ -9,6 +9,7 @@ pub mod filter;
 pub mod register;
 pub mod segment;
 pub mod stats;
+pub mod resample;
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;

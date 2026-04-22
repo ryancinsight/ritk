@@ -1,5 +1,10 @@
 //! DICOM series writer using dicom-rs v0.8.2.
 //! Transfer syntax: Explicit VR LE. Each .dcm has 128-byte preamble + DICM magic.
+//!
+//! Stage 1 scope:
+//! - preserve metadata-driven tags during series write
+//! - keep pixel-module ordering stable
+//! - verify private tag propagation for supported scalar tags
 
 use super::reader::DicomReadMetadata;
 use anyhow::{bail, Context, Result};
@@ -11,6 +16,11 @@ use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
+use dicom::core::header::Length;
+use dicom::core::value::{DataSetSequence, Value as DicomCoreValue};
+use std::collections::HashSet;
+use super::object_model::{DicomPreservationSet, DicomSequenceItem, DicomValue};
+
 
 const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.1.1.7";
 
@@ -39,6 +49,177 @@ fn generate_series_uid() -> String {
 
 fn generate_instance_uid(series_uid: &str, instance: usize) -> String {
     format!("{}.{}", series_uid, instance + 1)
+}
+
+
+/// Map a VR string slice to the dicom VR enum, defaulting to UN for unknown names.
+fn str_to_vr(s: &str) -> VR {
+    match s {
+        "AE" => VR::AE, "AS" => VR::AS, "AT" => VR::AT,
+        "CS" => VR::CS, "DA" => VR::DA, "DS" => VR::DS,
+        "DT" => VR::DT, "FL" => VR::FL, "FD" => VR::FD,
+        "IS" => VR::IS, "LO" => VR::LO, "LT" => VR::LT,
+        "OB" => VR::OB, "OD" => VR::OD, "OF" => VR::OF,
+        "OL" => VR::OL, "OW" => VR::OW, "PN" => VR::PN,
+        "SH" => VR::SH, "SL" => VR::SL, "SQ" => VR::SQ,
+        "SS" => VR::SS, "ST" => VR::ST, "TM" => VR::TM,
+        "UC" => VR::UC, "UI" => VR::UI, "UL" => VR::UL,
+        "UN" => VR::UN, "UR" => VR::UR, "US" => VR::US,
+        "UT" => VR::UT,
+        _ => VR::UN,
+    }
+}
+
+/// Return compact key for a tag (group << 16 | element).
+#[inline]
+fn writer_tag_key(group: u16, element: u16) -> u32 {
+    ((group as u32) << 16) | (element as u32)
+}
+
+/// Tags explicitly emitted by write_dicom_series_with_metadata.
+/// These are excluded from preservation emission to prevent duplication.
+fn writer_exclusion_tags() -> HashSet<u32> {
+    let mut s = HashSet::new();
+    s.insert(writer_tag_key(0x0008, 0x0016)); // SOP Class UID
+    s.insert(writer_tag_key(0x0008, 0x0018)); // SOP Instance UID
+    s.insert(writer_tag_key(0x0008, 0x0020)); // StudyDate
+    s.insert(writer_tag_key(0x0008, 0x0021)); // SeriesDate
+    s.insert(writer_tag_key(0x0008, 0x0031)); // SeriesTime
+    s.insert(writer_tag_key(0x0008, 0x0060)); // Modality
+    s.insert(writer_tag_key(0x0008, 0x103E)); // SeriesDescription
+    s.insert(writer_tag_key(0x0010, 0x0010)); // PatientName
+    s.insert(writer_tag_key(0x0010, 0x0020)); // PatientID
+    s.insert(writer_tag_key(0x0018, 0x0050)); // SliceThickness
+    s.insert(writer_tag_key(0x0019, 0x10AA)); // Private (hardcoded in writer)
+    s.insert(writer_tag_key(0x0020, 0x000D)); // StudyInstanceUID
+    s.insert(writer_tag_key(0x0020, 0x000E)); // SeriesInstanceUID
+    s.insert(writer_tag_key(0x0020, 0x0013)); // InstanceNumber
+    s.insert(writer_tag_key(0x0020, 0x0032)); // ImagePositionPatient
+    s.insert(writer_tag_key(0x0020, 0x0037)); // ImageOrientationPatient
+    s.insert(writer_tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
+    s.insert(writer_tag_key(0x0028, 0x0004)); // PhotometricInterpretation
+    s.insert(writer_tag_key(0x0028, 0x0010)); // Rows
+    s.insert(writer_tag_key(0x0028, 0x0011)); // Columns
+    s.insert(writer_tag_key(0x0028, 0x0100)); // BitsAllocated
+    s.insert(writer_tag_key(0x0028, 0x0101)); // BitsStored
+    s.insert(writer_tag_key(0x0028, 0x0102)); // HighBit
+    s.insert(writer_tag_key(0x0028, 0x0103)); // PixelRepresentation
+    s.insert(writer_tag_key(0x0028, 0x0030)); // PixelSpacing
+    s.insert(writer_tag_key(0x0028, 0x1052)); // RescaleIntercept
+    s.insert(writer_tag_key(0x0028, 0x1053)); // RescaleSlope
+    s.insert(writer_tag_key(0x0029, 0x10BB)); // Private (hardcoded in writer)
+    s.insert(writer_tag_key(0x7FE0, 0x0010)); // PixelData
+    s
+}
+
+/// Recursively convert a DicomSequenceItem into an InMemDicomObject for writing.
+fn sequence_item_to_dicom(item: &DicomSequenceItem) -> InMemDicomObject {
+    let mut obj = InMemDicomObject::new_empty();
+    for node in &item.elements {
+        let tag = Tag(node.tag.group, node.tag.element);
+        let vr = node.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
+        match &node.value {
+            DicomValue::Text(s) => {
+                obj.put(DataElement::new(tag, vr, PrimitiveValue::from(s.as_str())));
+            }
+            DicomValue::Bytes(b) => {
+                obj.put(DataElement::new(
+                    tag,
+                    VR::OB,
+                    PrimitiveValue::U8(SmallVec::from_vec(b.clone())),
+                ));
+            }
+            DicomValue::U16(v) => {
+                obj.put(DataElement::new(tag, vr, PrimitiveValue::from(*v)));
+            }
+            DicomValue::I32(v) => {
+                obj.put(DataElement::new(
+                    tag, vr,
+                    PrimitiveValue::from(format!("{}", v).as_str()),
+                ));
+            }
+            DicomValue::F64(v) => {
+                obj.put(DataElement::new(
+                    tag, vr,
+                    PrimitiveValue::from(format!("{:.6}", v).as_str()),
+                ));
+            }
+            DicomValue::Sequence(sub_items) => {
+                let dicom_items: Vec<InMemDicomObject> =
+                    sub_items.iter().map(sequence_item_to_dicom).collect();
+                let seq = DataSetSequence::new(dicom_items, Length::UNDEFINED);
+                let val: DicomCoreValue<InMemDicomObject> = DicomCoreValue::from(seq);
+                obj.put(DataElement::new(tag, VR::SQ, val));
+            }
+            DicomValue::Empty => {}
+        }
+    }
+    obj
+}
+
+/// Emit preserved nodes from a DicomPreservationSet into obj, skipping tags in exclusion.
+///
+/// Must be called BEFORE adding PixelData so the Image Pixel Module ordering invariant
+/// (BitsAllocated, BitsStored, HighBit before PixelData) is preserved.
+fn emit_preservation_nodes(
+    obj: &mut InMemDicomObject,
+    preservation: &DicomPreservationSet,
+    exclusion: &HashSet<u32>,
+) {
+    for node in &preservation.object.nodes {
+        let key = writer_tag_key(node.tag.group, node.tag.element);
+        if exclusion.contains(&key) {
+            continue;
+        }
+        let tag = Tag(node.tag.group, node.tag.element);
+        let vr = node.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
+        match &node.value {
+            DicomValue::Text(s) => {
+                obj.put(DataElement::new(tag, vr, PrimitiveValue::from(s.as_str())));
+            }
+            DicomValue::Bytes(b) => {
+                obj.put(DataElement::new(
+                    tag, VR::OB,
+                    PrimitiveValue::U8(SmallVec::from_vec(b.clone())),
+                ));
+            }
+            DicomValue::U16(v) => {
+                obj.put(DataElement::new(tag, vr, PrimitiveValue::from(*v)));
+            }
+            DicomValue::I32(v) => {
+                obj.put(DataElement::new(
+                    tag, vr,
+                    PrimitiveValue::from(format!("{}", v).as_str()),
+                ));
+            }
+            DicomValue::F64(v) => {
+                obj.put(DataElement::new(
+                    tag, vr,
+                    PrimitiveValue::from(format!("{:.6}", v).as_str()),
+                ));
+            }
+            DicomValue::Sequence(items) => {
+                let dicom_items: Vec<InMemDicomObject> =
+                    items.iter().map(sequence_item_to_dicom).collect();
+                let seq = DataSetSequence::new(dicom_items, Length::UNDEFINED);
+                let val: DicomCoreValue<InMemDicomObject> = DicomCoreValue::from(seq);
+                obj.put(DataElement::new(tag, VR::SQ, val));
+            }
+            DicomValue::Empty => {}
+        }
+    }
+    for elem in &preservation.preserved {
+        let key = writer_tag_key(elem.tag.group, elem.tag.element);
+        if exclusion.contains(&key) {
+            continue;
+        }
+        let tag = Tag(elem.tag.group, elem.tag.element);
+        let vr = elem.vr.as_deref().map(str_to_vr).unwrap_or(VR::UN);
+        obj.put(DataElement::new(
+            tag, vr,
+            PrimitiveValue::U8(SmallVec::from_vec(elem.bytes.clone())),
+        ));
+    }
 }
 
 pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
@@ -179,6 +360,11 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
 /// identifiers are written into each slice. When `None`, the writer falls
 /// back to generated UIDs and default tag values (identical to
 /// `write_dicom_series`).
+///
+/// This is the Stage 1 DICOM object-model preservation boundary for the
+/// supported series writer: scalar metadata tags are propagated through the
+/// write path, and the emitted file layout keeps Image Pixel Module elements
+/// before Pixel Data.
 pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<B, 3>,
@@ -325,7 +511,6 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 
         // --- Spatial reference tags ---
         if metadata.is_some() {
-            // ImagePositionPatient: origin + z * spacing_z * normal
             let ipp_x = origin[0] + (z as f64) * spacing[2] * normal[0];
             let ipp_y = origin[1] + (z as f64) * spacing[2] * normal[1];
             let ipp_z = origin[2] + (z as f64) * spacing[2] * normal[2];
@@ -334,7 +519,6 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                 VR::DS,
                 PrimitiveValue::from(format_triplet([ipp_x, ipp_y, ipp_z])),
             ));
-            // ImageOrientationPatient: row and column direction cosines
             obj.put(DataElement::new(
                 Tag(0x0020, 0x0037),
                 VR::DS,
@@ -347,13 +531,11 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                     direction[5],
                 ])),
             ));
-            // PixelSpacing: row spacing \ column spacing
             obj.put(DataElement::new(
                 Tag(0x0028, 0x0030),
                 VR::DS,
                 PrimitiveValue::from(format_pair([spacing[0], spacing[1]])),
             ));
-            // SliceThickness
             obj.put(DataElement::new(
                 Tag(0x0018, 0x0050),
                 VR::DS,
@@ -433,16 +615,29 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                     PrimitiveValue::from(bits),
                 ));
             }
-            if let Some(ref uid) = m.private_tags.get("0019,10AA") {
+            if let Some(ref private_value) = m.private_tags.get("0019,10AA") {
                 obj.put(DataElement::new(
                     Tag(0x0019, 0x10AA),
                     VR::LO,
-                    PrimitiveValue::from(uid.as_str()),
+                    PrimitiveValue::from(private_value.as_str()),
+                ));
+            }
+            if let Some(ref private_value) = m.private_tags.get("0029,10BB") {
+                obj.put(DataElement::new(
+                    Tag(0x0029, 0x10BB),
+                    VR::LO,
+                    PrimitiveValue::from(private_value.as_str()),
                 ));
             }
         }
 
-        // --- Pixel data ---
+        // Emit preservation nodes before PixelData to maintain Image Pixel Module ordering.
+        if let Some(m) = metadata {
+            if !m.preservation.is_empty() {
+                let exclusion = writer_exclusion_tags();
+                emit_preservation_nodes(&mut obj, &m.preservation, &exclusion);
+            }
+        }
         obj.put(DataElement::new(
             Tag(0x7FE0, 0x0010),
             VR::OW,
@@ -522,6 +717,61 @@ mod tests {
         )
     }
 
+    fn make_image_with_spatial(
+        depth: usize,
+        rows: usize,
+        cols: usize,
+        fill: f32,
+        origin: [f64; 3],
+        spacing: [f64; 3],
+    ) -> Image<Backend, 3> {
+        let device = Default::default();
+        let data = vec![fill; depth * rows * cols];
+        let tensor = Tensor::<Backend, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        Image::new(
+            tensor,
+            Point::new(origin),
+            Spacing::new(spacing),
+            Direction::identity(),
+        )
+    }
+
+    fn make_test_metadata() -> DicomReadMetadata {
+        let mut private_tags = HashMap::new();
+        private_tags.insert("0019,10AA".to_string(), "PRIVATE_SERIES_VALUE".to_string());
+        private_tags.insert(
+            "0029,10BB".to_string(),
+            "PRIVATE_SERIES_VALUE_2".to_string(),
+        );
+
+        DicomReadMetadata {
+            series_instance_uid: Some("1.2.3.4.5.6.789".to_string()),
+            study_instance_uid: Some("1.2.3.4.5.6.100".to_string()),
+            frame_of_reference_uid: Some("1.2.3.4.5.6.200".to_string()),
+            series_description: Some("Test Series".to_string()),
+            modality: Some("CT".to_string()),
+            patient_id: Some("PAT001".to_string()),
+            patient_name: Some("Test^Patient".to_string()),
+            study_date: Some("20240101".to_string()),
+            series_date: Some("20240102".to_string()),
+            series_time: Some("123456".to_string()),
+            dimensions: [4, 4, 3],
+            spacing: [0.5, 0.5, 2.5],
+            origin: [10.0, 20.0, 30.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags,
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        }
+    }
+
     #[test]
     fn test_writer_rejects_zero_dimension() {
         let image = make_image(0, 4, 4, 0.5);
@@ -576,56 +826,6 @@ mod tests {
         );
     }
 
-    fn make_image_with_spatial(
-        depth: usize,
-        rows: usize,
-        cols: usize,
-        fill: f32,
-        origin: [f64; 3],
-        spacing: [f64; 3],
-    ) -> Image<Backend, 3> {
-        let device = Default::default();
-        let data = vec![fill; depth * rows * cols];
-        let tensor = Tensor::<Backend, 3>::from_data(
-            TensorData::new(data, Shape::new([depth, rows, cols])),
-            &device,
-        );
-        Image::new(
-            tensor,
-            Point::new(origin),
-            Spacing::new(spacing),
-            Direction::identity(),
-        )
-    }
-
-    fn make_test_metadata() -> DicomReadMetadata {
-        let mut private_tags = HashMap::new();
-        private_tags.insert("0019,10AA".to_string(), "PRIVATE_SERIES_VALUE".to_string());
-
-        DicomReadMetadata {
-            series_instance_uid: Some("1.2.3.4.5.6.789".to_string()),
-            study_instance_uid: Some("1.2.3.4.5.6.100".to_string()),
-            frame_of_reference_uid: Some("1.2.3.4.5.6.200".to_string()),
-            series_description: Some("Test Series".to_string()),
-            modality: Some("CT".to_string()),
-            patient_id: Some("PAT001".to_string()),
-            patient_name: Some("Test^Patient".to_string()),
-            study_date: Some("20240101".to_string()),
-            series_date: Some("20240102".to_string()),
-            series_time: Some("123456".to_string()),
-            dimensions: [4, 4, 3],
-            spacing: [0.5, 0.5, 2.5],
-            origin: [10.0, 20.0, 30.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            bits_allocated: Some(16),
-            bits_stored: Some(16),
-            high_bit: Some(15),
-            photometric_interpretation: Some("MONOCHROME2".to_string()),
-            slices: Vec::new(),
-            private_tags,
-        }
-    }
-
     #[test]
     fn test_metadata_writer_spatial_tags_first_slice() {
         let meta = make_test_metadata();
@@ -638,7 +838,6 @@ mod tests {
         let dcm_path = path.join("slice_0000.dcm");
         let obj = open_file(&dcm_path).expect("must open written DICOM");
 
-        // ImagePositionPatient -- first slice: origin itself
         let ipp = obj
             .element(Tag(0x0020, 0x0032))
             .expect("IPP tag must exist");
@@ -652,7 +851,6 @@ mod tests {
         assert!((ipp_vals[1] - 20.0).abs() < 1e-3, "IPP y={}", ipp_vals[1]);
         assert!((ipp_vals[2] - 30.0).abs() < 1e-3, "IPP z={}", ipp_vals[2]);
 
-        // ImageOrientationPatient
         let iop = obj
             .element(Tag(0x0020, 0x0037))
             .expect("IOP tag must exist");
@@ -665,7 +863,6 @@ mod tests {
         assert!((iop_vals[0] - 1.0).abs() < 1e-6, "IOP[0]");
         assert!((iop_vals[4] - 1.0).abs() < 1e-6, "IOP[4]");
 
-        // PixelSpacing
         let ps = obj
             .element(Tag(0x0028, 0x0030))
             .expect("PixelSpacing must exist");
@@ -678,26 +875,22 @@ mod tests {
         assert!((ps_vals[0] - 0.5).abs() < 1e-6, "PS row={}", ps_vals[0]);
         assert!((ps_vals[1] - 0.5).abs() < 1e-6, "PS col={}", ps_vals[1]);
 
-        // SliceThickness
         let st = obj
             .element(Tag(0x0018, 0x0050))
             .expect("SliceThickness must exist");
         let st_val: f64 = st.to_str().unwrap().trim().parse().unwrap();
         assert!((st_val - 2.5).abs() < 1e-6, "SliceThickness={}", st_val);
 
-        // Modality
         let mod_elem = obj
             .element(Tag(0x0008, 0x0060))
             .expect("Modality must exist");
         assert_eq!(mod_elem.to_str().unwrap().trim(), "CT");
 
-        // PatientID
         let pid = obj
             .element(Tag(0x0010, 0x0020))
             .expect("PatientID must exist");
         assert_eq!(pid.to_str().unwrap().trim(), "PAT001");
 
-        // SeriesDate / SeriesTime
         let sd = obj
             .element(Tag(0x0008, 0x0021))
             .expect("SeriesDate must exist");
@@ -707,13 +900,11 @@ mod tests {
             .expect("SeriesTime must exist");
         assert_eq!(st.to_str().unwrap().trim(), "123456");
 
-        // FrameOfReferenceUID
         let for_uid = obj
             .element(Tag(0x0020, 0x0052))
             .expect("FrameOfReferenceUID must exist");
         assert_eq!(for_uid.to_str().unwrap().trim(), "1.2.3.4.5.6.200");
 
-        // Private tag preservation
         let private = obj
             .element(Tag(0x0019, 0x10AA))
             .expect("private tag must exist");
@@ -729,8 +920,6 @@ mod tests {
         write_dicom_series_with_metadata(&path, &image, Some(&meta))
             .expect("metadata write must succeed");
 
-        // Verify z-positions: origin_z + z_index * spacing_z * normal_z
-        // With identity direction, normal = [0,0,1], spacing_z = 2.5, origin_z = 30.0
         let expected_z = [30.0, 32.5, 35.0];
         for (z_idx, &ez) in expected_z.iter().enumerate() {
             let dcm_path = path.join(format!("slice_{z_idx:04}.dcm"));
@@ -760,7 +949,6 @@ mod tests {
         let dcm_path = path.join("slice_0000.dcm");
         let obj = open_file(&dcm_path).expect("must open written DICOM");
 
-        // Without metadata, spatial tags should NOT be present.
         assert!(
             obj.element(Tag(0x0020, 0x0032)).is_err(),
             "IPP should not exist when metadata is None"
@@ -770,13 +958,11 @@ mod tests {
             "IOP should not exist when metadata is None"
         );
 
-        // Modality defaults to OT
         let mod_elem = obj
             .element(Tag(0x0008, 0x0060))
             .expect("Modality must exist");
         assert_eq!(mod_elem.to_str().unwrap().trim(), "OT");
 
-        // Private tags are not emitted when metadata is absent.
         assert!(
             obj.element(Tag(0x0019, 0x10AA)).is_err(),
             "private tag should not exist when metadata is None"
@@ -805,10 +991,10 @@ mod tests {
         let dcm_path = path.join("slice_0000.dcm");
         let bytes = std::fs::read(&dcm_path).expect("slice file must exist");
 
-        let bits_allocated = [0x28, 0x00, 0x00, 0x01];
-        let bits_stored = [0x28, 0x00, 0x01, 0x01];
-        let high_bit = [0x28, 0x00, 0x02, 0x01];
-        let pixel_data = [0xE0, 0x7F, 0x10, 0x00];
+        let bits_allocated = [0x28_u8, 0x00, 0x00, 0x01];
+        let bits_stored = [0x28_u8, 0x00, 0x01, 0x01];
+        let high_bit = [0x28_u8, 0x00, 0x02, 0x01];
+        let pixel_data = [0xE0_u8, 0x7F, 0x10, 0x00];
 
         fn find_all(haystack: &[u8], needle: &[u8]) -> Vec<usize> {
             haystack
@@ -818,10 +1004,10 @@ mod tests {
                 .collect()
         }
 
-        let bits_allocated_pos = find_all(&bytes, &bits_allocated);
-        let bits_stored_pos = find_all(&bytes, &bits_stored);
-        let high_bit_pos = find_all(&bytes, &high_bit);
-        let pixel_data_pos = find_all(&bytes, &pixel_data);
+        let bits_allocated_pos = find_all(&bytes, &bits_allocated[..]);
+        let bits_stored_pos = find_all(&bytes, &bits_stored[..]);
+        let high_bit_pos = find_all(&bytes, &high_bit[..]);
+        let pixel_data_pos = find_all(&bytes, &pixel_data[..]);
 
         assert_eq!(
             bits_allocated_pos.len(),
@@ -868,4 +1054,124 @@ mod tests {
             pixel_data_offset
         );
     }
+    #[test]
+    fn test_preservation_private_text_round_trip() {
+        use crate::format::dicom::object_model::{
+            DicomObjectNode, DicomPreservationSet, DicomTag,
+        };
+        let mut preservation = DicomPreservationSet::new();
+        preservation.object.insert(DicomObjectNode::text(
+            DicomTag::new(0x0009, 0x0010),
+            "LO",
+            "PRIVATE_ROUND_TRIP",
+        ));
+        let mut meta = make_test_metadata();
+        meta.preservation = preservation;
+
+        let image = make_image(1, 4, 4, 10.0);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("priv_rt_series");
+        write_dicom_series_with_metadata(&path, &image, Some(&meta))
+            .expect("write must succeed");
+
+        let dcm_path = path.join("slice_0000.dcm");
+        let obj = open_file(&dcm_path).expect("must open written DICOM");
+        let elem = obj
+            .element(Tag(0x0009, 0x0010))
+            .expect("private tag (0009,0010) must exist in written DICOM");
+        assert_eq!(
+            elem.to_str().unwrap().trim(),
+            "PRIVATE_ROUND_TRIP",
+            "private tag value must survive write"
+        );
+    }
+
+    #[test]
+    fn test_preservation_sequence_round_trip() {
+        use crate::format::dicom::object_model::{
+            DicomObjectNode, DicomPreservationSet, DicomSequenceItem, DicomTag, DicomValue,
+        };
+        let mut preservation = DicomPreservationSet::new();
+        let mut seq_item = DicomSequenceItem::new();
+        seq_item.insert(DicomObjectNode::text(
+            DicomTag::new(0x0008, 0x0104),
+            "LO",
+            "TestCodeMeaning",
+        ));
+        preservation.object.insert(DicomObjectNode {
+            tag: DicomTag::new(0x0008, 0x0096),
+            vr: Some("SQ".to_string()),
+            value: DicomValue::Sequence(vec![seq_item]),
+            private: false,
+            source: None,
+        });
+
+        let mut meta = make_test_metadata();
+        meta.preservation = preservation;
+
+        let image = make_image(1, 4, 4, 20.0);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("seq_rt_series");
+        write_dicom_series_with_metadata(&path, &image, Some(&meta))
+            .expect("write must succeed");
+
+        let dcm_path = path.join("slice_0000.dcm");
+        let obj = open_file(&dcm_path).expect("must open written DICOM");
+        let seq_elem = obj
+            .element(Tag(0x0008, 0x0096))
+            .expect("sequence tag (0008,0096) must exist in written DICOM");
+        assert_eq!(
+            seq_elem.vr(),
+            dicom::core::VR::SQ,
+            "sequence element must have VR=SQ"
+        );
+        let items = seq_elem
+            .value()
+            .items()
+            .expect("sequence must have items");
+        assert_eq!(items.len(), 1, "sequence must have exactly one item");
+        let code_meaning = items[0]
+            .element(Tag(0x0008, 0x0104))
+            .expect("(0008,0104) must exist inside sequence item");
+        assert_eq!(
+            code_meaning.to_str().unwrap().trim(),
+            "TestCodeMeaning",
+            "sequence item value must survive write"
+        );
+    }
+
+    #[test]
+    fn test_preservation_raw_bytes_round_trip() {
+        use crate::format::dicom::object_model::{
+            DicomPreservationSet, DicomPreservedElement, DicomTag,
+        };
+        let mut preservation = DicomPreservationSet::new();
+        preservation.preserve(DicomPreservedElement::new(
+            DicomTag::new(0x0019, 0x1001),
+            Some("OB".to_string()),
+            vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
+        ));
+
+        let mut meta = make_test_metadata();
+        meta.preservation = preservation;
+
+        let image = make_image(1, 4, 4, 30.0);
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("raw_rt_series");
+        write_dicom_series_with_metadata(&path, &image, Some(&meta))
+            .expect("write must succeed");
+
+        let dcm_path = path.join("slice_0000.dcm");
+        let obj = open_file(&dcm_path).expect("must open written DICOM");
+        let raw_elem = obj
+            .element(Tag(0x0019, 0x1001))
+            .expect("raw bytes tag (0019,1001) must exist in written DICOM");
+        let bytes = raw_elem.to_bytes().expect("must get raw bytes");
+        assert_eq!(
+            bytes.as_ref(),
+            &[0xDE_u8, 0xAD, 0xBE, 0xEF],
+            "raw byte payload must survive write"
+        );
+    }
+
 }

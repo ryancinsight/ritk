@@ -151,6 +151,73 @@ pub struct FilterArgs {
     /// Used by: `recursive-gaussian`.
     #[arg(long, default_value = "0", value_name = "INT")]
     pub order: usize,
+
+    // -- Intensity transform filters -------------------------------------------------
+    /// Minimum output value for rescale-intensity and intensity-windowing filters.
+    ///
+    /// Used by: `rescale-intensity`, `intensity-windowing`, `sigmoid`.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub out_min: f32,
+
+    /// Maximum output value for rescale-intensity and intensity-windowing filters.
+    ///
+    /// Used by: `rescale-intensity`, `intensity-windowing`, `sigmoid`.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub out_max: f32,
+
+    /// Minimum of intensity window for intensity-windowing filter.
+    ///
+    /// Used by: `intensity-windowing`.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub window_min: f32,
+
+    /// Maximum of intensity window for intensity-windowing filter.
+    ///
+    /// Used by: `intensity-windowing`.
+    #[arg(long, default_value = "255.0", value_name = "FLOAT")]
+    pub window_max: f32,
+
+    /// Threshold value for threshold-below and threshold-above filters.
+    ///
+    /// Used by: `threshold-below`, `threshold-above`.
+    #[arg(long, default_value = "0.5", value_name = "FLOAT")]
+    pub threshold_value: f32,
+
+    /// Lower bound for threshold-outside and binary-threshold filters.
+    ///
+    /// Used by: `threshold-outside`, `binary-threshold`.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub lower_threshold: f32,
+
+    /// Upper bound for threshold-outside and binary-threshold filters.
+    ///
+    /// Used by: `threshold-outside`, `binary-threshold`.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub upper_threshold: f32,
+
+    /// Replacement value for pixels outside the threshold range.
+    ///
+    /// Used by: `threshold-below`, `threshold-above`, `threshold-outside`.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub outside_value: f32,
+
+    /// Foreground value for binary-threshold filter.
+    ///
+    /// Used by: `binary-threshold`.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub foreground_value: f32,
+
+    /// Background value for binary-threshold filter.
+    ///
+    /// Used by: `binary-threshold`.
+    #[arg(long, default_value = "0.0", value_name = "FLOAT")]
+    pub background_value: f32,
+
+    /// Path to a mask image for filters requiring two inputs.
+    ///
+    /// Used by: `morphological-reconstruction`.
+    #[arg(long)]
+    pub mask: Option<std::path::PathBuf>,
 }
 
 // ── Command handler ───────────────────────────────────────────────────────────
@@ -188,11 +255,30 @@ pub fn run(args: FilterArgs) -> Result<()> {
         "recursive-gaussian" => run_recursive_gaussian(&args),
         "curvature" => run_curvature(&args),
         "sato" => run_sato(&args),
+        "rescale-intensity" => run_rescale_intensity(&args),
+        "intensity-windowing" => run_intensity_windowing(&args),
+        "threshold-below" => run_threshold_below(&args),
+        "threshold-above" => run_threshold_above(&args),
+        "threshold-outside" => run_threshold_outside(&args),
+        "sigmoid" => run_sigmoid(&args),
+        "binary-threshold" => run_binary_threshold(&args),
+        "grayscale-erosion" => run_grayscale_erosion(&args),
+        "grayscale-dilation" => run_grayscale_dilation(&args),
+        "white-top-hat" => run_white_top_hat(&args),
+        "black-top-hat" => run_black_top_hat(&args),
+        "hit-or-miss" => run_hit_or_miss(&args),
+        "label-dilation" => run_label_dilation(&args),
+        "label-erosion" => run_label_erosion(&args),
+        "label-opening" => run_label_opening(&args),
+        "label-closing" => run_label_closing(&args),
+        "morphological-reconstruction" => run_morphological_reconstruction(&args),
         other => Err(anyhow!(
             "Unknown filter '{other}'. \
              Available filters: gaussian, n4-bias, anisotropic, \
              gradient-magnitude, laplacian, frangi, median, bilateral, \
-             canny, sobel, log, recursive-gaussian, curvature, sato."
+             canny, sobel, log, recursive-gaussian, curvature, sato, 
+             rescale-intensity, intensity-windowing, threshold-below, 
+             threshold-above, threshold-outside, sigmoid, binary-threshold."
         )),
     }
 }
@@ -661,6 +747,172 @@ fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::RescaleIntensityFilter;
+    let image = read_image(&args.input)?;
+    let filtered = RescaleIntensityFilter::new(args.out_min, args.out_max).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied rescale-intensity (out=[{},{}]) to {} -> {}", args.out_min, args.out_max, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), out_min = args.out_min, out_max = args.out_max, "filter: rescale-intensity complete");
+    Ok(())
+}
+
+fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::IntensityWindowingFilter;
+    let image = read_image(&args.input)?;
+    let filtered = IntensityWindowingFilter::new(args.window_min, args.window_max, args.out_min, args.out_max).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}", args.window_min, args.window_max, args.out_min, args.out_max, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: intensity-windowing complete");
+    Ok(())
+}
+
+fn run_threshold_below(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::ThresholdImageFilter;
+    let image = read_image(&args.input)?;
+    let filtered = ThresholdImageFilter::below(args.threshold_value, args.outside_value).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied threshold-below (threshold={}, outside={}) to {} -> {}", args.threshold_value, args.outside_value, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-below complete");
+    Ok(())
+}
+
+fn run_threshold_above(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::ThresholdImageFilter;
+    let image = read_image(&args.input)?;
+    let filtered = ThresholdImageFilter::above(args.threshold_value, args.outside_value).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied threshold-above (threshold={}, outside={}) to {} -> {}", args.threshold_value, args.outside_value, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-above complete");
+    Ok(())
+}
+
+fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::ThresholdImageFilter;
+    let image = read_image(&args.input)?;
+    let filtered = ThresholdImageFilter::outside(args.lower_threshold, args.upper_threshold, args.outside_value).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied threshold-outside ([{},{}], outside={}) to {} -> {}", args.lower_threshold, args.upper_threshold, args.outside_value, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-outside complete");
+    Ok(())
+}
+
+fn run_sigmoid(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::SigmoidImageFilter;
+    let image = read_image(&args.input)?;
+    let filtered = SigmoidImageFilter::new(args.alpha as f32, args.beta as f32, args.out_min, args.out_max).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied sigmoid (alpha={}, beta={}, out=[{},{}]) to {} -> {}", args.alpha, args.beta, args.out_min, args.out_max, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: sigmoid complete");
+    Ok(())
+}
+
+fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::BinaryThresholdImageFilter;
+    let image = read_image(&args.input)?;
+    let filtered = BinaryThresholdImageFilter::new(args.lower_threshold, args.upper_threshold, args.foreground_value, args.background_value).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    println!("Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}", args.lower_threshold, args.upper_threshold, args.foreground_value, args.background_value, args.input.display(), args.output.display());
+    info!(input = %args.input.display(), output = %args.output.display(), "filter: binary-threshold complete");
+    Ok(())
+}
+
+
+fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::GrayscaleErosion;
+    let image = read_image(&args.input)?;
+    let filtered = GrayscaleErosion::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: grayscale-erosion complete");
+    Ok(())
+}
+
+fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::GrayscaleDilation;
+    let image = read_image(&args.input)?;
+    let filtered = GrayscaleDilation::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: grayscale-dilation complete");
+    Ok(())
+}
+
+fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::WhiteTopHatFilter;
+    let image = read_image(&args.input)?;
+    let filtered = WhiteTopHatFilter::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: white-top-hat complete");
+    Ok(())
+}
+
+fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::BlackTopHatFilter;
+    let image = read_image(&args.input)?;
+    let filtered = BlackTopHatFilter::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: black-top-hat complete");
+    Ok(())
+}
+
+fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::HitOrMissTransform;
+    let image = read_image(&args.input)?;
+    let filtered = HitOrMissTransform::new(args.radius, args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: hit-or-miss complete");
+    Ok(())
+}
+
+fn run_label_dilation(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::LabelDilation;
+    let image = read_image(&args.input)?;
+    let filtered = LabelDilation::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: label-dilation complete");
+    Ok(())
+}
+
+fn run_label_erosion(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::LabelErosion;
+    let image = read_image(&args.input)?;
+    let filtered = LabelErosion::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius = args.radius, input = %args.input.display(), output = %args.output.display(), "filter: label-erosion complete");
+    Ok(())
+}
+
+fn run_label_opening(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::LabelOpening;
+    let image = read_image(&args.input)?;
+    let filtered = LabelOpening::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius = args.radius, "filter: label-opening complete");
+    Ok(())
+}
+
+fn run_label_closing(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::LabelClosing;
+    let image = read_image(&args.input)?;
+    let filtered = LabelClosing::new(args.radius).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!(radius = args.radius, "filter: label-closing complete");
+    Ok(())
+}
+
+fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::{MorphologicalReconstruction, ReconstructionMode};
+    let marker = read_image(&args.input)?;
+    let mask_path = args.mask.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("morphological-reconstruction requires --mask <path>")
+    })?;
+    let mask = read_image(mask_path)?;
+    let filtered = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
+        .apply(&marker, &mask)?;
+    write_image_inferred(&args.output, &filtered)?;
+    info!("filter: morphological-reconstruction complete");
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -692,6 +944,18 @@ mod tests {
             high: 0.3,
             radius: 1,
             order: 0,
+            // new intensity filter fields
+            out_min: 0.0,
+            out_max: 1.0,
+            window_min: 0.0,
+            window_max: 255.0,
+            threshold_value: 0.5,
+            lower_threshold: 0.0,
+            upper_threshold: 1.0,
+            outside_value: 0.0,
+            foreground_value: 1.0,
+            background_value: 0.0,
+            mask: None,
         }
     }
 
@@ -1133,5 +1397,199 @@ mod tests {
         let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
         assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
     }
+    #[test]
+    fn test_filter_rescale_intensity_output_range() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let args = default_args(input, output.clone(), "rescale-intensity");
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        let min_val = vals.iter().cloned().fold(f32::INFINITY, f32::min);
+        let max_val = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+        assert!((min_val - 0.0).abs() < 1e-4, "rescale-intensity min must be 0.0, got {}", min_val);
+        assert!((max_val - 1.0).abs() < 1e-4, "rescale-intensity max must be 1.0, got {}", max_val);
+    }
+
+    #[test]
+    fn test_filter_intensity_windowing_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "intensity-windowing");
+        args.window_min = 20.0;
+        args.window_max = 80.0;
+        args.out_min = 0.0;
+        args.out_max = 1.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(result.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn test_filter_threshold_below_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "threshold-below");
+        args.threshold_value = 50.0;
+        args.outside_value = 0.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        // All pixels that were < 50 should now be 0.0
+        // Original values are 0..124, so values 0..49 -> 0.0
+        let count_zero = vals.iter().filter(|&&v| v == 0.0).count();
+        assert!(count_zero >= 50, "at least 50 pixels should be zeroed, got {}", count_zero);
+    }
+
+    #[test]
+    fn test_filter_threshold_above_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "threshold-above");
+        args.threshold_value = 50.0;
+        args.outside_value = 0.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(result.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn test_filter_threshold_outside_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "threshold-outside");
+        args.lower_threshold = 30.0;
+        args.upper_threshold = 90.0;
+        args.outside_value = 0.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(result.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn test_filter_sigmoid_creates_output_bounded() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "sigmoid");
+        args.alpha = 62.0; // midpoint of 0..124
+        args.beta = 20.0;
+        args.out_min = 0.0;
+        args.out_max = 1.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(v >= 0.0 && v <= 1.0, "sigmoid output must be in [0,1], got {}", v);
+        }
+    }
+
+    #[test]
+    fn test_filter_binary_threshold_produces_binary_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "binary-threshold");
+        args.lower_threshold = 40.0;
+        args.upper_threshold = 80.0;
+        args.foreground_value = 1.0;
+        args.background_value = 0.0;
+        run(args).unwrap();
+        assert!(output.exists());
+        let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = result.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for &v in vals {
+            assert!(v == 0.0 || v == 1.0, "binary-threshold output must be 0.0 or 1.0, got {}", v);
+        }
+    }
+    #[test]
+    fn test_filter_label_erosion_creates_output() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let mut v = vec![0.0f32; 125];
+        v[2 * 25 + 2 * 5 + 2] = 1.0;
+        let td = TensorData::new(v, Shape::new([5, 5, 5]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
+        let mut args = default_args(input_path, output_path.clone(), "label-erosion");
+        args.radius = 1;
+        run(args).expect("label-erosion must succeed");
+        assert!(output_path.exists());
+    }
+
+    #[test]
+    fn test_filter_label_opening_creates_output() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
+        let mut args = default_args(input_path, output_path.clone(), "label-opening");
+        args.radius = 1;
+        run(args).expect("label-opening must succeed");
+        assert!(output_path.exists());
+    }
+
+    #[test]
+    fn test_filter_label_closing_creates_output() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
+        let mut args = default_args(input_path, output_path.clone(), "label-closing");
+        args.radius = 1;
+        run(args).expect("label-closing must succeed");
+        assert!(output_path.exists());
+    }
+
+    #[test]
+    fn test_filter_morph_recon_requires_mask() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let td = TensorData::new(vec![0.5f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
+        let mut args = default_args(input_path, output_path, "morphological-reconstruction");
+        args.mask = None;
+        let result = run(args);
+        assert!(result.is_err(), "missing mask must return Err");
+        assert!(result.unwrap_err().to_string().contains("mask"));
+    }
+
 }
 

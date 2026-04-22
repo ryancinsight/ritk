@@ -40,6 +40,9 @@ enum Commands {
 
     /// Compute image statistics or comparison metrics.
     Stats(commands::stats::StatsArgs),
+
+    /// Resample an image to a new voxel spacing using a configurable interpolation mode.
+    Resample(commands::resample::ResampleArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -56,5 +59,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Register(args) => commands::register::run(args),
         Commands::Segment(args) => commands::segment::run(args),
         Commands::Stats(args) => commands::stats::run(args),
+        Commands::Resample(args) => commands::resample::run(args),
     }
 }

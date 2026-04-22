@@ -31,19 +31,27 @@
 use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use dicom::core::Tag;
+use dicom::core::{Tag, VR};
+use dicom_core::header::Header;
 use dicom::object::open_file;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
+
+use super::object_model::{
+    DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomSequenceItem, DicomTag, DicomValue, is_private_tag,
+};
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomSliceMetadata {
     /// Source file path for the slice.
     pub path: PathBuf,
+    /// Recursive preservation data extracted from the slice.
+    pub preservation: DicomPreservationSet,
     /// SOP Instance UID if available.
     pub sop_instance_uid: Option<String>,
     /// Instance number if available.
@@ -113,6 +121,8 @@ pub struct DicomReadMetadata {
     pub slices: Vec<DicomSliceMetadata>,
     /// Custom series-level tags preserved as text.
     pub private_tags: HashMap<String, String>,
+    /// Recursive preservation data for the series.
+    pub preservation: DicomPreservationSet,
 }
 
 /// A simplified DICOM series descriptor.
@@ -124,6 +134,88 @@ pub struct DicomSeriesInfo {
     pub num_slices: usize,
     /// Series metadata.
     pub metadata: DicomReadMetadata,
+}
+
+/// Compute a compact key from a DICOM tag group+element pair.
+#[inline]
+fn tag_key(group: u16, element: u16) -> u32 {
+    ((group as u32) << 16) | (element as u32)
+}
+
+/// Return the set of tags already extracted by the named parsing logic in scan_dicom_directory.
+///
+/// Elements whose tag_key is in this set are skipped during full-preservation iteration.
+fn known_handled_tags() -> HashSet<u32> {
+    let mut s = HashSet::new();
+    // Per-slice
+    s.insert(tag_key(0x0008, 0x0018)); // SOP Instance UID
+    s.insert(tag_key(0x0020, 0x0013)); // Instance Number
+    s.insert(tag_key(0x0020, 0x1041)); // Slice Location
+    s.insert(tag_key(0x0020, 0x0032)); // ImagePositionPatient
+    s.insert(tag_key(0x0020, 0x0037)); // ImageOrientationPatient
+    s.insert(tag_key(0x0028, 0x0030)); // PixelSpacing
+    s.insert(tag_key(0x0018, 0x0050)); // SliceThickness
+    s.insert(tag_key(0x0028, 0x1053)); // RescaleSlope
+    s.insert(tag_key(0x0028, 0x1052)); // RescaleIntercept
+    s.insert(tag_key(0x0008, 0x0016)); // SOP Class UID
+    s.insert(tag_key(0x0008, 0x0070)); // Manufacturer (transfer syntax surrogate)
+    // Rows / Columns / series geometry
+    s.insert(tag_key(0x0028, 0x0010)); // Rows
+    s.insert(tag_key(0x0028, 0x0011)); // Columns
+    s.insert(tag_key(0x0020, 0x000E)); // SeriesInstanceUID
+    s.insert(tag_key(0x0020, 0x000D)); // StudyInstanceUID
+    s.insert(tag_key(0x0008, 0x103E)); // SeriesDescription
+    s.insert(tag_key(0x0008, 0x0060)); // Modality
+    s.insert(tag_key(0x0010, 0x0020)); // PatientID
+    s.insert(tag_key(0x0010, 0x0010)); // PatientName
+    s.insert(tag_key(0x0008, 0x0020)); // StudyDate
+    s.insert(tag_key(0x0008, 0x0021)); // SeriesDate
+    s.insert(tag_key(0x0008, 0x0031)); // SeriesTime
+    s.insert(tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
+    s.insert(tag_key(0x0028, 0x0100)); // BitsAllocated
+    s.insert(tag_key(0x0028, 0x0101)); // BitsStored
+    s.insert(tag_key(0x0028, 0x0102)); // HighBit
+    s.insert(tag_key(0x0028, 0x0004)); // PhotometricInterpretation
+    // Always skip pixel data
+    s.insert(tag_key(0x7FE0, 0x0010));
+    s
+}
+
+/// Recursively parse a DICOM sequence item into a DicomSequenceItem.
+///
+/// `depth` limits recursion to 8 levels to guard against malformed input.
+fn parse_sequence_item(
+    item: &dicom::object::InMemDicomObject,
+    depth: usize,
+) -> DicomSequenceItem {
+    let mut seq_item = DicomSequenceItem::new();
+    if depth > 8 {
+        return seq_item;
+    }
+    for element in item.iter() {
+        let tag = element.tag();
+        let dicom_tag = DicomTag::new(tag.group(), tag.element());
+        let vr_str = element.vr().to_string();
+        if element.vr() == VR::SQ {
+            if let Some(sub_items) = element.value().items() {
+                let parsed: Vec<_> = sub_items
+                    .iter()
+                    .map(|i| parse_sequence_item(i, depth + 1))
+                    .collect();
+                seq_item.insert(DicomObjectNode {
+                    tag: dicom_tag,
+                    vr: Some("SQ".to_string()),
+                    value: DicomValue::Sequence(parsed),
+                    private: is_private_tag(dicom_tag),
+                    source: None,
+                });
+            }
+        } else if let Ok(s) = element.to_str() {
+            seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
+        }
+        // Binary elements inside sequence items are omitted (preserving text fields only).
+    }
+    seq_item
 }
 
 /// Scan a directory for DICOM files and return the discovered series description.
@@ -175,6 +267,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     for file_path in &raw_paths {
         let mut slice_meta = DicomSliceMetadata {
             path: file_path.clone(),
+            preservation: DicomPreservationSet::new(),
             sop_instance_uid: None,
             instance_number: None,
             slice_location: None,
@@ -229,12 +322,18 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                 slice_meta.slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
             }
             if let Ok(elem) = obj.element(Tag(0x0028, 0x1053)) {
-                slice_meta.rescale_slope =
-                    elem.to_str().ok().and_then(|s| s.parse().ok()).unwrap_or(1.0);
+                slice_meta.rescale_slope = elem
+                    .to_str()
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(1.0);
             }
             if let Ok(elem) = obj.element(Tag(0x0028, 0x1052)) {
-                slice_meta.rescale_intercept =
-                    elem.to_str().ok().and_then(|s| s.parse().ok()).unwrap_or(0.0);
+                slice_meta.rescale_intercept = elem
+                    .to_str()
+                    .ok()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(0.0);
             }
             if let Ok(elem) = obj.element(Tag(0x0008, 0x0016)) {
                 slice_meta.sop_class_uid = elem.to_str().ok().map(String::from);
@@ -269,7 +368,6 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     first_slice_thickness = elem.to_str().ok().and_then(|s| s.parse().ok());
                 }
             }
-            // Series-level tags from first slice
             if first_series_instance_uid.is_none() {
                 if let Ok(elem) = obj.element(Tag(0x0020, 0x000E)) {
                     first_series_instance_uid = elem.to_str().ok().map(String::from);
@@ -345,6 +443,45 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     first_transfer_syntax_uid = elem.to_str().ok().map(String::from);
                 }
             }
+
+            // Full element preservation: capture all non-handled elements.
+            {
+                let handled = known_handled_tags();
+                for element in &obj {
+                    let tag = element.tag();
+                    let key = tag_key(tag.group(), tag.element());
+                    if handled.contains(&key) {
+                        continue;
+                    }
+                    let dicom_tag = DicomTag::new(tag.group(), tag.element());
+                    let vr_str = element.vr().to_string();
+                    if element.vr() == VR::SQ {
+                        if let Some(sub_items) = element.value().items() {
+                            let parsed: Vec<_> = sub_items
+                                .iter()
+                                .map(|i| parse_sequence_item(i, 0))
+                                .collect();
+                            slice_meta.preservation.object.insert(DicomObjectNode {
+                                tag: dicom_tag,
+                                vr: Some("SQ".to_string()),
+                                value: DicomValue::Sequence(parsed),
+                                private: is_private_tag(dicom_tag),
+                                source: None,
+                            });
+                        }
+                    } else if let Ok(s) = element.to_str() {
+                        slice_meta.preservation.object.insert(
+                            DicomObjectNode::text(dicom_tag, vr_str, s.to_string()),
+                        );
+                    } else if let Ok(bytes) = element.to_bytes() {
+                        slice_meta.preservation.preserve(DicomPreservedElement::new(
+                            dicom_tag,
+                            Some(vr_str.to_string()),
+                            bytes.to_vec(),
+                        ));
+                    }
+                }
+            }
         }
 
         slices.push(slice_meta);
@@ -412,6 +549,74 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         .and_then(|s| s.image_position_patient)
         .unwrap_or([0.0, 0.0, 0.0]);
 
+    let mut series_object = DicomObjectModel::with_source(path.to_path_buf());
+    for slice in &slices {
+        if let Some(uid) = slice.sop_instance_uid.as_ref() {
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0008, 0x0018),
+                "UI",
+                uid.clone(),
+            ));
+        }
+        if let Some(instance_number) = slice.instance_number {
+            series_object.insert(DicomObjectNode::i32(
+                DicomTag::new(0x0020, 0x0013),
+                "IS",
+                instance_number,
+            ));
+        }
+        if let Some(slice_location) = slice.slice_location {
+            series_object.insert(DicomObjectNode::f64(
+                DicomTag::new(0x0020, 0x1041),
+                "DS",
+                slice_location,
+            ));
+        }
+        if let Some(position) = slice.image_position_patient {
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0032),
+                "DS",
+                format!("{:.6}\\{:.6}\\{:.6}", position[0], position[1], position[2]),
+            ));
+        }
+        if let Some(orientation) = slice.image_orientation_patient {
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0020, 0x0037),
+                "DS",
+                format!(
+                    "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
+                    orientation[0],
+                    orientation[1],
+                    orientation[2],
+                    orientation[3],
+                    orientation[4],
+                    orientation[5]
+                ),
+            ));
+        }
+        if let Some(pixel_spacing) = slice.pixel_spacing {
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0028, 0x0030),
+                "DS",
+                format!("{:.6}\\{:.6}", pixel_spacing[0], pixel_spacing[1]),
+            ));
+        }
+        if let Some(slice_thickness) = slice.slice_thickness {
+            series_object.insert(DicomObjectNode::f64(
+                DicomTag::new(0x0018, 0x0050),
+                "DS",
+                slice_thickness,
+            ));
+        }
+        if let Some(sop_class_uid) = slice.sop_class_uid.as_ref() {
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0008, 0x0016),
+                "UI",
+                sop_class_uid.clone(),
+            ));
+        }
+    }
+
     let metadata = DicomReadMetadata {
         series_instance_uid: first_series_instance_uid,
         study_instance_uid: first_study_instance_uid,
@@ -433,6 +638,10 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         photometric_interpretation: first_photometric_interpretation,
         slices,
         private_tags: HashMap::new(),
+        preservation: DicomPreservationSet {
+            object: series_object,
+            preserved: Vec::new(),
+        },
     };
 
     Ok(DicomSeriesInfo {
@@ -577,16 +786,16 @@ fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
 }
 
 fn is_likely_dicom_file(path: &Path) -> bool {
-    match path.extension().and_then(OsStr::to_str) {
-        Some(ext) => {
+    path.extension()
+        .and_then(OsStr::to_str)
+        .map(|ext| {
             let ext = ext.to_ascii_lowercase();
             matches!(
                 ext.as_str(),
                 "dcm" | "dicom" | "ima" | "img" | "hdr" | "raw"
             )
-        }
-        None => false,
-    }
+        })
+        .unwrap_or(false)
 }
 
 /// Compatibility wrapper for callers expecting a reader type.

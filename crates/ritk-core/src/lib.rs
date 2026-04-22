@@ -1,3 +1,4 @@
+pub mod annotation;
 pub mod filter;
 pub mod image;
 pub mod interpolation;

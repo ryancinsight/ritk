@@ -1,3 +1,4 @@
+pub mod intensity;
 pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
@@ -24,8 +25,17 @@ pub use edge::{
 };
 pub use gaussian::GaussianFilter;
 pub use median::MedianFilter;
-pub use morphology::{GrayscaleDilation, GrayscaleErosion};
+pub use morphology::{
+    BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform,
+    LabelDilation, LabelErosion, LabelOpening, LabelClosing,
+    MorphologicalReconstruction, ReconstructionMode,
+    WhiteTopHatFilter,
+};
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;
 pub use resample::ResampleImageFilter;
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};
+pub use intensity::{
+    BinaryThresholdImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
+    SigmoidImageFilter, ThresholdImageFilter, ThresholdMode,
+};

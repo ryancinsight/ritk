@@ -1,5 +1,27 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20)**
+**Auditor:** Ryan Clanton (@ryancinsight)
+**Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
+**Status:** Active — feeds `backlog.md` and `checklist.md`
+
+## Update Note
+
+**Sprint 24 (2026-04-20):** Next-stage roadmap refreshed to prioritize DICOM object-model preservation, VTK data-model expansion, ITK/SimpleITK breadth, ITK-SNAP workflow primitives, ANTs workflow refinement, and Python parity benchmarking. Existing image-series DICOM I/O, VTK legacy image I/O, registration, and Python bindings remain as previously recorded.
+
+`Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, VTK, ITK-SNAP, and ANTs.
+
+**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20)**
+**Auditor:** Ryan Clanton (@ryancinsight)
+**Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
+**Status:** Active — feeds `backlog.md` and `checklist.md`
+
+## Update Note
+
+**Sprint 24 (2026-04-20):** Next-stage roadmap refreshed to prioritize DICOM object-model preservation, VTK data-model expansion, ITK/SimpleITK breadth, ITK-SNAP workflow primitives, ANTs workflow refinement, and Python parity benchmarking. Existing image-series DICOM I/O, VTK legacy image I/O, registration, and Python bindings remain as previously recorded.
+
+`Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, VTK, ITK-SNAP, and ANTs.
+
 **Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
@@ -37,7 +59,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-registration` | `registration` (DL path) | `Registration`, `RegistrationConfig`, `RegistrationSummary`, DL-SSM registration, DL-loss |
 | `ritk-registration` | `bspline_ffd` | `BSplineFFDRegistration`, `BSplineFFDConfig`, `BSplineFFDResult` |
 | `ritk-registration` | `lddmm` | `LddmmRegistration` (geodesic shooting via EPDiff, Gaussian RKHS kernel) |
-| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64), `VtkReader`, `VtkWriter` (legacy structured points, ASCII/BINARY), `JpegReader`, `JpegWriter` (2-D grayscale, shape `[1,H,W]`), `MincReader`, `MincWriter` (MINC2 via consus HDF5), `AnalyzeReader`, `AnalyzeWriter` (Analyze 7.5 `.hdr`/`.img`) |
+| `ritk-io` | `format` | DICOM reader/writer, NIfTI reader/writer, PNG reader/writer, MetaImage (.mha/.mhd) reader/writer, NRRD reader/writer, `TiffReader`, `TiffWriter` (multi-page z-stack, u8/u16/u32/f32/f64), `VtkReader`, `VtkWriter` (legacy structured points, ASCII/BINARY), `JpegReader`, `JpegWriter` (2-D grayscale, shape `[1,H,W]`), `MincReader`, `MincWriter` (MINC2 via consus HDF5), `AnalyzeReader`, `AnalyzeWriter` (Analyze 7.5 `.hdr`/`.img`); next stage: DICOM object model, private tags, nested sequences, multi-frame, and generalized writer architecture |
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
 | `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD), `read_transform`, `write_transform` |
@@ -47,8 +69,8 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform), `stats` (summary/dice/hausdorff/psnr/ssim) |
 | `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
-**Absent at module level (zero source files or stub-only):**  
-Curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support.
+**Absent or incomplete at module level (zero source files, stub-only, or partial fidelity):**  
+Curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits.
 
 ---
 
@@ -151,8 +173,10 @@ regularization suite.
 
 Against **ITK** (≈1 200 image filters, full segmentation pipeline, 30+ IO formats), **SimpleITK**
 (Python/R/Java/C# bindings, N4 bias field correction, histogram matching), **VTK**
-(visualization, mesh/scene graph, polydata pipeline), and **Grassroots DICOM**
-(comprehensive DICOM object model and interoperability tooling), RITK has **five structural gaps**
+(visualization, mesh/scene graph, polydata pipeline), **ITK-SNAP**
+(interactive segmentation / annotation / overlay workflows), **ANTs**
+(robust diffeomorphic registration workflows), and **Grassroots DICOM**
+(comprehensive DICOM object model and interoperability tooling), RITK has **six structural gaps**
 that collectively prevent it from being used as a drop-in toolkit in standard clinical or research
 imaging workflows:
 
@@ -162,8 +186,13 @@ imaging workflows:
 | Filtering & Preprocessing | **High** | ~55% | ~55% | ~55% | ITK / SimpleITK: still missing the long tail of multiscale, PDE, and topology-aware filters |
 | Diffeomorphic Registration | **Medium** | ~85% | ~85% | ~85% | ANTs: still lacking exact-inverse Demons and some production-grade inverse-consistency controls |
 | Statistics & Normalization | **Medium** | ~55% | ~55% | ~55% | SimpleITK: broad utilities remain, but core normalization coverage is now substantial |
-| IO Formats | **Medium** | ~58% | ~58% | ~58% | ITK / VTK / DICOM: still missing full codec breadth, mesh/scene formats, and deep DICOM object coverage |
-| DICOM Read Metadata | **Medium** | N/A | N/A | N/A | DICOM: add series-level and slice-level metadata capture as a stable boundary for future round-trip support |
+| IO Formats | **High** | ~58% | ~58% | ~58% | ITK / VTK / DICOM: still missing full codec breadth, mesh/scene formats, and deep DICOM object coverage |
+| DICOM Read Metadata | **High** | N/A | N/A | N/A | DICOM: object-model preservation, private tags, nested sequences, and multi-frame / enhanced images remain incomplete |
+| VTK Data Model | **High** | ~20% | ~20% | ~20% | VTK: image I/O exists, but data-object hierarchy, mesh grids, and pipeline abstractions are absent |
+| ITK-SNAP Workflow | **Medium-High** | ~10% | ~10% | ~10% | ITK-SNAP: interactive segmentation state, labels, overlays, and undo/redo primitives are absent |
+| VTK Data Model | **High** | ~20% | ~20% | ~20% | VTK: image I/O exists, but data-object hierarchy, mesh grids, and pipeline abstractions are absent |
+
+| ITK-SNAP Workflow | **Medium-High** | ~10% | ~10% | ~10% | ITK-SNAP: interactive segmentation state, labels, overlays, and undo/redo primitives are absent |
 | Python / CLI Bindings | **Low** | ~92% | ~92% | ~92% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
@@ -179,6 +208,30 @@ The DICOM implementation remains series-centric. The remaining DICOM backlog is:
 - generalized DICOM writer
 - non-image SOP-class policy
 - metadata-aware read-path validation for `DicomReadMetadata` and `DicomSliceMetadata`
+- object-model round-trip preservation
+- explicit unknown-element retention
+- object-model preservation across read/write round-trips
+- explicit handling of sequence values and unknown elements
+
+The next-stage roadmap is:
+1. DICOM object-model foundation
+2. VTK data model and mesh primitives
+3. ITK/SimpleITK algorithm breadth expansion
+4. ITK-SNAP workflow primitives
+5. ANTs workflow refinement
+6. Python comparison and reproducibility harness
+- object-model round-trip preservation
+- explicit unknown-element retention
+- object-model preservation across read/write round-trips
+- explicit handling of sequence values and unknown elements
+
+The next-stage roadmap is:
+1. DICOM object-model foundation
+2. VTK data model and mesh primitives
+3. ITK/SimpleITK algorithm breadth expansion
+4. ITK-SNAP workflow primitives
+5. ANTs workflow refinement
+6. Python comparison and reproducibility harness
 
 Sprint 5 level-set implementations (Chan-Vese, Geodesic Active Contour) raised Segmentation
 parity from ~25% to ~35%. 3D Sobel gradient filter plus confirmation of native Median/Bilateral

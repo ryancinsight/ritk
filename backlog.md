@@ -1,3 +1,150 @@
+## Sprint 27 -- Completed
+
+### Stream A -- DICOM Extension
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-MULTIFRAME | Multi-frame DICOM reader | **CLOSED** Sprint 27 | MultiFrameInfo, load_dicom_multiframe<B>; frame stacking [n_frames,rows,cols]; 3 tests |
+| DICOM-WRITER-GENERAL | General DICOM object writer | **CLOSED** Sprint 27 | model_to_in_mem, write_dicom_object; node_to_element bijection; 5 tests incl roundtrip |
+| DICOM-TRANSFER-SYNTAX | Transfer syntax enumeration | **CLOSED** Sprint 27 | TransferSyntaxKind (11 UIDs + Unknown); from_uid/uid/is_compressed/is_lossless/is_supported; 8 tests |
+
+### Stream B -- VTK Grids
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| VTK-STRUCT-GRID | VtkStructuredGrid + VtkUnstructuredGrid | **CLOSED** Sprint 27 | VtkDataObject now has 3 variants; validate() invariants; 9 tests |
+
+### Stream C -- ITK Resample
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ITK-RESAMPLE | Resample subcommand + Python binding | **CLOSED** Sprint 27 | ritk resample --spacing sz,sy,sx --interpolation nearest/linear/bspline/lanczos4; resample_image() Python; 5 CLI tests |
+
+### Stream D -- Morphology Extension
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ITK-MORPHOLOGY-EXTENDED | LabelErosion/Opening/Closing + MorphologicalReconstruction | **CLOSED** Sprint 27 | Anti-extensivity, opening/closing operators, geodesic dilation/erosion reconstruction (Vincent 1993); 21 tests |
+
+### Stream E -- Parity Harness
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PY-PARITY-HARNESS | Analytical parity tests | **CLOSED** Sprint 27 | 10 tests in ritk-core/tests/parity.rs: rescale, binary threshold, threshold_below, sigmoid, gradient, Laplacian, z-score, dice x2, constant rescale; all analytically derived |
+
+## Sprint 26 -- Completed
+
+### Stream A -- VTK XML PolyData + VTK Scene
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| VTK-POLYDATA-XML | VTK XML PolyData (.vtp) reader/writer | **CLOSED** Sprint 26 | parse_vtp + write_vtp_str; correct HashMap/Vec<u32> types; 13 tests |
+| VTK-SCENE | VtkScene + VtkActor + RenderProperties | **CLOSED** Sprint 26 | Ordered actor list; find/remove by name; 7 tests |
+
+### Stream B -- ITK Morphology Expansion
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ITK-MORPHOLOGY | HitOrMissTransform | **CLOSED** Sprint 26 | SE1=cubic box, SE2=ring (excludes origin); anti-extensivity; 5 tests |
+| ITK-MORPHOLOGY | WhiteTopHatFilter + BlackTopHatFilter | **CLOSED** Sprint 26 | f-opening and closing-f; non-negative clamp; 10 tests |
+| ITK-MORPHOLOGY | LabelDilation | **CLOSED** Sprint 26 | Min-label-ID conflict resolution; 5 tests |
+
+### Stream C -- ITKSNAP Overlay + ANTs Preprocessing
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ITKSNAP-OVERLAY | OverlayState (ImageOverlay/ContourOverlay/MaskOverlay) | **CLOSED** Sprint 26 | Serde; visibility; 8 tests |
+| ANTS-WORKFLOW | PreprocessingPipeline | **CLOSED** Sprint 26 | Clamp/Masking/ZScore/MinMax/Smoothing/N4; 9 tests |
+
+### Stream D -- Python + CLI Bindings
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PY-MORPH | white_top_hat, black_top_hat, hit_or_miss, label_dilation | **CLOSED** Sprint 26 | Arc::clone pattern; GIL-safe |
+| CLI-MORPH | grayscale-erosion/dilation, white/black-top-hat, hit-or-miss, label-dilation | **CLOSED** Sprint 26 | --radius flag reused |
+
+## Sprint 25 -- Completed
+
+### Stream A -- VTK Data Model + PolyData
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| VTK-DATA-MODEL | VTK data-object hierarchy | **CLOSED** Sprint 25 | High | VtkDataObject enum, VtkPolyData (points/cells/attrs), AttributeArray; validate() invariants; 8 unit tests |
+| VTK-POLYDATA | PolyData ASCII+BINARY reader/writer | **CLOSED** Sprint 25 | High | Legacy .vtk POLYDATA: POINTS, VERTICES, LINES, POLYGONS, TRIANGLE_STRIPS, POINT_DATA, CELL_DATA; 15 tests |
+| VTK-PIPELINE | VtkSource/VtkFilter/VtkSink traits + VtkPipeline | **CLOSED** Sprint 25 | High | Composition law D_n = F_n(D_{n-1}); Send+Sync; 5 pipeline tests |
+
+### Stream B -- ITK Intensity Filter Suite
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| ITK-RESCALE | RescaleIntensityFilter | **CLOSED** Sprint 25 | High | Linear bijection [I_min,I_max] -> [out_min,out_max]; 5 tests |
+| ITK-WINDOWING | IntensityWindowingFilter | **CLOSED** Sprint 25 | High | Clamp + rescale; ITK IntensityWindowingImageFilter parity; 5 tests |
+| ITK-THRESHOLD | ThresholdImageFilter (Below/Above/Outside) | **CLOSED** Sprint 25 | High | Conditional pixel replacement; 6 tests |
+| ITK-SIGMOID | SigmoidImageFilter | **CLOSED** Sprint 25 | High | Sethian 1996 sigmoid; monotone increasing, bounded output; 5 tests |
+| ITK-BINARY-THRESHOLD | BinaryThresholdImageFilter | **CLOSED** Sprint 25 | High | Indicator function {fg, bg}; ITK BinaryThresholdImageFilter parity; 5 tests |
+| PY-INTENSITY | Python bindings for all 5 intensity filters (7 functions) | **CLOSED** Sprint 25 | High | GIL-safe py.allow_threads; registered in ritk.filter submodule |
+| CLI-INTENSITY | CLI bindings for all 5 intensity filters (7 commands) | **CLOSED** Sprint 25 | High | 10 new FilterArgs fields; 7 run_* functions; 7 integration tests |
+
+### Stream C -- ITK-SNAP Annotation Primitives
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| ITKSNAP-LABELS | LabelTable + LabelEntry | **CLOSED** Sprint 25 | Medium-High | CRUD, visibility, next_free_id, Serde; unique-ID invariant; 8 tests |
+| ITKSNAP-LABELMAP | LabelMap (3-D dense label volume) | **CLOSED** Sprint 25 | Medium-High | ZYX-flat Vec<u32>; mask_for_label, count_label, present_labels; 8 tests |
+| ITKSNAP-WORKFLOW | AnnotationState (points/contours/polylines) | **CLOSED** Sprint 25 | Medium-High | seed annotations, JSON roundtrip, >=2-point contour invariant; 9 tests |
+| ITKSNAP-UNDO | UndoRedoStack<S: Clone> | **CLOSED** Sprint 25 | Medium | Branching undo; push clears future; history non-empty invariant; 10 tests |
+
+
+## Sprint 24 -- Planned
+
+### Next-stage roadmap
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| DICOM-OBJ-MODEL | DICOM object-model preservation | **CLOSED** Sprint 24 | High | Reader: full element iteration, DicomValue::Sequence, DicomPreservedElement. Writer: emit_preservation_nodes before PixelData. 3 round-trip tests. |
+| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | PLANNED | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
+| DICOM-WRITER-GENERAL | Generalized DICOM writer architecture | PLANNED | High | Separate object model serialization from series image writing |
+| VTK-DATA-MODEL | VTK data-object hierarchy | PLANNED | High | Add canonical mesh/grid data models beyond legacy structured points I/O |
+| VTK-PIPELINE | VTK-style pipeline abstractions | PLANNED | High | Introduce data-flow primitives for readers, filters, mappers, and renderable objects |
+| ITK-SIMPLEITK-FAMILY | ITK / SimpleITK algorithm breadth expansion | PLANNED | High | Prioritize long-tail filters, segmentation, morphology, resampling, and intensity transforms |
+| ITKSNAP-WORKFLOW | ITK-SNAP workflow primitives | PLANNED | Medium-High | Add annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
+| ANTS-WORKFLOW | ANTs workflow refinement | PLANNED | Medium | Add inverse-consistency controls, preprocessing helpers, and registration workflow composition |
+| PY-PARITY-HARNESS | Python parity and reproducibility harness | PLANNED | Medium | Compare `ritk-python` against Python references with value-based tests and benchmarks |
+
+### Stream A — DICOM
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| DICOM-OBJ-MODEL | DICOM object-model preservation | **CLOSED** Sprint 24 | High | Reader: full element iteration, DicomValue::Sequence, DicomPreservedElement. Writer: emit_preservation_nodes before PixelData. 3 round-trip tests. |
+| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | PLANNED | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
+| DICOM-WRITER-GENERAL | Generalized DICOM writer architecture | PLANNED | High | Separate object model serialization from series image writing |
+| DICOM-TRANSFER-SYNTAX | Transfer syntax coverage audit | PLANNED | Medium | Audit codec and transfer-syntax handling against supported image SOP classes |
+| DICOM-NONIMAGE-SOP | Non-image SOP-class policy | PLANNED | Medium | Define explicit acceptance/rejection behavior for non-image DICOM objects |
+| DICOM-METADATA-VALIDATION | Metadata-aware read-path validation | PLANNED | Medium | Validate `DicomReadMetadata` and `DicomSliceMetadata` invariants against round-trips |
+
+### Stream B — VTK
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| VTK-DATA-MODEL | VTK data-object hierarchy | PLANNED | High | Canonical mesh/grid data models beyond legacy structured points |
+| VTK-POLYDATA | PolyData and topology primitives | PLANNED | High | Surface geometry, vertices, lines, polygons, and scalar/vector attachments |
+| VTK-PIPELINE | VTK-style pipeline abstractions | PLANNED | High | Reader/filter/mapper/data-object execution model |
+| VTK-SCENE | Scene graph and renderable object model | PLANNED | Medium | Support visualization-facing composition without duplicating algorithm code |
+
+### Stream C — ITK / SimpleITK breadth
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| ITK-SIMPLEITK-FAMILY | Algorithm breadth expansion | PLANNED | High | Long-tail filters, segmentation, morphology, resampling, intensity transforms |
+| ITK-RESAMPLE | Resampling and interpolation expansion | PLANNED | High | Additional resampling helpers and transform-aware utilities |
+| ITK-MORPHOLOGY | Morphology family expansion | PLANNED | Medium-High | Additional binary/grayscale operators and topology-preserving variants |
+| ITK-REGION | Region-growing and label tools | PLANNED | Medium-High | Extend connected, confidence, neighborhood, and label-processing utilities |
+| ITK-NORM | Intensity statistics and normalization | PLANNED | Medium | Additional SimpleITK-style intensity mapping and normalization helpers |
+
+### Stream D — ITK-SNAP workflow
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| ITKSNAP-WORKFLOW | Interactive segmentation primitives | PLANNED | Medium-High | Annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
+| ITKSNAP-LABELS | Label and mask state model | PLANNED | Medium | Label tables, editable masks, and selection state |
+| ITKSNAP-OVERLAY | Overlay and contour composition | PLANNED | Medium | Visualization-ready state for masks, contours, and image overlays |
+
+### Stream E — ANTs workflow refinement
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| ANTS-WORKFLOW | Registration workflow composition | PLANNED | Medium | Preprocessing, multi-stage transforms, and pipeline composition |
+| ANTS-INVERSE | Inverse-consistency controls | PLANNED | Medium | Strengthen exact-inverse validation and controls around diffeomorphic workflows |
+| ANTS-PREPROCESS | Registration preprocessing helpers | PLANNED | Medium | Bias correction, masking, resampling, and intensity normalization pipeline helpers |
+
+### Stream F — Python parity and reproducibility
+| ID | Feature | Status | Priority | Notes |
+|---|---|---|---|---|
+| PY-PARITY-HARNESS | Python parity and reproducibility harness | PLANNED | Medium | Compare `ritk-python` against Python references with value-based tests and benchmarks |
+| PY-CI-MATRIX | Python CI matrix expansion | PLANNED | Medium | Exercise wheel smoke tests and integration tests across supported Python versions |
+| PY-STUB-SYNC | Stub and binding synchronization | PLANNED | Low | Keep `pyi` signatures aligned with exported Rust bindings |
 
 ## Sprint 23 -- Completed
 

@@ -111,3 +111,9 @@ pub use classical::{
 // Re-exports — ML-based registration
 // ============================================================================
 pub use registration::{Registration, RegistrationConfig, RegistrationSummary};
+
+// ============================================================================
+// Re-exports — ANTs preprocessing pipeline
+// ============================================================================
+pub mod preprocessing;
+pub use preprocessing::{NormalizationMode, PreprocessingPipeline, PreprocessingStep};
