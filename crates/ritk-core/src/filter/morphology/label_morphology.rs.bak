@@ -1,0 +1,133 @@
+//! Label dilation for 3-D label volumes.
+//!
+//! # Mathematical Specification
+//!
+//! Given a label volume L: [nz x ny x nx] -> N (0=background, k>0 label k),
+//! label dilation with radius r expands each labeled region outward:
+//!
+//! For each background voxel x:
+//!   N_r(x) = { y : max|y_i - x_i| <= r }  (cubic neighbourhood)
+//!   labels(x) = { L(y) : y in N_r(x), L(y) > 0 }
+//!   L_out(x) = min(labels(x))  if labels(x) non-empty, else 0
+//!
+//! Existing labelled voxels are preserved: L_out(x) = L(x) for L(x) > 0.
+//! Conflict resolution: where two label regions meet, the minimum label ID wins.
+//!
+//! # References
+//! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
+
+use crate::image::Image;
+use burn::tensor::backend::Backend;
+use burn::tensor::{Shape, Tensor, TensorData};
+
+/// Label dilation for 3-D label volumes.
+///
+/// Expands each labeled region by radius voxels. For conflicting dilations
+/// (two label regions growing into the same background voxel), the label
+/// with the minimum ID takes priority.
+#[derive(Debug, Clone)]
+pub struct LabelDilation {
+    pub radius: usize,
+}
+
+impl LabelDilation {
+    pub fn new(radius: usize) -> Self { Self { radius } }
+    pub fn with_radius(mut self, r: usize) -> Self { self.radius = r; self }
+
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        let dims = image.shape();
+        let td = image.data().clone().into_data();
+        let vals: &[f32] = td.as_slice::<f32>()
+            .map_err(|e| anyhow::anyhow!("LabelDilation requires f32 data: {:?}", e))?;
+        let result = dilate_labels(vals, dims, self.radius);
+        let device = image.data().device();
+        let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
+        Ok(Image::new(t, *image.origin(), *image.spacing(), *image.direction()))
+    }
+}
+
+fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let r = radius as isize;
+    let _n = nz * ny * nx;
+    let mut out = data.to_vec();
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let idx = iz * ny * nx + iy * nx + ix;
+                // Only expand into background voxels
+                if data[idx] > 0.5 { continue; }
+                let mut min_label: f32 = 0.0;
+                for dz in -r..=r {
+                    for dy in -r..=r {
+                        for dx in -r..=r {
+                            let (zz,yy,xx)=(iz as isize+dz,iy as isize+dy,ix as isize+dx);
+                            if zz<0||zz>=nz as isize||yy<0||yy>=ny as isize||xx<0||xx>=nx as isize { continue; }
+                            let v = data[zz as usize*ny*nx+yy as usize*nx+xx as usize];
+                            if v > 0.5 && (min_label < 0.5 || v < min_label) {
+                                min_label = v;
+                            }
+                        }
+                    }
+                }
+                out[idx] = min_label;
+            }
+        }
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::Image;
+    use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
+    type B = NdArray<f32>;
+    fn img(v: Vec<f32>, d: [usize;3]) -> Image<B,3> {
+        let t=Tensor::<B,3>::from_data(TensorData::new(v,Shape::new(d)),&Default::default());
+        Image::new(t,Point::new([0.0,0.0,0.0]),Spacing::new([1.0,1.0,1.0]),Direction::identity())
+    }
+    fn vv(i: &Image<B,3>) -> Vec<f32> { i.data().clone().into_data().as_slice::<f32>().unwrap().to_vec() }
+
+    #[test] fn test_all_background_unchanged() {
+        let d=[6,6,6]; let n=d[0]*d[1]*d[2];
+        let v=vec![0.0_f32;n];
+        let out=vv(&LabelDilation::new(1).apply(&img(v.clone(),d)).unwrap());
+        for &x in &out { assert!(x.abs()<1e-6,"all-bg: {x}"); }
+    }
+    #[test] fn test_label_expands_into_background() {
+        let d=[7,7,7]; let [nz,ny,nx]=d; let n=nz*ny*nx;
+        let mut v=vec![0.0_f32;n]; let c=3*ny*nx+3*nx+3; v[c]=1.0;
+        let out=vv(&LabelDilation::new(1).apply(&img(v,d)).unwrap());
+        assert!((out[c]-1.0).abs()<1e-6,"centre preserved");
+        let neighbour=3*ny*nx+3*nx+4;
+        assert!((out[neighbour]-1.0).abs()<1e-6,"neighbour expanded to label 1");
+    }
+    #[test] fn test_conflict_min_label_wins() {
+        let d=[5,5,5]; let [_,ny,nx]=d; let n=d[0]*d[1]*d[2];
+        let mut v=vec![0.0_f32;n];
+        let a=2*ny*nx+1*nx+1; v[a]=1.0;
+        let b=2*ny*nx+1*nx+3; v[b]=2.0;
+        let out=vv(&LabelDilation::new(1).apply(&img(v,d)).unwrap());
+        let middle=2*ny*nx+1*nx+2;
+        assert!((out[middle]-1.0).abs()<1e-6,"conflict: min label wins (got {})",out[middle]);
+    }
+    #[test] fn test_radius_zero_identity() {
+        let d=[6,6,6]; let [_,ny,nx]=d; let n=d[0]*d[1]*d[2];
+        let mut v=vec![0.0_f32;n]; v[2*ny*nx+2*nx+2]=1.0; v[3*ny*nx+3*nx+3]=2.0;
+        let out=vv(&LabelDilation::new(0).apply(&img(v.clone(),d)).unwrap());
+        for (i,(&e,&a)) in v.iter().zip(out.iter()).enumerate() {
+            assert!((a-e).abs()<1e-6,"r=0 identity voxel {i}: {a} != {e}");
+        }
+    }
+    #[test] fn test_metadata_preserved() {
+        let d=[5,5,5]; let n=d[0]*d[1]*d[2];
+        let t=Tensor::<B,3>::from_data(TensorData::new(vec![0.0_f32;n],Shape::new(d)),&Default::default());
+        let o=Point::new([1.0,2.0,3.0]); let s=Spacing::new([0.5,0.5,0.5]);
+        let r=LabelDilation::new(1).apply(&Image::new(t,o,s,Direction::identity())).unwrap();
+        assert_eq!(*r.origin(),o); assert_eq!(*r.spacing(),s);
+    }
+}
+
