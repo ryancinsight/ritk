@@ -10,6 +10,7 @@
 //! | `affine-mi`       | 9     | Affine hill-climbing (MI)                        |
 //! | `demons`          | dense | Thirion Demons deformable                        |
 //! | `multires-demons` | dense | Multi-resolution Thirion/Diffeomorphic Demons    |
+//! | `ic-demons`       | dense | Inverse-consistent diffeomorphic Demons          |
 //! | `syn`             | dense | Greedy SyN diffeomorphic                         |
 //! | `bspline-ffd`     | dense | B-Spline FFD deformable (Rueckert 1999)          |
 //! | `multires-syn`    | dense | Multi-resolution SyN (coarse-to-fine pyramid)    |
@@ -64,7 +65,8 @@ pub struct RegisterArgs {
 
     /// Registration method.
     ///
-    /// Accepted values: `rigid-mi`, `affine-mi`, `demons`, `syn`.
+    /// Accepted values: `rigid-mi`, `affine-mi`, `demons`, `multires-demons`,
+    /// `ic-demons`, `syn`, `bspline-ffd`, `multires-syn`, `bspline-syn`, `lddmm`.
     #[arg(long, value_name = "METHOD")]
     pub method: String,
 
@@ -118,6 +120,14 @@ pub struct RegisterArgs {
     /// Learning rate for BSpline FFD and LDDMM gradient descent (default 0.01).
     #[arg(long, default_value = "0.01", value_name = "FLOAT")]
     pub learning_rate: f64,
+
+    /// Backward-force weight for inverse-consistent Demons in [0, 1] (default 0.5).
+    #[arg(long, default_value = "0.5", value_name = "FLOAT")]
+    pub inverse_consistency_weight: f64,
+
+    /// Scaling-and-squaring steps for diffeomorphic Demons variants (default 6).
+    #[arg(long, default_value = "6", value_name = "INT")]
+    pub n_squarings: usize,
 }
 
 // ── Image ↔ ndarray conversion ────────────────────────────────────────────────
@@ -212,19 +222,16 @@ fn flat_vec_to_image(
 /// - The output image or transform cannot be written.
 pub fn run(args: RegisterArgs) -> Result<()> {
     info!(
-        fixed  = %args.fixed.display(),
-        moving = %args.moving.display(),
-        output = %args.output.display(),
-        method = %args.method,
-        iterations = args.iterations,
-        sigma_fixed = args.sigma_fixed,
-        "register: starting"
+        "register: starting fixed={} moving={} output={} method={} iterations={} sigma_fixed={}",
+        args.fixed.display(), args.moving.display(), args.output.display(),
+        args.method, args.iterations, args.sigma_fixed
     );
 
     match args.method.as_str() {
         "rigid-mi" | "affine-mi" => run_mi_registration(&args),
         "demons" => run_demons(&args),
         "multires-demons" => run_multires_demons(&args),
+        "ic-demons" => run_inverse_consistent_demons(&args),
         "syn" => run_syn(&args),
         "bspline-ffd" => run_bspline_ffd(&args),
         "multires-syn" => run_multires_syn(&args),
@@ -232,7 +239,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         "lddmm" => run_lddmm(&args),
         other => Err(anyhow!(
             "Unknown registration method '{other}'. \
-             Supported methods: rigid-mi, affine-mi, demons, multires-demons, syn, \n             bspline-ffd, multires-syn, bspline-syn, lddmm."
+             Supported methods: rigid-mi, affine-mi, demons, multires-demons, ic-demons, syn, \n             bspline-ffd, multires-syn, bspline-syn, lddmm."
         )),
     }
 }
@@ -303,10 +310,7 @@ fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
             .context("Failed to serialise transform to JSON")?;
         std::fs::write(tx_path, &json)
             .with_context(|| format!("Failed to write transform to {}", tx_path.display()))?;
-        info!(
-            path = %tx_path.display(),
-            "register: transform written"
-        );
+        info!("register: transform written path={}", tx_path.display());
     }
 
     // ── 9. Print summary ───────────────────────────────────────────────────
@@ -323,12 +327,8 @@ fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = %args.method,
-        iterations = q.iterations,
-        converged  = q.converged,
-        mi         = q.mutual_information,
-        final_cost = q.final_cost,
-        "register: MI registration complete"
+        "register: MI registration complete method={} iterations={} converged={} mi={} final_cost={}",
+        args.method, q.iterations, q.converged, q.mutual_information, q.final_cost
     );
 
     Ok(())
@@ -373,10 +373,8 @@ fn run_demons(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "demons",
-        iterations = result.num_iterations,
-        final_mse = result.final_mse,
-        "register: demons complete"
+        "register: demons complete method={} iterations={} final_mse={}",
+        "demons", result.num_iterations, result.final_mse
     );
 
     Ok(())
@@ -389,7 +387,9 @@ fn run_demons(args: &RegisterArgs) -> Result<()> {
 /// Converts both images to flat `Vec<f32>`, runs the coarse-to-fine Demons pyramid,
 /// and reconstructs the output image from `result.warped`.
 fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
-    use ritk_registration::demons::{DemonsConfig, MultiResDemonsConfig, MultiResDemonsRegistration};
+    use ritk_registration::demons::{
+        DemonsConfig, MultiResDemonsConfig, MultiResDemonsRegistration,
+    };
 
     let fixed_img = super::read_image(&args.fixed)?;
     let moving_img = super::read_image(&args.moving)?;
@@ -427,11 +427,8 @@ fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "multires-demons",
-        iterations = result.num_iterations,
-        levels = args.levels,
-        final_mse = result.final_mse,
-        "register: multires-demons complete"
+        "register: multires-demons complete method={} iterations={} levels={} final_mse={}",
+        "multires-demons", result.num_iterations, args.levels, result.final_mse
     );
 
     Ok(())
@@ -444,6 +441,58 @@ fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
 /// Converts both images to flat `Vec<f32>`, runs SyN with local CC metric,
 /// and reconstructs the output image from `result.warped_moving` (the moving
 /// image warped towards the fixed image's midpoint).
+/// Run inverse-consistent diffeomorphic Demons registration.
+///
+/// Maintains forward and exact inverse transforms through SVF negation and
+/// writes the warped moving image in the fixed image frame.
+fn run_inverse_consistent_demons(args: &RegisterArgs) -> Result<()> {
+    use ritk_registration::demons::{
+        DemonsConfig, InverseConsistentDemonsConfig,
+        InverseConsistentDiffeomorphicDemonsRegistration,
+    };
+
+    let fixed_img = super::read_image(&args.fixed)?;
+    let moving_img = super::read_image(&args.moving)?;
+
+    let (fixed_vals, fixed_shape) = image_to_flat_vec(&fixed_img);
+    let (moving_vals, _) = image_to_flat_vec(&moving_img);
+
+    let config = InverseConsistentDemonsConfig {
+        demons: DemonsConfig {
+            max_iterations: args.iterations,
+            sigma_diffusion: 1.5,
+            sigma_fluid: 0.0,
+            max_step_length: 2.0,
+        },
+        inverse_consistency_weight: args.inverse_consistency_weight,
+        n_squarings: args.n_squarings,
+    };
+
+    let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(config);
+    let result = reg
+        .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+        .with_context(|| "Inverse-consistent Demons registration failed")?;
+
+    let warped_img = flat_vec_to_image(result.warped, fixed_shape, &fixed_img);
+    super::write_image_inferred(&args.output, &warped_img)?;
+
+    println!(
+        "Registered {} → {} (method=ic-demons, iterations={}, final_mse={:.6}, ic_residual={:.6})",
+        args.moving.display(),
+        args.output.display(),
+        result.num_iterations,
+        result.final_mse,
+        result.inverse_consistency_residual,
+    );
+
+    info!(
+        "register: inverse-consistent demons complete method={} iterations={} final_mse={} inverse_consistency_residual={}",
+        "ic-demons", result.num_iterations, result.final_mse, result.inverse_consistency_residual
+    );
+
+    Ok(())
+}
+
 fn run_syn(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::diffeomorphic::{SyNConfig, SyNRegistration};
 
@@ -478,10 +527,8 @@ fn run_syn(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "syn",
-        iterations = result.num_iterations,
-        final_cc = result.final_cc,
-        "register: syn complete"
+        "register: syn complete method={} iterations={} final_cc={}",
+        "syn", result.num_iterations, result.final_cc
     );
 
     Ok(())
@@ -538,11 +585,8 @@ fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "bspline-ffd",
-        levels = args.levels,
-        iterations = result.num_iterations,
-        final_metric = result.final_metric,
-        "register: bspline-ffd complete"
+        "register: bspline-ffd complete method={} levels={} iterations={} final_metric={}",
+        "bspline-ffd", args.levels, result.num_iterations, result.final_metric
     );
 
     Ok(())
@@ -594,11 +638,8 @@ fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "multires-syn",
-        levels = args.levels,
-        iterations = result.num_iterations,
-        final_cc = result.final_cc,
-        "register: multires-syn complete"
+        "register: multires-syn complete method={} levels={} iterations={} final_cc={}",
+        "multires-syn", args.levels, result.num_iterations, result.final_cc
     );
 
     Ok(())
@@ -612,9 +653,7 @@ fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
 /// fields.  Provides intrinsic smoothness from B-spline basis and bending-energy
 /// regularization.
 fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
-    use ritk_registration::diffeomorphic::bspline_syn::{
-        BSplineSyNConfig, BSplineSyNRegistration,
-    };
+    use ritk_registration::diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration};
 
     let fixed_img = super::read_image(&args.fixed)?;
     let moving_img = super::read_image(&args.moving)?;
@@ -654,10 +693,8 @@ fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "bspline-syn",
-        iterations = result.num_iterations,
-        final_cc = result.final_cc,
-        "register: bspline-syn complete"
+        "register: bspline-syn complete method={} iterations={} final_cc={}",
+        "bspline-syn", result.num_iterations, result.final_cc
     );
 
     Ok(())
@@ -705,11 +742,8 @@ fn run_lddmm(args: &RegisterArgs) -> Result<()> {
     );
 
     info!(
-        method = "lddmm",
-        iterations = result.num_iterations,
-        time_steps = args.num_time_steps,
-        final_metric = result.final_metric,
-        "register: lddmm complete"
+        "register: lddmm complete method={} iterations={} time_steps={} final_metric={}",
+        "lddmm", result.num_iterations, args.num_time_steps, result.final_metric
     );
 
     Ok(())
@@ -776,6 +810,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -819,6 +855,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -861,6 +899,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -925,6 +965,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -979,6 +1021,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1025,6 +1069,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1072,6 +1118,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1118,6 +1166,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1163,6 +1213,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         });
 
         assert!(result.is_err(), "unknown method must return Err");
@@ -1202,6 +1254,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         });
 
         assert!(result.is_err(), "missing fixed image must yield an error");
@@ -1319,6 +1373,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1365,6 +1421,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .unwrap();
 
@@ -1376,6 +1434,97 @@ mod tests {
             assert!(
                 v.is_finite(),
                 "multires-demons output voxel [{i}] must be finite, got {v}"
+            );
+        }
+    }
+
+    // ── Inverse-consistent Demons: output shape ──────────────────────────────
+
+    #[test]
+    fn test_register_ic_demons_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "ic-demons".to_string(),
+            output_transform: None,
+            iterations: 3,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
+        })
+        .unwrap();
+
+        assert!(
+            output_path.exists(),
+            "ic-demons warped output file must be created"
+        );
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(
+            warped.shape(),
+            [4, 4, 4],
+            "ic-demons warped image shape must match fixed image shape"
+        );
+    }
+
+    #[test]
+    fn test_register_ic_demons_identity_finite_voxels() {
+        let dir = tempdir().unwrap();
+        let fixed_path = dir.path().join("fixed.nii");
+        let moving_path = dir.path().join("moving.nii");
+        let output_path = dir.path().join("warped.nii");
+
+        let image = make_ramp_image();
+        ritk_io::write_nifti(&fixed_path, &image).unwrap();
+        ritk_io::write_nifti(&moving_path, &image).unwrap();
+
+        run(RegisterArgs {
+            fixed: fixed_path,
+            moving: moving_path,
+            output: output_path.clone(),
+            method: "ic-demons".to_string(),
+            output_transform: None,
+            iterations: 5,
+            sigma_fixed: 0.0,
+            levels: 1,
+            use_diffeomorphic: false,
+            regularization_weight: 0.001,
+            control_spacing: 4,
+            cc_radius: 2,
+            inverse_consistency: false,
+            num_time_steps: 2,
+            kernel_sigma: 3.0,
+            learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
+        })
+        .unwrap();
+
+        let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = warped.data().clone().into_data();
+        let vals = td.as_slice::<f32>().unwrap();
+        for (i, &v) in vals.iter().enumerate() {
+            assert!(
+                v.is_finite(),
+                "ic-demons output voxel [{i}] must be finite, got {v}"
             );
         }
     }
@@ -1410,6 +1559,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("bspline-ffd must succeed");
 
@@ -1417,7 +1568,6 @@ mod tests {
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
-
 
     #[test]
     fn test_register_bspline_ffd_identity_finite_voxels() {
@@ -1447,6 +1597,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("bspline-ffd must succeed");
 
@@ -1489,6 +1641,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("multires-syn must succeed");
 
@@ -1496,7 +1650,6 @@ mod tests {
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
-
 
     #[test]
     fn test_register_multires_syn_identity_finite_voxels() {
@@ -1526,6 +1679,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("multires-syn must succeed");
 
@@ -1568,6 +1723,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("bspline-syn must succeed");
 
@@ -1575,7 +1732,6 @@ mod tests {
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
-
 
     #[test]
     fn test_register_bspline_syn_identity_finite_voxels() {
@@ -1605,6 +1761,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("bspline-syn must succeed");
 
@@ -1647,6 +1805,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("lddmm must succeed");
 
@@ -1654,7 +1814,6 @@ mod tests {
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
         assert_eq!(out.shape(), [4, 4, 4], "output shape must match fixed");
     }
-
 
     #[test]
     fn test_register_lddmm_identity_finite_voxels() {
@@ -1684,6 +1843,8 @@ mod tests {
             num_time_steps: 2,
             kernel_sigma: 3.0,
             learning_rate: 0.01,
+            inverse_consistency_weight: 0.5,
+            n_squarings: 6,
         })
         .expect("lddmm must succeed");
 
@@ -1695,5 +1856,4 @@ mod tests {
             "all output voxels must be finite"
         );
     }
-
 }

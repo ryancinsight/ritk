@@ -1,37 +1,21 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
-**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20)**
+**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20; Sprint 29 update 2026-04-22)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
 **Status:** Active — feeds `backlog.md` and `checklist.md`
 
 ## Update Note
+
+**Sprint 31 (2025):** TRACING-REFACTOR-R31 eliminates all remaining = % structured-field info!() calls from segment.rs (22), convert.rs (2), resample.rs (1), stats.rs (1) — completing the workspace-wide tracing refactor started in Sprint 30. STUB-SYNC-SEG-R31 closes segmentation.pyi gaps: adds binary_fill_holes, morphological_gradient, confidence_connected_segment, neighborhood_connected_segment, skeletonization stubs (5 functions registered in segmentation.rs but missing from .pyi). SMOKE-TEST-FIX-R31 corrects 10 wrong function names in test_smoke.py across filter/segmentation/statistics. Python/CLI parity ~96%. Workspace clean: cargo check + 173/173 CLI tests pass.
+
+**Sprint 30 (2025):** TRACING-REFACTOR eliminates ~320 rust-analyzer false-positive diagnostics across ritk-cli and ritk-io. STATS-STUB-SYNC-R30 closes statistics.pyi gap (nyul_udupa_normalize). DISCRETE-GAUSSIAN-ANALYTICAL adds impulse-response quantitative validation. Python/CLI parity now ~95%.
+
+**Sprint 29 (2026-04-22) — Completed:** All Sprint 29 gaps closed. CLI exposure for `DiscreteGaussianFilter` (`ritk filter --filter discrete-gaussian`) and `InverseConsistentDiffeomorphicDemonsRegistration` (`ritk register --method ic-demons`) is now implemented and tested (173/173 CLI tests pass). The NIfTI sform regression guard `test_write_nifti_sets_sform_header_fields` was extracted from an incorrectly nested position and now runs as a standalone test (4/4 NIfTI tests pass). Three synthetic DICOM integration tests were added to `format::dicom::reader::tests` covering all-non-image SOP → error-with-UIDs, mixed CT+RTSTRUCT → CT retained, RT Plan+Waveform → both UIDs in error (5/5 reader tests pass). `multiframe.rs` module docs expanded with writer encoding constraints, global linear rescale limitation, spatial metadata absence, and interoperability limits. Workspace compiles clean (`cargo check --workspace --tests`, zero errors). PYTHON-CI-VALIDATION deferred to Sprint 30.
 
 **Sprint 24 (2026-04-20):** Next-stage roadmap refreshed to prioritize DICOM object-model preservation, VTK data-model expansion, ITK/SimpleITK breadth, ITK-SNAP workflow primitives, ANTs workflow refinement, and Python parity benchmarking. Existing image-series DICOM I/O, VTK legacy image I/O, registration, and Python bindings remain as previously recorded.
 
 `Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, VTK, ITK-SNAP, and ANTs.
-
-**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20)**
-**Auditor:** Ryan Clanton (@ryancinsight)
-**Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
-**Status:** Active — feeds `backlog.md` and `checklist.md`
-
-## Update Note
-
-**Sprint 24 (2026-04-20):** Next-stage roadmap refreshed to prioritize DICOM object-model preservation, VTK data-model expansion, ITK/SimpleITK breadth, ITK-SNAP workflow primitives, ANTs workflow refinement, and Python parity benchmarking. Existing image-series DICOM I/O, VTK legacy image I/O, registration, and Python bindings remain as previously recorded.
-
-`Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, VTK, ITK-SNAP, and ANTs.
-
-**Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18)**
-**Auditor:** Ryan Clanton (@ryancinsight)
-**Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
-**Status:** Active — feeds `backlog.md` and `checklist.md`
-
-## Update Note
-
-**Sprint 21 (2025-07-XX):** `BinaryFillHoles` (6-connected border flood-fill) and `MorphologicalGradient` (dilation AND NOT erosion) added to `ritk-core/src/segmentation/morphology/`. `multires_demons_register` Python binding and `multires-demons` CLI method added. DICOM binary writer replaced with real `InMemDicomObject` + `FileMetaTableBuilder` implementation; DICM magic verified.
-
-`Analyze` format support is present in `crates/ritk-io/src/format/analyze/` and should be treated as implemented. This audit now focuses on the remaining imaging gaps relative to DICOM, ITK, SimpleITK, and VTK.
 
 ---
 
@@ -63,14 +47,14 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-model` | — | `TransMorph`, `SSMMorph`, affine DL network |
 | `ritk-python` | `image` | `PyImage` (NumPy bridge, `Arc<Image<NdArray,3>>`, ZYX convention) |
 | `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD), `read_transform`, `write_transform` |
-| `ritk-python` | `filter` | `gaussian_filter`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness`, `canny`, `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`, `grayscale_dilation` |
-| `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register`, `build_atlas`, `majority_vote_fusion`, `joint_label_fusion_py` |
+| `ritk-python` | `filter` | `gaussian_filter`, `discrete_gaussian`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness`, `canny`, `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`, `grayscale_dilation`, `curvature_anisotropic_diffusion`, `sato_line_filter`, `rescale_intensity`, `intensity_windowing`, `threshold_below`, `threshold_above`, `threshold_outside`, `sigmoid_filter`, `binary_threshold`, `white_top_hat`, `black_top_hat`, `hit_or_miss`, `label_dilation`, `label_erosion`, `label_opening`, `label_closing`, `morphological_reconstruction`, `resample_image` |
+| `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `inverse_consistent_demons_register`, `multires_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register`, `build_atlas`, `majority_vote_fusion`, `joint_label_fusion_py` |
 | `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour` |
 | `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform), `stats` (summary/dice/hausdorff/psnr/ssim) |
 | `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
 **Absent or incomplete at module level (zero source files, stub-only, or partial fidelity):**  
-Curvature anisotropic diffusion, Sato line / Hessian blob detection, confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, diffeomorphic Demons exact inverse, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits.
+Confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits, PYTHON-CI-VALIDATION (deferred Sprint 30): validate Python wheel CI workflow on hosted runners.
 
 ---
 
@@ -193,7 +177,7 @@ imaging workflows:
 | VTK Data Model | **High** | ~20% | ~20% | ~20% | VTK: image I/O exists, but data-object hierarchy, mesh grids, and pipeline abstractions are absent |
 
 | ITK-SNAP Workflow | **Medium-High** | ~10% | ~10% | ~10% | ITK-SNAP: interactive segmentation state, labels, overlays, and undo/redo primitives are absent |
-| Python / CLI Bindings | **Low** | ~92% | ~92% | ~92% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
+| Python / CLI Bindings | **Low** | ~95% | ~95% | ~95% | SimpleITK: `ritk` is close on bindings breadth, but high-level façade conventions remain narrower |
 
 Sprint 3 filter additions (N4, Perona-Malik, gradient magnitude, Laplacian, Frangi) moved
 Filtering & Preprocessing from Critical to High severity. Addition of Thirion/Diffeomorphic/
@@ -202,36 +186,25 @@ The `ritk-cli` binary and extended Python bindings materially advanced CLI/Pytho
 The DICOM subsystem now has a read-side metadata slice that captures series identity plus per-slice geometry and rescale fields.
 
 The DICOM implementation remains series-centric. The remaining DICOM backlog is:
+The remaining DICOM backlog is:
 - transfer syntax coverage audit
 - private tag and nested sequence preservation strategy
 - multi-frame / enhanced image support
 - generalized DICOM writer
-- non-image SOP-class policy
 - metadata-aware read-path validation for `DicomReadMetadata` and `DicomSliceMetadata`
 - object-model round-trip preservation
 - explicit unknown-element retention
 - object-model preservation across read/write round-trips
 - explicit handling of sequence values and unknown elements
+- synthetic end-to-end integration tests covering explicit non-image SOP rejection paths
 
 The next-stage roadmap is:
-1. DICOM object-model foundation
+1. DICOM object-model foundation and non-image SOP integration hardening
 2. VTK data model and mesh primitives
-3. ITK/SimpleITK algorithm breadth expansion
+3. ITK/SimpleITK algorithm breadth expansion with CLI surface completion for Sprint 28 filters
 4. ITK-SNAP workflow primitives
-5. ANTs workflow refinement
-6. Python comparison and reproducibility harness
-- object-model round-trip preservation
-- explicit unknown-element retention
-- object-model preservation across read/write round-trips
-- explicit handling of sequence values and unknown elements
-
-The next-stage roadmap is:
-1. DICOM object-model foundation
-2. VTK data model and mesh primitives
-3. ITK/SimpleITK algorithm breadth expansion
-4. ITK-SNAP workflow primitives
-5. ANTs workflow refinement
-6. Python comparison and reproducibility harness
+5. ANTs workflow refinement with CLI surface completion for inverse-consistent Demons
+6. Python comparison and reproducibility harness plus CI regression guards for NIfTI metadata persistence
 
 Sprint 5 level-set implementations (Chan-Vese, Geodesic Active Contour) raised Segmentation
 parity from ~25% to ~35%. 3D Sobel gradient filter plus confirmation of native Median/Bilateral
@@ -1133,6 +1106,8 @@ ANTs ships ~40 command-line executables (`antsRegistration`, `N4BiasFieldCorrect
 RITK has no CLI layer.
 
 **Sprint 21:** `multires-demons` method added to `crates/ritk-cli/src/commands/register.rs` with `--levels` (usize, default 3) and `--use-diffeomorphic` (flag) args. 2 new CLI tests added.
+
+**Sprint 28/29:** `ic-demons` method added to `crates/ritk-cli/src/commands/register.rs` (`--inverse-consistency-weight`, `--n-squarings` args). 2 value-semantic CLI tests pass.
 
 **Planned location:**
 ```

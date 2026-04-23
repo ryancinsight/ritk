@@ -18,6 +18,7 @@
 //! | `recursive-gaussian`| `--sigma`, `--order`                               |
 //! | `curvature`         | `--iterations`, `--time-step`                      |
 //! | `sato`              | `--scales`, `--alpha`                              |
+//! | `discrete-gaussian` | `--variance`, `--maximum-error`, `--use-image-spacing` |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -43,7 +44,8 @@ pub struct FilterArgs {
     ///
     /// Accepted values: `gaussian`, `n4-bias`, `anisotropic`, `frangi`,
     /// `gradient-magnitude`, `laplacian`, `median`, `bilateral`, `canny`,
-    /// `sobel`, `log`, `recursive-gaussian`, `curvature`, `sato`.
+    /// `sobel`, `log`, `recursive-gaussian`, `curvature`, `sato`,
+    /// `discrete-gaussian`.
     #[arg(long, value_name = "FILTER")]
     pub filter: String,
 
@@ -152,6 +154,25 @@ pub struct FilterArgs {
     #[arg(long, default_value = "0", value_name = "INT")]
     pub order: usize,
 
+    // ── Discrete Gaussian ─────────────────────────────────────────────────────
+    /// Gaussian variance σ² in physical units².
+    ///
+    /// Used by: `discrete-gaussian`.
+    #[arg(long, default_value = "1.0", value_name = "FLOAT")]
+    pub variance: f64,
+
+    /// Kernel truncation tolerance in (0, 1).
+    ///
+    /// Used by: `discrete-gaussian`.
+    #[arg(long, default_value = "0.01", value_name = "FLOAT")]
+    pub maximum_error: f64,
+
+    /// Convert physical σ to pixel σ using image spacing.
+    ///
+    /// Used by: `discrete-gaussian`.
+    #[arg(long, default_value = "true", value_name = "BOOL")]
+    pub use_image_spacing: bool,
+
     // -- Intensity transform filters -------------------------------------------------
     /// Minimum output value for rescale-intensity and intensity-windowing filters.
     ///
@@ -234,10 +255,10 @@ pub struct FilterArgs {
 /// - An unknown filter name is supplied.
 pub fn run(args: FilterArgs) -> Result<()> {
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        filter = %args.filter,
-        "filter: starting"
+        "filter: starting input={} output={} filter={}",
+        args.input.display(),
+        args.output.display(),
+        args.filter
     );
 
     match args.filter.as_str() {
@@ -255,6 +276,7 @@ pub fn run(args: FilterArgs) -> Result<()> {
         "recursive-gaussian" => run_recursive_gaussian(&args),
         "curvature" => run_curvature(&args),
         "sato" => run_sato(&args),
+        "discrete-gaussian" => run_discrete_gaussian(&args),
         "rescale-intensity" => run_rescale_intensity(&args),
         "intensity-windowing" => run_intensity_windowing(&args),
         "threshold-below" => run_threshold_below(&args),
@@ -276,9 +298,13 @@ pub fn run(args: FilterArgs) -> Result<()> {
             "Unknown filter '{other}'. \
              Available filters: gaussian, n4-bias, anisotropic, \
              gradient-magnitude, laplacian, frangi, median, bilateral, \
-             canny, sobel, log, recursive-gaussian, curvature, sato, 
-             rescale-intensity, intensity-windowing, threshold-below, 
-             threshold-above, threshold-outside, sigmoid, binary-threshold."
+             canny, sobel, log, recursive-gaussian, curvature, sato, \
+             discrete-gaussian, rescale-intensity, intensity-windowing, \
+             threshold-below, threshold-above, threshold-outside, sigmoid, \
+             binary-threshold, grayscale-erosion, grayscale-dilation, \
+             white-top-hat, black-top-hat, hit-or-miss, label-dilation, \
+             label-erosion, label-opening, label-closing, \
+             morphological-reconstruction."
         )),
     }
 }
@@ -309,10 +335,10 @@ fn run_gaussian(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        sigma = args.sigma,
-        "filter: gaussian complete"
+        "filter: gaussian complete input={} output={} sigma={}",
+        args.input.display(),
+        args.output.display(),
+        args.sigma
     );
 
     Ok(())
@@ -344,11 +370,11 @@ fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        levels = args.levels,
-        iterations = args.iterations,
-        "filter: n4-bias complete"
+        "filter: n4-bias complete input={} output={} levels={} iterations={}",
+        args.input.display(),
+        args.output.display(),
+        args.levels,
+        args.iterations
     );
 
     Ok(())
@@ -381,11 +407,11 @@ fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        iterations = args.iterations,
-        conductance = args.conductance,
-        "filter: anisotropic complete"
+        "filter: anisotropic complete input={} output={} iterations={} conductance={}",
+        args.input.display(),
+        args.output.display(),
+        args.iterations,
+        args.conductance
     );
 
     Ok(())
@@ -403,10 +429,14 @@ fn run_curvature(args: &FilterArgs) -> Result<()> {
     let filter = CurvatureAnisotropicDiffusionFilter::new(config);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied curvature (iters={}, dt={}) to {} -> {}",
-        args.iterations, args.time_step, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(),
-        iterations = args.iterations, time_step = args.time_step, "filter: curvature complete");
+    println!(
+        "Applied curvature (iters={}, dt={}) to {} -> {}",
+        args.iterations,
+        args.time_step,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: curvature complete");
     Ok(())
 }
 
@@ -415,16 +445,55 @@ fn run_curvature(args: &FilterArgs) -> Result<()> {
 fn run_sato(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::vesselness::{SatoConfig, SatoLineFilter};
     let image = read_image(&args.input)?;
-    let scales: Vec<f64> = args.scales.split(',').filter_map(|s| s.trim().parse::<f64>().ok()).collect();
-    let scales = if scales.is_empty() { vec![1.0, 2.0, 3.0] } else { scales };
-    let config = SatoConfig { scales: scales.clone(), alpha: args.alpha, bright_tubes: true };
+    let scales: Vec<f64> = args
+        .scales
+        .split(',')
+        .filter_map(|s| s.trim().parse::<f64>().ok())
+        .collect();
+    let scales = if scales.is_empty() {
+        vec![1.0, 2.0, 3.0]
+    } else {
+        scales
+    };
+    let config = SatoConfig {
+        scales: scales.clone(),
+        alpha: args.alpha,
+        bright_tubes: true,
+    };
     let filter = SatoLineFilter::new(config);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied sato (scales={:?}, alpha={}) to {} -> {}",
-        scales, args.alpha, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(),
-        alpha = args.alpha, "filter: sato complete");
+    println!(
+        "Applied sato (scales={:?}, alpha={}) to {} -> {}",
+        scales,
+        args.alpha,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: sato complete");
+    Ok(())
+}
+
+fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::DiscreteGaussianFilter;
+
+    let image = read_image(&args.input)?;
+    let filter = DiscreteGaussianFilter::<Backend>::new(vec![args.variance])
+        .with_maximum_error(args.maximum_error)
+        .with_use_image_spacing(args.use_image_spacing);
+    let filtered = filter.apply(&image);
+
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied discrete-gaussian (variance={}, maximum_error={}, use_image_spacing={}) to {} -> {}",
+        args.variance,
+        args.maximum_error,
+        args.use_image_spacing,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: discrete-gaussian complete");
     Ok(())
 }
 
@@ -447,9 +516,9 @@ fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        "filter: gradient-magnitude complete"
+        "filter: gradient-magnitude complete input={} output={}",
+        args.input.display(),
+        args.output.display()
     );
 
     Ok(())
@@ -474,9 +543,9 @@ fn run_laplacian(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        "filter: laplacian complete"
+        "filter: laplacian complete input={} output={}",
+        args.input.display(),
+        args.output.display()
     );
 
     Ok(())
@@ -525,12 +594,12 @@ fn run_frangi(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        alpha = args.alpha,
-        beta = args.beta,
-        gamma = args.gamma,
-        "filter: frangi complete"
+        "filter: frangi complete input={} output={} alpha={} beta={} gamma={}",
+        args.input.display(),
+        args.output.display(),
+        args.alpha,
+        args.beta,
+        args.gamma
     );
 
     Ok(())
@@ -558,10 +627,10 @@ fn run_median(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        radius = args.radius,
-        "filter: median complete"
+        "filter: median complete input={} output={} radius={}",
+        args.input.display(),
+        args.output.display(),
+        args.radius
     );
 
     Ok(())
@@ -591,11 +660,11 @@ fn run_bilateral(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        sigma_spatial = args.sigma_spatial,
-        sigma_range = args.sigma_range,
-        "filter: bilateral complete"
+        "filter: bilateral complete input={} output={} sigma_spatial={} sigma_range={}",
+        args.input.display(),
+        args.output.display(),
+        args.sigma_spatial,
+        args.sigma_range
     );
 
     Ok(())
@@ -626,12 +695,12 @@ fn run_canny(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        sigma = args.sigma,
-        low = args.low,
-        high = args.high,
-        "filter: canny complete"
+        "filter: canny complete input={} output={} sigma={} low={} high={}",
+        args.input.display(),
+        args.output.display(),
+        args.sigma,
+        args.low,
+        args.high
     );
 
     Ok(())
@@ -659,9 +728,9 @@ fn run_sobel(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        "filter: sobel complete"
+        "filter: sobel complete input={} output={}",
+        args.input.display(),
+        args.output.display()
     );
 
     Ok(())
@@ -690,10 +759,10 @@ fn run_log(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        sigma = args.sigma,
-        "filter: log complete"
+        "filter: log complete input={} output={} sigma={}",
+        args.input.display(),
+        args.output.display(),
+        args.sigma
     );
 
     Ok(())
@@ -735,11 +804,11 @@ fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     );
 
     info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        sigma = args.sigma,
-        order = args.order,
-        "filter: recursive-gaussian complete"
+        "filter: recursive-gaussian complete input={} output={} sigma={} order={}",
+        args.input.display(),
+        args.output.display(),
+        args.sigma,
+        args.order
     );
 
     Ok(())
@@ -752,78 +821,147 @@ fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = RescaleIntensityFilter::new(args.out_min, args.out_max).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied rescale-intensity (out=[{},{}]) to {} -> {}", args.out_min, args.out_max, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), out_min = args.out_min, out_max = args.out_max, "filter: rescale-intensity complete");
+    println!(
+        "Applied rescale-intensity (out=[{},{}]) to {} -> {}",
+        args.out_min,
+        args.out_max,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: rescale-intensity complete");
     Ok(())
 }
 
 fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::IntensityWindowingFilter;
     let image = read_image(&args.input)?;
-    let filtered = IntensityWindowingFilter::new(args.window_min, args.window_max, args.out_min, args.out_max).apply(&image)?;
+    let filtered =
+        IntensityWindowingFilter::new(args.window_min, args.window_max, args.out_min, args.out_max)
+            .apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}", args.window_min, args.window_max, args.out_min, args.out_max, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: intensity-windowing complete");
+    println!(
+        "Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}",
+        args.window_min,
+        args.window_max,
+        args.out_min,
+        args.out_max,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: intensity-windowing complete");
     Ok(())
 }
 
 fn run_threshold_below(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::ThresholdImageFilter;
     let image = read_image(&args.input)?;
-    let filtered = ThresholdImageFilter::below(args.threshold_value, args.outside_value).apply(&image)?;
+    let filtered =
+        ThresholdImageFilter::below(args.threshold_value, args.outside_value).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied threshold-below (threshold={}, outside={}) to {} -> {}", args.threshold_value, args.outside_value, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-below complete");
+    println!(
+        "Applied threshold-below (threshold={}, outside={}) to {} -> {}",
+        args.threshold_value,
+        args.outside_value,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: threshold-below complete");
     Ok(())
 }
 
 fn run_threshold_above(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::ThresholdImageFilter;
     let image = read_image(&args.input)?;
-    let filtered = ThresholdImageFilter::above(args.threshold_value, args.outside_value).apply(&image)?;
+    let filtered =
+        ThresholdImageFilter::above(args.threshold_value, args.outside_value).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied threshold-above (threshold={}, outside={}) to {} -> {}", args.threshold_value, args.outside_value, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-above complete");
+    println!(
+        "Applied threshold-above (threshold={}, outside={}) to {} -> {}",
+        args.threshold_value,
+        args.outside_value,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: threshold-above complete");
     Ok(())
 }
 
 fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::ThresholdImageFilter;
     let image = read_image(&args.input)?;
-    let filtered = ThresholdImageFilter::outside(args.lower_threshold, args.upper_threshold, args.outside_value).apply(&image)?;
+    let filtered = ThresholdImageFilter::outside(
+        args.lower_threshold,
+        args.upper_threshold,
+        args.outside_value,
+    )
+    .apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied threshold-outside ([{},{}], outside={}) to {} -> {}", args.lower_threshold, args.upper_threshold, args.outside_value, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: threshold-outside complete");
+    println!(
+        "Applied threshold-outside ([{},{}], outside={}) to {} -> {}",
+        args.lower_threshold,
+        args.upper_threshold,
+        args.outside_value,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: threshold-outside complete");
     Ok(())
 }
 
 fn run_sigmoid(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::SigmoidImageFilter;
     let image = read_image(&args.input)?;
-    let filtered = SigmoidImageFilter::new(args.alpha as f32, args.beta as f32, args.out_min, args.out_max).apply(&image)?;
+    let filtered = SigmoidImageFilter::new(
+        args.alpha as f32,
+        args.beta as f32,
+        args.out_min,
+        args.out_max,
+    )
+    .apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied sigmoid (alpha={}, beta={}, out=[{},{}]) to {} -> {}", args.alpha, args.beta, args.out_min, args.out_max, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: sigmoid complete");
+    println!(
+        "Applied sigmoid (alpha={}, beta={}, out=[{},{}]) to {} -> {}",
+        args.alpha,
+        args.beta,
+        args.out_min,
+        args.out_max,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: sigmoid complete");
     Ok(())
 }
 
 fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::BinaryThresholdImageFilter;
     let image = read_image(&args.input)?;
-    let filtered = BinaryThresholdImageFilter::new(args.lower_threshold, args.upper_threshold, args.foreground_value, args.background_value).apply(&image)?;
+    let filtered = BinaryThresholdImageFilter::new(
+        args.lower_threshold,
+        args.upper_threshold,
+        args.foreground_value,
+        args.background_value,
+    )
+    .apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    println!("Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}", args.lower_threshold, args.upper_threshold, args.foreground_value, args.background_value, args.input.display(), args.output.display());
-    info!(input = %args.input.display(), output = %args.output.display(), "filter: binary-threshold complete");
+    println!(
+        "Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}",
+        args.lower_threshold,
+        args.upper_threshold,
+        args.foreground_value,
+        args.background_value,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: binary-threshold complete");
     Ok(())
 }
-
 
 fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::GrayscaleErosion;
     let image = read_image(&args.input)?;
     let filtered = GrayscaleErosion::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: grayscale-erosion complete");
+    info!("filter: grayscale-erosion complete");
     Ok(())
 }
 
@@ -832,7 +970,7 @@ fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = GrayscaleDilation::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: grayscale-dilation complete");
+    info!("filter: grayscale-dilation complete");
     Ok(())
 }
 
@@ -841,7 +979,7 @@ fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = WhiteTopHatFilter::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: white-top-hat complete");
+    info!("filter: white-top-hat complete");
     Ok(())
 }
 
@@ -850,7 +988,7 @@ fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = BlackTopHatFilter::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: black-top-hat complete");
+    info!("filter: black-top-hat complete");
     Ok(())
 }
 
@@ -859,7 +997,7 @@ fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = HitOrMissTransform::new(args.radius, args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: hit-or-miss complete");
+    info!("filter: label-dilation complete");
     Ok(())
 }
 
@@ -868,7 +1006,7 @@ fn run_label_dilation(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = LabelDilation::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius=args.radius, input=%args.input.display(), output=%args.output.display(), "filter: label-dilation complete");
+    info!("filter: label-dilation complete radius={} input={} output={}", args.radius, args.input.display(), args.output.display());
     Ok(())
 }
 
@@ -877,7 +1015,7 @@ fn run_label_erosion(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = LabelErosion::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius = args.radius, input = %args.input.display(), output = %args.output.display(), "filter: label-erosion complete");
+    info!("filter: label-erosion complete");
     Ok(())
 }
 
@@ -886,7 +1024,7 @@ fn run_label_opening(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = LabelOpening::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius = args.radius, "filter: label-opening complete");
+    info!("filter: label-opening complete");
     Ok(())
 }
 
@@ -895,19 +1033,20 @@ fn run_label_closing(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = LabelClosing::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!(radius = args.radius, "filter: label-closing complete");
+    info!("filter: label-closing complete");
     Ok(())
 }
 
 fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::{MorphologicalReconstruction, ReconstructionMode};
     let marker = read_image(&args.input)?;
-    let mask_path = args.mask.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("morphological-reconstruction requires --mask <path>")
-    })?;
+    let mask_path = args
+        .mask
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("morphological-reconstruction requires --mask <path>"))?;
     let mask = read_image(mask_path)?;
-    let filtered = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
-        .apply(&marker, &mask)?;
+    let filtered =
+        MorphologicalReconstruction::new(ReconstructionMode::Dilation).apply(&marker, &mask)?;
     write_image_inferred(&args.output, &filtered)?;
     info!("filter: morphological-reconstruction complete");
     Ok(())
@@ -944,6 +1083,9 @@ mod tests {
             high: 0.3,
             radius: 1,
             order: 0,
+            variance: 1.0,
+            maximum_error: 0.01,
+            use_image_spacing: true,
             // new intensity filter fields
             out_min: 0.0,
             out_max: 1.0,
@@ -1384,6 +1526,69 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_discrete_gaussian_creates_output() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        let mut args = default_args(input, output.clone(), "discrete-gaussian");
+        args.variance = 1.0;
+        args.maximum_error = 0.01;
+        args.use_image_spacing = true;
+        let result = run(args);
+        assert!(
+            result.is_ok(),
+            "discrete-gaussian must succeed: {:?}",
+            result.err()
+        );
+        assert!(output.exists(), "discrete-gaussian must write output file");
+        let out_img = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
+    }
+
+    #[test]
+    fn test_filter_discrete_gaussian_sigma_zero_variance_is_noop_on_sum() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.mha");
+        let output = dir.path().join("out.mha");
+        let image = make_test_image();
+        let input_sum: f32 = image
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .iter()
+            .copied()
+            .sum();
+        ritk_io::write_metaimage(&input, &image).unwrap();
+
+        let mut args = default_args(input, output.clone(), "discrete-gaussian");
+        args.variance = 0.0;
+        let result = run(args);
+        assert!(
+            result.is_ok(),
+            "discrete-gaussian zero variance must succeed: {:?}",
+            result.err()
+        );
+
+        let out_img = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
+        let output_sum: f32 = out_img
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .iter()
+            .copied()
+            .sum();
+        assert!(
+            (input_sum - output_sum).abs() < 1e-3 * input_sum.abs().max(1.0),
+            "discrete-gaussian zero variance must preserve voxel sum (input={input_sum}, output={output_sum})"
+        );
+    }
+
+    #[test]
     fn test_filter_sato_creates_output() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
@@ -1411,8 +1616,16 @@ mod tests {
         let vals = td.as_slice::<f32>().unwrap();
         let min_val = vals.iter().cloned().fold(f32::INFINITY, f32::min);
         let max_val = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        assert!((min_val - 0.0).abs() < 1e-4, "rescale-intensity min must be 0.0, got {}", min_val);
-        assert!((max_val - 1.0).abs() < 1e-4, "rescale-intensity max must be 1.0, got {}", max_val);
+        assert!(
+            (min_val - 0.0).abs() < 1e-4,
+            "rescale-intensity min must be 0.0, got {}",
+            min_val
+        );
+        assert!(
+            (max_val - 1.0).abs() < 1e-4,
+            "rescale-intensity max must be 1.0, got {}",
+            max_val
+        );
     }
 
     #[test]
@@ -1449,7 +1662,11 @@ mod tests {
         // All pixels that were < 50 should now be 0.0
         // Original values are 0..124, so values 0..49 -> 0.0
         let count_zero = vals.iter().filter(|&&v| v == 0.0).count();
-        assert!(count_zero >= 50, "at least 50 pixels should be zeroed, got {}", count_zero);
+        assert!(
+            count_zero >= 50,
+            "at least 50 pixels should be zeroed, got {}",
+            count_zero
+        );
     }
 
     #[test]
@@ -1500,7 +1717,11 @@ mod tests {
         let td = result.data().clone().into_data();
         let vals = td.as_slice::<f32>().unwrap();
         for &v in vals {
-            assert!(v >= 0.0 && v <= 1.0, "sigmoid output must be in [0,1], got {}", v);
+            assert!(
+                v >= 0.0 && v <= 1.0,
+                "sigmoid output must be in [0,1], got {}",
+                v
+            );
         }
     }
 
@@ -1521,7 +1742,11 @@ mod tests {
         let td = result.data().clone().into_data();
         let vals = td.as_slice::<f32>().unwrap();
         for &v in vals {
-            assert!(v == 0.0 || v == 1.0, "binary-threshold output must be 0.0 or 1.0, got {}", v);
+            assert!(
+                v == 0.0 || v == 1.0,
+                "binary-threshold output must be 0.0 or 1.0, got {}",
+                v
+            );
         }
     }
     #[test]
@@ -1534,7 +1759,12 @@ mod tests {
         v[2 * 25 + 2 * 5 + 2] = 1.0;
         let td = TensorData::new(v, Shape::new([5, 5, 5]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
         let mut args = default_args(input_path, output_path.clone(), "label-erosion");
         args.radius = 1;
@@ -1550,7 +1780,12 @@ mod tests {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
         let mut args = default_args(input_path, output_path.clone(), "label-opening");
         args.radius = 1;
@@ -1566,7 +1801,12 @@ mod tests {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
         let mut args = default_args(input_path, output_path.clone(), "label-closing");
         args.radius = 1;
@@ -1582,7 +1822,12 @@ mod tests {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![0.5f32; 8], Shape::new([2, 2, 2]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity());
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
         ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
         let mut args = default_args(input_path, output_path, "morphological-reconstruction");
         args.mask = None;
@@ -1590,6 +1835,4 @@ mod tests {
         assert!(result.is_err(), "missing mask must return Err");
         assert!(result.unwrap_err().to_string().contains("mask"));
     }
-
 }
-

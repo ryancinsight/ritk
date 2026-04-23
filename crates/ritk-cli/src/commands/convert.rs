@@ -56,11 +56,7 @@ pub struct ConvertArgs {
 /// written, or neither the `--format` flag nor the output extension resolves
 /// to a writable format.
 pub fn run(args: ConvertArgs) -> Result<()> {
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        "convert: starting"
-    );
+    info!("convert: starting input={} output={}", args.input.display(), args.output.display());
 
     let image = read_image(&args.input)?;
     let shape = image.shape();
@@ -94,12 +90,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
         spacing[2],
     );
 
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        shape = ?shape,
-        "convert: complete"
-    );
+    info!("convert: complete input={} output={} shape={:?}", args.input.display(), args.output.display(), shape);
 
     Ok(())
 }

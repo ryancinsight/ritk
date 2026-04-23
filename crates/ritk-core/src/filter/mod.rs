@@ -2,6 +2,7 @@ pub mod intensity;
 pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
+pub mod discrete_gaussian;
 pub mod downsample;
 pub mod edge;
 pub mod gaussian;
@@ -24,6 +25,7 @@ pub use edge::{
     SobelFilter,
 };
 pub use gaussian::GaussianFilter;
+pub use discrete_gaussian::DiscreteGaussianFilter;
 pub use median::MedianFilter;
 pub use morphology::{
     BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform,

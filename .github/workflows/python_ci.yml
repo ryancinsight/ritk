@@ -1,0 +1,69 @@
+# Python wheel build and smoke-test matrix.
+#
+# Invariants:
+#   - maturin build must succeed on all target Python versions.
+#   - All tests in crates/ritk-python/tests/test_smoke.py must pass.
+#   - No test is skipped or marked xfail without documented justification.
+#
+# Trigger: push/PR to main or any sprint/* branch.
+
+name: Python CI
+
+on:
+  push:
+    branches:
+      - main
+      - "sprint/*"
+  pull_request:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-and-smoke-test:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.13"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install maturin
+        run: pip install maturin[patchelf] pytest
+
+      - name: Build and install ritk wheel (dev)
+        working-directory: crates/ritk-python
+        run: maturin develop --release
+
+      - name: Run Python smoke tests
+        run: pytest crates/ritk-python/tests/test_smoke.py -v --tb=short
+
+      - name: Run Rust unit tests
+        run: cargo test -p ritk-python --lib -- --test-threads=4
+        timeout-minutes: 10

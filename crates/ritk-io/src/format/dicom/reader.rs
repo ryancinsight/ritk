@@ -44,6 +44,7 @@ use super::object_model::{
     DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomSequenceItem, DicomTag, DicomValue, is_private_tag,
 };
+use super::sop_class::{classify_sop_class, SopClassKind};
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
@@ -487,6 +488,40 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         slices.push(slice_meta);
     }
 
+    // SOP class policy: remove non-image-bearing files from the series.
+    // Files without a readable SOP class UID are retained (ambiguous -> permissive).
+    let original_count = slices.len();
+    let mut rejected_uids: Vec<String> = Vec::new();
+    slices.retain(|s| {
+        match s.sop_class_uid.as_deref() {
+            None => true,
+            Some(uid) => {
+                let kind = classify_sop_class(uid);
+                let is_non_image = !kind.is_image_storage()
+                    && !matches!(kind, SopClassKind::Other(_));
+                if is_non_image {
+                    tracing::warn!(
+                        "skipping non-image DICOM SOP class: {:?} path={} sop_class_uid={}",
+                        kind, s.path.display(), uid
+                    );
+                    rejected_uids.push(uid.to_string());
+                    false
+                } else {
+                    true
+                }
+            }
+        }
+    });
+    if slices.is_empty() && original_count > 0 {
+        bail!(
+            "DICOM directory {:?} contains {} file(s) but none are image-bearing SOP classes; 
+             rejected SOP class UIDs: [{}]",
+            path,
+            original_count,
+            rejected_uids.join(", ")
+        );
+    }
+
     // Sort slices by z-position (ImagePositionPatient[2]), then instance number, then filename.
     slices.sort_by(|a, b| {
         let z_a = a.image_position_patient.map(|p| p[2]).unwrap_or(f64::MAX);
@@ -821,6 +856,9 @@ impl<B> Default for DicomReader<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+    use dicom::object::meta::FileMetaTableBuilder;
+    use dicom::object::InMemDicomObject;
 
     #[test]
     fn test_scan_empty_directory_errors() {
@@ -834,5 +872,173 @@ mod tests {
         let temp = tempfile::NamedTempFile::new().unwrap();
         let err = scan_dicom_directory(temp.path()).unwrap_err();
         assert!(err.to_string().contains("not a directory"));
+    }
+
+    /// Write a minimal DICOM Part-10 file carrying only the mandatory UID tags.
+    /// sop_class_uid controls which SOP class the file advertises.
+    fn write_stub_dicom(path: &std::path::Path, sop_class_uid: &str, sop_instance_uid: &str) {
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from(sop_class_uid),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from(sop_instance_uid),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid(sop_class_uid)
+                    .media_storage_sop_instance_uid(sop_instance_uid)
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build must not fail");
+        file_obj.write_to_file(path).expect("write must not fail");
+    }
+
+    /// A directory containing only non-image SOP-class DICOM files must return Err.
+    /// The error message must identify the directory was examined and list the rejected UIDs.
+    ///
+    /// Invariant: scan_dicom_directory returns Err when all discovered files belong to
+    /// non-image SOP classes {RTStructureSetStorage, BasicTextSrStorage, EncapsulatedPdfStorage}.
+    #[test]
+    fn test_scan_all_non_image_sop_returns_error_with_rejected_uids() {
+        let temp = tempfile::tempdir().unwrap();
+
+        // RT Structure Set
+        write_stub_dicom(
+            &temp.path().join("rtstruct.dcm"),
+            "1.2.840.10008.5.1.4.1.1.481.3",
+            "2.25.10001",
+        );
+        // Basic Text SR
+        write_stub_dicom(
+            &temp.path().join("sr.dcm"),
+            "1.2.840.10008.5.1.4.1.1.88.11",
+            "2.25.10002",
+        );
+        // Encapsulated PDF
+        write_stub_dicom(
+            &temp.path().join("pdf.dcm"),
+            "1.2.840.10008.5.1.4.1.1.104.1",
+            "2.25.10003",
+        );
+
+        let result = scan_dicom_directory(temp.path());
+        assert!(result.is_err(), "all-non-image directory must return Err");
+
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("none are image-bearing SOP classes"),
+            "error must state none are image-bearing; got: {msg}"
+        );
+        // At least one of the three non-image UIDs must appear in the message.
+        assert!(
+            msg.contains("1.2.840.10008.5.1.4.1.1.481.3")
+                || msg.contains("1.2.840.10008.5.1.4.1.1.88.11")
+                || msg.contains("1.2.840.10008.5.1.4.1.1.104.1"),
+            "error must list at least one rejected SOP UID; got: {msg}"
+        );
+    }
+
+    /// A directory containing one non-image SOP file and one CT image file must succeed.
+    /// After filtering, exactly one image slice must be retained carrying the CT SOP UID.
+    ///
+    /// Invariant: scan_dicom_directory returns Ok with num_slices == 1 when exactly one
+    /// image-bearing file survives non-image SOP filtering.
+    #[test]
+    fn test_scan_mixed_non_image_and_ct_retains_image_slice() {
+        let temp = tempfile::tempdir().unwrap();
+
+        // Non-image: RT Structure Set
+        write_stub_dicom(
+            &temp.path().join("rtstruct.dcm"),
+            "1.2.840.10008.5.1.4.1.1.481.3",
+            "2.25.20001",
+        );
+
+        // Image-bearing: CT Image Storage -- include Rows/Cols so metadata is populated
+        {
+            let mut obj = InMemDicomObject::new_empty();
+            obj.put(DataElement::new(
+                Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("2.25.20002"),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(4_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(4_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x0013), VR::IS, PrimitiveValue::from("1"),
+            ));
+            let file_obj = obj
+                .with_meta(
+                    FileMetaTableBuilder::new()
+                        .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                        .media_storage_sop_instance_uid("2.25.20002")
+                        .transfer_syntax("1.2.840.10008.1.2.1"),
+                )
+                .unwrap();
+            file_obj
+                .write_to_file(&temp.path().join("ct.dcm"))
+                .unwrap();
+        }
+
+        let result = scan_dicom_directory(temp.path());
+        assert!(
+            result.is_ok(),
+            "scan must succeed when at least one image-bearing SOP exists; err={:?}",
+            result.err()
+        );
+
+        let info = result.unwrap();
+        assert_eq!(
+            info.num_slices, 1,
+            "only the CT slice must survive filtering; got {}", info.num_slices
+        );
+        assert_eq!(
+            info.metadata.slices[0].sop_class_uid.as_deref(),
+            Some("1.2.840.10008.5.1.4.1.1.2"),
+            "retained slice must carry CT Image Storage SOP UID"
+        );
+    }
+
+    /// A directory with RT Plan + ECG Waveform files (two distinct non-image SOPs) must return
+    /// Err whose message references both SOP UIDs.
+    ///
+    /// Invariant: the rejected-UID list in the error must enumerate every unique non-image
+    /// SOP class seen during scanning.
+    #[test]
+    fn test_scan_rt_plan_and_waveform_returns_error_with_two_uids() {
+        let temp = tempfile::tempdir().unwrap();
+
+        // RT Plan
+        write_stub_dicom(
+            &temp.path().join("rtplan.dcm"),
+            "1.2.840.10008.5.1.4.1.1.481.5",
+            "2.25.30001",
+        );
+        // 12-lead ECG Waveform
+        write_stub_dicom(
+            &temp.path().join("ecg.dcm"),
+            "1.2.840.10008.5.1.4.1.1.9.1.1",
+            "2.25.30002",
+        );
+
+        let result = scan_dicom_directory(temp.path());
+        assert!(result.is_err(), "all-non-image directory must return Err");
+
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("1.2.840.10008.5.1.4.1.1.481.5"),
+            "error must list RT Plan UID; got: {msg}"
+        );
+        assert!(
+            msg.contains("1.2.840.10008.5.1.4.1.1.9.1.1"),
+            "error must list ECG Waveform UID; got: {msg}"
+        );
     }
 }

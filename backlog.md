@@ -1,3 +1,96 @@
+## Sprint 31 -- Completed
+
+### Stream A -- Tracing Refactor Completion
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| TRACING-REFACTOR-R31 | Convert remaining structured-field info!() calls to format-string style | **CLOSED** Sprint 31 | segment.rs (22 calls), convert.rs (2 calls), resample.rs (1 call), stats.rs (1 call); all 33 remaining = % lines eliminated; 173/173 CLI tests pass; cargo check clean |
+
+### Stream B -- Stub Sync / Correctness
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| STUB-SYNC-SEG-R31 | Add 5 missing segmentation stubs to segmentation.pyi | **CLOSED** Sprint 31 | binary_fill_holes, morphological_gradient, confidence_connected_segment, neighborhood_connected_segment, skeletonization; all registered in segmentation.rs but absent from pyi |
+| SMOKE-TEST-FIX-R31 | Fix 10 wrong function names in test_smoke.py | **CLOSED** Sprint 31 | Filter: canny->canny_edge_detect; Segmentation: connected_threshold->connected_threshold_segment, confidence_connected->confidence_connected_segment, kmeans->kmeans_segment, watershed->watershed_segment, chan_vese->chan_vese_segment, geodesic_active_contour->geodesic_active_contour_segment; Statistics: image_statistics->compute_statistics, z_score_normalize->zscore_normalize, min_max_normalize->minmax_normalize |
+
+### Stream C -- Deferred
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PYTHON-CI-VALIDATION | Validate Python CI workflow on hosted runners | DEFERRED Sprint 32 | Requires push to branch and GitHub Actions execution; platform-specific maturin/patchelf issues on Windows may require runner-side investigation |
+
+## Sprint 30 -- Completed
+
+### Stream A — Tracing / IDE Quality Refactor
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| TRACING-REFACTOR | Convert CLI `info!()`/`warn!()` structured-field calls to format-string style | **CLOSED** Sprint 30 | `filter.rs`, `register.rs`, `reader.rs`; eliminates ~320 rust-analyzer false-positive diagnostics; `cargo check` was already clean |
+
+### Stream B — Stub Sync / Correctness
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| STATS-STUB-SYNC-R30 | Add `nyul_udupa_normalize` to `statistics.pyi` | **CLOSED** Sprint 30 | Function exported in `statistics.rs` register() but missing from pyi; 14 functions now fully stubbed |
+| FILTER-ERROR-MSG-R30 | Extend `filter.rs` `run()` error message to list all dispatched filter names | **CLOSED** Sprint 30 | Added missing 10 filter names (grayscale-erosion, grayscale-dilation, white-top-hat, black-top-hat, hit-or-miss, label-dilation/erosion/opening/closing, morphological-reconstruction) |
+
+### Stream C — Testing / Quantitative Validation
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DISCRETE-GAUSSIAN-ANALYTICAL | Impulse-response analytical validation for DiscreteGaussianFilter | **CLOSED** Sprint 30 | `test_impulse_response_matches_analytical_gaussian` in `discrete_gaussian.rs`; verifies output[0,0,k] ≈ exp(-( k-15)²/(2v))/Z for Dirac impulse at position 15 of a 1×1×31 image; tolerance 1e-3 for f32 arithmetic |
+
+### Stream D — Deferred
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PYTHON-CI-VALIDATION | Validate Python CI workflow on hosted runners | DEFERRED Sprint 31 | Requires push to a branch and GitHub Actions execution |
+
+## Sprint 29 -- Completed
+
+### Stream A -- Surface Completion / Bindings / CLI
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PY-DISCRETE-GAUSSIAN | Python binding + stub + smoke coverage for `DiscreteGaussianFilter` | **CLOSED** Sprint 29 | `ritk-python/src/filter.rs`: `discrete_gaussian`; `_ritk/filter.pyi` synchronized; smoke test updated |
+| PY-IC-DEMONS | Python binding + stub + smoke coverage for inverse-consistent diffeomorphic Demons | **CLOSED** Sprint 29 | `ritk-python/src/registration.rs`: `inverse_consistent_demons_register`; `_ritk/registration.pyi` synchronized; smoke test updated |
+| CLI-DISCRETE-GAUSSIAN | CLI `ritk filter --filter discrete-gaussian` | **CLOSED** Sprint 29 | `run_discrete_gaussian` dispatches to `DiscreteGaussianFilter`; `--variance`, `--maximum-error`, `--use-image-spacing` args; 2 value-semantic CLI tests pass (173 total) |
+| CLI-IC-DEMONS | CLI `ritk register --method ic-demons` | **CLOSED** Sprint 29 | `run_inverse_consistent_demons` dispatches to `InverseConsistentDiffeomorphicDemonsRegistration`; missing `inverse_consistency_weight`/`n_squarings` test struct fields fixed; 2 value-semantic CLI tests pass |
+
+### Stream B -- Regression / CI / Verification
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| NIFTI-SFORM-CI-REGRESSION | NIfTI sform header field regression guard | **CLOSED** Sprint 29 | `test_write_nifti_sets_sform_header_fields` extracted from incorrectly nested position; `use nifti::NiftiObject` import added; 4 NIfTI tests pass |
+| PY-STUB-SYNC-R29 | Python stub synchronization audit | **CLOSED** Sprint 29 | `_ritk/filter.pyi` and `_ritk/registration.pyi` fully synchronized |
+| PY-SMOKE-R29 | Python smoke API-surface extension | **CLOSED** Sprint 29 | `test_smoke.py` covers `discrete_gaussian` and `inverse_consistent_demons_register` |
+| DICOM-NONIMAGE-INTEGRATION | End-to-end synthetic DICOM tests for non-image SOP filtering | **CLOSED** Sprint 29 | 3 value-semantic tests in `reader.rs`: all-non-image returns error with UIDs; mixed CT+RTSTRUCT retains CT slice; RT Plan+Waveform error lists both UIDs; 5/5 reader tests pass |
+
+### Stream C -- Repository Hygiene / Documentation
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| REPO-STALE-ARTIFACT-R29 | Remove stale generated backup artifact | **CLOSED** Sprint 29 | Deleted `crates/ritk-core/src/filter/morphology/label_morphology.rs.bak` |
+| DOC-DICOM-MULTIFRAME-LIMITS | Document DICOM multi-frame writer constraints | **CLOSED** Sprint 29 | `multiframe.rs` module header expanded: SOP class (Secondary Capture only), transfer syntax (Explicit VR LE only), pixel depth (16-bit unsigned), global linear rescale constraint, spatial metadata absence, interoperability limits vs Enhanced Multi-Frame |
+| PYTHON-CI-VALIDATION | Validate Python CI workflow on hosted runners | DEFERRED Sprint 30 | Requires push to a branch and GitHub Actions execution; platform-specific maturin/patchelf issues on Windows may require runner-side investigation |
+
+## Sprint 28 -- Completed
+
+### Stream A -- DICOM / NIfTI I/O
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| NIFTI-SFORM-FIX | Persist sform/pixdim in NIfTI writer | **CLOSED** Sprint 28 | `writer.rs`: sform_code=1, qform_code=0, srow_x/y/z, pixdim[1..3]=spacing, xyzt_units=2; round-trip spacing within 1e-4; 3 tests pass |
+| DICOM-MULTIFRAME-WRITE | Write multi-frame DICOM objects from `Image<B,3>` | **CLOSED** Sprint 28 | `write_dicom_multiframe<B,P>` in `multiframe.rs`; global linear rescale to u16; NumberOfFrames/Rows/Columns/BitsAllocated/RescaleSlope/PixelData tags; 2 tests |
+| DICOM-NONIMAGE-SOP | Explicit accept/reject policy for non-image SOP classes | **CLOSED** Sprint 28 | `sop_class.rs`: SopClassKind enum (31 image + 19 non-image + Other); classify_sop_class(); `reader.rs` retain+bail at scan time; 22 tests |
+
+### Stream B -- VTK Grid I/O
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| VTK-STRUCTGRID-IO | VTK legacy reader/writer for STRUCTURED_GRID and UNSTRUCTURED_GRID | **CLOSED** Sprint 28 | `struct_grid.rs` + `unstruct_grid.rs`; ASCII+BINARY read; DIMENSIONS/POINTS/CELLS/CELL_TYPES/SCALARS/VECTORS/NORMALS; 7 tests |
+
+### Stream C -- ITK Algorithms
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ITK-CONFIDENCE-CONNECTED | Confidence-connected region growing (iterative mean±k×σ) | **CLOSED** Sprint 28 | `confidence_connected.rs`; multiplier + max_iterations builder; Python binding + CLI dispatch; 9 core tests |
+| ITK-SKELETONIZATION | Topology-preserving thinning via iterative boundary erosion | **CLOSED** Sprint 28 | `skeletonization.rs`; Zhang-Suen 2D + is_simple_3d() 3D thinning; Python + CLI; 19 tests |
+| DISCRETE-GAUSSIAN-FILTER | DiscreteGaussianFilter<B> (ITK DiscreteGaussianImageFilter parity) | **CLOSED** Sprint 28 | `filter/discrete_gaussian.rs`; variance-parameterized; maximum_error truncation r=ceil(sqrt(-2σ²·ln(e))); use_image_spacing; 11 tests |
+| GAP-R02b | InverseConsistentDiffeomorphicDemonsRegistration | **CLOSED** Sprint 28 | `demons/exact_inverse_diffeomorphic.rs`; bilateral E=(1-w)‖F-M∘exp(v)‖² + w‖M-F∘exp(-v)‖²; IC residual = mean‖φ+(φ-(x))-x‖₂; 9 tests |
+
+### Stream D -- Python / CI
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PY-CI-MATRIX | Python wheel smoke tests across supported Python versions | **CLOSED** Sprint 28 | `test_smoke.py` 13 tests; `.github/workflows/python_ci.yml` matrix [3.9–12]×[ubuntu,windows]+ubuntu/3.13; maturin develop + pytest |
+
 ## Sprint 27 -- Completed
 
 ### Stream A -- DICOM Extension
@@ -89,12 +182,12 @@
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
 | DICOM-OBJ-MODEL | DICOM object-model preservation | **CLOSED** Sprint 24 | High | Reader: full element iteration, DicomValue::Sequence, DicomPreservedElement. Writer: emit_preservation_nodes before PixelData. 3 round-trip tests. |
-| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | PLANNED | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
+| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | **CLOSED** Sprint 28 | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
 | DICOM-WRITER-GENERAL | Generalized DICOM writer architecture | PLANNED | High | Separate object model serialization from series image writing |
-| VTK-DATA-MODEL | VTK data-object hierarchy | PLANNED | High | Add canonical mesh/grid data models beyond legacy structured points I/O |
+| VTK-DATA-MODEL | VTK data-object hierarchy | **CLOSED** Sprint 25/28 | High | Add canonical mesh/grid data models beyond legacy structured points I/O |
 | VTK-PIPELINE | VTK-style pipeline abstractions | PLANNED | High | Introduce data-flow primitives for readers, filters, mappers, and renderable objects |
-| ITK-SIMPLEITK-FAMILY | ITK / SimpleITK algorithm breadth expansion | PLANNED | High | Prioritize long-tail filters, segmentation, morphology, resampling, and intensity transforms |
-| ITKSNAP-WORKFLOW | ITK-SNAP workflow primitives | PLANNED | Medium-High | Add annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
+| ITK-SIMPLEITK-FAMILY | ITK / SimpleITK algorithm breadth expansion | **CLOSED** Sprint 24–28 | High | Prioritize long-tail filters, segmentation, morphology, resampling, and intensity transforms |
+| ITKSNAP-WORKFLOW | ITK-SNAP workflow primitives | **CLOSED** Sprint 22 | Medium-High | Add annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
 | ANTS-WORKFLOW | ANTs workflow refinement | PLANNED | Medium | Add inverse-consistency controls, preprocessing helpers, and registration workflow composition |
 | PY-PARITY-HARNESS | Python parity and reproducibility harness | PLANNED | Medium | Compare `ritk-python` against Python references with value-based tests and benchmarks |
 
@@ -102,7 +195,7 @@
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
 | DICOM-OBJ-MODEL | DICOM object-model preservation | **CLOSED** Sprint 24 | High | Reader: full element iteration, DicomValue::Sequence, DicomPreservedElement. Writer: emit_preservation_nodes before PixelData. 3 round-trip tests. |
-| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | PLANNED | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
+| DICOM-MULTIFRAME | DICOM multi-frame / enhanced image support | **CLOSED** Sprint 28 | High | Extend series-centric I/O toward enhanced and multi-frame object handling |
 | DICOM-WRITER-GENERAL | Generalized DICOM writer architecture | PLANNED | High | Separate object model serialization from series image writing |
 | DICOM-TRANSFER-SYNTAX | Transfer syntax coverage audit | PLANNED | Medium | Audit codec and transfer-syntax handling against supported image SOP classes |
 | DICOM-NONIMAGE-SOP | Non-image SOP-class policy | PLANNED | Medium | Define explicit acceptance/rejection behavior for non-image DICOM objects |
@@ -111,15 +204,15 @@
 ### Stream B — VTK
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
-| VTK-DATA-MODEL | VTK data-object hierarchy | PLANNED | High | Canonical mesh/grid data models beyond legacy structured points |
-| VTK-POLYDATA | PolyData and topology primitives | PLANNED | High | Surface geometry, vertices, lines, polygons, and scalar/vector attachments |
+| VTK-DATA-MODEL | VTK data-object hierarchy | **CLOSED** Sprint 25/28 | High | Canonical mesh/grid data models beyond legacy structured points |
+| VTK-POLYDATA | PolyData and topology primitives | **CLOSED** Sprint 25 | High | Surface geometry, vertices, lines, polygons, and scalar/vector attachments |
 | VTK-PIPELINE | VTK-style pipeline abstractions | PLANNED | High | Reader/filter/mapper/data-object execution model |
 | VTK-SCENE | Scene graph and renderable object model | PLANNED | Medium | Support visualization-facing composition without duplicating algorithm code |
 
 ### Stream C — ITK / SimpleITK breadth
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
-| ITK-SIMPLEITK-FAMILY | Algorithm breadth expansion | PLANNED | High | Long-tail filters, segmentation, morphology, resampling, intensity transforms |
+| ITK-SIMPLEITK-FAMILY | Algorithm breadth expansion | **CLOSED** Sprint 24–28 | High | Long-tail filters, segmentation, morphology, resampling, intensity transforms |
 | ITK-RESAMPLE | Resampling and interpolation expansion | PLANNED | High | Additional resampling helpers and transform-aware utilities |
 | ITK-MORPHOLOGY | Morphology family expansion | PLANNED | Medium-High | Additional binary/grayscale operators and topology-preserving variants |
 | ITK-REGION | Region-growing and label tools | PLANNED | Medium-High | Extend connected, confidence, neighborhood, and label-processing utilities |
@@ -128,9 +221,9 @@
 ### Stream D — ITK-SNAP workflow
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
-| ITKSNAP-WORKFLOW | Interactive segmentation primitives | PLANNED | Medium-High | Annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
-| ITKSNAP-LABELS | Label and mask state model | PLANNED | Medium | Label tables, editable masks, and selection state |
-| ITKSNAP-OVERLAY | Overlay and contour composition | PLANNED | Medium | Visualization-ready state for masks, contours, and image overlays |
+| ITKSNAP-WORKFLOW | Interactive segmentation primitives | **CLOSED** Sprint 22 | Medium-High | Annotation state, overlays, labels, seeds, and undo/redo-oriented editing primitives |
+| ITKSNAP-LABELS | Label and mask state model | **CLOSED** Sprint 22 | Medium | Label tables, editable masks, and selection state |
+| ITKSNAP-OVERLAY | Overlay and contour composition | **CLOSED** Sprint 22 | Medium | Visualization-ready state for masks, contours, and image overlays |
 
 ### Stream E — ANTs workflow refinement
 | ID | Feature | Status | Priority | Notes |
@@ -143,7 +236,7 @@
 | ID | Feature | Status | Priority | Notes |
 |---|---|---|---|---|
 | PY-PARITY-HARNESS | Python parity and reproducibility harness | PLANNED | Medium | Compare `ritk-python` against Python references with value-based tests and benchmarks |
-| PY-CI-MATRIX | Python CI matrix expansion | PLANNED | Medium | Exercise wheel smoke tests and integration tests across supported Python versions |
+| PY-CI-MATRIX | Python CI matrix expansion | **CLOSED** Sprint 28 | Medium | Exercise wheel smoke tests and integration tests across supported Python versions |
 | PY-STUB-SYNC | Stub and binding synchronization | PLANNED | Low | Keep `pyi` signatures aligned with exported Rust bindings |
 
 ## Sprint 23 -- Completed

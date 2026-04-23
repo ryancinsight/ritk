@@ -34,13 +34,7 @@ pub struct ResampleArgs {
 
 /// Execute the `resample` subcommand.
 pub fn run(args: ResampleArgs) -> Result<()> {
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        spacing = %args.spacing,
-        interpolation = %args.interpolation,
-        "resample: starting"
-    );
+    info!("resample: starting input={} output={} spacing={} interpolation={}", args.input.display(), args.output.display(), args.spacing, args.interpolation);
 
     let parts: Vec<&str> = args.spacing.split(',').collect();
     if parts.len() != 3 {

@@ -62,11 +62,7 @@ pub struct StatsArgs {
 /// - A comparison metric is requested without `--reference`.
 /// - An unknown metric name is supplied.
 pub fn run(args: StatsArgs) -> Result<()> {
-    info!(
-        input  = %args.input.display(),
-        metric = %args.metric,
-        "stats: starting"
-    );
+    info!("stats: starting input={} metric={}", args.input.display(), args.metric);
 
     match args.metric.as_str() {
         "summary" => run_summary(&args),
@@ -677,3 +673,4 @@ mod tests {
         assert!(run(args).is_err(), "must error without --reference");
     }
 }
+

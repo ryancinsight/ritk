@@ -1,12 +1,104 @@
-## Sprint 28 -- Planned
+## Sprint 31 -- Completed
 
-- [ ] NIFTI-SFORM-FIX: persist sform/pixdim in NIfTI writer so spacing round-trips correctly
-- [ ] DICOM-MULTIFRAME-WRITE: write multi-frame DICOM objects from 3D Image<B,3>
-- [ ] DICOM-NONIMAGE-SOP: define explicit accept/reject policy for non-image SOP classes
-- [ ] VTK-STRUCTGRID-IO: VTK legacy reader/writer for STRUCTURED_GRID and UNSTRUCTURED_GRID datasets
-- [ ] ITK-CONFIDENCE-CONNECTED: confidence-connected region growing (iterative mean+-k*sigma)
-- [ ] ITK-SKELETONIZATION: topology-preserving thinning via iterative boundary erosion
-- [ ] PY-CI-MATRIX: Python wheel smoke tests across supported Python versions
+- [x] TRACING-REFACTOR-R31: convert all remaining structured-field info!()/warn!() calls to format-string style
+  - segment.rs: 22 calls converted (run() dispatch + 21 handler completions); 0 remaining = % lines
+  - convert.rs: 2 calls converted (starting + complete); 0 remaining = % lines
+  - resample.rs: 1 call converted (starting); 0 remaining = % lines
+  - stats.rs: 1 call converted (starting); 0 remaining = % lines
+  - Workspace cargo check --workspace --tests: zero errors; 173/173 CLI tests pass
+- [x] STUB-SYNC-SEG-R31: add 5 missing functions to segmentation.pyi
+  - binary_fill_holes(image: Image) -> Image
+  - morphological_gradient(image: Image, radius: int = 1) -> Image
+  - confidence_connected_segment(image, seed, initial_lower, initial_upper, multiplier=2.5, max_iterations=15) -> Image
+  - neighborhood_connected_segment(image, seed, lower, upper, radius=1) -> Image
+  - skeletonization(image: Image) -> Image
+  - All 5 were registered in segmentation.rs register() but absent from .pyi; now fully stubbed
+- [x] SMOKE-TEST-FIX-R31: correct 10 wrong function names in test_smoke.py
+  - ritk.filter: canny -> canny_edge_detect
+  - ritk.segmentation: connected_threshold -> connected_threshold_segment; confidence_connected -> confidence_connected_segment; kmeans -> kmeans_segment; watershed -> watershed_segment; chan_vese -> chan_vese_segment; geodesic_active_contour -> geodesic_active_contour_segment
+  - ritk.statistics: image_statistics -> compute_statistics; z_score_normalize -> zscore_normalize; min_max_normalize -> minmax_normalize
+  - Test assertions now check callable attributes with names that match the actual PyO3-registered function names
+- [ ] PYTHON-CI-VALIDATION: deferred to Sprint 32
+
+## Sprint 30 -- Completed
+
+- [x] TRACING-REFACTOR: convert CLI info!()/warn!() structured-field calls to format-string style
+  - `crates/ritk-cli/src/commands/filter.rs`: ~30 info! calls converted; 226 rust-analyzer diagnostics eliminated
+  - `crates/ritk-cli/src/commands/register.rs`: ~11 info! calls converted; 86 rust-analyzer diagnostics eliminated
+  - `crates/ritk-io/src/format/dicom/reader.rs`: 1 warn! call converted; 8 rust-analyzer diagnostics eliminated
+  - `cargo check --workspace --tests`: zero real errors before and after; diagnostics eliminated are IDE-layer false positives only
+- [x] STATS-STUB-SYNC-R30: add `nyul_udupa_normalize` stub to `statistics.pyi`
+  - `crates/ritk-python/python/ritk/_ritk/statistics.pyi`: added `nyul_udupa_normalize(image, training_images) -> Image` with full docstring; 14/14 registered functions now stubbed
+- [x] FILTER-ERROR-MSG-R30: extend filter.rs run() error message to list all 32 dispatched filters
+  - `crates/ritk-cli/src/commands/filter.rs`: added grayscale-erosion, grayscale-dilation, white-top-hat, black-top-hat, hit-or-miss, label-dilation, label-erosion, label-opening, label-closing, morphological-reconstruction to the unknown-filter error message
+- [x] DISCRETE-GAUSSIAN-ANALYTICAL: impulse response analytical validation
+  - `crates/ritk-core/src/filter/discrete_gaussian.rs`: added `test_impulse_response_matches_analytical_gaussian`; verifies impulse response at center of 1×1×31 image matches exp(-k²/(2*4.0))/Z analytically within 1e-3 (f32 tolerance)
+- [ ] PYTHON-CI-VALIDATION: deferred to Sprint 31
+
+## Sprint 29 -- Completed
+
+- [x] PY-DISCRETE-GAUSSIAN: expose `discrete_gaussian` in `ritk-python`
+  - `crates/ritk-python/src/filter.rs`: added `discrete_gaussian(image, variance, maximum_error=0.01, use_image_spacing=true)`
+  - delegates to `ritk_core::filter::DiscreteGaussianFilter` with variance parameterization, analytic truncation, and spacing-aware sigma conversion
+  - registered in Python `filter` submodule export table
+- [x] PY-INVERSE-CONSISTENT-DEMONS: expose inverse-consistent diffeomorphic Demons in `ritk-python`
+  - `crates/ritk-python/src/registration.rs`: added `inverse_consistent_demons_register(...)`
+  - delegates to `InverseConsistentDiffeomorphicDemonsRegistration` with `inverse_consistency_weight` and `n_squarings`
+  - returns `(warped_moving, displacement_field)` using the existing packed displacement convention
+- [x] PY-STUB-SYNC: synchronize Python type stubs with actual exported API
+  - `crates/ritk-python/python/ritk/_ritk/filter.pyi`: added `discrete_gaussian` and synchronized previously exported filter functions missing from stubs
+  - `crates/ritk-python/python/ritk/_ritk/registration.pyi`: added `inverse_consistent_demons_register` and `multires_demons_register`
+- [x] PY-SMOKE-EXTENSION: extend Python smoke coverage for Sprint 29 surface
+  - `crates/ritk-python/tests/test_smoke.py`: added callable-surface assertions for `discrete_gaussian` and `inverse_consistent_demons_register`
+- [x] REPO-HOUSEKEEPING: remove stale generated artifact
+  - deleted `crates/ritk-core/src/filter/morphology/label_morphology.rs.bak`
+- [x] CLI-DISCRETE-GAUSSIAN: `ritk filter --filter discrete-gaussian` wiring and value-semantic CLI tests
+  - `crates/ritk-cli/src/commands/filter.rs`: `run_discrete_gaussian` dispatches to `DiscreteGaussianFilter`; `--variance`, `--maximum-error`, `--use-image-spacing` args; 2 value-semantic CLI tests pass
+- [x] CLI-INVERSE-CONSISTENT-DEMONS: `ritk register --method ic-demons` wiring and CLI tests
+  - `crates/ritk-cli/src/commands/register.rs`: `run_inverse_consistent_demons` dispatches to `InverseConsistentDiffeomorphicDemonsRegistration`; `--inverse-consistency-weight`, `--n-squarings` args; missing-field compile errors fixed; 2 value-semantic CLI tests pass
+- [x] NIFTI-SFORM-CI-REGRESSION: NIfTI sform header field regression guard
+  - `crates/ritk-io/src/format/nifti/tests.rs`: `test_write_nifti_sets_sform_header_fields` extracted as standalone top-level test (was incorrectly nested); `use nifti::NiftiObject` import added; all 4 NIfTI tests pass
+- [x] DICOM-NONIMAGE-INTEGRATION: synthetic DICOM integration tests for non-image SOP filtering
+  - `crates/ritk-io/src/format/dicom/reader.rs`: added `write_stub_dicom` helper + 3 value-semantic tests: all-non-image returns error with UIDs; mixed CT+RTSTRUCT retains CT; RT Plan + Waveform error lists both UIDs; 5/5 reader tests pass
+- [x] DICOM-MULTIFRAME-DOCS: multi-frame writer constraints and interoperability limits documented
+  - `crates/ritk-io/src/format/dicom/multiframe.rs`: module header expanded with reader + writer sections covering SOP class, transfer syntax, pixel depth, global linear rescale constraint, spatial metadata absence, and interoperability limits
+- [ ] PYTHON-CI-VALIDATION: validate `.github/workflows/python_ci.yml` on hosted runners and resolve any platform-specific wheel issues
+
+## Sprint 28 -- Completed
+
+- [x] NIFTI-SFORM-FIX: persist sform/pixdim in NIfTI writer so spacing round-trips correctly
+  - writer.rs: NiftiHeader{sform_code=1, qform_code=0, srow_x/y/z, pixdim[1..3]=spacing, xyzt_units=2}; reference_header chain
+  - tests.rs: un-ignored test_read_write_nifti_cycle; origin/spacing within 1e-4; 3 tests pass
+- [x] DICOM-MULTIFRAME-WRITE: write multi-frame DICOM objects from 3D Image<B,3>
+  - write_dicom_multiframe<B,P> in multiframe.rs; global linear rescale to u16; single OW PixelData element
+  - Tags: NumberOfFrames(IS) Rows/Columns(US) BitsAllocated/Stored/HighBit RescaleSlope/Intercept PixelData
+  - mod.rs re-exports write_dicom_multiframe; 2 new tests (3x4x5 roundtrip + zero-dim reject)
+- [x] VTK-STRUCTGRID-IO: VTK legacy reader/writer for STRUCTURED_GRID and UNSTRUCTURED_GRID datasets
+  - struct_grid.rs: read/write_vtk_structured_grid; ASCII; DIMENSIONS/POINTS/SCALARS/VECTORS/NORMALS; 3 tests
+  - unstruct_grid.rs: read/write_vtk_unstructured_grid; ASCII+BINARY read; CELLS/CELL_TYPES/attributes; 4 tests
+  - vtk/mod.rs: pub mod struct_grid; pub mod unstruct_grid; re-exports added
+- [x] DICOM-NONIMAGE-SOP: explicit accept/reject policy for non-image SOP classes
+  - sop_class.rs: SopClassKind enum (31 image + 19 non-image + Other); classify_sop_class(); is_image_sop_class()
+  - reader.rs: slices.retain() at scan time; tracing::warn per skipped file; bail if all filtered; permissive for unknown UIDs
+  - mod.rs: pub mod sop_class; re-exports SopClassKind, classify_sop_class, is_image_sop_class
+  - 22 tests: positive (CT/MR/PET/SC/US/NM/SEG), negative (RTSTRUCT/RTPLAN/SR/PR/ECG/PDF), boundary, exhaustive arrays
+- [x] ITK-CONFIDENCE-CONNECTED: confidence-connected region growing (iterative mean+-k*sigma)
+  - confidence_connected.rs in region_growing/; ConfidenceConnectedFilter; multiplier/max_iterations builder
+  - Python: confidence_connected_segment(); CLI: run_confidence_connected(); 9 core tests + CLI tests
+- [x] ITK-SKELETONIZATION: topology-preserving thinning via iterative boundary erosion
+  - skeletonization.rs: Zhang-Suen 2D; is_simple_3d() 3D topology-preserving thinning
+  - Python: skeletonization(); CLI: run_skeletonization(); 19 tests (1D/2D/3D invariants)
+- [x] DISCRETE-GAUSSIAN-FILTER: DiscreteGaussianFilter<B> (ITK DiscreteGaussianImageFilter parity)
+  - filter/discrete_gaussian.rs: variance-parameterized; maximum_error truncation r=ceil(sqrt(-2sigma^2*ln(e))); use_image_spacing
+  - filter/mod.rs: pub mod discrete_gaussian; pub use DiscreteGaussianFilter; 11 tests
+- [x] GAP-R02b INVERSE-CONSISTENT-DIFFEOMORPHIC-DEMONS: InverseConsistentDiffeomorphicDemonsRegistration
+  - demons/exact_inverse_diffeomorphic.rs: bilateral E=(1-w)||F-M.exp(v)||^2 + w||M-F.exp(-v)||^2
+  - Simultaneous phi+=exp(v) + exact phi-=exp(-v); IC residual = mean||phi+(phi-(x))-x||_2
+  - demons/mod.rs + lib.rs re-exports; 9 tests (identity MSE, IC residual, MSE reduction, finiteness, w=0 equiv, error paths)
+- [x] PY-CI-MATRIX: Python wheel smoke tests across supported Python versions
+  - crates/ritk-python/tests/test_smoke.py: 13 tests (import, API surface, __version__, Python>=3.9)
+  - .github/workflows/python_ci.yml: matrix [3.9-3.12]x[ubuntu,windows] + ubuntu/3.13; maturin develop + pytest
+- [x] Verification: 22+11+9=42 new tests; 0 failed; 251 ritk-io + 701 ritk-core + 193 ritk-registration all passing
 
 ## Sprint 26 -- Completed
 

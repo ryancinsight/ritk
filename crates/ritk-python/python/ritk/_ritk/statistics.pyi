@@ -104,3 +104,21 @@ def white_stripe_normalize(
         (normalized_image, mu, sigma, wm_peak, stripe_size).
     """
     ...
+
+def nyul_udupa_normalize(
+    image: Image,
+    training_images: list[Image],
+) -> Image:
+    """Nyul-Udupa piecewise-linear histogram standardization.
+
+    Args:
+        image:           Image to normalize.
+        training_images: Non-empty list of images used to learn standard landmarks.
+
+    Returns:
+        Normalized image with the same shape and spatial metadata as *image*.
+
+    Raises:
+        RuntimeError: if training_images is empty or normalization fails.
+    """
+    ...

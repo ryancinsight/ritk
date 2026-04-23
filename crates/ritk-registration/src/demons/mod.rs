@@ -40,12 +40,14 @@
 /// field composition, scaling-and-squaring) live in
 /// [`crate::deformable_field_ops`] (crate-level SSOT).
 pub mod diffeomorphic;
+pub mod exact_inverse_diffeomorphic;
 pub mod inverse;
 pub mod symmetric;
 pub mod multires;
 pub mod thirion;
 
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
+pub use exact_inverse_diffeomorphic::{InverseConsistentDemonsConfig, InverseConsistentDemonsResult, InverseConsistentDiffeomorphicDemonsRegistration};
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
 pub use symmetric::SymmetricDemonsRegistration;
 pub use thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};

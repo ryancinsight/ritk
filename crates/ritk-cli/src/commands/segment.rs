@@ -251,12 +251,7 @@ fn count_foreground(image: &ritk_core::image::Image<Backend, 3>) -> usize {
 /// - The output image cannot be written.
 /// - An unknown method name is supplied.
 pub fn run(args: SegmentArgs) -> Result<()> {
-    info!(
-    input = %args.input.display(),
-    output = %args.output.display(),
-    method = %args.method,
-    "segment: starting"
-    );
+    info!("segment: starting input={} output={} method={}", args.input.display(), args.output.display(), args.method);
     match args.method.as_str() {
         "otsu" => run_otsu(&args),
         "multi-otsu" => run_multi_otsu(&args),
@@ -315,12 +310,7 @@ fn run_otsu(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!(
-        input      = %args.input.display(),
-        threshold  = threshold,
-        foreground = n_foreground,
-        "segment: otsu complete"
-    );
+    info!("segment: otsu complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
 
     Ok(())
 }
@@ -359,13 +349,7 @@ fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
         thresh_str.join(", "),
     );
 
-    info!(
-        input      = %args.input.display(),
-        classes    = args.classes,
-        thresholds = ?thresholds,
-        labeled    = n_labeled,
-        "segment: multi-otsu complete"
-    );
+    info!("segment: multi-otsu complete input={} classes={} thresholds={:?} labeled={}", args.input.display(), args.classes, thresholds, n_labeled);
 
     Ok(())
 }
@@ -434,14 +418,7 @@ fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
         upper,
     );
 
-    info!(
-        input      = %args.input.display(),
-        seed       = ?seed,
-        lower      = lower,
-        upper      = upper,
-        foreground = n_foreground,
-        "segment: connected-threshold complete"
-    );
+    info!("segment: connected-threshold complete input={} seed={:?} lower={} upper={} foreground={}", args.input.display(), seed, lower, upper, n_foreground);
 
     Ok(())
 }
@@ -469,12 +446,7 @@ fn run_li(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!(
-        input      = %args.input.display(),
-        threshold  = threshold,
-        foreground = n_foreground,
-        "segment: li complete"
-    );
+    info!("segment: li complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
 
     Ok(())
 }
@@ -502,12 +474,7 @@ fn run_yen(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!(
-        input      = %args.input.display(),
-        threshold  = threshold,
-        foreground = n_foreground,
-        "segment: yen complete"
-    );
+    info!("segment: yen complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
 
     Ok(())
 }
@@ -535,12 +502,7 @@ fn run_kapur(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!(
-        input      = %args.input.display(),
-        threshold  = threshold,
-        foreground = n_foreground,
-        "segment: kapur complete"
-    );
+    info!("segment: kapur complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
 
     Ok(())
 }
@@ -569,12 +531,7 @@ fn run_triangle(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!(
-        input      = %args.input.display(),
-        threshold  = threshold,
-        foreground = n_foreground,
-        "segment: triangle complete"
-    );
+    info!("segment: triangle complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
 
     Ok(())
 }
@@ -608,11 +565,7 @@ fn run_watershed(args: &SegmentArgs) -> Result<()> {
         n_basins,
     );
 
-    info!(
-        input   = %args.input.display(),
-        basins  = n_basins,
-        "segment: watershed complete"
-    );
+    info!("segment: watershed complete input={} basins={}", args.input.display(), n_basins);
 
     Ok(())
 }
@@ -637,11 +590,7 @@ fn run_kmeans(args: &SegmentArgs) -> Result<()> {
         args.classes,
     );
 
-    info!(
-        input   = %args.input.display(),
-        k       = args.classes,
-        "segment: kmeans complete"
-    );
+    info!("segment: kmeans complete input={} k={}", args.input.display(), args.classes);
 
     Ok(())
 }
@@ -669,11 +618,7 @@ fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!(
-        input  = %args.input.display(),
-        output = %args.output.display(),
-        "segment: distance-transform complete"
-    );
+    info!("segment: distance-transform complete input={} output={}", args.input.display(), args.output.display());
 
     Ok(())
 }
@@ -694,11 +639,7 @@ fn run_fill_holes(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!(
-        input  = %args.input.display(),
-        output = %args.output.display(),
-        "segment: fill-holes complete"
-    );
+    info!("segment: fill-holes complete input={} output={}", args.input.display(), args.output.display());
 
     Ok(())
 }
@@ -718,11 +659,7 @@ fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!(
-        input  = %args.input.display(),
-        output = %args.output.display(),
-        "segment: morphological-gradient complete"
-    );
+    info!("segment: morphological-gradient complete input={} output={}", args.input.display(), args.output.display());
 
     Ok(())
 }
@@ -776,11 +713,7 @@ fn run_confidence_connected(args: &SegmentArgs) -> Result<()> {
         args.input.display(), n_foreground, seed[0], seed[1], seed[2], lower, upper, args.multiplier,
     );
 
-    info!(
-        input = %args.input.display(), seed = ?seed, lower = lower, upper = upper,
-        multiplier = args.multiplier, foreground = n_foreground,
-        "segment: confidence-connected complete"
-    );
+    info!("segment: confidence-connected complete input={} seed={:?} lower={} upper={} multiplier={} foreground={}", args.input.display(), seed, lower, upper, args.multiplier, n_foreground);
     Ok(())
 }
 
@@ -831,11 +764,7 @@ fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
         args.input.display(), n_foreground, seed[0], seed[1], seed[2], lower, upper, r,
     );
 
-    info!(
-        input = %args.input.display(), seed = ?seed, lower = lower, upper = upper,
-        radius = r, foreground = n_foreground,
-        "segment: neighborhood-connected complete"
-    );
+    info!("segment: neighborhood-connected complete input={} seed={:?} lower={} upper={} radius={} foreground={}", args.input.display(), seed, lower, upper, r, n_foreground);
     Ok(())
 }
 
@@ -875,12 +804,7 @@ fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
         n_foreground,
     );
 
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        foreground = n_foreground,
-        "segment: shape-detection complete"
-    );
+    info!("segment: shape-detection complete input={} output={} foreground={}", args.input.display(), args.output.display(), n_foreground);
     Ok(())
 }
 
@@ -930,14 +854,7 @@ fn run_threshold_level_set(args: &SegmentArgs) -> Result<()> {
         upper,
     );
 
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        lower = lower,
-        upper = upper,
-        foreground = n_foreground,
-        "segment: threshold-level-set complete"
-    );
+    info!("segment: threshold-level-set complete input={} output={} lower={} upper={} foreground={}", args.input.display(), args.output.display(), lower, upper, n_foreground);
     Ok(())
 }
 
@@ -973,15 +890,7 @@ fn run_laplacian_level_set(args: &SegmentArgs) -> Result<()> {
         n_foreground,
     );
 
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        foreground = n_foreground,
-        propagation = args.propagation_weight,
-        curvature = args.curvature_weight,
-        sigma = args.sigma,
-        "segment: laplacian-level-set complete"
-    );
+    info!("segment: laplacian-level-set complete input={} output={} foreground={} propagation={} curvature={} sigma={}", args.input.display(), args.output.display(), n_foreground, args.propagation_weight, args.curvature_weight, args.sigma);
     Ok(())
 }
 
@@ -1002,13 +911,7 @@ fn run_connected_components(args: &SegmentArgs) -> Result<()> {
         stats.len(),
         args.connectivity,
     );
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        n_components = stats.len(),
-        connectivity = args.connectivity,
-        "segment: connected-components complete"
-    );
+    info!("segment: connected-components complete input={} output={} n_components={} connectivity={}", args.input.display(), args.output.display(), stats.len(), args.connectivity);
     Ok(())
 }
 
@@ -1040,16 +943,7 @@ fn run_chan_vese(args: &SegmentArgs) -> Result<()> {
         args.input.display(),
         n_foreground,
     );
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        foreground = n_foreground,
-        mu = args.mu,
-        nu = args.nu,
-        lambda1 = args.lambda1,
-        lambda2 = args.lambda2,
-        "segment: chan-vese complete"
-    );
+    info!("segment: chan-vese complete input={} output={} foreground={} mu={} nu={} lambda1={} lambda2={}", args.input.display(), args.output.display(), n_foreground, args.mu, args.nu, args.lambda1, args.lambda2);
     Ok(())
 }
 
@@ -1086,15 +980,7 @@ fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
         args.input.display(),
         n_foreground,
     );
-    info!(
-        input = %args.input.display(),
-        output = %args.output.display(),
-        foreground = n_foreground,
-        propagation = args.propagation_weight,
-        curvature = args.curvature_weight,
-        advection = args.advection_weight,
-        "segment: geodesic-active-contour complete"
-    );
+    info!("segment: geodesic-active-contour complete input={} output={} foreground={} propagation={} curvature={} advection={}", args.input.display(), args.output.display(), n_foreground, args.propagation_weight, args.curvature_weight, args.advection_weight);
     Ok(())
 }
 
@@ -1116,10 +1002,7 @@ fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
         n_skeleton,
     );
 
-    info!(
-        input = %args.input.display(), output = %args.output.display(),
-        skeleton = n_skeleton, "segment: skeletonization complete"
-    );
+    info!("segment: skeletonization complete input={} output={} skeleton={}", args.input.display(), args.output.display(), n_skeleton);
     Ok(())
 }
 

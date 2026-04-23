@@ -32,6 +32,7 @@ pub mod object_model;
 pub mod reader;
 pub mod transfer_syntax;
 pub mod writer;
+pub mod sop_class;
 pub mod writer_object;
 
 pub use object_model::{
@@ -44,6 +45,7 @@ pub use reader::{
     DicomSliceMetadata,
 };
 pub use multiframe::{load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe, MultiFrameInfo};
+pub use sop_class::{classify_sop_class, is_image_sop_class, SopClassKind};
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};

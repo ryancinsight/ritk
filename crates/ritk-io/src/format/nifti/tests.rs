@@ -3,6 +3,7 @@ use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use nalgebra::SMatrix;
+use nifti::NiftiObject;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
@@ -114,5 +115,102 @@ fn test_read_nifti_invalid_file_error_leak() -> Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+#[test]
+fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
+    let dir = tempdir()?;
+    let file_path = dir.path().join("test_sform_header_fields.nii");
+    let device = Default::default();
+
+    let shape = Shape::new([2, 3, 4]); // Z, Y, X
+    let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
+    let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
+
+    let origin = Point::new([11.5, -7.25, 3.0]);
+    let spacing = Spacing::new([0.8, 1.2, 2.5]);
+    let direction = Direction(SMatrix::identity());
+
+    let image = Image::new(tensor, origin, spacing, direction);
+
+    write_nifti(&file_path, &image)?;
+
+    let obj = nifti::ReaderOptions::new().read_file(&file_path)?;
+    let header = obj.header();
+
+    assert_eq!(header.sform_code, 1, "writer must set sform_code=1");
+    assert_eq!(
+        header.qform_code, 0,
+        "writer must disable qform when emitting sform SSOT"
+    );
+    assert!(
+        (header.pixdim[1] - 0.8).abs() < 1e-6,
+        "pixdim[1] must store x-spacing"
+    );
+    assert!(
+        (header.pixdim[2] - 1.2).abs() < 1e-6,
+        "pixdim[2] must store y-spacing"
+    );
+    assert!(
+        (header.pixdim[3] - 2.5).abs() < 1e-6,
+        "pixdim[3] must store z-spacing"
+    );
+    assert_eq!(
+        header.xyzt_units, 2,
+        "writer must encode spatial units as millimeters"
+    );
+
+    assert!(
+        (header.srow_x[0] - 0.8).abs() < 1e-6,
+        "srow_x[0] must encode x spacing"
+    );
+    assert!(
+        (header.srow_x[1] - 0.0).abs() < 1e-6,
+        "srow_x[1] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_x[2] - 0.0).abs() < 1e-6,
+        "srow_x[2] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_x[3] - 11.5).abs() < 1e-6,
+        "srow_x[3] must encode x origin"
+    );
+
+    assert!(
+        (header.srow_y[0] - 0.0).abs() < 1e-6,
+        "srow_y[0] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_y[1] - 1.2).abs() < 1e-6,
+        "srow_y[1] must encode y spacing"
+    );
+    assert!(
+        (header.srow_y[2] - 0.0).abs() < 1e-6,
+        "srow_y[2] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_y[3] + 7.25).abs() < 1e-6,
+        "srow_y[3] must encode y origin"
+    );
+
+    assert!(
+        (header.srow_z[0] - 0.0).abs() < 1e-6,
+        "srow_z[0] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_z[1] - 0.0).abs() < 1e-6,
+        "srow_z[1] must remain zero for identity direction"
+    );
+    assert!(
+        (header.srow_z[2] - 2.5).abs() < 1e-6,
+        "srow_z[2] must encode z spacing"
+    );
+    assert!(
+        (header.srow_z[3] - 3.0).abs() < 1e-6,
+        "srow_z[3] must encode z origin"
+    );
+
     Ok(())
 }
