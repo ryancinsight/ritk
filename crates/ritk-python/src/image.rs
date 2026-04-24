@@ -6,8 +6,8 @@
 //! - Direction is a 3×3 rotation matrix (identity by default).
 //! - The inner `Arc<Image<Backend, 3>>` allows cheap clone across Python objects.
 
-use burn::tensor::{Shape, Tensor, TensorData};
-use burn_ndarray::{NdArray, NdArrayDevice};
+use burn::tensor::{Shape, Tensor, TensorData, TensorPrimitive};
+use burn_ndarray::{NdArray, NdArrayDevice, NdArrayTensor};
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::{
@@ -87,18 +87,13 @@ impl PyImage {
 
     /// Convert image data to a NumPy f32 array with shape [Z, Y, X].
     fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray3<f32>>> {
-        let values: Vec<f32> = self
-            .inner
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?;
-
         let shape = self.inner.shape();
-        let arr = Array3::from_shape_vec((shape[0], shape[1], shape[2]), values)
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-
+        // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
+        // One O(N) memcpy remains: f32 -> Array3 -> Python (direct f32-to-f32, no u8 round-trip).
+        let arr = with_tensor_slice(self.inner.data(), |slice| {
+            Array3::from_shape_vec((shape[0], shape[1], shape[2]), slice.to_vec())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
         Ok(arr.into_pyarray_bound(py))
     }
 
@@ -149,13 +144,40 @@ pub fn into_py_image(image: Image<Backend, 3>) -> PyImage {
 /// Returns `PyRuntimeError` if the tensor dtype is not f32.
 pub fn image_to_vec(image: &Image<Backend, 3>) -> PyResult<(Vec<f32>, [usize; 3])> {
     let shape = image.shape();
-    let values: Vec<f32> = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?;
+    // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
+    // The resulting to_vec() is the single unavoidable O(N) copy when the caller
+    // needs an owned Vec<f32>. Eliminates the Vec<u8> intermediate from into_data().
+    let values = with_tensor_slice(image.data(), |slice| slice.to_vec());
     Ok((values, shape))
+}
+
+
+/// Call `f` with a borrowed `&[f32]` slice from a `Tensor<Backend, 3>`.
+///
+/// Zero-copy fast path: clones the tensor (arc refcount increment only, O(1)),
+/// calls `into_primitive()` to obtain `TensorPrimitive::Float(NdArrayTensor::F32(ArcArray))`,
+/// then calls `as_slice_memory_order()` which is O(1) for contiguous arrays.
+///
+/// The fallback (non-contiguous array) iterates into a temporary `Vec<f32>`.
+/// Burn's NdArray backend always constructs C-contiguous arrays, so the fallback
+/// is reached only in adversarial cases.
+///
+/// # Panics
+/// Panics if the tensor primitive is not `TensorPrimitive::Float(NdArrayTensor::F32)`.
+pub(crate) fn with_tensor_slice<R, F: FnOnce(&[f32]) -> R>(tensor: &Tensor<Backend, 3>, f: F) -> R {
+    let cloned = tensor.clone(); // arc refcount +1, O(1)
+    match cloned.into_primitive() {
+        TensorPrimitive::Float(NdArrayTensor::F32(arc_array)) => {
+            if let Some(slice) = arc_array.as_slice_memory_order() {
+                f(slice)
+            } else {
+                // Non-contiguous fallback: collect into a temporary Vec<f32>.
+                let vec: Vec<f32> = arc_array.iter().copied().collect();
+                f(&vec)
+            }
+        }
+        _ => panic!("with_tensor_slice: expected TensorPrimitive::Float(NdArrayTensor::F32)"),
+    }
 }
 
 /// Construct an `Image<Backend, 3>` from a flat `Vec<f32>`, shape `[Z, Y, X]`,

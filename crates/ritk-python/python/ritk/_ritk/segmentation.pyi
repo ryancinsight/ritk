@@ -124,3 +124,25 @@ def neighborhood_connected_segment(
     radius: int = 1,
 ) -> Image: ...
 def skeletonization(image: Image) -> Image: ...
+def label_shape_statistics(
+    mask: Image,
+    connectivity: int = 6,
+) -> list[dict[str, object]]:
+    """Per-label shape statistics for each connected component in a binary mask.
+
+    Args:
+        mask:         Binary mask image (foreground > 0.5).
+        connectivity: Adjacency model (6 or 26; default 6).
+
+    Returns:
+        list of dicts, one per component, sorted by label ascending. Each dict has:
+        label (int), voxel_count (int),
+        centroid (list[float]: [z, y, x] in index coordinates),
+        bounding_box_min (list[int]: [z, y, x]),
+        bounding_box_max (list[int]: [z, y, x]).
+
+    Raises:
+        ValueError: if connectivity is not 6 or 26.
+    """
+    ...
+

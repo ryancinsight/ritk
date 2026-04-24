@@ -138,17 +138,50 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
 // Flat-array separable convolution for DiscreteGaussianFilter.
 
+/// Convolve a 1-D slice with replicate (edge) boundary padding.
+///
+/// Reconstructs the output via SAXPY accumulation: for each kernel position kj
+/// (offset = kj - r from the kernel center), add w x input[clamped_pos] to the
+/// corresponding output elements. Boundary regions are identified analytically to
+/// eliminate per-element clamping in the interior, enabling LLVM vectorization.
+///
+/// # Invariant
+/// conv(constant_c, normalised_kernel) = c for all positions.
 #[inline]
 fn conv1d_replicate(input: &[f32], kernel: &[f32], output: &mut [f32]) {
-    let n = input.len(); let ksz = kernel.len();
-    let radius = (ksz / 2) as isize; let n_isize = n as isize;
-    for i in 0..n {
-        let mut acc = 0.0f32;
-        for kj in 0..ksz {
-            let pos = ((i as isize + kj as isize - radius).clamp(0, n_isize - 1)) as usize;
-            acc += input[pos] * kernel[kj];
+    let n = input.len();
+    if n == 0 {
+        return;
+    }
+    let ksz = kernel.len();
+    let r = (ksz / 2) as isize;
+    let n_i = n as isize;
+    output.fill(0.0);
+    for kj in 0..ksz {
+        let w = kernel[kj];
+        let offset = kj as isize - r; // src_pos = output_i + offset
+        // i_start: first output index where src_pos >= 0, i.e., i >= -offset.
+        let i_start = ((-offset).max(0) as usize).min(n);
+        // i_end: first output index where src_pos >= n, i.e., i >= n - offset.
+        let i_end = ((n_i - offset).max(0).min(n_i) as usize).min(n);
+        // Left boundary [0, i_start): src_pos < 0 - replicate input[0].
+        if i_start > 0 {
+            let left_val = input[0] * w;
+            for o in &mut output[..i_start] {
+                *o += left_val;
+            }
         }
-        output[i] = acc;
+        // Interior [i_start, i_end): no clamping - sequential reads, LLVM-vectorizable.
+        for i in i_start..i_end {
+            output[i] += input[(i as isize + offset) as usize] * w;
+        }
+        // Right boundary [i_end, n): src_pos >= n - replicate input[n-1].
+        if i_end < n {
+            let right_val = input[n - 1] * w;
+            for o in &mut output[i_end..] {
+                *o += right_val;
+            }
+        }
     }
 }
 
@@ -161,36 +194,49 @@ fn convolve3d_dim(src: &[f32], dst: &mut [f32], nz: usize, ny: usize, nx: usize,
                 .for_each(|(o, i)| conv1d_replicate(i, kernel, o));
         }
         1 => {
-            let ksz = kernel.len(); let r = (ksz/2) as isize; let ny_i = ny as isize;
+            // Parallel over Z-slabs. Within each slab reorder loops to
+            // (kj, iy, ix): reads src[sy*nx..(sy+1)*nx] (contiguous row) and
+            // writes os[iy*nx..(iy+1)*nx] (contiguous row) - LLVM-vectorizable.
+            // Eliminates the per-slab intermediate buf allocation.
+            let ksz = kernel.len();
+            let r = (ksz / 2) as isize;
+            let ny_i = ny as isize;
             dst.par_chunks_mut(nyx).zip(src.par_chunks(nyx)).for_each(|(os, is)| {
-                let mut buf = vec![0.0f32; ny];
-                for ix in 0..nx {
+                os.fill(0.0);
+                for kj in 0..ksz {
+                    let w = kernel[kj];
+                    let r_offset = kj as isize - r;
                     for iy in 0..ny {
-                        let mut acc = 0.0f32;
-                        for kj in 0..ksz {
-                            let sy = ((iy as isize + kj as isize - r).clamp(0, ny_i-1)) as usize;
-                            acc += is[sy*nx+ix] * kernel[kj];
+                        let sy =
+                            ((iy as isize + r_offset).clamp(0, ny_i - 1)) as usize;
+                        let src_row = &is[sy * nx..(sy + 1) * nx]; // contiguous
+                        let dst_row = &mut os[iy * nx..(iy + 1) * nx]; // contiguous
+                        for (d, &s) in dst_row.iter_mut().zip(src_row.iter()) {
+                            *d += s * w;
                         }
-                        buf[iy] = acc;
                     }
-                    for iy in 0..ny { os[iy*nx+ix] = buf[iy]; }
                 }
             });
         }
         0 => {
-            // Z-axis: nyx independent lines of length nz, stride=1 in Z-direction.
-            // Serial iteration: nyx*nz*ksz MACs; for 64^3 with ksz=7 ~ 1.8M MACs < 1ms.
-            let ksz = kernel.len(); let r = (ksz/2) as isize; let nz_i = nz as isize;
-            for yx in 0..nyx {
-                for iz in 0..nz {
-                    let mut acc = 0.0f32;
-                    for kj in 0..ksz {
-                        let sz = ((iz as isize + kj as isize - r).clamp(0, nz_i-1)) as usize;
-                        acc += src[sz*nyx+yx] * kernel[kj];
+            // Parallel over output Z-slices. For each output slice iz, accumulate
+            // contributions from input Z-slices via SAXPY (contiguous reads).
+            // Complexity: O(nz x ksz x nyx) with nz-way Rayon parallelism.
+            let ksz = kernel.len();
+            let r = (ksz / 2) as isize;
+            let nz_i = nz as isize;
+            dst.par_chunks_mut(nyx).enumerate().for_each(|(iz, out_slice)| {
+                out_slice.fill(0.0);
+                for kj in 0..ksz {
+                    let sz =
+                        ((iz as isize + kj as isize - r).clamp(0, nz_i - 1)) as usize;
+                    let w = kernel[kj];
+                    let src_z = &src[sz * nyx..(sz + 1) * nyx]; // contiguous Z-slice
+                    for (o, &s) in out_slice.iter_mut().zip(src_z.iter()) {
+                        *o += s * w;
                     }
-                    dst[iz*nyx+yx] = acc;
                 }
-            }
+            });
         }
         _ => unreachable!()
     }

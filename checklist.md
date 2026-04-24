@@ -1,3 +1,115 @@
+## Sprint 41 -- Completed
+
+- [x] LABEL-STATS-PY-R41: Python binding for compute_label_intensity_statistics
+  - `compute_label_intensity_statistics(label_image, intensity_image) -> list[dict]` in statistics.rs
+  - Zero-copy via nested `with_tensor_slice` (no clone().into_data())
+  - Returns list of dicts: label (int), count (int), min (float), max (float), mean (float), std (float)
+  - Background (label 0) excluded; results sorted ascending by label
+  - Registered in statistics submodule register()
+  - Stub added to statistics.pyi
+  - 4 value-semantic tests in test_statistics_bindings.py (NEW FILE):
+    - single label 2 voxels: mean=4.0, std=1.0
+    - background excluded: empty list
+    - two labels sorted ascending
+    - four voxels: mean=2.5, std=sqrt(1.25) analytically derived
+  - cargo build -p ritk-python clean; 719/719 ritk-core tests pass
+
+- [x] DIST-TRANSFORM-R41: Python binding for distance_transform
+  - `distance_transform(image, foreground_threshold=0.5, squared=False)` in filter.rs
+  - Maps to DistanceTransform::transform / DistanceTransform::squared from ritk_core::segmentation
+  - `use ritk_core::segmentation::DistanceTransform` import added
+  - Registered in filter submodule register()
+  - Stub added to filter.pyi
+  - 3 value-semantic tests appended to test_segmentation_bindings.py:
+    - all-foreground → all zeros
+    - single-voxel foreground: adjacent voxel = 1.0 (unit spacing), background all > 0
+    - squared output = euclidean^2 (element-wise allclose)
+
+- [x] LABEL-SHAPE-R41: Python binding for label_shape_statistics
+  - `label_shape_statistics(mask, connectivity=6) -> list[dict]` in segmentation.rs
+  - Delegates to ConnectedComponentsFilter::with_connectivity(connectivity).apply(mask)
+  - Returns list of dicts: label, voxel_count, centroid ([z,y,x] f64), bounding_box_min/max ([z,y,x] i64)
+  - Background excluded; connectivity validated (ValueError for non-6/26)
+  - Registered in segmentation submodule register()
+  - Stub added to segmentation.pyi
+  - 3 value-semantic tests appended to test_segmentation_bindings.py:
+    - single voxel: centroid=[2.0,1.0,3.0], bounding_box_min=max=[2,1,3]
+    - two components sorted by label
+    - invalid connectivity=18 → ValueError
+
+- [ ] PYTHON-CI-VALIDATION: hosted GitHub Actions matrix run (deferred)
+
+## Sprint 40 -- Completed
+
+- [x] ZEROCOPY-ARCH-R40-LIYKOT: from_slice variants for Li/Yen/Kapur/Triangle/MultiOtsu
+  - compute_li_threshold_from_slice(slice, num_bins, max_iterations) -> f32
+  - compute_yen_threshold_from_slice(slice, num_bins) -> f32
+  - compute_kapur_threshold_from_slice(slice, num_bins) -> f32
+  - compute_triangle_threshold_from_slice(slice, num_bins) -> f32
+  - compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins) -> Vec<f32>
+  - Each compute_X_threshold_impl delegates to from_slice variant (no duplication)
+  - threshold/mod.rs exports all 5 new functions
+  - Python bindings for all 5 threshold functions migrated to with_tensor_slice + inline apply
+  - FUTURE SPRINT comments removed (fulfilled)
+  - 5 parity tests added: bit-identical assert_eq! vs filter-struct compute
+  - cargo build -p ritk-core clean; cargo build -p ritk-python clean
+  - 83/83 threshold tests pass
+
+- [x] LABEL-STATS-R40: per-label intensity statistics (ITK LabelStatisticsImageFilter equivalent)
+  - New file: crates/ritk-core/src/statistics/label_statistics.rs
+  - LabelIntensityStatistics { label: u32, count: usize, min: f32, max: f32, mean: f32, std: f32 }
+  - compute_label_intensity_statistics<B>(label_image, intensity_image) -> Vec<LabelIntensityStatistics>
+  - compute_label_intensity_statistics_from_slices(label_slice, intensity_slice) -> Vec<LabelIntensityStatistics>
+  - Single O(N) rayon fold/reduce pass; f64 accumulation for numerical stability
+  - statistics/mod.rs updated to export LabelIntensityStatistics and both compute functions
+  - 9 tests: single voxel, known stats (n=4: mean=2.5, std=sqrt(1.25)), two labels, background excluded, uniform (std=0), image API parity, length-mismatch panic, shape-mismatch panic, sorted output
+  - 740/740 ritk-core tests pass (719 unit + 21 integration); 0 failed
+
+- [ ] PYTHON-CI-VALIDATION: hosted GitHub Actions matrix run (deferred)
+
+## Sprint 39 -- Completed
+
+- [x] PERF-STATS-R39: replace par_sort_unstable_by with 3x select_nth_unstable_by in compute_from_values
+  - Phase 2 changed from O(N log N) to O(N) amortized introselect/pdqselect
+  - Processing order: i75 -> i50 -> i25 (highest-to-lowest) preserves partition invariant
+  - Slice bounds proof: i25 = n/4 <= i50 = n/2 <= i75 = 3n/4 < n (integer floor division)
+  - 1 parity test added: test_select_percentiles_match_sort_parity (bit-identical assert_eq! vs full sort, n=1000 LCG)
+  - cargo check clean; 705/705 ritk-core tests pass (was 704; +1 parity test)
+
+- [x] PERF-DG-R39: discrete_gaussian conv1d_replicate vectorization + parallel Z-axis + cache-friendly Y-axis
+  - conv1d_replicate: fill+SAXPY-per-kernel-position with analytic boundary split (i_start/i_end); interior loop has no branch; LLVM-vectorizable
+  - dim=1 Y-axis: reordered from (ix,iy,kj) to (kj,iy,ix) SAXPY-over-rows; contiguous src_row/dst_row slices; eliminates per-Z-slab buf[ny] allocation
+  - dim=0 Z-axis: par_chunks_mut(nyx).enumerate() + SAXPY over contiguous src_z slices; parallelizes nz independent output slices; eliminates serial for yx in 0..nyx loop
+  - All changes produce bit-identical output (SAXPY terms added in same kj=0..ksz-1 order per output element)
+  - 726/726 ritk-core tests pass (705 unit + 21 integration)
+
+- [ ] ZEROCOPY-ARCH-R38-LIYKOT: from_slice variants for Li/Yen/Kapur/Triangle/MultiOtsu (deferred)
+- [ ] PYTHON-CI-VALIDATION: hosted GitHub Actions matrix run (deferred)
+
+## Sprint 38 -- Completed
+
+- [x] ZEROCOPY-ARCH-R38-CORE: add zero-copy APIs to ritk-core
+  - Image::into_tensor(self) -> Tensor<B,D> and into_parts(self)
+  - compute_from_values -> pub in image_statistics.rs
+  - compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 in otsu.rs
+  - estimate_noise_mad_from_slice and estimate_noise_mad_masked_from_slices in noise_estimation.rs
+  - GradientMagnitudeFilter::apply_from_slice in gradient_magnitude.rs
+  - 2 parity tests added: test_apply_from_slice_matches_apply, test_compute_otsu_from_slice_matches_filter (bit-identical assertions)
+  - cargo check clean; 702/702 ritk-core tests pass
+
+- [x] ZEROCOPY-ARCH-R38-PY: with_tensor_slice + Python binding hot-path migration
+  - with_tensor_slice<R,F>(tensor: &Tensor<Backend,3>, f: F) -> R in image.rs
+    path: clone tensor (arc refcount+1, O(1)) -> into_primitive() -> TensorPrimitive::Float(NdArrayTensor::F32(arc_array)) -> as_slice_memory_order() -> Option<&[f32]>
+  - Updated: image_to_vec, to_numpy, compute_statistics, masked_statistics, estimate_noise, otsu_threshold, gradient_magnitude
+  - 56/56 Python SimpleITK parity tests pass
+  - Benchmark results (64^3, release): otsu 18.74ms->0.83ms (22.6x); gradient_mag 6.55ms->0.49ms (13.4x); to_numpy ~0.32ms (SITK parity); stats 6.94ms->1.19ms (5.9x)
+
+- [ ] ZEROCOPY-ARCH-R38-LIYKOT: from_slice variants for Li/Yen/Kapur/Triangle/MultiOtsu thresholds (deferred, marked with FUTURE SPRINT comments in segmentation.rs)
+
+- [ ] PERF-DG-R39: discrete_gaussian further optimization (still 3.63x slower than SITK; Z-axis parallelization or tiling strategy)
+
+- [ ] PYTHON-CI-VALIDATION: hosted GitHub Actions matrix run (still deferred)
+
 ## Sprint 37 -- Completed
 
 - [x] ZEROCOPY-R37: replace all redundant as_slice().to_vec() patterns with into_vec()

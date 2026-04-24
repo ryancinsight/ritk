@@ -122,42 +122,29 @@ pub fn multi_otsu_threshold<B: Backend, const D: usize>(
     compute_multi_otsu_impl(image, num_classes, 256)
 }
 
+
 // ── Core implementation ───────────────────────────────────────────────────────
 
-/// Extract pixel values, build a normalised histogram, build prefix sums, then
-/// run an exhaustive recursive search for the K−1 threshold bin indices that
-/// maximise total between-class variance.
-fn compute_multi_otsu_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+/// Compute K-1 Multi-Otsu thresholds directly from a flat `&[f32]` slice.
+///
+/// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
+///
+/// # Panics
+/// Panics if `num_classes < 2`.
+pub fn compute_multi_otsu_thresholds_from_slice(
+    slice: &[f32],
     num_classes: usize,
     num_bins: usize,
 ) -> Vec<f32> {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+    assert!(num_classes >= 2, "num_classes must be ≥ 2");
     let n = slice.len();
     let k_minus_1 = num_classes - 1;
-
-    if n == 0 {
-        return vec![0.0_f32; k_minus_1];
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
+    if n == 0 { return vec![0.0_f32; k_minus_1]; }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image — all K−1 thresholds equal the constant value.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return vec![x_min; k_minus_1];
-    }
-
+    if (x_max - x_min).abs() < f32::EPSILON { return vec![x_min; k_minus_1]; }
     let range = x_max - x_min;
     let num_bins_m1 = (num_bins - 1) as f32;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
-    // bin(v) = ⌊(v − x_min) / range · (N−1)⌋ clamped to [0, N−1].
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
         let bin = ((v - x_min) / range * num_bins_m1).floor() as usize;
@@ -165,50 +152,34 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
         counts[bin] += 1;
     }
     let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Build prefix sum arrays (length N+1) ───────────────────────────────────
-    // H[t] = Σ_{i=0}^{t−1} h[i],   H[0] = 0, H[N] = 1.
-    // M[t] = Σ_{i=0}^{t−1} i·h[i], M[0] = 0.
     let mut prefix_h = vec![0.0_f64; num_bins + 1];
     let mut prefix_m = vec![0.0_f64; num_bins + 1];
     for i in 0..num_bins {
         prefix_h[i + 1] = prefix_h[i] + h[i];
         prefix_m[i + 1] = prefix_m[i] + i as f64 * h[i];
     }
-    let total_mu = prefix_m[num_bins]; // Global mean bin index.
-
-    // Guard: if fewer bins than classes, use equally-spaced fallback thresholds.
+    let total_mu = prefix_m[num_bins];
     if num_bins < num_classes {
-        return (1..num_classes)
-            .map(|k| x_min + k as f32 / num_classes as f32 * range)
-            .collect();
+        return (1..num_classes).map(|k| x_min + k as f32 / num_classes as f32 * range).collect();
     }
-
-    // ── Exhaustive search ──────────────────────────────────────────────────────
-    // Find k_minus_1 strictly increasing bin indices in [1, N−1] that maximise
-    // the total between-class variance.
     let mut current = Vec::with_capacity(k_minus_1);
-    // Initialise best with a sentinel that will be beaten by any valid partition.
     let mut best: (f64, Vec<usize>) = (f64::NEG_INFINITY, vec![0; k_minus_1]);
-
-    search_thresholds(
-        0,
-        k_minus_1,
-        0, // prev = 0 (the lower boundary, exclusive)
-        num_bins,
-        &mut current,
-        &mut best,
-        &prefix_h,
-        &prefix_m,
-        total_mu,
-    );
-
-    // ── Convert best bin indices to intensity values ───────────────────────────
-    best.1
-        .iter()
-        .map(|&t| x_min + t as f32 / num_bins_m1 * range)
-        .collect()
+    search_thresholds(0, k_minus_1, 0, num_bins, &mut current, &mut best, &prefix_h, &prefix_m, total_mu);
+    best.1.iter().map(|&t| x_min + t as f32 / num_bins_m1 * range).collect()
 }
+
+/// Delegates to [`compute_multi_otsu_thresholds_from_slice`] after extracting a
+/// slice from the image tensor.
+fn compute_multi_otsu_impl<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    num_classes: usize,
+    num_bins: usize,
+) -> Vec<f32> {
+    let tensor_data = image.data().clone().into_data();
+    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins)
+}
+
 
 /// Recursive exhaustive search over all valid K−1 threshold bin combinations.
 ///
@@ -864,5 +835,18 @@ mod tests {
     #[should_panic(expected = "num_bins must be ≥ 2")]
     fn test_with_bins_zero_panics() {
         let _ = MultiOtsuThreshold::with_bins(2, 0);
+    }
+
+    // ── from_slice parity ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_multi_otsu_from_slice_matches_filter() {
+        let mut data = vec![20.0_f32; 100];
+        data.extend(vec![120.0_f32; 100]);
+        data.extend(vec![220.0_f32; 100]);
+        let image = make_image_1d(data.clone());
+        let t_filter = MultiOtsuThreshold::new(3).compute(&image);
+        let t_slice = compute_multi_otsu_thresholds_from_slice(&data, 3, 256);
+        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={:?} slice={:?}", t_filter, t_slice);
     }
 }

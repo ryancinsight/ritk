@@ -109,44 +109,17 @@ pub fn kapur_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 
 // ── Core implementation ────────────────────────────────────────────────────────
 
-/// Core Kapur threshold computation.
+/// Compute the Kapur threshold directly from a flat `&[f32]` slice.
 ///
-/// # Algorithm
-/// 1. Extract pixel values to a flat `Vec<f32>`.
-/// 2. Determine [x_min, x_max]; handle constant images as a degenerate case.
-/// 3. Build a normalised histogram over `num_bins` equally-spaced bins.
-/// 4. For each candidate threshold t ∈ [0, N−2], compute:
-///    H(t) = H_b(t) + H_f(t)
-///    where H_b and H_f are the background and foreground entropies.
-/// 5. t* = argmax H(t).
-/// 6. t*_intensity = x_min + t* / (N − 1) · range.
-fn compute_kapur_threshold_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    num_bins: usize,
-) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+/// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
+pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
+    if n == 0 { return 0.0; }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image has no separable classes.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
+    if (x_max - x_min).abs() < f32::EPSILON { return x_min; }
     let range = x_max - x_min;
     let num_bins_f = (num_bins - 1) as f32;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
         let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
@@ -154,55 +127,36 @@ fn compute_kapur_threshold_impl<B: Backend, const D: usize>(
         counts[bin] += 1;
     }
     let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Prefix sums for cumulative probability ─────────────────────────────────
     let mut cum_prob = vec![0.0_f64; num_bins];
     cum_prob[0] = h[0];
-    for i in 1..num_bins {
-        cum_prob[i] = cum_prob[i - 1] + h[i];
-    }
-
-    // ── Search for optimal threshold ───────────────────────────────────────────
+    for i in 1..num_bins { cum_prob[i] = cum_prob[i - 1] + h[i]; }
     let mut best_entropy = f64::NEG_INFINITY;
     let mut best_t = 0_usize;
-
     for t in 0..num_bins - 1 {
         let p_b = cum_prob[t];
         let p_f = 1.0 - p_b;
-
-        // Skip degenerate splits where one class is empty.
-        if p_b < 1e-12 || p_f < 1e-12 {
-            continue;
-        }
-
-        // Background entropy: H_b = -Σ_{i=0}^{t} (p(i)/P_b) · ln(p(i)/P_b)
+        if p_b < 1e-12 || p_f < 1e-12 { continue; }
         let mut h_b = 0.0_f64;
-        for i in 0..=t {
-            if h[i] > 1e-12 {
-                let q = h[i] / p_b;
-                h_b -= q * q.ln();
-            }
-        }
-
-        // Foreground entropy: H_f = -Σ_{i=t+1}^{N-1} (p(i)/P_f) · ln(p(i)/P_f)
+        for i in 0..=t { if h[i] > 1e-12 { let q = h[i] / p_b; h_b -= q * q.ln(); } }
         let mut h_f = 0.0_f64;
-        for i in (t + 1)..num_bins {
-            if h[i] > 1e-12 {
-                let q = h[i] / p_f;
-                h_f -= q * q.ln();
-            }
-        }
-
+        for i in (t + 1)..num_bins { if h[i] > 1e-12 { let q = h[i] / p_f; h_f -= q * q.ln(); } }
         let total_entropy = h_b + h_f;
-        if total_entropy > best_entropy {
-            best_entropy = total_entropy;
-            best_t = t;
-        }
+        if total_entropy > best_entropy { best_entropy = total_entropy; best_t = t; }
     }
-
-    // ── Convert best bin index to intensity units ──────────────────────────────
     x_min + best_t as f32 / num_bins_f * range
 }
+
+/// Delegates to [`compute_kapur_threshold_from_slice`] after extracting a slice
+/// from the image tensor.
+fn compute_kapur_threshold_impl<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    num_bins: usize,
+) -> f32 {
+    let tensor_data = image.data().clone().into_data();
+    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    compute_kapur_threshold_from_slice(slice, num_bins)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -400,5 +354,17 @@ mod tests {
     #[should_panic(expected = "num_bins must be ≥ 2")]
     fn test_with_bins_one_panics() {
         KapurThreshold::with_bins(1);
+    }
+
+    // ── from_slice parity ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_kapur_from_slice_matches_filter() {
+        let mut data = vec![20.0_f32; 100];
+        data.extend(vec![200.0_f32; 100]);
+        let image = make_image_1d(data.clone());
+        let t_filter = KapurThreshold::new().compute(&image);
+        let t_slice = compute_kapur_threshold_from_slice(&data, 256);
+        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={} slice={}", t_filter, t_slice);
     }
 }

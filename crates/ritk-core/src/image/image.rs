@@ -67,6 +67,21 @@ impl<B: Backend, const D: usize> Image<B, D> {
             .try_into()
             .expect("Tensor rank mismatch")
     }
+
+    /// Consume the image and return the underlying tensor.
+    ///
+    /// Useful when the caller holds exclusive ownership and needs to avoid
+    /// the arc-clone path in tensor data extraction.
+    pub fn into_tensor(self) -> Tensor<B, D> {
+        self.data
+    }
+
+    /// Consume the image and return all components.
+    ///
+    /// Returns `(tensor, origin, spacing, direction)`.
+    pub fn into_parts(self) -> (Tensor<B, D>, Point<D>, Spacing<D>, Direction<D>) {
+        (self.data, self.origin, self.spacing, self.direction)
+    }
 }
 
 #[cfg(test)]

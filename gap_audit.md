@@ -864,9 +864,9 @@ MRI normalization in clinical studies.
 
 ---
 
-### 5.4 Image Statistics · Severity: **Critical**
+### 5.4 Image Statistics · Severity: **Medium**
 
-Currently RITK exposes no image-level statistics API. ITK provides:
+RITK implements image-level statistics in `crates/ritk-core/src/statistics/`. ITK provides:
 
 | Statistic | Notes |
 |---|---|
@@ -876,13 +876,20 @@ Currently RITK exposes no image-level statistics API. ITK provides:
 | Label statistics | Per-label min/max/mean/volume via `LabelStatisticsImageFilter` |
 | Histogram | Fixed-bin or adaptive-bin 1D intensity histogram |
 
-**Planned location:**
+**Implementation status:** `image_statistics.rs`, `noise_estimation.rs`, and Python bindings implemented. `label_statistics.rs` not yet present.
+
+**Sprint 38 note:** Python binding extraction bottleneck closed via `with_tensor_slice`. The `clone().into_data()` O(N) copy is eliminated for all read-only operations. Remaining performance gap vs SimpleITK for `compute_statistics` (2.38x) is due to sort-based percentile computation, not data extraction overhead. `compute_from_values` is public; `masked_statistics` path uses direct slice.
+
+**Remaining gap:** `label_statistics.rs` (per-label min/max/mean/volume) not implemented.
+
+**Location:**
 ```
 crates/ritk-core/src/statistics/
 ├── mod.rs
-├── image_statistics.rs    # Min, max, mean, variance, percentile
-├── masked_statistics.rs   # Mask-gated statistics
-└── label_statistics.rs    # Per-label statistics over labeled map
+├── image_statistics.rs    # Min, max, mean, variance, percentile -- DONE
+├── masked_statistics.rs   # Mask-gated statistics -- DONE
+├── noise_estimation.rs    # MAD-based noise estimation -- DONE
+└── label_statistics.rs    # Per-label statistics over labeled map -- MISSING
 ```
 
 ---

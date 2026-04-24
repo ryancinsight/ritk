@@ -115,115 +115,57 @@ pub fn triangle_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f3
 
 // ── Core implementation ────────────────────────────────────────────────────────
 
-/// Core triangle threshold computation.
+/// Compute the Triangle threshold directly from a flat `&[f32]` slice.
 ///
-/// # Algorithm
-/// 1. Extract pixel values to a flat `Vec<f32>`.
-/// 2. Determine \[x_min, x_max\]; handle constant images as a degenerate case.
-/// 3. Build a histogram over `num_bins` equally-spaced bins.
-/// 4. Find the peak bin (highest count) and the tail bin (farthest from peak
-///    at either end of the histogram).
-/// 5. For each bin between peak and tail, compute the perpendicular distance
-///    to the peak–tail line.
-/// 6. t* = argmax distance.
-/// 7. Convert t* to intensity units.
-fn compute_triangle_threshold_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    num_bins: usize,
-) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+/// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
+pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
+    if n == 0 { return 0.0; }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
+    if (x_max - x_min).abs() < f32::EPSILON { return x_min; }
     let range = x_max - x_min;
     let num_bins_f = (num_bins - 1) as f64;
-
-    // ── Build histogram ────────────────────────────────────────────────────────
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
         let bin = ((v - x_min) as f64 / range as f64 * num_bins_f).floor() as usize;
         let bin = bin.min(num_bins - 1);
         counts[bin] += 1;
     }
-
-    // ── Find peak bin ──────────────────────────────────────────────────────────
-    let peak_bin = counts
-        .iter()
-        .enumerate()
-        .max_by_key(|&(_, &c)| c)
-        .map(|(i, _)| i)
-        .unwrap_or(0);
-
-    // ── Identify tail bin ──────────────────────────────────────────────────────
-    // The tail is the end of the histogram farthest from the peak.
-    // If the peak is in the left half, the tail is the rightmost non-zero bin
-    // (or N−1). Otherwise, the tail is the leftmost non-zero bin (or 0).
+    let peak_bin = counts.iter().enumerate().max_by_key(|&(_, &c)| c).map(|(i, _)| i).unwrap_or(0);
     let tail_bin = if peak_bin <= num_bins / 2 {
-        // Tail on the right side.
         counts.iter().rposition(|&c| c > 0).unwrap_or(num_bins - 1)
     } else {
-        // Tail on the left side.
         counts.iter().position(|&c| c > 0).unwrap_or(0)
     };
-
-    // Degenerate: peak and tail coincide.
     if peak_bin == tail_bin {
         return x_min + peak_bin as f32 / num_bins_f as f32 * range;
     }
-
-    // ── Line equation coefficients ─────────────────────────────────────────────
-    // Line through (peak_bin, counts[peak_bin]) and (tail_bin, counts[tail_bin]).
-    // Using f64 for numerical stability.
-    let x1 = peak_bin as f64;
-    let y1 = counts[peak_bin] as f64;
-    let x2 = tail_bin as f64;
-    let y2 = counts[tail_bin] as f64;
-
-    // Line: A·x + B·y + C = 0
-    let a = y2 - y1;
-    let b = x1 - x2;
-    let c = x2 * y1 - x1 * y2;
+    let x1 = peak_bin as f64; let y1 = counts[peak_bin] as f64;
+    let x2 = tail_bin as f64; let y2 = counts[tail_bin] as f64;
+    let a = y2 - y1; let b = x1 - x2; let c = x2 * y1 - x1 * y2;
     let norm = (a * a + b * b).sqrt();
-
-    // ── Search for maximum perpendicular distance ──────────────────────────────
-    let (start, end) = if peak_bin < tail_bin {
-        (peak_bin + 1, tail_bin)
-    } else {
-        (tail_bin + 1, peak_bin)
-    };
-
-    let mut best_dist = 0.0_f64;
-    let mut best_bin = start;
-
+    let (start, end) = if peak_bin < tail_bin { (peak_bin + 1, tail_bin) } else { (tail_bin + 1, peak_bin) };
+    let mut best_dist = 0.0_f64; let mut best_bin = start;
     for i in start..end {
-        let xi = i as f64;
-        let yi = counts[i] as f64;
+        let xi = i as f64; let yi = counts[i] as f64;
         let dist = (a * xi + b * yi + c).abs() / norm;
-
-        if dist > best_dist {
-            best_dist = dist;
-            best_bin = i;
-        }
+        if dist > best_dist { best_dist = dist; best_bin = i; }
     }
-
-    // ── Convert bin index to intensity ─────────────────────────────────────────
     x_min + best_bin as f32 / num_bins_f as f32 * range
 }
+
+/// Delegates to [`compute_triangle_threshold_from_slice`] after extracting a slice
+/// from the image tensor.
+fn compute_triangle_threshold_impl<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    num_bins: usize,
+) -> f32 {
+    let tensor_data = image.data().clone().into_data();
+    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    compute_triangle_threshold_from_slice(slice, num_bins)
+}
+
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
@@ -383,5 +325,17 @@ mod tests {
     #[should_panic(expected = "num_bins must be ≥ 2")]
     fn test_with_bins_one_panics() {
         TriangleThreshold::with_bins(1);
+    }
+
+    // ── from_slice parity ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_triangle_from_slice_matches_filter() {
+        let mut data = vec![20.0_f32; 100];
+        data.extend(vec![200.0_f32; 100]);
+        let image = make_image_1d(data.clone());
+        let t_filter = TriangleThreshold::new().compute(&image);
+        let t_slice = compute_triangle_threshold_from_slice(&data, 256);
+        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={} slice={}", t_filter, t_slice);
     }
 }

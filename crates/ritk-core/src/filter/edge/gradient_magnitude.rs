@@ -104,6 +104,66 @@ impl GradientMagnitudeFilter {
             rebuild(gx, dims, image),
         ))
     }
+
+    /// Compute the gradient magnitude image from a pre-extracted flat `&[f32]` slice.
+    ///
+    /// Equivalent to [`apply`] but accepts input data already extracted from the
+    /// image tensor, enabling zero-copy extraction when the caller has obtained a
+    /// slice via `NdArrayTensor::as_slice_memory_order()`.
+    ///
+    /// # Arguments
+    /// * `vals`  — Flat voxel data in \[Z, Y, X\] C-order, length `dims[0]*dims[1]*dims[2]`.
+    /// * `dims`  — Image dimensions `[nz, ny, nx]`.
+    /// * `src`   — Reference image; spatial metadata (origin, spacing, direction) is cloned.
+    ///
+    /// # Errors
+    /// Returns an error only if `dims` is inconsistent with `vals.len()` (debug_assert).
+    pub fn apply_from_slice<B: Backend>(
+        &self,
+        vals: &[f32],
+        dims: [usize; 3],
+        src: &Image<B, 3>,
+    ) -> anyhow::Result<Image<B, 3>> {
+        let [nz, ny, nx] = dims;
+        let sz = self.spacing[0] as f32;
+        let sy = self.spacing[1] as f32;
+        let sx = self.spacing[2] as f32;
+
+        debug_assert_eq!(
+            vals.len(),
+            nz * ny * nx,
+            "apply_from_slice: vals.len() != nz*ny*nx"
+        );
+
+        let mag: Vec<f32> = (0..nz * ny * nx)
+            .into_par_iter()
+            .map(|flat| {
+                let iz = flat / (ny * nx);
+                let iy = (flat / nx) % ny;
+                let ix = flat % nx;
+                let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
+
+                let gz = if nz == 1 { 0.0_f32 }
+                    else if iz == 0 { (f(1, iy, ix) - f(0, iy, ix)) / sz }
+                    else if iz == nz - 1 { (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz }
+                    else { (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz) };
+
+                let gy = if ny == 1 { 0.0_f32 }
+                    else if iy == 0 { (f(iz, 1, ix) - f(iz, 0, ix)) / sy }
+                    else if iy == ny - 1 { (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy }
+                    else { (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy) };
+
+                let gx = if nx == 1 { 0.0_f32 }
+                    else if ix == 0 { (f(iz, iy, 1) - f(iz, iy, 0)) / sx }
+                    else if ix == nx - 1 { (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx }
+                    else { (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx) };
+
+                (gz * gz + gy * gy + gx * gx).sqrt()
+            })
+            .collect();
+
+        Ok(rebuild(mag, dims, src))
+    }
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -390,6 +450,46 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    /// `apply_from_slice` must produce bit-identical output to `apply` for any input.
+    ///
+    /// Mathematical justification: both methods share the same finite-difference
+    /// kernel and `rebuild` call; the only difference is how input data is obtained.
+    #[test]
+    fn test_apply_from_slice_matches_apply() {
+        let [nz, ny, nx] = [8usize, 10, 12];
+        // Non-trivial values to exercise all gradient branches.
+        let vals: Vec<f32> = (0..nz * ny * nx)
+            .map(|flat| {
+                let ix = flat % nx;
+                let iy = (flat / nx) % ny;
+                let iz = flat / (ny * nx);
+                (iz as f32) * 0.3 + (iy as f32) * 0.7 + (ix as f32) * 1.1
+            })
+            .collect();
+        let spacing = [1.5, 2.0, 0.8];
+        let img = make_image(vals.clone(), [nz, ny, nx], spacing);
+        let filter = GradientMagnitudeFilter::new(spacing);
+
+        // Reference path: apply() extracts data internally via clone().into_data().
+        let mag_ref = filter.apply(&img).unwrap();
+        let ref_data = mag_ref.data().clone().into_data();
+        let ref_vals = ref_data.as_slice::<f32>().unwrap();
+
+        // Zero-copy path: apply_from_slice() accepts pre-extracted &[f32].
+        let mag_slice = filter.apply_from_slice(&vals, [nz, ny, nx], &img).unwrap();
+        let slice_data = mag_slice.data().clone().into_data();
+        let slice_vals = slice_data.as_slice::<f32>().unwrap();
+
+        assert_eq!(ref_vals.len(), slice_vals.len(), "output length must match");
+        for (i, (&r, &s)) in ref_vals.iter().zip(slice_vals.iter()).enumerate() {
+            assert_eq!(
+                r.to_bits(),
+                s.to_bits(),
+                "apply vs apply_from_slice differ at voxel {i}: apply={r}, from_slice={s}"
+            );
         }
     }
 }

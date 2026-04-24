@@ -122,3 +122,25 @@ def nyul_udupa_normalize(
         RuntimeError: if training_images is empty or normalization fails.
     """
     ...
+
+def compute_label_intensity_statistics(
+    label_image: Image,
+    intensity_image: Image,
+) -> list[dict[str, object]]:
+    """Per-label intensity statistics over a co-registered intensity image.
+
+    Background (label 0) is excluded. Results are sorted by label ascending.
+
+    Args:
+        label_image:     Label image (integer labels as f32; 0 = background).
+        intensity_image: Intensity image with identical shape to label_image.
+
+    Returns:
+        list of dicts, one per label, each with keys:
+        ``label`` (int), ``count`` (int), ``min`` (float), ``max`` (float),
+        ``mean`` (float), ``std`` (float).
+
+    Raises:
+        RuntimeError: if images have different element counts.
+    """
+    ...

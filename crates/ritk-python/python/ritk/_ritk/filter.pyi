@@ -121,3 +121,22 @@ def resample_image(
     spacing_x: float = 1.0,
     mode: str = "linear",
 ) -> Image: ...
+def distance_transform(
+    image: Image,
+    foreground_threshold: float = 0.5,
+    squared: bool = False,
+) -> Image:
+    """Euclidean distance transform (Meijster et al. 2000).
+
+    For each background voxel, computes distance to nearest foreground voxel
+    in physical units (respecting image spacing). Foreground voxels get 0.0.
+
+    Args:
+        image:                Binary input image.
+        foreground_threshold: Voxels above this value are foreground (default 0.5).
+        squared:              If True, return squared distances (default False).
+
+    Returns:
+        Distance image with identical shape and spatial metadata.
+    """
+    ...

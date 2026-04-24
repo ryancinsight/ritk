@@ -99,6 +99,90 @@ pub fn otsu_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
     compute_otsu_threshold_impl(image, 256)
 }
 
+/// Compute the Otsu threshold directly from a flat `&[f32]` slice.
+///
+/// Equivalent to [`otsu_threshold`] but accepts pre-extracted slice data,
+/// enabling zero-copy extraction when the caller has already obtained a slice
+/// from the backend primitive (e.g., NdArray `ArcArray::as_slice_memory_order`).
+///
+/// # Arguments
+/// * `slice`    - Flat pixel intensities in any order.
+/// * `num_bins` - Number of equally-spaced histogram bins; must be >= 2.
+///
+/// # Returns
+/// The threshold intensity value t* that maximises between-class variance.
+/// For an empty or constant input, returns 0.0 or the uniform intensity respectively.
+pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
+    let n = slice.len();
+    if n == 0 {
+        return 0.0;
+    }
+
+    // -- Intensity range -------------------------------------------------------
+    let (x_min, x_max) = slice.iter().fold(
+        (f32::INFINITY, f32::NEG_INFINITY),
+        |(mn, mx), &v| (mn.min(v), mx.max(v)),
+    );
+
+    // Degenerate case: constant image has no separable classes.
+    if (x_max - x_min).abs() < f32::EPSILON {
+        return x_min;
+    }
+
+    let range = x_max - x_min;
+    let num_bins_f = (num_bins - 1) as f32;
+
+    // -- Build normalised histogram --------------------------------------------
+    let mut counts = vec![0u64; num_bins];
+    for &v in slice {
+        let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
+        let bin = bin.min(num_bins - 1);
+        counts[bin] += 1;
+    }
+    let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
+
+    // -- Total weighted mean over bin indices ----------------------------------
+    // Used with the prefix-sum trick: mu2 = (total_mu - mu1_partial) / w2.
+    let total_mu: f64 = (0..num_bins).map(|i| i as f64 * h[i]).sum();
+
+    // -- Prefix-sum scan: O(N) threshold search --------------------------------
+    // At threshold index t:
+    //   Class 1 = bins [0, t-1],   Class 2 = bins [t, N-1].
+    let mut best_sigma2 = 0.0_f64;
+    let mut best_t = 0_usize;
+
+    let mut w1 = 0.0_f64;        // sum h[0..t-1]
+    let mut mu1_partial = 0.0_f64; // sum i*h[i] for i in [0, t-1]
+
+    for t in 1..num_bins {
+        // Extend class 1 to include bin t-1.
+        w1 += h[t - 1];
+        mu1_partial += (t - 1) as f64 * h[t - 1];
+
+        let w2 = 1.0 - w1;
+
+        // Skip degenerate splits where one class is empty.
+        if w1 < 1e-12 || w2 < 1e-12 {
+            continue;
+        }
+
+        let mu1 = mu1_partial / w1;
+        let mu2 = (total_mu - mu1_partial) / w2;
+
+        let sigma2 = w1 * w2 * (mu1 - mu2) * (mu1 - mu2);
+
+        if sigma2 > best_sigma2 {
+            best_sigma2 = sigma2;
+            best_t = t;
+        }
+    }
+
+    // -- Convert best bin index to intensity units ----------------------------
+    // t*_intensity = x_min + best_t / (N - 1) * range
+    x_min + best_t as f32 / num_bins_f * range
+}
+
+
 /// Core Otsu threshold computation.
 ///
 /// # Algorithm
@@ -484,5 +568,52 @@ mod tests {
     #[should_panic(expected = "num_bins must be ≥ 2")]
     fn test_with_bins_zero_panics() {
         let _ = OtsuThreshold::with_bins(0);
+    }
+
+    /// `compute_otsu_threshold_from_slice` must produce bit-identical output to
+    /// `OtsuThreshold::compute` for any input slice.
+    ///
+    /// Mathematical justification: both call the same prefix-sum scan over the same
+    /// normalised histogram; the only difference is the data source.
+    #[test]
+    fn test_compute_otsu_from_slice_matches_filter() {
+        use crate::spatial::{Direction, Point, Spacing};
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use burn_ndarray::NdArray;
+
+        type B = NdArray<f32>;
+
+        // Bimodal distribution: 128 voxels at 10.0 and 128 at 90.0.
+        let mut vals: Vec<f32> = vec![10.0_f32; 128];
+        vals.extend(vec![90.0_f32; 128]);
+
+        let device = Default::default();
+        let tensor = Tensor::<B, 1>::from_data(
+            TensorData::new(vals.clone(), Shape::new([256])),
+            &device,
+        );
+        let img = crate::image::Image::new(
+            tensor,
+            Point::new([0.0]),
+            Spacing::new([1.0]),
+            Direction::identity(),
+        );
+
+        let filter = OtsuThreshold::new();
+        let threshold_filter = filter.compute(&img);
+        let threshold_slice = compute_otsu_threshold_from_slice(&vals, 256);
+
+        assert_eq!(
+            threshold_filter.to_bits(),
+            threshold_slice.to_bits(),
+            "OtsuThreshold::compute vs compute_otsu_threshold_from_slice differ: \
+             filter={threshold_filter}, from_slice={threshold_slice}"
+        );
+
+        // Threshold must lie between the two modes.
+        assert!(
+            threshold_filter > 10.0 && threshold_filter < 90.0,
+            "threshold {threshold_filter} must lie between 10.0 and 90.0"
+        );
     }
 }

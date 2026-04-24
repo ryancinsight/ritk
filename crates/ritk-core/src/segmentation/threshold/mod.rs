@@ -21,3 +21,9 @@ pub use multi_otsu::{multi_otsu_threshold, MultiOtsuThreshold};
 pub use otsu::{otsu_threshold, OtsuThreshold};
 pub use triangle::{triangle_threshold, TriangleThreshold};
 pub use yen::{yen_threshold, YenThreshold};
+pub use kapur::compute_kapur_threshold_from_slice;
+pub use li::compute_li_threshold_from_slice;
+pub use multi_otsu::compute_multi_otsu_thresholds_from_slice;
+pub use triangle::compute_triangle_threshold_from_slice;
+pub use yen::compute_yen_threshold_from_slice;
+

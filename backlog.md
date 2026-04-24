@@ -1,3 +1,91 @@
+## Sprint 41 -- Completed
+
+### Stream A -- Label Intensity Statistics Python Binding (LABEL-STATS-PY-R41)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| LABEL-STATS-PY-R41 | compute_label_intensity_statistics Python binding | **CLOSED** Sprint 41 | Added `compute_label_intensity_statistics(label_image, intensity_image) -> list[dict]` to `crates/ritk-python/src/statistics.rs`. Registered in statistics module. Zero-copy via nested `with_tensor_slice` (same pattern as `estimate_noise`). Returns list of dicts with keys: label, count, min, max, mean, std. Stub added to `statistics.pyi`. 4 value-semantic Python tests in `test_statistics_bindings.py`: single label (mean=4.0, std=1.0), background excluded (empty list), two labels sorted, four voxels (mean=2.5, std=sqrt(1.25)). |
+
+### Stream B -- Distance Transform + Label Shape Statistics Python Bindings (ITK-REGION-R41)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DIST-TRANSFORM-R41 | distance_transform Python binding | **CLOSED** Sprint 41 | Added `distance_transform(image, foreground_threshold=0.5, squared=False)` to `crates/ritk-python/src/filter.rs`. Maps to `DistanceTransform::transform` (squared=False) or `DistanceTransform::squared` (squared=True). Import: `use ritk_core::segmentation::DistanceTransform`. Registered in filter module. Stub added to `filter.pyi`. 3 value-semantic Python tests: all-foregroundâ†’zeros, single-voxel adjacent=1.0, squared==dist^2. |
+| LABEL-SHAPE-R41 | label_shape_statistics Python binding | **CLOSED** Sprint 41 | Added `label_shape_statistics(mask, connectivity=6) -> list[dict]` to `crates/ritk-python/src/segmentation.rs`. Delegates to `ConnectedComponentsFilter::with_connectivity(connectivity).apply(mask)`. Returns list of dicts with keys: label, voxel_count, centroid ([z,y,x] f64), bounding_box_min ([z,y,x] i64), bounding_box_max ([z,y,x] i64). Background excluded (label 0 is never in results). Connectivity validated before calling filter (6 or 26 only). Registered in segmentation module. Stub added to `segmentation.pyi`. 3 value-semantic Python tests: single voxel centroid/bounding-box, two components sorted, invalid connectivity â†’ ValueError. |
+
+### Sprint 41 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| ritk-core unit tests (lib) | 719 passed | No regressions vs Sprint 40 |
+| ritk-core integration tests | 21 passed | No regressions |
+| ritk-python build | Clean | cargo build -p ritk-python, 0 errors, 0 warnings |
+| New Python tests (not yet run â€” wheel needed) | 13 total | 4 in test_statistics_bindings.py + 3 distance_transform + 3 label_shape_statistics + 3 from prior test_segmentation_bindings additions |
+| Total | **740 passed, 0 failed** | ritk-core unchanged |
+
+## Sprint 40 -- Completed
+
+### Stream A -- Zero-Copy Threshold From-Slice Variants (ZEROCOPY-ARCH-R40-LIYKOT)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| LIYKOT-LI | compute_li_threshold_from_slice | **CLOSED** Sprint 40 | Public `compute_li_threshold_from_slice(slice, num_bins, max_iterations) -> f32` added to li.rs. `compute_li_threshold_impl` delegates to it. 1 parity test: bit-identical vs LiThreshold::compute. Python binding migrated to with_tensor_slice + inline apply. Eliminates 2x clone().into_data() per call. |
+| LIYKOT-YEN | compute_yen_threshold_from_slice | **CLOSED** Sprint 40 | Public `compute_yen_threshold_from_slice(slice, num_bins) -> f32` added to yen.rs. Impl delegates. 1 parity test: bit-identical vs YenThreshold::compute. Python binding migrated. |
+| LIYKOT-KAPUR | compute_kapur_threshold_from_slice | **CLOSED** Sprint 40 | Public `compute_kapur_threshold_from_slice(slice, num_bins) -> f32` added to kapur.rs. Impl delegates. 1 parity test. Python binding migrated. |
+| LIYKOT-TRIANGLE | compute_triangle_threshold_from_slice | **CLOSED** Sprint 40 | Public `compute_triangle_threshold_from_slice(slice, num_bins) -> f32` added to triangle.rs. Impl delegates. 1 parity test. Python binding migrated. |
+| LIYKOT-MULTIOTSU | compute_multi_otsu_thresholds_from_slice | **CLOSED** Sprint 40 | Public `compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins) -> Vec<f32>` added to multi_otsu.rs. Impl delegates. 1 parity test. Python binding migrated; inline label assignment eliminates second `clone().into_data()`. |
+
+### Stream B -- Per-Label Intensity Statistics (LABEL-STATS-R40)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| LABEL-STATS-R40 | LabelIntensityStatistics + compute_label_intensity_statistics | **CLOSED** Sprint 40 | New `crates/ritk-core/src/statistics/label_statistics.rs`. `LabelIntensityStatistics { label, count, min, max, mean, std }`. Two entry points: compute_label_intensity_statistics (Image API) and compute_label_intensity_statistics_from_slices (zero-copy slice API). Single O(N) rayon par_iter fold/reduce over (label, intensity) pairs; HashMap<u32,(min,max,sum_f64,sum_sq_f64,count)> per thread. Results sorted by label. 9 tests: single voxel, known stats, two labels, background excluded, uniform intensity, image API parity, length-mismatch panic, shape-mismatch panic, sorted output. Exported from statistics::mod. |
+
+### Sprint 40 Test Results (ritk-core)
+| Suite | Count | Notes |
+|---|---|---|
+| Unit tests (lib) | 719 passed | +14 vs Sprint 39 (5 threshold parity + 9 label_statistics) |
+| Integration tests | 21 passed | No regressions |
+| ritk-python build | Clean | cargo build -p ritk-python, 0 errors |
+| Total | **740 passed, 0 failed** | â€” |
+
+## Sprint 39 -- Completed
+
+### Stream A -- Selection-Based Percentile Computation (PERF-STATS-R39)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PERF-STATS-R39 | Replace par_sort with select_nth for p25/p50/p75 | **CLOSED** Sprint 39 | compute_from_values Phase 2: par_sort_unstable_by (O(N log N)) replaced by 3x select_nth_unstable_by (O(N) amortized). Order: i75->i50->i25 preserves partition invariant. 1 parity test added (bit-identical vs sort, n=1000). 705/705 tests pass. |
+
+### Stream B -- DiscreteGaussian Convolution Optimizations (PERF-DG-R39)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| PERF-DG-R39-CONV1D | conv1d_replicate SAXPY + boundary split | **CLOSED** Sprint 39 | fill+SAXPY-per-kj loop; analytic i_start/i_end; interior loop branch-free and LLVM-vectorizable; bit-identical output. |
+| PERF-DG-R39-YAXIS | Y-axis (dim=1) cache-friendly SAXPY reorder | **CLOSED** Sprint 39 | Loop order (kj,iy,ix) with contiguous src_row/dst_row SAXPY; eliminates per-Z-slab buf[ny] allocation; bit-identical. |
+| PERF-DG-R39-ZAXIS | Z-axis (dim=0) parallelization | **CLOSED** Sprint 39 | par_chunks_mut(nyx).enumerate() replaces serial for yx in 0..nyx; SAXPY over contiguous src_z slices (sequential reads, no strided access); nz-way Rayon parallelism; bit-identical. |
+
+### Sprint 39 Expected Performance Changes (64^3 image, release build)
+| Operation | Sprint 38 RITK | Expected S39 change | Mechanism |
+|---|---|---|---|
+| compute_statistics | 1.185 ms | Lower (percentile O(N) vs O(N log N)) | Phase 2: 3x select_nth replaces par_sort |
+| discrete_gaussian | 8.344 ms | Lower (Z-axis now parallel + SIMD interior) | dim=0 par_chunks_mut + vectorizable conv1d_replicate |
+
+Note: Benchmark measurements pending next Python parity run. All 726 ritk-core tests pass.
+
+## Sprint 38 -- Completed
+
+### Stream A -- Architectural Zero-Copy Extraction (ZEROCOPY-ARCH-R38)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| ZEROCOPY-ARCH-R38-CORE | Add zero-copy APIs to ritk-core | **CLOSED** Sprint 38 | Added: Image::into_tensor, Image::into_parts; compute_from_values -> pub; compute_otsu_threshold_from_slice; estimate_noise_mad_from_slice/masked; GradientMagnitudeFilter::apply_from_slice. Zero new tests (2 parity tests added: test_apply_from_slice_matches_apply, test_compute_otsu_from_slice_matches_filter). |
+| ZEROCOPY-ARCH-R38-PY | with_tensor_slice helper + Python binding hot-path migration | **CLOSED** Sprint 38 | with_tensor_slice: clone tensor O(1) + into_primitive() + as_slice_memory_order() O(1) = zero-copy &[f32] from NdArray ArcArray. Updated: image_to_vec, to_numpy, compute_statistics, masked_statistics, estimate_noise, otsu_threshold, gradient_magnitude. Eliminates clone().into_data() for all read-only operations. |
+
+### Sprint 38 Benchmark Results (64^3 image, release build, miniforge3/Python 3.13)
+| Operation | Sprint 37 RITK | Sprint 38 RITK | Sprint 38 SITK | Ratio | Speedup vs S37 |
+|---|---|---|---|---|---|
+| compute_statistics | 6.94 ms | **1.185 ms** | 0.498 ms | 2.38x | 5.9x |
+| otsu_threshold | 18.74 ms | **0.828 ms** | 2.182 ms | 0.38x (FASTER) | 22.6x |
+| gradient_magnitude | 6.55 ms | **0.488 ms** | 1.022 ms | 0.48x (FASTER) | 13.4x |
+| to_numpy | N/A | **0.316 ms** | 0.334 ms | 0.95x (parity) | --- |
+| discrete_gaussian | 9.01 ms | **8.344 ms** | 2.299 ms | 3.63x | 1.1x |
+| median_filter r=2 | 14.36 ms | **13.945 ms** | 21.359 ms | 0.65x (FASTER) | 1.0x |
+
+Note: `otsu_threshold` improved 22.6× by eliminating 2 clone().into_data() calls; now 2.63× faster than SimpleITK. `gradient_magnitude` improved 13.4× by eliminating extract_vec copy; now 2.08× faster than SimpleITK. `to_numpy` achieves near-parity with SimpleITK (0.95×). Remaining gap for `compute_statistics` (2.38×) and `discrete_gaussian` (3.63×) is now due to real computation (sort for percentiles; separable convolution) rather than data extraction overhead.
+
 ## Sprint 37 -- Completed
 
 ### Stream A -- Zero-Copy Extraction (ZEROCOPY-R37)

@@ -20,7 +20,7 @@
 //! - `curvature_anisotropic_diffusion`: Curvature anisotropic diffusion (Alvarez 1992).
 //! - `sato_line_filter`:    Sato multi-scale line filter (Sato 1998).
 
-use crate::image::{into_py_image, Backend, PyImage};
+use crate::image::{into_py_image, with_tensor_slice, Backend, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::bias::N4Config;
 use ritk_core::filter::diffusion::CurvatureConfig;
@@ -49,6 +49,7 @@ use ritk_core::interpolation::{
 };
 use ritk_core::spatial::Spacing as CoreSpacing;
 use ritk_core::transform::translation::TranslationTransform;
+use ritk_core::segmentation::DistanceTransform;
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
 
@@ -303,13 +304,17 @@ pub fn anisotropic_diffusion(
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
 pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
-    let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
-        let spacing = image.spacing();
+    let arc = std::sync::Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let spacing = arc.spacing().clone();
+    // Zero-copy: extract &[f32] from NdArray ArcArray via with_tensor_slice.
+    let result = with_tensor_slice(arc.data(), |vals| {
         let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
-        filter
-            .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        py.allow_threads(|| {
+            filter
+                .apply_from_slice(vals, dims, arc.as_ref())
+                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        })
     })?;
     Ok(into_py_image(result))
 }
@@ -1021,6 +1026,40 @@ pub fn resample_image(
     Ok(into_py_image(result))
 }
 
+/// // -- distance_transform --------------------------------------------------
+
+/// Compute the Euclidean (or squared Euclidean) distance transform of a binary image.
+///
+/// For each background voxel the output is the distance to the nearest foreground
+/// voxel (in physical units, respecting image spacing).  Foreground voxels receive 0.0.
+/// Implements the exact O(N) Meijster et al. (2000) algorithm.
+///
+/// Args:
+///     image:                Input binary image (foreground > foreground_threshold).
+///     foreground_threshold: Threshold above which a voxel is foreground (default 0.5).
+///     squared:              If True, return squared distances (no sqrt; default False).
+///
+/// Returns:
+///     Distance image with identical shape and spatial metadata.
+#[pyfunction]
+#[pyo3(signature = (image, foreground_threshold=0.5_f32, squared=false))]
+pub fn distance_transform(
+    py: Python<'_>,
+    image: &PyImage,
+    foreground_threshold: f32,
+    squared: bool,
+) -> PyResult<PyImage> {
+    let arc = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        if squared {
+            DistanceTransform::squared(arc.as_ref(), foreground_threshold)
+        } else {
+            DistanceTransform::transform(arc.as_ref(), foreground_threshold)
+        }
+    });
+    Ok(into_py_image(result))
+}
+
 /// Register the `filter` submodule.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "filter")?;
@@ -1115,6 +1154,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(label_closing, &m)?)?;
     m.add_function(wrap_pyfunction!(morphological_reconstruction, &m)?)?;
     m.add_function(wrap_pyfunction!(resample_image, &m)?)?;
+    m.add_function(wrap_pyfunction!(distance_transform, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }

@@ -29,18 +29,26 @@
 //!
 //! No algorithm logic is duplicated here; SSOT is maintained in `ritk-core`.
 
-use crate::image::{into_py_image, PyImage};
+use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_core::segmentation::{
     connected_components as core_connected_components,
     connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
-    BinaryOpening, ChanVeseSegmentation, GeodesicActiveContourSegmentation, KMeansSegmentation,
-    KapurThreshold, LiThreshold, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold, LaplacianLevelSet, ShapeDetectionSegmentation,
+    BinaryOpening, ChanVeseSegmentation, ConnectedComponentsFilter, GeodesicActiveContourSegmentation,
+    KMeansSegmentation,
+    MorphologicalOperation, LaplacianLevelSet, ShapeDetectionSegmentation,
     BinaryFillHoles, ConfidenceConnectedFilter, MorphologicalGradient,
     NeighborhoodConnectedFilter, Skeletonization,
-    TriangleThreshold, ThresholdLevelSet, WatershedSegmentation, YenThreshold,
+    ThresholdLevelSet, WatershedSegmentation,
 };
+use pyo3::types::{PyDict, PyList};
 use std::sync::Arc;
+use ritk_core::segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
+use ritk_core::segmentation::threshold::li::compute_li_threshold_from_slice;
+use ritk_core::segmentation::threshold::yen::compute_yen_threshold_from_slice;
+use ritk_core::segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
+use ritk_core::segmentation::threshold::triangle::compute_triangle_threshold_from_slice;
+use ritk_core::segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
 
 // ── Threshold: Otsu ───────────────────────────────────────────────────────────
 
@@ -56,13 +64,22 @@ use std::sync::Arc;
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
 pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let image = Arc::clone(&image.inner);
-    let (threshold, mask) = py.allow_threads(|| {
-        let filter = OtsuThreshold::new();
-        let threshold = filter.compute(image.as_ref());
-        let mask = filter.apply(image.as_ref());
-        (threshold, mask)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    // Zero-copy: single slice extraction replaces two clone().into_data() calls
+    // (one inside OtsuThreshold::compute, one inside OtsuThreshold::apply).
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_otsu_threshold_from_slice(slice, 256);
+            // Inline apply: avoids second data extraction inside OtsuThreshold::apply.
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
     });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -80,13 +97,19 @@ pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
 pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let image = Arc::clone(&image.inner);
-    let (threshold, mask) = py.allow_threads(|| {
-        let filter = LiThreshold::new();
-        let threshold = filter.compute(image.as_ref());
-        let mask = filter.apply(image.as_ref());
-        (threshold, mask)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_li_threshold_from_slice(slice, 256, 1000);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
     });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -104,13 +127,19 @@ pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)>
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
 pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let image = Arc::clone(&image.inner);
-    let (threshold, mask) = py.allow_threads(|| {
-        let filter = YenThreshold::new();
-        let threshold = filter.compute(image.as_ref());
-        let mask = filter.apply(image.as_ref());
-        (threshold, mask)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_yen_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
     });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -128,13 +157,19 @@ pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
 pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let image = Arc::clone(&image.inner);
-    let (threshold, mask) = py.allow_threads(|| {
-        let filter = KapurThreshold::new();
-        let threshold = filter.compute(image.as_ref());
-        let mask = filter.apply(image.as_ref());
-        (threshold, mask)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_kapur_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
     });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -152,13 +187,19 @@ pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImag
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
 pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
-    let image = Arc::clone(&image.inner);
-    let (threshold, mask) = py.allow_threads(|| {
-        let filter = TriangleThreshold::new();
-        let threshold = filter.compute(image.as_ref());
-        let mask = filter.apply(image.as_ref());
-        (threshold, mask)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let threshold = compute_triangle_threshold_from_slice(slice, 256);
+            let mask_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| if v >= threshold { 1.0_f32 } else { 0.0_f32 })
+                .collect();
+            (threshold, mask_vals)
+        })
     });
+    let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
     Ok((threshold, into_py_image(mask)))
 }
 
@@ -187,13 +228,19 @@ pub fn multi_otsu_threshold(
             "num_classes must be ≥ 2",
         ));
     }
-    let image = Arc::clone(&image.inner);
-    let (thresholds, labeled) = py.allow_threads(|| {
-        let filter = MultiOtsuThreshold::new(num_classes);
-        let thresholds = filter.compute(image.as_ref());
-        let labeled = filter.apply(image.as_ref());
-        (thresholds, labeled)
+    let arc = Arc::clone(&image.inner);
+    let dims = arc.shape();
+    let (thresholds, label_vals) = with_tensor_slice(arc.data(), |slice| {
+        py.allow_threads(|| {
+            let thresholds = compute_multi_otsu_thresholds_from_slice(slice, num_classes, 256);
+            let label_vals: Vec<f32> = slice
+                .iter()
+                .map(|&v| thresholds.iter().filter(|&&t| v >= t).count() as f32)
+                .collect();
+            (thresholds, label_vals)
+        })
     });
+    let labeled = vec_to_image_like(label_vals, dims, arc.as_ref());
     Ok((thresholds, into_py_image(labeled)))
 }
 
@@ -834,6 +881,61 @@ pub fn skeletonization(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
     Ok(into_py_image(result))
 }
 
+
+// ── label_shape_statistics ───────────────────────────────────────────────────
+
+/// Compute per-label shape statistics from a binary mask.
+///
+/// Applies [] and returns per-component spatial
+/// statistics (voxel count, centroid, bounding box).
+/// Background (label 0) is excluded from results.
+///
+/// Args:
+///     mask:         Binary mask image (foreground > 0.5).
+///     connectivity: Adjacency model (6 or 26; default 6).
+///
+/// Returns:
+///     list of dicts, one per component, sorted by label ascending, each with keys:
+///     label (int), voxel_count (int),
+///     centroid (list[float]: [z, y, x] in index coordinates),
+///     bounding_box_min (list[int]: [z, y, x]),
+///     bounding_box_max (list[int]: [z, y, x]).
+///
+/// Raises:
+///     ValueError: if connectivity is not 6 or 26.
+#[pyfunction]
+#[pyo3(signature = (mask, connectivity=6_u32))]
+pub fn label_shape_statistics(
+    py: Python<'_>,
+    mask: &PyImage,
+    connectivity: u32,
+) -> PyResult<Py<PyList>> {
+    if connectivity != 6 && connectivity != 26 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "connectivity must be 6 or 26, got {connectivity}"
+        )));
+    }
+    let mask_arc = Arc::clone(&mask.inner);
+    let (_label_image, stats) = py.allow_threads(|| {
+        ConnectedComponentsFilter::with_connectivity(connectivity).apply(mask_arc.as_ref())
+    });
+    let list = PyList::empty_bound(py);
+    for s in &stats {
+        let dict = PyDict::new_bound(py);
+        dict.set_item("label", s.label)?;
+        dict.set_item("voxel_count", s.voxel_count)?;
+        let centroid: Vec<f64> = s.centroid.to_vec();
+        dict.set_item("centroid", centroid)?;
+        let (bb_min, bb_max) = s.bounding_box;
+        let bb_min_list: Vec<i64> = bb_min.iter().map(|&v| v as i64).collect();
+        let bb_max_list: Vec<i64> = bb_max.iter().map(|&v| v as i64).collect();
+        dict.set_item("bounding_box_min", bb_min_list)?;
+        dict.set_item("bounding_box_max", bb_max_list)?;
+        list.append(dict)?;
+    }
+    Ok(list.into())
+}
+
 // ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `segmentation` submodule with all exposed functions.
@@ -850,6 +952,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Labeling
     m.add_function(wrap_pyfunction!(connected_components, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_shape_statistics, &m)?)?;
 
     // Region growing
     m.add_function(wrap_pyfunction!(connected_threshold_segment, &m)?)?;

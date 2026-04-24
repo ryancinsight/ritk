@@ -28,7 +28,7 @@
 
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use ritk_core::statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
@@ -36,13 +36,21 @@ use ritk_core::statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, NyulUdupaNormalizer, ZScoreNormalizer,
 };
 use ritk_core::statistics::{
-    compute_statistics as core_compute_statistics, dice_coefficient as core_dice_coefficient,
-    estimate_noise_mad, estimate_noise_mad_masked, hausdorff_distance as core_hausdorff_distance,
-    masked_statistics as core_masked_statistics,
-    mean_surface_distance as core_mean_surface_distance, psnr as core_psnr, ssim as core_ssim,
+    dice_coefficient as core_dice_coefficient,
+    hausdorff_distance as core_hausdorff_distance,
+    mean_surface_distance as core_mean_surface_distance,
+    psnr as core_psnr,
+    ssim as core_ssim,
     ImageStatistics,
 };
+use ritk_core::statistics::image_statistics::compute_from_values;
+use ritk_core::statistics::noise_estimation::{
+    estimate_noise_mad_from_slice,
+    estimate_noise_mad_masked_from_slices,
+};
+use crate::image::with_tensor_slice;
 use std::sync::Arc;
+use ritk_core::statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -74,7 +82,8 @@ fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> PyResult<Py<PyDict>
 ///     Percentiles correspond to the 25th, 50th (median), and 75th percentiles.
 #[pyfunction]
 pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> PyResult<Py<PyDict>> {
-    let stats = core_compute_statistics(image.inner.as_ref());
+    // Zero-copy path: extract &[f32] from NdArray ArcArray without clone().into_data().
+    let stats = with_tensor_slice(image.inner.data(), compute_from_values);
     stats_to_dict(py, &stats)
 }
 
@@ -96,7 +105,24 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> PyResult<Py<PyDict
 ///     RuntimeError: if image and mask shapes differ or mask has no foreground voxels.
 #[pyfunction]
 pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> PyResult<Py<PyDict>> {
-    let stats = core_masked_statistics(image.inner.as_ref(), mask.inner.as_ref());
+    let stats = with_tensor_slice(image.inner.data(), |img_slice| {
+        with_tensor_slice(mask.inner.data(), |mask_slice| {
+            // Inline the masked filter — avoids redundant into_data() calls.
+            assert_eq!(
+                img_slice.len(),
+                mask_slice.len(),
+                "image and mask must have identical element count"
+            );
+            let values: Vec<f32> = img_slice
+                .iter()
+                .zip(mask_slice.iter())
+                .filter(|(_, &m)| m > 0.5)
+                .map(|(&v, _)| v)
+                .collect();
+            assert!(!values.is_empty(), "mask contains no foreground voxels");
+            compute_from_values(&values)
+        })
+    });
     stats_to_dict(py, &stats)
 }
 
@@ -268,9 +294,14 @@ pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> PyResult<f32> {
 #[pyfunction]
 #[pyo3(signature = (image, mask=None))]
 pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> PyResult<f32> {
+    // Zero-copy path: extract &[f32] slices without clone().into_data().
     let sigma = match mask {
-        Some(m) => estimate_noise_mad_masked(image.inner.as_ref(), m.inner.as_ref()),
-        None => estimate_noise_mad(image.inner.as_ref()),
+        Some(m) => with_tensor_slice(image.inner.data(), |img_slice| {
+            with_tensor_slice(m.inner.data(), |mask_slice| {
+                estimate_noise_mad_masked_from_slices(img_slice, mask_slice)
+            })
+        }),
+        None => with_tensor_slice(image.inner.data(), estimate_noise_mad_from_slice),
     };
     Ok(sigma)
 }
@@ -501,9 +532,53 @@ pub fn nyul_udupa_normalize(
 
     Ok(into_py_image(normalized))
 }
+
+// -- compute_label_intensity_statistics ---------------------------------------
+
+/// Compute per-label intensity statistics over a co-registered intensity image.
+///
+/// Delegates to
+/// `ritk_core::statistics::compute_label_intensity_statistics_from_slices`.
+/// Background (label 0) is excluded. Results are sorted by label ascending.
+///
+/// Args:
+///     label_image:     Label image (integer labels stored as f32; 0 = background).
+///     intensity_image: Intensity image with identical shape to ``label_image``.
+///
+/// Returns:
+///     list of dicts, one per label, sorted ascending by label, each with keys:
+///     ``label`` (int), ``count`` (int), ``min`` (float), ``max`` (float),
+///     ``mean`` (float), ``std`` (float).
+///
+/// Raises:
+///     RuntimeError: if images have different element counts or shapes.
+#[pyfunction]
+pub fn compute_label_intensity_statistics(
+    py: Python<'_>,
+    label_image: &PyImage,
+    intensity_image: &PyImage,
+) -> PyResult<Py<PyList>> {
+    let stats = with_tensor_slice(label_image.inner.data(), |label_slice| {
+        with_tensor_slice(intensity_image.inner.data(), |intensity_slice| {
+            core_label_intensity_stats_from_slices(label_slice, intensity_slice)
+        })
+    });
+    let list = PyList::empty_bound(py);
+    for s in &stats {
+        let dict = PyDict::new_bound(py);
+        dict.set_item("label", s.label)?;
+        dict.set_item("count", s.count)?;
+        dict.set_item("min", s.min)?;
+        dict.set_item("max", s.max)?;
+        dict.set_item("mean", s.mean)?;
+        dict.set_item("std", s.std)?;
+        list.append(dict)?;
+    }
+    Ok(list.into())
+}
 // ── Submodule registration ────────────────────────────────────────────────────
 
-/// Register the `statistics` submodule and all 14 exposed functions into `parent`.
+/// Register the `statistics` submodule and all 15 exposed functions into `parent`.
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "statistics")?;
     m.add_function(wrap_pyfunction!(compute_statistics, &m)?)?;
@@ -520,6 +595,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(histogram_match, &m)?)?;
     m.add_function(wrap_pyfunction!(white_stripe_normalize, &m)?)?;
     m.add_function(wrap_pyfunction!(nyul_udupa_normalize, &m)?)?;
+    m.add_function(wrap_pyfunction!(compute_label_intensity_statistics, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }

@@ -164,6 +164,56 @@ pub fn estimate_noise_mad_masked<B: Backend, const D: usize>(
     mad_sigma(&mut values)
 }
 
+/// Estimate Gaussian noise sigma-hat using MAD directly from a flat `&[f32]` slice.
+///
+/// Equivalent to [`estimate_noise_mad`] but accepts pre-extracted slice data,
+/// enabling zero-copy extraction from the NdArray backend (e.g., via
+/// `ArcArray::as_slice_memory_order`).
+///
+/// # Formula
+/// sigma-hat = 1.4826 * median(|Xi - median(X)|)
+///
+/// # Returns
+/// Estimated noise standard deviation. Returns 0.0 for empty, single-element,
+/// or constant inputs.
+pub fn estimate_noise_mad_from_slice(slice: &[f32]) -> f32 {
+    let mut values: Vec<f32> = slice.to_vec();
+    mad_sigma(&mut values)
+}
+
+/// Estimate Gaussian noise sigma-hat using MAD from pre-extracted image and mask slices.
+///
+/// Equivalent to [`estimate_noise_mad_masked`] but accepts pre-extracted slice data,
+/// enabling zero-copy extraction from the NdArray backend.
+///
+/// Only voxels where `mask_slice[i] > 0.5` are included in the estimate.
+///
+/// # Formula
+/// sigma-hat = 1.4826 * median(|Xi - median(X)|)
+/// computed over the foreground set {i : mask_slice[i] > 0.5}.
+///
+/// # Returns
+/// Estimated noise standard deviation over foreground voxels. Returns 0.0 if the
+/// foreground set is empty or constant.
+///
+/// # Panics
+/// Panics if `img_slice.len() != mask_slice.len()`.
+pub fn estimate_noise_mad_masked_from_slices(img_slice: &[f32], mask_slice: &[f32]) -> f32 {
+    assert_eq!(
+        img_slice.len(),
+        mask_slice.len(),
+        "image and mask must have identical element count"
+    );
+    let mut values: Vec<f32> = img_slice
+        .iter()
+        .zip(mask_slice.iter())
+        .filter(|(_, &m)| m > 0.5)
+        .map(|(&v, _)| v)
+        .collect();
+    mad_sigma(&mut values)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

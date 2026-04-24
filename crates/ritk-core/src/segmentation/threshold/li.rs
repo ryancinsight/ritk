@@ -108,45 +108,17 @@ pub fn li_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 
 // ── Core implementation ────────────────────────────────────────────────────────
 
-/// Core Li threshold computation.
+/// Compute the Li threshold directly from a flat `&[f32]` slice.
 ///
-/// # Algorithm
-/// 1. Extract pixel values to a flat `Vec<f32>`.
-/// 2. Determine \[x_min, x_max\]; handle constant images as a degenerate case.
-/// 3. Build a normalised histogram over `num_bins` equally-spaced bins.
-/// 4. Initialize t₀ = global mean bin index.
-/// 5. Iterate: compute μ_b (mean bin of background) and μ_f (mean bin of
-///    foreground), then t_{n+1} = (μ_b + μ_f) / 2.
-/// 6. Converge when |t_{n+1} − t_n| < 1e-6 or `max_iterations` reached.
-/// 7. Convert bin index to intensity units.
-fn compute_li_threshold_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    num_bins: usize,
-    max_iterations: usize,
-) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+/// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
+pub fn compute_li_threshold_from_slice(slice: &[f32], num_bins: usize, max_iterations: usize) -> f32 {
     let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
+    if n == 0 { return 0.0; }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image has no separable classes.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
+    if (x_max - x_min).abs() < f32::EPSILON { return x_min; }
     let range = x_max - x_min;
     let num_bins_f = (num_bins - 1) as f64;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
         let bin = ((v - x_min) / range * num_bins_f as f32).floor() as usize;
@@ -154,53 +126,36 @@ fn compute_li_threshold_impl<B: Backend, const D: usize>(
         counts[bin] += 1;
     }
     let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Global mean bin index (initialization) ─────────────────────────────────
     let global_mean: f64 = (0..num_bins).map(|i| i as f64 * h[i]).sum();
-
-    // ── Iterative refinement ───────────────────────────────────────────────────
     let mut t = global_mean;
     let tolerance = 1e-6_f64;
-
     for _ in 0..max_iterations {
         let t_floor = (t.floor() as usize).min(num_bins - 1);
-
-        // ── Background: bins [0, t_floor] ──────────────────────────────────────
-        let mut w_b = 0.0_f64;
-        let mut sum_b = 0.0_f64;
-        for i in 0..=t_floor {
-            w_b += h[i];
-            sum_b += i as f64 * h[i];
-        }
-
-        // ── Foreground: bins [t_floor+1, N-1] ─────────────────────────────────
-        let mut w_f = 0.0_f64;
-        let mut sum_f = 0.0_f64;
-        for i in (t_floor + 1)..num_bins {
-            w_f += h[i];
-            sum_f += i as f64 * h[i];
-        }
-
-        // If either class is empty, the threshold is at the boundary.
-        if w_b < 1e-12 || w_f < 1e-12 {
-            break;
-        }
-
-        let mu_b = sum_b / w_b;
-        let mu_f = sum_f / w_f;
-
+        let mut w_b = 0.0_f64; let mut sum_b = 0.0_f64;
+        for i in 0..=t_floor { w_b += h[i]; sum_b += i as f64 * h[i]; }
+        let mut w_f = 0.0_f64; let mut sum_f = 0.0_f64;
+        for i in (t_floor + 1)..num_bins { w_f += h[i]; sum_f += i as f64 * h[i]; }
+        if w_b < 1e-12 || w_f < 1e-12 { break; }
+        let mu_b = sum_b / w_b; let mu_f = sum_f / w_f;
         let t_new = (mu_b + mu_f) / 2.0;
-
-        if (t_new - t).abs() < tolerance {
-            t = t_new;
-            break;
-        }
+        if (t_new - t).abs() < tolerance { t = t_new; break; }
         t = t_new;
     }
-
-    // ── Convert bin index to intensity units ───────────────────────────────────
     x_min + (t as f32) / num_bins_f as f32 * range
 }
+
+/// Delegates to [`compute_li_threshold_from_slice`] after extracting a slice
+/// from the image tensor.
+fn compute_li_threshold_impl<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    num_bins: usize,
+    max_iterations: usize,
+) -> f32 {
+    let tensor_data = image.data().clone().into_data();
+    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    compute_li_threshold_from_slice(slice, num_bins, max_iterations)
+}
+
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
@@ -353,5 +308,17 @@ mod tests {
         let d = LiThreshold::default();
         assert_eq!(d.num_bins, 256);
         assert_eq!(d.max_iterations, 1000);
+    }
+
+    // ── from_slice parity ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_li_from_slice_matches_filter() {
+        let mut data = vec![20.0_f32; 100];
+        data.extend(vec![200.0_f32; 100]);
+        let image = make_image_1d(data.clone());
+        let t_filter = LiThreshold::new().compute(&image);
+        let t_slice = compute_li_threshold_from_slice(&data, 256, 1000);
+        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={} slice={}", t_filter, t_slice);
     }
 }

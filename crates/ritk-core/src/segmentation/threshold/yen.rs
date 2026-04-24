@@ -112,43 +112,17 @@ pub fn yen_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
 
 // ── Core implementation ────────────────────────────────────────────────────────
 
-/// Core Yen threshold computation.
+/// Compute the Yen threshold directly from a flat `&[f32]` slice.
 ///
-/// # Algorithm
-/// 1. Extract pixel values to a flat `Vec<f32>`.
-/// 2. Determine [x_min, x_max]; handle constant images as a degenerate case.
-/// 3. Build a normalised histogram over `num_bins` equally-spaced bins.
-/// 4. Compute prefix sums of p(i)² (A) and suffix sums of p(i)² (B).
-/// 5. Evaluate C(t) = −log(A(t) + B(t)) for each candidate threshold t ∈ [0, N−2].
-/// 6. t* = argmax_t C(t).
-/// 7. Map t* back to intensity units.
-fn compute_yen_threshold_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    num_bins: usize,
-) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+/// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
+pub fn compute_yen_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     let n = slice.len();
-    if n == 0 {
-        return 0.0;
-    }
-
-    // ── Intensity range ────────────────────────────────────────────────────────
+    if n == 0 { return 0.0; }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-    // Degenerate case: constant image has no separable classes.
-    if (x_max - x_min).abs() < f32::EPSILON {
-        return x_min;
-    }
-
+    if (x_max - x_min).abs() < f32::EPSILON { return x_min; }
     let range = x_max - x_min;
     let num_bins_f = (num_bins - 1) as f32;
-
-    // ── Build normalised histogram ─────────────────────────────────────────────
     let mut counts = vec![0u64; num_bins];
     for &v in slice {
         let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
@@ -156,53 +130,35 @@ fn compute_yen_threshold_impl<B: Backend, const D: usize>(
         counts[bin] += 1;
     }
     let p: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
-
-    // ── Squared probability terms ──────────────────────────────────────────────
     let p_sq: Vec<f64> = p.iter().map(|&pi| pi * pi).collect();
-
-    // ── Prefix sums A(t) = Σ_{i=0}^{t} p(i)² ─────────────────────────────────
     let mut prefix_sq = vec![0.0_f64; num_bins];
     prefix_sq[0] = p_sq[0];
-    for i in 1..num_bins {
-        prefix_sq[i] = prefix_sq[i - 1] + p_sq[i];
-    }
-
-    // ── Suffix sums B(t) = Σ_{i=t+1}^{N−1} p(i)² ─────────────────────────────
-    // B(t) = total_sq − prefix_sq[t]
+    for i in 1..num_bins { prefix_sq[i] = prefix_sq[i - 1] + p_sq[i]; }
     let total_sq: f64 = prefix_sq[num_bins - 1];
-
-    // ── Search for optimal threshold ───────────────────────────────────────────
-    // Evaluate C(t) = −log(A(t) + B(t)) for t ∈ [0, N−2].
-    // A(t) = prefix_sq[t], B(t) = total_sq − prefix_sq[t].
-    // Since A(t) + B(t) = total_sq is constant if we use the raw sum, we need
-    // to use the formulation where A and B are not summed but kept separate:
-    //   C(t) = −log( A(t)² + B(t)² )
-    // where A(t) = Σ_{i=0}^{t} p(i)² and B(t) = Σ_{i=t+1}^{N−1} p(i)².
-    // Maximising C(t) = −log(A(t) + B(t)) is equivalent to minimising A(t) + B(t).
-
     let mut best_criterion = f64::NEG_INFINITY;
     let mut best_t = 0_usize;
-
     for t in 0..(num_bins - 1) {
         let a_t = prefix_sq[t];
         let b_t = total_sq - prefix_sq[t];
-
         let sum = a_t + b_t;
-        if sum < 1e-30 {
-            continue;
-        }
-
+        if sum < 1e-30 { continue; }
         let criterion = -(sum.ln());
-
-        if criterion > best_criterion {
-            best_criterion = criterion;
-            best_t = t;
-        }
+        if criterion > best_criterion { best_criterion = criterion; best_t = t; }
     }
-
-    // ── Convert best bin index to intensity units ──────────────────────────────
     x_min + (best_t as f32 + 0.5) / num_bins_f * range
 }
+
+/// Delegates to [`compute_yen_threshold_from_slice`] after extracting a slice
+/// from the image tensor.
+fn compute_yen_threshold_impl<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+    num_bins: usize,
+) -> f32 {
+    let tensor_data = image.data().clone().into_data();
+    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    compute_yen_threshold_from_slice(slice, num_bins)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -354,5 +310,17 @@ mod tests {
     #[should_panic(expected = "num_bins must be ≥ 2")]
     fn test_with_bins_zero_panics() {
         YenThreshold::with_bins(0);
+    }
+
+    // ── from_slice parity ─────────────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_compute_yen_from_slice_matches_filter() {
+        let mut data = vec![20.0_f32; 100];
+        data.extend(vec![200.0_f32; 100]);
+        let image = make_image_1d(data.clone());
+        let t_filter = YenThreshold::new().compute(&image);
+        let t_slice = compute_yen_threshold_from_slice(&data, 256);
+        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={} slice={}", t_filter, t_slice);
     }
 }
