@@ -1,3 +1,29 @@
+## Sprint 42 -- Completed
+
+- [x] SMOKE-FILTER-DT-R42: Add `"distance_transform"` to filter smoke required list in test_smoke.py
+  - test_python_api_parity.py would fail: distance_transform registered in filter.rs but not in smoke required
+  - Added after "resample_image" in test_filter_public_functions_exist required list
+  - Closes the parity gap introduced when distance_transform was added in Sprint 41
+
+- [x] SMOKE-SEG-LS-R42: Add `"label_shape_statistics"` to segmentation smoke required list in test_smoke.py
+  - Added after "skeletonization" in test_segmentation_public_functions_exist required list
+  - Closes the parity gap introduced when label_shape_statistics was added in Sprint 41
+
+- [x] SMOKE-STAT-CLIS-R42: Add `"compute_label_intensity_statistics"` to statistics smoke required list in test_smoke.py
+  - Added after "nyul_udupa_normalize" in test_statistics_public_functions_exist required list
+  - Closes the parity gap introduced when compute_label_intensity_statistics was added in Sprint 41
+
+- [x] CI-STATS-TEST-R42: Add test_statistics_bindings.py to CI pytest invocation in python_ci.yml
+  - Inserted between test_segmentation_bindings.py and test_smoke.py in the pytest run step
+  - 4 value-semantic statistics tests now execute on every CI run
+
+- [x] AUDIT-ATLAS-R42: Sync gap_audit.md section 7.2 and 7.3
+  - Joint label fusion: ✗ → ✓ ritk.registration.joint_label_fusion_py (Sprint 8)
+  - Atlas building: ✗ → ✓ ritk.registration.build_atlas (Sprint 8)
+  - Transform I/O: ✗ → ✓ ritk.io.read_transform / write_transform (Sprint 8)
+  - Function counts updated: 53+ (Sprint 7) → 91+ (Sprint 41)
+  - Stale "remaining work" items replaced with accurate current state
+
 ## Sprint 41 -- Completed
 
 - [x] LABEL-STATS-PY-R41: Python binding for compute_label_intensity_statistics

@@ -1105,7 +1105,7 @@ Remaining gaps relative to SimpleITK / ANTsPy:
 | Binary closing | `sitk.BinaryMorphologicalClosing` | — | ✓ `ritk.segmentation.binary_closing(mask, radius)` (Sprint 5) |
 | Chan-Vese segmentation | — | — | ✓ `ritk.segmentation.chan_vese(img, iters)` (Sprint 5) |
 | Geodesic active contour | `sitk.GeodesicActiveContourLevelSet` | — | ✓ `ritk.segmentation.geodesic_active_contour(img, init)` (Sprint 5) |
-| Transform I/O | `sitk.ReadTransform` / `sitk.WriteTransform` | `ants.read_transform` | ✗ not yet implemented |
+| Transform I/O | `sitk.ReadTransform` / `sitk.WriteTransform` | `ants.read_transform` | ✓ `ritk.io.read_transform(path)` / `ritk.io.write_transform(path, …)` (Sprint 8) |
 | BSpline FFD registration | `sitk.ElastixImageFilter` | — | ✓ `ritk.registration.bspline_ffd_register` (Sprint 6) |
 | Image statistics | — | — | ✓ `ritk.statistics.image_statistics(img)` (Sprint 7) |
 | Z-score normalization | — | — | ✓ `ritk.statistics.zscore_normalize(img)` (Sprint 7) |
@@ -1117,16 +1117,16 @@ Remaining gaps relative to SimpleITK / ANTsPy:
 | Hausdorff distance | — | — | ✓ `ritk.statistics.hausdorff_distance(a, b)` (Sprint 7) |
 | PSNR | — | — | ✓ `ritk.statistics.psnr(img, ref)` (Sprint 7) |
 | SSIM | — | — | ✓ `ritk.statistics.ssim(img, ref)` (Sprint 7) |
-| Joint label fusion | — | `ants.joint_label_fusion` | ✗ not yet in Python (Rust impl available, Sprint 7) |
-| Atlas building | — | `ants.build_template` | ✗ not yet in Python (Rust impl available, Sprint 7) |
+| Joint label fusion | — | `ants.joint_label_fusion` | ✓ `ritk.registration.joint_label_fusion_py(target, atlas_images, atlas_labels)` (Sprint 8) |
+| Atlas building | — | `ants.build_template` | ✓ `ritk.registration.build_atlas(subjects)` (Sprint 8) |
 
 ### 7.3 Implementation Status · Severity: **Medium** (implemented; minor gaps remain)
 
 **Technology:** PyO3 0.22 with `maturin` build backend, `abi3-py39` stable ABI.
 **Interop:** `numpy` crate (`PyReadonlyArray3`, `IntoPyArray`) via `pyo3-numpy`.
 
-**Sprint 7 function counts:** 14 filter functions, 16 segmentation functions, 8 registration
-functions, 13 statistics functions, 2 IO functions, image bridge — 53+ total Python-callable functions.
+**Sprint 41 function counts:** 34 filter functions, 25 segmentation functions, 13 registration
+functions, 15 statistics functions, 4 IO functions, image bridge — 91+ total Python-callable functions.
 
 ```
 crates/ritk-python/
@@ -1135,7 +1135,7 @@ crates/ritk-python/
 ├── src/
 │   ├── lib.rs            # #[pymodule] fn _ritk — registers 6 submodules
 │   ├── image.rs          # PyImage(Arc<Image<NdArray,3>>), to_numpy(), shape/spacing/origin
-│   ├── io.rs             # read_image / write_image (NIfTI, PNG, DICOM, MetaImage, NRRD)
+│   ├── io.rs             # read_image / write_image / read_transform / write_transform
 │   ├── filter.rs         # 14 functions: gaussian, median, bilateral, n4_bias_correction,
 │   │                     #   anisotropic_diffusion, gradient_magnitude, laplacian,
 │   │                     #   frangi_vesselness, canny, laplacian_of_gaussian,
@@ -1159,11 +1159,9 @@ crates/ritk-python/
     └── ritk/py.typed     # PEP 561 marker
 ```
 
-**Remaining work before first usable wheel:**
-- Run `maturin develop` end-to-end to validate Python import.
-- Add `py.allow_threads` GIL release around long-running calls (filter, registration).
-- Generate `.pyi` type stubs for IDE autocomplete.
-- Add integration test comparing `ritk.io.read_image` output against SimpleITK reference values.
+**Remaining work:**
+- Run `maturin develop` end-to-end in CI on all matrix OS/Python targets (GitHub Actions `python_ci.yml` matrix is configured; requires CI runner execution to confirm end-to-end).
+- Add integration test comparing `ritk.io.read_image` output against SimpleITK reference values when SimpleITK is available in the CI environment.
 
 ### 7.4 CLI Tooling Gaps · Severity: **Medium**
 

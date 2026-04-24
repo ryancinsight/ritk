@@ -142,6 +142,7 @@ def test_filter_public_functions_exist():
         "label_closing",
         "morphological_reconstruction",
         "resample_image",
+        "distance_transform",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"
@@ -175,6 +176,7 @@ def test_segmentation_public_functions_exist():
         "confidence_connected_segment",
         "neighborhood_connected_segment",
         "skeletonization",
+        "label_shape_statistics",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"
@@ -220,6 +222,7 @@ def test_statistics_public_functions_exist():
         "histogram_match",
         "white_stripe_normalize",
         "nyul_udupa_normalize",
+        "compute_label_intensity_statistics",
     ]
     missing = [fn for fn in required if not callable(getattr(rstat, fn, None))]
     assert not missing, f"Missing callable functions in ritk.statistics: {missing}"

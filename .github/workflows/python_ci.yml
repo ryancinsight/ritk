@@ -82,6 +82,7 @@ jobs:
           pytest
           crates/ritk-python/tests/test_python_api_parity.py
           crates/ritk-python/tests/test_segmentation_bindings.py
+          crates/ritk-python/tests/test_statistics_bindings.py
           crates/ritk-python/tests/test_smoke.py
           -v
           --tb=short

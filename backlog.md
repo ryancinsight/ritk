@@ -1,3 +1,31 @@
+## Sprint 42 -- Completed
+
+### Stream A -- Parity Test Hardening (PARITY-R42)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| SMOKE-FILTER-DT-R42 | Add distance_transform to filter smoke test required list | **CLOSED** Sprint 42 | `test_smoke.py::test_filter_public_functions_exist` required list was missing `distance_transform` (registered Sprint 41 via `wrap_pyfunction!` in filter.rs register fn). `test_python_api_parity.py` would fail because the registered function set did not match the smoke test required set. Added `"distance_transform"` after `"resample_image"` in the required list. |
+| SMOKE-SEG-LS-R42 | Add label_shape_statistics to segmentation smoke test required list | **CLOSED** Sprint 42 | `test_smoke.py::test_segmentation_public_functions_exist` required list was missing `label_shape_statistics` (registered Sprint 41). Added `"label_shape_statistics"` after `"skeletonization"` in the required list. |
+| SMOKE-STAT-CLIS-R42 | Add compute_label_intensity_statistics to statistics smoke test required list | **CLOSED** Sprint 42 | `test_smoke.py::test_statistics_public_functions_exist` required list was missing `compute_label_intensity_statistics` (registered Sprint 41). Added `"compute_label_intensity_statistics"` after `"nyul_udupa_normalize"` in the required list. |
+
+### Stream B -- CI Workflow Update (CI-R42)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| CI-STATS-TEST-R42 | Add test_statistics_bindings.py to CI pytest invocation | **CLOSED** Sprint 42 | `python_ci.yml` pytest run listed `test_python_api_parity.py`, `test_segmentation_bindings.py`, `test_smoke.py` but omitted `test_statistics_bindings.py` (created Sprint 41). Added `crates/ritk-python/tests/test_statistics_bindings.py` between segmentation and smoke test entries. |
+
+### Stream C -- Gap Audit Sync (AUDIT-R42)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| AUDIT-ATLAS-R42 | Update gap_audit.md: build_atlas/joint_label_fusion/transform-IO marked as implemented | **CLOSED** Sprint 42 | Section 7.2 incorrectly listed joint_label_fusion, build_atlas, and read_transform/write_transform as not yet in Python. All three were implemented in Sprint 8 (`registration.rs` and `io.rs`). Updated all three rows to ✓. Section 7.3 function counts updated from Sprint-7 values (53+) to Sprint-41 values (91+). Stale "remaining work" items removed. |
+
+### Sprint 42 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| ritk-core unit tests (lib) | 719 passed | No Rust changes in Sprint 42 |
+| ritk-core integration tests | 21 passed | No Rust changes |
+| ritk-python build | Clean | No Rust changes |
+| Python parity tests (static analysis) | Pass | test_python_api_parity.py: all 3 parity gaps closed; registered functions now match smoke required lists |
+| Total | **740 passed, 0 failed** | Rust test count unchanged; Python parity now consistent |
+
 ## Sprint 41 -- Completed
 
 ### Stream A -- Label Intensity Statistics Python Binding (LABEL-STATS-PY-R41)
