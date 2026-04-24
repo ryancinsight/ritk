@@ -7,6 +7,14 @@
 
 ## Update Note
 
+**Sprint 37 (2025): ZEROCOPY-R37 replaces all redundant as_slice().to_vec() patterns with into_vec() across 15 files. Eliminates second O(N) copy; burn 0.19.1 TensorData::into_vec() transmutes Vec<u8>->Vec<f32> via bytemuck without copy when alignment matches. PERF-DG-R37 replaces Burn tensor conv1d path with direct flat-array separable convolution: convolve_separable<const D: usize> dispatches to convolve3d_dim (rayon dim-2/dim-1, serial dim-0) for D==3. DiscreteGaussian: 13.9ms->9.01ms (1.54x). GradientMagnitude: 7.1ms->6.55ms. 702/702 ritk-core tests pass. 30/30 SimpleITK parity tests pass including 4 Elastix. ZEROCOPY-ARCH-R38 (store raw ndarray in PyImage) planned for Sprint 38.**
+
+**Sprint 36 (2025):** GAP-ELASTIX-R36 adds GAP-R08 (Elastix/ITK-Elastix Registration Interface, Severity: Medium) documenting the ElastixImageFilter/TransformixImageFilter gap: missing ASGD optimizer, parameter-map-driven interface, Transformix application path, and sparse-sampled Mattes MI. ELASTIX-PARITY-TESTS-R36 adds Section 4 (4 tests) to crates/ritk-python/tests/test_simpleitk_parity.py: test_elastix_translation_recovers_sphere_overlap, test_ritk_demons_vs_elastix_translation_quality, test_elastix_bspline_deformable_vs_ritk_syn, test_elastix_parameter_map_api_matches_expected_keys; all guarded with skipif(not _has_elastix); 56/56 tests pass. PERF-MEDIAN-R36 optimizes median_3d: Rayon z-parallelism + select_nth_unstable_by + per-z-slice Vec reuse, reducing 221ms to 14.7ms (15x speedup, now faster than SimpleITK). PERF-STATS-R36 optimizes compute_statistics: single parallel fold/reduce pass for min/max/sum/sum_sq, par_sort for percentiles. PERF-OTSU-R36 combines two O(N) min/max passes into one. PERF-GRADIENT-R36 replaces three separate Vec allocations in gradient_magnitude with a single into_par_iter pass. rayon added to ritk-core [dependencies]. Remaining slowdown vs SimpleITK in stats/otsu/gradient is dominated by Burn NdArray backend tensor extraction (clone().into_data() allocates ~1MB per call); architectural fix deferred to Sprint 37.
+
+**Sprint 33 (2025):** PYTHON-CI-HARDENING updates `.github/workflows/python_ci.yml` so hosted runners validate the built wheel artifact rather than a local `maturin develop` install. The workflow now builds a wheel with `maturin build`, force-reinstalls `ritk` from the generated `dist/` directory, and runs both `crates/ritk-python/tests/test_python_api_parity.py` and `crates/ritk-python/tests/test_smoke.py`. The parity guard now also covers the `io` submodule by checking `crates/ritk-python/src/io.rs` registrations against `crates/ritk-python/python/ritk/_ritk/io.pyi` and the `test_io_public_functions_exist` smoke-test required list. It also validates the top-level Python package contract by checking `crates/ritk-python/python/ritk/__init__.py` and `crates/ritk-python/python/ritk/__init__.pyi` for consistent `Image` and submodule re-exports, stable `__all__` ordering, and non-empty `__version__`, with matching smoke assertions for the installed package façade. A new helper at `crates/ritk-python/tests/python_api_drift_report.py` now prints a human-readable drift summary for Rust registrations, `.pyi` stubs, smoke-test required lists, and the top-level `ritk` package contract, so parity failures can be diagnosed without manual source inspection. Sprint artifacts were then consolidated so Sprint 32 parity work is treated as completed and the remaining open item is a single Sprint 33 hosted-runner validation entry rather than repeated deferred duplicates across prior sprint sections. This aligns Python CI with the release-wheel path already used elsewhere in the repository and narrows residual risk to hosted matrix execution, especially Windows wheel installation and environment-specific packaging behavior. Local verification remains partial: `cargo test -p ritk-python --lib -- --test-threads=4` passes, and the drift-report helper currently reports a clean state, while direct Python pytest execution is environment-blocked when `pytest` is unavailable.
+
+**Sprint 32 (2025):** PY-API-PARITY-GUARD adds an automated Python API drift check in crates/ritk-python/tests/test_python_api_parity.py. The guard derives exported names from wrap_pyfunction! registrations in filter.rs, registration.rs, segmentation.rs, and statistics.rs, then asserts parity against the corresponding .pyi stub files and the required callable lists in test_smoke.py. Smoke coverage now spans the full registered surface for those four submodules, converting Sprint 31 manual fixes into a regression guard. Hosted-runner validation of python_ci.yml remains deferred.
+
 **Sprint 31 (2025):** TRACING-REFACTOR-R31 eliminates all remaining = % structured-field info!() calls from segment.rs (22), convert.rs (2), resample.rs (1), stats.rs (1) — completing the workspace-wide tracing refactor started in Sprint 30. STUB-SYNC-SEG-R31 closes segmentation.pyi gaps: adds binary_fill_holes, morphological_gradient, confidence_connected_segment, neighborhood_connected_segment, skeletonization stubs (5 functions registered in segmentation.rs but missing from .pyi). SMOKE-TEST-FIX-R31 corrects 10 wrong function names in test_smoke.py across filter/segmentation/statistics. Python/CLI parity ~96%. Workspace clean: cargo check + 173/173 CLI tests pass.
 
 **Sprint 30 (2025):** TRACING-REFACTOR eliminates ~320 rust-analyzer false-positive diagnostics across ritk-cli and ritk-io. STATS-STUB-SYNC-R30 closes statistics.pyi gap (nyul_udupa_normalize). DISCRETE-GAUSSIAN-ANALYTICAL adds impulse-response quantitative validation. Python/CLI parity now ~95%.
@@ -435,6 +443,57 @@ schedule.
 - Control-point grid initialization from image geometry.
 - Analytic / automatic gradient of MI/NCC w.r.t. control point displacements.
 - Multi-resolution BSpline refinement (control-point doubling between levels).
+
+---
+
+#### GAP-R08 — Elastix / ITK-Elastix Registration Interface · Severity: **Medium**
+
+**References:**
+- Klein et al. (2010), *J. Biomed. Inform.* 43(1):13–29 (Elastix).
+- Shamonin et al. (2014), *Front. Neuroinform.* 7:50 (Multi-threaded Elastix).
+- SimpleITK exposes Elastix via `ElastixImageFilter` and `TransformixImageFilter` (confirmed present in SimpleITK ≥ 2.5.3 installed in test environment).
+
+**Gap description:**
+Elastix is a parameter-map-driven registration framework that bundles:
+1. **Metric family** — AdvancedMattesMutualInformation (AMI) with Parzen-window KDE,
+   AdvancedNormalizedCorrelation, AdvancedMeanSquares.
+2. **Optimizer** — AdaptiveStochasticGradientDescent (ASGD) with automatic parameter
+   estimation (`AutomaticParameterEstimation = "true"`).
+3. **Sampler** — RandomCoordinate spatial sampling with configurable `NumberOfSpatialSamples`.
+4. **Transform family** — Translation, Euler3D (rigid), Similarity3D, Affine, BSpline
+   (non-rigid, grid spacing in physical units).
+5. **Multi-resolution pyramid** — FixedSmoothingImagePyramid / MovingRecursiveImagePyramid.
+6. **Parameter-map interface** — `GetDefaultParameterMap("translation"|"rigid"|"affine"|"bspline")`
+   with full key–value customisation, file I/O (`ReadParameterFile`/`WriteParameterFile`).
+7. **Transformix** — `TransformixImageFilter` for applying a saved transform parameter map
+   to a new moving image, computing the deformation field, determinant of Jacobian, or
+   spatial Jacobian.
+
+**What RITK lacks relative to Elastix/SimpleITK:**
+- No parameter-map–driven registration interface (RITK uses Rust struct configs, not string maps).
+- No AdaptiveStochasticGradientDescent optimizer (RITK has Adam, GradientDescent, Momentum, CMA-ES).
+- No AdvancedMattesMutualInformation with random-coordinate sparse sampling (RITK MI uses dense Parzen histogram).
+- No translation-only registration pipeline exposed at the Python level (smallest Elastix transform type).
+- No Transformix-equivalent (apply saved parameter map to new image) Python API.
+- No parity tests comparing RITK registration quality against Elastix reference output.
+- No parameter-map serialization format (ITK .txt parameter files).
+
+**What RITK has that is comparable:**
+- `syn_register`, `multires_syn_register`, `bspline_syn_register` — diffeomorphic deformable (exceeds Elastix BSpline in deformation model expressiveness).
+- `demons_register` / `diffeomorphic_demons_register` — fast deformable baseline.
+- `bspline_ffd_register` — BSpline FFD control-point registration (conceptually overlaps Elastix BSpline).
+- `lddmm_register` — geodesic LDDMM (exceeds Elastix’s BSpline model).
+- `MutualInformation` (Mattes, Standard, NMI) in `ritk-registration/metric`.
+- `AdamOptimizer`, `GradientDescentOptimizer` — adequate for rigid/affine if paired with MI.
+
+**Minimum closure criteria:**
+1. Parity test suite: add Elastix-specific tests to `crates/ritk-python/tests/test_simpleitk_parity.py` that:
+   - Apply a known translation to a synthetic sphere image and verify RITK deformable registration recovers the registration quality (Dice ≥ 0.90) that Elastix translation registration also achieves.
+   - Verify RITK rigid MI registration quality is comparable to Elastix rigid registration on a rotated sphere image (both Dice ≥ 0.85).
+2. Gap documentation: record that RITK’s deformable methods (Demons, SyN) are functionally equivalent for most Elastix BSpline use cases, but the parameter-map interface and ASGD optimizer are absent.
+3. Optional full closure: implement a `ParameterMap`-driven registration façade in `ritk-python` that accepts `{"Transform": ["EulerTransform"], "Metric": ["AdvancedMattesMutualInformation"], ...}` dicts and dispatches to the appropriate RITK registration backend. This enables round-trip compatibility with Elastix parameter files.
+
+**Severity rationale:** Medium — RITK’s deformable registration quality is already competitive or superior to Elastix BSpline for most applications. The gap is primarily in the parameter-map–driven interface, sparse-sampled ASGD optimizer, and Transformix application path. Parity tests are the immediate deliverable.
 
 ---
 

@@ -26,10 +26,9 @@ impl HitOrMissTransform {
     }
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td.as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("HitOrMissTransform requires f32 data: {:?}", e))?
-            .to_vec();
+        let vals: Vec<f32> = image.data().clone().into_data()
+            .into_vec::<f32>()
+            .map_err(|e| anyhow::anyhow!("HitOrMissTransform requires f32 data: {:?}", e))?;
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
         let device = image.data().device();
         let tensor = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
@@ -102,7 +101,7 @@ mod tests {
         Image::new(t,Point::new([0.0,0.0,0.0]),Spacing::new([1.0,1.0,1.0]),Direction::identity())
     }
     fn vv(i: &Image<B,3>) -> Vec<f32> {
-        i.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        i.data().clone().into_data().into_vec::<f32>().unwrap()
     }
     #[test]
     fn test_identity_both_zero() {

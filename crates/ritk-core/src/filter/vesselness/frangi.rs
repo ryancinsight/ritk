@@ -104,11 +104,12 @@ impl FrangiVesselnessFilter {
     /// degenerate (fewer than 1 voxel per dimension).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         // ── Extract voxel data ────────────────────────────────────────────────
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?
-            .to_vec();
+        let vals: Vec<f32> = image
+            .data()
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?;
 
         let shape = image.shape(); // [nz, ny, nx]
         let dims = [shape[0], shape[1], shape[2]];
@@ -416,8 +417,7 @@ mod tests {
         let filter = FrangiVesselnessFilter::new(config);
         let out = filter.apply(&image).expect("frangi apply failed");
 
-        let td = out.data().clone().into_data();
-        let v: Vec<f32> = td.as_slice::<f32>().unwrap().to_vec();
+        let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
 
         let get = |iz: usize, iy: usize, ix: usize| v[iz * N * N + iy * N + ix];
 
@@ -455,8 +455,7 @@ mod tests {
         let filter = FrangiVesselnessFilter::new(FrangiConfig::default());
         let out = filter.apply(&image).expect("frangi apply failed");
 
-        let td = out.data().clone().into_data();
-        let v: Vec<f32> = td.as_slice::<f32>().unwrap().to_vec();
+        let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
         for (i, &val) in v.iter().enumerate() {
             assert!(val < 1e-6, "uniform image: voxel {i} expected 0, got {val}");
         }
@@ -503,8 +502,7 @@ mod tests {
         let filter = FrangiVesselnessFilter::new(config);
         let out = filter.apply(&image).expect("frangi apply failed");
 
-        let td = out.data().clone().into_data();
-        let v: Vec<f32> = td.as_slice::<f32>().unwrap().to_vec();
+        let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
 
         // Sphere-centre voxel.
         let c = 14usize; // floor(14.5)
@@ -572,11 +570,8 @@ mod tests {
         let tube_out = filter.apply(&tube_image).unwrap();
         let sphere_out = filter.apply(&sphere_image).unwrap();
 
-        let tube_td = tube_out.data().clone().into_data();
-        let tube_v: Vec<f32> = tube_td.as_slice::<f32>().unwrap().to_vec();
-
-        let sphere_td = sphere_out.data().clone().into_data();
-        let sphere_v: Vec<f32> = sphere_td.as_slice::<f32>().unwrap().to_vec();
+        let tube_v: Vec<f32> = tube_out.data().clone().into_data().into_vec::<f32>().unwrap();
+        let sphere_v: Vec<f32> = sphere_out.data().clone().into_data().into_vec::<f32>().unwrap();
 
         // Centre index for 20×20×20 image.
         let c = 9usize;
@@ -619,8 +614,7 @@ mod tests {
         let filter = FrangiVesselnessFilter::new(config);
         let out = filter.apply(&image).expect("frangi apply failed");
 
-        let td = out.data().clone().into_data();
-        let v: Vec<f32> = td.as_slice::<f32>().unwrap().to_vec();
+        let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
 
         let c = N / 2;
         let centre_val = v[c * N * N + c * N + c];

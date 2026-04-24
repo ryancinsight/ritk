@@ -31,7 +31,20 @@ from ritk._ritk import image as _image_mod  # noqa: F401 (submodule reference)
 
 # Surface the Image class at the top-level namespace so users can write
 # ``ritk.Image(array, spacing=...)`` instead of ``ritk.image.Image(...)``.
-from ritk._ritk.image import Image  # noqa: F401
+image = _image_mod  # expose ritk.image as top-level attribute
+Image = _image_mod.Image  # extract from already-imported submodule attribute
+
+import sys as _sys
+# Register PyO3 submodule objects in sys.modules so that
+# "import ritk.filter", "import ritk.io", etc. work as expected.
+# PyO3 add_submodule() exposes submodules as attributes but does not
+# automatically register them as importable paths; we do it here.
+_sys.modules.setdefault("ritk.filter", filter)
+_sys.modules.setdefault("ritk.io", io)
+_sys.modules.setdefault("ritk.registration", registration)
+_sys.modules.setdefault("ritk.segmentation", segmentation)
+_sys.modules.setdefault("ritk.statistics", statistics)
+_sys.modules.setdefault("ritk.image", _image_mod)
 
 __all__ = [
     "Image",

@@ -7,12 +7,14 @@
 //! neighbourhoods, consistent with standard medical-imaging toolkits).
 //!
 //! # Complexity
-//! O(n · (2r+1)³ · log((2r+1)³)) where n is the total voxel count and r is
-//! the neighbourhood half-width. For r = 1 this is O(27 n log 27).
+//! O(n * (2r+1)^3) average where n is the total voxel count and r is
+//! the neighbourhood half-width, using introselect (select_nth_unstable_by)
+//! rather than a full sort.  Parallelised over z-slices via Rayon.
 
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use rayon::prelude::*;
 
 /// Sliding-window median filter for 3-D volumes.
 ///
@@ -78,31 +80,45 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let cap = (2 * radius + 1).pow(3);
     let mut output = vec![0.0_f32; nz * ny * nx];
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let mut neighbors: Vec<f32> = Vec::with_capacity(cap);
+    output
+        .par_chunks_mut(ny * nx)
+        .enumerate()
+        .for_each(|(iz, out_slice)| {
+            // Allocate once per z-slice (per Rayon thread); reused across all
+            // voxels in the slice via clear() to avoid per-voxel heap allocation.
+            let mut neighbors: Vec<f32> = Vec::with_capacity(cap);
 
-                for dz in -r..=r {
-                    for dy in -r..=r {
-                        for dx in -r..=r {
-                            // Replicate (clamp) padding.
-                            let zz = (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
-                            let yy = (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
-                            let xx = (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
-                            neighbors.push(data[zz * ny * nx + yy * nx + xx]);
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    neighbors.clear();
+
+                    // Collect (2r+1)^3 neighbourhood with replicate (clamp) padding.
+                    for dz in -r..=r {
+                        for dy in -r..=r {
+                            for dx in -r..=r {
+                                let zz =
+                                    (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
+                                let yy =
+                                    (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
+                                let xx =
+                                    (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
+                                neighbors.push(data[zz * ny * nx + yy * nx + xx]);
+                            }
                         }
                     }
+
+                    // Lower median for even-length neighbourhoods.
+                    // select_nth_unstable_by is O(N) average (introselect) versus
+                    // O(N log N) for a full sort; the value at neighbors[mid] after
+                    // the call is identical to sort-then-index.
+                    let mid = neighbors.len() / 2;
+                    neighbors.select_nth_unstable_by(mid, |a, b| {
+                        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    out_slice[iy * nx + ix] = neighbors[mid];
                 }
-
-                neighbors
-                    .sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
-                // Lower median for even-length neighbourhoods.
-                output[iz * ny * nx + iy * nx + ix] = neighbors[neighbors.len() / 2];
             }
-        }
-    }
+        });
 
     output
 }

@@ -125,8 +125,10 @@ fn compute_otsu_threshold_impl<B: Backend, const D: usize>(
     }
 
     // ── Intensity range ────────────────────────────────────────────────────────
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    let (x_min, x_max) = slice.iter().fold(
+        (f32::INFINITY, f32::NEG_INFINITY),
+        |(mn, mx), &v| (mn.min(v), mx.max(v)),
+    );
 
     // Degenerate case: constant image has no separable classes.
     if (x_max - x_min).abs() < f32::EPSILON {

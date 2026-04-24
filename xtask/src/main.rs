@@ -66,6 +66,16 @@ enum Commands {
         #[arg(short, long, default_value = "test_data")]
         data_dir: PathBuf,
     },
+
+    /// Run the Python API parity drift report helper.
+    /// Invokes crates/ritk-python/tests/python_api_drift_report.py via Python and prints
+    /// per-module and top-level drift summaries.
+    /// Exits non-zero if drift is detected.
+    PythonParityReport {
+        /// Python interpreter to use (default: "python").
+        #[arg(short, long, default_value = "python")]
+        python: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -97,6 +107,9 @@ fn main() -> Result<()> {
         }
         Commands::PrepareRegistrationData { data_dir } => {
             prepare_registration_data(&data_dir)?;
+        }
+        Commands::PythonParityReport { python } => {
+            python_parity_report(&python)?;
         }
     }
 
@@ -334,5 +347,40 @@ fn prepare_registration_data(data_dir: &Path) -> Result<()> {
     std::fs::copy(subject, &moving_path)?;
 
     info!("Registration data prepared successfully!");
+    Ok(())
+}
+
+fn python_parity_report(python: &str) -> Result<()> {
+    use std::process::Command;
+
+    // Locate the drift report helper relative to the workspace root.
+    // xtask binary runs from the workspace root when invoked via `cargo xtask`.
+    let script = Path::new("crates")
+        .join("ritk-python")
+        .join("tests")
+        .join("python_api_drift_report.py");
+
+    if !script.exists() {
+        anyhow::bail!(
+            "drift report helper not found at {}; run from workspace root",
+            script.display()
+        );
+    }
+
+    info!("Running Python API drift report: {} {}", python, script.display());
+
+    let status = Command::new(python)
+        .arg(&script)
+        .status()
+        .map_err(|e| anyhow::anyhow!("failed to invoke {}: {}", python, e))?;
+
+    if !status.success() {
+        anyhow::bail!(
+            "Python API drift detected (exit code {}); run the report manually for details",
+            status.code().unwrap_or(-1)
+        );
+    }
+
+    info!("Python API parity: clean");
     Ok(())
 }

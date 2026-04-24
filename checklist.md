@@ -1,3 +1,74 @@
+## Sprint 37 -- Completed
+
+- [x] ZEROCOPY-R37: replace all redundant as_slice().to_vec() patterns with into_vec()
+  - affected files: ritk-python/src/image.rs (image_to_vec + to_numpy), gradient_magnitude.rs (extract_vec), 13 other files (binary_threshold, rescale, sigmoid, threshold, windowing, hit_or_miss, label_morphology, top_hat, discrete_gaussian test helper, parity.rs, frangi x5)
+  - into_vec::<f32>() consumes TensorData and transmutes Vec<u8> to Vec<f32> via bytemuck; zero-copy when alignment matches (NdArray backend guarantees this)
+  - GradientMagnitude: 7.1ms -> 6.55ms measured improvement
+  - cargo check clean; 702/702 ritk-core tests pass
+
+- [x] PERF-DG-R37: DiscreteGaussian separable convolution on flat Vec<f32>
+  - convolve_separable<const D: usize>: D==3 -> convolve3d_dim, other -> convolve_nd_dim_serial
+  - convolve3d_dim: dim-2 (X) rayon par_chunks_mut; dim-1 (Y) rayon Z-slab parallel; dim-0 (Z) serial (safe, no unsafe needed)
+  - replaces Burn conv1d (permute + reshape + TensorCat padding + conv1d + reshape + inverse permute) with 3 direct array passes
+  - DiscreteGaussian: 13.9ms -> 9.01ms (1.54x speedup)
+  - 12/12 DiscreteGaussian unit tests pass; 702/702 ritk-core tests pass
+  - 30/30 SimpleITK parity tests pass (including 4 Elastix)
+
+- [ ] ZEROCOPY-ARCH-R38: architectural zero-copy (deferred) -- store raw ndarray in PyImage bypassing Burn tensor abstraction
+
+- [ ] PYTHON-CI-VALIDATION: hosted GitHub Actions matrix run (deferred Sprint 30-37)
+
+## Sprint 34 -- Completed
+
+- [x] PY-STUB-PARSER-FIX-R34: fix correctness bug in parse_top_level_stub_reexports
+  - root cause: ASSIGN_PATTERN regex matches `name = value` lines only; __init__.pyi uses `from ... import X as X` (ImportFrom AST nodes) — regex returns empty set causing missing_stub_exports assertion to always fail
+  - fix: replaced with ast.parse + ast.ImportFrom walk, consistent with python_api_drift_report.py and parse_top_level_reexports; ASSIGN_PATTERN constant removed; import re retained (WRAP_PATTERN still uses it)
+  - verified: python -m py_compile exits 0; parse_top_level_stub_reexports now returns {Image, filter, image, io, registration, segmentation, statistics}; missing_stub_exports = []
+- [x] PY-CI-DRIFT-REPORT-R34: wire drift report into CI as always-run diagnostic step
+  - new step in python_ci.yml: if: always(), continue-on-error: true, shell: bash
+  - positioned after parity/smoke pytest gate and before Rust unit tests
+  - prints full per-module and top-level drift summary in CI logs on every run including on test failure
+- [x] PY-CI-NUMPY-SEGBINDINGS-R34: add numpy and segmentation bindings tests to CI
+  - pip install step: maturin[patchelf] pytest numpy
+  - pytest invocation now includes test_segmentation_bindings.py (alphabetical: parity → segmentation_bindings → smoke)
+  - segmentation_bindings tests: connected_components (6-conn two-blob count, 26-conn diagonal merge, invalid-connectivity ValueError), chan_vese/geodesic/shape_detection/threshold/laplacian level-set shape + finite + nonzero-variance assertions
+- [x] XTASK-PARITY-REPORT-R34: add cargo xtask python-parity-report subcommand
+  - PythonParityReport variant added to Commands enum in xtask/src/main.rs
+  - python_parity_report handler uses std::process::Command to invoke drift report helper
+  - --python flag selects interpreter (default: python)
+  - exits non-zero and emits anyhow error on drift; exits 0 with info log on clean
+  - cargo check -p xtask: Finished dev profile, zero errors, zero warnings
+- [ ] PYTHON-CI-VALIDATION: deferred — hosted GitHub Actions matrix run required
+
+## Sprint 33 -- Completed
+
+- [x] PY-API-PARITY-GUARD: add automated parity test for PyO3 register() exports vs stub files and smoke-test required lists
+  - crates/ritk-python/tests/test_python_api_parity.py derives exported names from wrap_pyfunction! registrations in filter.rs, registration.rs, segmentation.rs, statistics.rs, and io.rs
+  - asserts every registered function is present in the corresponding stub file and in the required list of the matching smoke test
+  - closes the manual-drift class that caused Sprint 31 stub and smoke mismatches
+- [x] PY-SMOKE-SURFACE-EXPANSION-R32: extend smoke required lists to full registered Python API surface
+  - io: 4 callable exports covered
+  - filter: 33 callable exports covered
+  - segmentation: 24 callable exports covered
+  - registration: 13 callable exports covered
+  - statistics: 14 callable exports covered
+- [x] PYTHON-CI-HARDENING-R33: run parity and smoke tests against the built wheel artifact
+  - replace editable-install workflow path with wheel build plus explicit wheel installation
+  - execute crates/ritk-python/tests/test_python_api_parity.py and crates/ritk-python/tests/test_smoke.py in CI
+  - uninstall any preexisting ritk package before wheel installation to preserve artifact-under-test correctness
+- [x] PY-IO-PARITY-R33: extend parity guard and smoke coverage to the io submodule
+  - crates/ritk-python/tests/test_python_api_parity.py now validates io.rs registrations against io.pyi and test_io_public_functions_exist
+  - crates/ritk-python/tests/test_smoke.py now asserts read_image, write_image, read_transform, and write_transform are callable
+- [x] PY-TOPLEVEL-CONTRACT-R33: guard top-level Python package exports, __all__, and __version__ contract
+  - crates/ritk-python/tests/test_python_api_parity.py now validates ritk/__init__.py and ritk/__init__.pyi re-exports, __all__ membership/order, and non-empty __version__
+  - crates/ritk-python/tests/test_smoke.py now asserts top-level ritk exports exist and ritk.__all__ matches the stable public contract
+- [x] PY-DRIFT-REPORT-R33: add human-readable Python API drift report helper
+  - crates/ritk-python/tests/python_api_drift_report.py now prints per-module and top-level drift summaries for Rust registrations, .pyi stubs, smoke-test required lists, __all__, and __version__
+  - local execution currently reports clean parity across filter, io, registration, segmentation, statistics, and the top-level ritk package contract
+- [ ] PYTHON-CI-VALIDATION: deferred to hosted-runner execution
+
+## Sprint 32 -- Completed
+
 ## Sprint 31 -- Completed
 
 - [x] TRACING-REFACTOR-R31: convert all remaining structured-field info!()/warn!() calls to format-string style
@@ -18,8 +89,6 @@
   - ritk.segmentation: connected_threshold -> connected_threshold_segment; confidence_connected -> confidence_connected_segment; kmeans -> kmeans_segment; watershed -> watershed_segment; chan_vese -> chan_vese_segment; geodesic_active_contour -> geodesic_active_contour_segment
   - ritk.statistics: image_statistics -> compute_statistics; z_score_normalize -> zscore_normalize; min_max_normalize -> minmax_normalize
   - Test assertions now check callable attributes with names that match the actual PyO3-registered function names
-- [ ] PYTHON-CI-VALIDATION: deferred to Sprint 32
-
 ## Sprint 30 -- Completed
 
 - [x] TRACING-REFACTOR: convert CLI info!()/warn!() structured-field calls to format-string style
@@ -33,8 +102,6 @@
   - `crates/ritk-cli/src/commands/filter.rs`: added grayscale-erosion, grayscale-dilation, white-top-hat, black-top-hat, hit-or-miss, label-dilation, label-erosion, label-opening, label-closing, morphological-reconstruction to the unknown-filter error message
 - [x] DISCRETE-GAUSSIAN-ANALYTICAL: impulse response analytical validation
   - `crates/ritk-core/src/filter/discrete_gaussian.rs`: added `test_impulse_response_matches_analytical_gaussian`; verifies impulse response at center of 1×1×31 image matches exp(-k²/(2*4.0))/Z analytically within 1e-3 (f32 tolerance)
-- [ ] PYTHON-CI-VALIDATION: deferred to Sprint 31
-
 ## Sprint 29 -- Completed
 
 - [x] PY-DISCRETE-GAUSSIAN: expose `discrete_gaussian` in `ritk-python`
@@ -62,8 +129,6 @@
   - `crates/ritk-io/src/format/dicom/reader.rs`: added `write_stub_dicom` helper + 3 value-semantic tests: all-non-image returns error with UIDs; mixed CT+RTSTRUCT retains CT; RT Plan + Waveform error lists both UIDs; 5/5 reader tests pass
 - [x] DICOM-MULTIFRAME-DOCS: multi-frame writer constraints and interoperability limits documented
   - `crates/ritk-io/src/format/dicom/multiframe.rs`: module header expanded with reader + writer sections covering SOP class, transfer syntax, pixel depth, global linear rescale constraint, spatial metadata absence, and interoperability limits
-- [ ] PYTHON-CI-VALIDATION: validate `.github/workflows/python_ci.yml` on hosted runners and resolve any platform-specific wheel issues
-
 ## Sprint 28 -- Completed
 
 - [x] NIFTI-SFORM-FIX: persist sform/pixdim in NIfTI writer so spacing round-trips correctly

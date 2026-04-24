@@ -22,6 +22,7 @@
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use rayon::prelude::*;
 
 /// Filter that computes the gradient magnitude of a 3-D image.
 ///
@@ -52,10 +53,38 @@ impl GradientMagnitudeFilter {
     /// Returns an `Image` whose voxel values are |∇I(x)| at each position x.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let (gz, gy, gx) = gradient_vecs(&vals, dims, self.spacing);
-        let mag: Vec<f32> = (0..vals.len())
-            .map(|i| (gz[i] * gz[i] + gy[i] * gy[i] + gx[i] * gx[i]).sqrt())
+        let [nz, ny, nx] = dims;
+        let sz = self.spacing[0] as f32;
+        let sy = self.spacing[1] as f32;
+        let sx = self.spacing[2] as f32;
+
+        let mag: Vec<f32> = (0..nz * ny * nx)
+            .into_par_iter()
+            .map(|flat| {
+                let iz = flat / (ny * nx);
+                let iy = (flat / nx) % ny;
+                let ix = flat % nx;
+                let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
+
+                let gz = if nz == 1 { 0.0_f32 }
+                    else if iz == 0 { (f(1, iy, ix) - f(0, iy, ix)) / sz }
+                    else if iz == nz - 1 { (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz }
+                    else { (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz) };
+
+                let gy = if ny == 1 { 0.0_f32 }
+                    else if iy == 0 { (f(iz, 1, ix) - f(iz, 0, ix)) / sy }
+                    else if iy == ny - 1 { (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy }
+                    else { (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy) };
+
+                let gx = if nx == 1 { 0.0_f32 }
+                    else if ix == 0 { (f(iz, iy, 1) - f(iz, iy, 0)) / sx }
+                    else if ix == nx - 1 { (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx }
+                    else { (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx) };
+
+                (gz * gz + gy * gy + gx * gx).sqrt()
+            })
             .collect();
+
         Ok(rebuild(mag, dims, image))
     }
 
@@ -81,11 +110,12 @@ impl GradientMagnitudeFilter {
 
 /// Extract `(Vec<f32>, [nz,ny,nx])` from an Image<B,3>.
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let td = image.data().clone().into_data();
-    let vals = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("GradientMagnitudeFilter requires f32 data: {:?}", e))?
-        .to_vec();
+    let vals = image
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .map_err(|e| anyhow::anyhow!("GradientMagnitudeFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
 }
 

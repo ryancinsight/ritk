@@ -5843,6 +5843,7 @@ dependencies = [
  "bytemuck",
  "nalgebra",
  "proptest",
+ "rayon",
  "serde",
  "serde_json",
  "tempfile",

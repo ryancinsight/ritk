@@ -58,10 +58,9 @@ impl SigmoidImageFilter {
 }
 
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let td = image.data().clone().into_data();
-    let vals = td.as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("SigmoidImageFilter requires f32 data: {:?}", e))?
-        .to_vec();
+    let vals = image.data().clone().into_data()
+        .into_vec::<f32>()
+        .map_err(|e| anyhow::anyhow!("SigmoidImageFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
 }
 
@@ -90,7 +89,7 @@ mod tests {
     }
 
     fn get_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        img.data().clone().into_data().into_vec::<f32>().unwrap()
     }
 
     #[test]

@@ -15,6 +15,7 @@
 
 use crate::image::Image;
 use burn::tensor::backend::Backend;
+use rayon::prelude::*;
 
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]
@@ -37,8 +38,7 @@ pub struct ImageStatistics {
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let tensor_data = image.data().clone().into_data();
     let slice = tensor_data.as_slice::<f32>().expect("f32 tensor data");
-    let mut values: Vec<f32> = slice.to_vec();
-    compute_from_values(&mut values)
+    compute_from_values(slice)
 }
 
 /// Compute statistics restricted to voxels where `mask` > 0.5 (foreground).
@@ -61,7 +61,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         "image and mask must have identical element count"
     );
 
-    let mut values: Vec<f32> = image_slice
+    let values: Vec<f32> = image_slice
         .iter()
         .zip(mask_slice.iter())
         .filter(|(_, &m)| m > 0.5)
@@ -69,41 +69,48 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         .collect();
 
     assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_values(&mut values)
+    compute_from_values(&values)
 }
 
-/// Core statistics computation.
-///
-/// # Invariants
-/// - `values` is non-empty (caller enforced).
-/// - Sorts `values` in-place; NaN propagates arithmetic and is ordered last by
-///   the `partial_cmp` fallback.
-fn compute_from_values(values: &mut Vec<f32>) -> ImageStatistics {
+fn compute_from_values(values: &[f32]) -> ImageStatistics {
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");
 
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    // Phase 1: single parallel pass accumulating min, max, sum, sum_sq.
+    let (min, max, sum, sum_sq) = values
+        .par_iter()
+        .fold(
+            || (f32::INFINITY, f32::NEG_INFINITY, 0.0_f64, 0.0_f64),
+            |(mn, mx, s, sq), &v| {
+                let vd = v as f64;
+                (mn.min(v), mx.max(v), s + vd, sq + vd * vd)
+            },
+        )
+        .reduce(
+            || (f32::INFINITY, f32::NEG_INFINITY, 0.0_f64, 0.0_f64),
+            |(mn1, mx1, s1, sq1), (mn2, mx2, s2, sq2)| {
+                (mn1.min(mn2), mx1.max(mx2), s1 + s2, sq1 + sq2)
+            },
+        );
 
-    let min = values[0];
-    let max = values[n - 1];
+    let n_f64 = n as f64;
+    let mean_f64 = sum / n_f64;
+    let mean = mean_f64 as f32;
 
-    let mean: f32 = values.iter().sum::<f32>() / n as f32;
-
-    let variance: f32 = values.iter().map(|&v| (v - mean) * (v - mean)).sum::<f32>() / n as f32;
+    // Population variance: E[X^2] - E[X]^2. .max(0.0) absorbs f64 cancellation.
+    let variance = ((sum_sq / n_f64) - mean_f64 * mean_f64).max(0.0) as f32;
     let std = variance.sqrt();
 
-    // Floor-division percentile indices as specified in the module contract.
-    let p25 = values[n / 4];
-    let p50 = values[n / 2];
-    let p75 = values[(3 * n) / 4];
+    // Phase 2: parallel sort of a clone for percentile index lookups.
+    let mut sorted: Vec<f32> = values.to_vec();
+    sorted.par_sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    ImageStatistics {
-        min,
-        max,
-        mean,
-        std,
-        percentiles: [p25, p50, p75],
-    }
+    // Floor-division percentile indices as specified in the module contract.
+    let p25 = sorted[n / 4];
+    let p50 = sorted[n / 2];
+    let p75 = sorted[(3 * n) / 4];
+
+    ImageStatistics { min, max, mean, std, percentiles: [p25, p50, p75] }
 }
 
 #[cfg(test)]

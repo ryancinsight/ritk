@@ -24,8 +24,8 @@
 
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::ops::ConvOptions;
-use burn::tensor::{Shape, Tensor};
+use burn::tensor::{Shape, Tensor, TensorData};
+use rayon::prelude::*;
 use std::marker::PhantomData;
 
 /// Discrete Gaussian smoothing filter (ITK DiscreteGaussianImageFilter parity).
@@ -104,342 +104,245 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         for val in &mut k { *val /= sum as f32; }
         k
     }
-
-    fn apply_inner<const D: usize>(&self, mut data: Tensor<B, D>, spacing: &crate::spatial::Spacing<D>) -> Tensor<B, D> {
+    fn apply_inner<const D: usize>(&self, data: Tensor<B, D>, spacing: &crate::spatial::Spacing<D>) -> Tensor<B, D> {
         let device = data.device();
+        let dims: [usize; D] = data.shape().dims();
+
+        // Build kernels for each dimension (None = skip, identity).
+        let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
         for d in 0..D {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
-            if sigma < 1e-9 { continue; }
-            let radius = self.kernel_radius(sigma);
-            let kernel_vec = self.build_kernel(sigma, radius);
-            let kernel = Tensor::<B, 1>::from_floats(kernel_vec.as_slice(), &device);
-            data = convolve_1d(data, kernel, d);
+            if sigma >= 1e-9 {
+                let radius = self.kernel_radius(sigma);
+                if radius > 0 {
+                    kernels[d] = Some(self.build_kernel(sigma, radius));
+                }
+            }
         }
-        data
+
+        // Check if any dimension needs filtering.
+        if kernels.iter().all(|k| k.is_none()) {
+            return data;
+        }
+
+        // Extract flat Vec<f32>.
+        let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
+
+        // Apply separable convolution on the flat array.
+        let result = convolve_separable(flat, dims, &kernels);
+
+        // Reconstruct tensor.
+        Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
     }
 }
 
-/// Convolve `input` along `dim` with same-size replicate-padded output.
-///
-/// Replicate (edge) padding ensures that a uniform input produces a uniform
-/// output regardless of kernel radius: conv(c, normalized_k) = c for all voxels.
-fn convolve_1d<B: Backend, const D: usize>(
-    input: Tensor<B, D>,
-    kernel: Tensor<B, 1>,
-    dim: usize,
-) -> Tensor<B, D> {
-    let shape = input.shape();
-    let dims: [usize; D] = shape.dims();
-    let device = input.device();
+// Flat-array separable convolution for DiscreteGaussianFilter.
 
-    // 1. Permute `dim` to the last position.
-    let mut perm = [0isize; D];
-    let mut idx = 0;
-    for i in 0..D {
-        if i != dim { perm[idx] = i as isize; idx += 1; }
-    }
-    perm[D - 1] = dim as isize;
-    let permuted = input.clone().permute(perm);
-
-    // 2. Flatten all non-dim dimensions into batch.
-    let len = dims[dim];
-    let mut batch = 1usize;
-    for i in 0..D { if i != dim { batch *= dims[i]; } }
-    let inp3 = permuted.reshape([batch, 1, len]);
-
-    // 3. Replicate (edge) padding.
-    // r = floor(ksz/2); padded_len = len + 2r; output_len = padded_len - ksz + 1 = len.
-    let ksz = kernel.dims()[0];
-    let kern3 = kernel.reshape([1, 1, ksz]);
-    let r = ksz / 2;
-
-    let padded = if r == 0 {
-        inp3
-    } else {
-        // Left edge: replicate inp3[:, :, 0] r times along last dim.
-        let left_edge = inp3.clone().slice([0..batch, 0..1, 0..1]);
-        let left_pad = Tensor::cat(
-            (0..r).map(|_| left_edge.clone()).collect::<Vec<_>>(), 2,
-        );
-        // Right edge: replicate inp3[:, :, len-1] r times along last dim.
-        let right_edge = inp3.clone().slice([0..batch, 0..1, (len - 1)..len]);
-        let right_pad = Tensor::cat(
-            (0..r).map(|_| right_edge.clone()).collect::<Vec<_>>(), 2,
-        );
-        Tensor::cat(vec![left_pad, inp3, right_pad], 2)
-    };
-    // padded shape: [batch, 1, len+2r]
-
-    // 4. Conv1d with padding=0; output_len = (len+2r - ksz)/1 + 1 = len.
-    let options = ConvOptions::new([1], [0], [1], 1);
-
-    const CHUNK: usize = 32768;
-    let out3 = if batch <= CHUNK {
-        burn::tensor::module::conv1d(padded, kern3, None, options)
-    } else {
-        let n_chunks = (batch + CHUNK - 1) / CHUNK;
-        let mut parts = Vec::with_capacity(n_chunks);
-        for c in 0..n_chunks {
-            let s = c * CHUNK;
-            let e = (s + CHUNK).min(batch);
-            let chunk_in = padded.clone().slice([s..e]);
-            let chunk_out = burn::tensor::module::conv1d(
-                chunk_in, kern3.clone(), None, options.clone(),
-            );
-            parts.push(chunk_out);
+#[inline]
+fn conv1d_replicate(input: &[f32], kernel: &[f32], output: &mut [f32]) {
+    let n = input.len(); let ksz = kernel.len();
+    let radius = (ksz / 2) as isize; let n_isize = n as isize;
+    for i in 0..n {
+        let mut acc = 0.0f32;
+        for kj in 0..ksz {
+            let pos = ((i as isize + kj as isize - radius).clamp(0, n_isize - 1)) as usize;
+            acc += input[pos] * kernel[kj];
         }
-        Tensor::cat(parts, 0)
-    };
-
-    // 5. Reshape back to permuted shape.
-    let mut perm_shape = [0usize; D];
-    let mut pi = 0;
-    for i in 0..D {
-        if i != dim { perm_shape[pi] = dims[i]; pi += 1; }
+        output[i] = acc;
     }
-    perm_shape[D - 1] = len;
-    let out_perm = out3.reshape(Shape::new(perm_shape));
+}
 
-    // 6. Inverse permutation.
-    let mut inv_perm = [0isize; D];
-    for (new_pos, &old_pos) in perm.iter().enumerate() {
-        inv_perm[old_pos as usize] = new_pos as isize;
+/// Convolve flat C-order [NZ,NY,NX] array along one axis. Rayon-parallel.
+fn convolve3d_dim(src: &[f32], dst: &mut [f32], nz: usize, ny: usize, nx: usize, dim: usize, kernel: &[f32]) {
+    let nyx = ny * nx;
+    match dim {
+        2 => {
+            dst.par_chunks_mut(nx).zip(src.par_chunks(nx))
+                .for_each(|(o, i)| conv1d_replicate(i, kernel, o));
+        }
+        1 => {
+            let ksz = kernel.len(); let r = (ksz/2) as isize; let ny_i = ny as isize;
+            dst.par_chunks_mut(nyx).zip(src.par_chunks(nyx)).for_each(|(os, is)| {
+                let mut buf = vec![0.0f32; ny];
+                for ix in 0..nx {
+                    for iy in 0..ny {
+                        let mut acc = 0.0f32;
+                        for kj in 0..ksz {
+                            let sy = ((iy as isize + kj as isize - r).clamp(0, ny_i-1)) as usize;
+                            acc += is[sy*nx+ix] * kernel[kj];
+                        }
+                        buf[iy] = acc;
+                    }
+                    for iy in 0..ny { os[iy*nx+ix] = buf[iy]; }
+                }
+            });
+        }
+        0 => {
+            // Z-axis: nyx independent lines of length nz, stride=1 in Z-direction.
+            // Serial iteration: nyx*nz*ksz MACs; for 64^3 with ksz=7 ~ 1.8M MACs < 1ms.
+            let ksz = kernel.len(); let r = (ksz/2) as isize; let nz_i = nz as isize;
+            for yx in 0..nyx {
+                for iz in 0..nz {
+                    let mut acc = 0.0f32;
+                    for kj in 0..ksz {
+                        let sz = ((iz as isize + kj as isize - r).clamp(0, nz_i-1)) as usize;
+                        acc += src[sz*nyx+yx] * kernel[kj];
+                    }
+                    dst[iz*nyx+yx] = acc;
+                }
+            }
+        }
+        _ => unreachable!()
     }
-    let _ = device;
-    out_perm.permute(inv_perm)
+}
+
+fn convolve_nd_dim_serial(src: &[f32], dst: &mut [f32], shape: &[usize], dim: usize, kernel: &[f32]) {
+    let d = shape.len();
+    let mut strides = vec![1usize; d];
+    for i in (0..d.saturating_sub(1)).rev() { strides[i] = strides[i+1] * shape[i+1]; }
+    let line_len = shape[dim]; let line_stride = strides[dim];
+    let n_total: usize = shape.iter().product(); let n_lines = n_total / line_len.max(1);
+    let ksz = kernel.len(); let r = (ksz/2) as isize; let ll_i = line_len as isize;
+    let mut idx = vec![0usize; d]; let mut ob = vec![0.0f32; line_len];
+    for _line in 0..n_lines {
+        let base: usize = idx.iter().zip(strides.iter()).map(|(i,s)| i*s).sum();
+        for i in 0..line_len {
+            let mut acc = 0.0f32;
+            for kj in 0..ksz {
+                let pos = ((i as isize + kj as isize - r).clamp(0, ll_i-1)) as usize;
+                acc += src[base + pos*line_stride] * kernel[kj];
+            }
+            ob[i] = acc;
+        }
+        for i in 0..line_len { dst[base + i*line_stride] = ob[i]; }
+        let mut carry = true;
+        for dd in (0..d).rev() {
+            if dd == dim { continue; }
+            if carry { idx[dd] += 1; if idx[dd] < shape[dd] { carry = false; } else { idx[dd] = 0; } }
+        }
+    }
+}
+
+fn convolve_separable<const D: usize>(mut data: Vec<f32>, shape: [usize; D], kernels: &[Option<Vec<f32>>; D]) -> Vec<f32> {
+    let n: usize = shape.iter().product();
+    let mut buf = vec![0.0f32; n];
+    for dim in 0..D {
+        let Some(kernel) = &kernels[dim] else { continue };
+        if D == 3 { convolve3d_dim(&data, &mut buf, shape[0], shape[1], shape[2], dim, kernel); }
+        else { convolve_nd_dim_serial(&data, &mut buf, &shape, dim, kernel); }
+        std::mem::swap(&mut data, &mut buf);
+    }
+    data
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{image::Image, spatial::{Direction, Point, Spacing}};
-    use burn::tensor::{Shape, Tensor, TensorData};
-    use burn_ndarray::NdArray;
-
-    type B = NdArray<f32>;
+    use crate::image::Image;
+    use crate::spatial::{Direction, Point, Spacing};
+    type B = burn_ndarray::NdArray<f32>;
 
     fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
         let dev = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
-        Image::new(t, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        let t = Tensor::<B,3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
+        Image::new(t, Point::new([0.0;3]), Spacing::new([1.0;3]), Direction::identity())
     }
-
-    fn make_image_with_spacing(vals: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
+    fn make_image_with_spacing(vals: Vec<f32>, shape: [usize;3], spacing: [f64;3]) -> Image<B,3> {
         let dev = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
-        Image::new(t, Point::new([0.0; 3]), Spacing::new(spacing), Direction::identity())
+        let t = Tensor::<B,3>::from_data(TensorData::new(vals, Shape::new(shape)), &dev);
+        Image::new(t, Point::new([0.0;3]), Spacing::new(spacing), Direction::identity())
     }
-
-    fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+    fn vals(img: &Image<B,3>) -> Vec<f32> {
+        img.data().clone().into_data().into_vec::<f32>().unwrap()
     }
-
-    // Positive tests
 
     #[test]
     fn test_uniform_image_is_unchanged_by_gaussian() {
-        // Invariant: conv(constant, normalized_kernel) = constant for all voxels.
-        // Requires replicate padding (zero-padding violates this at boundaries).
-        let img = make_image(vec![7.0_f32; 125], [5, 5, 5]);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![1.0]);
-        let out = filter.apply(&img);
-        let v = vals(&out);
-        for &x in &v {
-            assert!(
-                (x - 7.0).abs() < 1e-4,
-                "uniform image must remain 7.0 after Gaussian; got {x}"
-            );
-        }
+        let img = make_image(vec![7.0_f32; 125], [5,5,5]);
+        let out = DiscreteGaussianFilter::<B>::new(vec![1.0]).apply(&img);
+        for &x in &vals(&out) { assert!((x-7.0).abs() < 1e-4); }
     }
 
     #[test]
     fn test_output_shape_matches_input() {
-        let img = make_image(vec![1.0_f32; 216], [6, 6, 6]);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![2.0]);
-        let out = filter.apply(&img);
+        let img = make_image(vec![1.0_f32; 216], [6,6,6]);
+        let out = DiscreteGaussianFilter::<B>::new(vec![2.0]).apply(&img);
         assert_eq!(out.shape(), img.shape());
     }
 
     #[test]
     fn test_larger_variance_produces_more_smoothing_on_step_edge() {
-        // 1x1x16 step: first 8=0, last 8=100.
-        // Larger variance in dim 2 blurs the step more (transition closer to 50).
-        // Replicate padding prevents energy loss in dims 0 and 1 (size=1).
-        let mut vals_in: Vec<f32> = vec![0.0; 8];
-        vals_in.extend(vec![100.0; 8]);
-        let img = make_image(vals_in, [1, 1, 16]);
-        let small = DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 0.5])
-            .with_use_image_spacing(false).apply(&img);
-        let large = DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 4.0])
-            .with_use_image_spacing(false).apply(&img);
-        let sv = vals(&small);
-        let lv = vals(&large);
-        let small_at_8 = sv[8];
-        let large_at_8 = lv[8];
-        // small: step is sharper -> position 8 stays closer to 100 -> |50-small_at_8| > |50-large_at_8|
-        assert!(
-            (50.0 - large_at_8).abs() < (50.0 - small_at_8).abs(),
-            "larger variance should blur more: small={small_at_8:.3} large={large_at_8:.3}"
-        );
+        let mut v: Vec<f32> = vec![0.0;8]; v.extend(vec![100.0;8]);
+        let img = make_image(v, [1,1,16]);
+        let sv = vals(&DiscreteGaussianFilter::<B>::new(vec![0.5,0.5,0.5]).with_use_image_spacing(false).apply(&img));
+        let lv = vals(&DiscreteGaussianFilter::<B>::new(vec![0.5,0.5,4.0]).with_use_image_spacing(false).apply(&img));
+        assert!((50.0-lv[8]).abs() < (50.0-sv[8]).abs());
     }
 
     #[test]
     fn test_use_image_spacing_accounts_for_spacing() {
-        // A: spacing=1mm, var=4mm^2 -> sigma_pixel=2.0 (more blur)
-        // B: spacing=2mm, var=4mm^2 -> sigma_pixel=1.0 (less blur)
-        let mut v: Vec<f32> = vec![0.0; 8];
-        v.extend(vec![100.0; 8]);
-        let img_a = make_image_with_spacing(v.clone(), [1, 1, 16], [1.0, 1.0, 1.0]);
-        let img_b = make_image_with_spacing(v.clone(), [1, 1, 16], [1.0, 1.0, 2.0]);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![4.0]);
-        let out_a = filter.apply(&img_a);
-        let out_b = filter.apply(&img_b);
-        let va = vals(&out_a);
-        let vb = vals(&out_b);
-        let at8_a = va[8];
-        let at8_b = vb[8];
-        // A has sigma_pixel=2 -> more blur -> va[8] further from 100 than vb[8].
-        assert!(
-            (100.0 - at8_a).abs() > (100.0 - at8_b).abs(),
-            "smaller spacing -> more pixel blur: a={at8_a:.3} b={at8_b:.3}"
-        );
+        let mut v: Vec<f32> = vec![0.0;8]; v.extend(vec![100.0;8]);
+        let img_a = make_image_with_spacing(v.clone(),[1,1,16],[1.0,1.0,1.0]);
+        let img_b = make_image_with_spacing(v.clone(),[1,1,16],[1.0,1.0,2.0]);
+        let f = DiscreteGaussianFilter::<B>::new(vec![4.0]);
+        let a8 = vals(&f.apply(&img_a))[8]; let b8 = vals(&f.apply(&img_b))[8];
+        assert!((100.0-a8).abs() > (100.0-b8).abs());
     }
 
     #[test]
     fn test_zero_variance_produces_identity() {
-        // var=0 -> sigma<1e-9 -> no convolution -> identity.
         let v: Vec<f32> = (0..27).map(|i| i as f32).collect();
-        let img = make_image(v.clone(), [3, 3, 3]);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![0.0]).with_use_image_spacing(false);
-        let out = filter.apply(&img);
-        let out_vals = vals(&out);
-        for (i, (&expected, &actual)) in v.iter().zip(out_vals.iter()).enumerate() {
-            assert!(
-                (expected - actual).abs() < 1e-4,
-                "zero-var identity at {i}: expected {expected} got {actual}"
-            );
-        }
+        let img = make_image(v.clone(), [3,3,3]);
+        let out = DiscreteGaussianFilter::<B>::new(vec![0.0]).with_use_image_spacing(false).apply(&img);
+        for (&e,&a) in v.iter().zip(vals(&out).iter()) { assert!((e-a).abs() < 1e-4); }
     }
 
     #[test]
     fn test_spatial_metadata_preserved() {
-        use crate::spatial::{Direction, Point, Spacing};
         let dev: <B as burn::tensor::backend::Backend>::Device = Default::default();
-        let t = Tensor::<B, 3>::from_data(
-            TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3])), &dev,
-        );
-        let origin = Point::new([1.0, 2.0, 3.0]);
-        let spacing = Spacing::new([0.5, 1.0, 2.0]);
-        let direction = Direction::identity();
-        let img = Image::new(t, origin, spacing, direction);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![1.0]);
-        let out = filter.apply(&img);
-        assert_eq!(out.origin(), &origin);
-        assert_eq!(out.spacing(), &spacing);
-        assert_eq!(out.direction(), &direction);
+        let t = Tensor::<B,3>::from_data(TensorData::new(vec![1.0_f32;27],Shape::new([3,3,3])),&dev);
+        let origin = Point::new([1.0,2.0,3.0]); let spacing = Spacing::new([0.5,1.0,2.0]); let dir = Direction::identity();
+        let img = Image::new(t, origin, spacing, dir);
+        let out = DiscreteGaussianFilter::<B>::new(vec![1.0]).apply(&img);
+        assert_eq!(out.origin(), &origin); assert_eq!(out.spacing(), &spacing); assert_eq!(out.direction(), &dir);
     }
 
     #[test]
     fn test_maximum_error_smaller_produces_larger_kernel() {
-        // Smaller maximum_error -> larger kernel radius -> more blur at transition.
-        // +1.0 tolerance handles near-converged Gaussian tails (sigma=2 is wide).
-        let mut v: Vec<f32> = vec![0.0; 8];
-        v.extend(vec![100.0; 8]);
-        let img = make_image(v.clone(), [1, 1, 16]);
-        let loose = DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_maximum_error(0.1).with_use_image_spacing(false).apply(&img);
-        let strict = DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_maximum_error(0.001).with_use_image_spacing(false).apply(&img);
-        let lv = vals(&loose);
-        let sv = vals(&strict);
-        let at8_loose = lv[8];
-        let at8_strict = sv[8];
-        assert!(
-            (50.0 - at8_strict).abs() <= (50.0 - at8_loose).abs() + 1.0,
-            "strict should blur >= loose: loose={at8_loose:.3} strict={at8_strict:.3}"
-        );
+        let mut v: Vec<f32> = vec![0.0;8]; v.extend(vec![100.0;8]);
+        let img = make_image(v, [1,1,16]);
+        let loose = vals(&DiscreteGaussianFilter::<B>::new(vec![0.0,0.0,4.0]).with_maximum_error(0.1).with_use_image_spacing(false).apply(&img));
+        let strict = vals(&DiscreteGaussianFilter::<B>::new(vec![0.0,0.0,4.0]).with_maximum_error(0.001).with_use_image_spacing(false).apply(&img));
+        assert!((50.0-strict[8]).abs() <= (50.0-loose[8]).abs()+1.0);
     }
 
     #[test]
     fn test_per_dimension_variance_applied_independently() {
-        // 1x8x8; peak at (0,4,4). variance=[0,0,4]: smooth dim2 only.
-        let mut v = vec![0.0_f32; 64];
-        v[4 * 8 + 4] = 100.0_f32;
-        let img = make_image(v, [1, 8, 8]);
-        let filter = DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_use_image_spacing(false);
-        let out = filter.apply(&img);
-        let ov = vals(&out);
-        let left  = ov[4 * 8 + 3]; // (0,4,3) x-neighbor
-        let right = ov[4 * 8 + 5]; // (0,4,5) x-neighbor
-        let above = ov[3 * 8 + 4]; // (0,3,4) y-neighbor
-        let below = ov[5 * 8 + 4]; // (0,5,4) y-neighbor
-        assert!(left  > 1.0, "x-smoothing must spread to (0,4,3): got {left}");
-        assert!(right > 1.0, "x-smoothing must spread to (0,4,5): got {right}");
-        assert!(above < 1.0, "y not smoothed; (0,3,4) must stay near 0: got {above}");
-        assert!(below < 1.0, "y not smoothed; (0,5,4) must stay near 0: got {below}");
+        let mut v = vec![0.0_f32;64]; v[4*8+4] = 100.0;
+        let img = make_image(v, [1,8,8]);
+        let ov = vals(&DiscreteGaussianFilter::<B>::new(vec![0.0,0.0,4.0]).with_use_image_spacing(false).apply(&img));
+        assert!(ov[4*8+3] > 1.0); assert!(ov[4*8+5] > 1.0);
+        assert!(ov[3*8+4] < 1.0); assert!(ov[5*8+4] < 1.0);
     }
-
 
     #[test]
     fn test_impulse_response_matches_analytical_gaussian() {
-        // Mathematical justification:
-        // For variance v=4.0 and use_image_spacing=false, sigma_pixel = sqrt(4.0) = 2.0.
-        // The filter builds kernel w_bar[k] = exp(-k^2 / (2*4.0)) / Z where Z = sum_k w_k.
-        // Convolving a Dirac impulse at center position 15 (in a 1x1x31 image) with this
-        // kernel yields output[k] = w_bar[k-15+radius] for k in 0..31, i.e., the output
-        // equals the normalized kernel centered at position 15.
-        // Tolerance 1e-3 accounts for f32 arithmetic and replicate-padded tail truncation.
-        let n: usize = 31;
-        let center: usize = 15;
-        let variance: f64 = 4.0;
-
-        // Build Dirac impulse at position 15.
-        let mut impulse = vec![0.0_f32; n];
-        impulse[center] = 1.0;
-        let img = make_image(impulse, [1, 1, n]);
-
-        // Apply filter: variance=[0,0,4], use_image_spacing=false.
-        let filter = DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, variance])
-            .with_use_image_spacing(false);
-        let out = filter.apply(&img);
-        let out_vals = vals(&out);
-
-        // Compute analytical normalized Gaussian weights.
-        let two_v = 2.0 * variance;
-        let raw: Vec<f64> = (0..n)
-            .map(|k| (-(((k as f64) - (center as f64)).powi(2)) / two_v).exp())
-            .collect();
+        // sigma=sqrt(4)=2; impulse at 15 in 1x1x31. Tol 1e-3.
+        let n=31usize; let c=15usize; let var=4.0f64;
+        let mut imp = vec![0.0_f32;n]; imp[c] = 1.0;
+        let img = make_image(imp, [1,1,n]);
+        let ov = vals(&DiscreteGaussianFilter::<B>::new(vec![0.0,0.0,var]).with_use_image_spacing(false).apply(&img));
+        let tv = 2.0*var;
+        let raw: Vec<f64> = (0..n).map(|k| (-((k as f64 - c as f64).powi(2))/tv).exp()).collect();
         let z: f64 = raw.iter().sum();
-        let w_bar: Vec<f64> = raw.iter().map(|&w| w / z).collect();
-
-        for k in 0..n {
-            let diff = (out_vals[k] as f64 - w_bar[k]).abs();
-            assert!(
-                diff < 1e-3,
-                "impulse response at k={k}: output={:.6} analytical={:.6} |diff|={:.6} > 1e-3",
-                out_vals[k], w_bar[k], diff
-            );
-        }
+        let wb: Vec<f64> = raw.iter().map(|&w| w/z).collect();
+        for k in 0..n { assert!((ov[k] as f64 - wb[k]).abs() < 1e-3); }
     }
 
-    // Negative tests
-
-    #[test]
-    #[should_panic]
-    fn test_empty_variance_panics() {
-        let _ = DiscreteGaussianFilter::<B>::new(vec![]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_maximum_error_zero_panics() {
-        let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(0.0);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_maximum_error_one_panics() {
-        let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(1.0);
-    }
+    #[test] #[should_panic]
+    fn test_empty_variance_panics() { let _ = DiscreteGaussianFilter::<B>::new(vec![]); }
+    #[test] #[should_panic]
+    fn test_maximum_error_zero_panics() { let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(0.0); }
+    #[test] #[should_panic]
+    fn test_maximum_error_one_panics() { let _ = DiscreteGaussianFilter::<B>::new(vec![1.0]).with_maximum_error(1.0); }
 }

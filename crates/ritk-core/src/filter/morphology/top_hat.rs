@@ -70,7 +70,7 @@ mod tests {
         let t=Tensor::<B,3>::from_data(TensorData::new(v,Shape::new(d)),&Default::default());
         Image::new(t,Point::new([0.0,0.0,0.0]),Spacing::new([1.0,1.0,1.0]),Direction::identity())
     }
-    fn vv(i: &Image<B,3>) -> Vec<f32> { i.data().clone().into_data().as_slice::<f32>().unwrap().to_vec() }
+    fn vv(i: &Image<B,3>) -> Vec<f32> { i.data().clone().into_data().into_vec::<f32>().unwrap() }
 
     #[test] fn test_wth_constant_zero() {
         let d=[8,8,8]; let n=d[0]*d[1]*d[2];

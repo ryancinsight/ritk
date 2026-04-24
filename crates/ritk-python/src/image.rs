@@ -87,11 +87,13 @@ impl PyImage {
 
     /// Convert image data to a NumPy f32 array with shape [Z, Y, X].
     fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray3<f32>>> {
-        let data = self.inner.data().clone().into_data();
-        let values: Vec<f32> = data
-            .as_slice::<f32>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?
-            .to_vec();
+        let values: Vec<f32> = self
+            .inner
+            .data()
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?;
 
         let shape = self.inner.shape();
         let arr = Array3::from_shape_vec((shape[0], shape[1], shape[2]), values)
@@ -147,11 +149,12 @@ pub fn into_py_image(image: Image<Backend, 3>) -> PyImage {
 /// Returns `PyRuntimeError` if the tensor dtype is not f32.
 pub fn image_to_vec(image: &Image<Backend, 3>) -> PyResult<(Vec<f32>, [usize; 3])> {
     let shape = image.shape();
-    let data = image.data().clone().into_data();
-    let values: Vec<f32> = data
-        .as_slice::<f32>()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?
-        .to_vec();
+    let values: Vec<f32> = image
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("{e:?}")))?;
     Ok((values, shape))
 }
 

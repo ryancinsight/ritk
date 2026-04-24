@@ -15,7 +15,7 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
 }
 
 fn vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+    img.data().clone().into_data().into_vec::<f32>().unwrap()
 }
 
 /// Formula: v_out = (v - v_min) / (v_max - v_min) * (out_max - out_min) + out_min
