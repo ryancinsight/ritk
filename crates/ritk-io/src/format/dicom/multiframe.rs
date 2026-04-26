@@ -12,6 +12,9 @@
 //! - Output tensor shape: `[n_frames, rows, cols]`
 //! - RescaleSlope (absent ⇒ 1.0) and RescaleIntercept (absent ⇒ 0.0) applied.
 //! - 8-bit and 16-bit BitsAllocated are both supported.
+//! - ImagePositionPatient (0020,0032) sets the image origin when present.
+//! - ImageOrientationPatient (0020,0037) sets the direction matrix when present;
+//!   the normal vector is computed as the cross product of the row and column cosines.
 //!
 //! # Writer specification (`write_dicom_multiframe`)
 //!
@@ -19,9 +22,10 @@
 //! DICOM Part 10 file. The writer enforces the following constraints:
 //!
 //! ## Encoding constraints
-//! - **SOP Class**: Secondary Capture Image Storage (`1.2.840.10008.5.1.4.1.1.7`).
-//!   The output is not an Enhanced Multi-Frame CT, MR, or PET object. Viewers
-//!   that enforce strict modality-to-SOP-class binding may reject the file.
+//! - **SOP Class**: Multi-Frame Grayscale Word Secondary Capture Image Storage
+//!   (`1.2.840.10008.5.1.4.1.1.7.3`). The output is not an Enhanced Multi-Frame
+//!   CT, MR, or PET object. Viewers that enforce strict modality-to-SOP-class
+//!   binding may reject the file.
 //! - **Transfer Syntax**: Explicit VR Little Endian (`1.2.840.10008.1.2.1`).
 //!   Compressed transfer syntaxes (JPEG, JPEG-LS, JPEG 2000) are not supported.
 //! - **Pixel depth**: always 16-bit unsigned (BitsAllocated=16, BitsStored=16,
@@ -35,21 +39,19 @@
 //!   supported. Images whose frames have widely varying intensity ranges will
 //!   lose intra-frame contrast fidelity relative to inter-frame range.
 //!
-//! ## Spatial metadata constraints
-//! - No spatial metadata (ImagePositionPatient, ImageOrientationPatient,
-//!   PixelSpacing, SliceThickness) is written. The origin is implicitly [0,0,0]
-//!   and direction is identity. Use `write_dicom_series` for series with full
-//!   spatial metadata.
+//! ## Spatial metadata
+//! - `write_dicom_multiframe` emits no spatial metadata (IPP/IOP/PixelSpacing/
+//!   SliceThickness). Use [`write_dicom_multiframe_with_options`] with a
+//!   [`MultiFrameSpatialMetadata`] value to include spatial tags.
 //!
 //! ## Interoperability limits
 //! - The file is readable by `load_dicom_multiframe` (round-trip invariant:
 //!   |recovered − original| ≤ rescale_slope + 1.0).
-//! - DICOM conformance: the file satisfies the Secondary Capture IOD but does
-//!   NOT carry a conformance statement or General Series / Frame Of Reference
-//!   modules required for Enhanced Multi-Frame objects.
-//! - Viewers expecting modality-specific Enhanced objects (e.g., Enhanced CT
-//!   Storage) will not recognise the SOP class and may warn or reject.
+//! - DICOM conformance: the file satisfies the Multi-Frame Grayscale Word SC IOD
+//!   but does NOT carry a conformance statement or General Series / Frame Of
+//!   Reference modules required for Enhanced Multi-Frame objects.
 
+use super::transfer_syntax::TransferSyntaxKind;
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -57,9 +59,36 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::{open_file, InMemDicomObject};
+use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
+
+/// SOP Class UID for Multi-Frame Grayscale Word Secondary Capture Image Storage.
+const MF_GRAYSCALE_WORD_SC_UID: &str = "1.2.840.10008.5.1.4.1.1.7.3";
+
+/// Parse a `\`-separated DICOM Decimal String (DS) field into a fixed-size array.
+///
+/// # Invariant
+/// Returns `Some(arr)` iff the input contains at least `N` parseable `f64` values
+/// separated by `\`. Non-numeric tokens are skipped. Returns `None` if fewer than
+/// `N` valid numeric components exist.
+fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
+    let parts: Vec<f64> = s
+        .trim()
+        .split('\\')
+        .filter_map(|p| p.trim().parse::<f64>().ok())
+        .collect();
+    if parts.len() >= N {
+        let mut arr = [0.0_f64; N];
+        for i in 0..N {
+            arr[i] = parts[i];
+        }
+        Some(arr)
+    } else {
+        None
+    }
+}
 
 /// Summary information about a multi-frame DICOM file.
 #[derive(Debug, Clone)]
@@ -82,138 +111,208 @@ pub struct MultiFrameInfo {
     pub modality: Option<String>,
     /// SOP Class UID.
     pub sop_class_uid: Option<String>,
+    /// ImagePositionPatient for frame 0: [x, y, z] in mm.
+    pub image_position: Option<[f64; 3]>,
+    /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
+    pub image_orientation: Option<[f64; 6]>,
+    /// RescaleSlope (0028,1053). Defaults to 1.0 when absent.
+    pub rescale_slope: f64,
+    /// RescaleIntercept (0028,1052). Defaults to 0.0 when absent.
+    pub rescale_intercept: f64,
+}
+
+/// Extract all multi-frame header fields from an already-opened DICOM object.
+///
+/// # Invariants
+/// - n_frames defaults to 1 when (0028,0008) is absent.
+/// - bits_allocated defaults to 16 when absent.
+/// - rescale_slope defaults to 1.0, rescale_intercept to 0.0 when absent.
+fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameInfo {
+    let n_frames: usize = obj
+        .element(Tag(0x0028, 0x0008))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(1);
+    let rows: usize = obj
+        .element(Tag(0x0028, 0x0010))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+    let cols: usize = obj
+        .element(Tag(0x0028, 0x0011))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+    let bits_allocated: u16 = obj
+        .element(Tag(0x0028, 0x0100))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(16);
+    let pixel_spacing = obj
+        .element(Tag(0x0028, 0x0030))
+        .ok()
+        .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<2>(&s)));
+    let frame_thickness = obj
+        .element(Tag(0x0018, 0x0050))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse::<f64>().ok());
+    let modality = obj
+        .element(Tag(0x0008, 0x0060))
+        .ok()
+        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty());
+    let sop_class_uid = obj
+        .element(Tag(0x0008, 0x0016))
+        .ok()
+        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty());
+    let image_position = obj
+        .element(Tag(0x0020, 0x0032))
+        .ok()
+        .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<3>(&s)));
+    let image_orientation = obj
+        .element(Tag(0x0020, 0x0037))
+        .ok()
+        .and_then(|e| e.to_str().ok().and_then(|s| parse_ds_backslash::<6>(&s)));
+    let rescale_slope: f64 = obj
+        .element(Tag(0x0028, 0x1053))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(1.0);
+    let rescale_intercept: f64 = obj
+        .element(Tag(0x0028, 0x1052))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0.0);
+    MultiFrameInfo {
+        path: path.to_path_buf(),
+        n_frames,
+        rows,
+        cols,
+        bits_allocated,
+        pixel_spacing,
+        frame_thickness,
+        modality,
+        sop_class_uid,
+        image_position,
+        image_orientation,
+        rescale_slope,
+        rescale_intercept,
+    }
 }
 
 /// Read summary information from a multi-frame DICOM file without pixel data.
 pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
     let path = path.as_ref();
-    let obj = open_file(path)
-        .with_context(|| format!("failed to open DICOM file {:?}", path))?;
-
-    let n_frames: usize = obj.element(Tag(0x0028, 0x0008)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1);
-    let rows: usize = obj.element(Tag(0x0028, 0x0010)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0);
-    let cols: usize = obj.element(Tag(0x0028, 0x0011)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0);
-    let bits_allocated: u16 = obj.element(Tag(0x0028, 0x0100)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(16);
-    let pixel_spacing = obj.element(Tag(0x0028, 0x0030)).ok()
-        .and_then(|e| e.to_str().ok().map(|s| {
-            let parts: Vec<f64> = s.trim().split('\\')
-                .filter_map(|p| p.trim().parse::<f64>().ok())
-                .collect();
-            if parts.len() >= 2 { Some([parts[0], parts[1]]) } else { None }
-        }))
-        .flatten();
-    let frame_thickness = obj.element(Tag(0x0018, 0x0050)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse::<f64>().ok());
-    let modality = obj.element(Tag(0x0008, 0x0060)).ok()
-        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
-        .filter(|s| !s.is_empty());
-    let sop_class_uid = obj.element(Tag(0x0008, 0x0016)).ok()
-        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
-        .filter(|s| !s.is_empty());
-
-    Ok(MultiFrameInfo { path: path.to_path_buf(), n_frames, rows, cols,
-        bits_allocated, pixel_spacing, frame_thickness, modality, sop_class_uid })
+    let obj = open_file(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    Ok(extract_multiframe_header(path, &obj))
 }
 
 /// Load a multi-frame DICOM file as a 3-D image with shape [n_frames, rows, cols].
 ///
 /// Applies RescaleSlope and RescaleIntercept to convert stored integers to floats.
+/// When ImagePositionPatient (0020,0032) is present, the image origin is set
+/// accordingly; otherwise the origin defaults to [0, 0, 0].
+/// When ImageOrientationPatient (0020,0037) is present, the direction matrix is
+/// derived from the row and column cosines with the normal computed as their
+/// cross product; otherwise the direction defaults to identity.
 pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let path = path.as_ref();
-    let obj = open_file(path)
-        .with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    let obj = open_file(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
 
-    let n_frames: usize = obj.element(Tag(0x0028, 0x0008)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1);
-    let rows: usize = obj.element(Tag(0x0028, 0x0010)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0);
-    let cols: usize = obj.element(Tag(0x0028, 0x0011)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0);
-    let bits_allocated: u16 = obj.element(Tag(0x0028, 0x0100)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(16);
-    if rows == 0 || cols == 0 {
-        bail!("DICOM multiframe: rows={rows} cols={cols} must be >0 in {:?}", path);
+    // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
+    // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
+    let ts_uid = obj.meta().transfer_syntax();
+    if TransferSyntaxKind::from_uid(ts_uid).is_compressed() {
+        bail!(
+            "DICOM multiframe: compressed transfer syntax '{}' in {:?} is not natively \
+             supported; decompress the file before loading",
+            ts_uid,
+            path
+        );
     }
-    let rescale_slope: f32 = obj.element(Tag(0x0028, 0x1053)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1.0_f32);
-    let rescale_intercept: f32 = obj.element(Tag(0x0028, 0x1052)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(0.0_f32);
+
+    let info = extract_multiframe_header(path, &obj);
+    if info.rows == 0 || info.cols == 0 {
+        bail!(
+            "DICOM multiframe: rows={} cols={} must be >0 in {:?}",
+            info.rows,
+            info.cols,
+            path
+        );
+    }
+
+    let rescale_slope = info.rescale_slope as f32;
+    let rescale_intercept = info.rescale_intercept as f32;
+
     let pixel_bytes = if let Ok(elem) = obj.element(Tag(0x7FE0, 0x0010)) {
-        elem.value().to_bytes().ok().map(|b| b.to_vec()).unwrap_or_default()
+        elem.value()
+            .to_bytes()
+            .ok()
+            .map(|b| b.to_vec())
+            .unwrap_or_default()
     } else {
         Vec::new()
     };
 
-    let bytes_per_sample = ((bits_allocated as usize) + 7) / 8;
+    let bytes_per_sample = ((info.bits_allocated as usize) + 7) / 8;
     let floats: Vec<f32> = if bytes_per_sample == 2 {
-        pixel_bytes.chunks_exact(2)
+        pixel_bytes
+            .chunks_exact(2)
             .map(|c| {
                 let raw = u16::from_le_bytes([c[0], c[1]]) as f32;
                 raw * rescale_slope + rescale_intercept
             })
             .collect()
     } else {
-        pixel_bytes.iter()
+        pixel_bytes
+            .iter()
             .map(|&b| b as f32 * rescale_slope + rescale_intercept)
             .collect()
     };
-    let actual_n = if rows * cols > 0 && !floats.is_empty() {
-        floats.len() / (rows * cols)
+
+    let actual_n = if info.rows * info.cols > 0 && !floats.is_empty() {
+        floats.len() / (info.rows * info.cols)
     } else {
-        n_frames
+        info.n_frames
     };
     if actual_n == 0 {
         bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
     }
-    let pixel_spacing_val = obj.element(Tag(0x0028, 0x0030)).ok()
-        .and_then(|e| e.to_str().ok().map(|s| {
-            let v: Vec<f64> = s.trim().split('\\')
-                .filter_map(|p| p.trim().parse::<f64>().ok()).collect();
-            if v.len() >= 2 { Some([v[0], v[1]]) } else { None }
-        })).flatten();
-    let slice_thickness: f64 = obj.element(Tag(0x0018, 0x0050)).ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1.0);
-    let spacing = match pixel_spacing_val {
-        Some([rs, cs]) => Spacing::new([slice_thickness, rs, cs]),
-        None           => Spacing::new([slice_thickness, 1.0, 1.0]),
+
+    let spacing = match info.pixel_spacing {
+        Some([rs, cs]) => Spacing::new([info.frame_thickness.unwrap_or(1.0), rs, cs]),
+        None => Spacing::new([info.frame_thickness.unwrap_or(1.0), 1.0, 1.0]),
     };
+    let origin = info.image_position.unwrap_or([0.0, 0.0, 0.0]);
+    let direction = if let Some(iop) = info.image_orientation {
+        let (rx, ry, rz) = (iop[0], iop[1], iop[2]);
+        let (cx, cy, cz) = (iop[3], iop[4], iop[5]);
+        let nx = ry * cz - rz * cy;
+        let ny = rz * cx - rx * cz;
+        let nz = rx * cy - ry * cx;
+        let col_data: [f64; 9] = [rx, ry, rz, cx, cy, cz, nx, ny, nz];
+        Direction(SMatrix::<f64, 3, 3>::from_column_slice(&col_data))
+    } else {
+        Direction::identity()
+    };
+
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(floats, Shape::new([actual_n, rows, cols])),
+        TensorData::new(floats, Shape::new([actual_n, info.rows, info.cols])),
         device,
     );
-    Ok(Image::new(tensor, Point::new([0.0, 0.0, 0.0]), spacing, Direction::identity()))
+    Ok(Image::new(tensor, Point::new(origin), spacing, direction))
 }
-
 
 /// Generate a DICOM UID using nanoseconds since UNIX epoch under the 2.25 root.
 ///
@@ -224,6 +323,55 @@ fn generate_multiframe_uid() -> String {
         .unwrap_or_default()
         .as_nanos();
     format!("2.25.{}", t)
+}
+
+/// Optional spatial metadata for multi-frame DICOM output.
+///
+/// When provided to [`write_dicom_multiframe_with_options`], spatial tags are
+/// emitted: ImagePositionPatient (0020,0032), ImageOrientationPatient (0020,0037),
+/// PixelSpacing (0028,0030), SliceThickness (0018,0050), and Modality (0008,0060).
+///
+/// When absent, the writer behaves identically to [`write_dicom_multiframe`].
+#[derive(Debug, Clone)]
+pub struct MultiFrameSpatialMetadata {
+    /// ImagePositionPatient for frame 0: [x, y, z] in mm.
+    pub origin: [f64; 3],
+    /// Pixel spacing [row_spacing, col_spacing] in mm.
+    pub pixel_spacing: [f64; 2],
+    /// Slice thickness in mm.
+    pub slice_thickness: f64,
+    /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
+    pub image_orientation: [f64; 6],
+    /// Modality string (e.g., "CT", "MR", "OT").
+    pub modality: String,
+}
+
+/// Builder for multi-frame DICOM write options.
+///
+/// # Invariants
+/// - `sop_class_uid` defaults to [`MF_GRAYSCALE_WORD_SC_UID`].
+/// - `instance_number` defaults to 1.
+/// - When `spatial` is `None`, no spatial tags are emitted.
+///
+/// Use [`write_dicom_multiframe_with_config`] to supply an explicit config.
+#[derive(Debug, Clone)]
+pub struct MultiFrameWriterConfig {
+    /// SOP Class UID (0008,0016). Defaults to Multi-Frame Grayscale Word SC UID.
+    pub sop_class_uid: String,
+    /// Optional spatial metadata emitted as IPP/IOP/PixelSpacing/SliceThickness/Modality.
+    pub spatial: Option<MultiFrameSpatialMetadata>,
+    /// InstanceNumber (0020,0013). Defaults to 1.
+    pub instance_number: u32,
+}
+
+impl Default for MultiFrameWriterConfig {
+    fn default() -> Self {
+        Self {
+            sop_class_uid: MF_GRAYSCALE_WORD_SC_UID.to_string(),
+            spatial: None,
+            instance_number: 1,
+        }
+    }
 }
 
 /// Write a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
@@ -239,17 +387,60 @@ fn generate_multiframe_uid() -> String {
 ///
 /// ## Encoding
 /// Transfer syntax: Explicit VR Little Endian (1.2.840.10008.1.2.1).
-/// SOP Class: Secondary Capture (1.2.840.10008.5.1.4.1.1.7).
+/// SOP Class: Multi-Frame Grayscale Word Secondary Capture Image Storage
+/// (1.2.840.10008.5.1.4.1.1.7.3).
 pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<B, 3>,
 ) -> Result<()> {
-    let path = path.as_ref();
+    write_multiframe_impl(path.as_ref(), image, &MultiFrameWriterConfig::default())
+}
+
+/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with optional spatial metadata.
+///
+/// When `spatial` is `None`, behaves identically to [`write_dicom_multiframe`].
+/// When `spatial` is `Some`, also emits:
+/// - (0020,0032) ImagePositionPatient
+/// - (0020,0037) ImageOrientationPatient
+/// - (0028,0030) PixelSpacing
+/// - (0018,0050) SliceThickness
+/// - (0008,0060) Modality (overrides default "OT")
+pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
+    path: P,
+    image: &Image<B, 3>,
+    spatial: Option<&MultiFrameSpatialMetadata>,
+) -> Result<()> {
+    let config = MultiFrameWriterConfig {
+        spatial: spatial.cloned(),
+        ..MultiFrameWriterConfig::default()
+    };
+    write_multiframe_impl(path.as_ref(), image, &config)
+}
+
+/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with full writer configuration.
+///
+/// Accepts a [`MultiFrameWriterConfig`] for SOP class override, spatial metadata,
+/// and instance number. When `config.spatial` is `None`, no spatial tags are emitted.
+///
+/// ## Invariants
+/// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
+/// - Round-trip invariant: |recovered − original| ≤ rescale_slope + 1.0.
+pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
+    path: P,
+    image: &Image<B, 3>,
+    config: &MultiFrameWriterConfig,
+) -> Result<()> {
+    write_multiframe_impl(path.as_ref(), image, config)
+}
+
+fn write_multiframe_impl<B: Backend>(
+    path: &Path,
+    image: &Image<B, 3>,
+    config: &MultiFrameWriterConfig,
+) -> Result<()> {
     let [n_frames, rows, cols] = image.shape();
     if n_frames == 0 || rows == 0 || cols == 0 {
-        bail!(
-            "DICOM multiframe write: n_frames={n_frames} rows={rows} cols={cols} must all be >0"
-        );
+        bail!("DICOM multiframe write: n_frames={n_frames} rows={rows} cols={cols} must all be >0");
     }
     let td = image.data().clone().into_data();
     let all_data: &[f32] = td
@@ -258,7 +449,9 @@ pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     let (min_val, max_val) = all_data
         .iter()
         .copied()
-        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), v| (mn.min(v), mx.max(v)));
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), v| {
+            (mn.min(v), mx.max(v))
+        });
     let (rescale_slope, rescale_intercept) = if (max_val - min_val).abs() <= f32::EPSILON {
         (1.0_f32, min_val)
     } else {
@@ -273,25 +466,129 @@ pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         })
         .collect();
     let sop_instance_uid = generate_multiframe_uid();
+    let modality_str = config
+        .spatial
+        .as_ref()
+        .map(|s| s.modality.as_str())
+        .unwrap_or("OT");
     let mut obj = InMemDicomObject::new_empty();
-    obj.put(DataElement::new(Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7")));
-    obj.put(DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from(sop_instance_uid.as_str())));
-    obj.put(DataElement::new(Tag(0x0008, 0x0060), VR::CS, PrimitiveValue::from("OT")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0008), VR::IS, PrimitiveValue::from(format!("{}", n_frames))));
-    obj.put(DataElement::new(Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(rows as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(cols as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0100), VR::US, PrimitiveValue::from(16_u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0101), VR::US, PrimitiveValue::from(16_u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0102), VR::US, PrimitiveValue::from(15_u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0103), VR::US, PrimitiveValue::from(0_u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0004), VR::CS, PrimitiveValue::from("MONOCHROME2")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1053), VR::DS, PrimitiveValue::from(format!("{:.6}", rescale_slope))));
-    obj.put(DataElement::new(Tag(0x0028, 0x1052), VR::DS, PrimitiveValue::from(format!("{:.6}", rescale_intercept))));
-    obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OW, PrimitiveValue::U16(SmallVec::from_vec(pixel_u16))));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0016),
+        VR::UI,
+        PrimitiveValue::from(config.sop_class_uid.as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from(sop_instance_uid.as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0060),
+        VR::CS,
+        PrimitiveValue::from(modality_str),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0064),
+        VR::CS,
+        PrimitiveValue::from("WSD"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x0013),
+        VR::IS,
+        PrimitiveValue::from(format!("{}", config.instance_number)),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0008),
+        VR::IS,
+        PrimitiveValue::from(format!("{}", n_frames)),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0002),
+        VR::US,
+        PrimitiveValue::from(1_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0010),
+        VR::US,
+        PrimitiveValue::from(rows as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0011),
+        VR::US,
+        PrimitiveValue::from(cols as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0_u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0004),
+        VR::CS,
+        PrimitiveValue::from("MONOCHROME2"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        PrimitiveValue::from(format!("{:.6}", rescale_slope)),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1052),
+        VR::DS,
+        PrimitiveValue::from(format!("{:.6}", rescale_intercept)),
+    ));
+    if let Some(s) = &config.spatial {
+        let o = &s.origin;
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x0032),
+            VR::DS,
+            PrimitiveValue::from(format!("{:.6}\\{:.6}\\{:.6}", o[0], o[1], o[2])),
+        ));
+        let iop = &s.image_orientation;
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x0037),
+            VR::DS,
+            PrimitiveValue::from(format!(
+                "{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}\\{:.6}",
+                iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
+            )),
+        ));
+        let ps = &s.pixel_spacing;
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0030),
+            VR::DS,
+            PrimitiveValue::from(format!("{:.6}\\{:.6}", ps[0], ps[1])),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0018, 0x0050),
+            VR::DS,
+            PrimitiveValue::from(format!("{:.6}", s.slice_thickness)),
+        ));
+    }
+    obj.put(DataElement::new(
+        Tag(0x7FE0, 0x0010),
+        VR::OW,
+        PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
+    ));
     let file_obj = obj
         .with_meta(
             FileMetaTableBuilder::new()
-                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
+                .media_storage_sop_class_uid(&config.sop_class_uid)
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax("1.2.840.10008.1.2.1"),
         )
@@ -305,8 +602,11 @@ pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
     use burn::tensor::backend::Backend;
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_core::spatial::{Direction, Point, Spacing};
     type B = NdArray<f32>;
 
     #[test]
@@ -323,29 +623,80 @@ mod tests {
     }
 
     #[test]
-    fn test_load_multiframe_single_frame_via_writer() {
-        use crate::format::dicom::writer::write_dicom_series;
-        use burn::tensor::{Shape, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+    fn test_multiframe_info_and_roundtrip_writer_read_consistency() {
         let device = <B as Backend>::Device::default();
         let tmp = tempfile::tempdir().expect("tempdir");
-        let data: Vec<f32> = vec![0.0_f32; 1 * 4 * 5];
+        let out_path = tmp.path().join("multiframe.dcm");
+        let n_frames = 2_usize;
+        let rows = 3_usize;
+        let cols = 4_usize;
+
+        let mut data: Vec<f32> = Vec::with_capacity(n_frames * rows * cols);
+        for frame in 0..n_frames {
+            for row in 0..rows {
+                for col in 0..cols {
+                    data.push((frame * 100 + row * 10 + col) as f32);
+                }
+            }
+        }
+
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(data, Shape::new([1_usize, 4, 5])), &device);
-        let image = Image::new(tensor,
-            Point::new([0.0, 0.0, 0.0]), Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity());
-        write_dicom_series(tmp.path(), &image).expect("write_dicom_series");
-        let slice_path = tmp.path().join("slice_0000.dcm");
-        assert!(slice_path.exists(), "slice_0000.dcm must exist");
-        let loaded = load_dicom_multiframe::<B, _>(&slice_path, &device)
-            .expect("load_dicom_multiframe");
-        let [frames, rows, cols] = loaded.shape();
-        assert_eq!(frames, 1, "frames");
-        assert_eq!(rows, 4, "rows");
-        assert_eq!(cols, 5, "cols");
+            TensorData::new(data.clone(), Shape::new([n_frames, rows, cols])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        write_dicom_multiframe(&out_path, &image).expect("write_dicom_multiframe");
+        assert!(out_path.exists(), "output file must exist after write");
+
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+        assert_eq!(info.n_frames, n_frames, "n_frames");
+        assert_eq!(info.rows, rows, "rows");
+        assert_eq!(info.cols, cols, "cols");
+        assert_eq!(info.bits_allocated, 16, "bits_allocated");
+        assert_eq!(info.modality.as_deref(), Some("OT"), "modality");
+        assert_eq!(
+            info.sop_class_uid.as_deref(),
+            Some("1.2.840.10008.5.1.4.1.1.7.3"),
+            "sop_class_uid"
+        );
+
+        let loaded =
+            load_dicom_multiframe::<B, _>(&out_path, &device).expect("load_dicom_multiframe");
+        let [frames, loaded_rows, loaded_cols] = loaded.shape();
+        assert_eq!(frames, n_frames, "frames");
+        assert_eq!(loaded_rows, rows, "loaded_rows");
+        assert_eq!(loaded_cols, cols, "loaded_cols");
+
+        let recovered_td = loaded.data().clone().into_data();
+        let recovered: &[f32] = recovered_td
+            .as_slice::<f32>()
+            .expect("recovered tensor must be f32");
+        assert_eq!(recovered.len(), data.len(), "recovered pixel count");
+
+        let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+        let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let slope = if (max_val - min_val).abs() <= f32::EPSILON {
+            1.0_f32
+        } else {
+            (max_val - min_val) / 65535.0_f32
+        };
+        let tolerance = slope + 1.0_f32;
+
+        for (idx, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {idx}: original={orig:.4} recovered={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
     }
+
     /// Round-trip invariant: write then read must recover pixel values within
     /// quantization error of at most rescale_slope + 1.0 per sample.
     ///
@@ -408,6 +759,37 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_read_multiframe_info_reports_scalar_defaults_for_single_frame() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("single_frame.dcm");
+
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![7.0_f32; 1 * 2 * 3], Shape::new([1_usize, 2, 3])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        write_dicom_multiframe(&out_path, &image).expect("write_dicom_multiframe");
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+        assert_eq!(info.n_frames, 1, "single-frame file must report one frame");
+        assert_eq!(info.rows, 2, "rows");
+        assert_eq!(info.cols, 3, "cols");
+        assert_eq!(info.bits_allocated, 16, "bits_allocated");
+        assert_eq!(info.modality.as_deref(), Some("OT"), "modality");
+        assert_eq!(
+            info.sop_class_uid.as_deref(),
+            Some("1.2.840.10008.5.1.4.1.1.7.3"),
+            "sop_class_uid"
+        );
+    }
+
     /// Rejection invariant: any dimension equal to zero must produce Err.
     #[test]
     fn test_write_multiframe_rejects_zero_dimension() {
@@ -426,7 +808,437 @@ mod tests {
             Direction::identity(),
         );
         let result = write_dicom_multiframe(&out_path, &image);
-        assert!(result.is_err(), "write_dicom_multiframe must return Err for zero-row image");
+        assert!(
+            result.is_err(),
+            "write_dicom_multiframe must return Err for zero-row image"
+        );
     }
 
+    #[test]
+    fn test_multiframe_sop_class_is_mf_grayscale_word() {
+        // Verifies that write_dicom_multiframe emits the Multi-Frame Grayscale Word SC SOP class
+        // (1.2.840.10008.5.1.4.1.1.7.3) rather than Single-frame SC (1.2.840.10008.5.1.4.1.1.7).
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 2 * 3 * 4], Shape::new([2_usize, 3, 4])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+        assert_eq!(
+            info.sop_class_uid.as_deref(),
+            Some("1.2.840.10008.5.1.4.1.1.7.3"),
+            "SOP class must be Multi-Frame Grayscale Word Secondary Capture"
+        );
+    }
+
+    #[test]
+    fn test_write_multiframe_with_spatial_metadata_round_trip() {
+        // Analytical invariants:
+        // - IPP round-trip: |read_ipp[i] - written_ipp[i]| < 1e-4 (DS string precision)
+        // - IOP round-trip: |read_iop[i] - written_iop[i]| < 1e-4
+        // - Modality round-trip: exact string match
+        // - origin in loaded Image equals IPP to ±1e-4
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf_spatial.dcm");
+        let n_frames = 2_usize;
+        let rows = 3_usize;
+        let cols = 4_usize;
+        let data: Vec<f32> = (0..n_frames * rows * cols).map(|i| i as f32).collect();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data.clone(), Shape::new([n_frames, rows, cols])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let spatial = MultiFrameSpatialMetadata {
+            origin: [10.0, 20.0, -50.0],
+            pixel_spacing: [0.8, 0.8],
+            slice_thickness: 2.5,
+            image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            modality: "CT".to_string(),
+        };
+        write_dicom_multiframe_with_options(&out_path, &image, Some(&spatial))
+            .expect("write_dicom_multiframe_with_options");
+        assert!(out_path.exists(), "output file must exist");
+
+        // Verify via read_multiframe_info
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+        assert_eq!(
+            info.modality.as_deref(),
+            Some("CT"),
+            "modality must round-trip"
+        );
+        assert_eq!(
+            info.sop_class_uid.as_deref(),
+            Some("1.2.840.10008.5.1.4.1.1.7.3"),
+            "SOP class must be Multi-Frame Grayscale Word SC"
+        );
+        let ipp = info.image_position.expect("image_position must be Some");
+        assert!((ipp[0] - 10.0).abs() < 1e-4, "IPP x round-trip");
+        assert!((ipp[1] - 20.0).abs() < 1e-4, "IPP y round-trip");
+        assert!((ipp[2] - (-50.0)).abs() < 1e-4, "IPP z round-trip");
+        let iop = info
+            .image_orientation
+            .expect("image_orientation must be Some");
+        assert!((iop[0] - 1.0).abs() < 1e-4, "IOP[0] round-trip");
+        assert!((iop[4] - 1.0).abs() < 1e-4, "IOP[4] round-trip");
+
+        // Verify via load_dicom_multiframe
+        let loaded =
+            load_dicom_multiframe::<B, _>(&out_path, &device).expect("load_dicom_multiframe");
+        let loaded_origin = loaded.origin();
+        assert!((loaded_origin[0] - 10.0).abs() < 1e-4, "loaded origin x");
+        assert!((loaded_origin[1] - 20.0).abs() < 1e-4, "loaded origin y");
+        assert!((loaded_origin[2] - (-50.0)).abs() < 1e-4, "loaded origin z");
+
+        // Shape invariant
+        let [lf, lr, lc] = loaded.shape();
+        assert_eq!(lf, n_frames, "frame count");
+        assert_eq!(lr, rows, "rows");
+        assert_eq!(lc, cols, "cols");
+
+        // Pixel round-trip within quantization tolerance
+        let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+        let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let slope = if (max_val - min_val).abs() <= f32::EPSILON {
+            1.0_f32
+        } else {
+            (max_val - min_val) / 65535.0_f32
+        };
+        let tolerance = slope + 1.0_f32;
+        let recovered_td = loaded.data().clone().into_data();
+        let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32");
+        for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
+    }
+
+    /// Invariant: every file written by write_dicom_multiframe must carry
+    /// SamplesPerPixel (0028,0002) = 1 (Type 1 mandatory tag in Image Pixel Module).
+    ///
+    /// Proof: Multi-Frame Grayscale Word SC IOD mandates SamplesPerPixel = 1 (PS3.3 C.7.6.3.1.1).
+    #[test]
+    fn test_written_multiframe_has_samples_per_pixel_one() {
+        use dicom::object::open_file;
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf_spp.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 2 * 4 * 5], Shape::new([2_usize, 4, 5])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+
+        let obj = open_file(&out_path).expect("open_file");
+        let spp: u16 = obj
+            .element(dicom::core::Tag(0x0028, 0x0002))
+            .expect("SamplesPerPixel (0028,0002) must be present")
+            .to_str()
+            .expect("SamplesPerPixel must be readable as string")
+            .trim()
+            .parse()
+            .expect("SamplesPerPixel must be numeric");
+        assert_eq!(
+            spp, 1,
+            "SamplesPerPixel must equal 1 for grayscale multi-frame"
+        );
+    }
+
+    /// Invariant: MultiFrameWriterConfig.instance_number propagates to InstanceNumber (0020,0013).
+    ///
+    /// Proof: write_multiframe_impl emits format!("{}", config.instance_number) as IS VR.
+    #[test]
+    fn test_writer_config_instance_number_propagated() {
+        use dicom::object::open_file;
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf_inst.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![5.0_f32; 1 * 2 * 3], Shape::new([1_usize, 2, 3])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        let config = MultiFrameWriterConfig {
+            instance_number: 42,
+            ..MultiFrameWriterConfig::default()
+        };
+        write_dicom_multiframe_with_config(&out_path, &image, &config).expect("write");
+
+        let obj = open_file(&out_path).expect("open_file");
+        let inst_num: u32 = obj
+            .element(dicom::core::Tag(0x0020, 0x0013))
+            .expect("InstanceNumber (0020,0013) must be present")
+            .to_str()
+            .expect("InstanceNumber must be readable")
+            .trim()
+            .parse()
+            .expect("InstanceNumber must be numeric");
+        assert_eq!(
+            inst_num, 42,
+            "InstanceNumber must match config.instance_number"
+        );
+    }
+
+    /// Invariant: write+read round-trip for negative-intensity images must satisfy
+    /// |recovered − original| ≤ rescale_slope + 1.0 for all samples.
+    ///
+    /// Analytical: range = [-1024.0, 500.0] = 1524.0, slope = 1524.0/65535.0 ≈ 0.02325.
+    #[test]
+    fn test_round_trip_negative_intensity_image() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf_neg.dcm");
+        let n = 2_usize * 3 * 4;
+        let data: Vec<f32> = (0..n)
+            .map(|i| -1024.0_f32 + (i as f32) * (1524.0_f32 / (n as f32 - 1.0_f32)))
+            .collect();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data.clone(), Shape::new([2_usize, 3, 4])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let loaded = load_dicom_multiframe::<B, _>(&out_path, &device).expect("load");
+
+        let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+        let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let slope = (max_val - min_val) / 65535.0_f32;
+        let tolerance = slope + 1.0_f32;
+
+        let recovered_td = loaded.data().clone().into_data();
+        let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
+        for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
+    }
+
+    /// Invariant: flat image (all-same value) must round-trip with zero quantization error.
+    ///
+    /// Proof: when min == max, slope = 1.0 and intercept = constant_value.
+    /// All stored u16 = 0; recovered = 0 * 1.0 + intercept = intercept = constant_value.
+    #[test]
+    fn test_round_trip_flat_image_exact() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("mf_flat.dcm");
+        let constant = 42.75_f32; // exactly representable; "{:.6}" -> "42.750000" -> 42.75
+        let data: Vec<f32> = vec![constant; 2 * 3 * 4];
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data.clone(), Shape::new([2_usize, 3, 4])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let loaded = load_dicom_multiframe::<B, _>(&out_path, &device).expect("load");
+        let recovered_td = loaded.data().clone().into_data();
+        let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
+        for (i, &rec) in recovered.iter().enumerate() {
+            assert!(
+                (rec - constant).abs() <= f32::EPSILON,
+                "pixel {i}: expected {constant} got {rec} (diff {})",
+                (rec - constant).abs()
+            );
+        }
+    }
+
+    /// Compressed transfer syntax guard: load_dicom_multiframe must return Err
+    /// when the file meta declares a compressed transfer syntax.
+    ///
+    /// Analytical invariant: any TS for which TransferSyntaxKind::is_compressed() is true
+    /// must be rejected before pixel decode so no garbage data is produced.
+    #[test]
+    fn test_load_multiframe_compressed_ts_errors() {
+        use dicom::object::meta::FileMetaTableBuilder;
+        use dicom::object::InMemDicomObject;
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("compressed.dcm");
+
+        // Construct a minimal DICOM dataset that declares JPEG Baseline TS (1.2.840.10008.1.2.4.50)
+        // but contains no real compressed pixels. The TS guard must fire before pixel decode.
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(vec![0u8; 8])),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                    .media_storage_sop_instance_uid("2.25.99999")
+                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+            )
+            .expect("meta build");
+        file_obj
+            .write_to_file(&path)
+            .expect("write compressed stub");
+
+        let result = load_dicom_multiframe::<B, _>(&path, &device);
+        assert!(
+            result.is_err(),
+            "load_dicom_multiframe must return Err for compressed TS"
+        );
+        let msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            msg.contains("1.2.840.10008.1.2.4.50") || msg.to_lowercase().contains("compress"),
+            "error must name the TS UID or contain 'compress'; got: {msg}"
+        );
+    }
+
+    /// MultiFrameInfo must include rescale_slope and rescale_intercept populated from
+    /// the written DICOM file's (0028,1053) and (0028,1052) tags.
+    ///
+    /// Analytical ground truth:
+    /// - image range [0.0, 124.0] => slope = 124.0/65535.0, intercept = 0.0
+    /// - DS format "{:.6}" => read-back within f64::EPSILON of written value
+    #[test]
+    fn test_multiframe_info_rescale_slope_intercept_populated() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("rescale.dcm");
+
+        // Analytically derive expected slope/intercept
+        let n_frames = 1_usize;
+        let rows = 5_usize;
+        let cols = 5_usize;
+        let data: Vec<f32> = (0..n_frames * rows * cols).map(|i| i as f32).collect();
+        let min_val = 0.0_f32;
+        let max_val = 24.0_f32;
+        let expected_slope = (max_val - min_val) / 65535.0_f32;
+        let expected_intercept = min_val;
+
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data, Shape::new([n_frames, rows, cols])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+
+        // DS precision is 6 decimal places => tolerance is 5e-7
+        let tol = 5e-7_f64;
+        assert!(
+            (info.rescale_slope - expected_slope as f64).abs() < tol,
+            "rescale_slope: expected {:.8} got {:.8}",
+            expected_slope,
+            info.rescale_slope
+        );
+        assert!(
+            (info.rescale_intercept - expected_intercept as f64).abs() < tol,
+            "rescale_intercept: expected {:.8} got {:.8}",
+            expected_intercept,
+            info.rescale_intercept
+        );
+    }
+
+    /// ConversionType (0008,0064) must be present and equal to "WSD" in the output file.
+    ///
+    /// Invariant: SC Equipment Module (PS3.3 C.8.6.1) mandates ConversionType as Type 1.
+    #[test]
+    fn test_multiframe_has_conversion_type_wsd() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("conv_type.dcm");
+
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 1 * 2 * 2], Shape::new([1_usize, 2, 2])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+
+        let obj = open_file(&out_path).expect("open");
+        let conv_type = obj
+            .element(Tag(0x0008, 0x0064))
+            .expect("ConversionType (0008,0064) must be present")
+            .to_str()
+            .expect("ConversionType must be a string")
+            .trim()
+            .to_string();
+        assert_eq!(
+            conv_type, "WSD",
+            "ConversionType must be 'WSD' (Workstation)"
+        );
+    }
 }

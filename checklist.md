@@ -1,3 +1,258 @@
+## Sprint 49 -- Completed
+
+- [x] DICOM-TYPE2-META-R49: Add Type 2 fallback tags to `write_dicom_series_with_metadata(None)`
+  - Five Type 2 mandatory tags absent when `metadata=None`: (0008,0090) ReferringPhysicianName,
+    (0010,0010) PatientName, (0010,0020) PatientID, (0008,0020) StudyDate, (0020,0011) SeriesNumber
+  - Inserted unconditional defaults before the `if let Some(m) = metadata` block
+  - The conditional block overrides via `obj.put()` when metadata provides non-None values
+  - All five tags now present in every emitted slice regardless of metadata argument
+  - Verified by `test_metadata_writer_none_metadata_type2_tags`
+
+- [x] DICOM-E2E-ROUNDTRIP-BASIC-R49: `test_write_series_load_series_intensity_roundtrip` in `reader.rs`
+  - Writes 4×4×4 image (intensities 0..63) via `write_dicom_series`
+  - Loads via `load_dicom_series`
+  - Asserts per-voxel `|decoded − original| ≤ 65535 × 0.5e-6 + 0.5e-6 + slope/2`
+  - Tolerance analytically derived: DS `{:.6}` format → at most 0.5e-6 rounding per coefficient;
+    accumulated over max u16 (65535) → ≈0.033; quantization adds slope/2 ≈ 1.14e-4
+
+- [x] DICOM-E2E-ROUNDTRIP-META-R49: `test_write_metadata_series_load_series_intensity_roundtrip` in `reader.rs`
+  - Writes 3×4×4 image with origin [5,10,-20], spacing [0.5,0.5,1.5] via `write_dicom_series_with_metadata`
+  - Loads via `load_dicom_series`
+  - Asserts per-voxel intensity error within same DS-precision analytical bound
+  - Asserts origin round-trips within 1e-4 mm on all three axes
+  - Asserts spacing round-trips within 1e-4 mm on all three axes
+
+- [x] DICOM-TYPE2-META-TEST-R49: `test_metadata_writer_none_metadata_type2_tags` in `writer.rs`
+  - Calls `write_dicom_series_with_metadata(None)`, opens first slice
+  - Asserts all five Type 2 tags present: (0010,0010), (0010,0020), (0008,0090), (0008,0020), (0020,0011)
+
+- [x] GAP-AUDIT-IO-SYNC-R49: Update `gap_audit.md` sections 6.1, 6.2, 6.4, 6.6, 6.8
+  - Section 6.1 MetaImage: Critical → Closed (Sprint 2); "Planned location" replaced with implementation bullets
+  - Section 6.2 NRRD: High → Closed (Sprint 2); Teem prose replaced with implementation bullets
+  - Section 6.4 VTK Image: Medium → Closed (Sprint 8); "Planned location" replaced with implementation bullets
+  - Section 6.6 Analyze: Low → Closed (Sprint 2); legacy prose replaced with implementation bullets
+  - Section 6.8 JPEG 2D: Low → Closed (Sprint 8); lossy-artifact prose replaced with implementation bullets
+  - Section 8.5 priority matrix was already correct (all Closed); no change needed there
+
+---
+
+## Sprint 48 -- Completed
+
+- [x] DICOM-TS-GUARD-MF-R48: Compressed TS detection in `load_dicom_multiframe`
+  - After `open_file`, reads `obj.meta().transfer_syntax()` and calls `TransferSyntaxKind::from_uid(ts_uid).is_compressed()`
+  - Returns `Err` with TS UID and path before any pixel decode; prevents silent garbage-intensity output
+  - Added `use super::transfer_syntax::TransferSyntaxKind` to `multiframe.rs` imports
+  - Verified by `test_load_multiframe_compressed_ts_errors`
+
+- [x] DICOM-TS-GUARD-SERIES-R48: Compressed TS detection in `load_from_series`
+  - Pre-decode loop over `slices.iter()` checks each `DicomSliceMetadata.transfer_syntax_uid`
+  - Uses `TransferSyntaxKind::from_uid(ts).is_compressed()`; bails with TS UID and slice path on first compressed hit
+  - Added `use super::transfer_syntax::TransferSyntaxKind` to `reader.rs` imports
+  - Verified by `test_load_series_compressed_ts_errors`
+
+- [x] DICOM-INFO-RESCALE-R48: Add `rescale_slope: f64` and `rescale_intercept: f64` to `MultiFrameInfo`
+  - Two new public fields: `rescale_slope` (default 1.0) and `rescale_intercept` (default 0.0)
+  - Populated from (0028,1053) and (0028,1052) inside `extract_multiframe_header`
+  - Exposes the linear transform without requiring a second file open
+  - Verified by `test_multiframe_info_rescale_slope_intercept_populated`
+
+- [x] DICOM-MF-LOAD-DRY-R48: Extract `extract_multiframe_header` — eliminate header parse duplication
+  - Private `fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameInfo`
+  - Encapsulates all header element reads: n_frames, rows, cols, bits_allocated, pixel_spacing,
+    frame_thickness, modality, sop_class_uid, image_position, image_orientation, rescale_slope, rescale_intercept
+  - Both `read_multiframe_info` and `load_dicom_multiframe` delegate to it; each opens the file once
+  - Zero header-field duplication remains
+
+- [x] DICOM-CLAMP-SERIES-R48: Fix missing `.clamp(0.0, 65535.0)` in both series writer pixel encoding paths
+  - `write_dicom_series` and `write_dicom_series_with_metadata` were both missing the clamp before `as u16`
+  - Added `.round().clamp(0.0, 65535.0) as u16` to both per-slice pixel encoding closures
+  - `write_multiframe_impl` already had the correct form; all three writers now consistent
+  - Verified by `test_series_pixel_clamp_u16_range`
+
+- [x] DICOM-CONV-TYPE-R48: Add `ConversionType` (0008,0064) = "WSD" to all three writers
+  - SC Equipment Module (PS3.3 C.8.6.1) mandates ConversionType as Type 1
+  - "WSD" (Workstation) added after Modality in `write_dicom_series`, `write_dicom_series_with_metadata`, and `write_multiframe_impl`
+  - Added `writer_tag_key(0x0008, 0x0064)` to `writer_exclusion_tags()` to prevent preservation duplication
+  - Verified by `test_series_writer_has_conversion_type_wsd` and `test_multiframe_has_conversion_type_wsd`
+
+- [x] DICOM-TYPE2-BASIC-R48: Add Type 2 mandatory tags to `write_dicom_series`
+  - Five Type 2 tags absent from the basic series writer added with empty/default values per DICOM PS3.3
+  - (0008,0090) ReferringPhysicianName="", (0010,0010) PatientName="", (0010,0020) PatientID="",
+    (0008,0020) StudyDate="", (0020,0011) SeriesNumber="0"
+  - Tags (0008,0090) and (0020,0011) added to `writer_exclusion_tags()`
+  - Verified by `test_basic_series_writer_has_type2_patient_tags`
+
+- [x] DICOM-TS-GUARD-MF-TEST-R48: `test_load_multiframe_compressed_ts_errors` in `multiframe.rs`
+  - Writes DICOM with JPEG Baseline TS (1.2.840.10008.1.2.4.50) via `FileMetaTableBuilder`
+  - Asserts `load_dicom_multiframe` returns `Err`; error message contains TS UID or "compress"
+
+- [x] DICOM-INFO-RESCALE-TEST-R48: `test_multiframe_info_rescale_slope_intercept_populated` in `multiframe.rs`
+  - 1×5×5 image range [0.0, 24.0]; analytical slope = 24.0/65535.0, intercept = 0.0
+  - Asserts |info.rescale_slope − expected| < 5×10⁻⁷ and |info.rescale_intercept − 0.0| < 5×10⁻⁷
+  - Tolerance derived from DS `{:.6}` format precision
+
+- [x] DICOM-CONV-TYPE-MF-TEST-R48: `test_multiframe_has_conversion_type_wsd` in `multiframe.rs`
+  - Writes via `write_dicom_multiframe`, opens with `open_file`, reads (0008,0064), asserts trimmed == "WSD"
+
+- [x] DICOM-CLAMP-TEST-R48: `test_series_pixel_clamp_u16_range` in `writer.rs`
+  - 16 analytically-spaced f32 values 0→65535 (step = 65535/15); all encoded u16 ≤ 65535
+
+- [x] DICOM-CONV-TYPE-SERIES-TEST-R48: `test_series_writer_has_conversion_type_wsd` in `writer.rs`
+  - Writes via `write_dicom_series`, opens first slice, reads (0008,0064), asserts trimmed == "WSD"
+
+- [x] DICOM-TYPE2-TEST-R48: `test_basic_series_writer_has_type2_patient_tags` in `writer.rs`
+  - Writes via `write_dicom_series`, opens first slice
+  - Asserts presence of (0010,0010), (0010,0020), (0008,0090), (0008,0020), (0020,0011)
+
+- [x] DICOM-TS-GUARD-SERIES-TEST-R48: `test_load_series_compressed_ts_errors` in `reader.rs`
+  - Writes single CT slice with JPEG Baseline TS in file meta
+  - Verifies `scan_dicom_directory` captures compressed TS in slice metadata
+  - Verifies `load_dicom_series` returns `Err` with TS UID in error message
+
+---
+
+## Sprint 47 -- Completed
+
+- [x] DICOM-SPP-MF-R47: Add `SamplesPerPixel` (0028,0002) = 1 to `write_multiframe_impl`
+  - Type 1 mandatory tag in DICOM Image Pixel Module (PS3.3 C.7.6.3.1.1)
+  - Was absent from multi-frame writer; emitted `DataElement::new(Tag(0x0028,0x0002), VR::US, PrimitiveValue::from(1_u16))` before Rows element
+  - Verified by `test_written_multiframe_has_samples_per_pixel_one`
+
+- [x] DICOM-SPP-SERIES-R47: Add `SamplesPerPixel` (0028,0002) = 1 to both series writers
+  - Same mandatory tag absent from `write_dicom_series` and `write_dicom_series_with_metadata`
+  - Fixed in both per-slice emission loops before `Rows` element
+  - Verified by `test_series_writer_has_samples_per_pixel_one`
+
+- [x] DICOM-INST-NUM-MF-R47: Add `InstanceNumber` (0020,0013) to multi-frame writer
+  - Type 2 required tag for SC Image Module; emitted from `config.instance_number` (default 1)
+  - Verified by `test_writer_config_instance_number_propagated` (asserts value == 42 with explicit config)
+
+- [x] DICOM-DRY-DS-R47: Extract `parse_ds_backslash<const N: usize>` private helper
+  - Six duplicated DS backslash-parse closures across `read_multiframe_info` and `load_dicom_multiframe`
+  - Replaced with `fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]>`
+  - Const generic parameter encodes field-width variation; zero logic duplication remains
+  - All callers: pixel_spacing (N=2), image_position (N=3), image_orientation (N=6) in both functions
+
+- [x] DICOM-CONFIG-R47: Add `MultiFrameWriterConfig` builder struct and `write_dicom_multiframe_with_config`
+  - `MultiFrameWriterConfig { sop_class_uid: String, spatial: Option<MultiFrameSpatialMetadata>, instance_number: u32 }`
+  - `Default` impl: sop_class = `MF_GRAYSCALE_WORD_SC_UID`, instance_number = 1, spatial = None
+  - `write_dicom_multiframe_with_config` accepts explicit `&MultiFrameWriterConfig`
+  - `write_dicom_multiframe` and `write_dicom_multiframe_with_options` delegate via config construction; public signatures unchanged
+  - `write_multiframe_impl` refactored to take `config: &MultiFrameWriterConfig`
+
+- [x] DICOM-REEXPORT-R47: Fix `mod.rs` re-export gap for multi-frame types
+  - `MultiFrameSpatialMetadata`, `write_dicom_multiframe_with_options`, `MultiFrameWriterConfig`, `write_dicom_multiframe_with_config` added to `pub use multiframe::{...}`
+  - Module doc Public API section expanded with Series I/O, Multi-Frame I/O, and Object Model subsections
+
+- [x] DICOM-SPP-MF-TEST-R47: Add `test_written_multiframe_has_samples_per_pixel_one` in `multiframe.rs`
+  - Writes via `write_dicom_multiframe`, reads `(0028,0002)` via `open_file`, asserts parsed u16 == 1
+
+- [x] DICOM-INST-NUM-TEST-R47: Add `test_writer_config_instance_number_propagated` in `multiframe.rs`
+  - Writes via `write_dicom_multiframe_with_config` with `instance_number=42`
+  - Reads `(0020,0013)` via `open_file`, asserts parsed u32 == 42
+
+- [x] DICOM-NEG-RT-TEST-R47: Add `test_round_trip_negative_intensity_image` in `multiframe.rs`
+  - 24-sample image spanning [-1024, 500]; analytical slope = 1524.0/65535.0 ≈ 0.02325
+  - Asserts |recovered − original| ≤ slope + 1.0 for all samples
+
+- [x] DICOM-FLAT-RT-TEST-R47: Add `test_round_trip_flat_image_exact` in `multiframe.rs`
+  - Constant image (42.75_f32, exactly representable in f32 and DS "{:.6}" format)
+  - Verifies slope=1.0 / all-zeros u16 branch; asserts |recovered − 42.75| ≤ f32::EPSILON
+
+- [x] DICOM-SPP-SERIES-TEST-R47: Add `test_series_writer_has_samples_per_pixel_one` in `writer.rs`
+  - Writes via `write_dicom_series`, opens first slice, asserts `(0028,0002)` == 1
+
+---
+
+## Sprint 46 -- Completed
+
+- [x] DICOM-MF-SOP-FIX-R46: Fix `write_dicom_multiframe` SOP class to Multi-Frame Grayscale Word SC
+  - Was emitting `1.2.840.10008.5.1.4.1.1.7` (Single-frame Secondary Capture)
+  - Corrected to `1.2.840.10008.5.1.4.1.1.7.3` (Multi-Frame Grayscale Word Secondary Capture)
+  - Extracted `MF_GRAYSCALE_WORD_SC_UID` const — single authoritative reference used by DataElement and FileMetaTableBuilder
+  - Updated existing SOP class assertions in `test_multiframe_info_and_roundtrip_writer_read_consistency` and `test_read_multiframe_info_reports_scalar_defaults_for_single_frame`
+
+- [x] DICOM-MF-SPATIAL-R46: Add `MultiFrameSpatialMetadata` and `write_dicom_multiframe_with_options`
+  - `MultiFrameSpatialMetadata { origin: [f64;3], pixel_spacing: [f64;2], slice_thickness: f64, image_orientation: [f64;6], modality: String }`
+  - `write_dicom_multiframe_with_options(path, image, Option<&MultiFrameSpatialMetadata>)` — emits IPP/IOP/PixelSpacing/SliceThickness/Modality when Some
+  - Shared private `write_multiframe_impl`; `write_dicom_multiframe` public signature unchanged
+
+- [x] DICOM-MF-INFO-SPATIAL-R46: Extend `MultiFrameInfo` and `read_multiframe_info` with IPP/IOP fields
+  - Added `image_position: Option<[f64; 3]>` and `image_orientation: Option<[f64; 6]>` to `MultiFrameInfo`
+  - `read_multiframe_info` now parses (0020,0032) ImagePositionPatient and (0020,0037) ImageOrientationPatient
+
+- [x] DICOM-MF-LOAD-SPATIAL-R46: `load_dicom_multiframe` derives origin and direction from IPP/IOP
+  - Origin set from (0020,0032) when present; defaults to [0,0,0]
+  - Direction derived via `SMatrix::from_column_slice` with cols [row_cosines, col_cosines, normal]; normal = row × col
+  - Previously hardcoded `Point::new([0,0,0])` and `Direction::identity()`
+
+- [x] DICOM-MF-SOP-TEST-R46: Add `test_multiframe_sop_class_is_mf_grayscale_word` in `multiframe.rs`
+  - Writes via `write_dicom_multiframe`, reads info, asserts `sop_class_uid == Some("1.2.840.10008.5.1.4.1.1.7.3")`
+
+- [x] DICOM-MF-SPATIAL-TEST-R46: Add `test_write_multiframe_with_spatial_metadata_round_trip` in `multiframe.rs`
+  - Writes with origin=[10,20,-50], pixel_spacing=[0.8,0.8], slice_thickness=2.5, IOP=identity row/col, modality="CT"
+  - Asserts `read_multiframe_info` IPP ±1e-4, IOP ±1e-4, modality exact
+  - Asserts `load_dicom_multiframe` loaded origin ±1e-4
+  - Asserts pixel reconstruction error ≤ slope + 1.0
+
+- [x] DICOM-LOAD-DIR-FIX-R46: Fix `load_from_series` to use `metadata.direction` instead of `Direction::identity()`
+  - `load_from_series` was ignoring `metadata.direction: [f64; 9]` and constructing Image with identity direction
+  - Fixed to `Direction::from_row_slice(&metadata.direction)`
+
+- [x] DICOM-READER-BVR-FIX-R46: Fix binary-VR routing in `scan_dicom_directory` top-level preservation loop
+  - Same dicom-rs 0.8 `to_str()` bug from Sprint 45 `parse_sequence_item` fix also present in top-level loop
+  - VR::OB/OW/OD/OF/OL/UN elements were stored as `DicomValue::Text` instead of routed to `preservation.preserved`
+  - Fixed by adding the same `is_binary_vr` gate before the `to_str()` branch
+
+- [x] DICOM-SCAN-PRIV-RT-R46: Add `test_scan_preserves_private_text_and_bytes_through_write_read_cycle` in `reader.rs`
+  - Writes 1-slice series with private LO text tag (0009,0010)="PRIV_ROUND_TRIP_VALUE" and OB bytes tag (0019,1001)=[0xAB,0xCD,0xEF,0x01]
+  - Reads back via `scan_dicom_directory`
+  - Asserts text in `preservation.object` with exact value; bytes in `preservation.preserved` with exact payload
+  - Closes the "private-tag round-trip on the general series reader/writer path" gap
+
+---
+
+## Sprint 45 -- Completed
+
+- [x] DICOM-TS-BUG-R45: Fix transfer_syntax_uid read in `scan_dicom_directory`
+  - Was reading Tag(0x0008,0x0070) = Manufacturer into `transfer_syntax_uid`
+  - Fixed both per-slice and `first_transfer_syntax_uid` reads to use `obj.meta().transfer_syntax()`
+  - Transfer syntax now correctly populated from DICOM file meta table
+
+- [x] DICOM-SEQ-OB-FIX-R45: Fix binary VR preservation in `parse_sequence_item`
+  - `to_str()` on VR::OB in dicom-rs 0.8 returns a decimal-formatted string rather than an error
+  - Added explicit `is_binary_vr` gate: VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN go directly to the bytes branch
+  - Non-binary VRs still use `to_str()` with `to_bytes()` fallback
+  - Restores Sprint 43 invariant; `test_scan_private_sequence_is_preserved_in_object_model` passes
+
+- [x] DICOM-SPATIAL-RT-R45: Add `test_scan_metadata_round_trip_spatial_fields` in `reader.rs`
+  - Writes 3-slice CT series via `write_dicom_series_with_metadata` with origin=[10,20,-50], spacing=[0.8,0.8,2.5], identity direction, modality="CT"
+  - Reads back via `scan_dicom_directory` and asserts all DicomReadMetadata fields to ±1e-4
+  - Asserts per-slice IOP, pixel_spacing, and IPP z-position for all 3 slices
+
+- [x] DICOM-RESCALE-RT-R45: Add `test_scan_metadata_round_trip_rescale_params` in `reader.rs`
+  - Writes 2-slice CT image spanning [-1024, 1024] float intensities
+  - Verifies slope > 0 and intercept is finite for all slices
+  - Verifies first-voxel quantization error is bounded by slope/2
+
+- [x] DICOM-TS-RT-R45: Add `test_scan_metadata_round_trip_transfer_syntax` in `reader.rs`
+  - Writes series with Explicit VR LE transfer syntax
+  - Asserts `transfer_syntax_uid == Some("1.2.840.10008.1.2.1")` for every slice
+  - Directly validates the bug fix above
+
+- [x] AUDIT-R02B-R45: Close GAP-R02b in gap_audit.md
+  - Marked GAP-R02b as Closed (Sprint 45 audit)
+  - `InverseConsistentDiffeomorphicDemonsRegistration` and `MultiResDemonsRegistration` confirmed implemented
+  - Both exposed in Python as `inverse_consistent_demons_register` and `multires_demons_register`
+  - Both included in smoke test required list
+
+## Sprint 43 -- Completed
+
+- [x] DICOM-OBJECT-MODEL-R43: add nested-sequence and preserved-bytes round-trip coverage for `ritk_io::format::dicom::writer_object`
+  - Extended `writer_object` tests to exercise `DicomObjectModel` sequence nodes, nested `DicomSequenceItem` content, and raw preserved byte nodes
+  - Added direct file round-trip assertions against `dicom::object::open_file` for SQ / OB emission
+  - Verifies `model_to_in_mem` emits sequence items, private tags, and byte payloads with value-semantic checks
+
 ## Sprint 42 -- Completed
 
 - [x] SMOKE-FILTER-DT-R42: Add `"distance_transform"` to filter smoke required list in test_smoke.py

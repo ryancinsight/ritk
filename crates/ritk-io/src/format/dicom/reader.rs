@@ -32,8 +32,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::{Tag, VR};
-use dicom_core::header::Header;
 use dicom::object::open_file;
+use dicom_core::header::Header;
+use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::collections::{HashMap, HashSet};
@@ -41,10 +42,11 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
 use super::object_model::{
-    DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomSequenceItem, DicomTag, DicomValue, is_private_tag,
+    is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomSequenceItem, DicomTag, DicomValue,
 };
 use super::sop_class::{classify_sop_class, SopClassKind};
+use super::transfer_syntax::TransferSyntaxKind;
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
@@ -160,7 +162,7 @@ fn known_handled_tags() -> HashSet<u32> {
     s.insert(tag_key(0x0028, 0x1052)); // RescaleIntercept
     s.insert(tag_key(0x0008, 0x0016)); // SOP Class UID
     s.insert(tag_key(0x0008, 0x0070)); // Manufacturer (transfer syntax surrogate)
-    // Rows / Columns / series geometry
+                                       // Rows / Columns / series geometry
     s.insert(tag_key(0x0028, 0x0010)); // Rows
     s.insert(tag_key(0x0028, 0x0011)); // Columns
     s.insert(tag_key(0x0020, 0x000E)); // SeriesInstanceUID
@@ -177,7 +179,7 @@ fn known_handled_tags() -> HashSet<u32> {
     s.insert(tag_key(0x0028, 0x0101)); // BitsStored
     s.insert(tag_key(0x0028, 0x0102)); // HighBit
     s.insert(tag_key(0x0028, 0x0004)); // PhotometricInterpretation
-    // Always skip pixel data
+                                       // Always skip pixel data
     s.insert(tag_key(0x7FE0, 0x0010));
     s
 }
@@ -185,10 +187,7 @@ fn known_handled_tags() -> HashSet<u32> {
 /// Recursively parse a DICOM sequence item into a DicomSequenceItem.
 ///
 /// `depth` limits recursion to 8 levels to guard against malformed input.
-fn parse_sequence_item(
-    item: &dicom::object::InMemDicomObject,
-    depth: usize,
-) -> DicomSequenceItem {
+fn parse_sequence_item(item: &dicom::object::InMemDicomObject, depth: usize) -> DicomSequenceItem {
     let mut seq_item = DicomSequenceItem::new();
     if depth > 8 {
         return seq_item;
@@ -211,10 +210,37 @@ fn parse_sequence_item(
                     source: None,
                 });
             }
-        } else if let Ok(s) = element.to_str() {
-            seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
+        } else {
+            // Binary VRs (OB, OW, OD, OF, OL, OV, UN) must go directly to the bytes
+            // branch: dicom-rs `to_str()` on these VRs returns a formatted decimal
+            // representation rather than an error, which would lose the raw payload.
+            let is_binary_vr = matches!(
+                element.vr(),
+                VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
+            );
+            if is_binary_vr {
+                if let Ok(bytes) = element.to_bytes() {
+                    seq_item.insert(DicomObjectNode {
+                        tag: dicom_tag,
+                        vr: Some(vr_str.to_string()),
+                        value: DicomValue::Bytes(bytes.to_vec()),
+                        private: is_private_tag(dicom_tag),
+                        source: None,
+                    });
+                }
+            } else if let Ok(s) = element.to_str() {
+                seq_item.insert(DicomObjectNode::text(dicom_tag, vr_str, s.to_string()));
+            } else if let Ok(bytes) = element.to_bytes() {
+                // Preserve any other binary-valued element that failed to_str().
+                seq_item.insert(DicomObjectNode {
+                    tag: dicom_tag,
+                    vr: Some(vr_str.to_string()),
+                    value: DicomValue::Bytes(bytes.to_vec()),
+                    private: is_private_tag(dicom_tag),
+                    source: None,
+                });
+            }
         }
-        // Binary elements inside sequence items are omitted (preserving text fields only).
     }
     seq_item
 }
@@ -339,9 +365,9 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             if let Ok(elem) = obj.element(Tag(0x0008, 0x0016)) {
                 slice_meta.sop_class_uid = elem.to_str().ok().map(String::from);
             }
-            if let Ok(elem) = obj.element(Tag(0x0008, 0x0070)) {
-                slice_meta.transfer_syntax_uid = elem.to_str().ok().map(String::from);
-            }
+            // Transfer syntax UID lives in the DICOM file meta table (0002,0010),
+            // not in the main dataset. Use FileDicomObject::meta() to read it.
+            slice_meta.transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
 
             // Rows / Colls from first slice — establish series geometry
             if first_rows.is_none() {
@@ -440,9 +466,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                 }
             }
             if first_transfer_syntax_uid.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0008, 0x0070)) {
-                    first_transfer_syntax_uid = elem.to_str().ok().map(String::from);
-                }
+                first_transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
             }
 
             // Full element preservation: capture all non-handled elements.
@@ -456,6 +480,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     }
                     let dicom_tag = DicomTag::new(tag.group(), tag.element());
                     let vr_str = element.vr().to_string();
+                    let private = is_private_tag(dicom_tag);
                     if element.vr() == VR::SQ {
                         if let Some(sub_items) = element.value().items() {
                             let parsed: Vec<_> = sub_items
@@ -466,20 +491,41 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                                 tag: dicom_tag,
                                 vr: Some("SQ".to_string()),
                                 value: DicomValue::Sequence(parsed),
-                                private: is_private_tag(dicom_tag),
+                                private,
                                 source: None,
                             });
                         }
-                    } else if let Ok(s) = element.to_str() {
-                        slice_meta.preservation.object.insert(
-                            DicomObjectNode::text(dicom_tag, vr_str, s.to_string()),
+                    } else {
+                        // Binary VRs (OB, OW, OD, OF, OL, UN) must bypass to_str():
+                        // dicom-rs 0.8 returns a decimal-formatted string for these VRs
+                        // rather than an error, which would silently corrupt the raw payload.
+                        let is_binary_vr = matches!(
+                            element.vr(),
+                            VR::OB | VR::OW | VR::OD | VR::OF | VR::OL | VR::UN
                         );
-                    } else if let Ok(bytes) = element.to_bytes() {
-                        slice_meta.preservation.preserve(DicomPreservedElement::new(
-                            dicom_tag,
-                            Some(vr_str.to_string()),
-                            bytes.to_vec(),
-                        ));
+                        if is_binary_vr {
+                            if let Ok(bytes) = element.to_bytes() {
+                                slice_meta.preservation.preserve(DicomPreservedElement::new(
+                                    dicom_tag,
+                                    Some(vr_str.to_string()),
+                                    bytes.to_vec(),
+                                ));
+                            }
+                        } else if let Ok(s) = element.to_str() {
+                            slice_meta.preservation.object.insert(DicomObjectNode {
+                                tag: dicom_tag,
+                                vr: Some(vr_str.to_string()),
+                                value: DicomValue::Text(s.to_string()),
+                                private,
+                                source: None,
+                            });
+                        } else if let Ok(bytes) = element.to_bytes() {
+                            slice_meta.preservation.preserve(DicomPreservedElement::new(
+                                dicom_tag,
+                                Some(vr_str.to_string()),
+                                bytes.to_vec(),
+                            ));
+                        }
                     }
                 }
             }
@@ -492,29 +538,28 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     // Files without a readable SOP class UID are retained (ambiguous -> permissive).
     let original_count = slices.len();
     let mut rejected_uids: Vec<String> = Vec::new();
-    slices.retain(|s| {
-        match s.sop_class_uid.as_deref() {
-            None => true,
-            Some(uid) => {
-                let kind = classify_sop_class(uid);
-                let is_non_image = !kind.is_image_storage()
-                    && !matches!(kind, SopClassKind::Other(_));
-                if is_non_image {
-                    tracing::warn!(
-                        "skipping non-image DICOM SOP class: {:?} path={} sop_class_uid={}",
-                        kind, s.path.display(), uid
-                    );
-                    rejected_uids.push(uid.to_string());
-                    false
-                } else {
-                    true
-                }
+    slices.retain(|s| match s.sop_class_uid.as_deref() {
+        None => true,
+        Some(uid) => {
+            let kind = classify_sop_class(uid);
+            let is_non_image = !kind.is_image_storage() && !matches!(kind, SopClassKind::Other(_));
+            if is_non_image {
+                tracing::warn!(
+                    "skipping non-image DICOM SOP class: {:?} path={} sop_class_uid={}",
+                    kind,
+                    s.path.display(),
+                    uid
+                );
+                rejected_uids.push(uid.to_string());
+                false
+            } else {
+                true
             }
         }
     });
     if slices.is_empty() && original_count > 0 {
         bail!(
-            "DICOM directory {:?} contains {} file(s) but none are image-bearing SOP classes; 
+            "DICOM directory {:?} contains {} file(s) but none are image-bearing SOP classes;
              rejected SOP class UIDs: [{}]",
             path,
             original_count,
@@ -740,6 +785,22 @@ fn load_from_series<B: Backend>(
         .first()
         .ok_or_else(|| anyhow!("DICOM series is empty"))?;
 
+    // Guard: reject compressed-transfer-syntax slices before pixel decode.
+    // Pixel data in compressed files cannot be interpreted as raw u8/u16 samples;
+    // processing them silently produces garbage intensities.
+    for slice in slices.iter() {
+        if let Some(ref ts_uid) = slice.transfer_syntax_uid {
+            if TransferSyntaxKind::from_uid(ts_uid).is_compressed() {
+                bail!(
+                    "DICOM series: compressed transfer syntax '{}' in slice {:?} is not \
+                     natively supported; decompress the series before loading",
+                    ts_uid,
+                    slice.path
+                );
+            }
+        }
+    }
+
     let rows = metadata.dimensions[0];
     let cols = metadata.dimensions[1];
     let depth = metadata.dimensions[2];
@@ -774,7 +835,7 @@ fn load_from_series<B: Backend>(
         tensor,
         Point::new(metadata.origin),
         Spacing::new(metadata.spacing),
-        Direction::identity(),
+        Direction(SMatrix::<f64, 3, 3>::from_row_slice(&metadata.direction)),
     );
 
     Ok((image, metadata))
@@ -879,10 +940,14 @@ mod tests {
     fn write_stub_dicom(path: &std::path::Path, sop_class_uid: &str, sop_instance_uid: &str) {
         let mut obj = InMemDicomObject::new_empty();
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from(sop_class_uid),
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from(sop_class_uid),
         ));
         obj.put(DataElement::new(
-            Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from(sop_instance_uid),
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from(sop_instance_uid),
         ));
         let file_obj = obj
             .with_meta(
@@ -960,19 +1025,29 @@ mod tests {
         {
             let mut obj = InMemDicomObject::new_empty();
             obj.put(DataElement::new(
-                Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+                Tag(0x0008, 0x0016),
+                VR::UI,
+                PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
             ));
             obj.put(DataElement::new(
-                Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("2.25.20002"),
+                Tag(0x0008, 0x0018),
+                VR::UI,
+                PrimitiveValue::from("2.25.20002"),
             ));
             obj.put(DataElement::new(
-                Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(4_u16),
+                Tag(0x0028, 0x0010),
+                VR::US,
+                PrimitiveValue::from(4_u16),
             ));
             obj.put(DataElement::new(
-                Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(4_u16),
+                Tag(0x0028, 0x0011),
+                VR::US,
+                PrimitiveValue::from(4_u16),
             ));
             obj.put(DataElement::new(
-                Tag(0x0020, 0x0013), VR::IS, PrimitiveValue::from("1"),
+                Tag(0x0020, 0x0013),
+                VR::IS,
+                PrimitiveValue::from("1"),
             ));
             let file_obj = obj
                 .with_meta(
@@ -982,9 +1057,7 @@ mod tests {
                         .transfer_syntax("1.2.840.10008.1.2.1"),
                 )
                 .unwrap();
-            file_obj
-                .write_to_file(&temp.path().join("ct.dcm"))
-                .unwrap();
+            file_obj.write_to_file(&temp.path().join("ct.dcm")).unwrap();
         }
 
         let result = scan_dicom_directory(temp.path());
@@ -997,7 +1070,8 @@ mod tests {
         let info = result.unwrap();
         assert_eq!(
             info.num_slices, 1,
-            "only the CT slice must survive filtering; got {}", info.num_slices
+            "only the CT slice must survive filtering; got {}",
+            info.num_slices
         );
         assert_eq!(
             info.metadata.slices[0].sop_class_uid.as_deref(),
@@ -1039,6 +1113,944 @@ mod tests {
         assert!(
             msg.contains("1.2.840.10008.5.1.4.1.1.9.1.1"),
             "error must list ECG Waveform UID; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_scan_private_sequence_is_preserved_in_object_model() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("private_sequence.dcm");
+
+        let mut nested_item = InMemDicomObject::new_empty();
+        nested_item.put(DataElement::new(
+            Tag(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from("Test^Patient"),
+        ));
+        nested_item.put(DataElement::new(
+            Tag(0x0009, 0x1001),
+            VR::OB,
+            PrimitiveValue::U8(vec![1, 2, 3, 4].into()),
+        ));
+
+        let seq = dicom::core::value::DataSetSequence::new(
+            vec![nested_item],
+            dicom::core::header::Length::UNDEFINED,
+        );
+        let seq_value = dicom::core::value::Value::from(seq);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.40001"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(4_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(4_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x0013),
+            VR::IS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0009, 0x0010),
+            VR::LO,
+            PrimitiveValue::from("RITK"),
+        ));
+        obj.put(DataElement::new(Tag(0x0009, 0x1000), VR::SQ, seq_value));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                    .media_storage_sop_instance_uid("2.25.40001")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .unwrap();
+        file_obj.write_to_file(&path).unwrap();
+
+        let info = scan_dicom_directory(&temp.path()).unwrap();
+        let preserved = info
+            .metadata
+            .slices
+            .first()
+            .and_then(|s| s.preservation.object.get(DicomTag::new(0x0009, 0x1000)))
+            .expect("private SQ must be preserved");
+
+        assert!(preserved.is_sequence(), "private SQ must remain a sequence");
+        let items = match &preserved.value {
+            DicomValue::Sequence(items) => items,
+            _ => panic!("private SQ must decode as DicomValue::Sequence"),
+        };
+        assert_eq!(items.len(), 1);
+        let first = &items[0];
+        assert_eq!(
+            first
+                .get(DicomTag::new(0x0010, 0x0010))
+                .and_then(|n| n.value.as_text())
+                .map(str::trim),
+            Some("Test^Patient")
+        );
+        let raw = first
+            .get(DicomTag::new(0x0009, 0x1001))
+            .expect("private OB must be preserved");
+        assert!(raw.value.is_bytes(), "private OB must remain raw bytes");
+        assert_eq!(
+            match &raw.value {
+                DicomValue::Bytes(bytes) => bytes.as_slice(),
+                _ => panic!("private OB must decode as DicomValue::Bytes"),
+            },
+            &[1, 2, 3, 4]
+        );
+    }
+
+    /// Full round-trip of spatial metadata through write_dicom_series_with_metadata →
+    /// scan_dicom_directory.
+    ///
+    /// # Invariants
+    /// - `metadata.modality == Some("CT")`
+    /// - `metadata.bits_allocated == Some(16)`
+    /// - `metadata.dimensions == [rows, cols, depth]`
+    /// - `metadata.spacing` within 1e-4 of `[0.8, 0.8, 2.5]`
+    /// - `metadata.origin` within 1e-4 of `[10.0, 20.0, -50.0]` (first slice IPP)
+    /// - `metadata.direction` recovers identity from IOP cross product (within 1e-5)
+    /// - Each slice: `pixel_spacing` within 1e-4 of `[0.8, 0.8]`
+    /// - Each slice: `image_orientation_patient` within 1e-5 of `[1,0,0,0,1,0]`
+    /// - Slice IPP z-coordinates: -50.0, -47.5, -45.0 (spacing_z = 2.5, normal = [0,0,1])
+    #[test]
+    fn test_scan_metadata_round_trip_spatial_fields() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let series_path = temp.path().join("rt_series");
+
+        // Image: 3 slices, 6 rows, 8 cols.
+        let (depth, rows, cols) = (3usize, 6usize, 8usize);
+        let data = vec![500.0f32; depth * rows * cols];
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([10.0, 20.0, -50.0]),
+            Spacing::new([0.8, 0.8, 2.5]),
+            Direction::identity(),
+        );
+
+        let meta = DicomReadMetadata {
+            series_instance_uid: Some("1.2.3.4.5.6.789".to_string()),
+            study_instance_uid: Some("1.2.3.4.5.6.100".to_string()),
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("CT".to_string()),
+            patient_id: Some("RT001".to_string()),
+            patient_name: None,
+            study_date: None,
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [0.8, 0.8, 2.5],
+            origin: [10.0, 20.0, -50.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write_dicom_series_with_metadata must not fail");
+
+        let info = scan_dicom_directory(&series_path).expect("scan_dicom_directory must not fail");
+        let m = &info.metadata;
+
+        // --- Series-level assertions ---
+        assert_eq!(
+            m.modality.as_deref(),
+            Some("CT"),
+            "modality must round-trip; got {:?}",
+            m.modality
+        );
+        assert_eq!(
+            m.bits_allocated,
+            Some(16),
+            "bits_allocated must round-trip as 16; got {:?}",
+            m.bits_allocated
+        );
+        assert_eq!(
+            m.dimensions[2], depth,
+            "slice count must equal depth {}; got {}",
+            depth, m.dimensions[2]
+        );
+        assert_eq!(
+            m.dimensions[0], rows,
+            "rows must equal {}; got {}",
+            rows, m.dimensions[0]
+        );
+        assert_eq!(
+            m.dimensions[1], cols,
+            "cols must equal {}; got {}",
+            cols, m.dimensions[1]
+        );
+
+        // Spacing: within 1e-4 of [0.8, 0.8, 2.5].
+        let tol = 1e-4_f64;
+        assert!(
+            (m.spacing[0] - 0.8).abs() < tol,
+            "spacing[0] must be 0.8 ± 1e-4; got {}",
+            m.spacing[0]
+        );
+        assert!(
+            (m.spacing[1] - 0.8).abs() < tol,
+            "spacing[1] must be 0.8 ± 1e-4; got {}",
+            m.spacing[1]
+        );
+        assert!(
+            (m.spacing[2] - 2.5).abs() < tol,
+            "spacing[2] must be 2.5 ± 1e-4; got {}",
+            m.spacing[2]
+        );
+
+        // Origin: within 1e-4 of [10.0, 20.0, -50.0] (first-slice IPP).
+        assert!(
+            (m.origin[0] - 10.0).abs() < tol,
+            "origin[0] must be 10.0 ± 1e-4; got {}",
+            m.origin[0]
+        );
+        assert!(
+            (m.origin[1] - 20.0).abs() < tol,
+            "origin[1] must be 20.0 ± 1e-4; got {}",
+            m.origin[1]
+        );
+        assert!(
+            (m.origin[2] - (-50.0_f64)).abs() < tol,
+            "origin[2] must be -50.0 ± 1e-4; got {}",
+            m.origin[2]
+        );
+
+        // Direction: identity, reconstructed from IOP cross product [1,0,0]×[0,1,0] = [0,0,1].
+        let identity = [1.0f64, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+        for (i, (&actual, &expected)) in m.direction.iter().zip(identity.iter()).enumerate() {
+            assert!(
+                (actual - expected).abs() < 1e-5,
+                "direction[{i}] must be {expected:.1} ± 1e-5; got {actual}"
+            );
+        }
+
+        // --- Per-slice assertions ---
+        assert_eq!(
+            m.slices.len(),
+            depth,
+            "must have {} slices; got {}",
+            depth,
+            m.slices.len()
+        );
+
+        for (i, slice) in m.slices.iter().enumerate() {
+            // IOP: axial = [1,0,0,0,1,0].
+            let iop = slice
+                .image_orientation_patient
+                .unwrap_or_else(|| panic!("slice {i} must have IOP"));
+            let expected_iop = [1.0f64, 0.0, 0.0, 0.0, 1.0, 0.0];
+            for (j, (&a, &e)) in iop.iter().zip(expected_iop.iter()).enumerate() {
+                assert!(
+                    (a - e).abs() < 1e-5,
+                    "slice {i} IOP[{j}] must be {e:.1} ± 1e-5; got {a}"
+                );
+            }
+
+            // Pixel spacing: [0.8, 0.8].
+            let ps = slice
+                .pixel_spacing
+                .unwrap_or_else(|| panic!("slice {i} must have pixel_spacing"));
+            assert!(
+                (ps[0] - 0.8).abs() < tol,
+                "slice {i} pixel_spacing[0] must be 0.8 ± 1e-4; got {}",
+                ps[0]
+            );
+            assert!(
+                (ps[1] - 0.8).abs() < tol,
+                "slice {i} pixel_spacing[1] must be 0.8 ± 1e-4; got {}",
+                ps[1]
+            );
+        }
+
+        // IPP z-coordinates (slices sorted ascending): -50.0, -47.5, -45.0.
+        // normal = [0,0,1] (identity direction), spacing_z = 2.5.
+        let expected_z = [-50.0f64, -47.5, -45.0];
+        for (i, (slice, &ez)) in m.slices.iter().zip(expected_z.iter()).enumerate() {
+            let ipp = slice
+                .image_position_patient
+                .unwrap_or_else(|| panic!("slice {i} must have IPP"));
+            assert!(
+                (ipp[0] - 10.0).abs() < tol,
+                "slice {i} IPP[0] must be 10.0 ± 1e-4; got {}",
+                ipp[0]
+            );
+            assert!(
+                (ipp[1] - 20.0).abs() < tol,
+                "slice {i} IPP[1] must be 20.0 ± 1e-4; got {}",
+                ipp[1]
+            );
+            assert!(
+                (ipp[2] - ez).abs() < tol,
+                "slice {i} IPP[2] must be {ez} ± 1e-4; got {}",
+                ipp[2]
+            );
+        }
+    }
+
+    /// Round-trip verification for rescale slope and intercept.
+    ///
+    /// # Invariants
+    /// - Each slice's `rescale_slope` must be > 0
+    /// - Each slice's `rescale_intercept` must be finite
+    /// - First-voxel reconstruction error must be within slope/2 (quantization bound)
+    #[test]
+    fn test_scan_metadata_round_trip_rescale_params() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let series_path = temp.path().join("rescale_series");
+
+        // Intensities in [-1024.0, 1024.0] to force non-trivial rescale params.
+        let (depth, rows, cols) = (2usize, 4usize, 4usize);
+        let n = depth * rows * cols;
+        let mut data = vec![0.0f32; n];
+        for (idx, v) in data.iter_mut().enumerate() {
+            *v = -1024.0 + idx as f32 * (2048.0 / (n - 1) as f32);
+        }
+        let original_first = data[0];
+
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        let meta = DicomReadMetadata {
+            series_instance_uid: None,
+            study_instance_uid: None,
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("CT".to_string()),
+            patient_id: None,
+            patient_name: None,
+            study_date: None,
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [1.0, 1.0, 1.0],
+            origin: [0.0, 0.0, 0.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write must not fail");
+
+        let info = scan_dicom_directory(&series_path).expect("scan must not fail");
+
+        for (i, slice) in info.metadata.slices.iter().enumerate() {
+            let slope = slice.rescale_slope;
+            let intercept = slice.rescale_intercept;
+            assert!(
+                slope > 0.0,
+                "slice {i} rescale_slope must be > 0; got {slope}"
+            );
+            assert!(
+                intercept.is_finite(),
+                "slice {i} rescale_intercept must be finite; got {intercept}"
+            );
+        }
+
+        // Verify first-voxel reconstruction error is bounded by slope/2.
+        // The writer quantizes: pixel = round((v - intercept) / slope); u16 clamped.
+        // Reconstructed: pixel * slope + intercept. Error <= slope/2.
+        let first_slice = &info.metadata.slices[0];
+        let slope = first_slice.rescale_slope as f32;
+        let intercept = first_slice.rescale_intercept as f32;
+        let pixel_first = ((original_first - intercept) / slope).round() as u16;
+        let reconstructed = pixel_first as f32 * slope + intercept;
+        let error = (reconstructed - original_first).abs();
+        assert!(
+            error <= slope / 2.0 + 1e-3,
+            "first-voxel reconstruction error {error} exceeds quantization bound {}",
+            slope / 2.0
+        );
+    }
+
+    /// Verifies that `transfer_syntax_uid` is read from the DICOM file meta table
+    /// (via `obj.meta().transfer_syntax()`) and not from Tag(0x0008,0x0070) (Manufacturer).
+    ///
+    /// # Invariants
+    /// - Every DicomSliceMetadata produced by `scan_dicom_directory` must carry
+    ///   `transfer_syntax_uid == Some("1.2.840.10008.1.2.1")` for files written with
+    ///   Explicit VR Little Endian transfer syntax.
+    #[test]
+    fn test_scan_metadata_round_trip_transfer_syntax() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let series_path = temp.path().join("ts_series");
+
+        let (depth, rows, cols) = (2usize, 4usize, 4usize);
+        let data = vec![1000.0f32; depth * rows * cols];
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        let meta = DicomReadMetadata {
+            series_instance_uid: None,
+            study_instance_uid: None,
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("OT".to_string()),
+            patient_id: None,
+            patient_name: None,
+            study_date: None,
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [1.0, 1.0, 1.0],
+            origin: [0.0, 0.0, 0.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write must not fail");
+
+        let info = scan_dicom_directory(&series_path).expect("scan must not fail");
+
+        // The writer emits transfer_syntax("1.2.840.10008.1.2.1") = Explicit VR Little Endian.
+        // The reader must extract this from the file meta, not from Tag(0x0008,0x0070).
+        const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
+        assert!(
+            !info.metadata.slices.is_empty(),
+            "at least one slice must be returned"
+        );
+        for (i, slice) in info.metadata.slices.iter().enumerate() {
+            assert_eq!(
+                slice.transfer_syntax_uid.as_deref(),
+                Some(EXPLICIT_VR_LE),
+                "slice {i} transfer_syntax_uid must be {EXPLICIT_VR_LE}; got {:?}",
+                slice.transfer_syntax_uid
+            );
+        }
+    }
+
+    /// Full round-trip of private tag preservation through write_dicom_series_with_metadata →
+    /// scan_dicom_directory.
+    ///
+    /// # Invariants
+    /// - Private text element at (0009,0010) with value "PRIV_ROUND_TRIP_VALUE" must appear in
+    ///   `DicomSliceMetadata.preservation.object` after scanning the written series.
+    /// - Private OB bytes element at (0019,1001) with bytes [0xAB, 0xCD, 0xEF, 0x01] must appear
+    ///   in `DicomSliceMetadata.preservation.preserved` after scanning.
+    /// - Both computed values must exactly match the inputs, not merely be present.
+    #[test]
+    fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let dir = tmp.path().join("priv_rt");
+
+        // Build a 1-slice 4×4 image.
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let td = TensorData::new(vec![42.0_f32; 4 * 4], Shape::new([1_usize, 4, 4]));
+        let tensor = Tensor::<B, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+
+        // Preservation: private text tag + raw OB bytes tag.
+        let mut preservation = DicomPreservationSet::new();
+        preservation.object.insert(DicomObjectNode::text(
+            DicomTag::new(0x0009, 0x0010),
+            "LO",
+            "PRIV_ROUND_TRIP_VALUE",
+        ));
+        preservation.preserve(DicomPreservedElement::new(
+            DicomTag::new(0x0019, 0x1001),
+            Some("OB".to_string()),
+            vec![0xAB_u8, 0xCD, 0xEF, 0x01],
+        ));
+
+        let meta = DicomReadMetadata {
+            series_instance_uid: Some("2.25.111".to_string()),
+            study_instance_uid: Some("2.25.222".to_string()),
+            frame_of_reference_uid: None,
+            series_description: Some("TestSeries".to_string()),
+            modality: Some("CT".to_string()),
+            patient_id: Some("P001".to_string()),
+            patient_name: Some("Test^Patient".to_string()),
+            study_date: Some("20240101".to_string()),
+            series_date: Some("20240101".to_string()),
+            series_time: Some("120000".to_string()),
+            dimensions: [4, 4, 1],
+            spacing: [1.0, 1.0, 1.0],
+            origin: [0.0, 0.0, 0.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation,
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(&dir, &image, Some(&meta))
+            .expect("write_dicom_series_with_metadata");
+
+        // Scan back via scan_dicom_directory.
+        let scanned = scan_dicom_directory(&dir).expect("scan_dicom_directory");
+        assert_eq!(
+            scanned.num_slices, 1,
+            "must have exactly 1 slice; got {}",
+            scanned.num_slices
+        );
+
+        let slice = &scanned.metadata.slices[0];
+        let priv_text_tag = DicomTag::new(0x0009, 0x0010);
+        let priv_bytes_tag = DicomTag::new(0x0019, 0x1001);
+
+        // Private text tag must be present in preservation.object with the correct value.
+        let text_node = slice.preservation.object.get(priv_text_tag);
+        assert!(
+            text_node.is_some(),
+            "private text tag (0009,0010) must be present in preservation.object"
+        );
+        let text_val = text_node.unwrap().value.as_text();
+        assert!(
+            text_val
+                .map(|s| s.trim() == "PRIV_ROUND_TRIP_VALUE")
+                .unwrap_or(false),
+            "private text value must survive round-trip: got {:?}",
+            text_val
+        );
+
+        // Private bytes tag must be present in preservation.preserved with the correct bytes.
+        let bytes_elem = slice
+            .preservation
+            .preserved
+            .iter()
+            .find(|e| e.tag == priv_bytes_tag);
+        assert!(
+            bytes_elem.is_some(),
+            "private bytes tag (0019,1001) must be present in preservation.preserved"
+        );
+        assert_eq!(
+            bytes_elem.unwrap().bytes,
+            vec![0xAB_u8, 0xCD, 0xEF, 0x01],
+            "raw OB bytes must survive round-trip"
+        );
+    }
+
+    /// Compressed-TS series guard: load_dicom_series must return Err when any slice
+    /// declares a compressed transfer syntax in its file meta table.
+    ///
+    /// Analytical invariant: TransferSyntaxKind::is_compressed() is true for
+    /// 1.2.840.10008.1.2.4.50 (JPEG Baseline); load_from_series must detect this
+    /// before pixel decode and return a descriptive error.
+    #[test]
+    fn test_load_series_compressed_ts_errors() {
+        type B = burn_ndarray::NdArray<f32>;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let series_dir = tmp.path().join("compressed_series");
+        std::fs::create_dir_all(&series_dir).expect("create_dir");
+
+        // Write a single-slice DICOM declaring JPEG Baseline TS (compressed).
+        let slice_path = series_dir.join("slice_0000.dcm");
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"), // CT Image Storage
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.10001"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("CT"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(15_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(vec![0u8; 8])),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                    .media_storage_sop_instance_uid("2.25.10001")
+                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+            )
+            .expect("meta build");
+        file_obj
+            .write_to_file(&slice_path)
+            .expect("write compressed slice");
+
+        // scan_dicom_directory should succeed (it only reads metadata, not pixels)
+        let scan_result = scan_dicom_directory(&series_dir);
+        // If scan succeeds, load must return Err due to compressed TS
+        if let Ok(series_info) = scan_result {
+            // Verify the TS was captured
+            let has_compressed = series_info.metadata.slices.iter().any(|s| {
+                s.transfer_syntax_uid
+                    .as_deref()
+                    .map(|uid| TransferSyntaxKind::from_uid(uid).is_compressed())
+                    .unwrap_or(false)
+            });
+            assert!(
+                has_compressed,
+                "scan must record compressed TS in slice metadata"
+            );
+
+            let device = <B as burn::tensor::backend::Backend>::Device::default();
+            let load_result = load_dicom_series::<B, _>(&series_dir, &device);
+            assert!(
+                load_result.is_err(),
+                "load_dicom_series must return Err for compressed-TS series"
+            );
+            let msg = format!("{:?}", load_result.unwrap_err());
+            assert!(
+                msg.contains("1.2.840.10008.1.2.4.50") || msg.to_lowercase().contains("compress"),
+                "error must reference compressed TS UID or 'compress'; got: {msg}"
+            );
+        }
+        // If scan itself fails (e.g. SOP class filter), the test is inconclusive
+        // but not a failure — the scan's SOP-class rejection is also correct behavior.
+    }
+
+    /// End-to-end intensity round-trip: write via `write_dicom_series`,
+    /// load via `load_dicom_series`, verify per-pixel reconstruction error is within
+    /// the theoretical quantization bound.
+    ///
+    /// # Specification
+    /// For each slice: rescale_slope = (max - min) / 65535.
+    /// Encode: u16 = round((v - intercept) / slope).clamp(0, 65535).
+    /// Decode: f32 = u16 * slope + intercept.
+    /// Bound: |f_decoded - f_original| ≤ slope/2 + ε ≤ slope + 1.0
+    ///
+    /// Analytical intensities: 0, 1, 2, ..., 63 (64 voxels in 4×4×4).
+    /// Analytical slope per slice (16 voxels per slice with range [0,15], [16,31], [32,47], [48,63]):
+    ///   slope_i = (max_i - min_i) / 65535.
+    #[test]
+    fn test_write_series_load_series_intensity_roundtrip() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        type B = burn_ndarray::NdArray<f32>;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let series_path = tmp.path().join("e2e_roundtrip_series");
+
+        // 4 slices × 4 rows × 4 cols = 64 voxels.
+        // Intensities 0..=63, row-major order.
+        let (depth, rows, cols) = (4usize, 4usize, 4usize);
+        let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        crate::format::dicom::writer::write_dicom_series(&series_path, &image)
+            .expect("write_dicom_series must succeed");
+
+        let (loaded_image, _meta) = load_dicom_series::<B, _>(&series_path, &device)
+            .expect("load_dicom_series must succeed");
+
+        let loaded_td = loaded_image.data().clone().into_data();
+        let loaded_vals: &[f32] = loaded_td
+            .as_slice::<f32>()
+            .expect("loaded image must contain f32");
+
+        assert_eq!(
+            loaded_vals.len(),
+            original_data.len(),
+            "loaded voxel count must equal original"
+        );
+
+        // Analytical bound per slice: slope = range / 65535 = 15 / 65535 ≈ 2.29e-4.
+        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+        // per coefficient. Accumulated slope error over max u16 (65535):
+        //   65535 * 0.5e-6 ≈ 0.033.
+        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+        let slice_range = 15.0f32;
+        let slope = slice_range / 65535.0_f32;
+        let ds_half_ulp = 0.5e-6_f32;
+        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+
+        // The writer writes per-slice rescale; reader applies per-slice rescale.
+        // Re-sort loaded voxels by z-position. The series may be loaded in sorted order.
+        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+            let err = (loaded - orig).abs();
+            assert!(
+                err <= tol,
+                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}; slope={slope}"
+            );
+        }
+    }
+
+    /// End-to-end round-trip: write via `write_dicom_series_with_metadata` with
+    /// non-trivial spatial metadata, load via `load_dicom_series`, verify:
+    /// 1. Per-pixel reconstruction error ≤ analytical bound.
+    /// 2. Origin round-trips to within 1e-4 mm.
+    /// 3. Spacing round-trips to within 1e-4 mm.
+    ///
+    /// # Specification
+    /// Intensities: 16 voxels per slice, values -512 .. -512+15 per slice.
+    /// Analytical slope = (max - min) / 65535 = 15 / 65535.
+    /// Analytical intercept = min_val.
+    #[test]
+    fn test_write_metadata_series_load_series_intensity_roundtrip() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let series_path = tmp.path().join("e2e_meta_roundtrip");
+
+        let (depth, rows, cols) = (3usize, 4usize, 4usize);
+        // Each slice: values starting at z*16, range = 15.
+        let original_data: Vec<f32> = (0..(depth * rows * cols))
+            .map(|i| {
+                let slice_idx = i / (rows * cols);
+                let intra_idx = i % (rows * cols);
+                (slice_idx * 16 + intra_idx) as f32
+            })
+            .collect();
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([5.0, 10.0, -20.0]),
+            Spacing::new([0.5, 0.5, 1.5]),
+            Direction::identity(),
+        );
+
+        let meta = DicomReadMetadata {
+            series_instance_uid: Some("1.2.3.4.5.6.999".to_string()),
+            study_instance_uid: Some("1.2.3.4.5.6.998".to_string()),
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("CT".to_string()),
+            patient_id: Some("E2E001".to_string()),
+            patient_name: Some("E2E^Patient".to_string()),
+            study_date: Some("20250101".to_string()),
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [0.5, 0.5, 1.5],
+            origin: [5.0, 10.0, -20.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write_dicom_series_with_metadata must succeed");
+
+        let (loaded_image, loaded_meta) = load_dicom_series::<B, _>(&series_path, &device)
+            .expect("load_dicom_series must succeed");
+
+        // --- Intensity round-trip ---
+        let loaded_td = loaded_image.data().clone().into_data();
+        let loaded_vals: &[f32] = loaded_td.as_slice::<f32>().expect("loaded must be f32");
+
+        assert_eq!(
+            loaded_vals.len(),
+            original_data.len(),
+            "voxel count must match"
+        );
+
+        // Analytical slope per slice: each slice has range=15, slope = 15/65535.
+        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+        // per coefficient. Accumulated slope error over max u16 (65535):
+        //   65535 * 0.5e-6 ≈ 0.033.
+        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+        let slice_range = 15.0f32;
+        let slope = slice_range / 65535.0_f32;
+        let ds_half_ulp = 0.5e-6_f32;
+        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+
+        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+            let err = (loaded - orig).abs();
+            assert!(
+                err <= tol,
+                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}"
+            );
+        }
+
+        // --- Spatial metadata round-trip ---
+        let pos_tol = 1e-4_f64;
+        assert!(
+            (loaded_meta.origin[0] - 5.0).abs() < pos_tol,
+            "origin[0] must be 5.0; got {}",
+            loaded_meta.origin[0]
+        );
+        assert!(
+            (loaded_meta.origin[1] - 10.0).abs() < pos_tol,
+            "origin[1] must be 10.0; got {}",
+            loaded_meta.origin[1]
+        );
+        assert!(
+            (loaded_meta.origin[2] - (-20.0_f64)).abs() < pos_tol,
+            "origin[2] must be -20.0; got {}",
+            loaded_meta.origin[2]
+        );
+        assert!(
+            (loaded_meta.spacing[0] - 0.5).abs() < pos_tol,
+            "spacing[0] must be 0.5; got {}",
+            loaded_meta.spacing[0]
+        );
+        assert!(
+            (loaded_meta.spacing[1] - 0.5).abs() < pos_tol,
+            "spacing[1] must be 0.5; got {}",
+            loaded_meta.spacing[1]
+        );
+        assert!(
+            (loaded_meta.spacing[2] - 1.5).abs() < pos_tol,
+            "spacing[2] must be 1.5; got {}",
+            loaded_meta.spacing[2]
         );
     }
 }

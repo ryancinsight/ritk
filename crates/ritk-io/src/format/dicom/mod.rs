@@ -6,14 +6,33 @@
 //!
 //! # Public API
 //!
+//! ## Series I/O
 //! - `scan_dicom_directory`
 //! - `read_dicom_series`
 //! - `load_dicom_series`
 //! - `read_dicom_series_with_metadata`
 //! - `load_dicom_series_with_metadata`
+//! - `write_dicom_series`
+//! - `write_dicom_series_with_metadata`
 //! - `DicomSeriesInfo`
 //! - `DicomReadMetadata`
 //! - `DicomSliceMetadata`
+//!
+//! ## Multi-Frame I/O
+//! - `read_multiframe_info`
+//! - `load_dicom_multiframe`
+//! - `write_dicom_multiframe`
+//! - `write_dicom_multiframe_with_options`
+//! - `write_dicom_multiframe_with_config`
+//! - `MultiFrameInfo`
+//! - `MultiFrameSpatialMetadata`
+//! - `MultiFrameWriterConfig`
+//!
+//! ## Object Model
+//! - `DicomObjectModel`, `DicomObjectNode`, `DicomSequenceItem`
+//! - `DicomTag`, `DicomValue`
+//! - `DicomPreservationSet`, `DicomPreservedElement`
+//! - `is_private_tag`
 //!
 //! # Example
 //!
@@ -30,11 +49,16 @@
 pub mod multiframe;
 pub mod object_model;
 pub mod reader;
+pub mod sop_class;
 pub mod transfer_syntax;
 pub mod writer;
-pub mod sop_class;
 pub mod writer_object;
 
+pub use multiframe::{
+    load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
+    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
+    MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+};
 pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomSequenceItem, DicomTag, DicomValue,
@@ -44,7 +68,6 @@ pub use reader::{
     read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
     DicomSliceMetadata,
 };
-pub use multiframe::{load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe, MultiFrameInfo};
 pub use sop_class::{classify_sop_class, is_image_sop_class, SopClassKind};
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};

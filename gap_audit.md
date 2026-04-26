@@ -1,5 +1,21 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Sprint 48 (2026-04-25):** DICOM correctness hardening, DRY header extraction, and IOD conformance. (1) Compressed transfer syntax guard added to `load_dicom_multiframe` and `load_from_series`: both now detect any TS for which `TransferSyntaxKind::is_compressed()` is true and return `Err` with the TS UID before pixel decode, preventing silent garbage-intensity output on JPEG/JPEG-LS/JPEG2000/RLE files. (2) `extract_multiframe_header` private helper extracted from the duplicated header-parse blocks in `read_multiframe_info` and `load_dicom_multiframe`; both now open the file once and delegate to the shared helper. (3) `MultiFrameInfo` extended with `rescale_slope: f64` and `rescale_intercept: f64` populated from (0028,1053)/(0028,1052), exposing the linear transform without a second file open. (4) Pixel clamp `.clamp(0.0, 65535.0)` added to `write_dicom_series` and `write_dicom_series_with_metadata` per-slice encoders (both were missing it; `write_multiframe_impl` already correct). (5) `ConversionType` (0008,0064) = "WSD" added to all three writers — Type 1 mandatory in SC Equipment Module (PS3.3 C.8.6.1). (6) Five Type 2 mandatory tags added with empty/default values to `write_dicom_series`: (0008,0090) ReferringPhysicianName, (0010,0010) PatientName, (0010,0020) PatientID, (0008,0020) StudyDate, (0020,0011) SeriesNumber. Seven new value-semantic tests added. 277/277 ritk-io unit tests pass.
+
+**Sprint 47 (2026-04-24):** DICOM IOD conformance and DRY refactor. (1)  (0028,0002) = 1 added to all three writers (, , ) — this is a Type 1 mandatory tag in the Image Pixel Module (PS3.3 C.7.6.3.1.1) that was absent from every emitted file. (2)  (0020,0013) added to the multi-frame writer via . (3) Six duplicated DS backslash-parse closures across  and  replaced by a single  generic helper (const generic encodes field width). (4)  builder struct and  added; existing  and  delegate via config construction with no public API breakage. (5) Re-export gap in  closed: , , , and  now in . Five new value-semantic tests added. 270/270 ritk-io unit tests pass.
+
+**Sprint 47 (2026-04-24):** DICOM IOD conformance and DRY refactor. (1) SamplesPerPixel (0028,0002) = 1 added to all three writers (write_multiframe_impl, write_dicom_series, write_dicom_series_with_metadata) -- Type 1 mandatory tag in the Image Pixel Module (PS3.3 C.7.6.3.1.1) absent from every prior emitted file. (2) InstanceNumber (0020,0013) added to the multi-frame writer via MultiFrameWriterConfig.instance_number. (3) Six duplicated DS backslash-parse closures across read_multiframe_info and load_dicom_multiframe replaced by a single parse_ds_backslash generic helper parameterised by const N: usize (const generic encodes field width). (4) MultiFrameWriterConfig builder struct and write_dicom_multiframe_with_config added; existing write_dicom_multiframe and write_dicom_multiframe_with_options delegate via config construction with no public API breakage. (5) Re-export gap in format::dicom closed: MultiFrameSpatialMetadata, write_dicom_multiframe_with_options, MultiFrameWriterConfig, and write_dicom_multiframe_with_config now in pub use multiframe. Five new value-semantic tests added. 270/270 ritk-io unit tests pass.
+
+**Sprint 46 (2026-04-24):** Three DICOM correctness bugs closed. (1) `write_dicom_multiframe` SOP class corrected from `1.2.840.10008.5.1.4.1.1.7` (Single-frame Secondary Capture) to `1.2.840.10008.5.1.4.1.1.7.3` (Multi-Frame Grayscale Word Secondary Capture). (2) `load_from_series` was silently dropping `metadata.direction` in favour of `Direction::identity()`; fixed to `Direction::from_row_slice(&metadata.direction)`. (3) The dicom-rs 0.8 `to_str()` binary-VR mis-routing bug fixed in `parse_sequence_item` (Sprint 45) was also present in the top-level `scan_dicom_directory` preservation loop; same `is_binary_vr` gate applied. New additions: `MultiFrameSpatialMetadata` struct and `write_dicom_multiframe_with_options` enable optional IPP/IOP/PixelSpacing/SliceThickness/Modality emission; `read_multiframe_info` and `load_dicom_multiframe` now parse and apply IPP/IOP. Private-tag general series round-trip closed by `test_scan_preserves_private_text_and_bytes_through_write_read_cycle`. 265/265 ritk-io unit tests pass.
+
+**Sprint 45 (2026-04-24):** Transfer syntax UID bug fixed (`scan_dicom_directory` was reading Manufacturer tag instead of file meta). Binary VR preservation in `parse_sequence_item` fixed (OB/OW/OD/OF/OL/UN elements now stored as `DicomValue::Bytes`). Three value-semantic round-trip tests added (spatial fields, rescale params, transfer syntax). GAP-R02b closed (InverseConsistentDiffeomorphicDemonsRegistration and MultiResDemonsRegistration confirmed implemented and Python-exposed).
+
+**Sprint 44 (2026-04-24):** DICOM multi-frame reader hardening adds value-semantic coverage for `read_multiframe_info` and `load_dicom_multiframe`. The new tests write a real multi-frame file, then verify exact frame count, dimensions, modality, SOP Class UID, and analytical pixel reconstruction bounds derived from the emitted rescale slope. Residual DICOM gaps remain in enhanced multi-frame conformance, generalized writer coverage, and broader object-model reconstruction beyond the tested private-sequence path.
+
+**Sprint 43 (2026-04-24):** DICOM object-model reader preservation now reconstructs nested `DicomSequenceItem` content and raw private elements in `scan_dicom_directory`. The preservation path retains private SQ nodes as `DicomValue::Sequence` and raw OB payloads as `DicomPreservedElement` data, verified by a value-semantic regression test against a real DICOM file. Residual DICOM gaps remain in multi-frame / enhanced image support, generalized writer coverage, and broader object-model reconstruction beyond the tested private-sequence path.
+
+**Sprint 43 (2026-04-24):** DICOM object-model writer hardening advances the next-stage roadmap by validating nested `DicomSequenceItem` emission and raw preserved byte retention through `ritk_io::format::dicom::writer_object`. The added tests cover SQ/OB round-trip behavior through `dicom::object::open_file`, confirming that the canonical object model preserves nested structure and private tags instead of collapsing them into scalar-only metadata. Residual risk remains in the broader DICOM surface: reader-side object-model reconstruction for arbitrary nested sequences, explicit private-tag round-trip on the general series path, multi-frame / enhanced image support, and generalized DICOM writer coverage remain open.
+
 **Audit Date:** 2025-07-14 (updated Sprint 8, 2025-07-18; roadmap refresh 2026-04-20; Sprint 29 update 2026-04-22)**
 **Auditor:** Ryan Clanton (@ryancinsight)
 **Codebase Revision:** Confirmed via direct file inspection of `crates/ritk-{core,registration,io,model,python,cli}`
@@ -62,7 +78,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
 **Absent or incomplete at module level (zero source files, stub-only, or partial fidelity):**  
-Confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, generalized DICOM object-model preservation, private tag round-trip, nested sequence emission, multi-frame / enhanced image handling, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits, PYTHON-CI-VALIDATION (deferred Sprint 30): validate Python wheel CI workflow on hosted runners.
+Confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, generalized DICOM object-model preservation, private tag round-trip on the series reader/writer path, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits, PYTHON-CI-VALIDATION (deferred Sprint 30): validate Python wheel CI workflow on hosted runners.
 
 ---
 
@@ -196,8 +212,7 @@ The DICOM subsystem now has a read-side metadata slice that captures series iden
 The DICOM implementation remains series-centric. The remaining DICOM backlog is:
 The remaining DICOM backlog is:
 - transfer syntax coverage audit
-- private tag and nested sequence preservation strategy
-- multi-frame / enhanced image support
+- enhanced multi-frame conformance and interoperability validation
 - generalized DICOM writer
 - metadata-aware read-path validation for `DicomReadMetadata` and `DicomSliceMetadata`
 - object-model round-trip preservation
@@ -205,6 +220,8 @@ The remaining DICOM backlog is:
 - object-model preservation across read/write round-trips
 - explicit handling of sequence values and unknown elements
 - synthetic end-to-end integration tests covering explicit non-image SOP rejection paths
+- transfer syntax UID read fixed (obj.meta().transfer_syntax() from file meta, Sprint 45)
+- metadata round-trip validated: spatial fields, rescale params, transfer syntax UID (Sprint 45)
 
 The next-stage roadmap is:
 1. DICOM object-model foundation and non-image SOP integration hardening
@@ -341,22 +358,14 @@ fields updated at each iteration.
 
 ---
 
-#### GAP-R02b — Full Diffeomorphic Demons with Exact Inverse · Severity: **Medium** (new gap from Sprint 3)
+#### GAP-R02b — Full Diffeomorphic Demons with Exact Inverse · Severity: **Closed** (Sprint 45 audit)
 
-**References:**
-- Thirion (1998), *Med. Image Anal.* 2(3):243–260 (original Demons).
-- Vercauteren et al. (2009), *NeuroImage* 45(S1):S61–S72 (Diffeomorphic Demons).
-- Pennec et al. (1999), *MICCAI* (symmetric Demons).
+**Sprint 45 status**: All three production-grade items are **implemented** and exposed in Python:
+- `InverseConsistentDiffeomorphicDemonsRegistration` (`demons/exact_inverse_diffeomorphic.rs`) — ICC via iterative Newton field inversion, forward + inverse SVF pair, `inverse_consistency_weight` parameter, `inverse_consistency_residual` output.
+- `MultiResDemonsRegistration` (`demons/multires.rs`) — coarse-to-fine pyramid with Gaussian pre-smooth, stride subsampling, warm-start displacement upsample, level-proportional iteration budget.
+- Python bindings: `inverse_consistent_demons_register`, `multires_demons_register` (registration.rs, Sprint 40+). Both are in the smoke test required list.
 
-Demons treats registration as a diffusion process driven by optical-flow-like forces.
-Widely used as a fast deformable baseline for lung, liver, and cardiac motion estimation.
-Diffeomorphic Demons uses the Lie algebra of diffeomorphisms (stationary velocity fields)
-to guarantee invertibility.
-
-Remaining gaps for production-grade diffeomorphic Demons:
-- ICC (inverse consistency constraint) via exact field inversion (iterative Newton)
-- Log-domain composition for large-deformation accuracy
-- Multi-resolution pyramid driven by Demons (currently single-scale)
+**Implemented location:** `crates/ritk-registration/src/demons/`
 
 ---
 
@@ -928,34 +937,29 @@ evaluation-time quality measures:
 
 RITK supports DICOM, NIfTI, and PNG. Medical imaging workflows require 10+ additional formats.
 
-### 6.1 MetaImage (.mha / .mhd) · Severity: **Critical**
+### 6.1 MetaImage (.mha / .mhd) · Severity: **Closed** (Sprint 2)
 
-The default ITK image format. Nearly every ITK example, tutorial, and benchmark dataset uses
-`.mha` or `.mhd`. Without MetaImage support, RITK cannot consume standard ITK test data
-or participate in Medical Segmentation Decathlon / Learn2Reg benchmarks.
+**Sprint 2**: `MetaImageReader` and `MetaImageWriter` implemented:
+- ASCII header (`.mhd`) + binary raw data file; or combined single-file (`.mha`).
+- Header encodes: dimensions, element type, spacing, origin, direction cosines.
+- ZYX ↔ XYZ axis permutation to match RITK `Image<B,3>` convention.
+- External data file (`.raw`) support for detached `.mhd` headers.
+- Data types: u8, u16, u32, f32, f64.
+- Full round-trip test coverage; closes IO-01.
 
-Format: ASCII header (`.mhd`) + binary raw data file; or combined (`.mha`).
-Header encodes: dimensions, element type, spacing, origin, direction cosines.
-
-**Planned location:**
-```
-crates/ritk-io/src/format/metaimage/
-├── mod.rs
-├── reader.rs
-└── writer.rs
-```
+**Implemented location:** `crates/ritk-io/src/format/metaimage/` (`mod.rs`, `reader.rs`, `writer.rs`)
 
 ---
 
-### 6.2 NRRD Format · Severity: **High**
+### 6.2 NRRD Format · Severity: **Closed** (Sprint 2)
 
-**Reference:** Gordon Kindlmann, Teem library.
+**Sprint 2**: `NrrdReader` and `NrrdWriter` implemented:
+- Space directions and space origin parsed into RITK spatial metadata.
+- Inline (`.nrrd`) and detached (`.nhdr` + `.raw`) data file support.
+- Data types: u8, u16, u32, f32, f64.
+- Full round-trip test coverage; closes IO-02.
 
-Used by 3D Slicer (the dominant open-source clinical workstation) and Camino.
-Supports arbitrary dimensions, rich metadata, inline and detached data.
-Required for interoperability with Slicer-based annotation workflows.
-
-**Planned location:** `crates/ritk-io/src/format/nrrd/`
+**Implemented location:** `crates/ritk-io/src/format/nrrd/` (`mod.rs`, `reader.rs`, `writer.rs`)
 
 ---
 
@@ -978,12 +982,15 @@ Without MINC support, ANTs-standard atlas workflows cannot load their reference 
 
 ---
 
-### 6.4 VTK Image Format (.vtk / .vti) · Severity: **Medium**
+### 6.4 VTK Image Format (.vtk / .vti) · Severity: **Closed** (Sprint 8)
 
-VTK legacy structured points format (`.vtk`) and VTK XML image data (`.vti`).
-Used by ParaView for 3D visualization and by several segmentation export pipelines.
+**Sprint 8**: `VtkReader` and `VtkWriter` implemented:
+- VTK legacy structured-points format (`.vtk`), ASCII and BINARY payload modes.
+- Big-endian binary encoding per VTK specification.
+- Origin, spacing, and voxel-value round-trip preservation.
+- Closes IO-06.
 
-**Planned location:** `crates/ritk-io/src/format/vtk/`
+**Implemented location:** `crates/ritk-io/src/format/vtk/`
 
 ---
 
@@ -1005,12 +1012,15 @@ BigTIFF is required for files >4 GB (common in WSI).
 
 ---
 
-### 6.6 Analyze Format (.hdr / .img) · Severity: **Low**
+### 6.6 Analyze Format (.hdr / .img) · Severity: **Closed** (Sprint 2)
 
-Legacy Mayo Clinic format. Superseded by NIfTI but still present in older datasets
-(pre-2004 neuroimaging archives). Required for full backward compatibility.
+**Sprint 2**: `AnalyzeReader` and `AnalyzeWriter` implemented:
+- Analyze 7.5 `.hdr` / `.img` pair format.
+- Data types: u8, i8, u16, i16, f32, f64.
+- Origin, spacing, and voxel data round-trip preservation.
+- Closes IO-07.
 
-**Planned location:** `crates/ritk-io/src/format/analyze/`
+**Implemented location:** `crates/ritk-io/src/format/analyze/` (`mod.rs`, `reader.rs`, `writer.rs`)
 
 ---
 
@@ -1030,15 +1040,14 @@ analysis pipelines. MGH is the raw format; MGZ is gzip-compressed MGH.
 
 ---
 
-### 6.8 JPEG 2D Support · Severity: **Low**
+### 6.8 JPEG 2D Support · Severity: **Closed** (Sprint 8)
 
-Natural images and 2D radiographs. JPEG lossy compression. Not suitable for quantitative
-medical analysis (lossy artifacts) but required for compatibility with DICOM secondary capture
-objects that embed JPEG-compressed pixel data.
+**Sprint 8**: `JpegReader` and `JpegWriter` implemented:
+- Grayscale JPEG read/write; output represented as 3-D `Image<B,3>` with shape `[1, H, W]`.
+- Writer rejects `nz != 1` with a clear error.
+- Closes IO-08.
 
-**Planned location:** `crates/ritk-io/src/format/jpeg/`
-
----
+**Implemented location:** `crates/ritk-io/src/format/jpeg/` (`mod.rs`, `reader.rs`, `writer.rs`)
 
 ## 7. Python Binding Gaps
 
@@ -1205,6 +1214,7 @@ Effort estimates: **S** = ≤1 sprint (≤2 weeks), **M** = 2–4 sprints, **L**
 | GAP-R04 | Groupwise/atlas | **Closed** (Sprint 7) | L | Iterative template building via Multi-Res SyN |
 | GAP-R05 | Composite transform I/O | **Closed** (Sprint 6) | S | JSON serialization, TransformDescription enum, round-trip file I/O |
 | GAP-R06 | Joint label fusion | **Closed** (Sprint 7) | M | Wang 2013 + majority voting |
+| GAP-R02b | Diffeomorphic Demons exact inverse + multi-res | **Closed** (Sprint 45 audit) | S | InverseConsistentDiffeomorphicDemons + MultiResDemonsRegistration + Python bindings |
 
 ### 8.2 Segmentation
 
