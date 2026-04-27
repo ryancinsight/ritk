@@ -1058,9 +1058,9 @@ report against `dicom-transfer-syntax-registry` with the minimal reproducer from
 - `test_decode_compressed_frame_jpegls_lossless_round_trip`: full round-trip via CharLS encode → DICOM → `decode_compressed_frame`; asserts `max_error = 0.0` (ISO 14495-1 NEAR=0 invariant).
 - `test_decode_compressed_frame_jpegls_near_lossless_round_trip`: near-lossless round-trip with NEAR=2; asserts `max_error ≤ 2.0` (ISO 14495-1 analytical bound).
 
-**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new. Sprint 56: +1 new. Sprint 57: +2 new (`test_decode_compressed_frame_jpegls_lossless_round_trip`, `test_decode_compressed_frame_jpegls_near_lossless_round_trip`). Total: **339 passed, 0 failed**.
+**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new. Sprint 56: +1 new. Sprint 57: +2 new (`test_decode_compressed_frame_jpegls_lossless_round_trip`, `test_decode_compressed_frame_jpegls_near_lossless_round_trip`). Sprint 58: +2 new (`write_jpeg2000_lossless_dicom_file` helper, `test_decode_compressed_frame_jpeg2000_lossless_round_trip`). Total: **341 passed, 0 failed**.
 
-**Residual risk (Sprint 57)**: JPEG 2000 round-trip test deferred — no pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. Defer to Sprint 58.
+**Residual risk (Sprint 57)**: JPEG 2000 round-trip test deferred — no pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. **Closed Sprint 58**: `write_jpeg2000_lossless_dicom_file` helper implemented via openjpeg-sys FFI (`OPJ_CODEC_J2K`, `irreversible=0`, `numresolution=1`); full round-trip test verifies ISO 15444-1 §C.5.5.1 lossless invariant (max_error = 0.0).
 
 ## Sprint 57 Gap Closures
 
@@ -1075,7 +1075,25 @@ report against `dicom-transfer-syntax-registry` with the minimal reproducer from
 
 | ID | Risk | Status | Sprint |
 |---|---|---|---|
-| GAP-R57-01 | JPEG 2000 round-trip test deferred (no encoder available) | Open → Sprint 58 | Sprint 57 |
+| GAP-R57-01 | JPEG 2000 round-trip test deferred (no encoder available) | **Closed Sprint 58** | Sprint 57 |
+
+## Sprint 58 Gap Closures
+
+| ID | Gap | Status | Sprint |
+|---|---|---|---|
+| GAP-C58-01 | JPEG 2000 lossless round-trip test missing (GAP-R57-01) | Closed | Sprint 58 |
+| GAP-C58-02 | VtkCellType enum absent; VtkUnstructuredGrid.cell_types untyped (Vec<u8>) | Closed | Sprint 58 |
+| GAP-C58-03 | VTK XML UnstructuredGrid (VTU) reader/writer missing | Closed | Sprint 58 |
+| GAP-C58-04 | DICOM Enhanced Multiframe per-frame functional groups not parsed | Closed | Sprint 58 |
+| GAP-C58-05 | libstdc++ not linked in example/binary link steps on Windows GNU | Closed | Sprint 58 |
+
+## Sprint 58 Open Risks
+
+| ID | Risk | Status | Sprint |
+|---|---|---|---|
+| GAP-R58-01 | DICOM-SEG (Segmentation Object) reading not implemented | Open → Sprint 59 | Sprint 58 |
+| GAP-R58-02 | DICOM-RT structure set (RT Structure Set) to VTK mesh path absent | Open → Sprint 59 | Sprint 58 |
+| GAP-R58-03 | VTK parity: VTK image data (vtkImageData/STRUCTURED_POINTS XML) reader/writer absent | Open → Sprint 59 | Sprint 58 |
 
 ---
 

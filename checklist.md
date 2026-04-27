@@ -1,3 +1,28 @@
+## Sprint 58 — VtkCellType + VTU Reader/Writer, DICOM Enhanced Multiframe, JPEG 2000 Lossless Round-Trip, Build Fix — Completed
+
+- [x] Close GAP-R57-01: JPEG 2000 lossless round-trip test via openjpeg-sys FFI encoder
+- [x] Add `write_jpeg2000_lossless_dicom_file` helper (unsafe openjpeg-sys, lossless J2K, 16-bit)
+- [x] Add `test_decode_compressed_frame_jpeg2000_lossless_round_trip` (max_error == 0.0, ISO 15444-1)
+- [x] Add `VtkCellType` enum (34 VTK standard cell type codes) to `vtk_data_object.rs`
+- [x] Change `VtkUnstructuredGrid.cell_types` from `Vec<u8>` to `Vec<VtkCellType>`
+- [x] Update `unstruct_grid.rs` reader/writer to use `VtkCellType`
+- [x] Create `format/vtk/unstructured_xml/writer.rs` (VTU ASCII-inline writer, 10 tests)
+- [x] Create `format/vtk/unstructured_xml/reader.rs` (VTU ASCII-inline reader, 16 tests)
+- [x] Update `format/vtk/mod.rs` to expose `unstructured_xml`
+- [x] Add `PerFrameInfo` struct to `multiframe.rs` (per-frame functional group data)
+- [x] Add `per_frame: Vec<PerFrameInfo>` field to `MultiFrameInfo`
+- [x] Implement `extract_functional_groups` (parses (5200,9229) and (5200,9230))
+- [x] Update `load_dicom_multiframe` to apply per-frame rescale when available
+- [x] Update `read_multiframe_info` to populate per_frame
+- [x] Add 5 per-frame functional groups tests
+- [x] Update `build.rs` to detect and emit libstdc++ search path
+- [x] Update `.cargo/config.toml`: add `-lstdc++` link arg for x86_64-pc-windows-gnu
+- [ ] Sprint 59: DICOM-SEG (Segmentation Object) reader for MITK parity
+- [ ] Sprint 59: DICOM-RT structure set reader (VTK mesh output)
+- [ ] Sprint 59: File format parity audit for remaining ITK formats
+
+---
+
 ## Sprint 57 — JPEG-LS + JPEG 2000 Codec Integration — Completed
 
 - [x] Enable `charls` feature on `dicom-transfer-syntax-registry` (workspace Cargo.toml)
@@ -15,7 +40,7 @@
 - [x] Rename `test_is_codec_supported_jpeg2000_false` → `test_is_codec_supported_jpeg2000_true`
 - [x] Add `test_decode_compressed_frame_jpegls_lossless_round_trip` (max_error = 0.0)
 - [x] Add `test_decode_compressed_frame_jpegls_near_lossless_round_trip` (max_error ≤ 2.0)
-- [ ] Sprint 58: JPEG 2000 round-trip test via openjpeg-sys FFI encoding helper
+- [x] Sprint 58: JPEG 2000 round-trip test via openjpeg-sys FFI encoding helper
 
 ---
 

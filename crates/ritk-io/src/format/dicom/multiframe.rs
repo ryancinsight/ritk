@@ -56,6 +56,7 @@ use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::smallvec::SmallVec;
+use dicom::core::value::Value;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::{open_file, InMemDicomObject};
@@ -90,6 +91,38 @@ fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
     }
 }
 
+/// Per-frame spatial and photometric metadata extracted from DICOM Enhanced Multiframe
+/// per-frame functional group sequence (5200,9230) and shared functional group
+/// sequence (5200,9229).
+///
+/// # Mathematical specification
+///
+/// For an Enhanced CT/MR/PET image with N frames, each frame index k ∈ [0, N):
+/// - `image_position[k]`: physical position P_k ∈ ℝ³ (mm) of frame k's origin.
+///   Source: (5200,9230)[k] → (0020,9113)[0] → (0020,0032).
+///   Falls back to shared (5200,9229) → (0020,9113)[0] → (0020,0032).
+/// - `image_orientation[k]`: IOP cosines F_k ∈ ℝ^6.
+///   Source: (5200,9229 or 9230) → (0020,9116)[0] → (0020,0037).
+/// - `rescale_slope[k]` / `rescale_intercept[k]`: linear intensity transform.
+///   Source: (5200,9230)[k] → (0028,9145)[0] → (0028,1053/1052).
+///   Falls back to shared groups, then to `None`.
+/// - `pixel_spacing[k]` / `slice_thickness[k]`: from (0028,9110) → (0028,0030/0018,0050).
+#[derive(Debug, Clone, Default)]
+pub struct PerFrameInfo {
+    /// Physical position P_k of this frame's origin in mm.
+    pub image_position: Option<[f64; 3]>,
+    /// Image orientation cosines for this frame.
+    pub image_orientation: Option<[f64; 6]>,
+    /// Pixel spacing (row, column) in mm.
+    pub pixel_spacing: Option<[f64; 2]>,
+    /// Slice thickness in mm.
+    pub slice_thickness: Option<f64>,
+    /// Rescale slope for this frame (0028,1053).
+    pub rescale_slope: Option<f64>,
+    /// Rescale intercept for this frame (0028,1052).
+    pub rescale_intercept: Option<f64>,
+}
+
 /// Summary information about a multi-frame DICOM file.
 #[derive(Debug, Clone)]
 pub struct MultiFrameInfo {
@@ -122,6 +155,9 @@ pub struct MultiFrameInfo {
     pub rescale_slope: f64,
     /// RescaleIntercept (0028,1052). Defaults to 0.0 when absent.
     pub rescale_intercept: f64,
+    /// Per-frame functional group data. Empty for non-enhanced multiframe objects.
+    /// Length == n_frames when functional group sequences are present, 0 otherwise.
+    pub per_frame: Vec<PerFrameInfo>,
 }
 
 /// Extract all multi-frame header fields from an already-opened DICOM object.
@@ -130,6 +166,7 @@ pub struct MultiFrameInfo {
 /// - n_frames defaults to 1 when (0028,0008) is absent.
 /// - bits_allocated defaults to 16 when absent.
 /// - rescale_slope defaults to 1.0, rescale_intercept to 0.0 when absent.
+/// - per_frame is always Vec::new(); call extract_functional_groups separately.
 fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameInfo {
     let n_frames: usize = obj
         .element(Tag(0x0028, 0x0008))
@@ -215,19 +252,201 @@ fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameI
         image_orientation,
         rescale_slope,
         rescale_intercept,
+        per_frame: Vec::new(),
     }
+}
+
+/// Navigate item → seq_tag → items()[0] → inner_tag and parse as `[f64; N]` DS array.
+///
+/// Returns None if either sequence is absent, has no items, or the DS value fails to
+/// parse with at least N components.
+fn read_nested_ds<const N: usize>(
+    item: &InMemDicomObject,
+    seq_tag: Tag,
+    inner_tag: Tag,
+) -> Option<[f64; N]> {
+    let elem = item.element(seq_tag).ok()?;
+    if let Value::Sequence(seq) = elem.value() {
+        let inner_item = seq.items().first()?;
+        let inner_elem = inner_item.element(inner_tag).ok()?;
+        inner_elem
+            .to_str()
+            .ok()
+            .and_then(|s| parse_ds_backslash::<N>(&s))
+    } else {
+        None
+    }
+}
+
+/// Navigate item → seq_tag → items()[0] → inner_tag and parse as f64.
+///
+/// Returns None if either sequence is absent, has no items, or the DS value fails to
+/// parse as a finite f64.
+fn read_nested_f64(item: &InMemDicomObject, seq_tag: Tag, inner_tag: Tag) -> Option<f64> {
+    let elem = item.element(seq_tag).ok()?;
+    if let Value::Sequence(seq) = elem.value() {
+        let inner_item = seq.items().first()?;
+        let inner_elem = inner_item.element(inner_tag).ok()?;
+        inner_elem
+            .to_str()
+            .ok()
+            .and_then(|s| s.trim().parse::<f64>().ok())
+    } else {
+        None
+    }
+}
+
+/// Extract per-frame metadata from functional group sequences per DICOM PS3.3 C.7.6.16.
+///
+/// Reads Shared Functional Groups (5200,9229) as fallback defaults, then per-frame
+/// overrides from Per-Frame Functional Groups (5200,9230).
+///
+/// # Algorithm
+///
+/// 1. If neither (5200,9229) nor (5200,9230) is present, return `Vec::new()`.
+/// 2. Parse shared groups (5200,9229)[0] into a `PerFrameInfo` template.
+/// 3. For each frame index k in [0, n_frames):
+///    a. Start from the shared template.
+///    b. If (5200,9230)[k] exists, override non-None fields.
+///    c. Push merged result.
+///
+/// # Fallback chain per attribute A
+///   per_frame[k].A = per_frame_groups[k].A  // if Some(...)
+///               ?? shared_groups.A            // if Some(...)
+///               ?? None
+fn extract_functional_groups(obj: &InMemDicomObject, n_frames: usize) -> Vec<PerFrameInfo> {
+    let has_shared = obj.element(Tag(0x5200, 0x9229)).is_ok();
+    let has_per_frame = obj.element(Tag(0x5200, 0x9230)).is_ok();
+
+    if !has_shared && !has_per_frame {
+        tracing::debug!(
+            "extract_functional_groups: (5200,9229) and (5200,9230) absent; per_frame=[]"
+        );
+        return Vec::new();
+    }
+
+    // Parse shared functional groups template.
+    let shared_template = if let Ok(sg_elem) = obj.element(Tag(0x5200, 0x9229)) {
+        if let Value::Sequence(seq) = sg_elem.value() {
+            if let Some(item) = seq.items().first() {
+                let tpl = PerFrameInfo {
+                    image_position: read_nested_ds::<3>(
+                        item,
+                        Tag(0x0020, 0x9113),
+                        Tag(0x0020, 0x0032),
+                    ),
+                    image_orientation: read_nested_ds::<6>(
+                        item,
+                        Tag(0x0020, 0x9116),
+                        Tag(0x0020, 0x0037),
+                    ),
+                    pixel_spacing: read_nested_ds::<2>(
+                        item,
+                        Tag(0x0028, 0x9110),
+                        Tag(0x0028, 0x0030),
+                    ),
+                    slice_thickness: read_nested_f64(
+                        item,
+                        Tag(0x0028, 0x9110),
+                        Tag(0x0018, 0x0050),
+                    ),
+                    rescale_slope: read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053)),
+                    rescale_intercept: read_nested_f64(
+                        item,
+                        Tag(0x0028, 0x9145),
+                        Tag(0x0028, 0x1052),
+                    ),
+                };
+                tracing::debug!(
+                    has_image_position = tpl.image_position.is_some(),
+                    has_pixel_spacing = tpl.pixel_spacing.is_some(),
+                    has_rescale = tpl.rescale_slope.is_some(),
+                    "extract_functional_groups: shared template parsed"
+                );
+                tpl
+            } else {
+                PerFrameInfo::default()
+            }
+        } else {
+            PerFrameInfo::default()
+        }
+    } else {
+        PerFrameInfo::default()
+    };
+
+    // Collect per-frame items.
+    let pf_items: Vec<InMemDicomObject> = if let Ok(pf_elem) = obj.element(Tag(0x5200, 0x9230)) {
+        if let Value::Sequence(seq) = pf_elem.value() {
+            seq.items().to_vec()
+        } else {
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+
+    tracing::debug!(
+        n_frames,
+        pf_items = pf_items.len(),
+        "extract_functional_groups: merging per-frame metadata"
+    );
+
+    (0..n_frames)
+        .map(|k| {
+            let mut info = shared_template.clone();
+            if let Some(item) = pf_items.get(k) {
+                macro_rules! override_if_some {
+                    ($field:ident, $expr:expr) => {
+                        if let Some(v) = $expr {
+                            info.$field = Some(v);
+                        }
+                    };
+                }
+                override_if_some!(
+                    image_position,
+                    read_nested_ds::<3>(item, Tag(0x0020, 0x9113), Tag(0x0020, 0x0032))
+                );
+                override_if_some!(
+                    image_orientation,
+                    read_nested_ds::<6>(item, Tag(0x0020, 0x9116), Tag(0x0020, 0x0037))
+                );
+                override_if_some!(
+                    pixel_spacing,
+                    read_nested_ds::<2>(item, Tag(0x0028, 0x9110), Tag(0x0028, 0x0030))
+                );
+                override_if_some!(
+                    slice_thickness,
+                    read_nested_f64(item, Tag(0x0028, 0x9110), Tag(0x0018, 0x0050))
+                );
+                override_if_some!(
+                    rescale_slope,
+                    read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1053))
+                );
+                override_if_some!(
+                    rescale_intercept,
+                    read_nested_f64(item, Tag(0x0028, 0x9145), Tag(0x0028, 0x1052))
+                );
+            }
+            info
+        })
+        .collect()
 }
 
 /// Read summary information from a multi-frame DICOM file without pixel data.
 pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
     let path = path.as_ref();
     let obj = open_file(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
-    Ok(extract_multiframe_header(path, &obj))
+    let mut info = extract_multiframe_header(path, &obj);
+    info.per_frame = extract_functional_groups(&obj, info.n_frames);
+    Ok(info)
 }
 
 /// Load a multi-frame DICOM file as a 3-D image with shape [n_frames, rows, cols].
 ///
 /// Applies RescaleSlope and RescaleIntercept to convert stored integers to floats.
+/// For Enhanced CT/MR/PET objects that carry per-frame functional groups (5200,9230),
+/// per-frame slope/intercept values override the global tags for each frame in the
+/// native (uncompressed) decode path.
 /// When ImagePositionPatient (0020,0032) is present, the image origin is set
 /// accordingly; otherwise the origin defaults to [0, 0, 0].
 /// When ImageOrientationPatient (0020,0037) is present, the direction matrix is
@@ -272,6 +491,13 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         );
     }
 
+    let per_frame = extract_functional_groups(&obj, info.n_frames);
+    tracing::debug!(
+        n_frames = info.n_frames,
+        per_frame_len = per_frame.len(),
+        "load_dicom_multiframe: functional groups extracted"
+    );
+
     let rescale_slope = info.rescale_slope as f32;
     let rescale_intercept = info.rescale_intercept as f32;
 
@@ -299,7 +525,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         let n = info.n_frames;
         (all_floats, n)
     } else {
-        // Native (uncompressed) TS: read all pixel bytes at once and apply LUT.
+        // Native (uncompressed) TS: read all pixel bytes at once.
         let pixel_bytes = if let Ok(elem) = obj.element(Tag(0x7FE0, 0x0010)) {
             elem.value()
                 .to_bytes()
@@ -309,19 +535,46 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         } else {
             Vec::new()
         };
-        let all_floats = super::reader::decode_pixel_bytes(
-            &pixel_bytes,
-            info.bits_allocated,
-            info.pixel_representation,
-            rescale_slope,
-            rescale_intercept,
-        );
-        let n = if info.rows * info.cols > 0 && !all_floats.is_empty() {
-            all_floats.len() / (info.rows * info.cols)
+
+        if !per_frame.is_empty() {
+            // Per-frame rescale path: Enhanced CT/MR/PET with functional groups.
+            // Each frame slice is decoded independently with its own slope/intercept.
+            let bytes_per_pixel = (info.bits_allocated as usize).div_ceil(8);
+            let frame_bytes = info.rows * info.cols * bytes_per_pixel;
+            let mut all_floats = Vec::with_capacity(info.n_frames * info.rows * info.cols);
+            for (frame_idx, pfi) in per_frame.iter().enumerate().take(info.n_frames) {
+                let slope = pfi.rescale_slope.unwrap_or(info.rescale_slope) as f32;
+                let intercept = pfi.rescale_intercept.unwrap_or(info.rescale_intercept) as f32;
+                let start = frame_idx * frame_bytes;
+                let end = start + frame_bytes;
+                let frame_slice = pixel_bytes.get(start..end).unwrap_or(&[]);
+                let decoded = super::reader::decode_pixel_bytes(
+                    frame_slice,
+                    info.bits_allocated,
+                    info.pixel_representation,
+                    slope,
+                    intercept,
+                );
+                all_floats.extend_from_slice(&decoded);
+            }
+            let n = info.n_frames;
+            (all_floats, n)
         } else {
-            info.n_frames
-        };
-        (all_floats, n)
+            // Global rescale path: basic multiframe without functional groups.
+            let all_floats = super::reader::decode_pixel_bytes(
+                &pixel_bytes,
+                info.bits_allocated,
+                info.pixel_representation,
+                rescale_slope,
+                rescale_intercept,
+            );
+            let n = if info.rows * info.cols > 0 && !all_floats.is_empty() {
+                all_floats.len() / (info.rows * info.cols)
+            } else {
+                info.n_frames
+            };
+            (all_floats, n)
+        }
     };
 
     if actual_n == 0 {
@@ -1733,6 +1986,339 @@ mod tests {
         assert!(
             err_msg.contains("big-endian"),
             "error message must mention big-endian; got: {err_msg}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Sprint 58-C: per-frame functional group tests
+    // -------------------------------------------------------------------------
+
+    /// PerFrameInfo::default() must have all fields set to None.
+    ///
+    /// Invariant: PerFrameInfo::default() == PerFrameInfo { all_fields: None }.
+    #[test]
+    fn test_per_frame_info_default_all_none() {
+        let pfi = PerFrameInfo::default();
+        assert!(
+            pfi.image_position.is_none(),
+            "image_position must be None by default"
+        );
+        assert!(
+            pfi.image_orientation.is_none(),
+            "image_orientation must be None by default"
+        );
+        assert!(
+            pfi.pixel_spacing.is_none(),
+            "pixel_spacing must be None by default"
+        );
+        assert!(
+            pfi.slice_thickness.is_none(),
+            "slice_thickness must be None by default"
+        );
+        assert!(
+            pfi.rescale_slope.is_none(),
+            "rescale_slope must be None by default"
+        );
+        assert!(
+            pfi.rescale_intercept.is_none(),
+            "rescale_intercept must be None by default"
+        );
+    }
+
+    /// extract_functional_groups must return an empty Vec when neither (5200,9229)
+    /// nor (5200,9230) is present in the DICOM object.
+    ///
+    /// Invariant: non-enhanced multiframe objects carry no functional group sequences.
+    #[test]
+    fn test_per_frame_empty_when_no_functional_groups() {
+        let obj = InMemDicomObject::new_empty();
+        let result = extract_functional_groups(&obj, 3);
+        assert!(
+            result.is_empty(),
+            "per_frame must be empty when no functional group sequences are present; got len={}",
+            result.len()
+        );
+    }
+
+    /// read_multiframe_info on a basic (non-enhanced) multiframe file written by
+    /// write_dicom_multiframe must return per_frame.is_empty() == true, because no
+    /// functional group sequences are emitted by the writer.
+    ///
+    /// Invariant: basic multiframe SOP class has no functional groups.
+    #[test]
+    fn test_multiframe_info_per_frame_field_empty_for_basic_sop() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("basic_mf.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 2 * 2 * 2], Shape::new([2_usize, 2, 2])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
+        assert!(
+            info.per_frame.is_empty(),
+            "per_frame must be empty for basic multiframe SOP; got len={}",
+            info.per_frame.len()
+        );
+        assert_eq!(info.per_frame.len(), 0, "per_frame.len() must be 0");
+    }
+
+    /// extract_functional_groups with a Shared Functional Groups sequence (5200,9229)
+    /// must populate pixel_spacing and slice_thickness in all n_frames entries.
+    ///
+    /// Analytical specification:
+    /// - (5200,9229)[0] → (0028,9110)[0] → (0028,0030) = "0.5\0.5" → pixel_spacing = [0.5, 0.5]
+    /// - (5200,9229)[0] → (0028,9110)[0] → (0018,0050) = "1.0"     → slice_thickness = 1.0
+    /// - Both values must appear in all n_frames entries (shared template cloned per frame).
+    #[test]
+    fn test_per_frame_shared_functional_groups() {
+        use dicom::core::header::Length;
+        use dicom::core::value::DataSetSequence;
+
+        // Build PixelMeasuresSequence item with PixelSpacing and SliceThickness.
+        let mut px_item = InMemDicomObject::new_empty();
+        px_item.put(DataElement::new(
+            Tag(0x0028, 0x0030),
+            VR::DS,
+            PrimitiveValue::from("0.5\\0.5"),
+        ));
+        px_item.put(DataElement::new(
+            Tag(0x0018, 0x0050),
+            VR::DS,
+            PrimitiveValue::from("1.0"),
+        ));
+        let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
+        let px_val = Value::from(px_seq);
+
+        // Build shared functional group item containing PixelMeasuresSequence (0028,9110).
+        let mut shared_item = InMemDicomObject::new_empty();
+        shared_item.put(DataElement::new(Tag(0x0028, 0x9110), VR::SQ, px_val));
+
+        // Build (5200,9229) Shared Functional Groups Sequence.
+        let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
+        let shared_val = Value::from(shared_seq);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(Tag(0x5200, 0x9229), VR::SQ, shared_val));
+
+        let result = extract_functional_groups(&obj, 2);
+        assert_eq!(result.len(), 2, "must produce one entry per frame");
+
+        // Both frames share the same template from (5200,9229).
+        for (k, pfi) in result.iter().enumerate() {
+            assert_eq!(
+                pfi.pixel_spacing,
+                Some([0.5, 0.5]),
+                "frame {k}: pixel_spacing must be [0.5, 0.5] from shared groups"
+            );
+            assert_eq!(
+                pfi.slice_thickness,
+                Some(1.0),
+                "frame {k}: slice_thickness must be 1.0 from shared groups"
+            );
+        }
+    }
+
+    /// load_dicom_multiframe on an Enhanced CT–like object with per-frame functional
+    /// groups (5200,9230) must apply per-frame rescale slope/intercept independently
+    /// for each frame, overriding the global tags.
+    ///
+    /// # Analytical specification
+    ///
+    /// Two frames, 2×2 pixels each, native 16-bit unsigned.
+    /// Frame 0: raw u16 = [100, 200, 300, 400], slope=1.0, intercept=0.0
+    ///          → decoded f32 = [100.0, 200.0, 300.0, 400.0]
+    /// Frame 1: raw u16 = [10, 20, 30, 40], slope=2.0, intercept=10.0
+    ///          → decoded f32 = [30.0, 50.0, 70.0, 90.0]
+    ///
+    /// Global slope/intercept set to 99.0 to verify per-frame values override them.
+    #[test]
+    fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
+        use dicom::core::header::Length;
+        use dicom::core::value::DataSetSequence;
+
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("enhanced_pf_rescale.dcm");
+
+        // Pixel data: frame0=[100,200,300,400] u16 LE, frame1=[10,20,30,40] u16 LE
+        let frame0: [u16; 4] = [100, 200, 300, 400];
+        let frame1: [u16; 4] = [10, 20, 30, 40];
+        let pixel_bytes: Vec<u8> = frame0
+            .iter()
+            .chain(frame1.iter())
+            .flat_map(|&v| v.to_le_bytes())
+            .collect();
+
+        // Helper: build a PixelValueTransformation item with given slope/intercept DS strings.
+        let make_pvt_item = |slope: &str, intercept: &str| {
+            let mut item = InMemDicomObject::new_empty();
+            item.put(DataElement::new(
+                Tag(0x0028, 0x1053),
+                VR::DS,
+                PrimitiveValue::from(slope),
+            ));
+            item.put(DataElement::new(
+                Tag(0x0028, 0x1052),
+                VR::DS,
+                PrimitiveValue::from(intercept),
+            ));
+            item
+        };
+
+        // Build per-frame item wrapping a PixelValueTransformationSequence (0028,9145).
+        let make_pf_item = |slope: &str, intercept: &str| {
+            let pvt_item = make_pvt_item(slope, intercept);
+            let pvt_seq = DataSetSequence::new(vec![pvt_item], Length::UNDEFINED);
+            let pvt_val = Value::from(pvt_seq);
+            let mut pf = InMemDicomObject::new_empty();
+            pf.put(DataElement::new(Tag(0x0028, 0x9145), VR::SQ, pvt_val));
+            pf
+        };
+
+        let pf0 = make_pf_item("1.0", "0.0");
+        let pf1 = make_pf_item("2.0", "10.0");
+
+        // Build (5200,9230) Per-Frame Functional Groups Sequence with 2 items.
+        let pf_seq = DataSetSequence::new(vec![pf0, pf1], Length::UNDEFINED);
+        let pf_val = Value::from(pf_seq);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.58001"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        // Global slope/intercept = 99.0: must NOT be used when per-frame groups present.
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("99.0"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("99.0"),
+        ));
+        // Per-frame functional groups.
+        obj.put(DataElement::new(Tag(0x5200, 0x9230), VR::SQ, pf_val));
+        // Pixel data.
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        ));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
+                    .media_storage_sop_instance_uid("2.25.58001")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build");
+        file_obj.write_to_file(&path).expect("write enhanced file");
+
+        // Load and verify per-frame rescale via load_dicom_multiframe.
+        let img = load_dicom_multiframe::<B, _>(&path, &device).expect("load enhanced per-frame");
+        let [lf, lr, lc] = img.shape();
+        assert_eq!(lf, 2, "frames");
+        assert_eq!(lr, 2, "rows");
+        assert_eq!(lc, 2, "cols");
+
+        let td = img.data().clone().into_data();
+        let floats: &[f32] = td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(floats.len(), 8, "total pixel count = 2 frames × 4 pixels");
+
+        // Frame 0: raw=[100,200,300,400], slope=1.0, intercept=0.0
+        // Decoded: [100.0, 200.0, 300.0, 400.0]
+        assert!(
+            (floats[0] - 100.0).abs() < 0.5,
+            "frame0 pixel0: expected 100.0, got {}",
+            floats[0]
+        );
+        assert!(
+            (floats[3] - 400.0).abs() < 0.5,
+            "frame0 pixel3: expected 400.0, got {}",
+            floats[3]
+        );
+
+        // Frame 1: raw=[10,20,30,40], slope=2.0, intercept=10.0
+        // Decoded: [30.0, 50.0, 70.0, 90.0]
+        assert!(
+            (floats[4] - 30.0).abs() < 0.5,
+            "frame1 pixel0: expected 30.0 (10*2+10), got {}",
+            floats[4]
+        );
+        assert!(
+            (floats[7] - 90.0).abs() < 0.5,
+            "frame1 pixel3: expected 90.0 (40*2+10), got {}",
+            floats[7]
+        );
+
+        // Verify per_frame metadata via read_multiframe_info.
+        let info = read_multiframe_info(&path).expect("read_multiframe_info");
+        assert_eq!(
+            info.per_frame.len(),
+            2,
+            "per_frame.len() must equal n_frames"
+        );
+        assert_eq!(
+            info.per_frame[0].rescale_slope,
+            Some(1.0),
+            "per_frame[0].rescale_slope must be Some(1.0)"
+        );
+        assert_eq!(
+            info.per_frame[0].rescale_intercept,
+            Some(0.0),
+            "per_frame[0].rescale_intercept must be Some(0.0)"
+        );
+        assert_eq!(
+            info.per_frame[1].rescale_slope,
+            Some(2.0),
+            "per_frame[1].rescale_slope must be Some(2.0)"
+        );
+        assert_eq!(
+            info.per_frame[1].rescale_intercept,
+            Some(10.0),
+            "per_frame[1].rescale_intercept must be Some(10.0)"
         );
     }
 }

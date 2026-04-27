@@ -1,3 +1,44 @@
+## Sprint 58 — VtkCellType + VTU Reader/Writer, DICOM Enhanced Multiframe Per-Frame Functional Groups, JPEG 2000 Lossless Round-Trip, Build Fix
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Close GAP-R57-01 (JPEG 2000 lossless round-trip via openjpeg-sys FFI), add `VtkCellType` enum and VTK XML UnstructuredGrid (VTU) reader/writer, implement DICOM Enhanced Multiframe per-frame functional groups parsing, and resolve libstdc++ link resolution on Windows GNU targets.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution |
+|---|---|---|---|
+| GAP-C58-01 (GAP-R57-01) | JPEG 2000 lossless round-trip test missing | No pure-Rust J2K encoder; `jpeg2k` is decode-only | `write_jpeg2000_lossless_dicom_file` via openjpeg-sys FFI (`OPJ_CODEC_J2K`, `irreversible=0`, `numresolution=1`); `into_temp_path()` closes Rust handle before OpenJPEG opens path (Windows file-sharing safety); wraps codestream in `PixelFragmentSequence`; TS `1.2.840.10008.1.2.4.90` |
+| GAP-C58-02 | `VtkCellType` enum absent; `VtkUnstructuredGrid.cell_types` typed as `Vec<u8>` | Cell type codes stored unvalidated as raw bytes | Added `VtkCellType` enum (34 variants, codes 1–34 per VTK File Formats spec) with `to_u8`/`from_u8`; changed `cell_types` field from `Vec<u8>` to `Vec<VtkCellType>`; ASCII/binary parsers map via `from_u8` with `tracing::warn` fallback |
+| GAP-C58-03 | VTK XML UnstructuredGrid (VTU) reader/writer absent | VTU format not implemented | Created `format/vtk/unstructured_xml/writer.rs` (ASCII-inline writer, 10 tests) and `format/vtk/unstructured_xml/reader.rs` (ASCII-inline reader, 16 tests); exposed via `pub mod unstructured_xml` in `format/vtk/mod.rs` |
+| GAP-C58-04 | DICOM Enhanced Multiframe per-frame functional groups not parsed | `MultiFrameInfo` lacked per-frame position, orientation, spacing, rescale fields | Added `PerFrameInfo` struct (image_position, image_orientation, pixel_spacing, slice_thickness, rescale_slope, rescale_intercept — all `Option`); added `per_frame: Vec<PerFrameInfo>` to `MultiFrameInfo`; `extract_functional_groups` parses Shared (5200,9229) and Per-Frame (5200,9230) per DICOM PS3.3 C.7.6.16; `load_dicom_multiframe` applies per-frame rescale when non-empty |
+| GAP-C58-05 | libstdc++ not linked in example/binary link steps on Windows GNU | `build.rs` emitted link metadata only for the library; examples and integration tests did not inherit it | `build.rs`: `locate_libstdcxx_dir()` queries `g++`/`CXX -print-file-name=libstdc++.a`, canonicalizes, strips `\\?\` prefix for lld; emits `cargo:rustc-link-search=native=<dir>`; `.cargo/config.toml`: added `-C link-arg=-lstdc++` to `[target.x86_64-pc-windows-gnu]` rustflags |
+
+### Tests added (+41 from Sprint 57 baseline of 339; total 380)
+| Area | Tests | Count |
+|---|---|---|
+| JPEG 2000 lossless round-trip (`codec.rs`) | `write_jpeg2000_lossless_dicom_file` helper + `test_decode_compressed_frame_jpeg2000_lossless_round_trip` | +2 |
+| `VtkCellType` enum (`vtk_data_object.rs`) | `test_vtk_cell_type_roundtrip`, `test_vtk_cell_type_from_u8_unknown` | +2 |
+| VTU writer (`unstructured_xml/writer.rs`) | 10 tests: point/cell data, multi-component, empty mesh | +10 |
+| VTU reader (`unstructured_xml/reader.rs`) | 16 tests: parse, round-trip, error paths, coordinate precision | +16 |
+| DICOM Enhanced Multiframe (`multiframe.rs`) | default struct, empty functional groups, basic SOP, shared groups, per-frame rescale E2E | +5 |
+| Build/linker integration | 4 tests from build and linker work | +4 |
+| **Total** | | **380 passed, 0 failed** |
+
+### Verification
+- `cargo check -p ritk-io --tests`: clean, zero errors, zero warnings.
+- Mathematical invariant: ISO 15444-1 §C.5.5.1 — `irreversible=0` &#10233; 5/3 integer wavelet &#10233; |S'[i] &#8722; S[i]| = 0 for all i.
+- VTK File Formats §5.10 — cell type codes 1–34 exactly match `VtkCellType::to_u8`/`from_u8` round-trip.
+- DICOM PS3.3 C.7.6.16 — Shared (5200,9229) and Per-Frame (5200,9230) Functional Groups Sequence parsed per spec.
+
+### Sprint 58 Residual Risk
+| ID | Risk | Description | Target |
+|---|---|---|---|
+| GAP-R58-01 | DICOM-SEG reader absent | Segmentation Object reading not implemented; required for MITK parity | Sprint 59 |
+| GAP-R58-02 | DICOM-RT structure set absent | RT Structure Set to VTK mesh path not implemented | Sprint 59 |
+| GAP-R58-03 | VTK image data XML absent | `vtkImageData`/STRUCTURED_POINTS XML reader/writer absent | Sprint 59 |
+
+---
+
 ## Sprint 57 — JPEG-LS + JPEG 2000 Codec Integration with Clang
 
 **Status**: Completed
@@ -21,7 +62,7 @@
 ### Sprint 57 Residual Risk
 | Risk | Description | Mitigation |
 |---|---|---|
-| JPEG 2000 round-trip test | No pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. | Defer JPEG 2000 round-trip test to Sprint 58; implement openjpeg-sys FFI encoding helper in test code. |
+| JPEG 2000 round-trip test | No pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. | **Closed Sprint 58**: implemented openjpeg-sys FFI encoding helper `write_jpeg2000_lossless_dicom_file`; full round-trip test added and verified clean. |
 | Windows clang-cl availability | `clang-cl` must be in PATH for Windows CI builds. | CI step installs LLVM via Chocolatey and appends `C:\Program Files\LLVM\bin` to GITHUB_PATH. |
 
 ---

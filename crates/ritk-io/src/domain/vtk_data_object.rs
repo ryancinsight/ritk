@@ -61,10 +61,7 @@ pub struct VtkPolyData {
 impl VtkPolyData {
     /// Total number of cells across all cell types.
     pub fn num_cells(&self) -> usize {
-        self.vertices.len()
-            + self.lines.len()
-            + self.polygons.len()
-            + self.triangle_strips.len()
+        self.vertices.len() + self.lines.len() + self.polygons.len() + self.triangle_strips.len()
     }
 
     /// Validate all index-bound and attribute-length invariants.
@@ -94,12 +91,17 @@ impl VtkPolyData {
 
         for (name, attr) in &self.point_data {
             match attr {
-                AttributeArray::Scalars { values, num_components } => {
+                AttributeArray::Scalars {
+                    values,
+                    num_components,
+                } => {
                     let expected = n * num_components;
                     if values.len() != expected {
                         return Err(format!(
                             "point_data '{}': Scalars length {} != n_points*ncomp = {}",
-                            name, values.len(), expected
+                            name,
+                            values.len(),
+                            expected
                         ));
                     }
                 }
@@ -107,7 +109,9 @@ impl VtkPolyData {
                     if values.len() != n {
                         return Err(format!(
                             "point_data '{}': length {} != n_points = {}",
-                            name, values.len(), n
+                            name,
+                            values.len(),
+                            n
                         ));
                     }
                 }
@@ -115,7 +119,9 @@ impl VtkPolyData {
                     if values.len() != n * dim {
                         return Err(format!(
                             "point_data '{}': TextureCoords length {} != n_points*dim = {}",
-                            name, values.len(), n * dim
+                            name,
+                            values.len(),
+                            n * dim
                         ));
                     }
                 }
@@ -125,12 +131,17 @@ impl VtkPolyData {
         let nc = self.num_cells();
         for (name, attr) in &self.cell_data {
             match attr {
-                AttributeArray::Scalars { values, num_components } => {
+                AttributeArray::Scalars {
+                    values,
+                    num_components,
+                } => {
                     let expected = nc * num_components;
                     if values.len() != expected {
                         return Err(format!(
                             "cell_data '{}': Scalars length {} != n_cells*ncomp = {}",
-                            name, values.len(), expected
+                            name,
+                            values.len(),
+                            expected
                         ));
                     }
                 }
@@ -138,7 +149,9 @@ impl VtkPolyData {
                     if values.len() != nc {
                         return Err(format!(
                             "cell_data '{}': length {} != n_cells = {}",
-                            name, values.len(), nc
+                            name,
+                            values.len(),
+                            nc
                         ));
                     }
                 }
@@ -146,7 +159,9 @@ impl VtkPolyData {
                     if values.len() != nc * dim {
                         return Err(format!(
                             "cell_data '{}': TextureCoords length {} != n_cells*dim = {}",
-                            name, values.len(), nc * dim
+                            name,
+                            values.len(),
+                            nc * dim
                         ));
                     }
                 }
@@ -168,8 +183,6 @@ pub enum VtkDataObject {
     UnstructuredGrid(VtkUnstructuredGrid),
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 /// VTK structured grid dataset (DATASET STRUCTURED_GRID).
 ///
 /// Points indexed by (i,j,k): i in [0,nx), j in [0,ny), k in [0,nz).
@@ -183,7 +196,10 @@ pub struct VtkStructuredGrid {
 }
 impl VtkStructuredGrid {
     pub fn new(dimensions: [usize; 3]) -> Self {
-        Self { dimensions, ..Default::default() }
+        Self {
+            dimensions,
+            ..Default::default()
+        }
     }
     pub fn n_points(&self) -> usize {
         self.dimensions[0] * self.dimensions[1] * self.dimensions[2]
@@ -197,9 +213,98 @@ impl VtkStructuredGrid {
         if self.points.len() != expected {
             return Err(format!(
                 "VtkStructuredGrid: points.len()={} but dimensions {:?} require n_points={}",
-                self.points.len(), self.dimensions, expected));
+                self.points.len(),
+                self.dimensions,
+                expected
+            ));
         }
         Ok(())
+    }
+}
+
+/// VTK cell type codes per VTK File Formats specification (Table 2, Kitware Inc.).
+///
+/// # Invariants
+/// - `VtkCellType::to_u8()` returns the canonical VTK integer cell type code.
+/// - `VtkCellType::from_u8(v)` is the left inverse of `to_u8` for all known codes.
+/// - Unknown codes return `None` from `from_u8`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum VtkCellType {
+    Vertex = 1,
+    PolyVertex = 2,
+    Line = 3,
+    PolyLine = 4,
+    Triangle = 5,
+    TriangleStrip = 6,
+    Polygon = 7,
+    Pixel = 8,
+    Quad = 9,
+    Tetra = 10,
+    Voxel = 11,
+    Hexahedron = 12,
+    Wedge = 13,
+    Pyramid = 14,
+    PentagonalPrism = 15,
+    HexagonalPrism = 16,
+    QuadraticEdge = 21,
+    QuadraticTriangle = 22,
+    QuadraticQuad = 23,
+    QuadraticTetra = 24,
+    QuadraticHexahedron = 25,
+    QuadraticWedge = 26,
+    QuadraticPyramid = 27,
+    BiquadraticQuad = 28,
+    TriquadraticHexahedron = 29,
+    QuadraticLinearQuad = 30,
+    QuadraticLinearWedge = 31,
+    BiquadraticQuadraticWedge = 32,
+    BiquadraticQuadraticHexahedron = 33,
+    BilinearQuadraticWedge = 34,
+}
+
+impl VtkCellType {
+    /// Return the canonical VTK integer cell type code.
+    pub fn to_u8(self) -> u8 {
+        self as u8
+    }
+
+    /// Parse a VTK integer cell type code.
+    ///
+    /// Returns `None` when the code does not correspond to a known VTK cell type.
+    pub fn from_u8(v: u8) -> Option<Self> {
+        match v {
+            1 => Some(Self::Vertex),
+            2 => Some(Self::PolyVertex),
+            3 => Some(Self::Line),
+            4 => Some(Self::PolyLine),
+            5 => Some(Self::Triangle),
+            6 => Some(Self::TriangleStrip),
+            7 => Some(Self::Polygon),
+            8 => Some(Self::Pixel),
+            9 => Some(Self::Quad),
+            10 => Some(Self::Tetra),
+            11 => Some(Self::Voxel),
+            12 => Some(Self::Hexahedron),
+            13 => Some(Self::Wedge),
+            14 => Some(Self::Pyramid),
+            15 => Some(Self::PentagonalPrism),
+            16 => Some(Self::HexagonalPrism),
+            21 => Some(Self::QuadraticEdge),
+            22 => Some(Self::QuadraticTriangle),
+            23 => Some(Self::QuadraticQuad),
+            24 => Some(Self::QuadraticTetra),
+            25 => Some(Self::QuadraticHexahedron),
+            26 => Some(Self::QuadraticWedge),
+            27 => Some(Self::QuadraticPyramid),
+            28 => Some(Self::BiquadraticQuad),
+            29 => Some(Self::TriquadraticHexahedron),
+            30 => Some(Self::QuadraticLinearQuad),
+            31 => Some(Self::QuadraticLinearWedge),
+            32 => Some(Self::BiquadraticQuadraticWedge),
+            33 => Some(Self::BiquadraticQuadraticHexahedron),
+            34 => Some(Self::BilinearQuadraticWedge),
+            _ => None,
+        }
     }
 }
 
@@ -212,19 +317,27 @@ impl VtkStructuredGrid {
 pub struct VtkUnstructuredGrid {
     pub points: Vec<[f32; 3]>,
     pub cells: Vec<Vec<u32>>,
-    pub cell_types: Vec<u8>,
+    pub cell_types: Vec<VtkCellType>,
     pub point_data: HashMap<String, AttributeArray>,
     pub cell_data: HashMap<String, AttributeArray>,
 }
 impl VtkUnstructuredGrid {
-    pub fn new() -> Self { Self::default() }
-    pub fn n_points(&self) -> usize { self.points.len() }
-    pub fn n_cells(&self) -> usize { self.cells.len() }
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn n_points(&self) -> usize {
+        self.points.len()
+    }
+    pub fn n_cells(&self) -> usize {
+        self.cells.len()
+    }
     pub fn validate(&self) -> Result<(), String> {
         if self.cells.len() != self.cell_types.len() {
             return Err(format!(
                 "VtkUnstructuredGrid: cells.len()={} != cell_types.len()={}",
-                self.cells.len(), self.cell_types.len()));
+                self.cells.len(),
+                self.cell_types.len()
+            ));
         }
         let np = self.n_points();
         for (ci, cell) in self.cells.iter().enumerate() {
@@ -232,7 +345,8 @@ impl VtkUnstructuredGrid {
                 if idx as usize >= np {
                     return Err(format!(
                         "VtkUnstructuredGrid: cell {} index {} out of range (n_points={})",
-                        ci, idx, np));
+                        ci, idx, np
+                    ));
                 }
             }
         }
@@ -281,7 +395,10 @@ mod tests {
         // n_points = 3, ncomp = 1, expected length = 3; supply 2 -> error.
         p.point_data.insert(
             "intensity".to_string(),
-            AttributeArray::Scalars { values: vec![1.0, 2.0], num_components: 1 },
+            AttributeArray::Scalars {
+                values: vec![1.0, 2.0],
+                num_components: 1,
+            },
         );
         let result = p.validate();
         assert!(result.is_err());
@@ -322,15 +439,24 @@ mod tests {
         };
         p.cell_data.insert(
             "pressure".to_string(),
-            AttributeArray::Scalars { values: vec![42.0], num_components: 1 },
+            AttributeArray::Scalars {
+                values: vec![42.0],
+                num_components: 1,
+            },
         );
         assert!(p.validate().is_ok());
     }
 
     #[test]
     fn test_attribute_array_equality() {
-        let a = AttributeArray::Scalars { values: vec![1.0, 2.0], num_components: 1 };
-        let b = AttributeArray::Scalars { values: vec![1.0, 2.0], num_components: 1 };
+        let a = AttributeArray::Scalars {
+            values: vec![1.0, 2.0],
+            num_components: 1,
+        };
+        let b = AttributeArray::Scalars {
+            values: vec![1.0, 2.0],
+            num_components: 1,
+        };
         assert_eq!(a, b);
     }
 
@@ -359,16 +485,15 @@ mod tests {
         let mut g = VtkUnstructuredGrid::new();
         g.points = vec![[0.0; 3]; 4];
         g.cells = vec![vec![0, 1, 2, 3]];
-        g.cell_types = vec![10];
+        g.cell_types = vec![VtkCellType::Tetra];
         assert!(g.validate().is_ok());
     }
-
 
     #[test]
     fn test_vtk_unstructured_grid_cell_type_mismatch() {
         let mut g = VtkUnstructuredGrid::new();
         g.cells = vec![vec![0], vec![1]];
-        g.cell_types = vec![5];
+        g.cell_types = vec![VtkCellType::Triangle];
         assert!(g.validate().unwrap_err().contains("cell_types"));
     }
     #[test]
@@ -376,7 +501,7 @@ mod tests {
         let mut g = VtkUnstructuredGrid::new();
         g.points = vec![[0.0; 3]; 3];
         g.cells = vec![vec![0, 1, 99]];
-        g.cell_types = vec![5];
+        g.cell_types = vec![VtkCellType::Triangle];
         assert!(g.validate().unwrap_err().contains("99"));
     }
     #[test]
@@ -403,4 +528,38 @@ mod tests {
         assert!(g.validate().is_ok());
     }
 
+    #[test]
+    fn test_vtk_cell_type_round_trip_all_known() {
+        let known: &[(u8, VtkCellType)] = &[
+            (1, VtkCellType::Vertex),
+            (5, VtkCellType::Triangle),
+            (10, VtkCellType::Tetra),
+            (12, VtkCellType::Hexahedron),
+            (21, VtkCellType::QuadraticEdge),
+            (34, VtkCellType::BilinearQuadraticWedge),
+        ];
+        for &(code, variant) in known {
+            assert_eq!(
+                VtkCellType::from_u8(code),
+                Some(variant),
+                "from_u8({code}) must return Some({variant:?})"
+            );
+            assert_eq!(
+                variant.to_u8(),
+                code,
+                "{variant:?}.to_u8() must return {code}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_vtk_cell_type_unknown_returns_none() {
+        for v in [0u8, 17, 18, 19, 20, 35, 200, 255] {
+            assert_eq!(
+                VtkCellType::from_u8(v),
+                None,
+                "from_u8({v}) must return None for unknown code"
+            );
+        }
+    }
 }
