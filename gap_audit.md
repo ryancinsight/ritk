@@ -1012,12 +1012,38 @@ test, CI matrix expansion to Windows and macOS:
 - CI `test` job matrix expanded to `[ubuntu-latest, windows-latest, macos-latest]`. Cache key,
   job name, and `runs-on` all parameterized on `matrix.os`. All other jobs remain Ubuntu-only.
 
-**Residual risk** (`dicom-transfer-syntax-registry v0.8.2` RLE off-by-one): real DICOM RLE
-Lossless files where `pixel[0] ≠ 0` will decode `pixel[0]` as 0 silently. Consider filing an
-upstream bug report; pin the version with an explanatory comment when upgrading dicom dependencies.
+**Sprint 56**: Native RLE Lossless decoder closes the upstream off-by-one gap:
 
-**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new (JPEG Extended round-trip × 1,
-RLE Lossless round-trip × 1). Total: **336 passed, 0 failed**.
+- `packbits_decode(input, expected_len)` implements DICOM PS3.5 Annex G.3.1 (PackBits inverse):
+  - `h ∈ [0,127]`: copy next `h+1` literal bytes.
+  - `h = −128`: no-op.
+  - `h ∈ [−127,−1]`: repeat next byte `−h+1` times.
+  - Mathematical contract: `packbits_decode(packbits_encode(S), S.len()) = S` for all `S: &[u8]`.
+- `decode_rle_lossless_frame` implements DICOM PS3.5 Annex G end-to-end:
+  - Reads `rows`, `cols`, `samples_per_pixel` from the DICOM object.
+  - Accesses fragment bytes via `Value::PixelSequence(seq).fragments()[frame_idx].to_vec()`
+    (dicom-rs stores pixel fragments as `Vec<u8>`, not `PrimitiveValue`).
+  - Parses 64-byte RLE header (16 × `u32` LE): segment count + segment byte offsets.
+  - Decodes each byte-plane segment via `packbits_decode`.
+  - Reassembles into LE pixel bytes per PS3.5 §G.5:
+    `raw[p×S×B + s×B + j] = segment[s×B + (B−1−j)][p]` where `j=0` is LE LSB.
+  - Correct for `bits_allocated ∈ {8, 16}` and any `samples_per_pixel`.
+- `decode_compressed_frame` detects `RleLossless` via `obj.meta().transfer_syntax()` and
+  dispatches to `decode_rle_lossless_frame` before invoking the upstream registry. All other
+  compressed transfer syntaxes continue to use `dicom_pixeldata::PixelDecoder`.
+- `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` (new): encodes all N=16
+  pixels including `pixel[0] = 42`; asserts `decoded[0] == 42.0` and `max_error = 0`. This test
+  FAILS with the upstream decoder and MUST pass with the native decoder.
+- `test_decode_compressed_frame_rle_lossless_round_trip` (updated): changed from
+  `build_rle_fragment_8bit(&original[1..])` to `build_rle_fragment_8bit(&original)` (full 16
+  pixels); offset-compensation proof removed from docstring.
+
+**Residual risk**: NONE for ritk-io. The upstream `dicom-transfer-syntax-registry v0.8.2`
+off-by-one is fully bypassed by `decode_rle_lossless_frame`. Recommend filing an upstream bug
+report against `dicom-transfer-syntax-registry` with the minimal reproducer from the tests.
+
+**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new. Sprint 56: +1 new
+(`test_decode_compressed_frame_rle_lossless_unrestricted_round_trip`). Total: **337 passed, 0 failed**.
 
 **Implemented locations**: `crates/ritk-io/src/format/dicom/codec.rs`,
 `crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`,

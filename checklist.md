@@ -1,3 +1,34 @@
+## Sprint 56 -- Completed
+
+- [x] DICOM-RLE-NATIVE-R56: `packbits_decode` + `decode_rle_lossless_frame` + RLE bypass in `decode_compressed_frame`
+  - `dicom-transfer-syntax-registry v0.8.2` RLE decoder off-by-one: `start = spp − byte_offset = 1` (not 0) for 8-bit grayscale
+  - Silently forces `dst[0] = 0` and loses `dst[N−1]` for any file where `pixel[0] ≠ 0`
+  - Post-hoc correction impossible without permanent data loss (last pixel is unrecoverable)
+  - `packbits_decode(input, expected_len)` implements the strict left inverse of `packbits_encode` per PS3.5 Annex G.3.1
+  - `decode_rle_lossless_frame` parses the 64-byte DICOM RLE header, decodes each byte-plane segment via `packbits_decode`,
+    reassembles into LE pixel bytes per PS3.5 §G.5: `raw[p×S×B + s×B + j] = segment[s×B + (B−1−j)][p]`
+  - Fragment bytes accessed via `Value::PixelSequence(seq).fragments()[frame_idx].to_vec()`
+    (dicom-rs stores pixel fragments as `Vec<u8>`, not `PrimitiveValue`)
+  - `decode_compressed_frame` detects `RleLossless` via `obj.meta().transfer_syntax()` and dispatches to native decoder
+  - Correct for `bits_allocated ∈ {8, 16}` and any `samples_per_pixel`; upstream codec still used for all other TSes
+
+- [x] DICOM-RLE-UNRESTRICTED-RT-R56: `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip`
+  - New test: `pixel[0] = 42` (non-zero); encodes all N=16 pixels with `build_rle_fragment_8bit(&original)`
+  - Would FAIL with upstream decoder (which forces `dst[0] = 0`); MUST pass with native decoder
+  - Asserts `decoded[0] == 42.0` explicitly (not just `max_error`)
+  - Verifies `max_error == 0.0` over all 16 pixels
+  - Exercises `pixel[0] = 42, [50,50,50]` (literal + repeat), `[75,80,85,90]` (literal), `[100×4]` (repeat), `[120,130,140,150]` (literal)
+
+- [x] Updated `test_decode_compressed_frame_rle_lossless_round_trip`
+  - Changed `build_rle_fragment_8bit(&original[1..])` → `build_rle_fragment_8bit(&original)` (full 16 pixels)
+  - Removed upstream-bug offset-compensation proof from docstring
+  - Updated docstring to describe native decoder correctness
+  - Test still exercises both PackBits run types (repeat + literal) in the same 4×4 frame
+
+- [x] Sprint 56 verification: **337 passed, 0 failed**, zero warnings, zero errors
+
+---
+
 ## Sprint 55 -- Completed
 
 - [x] DICOM-CODEC-DOC-R55: Update `codec.rs` module docstring to list all 8 supported codecs

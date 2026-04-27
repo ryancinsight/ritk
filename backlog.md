@@ -1,3 +1,47 @@
+## Sprint 56 -- Completed
+
+### Stream A -- RLE Lossless Native Decoder (DICOM-RLE-NATIVE-R56)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-RLE-NATIVE-R56 | `packbits_decode`, `decode_rle_lossless_frame` in `codec.rs`; RLE bypass in `decode_compressed_frame` | **CLOSED** Sprint 56 | `dicom-transfer-syntax-registry v0.8.2` RLE decoder has an off-by-one write-start offset (`start = spp &#8722; byte_offset = 1` instead of `0`) for 8-bit grayscale. This silently forces `dst[0] = 0` and loses `dst[N&#8722;1]` for any file where `pixel[0] &#8800; 0`. A post-hoc correction is impossible without data loss. Fix: native `decode_rle_lossless_frame` implements DICOM PS3.5 Annex G directly. `packbits_decode` is the strict left inverse of `packbits_encode` (PackBits is lossless). The 64-byte RLE header is parsed for segment count and offsets. Byte-plane segments are decoded via `packbits_decode` and reassembled into LE pixel bytes per DICOM PS3.5 §G.5. `decode_compressed_frame` detects `RleLossless` via `obj.meta().transfer_syntax()` and dispatches to the native decoder before invoking the upstream registry. Correct for `bits_allocated &#8712; {8, 16}` and any `samples_per_pixel`. Fragment bytes accessed via `Value::PixelSequence(seq).fragments()[frame_idx]` (dicom-rs stores fragments as `Vec<u8>`). |
+
+### Stream B -- Upstream-Bug Test Coverage (DICOM-RLE-UNRESTRICTED-RT-R56)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-RLE-UNRESTRICTED-RT-R56 | `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` in `codec.rs` | **CLOSED** Sprint 56 | New test encodes all N=16 pixels including `pixel[0] = 42` (non-zero). Would FAIL with the upstream decoder (which forces `dst[0] = 0`) and MUST pass with the native decoder. Exercises `pixel[0] = 42` assertion explicitly. Verifies `max_error = 0` over all 16 pixels. Old `test_decode_compressed_frame_rle_lossless_round_trip` updated: `build_rle_fragment_8bit(&original[1..])` &#8594; `build_rle_fragment_8bit(&original)` (no offset-compensation needed); docstring updated to remove upstream-bug compensation proof. |
+
+### Stream A–B -- Formal Invariants
+| Invariant | Expression | Verified By |
+|---|---|---|
+| PackBits decode–encode inverse | `&#8704;S: packbits_decode(packbits_encode(S), S.len()) = S` | `test_decode_compressed_frame_rle_lossless_round_trip`, `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` |
+| RLE frame exact fidelity | `max|decoded[i] &#8722; original[i]| = 0` for all `i &#8712; [0, N&#8722;1]` | Both round-trip tests; `pixel[0] = 42` assertion in unrestricted test |
+| Pixel[0] correctness | `decoded[0] = 42.0` (non-zero pixel[0] not corrupted to 0) | `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` |
+| LE byte reassembly | `raw[p×S×B + s×B + j] = segment[s×B + (B&#8722;1&#8722;j)][p]` (j=0 = LSB) | Verified analytically for B=1 (8-bit) and B=2 (16-bit) cases |
+
+### Sprint 56 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-RLE-NATIVE-RT1-R56 | `test_decode_compressed_frame_rle_lossless_round_trip` (updated) | **CLOSED** Sprint 56 | Now encodes all 16 pixels; `max_error == 0.0`; exercises both PackBits run types |
+| DICOM-RLE-UNRESTRICTED-RT1-R56 | `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` (new) | **CLOSED** Sprint 56 | `pixel[0] = 42`; encodes all 16 pixels; asserts `decoded[0] == 42.0`; `max_error == 0.0` |
+
+### Sprint 56 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| codec tests | +1 new | `test_decode_compressed_frame_rle_lossless_unrestricted_round_trip` |
+| Updated | 1 | `test_decode_compressed_frame_rle_lossless_round_trip` (offset-compensation removed) |
+| Regression | 336 prior | All Sprint 55 and earlier tests passing |
+| Diagnostics | Clean | Zero errors, zero warnings |
+| Total | **337 passed, 0 failed** | Full ritk-io unit suite |
+
+### Sprint 56 Residual Risk
+| Risk | Description | Mitigation |
+|---|---|---|
+| Upstream RLE bug (closed for ritk-io) | `dicom-transfer-syntax-registry v0.8.2` off-by-one is bypassed for all RLE Lossless frames by `decode_rle_lossless_frame`. No residual risk for ritk-io. | File upstream bug report against `dicom-transfer-syntax-registry` with the minimal reproducer. |
+| JPEG-LS (deferred) | Requires `charls` feature (C++ library). Not yet enabled. | Enable `charls` + add `JpegLsLossless / JpegLsLossy` to `is_codec_supported()` in a future sprint. |
+| JPEG 2000 (deferred) | Requires `openjp2` feature (C library). Not yet enabled. | Enable `openjp2` + add `Jpeg2000Lossless / Jpeg2000Lossy` to `is_codec_supported()` in a future sprint. |
+
+---
+
 ## Sprint 55 -- Completed
 
 ### Stream A -- Codec Documentation Sync (DICOM-CODEC-DOC-R55)
