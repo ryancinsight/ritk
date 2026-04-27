@@ -79,6 +79,40 @@ pub struct DicomSliceMetadata {
     pub transfer_syntax_uid: Option<String>,
     /// Custom per-slice tags preserved as text.
     pub private_tags: HashMap<String, String>,
+    /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
+    /// Defaults to 0 when absent per DICOM PS3.3 C.7.6.3.1.
+    pub pixel_representation: u16,
+    /// BitsAllocated (0028,0100) for this slice. Defaults to 16 when absent.
+    pub bits_allocated: u16,
+    /// WindowCenter (0028,1050) for display, first value when multi-valued DS.
+    pub window_center: Option<f64>,
+    /// WindowWidth (0028,1051) for display, first value when multi-valued DS.
+    pub window_width: Option<f64>,
+}
+
+impl Default for DicomSliceMetadata {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::new(),
+            preservation: DicomPreservationSet::new(),
+            sop_instance_uid: None,
+            instance_number: None,
+            slice_location: None,
+            image_position_patient: None,
+            image_orientation_patient: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
+            sop_class_uid: None,
+            transfer_syntax_uid: None,
+            private_tags: HashMap::new(),
+            pixel_representation: 0,
+            bits_allocated: 16,
+            window_center: None,
+            window_width: None,
+        }
+    }
 }
 
 /// Series-level DICOM metadata.
@@ -179,6 +213,10 @@ fn known_handled_tags() -> HashSet<u32> {
     s.insert(tag_key(0x0028, 0x0101)); // BitsStored
     s.insert(tag_key(0x0028, 0x0102)); // HighBit
     s.insert(tag_key(0x0028, 0x0004)); // PhotometricInterpretation
+    s.insert(tag_key(0x0028, 0x0002)); // SamplesPerPixel
+    s.insert(tag_key(0x0028, 0x0103)); // PixelRepresentation
+    s.insert(tag_key(0x0028, 0x1050)); // WindowCenter
+    s.insert(tag_key(0x0028, 0x1051)); // WindowWidth
                                        // Always skip pixel data
     s.insert(tag_key(0x7FE0, 0x0010));
     s
@@ -307,6 +345,10 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             sop_class_uid: None,
             transfer_syntax_uid: None,
             private_tags: HashMap::new(),
+            pixel_representation: 0,
+            bits_allocated: 16,
+            window_center: None,
+            window_width: None,
         };
 
         if let Ok(obj) = open_file(file_path) {
@@ -368,6 +410,41 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             // Transfer syntax UID lives in the DICOM file meta table (0002,0010),
             // not in the main dataset. Use FileDicomObject::meta() to read it.
             slice_meta.transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
+
+            // PixelRepresentation (0028,0103): 0=unsigned, 1=signed two's complement. Default=0.
+            if let Ok(elem) = obj.element(Tag(0x0028, 0x0103)) {
+                slice_meta.pixel_representation = elem
+                    .to_str()
+                    .ok()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(0);
+            }
+            // BitsAllocated per slice (0028,0100). Default=16.
+            if let Ok(elem) = obj.element(Tag(0x0028, 0x0100)) {
+                slice_meta.bits_allocated = elem
+                    .to_str()
+                    .ok()
+                    .and_then(|s| s.trim().parse().ok())
+                    .unwrap_or(16);
+            }
+            // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
+            if let Ok(elem) = obj.element(Tag(0x0028, 0x1050)) {
+                slice_meta.window_center = elem.to_str().ok().and_then(|s| {
+                    s.trim()
+                        .split('\\')
+                        .next()
+                        .and_then(|v| v.trim().parse().ok())
+                });
+            }
+            // WindowWidth (0028,1051) — first value of potentially multi-valued DS.
+            if let Ok(elem) = obj.element(Tag(0x0028, 0x1051)) {
+                slice_meta.window_width = elem.to_str().ok().and_then(|s| {
+                    s.trim()
+                        .split('\\')
+                        .next()
+                        .and_then(|v| v.trim().parse().ok())
+                });
+            }
 
             // Rows / Colls from first slice — establish series geometry
             if first_rows.is_none() {
@@ -841,57 +918,92 @@ fn load_from_series<B: Backend>(
     Ok((image, metadata))
 }
 
+/// Decode raw pixel bytes into f32 values applying per-slice rescale.
+///
+/// # Invariants
+/// - `bits_allocated=8`: each byte is one unsigned sample; decoded = u8 × slope + intercept.
+/// - `bits_allocated=16`, `pixel_representation=1`: pairs of bytes are one i16 LE sample;
+///   decoded = i16 × slope + intercept.
+/// - Any other combination: pairs of bytes are one u16 LE sample (unsigned default);
+///   decoded = u16 × slope + intercept.
+///
+/// Mathematical derivation: the linear modality LUT is F(x) = x × RescaleSlope + RescaleIntercept
+/// per DICOM PS3.3 C.7.6.3.1.4.
+fn decode_pixel_bytes(
+    bytes: &[u8],
+    bits_allocated: u16,
+    pixel_representation: u16,
+    slope: f32,
+    intercept: f32,
+) -> Vec<f32> {
+    match (bits_allocated, pixel_representation) {
+        (8, _) => bytes
+            .iter()
+            .map(|&b| b as f32 * slope + intercept)
+            .collect(),
+        (16, 1) => bytes
+            .chunks_exact(2)
+            .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
+            .collect(),
+        _ => bytes
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
+            .collect(),
+    }
+}
+
 fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
     use dicom::core::Tag;
     use dicom::object::open_file;
-    if let Ok(obj) = open_file(&slice.path) {
-        if let Ok(pixel_elem) = obj.element(Tag(0x7FE0, 0x0010)) {
-            let pv = pixel_elem.value();
-            if let Ok(bytes) = pv.to_bytes() {
-                if bytes.len() >= 2 {
-                    let data: Vec<f32> = bytes
-                        .chunks_exact(2)
-                        .map(|c| {
-                            let raw = u16::from_le_bytes([c[0], c[1]]);
-                            raw as f32 * slice.rescale_slope + slice.rescale_intercept
-                        })
-                        .collect();
-                    if !data.is_empty() {
-                        return Ok(data);
-                    }
-                }
-            }
-        }
-    }
-    let bytes = std::fs::read(&slice.path)
-        .with_context(|| format!("failed to read DICOM slice {:?}", slice.path))?;
-    if bytes.is_empty() {
-        bail!("DICOM slice file is empty");
-    }
-    let data: Vec<f32> = bytes
-        .chunks_exact(2)
-        .map(|c| {
-            let raw = u16::from_le_bytes([c[0], c[1]]);
-            raw as f32 * slice.rescale_slope + slice.rescale_intercept
-        })
-        .collect();
+
+    let obj = open_file(&slice.path)
+        .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
+    let pixel_elem = obj
+        .element(Tag(0x7FE0, 0x0010))
+        .with_context(|| format!("PixelData (7FE0,0010) absent in {:?}", slice.path))?;
+    let bytes = pixel_elem
+        .value()
+        .to_bytes()
+        .map_err(|e| anyhow::anyhow!("pixel bytes unreadable in {:?}: {:?}", slice.path, e))?;
+
+    let data = decode_pixel_bytes(
+        &bytes,
+        slice.bits_allocated,
+        slice.pixel_representation,
+        slice.rescale_slope,
+        slice.rescale_intercept,
+    );
     if data.is_empty() {
-        bail!("DICOM slice contained no decodable pixel data");
+        bail!(
+            "DICOM slice contained no decodable pixel data in {:?}",
+            slice.path
+        );
     }
     Ok(data)
 }
 
+/// Return true when the path is likely a DICOM Part 10 file.
+///
+/// Primary test: file extension is one of the canonical DICOM extensions
+/// (`.dcm`, `.dicom`, `.ima`).  Secondary test: extensionless files are
+/// probed for the DICM magic bytes at byte offset 128 (DICOM PS3.10 §7.1).
+///
+/// `.hdr` and `.img` are Analyze 7.5 header/image files; `.raw` is
+/// unstructured binary data. Neither is a DICOM Part 10 format.
 fn is_likely_dicom_file(path: &Path) -> bool {
-    path.extension()
-        .and_then(OsStr::to_str)
-        .map(|ext| {
-            let ext = ext.to_ascii_lowercase();
-            matches!(
-                ext.as_str(),
-                "dcm" | "dicom" | "ima" | "img" | "hdr" | "raw"
-            )
-        })
-        .unwrap_or(false)
+    if let Some(ext) = path.extension().and_then(OsStr::to_str) {
+        let ext_lc = ext.to_ascii_lowercase();
+        return matches!(ext_lc.as_str(), "dcm" | "dicom" | "ima");
+    }
+    // No extension: probe for DICM magic at byte offset 128.
+    use std::io::{Read, Seek, SeekFrom};
+    if let Ok(mut f) = std::fs::File::open(path) {
+        let mut magic = [0u8; 4];
+        if f.seek(SeekFrom::Start(128)).is_ok() && f.read_exact(&mut magic).is_ok() {
+            return &magic == b"DICM";
+        }
+    }
+    false
 }
 
 /// Compatibility wrapper for callers expecting a reader type.
@@ -2052,5 +2164,195 @@ mod tests {
             "spacing[2] must be 1.5; got {}",
             loaded_meta.spacing[2]
         );
+    }
+
+    #[test]
+    fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {
+        // u16: [0x00,0x00] = 0; [0xFF,0xFF] = 65535. slope=1.0, intercept=0.0 → identity.
+        let bytes: [u8; 4] = [0x00, 0x00, 0xFF, 0xFF];
+        let result = decode_pixel_bytes(&bytes, 16, 0, 1.0, 0.0);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], 0.0f32);
+        assert_eq!(result[1], 65535.0f32);
+    }
+
+    #[test]
+    fn test_decode_pixel_bytes_signed_16bit_identity_rescale() {
+        // i16::MIN = -32768 stored as [0x00, 0x80] LE; i16::MAX = 32767 stored as [0xFF, 0x7F] LE.
+        let bytes: [u8; 4] = [0x00, 0x80, 0xFF, 0x7F];
+        let result = decode_pixel_bytes(&bytes, 16, 1, 1.0, 0.0);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], -32768.0f32);
+        assert_eq!(result[1], 32767.0f32);
+    }
+
+    #[test]
+    fn test_decode_pixel_bytes_signed_16bit_with_rescale() {
+        // i16: -1 = [0xFF, 0xFF] LE; decoded = -1.0 × 2.0 + 100.0 = 98.0.
+        let bytes: [u8; 2] = [0xFF, 0xFF];
+        let result = decode_pixel_bytes(&bytes, 16, 1, 2.0, 100.0);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], 98.0f32);
+    }
+
+    #[test]
+    fn test_decode_pixel_bytes_8bit_identity_rescale() {
+        let bytes: [u8; 3] = [0, 127, 255];
+        let result = decode_pixel_bytes(&bytes, 8, 0, 1.0, 0.0);
+        assert_eq!(result, vec![0.0f32, 127.0f32, 255.0f32]);
+    }
+
+    #[test]
+    fn test_decode_pixel_bytes_8bit_with_rescale() {
+        // 8-bit value 200; slope=0.5, intercept=10.0 → 200 × 0.5 + 10.0 = 110.0.
+        let bytes: [u8; 1] = [200];
+        let result = decode_pixel_bytes(&bytes, 8, 0, 0.5, 10.0);
+        assert_eq!(result[0], 110.0f32);
+    }
+
+    #[test]
+    fn test_is_likely_dicom_file_accepts_canonical_extensions() {
+        assert!(is_likely_dicom_file(std::path::Path::new("scan.dcm")));
+        assert!(is_likely_dicom_file(std::path::Path::new("SCAN.DCM")));
+        assert!(is_likely_dicom_file(std::path::Path::new("scan.dicom")));
+        assert!(is_likely_dicom_file(std::path::Path::new("scan.ima")));
+    }
+
+    #[test]
+    fn test_is_likely_dicom_file_rejects_analyze_and_raw_extensions() {
+        assert!(!is_likely_dicom_file(std::path::Path::new("brain.hdr")));
+        assert!(!is_likely_dicom_file(std::path::Path::new("brain.img")));
+        assert!(!is_likely_dicom_file(std::path::Path::new("brain.raw")));
+        assert!(!is_likely_dicom_file(std::path::Path::new("brain.nii")));
+        assert!(!is_likely_dicom_file(std::path::Path::new("data.bin")));
+    }
+
+    #[test]
+    fn test_slice_metadata_default_pixel_representation_is_zero() {
+        let meta = DicomSliceMetadata::default();
+        assert_eq!(
+            meta.pixel_representation, 0,
+            "pixel_representation default must be 0 (unsigned)"
+        );
+        assert_eq!(meta.bits_allocated, 16, "bits_allocated default must be 16");
+        assert!(
+            meta.window_center.is_none(),
+            "window_center default must be None"
+        );
+        assert!(
+            meta.window_width.is_none(),
+            "window_width default must be None"
+        );
+        assert_eq!(
+            meta.rescale_slope, 1.0f32,
+            "rescale_slope default must be 1.0"
+        );
+        assert_eq!(
+            meta.rescale_intercept, 0.0f32,
+            "rescale_intercept default must be 0.0"
+        );
+    }
+
+    #[test]
+    fn test_read_slice_pixels_signed_i16_roundtrip() {
+        // Build a DICOM file with PixelRepresentation=1 and three known i16 values.
+        // Stored pixel values: -1000, 0, 1000. RescaleSlope=1, RescaleIntercept=0.
+        // Expected decoded values: [-1000.0, 0.0, 1000.0].
+        use dicom::core::smallvec::SmallVec;
+        use dicom::object::meta::FileMetaTableBuilder;
+        use dicom::object::InMemDicomObject;
+
+        let pixels_i16: [i16; 3] = [-1000, 0, 1000];
+        let pixel_bytes: Vec<u8> = pixels_i16.iter().flat_map(|&v| v.to_le_bytes()).collect();
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("OT"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        )); // rows=1
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(3_u16),
+        )); // cols=3
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        )); // PixelRepresentation=1 (signed)
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("0"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
+                    .media_storage_sop_instance_uid("2.25.99999")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build must succeed");
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("signed.dcm");
+        file_obj.write_to_file(&path).expect("write must succeed");
+
+        // Construct DicomSliceMetadata as scan_dicom_directory would populate it.
+        let slice_meta = DicomSliceMetadata {
+            path: path.clone(),
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
+            pixel_representation: 1,
+            bits_allocated: 16,
+            ..DicomSliceMetadata::default()
+        };
+
+        let result = read_slice_pixels(&slice_meta).expect("read_slice_pixels must succeed");
+        assert_eq!(result.len(), 3, "pixel count must be 3");
+        assert_eq!(result[0], -1000.0f32, "pixel[0] must be -1000.0");
+        assert_eq!(result[1], 0.0f32, "pixel[1] must be 0.0");
+        assert_eq!(result[2], 1000.0f32, "pixel[2] must be 1000.0");
     }
 }

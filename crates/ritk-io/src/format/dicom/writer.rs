@@ -130,6 +130,7 @@ fn writer_exclusion_tags() -> HashSet<u32> {
     s.insert(writer_tag_key(0x0008, 0x0064)); // ConversionType
     s.insert(writer_tag_key(0x0008, 0x0090)); // ReferringPhysicianName
     s.insert(writer_tag_key(0x0020, 0x0011)); // SeriesNumber
+    s.insert(writer_tag_key(0x0028, 0x0002)); // SamplesPerPixel
     s
 }
 
@@ -291,7 +292,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
         obj.put(DataElement::new(
             Tag(0x0008, 0x0016),
             VR::UI,
-            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
+            PrimitiveValue::from(DICOM_SOP_CLASS_SECONDARY_CAPTURE),
         ));
         obj.put(DataElement::new(
             Tag(0x0008, 0x0018),
@@ -410,7 +411,7 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
         let file_obj = obj
             .with_meta(
                 FileMetaTableBuilder::new()
-                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
+                    .media_storage_sop_class_uid(DICOM_SOP_CLASS_SECONDARY_CAPTURE)
                     .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                     .transfer_syntax("1.2.840.10008.1.2.1"),
             )
