@@ -103,6 +103,9 @@ pub struct MultiFrameInfo {
     pub cols: usize,
     /// Bits allocated per sample (8 or 16).
     pub bits_allocated: u16,
+    /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
+    /// Defaults to 0 (unsigned) per DICOM PS3.3 C.7.6.3.1.
+    pub pixel_representation: u16,
     /// Pixel spacing [row_spacing, col_spacing] in mm.
     pub pixel_spacing: Option<[f64; 2]>,
     /// Frame thickness (SliceThickness) in mm.
@@ -152,6 +155,12 @@ fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameI
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(16);
+    let pixel_representation: u16 = obj
+        .element(Tag(0x0028, 0x0103))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
     let pixel_spacing = obj
         .element(Tag(0x0028, 0x0030))
         .ok()
@@ -197,6 +206,7 @@ fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameI
         rows,
         cols,
         bits_allocated,
+        pixel_representation,
         pixel_spacing,
         frame_thickness,
         modality,
@@ -265,21 +275,13 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         Vec::new()
     };
 
-    let bytes_per_sample = ((info.bits_allocated as usize) + 7) / 8;
-    let floats: Vec<f32> = if bytes_per_sample == 2 {
-        pixel_bytes
-            .chunks_exact(2)
-            .map(|c| {
-                let raw = u16::from_le_bytes([c[0], c[1]]) as f32;
-                raw * rescale_slope + rescale_intercept
-            })
-            .collect()
-    } else {
-        pixel_bytes
-            .iter()
-            .map(|&b| b as f32 * rescale_slope + rescale_intercept)
-            .collect()
-    };
+    let floats = super::reader::decode_pixel_bytes(
+        &pixel_bytes,
+        info.bits_allocated,
+        info.pixel_representation,
+        rescale_slope,
+        rescale_intercept,
+    );
 
     let actual_n = if info.rows * info.cols > 0 && !floats.is_empty() {
         floats.len() / (info.rows * info.cols)
@@ -318,11 +320,15 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
 ///
 /// Invariant: uniqueness holds within a single process under non-repeating system clock.
 fn generate_multiframe_uid() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let t = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_nanos();
-    format!("2.25.{}", t)
+        .as_nanos() as u64;
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    // Format: 2.25.<ns>.<seq> — both components are numeric; total ≤ 64 chars.
+    format!("2.25.{}.{}", t, n)
 }
 
 /// Optional spatial metadata for multi-frame DICOM output.
@@ -466,6 +472,8 @@ fn write_multiframe_impl<B: Backend>(
         })
         .collect();
     let sop_instance_uid = generate_multiframe_uid();
+    let study_instance_uid = generate_multiframe_uid();
+    let series_instance_uid = generate_multiframe_uid();
     let modality_str = config
         .spatial
         .as_ref()
@@ -481,6 +489,49 @@ fn write_multiframe_impl<B: Backend>(
         Tag(0x0008, 0x0018),
         VR::UI,
         PrimitiveValue::from(sop_instance_uid.as_str()),
+    ));
+    // Patient Module — Type 2 mandatory (PS3.3 C.7.1.1)
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0010),
+        VR::PN,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0020),
+        VR::LO,
+        PrimitiveValue::from(""),
+    ));
+    // General Study Module — Type 1/2 mandatory (PS3.3 C.7.2.1)
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000D),
+        VR::UI,
+        PrimitiveValue::from(study_instance_uid.as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0020),
+        VR::DA,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0090),
+        VR::PN,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x0010),
+        VR::SH,
+        PrimitiveValue::from(""),
+    ));
+    // General Series Module — Type 1/2 mandatory (PS3.3 C.7.3.1)
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from(series_instance_uid.as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x0011),
+        VR::IS,
+        PrimitiveValue::from(""),
     ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0060),
@@ -1240,5 +1291,185 @@ mod tests {
             conv_type, "WSD",
             "ConversionType must be 'WSD' (Workstation)"
         );
+    }
+
+    /// Type 1 UIDs — StudyInstanceUID (0020,000D) and SeriesInstanceUID (0020,000E)
+    /// must be present, non-empty, and distinct in the emitted multiframe DICOM file.
+    ///
+    /// Invariant: SC Multi-Frame IOD (PS3.3 A.8.5.2) mandates both UIDs as Type 1.
+    #[test]
+    fn test_multiframe_has_study_and_series_uids() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("uids.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 1 * 2 * 2], Shape::new([1_usize, 2, 2])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let obj = open_file(&out_path).expect("open");
+        let study_uid = obj
+            .element(Tag(0x0020, 0x000D))
+            .expect("StudyInstanceUID (0020,000D) must be present")
+            .to_str()
+            .expect("StudyInstanceUID must be a string")
+            .trim()
+            .to_string();
+        let series_uid = obj
+            .element(Tag(0x0020, 0x000E))
+            .expect("SeriesInstanceUID (0020,000E) must be present")
+            .to_str()
+            .expect("SeriesInstanceUID must be a string")
+            .trim()
+            .to_string();
+        assert!(!study_uid.is_empty(), "StudyInstanceUID must be non-empty");
+        assert!(
+            !series_uid.is_empty(),
+            "SeriesInstanceUID must be non-empty"
+        );
+        assert_ne!(
+            study_uid, series_uid,
+            "StudyInstanceUID and SeriesInstanceUID must be distinct"
+        );
+    }
+
+    /// Type 2 mandatory patient/study/series tags must be present in the emitted
+    /// multiframe DICOM file even when no user metadata is provided.
+    ///
+    /// Tags verified: PatientName (0010,0010), PatientID (0010,0020),
+    /// StudyDate (0008,0020), ReferringPhysicianName (0008,0090),
+    /// StudyID (0020,0010), SeriesNumber (0020,0011).
+    ///
+    /// Invariant: SC Multi-Frame IOD (PS3.3 A.8.5.2) mandates these as Type 2.
+    #[test]
+    fn test_multiframe_has_type2_patient_study_series_tags() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("type2.dcm");
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![5.0_f32; 1 * 3 * 3], Shape::new([1_usize, 3, 3])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        write_dicom_multiframe(&out_path, &image).expect("write");
+        let obj = open_file(&out_path).expect("open");
+        // Assert presence (value may be empty per Type 2 semantics).
+        obj.element(Tag(0x0010, 0x0010))
+            .expect("PatientName (0010,0010) must be present");
+        obj.element(Tag(0x0010, 0x0020))
+            .expect("PatientID (0010,0020) must be present");
+        obj.element(Tag(0x0008, 0x0020))
+            .expect("StudyDate (0008,0020) must be present");
+        obj.element(Tag(0x0008, 0x0090))
+            .expect("ReferringPhysicianName (0008,0090) must be present");
+        obj.element(Tag(0x0020, 0x0010))
+            .expect("StudyID (0020,0010) must be present");
+        obj.element(Tag(0x0020, 0x0011))
+            .expect("SeriesNumber (0020,0011) must be present");
+    }
+
+    /// Signed i16 pixel round-trip invariant:
+    ///   load_dicom_multiframe with PixelRepresentation=1 must decode two's-complement
+    ///   i16 samples correctly: decoded_f32 = i16 × RescaleSlope + RescaleIntercept.
+    ///
+    /// Analytical ground truth (identity rescale, slope=1.0, intercept=0.0):
+    ///   pixels = [-1000, 0, 1000, 2000] → expected f32 = [-1000.0, 0.0, 1000.0, 2000.0]
+    #[test]
+    fn test_load_multiframe_signed_i16_roundtrip() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let out_path = tmp.path().join("signed_i16.dcm");
+
+        // Construct a 1-frame 2×2 DICOM file with PixelRepresentation=1 (signed i16).
+        let signed_pixels: [i16; 4] = [-1000, 0, 1000, 2000];
+        let pixel_bytes: Vec<u8> = signed_pixels
+            .iter()
+            .flat_map(|&v| v.to_le_bytes())
+            .collect();
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.999888777"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(1_u16), // signed
+        ));
+        // Identity rescale: slope=1.0, intercept=0.0 (defaults when absent).
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U8(dicom::core::smallvec::SmallVec::from_vec(pixel_bytes)),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
+                    .media_storage_sop_instance_uid("2.25.999888777")
+                    .transfer_syntax("1.2.840.10008.1.2.1"), // Explicit VR LE
+            )
+            .expect("meta build");
+        file_obj
+            .write_to_file(&out_path)
+            .expect("write signed file");
+
+        let loaded = load_dicom_multiframe::<B, _>(&out_path, &device)
+            .expect("load_dicom_multiframe signed i16");
+        let [frames, rows, cols] = loaded.shape();
+        assert_eq!(frames, 1, "frames");
+        assert_eq!(rows, 2, "rows");
+        assert_eq!(cols, 2, "cols");
+
+        let td = loaded.data().clone().into_data();
+        let result: &[f32] = td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(result.len(), 4, "pixel count");
+
+        // Analytical ground truth: i16 × 1.0 + 0.0
+        let expected = [-1000.0_f32, 0.0, 1000.0, 2000.0];
+        for (i, (&got, &exp)) in result.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (got - exp).abs() < 0.5,
+                "pixel {i}: expected {exp:.1} got {got:.1}"
+            );
+        }
     }
 }

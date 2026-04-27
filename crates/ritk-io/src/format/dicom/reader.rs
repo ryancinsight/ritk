@@ -929,7 +929,7 @@ fn load_from_series<B: Backend>(
 ///
 /// Mathematical derivation: the linear modality LUT is F(x) = x × RescaleSlope + RescaleIntercept
 /// per DICOM PS3.3 C.7.6.3.1.4.
-fn decode_pixel_bytes(
+pub(super) fn decode_pixel_bytes(
     bytes: &[u8],
     bits_allocated: u16,
     pixel_representation: u16,

@@ -1,3 +1,60 @@
+## Sprint 51 -- Completed
+
+### Stream A -- DICOM Multiframe IOD Conformance (DICOM-MF-IOD-R51)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-MF-UID-R51 | Add StudyInstanceUID (0020,000D) and SeriesInstanceUID (0020,000E) to multiframe writer | **CLOSED** Sprint 51 | Both UIDs are Type 1 mandatory per SC Multi-Frame IOD PS3.3 A.8.5.2. Generated via `generate_multiframe_uid()` (atomic counter + nanosecond clock). UIDs are guaranteed distinct within a process call. |
+| DICOM-MF-TYPE2-R51 | Add six Type 2 mandatory tags to multiframe writer | **CLOSED** Sprint 51 | PatientName (0010,0010), PatientID (0010,0020), StudyDate (0008,0020), ReferringPhysicianName (0008,0090), StudyID (0020,0010), SeriesNumber (0020,0011) now emitted with empty-string defaults per SC IOD Type 2 semantics. |
+| DICOM-MF-PR-R51 | Honor PixelRepresentation (0028,0103) in `load_dicom_multiframe` | **CLOSED** Sprint 51 | `MultiFrameInfo` gains `pixel_representation: u16` field (default 0). `extract_multiframe_header` extracts tag (0028,0103). `load_dicom_multiframe` now uses `super::reader::decode_pixel_bytes` (made `pub(super)`) to decode signed i16 pixels correctly. Previously only unsigned u16 was handled. |
+| DICOM-MF-UID-MONO-R51 | Fix `generate_multiframe_uid` monotonicity | **CLOSED** Sprint 51 | Added `AtomicU64` counter; format changed to `2.25.<ns>.<seq>` guaranteeing distinct UIDs for successive calls within a process. Closes collision risk on Windows where SystemTime resolution is ~100ns. |
+
+### Stream A -- Sprint 51 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-MF-UID-TEST-R51 | `test_multiframe_has_study_and_series_uids` | **CLOSED** Sprint 51 | Writes via `write_dicom_multiframe`, asserts StudyInstanceUID and SeriesInstanceUID present, non-empty, and mutually distinct. |
+| DICOM-MF-TYPE2-TEST-R51 | `test_multiframe_has_type2_patient_study_series_tags` | **CLOSED** Sprint 51 | Asserts all six Type 2 mandatory tags present in emitted file. |
+| DICOM-MF-SIGNED-TEST-R51 | `test_load_multiframe_signed_i16_roundtrip` | **CLOSED** Sprint 51 | Manually constructs DICOM file with PixelRepresentation=1; analytical ground truth [-1000, 0, 1000, 2000]; asserts decoded f32 within 0.5 of expected. |
+
+### Sprint 51 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| ritk-io multiframe tests | 3 new + existing | `test_multiframe_has_study_and_series_uids`, `test_multiframe_has_type2_patient_study_series_tags`, `test_load_multiframe_signed_i16_roundtrip` |
+| Correctness bugs fixed | 4 | Missing Type 1 UIDs in MF writer, missing Type 2 tags in MF writer, unsigned-only pixel decode in MF reader, UID collision risk |
+| Architecture improvements | 1 | `decode_pixel_bytes` exposed as `pub(super)` eliminating duplicate logic between reader and multiframe |
+| Diagnostics | Clean | Zero errors, zero warnings |
+| Total | **292 passed, 0 failed** | Full ritk-io unit suite |
+
+## Sprint 50 -- Completed
+
+### Stream A -- Pixel Decode, File Detection, Writer DRY, Window Metadata (DICOM-GAP-D1-D4-R50)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-D1-PIXELDECODE-R50 | Centralized `decode_pixel_bytes` helper in reader | **CLOSED** Sprint 50 | Replaced per-slice inline decode logic with `decode_pixel_bytes(bytes, bits_allocated, pixel_representation, slope, intercept)`. Handles 8-bit unsigned, 16-bit unsigned, 16-bit signed (i16 two's complement) per DICOM PS3.3 C.7.6.3.1.4. |
+| DICOM-D2-FILEDETECT-R50 | Canonicalize `is_likely_dicom_file` extension filter | **CLOSED** Sprint 50 | Only `.dcm`, `.dicom`, `.ima` accepted. `.hdr`/`.img` (Analyze 7.5) and `.raw` (unstructured binary) rejected. Extensionless files probed for DICM magic at byte offset 128 (DICOM PS3.10 §7.1). |
+| DICOM-D3-WRITERDRY-R50 | Use `DICOM_SOP_CLASS_SECONDARY_CAPTURE` constant in writer | **CLOSED** Sprint 50 | `write_dicom_series` now references the `DICOM_SOP_CLASS_SECONDARY_CAPTURE` constant instead of duplicated string literal. SamplesPerPixel added to `writer_exclusion_tags` to prevent preservation re-emission. |
+| DICOM-D4-WINDOWMETA-R50 | Window metadata fields added to `DicomSliceMetadata` | **CLOSED** Sprint 50 | Fields `pixel_representation: u16`, `bits_allocated: u16`, `window_center: Option<f64>`, `window_width: Option<f64>` added. `DicomSliceMetadata::default()` implemented. `known_handled_tags` updated for (0028,0002), (0028,0103), (0028,1050), (0028,1051). |
+
+### Sprint 50 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-D1-TEST-R50 | `test_decode_pixel_bytes_unsigned_16bit_identity_rescale` | **CLOSED** Sprint 50 | [0x00,0x00,0xFF,0xFF] u16 &#8594; [0.0, 65535.0] |
+| DICOM-D1-TEST2-R50 | `test_decode_pixel_bytes_signed_16bit_identity_rescale` | **CLOSED** Sprint 50 | i16::MIN / i16::MAX bytes &#8594; [-32768.0, 32767.0] |
+| DICOM-D1-TEST3-R50 | `test_decode_pixel_bytes_signed_16bit_with_rescale` | **CLOSED** Sprint 50 | i16(-1) × 2.0 + 100.0 = 98.0 |
+| DICOM-D1-TEST4-R50 | `test_decode_pixel_bytes_8bit_identity_rescale` | **CLOSED** Sprint 50 | [0, 127, 255] &#8594; [0.0, 127.0, 255.0] |
+| DICOM-D1-TEST5-R50 | `test_decode_pixel_bytes_8bit_with_rescale` | **CLOSED** Sprint 50 | u8(200) × 0.5 + 10.0 = 110.0 |
+| DICOM-D2-TEST-R50 | `test_is_likely_dicom_file_accepts_canonical_extensions` | **CLOSED** Sprint 50 | .dcm, .DCM, .dicom, .ima accepted |
+| DICOM-D2-TEST2-R50 | `test_is_likely_dicom_file_rejects_analyze_and_raw_extensions` | **CLOSED** Sprint 50 | .hdr, .img, .raw rejected |
+| DICOM-D4-TEST-R50 | `test_slice_metadata_default_pixel_representation_is_zero` | **CLOSED** Sprint 50 | Default struct has pixel_representation=0, bits_allocated=16 |
+| DICOM-D1-TEST6-R50 | `test_read_slice_pixels_signed_i16_roundtrip` | **CLOSED** Sprint 50 | End-to-end signed i16 slice read/write/decode round-trip |
+
+### Sprint 50 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| ritk-io DICOM tests | 9 new + 280 existing = 289 total | All decode, detection, and signed pixel tests |
+| Correctness bugs fixed | 4 | Inline pixel decode DRY, file detection false-positives, writer string literal duplication, missing window/pixel metadata |
+| Diagnostics | Clean | Zero errors, zero warnings |
+| Total | **289 passed, 0 failed** | Full ritk-io unit suite |
+
 ## Sprint 49 -- Completed
 
 ### Stream A -- DICOM Writer Type 2 Conformance for None Metadata Path (DICOM-TYPE2-META-R49)

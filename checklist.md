@@ -1,3 +1,66 @@
+## Sprint 51 -- Completed
+
+- [x] DICOM-MF-UID-R51: Add StudyInstanceUID (0020,000D) and SeriesInstanceUID (0020,000E) to multiframe writer
+  - Both Type 1 mandatory under SC Multi-Frame IOD (PS3.3 A.8.5.2)
+  - Generated via `generate_multiframe_uid()` — two independent calls per write operation
+  - UIDs guaranteed distinct within a process (atomic counter + nanosecond clock)
+
+- [x] DICOM-MF-TYPE2-R51: Add six Type 2 mandatory tags to multiframe writer
+  - (0010,0010) PatientName — empty default
+  - (0010,0020) PatientID — empty default
+  - (0008,0020) StudyDate — empty default
+  - (0008,0090) ReferringPhysicianName — empty default
+  - (0020,0010) StudyID — empty default
+  - (0020,0011) SeriesNumber — empty default
+
+- [x] DICOM-MF-PR-R51: Honor PixelRepresentation in `load_dicom_multiframe`
+  - `MultiFrameInfo.pixel_representation: u16` field added (default 0 = unsigned)
+  - `extract_multiframe_header` extracts (0028,0103)
+  - `load_dicom_multiframe` uses `super::reader::decode_pixel_bytes` (now `pub(super)`)
+  - Signed i16 pixels correctly decoded via two's-complement arithmetic
+
+- [x] DICOM-MF-UID-MONO-R51: Fix `generate_multiframe_uid` monotonicity
+  - `AtomicU64` static counter added
+  - Format `2.25.<ns>.<seq>` guarantees distinct UIDs even on low-resolution Windows clocks
+
+- [x] DICOM-MF-UID-TEST-R51: `test_multiframe_has_study_and_series_uids`
+  - Writes via `write_dicom_multiframe`, opens file
+  - Asserts StudyInstanceUID and SeriesInstanceUID present, non-empty, and distinct
+
+- [x] DICOM-MF-TYPE2-TEST-R51: `test_multiframe_has_type2_patient_study_series_tags`
+  - Asserts all six Type 2 tags present in emitted file (presence check; value may be empty)
+
+- [x] DICOM-MF-SIGNED-TEST-R51: `test_load_multiframe_signed_i16_roundtrip`
+  - Manually constructs DICOM file with PixelRepresentation=1 (signed)
+  - Input: [-1000, 0, 1000, 2000] as i16 LE bytes, identity rescale
+  - Asserts decoded f32 within 0.5 of analytical ground truth
+
+---
+
+## Sprint 50 -- Completed
+
+- [x] DICOM-D1-PIXELDECODE-R50: Centralized `decode_pixel_bytes` helper in reader.rs
+  - Handles 8-bit unsigned, 16-bit unsigned, 16-bit signed (PixelRepresentation=1)
+  - Applied per DICOM PS3.3 C.7.6.3.1.4 linear modality LUT: F(x) = x × slope + intercept
+  - Verified by 5 unit tests with analytically derived expected values
+
+- [x] DICOM-D2-FILEDETECT-R50: Canonicalize `is_likely_dicom_file`
+  - Accepts: `.dcm`, `.dicom`, `.ima` (case-insensitive)
+  - Rejects: `.hdr`, `.img` (Analyze 7.5), `.raw` (unstructured binary)
+  - Extensionless: probe DICM magic at byte offset 128 (DICOM PS3.10 §7.1)
+
+- [x] DICOM-D3-WRITERDRY-R50: DRY fix in writer.rs
+  - `write_dicom_series` references `DICOM_SOP_CLASS_SECONDARY_CAPTURE` constant
+  - SamplesPerPixel (0028,0002) added to `writer_exclusion_tags`
+
+- [x] DICOM-D4-WINDOWMETA-R50: Window/pixel metadata in `DicomSliceMetadata`
+  - New fields: `pixel_representation`, `bits_allocated`, `window_center`, `window_width`
+  - `DicomSliceMetadata::default()` implemented
+  - `known_handled_tags` updated for (0028,0002), (0028,0103), (0028,1050), (0028,1051)
+  - Signed i16 read verified by `test_read_slice_pixels_signed_i16_roundtrip`
+
+---
+
 ## Sprint 49 -- Completed
 
 - [x] DICOM-TYPE2-META-R49: Add Type 2 fallback tags to `write_dicom_series_with_metadata(None)`
