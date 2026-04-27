@@ -84,10 +84,13 @@ jobs:
           PY
 
   test:
-    name: Test Suite (nextest)
-    runs-on: ubuntu-latest
+    name: Test Suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     needs: dependency-alignment
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
 
@@ -105,9 +108,9 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: cargo-ubuntu-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ matrix.os }}-stable-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            cargo-ubuntu-stable-
+            cargo-${{ matrix.os }}-stable-
 
       - name: Run tests with nextest
         run: cargo nextest run --workspace --lib --tests

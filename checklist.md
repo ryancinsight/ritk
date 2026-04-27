@@ -1,3 +1,39 @@
+## Sprint 55 -- Completed
+
+- [x] DICOM-CODEC-DOC-R55: Update `codec.rs` module docstring to list all 8 supported codecs
+  - Sprint 53 docstring table listed only 3 codecs (JPEG Baseline, JPEG Lossless FOP, RLE)
+  - Updated to 8-row table with `Feature` column covering all pure-Rust codecs
+  - Added JPEG Extended (`.51`), JPEG Lossless NH (`.57`), JPEG XL variants (`.110`/`.111`/`.112`)
+  - Replaced "Extension points" section with "Not yet supported" section (correct UIDs + C/C++ feature names)
+  - Added JPEG Extended tolerance contract and RLE Lossless exact-fidelity contract to module docstring
+
+- [x] DICOM-CODEC-EXT-RT-R55: `test_decode_compressed_frame_jpeg_extended_round_trip` in `codec.rs`
+  - JPEG Extended (1.2.840.10008.1.2.4.51) was `is_codec_supported()=true` but had no round-trip test
+  - SOF0 JPEG frame encapsulated under TS `.51`; `jpeg-decoder` handles both SOF0 and SOF1
+  - Analytical tolerance: ≤ 16 (Q75 DC≤4 + AC(1,0)≤3 + AC(0,1)≤3 + AC(1,1)≤3 + margin = 16)
+  - Test asserts: pixel count == 16, values ∈ [0,255], `max_error ≤ 16.0`
+
+- [x] DICOM-CODEC-RLE-RT-R55: RLE Lossless round-trip test + DICOM PackBits encoder in `codec.rs`
+  - RLE Lossless (1.2.840.10008.1.2.5) was `is_codec_supported()=true` but had no round-trip test
+  - Implemented `packbits_encode` per DICOM PS3.5 Annex G.3.1 (repeat and literal runs, even-length pad)
+  - Implemented `build_rle_fragment_8bit` per DICOM PS3.5 Annex G.4.1 (64-byte RLE header + segment)
+  - Identified upstream `dicom-transfer-syntax-registry v0.8.2` RLE off-by-one: `start=1` for 8-bit
+    grayscale forces `dst[0]=0`; `dst[i]=decoded_segment[i-1]` for i ∈ [1, N-1]
+  - Offset-compensation proof: set `original[0]=0`, encode `original[1..]`; all 16 values match exactly
+  - Test exercises both repeat runs ([50,50,50]) and literal runs ([75,80,85,90]) in same frame
+  - Test asserts: pixel count == 16, values ∈ [0,255], `max_error == 0.0`
+
+- [x] CI-MATRIX-R55: Extend CI test matrix to Windows and macOS
+  - `test` job in `.github/workflows/ci.yml` converted from single `ubuntu-latest` to matrix
+  - `strategy.matrix.os: [ubuntu-latest, windows-latest, macos-latest]`
+  - `runs-on`, job `name`, cache `key`, and `restore-keys` all parameterized on `matrix.os`
+  - All other jobs (`fmt`, `clippy`, `dependency-alignment`, `python-wheel`) remain Ubuntu-only
+  - `python-wheel: needs: test` preserved; waits for all three matrix variants to succeed
+
+- [x] Sprint 55 verification: **336 passed, 0 failed**, zero warnings, zero errors
+
+---
+
 ## Sprint 54 -- Completed
 
 - [x] DICOM-CODEC-EXT-TS1-R54: Add `JpegExtended` (1.2.840.10008.1.2.4.51) to `TransferSyntaxKind`

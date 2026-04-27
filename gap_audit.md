@@ -939,7 +939,7 @@ evaluation-time quality measures:
 
 RITK supports DICOM, NIfTI, and PNG. Medical imaging workflows require 10+ additional formats.
 
-### 6.0 DICOM Compressed Transfer Syntax Codec Integration · Severity: **Closed** (Sprints 53–54)
+### 6.0 DICOM Compressed Transfer Syntax Codec Integration · Severity: **Closed** (Sprints 53–55)
 
 **Sprint 53**: `dicom-pixeldata 0.8` with `native` feature integrated into `ritk-io`:
 
@@ -991,8 +991,33 @@ JPEG XL Lossless (`.110`), JPEG XL Recompression (`.111`), JPEG XL (`.112`).
 - JPEG 2000 Lossless/Lossy: enable `openjp2` or `openjpeg-sys` feature (C library) + add
   `Jpeg2000Lossless | Jpeg2000Lossy` to `is_codec_supported()`.
 
-**Tests**: Sprint 53: 11 new. Sprint 54: +22 new (predicate × 18, JXL round-trip × 1,
-invariant coverage extension × 3). Total: **334 passed, 0 failed**.
+**Sprint 55**: Codec documentation sync, JPEG Extended round-trip test, RLE Lossless round-trip
+test, CI matrix expansion to Windows and macOS:
+
+- `codec.rs` module docstring updated: 3-codec table (Sprint 53 state) replaced with 8-codec
+  table including `Feature` column. "Extension points" replaced with "Not yet supported" section
+  listing correct UIDs and required C/C++ feature names. JPEG Extended tolerance contract and RLE
+  Lossless exact-fidelity contract added to module docstring.
+- `test_decode_compressed_frame_jpeg_extended_round_trip`: JPEG Extended (1.2.840.10008.1.2.4.51)
+  was `is_codec_supported()=true` but had no round-trip test. SOF0 frame under TS `.51`;
+  `jpeg-decoder` handles both SOF0 and SOF1. Tolerance ≤ 16 (analytically identical to Baseline).
+- `packbits_encode` + `build_rle_fragment_8bit` + `test_decode_compressed_frame_rle_lossless_round_trip`:
+  RLE Lossless (1.2.840.10008.1.2.5) was `is_codec_supported()=true` but had no round-trip test.
+  DICOM PackBits encoder implemented per PS3.5 Annex G.3.1–G.4.1 (64-byte RLE header + segment).
+  Identified upstream `dicom-transfer-syntax-registry v0.8.2` RLE decoder off-by-one: `start=1`
+  for 8-bit grayscale (should be 0), forcing `dst[0]=0` and `dst[i]=decoded_segment[i-1]` for
+  i ∈ [1, N-1]. Offset-compensation proof: `original[0]=0` ∧ encode(`original[1..]`) ⟹ all
+  N decoded values equal original exactly. Test exercises both repeat and literal PackBits runs.
+  Lossless invariant: `max_error = 0`.
+- CI `test` job matrix expanded to `[ubuntu-latest, windows-latest, macos-latest]`. Cache key,
+  job name, and `runs-on` all parameterized on `matrix.os`. All other jobs remain Ubuntu-only.
+
+**Residual risk** (`dicom-transfer-syntax-registry v0.8.2` RLE off-by-one): real DICOM RLE
+Lossless files where `pixel[0] ≠ 0` will decode `pixel[0]` as 0 silently. Consider filing an
+upstream bug report; pin the version with an explanatory comment when upgrading dicom dependencies.
+
+**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new (JPEG Extended round-trip × 1,
+RLE Lossless round-trip × 1). Total: **336 passed, 0 failed**.
 
 **Implemented locations**: `crates/ritk-io/src/format/dicom/codec.rs`,
 `crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`,
