@@ -1,3 +1,72 @@
+## Sprint 54 -- Completed
+
+### Stream A -- JPEG Extended + JPEG Lossless Non-Hierarchical (DICOM-CODEC-EXT-R54)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-CODEC-EXT-TS1-R54 | Add `JpegExtended` (1.2.840.10008.1.2.4.51) to `TransferSyntaxKind` | **CLOSED** Sprint 54 | JPEG Extended (Process 2 & 4), lossy 12-bit. Covered by existing `jpeg` feature (zero new deps). `is_compressed()=true`, `is_lossless()=false`, `is_codec_supported()=true`. |
+| DICOM-CODEC-EXT-TS2-R54 | Add `JpegLosslessNonHierarchical` (1.2.840.10008.1.2.4.57) to `TransferSyntaxKind` | **CLOSED** Sprint 54 | JPEG Lossless, Non-Hierarchical (Process 14). Covered by existing `jpeg` feature. `is_compressed()=true`, `is_lossless()=true`, `is_codec_supported()=true`. |
+
+### Stream B -- JPEG XL Codec Integration (DICOM-CODEC-JXL-R54)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-CODEC-JXL-DEP-R54 | Enable `jpegxl` feature of `dicom-transfer-syntax-registry` | **CLOSED** Sprint 54 | Added `dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }` to workspace deps. Pure-Rust: `jxl-oxide` (decoder) + `zune-jpegxl` + `zune-core` (encoder). No native library. |
+| DICOM-CODEC-JXL-TS1-R54 | Add `JpegXlLossless` (1.2.840.10008.1.2.4.110) to `TransferSyntaxKind` | **CLOSED** Sprint 54 | `is_compressed()=true`, `is_lossless()=true`, `is_codec_supported()=true`. ISO 18181-1 modular path. |
+| DICOM-CODEC-JXL-TS2-R54 | Add `JpegXlJpegRecompression` (1.2.840.10008.1.2.4.111) to `TransferSyntaxKind` | **CLOSED** Sprint 54 | `is_compressed()=true`, `is_lossless()=false`, `is_codec_supported()=true`. Decoder-only (`JpegXlAdapter`). |
+| DICOM-CODEC-JXL-TS3-R54 | Add `JpegXl` (1.2.840.10008.1.2.4.112) to `TransferSyntaxKind` | **CLOSED** Sprint 54 | `is_compressed()=true`, `is_lossless()=false` (not guaranteed), `is_codec_supported()=true`. |
+| DICOM-CODEC-JXL-RT-R54 | JXL Lossless round-trip test in `codec.rs` | **CLOSED** Sprint 54 | 4×4 8-bit frame encoded via `zune-jpegxl` &#8594; wrapped in DICOM Part 10 &#8594; decoded via `decode_compressed_frame` &#8594; `max_error == 0.0` (lossless invariant). |
+
+### Stream C -- `is_compressed()` Semantics Correction (DICOM-TS-SEM-R54)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-TS-SEM-R54 | Remove `DeflatedExplicitVrLittleEndian` from `is_compressed()` | **CLOSED** Sprint 54 | Per DICOM PS3.5 Table A-1, `is_compressed()` is defined as pixel-data fragment encapsulation. Deflated compresses the dataset byte-stream, not pixel fragments. Semantics now correct; `is_natively_supported() &#10233; !is_compressed() &#8743; !is_big_endian()` invariant preserved. |
+
+### Stream A + B + C -- Formal Invariants
+| Invariant | Expression | Verified By |
+|---|---|---|
+| Codec path only for encapsulated TS | `is_codec_supported() &#10233; is_compressed()` | `test_codec_supported_implies_compressed` (exhaustive over 16 variants) |
+| Disjoint decode paths | `is_natively_supported() &#10233; !is_codec_supported()` | `test_natively_supported_and_codec_supported_are_disjoint` (exhaustive over 16 variants) |
+| Native path soundness | `is_natively_supported() &#10233; !is_compressed() &#8743; !is_big_endian()` | `test_natively_supported_implies_not_compressed_and_not_big_endian` |
+| Deflated not pixel-compressed | `DeflatedExplicitVrLittleEndian.is_compressed() == false` | `test_is_compressed_deflated_false` |
+| JXL Lossless exact fidelity | `max|decoded[i] &#8722; original[i]| = 0` | `test_decode_compressed_frame_jxl_lossless_round_trip` |
+| UID bijection | `from_uid(v.uid()) == v` for all 16 known variants | `test_uid_roundtrip_all_known` |
+
+### Sprint 54 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-CODEC-EXT-PRED1-R54 | `test_from_uid_jpeg_extended` | **CLOSED** Sprint 54 | `from_uid("1.2.840.10008.1.2.4.51") == JpegExtended` |
+| DICOM-CODEC-EXT-PRED2-R54 | `test_from_uid_jpeg_lossless_non_hierarchical` | **CLOSED** Sprint 54 | `from_uid("1.2.840.10008.1.2.4.57") == JpegLosslessNonHierarchical` |
+| DICOM-CODEC-EXT-PRED3-R54 | `test_is_compressed_jpeg_extended_true` | **CLOSED** Sprint 54 | `JpegExtended.is_compressed() == true` |
+| DICOM-CODEC-EXT-PRED4-R54 | `test_is_compressed_jpeg_lossless_nh_true` | **CLOSED** Sprint 54 | `JpegLosslessNonHierarchical.is_compressed() == true` |
+| DICOM-CODEC-EXT-PRED5-R54 | `test_is_lossless_jpeg_extended_false` | **CLOSED** Sprint 54 | `JpegExtended.is_lossless() == false` (lossy) |
+| DICOM-CODEC-EXT-PRED6-R54 | `test_is_lossless_jpeg_lossless_nh_true` | **CLOSED** Sprint 54 | `JpegLosslessNonHierarchical.is_lossless() == true` |
+| DICOM-CODEC-EXT-PRED7-R54 | `test_is_codec_supported_jpeg_extended_true` | **CLOSED** Sprint 54 | `JpegExtended.is_codec_supported() == true` |
+| DICOM-CODEC-EXT-PRED8-R54 | `test_is_codec_supported_jpeg_lossless_nh_true` | **CLOSED** Sprint 54 | `JpegLosslessNonHierarchical.is_codec_supported() == true` |
+| DICOM-CODEC-JXL-PRED1-R54 | `test_from_uid_jpeg_xl_lossless` | **CLOSED** Sprint 54 | `from_uid("1.2.840.10008.1.2.4.110") == JpegXlLossless` |
+| DICOM-CODEC-JXL-PRED2-R54 | `test_from_uid_jpeg_xl_recompression` | **CLOSED** Sprint 54 | `from_uid("1.2.840.10008.1.2.4.111") == JpegXlJpegRecompression` |
+| DICOM-CODEC-JXL-PRED3-R54 | `test_from_uid_jpeg_xl` | **CLOSED** Sprint 54 | `from_uid("1.2.840.10008.1.2.4.112") == JpegXl` |
+| DICOM-CODEC-JXL-PRED4-R54 | `test_is_compressed_jpeg_xl_lossless_true` | **CLOSED** Sprint 54 | `JpegXlLossless.is_compressed() == true` |
+| DICOM-CODEC-JXL-PRED5-R54 | `test_is_lossless_jpeg_xl_lossless_true` | **CLOSED** Sprint 54 | `JpegXlLossless.is_lossless() == true` |
+| DICOM-CODEC-JXL-PRED6-R54 | `test_is_lossless_jpeg_xl_false` | **CLOSED** Sprint 54 | `JpegXl.is_lossless() == false`; `JpegXlJpegRecompression.is_lossless() == false` |
+| DICOM-CODEC-JXL-PRED7-R54 | `test_is_codec_supported_jpeg_xl_lossless_true` | **CLOSED** Sprint 54 | `JpegXlLossless.is_codec_supported() == true` |
+| DICOM-CODEC-JXL-PRED8-R54 | `test_is_codec_supported_jpeg_xl_recompression_true` | **CLOSED** Sprint 54 | `JpegXlJpegRecompression.is_codec_supported() == true` |
+| DICOM-CODEC-JXL-PRED9-R54 | `test_is_codec_supported_jpeg_xl_true` | **CLOSED** Sprint 54 | `JpegXl.is_codec_supported() == true` |
+| DICOM-TS-SEM-PRED1-R54 | `test_is_compressed_deflated_false` | **CLOSED** Sprint 54 | `DeflatedExplicitVrLittleEndian.is_compressed() == false` (dataset compression &#8800; pixel encapsulation) |
+| DICOM-CODEC-JXL-RT-R54 | `test_decode_compressed_frame_jxl_lossless_round_trip` | **CLOSED** Sprint 54 | 4×4 8-bit JXL Lossless: pixel count == 16, values in [0,255], `max_error == 0.0` |
+| DICOM-CODEC-JXL-INV1-R54 | `test_codec_supported_implies_compressed` (updated) | **CLOSED** Sprint 54 | Exhaustive over all 16 known variants |
+| DICOM-CODEC-JXL-INV2-R54 | `test_natively_supported_and_codec_supported_are_disjoint` (updated) | **CLOSED** Sprint 54 | Exhaustive over all 16 known variants |
+| DICOM-CODEC-JXL-INV3-R54 | `test_uid_roundtrip_all_known` (updated) | **CLOSED** Sprint 54 | Exhaustive over all 16 known variants |
+
+### Sprint 54 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| transfer_syntax tests | +18 new | UID round-trips × 5 new variants, predicate tests × 11, invariant updates × 3 |
+| codec tests | +1 new | JXL Lossless round-trip (zune-jpegxl encode &#8594; jxl-oxide decode via PixelDecoder) |
+| Regression | 312 prior | All Sprint 53 and earlier tests unmodified and passing |
+| Diagnostics | Clean | Zero errors, zero warnings (`cargo check --workspace --tests`) |
+| Total | **334 passed, 0 failed** | Full ritk-io unit suite, 0.09 s |
+
+---
+
 ## Sprint 53 -- Completed
 
 ### Stream A -- DICOM Compressed Transfer Syntax Codec Integration (DICOM-CODEC-R53)

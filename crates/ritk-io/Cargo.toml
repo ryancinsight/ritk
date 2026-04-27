@@ -17,6 +17,7 @@ rayon = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }
 dicom-pixeldata = { workspace = true }
+dicom-transfer-syntax-registry = { workspace = true }
 tiff = { workspace = true }
 flate2 = { workspace = true }
 consus-hdf5 = { workspace = true }
@@ -27,6 +28,8 @@ consus-io = { workspace = true }
 [dev-dependencies]
 burn-ndarray = { workspace = true }
 tempfile = { workspace = true }
+zune-jpegxl = { version = "0.4", default-features = false, features = ["std"] }
+zune-core = { version = "0.4", default-features = false }
 
 [[example]]
 name = "dicom_to_nifti"

@@ -2269,6 +2269,8 @@ dependencies = [
  "jxl-oxide",
  "lazy_static",
  "tracing",
+ "zune-core 0.4.12",
+ "zune-jpegxl",
 ]
 
 [[package]]
@@ -5865,6 +5867,7 @@ dependencies = [
  "dicom",
  "dicom-core",
  "dicom-pixeldata",
+ "dicom-transfer-syntax-registry",
  "flate2",
  "image 0.24.9",
  "nalgebra",
@@ -5876,6 +5879,8 @@ dependencies = [
  "thiserror 2.0.18",
  "tiff 0.9.1",
  "tracing",
+ "zune-core 0.4.12",
+ "zune-jpegxl",
 ]
 
 [[package]]
@@ -8618,4 +8623,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "410e9ecef634c709e3831c2cfdb8d9c32164fae1c67496d5b68fff728eec37fe"
 dependencies = [
  "zune-core 0.5.1",
+]
+
+[[package]]
+name = "zune-jpegxl"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71ffee484384b15f99ed4768bfdb3fa186d63e1f8c3aafba1d6d141a7b9e3674"
+dependencies = [
+ "zune-core 0.4.12",
 ]

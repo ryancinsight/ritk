@@ -939,7 +939,7 @@ evaluation-time quality measures:
 
 RITK supports DICOM, NIfTI, and PNG. Medical imaging workflows require 10+ additional formats.
 
-### 6.0 DICOM Compressed Transfer Syntax Codec Integration · Severity: **Closed** (Sprint 53)
+### 6.0 DICOM Compressed Transfer Syntax Codec Integration · Severity: **Closed** (Sprints 53–54)
 
 **Sprint 53**: `dicom-pixeldata 0.8` with `native` feature integrated into `ritk-io`:
 
@@ -947,33 +947,56 @@ RITK supports DICOM, NIfTI, and PNG. Medical imaging workflows require 10+ addit
   for all codec-supported compressed transfer syntaxes. Calls
   `PixelDecoder::decode_pixel_data_frame`, extracts decoded bytes via `.data()`, applies the
   existing `decode_pixel_bytes` linear modality LUT (DICOM PS3.3 C.7.6.3.1.4).
-- `TransferSyntaxKind::is_codec_supported()` predicate added:
-  - `true` for JPEG Baseline (1.2.840.10008.1.2.4.50), JPEG Lossless FOP (1.2.840.10008.1.2.4.70),
-    RLE Lossless (1.2.840.10008.1.2.5) — pure Rust codecs via `jpeg-decoder` and `dicom-rle`.
-  - `false` for JPEG-LS (requires `charls` feature) and JPEG 2000 (requires `openjp2` feature).
+- `TransferSyntaxKind::is_codec_supported()` predicate added (Sprint 53 initial set):
+  - `true` for JPEG Baseline (`.50`), JPEG Lossless FOP (`.70`), RLE Lossless (`.5`).
 - Compressed-TS guard relaxed in both `load_from_series` and `load_dicom_multiframe`:
   from `is_compressed()` to `is_compressed() && !is_codec_supported()`.
 - `read_slice_pixels` dispatches to `codec::decode_compressed_frame` when TS is codec-supported.
 - `load_dicom_multiframe` decodes each frame individually via `codec::decode_compressed_frame`
   when TS is codec-supported.
 
-**Formal invariants verified**:
-- `is_codec_supported() ⟹ is_compressed()` — codec path is for compressed TS only.
+**Sprint 54**: Extended codec coverage — 5 new `TransferSyntaxKind` variants, JPEG XL feature
+enabled, `is_compressed()` semantics corrected:
+
+- Added `JpegExtended` (1.2.840.10008.1.2.4.51) — JPEG Extended (Process 2 & 4), lossy 12-bit.
+  Covered by existing `jpeg` feature (zero new native dependencies).
+- Added `JpegLosslessNonHierarchical` (1.2.840.10008.1.2.4.57) — JPEG Lossless, Non-Hierarchical
+  (Process 14). Covered by existing `jpeg` feature. `is_lossless()=true`.
+- Enabled `jpegxl` feature of `dicom-transfer-syntax-registry` (pure Rust: `jxl-oxide` decoder +
+  `zune-jpegxl` + `zune-core` encoder; no native/FFI library):
+  - Added `JpegXlLossless` (1.2.840.10008.1.2.4.110) — `is_lossless()=true`, `is_codec_supported()=true`.
+  - Added `JpegXlJpegRecompression` (1.2.840.10008.1.2.4.111) — decoder-only (`JpegXlAdapter`).
+  - Added `JpegXl` (1.2.840.10008.1.2.4.112) — `is_lossless()=false` (not guaranteed by TS).
+- `is_compressed()` semantics corrected: `DeflatedExplicitVrLittleEndian` removed. Per DICOM PS3.5
+  Table A-1, `is_compressed()` = pixel-data fragment encapsulation only; Deflated compresses the
+  dataset byte-stream, not pixel fragments. All formal invariants preserved.
+- `TransferSyntaxKind` now has 16 known variants; all exhaustive property tests updated.
+
+**Current `is_codec_supported()=true` set** (8 variants, all pure Rust):
+JPEG Baseline (`.50`), JPEG Extended (`.51`), JPEG Lossless NH (`.57`),
+JPEG Lossless FOP (`.70`), RLE Lossless (`.5`),
+JPEG XL Lossless (`.110`), JPEG XL Recompression (`.111`), JPEG XL (`.112`).
+
+**Formal invariants verified** (exhaustive over all 16 known variants):
+- `is_codec_supported() ⟹ is_compressed()` — codec path is for encapsulated TS only.
 - `is_natively_supported() ⟹ !is_codec_supported()` — native and codec decode paths are disjoint.
+- `is_natively_supported() ⟹ !is_compressed() ∧ !is_big_endian()` — native path soundness.
 - `Output[i] = codec_sample[i] × slope + intercept` — modality LUT applied identically to both paths.
-- JPEG tolerance: `|decoded[i] − original[i]| ≤ 16` (DC step ≤ 4 + 3 primary AC terms + margin).
+- JPEG Baseline tolerance: `|decoded[i] − original[i]| ≤ 16` (DC step ≤ 4 + AC terms + margin).
+- JXL Lossless exact fidelity: `max|decoded[i] − original[i]| = 0` (ISO 18181-1 §9 modular codec).
 
 **Remaining gaps** (require native library features):
-- JPEG-LS Lossless/Near-Lossless: enable `charls` feature + add `JpegLsLossless | JpegLsLossy`
-  to `is_codec_supported()`.
-- JPEG 2000 Lossless/Lossy: enable `openjp2` feature + add `Jpeg2000Lossless | Jpeg2000Lossy`
-  to `is_codec_supported()`.
+- JPEG-LS Lossless/Near-Lossless: enable `charls` feature (C++ library) + add
+  `JpegLsLossless | JpegLsLossy` to `is_codec_supported()`.
+- JPEG 2000 Lossless/Lossy: enable `openjp2` or `openjpeg-sys` feature (C library) + add
+  `Jpeg2000Lossless | Jpeg2000Lossy` to `is_codec_supported()`.
 
-**Tests**: 11 new tests — predicate invariants × 7, JPEG Baseline codec round-trip × 2,
-series E2E codec path × 1, multiframe E2E codec path × 1. 312 pass, 0 fail.
+**Tests**: Sprint 53: 11 new. Sprint 54: +22 new (predicate × 18, JXL round-trip × 1,
+invariant coverage extension × 3). Total: **334 passed, 0 failed**.
 
-**Implemented locations**: `crates/ritk-io/src/format/dicom/codec.rs` (new),
-`crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`.
+**Implemented locations**: `crates/ritk-io/src/format/dicom/codec.rs`,
+`crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`,
+`Cargo.toml` (workspace), `crates/ritk-io/Cargo.toml`.
 
 ---
 

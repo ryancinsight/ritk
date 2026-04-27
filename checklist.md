@@ -1,3 +1,60 @@
+## Sprint 54 -- Completed
+
+- [x] DICOM-CODEC-EXT-TS1-R54: Add `JpegExtended` (1.2.840.10008.1.2.4.51) to `TransferSyntaxKind`
+  - JPEG Extended (Process 2 & 4), lossy 12-bit; covered by existing `jpeg` feature (zero new deps)
+  - `is_compressed()=true`, `is_lossless()=false`, `is_codec_supported()=true`
+  - Tests: `test_from_uid_jpeg_extended`, `test_is_compressed_jpeg_extended_true`,
+    `test_is_lossless_jpeg_extended_false`, `test_is_codec_supported_jpeg_extended_true`
+
+- [x] DICOM-CODEC-EXT-TS2-R54: Add `JpegLosslessNonHierarchical` (1.2.840.10008.1.2.4.57) to `TransferSyntaxKind`
+  - JPEG Lossless, Non-Hierarchical (Process 14); covered by existing `jpeg` feature
+  - `is_compressed()=true`, `is_lossless()=true`, `is_codec_supported()=true`
+  - Tests: `test_from_uid_jpeg_lossless_non_hierarchical`, `test_is_compressed_jpeg_lossless_nh_true`,
+    `test_is_lossless_jpeg_lossless_nh_true`, `test_is_codec_supported_jpeg_lossless_nh_true`
+
+- [x] DICOM-CODEC-JXL-DEP-R54: Enable `jpegxl` feature of `dicom-transfer-syntax-registry`
+  - Added `dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }` to workspace
+  - Pure-Rust: `jxl-oxide` (decoder) + `zune-jpegxl` + `zune-core` (encoder); no native library dependency
+  - Added `dicom-transfer-syntax-registry = { workspace = true }` to `ritk-io` dependencies
+  - Added `zune-jpegxl` and `zune-core` as dev-dependencies for test data generation
+
+- [x] DICOM-CODEC-JXL-TS1-R54: Add `JpegXlLossless` (1.2.840.10008.1.2.4.110) to `TransferSyntaxKind`
+  - `is_compressed()=true`, `is_lossless()=true`, `is_codec_supported()=true`
+  - ISO 18181-1 modular path; lossless invariant: `max|decoded[i] − original[i]| = 0`
+  - Tests: `test_from_uid_jpeg_xl_lossless`, `test_is_compressed_jpeg_xl_lossless_true`,
+    `test_is_lossless_jpeg_xl_lossless_true`, `test_is_codec_supported_jpeg_xl_lossless_true`
+
+- [x] DICOM-CODEC-JXL-TS2-R54: Add `JpegXlJpegRecompression` (1.2.840.10008.1.2.4.111) to `TransferSyntaxKind`
+  - `is_compressed()=true`, `is_lossless()=false`, `is_codec_supported()=true`
+  - Decoder-only support via `JpegXlAdapter`
+  - Tests: `test_from_uid_jpeg_xl_recompression`, `test_is_codec_supported_jpeg_xl_recompression_true`,
+    `test_is_lossless_jpeg_xl_false`
+
+- [x] DICOM-CODEC-JXL-TS3-R54: Add `JpegXl` (1.2.840.10008.1.2.4.112) to `TransferSyntaxKind`
+  - `is_compressed()=true`, `is_lossless()=false` (not guaranteed by TS), `is_codec_supported()=true`
+  - Tests: `test_from_uid_jpeg_xl`, `test_is_codec_supported_jpeg_xl_true`
+
+- [x] DICOM-CODEC-JXL-RT-R54: JXL Lossless round-trip test (`codec.rs`)
+  - 4×4 8-bit frame encoded via `zune-jpegxl` → wrapped in DICOM Part 10 (TS 1.2.840.10008.1.2.4.110)
+  - Decoded via `decode_compressed_frame` → `max_error == 0.0` (JXL modular path: lossless by spec)
+  - Test: `test_decode_compressed_frame_jxl_lossless_round_trip`
+
+- [x] DICOM-TS-SEM-R54: Correct `is_compressed()` semantics for `DeflatedExplicitVrLittleEndian`
+  - Removed from `is_compressed()`: per DICOM PS3.5 Table A-1, `is_compressed()` = pixel-data encapsulation
+  - `DeflatedExplicitVrLittleEndian` compresses the dataset byte-stream, not pixel fragments
+  - All formal invariants preserved: `is_natively_supported() ⟹ !is_compressed() ∧ !is_big_endian()`
+  - Test: `test_is_compressed_deflated_false`
+
+- [x] Formal invariant tests updated to cover all 16 known variants (was 11)
+  - `test_codec_supported_implies_compressed` — exhaustive over 16 variants
+  - `test_natively_supported_and_codec_supported_are_disjoint` — exhaustive over 16 variants
+  - `test_natively_supported_implies_not_compressed_and_not_big_endian` — exhaustive over 16 variants
+  - `test_uid_roundtrip_all_known` — exhaustive over 16 variants
+
+- [x] Sprint 54 verification: **334 passed, 0 failed**, 0.09 s, zero warnings, zero errors
+
+---
+
 ## Sprint 53 -- Completed
 
 - [x] DICOM-CODEC-DEP-R53: Add `dicom-pixeldata = "0.8"` with `native` feature as direct ritk-io dependency
