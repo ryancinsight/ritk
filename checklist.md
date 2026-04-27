@@ -1,3 +1,50 @@
+## Sprint 53 -- Completed
+
+- [x] DICOM-CODEC-DEP-R53: Add `dicom-pixeldata = "0.8"` with `native` feature as direct ritk-io dependency
+  - `dicom-pixeldata 0.8.2` was already a transitive dep via `dicom = "0.8.0"`; promoted to direct dep
+  - `jpeg-decoder`, `jpeg-encoder`, and `dicom-rle` codecs already compiled in via `native` default feature
+  - No new downloads or lock-file changes required
+
+- [x] DICOM-CODEC-MODULE-R53: New `codec.rs` module with `pub(super) fn decode_compressed_frame`
+  - Single dispatch entry point for all codec-supported compressed transfer syntaxes
+  - Calls `PixelDecoder::decode_pixel_data_frame`, extracts raw bytes via `.data()`
+  - Applies existing `decode_pixel_bytes` linear modality LUT (DICOM PS3.3 C.7.6.3.1.4)
+  - Zero new unsafe code; `pub(super)` visibility keeps codec path internal to the dicom module
+
+- [x] DICOM-CODEC-TS-PRED-R53: Add `is_codec_supported()` predicate to `TransferSyntaxKind`
+  - Returns `true` for `JpegBaseline`, `JpegLosslessFirstOrderPrediction`, `RleLossless`
+  - Returns `false` for JPEG-LS (requires `charls` feature) and JPEG 2000 (requires `openjp2` feature)
+  - Invariants: `is_codec_supported() ⟹ is_compressed()`; `is_natively_supported() ⟹ !is_codec_supported()`
+  - Tests: `test_codec_supported_implies_compressed`, `test_natively_supported_and_codec_supported_are_disjoint`
+
+- [x] DICOM-CODEC-GUARD-R53: Relax compressed-TS guard in `load_from_series` and `load_dicom_multiframe`
+  - Guard changed from `is_compressed()` to `is_compressed() && !is_codec_supported()`
+  - JPEG Baseline, JPEG Lossless FOP, RLE Lossless now pass through to the decode path
+  - JPEG-LS and JPEG 2000 are still correctly rejected (no codec registered)
+  - Existing guard tests updated: TS changed from JPEG Baseline to JPEG-LS Lossless (1.2.840.10008.1.2.4.80)
+
+- [x] DICOM-CODEC-READER-R53: Codec dispatch in `read_slice_pixels`
+  - Detects TS from `slice.transfer_syntax_uid`; dispatches to `codec::decode_compressed_frame` when `is_codec_supported()`
+  - Native (uncompressed) path unchanged; conditional branch is the only structural change
+  - E2E test: `test_load_series_jpeg_baseline_codec_round_trip` — Secondary Capture DICOM with JPEG Baseline TS
+    loads successfully and per-pixel error ≤ 16 (JPEG Q75 analytically-derived bound)
+
+- [x] DICOM-CODEC-MF-R53: Codec dispatch in `load_dicom_multiframe`
+  - When `ts.is_codec_supported()`, decodes each frame individually via `codec::decode_compressed_frame(&obj, frame_idx, ...)`
+  - Uncompressed path unchanged; codec path builds `all_floats` by extending frame-by-frame
+  - E2E test: `test_load_multiframe_jpeg_baseline_codec_round_trip` — 2-frame JPEG Baseline multiframe DICOM
+    loads successfully with correct shape [2,4,4] and per-frame error ≤ 16
+
+- [x] DICOM-CODEC-RT1-R53: `test_decode_compressed_frame_jpeg_baseline_round_trip` (codec.rs)
+  - 4×4 8-bit JPEG Baseline: decoded pixel count == 16, all values in [0, 255], max error ≤ 16
+  - Tolerance derivation: DC quantization step ≤ 4 + 3 primary AC terms ≤ 3 each + higher-order margin
+
+- [x] DICOM-CODEC-RT2-R53: `test_decode_compressed_frame_rescale_contract` (codec.rs)
+  - Uniform 4×4 patch: `scaled[i] == base[i] × 2.0 + 10.0` within 0.01 floating-point epsilon
+  - Verifies modality LUT linearity independent of JPEG spatial quantization effects
+
+---
+
 ## Sprint 52 -- Completed
 
 - [x] DICOM-SERIES-UID-MONO-R52: Fix `generate_series_uid` monotonicity in writer.rs

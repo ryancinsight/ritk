@@ -134,6 +134,28 @@ impl TransferSyntaxKind {
         matches!(self, Self::ExplicitVrBigEndian)
     }
 
+    /// True when pixel data for this syntax can be decoded using the codec registered
+    /// via `dicom-pixeldata` with the `native` feature (pure Rust, no native library).
+    ///
+    /// Covered codecs:
+    /// - JPEG Baseline (1.2.840.10008.1.2.4.50) via `jpeg-decoder`.
+    /// - JPEG Lossless First-Order Prediction (1.2.840.10008.1.2.4.70) via `jpeg-decoder`.
+    /// - RLE Lossless (1.2.840.10008.1.2.5) via `dicom-rle`.
+    ///
+    /// Not yet supported (require native library features):
+    /// - JPEG-LS Lossless/Near-Lossless: enable `charls` feature.
+    /// - JPEG 2000 Lossless/Lossy: enable `openjp2` feature.
+    ///
+    /// ## Invariants
+    /// - `is_codec_supported() ⟹ is_compressed()` — codec path is for compressed TS only.
+    /// - `is_natively_supported() ⟹ !is_codec_supported()` — the two decode paths are disjoint.
+    pub fn is_codec_supported(&self) -> bool {
+        matches!(
+            self,
+            Self::JpegBaseline | Self::JpegLosslessFirstOrderPrediction | Self::RleLossless
+        )
+    }
+
     /// Derive from a `DicomSliceMetadata` record.
     ///
     /// Returns `Unknown("")` when the transfer syntax UID is absent.
@@ -281,6 +303,106 @@ mod tests {
             TransferSyntaxKind::from_metadata(&meta),
             TransferSyntaxKind::ExplicitVrLittleEndian
         );
+    }
+
+    #[test]
+    fn test_is_codec_supported_jpeg_baseline_true() {
+        assert!(
+            TransferSyntaxKind::JpegBaseline.is_codec_supported(),
+            "JpegBaseline must be codec-supported (pure-Rust jpeg-decoder)"
+        );
+    }
+
+    #[test]
+    fn test_is_codec_supported_jpeg_lossless_fop_true() {
+        assert!(
+            TransferSyntaxKind::JpegLosslessFirstOrderPrediction.is_codec_supported(),
+            "JpegLosslessFirstOrderPrediction must be codec-supported (pure-Rust jpeg-decoder)"
+        );
+    }
+
+    #[test]
+    fn test_is_codec_supported_rle_lossless_true() {
+        assert!(
+            TransferSyntaxKind::RleLossless.is_codec_supported(),
+            "RleLossless must be codec-supported (pure-Rust dicom-rle)"
+        );
+    }
+
+    #[test]
+    fn test_is_codec_supported_jpeg_ls_false() {
+        assert!(
+            !TransferSyntaxKind::JpegLsLossless.is_codec_supported(),
+            "JpegLsLossless must NOT be codec-supported without charls feature"
+        );
+        assert!(
+            !TransferSyntaxKind::JpegLsLossy.is_codec_supported(),
+            "JpegLsLossy must NOT be codec-supported without charls feature"
+        );
+    }
+
+    #[test]
+    fn test_is_codec_supported_jpeg2000_false() {
+        assert!(
+            !TransferSyntaxKind::Jpeg2000Lossless.is_codec_supported(),
+            "Jpeg2000Lossless must NOT be codec-supported without openjp2 feature"
+        );
+        assert!(
+            !TransferSyntaxKind::Jpeg2000Lossy.is_codec_supported(),
+            "Jpeg2000Lossy must NOT be codec-supported without openjp2 feature"
+        );
+    }
+
+    #[test]
+    fn test_codec_supported_implies_compressed() {
+        // Formal invariant: is_codec_supported() ⟹ is_compressed()
+        let variants = [
+            TransferSyntaxKind::ImplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrBigEndian,
+            TransferSyntaxKind::JpegBaseline,
+            TransferSyntaxKind::JpegLosslessFirstOrderPrediction,
+            TransferSyntaxKind::JpegLsLossless,
+            TransferSyntaxKind::JpegLsLossy,
+            TransferSyntaxKind::Jpeg2000Lossless,
+            TransferSyntaxKind::Jpeg2000Lossy,
+            TransferSyntaxKind::RleLossless,
+            TransferSyntaxKind::DeflatedExplicitVrLittleEndian,
+        ];
+        for v in &variants {
+            if v.is_codec_supported() {
+                assert!(
+                    v.is_compressed(),
+                    "{v:?}: is_codec_supported() but !is_compressed() — invariant violated"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_natively_supported_and_codec_supported_are_disjoint() {
+        // Formal invariant: is_natively_supported() ⟹ !is_codec_supported()
+        let variants = [
+            TransferSyntaxKind::ImplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrBigEndian,
+            TransferSyntaxKind::JpegBaseline,
+            TransferSyntaxKind::JpegLosslessFirstOrderPrediction,
+            TransferSyntaxKind::JpegLsLossless,
+            TransferSyntaxKind::JpegLsLossy,
+            TransferSyntaxKind::Jpeg2000Lossless,
+            TransferSyntaxKind::Jpeg2000Lossy,
+            TransferSyntaxKind::RleLossless,
+            TransferSyntaxKind::DeflatedExplicitVrLittleEndian,
+        ];
+        for v in &variants {
+            if v.is_natively_supported() {
+                assert!(
+                    !v.is_codec_supported(),
+                    "{v:?}: is_natively_supported() AND is_codec_supported() — paths must be disjoint"
+                );
+            }
+        }
     }
 
     #[test]

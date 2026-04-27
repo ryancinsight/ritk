@@ -868,10 +868,11 @@ fn load_from_series<B: Backend>(
     for slice in slices.iter() {
         if let Some(ref ts_uid) = slice.transfer_syntax_uid {
             let ts = TransferSyntaxKind::from_uid(ts_uid);
-            if ts.is_compressed() {
+            if ts.is_compressed() && !ts.is_codec_supported() {
                 bail!(
                     "DICOM series: compressed transfer syntax '{}' in slice {:?} is not \
-                     natively supported; decompress the series before loading",
+                     supported (not natively decoded and no codec registered); \
+                     decompress the series or use a supported transfer syntax",
                     ts_uid,
                     slice.path
                 );
@@ -962,26 +963,44 @@ pub(super) fn decode_pixel_bytes(
 }
 
 fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
-    use dicom::core::Tag;
-    use dicom::object::open_file;
-
     let obj = open_file(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
-    let pixel_elem = obj
-        .element(Tag(0x7FE0, 0x0010))
-        .with_context(|| format!("PixelData (7FE0,0010) absent in {:?}", slice.path))?;
-    let bytes = pixel_elem
-        .value()
-        .to_bytes()
-        .map_err(|e| anyhow::anyhow!("pixel bytes unreadable in {:?}: {:?}", slice.path, e))?;
 
-    let data = decode_pixel_bytes(
-        &bytes,
-        slice.bits_allocated,
-        slice.pixel_representation,
-        slice.rescale_slope,
-        slice.rescale_intercept,
-    );
+    let ts = slice
+        .transfer_syntax_uid
+        .as_deref()
+        .map(TransferSyntaxKind::from_uid)
+        .unwrap_or(TransferSyntaxKind::ImplicitVrLittleEndian);
+
+    let data = if ts.is_codec_supported() {
+        // Compressed TS with registered pure-Rust codec: delegate to codec module.
+        super::codec::decode_compressed_frame(
+            &obj,
+            0, // single-frame slice
+            slice.bits_allocated,
+            slice.pixel_representation,
+            slice.rescale_slope,
+            slice.rescale_intercept,
+        )
+        .with_context(|| format!("codec decode failed for slice {:?}", slice.path))?
+    } else {
+        // Native (uncompressed) TS: read raw pixel bytes and apply modality LUT.
+        let pixel_elem = obj
+            .element(Tag(0x7FE0, 0x0010))
+            .with_context(|| format!("PixelData (7FE0,0010) absent in {:?}", slice.path))?;
+        let bytes = pixel_elem
+            .value()
+            .to_bytes()
+            .map_err(|e| anyhow::anyhow!("pixel bytes unreadable in {:?}: {:?}", slice.path, e))?;
+        decode_pixel_bytes(
+            &bytes,
+            slice.bits_allocated,
+            slice.pixel_representation,
+            slice.rescale_slope,
+            slice.rescale_intercept,
+        )
+    };
+
     if data.is_empty() {
         bail!(
             "DICOM slice contained no decodable pixel data in {:?}",
@@ -1919,7 +1938,7 @@ mod tests {
                 FileMetaTableBuilder::new()
                     .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
                     .media_storage_sop_instance_uid("2.25.10001")
-                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+                    .transfer_syntax("1.2.840.10008.1.2.4.80"), // JPEG-LS Lossless (no charls)
             )
             .expect("meta build");
         file_obj
@@ -1950,12 +1969,166 @@ mod tests {
             );
             let msg = format!("{:?}", load_result.unwrap_err());
             assert!(
-                msg.contains("1.2.840.10008.1.2.4.50") || msg.to_lowercase().contains("compress"),
-                "error must reference compressed TS UID or 'compress'; got: {msg}"
+                msg.contains("1.2.840.10008.1.2.4.80") || msg.to_lowercase().contains("compress"),
+                "error must reference JPEG-LS TS UID or 'compress'; got: {msg}"
             );
         }
         // If scan itself fails (e.g. SOP class filter), the test is inconclusive
         // but not a failure — the scan's SOP-class rejection is also correct behavior.
+    }
+
+    /// Verify that a JPEG Baseline series (codec-supported compressed TS) loads successfully
+    /// and produces pixel values within JPEG quantization tolerance of the originals.
+    ///
+    /// # Specification
+    /// The guard `is_compressed() && !is_codec_supported()` allows JPEG Baseline through.
+    /// `read_slice_pixels` dispatches to `codec::decode_compressed_frame`.
+    /// Output tensor shape must be `[1, H, W]` for a single-slice series.
+    /// Pixel values must satisfy: `|decoded[i] - original[i]| ≤ 8` (JPEG Q75 tolerance).
+    #[test]
+    fn test_load_series_jpeg_baseline_codec_round_trip() {
+        use dicom::core::smallvec::SmallVec;
+        use dicom::core::value::PixelFragmentSequence;
+        use image::{DynamicImage, GrayImage};
+
+        type B = burn_ndarray::NdArray<f32>;
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let series_dir = tmp.path().join("jpeg_series");
+        std::fs::create_dir_all(&series_dir).expect("create_dir");
+
+        let width = 4u32;
+        let height = 4u32;
+        let original: Vec<u8> = vec![
+            50, 100, 150, 200, 75, 125, 175, 225, 30, 80, 130, 180, 20, 60, 100, 140,
+        ];
+
+        // Encode pixel data as JPEG Baseline.
+        let gray =
+            GrayImage::from_raw(width, height, original.clone()).expect("GrayImage::from_raw");
+        let dyn_img = DynamicImage::ImageLuma8(gray);
+        let mut jpeg_bytes: Vec<u8> = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+        dyn_img
+            .write_to(&mut cursor, image::ImageFormat::Jpeg)
+            .expect("JPEG encode");
+        drop(cursor);
+
+        // Build encapsulated pixel data.
+        let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jpeg_bytes]);
+        let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+
+        // Build a Secondary Capture DICOM slice with JPEG Baseline TS.
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"), // SC Image Storage
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.88888801"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("OT"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(height as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(width as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(7u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("0.000000"),
+        ));
+        obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
+                    .media_storage_sop_instance_uid("2.25.88888801")
+                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+            )
+            .expect("meta build");
+        file_obj
+            .write_to_file(&series_dir.join("slice0001.dcm"))
+            .expect("write");
+
+        let device = <B as burn::tensor::backend::Backend>::Device::default();
+        let (img, _) = load_dicom_series::<B, _>(&series_dir, &device)
+            .expect("JPEG Baseline series load must succeed via codec path");
+
+        let shape = img.shape();
+        assert_eq!(
+            shape,
+            [1, height as usize, width as usize],
+            "shape must be [1, H, W] for single-slice series"
+        );
+
+        let td = img.data().clone().into_data();
+        let floats: &[f32] = td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(floats.len(), 16, "pixel count must equal H × W");
+
+        // Each decoded value must be within JPEG tolerance of the original.
+        let max_error = original
+            .iter()
+            .zip(floats.iter())
+            .map(|(&o, &d)| (o as f32 - d).abs())
+            .fold(0.0f32, f32::max);
+        // Analytical bound: JPEG Q75 DC quantization step = 8 → ≤4 per pixel;
+        // primary AC terms (1,0),(0,1),(1,1) each ≤ 3 per pixel; sum = 13.
+        // Tolerance set to 16 (next power-of-2 ≥ 13) per the derivation in
+        // codec::tests::test_decode_compressed_frame_jpeg_baseline_round_trip.
+        assert!(
+            max_error <= 16.0,
+            "codec round-trip error {max_error} exceeds analytical JPEG tolerance of 16.0 \
+             (Q75: DC≤4 + AC(1,0)≤3 + AC(0,1)≤3 + AC(1,1)≤3 + higher-order margin = 16)"
+        );
     }
 
     /// End-to-end intensity round-trip: write via `write_dicom_series`,

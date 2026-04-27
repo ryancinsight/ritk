@@ -16,6 +16,7 @@ nalgebra = { workspace = true }
 rayon = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }
+dicom-pixeldata = { workspace = true }
 tiff = { workspace = true }
 flate2 = { workspace = true }
 consus-hdf5 = { workspace = true }

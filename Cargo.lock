@@ -5864,6 +5864,7 @@ dependencies = [
  "consus-io",
  "dicom",
  "dicom-core",
+ "dicom-pixeldata",
  "flate2",
  "image 0.24.9",
  "nalgebra",

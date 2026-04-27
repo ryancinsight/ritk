@@ -939,6 +939,44 @@ evaluation-time quality measures:
 
 RITK supports DICOM, NIfTI, and PNG. Medical imaging workflows require 10+ additional formats.
 
+### 6.0 DICOM Compressed Transfer Syntax Codec Integration · Severity: **Closed** (Sprint 53)
+
+**Sprint 53**: `dicom-pixeldata 0.8` with `native` feature integrated into `ritk-io`:
+
+- New `codec.rs` module: `pub(super) fn decode_compressed_frame` — single dispatch entry point
+  for all codec-supported compressed transfer syntaxes. Calls
+  `PixelDecoder::decode_pixel_data_frame`, extracts decoded bytes via `.data()`, applies the
+  existing `decode_pixel_bytes` linear modality LUT (DICOM PS3.3 C.7.6.3.1.4).
+- `TransferSyntaxKind::is_codec_supported()` predicate added:
+  - `true` for JPEG Baseline (1.2.840.10008.1.2.4.50), JPEG Lossless FOP (1.2.840.10008.1.2.4.70),
+    RLE Lossless (1.2.840.10008.1.2.5) — pure Rust codecs via `jpeg-decoder` and `dicom-rle`.
+  - `false` for JPEG-LS (requires `charls` feature) and JPEG 2000 (requires `openjp2` feature).
+- Compressed-TS guard relaxed in both `load_from_series` and `load_dicom_multiframe`:
+  from `is_compressed()` to `is_compressed() && !is_codec_supported()`.
+- `read_slice_pixels` dispatches to `codec::decode_compressed_frame` when TS is codec-supported.
+- `load_dicom_multiframe` decodes each frame individually via `codec::decode_compressed_frame`
+  when TS is codec-supported.
+
+**Formal invariants verified**:
+- `is_codec_supported() ⟹ is_compressed()` — codec path is for compressed TS only.
+- `is_natively_supported() ⟹ !is_codec_supported()` — native and codec decode paths are disjoint.
+- `Output[i] = codec_sample[i] × slope + intercept` — modality LUT applied identically to both paths.
+- JPEG tolerance: `|decoded[i] − original[i]| ≤ 16` (DC step ≤ 4 + 3 primary AC terms + margin).
+
+**Remaining gaps** (require native library features):
+- JPEG-LS Lossless/Near-Lossless: enable `charls` feature + add `JpegLsLossless | JpegLsLossy`
+  to `is_codec_supported()`.
+- JPEG 2000 Lossless/Lossy: enable `openjp2` feature + add `Jpeg2000Lossless | Jpeg2000Lossy`
+  to `is_codec_supported()`.
+
+**Tests**: 11 new tests — predicate invariants × 7, JPEG Baseline codec round-trip × 2,
+series E2E codec path × 1, multiframe E2E codec path × 1. 312 pass, 0 fail.
+
+**Implemented locations**: `crates/ritk-io/src/format/dicom/codec.rs` (new),
+`crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`.
+
+---
+
 ### 6.1 MetaImage (.mha / .mhd) · Severity: **Closed** (Sprint 2)
 
 **Sprint 2**: `MetaImageReader` and `MetaImageWriter` implemented:

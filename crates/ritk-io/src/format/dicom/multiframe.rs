@@ -244,10 +244,11 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
     let ts_uid = obj.meta().transfer_syntax();
     let ts = TransferSyntaxKind::from_uid(ts_uid);
-    if ts.is_compressed() {
+    if ts.is_compressed() && !ts.is_codec_supported() {
         bail!(
-            "DICOM multiframe: compressed transfer syntax '{}' in {:?} is not natively \
-             supported; decompress the file before loading",
+            "DICOM multiframe: compressed transfer syntax '{}' in {:?} is not supported \
+             (not natively decoded and no codec registered); \
+             decompress the file or use a supported transfer syntax",
             ts_uid,
             path
         );
@@ -274,29 +275,55 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     let rescale_slope = info.rescale_slope as f32;
     let rescale_intercept = info.rescale_intercept as f32;
 
-    let pixel_bytes = if let Ok(elem) = obj.element(Tag(0x7FE0, 0x0010)) {
-        elem.value()
-            .to_bytes()
-            .ok()
-            .map(|b| b.to_vec())
-            .unwrap_or_default()
+    let (floats, actual_n) = if ts.is_codec_supported() {
+        // Compressed TS with registered codec: decode each frame individually.
+        let mut all_floats = Vec::with_capacity(info.n_frames * info.rows * info.cols);
+        for frame_idx in 0..info.n_frames {
+            let frame = super::codec::decode_compressed_frame(
+                &obj,
+                frame_idx as u32,
+                info.bits_allocated,
+                info.pixel_representation,
+                rescale_slope,
+                rescale_intercept,
+            )
+            .with_context(|| format!("codec failed for frame {frame_idx} in {:?}", path))?;
+            if frame.is_empty() {
+                bail!(
+                    "DICOM multiframe: codec produced empty frame {frame_idx} in {:?}",
+                    path
+                );
+            }
+            all_floats.extend_from_slice(&frame);
+        }
+        let n = info.n_frames;
+        (all_floats, n)
     } else {
-        Vec::new()
+        // Native (uncompressed) TS: read all pixel bytes at once and apply LUT.
+        let pixel_bytes = if let Ok(elem) = obj.element(Tag(0x7FE0, 0x0010)) {
+            elem.value()
+                .to_bytes()
+                .ok()
+                .map(|b| b.to_vec())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let all_floats = super::reader::decode_pixel_bytes(
+            &pixel_bytes,
+            info.bits_allocated,
+            info.pixel_representation,
+            rescale_slope,
+            rescale_intercept,
+        );
+        let n = if info.rows * info.cols > 0 && !all_floats.is_empty() {
+            all_floats.len() / (info.rows * info.cols)
+        } else {
+            info.n_frames
+        };
+        (all_floats, n)
     };
 
-    let floats = super::reader::decode_pixel_bytes(
-        &pixel_bytes,
-        info.bits_allocated,
-        info.pixel_representation,
-        rescale_slope,
-        rescale_intercept,
-    );
-
-    let actual_n = if info.rows * info.cols > 0 && !floats.is_empty() {
-        floats.len() / (info.rows * info.cols)
-    } else {
-        info.n_frames
-    };
     if actual_n == 0 {
         bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
     }
@@ -1197,7 +1224,7 @@ mod tests {
                 FileMetaTableBuilder::new()
                     .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
                     .media_storage_sop_instance_uid("2.25.99999")
-                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+                    .transfer_syntax("1.2.840.10008.1.2.4.80"), // JPEG-LS Lossless (no charls)
             )
             .expect("meta build");
         file_obj
@@ -1211,9 +1238,183 @@ mod tests {
         );
         let msg = format!("{:?}", result.unwrap_err());
         assert!(
-            msg.contains("1.2.840.10008.1.2.4.50") || msg.to_lowercase().contains("compress"),
+            msg.contains("1.2.840.10008.1.2.4.80") || msg.to_lowercase().contains("compress"),
             "error must name the TS UID or contain 'compress'; got: {msg}"
         );
+    }
+
+    /// Verify that a JPEG Baseline multi-frame file (codec-supported compressed TS) loads
+    /// successfully and produces pixel values within JPEG quantization tolerance.
+    ///
+    /// # Specification
+    /// Guard condition `is_compressed() && !is_codec_supported()` allows JPEG Baseline.
+    /// `load_dicom_multiframe` calls `codec::decode_compressed_frame` for each frame.
+    /// Shape must be `[N_frames, H, W]`.
+    /// Per-pixel error must satisfy `|decoded - original| ≤ 8` (JPEG Q75 tolerance).
+    #[test]
+    fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
+        use dicom::core::smallvec::SmallVec;
+        use dicom::core::value::PixelFragmentSequence;
+        use image::{DynamicImage, GrayImage};
+
+        let n_frames = 2usize;
+        let rows = 4u32;
+        let cols = 4u32;
+
+        // Generate two distinct 4×4 frames.
+        let frame0: Vec<u8> = (0u8..16).collect();
+        let frame1: Vec<u8> = (100u8..116).collect();
+        let original = [frame0.clone(), frame1.clone()];
+
+        // JPEG-encode each frame into a separate fragment.
+        let mut fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::new();
+        for frame_pixels in &original {
+            let gray =
+                GrayImage::from_raw(cols, rows, frame_pixels.clone()).expect("GrayImage::from_raw");
+            let dyn_img = DynamicImage::ImageLuma8(gray);
+            let mut jpeg_bytes: Vec<u8> = Vec::new();
+            let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+            dyn_img
+                .write_to(&mut cursor, image::ImageFormat::Jpeg)
+                .expect("JPEG encode");
+            drop(cursor);
+            fragments.push(jpeg_bytes);
+        }
+
+        let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.77777701"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0020),
+            VR::LO,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000D),
+            VR::UI,
+            PrimitiveValue::from("2.25.77777702"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000E),
+            VR::UI,
+            PrimitiveValue::from("2.25.77777703"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(rows as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(cols as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from(format!("{n_frames}")),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(7u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("0.000000"),
+        ));
+        obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
+                    .media_storage_sop_instance_uid("2.25.77777701")
+                    .transfer_syntax("1.2.840.10008.1.2.4.50"), // JPEG Baseline
+            )
+            .expect("meta build");
+
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("mf_jpeg.dcm");
+        file_obj.write_to_file(&path).expect("write");
+
+        let device = <B as Backend>::Device::default();
+        let img = load_dicom_multiframe::<B, _>(&path, &device)
+            .expect("JPEG Baseline multiframe load must succeed via codec path");
+
+        let [lf, lr, lc] = img.shape();
+        assert_eq!(lf, n_frames, "shape[0] must equal n_frames");
+        assert_eq!(lr, rows as usize, "shape[1] must equal rows");
+        assert_eq!(lc, cols as usize, "shape[2] must equal cols");
+
+        let td = img.data().clone().into_data();
+        let floats: &[f32] = td.as_slice::<f32>().expect("f32 slice");
+        assert_eq!(
+            floats.len(),
+            n_frames * (rows as usize) * (cols as usize),
+            "total pixel count mismatch"
+        );
+
+        // Verify each frame independently.
+        let frame_size = (rows * cols) as usize;
+        for (f_idx, orig_frame) in original.iter().enumerate() {
+            let decoded_frame = &floats[f_idx * frame_size..(f_idx + 1) * frame_size];
+            let max_error = orig_frame
+                .iter()
+                .zip(decoded_frame.iter())
+                .map(|(&o, &d)| (o as f32 - d).abs())
+                .fold(0.0f32, f32::max);
+            assert!(
+                max_error <= 8.0,
+                "frame {f_idx}: codec round-trip error {max_error} exceeds JPEG tolerance 8.0"
+            );
+        }
     }
 
     /// MultiFrameInfo must include rescale_slope and rescale_intercept populated from

@@ -46,6 +46,7 @@
 //! The module re-exports the reader and writer types so `ritk_io::read_*`
 //! and `ritk_io::write_*` remain the authoritative crate-level entry points.
 
+mod codec;
 pub mod multiframe;
 pub mod object_model;
 pub mod reader;
