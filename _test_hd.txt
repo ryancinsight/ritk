@@ -1,4 +1,0 @@
-line1
-line2 with "quotes"
-line3 with 'single'
-line4 with `backtick`

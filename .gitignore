@@ -6,3 +6,21 @@
 .DS_Store
 crates/ritk-cli/out.vtk
 nul
+
+# Python bytecode and compiled extensions
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Scratch and temporary files at repo root
+_*.py
+_*.txt
+_*.tmp
+fix_*.py
+write_*.py
+dg_test.*
+result.*.nii
+test_heredoc.*
+TransformParameters.*.txt
