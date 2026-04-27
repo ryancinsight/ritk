@@ -172,15 +172,13 @@ impl TransferSyntaxKind {
     ///
     /// ## Covered codecs
     ///
-    /// | Codec | Feature | Transfer Syntaxes |
-    /// |---|---|---|
-    /// | `jpeg-decoder` | `jpeg` (enabled via `native`) | Baseline (`.50`), Extended (`.51`), Lossless NH (`.57`), Lossless FOP (`.70`) |
-    /// | `dicom-rle` | `rle` (enabled via `native`) | RLE Lossless (`.5`) |
-    /// | `jxl-oxide` + `zune-jpegxl` | `jpegxl` | JPEG XL Lossless (`.110`), JPEG XL Recompression (`.111`), JPEG XL (`.112`) |
-    ///
-    /// ## Not yet supported (require native library features)
-    /// - JPEG-LS Lossless/Near-Lossless: enable `charls` feature.
-    /// - JPEG 2000 Lossless/Lossy: enable `openjp2` or `openjpeg-sys` feature.
+    /// | Codec        | Feature              | Transfer Syntaxes                                                                      |
+    /// |--------------|----------------------|----------------------------------------------------------------------------------------|
+    /// | `jpeg-decoder` | `jpeg` (via `native`) | Baseline (`.50`), Extended (`.51`), Lossless NH (`.57`), Lossless FOP (`.70`)       |
+    /// | `charls`     | `charls`             | JPEG-LS Lossless (`.80`), JPEG-LS Near-Lossless (`.81`)                               |
+    /// | OpenJPEG     | `openjpeg-sys`       | JPEG 2000 Lossless (`.90`), JPEG 2000 Lossy (`.91`)                                   |
+    /// | `dicom-rle`  | `rle` (via `native`) | RLE Lossless (`.5`)                                                                    |
+    /// | `jxl-oxide`  | `jpegxl`             | JPEG XL Lossless (`.110`), JPEG XL Recompression (`.111`), JPEG XL (`.112`)           |
     ///
     /// ## Invariants
     /// - `is_codec_supported()` ⟹ `is_compressed()` — codec path is for encapsulated TS only.
@@ -192,6 +190,10 @@ impl TransferSyntaxKind {
                 | Self::JpegExtended
                 | Self::JpegLosslessNonHierarchical
                 | Self::JpegLosslessFirstOrderPrediction
+                | Self::JpegLsLossless
+                | Self::JpegLsLossy
+                | Self::Jpeg2000Lossless
+                | Self::Jpeg2000Lossy
                 | Self::RleLossless
                 | Self::JpegXlLossless
                 | Self::JpegXlJpegRecompression
@@ -522,26 +524,26 @@ mod tests {
     }
 
     #[test]
-    fn test_is_codec_supported_jpeg_ls_false() {
+    fn test_is_codec_supported_jpeg_ls_true() {
         assert!(
-            !TransferSyntaxKind::JpegLsLossless.is_codec_supported(),
-            "JpegLsLossless must NOT be codec-supported without charls feature"
+            TransferSyntaxKind::JpegLsLossless.is_codec_supported(),
+            "JPEG-LS Lossless must be codec-supported (charls feature enabled)"
         );
         assert!(
-            !TransferSyntaxKind::JpegLsLossy.is_codec_supported(),
-            "JpegLsLossy must NOT be codec-supported without charls feature"
+            TransferSyntaxKind::JpegLsLossy.is_codec_supported(),
+            "JPEG-LS Near-Lossless must be codec-supported (charls feature enabled)"
         );
     }
 
     #[test]
-    fn test_is_codec_supported_jpeg2000_false() {
+    fn test_is_codec_supported_jpeg2000_true() {
         assert!(
-            !TransferSyntaxKind::Jpeg2000Lossless.is_codec_supported(),
-            "Jpeg2000Lossless must NOT be codec-supported without openjp2 feature"
+            TransferSyntaxKind::Jpeg2000Lossless.is_codec_supported(),
+            "JPEG 2000 Lossless must be codec-supported (openjpeg-sys feature enabled)"
         );
         assert!(
-            !TransferSyntaxKind::Jpeg2000Lossy.is_codec_supported(),
-            "Jpeg2000Lossy must NOT be codec-supported without openjp2 feature"
+            TransferSyntaxKind::Jpeg2000Lossy.is_codec_supported(),
+            "JPEG 2000 Lossy must be codec-supported (openjpeg-sys feature enabled)"
         );
     }
 

@@ -1113,6 +1113,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "charls"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "461ee0e8f15d5a4a14c6d79e7cf593a85d28e635e4ce7211c93ac649f03cfb5f"
+dependencies = [
+ "charls-sys",
+]
+
+[[package]]
+name = "charls-sys"
+version = "2.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32bd6962068e45425f68b1ea79fdc87cc848e35018349f2ff38e941f3fca332a"
+dependencies = [
+ "cmake",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1183,6 +1201,15 @@ name = "clap_lex"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
+
+[[package]]
+name = "cmake"
+version = "0.1.58"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678"
+dependencies = [
+ "cc",
+]
 
 [[package]]
 name = "codespan-reporting"
@@ -2262,10 +2289,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62672d33f29f7c049a92a662c4bd7ef34e85b5eaea379627d335d93b5d25edf6"
 dependencies = [
  "byteordered",
+ "charls",
  "dicom-core",
  "dicom-encoding",
  "jpeg-decoder",
  "jpeg-encoder",
+ "jpeg2k",
  "jxl-oxide",
  "lazy_static",
  "tracing",
@@ -3938,6 +3967,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b454d911ac55068f53495488d8ccd0646eaa540c033a28ee15b07838afafb01f"
 
 [[package]]
+name = "jpeg2k"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be2982db6b9f254c9df44d89bcfdc758924d538f576d9649f5b10008150f2a60"
+dependencies = [
+ "anyhow",
+ "log",
+ "openjpeg-sys",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4848,6 +4889,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "openjpeg-sys"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92682cb92e7b01e2c020cf8ec12f3374558924bb24621df1112d8a7c93d419ef"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]
@@ -5860,6 +5911,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "charls",
  "consus-compression",
  "consus-core",
  "consus-hdf5",
@@ -5873,6 +5925,7 @@ dependencies = [
  "nalgebra",
  "ndarray",
  "nifti",
+ "openjpeg-sys",
  "rayon",
  "ritk-core",
  "tempfile",

@@ -36,6 +36,7 @@ ndarray = { version = "0.16", features = ["rayon"] }
 tempfile = "3.10" # For testing
 proptest = "1.0"
 walkdir = "2.4"
+charls = { version = "0.4", features = ["static"] }
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.11", features = ["blocking", "stream"] }
 flate2 = "1.0"
@@ -48,9 +49,10 @@ hex = "0.4"
 image = "0.24"
 tiff = "0.9"
 onnx-ir = "0.20.1"
+openjpeg-sys = "1.0"
 dicom-core = "0.8"
 dicom-pixeldata = { version = "0.8", features = ["native"] }
-dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
+dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl", "charls", "openjpeg-sys"] }
 consus-hdf5 = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
 consus-core = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
 consus-compression = { git = "https://github.com/ryancinsight/consus", features = ["std", "deflate"] }

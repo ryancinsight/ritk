@@ -17,22 +17,20 @@
 //!
 //! # Supported codecs (pure Rust, `native` feature of `dicom-pixeldata`)
 //!
-//! | Transfer Syntax                        | UID                      | Codec          | Feature     |
-//! |----------------------------------------|--------------------------|----------------|-------------|
-//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | jpeg-decoder   | native      |
-//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   | native      |
-//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   | native      |
-//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   | native      |
-//! | RLE Lossless                           | 1.2.840.10008.1.2.5      | dicom-rle      | native      |
-//! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      | jpegxl      |
-//! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      | jpegxl      |
-//! | JPEG XL                                | 1.2.840.10008.1.2.4.112  | jxl-oxide      | jpegxl      |
-//!
-//! ## Not yet supported (require native C/C++ library features)
-//! - JPEG-LS Lossless (1.2.840.10008.1.2.4.80) / Near-Lossless (1.2.840.10008.1.2.4.81):
-//!   enable `charls` feature of `dicom-transfer-syntax-registry` (requires charls C++ library).
-//! - JPEG 2000 Lossless (1.2.840.10008.1.2.4.90) / Lossy (1.2.840.10008.1.2.4.91):
-//!   enable `openjpeg` feature of `dicom-transfer-syntax-registry` (requires OpenJPEG C library).
+//! | Transfer Syntax                        | UID                      | Codec          | Feature       |
+//! |----------------------------------------|--------------------------|----------------|---------------|
+//! | JPEG Baseline (Process 1)              | 1.2.840.10008.1.2.4.50   | jpeg-decoder   | native        |
+//! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   | native        |
+//! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   | native        |
+//! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   | native        |
+//! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | charls         | charls        |
+//! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | charls         | charls        |
+//! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | openjpeg-sys   | openjpeg-sys  |
+//! | JPEG 2000 Lossy                        | 1.2.840.10008.1.2.4.91   | openjpeg-sys   | openjpeg-sys  |
+//! | RLE Lossless                           | 1.2.840.10008.1.2.5      | dicom-rle      | native        |
+//! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      | jpegxl        |
+//! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      | jpegxl        |
+//! | JPEG XL                                | 1.2.840.10008.1.2.4.112  | jxl-oxide      | jpegxl        |
 //!
 //! # Mathematical contract
 //!
@@ -1370,6 +1368,356 @@ mod tests {
             max_error,
             0.0,
             "RLE Lossless native decode error {max_error} must be exactly 0 (lossless per PS3.5 G.3.1)"
+        );
+    }
+
+    /// Build and write a minimal JPEG-LS Lossless DICOM Part 10 file.
+    ///
+    /// Pixel data is encoded losslessly (near-lossless parameter = 0) using the
+    /// `charls` crate (CharLS C++ JPEG-LS implementation, ISO 14495-1 / ITU-T T.87).
+    /// The bitstream is encapsulated as a single fragment per DICOM PS3.5 §A.4.
+    ///
+    /// # Parameters
+    /// - `path`: destination file path.
+    /// - `width`, `height`: image dimensions in pixels.
+    /// - `pixels_u8`: flat row-major 8-bit grayscale values, length = `width × height`.
+    fn write_jpegls_lossless_dicom_file(
+        path: &std::path::Path,
+        width: u32,
+        height: u32,
+        pixels_u8: &[u8],
+    ) {
+        assert_eq!(
+            pixels_u8.len(),
+            (width * height) as usize,
+            "pixels_u8 length must equal width × height"
+        );
+
+        // Encode losslessly with CharLS (near = 0 ⟹ lossless).
+        let frame_info = charls::FrameInfo {
+            width,
+            height,
+            bits_per_sample: 8,
+            component_count: 1,
+        };
+        let mut codec = charls::CharLS::default();
+        let jls_bytes = codec
+            .encode(frame_info, 0, pixels_u8)
+            .expect("CharLS encode failed");
+
+        // Encapsulate as single fragment per DICOM PS3.5 §A.4.
+        let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jls_bytes]);
+        let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999931"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0020),
+            VR::LO,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000D),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999932"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000E),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999933"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(height as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(width as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(7u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("0.000000"),
+        ));
+        obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                    .media_storage_sop_instance_uid("2.25.99999931")
+                    .transfer_syntax("1.2.840.10008.1.2.4.80"),
+            )
+            .expect("FileMetaTableBuilder failed");
+        file_obj.write_to_file(path).expect("write_to_file failed");
+    }
+
+    /// JPEG-LS Lossless round-trip: encode known pixel values, decode via codec, verify
+    /// exact pixel equality (lossless invariant: no information loss per ISO 14495-1).
+    ///
+    /// Mathematical justification:
+    /// JPEG-LS lossless (near = 0) uses a near-lossless coder with NEAR = 0, which implies
+    /// the reconstructed sample value s' satisfies |s' − s| ≤ NEAR = 0, i.e., exact
+    /// reconstruction per ISO 14495-1 §A.2:
+    ///   Encode: JLS_Lossless(S, NEAR=0) → bitstream B
+    ///   Decode: JLS_Decode(B, NEAR=0) → S' where S'[i] = S[i] for all i.
+    /// Max error = max|S[i] − S'[i]| = 0.
+    ///
+    /// Pixel set includes boundary values (0, 255) and interior values to span [0, 255].
+    #[test]
+    fn test_decode_compressed_frame_jpegls_lossless_round_trip() {
+        let width = 4u32;
+        let height = 4u32;
+        // Values span [0, 255] including exact boundaries and interior samples.
+        // Includes pixel[0] = 0 and pixel[15] = 255 to exercise boundary conditions.
+        let original: Vec<u8> = vec![
+            0, 42, 85, 127, 128, 170, 200, 225, 50, 100, 150, 199, 64, 96, 128, 255,
+        ];
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("test_jpegls_lossless.dcm");
+        write_jpegls_lossless_dicom_file(&path, width, height, &original);
+
+        let obj = dicom::object::open_file(&path).expect("open_file failed");
+        let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+            .expect("decode_compressed_frame must succeed for JPEG-LS Lossless");
+
+        assert_eq!(
+            decoded.len(),
+            (width * height) as usize,
+            "decoded pixel count must equal width × height"
+        );
+
+        // All decoded values must lie in [0, 255].
+        for (i, &v) in decoded.iter().enumerate() {
+            assert!(
+                (0.0..=255.0).contains(&v),
+                "decoded[{i}] = {v} is outside valid 8-bit range [0, 255]"
+            );
+        }
+
+        // JPEG-LS Lossless invariant: per-pixel error must be exactly 0 (ISO 14495-1, NEAR=0).
+        let max_error = original
+            .iter()
+            .zip(decoded.iter())
+            .map(|(&orig, &dec)| (orig as f32 - dec).abs())
+            .fold(0.0f32, f32::max);
+        assert_eq!(
+            max_error, 0.0,
+            "JPEG-LS Lossless decode error {max_error} must be exactly 0 \
+             (ISO 14495-1: NEAR=0 ⟹ |s'-s| ≤ NEAR = 0)"
+        );
+
+        // Verify each sample individually to catch index-specific faults.
+        for (i, (&orig, &dec)) in original.iter().zip(decoded.iter()).enumerate() {
+            assert_eq!(
+                orig as f32, dec,
+                "pixel[{i}]: expected {orig}, got {dec} — JPEG-LS lossless must preserve all sample values"
+            );
+        }
+    }
+
+    /// JPEG-LS Near-Lossless round-trip: encode known pixel values with NEAR=2, decode via
+    /// codec, verify per-pixel reconstruction error ≤ NEAR per ISO 14495-1.
+    ///
+    /// Mathematical justification:
+    /// JPEG-LS near-lossless (NEAR = 2) guarantees |s' − s| ≤ 2 for all pixels per
+    /// ISO 14495-1 §A.2. Tolerance set to exactly 2.0 (the analytical bound).
+    #[test]
+    fn test_decode_compressed_frame_jpegls_near_lossless_round_trip() {
+        let width = 4u32;
+        let height = 4u32;
+        // Values span [10, 245] to avoid boundary clamping effects with NEAR=2.
+        let original: Vec<u8> = vec![
+            10, 50, 100, 150, 200, 245, 30, 80, 130, 180, 220, 60, 110, 160, 210, 40,
+        ];
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("test_jpegls_nearlossless.dcm");
+
+        // Encode with near = 2 but declare TS as JPEG-LS Near-Lossless (.81).
+        let frame_info = charls::FrameInfo {
+            width,
+            height,
+            bits_per_sample: 8,
+            component_count: 1,
+        };
+        let mut codec = charls::CharLS::default();
+        let jls_bytes = codec
+            .encode(frame_info, 2, &original)
+            .expect("CharLS near-lossless encode failed");
+
+        let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jls_bytes]);
+        let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999941"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0020),
+            VR::LO,
+            PrimitiveValue::from(""),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000D),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999942"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0020, 0x000E),
+            VR::UI,
+            PrimitiveValue::from("2.25.99999943"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(height as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(width as u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::from(8u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::from(7u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1053),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x1052),
+            VR::DS,
+            PrimitiveValue::from("0.000000"),
+        ));
+        obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                    .media_storage_sop_instance_uid("2.25.99999941")
+                    .transfer_syntax("1.2.840.10008.1.2.4.81"), // JPEG-LS Near-Lossless
+            )
+            .expect("FileMetaTableBuilder failed");
+        file_obj.write_to_file(&path).expect("write_to_file failed");
+
+        let obj = dicom::object::open_file(&path).expect("open_file failed");
+        let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+            .expect("decode_compressed_frame must succeed for JPEG-LS Near-Lossless");
+
+        assert_eq!(decoded.len(), 16, "decoded pixel count must equal 16");
+
+        // ISO 14495-1: NEAR=2 ⟹ |s'[i] − s[i]| ≤ 2 for all i.
+        let max_error = original
+            .iter()
+            .zip(decoded.iter())
+            .map(|(&orig, &dec)| (orig as f32 - dec).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_error <= 2.0,
+            "JPEG-LS Near-Lossless decode error {max_error} exceeds analytical bound of 2 \
+             (ISO 14495-1: NEAR=2 ⟹ |s'-s| ≤ 2)"
         );
     }
 }

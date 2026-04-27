@@ -1049,6 +1049,34 @@ report against `dicom-transfer-syntax-registry` with the minimal reproducer from
 `crates/ritk-io/src/format/dicom/transfer_syntax.rs`, `reader.rs`, `multiframe.rs`,
 `Cargo.toml` (workspace), `crates/ritk-io/Cargo.toml`.
 
+**Sprint 57**: JPEG-LS and JPEG 2000 codec integration; LLVM/Clang C/C++ compiler configuration:
+
+- Enabled `charls` feature on `dicom-transfer-syntax-registry`; added `charls = { version = "0.4", features = ["static"] }` to workspace deps for bundled static build; added `charls = { workspace = true }` to `ritk-io` deps for Cargo feature unification.
+- Enabled `openjpeg-sys` feature on `dicom-transfer-syntax-registry`; added `openjpeg-sys = "1.0"` to workspace deps; added `openjpeg-sys = { workspace = true }` to `ritk-io` dev-dependencies.
+- Added `[env]` section to `.cargo/config.toml` with target-specific clang/clang-cl vars (`force = false`); updated CI to install LLVM/Clang on all three OS matrices (Linux, macOS, Windows via Chocolatey).
+- Added `JpegLsLossless`, `JpegLsLossy`, `Jpeg2000Lossless`, `Jpeg2000Lossy` to `is_codec_supported()`; updated `is_codec_supported()` doc comment (removed "Not yet supported" section, added charls/OpenJPEG rows to table); updated `codec.rs` doc table with JPEG-LS and JPEG 2000 rows.
+- `test_decode_compressed_frame_jpegls_lossless_round_trip`: full round-trip via CharLS encode → DICOM → `decode_compressed_frame`; asserts `max_error = 0.0` (ISO 14495-1 NEAR=0 invariant).
+- `test_decode_compressed_frame_jpegls_near_lossless_round_trip`: near-lossless round-trip with NEAR=2; asserts `max_error ≤ 2.0` (ISO 14495-1 analytical bound).
+
+**Tests**: Sprint 53: 11 new. Sprint 54: +22 new. Sprint 55: +2 new. Sprint 56: +1 new. Sprint 57: +2 new (`test_decode_compressed_frame_jpegls_lossless_round_trip`, `test_decode_compressed_frame_jpegls_near_lossless_round_trip`). Total: **339 passed, 0 failed**.
+
+**Residual risk (Sprint 57)**: JPEG 2000 round-trip test deferred — no pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. Defer to Sprint 58.
+
+## Sprint 57 Gap Closures
+
+| ID | Gap | Status | Sprint |
+|---|---|---|---|
+| GAP-C57-01 | JPEG-LS codec not registered (`charls` feature disabled) | Closed | Sprint 57 |
+| GAP-C57-02 | JPEG 2000 codec not registered (`openjpeg-sys` feature disabled) | Closed | Sprint 57 |
+| GAP-C57-03 | No C/C++ compiler configured for native build deps | Closed | Sprint 57 |
+| GAP-C57-04 | `is_codec_supported()` missing JPEG-LS and JPEG2000 variants | Closed | Sprint 57 |
+
+## Sprint 57 Open Risks
+
+| ID | Risk | Status | Sprint |
+|---|---|---|---|
+| GAP-R57-01 | JPEG 2000 round-trip test deferred (no encoder available) | Open → Sprint 58 | Sprint 57 |
+
 ---
 
 ### 6.1 MetaImage (.mha / .mhd) · Severity: **Closed** (Sprint 2)

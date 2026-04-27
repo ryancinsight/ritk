@@ -1,3 +1,31 @@
+## Sprint 57 — JPEG-LS + JPEG 2000 Codec Integration with Clang
+
+**Status**: Completed
+**Phase**: Execution &#8594; Closure
+**Goal**: Enable JPEG-LS Lossless/Near-Lossless (TS .80/.81) and JPEG 2000 Lossless/Lossy (TS .90/.91) decode paths; configure LLVM/Clang as C/C++ compiler for native build dependencies.
+
+### Gap closed
+| Gap | Root cause | Resolution |
+|---|---|---|
+| JPEG-LS codec not supported | `charls` feature not enabled; `charls` static build not configured | Enabled `charls` feature on `dicom-transfer-syntax-registry`; added `charls = { version = "0.4", features = ["static"] }` workspace dep for bundled static build; added `charls = { workspace = true }` to `ritk-io` deps for Cargo feature unification |
+| JPEG 2000 codec not supported | `openjpeg-sys` feature not enabled | Enabled `openjpeg-sys` feature on `dicom-transfer-syntax-registry`; added `openjpeg-sys = "1.0"` workspace dep |
+| No C/C++ compiler configured | Native build deps require clang | Added `[env]` section to `.cargo/config.toml` with target-specific clang/clang-cl vars (`force = false`); updated CI to install LLVM/Clang on all three OS matrices |
+| `is_codec_supported()` incomplete | JPEG-LS and JPEG2000 variants absent from match | Added `JpegLsLossless`, `JpegLsLossy`, `Jpeg2000Lossless`, `Jpeg2000Lossy` to `is_codec_supported()` |
+
+### Tests added
+- `test_is_codec_supported_jpeg_ls_true`: asserts JPEG-LS Lossless + Near-Lossless in `is_codec_supported()`.
+- `test_is_codec_supported_jpeg2000_true`: asserts JPEG 2000 Lossless + Lossy in `is_codec_supported()`.
+- `test_decode_compressed_frame_jpegls_lossless_round_trip`: full round-trip via CharLS encode &#8594; DICOM &#8594; decode_compressed_frame; asserts max_error = 0.0 (ISO 14495-1 NEAR=0 invariant).
+- `test_decode_compressed_frame_jpegls_near_lossless_round_trip`: near-lossless round-trip with NEAR=2; asserts max_error &#8804; 2.0 (ISO 14495-1 analytical bound).
+
+### Sprint 57 Residual Risk
+| Risk | Description | Mitigation |
+|---|---|---|
+| JPEG 2000 round-trip test | No pure-Rust JPEG 2000 encoder; `jpeg2k` crate is decode-only. Full round-trip requires openjpeg-sys FFI encoding. | Defer JPEG 2000 round-trip test to Sprint 58; implement openjpeg-sys FFI encoding helper in test code. |
+| Windows clang-cl availability | `clang-cl` must be in PATH for Windows CI builds. | CI step installs LLVM via Chocolatey and appends `C:\Program Files\LLVM\bin` to GITHUB_PATH. |
+
+---
+
 ## Sprint 56 -- Completed
 
 ### Stream A -- RLE Lossless Native Decoder (DICOM-RLE-NATIVE-R56)

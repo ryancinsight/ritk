@@ -1,3 +1,24 @@
+## Sprint 57 — JPEG-LS + JPEG 2000 Codec Integration — Completed
+
+- [x] Enable `charls` feature on `dicom-transfer-syntax-registry` (workspace Cargo.toml)
+- [x] Add `charls = { version = "0.4", features = ["static"] }` to workspace.dependencies
+- [x] Add `charls = { workspace = true }` to ritk-io `[dependencies]` for static feature unification
+- [x] Enable `openjpeg-sys` feature on `dicom-transfer-syntax-registry`
+- [x] Add `openjpeg-sys = "1.0"` to workspace.dependencies
+- [x] Add `openjpeg-sys = { workspace = true }` to ritk-io `[dev-dependencies]`
+- [x] Add `[env]` section to `.cargo/config.toml` with clang/clang-cl per-target entries (`force = false`)
+- [x] Add LLVM/Clang installation steps to CI test job (Linux, macOS, Windows)
+- [x] Add `JpegLsLossless`, `JpegLsLossy`, `Jpeg2000Lossless`, `Jpeg2000Lossy` to `is_codec_supported()`
+- [x] Update `is_codec_supported()` doc comment — remove "Not yet supported" section; add charls/OpenJPEG rows to table
+- [x] Update codec.rs doc table — add JPEG-LS and JPEG 2000 rows
+- [x] Rename `test_is_codec_supported_jpeg_ls_false` → `test_is_codec_supported_jpeg_ls_true`
+- [x] Rename `test_is_codec_supported_jpeg2000_false` → `test_is_codec_supported_jpeg2000_true`
+- [x] Add `test_decode_compressed_frame_jpegls_lossless_round_trip` (max_error = 0.0)
+- [x] Add `test_decode_compressed_frame_jpegls_near_lossless_round_trip` (max_error ≤ 2.0)
+- [ ] Sprint 58: JPEG 2000 round-trip test via openjpeg-sys FFI encoding helper
+
+---
+
 ## Sprint 56 -- Completed
 
 - [x] DICOM-RLE-NATIVE-R56: `packbits_decode` + `decode_rle_lossless_frame` + RLE bypass in `decode_compressed_frame`
