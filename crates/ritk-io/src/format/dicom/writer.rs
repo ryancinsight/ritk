@@ -39,11 +39,15 @@ fn format_six(value: [f64; 6]) -> String {
 }
 
 fn generate_series_uid() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let t = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_nanos();
-    format!("2.25.{}", t)
+        .as_nanos() as u64;
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    // Format: 2.25.<ns>.<seq> — distinct UIDs guaranteed within a process.
+    format!("2.25.{}.{}", t, n)
 }
 
 fn generate_instance_uid(series_uid: &str, instance: usize) -> String {
@@ -1453,6 +1457,24 @@ mod tests {
         assert!(
             obj.element(Tag(0x0020, 0x0011)).is_ok(),
             "SeriesNumber (0020,0011) must be present for None metadata"
+        );
+    }
+
+    #[test]
+    fn test_series_uid_distinct_on_rapid_successive_calls() {
+        // Two rapid calls must not produce identical UIDs regardless of clock resolution.
+        // Invariant: generate_series_uid() uses AtomicU64 counter; result is 2.25.<ns>.<seq>.
+        let uid_a = generate_series_uid();
+        let uid_b = generate_series_uid();
+        assert_ne!(uid_a, uid_b, "successive series UIDs must be distinct");
+        // Both must be valid 2.25-root UIDs.
+        assert!(
+            uid_a.starts_with("2.25."),
+            "uid_a={uid_a} must start with 2.25."
+        );
+        assert!(
+            uid_b.starts_with("2.25."),
+            "uid_b={uid_b} must start with 2.25."
         );
     }
 }

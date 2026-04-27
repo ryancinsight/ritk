@@ -1,3 +1,52 @@
+## Sprint 52 -- Completed
+
+- [x] DICOM-SERIES-UID-MONO-R52: Fix `generate_series_uid` monotonicity in writer.rs
+  - `AtomicU64` static counter added (`COUNTER`)
+  - Format `2.25.<ns>.<seq>` guarantees distinct UIDs within a process
+  - Symmetric with Sprint 51 fix for `generate_multiframe_uid`
+  - Test: `test_series_uid_distinct_on_rapid_successive_calls`
+
+- [x] DICOM-TS-BE-R52: Remove ExplicitVrBigEndian from `is_natively_supported()`
+  - `decode_pixel_bytes` uses `u16::from_le_bytes` / `i16::from_le_bytes` exclusively
+  - Applying LE decode to BE bytes produces `bswap(x)` — silently incorrect intensities
+  - ExplicitVrBigEndian retired per DICOM PS 3.5 (withdrawn 2004)
+
+- [x] DICOM-TS-DEFLATE-R52: Remove DeflatedExplicitVrLittleEndian from `is_natively_supported()`
+  - Both readers reject Deflated via `is_compressed()`
+  - Prior classification violated invariant `is_natively_supported() => !is_compressed()`
+  - Test: `test_is_natively_supported_deflated_false`
+
+- [x] DICOM-TS-BIGENDIAN-PRED-R52: Add `is_big_endian()` predicate to `TransferSyntaxKind`
+  - Returns `true` only for `ExplicitVrBigEndian`
+  - Enables precise rejection guard distinct from the compressed-TS check
+  - Tests: `test_big_endian_is_big_endian_true`, `test_explicit_vr_le_is_not_big_endian`
+
+- [x] DICOM-TS-READER-GUARD-R52: Add BigEndian guard to series reader (`load_from_series`)
+  - Guard added alongside existing `is_compressed()` check
+  - Returns `Err` with message containing `"big-endian"` before any pixel decode
+  - Test: `test_load_series_big_endian_ts_errors`
+
+- [x] DICOM-TS-MF-GUARD-R52: Add BigEndian guard to multiframe reader (`load_dicom_multiframe`)
+  - Guard added alongside existing `is_compressed()` check
+  - Returns `Err` with message containing `"big-endian"` before any pixel decode
+  - Test: `test_multiframe_rejects_big_endian_ts`
+
+- [x] DICOM-TS-INVARIANT-R52: Formal invariant `is_natively_supported() ⟹ !is_compressed() ∧ !is_big_endian()`
+  - Property test exhaustively verifies over all 11 known `TransferSyntaxKind` variants
+  - Test: `test_natively_supported_implies_not_compressed_and_not_big_endian`
+  - Positive coverage: `test_implicit_vr_le_is_natively_supported`, `test_explicit_vr_le_is_natively_supported`
+
+- [x] HYGIENE-SCRATCH-R52: Delete 37 scratch/temp files from repository root
+  - Removed: `TransformParameters.0.txt`, all `_*.py` scripts, `_*.txt` scratch files,
+    `dg_test.tmp`, `fix_docs.py`, `gen_morph.py`, `gen_sprint27.py`, `result.0.nii`,
+    `sizes.csv`, `sprint27_write.py`, `test2.py`, `test_out.rs`, `test_out.txt`,
+    `test_output.txt`, `test_sprint.rs`, all `write_*.py` scripts, and other ad-hoc artifacts
+
+- [x] HYGIENE-GITIGNORE-R52: Append `*.tmp`, `*.nii`, `sizes.csv` to `.gitignore`
+  - Prior patterns (`_*.tmp`, `result.*.nii`) were narrower; broadened to prevent future commits
+
+---
+
 ## Sprint 51 -- Completed
 
 - [x] DICOM-MF-UID-R51: Add StudyInstanceUID (0020,000D) and SeriesInstanceUID (0020,000E) to multiframe writer

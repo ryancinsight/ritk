@@ -9,7 +9,7 @@
 //!
 //! ## Invariants
 //! - from_uid(x.uid()) == x for every non-Unknown variant.
-//! - is_natively_supported() => !is_compressed() || x==DeflatedExplicit.
+//! - is_natively_supported() ⟹ !is_compressed() ∧ !is_big_endian().
 
 use super::reader::DicomSliceMetadata;
 
@@ -111,14 +111,27 @@ impl TransferSyntaxKind {
     }
 
     /// True when ritk-io can read/write this syntax without an external codec.
+    ///
+    /// ## Invariant
+    /// `is_natively_supported()` ⟹ `!is_compressed()` ∧ `!is_big_endian()`.
+    /// ExplicitVrBigEndian is excluded: `decode_pixel_bytes` uses LE byte order.
+    /// DeflatedExplicitVrLittleEndian is excluded: deflate compression is not
+    /// handled by ritk-io's pixel decode path.
     pub fn is_natively_supported(&self) -> bool {
         matches!(
             self,
-            Self::ImplicitVrLittleEndian
-                | Self::ExplicitVrLittleEndian
-                | Self::ExplicitVrBigEndian
-                | Self::DeflatedExplicitVrLittleEndian
+            Self::ImplicitVrLittleEndian | Self::ExplicitVrLittleEndian
         )
+    }
+
+    /// True when pixel data bytes in this syntax are stored in big-endian byte order.
+    ///
+    /// Only `ExplicitVrBigEndian` (retired, DICOM PS 3.5 withdrawn 2004) stores
+    /// pixels in big-endian order. ritk-io's `decode_pixel_bytes` uses
+    /// little-endian decode; calling it on big-endian pixel bytes produces
+    /// silently incorrect intensities.
+    pub fn is_big_endian(&self) -> bool {
+        matches!(self, Self::ExplicitVrBigEndian)
     }
 
     /// Derive from a `DicomSliceMetadata` record.
@@ -184,8 +197,72 @@ mod tests {
     }
 
     #[test]
-    fn test_is_natively_supported_deflated() {
-        assert!(TransferSyntaxKind::DeflatedExplicitVrLittleEndian.is_natively_supported());
+    fn test_is_natively_supported_deflated_false() {
+        // Deflated is compressed; ritk-io rejects it. Not natively supported.
+        assert!(
+            !TransferSyntaxKind::DeflatedExplicitVrLittleEndian.is_natively_supported(),
+            "DeflatedExplicitVrLittleEndian must not be natively supported \
+             since ritk-io's pixel decode path does not handle deflate"
+        );
+    }
+
+    #[test]
+    fn test_big_endian_is_not_natively_supported() {
+        assert!(
+            !TransferSyntaxKind::ExplicitVrBigEndian.is_natively_supported(),
+            "ExplicitVrBigEndian must not be natively supported: decode_pixel_bytes uses LE"
+        );
+    }
+
+    #[test]
+    fn test_big_endian_is_big_endian_true() {
+        assert!(TransferSyntaxKind::ExplicitVrBigEndian.is_big_endian());
+    }
+
+    #[test]
+    fn test_explicit_vr_le_is_not_big_endian() {
+        assert!(!TransferSyntaxKind::ExplicitVrLittleEndian.is_big_endian());
+    }
+
+    #[test]
+    fn test_implicit_vr_le_is_natively_supported() {
+        assert!(TransferSyntaxKind::ImplicitVrLittleEndian.is_natively_supported());
+    }
+
+    #[test]
+    fn test_explicit_vr_le_is_natively_supported() {
+        assert!(TransferSyntaxKind::ExplicitVrLittleEndian.is_natively_supported());
+    }
+
+    #[test]
+    fn test_natively_supported_implies_not_compressed_and_not_big_endian() {
+        // Formal verification of the invariant:
+        // is_natively_supported() => !is_compressed() && !is_big_endian()
+        let variants = [
+            TransferSyntaxKind::ImplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrLittleEndian,
+            TransferSyntaxKind::ExplicitVrBigEndian,
+            TransferSyntaxKind::JpegBaseline,
+            TransferSyntaxKind::JpegLosslessFirstOrderPrediction,
+            TransferSyntaxKind::JpegLsLossless,
+            TransferSyntaxKind::JpegLsLossy,
+            TransferSyntaxKind::Jpeg2000Lossless,
+            TransferSyntaxKind::Jpeg2000Lossy,
+            TransferSyntaxKind::RleLossless,
+            TransferSyntaxKind::DeflatedExplicitVrLittleEndian,
+        ];
+        for v in &variants {
+            if v.is_natively_supported() {
+                assert!(
+                    !v.is_compressed(),
+                    "{v:?}: is_natively_supported() but is_compressed()"
+                );
+                assert!(
+                    !v.is_big_endian(),
+                    "{v:?}: is_natively_supported() but is_big_endian()"
+                );
+            }
+        }
     }
 
     #[test]

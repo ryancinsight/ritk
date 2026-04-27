@@ -243,10 +243,19 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
     // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
     let ts_uid = obj.meta().transfer_syntax();
-    if TransferSyntaxKind::from_uid(ts_uid).is_compressed() {
+    let ts = TransferSyntaxKind::from_uid(ts_uid);
+    if ts.is_compressed() {
         bail!(
             "DICOM multiframe: compressed transfer syntax '{}' in {:?} is not natively \
              supported; decompress the file before loading",
+            ts_uid,
+            path
+        );
+    }
+    if ts.is_big_endian() {
+        bail!(
+            "DICOM multiframe: big-endian transfer syntax '{}' in {:?} is not supported; \
+             pixel decode requires little-endian byte order",
             ts_uid,
             path
         );
@@ -1471,5 +1480,58 @@ mod tests {
                 "pixel {i}: expected {exp:.1} got {got:.1}"
             );
         }
+    }
+
+    #[test]
+    fn test_multiframe_rejects_big_endian_ts() {
+        // Verify that a DICOM multiframe file with ExplicitVrBigEndian TS
+        // is rejected before pixel decode. We construct a file with BigEndian
+        // in its file meta and assert load_dicom_multiframe returns an error.
+        use dicom::object::meta::FileMetaTableBuilder;
+        use dicom::object::InMemDicomObject;
+        type B = burn_ndarray::NdArray<f32>;
+        let device = Default::default();
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("be_test.dcm");
+
+        // Build a minimal multiframe object with BigEndian TS in meta.
+        let mut obj = InMemDicomObject::new_empty();
+        // PixelData — 4 bytes (1 frame, 1x1 pixel, 16-bit LE; BE interpretation is wrong)
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U16(dicom::core::smallvec::SmallVec::from_slice(&[0u16])),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(1u16),
+        ));
+        // Build file meta with BigEndian TS UID
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                    .media_storage_sop_instance_uid("2.25.999")
+                    .transfer_syntax("1.2.840.10008.1.2.2"), // ExplicitVrBigEndian
+            )
+            .expect("meta build must succeed");
+        file_obj.write_to_file(&path).expect("write must succeed");
+
+        let result = load_dicom_multiframe::<B, _>(&path, &device);
+        assert!(
+            result.is_err(),
+            "load_dicom_multiframe must reject ExplicitVrBigEndian TS"
+        );
+        let err_msg = format!("{:?}", result.unwrap_err());
+        assert!(
+            err_msg.contains("big-endian"),
+            "error message must mention big-endian; got: {err_msg}"
+        );
     }
 }

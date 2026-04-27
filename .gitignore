@@ -24,3 +24,8 @@ dg_test.*
 result.*.nii
 test_heredoc.*
 TransformParameters.*.txt
+
+# Scratch/generated artifacts (do not commit)
+*.tmp
+*.nii
+sizes.csv

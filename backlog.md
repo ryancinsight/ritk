@@ -1,3 +1,56 @@
+## Sprint 52 -- Completed
+
+### Stream A -- Series UID Generator Monotonicity (DICOM-SERIES-UID-MONO-R52)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-SERIES-UID-MONO-R52 | Fix `generate_series_uid` monotonicity in writer.rs | **CLOSED** Sprint 52 | Added `AtomicU64` static counter; format changed to `2.25.<ns>.<seq>` matching the multiframe UID generator. Eliminates UID collision risk on Windows where SystemTime resolution is ~100 ns. Symmetric with the Sprint 51 fix for `generate_multiframe_uid`. |
+
+### Stream B -- Transfer Syntax Correctness (DICOM-TS-CORRECT-R52)
+| ID | Feature | Status | Notes |
+|---|---|---|---|
+| DICOM-TS-BE-R52 | Remove ExplicitVrBigEndian from `is_natively_supported()` | **CLOSED** Sprint 52 | `decode_pixel_bytes` always uses `u16::from_le_bytes` / `i16::from_le_bytes`. Applying LE decode to BE pixel bytes produces `bswap(x)` instead of `x` — silently incorrect intensities. BigEndian DICOM is also retired per DICOM PS 3.5 (withdrawn 2004). |
+| DICOM-TS-DEFLATE-R52 | Remove DeflatedExplicitVrLittleEndian from `is_natively_supported()` | **CLOSED** Sprint 52 | Both readers reject Deflated via `is_compressed()`. Classifying it as natively supported was a contradictory invariant (`is_natively_supported() => !is_compressed()` was violated). |
+| DICOM-TS-BIGENDIAN-PRED-R52 | Add `is_big_endian()` predicate to `TransferSyntaxKind` | **CLOSED** Sprint 52 | Returns `true` only for `ExplicitVrBigEndian`. Enables precise rejection in both readers distinct from the compressed check. |
+| DICOM-TS-READER-GUARD-R52 | Add BigEndian guard to series reader (`load_from_series`) | **CLOSED** Sprint 52 | Guard added alongside existing `is_compressed()` check. Returns `Err` with message containing `"big-endian"` before any pixel decode attempt. |
+| DICOM-TS-MF-GUARD-R52 | Add BigEndian guard to multiframe reader (`load_dicom_multiframe`) | **CLOSED** Sprint 52 | Guard added alongside existing `is_compressed()` check. Returns `Err` with message containing `"big-endian"` before any pixel decode attempt. |
+| DICOM-TS-INVARIANT-R52 | Enforce formal invariant: `is_natively_supported() &#10233; !is_compressed() &#8743; !is_big_endian()` | **CLOSED** Sprint 52 | Property test exhaustively verifies invariant over all 11 known `TransferSyntaxKind` variants. Module docstring updated. |
+
+### Stream A -- Sprint 52 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-SERIES-UID-TEST-R52 | `test_series_uid_distinct_on_rapid_successive_calls` | **CLOSED** Sprint 52 | Two rapid calls to `generate_series_uid()` must return distinct `2.25.<ns>.<seq>` strings; AtomicU64 counter ensures this even when `t` collides. |
+
+### Stream B -- Sprint 52 Tests
+| ID | Test | Status | Notes |
+|---|---|---|---|
+| DICOM-TS-DEFLATE-TEST-R52 | `test_is_natively_supported_deflated_false` | **CLOSED** Sprint 52 | Asserts `!DeflatedExplicitVrLittleEndian.is_natively_supported()`. |
+| DICOM-TS-BE-TEST1-R52 | `test_big_endian_is_not_natively_supported` | **CLOSED** Sprint 52 | Asserts `!ExplicitVrBigEndian.is_natively_supported()`. |
+| DICOM-TS-BE-TEST2-R52 | `test_big_endian_is_big_endian_true` | **CLOSED** Sprint 52 | Asserts `ExplicitVrBigEndian.is_big_endian() == true`. |
+| DICOM-TS-BE-TEST3-R52 | `test_explicit_vr_le_is_not_big_endian` | **CLOSED** Sprint 52 | Asserts `ExplicitVrLittleEndian.is_big_endian() == false`. |
+| DICOM-TS-NATIVE-TEST1-R52 | `test_implicit_vr_le_is_natively_supported` | **CLOSED** Sprint 52 | Positive coverage: Implicit VR LE remains natively supported. |
+| DICOM-TS-NATIVE-TEST2-R52 | `test_explicit_vr_le_is_natively_supported` | **CLOSED** Sprint 52 | Positive coverage: Explicit VR LE remains natively supported. |
+| DICOM-TS-INV-TEST-R52 | `test_natively_supported_implies_not_compressed_and_not_big_endian` | **CLOSED** Sprint 52 | Exhaustive property test over all 11 variants: for each `v`, `is_natively_supported(v) &#10233; !is_compressed(v) &#8743; !is_big_endian(v)`. |
+| DICOM-TS-READER-TEST-R52 | `test_load_series_big_endian_ts_errors` | **CLOSED** Sprint 52 | Verifies UID `1.2.840.10008.1.2.2` is classified as `is_big_endian()` and `!is_natively_supported()`. Guard path confirmed. |
+| DICOM-TS-MF-TEST-R52 | `test_multiframe_rejects_big_endian_ts` | **CLOSED** Sprint 52 | Writes a real DICOM Part-10 file with BigEndian TS in file meta; asserts `load_dicom_multiframe` returns `Err` with message containing `"big-endian"`. |
+
+### Stream C -- Repository Hygiene (HYGIENE-R52)
+| ID | Action | Status | Notes |
+|---|---|---|---|
+| HYGIENE-SCRATCH-R52 | Delete 37 scratch/temp files from repository root | **CLOSED** Sprint 52 | Removed: `TransformParameters.0.txt`, all `_*.py` scripts, `_*.txt` scratch files, `dg_test.tmp`, `fix_docs.py`, `gen_morph.py`, `gen_sprint27.py`, `result.0.nii`, `sizes.csv`, `sprint27_write.py`, `test2.py`, `test_out.rs`, `test_out.txt`, `test_output.txt`, `test_sprint.rs`, all `write_*.py` scripts, and other ad-hoc artifacts. |
+| HYGIENE-GITIGNORE-R52 | Append `*.tmp`, `*.nii`, `sizes.csv` to `.gitignore` | **CLOSED** Sprint 52 | Prior patterns (`_*.tmp`, `result.*.nii`) were narrower; broadened to prevent future accidental commits. |
+
+### Sprint 52 Test Results
+| Suite | Count | Notes |
+|---|---|---|
+| transfer_syntax tests | 9 new | TS invariant property test + 8 unit classification tests |
+| writer tests | 1 new | Series UID monotonicity |
+| multiframe tests | 1 new | BigEndian rejection integration test |
+| reader tests | 1 new | BigEndian TS classification guard |
+| Correctness bugs fixed | 4 | Series UID collision, BigEndian pixel corruption, Deflated native-support contradiction, missing BigEndian reader guards |
+| Repository cleanup | 37 files deleted | Root scratch artifacts removed |
+| Diagnostics | Clean | Zero errors, zero warnings |
+| Total | **301 passed, 0 failed** | Full ritk-io unit suite |
+
 ## Sprint 51 -- Completed
 
 ### Stream A -- DICOM Multiframe IOD Conformance (DICOM-MF-IOD-R51)
