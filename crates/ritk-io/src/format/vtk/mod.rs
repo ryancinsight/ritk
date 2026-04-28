@@ -621,3 +621,6 @@ pub use polydata_xml::{read_vtp_polydata, write_vtp_polydata};
 
 pub mod unstructured_xml;
 pub use unstructured_xml::{read_vtu_unstructured_grid, write_vtu_unstructured_grid};
+
+pub mod image_xml;
+pub use image_xml::{read_vti_image_data, write_vti_image_data};

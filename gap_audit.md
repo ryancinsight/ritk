@@ -1077,6 +1077,25 @@ report against `dicom-transfer-syntax-registry` with the minimal reproducer from
 |---|---|---|---|
 | GAP-R57-01 | JPEG 2000 round-trip test deferred (no encoder available) | **Closed Sprint 58** | Sprint 57 |
 
+## Sprint 59 Gap Closures
+
+| ID | Gap | Status | Sprint |
+|---|---|---|---|
+| GAP-C59-01 | DICOM-SEG (Segmentation Object) reader (GAP-R58-01) | Closed | Sprint 59 |
+| GAP-C59-02 | DICOM-RT Structure Set reader → VTK PolyData (GAP-R58-02) | Closed | Sprint 59 |
+| GAP-C59-03 | VTK XML ImageData (.vti) reader/writer (GAP-R58-03) | Closed | Sprint 59 |
+
+## Sprint 59 Open Risks
+
+| ID | Risk | Status | Sprint |
+|---|---|---|---|
+| GAP-R59-01 | DICOM-SEG writer (write segmentation masks as DICOM-SEG) not implemented | Open → Sprint 60 | Sprint 59 |
+| GAP-R59-02 | VTI binary-appended format absent; only ASCII-inline implemented | Open → Sprint 60 | Sprint 59 |
+| GAP-R59-03 | RT Dose / RT Plan readers absent (dose grid and beam geometry) | Open → Sprint 60 | Sprint 59 |
+| GAP-R59-04 | VTK Rectilinear Grid XML (.vtr) reader/writer absent | Open → Sprint 60 | Sprint 59 |
+
+---
+
 ## Sprint 58 Gap Closures
 
 | ID | Gap | Status | Sprint |

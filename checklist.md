@@ -1,3 +1,31 @@
+## Sprint 59 — DICOM-SEG Reader, DICOM-RT Structure Set Reader, VTK XML ImageData (.vti) Reader/Writer — Completed
+
+- [x] Close GAP-R58-01: DICOM-SEG (Segmentation Storage) reader — `seg.rs`
+- [x] Add `DicomSegmentInfo` and `DicomSegmentation` domain types
+- [x] Implement `read_dicom_seg`: SOP class guard, header parsing, Segment Sequence (0062,0002), Per-Frame FG (5200,9230), Shared FG (5200,9229), BINARY bit-unpack (MSB-first, frame_bytes=⌈rows×cols/8⌉), FRACTIONAL byte-per-pixel
+- [x] Add 6 SEG tests: missing file, wrong SOP, binary 4×4 single-frame (all-ones unpack), two-frame two-segment, pixel spacing round-trip, per-frame image position
+- [x] Close GAP-R58-02: DICOM-RT Structure Set reader → VTK PolyData — `rt_struct.rs`
+- [x] Add `RtContour`, `RtRoiInfo`, `RtStructureSet` domain types
+- [x] Implement `read_rt_struct`: SOP class guard, StructureSetROI (3006,0020), RTROIObservations (3006,0080), ROIContour (3006,0039) with nested ContourSequence (3006,0040); HashMap → sorted Vec
+- [x] Implement `rt_roi_to_polydata`: CLOSED_PLANAR→polygons, OPEN_PLANAR→lines, POINT→vertices, running offset indexing, f64→f32 coordinate cast
+- [x] Add 8 RT struct tests: missing file, wrong SOP, single ROI CLOSED_PLANAR (point values), two ROIs sorted by number, interpreted type, polydata CLOSED_PLANAR, polydata OPEN_PLANAR, polydata mixed contours
+- [x] Close GAP-R58-03: VTK XML ImageData (.vti) reader/writer — `format/vtk/image_xml/`
+- [x] Add `VtkImageData` domain type to `vtk_data_object.rs`: `whole_extent [i64;6]`, `origin/spacing [f64;3]`, `point_data`/`cell_data` HashMaps; `n_points()`, `n_cells()`, `validate()`
+- [x] Add `VtkDataObject::ImageData(VtkImageData)` variant
+- [x] Add 4 VtkImageData domain tests: n_points/n_cells, validate ok, validate wrong scalar len, ImageData variant
+- [x] Create `format/vtk/image_xml/writer.rs` (ASCII-inline VTI writer, 10 tests)
+- [x] Create `format/vtk/image_xml/reader.rs` (ASCII-inline VTI reader, 10 tests)
+- [x] Update `format/vtk/mod.rs` to expose `image_xml`
+- [x] Update `format/dicom/mod.rs`: add `pub mod seg; pub mod rt_struct;` + re-exports
+- [x] Fix `seg.rs` compile errors: replace `.to_int::<u16>()` with `.to_str().ok().and_then(parse)` pattern; fix `debug!` macro syntax
+- [x] Verify: `cargo check -p ritk-io --tests` zero errors, zero warnings; `cargo test -p ritk-io --lib` 415 passed, 0 failed (+35 from Sprint 58 baseline of 380)
+- [ ] Sprint 60: DICOM-SEG writer (write segmentation masks as DICOM-SEG)
+- [ ] Sprint 60: RT Dose / RT Plan readers (dose grid and beam geometry)
+- [ ] Sprint 60: VTK Rectilinear Grid XML (.vtr) reader/writer
+- [ ] Sprint 60: VTI binary-appended format for large volumes
+
+---
+
 ## Sprint 58 — VtkCellType + VTU Reader/Writer, DICOM Enhanced Multiframe, JPEG 2000 Lossless Round-Trip, Build Fix — Completed
 
 - [x] Close GAP-R57-01: JPEG 2000 lossless round-trip test via openjpeg-sys FFI encoder

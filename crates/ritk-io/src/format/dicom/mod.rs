@@ -50,6 +50,8 @@ mod codec;
 pub mod multiframe;
 pub mod object_model;
 pub mod reader;
+pub mod rt_struct;
+pub mod seg;
 pub mod sop_class;
 pub mod transfer_syntax;
 pub mod writer;
@@ -69,6 +71,8 @@ pub use reader::{
     read_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
     DicomSliceMetadata,
 };
+pub use rt_struct::{read_rt_struct, rt_roi_to_polydata, RtContour, RtRoiInfo, RtStructureSet};
+pub use seg::{read_dicom_seg, DicomSegmentInfo, DicomSegmentation};
 pub use sop_class::{classify_sop_class, is_image_sop_class, SopClassKind};
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};

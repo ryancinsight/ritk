@@ -1,3 +1,44 @@
+## Sprint 59 — DICOM-SEG Reader, DICOM-RT Structure Set Reader, VTK XML ImageData (.vti) Reader/Writer
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Close GAP-R58-01 (DICOM-SEG reader), GAP-R58-02 (DICOM-RT Structure Set &#8594; VTK PolyData), and GAP-R58-03 (VTK XML ImageData .vti reader/writer) for MITK/VTK/ITK parity.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution |
+|---|---|---|---|
+| GAP-C59-01 (GAP-R58-01) | DICOM-SEG reader absent | Segmentation Object (SOP 1.2.840.10008.5.1.4.1.1.66.4) not parsed | `seg.rs`: `read_dicom_seg` parses Rows/Cols/NumFrames/BitsAllocated/SegmentationType, Segment Sequence (0062,0002), Per-Frame FG (5200,9230) for segment numbers + image positions, Shared FG (5200,9229) for orientation/spacing; BINARY unpacking: frame_bytes=&#8968;rows×cols/8&#8969;, MSB-first bit extraction; output: `DicomSegmentation` with `pixel_data: Vec<Vec<u8>>` (0 or 1 per pixel for BINARY) |
+| GAP-C59-02 (GAP-R58-02) | DICOM-RT Structure Set &#8594; VTK absent | RT Structure Set (SOP 1.2.840.10008.5.1.4.1.1.481.3) not parsed | `rt_struct.rs`: `read_rt_struct` builds ROI map from (3006,0020), merges interpreted types from (3006,0080), populates display color + contours from (3006,0039); `rt_roi_to_polydata` maps CLOSED_PLANAR&#8594;polygons, OPEN_PLANAR&#8594;lines, POINT&#8594;vertices with running point-offset indexing |
+| GAP-C59-03 (GAP-R58-03) | VTK XML ImageData (.vti) reader/writer absent | No ASCII-inline VTI implementation | `format/vtk/image_xml/writer.rs` (ASCII-inline writer, 10 tests); `format/vtk/image_xml/reader.rs` (ASCII-inline reader, 10 tests); `VtkImageData` domain type added to `vtk_data_object.rs` with `n_points()`/`n_cells()`/`validate()` and `ImageData` variant in `VtkDataObject` enum; `image_xml` module exposed via `vtk/mod.rs` |
+
+### Tests added (+35 from Sprint 58 baseline of 380; total 415)
+| Area | Tests | Count |
+|---|---|---|
+| DICOM-SEG reader (`seg.rs`) | missing file, wrong SOP, binary 4×4 single-frame, two-frame two-segment, pixel spacing, per-frame image position | +6 |
+| DICOM-RT Structure Set (`rt_struct.rs`) | missing file, wrong SOP, single ROI CLOSED_PLANAR, two ROIs sorted, interpreted type, polydata CLOSED_PLANAR, polydata OPEN_PLANAR, polydata mixed | +8 |
+| `VtkImageData` domain type (`vtk_data_object.rs`) | n_points/n_cells, validate ok, validate wrong scalar len, ImageData variant | +4 |
+| VTI writer (`image_xml/writer.rs`) | VTKFile header, WholeExtent format, origin/spacing, scalar point data, multicomponent vectors, cell data, empty grid, file roundtrip via string, invalid grid rejection, write to file | +10 |
+| VTI reader (`image_xml/reader.rs`) | WholeExtent parse, origin/spacing, scalars, multicomponent, cell data, empty PointData, full roundtrip, file roundtrip, missing Piece tag error, nonexistent file error | +10 |
+| `seg.rs` compile fix | Replaced `.to_int::<u16>()` (absent in crate) with `.to_str().ok().and_then(|s| s.trim().parse().ok())` pattern; replaced malformed `debug!` with `tracing::debug!` format-string form | — |
+| **Total** | | **415 passed, 0 failed** |
+
+### Verification
+- `cargo check -p ritk-io --tests`: zero errors, zero warnings.
+- `cargo test -p ritk-io --lib`: 415 passed, 0 failed.
+- DICOM PS3.3 C.8.20 — SEG pixel unpacking: frame_bytes = &#8968;rows×cols/8&#8969;; bit i = byte i/8, bit-pos 7&#8722;(i%8); MSB-first per DICOM convention; BINARY output &#8712; {0,1}.
+- DICOM PS3.3 C.8.8.5 — RT Structure Set ROI contour parsing; coordinate triples from (3006,0050) DS; closed polygon winding preserved.
+- VTK File Formats §6 — VTI WholeExtent "x0 x1 y0 y1 z0 z1"; n_points = &#8719;(e&#8342;&#8330;&#8321;&#8722;e&#8342;+1); Piece Extent == WholeExtent for single-piece output.
+
+### Sprint 59 Residual Risk
+| ID | Risk | Description | Target |
+|---|---|---|---|
+| GAP-R59-01 | DICOM-SEG writer absent | Writing segmentation masks as DICOM-SEG not yet implemented | Sprint 60 |
+| GAP-R59-02 | VTI binary-appended format absent | Only ASCII-inline .vti implemented; large volumes require appended/binary mode | Sprint 60 |
+| GAP-R59-03 | RT Dose / RT Plan readers absent | RT workflow missing dose grid and beam geometry readers | Sprint 60 |
+| GAP-R59-04 | VTK Rectilinear Grid XML (.vtr) absent | VTR format needed for rectilinear grid parity | Sprint 60 |
+
+---
+
 ## Sprint 58 — VtkCellType + VTU Reader/Writer, DICOM Enhanced Multiframe Per-Frame Functional Groups, JPEG 2000 Lossless Round-Trip, Build Fix
 
 **Status**: Completed
