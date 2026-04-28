@@ -1,12 +1,26 @@
-## Sprint 69 — Planned
+## Sprint 70 — Planned
 
-- [ ] GAP-R69-01: audit `minmax_normalize_range` Python binding; verify `target_min`/`target_max` parameters are exposed and validated (lower < upper)
-- [ ] GAP-R69-02: wire `convergence_threshold` in `run_multires_syn`; currently hard-coded to `1e-6`
-- [ ] GAP-R69-03: add Python-level integration smoke tests for `zscore_normalize` with mask (new Sprint 68 binding)
-- [ ] GAP-R69-04: add `cargo test -p ritk-python` to CI matrix (currently untested in CI)
+- [ ] GAP-R70-01: audit `white_stripe_normalize` Python binding; verify `width` and `contrast` parameters are exposed and validated
+- [ ] GAP-R70-02: add negative test for `zscore_normalize(mask=...)` with shape-mismatched mask (assert clear error boundary)
+- [ ] GAP-R70-03: audit `run_lddmm` `learning_rate` wiring; verify `RegisterArgs.learning_rate` is plumbed into `LDDMMConfig`
+- [ ] GAP-R70-04: add `test_minmax_normalize_range_inverted_bounds_raises` to `tests/test_statistics_bindings.py` (Python-level `PyValueError` path)
 - [ ] Verify: `cargo check --workspace --tests` 0 errors after each change
 - [ ] Verify: `cargo test -p ritk-core --lib` all pass
-- [ ] Update backlog.md and gap_audit.md on Sprint 69 closure
+- [ ] Update backlog.md and gap_audit.md on Sprint 70 closure
+
+---
+
+## Sprint 69 — minmax_normalize_range validation, run_multires_syn convergence wiring, zscore masked CLI integration tests, ritk-python CI audit — Completed
+
+- [x] GAP-R69-01: `validate_range(target_min, target_max) -> Result<(), String>` helper added to `ritk-python/src/statistics.rs`; called in `minmax_normalize_range` before delegate; error mapped to `PyValueError`; 4 unit tests added
+- [x] GAP-R69-02: `convergence_threshold: 1e-6` replaced with `convergence_threshold: args.convergence_threshold` in `run_multires_syn` `MultiResSyNConfig` literal
+- [x] GAP-R69-03: `pub mask: Option<PathBuf>` added to `NormalizeArgs`; `zscore` arm dispatches `normalize_masked` when mask is `Some`; `default_args` test helper updated; 2 CLI integration tests added
+- [x] GAP-R69-04: audited `python_ci.yml`; `cargo test -p ritk-python --lib -- --test-threads=4` step already present; gap closed without code change
+- [x] Verify: `cargo check --workspace --tests` — 0 errors
+- [x] Verify: `cargo test -p ritk-core --lib` — 777/777 passed (unchanged)
+- [x] Verify: `cargo test -p ritk-python --lib` — 10/10 passed (+4 from Sprint 68 baseline of 6)
+- [x] Verify: `cargo test -p ritk-cli` — 197/197 passed (+2 from Sprint 68 baseline of 195)
+- [x] Updated backlog.md and gap_audit.md on Sprint 69 closure
 
 ---
 

@@ -65,6 +65,15 @@ pub struct NormalizeArgs {
     /// (default: 0.05).
     #[arg(long, value_name = "WIDTH")]
     pub ws_width: Option<f64>,
+
+    /// Optional binary mask image path for masked Z-score normalization.
+    ///
+    /// Only used with `--method zscore`. When supplied, μ and σ are computed
+    /// from foreground voxels (mask > 0.5); all voxels are still transformed.
+    /// If the mask contains no foreground voxels, the method falls back to
+    /// full-image statistics.
+    #[arg(long, value_name = "MASK")]
+    pub mask: Option<PathBuf>,
 }
 
 // ── Command handler ───────────────────────────────────────────────────────────
@@ -110,16 +119,19 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             normalizer.apply(&input)?
         }
 
-        "zscore" => ZScoreNormalizer::default().normalize(&input),
+        "zscore" => {
+            if let Some(mask_path) = &args.mask {
+                let mask_img = read_image(mask_path)?;
+                ZScoreNormalizer::new().normalize_masked(&input, &mask_img)
+            } else {
+                ZScoreNormalizer::default().normalize(&input)
+            }
+        }
 
         "minmax" => MinMaxNormalizer::default().normalize(&input),
 
         "white-stripe" => {
-            let contrast_str = args
-                .contrast
-                .as_deref()
-                .unwrap_or("t1")
-                .to_lowercase();
+            let contrast_str = args.contrast.as_deref().unwrap_or("t1").to_lowercase();
             let contrast = match contrast_str.as_str() {
                 "t1" => MriContrast::T1,
                 "t2" => MriContrast::T2,
@@ -201,6 +213,7 @@ mod tests {
             num_bins: 256,
             contrast: None,
             ws_width: None,
+            mask: None,
         }
     }
 
@@ -258,7 +271,10 @@ mod tests {
         let min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
         let max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         assert!(min >= -1e-5, "minmax output min must be >= 0, got {min}");
-        assert!(max <= 1.0 + 1e-5, "minmax output max must be <= 1, got {max}");
+        assert!(
+            max <= 1.0 + 1e-5,
+            "minmax output max must be <= 1, got {max}"
+        );
     }
 
     // ── histogram-match ───────────────────────────────────────────────────────
@@ -357,6 +373,78 @@ mod tests {
         assert!(
             msg.to_lowercase().contains("contrast"),
             "error must mention 'contrast', got: {msg}"
+        );
+    }
+
+    // ── zscore masked ─────────────────────────────────────────────────────────
+
+    fn write_half_mask_image(path: &Path) {
+        // 4×4×4 binary mask: voxels [0..32) = 1.0, voxels [32..64) = 0.0.
+        // The ramp image has values 0..63 in the same layout, so the masked
+        // region covers ramp values 0..31 with μ = 15.5.
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let mut vals = vec![0.0f32; 64];
+        for v in vals[..32].iter_mut() {
+            *v = 1.0;
+        }
+        let td = TensorData::new(vals, Shape::new([4, 4, 4]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+        ritk_io::write_nifti(path, &image).unwrap();
+    }
+
+    #[test]
+    fn test_normalize_zscore_masked_creates_output_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("in.nii.gz");
+        let mask = dir.path().join("mask.nii.gz");
+        let output = dir.path().join("out.nii.gz");
+        write_ramp_image(&input);
+        write_half_mask_image(&mask);
+        let args = NormalizeArgs {
+            mask: Some(mask),
+            ..default_args("zscore", input, output.clone())
+        };
+        run(args).unwrap();
+        assert!(output.exists(), "output file must be created");
+    }
+
+    #[test]
+    fn test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero() {
+        // Masked region: ramp values 0..31 (first 32 voxels in row-major order).
+        // μ_mask = (0 + 1 + … + 31) / 32 = 15.5.
+        // After normalization: output_i = (i − 15.5) / σ, so
+        //   mean(output_i for i in 0..32) = 0 by construction (μ subtracted).
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("in.nii.gz");
+        let mask = dir.path().join("mask.nii.gz");
+        let output = dir.path().join("out.nii.gz");
+        write_ramp_image(&input);
+        write_half_mask_image(&mask);
+        let args = NormalizeArgs {
+            mask: Some(mask),
+            ..default_args("zscore", input, output.clone())
+        };
+        run(args).unwrap();
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let im: Image<Backend, 3> = ritk_io::read_nifti(&output, &device).unwrap();
+        let vals: Vec<f32> = im
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec();
+        // First 32 voxels correspond to the masked (foreground) region.
+        let mean: f64 = vals[..32].iter().map(|&v| v as f64).sum::<f64>() / 32.0;
+        assert!(
+            mean.abs() < 1e-4,
+            "mean of normalized foreground voxels must be ≈ 0, got {mean}"
         );
     }
 }

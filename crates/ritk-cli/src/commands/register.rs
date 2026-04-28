@@ -622,7 +622,7 @@ fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         num_levels: args.levels,
         iterations_per_level: vec![args.iterations; args.levels],
         sigma_smooth: args.sigma_fixed,
-        convergence_threshold: 1e-6,
+        convergence_threshold: args.convergence_threshold,
         convergence_window: 10,
         n_squarings: 6,
         cc_window_radius: args.cc_radius,

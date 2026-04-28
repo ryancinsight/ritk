@@ -347,6 +347,8 @@ pub fn minmax_normalize_range(
     target_min: f32,
     target_max: f32,
 ) -> PyResult<PyImage> {
+    validate_range(target_min, target_max)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
     let result =
         MinMaxNormalizer::with_range(target_min, target_max).normalize(image.inner.as_ref());
     Ok(into_py_image(result))
@@ -504,6 +506,26 @@ pub fn white_stripe_normalize(
         result.wm_peak,
         result.stripe_size,
     ))
+}
+
+// ── minmax range validator ────────────────────────────────────────────────────
+
+/// Validate that `target_min < target_max` for a min-max range normalization.
+///
+/// # Invariants
+/// - `target_min < target_max` (strict inequality)
+///
+/// # Errors
+/// Returns `Err(msg)` when `target_min >= target_max`.
+fn validate_range(target_min: f32, target_max: f32) -> Result<(), String> {
+    if target_min >= target_max {
+        Err(format!(
+            "minmax_normalize_range: target_min ({target_min}) must be strictly less than \
+             target_max ({target_max})"
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 // ── nyul_udupa_normalize ──────────────────────────────────────────────────────
@@ -672,7 +694,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::validate_percentiles;
+    use super::{validate_percentiles, validate_range};
 
     #[test]
     fn test_validate_percentiles_empty_returns_error() {
@@ -734,5 +756,39 @@ mod tests {
             0.01, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 0.99,
         ]);
         assert_eq!(result, Ok(()), "standard Nyul percentiles must be accepted");
+    }
+
+    // ── validate_range ────────────────────────────────────────────────────────
+
+    #[test]
+    fn test_validate_range_equal_bounds_returns_error() {
+        let result = validate_range(0.5, 0.5);
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("strictly less than"),
+            "error must mention 'strictly less than', got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_range_inverted_bounds_returns_error() {
+        let result = validate_range(1.0, 0.0);
+        assert!(result.is_err());
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("strictly less than"),
+            "error must mention 'strictly less than', got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_range_zero_to_one_returns_ok() {
+        assert!(validate_range(0.0, 1.0).is_ok());
+    }
+
+    #[test]
+    fn test_validate_range_negative_to_positive_returns_ok() {
+        assert!(validate_range(-1.0, 1.0).is_ok());
     }
 }

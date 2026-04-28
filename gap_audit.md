@@ -99,6 +99,26 @@
 | GAP-R66-03 | BSpline FFD registration absent (stated in Sprint 65 open risks) | **Closed (prior sprint)** — confirmed present in `bspline_ffd/mod.rs`, `lib.rs`, Python binding, and CLI; backlog corrected |
 | GAP-R66-04 | K-Means CLI/Python parity: `max_iterations`, `tolerance`, `seed` unexposed | **Closed** — Sprint 66: CLI `SegmentArgs` + `run_kmeans` updated; Python `kmeans_segment` signature extended |
 
+## Sprint 69 Gap Closures
+
+**Sprint 69 (2026):** Four gaps closed. (1) GAP-R69-01: `validate_range(target_min: f32, target_max: f32) -> Result<(), String>` private helper added to `ritk-python/src/statistics.rs`; called in `minmax_normalize_range` before delegating to `MinMaxNormalizer::with_range`; error mapped to `pyo3::exceptions::PyValueError`; 4 unit tests added: `test_validate_range_equal_bounds_returns_error`, `test_validate_range_inverted_bounds_returns_error`, `test_validate_range_zero_to_one_returns_ok`, `test_validate_range_negative_to_positive_returns_ok`. (2) GAP-R69-02: `convergence_threshold: 1e-6` hard-code removed from `run_multires_syn`; replaced with `convergence_threshold: args.convergence_threshold`; all three SyN/FFD convergence paths (`run_bspline_ffd` Sprint 67, `run_bspline_syn` Sprint 68, `run_multires_syn` Sprint 69) now wire from `RegisterArgs.convergence_threshold`. (3) GAP-R69-03: `pub mask: Option<PathBuf>` field with `#[arg(long, value_name = "MASK")]` added to `NormalizeArgs` in `ritk-cli/src/commands/normalize.rs`; `zscore` dispatch arm extended to call `ZScoreNormalizer::new().normalize_masked(&input, &mask_img)` when mask is `Some`; `default_args` test helper updated with `mask: None`; 2 integration tests added: `test_normalize_zscore_masked_creates_output_file` and `test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero` (asserts μ of normalized foreground voxels ≡ 0 ± 1e-4, analytically exact by construction). (4) GAP-R69-04: audited `.github/workflows/python_ci.yml`; `cargo test -p ritk-python --lib -- --test-threads=4` step already present under "Run Rust unit tests"; gap was pre-closed; no code change required. 777/777 ritk-core lib tests pass (unchanged). 197/197 ritk-cli tests pass (+2 from Sprint 68 baseline of 195). 10/10 ritk-python lib tests pass (+4 from Sprint 68 baseline of 6).
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R69-01 | `minmax_normalize_range` Python binding missing `target_min < target_max` guard | **Closed** — Sprint 69: `validate_range` helper added; guard wired in `minmax_normalize_range`; 4 unit tests added |
+| GAP-R69-02 | `run_multires_syn` `convergence_threshold` hard-coded to `1e-6` | **Closed** — Sprint 69: `convergence_threshold: args.convergence_threshold` wired in `MultiResSyNConfig` literal |
+| GAP-R69-03 | `zscore_normalize(mask=...)` CLI integration smoke test absent | **Closed** — Sprint 69: `--mask` parameter added to `NormalizeArgs`; `zscore` arm dispatches `normalize_masked`; 2 integration tests added |
+| GAP-R69-04 | `ritk-python` lib tests absent from CI matrix | **Closed** — Sprint 69: audited `python_ci.yml`; step already present; no change required |
+
+## Sprint 69 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R70-01 | `white_stripe_normalize` Python binding `width` and `contrast` parameter exposure not audited | Low | Sprint 70 |
+| GAP-R70-02 | `zscore_normalize(mask=...)` missing negative test for shape-mismatched mask | Low | Sprint 70 |
+| GAP-R70-03 | `run_lddmm` `learning_rate` parameter wiring not audited | Low | Sprint 70 |
+| GAP-R70-04 | `minmax_normalize_range` `PyValueError` path not exercised in Python-level pytest suite | Low | Sprint 70 |
+
 ## Sprint 68 Gap Closures
 
 **Sprint 68 (2026):** Four gaps closed. (1) GAP-R68-01: `ZScoreNormalizer::normalize_masked` added to `ritk-core/src/statistics/normalization/zscore.rs`; computes μ and σ from mask foreground voxels (falls back to `compute_statistics` on empty mask to avoid `masked_statistics` contract violation); `zscore_normalize` Python binding extended with `#[pyo3(signature=(image, mask=None))]`; dispatches `normalize_masked` when mask is provided, `normalize` otherwise; 3 core tests added. (2) GAP-R68-02: `convergence_threshold: 1e-6` hard-code removed from `run_bspline_syn`; replaced with `convergence_threshold: args.convergence_threshold`; `RegisterArgs.convergence_threshold` docstring updated to name both BSpline FFD and BSpline SyN. (3) GAP-R68-03: `test_segment_marker_watershed_creates_output_with_correct_shape` and `test_segment_marker_watershed_output_contains_both_basin_labels` added to `ritk-cli/src/commands/segment.rs`; helpers `make_uniform_gradient_image` and `make_two_seed_marker_image` co-located in `mod tests`; tests assert shape=[3,3,3] and both basin labels 1 and 2 present in output. (4) GAP-R68-04: `validate_percentiles(p: &[f64]) -> Result<(), String>` extracted as private helper in `ritk-python/src/statistics.rs`; inline validation in `nyul_udupa_normalize` refactored to call helper (error messages byte-for-byte identical); 6 `#[cfg(test)]` tests added: empty slice, single element, equal pair, descending pair, minimal valid ascending pair, standard 13-element Nyul set. 777/777 ritk-core lib tests pass (+3 from Sprint 67 baseline of 774). 195/195 ritk-cli tests pass (+2). 6/6 ritk-python lib tests pass (new).

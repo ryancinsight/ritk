@@ -1,16 +1,55 @@
-## Sprint 69 — Planned
+## Sprint 70 — Planned
 
 **Status**: Planned
 **Phase**: Foundation
-**Goal**: Audit remaining Python binding surface parameter gaps; wire `run_multires_syn` convergence threshold; add integration smoke tests for new Sprint 68 masked zscore binding; add `ritk-python` to CI test matrix.
+**Goal**: Audit `white_stripe_normalize` Python binding parameter surface; add negative tests for `zscore_normalize` with mismatched mask shape; audit `run_lddmm` convergence and learning-rate parameter wiring; add `minmax_normalize_range` Python-level integration test to the pytest test suite.
 
 ### Gaps to close
 | ID | Gap | Root cause | Resolution | Tag |
 |---|---|---|---|---|
-| GAP-R69-01 | `minmax_normalize_range` Python binding parameter parity audit | `MinMaxNormalizer::normalize_to_range` exists in core; verify `target_min`/`target_max` params exposed and validated (lower < upper) in Python binding | Audit `ritk-python/src/statistics.rs`; add guard if missing | [patch] |
-| GAP-R69-02 | `run_multires_syn` `convergence_threshold` hard-coded to `1e-6` | Same gap class as GAP-R68-02; only `bspline-syn` was wired in Sprint 68 | Wire `args.convergence_threshold` in `run_multires_syn` | [patch] |
-| GAP-R69-03 | `zscore_normalize(mask=...)` Python binding integration smoke test absent | New Sprint 68 masked variant has no CLI-level or Python-level integration test | Add CLI `normalize --method zscore --mask` smoke test or Rust integration test | [patch] |
-| GAP-R69-04 | `ritk-python` absent from CI test matrix | `cargo test -p ritk-python --lib` not invoked in CI; 6 new tests would be skipped | Add `ritk-python` lib test step to `.github/workflows` or equivalent CI config | [patch] |
+| GAP-R70-01 | `white_stripe_normalize` Python binding missing `width` and `contrast` parameter exposure audit | `WhiteStripeConfig::width` and `MriContrast` exist in core; verify parameters are exposed and validated in Python binding | Audit `ritk-python/src/statistics.rs`; add guards and tests if missing | [patch] |
+| GAP-R70-02 | `zscore_normalize(mask=...)` missing negative test for shape-mismatched mask | `normalize_masked` panics on shape mismatch; Python binding should surface a clear error | Add negative test asserting `PyValueError` or Rust panic boundary when mask shape != image shape | [patch] |
+| GAP-R70-03 | `run_lddmm` `learning_rate` parameter parity audit | `LDDMMConfig` has a `learning_rate` field; verify `RegisterArgs.learning_rate` is wired in `run_lddmm` | Audit `ritk-cli/src/commands/register.rs`; wire if missing | [patch] |
+| GAP-R70-04 | `minmax_normalize_range` guard absent from pytest test suite | GAP-R69-01 added Rust unit tests for `validate_range` but no Python-level test exercises the `PyValueError` path | Add `test_minmax_normalize_range_inverted_bounds_raises` to `tests/test_statistics_bindings.py` | [patch] |
+
+---
+
+## Sprint 69 — minmax_normalize_range validation, run_multires_syn convergence wiring, zscore masked CLI integration tests, ritk-python CI audit
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Audit remaining Python binding surface parameter gaps; wire `run_multires_syn` convergence threshold; add integration smoke tests for new Sprint 68 masked zscore binding; confirm `ritk-python` CI coverage.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R69-01 | `minmax_normalize_range` Python binding missing `target_min < target_max` guard | No validation before delegating to `MinMaxNormalizer::with_range` | `validate_range(target_min, target_max) -> Result<(), String>` helper added; called in `minmax_normalize_range` before delegate; error mapped to `PyValueError`; 4 unit tests added | [patch] |
+| GAP-R69-02 | `run_multires_syn` `convergence_threshold` hard-coded to `1e-6` | Same gap class as GAP-R68-02; only `bspline-syn` was wired in Sprint 68 | `convergence_threshold: 1e-6` replaced with `convergence_threshold: args.convergence_threshold` in `MultiResSyNConfig` literal | [patch] |
+| GAP-R69-03 | `zscore_normalize(mask=...)` CLI integration smoke test absent | `NormalizeArgs` had no `--mask` parameter; `zscore` arm always called `normalize` | `pub mask: Option<PathBuf>` added to `NormalizeArgs`; `zscore` arm dispatches `normalize_masked` when mask is `Some`; `default_args` helper updated; 2 integration tests added | [patch] |
+| GAP-R69-04 | `ritk-python` lib tests absent from CI matrix | Planned as open risk from Sprint 68 | Audited: `python_ci.yml` already contained `cargo test -p ritk-python --lib -- --test-threads=4`; gap was already closed; marked closed without code change | [patch] |
+
+### Architecture decisions
+- `validate_range` placed alongside `validate_percentiles` in `ritk-python/src/statistics.rs` to group all private input-validation helpers in one location.
+- `--mask` for `zscore` is an optional CLI flag; absent mask preserves existing `normalize` behavior identically (backward compatible).
+- `convergence_threshold` wired from `RegisterArgs` in both `run_bspline_syn` (Sprint 68) and `run_multires_syn` (Sprint 69); `run_bspline_ffd` was already wired (Sprint 67). All three SyN/FFD variants now share the single `RegisterArgs.convergence_threshold` field.
+
+### Tests added (+4 ritk-python; +2 ritk-cli; baselines: 777 ritk-core lib, 10 ritk-python lib, 197 ritk-cli)
+| Crate | Test | Validates |
+|---|---|---|
+| ritk-python | `test_validate_range_equal_bounds_returns_error` | equal bounds &#8594; `Err` containing "strictly less than" |
+| ritk-python | `test_validate_range_inverted_bounds_returns_error` | inverted bounds &#8594; `Err` containing "strictly less than" |
+| ritk-python | `test_validate_range_zero_to_one_returns_ok` | [0.0, 1.0] valid range &#8594; `Ok` |
+| ritk-python | `test_validate_range_negative_to_positive_returns_ok` | [-1.0, 1.0] valid range &#8594; `Ok` |
+| ritk-cli | `test_normalize_zscore_masked_creates_output_file` | masked zscore CLI &#8594; output file created |
+| ritk-cli | `test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero` | &#956; of normalized foreground voxels &#8801; 0 ± 1e-4 (analytically exact by construction) |
+
+### Verification
+| Command | Result |
+|---|---|
+| `cargo check --workspace --tests` | 0 errors, 0 warnings affecting correctness |
+| `cargo test -p ritk-core --lib` | 777/777 passed (unchanged) |
+| `cargo test -p ritk-python --lib` | 10/10 passed (+4 from Sprint 68 baseline of 6) |
+| `cargo test -p ritk-cli` | 197/197 passed (+2 from Sprint 68 baseline of 195) |
 
 ---
 
