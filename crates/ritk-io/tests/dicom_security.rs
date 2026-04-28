@@ -20,7 +20,7 @@ fn make_test_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<N
     Image::new(
         tensor,
         Point::new([10.0, 20.0, 30.0]),
-        Spacing::new([0.5, 0.5, 2.5]),
+        Spacing::new([2.5, 0.5, 0.5]),
         Direction::identity(),
     )
 }
@@ -45,9 +45,11 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         series_date: Some("20240102".to_string()),
         series_time: Some("123456".to_string()),
         dimensions: [4, 4, 3],
-        spacing: [0.5, 0.5, 2.5],
+        spacing: [2.5, 0.5, 0.5],
         origin: [10.0, 20.0, 30.0],
-        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        // RITK axial convention: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        // from_column_slice([0,0,1, 0,1,0, 1,0,0])
+        direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
@@ -170,11 +172,15 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     );
     // Private tag (0019,10AA) is captured in slice preservation (not in the private_tags map,
     // which is no longer populated by the reader -- preservation is the canonical path).
-    let priv_node = loaded_meta
-        .slices
-        .first()
-        .and_then(|s| s.preservation.object.get(ritk_io::DicomTag::new(0x0019, 0x10AA)));
-    assert!(priv_node.is_some(), "private tag (0019,10AA) must appear in slice preservation set");
+    let priv_node = loaded_meta.slices.first().and_then(|s| {
+        s.preservation
+            .object
+            .get(ritk_io::DicomTag::new(0x0019, 0x10AA))
+    });
+    assert!(
+        priv_node.is_some(),
+        "private tag (0019,10AA) must appear in slice preservation set"
+    );
     assert_eq!(
         priv_node.and_then(|n| n.value.as_text()).map(str::trim),
         Some("PRIVATE_SERIES_VALUE"),

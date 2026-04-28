@@ -6,6 +6,7 @@ members = [
   "crates/ritk-registration",
   "crates/ritk-python",
   "crates/ritk-cli",
+  "crates/ritk-snap",
   "xtask",
 ]
 resolver = "2"

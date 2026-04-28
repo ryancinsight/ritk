@@ -1,3 +1,62 @@
+## Sprint 63 — CT Bed Separation Filter, Viewer Selection, and Modality-Aware Geometry Audit — Planned
+
+- [ ] Close GAP-R63-01: add a core CT bed separation filter for masking table/bed voxels while preserving patient foreground
+- [ ] Close GAP-R63-02: expose `bed-separation` as a selectable filter in `ritk-snap` and CLI filter dispatch
+- [ ] Close GAP-R63-03: audit CT, MRI, and ultrasound geometry/orientation handling so visualization uses a unified display contract
+- [ ] Add `ritk-core` tests for bed separation mask correctness on CT-like intensity distributions
+- [ ] Add `ritk-snap` selection tests that confirm the bed separation filter is present in the filter menu/dispatch path
+- [ ] Add modality-aware viewer tests that verify CT, MRI, and ultrasound orientation metadata are rendered consistently
+- [ ] Verify CLI filter dispatch remains value-semantic for all selected filters, including bed separation
+- [ ] Verify `ritk-snap` geometry summary continues to use the loaded image geometry as authoritative source
+- [ ] Keep CT bed separation as a core filter implementation, not a viewer-only heuristic
+- [ ] Keep modality-specific orientation handling in the geometry layer, not duplicated in presentation code
+- [ ] Preserve DICOM affine invariants across CT, MRI, and ultrasound visualization paths
+- [x] Update `test_scan_directory_warns_on_inconsistent_pixel_spacing`: spacing[1,2] assertions
+- [x] Update `test_write_metadata_series_load_series_intensity_roundtrip`: new convention
+- [x] Update `test_scan_metadata_round_trip_rescale_params`: axial direction
+- [x] Update `tests/dicom_security.rs` make_test_metadata: new convention
+- [x] Update `writer.rs` make_test_metadata: spacing=[2.5,0.5,0.5], direction=axial
+- [x] Add `test_physical_transform_depth_index_advances_along_slice_normal`
+- [x] Add `test_gantry_tilt_synthesizes_oblique_orientation`
+- [x] Add serde to ritk-snap Cargo.toml; remove Eq from ViewerState
+- [x] Verify: cargo test -p ritk-io: 432 passed, 0 failed
+- [x] Verify: cargo test -p ritk-snap: 4 passed, 0 failed
+- [ ] Sprint 63: DICOM-SEG writer (GAP-R63-01)
+- [ ] Sprint 63: VTI binary-appended format (GAP-R63-02)
+- [ ] Sprint 63: RT Dose / RT Plan readers (GAP-R63-03)
+- [ ] Sprint 63: DICOMDIR multi-series selection by SeriesInstanceUID (GAP-R63-04)
+
+---
+
+## Sprint 61 — DICOM Direction Matrix Fix + Cross-Slice IOP/PixelSpacing Validation — Completed
+
+- [x] GAP-C61-01 (GAP-R60-03): Fix `load_from_series` direction matrix — `from_row_slice` → `from_column_slice` (`reader.rs` L1254)
+  - `metadata.direction = [rx,ry,rz, cx,cy,cz, nx,ny,nz]` is column-major (groups of 3 = columns)
+  - `from_column_slice` assigns column 0=[rx,ry,rz], col 1=[cx,cy,cz], col 2=[nx,ny,nz] — ITK convention
+  - `from_row_slice` on same data produces transpose — wrong for any non-identity IOP
+  - Now consistent with `multiframe.rs` which has used `from_column_slice` since Sprint 46
+
+- [x] GAP-C61-02 (GAP-R60-01): Add cross-slice IOP consistency check in `scan_dicom_directory`
+  - Threshold: `IOP_CONSISTENCY_THRESHOLD = 1e-4` (>100× DS roundtrip encoding error)
+  - Policy: warn-and-continue via `tracing::warn!` with slice_index and max_iop_deviation
+  - Canonical IOP: first post-sort (lowest-position) slice
+
+- [x] GAP-C61-03 (GAP-R60-02): Add cross-slice PixelSpacing consistency check in `scan_dicom_directory`
+  - Threshold: `PIXEL_SPACING_CONSISTENCY_THRESHOLD = 1e-4` mm
+  - Policy: warn-and-continue via `tracing::warn!` with slice_index and max_spacing_deviation
+  - Canonical PixelSpacing: first post-sort slice
+
+- [x] Add `test_load_from_series_oblique_direction_uses_column_slice_convention` — coronal IOP [1,0,0,0,0,-1]; asserts dir[(2,1)]=-1.0, dir[(1,2)]=+1.0 within 1e-5
+- [x] Add `test_scan_directory_warns_on_inconsistent_iop` — axial+coronal slices in same dir; scan returns Ok; direction[0..6] ≈ first-slice IOP
+- [x] Add `test_scan_directory_warns_on_inconsistent_pixel_spacing` — 0.8+1.0mm spacing slices; scan returns Ok; spacing[0..2] ≈ first-slice spacing
+- [x] Verify: `cargo test -p ritk-io` — 428 passed, 0 failed (+3 from Sprint 60 baseline of 425)
+- [ ] Sprint 62: DICOM-SEG writer (GAP-R60-04)
+- [ ] Sprint 62: VTI binary-appended format (GAP-R60-05)
+- [ ] Sprint 62: RT Dose / RT Plan readers (GAP-R60-06)
+- [ ] Sprint 62: Gantry tilt handling and affine consistency audit (GAP-R62-01..03)
+
+---
+
 ## Sprint 59 — DICOM-SEG Reader, DICOM-RT Structure Set Reader, VTK XML ImageData (.vti) Reader/Writer — Completed
 
 - [x] Close GAP-R58-01: DICOM-SEG (Segmentation Storage) reader — `seg.rs`

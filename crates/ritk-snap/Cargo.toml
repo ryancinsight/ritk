@@ -1,0 +1,17 @@
+[package]
+name = "ritk-snap"
+version = "0.1.0"
+edition = "2021"
+description = "RITK image viewer crate"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+burn = { workspace = true }
+burn-ndarray = { workspace = true }
+ritk-core = { workspace = true }
+ritk-io = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

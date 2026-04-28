@@ -581,9 +581,86 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
     }
 
+    // Per-frame geometry analysis: derive z-spacing from actual frame positions
+    // rather than the global SliceThickness tag, which may be absent or inaccurate
+    // for Enhanced CT/MR/PET with varying slice distances.
+    //
+    // When per_frame is populated (Enhanced MF), each PerFrameInfo may carry
+    // image_position. Compute per-adjacent-pair distances projected onto the
+    // shared slice normal N̂ = normalize(row × col). Use the median as nominal
+    // spacing; warn and resample when nonuniform or missing frames are detected.
+    let (final_floats, final_n, spacing_z) = 'geometry: {
+        if per_frame.len() < 2 {
+            // Fewer than 2 per-frame positions: cannot derive inter-frame spacing.
+            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+        }
+        // Resolve IOP: per-frame override first, then global.
+        let iop = per_frame
+            .iter()
+            .find_map(|pf| pf.image_orientation)
+            .or(info.image_orientation);
+        let Some(normal) = iop.and_then(super::reader::slice_normal_from_iop) else {
+            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+        };
+        let proj: Vec<Option<f64>> = per_frame
+            .iter()
+            .take(actual_n)
+            .map(|pf| pf.image_position.map(|p| super::reader::dot_3d(p, normal)))
+            .collect();
+        if proj.iter().any(|p| p.is_none()) {
+            // Not all frames have positions; fall back to global thickness.
+            break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
+        }
+        let src_positions: Vec<f64> = proj.into_iter().map(|p| p.unwrap()).collect();
+        let report = super::reader::analyze_slice_spacing(&src_positions);
+        if report.is_nonuniform {
+            tracing::warn!(
+                max_relative_deviation = report.max_relative_deviation,
+                nominal_spacing_mm = report.nominal_spacing,
+                n_frames = actual_n,
+                path = ?path,
+                "DICOM multiframe: nonuniform inter-frame spacing detected \
+                 (max deviation {:.2}%); resampling to uniform grid \
+                 with nominal spacing {:.4} mm",
+                report.max_relative_deviation * 100.0,
+                report.nominal_spacing,
+            );
+        }
+        if report.has_missing_slices {
+            tracing::warn!(
+                missing_between = ?report.missing_between,
+                nominal_spacing_mm = report.nominal_spacing,
+                path = ?path,
+                "DICOM multiframe: {} gap(s) exceed 1.5× nominal spacing \
+                 ({:.4} mm), indicating missing frames; \
+                 resampling to fill gaps via linear interpolation",
+                report.missing_between.len(),
+                report.nominal_spacing,
+            );
+        }
+        if report.is_nonuniform || report.has_missing_slices {
+            let frame_pixels = info.rows * info.cols;
+            let src_frames: Vec<Vec<f32>> = floats
+                .chunks(frame_pixels)
+                .take(actual_n)
+                .map(|c| c.to_vec())
+                .collect();
+            let resampled = super::reader::resample_frames_linear(
+                &src_frames,
+                &src_positions,
+                report.nominal_spacing,
+            );
+            let new_n = resampled.len();
+            let new_floats: Vec<f32> = resampled.into_iter().flatten().collect();
+            (new_floats, new_n, report.nominal_spacing)
+        } else {
+            (floats, actual_n, report.nominal_spacing)
+        }
+    };
+
     let spacing = match info.pixel_spacing {
-        Some([rs, cs]) => Spacing::new([info.frame_thickness.unwrap_or(1.0), rs, cs]),
-        None => Spacing::new([info.frame_thickness.unwrap_or(1.0), 1.0, 1.0]),
+        Some([rs, cs]) => Spacing::new([spacing_z, rs, cs]),
+        None => Spacing::new([spacing_z, 1.0, 1.0]),
     };
     let origin = info.image_position.unwrap_or([0.0, 0.0, 0.0]);
     let direction = if let Some(iop) = info.image_orientation {
@@ -592,14 +669,15 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         let nx = ry * cz - rz * cy;
         let ny = rz * cx - rx * cz;
         let nz = rx * cy - ry * cx;
-        let col_data: [f64; 9] = [rx, ry, rz, cx, cy, cz, nx, ny, nz];
+        let n = super::reader::normalize_3d([nx, ny, nz]).unwrap_or([0.0, 0.0, 1.0]);
+        let col_data: [f64; 9] = [n[0], n[1], n[2], cx, cy, cz, rx, ry, rz];
         Direction(SMatrix::<f64, 3, 3>::from_column_slice(&col_data))
     } else {
         Direction::identity()
     };
 
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(floats, Shape::new([actual_n, info.rows, info.cols])),
+        TensorData::new(final_floats, Shape::new([final_n, info.rows, info.cols])),
         device,
     );
     Ok(Image::new(tensor, Point::new(origin), spacing, direction))
@@ -2320,5 +2398,58 @@ mod tests {
             Some(10.0),
             "per_frame[1].rescale_intercept must be Some(10.0)"
         );
+    }
+
+    /// When per_frame positions are uniform, load_dicom_multiframe derives correct spacing
+    /// and does not resample (frame count == n_frames).
+    ///
+    /// This test writes a 3-frame multiframe DICOM with per-frame IPP spacing of 2.5 mm
+    /// (using write_dicom_multiframe_with_options), then reads it back with
+    /// load_dicom_multiframe. The z-spacing in the returned Image must equal 2.5 mm.
+    ///
+    /// Note: basic multiframe DICOM (non-Enhanced) does not carry per-frame functional
+    /// groups; spacing falls back to SliceThickness. This test verifies the fallback.
+    #[test]
+    fn test_load_multiframe_spacing_from_slice_thickness() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("mf.dcm");
+
+        // 3 frames of 4×4 pixels, spacing_z = 2.5 mm
+        let data: Vec<f32> = (0..3 * 4 * 4).map(|i| i as f32).collect();
+        let device = <NdArray as burn::tensor::backend::Backend>::Device::default();
+        let tensor = burn::tensor::Tensor::<NdArray, 3>::from_data(
+            burn::tensor::TensorData::new(data, burn::tensor::Shape::new([3, 4, 4])),
+            &device,
+        );
+        let image = Image::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([2.5, 1.0, 1.0]),
+            Direction::identity(),
+        );
+        let opts = MultiFrameSpatialMetadata {
+            origin: [0.0, 0.0, 0.0],
+            pixel_spacing: [1.0, 1.0],
+            slice_thickness: 2.5,
+            image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+            modality: "CT".to_string(),
+        };
+        write_dicom_multiframe_with_options(&path, &image, Some(&opts))
+            .expect("write_dicom_multiframe_with_options");
+
+        let out: Image<NdArray, 3> =
+            load_dicom_multiframe(&path, &device).expect("load_dicom_multiframe");
+        let sp = out.spacing();
+        // SliceThickness round-trip: z-spacing must equal 2.5 mm within f32 rescale tolerance
+        assert!(
+            (sp[0] - 2.5).abs() < 0.01,
+            "spacing_z={}, expected 2.5",
+            sp[0]
+        );
+        // Shape must be [3, 4, 4]
+        let shape = out.shape();
+        assert_eq!(shape[0], 3, "frames");
+        assert_eq!(shape[1], 4, "rows");
+        assert_eq!(shape[2], 4, "cols");
     }
 }

@@ -1,3 +1,157 @@
+## Sprint 63 — CT Bed Separation Filter, Viewer Selection, and Modality-Aware Geometry Audit
+
+**Status**: Planned
+**Phase**: Foundation
+**Goal**: Add a core CT bed separation filter, expose it in `ritk-snap`, and audit modality-specific geometry handling for CT, MRI, and ultrasound visualizations.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution |
+|---|---|---|---|
+| GAP-R62-01 | GantryDetectorTilt not handled | (0018,1120) not read; IOP not synthesized | Read tag per slice; synthesize oblique IOP when axial/absent and &#952; > 0.01° |
+| GAP-R62-02 | Reader affine axis order wrong | spacing=[&#916;Row,&#916;Col,&#916;z] and direction cols=[F_r,F_c,N&#770;] — inconsistent with [depth,rows,cols] tensor | Fixed to spacing=[&#916;z,&#916;Row,&#916;Col] and direction cols=[N&#770;,F_c,F_r] |
+| GAP-R62-03 | Writer affine inconsistency | Writer used spacing[2]=&#916;z and direction[6..9]=N&#770; (old convention) | Updated to spacing[0]=&#916;z, direction[0..3]=N&#770;, IOP=[direction[6..9],direction[3..6]] |
+| GAP-R63-01 | CT bed separation filter absent | No core filter for separating table/bed from CT foreground | Sprint 63 |
+| GAP-R63-02 | `ritk-snap` filter selection lacks bed separation entry | Viewer core does not expose CT bed separation as a selectable filter | Sprint 63 |
+| GAP-R63-03 | Modality handling not audited across CT/MRI/ultrasound | Geometry and orientation handling are not unified by modality semantics in visualization | Sprint 63 |
+
+### Additional changes
+| Item | Description |
+|---|---|
+| DICOMDIR traversal | `try_read_dicomdir`: reads (0004,1220) DirectoryRecordSequence, filters IMAGE records via (0004,1430), resolves (0004,1500) ReferencedFileID |
+| Mixed-series filtering | Plurality-dimension canonical selection; excludes scout/localizer files |
+| Skull CT integration tests | Fixed path resolution; tests exercise DICOMDIR traversal + 512×512 CT scan loading |
+| ritk-snap fixes | serde dependency added; ViewerState Eq removed |
+| CT bed separation filter | Add a core filter that masks table/bed voxels while retaining patient foreground |
+| Viewer filter selection | Add `bed-separation` as a selectable `ritk-snap`/CLI filter entry |
+| Modality audit | Review CT, MRI, and ultrasound orientation/visualization handling and normalize display rules |
+
+### Tests added (+4 new; total 432 lib + 3 integration)
+| Test | File | Coverage |
+|---|---|---|
+| `test_physical_transform_depth_index_advances_along_slice_normal` | reader.rs | Depth/row/col axis &#8594; physical displacement TOL=1e-10 |
+| `test_gantry_tilt_synthesizes_oblique_orientation` | reader.rs | (0018,1120)=15° &#8594; F_c=[0,cos15°,-sin15°], N&#770;=[0,sin15°,cos15°] |
+| `test_scan_skull_ct_folder_with_dicomdir_loads_series` | reader.rs (existing, now passes) | DICOMDIR traversal + mixed-dim filtering |
+| `test_scan_skull_ct_dicomdir_and_folder_agree_on_series` | reader.rs (existing, now passes) | Spacing positive, direction invertible |
+| `test_bed_separation_masks_background` | filter.rs | Bed separation filter removes table/background voxels and preserves CT foreground |
+
+### Verification
+- `cargo test -p ritk-io -- --test-threads=4`: 432 passed, 0 failed
+- `cargo test -p ritk-snap -- --test-threads=4`: 4 passed, 0 failed
+- Integration: 3 passed, 0 failed
+
+### Sprint 62 Residual Risk
+| ID | Risk | Description | Target |
+|---|---|---|---|
+| GAP-R63-01 | DICOM-SEG writer absent | Writing segmentation masks as DICOM-SEG | Sprint 63 |
+| GAP-R63-02 | VTI binary-appended format | Only ASCII-inline .vti implemented | Sprint 63 |
+| GAP-R63-03 | RT Dose / RT Plan readers | RT workflow missing dose grid and beam geometry readers | Sprint 63 |
+| GAP-R63-04 | DICOMDIR multi-series selection | No series-UID filtering when DICOMDIR has multiple same-size series | Sprint 63 |
+| GAP-R63-05 | Bed separation filter modality audit | CT-specific assumptions need validation against MRI and ultrasound display conventions | Sprint 63 |
+
+---
+
+## Sprint 61 — DICOM Direction Matrix Fix + Cross-Slice IOP/PixelSpacing Validation
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Close GAP-R60-03 (direction matrix transpose), GAP-R60-01 (IOP consistency), GAP-R60-02 (PixelSpacing consistency).
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution |
+|---|---|---|---|
+| GAP-C61-01 (GAP-R60-03) | `load_from_series` direction matrix was transpose of ITK convention | `from_row_slice` on column-major `[rx,ry,rz, cx,cy,cz, nx,ny,nz]` layout produces D^T | Changed to `from_column_slice`; columns = [r, c, n] as ITK requires; consistent with `multiframe.rs` |
+| GAP-C61-02 (GAP-R60-01) | IOP inconsistency across slices not validated | No cross-slice IOP check; first slice IOP used silently | Added check after sort; `tracing::warn!` when max |&#916;iop_component| > 1e-4 |
+| GAP-C61-03 (GAP-R60-02) | PixelSpacing inconsistency across slices not validated | First file PixelSpacing used unconditionally | Added check after IOP guard; `tracing::warn!` when max |&#916;spacing| > 1e-4 mm |
+
+### Constants added (`reader.rs`, file-scope)
+| Symbol | Value | Derivation |
+|---|---|---|
+| `IOP_CONSISTENCY_THRESHOLD` | `1e-4` | >100× max DS {:.6} roundtrip error (5e-7) for unit cosines |
+| `PIXEL_SPACING_CONSISTENCY_THRESHOLD` | `1e-4` | >100× DS roundtrip error for sub-mm spacings |
+
+### Tests added (+3; total 428)
+| Test | Location | Coverage |
+|---|---|---|
+| `test_load_from_series_oblique_direction_uses_column_slice_convention` | `reader.rs` | Coronal IOP [1,0,0,0,0,-1]; dir[(2,1)]=-1.0, dir[(1,2)]=+1.0 |
+| `test_scan_directory_warns_on_inconsistent_iop` | `reader.rs` | Axial+coronal in one dir; Ok; direction[0..6] canonical |
+| `test_scan_directory_warns_on_inconsistent_pixel_spacing` | `reader.rs` | 0.8+1.0mm in one dir; Ok; spacing canonical |
+
+### Verification
+- `cargo test -p ritk-io`: 428 passed, 0 failed
+- `from_column_slice` verified against ITK convention: column i = basis vector i; for coronal IOP [1,0,0,0,0,-1], expected matrix element (2,1)=-1 and (1,2)=+1; both confirmed by test.
+- Threshold derivations: DS `{:.6}` format error &#8804; 0.5e-6 per encoded float; roundtrip error &#8804; 1e-6; 1e-4 >> 1e-6.
+
+### Sprint 61 Residual Risk
+| ID | Risk | Description | Target |
+|---|---|---|---|
+| GAP-R60-04 | DICOM-SEG writer absent | Writing segmentation masks as DICOM-SEG not yet implemented | Sprint 62 |
+| GAP-R60-05 | VTI binary-appended format absent | Only ASCII-inline .vti implemented | Sprint 62 |
+| GAP-R60-06 | RT Dose / RT Plan readers absent | RT workflow missing dose grid and beam geometry readers | Sprint 62 |
+| GAP-R62-01 | Gantry tilt not handled | `GantryDetectorTilt` is not read or synthesized into an oblique affine when IOP is axial | Sprint 62 |
+| GAP-R62-02 | Reader affine axis order needs audit | Slice-axis spacing and direction-column semantics need confirmation against `Image` physical transforms | Sprint 62 |
+| GAP-R62-03 | Writer/readback affine consistency needs audit | Series writer spatial tags and series reader reconstruction must remain inverse-consistent for all orientations | Sprint 62 |
+
+---
+
+## Sprint 60 — DICOM Slice Geometry Hardening: Nonuniform Spacing Detection, Warning, and Resampling
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Close GAP-R59-05 (nonuniform/missing DICOM slice spacing silently corrupted volumes) and GAP-R59-06 (oblique series sorted by raw z-component instead of IPP·N&#770;).
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution |
+|---|---|---|---|
+| GAP-C60-01 (GAP-R59-05) | Series reader silent nonuniform/missing slice spacing | `spacing_z` computed as single-span average; per-adjacent-pair gaps never checked | `reader.rs`: compute per-adjacent-pair gaps projected onto N&#770; = normalize(row×col); derive `nominal_spacing` = median(gaps); detect nonuniform (max deviation > 1%) and missing slices (gap > 1.5× nominal); emit `tracing::warn!`; resample to uniform grid via linear interpolation per pixel; update `metadata.dimensions[2]` and `metadata.spacing[2]` |
+| GAP-C60-02 (GAP-R59-06) | Series reader oblique sort used raw IPP[2] | Sort key was `image_position_patient[2]` (raw LPS z-component); incorrect for coronal/sagittal/oblique acquisitions | `reader.rs` `scan_dicom_directory`: compute `maybe_normal` from first IOP-bearing slice via `slice_normal_from_iop`; sort by `dot_3d(IPP, N&#770;)`; fall back to `IPP[2]` when IOP absent |
+| GAP-C60-03 (GAP-R59-07) | Series reader spacing used single-span average | `(last_z &#8722; first_z) / (N&#8722;1)` masked all per-pair variation | Replace with `analyze_slice_spacing(&positions).nominal_spacing` (median of adjacent-pair gaps); resistant to single outlier, duplicate positions, and missing slices |
+| GAP-C60-04 (GAP-R59-08) | Multiframe reader ignored per-frame IPP for spacing | `load_dicom_multiframe` used global `SliceThickness` tag unconditionally even when `per_frame` carries accurate per-frame `image_position` values | `multiframe.rs`: when `per_frame.len() >= 2` and all frames carry `image_position`, project onto N&#770;, run `analyze_slice_spacing`, emit structured warnings, resample via `resample_frames_linear` when nonuniform or missing; fall back to `frame_thickness` otherwise |
+
+### New geometry utilities added (`reader.rs`, `pub(super)`)
+| Symbol | Contract |
+|---|---|
+| `normalize_3d(v) -> Option<[f64;3]>` | Returns unit vector; `None` when `|v| < 1e-10` |
+| `dot_3d(a, b) -> f64` | Standard R³ inner product |
+| `slice_normal_from_iop(iop) -> Option<[f64;3]>` | N&#770; = normalize(row × col); `None` on degenerate IOP |
+| `SliceGeometryReport` | `nominal_spacing`, `max_relative_deviation`, `missing_between`, `is_nonuniform`, `has_missing_slices` |
+| `analyze_slice_spacing(positions) -> SliceGeometryReport` | Median-gap analysis per DICOM PS3.3 C.7.6.2 invariants |
+| `resample_frames_linear(frames, positions, spacing) -> Vec<Vec<f32>>` | Linear interp along slice axis; N_target = round(span/spacing)+1; clamped endpoints |
+| `NONUNIFORM_SPACING_THRESHOLD = 0.01` | 1% relative deviation triggers nonuniform flag |
+| `MISSING_SLICE_GAP_FACTOR = 1.5` | Gap > 1.5× nominal triggers missing-slice flag |
+
+### Tests added (+10 from Sprint 59 baseline of 415; total 425)
+| Test | Location | Coverage |
+|---|---|---|
+| `test_analyze_slice_spacing_uniform` | `reader.rs` | Nominal=1.0, zero deviation, no flags |
+| `test_analyze_slice_spacing_nonuniform` | `reader.rs` | max_rel_dev=0.2 (20%), `is_nonuniform=true`, `has_missing_slices=false` |
+| `test_analyze_slice_spacing_missing_slice` | `reader.rs` | Gap=2.0, `missing_between=[1]`, both flags |
+| `test_resample_frames_linear_identity_on_uniform` | `reader.rs` | 4 frames uniform &#8594; identity pass-through < 1e-5 |
+| `test_resample_frames_linear_missing_slice` | `reader.rs` | 4&#8594;5 frames; interpolated midpoint = 0.5×20+0.5×40=30.0 < 1e-4 |
+| `test_resample_frames_linear_nonuniform_interpolation` | `reader.rs` | t=1/1.1; expected=(1&#8722;t)×10+t×20 < 1e-4 |
+| `test_normalize_3d` | `reader.rs` | Unit vector, diagonal, zero&#8594;None |
+| `test_slice_normal_from_iop_axial` | `reader.rs` | [1,0,0]×[0,1,0]=[0,0,1] |
+| `test_dot_3d` | `reader.rs` | [1,2,3]·[4,5,6]=32; orthogonal&#8594;0 |
+| `test_load_multiframe_spacing_from_slice_thickness` | `multiframe.rs` | SliceThickness fallback; spacing_z=2.5±0.01; shape [3,4,4] |
+
+### Verification
+- `cargo test -p ritk-io`: **425 passed, 0 failed** (baseline was 415).
+- `cargo check -p ritk-io --tests`: zero compilation errors.
+- `resample_frames_linear` verified analytically: N_target = round(span/spacing)+1; t = (target&#8722;p[lo])/(p[hi]&#8722;p[lo]) &#8712; [0,1]; output = (1&#8722;t)·src[lo] + t·src[hi] per pixel.
+- `analyze_slice_spacing` verified: median of sorted gaps; degenerate nominal &#8804; 0 &#8594; safe fallback.
+- DICOM PS3.3 C.7.6.2: ImagePositionPatient projected onto slice normal N&#770; is the correct inter-slice distance metric for all acquisition orientations.
+
+### Sprint 60 Residual Risk
+| ID | Risk | Description | Target |
+|---|---|---|---|
+| GAP-R60-01 | IOP inconsistency across slices not validated | Series with mixed IOP (stitched or multi-acquisition) silently uses first slice's IOP for sort and normal; no cross-slice IOP check | Sprint 61 |
+| GAP-R60-02 | PixelSpacing inconsistency across slices not validated | First file's PixelSpacing used unconditionally; mixed-spacing series silently produces incorrect in-plane geometry | Sprint 61 |
+| GAP-R60-03 | Direction matrix construction inconsistency | `load_dicom_multiframe` uses `from_column_slice`; `load_from_series` uses `from_row_slice` for the same [rx,ry,rz,cx,cy,cz,nx,ny,nz] layout — one is transposed | Sprint 61 |
+| GAP-R60-04 | DICOM-SEG writer absent | Writing segmentation masks as DICOM-SEG not yet implemented | Sprint 61 |
+| GAP-R60-05 | VTI binary-appended format absent | Only ASCII-inline .vti implemented | Sprint 61 |
+| GAP-R60-06 | RT Dose / RT Plan readers absent | RT workflow missing dose grid and beam geometry readers | Sprint 61 |
+
+---
+
 ## Sprint 59 — DICOM-SEG Reader, DICOM-RT Structure Set Reader, VTK XML ImageData (.vti) Reader/Writer
 
 **Status**: Completed

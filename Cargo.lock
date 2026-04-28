@@ -5880,6 +5880,7 @@ dependencies = [
  "ritk-core",
  "ritk-io",
  "ritk-registration",
+ "ritk-snap",
  "serde_json",
  "tempfile",
  "tracing",
@@ -5983,6 +5984,21 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+]
+
+[[package]]
+name = "ritk-snap"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "clap",
+ "ritk-core",
+ "ritk-io",
+ "serde",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -11,6 +11,7 @@ path = "src/main.rs"
 ritk-core = { path = "../ritk-core" }
 ritk-io = { path = "../ritk-io" }
 ritk-registration = { path = "../ritk-registration" }
+ritk-snap = { path = "../ritk-snap" }
 clap = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }

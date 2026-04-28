@@ -29,6 +29,9 @@ enum Commands {
     /// Convert an image between supported formats (NIfTI, MetaImage, NRRD, PNG, MGH, TIFF).
     Convert(commands::convert::ConvertArgs),
 
+    /// Inspect a DICOM study using the viewer core.
+    Viewer(commands::viewer::ViewerArgs),
+
     /// Apply an image filter (gaussian, n4-bias, anisotropic, frangi, median, bilateral, canny, sobel, log, recursive-gaussian).
     Filter(commands::filter::FilterArgs),
 
@@ -55,6 +58,7 @@ fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Convert(args) => commands::convert::run(args),
+        Commands::Viewer(args) => commands::viewer::run(args),
         Commands::Filter(args) => commands::filter::run(args),
         Commands::Register(args) => commands::register::run(args),
         Commands::Segment(args) => commands::segment::run(args),

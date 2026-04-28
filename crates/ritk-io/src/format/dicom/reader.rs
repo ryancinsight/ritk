@@ -88,6 +88,9 @@ pub struct DicomSliceMetadata {
     pub window_center: Option<f64>,
     /// WindowWidth (0028,1051) for display, first value when multi-valued DS.
     pub window_width: Option<f64>,
+    /// GantryDetectorTilt (0018,1120) in degrees. Positive = toward patient's feet.
+    /// Used to synthesize oblique IOP when IOP is absent or effectively axial.
+    pub gantry_tilt: Option<f64>,
 }
 
 impl Default for DicomSliceMetadata {
@@ -111,6 +114,7 @@ impl Default for DicomSliceMetadata {
             bits_allocated: 16,
             window_center: None,
             window_width: None,
+            gantry_tilt: None,
         }
     }
 }
@@ -288,26 +292,92 @@ fn parse_sequence_item(item: &dicom::object::InMemDicomObject, depth: usize) -> 
 /// Slices are sorted by ImagePositionPatient[2] (z-coordinate), then by
 /// InstanceNumber, then by filename for deterministic ordering. Z-spacing is
 /// computed from the sorted z-coordinates of adjacent slices.
+/// Attempt to read file paths from a DICOMDIR file in the given directory.
+/// Returns Ok(Vec<PathBuf>) with resolved absolute paths, or Err if DICOMDIR
+/// is absent or cannot be parsed. Paths are verified to exist as files.
+fn try_read_dicomdir(dir: &Path) -> Result<Vec<PathBuf>> {
+    let dicomdir_path = dir.join("DICOMDIR");
+    if !dicomdir_path.is_file() {
+        bail!("no DICOMDIR found");
+    }
+    let obj = open_file(&dicomdir_path)
+        .with_context(|| format!("failed to open DICOMDIR {:?}", dicomdir_path))?;
+    // DirectoryRecordSequence (0004,1220) contains all records as a flat SQ.
+    let drs = obj
+        .element(Tag(0x0004, 0x1220))
+        .with_context(|| "DICOMDIR missing DirectoryRecordSequence (0004,1220)")?;
+    let mut paths = Vec::new();
+    if let Some(items) = drs.value().items() {
+        for item in items {
+            // Only process IMAGE-type directory records (excludes PATIENT, STUDY, SERIES, etc.)
+            let record_type = item
+                .element(Tag(0x0004, 0x1430))
+                .ok()
+                .and_then(|e| e.to_str().ok().map(|s| s.trim().to_uppercase()));
+            if record_type.as_deref() != Some("IMAGE") {
+                continue;
+            }
+            // ReferencedFileID (0004,1500): multi-value CS, components separated by '\'.
+            if let Ok(file_id_elem) = item.element(Tag(0x0004, 0x1500)) {
+                if let Ok(s) = file_id_elem.to_str() {
+                    let s = s.trim();
+                    if s.is_empty() {
+                        continue;
+                    }
+                    // Components separated by '\' in DICOM CS multi-value convention.
+                    let mut file_path = dir.to_path_buf();
+                    for component in s.split('\\') {
+                        let comp = component.trim();
+                        if !comp.is_empty() {
+                            file_path.push(comp);
+                        }
+                    }
+                    if file_path.is_file() {
+                        paths.push(file_path);
+                    }
+                }
+            }
+        }
+    }
+    if paths.is_empty() {
+        bail!("DICOMDIR contained no valid ReferencedFileID entries");
+    }
+    Ok(paths)
+}
+
 pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> {
     let path = path.as_ref();
     if !path.is_dir() {
         bail!("DICOM input path is not a directory");
     }
 
-    // First pass: collect all candidate DICOM files.
+    // File discovery: prefer DICOMDIR for explicit file list; fall back to flat-folder scan.
     let mut raw_paths: Vec<PathBuf> = Vec::new();
-    for entry in std::fs::read_dir(path).with_context(|| "failed to read DICOM directory")? {
-        let entry = entry.with_context(|| "failed to read DICOM directory entry")?;
-        let entry_path = entry.path();
-        if entry_path.is_file() && is_likely_dicom_file(&entry_path) {
-            raw_paths.push(entry_path);
+
+    // Try DICOMDIR first (handles datasets where DICOM files are in subdirectories).
+    if let Ok(dicomdir_paths) = try_read_dicomdir(path) {
+        raw_paths = dicomdir_paths;
+        raw_paths.sort();
+        raw_paths.dedup();
+    } else {
+        // Flat-folder fallback: scan immediate directory for DICOM-magic files.
+        for entry in std::fs::read_dir(path).with_context(|| "failed to read DICOM directory")? {
+            let entry = entry.with_context(|| "failed to read DICOM directory entry")?;
+            let entry_path = entry.path();
+            if entry_path.is_file() && is_likely_dicom_file(&entry_path) {
+                raw_paths.push(entry_path);
+            }
         }
+        raw_paths.sort();
+        raw_paths.dedup();
     }
+
     if raw_paths.is_empty() {
         bail!("no DICOM files were discovered in the directory");
     }
 
     // Second pass: parse metadata from each DICOM file.
+
     let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(raw_paths.len());
     let mut first_rows: Option<u32> = None;
     let mut first_cols: Option<u32> = None;
@@ -329,6 +399,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     let mut first_photometric_interpretation: Option<String> = None;
     let mut first_transfer_syntax_uid: Option<String> = None;
 
+    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(raw_paths.len());
+
     for file_path in &raw_paths {
         let mut slice_meta = DicomSliceMetadata {
             path: file_path.clone(),
@@ -349,7 +421,10 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             bits_allocated: 16,
             window_center: None,
             window_width: None,
+            gantry_tilt: None,
         };
+
+        let mut file_dim = (0u32, 0u32);
 
         if let Ok(obj) = open_file(file_path) {
             // Per-slice tags
@@ -445,17 +520,29 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                         .and_then(|v| v.trim().parse().ok())
                 });
             }
+            // GantryDetectorTilt (0018,1120) in degrees.
+            if let Ok(elem) = obj.element(Tag(0x0018, 0x1120)) {
+                slice_meta.gantry_tilt = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+            }
 
-            // Rows / Colls from first slice — establish series geometry
+            // Per-file dimension tracking: read rows/cols from every file (not just first)
+            // to enable canonical-dimension filtering for mixed-series DICOMDIR datasets.
+            let this_rows: Option<u32> = obj
+                .element(Tag(0x0028, 0x0010))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| s.parse().ok());
+            let this_cols: Option<u32> = obj
+                .element(Tag(0x0028, 0x0011))
+                .ok()
+                .and_then(|e| e.to_str().ok())
+                .and_then(|s| s.parse().ok());
+            file_dim = (this_rows.unwrap_or(0), this_cols.unwrap_or(0));
             if first_rows.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0028, 0x0010)) {
-                    first_rows = elem.to_str().ok().and_then(|s| s.parse().ok());
-                }
+                first_rows = this_rows;
             }
             if first_cols.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0028, 0x0011)) {
-                    first_cols = elem.to_str().ok().and_then(|s| s.parse().ok());
-                }
+                first_cols = this_cols;
             }
             if first_pixel_spacing.is_none() {
                 if let Ok(elem) = obj.element(Tag(0x0028, 0x0030)) {
@@ -608,7 +695,53 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             }
         }
 
+        per_file_dims.push(file_dim);
         slices.push(slice_meta);
+    }
+
+    // Canonical-dimension filtering (GAP-R62-02 robustness):
+    // In DICOMDIR datasets with mixed series (e.g., scout + CT), some files may have
+    // different image dimensions. Use the plurality (most-frequent) dimensions as
+    // canonical; exclude non-matching files with a warning.
+    {
+        let mut dim_freq: HashMap<(u32, u32), usize> = HashMap::new();
+        for &(r, c) in &per_file_dims {
+            if r > 0 && c > 0 {
+                *dim_freq.entry((r, c)).or_insert(0) += 1;
+            }
+        }
+        if let Some((&(cr, cc), _)) = dim_freq.iter().max_by_key(|(_, &v)| v) {
+            let total = per_file_dims
+                .iter()
+                .filter(|&&(r, c)| r > 0 && c > 0)
+                .count();
+            let matching = per_file_dims
+                .iter()
+                .filter(|&&(r, c)| r == cr && c == cc)
+                .count();
+            if matching < total {
+                let excluded = total - matching;
+                tracing::warn!(
+                    excluded = excluded,
+                    canonical_rows = cr,
+                    canonical_cols = cc,
+                    "DICOM series: excluding {} file(s) with non-canonical image dimensions \
+                     (canonical {}x{}); likely a mixed-series DICOMDIR dataset",
+                    excluded,
+                    cr,
+                    cc
+                );
+                let (new_slices, _): (Vec<_>, Vec<_>) = slices
+                    .into_iter()
+                    .zip(per_file_dims.iter().copied())
+                    .filter(|(_, (r, c))| (*r == cr && *c == cc) || *r == 0)
+                    .unzip();
+                slices = new_slices;
+                // Override first_rows/first_cols with canonical values.
+                first_rows = Some(cr);
+                first_cols = Some(cc);
+            }
+        }
     }
 
     // SOP class policy: remove non-image-bearing files from the series.
@@ -644,11 +777,28 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         );
     }
 
-    // Sort slices by z-position (ImagePositionPatient[2]), then instance number, then filename.
+    // Compute slice normal for position projection.
+    // Prefer IOP from the first slice that carries it; fall back to raw z-component.
+    let maybe_normal: Option<[f64; 3]> = slices
+        .iter()
+        .find_map(|s| s.image_orientation_patient)
+        .and_then(slice_normal_from_iop);
+
+    // Sort slices by projection of IPP onto the slice normal (correct for oblique
+    // acquisitions), then instance number, then filename as tiebreakers.
     slices.sort_by(|a, b| {
-        let z_a = a.image_position_patient.map(|p| p[2]).unwrap_or(f64::MAX);
-        let z_b = b.image_position_patient.map(|p| p[2]).unwrap_or(f64::MAX);
-        z_a.partial_cmp(&z_b)
+        let pos_a = match (a.image_position_patient, maybe_normal) {
+            (Some(ipp), Some(n)) => dot_3d(ipp, n),
+            (Some(ipp), None) => ipp[2],
+            (None, _) => f64::MAX,
+        };
+        let pos_b = match (b.image_position_patient, maybe_normal) {
+            (Some(ipp), Some(n)) => dot_3d(ipp, n),
+            (Some(ipp), None) => ipp[2],
+            (None, _) => f64::MAX,
+        };
+        pos_a
+            .partial_cmp(&pos_b)
             .unwrap_or(std::cmp::Ordering::Equal)
             .then_with(|| {
                 a.instance_number
@@ -658,46 +808,146 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             .then_with(|| a.path.file_name().cmp(&b.path.file_name()))
     });
 
+    // GantryDetectorTilt synthesis (GAP-R62-01):
+    // When IOP is absent or effectively axial [1,0,0,0,1,0] and |tilt| > 0.01°,
+    // derive oblique orientation: F_r=[1,0,0], F_c=[0,cos(θ),-sin(θ)].
+    // DICOM (0018,1120): positive tilt = toward patient's feet = rotation of col direction
+    // toward −Z in LPS coordinates.
+    const AXIAL_IOP_THRESHOLD: f64 = 1e-4;
+    const GANTRY_TILT_MIN_DEGREES: f64 = 0.01;
+    {
+        let ref_iop = slices.first().and_then(|s| s.image_orientation_patient);
+        let is_effectively_axial = ref_iop.map_or(true, |iop| {
+            let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
+            iop.iter()
+                .zip(axial.iter())
+                .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
+        });
+        if is_effectively_axial {
+            if let Some(tilt_deg) = slices.first().and_then(|s| s.gantry_tilt) {
+                if tilt_deg.abs() > GANTRY_TILT_MIN_DEGREES {
+                    let theta = tilt_deg.to_radians();
+                    let cos_t = theta.cos();
+                    let sin_t = theta.sin();
+                    // Synthesize oblique IOP: row=[1,0,0], col=[0,cos(θ),-sin(θ)]
+                    let synthesized_iop = [1.0_f64, 0.0, 0.0, 0.0, cos_t, -sin_t];
+                    tracing::info!(
+                        tilt_deg = tilt_deg,
+                        cos_t = cos_t,
+                        sin_t = sin_t,
+                        "GantryDetectorTilt: synthesizing oblique IOP from tilt angle"
+                    );
+                    for slice in &mut slices {
+                        if slice.image_orientation_patient.is_none()
+                            || slice.image_orientation_patient.map_or(false, |iop| {
+                                let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
+                                iop.iter()
+                                    .zip(axial.iter())
+                                    .all(|(a, e)| (a - e).abs() < AXIAL_IOP_THRESHOLD)
+                            })
+                        {
+                            slice.image_orientation_patient = Some(synthesized_iop);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let rows = first_rows.unwrap_or(0) as usize;
     let cols = first_cols.unwrap_or(0) as usize;
     let depth = slices.len();
 
-    // Compute z-spacing from sorted ImagePositionPatient z-coordinates.
-    let z_positions: Vec<f64> = slices
-        .iter()
-        .filter_map(|s| s.image_position_patient.map(|p| p[2]))
-        .collect();
-    let spacing_z = if z_positions.len() >= 2 {
-        let total_span = z_positions.last().unwrap() - z_positions.first().unwrap();
-        let count_minus_one = (z_positions.len() - 1) as f64;
-        if count_minus_one > 0.0 && total_span.is_finite() {
-            total_span / count_minus_one
+    // Cross-slice IOP consistency guard (DICOM PS3.3 C.7.6.1.1.1).
+    // Policy: warn and continue; canonical IOP is the first (lowest-position) slice.
+    // Threshold 1e-4 is >100× the max DS-format roundtrip encoding error for unit cosines.
+    const IOP_CONSISTENCY_THRESHOLD: f64 = 1e-4;
+    if let Some(ref_iop) = slices.first().and_then(|s| s.image_orientation_patient) {
+        for (i, s) in slices.iter().enumerate().skip(1) {
+            if let Some(iop) = s.image_orientation_patient {
+                let max_dev = iop
+                    .iter()
+                    .zip(ref_iop.iter())
+                    .map(|(a, b)| (a - b).abs())
+                    .fold(0.0_f64, f64::max);
+                if max_dev > IOP_CONSISTENCY_THRESHOLD {
+                    tracing::warn!(
+                        slice_index = i,
+                        max_iop_deviation = max_dev,
+                        "DICOM series has inconsistent ImageOrientationPatient across slices; \
+                         using first slice IOP as canonical"
+                    );
+                }
+            }
+        }
+    }
+
+    // Cross-slice PixelSpacing consistency guard.
+    // Policy: warn and continue; canonical PixelSpacing is the first slice's.
+    // Threshold 1e-4 mm is >100× DS-format encoding error for typical sub-mm spacings.
+    const PIXEL_SPACING_CONSISTENCY_THRESHOLD: f64 = 1e-4;
+    if let Some(ref_ps) = slices.first().and_then(|s| s.pixel_spacing) {
+        for (i, s) in slices.iter().enumerate().skip(1) {
+            if let Some(ps) = s.pixel_spacing {
+                let max_dev = [(ps[0] - ref_ps[0]).abs(), (ps[1] - ref_ps[1]).abs()]
+                    .into_iter()
+                    .fold(0.0_f64, f64::max);
+                if max_dev > PIXEL_SPACING_CONSISTENCY_THRESHOLD {
+                    tracing::warn!(
+                        slice_index = i,
+                        max_spacing_deviation = max_dev,
+                        "DICOM series has inconsistent PixelSpacing across slices; \
+                         using first slice PixelSpacing as canonical"
+                    );
+                }
+            }
+        }
+    }
+
+    // Compute z-spacing using median of adjacent-pair projected positions.
+    // Median is robust against outliers; average-span silently masks irregular gaps.
+    let spacing_z = {
+        let positions: Vec<f64> = if let Some(n) = maybe_normal {
+            slices
+                .iter()
+                .filter_map(|s| s.image_position_patient.map(|ipp| dot_3d(ipp, n)))
+                .collect()
+        } else {
+            slices
+                .iter()
+                .filter_map(|s| s.image_position_patient.map(|p| p[2]))
+                .collect()
+        };
+        if positions.len() >= 2 {
+            analyze_slice_spacing(&positions).nominal_spacing
         } else {
             first_slice_thickness.unwrap_or(1.0)
         }
-    } else {
-        first_slice_thickness.unwrap_or(1.0)
     };
 
     let in_plane_spacing = first_pixel_spacing.unwrap_or([1.0, 1.0]);
+    // RITK [depth, rows, cols] tensor convention: spacing = [Δz, ΔRow, ΔCol].
     let spacing: [f64; 3] = [
-        in_plane_spacing[0],
-        in_plane_spacing[1],
-        spacing_z.abs().max(1e-6),
+        spacing_z.abs().max(1e-6), // spacing[0] = Δz (depth spacing)
+        in_plane_spacing[0],       // spacing[1] = ΔRow (PixelSpacing[0])
+        in_plane_spacing[1],       // spacing[2] = ΔCol (PixelSpacing[1])
     ];
 
-    // Build direction cosines from first slice's ImageOrientationPatient, or default to identity.
+    // Direction convention for RITK [depth, rows, cols] tensor:
+    // Column 0 = N̂ (slice normal / depth axis), column 1 = F_c (row axis), column 2 = F_r (col axis).
+    // from_column_slice([nx,ny,nz, cx,cy,cz, rx,ry,rz])
     let direction = if let Some(ori) = slices.first().and_then(|s| s.image_orientation_patient) {
-        // Row direction = first 3 elements, Column direction = next 3 elements.
-        // ITK/LPS+ convention: row cosines (r_x, r_y, r_z), column cosines (c_x, c_y, c_z).
-        let r = [ori[0], ori[1], ori[2]];
-        let c = [ori[3], ori[4], ori[5]];
-        let n = cross_3d(r, c);
+        let r = [ori[0], ori[1], ori[2]]; // F_r = row cosines
+        let c = [ori[3], ori[4], ori[5]]; // F_c = col cosines
+        let n = normalize_3d(cross_3d(r, c)).unwrap_or([0.0, 0.0, 1.0]); // N̂ = F_r × F_c
         [
-            ori[0], ori[1], ori[2], ori[3], ori[4], ori[5], n[0], n[1], n[2],
+            n[0], n[1], n[2], // col 0 = N̂
+            ori[3], ori[4], ori[5], // col 1 = F_c
+            ori[0], ori[1], ori[2], // col 2 = F_r
         ]
     } else {
-        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+        // Default: axial orientation (N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0])
+        [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
     };
 
     // Compute physical origin from first slice's ImagePositionPatient.
@@ -817,6 +1067,203 @@ fn cross_3d(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
+/// Relative deviation threshold above which adjacent-pair spacing is considered nonuniform.
+/// A value of 0.01 corresponds to 1% deviation from the median gap.
+const NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
+
+/// Gap multiple above which an adjacent pair indicates missing slices.
+/// A gap > 1.5 × nominal is almost certainly a missing slice rather than measurement noise.
+const MISSING_SLICE_GAP_FACTOR: f64 = 1.5;
+
+/// Normalize a 3-vector; returns `None` when the vector has near-zero length (< 1e-10).
+#[inline]
+pub(super) fn normalize_3d(v: [f64; 3]) -> Option<[f64; 3]> {
+    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if len < 1e-10 {
+        None
+    } else {
+        Some([v[0] / len, v[1] / len, v[2] / len])
+    }
+}
+
+/// Dot product of two 3-vectors.
+#[inline]
+pub(super) fn dot_3d(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+/// Compute the normalized slice normal from ImageOrientationPatient.
+///
+/// Given IOP = [rx, ry, rz, cx, cy, cz], the slice normal is:
+///   N̂ = normalize(cross([rx, ry, rz], [cx, cy, cz]))
+///
+/// Returns `None` when the cross product has near-zero length (degenerate IOP).
+pub(super) fn slice_normal_from_iop(iop: [f64; 6]) -> Option<[f64; 3]> {
+    let r = [iop[0], iop[1], iop[2]];
+    let c = [iop[3], iop[4], iop[5]];
+    normalize_3d(cross_3d(r, c))
+}
+
+/// Result of analyzing per-slice spacing uniformity.
+///
+/// Derived from sorted projected positions `p[0] ≤ p[1] ≤ … ≤ p[N-1]`:
+/// - gaps[i] = p[i+1] - p[i], i ∈ [0, N-2]
+/// - nominal_spacing = median(gaps)
+/// - max_relative_deviation = max_i |gaps[i] - nominal| / nominal
+/// - missing_between contains indices i where gaps[i] > 1.5 × nominal
+#[derive(Debug, Clone)]
+pub(super) struct SliceGeometryReport {
+    /// Median adjacent-pair spacing projected onto slice normal (mm).
+    pub nominal_spacing: f64,
+    /// Maximum relative deviation: max_i |gaps[i] - nominal| / nominal.
+    pub max_relative_deviation: f64,
+    /// Indices i (0-based, into the sorted slice array) where gap(i, i+1) > 1.5 × nominal.
+    pub missing_between: Vec<usize>,
+    /// True when max_relative_deviation > NONUNIFORM_SPACING_THRESHOLD (1%).
+    pub is_nonuniform: bool,
+    /// True when any element of missing_between exists.
+    pub has_missing_slices: bool,
+}
+
+/// Analyze per-slice projected positions for spacing uniformity.
+///
+/// # Precondition
+/// `positions` is sorted ascending; `positions.len() >= 2`.
+///
+/// # Algorithm
+/// 1. Compute adjacent-pair gaps: `gaps[i] = positions[i+1] - positions[i]`.
+/// 2. `nominal_spacing` = median(gaps).
+/// 3. `max_relative_deviation` = max_i `|gaps[i] - nominal| / nominal`.
+/// 4. `missing_between`: indices i where `gaps[i] > MISSING_SLICE_GAP_FACTOR × nominal`.
+///
+/// When `nominal <= 0` (duplicate or reverse-sorted positions), returns a
+/// degenerate report with `nominal_spacing = 1.0` and no warnings flagged.
+pub(super) fn analyze_slice_spacing(positions: &[f64]) -> SliceGeometryReport {
+    debug_assert!(
+        positions.len() >= 2,
+        "analyze_slice_spacing: need >= 2 positions"
+    );
+    let n = positions.len();
+    let gaps: Vec<f64> = (0..n - 1)
+        .map(|i| positions[i + 1] - positions[i])
+        .collect();
+
+    // Median of gaps via sorted copy.
+    let mut sorted_gaps = gaps.clone();
+    sorted_gaps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let nominal = if sorted_gaps.len() % 2 == 0 {
+        let mid = sorted_gaps.len() / 2;
+        (sorted_gaps[mid - 1] + sorted_gaps[mid]) / 2.0
+    } else {
+        sorted_gaps[sorted_gaps.len() / 2]
+    };
+
+    if nominal <= 0.0 || !nominal.is_finite() {
+        return SliceGeometryReport {
+            nominal_spacing: 1.0,
+            max_relative_deviation: 0.0,
+            missing_between: Vec::new(),
+            is_nonuniform: false,
+            has_missing_slices: false,
+        };
+    }
+
+    let mut max_rel_dev = 0.0_f64;
+    let mut missing_between = Vec::new();
+    for (i, &g) in gaps.iter().enumerate() {
+        let rel_dev = (g - nominal).abs() / nominal;
+        if rel_dev > max_rel_dev {
+            max_rel_dev = rel_dev;
+        }
+        if g > MISSING_SLICE_GAP_FACTOR * nominal {
+            missing_between.push(i);
+        }
+    }
+
+    SliceGeometryReport {
+        nominal_spacing: nominal,
+        max_relative_deviation: max_rel_dev,
+        missing_between: missing_between.clone(),
+        is_nonuniform: max_rel_dev > NONUNIFORM_SPACING_THRESHOLD,
+        has_missing_slices: !missing_between.is_empty(),
+    }
+}
+
+/// Resample decoded frames from nonuniform source positions to a uniform grid.
+///
+/// # Mathematical specification
+///
+/// Given sorted source positions p[0..N] and decoded frames src[0..N]:
+/// - `N_target = round((p[N-1] - p[0]) / target_spacing) + 1`
+/// - `target[k] = p[0] + k × target_spacing`, k ∈ [0, N_target)
+///
+/// For each target frame k, locate bracketing source pair (lo, hi):
+///   `p[lo] ≤ target[k] ≤ p[hi]`
+///
+/// Interpolation coefficient:
+///   `t = (target[k] - p[lo]) / (p[hi] - p[lo])` ∈ [0, 1]
+///
+/// Output pixel j of frame k:
+///   `output[k][j] = (1 - t) × src[lo][j] + t × src[hi][j]`   (linear interpolation)
+///
+/// Edge cases:
+/// - `target[k] ≤ p[0]`: clamp to frame 0.
+/// - `target[k] ≥ p[N-1]`: clamp to frame N-1.
+/// - gap between lo and hi < 1e-10: use frame lo (degenerate).
+///
+/// # Invariants
+/// - `decoded_frames.len() == src_positions.len()`
+/// - All frames have the same length (rows × cols).
+/// - `target_spacing > 0`.
+pub(super) fn resample_frames_linear(
+    decoded_frames: &[Vec<f32>],
+    src_positions: &[f64],
+    target_spacing: f64,
+) -> Vec<Vec<f32>> {
+    debug_assert_eq!(decoded_frames.len(), src_positions.len());
+    if decoded_frames.is_empty() || target_spacing <= 0.0 {
+        return decoded_frames.to_vec();
+    }
+    let first = src_positions[0];
+    let last = *src_positions.last().unwrap();
+    let span = last - first;
+    if span <= 0.0 || !span.is_finite() {
+        return decoded_frames.to_vec();
+    }
+    let n_target = (span / target_spacing).round() as usize + 1;
+    let mut output = Vec::with_capacity(n_target);
+
+    for k in 0..n_target {
+        let target_pos = first + k as f64 * target_spacing;
+        // partition_point returns the first index i where src_positions[i] > target_pos.
+        let idx = src_positions.partition_point(|&p| p <= target_pos);
+        let frame = if idx == 0 {
+            // target_pos <= src_positions[0]: clamp to first frame.
+            decoded_frames[0].clone()
+        } else if idx >= src_positions.len() {
+            // target_pos >= src_positions[last]: clamp to last frame.
+            decoded_frames[src_positions.len() - 1].clone()
+        } else {
+            let lo = idx - 1;
+            let hi = idx;
+            let gap = src_positions[hi] - src_positions[lo];
+            if gap < 1e-10 {
+                decoded_frames[lo].clone()
+            } else {
+                let t = ((target_pos - src_positions[lo]) / gap) as f32;
+                let one_minus_t = 1.0_f32 - t;
+                decoded_frames[lo]
+                    .iter()
+                    .zip(decoded_frames[hi].iter())
+                    .map(|(&a, &b)| one_minus_t * a + t * b)
+                    .collect()
+            }
+        };
+        output.push(frame);
+    }
+    output
+}
+
 /// Read a DICOM series and return the reconstructed 3-D image.
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
@@ -855,8 +1302,8 @@ fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
     device: &B::Device,
 ) -> Result<(Image<B, 3>, DicomReadMetadata)> {
-    let metadata = series.metadata.clone();
-    let slices = &metadata.slices;
+    let mut metadata = series.metadata.clone();
+    let slices = metadata.slices.clone();
 
     slices
         .first()
@@ -896,12 +1343,11 @@ fn load_from_series<B: Backend>(
         bail!("DICOM series has invalid zero dimensions");
     }
 
-    let mut volume = vec![0f32; rows * cols * depth];
-
-    for (z, slice) in slices.iter().enumerate() {
+    // Decode each slice into a per-frame buffer for geometry analysis and optional resampling.
+    let mut decoded: Vec<Vec<f32>> = Vec::with_capacity(depth);
+    for slice in slices.iter() {
         let data = read_slice_pixels(slice)
             .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-
         if data.len() != rows * cols {
             bail!(
                 "DICOM slice size mismatch: expected {} pixels, got {}",
@@ -909,20 +1355,89 @@ fn load_from_series<B: Backend>(
                 data.len()
             );
         }
-
-        let offset = z * rows * cols;
-        volume[offset..offset + rows * cols].copy_from_slice(&data);
+        decoded.push(data);
     }
 
+    // Geometry analysis: detect nonuniform or missing slices and resample to correct.
+    // Projects each IPP onto the slice normal N̂ = normalize(row × col) from IOP.
+    let iop = slices.first().and_then(|s| s.image_orientation_patient);
+    let maybe_normal = iop.and_then(slice_normal_from_iop);
+
+    let (final_frames, final_depth, final_spacing_z) = if let Some(normal) = maybe_normal {
+        let proj: Vec<Option<f64>> = slices
+            .iter()
+            .map(|s| s.image_position_patient.map(|ipp| dot_3d(ipp, normal)))
+            .collect();
+        let missing_ipp = proj.iter().filter(|p| p.is_none()).count();
+        if missing_ipp > 0 {
+            tracing::warn!(
+                missing_ipp_count = missing_ipp,
+                total_slices = slices.len(),
+                "DICOM series: {} of {} slices lack ImagePositionPatient; \
+                 slice ordering may be incorrect",
+                missing_ipp,
+                slices.len()
+            );
+        }
+        if proj.iter().all(|p| p.is_some()) {
+            let positions: Vec<f64> = proj.into_iter().map(|p| p.unwrap()).collect();
+            let report = analyze_slice_spacing(&positions);
+            if report.is_nonuniform {
+                tracing::warn!(
+                    max_relative_deviation = report.max_relative_deviation,
+                    nominal_spacing_mm = report.nominal_spacing,
+                    n_slices = slices.len(),
+                    "DICOM series: nonuniform slice spacing detected \
+                     (max deviation {:.2}%); resampling to uniform grid \
+                     with nominal spacing {:.4} mm",
+                    report.max_relative_deviation * 100.0,
+                    report.nominal_spacing,
+                );
+            }
+            if report.has_missing_slices {
+                tracing::warn!(
+                    missing_between = ?report.missing_between,
+                    nominal_spacing_mm = report.nominal_spacing,
+                    "DICOM multiframe: {} gap(s) exceed 1.5x nominal spacing \
+                     ({:.4} mm), indicating missing frames; \
+                     resampling to fill gaps via linear interpolation",
+                    report.missing_between.len(),
+                    report.nominal_spacing,
+                );
+            }
+            if report.is_nonuniform || report.has_missing_slices {
+                let resampled =
+                    resample_frames_linear(&decoded, &positions, report.nominal_spacing);
+                let new_depth = resampled.len();
+                (resampled, new_depth, report.nominal_spacing)
+            } else {
+                (decoded, depth, report.nominal_spacing)
+            }
+        } else {
+            (decoded, depth, metadata.spacing[0])
+        }
+    } else {
+        (decoded, depth, metadata.spacing[0])
+    };
+
+    // Flatten frames into volume and update metadata to reflect actual geometry.
+    let mut volume = vec![0f32; rows * cols * final_depth];
+    for (z, frame) in final_frames.iter().enumerate() {
+        let offset = z * rows * cols;
+        volume[offset..offset + rows * cols].copy_from_slice(frame);
+    }
+    metadata.dimensions[2] = final_depth;
+    metadata.spacing[0] = final_spacing_z.abs().max(1e-6);
+
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(volume, Shape::new([depth, rows, cols])),
+        TensorData::new(volume, Shape::new([final_depth, rows, cols])),
         device,
     );
     let image = Image::new(
         tensor,
         Point::new(metadata.origin),
         Spacing::new(metadata.spacing),
-        Direction(SMatrix::<f64, 3, 3>::from_row_slice(&metadata.direction)),
+        Direction(SMatrix::<f64, 3, 3>::from_column_slice(&metadata.direction)),
     );
 
     Ok((image, metadata))
@@ -1392,7 +1907,7 @@ mod tests {
         let image = Image::<B, 3>::new(
             tensor,
             Point::new([10.0, 20.0, -50.0]),
-            Spacing::new([0.8, 0.8, 2.5]),
+            Spacing::new([2.5, 0.8, 0.8]),
             Direction::identity(),
         );
 
@@ -1408,9 +1923,9 @@ mod tests {
             series_date: None,
             series_time: None,
             dimensions: [rows, cols, depth],
-            spacing: [0.8, 0.8, 2.5],
+            spacing: [2.5, 0.8, 0.8],
             origin: [10.0, 20.0, -50.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),
@@ -1459,21 +1974,21 @@ mod tests {
             cols, m.dimensions[1]
         );
 
-        // Spacing: within 1e-4 of [0.8, 0.8, 2.5].
+        // Spacing: RITK convention [Δz, ΔRow, ΔCol] = [2.5, 0.8, 0.8].
         let tol = 1e-4_f64;
         assert!(
-            (m.spacing[0] - 0.8).abs() < tol,
-            "spacing[0] must be 0.8 ± 1e-4; got {}",
+            (m.spacing[0] - 2.5).abs() < tol,
+            "spacing[0] (Δz) must be 2.5 ± 1e-4; got {}",
             m.spacing[0]
         );
         assert!(
             (m.spacing[1] - 0.8).abs() < tol,
-            "spacing[1] must be 0.8 ± 1e-4; got {}",
+            "spacing[1] (ΔRow) must be 0.8 ± 1e-4; got {}",
             m.spacing[1]
         );
         assert!(
-            (m.spacing[2] - 2.5).abs() < tol,
-            "spacing[2] must be 2.5 ± 1e-4; got {}",
+            (m.spacing[2] - 0.8).abs() < tol,
+            "spacing[2] (ΔCol) must be 0.8 ± 1e-4; got {}",
             m.spacing[2]
         );
 
@@ -1494,12 +2009,13 @@ mod tests {
             m.origin[2]
         );
 
-        // Direction: identity, reconstructed from IOP cross product [1,0,0]×[0,1,0] = [0,0,1].
-        let identity = [1.0f64, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-        for (i, (&actual, &expected)) in m.direction.iter().zip(identity.iter()).enumerate() {
+        // Direction: RITK axial convention — N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
+        // from_column_slice([0,0,1, 0,1,0, 1,0,0])
+        let axial_dir = [0.0f64, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        for (i, (&actual, &expected)) in m.direction.iter().zip(axial_dir.iter()).enumerate() {
             assert!(
                 (actual - expected).abs() < 1e-5,
-                "direction[{i}] must be {expected:.1} ± 1e-5; got {actual}"
+                "direction[{i}] must be {expected:.1} ± 1e-5 (axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]); got {actual}"
             );
         }
 
@@ -1618,7 +2134,8 @@ mod tests {
             dimensions: [rows, cols, depth],
             spacing: [1.0, 1.0, 1.0],
             origin: [0.0, 0.0, 0.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+            direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),
@@ -2247,7 +2764,7 @@ mod tests {
         let image = Image::<B, 3>::new(
             tensor,
             Point::new([5.0, 10.0, -20.0]),
-            Spacing::new([0.5, 0.5, 1.5]),
+            Spacing::new([1.5, 0.5, 0.5]),
             Direction::identity(),
         );
 
@@ -2263,9 +2780,10 @@ mod tests {
             series_date: None,
             series_time: None,
             dimensions: [rows, cols, depth],
-            spacing: [0.5, 0.5, 1.5],
+            spacing: [1.5, 0.5, 0.5],
             origin: [5.0, 10.0, -20.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+            direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),
@@ -2332,18 +2850,18 @@ mod tests {
             loaded_meta.origin[2]
         );
         assert!(
-            (loaded_meta.spacing[0] - 0.5).abs() < pos_tol,
-            "spacing[0] must be 0.5; got {}",
+            (loaded_meta.spacing[0] - 1.5).abs() < pos_tol,
+            "spacing[0] (Δz) must be 1.5; got {}",
             loaded_meta.spacing[0]
         );
         assert!(
             (loaded_meta.spacing[1] - 0.5).abs() < pos_tol,
-            "spacing[1] must be 0.5; got {}",
+            "spacing[1] (ΔRow) must be 0.5; got {}",
             loaded_meta.spacing[1]
         );
         assert!(
-            (loaded_meta.spacing[2] - 1.5).abs() < pos_tol,
-            "spacing[2] must be 1.5; got {}",
+            (loaded_meta.spacing[2] - 0.5).abs() < pos_tol,
+            "spacing[2] (ΔCol) must be 0.5; got {}",
             loaded_meta.spacing[2]
         );
     }
@@ -2565,5 +3083,974 @@ mod tests {
         // load_dicom_series rejects it via is_big_endian() guard — confirmed by classification.
         let _ = device; // suppress unused
         let _ = dir;
+    }
+
+    // ── Geometry utility unit tests ────────────────────────────────────────
+
+    /// analyze_slice_spacing with perfectly uniform positions returns
+    /// nominal = 1.0 and no deviation/missing flags.
+    #[test]
+    fn test_analyze_slice_spacing_uniform() {
+        // 5 slices at 0, 1, 2, 3, 4 mm
+        let positions = vec![0.0_f64, 1.0, 2.0, 3.0, 4.0];
+        let report = analyze_slice_spacing(&positions);
+        assert!(
+            (report.nominal_spacing - 1.0).abs() < 1e-10,
+            "nominal_spacing={}",
+            report.nominal_spacing
+        );
+        assert!(
+            report.max_relative_deviation < 1e-10,
+            "max_relative_deviation={}",
+            report.max_relative_deviation
+        );
+        assert!(!report.is_nonuniform);
+        assert!(!report.has_missing_slices);
+        assert!(report.missing_between.is_empty());
+    }
+
+    /// analyze_slice_spacing flags nonuniform when one gap deviates by >1%.
+    #[test]
+    fn test_analyze_slice_spacing_nonuniform() {
+        // Positions: 0, 1, 2.2, 3.2, 4.2 — gap[1] = 1.2, others = 1.0, median = 1.0
+        let positions = vec![0.0_f64, 1.0, 2.2, 3.2, 4.2];
+        let report = analyze_slice_spacing(&positions);
+        // nominal = median([1.0, 1.2, 1.0, 1.0]) = 1.0
+        assert!(
+            (report.nominal_spacing - 1.0).abs() < 1e-10,
+            "nominal_spacing={}",
+            report.nominal_spacing
+        );
+        // max relative deviation = |1.2 - 1.0| / 1.0 = 0.2 (20%)
+        assert!(
+            (report.max_relative_deviation - 0.2).abs() < 1e-10,
+            "max_relative_deviation={}",
+            report.max_relative_deviation
+        );
+        assert!(report.is_nonuniform);
+        // gap[1]=1.2 < 1.5 × 1.0: no missing slices
+        assert!(!report.has_missing_slices);
+    }
+
+    /// analyze_slice_spacing detects a missing slice when a gap exceeds 1.5× nominal.
+    #[test]
+    fn test_analyze_slice_spacing_missing_slice() {
+        // 4 slices at 0, 1, 3, 4 mm — gap[1] = 2.0, nominal = 1.0
+        let positions = vec![0.0_f64, 1.0, 3.0, 4.0];
+        let report = analyze_slice_spacing(&positions);
+        // gaps: [1.0, 2.0, 1.0]; median = 1.0
+        assert!(
+            (report.nominal_spacing - 1.0).abs() < 1e-10,
+            "nominal_spacing={}",
+            report.nominal_spacing
+        );
+        assert!(report.has_missing_slices);
+        // gap[1] = 2.0 > 1.5 × 1.0
+        assert_eq!(report.missing_between, vec![1_usize]);
+        // max relative deviation = 1.0 (100%) — also nonuniform
+        assert!(report.is_nonuniform);
+    }
+
+    /// resample_frames_linear with uniform positions returns frames identical to input.
+    #[test]
+    fn test_resample_frames_linear_identity_on_uniform() {
+        // 4 frames, 2×2 pixels each, uniform spacing 1.0 mm
+        let f0 = vec![1.0_f32, 2.0, 3.0, 4.0];
+        let f1 = vec![5.0_f32, 6.0, 7.0, 8.0];
+        let f2 = vec![9.0_f32, 10.0, 11.0, 12.0];
+        let f3 = vec![13.0_f32, 14.0, 15.0, 16.0];
+        let frames = vec![f0.clone(), f1.clone(), f2.clone(), f3.clone()];
+        let positions = vec![0.0_f64, 1.0, 2.0, 3.0];
+        let resampled = resample_frames_linear(&frames, &positions, 1.0);
+        assert_eq!(resampled.len(), 4, "frame count");
+        for (i, (orig, got)) in frames.iter().zip(resampled.iter()).enumerate() {
+            for (j, (&o, &g)) in orig.iter().zip(got.iter()).enumerate() {
+                assert!(
+                    (o - g).abs() < 1e-5,
+                    "frame[{}] pixel[{}]: expected {}, got {}",
+                    i,
+                    j,
+                    o,
+                    g
+                );
+            }
+        }
+    }
+
+    /// resample_frames_linear interpolates the missing middle frame correctly.
+    ///
+    /// Source: 4 slices at positions [0, 1, 3, 4]; target: uniform 1 mm → 5 frames.
+    /// Missing position 2.0 sits midway between source[1] (pos=1.0) and source[2] (pos=3.0).
+    /// Expected pixel value: 0.5 × src[1][j] + 0.5 × src[2][j].
+    #[test]
+    fn test_resample_frames_linear_missing_slice() {
+        // All-constant frames: src[0]=10, src[1]=20, src[2]=40, src[3]=50 (per-pixel)
+        let mk = |v: f32| vec![v; 4]; // 2×2 pixels
+        let frames = vec![mk(10.0), mk(20.0), mk(40.0), mk(50.0)];
+        let positions = vec![0.0_f64, 1.0, 3.0, 4.0];
+        let resampled = resample_frames_linear(&frames, &positions, 1.0);
+        // N_target = round((4.0 - 0.0) / 1.0) + 1 = 5
+        assert_eq!(resampled.len(), 5, "expected 5 output frames");
+        // Frame 0 (pos=0.0) → src[0] = 10.0
+        for &v in &resampled[0] {
+            assert!((v - 10.0).abs() < 1e-5, "frame[0] pixel={}", v);
+        }
+        // Frame 1 (pos=1.0) → exactly src[1] = 20.0
+        for &v in &resampled[1] {
+            assert!((v - 20.0).abs() < 1e-5, "frame[1] pixel={}", v);
+        }
+        // Frame 2 (pos=2.0) → midpoint of src[1](pos=1.0) and src[2](pos=3.0)
+        // t = (2.0 - 1.0) / (3.0 - 1.0) = 0.5 → 0.5×20 + 0.5×40 = 30.0
+        for &v in &resampled[2] {
+            assert!((v - 30.0).abs() < 1e-4, "frame[2] pixel={}", v);
+        }
+        // Frame 3 (pos=3.0) → exactly src[2] = 40.0
+        for &v in &resampled[3] {
+            assert!((v - 40.0).abs() < 1e-5, "frame[3] pixel={}", v);
+        }
+        // Frame 4 (pos=4.0) → src[3] = 50.0
+        for &v in &resampled[4] {
+            assert!((v - 50.0).abs() < 1e-5, "frame[4] pixel={}", v);
+        }
+    }
+
+    /// resample_frames_linear handles nonuniform (but no missing) spacing correctly.
+    ///
+    /// Source: 5 slices at [0, 1, 2.1, 3.1, 4.1]; nominal = 1.0 mm → 5 target frames.
+    /// Target[2] = 2.0: bracketed by src[1](1.0) and src[2](2.1).
+    /// t = (2.0 - 1.0) / (2.1 - 1.0) = 1/1.1 ≈ 0.9091
+    /// expected pixel = (1 - 0.9091) × src[1] + 0.9091 × src[2]
+    #[test]
+    fn test_resample_frames_linear_nonuniform_interpolation() {
+        let mk = |v: f32| vec![v; 1];
+        // src values: 0, 10, 20, 30, 40
+        let frames = vec![mk(0.0), mk(10.0), mk(20.0), mk(30.0), mk(40.0)];
+        let positions = vec![0.0_f64, 1.0, 2.1, 3.1, 4.1];
+        let resampled = resample_frames_linear(&frames, &positions, 1.0);
+        assert_eq!(resampled.len(), 5, "5 target frames");
+        // Frame 0 → exact src[0] = 0.0 (t=0, clamp)
+        assert!(
+            (resampled[0][0] - 0.0).abs() < 1e-5,
+            "frame[0]={}",
+            resampled[0][0]
+        );
+        // Frame 1 → exact src[1] = 10.0 (exact match at pos=1.0)
+        assert!(
+            (resampled[1][0] - 10.0).abs() < 1e-5,
+            "frame[1]={}",
+            resampled[1][0]
+        );
+        // Frame 2 → interpolated between src[1](10.0) and src[2](20.0)
+        let t = (2.0_f64 - 1.0) / (2.1 - 1.0);
+        let expected = (1.0 - t) as f32 * 10.0 + t as f32 * 20.0;
+        assert!(
+            (resampled[2][0] - expected).abs() < 1e-4,
+            "frame[2]: expected {:.5}, got {:.5}",
+            expected,
+            resampled[2][0]
+        );
+    }
+
+    /// normalize_3d returns the correct unit vector and handles zero-length gracefully.
+    #[test]
+    fn test_normalize_3d() {
+        let v = normalize_3d([3.0, 0.0, 0.0]).expect("non-zero");
+        assert!((v[0] - 1.0).abs() < 1e-10 && v[1].abs() < 1e-10 && v[2].abs() < 1e-10);
+        // Diagonal unit vector
+        let d = normalize_3d([1.0, 1.0, 1.0]).expect("non-zero");
+        let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+        assert!((len - 1.0).abs() < 1e-10, "len={}", len);
+        // Zero vector → None
+        assert!(normalize_3d([0.0, 0.0, 0.0]).is_none());
+    }
+
+    /// slice_normal_from_iop returns the correct normal for axial IOP.
+    ///
+    /// Axial IOP: row=[1,0,0], col=[0,1,0] → normal=[0,0,1].
+    #[test]
+    fn test_slice_normal_from_iop_axial() {
+        let iop = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
+        let n = slice_normal_from_iop(iop).expect("valid iop");
+        assert!(
+            (n[0]).abs() < 1e-10 && (n[1]).abs() < 1e-10 && (n[2] - 1.0).abs() < 1e-10,
+            "normal={:?}",
+            n
+        );
+    }
+
+    /// dot_3d computes the correct dot product.
+    #[test]
+    fn test_dot_3d() {
+        assert!((dot_3d([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]) - 32.0).abs() < 1e-10);
+        assert!((dot_3d([1.0, 0.0, 0.0], [0.0, 1.0, 0.0])).abs() < 1e-10);
+    }
+
+    /// GAP-R60-03: load_from_series must use from_column_slice for the direction matrix.
+    ///
+    /// # Mathematical specification
+    /// metadata.direction = [rx,ry,rz, cx,cy,cz, nx,ny,nz] (ITK column-vector layout).
+    /// from_column_slice produces columns = [r, c, n].
+    /// from_row_slice (wrong) produces rows = [r, c, n], yielding the transpose.
+    ///
+    /// Coronal IOP: r=[1,0,0], c=[0,0,-1], n=r×c=[0,1,0].
+    /// direction = [1,0,0, 0,0,-1, 0,1,0].
+    ///
+    /// from_column_slice: direction[(2,1)]=-1.0, direction[(1,2)]=+1.0.
+    /// from_row_slice:    direction[(2,1)]=+1.0, direction[(1,2)]=-1.0.
+    #[test]
+    fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let series_path = temp.path().join("coronal_series");
+
+        let (depth, rows, cols) = (3usize, 2usize, 2usize);
+        let data = vec![500.0f32; depth * rows * cols];
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(data, Shape::new([depth, rows, cols])),
+            &device,
+        );
+        let image = Image::<B, 3>::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.5, 1.0, 1.0]),
+            Direction::identity(),
+        );
+
+        // Coronal IOP: F_r=[1,0,0], F_c=[0,0,-1], N̂=F_r×F_c=[0,1,0].
+        // RITK direction = from_column_slice([N̂, F_c, F_r]) = [0,1,0, 0,0,-1, 1,0,0].
+        let meta = DicomReadMetadata {
+            series_instance_uid: Some("2.25.61001".to_string()),
+            study_instance_uid: Some("2.25.61002".to_string()),
+            frame_of_reference_uid: None,
+            series_description: None,
+            modality: Some("CT".to_string()),
+            patient_id: None,
+            patient_name: None,
+            study_date: None,
+            series_date: None,
+            series_time: None,
+            dimensions: [rows, cols, depth],
+            spacing: [1.5, 1.0, 1.0],
+            origin: [0.0, 0.0, 0.0],
+            direction: [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0],
+            bits_allocated: Some(16),
+            bits_stored: Some(16),
+            high_bit: Some(15),
+            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            slices: Vec::new(),
+            private_tags: HashMap::new(),
+            preservation: crate::format::dicom::DicomPreservationSet::new(),
+        };
+
+        crate::format::dicom::writer::write_dicom_series_with_metadata(
+            &series_path,
+            &image,
+            Some(&meta),
+        )
+        .expect("write_dicom_series_with_metadata must not fail");
+
+        let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+            .expect("load_dicom_series_with_metadata must not fail");
+
+        // RITK convention: from_column_slice([N̂, F_c, F_r]) = from_column_slice([0,1,0, 0,0,-1, 1,0,0]):
+        //   col0=[0,1,0]: direction[(0,0)]=0, direction[(1,0)]=1, direction[(2,0)]=0
+        //   col1=[0,0,-1]: direction[(0,1)]=0, direction[(1,1)]=0, direction[(2,1)]=-1
+        //   col2=[1,0,0]:  direction[(0,2)]=1, direction[(1,2)]=0, direction[(2,2)]=0
+        let dir = loaded_image.direction().0;
+        const TOL: f64 = 1e-5;
+
+        // Column 0 = slice normal N̂ = [0, 1, 0]
+        assert!(
+            dir[(0, 0)].abs() < TOL,
+            "dir[(0,0)] must be 0.0; got {}",
+            dir[(0, 0)]
+        );
+        assert!(
+            (dir[(1, 0)] - 1.0).abs() < TOL,
+            "dir[(1,0)] must be 1.0; got {}",
+            dir[(1, 0)]
+        );
+        assert!(
+            dir[(2, 0)].abs() < TOL,
+            "dir[(2,0)] must be 0.0; got {}",
+            dir[(2, 0)]
+        );
+
+        // Column 1 = col cosines F_c = [0, 0, -1]
+        assert!(
+            dir[(0, 1)].abs() < TOL,
+            "dir[(0,1)] must be 0.0; got {}",
+            dir[(0, 1)]
+        );
+        assert!(
+            dir[(1, 1)].abs() < TOL,
+            "dir[(1,1)] must be 0.0; got {}",
+            dir[(1, 1)]
+        );
+        // Discriminating: from_column_slice → -1.0; from_row_slice (wrong) → +1.0
+        assert!(
+            (dir[(2, 1)] + 1.0).abs() < TOL,
+            "dir[(2,1)] must be -1.0 (column-slice convention); \
+             from_row_slice would give +1.0; got {}",
+            dir[(2, 1)]
+        );
+
+        // Column 2 = row cosines F_r = [1, 0, 0]
+        assert!(
+            (dir[(0, 2)] - 1.0).abs() < TOL,
+            "dir[(0,2)] must be 1.0; got {}",
+            dir[(0, 2)]
+        );
+        // Discriminating: from_column_slice → 0.0 here; old convention had 1.0 at (1,2)
+        assert!(
+            dir[(1, 2)].abs() < TOL,
+            "dir[(1,2)] must be 0.0 (RITK column-slice convention); got {}",
+            dir[(1, 2)]
+        );
+        assert!(
+            dir[(2, 2)].abs() < TOL,
+            "dir[(2,2)] must be 0.0; got {}",
+            dir[(2, 2)]
+        );
+    }
+
+    /// GAP-R60-01: scan_dicom_directory must return Ok when slices have inconsistent IOP.
+    ///
+    /// # Invariants
+    /// - Returns Ok with num_slices == 2 despite mixed IOP.
+    /// - Canonical IOP is the first (lowest-position) slice after sort.
+    /// - direction[0..6] reflects axial IOP [1,0,0,0,1,0] ± 1e-5.
+    ///
+    /// Cross-slice IOP deviation: max(|axial_iop - coronal_iop|) = 1.0 >> 1e-4 threshold.
+    #[test]
+    fn test_scan_directory_warns_on_inconsistent_iop() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let dir_a = temp.path().join("iop_axial");
+        let dir_b = temp.path().join("iop_coronal");
+        let mixed = temp.path().join("iop_mixed");
+        std::fs::create_dir_all(&mixed).unwrap();
+
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let data = vec![500.0f32; 4]; // 1×2×2
+
+        // Axial series: IOP=[1,0,0,0,1,0], normal=[0,0,1], origin=[0,0,0].
+        // IPP for slice 0 = [0,0,0].
+        {
+            let tensor = Tensor::<B, 3>::from_data(
+                TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+                &device,
+            );
+            let image = Image::<B, 3>::new(
+                tensor,
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            let meta = DicomReadMetadata {
+                series_instance_uid: Some("2.25.62001".to_string()),
+                study_instance_uid: Some("2.25.62002".to_string()),
+                frame_of_reference_uid: None,
+                series_description: None,
+                modality: Some("CT".to_string()),
+                patient_id: None,
+                patient_name: None,
+                study_date: None,
+                series_date: None,
+                series_time: None,
+                dimensions: [2, 2, 1],
+                spacing: [1.0, 1.0, 1.0],
+                origin: [0.0, 0.0, 0.0],
+                direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+                bits_allocated: Some(16),
+                bits_stored: Some(16),
+                high_bit: Some(15),
+                photometric_interpretation: Some("MONOCHROME2".to_string()),
+                slices: Vec::new(),
+                private_tags: HashMap::new(),
+                preservation: crate::format::dicom::DicomPreservationSet::new(),
+            };
+            crate::format::dicom::writer::write_dicom_series_with_metadata(
+                &dir_a,
+                &image,
+                Some(&meta),
+            )
+            .expect("write axial series");
+        }
+
+        // Coronal series: IOP=[1,0,0,0,0,-1], normal=[0,1,0], origin=[0,1,0].
+        // IPP for slice 0 = origin + 0×spacing×normal = [0,1,0].
+        // Projected onto any normal: axial IPP=0 ≤ coronal IPP≥0 → axial sorts first.
+        {
+            let tensor = Tensor::<B, 3>::from_data(
+                TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+                &device,
+            );
+            let image = Image::<B, 3>::new(
+                tensor,
+                Point::new([0.0, 1.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            let meta = DicomReadMetadata {
+                series_instance_uid: Some("2.25.62003".to_string()),
+                study_instance_uid: Some("2.25.62004".to_string()),
+                frame_of_reference_uid: None,
+                series_description: None,
+                modality: Some("CT".to_string()),
+                patient_id: None,
+                patient_name: None,
+                study_date: None,
+                series_date: None,
+                series_time: None,
+                dimensions: [2, 2, 1],
+                spacing: [1.0, 1.0, 1.0],
+                origin: [0.0, 1.0, 0.0],
+                direction: [0.0, 1.0, 0.0, 0.0, 0.0, -1.0, 1.0, 0.0, 0.0],
+                bits_allocated: Some(16),
+                bits_stored: Some(16),
+                high_bit: Some(15),
+                photometric_interpretation: Some("MONOCHROME2".to_string()),
+                slices: Vec::new(),
+                private_tags: HashMap::new(),
+                preservation: crate::format::dicom::DicomPreservationSet::new(),
+            };
+            crate::format::dicom::writer::write_dicom_series_with_metadata(
+                &dir_b,
+                &image,
+                Some(&meta),
+            )
+            .expect("write coronal series");
+        }
+
+        std::fs::copy(dir_a.join("slice_0000.dcm"), mixed.join("slice_0000.dcm"))
+            .expect("copy axial slice");
+        std::fs::copy(dir_b.join("slice_0000.dcm"), mixed.join("slice_0001.dcm"))
+            .expect("copy coronal slice");
+
+        let result = scan_dicom_directory(&mixed);
+        assert!(
+            result.is_ok(),
+            "scan must return Ok for mixed-IOP series; err={:?}",
+            result.err()
+        );
+
+        let info = result.unwrap();
+
+        // Both slices must be retained regardless of IOP inconsistency.
+        assert_eq!(
+            info.metadata.dimensions[2], 2,
+            "both slices must be loaded; got {}",
+            info.metadata.dimensions[2]
+        );
+
+        // Canonical IOP is the first (lowest-position) slice after sort = axial.
+        // Axial IPP=[0,0,0] projects to 0 along any normal; coronal IPP=[0,1,0]
+        // projects to ≥0; when equal, filename tiebreak puts slice_0000 (axial) first.
+        // RITK direction[0..3] = N̂ for axial = [0,0,1]; direction[3..6] = F_c = [0,1,0].
+        let expected_dir_prefix = [0.0f64, 0.0, 1.0, 0.0, 1.0, 0.0];
+        let tol = 1e-5_f64;
+        for (i, (&actual, &expected)) in info.metadata.direction[0..6]
+            .iter()
+            .zip(expected_dir_prefix.iter())
+            .enumerate()
+        {
+            assert!(
+                (actual - expected).abs() < tol,
+                "direction[{i}] must be {expected:.1} ± 1e-5 (axial: N̂=[0,0,1], F_c=[0,1,0]); got {actual}"
+            );
+        }
+    }
+
+    /// GAP-R60-02: scan_dicom_directory must return Ok when slices have inconsistent PixelSpacing.
+    ///
+    /// # Invariants
+    /// - Returns Ok with num_slices == 2 despite mixed PixelSpacing.
+    /// - Canonical PixelSpacing is from the first file encountered (alphabetical on NTFS).
+    /// - spacing[0] and spacing[1] reflect the first slice's pixel spacing (0.8 mm).
+    ///
+    /// Cross-slice deviation: |1.0 - 0.8| = 0.2 >> 1e-4 threshold → warn emitted.
+    #[test]
+    fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use std::collections::HashMap;
+        type B = burn_ndarray::NdArray<f32>;
+
+        let temp = tempfile::tempdir().unwrap();
+        let dir_a = temp.path().join("ps_a");
+        let dir_b = temp.path().join("ps_b");
+        let mixed = temp.path().join("ps_mixed");
+        std::fs::create_dir_all(&mixed).unwrap();
+
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let data = vec![500.0f32; 4]; // 1×2×2
+
+        // Series A: pixel_spacing=[0.8,0.8], origin=[0,0,0], IPP=[0,0,0].
+        {
+            let tensor = Tensor::<B, 3>::from_data(
+                TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+                &device,
+            );
+            let image = Image::<B, 3>::new(
+                tensor,
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 0.8, 0.8]),
+                Direction::identity(),
+            );
+            let meta = DicomReadMetadata {
+                series_instance_uid: Some("2.25.63001".to_string()),
+                study_instance_uid: Some("2.25.63002".to_string()),
+                frame_of_reference_uid: None,
+                series_description: None,
+                modality: Some("CT".to_string()),
+                patient_id: None,
+                patient_name: None,
+                study_date: None,
+                series_date: None,
+                series_time: None,
+                dimensions: [2, 2, 1],
+                spacing: [1.0, 0.8, 0.8],
+                origin: [0.0, 0.0, 0.0],
+                direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+                bits_allocated: Some(16),
+                bits_stored: Some(16),
+                high_bit: Some(15),
+                photometric_interpretation: Some("MONOCHROME2".to_string()),
+                slices: Vec::new(),
+                private_tags: HashMap::new(),
+                preservation: crate::format::dicom::DicomPreservationSet::new(),
+            };
+            crate::format::dicom::writer::write_dicom_series_with_metadata(
+                &dir_a,
+                &image,
+                Some(&meta),
+            )
+            .expect("write series_a");
+        }
+
+        // Series B: pixel_spacing=[1.0,1.0], origin=[0,0,1.0], IPP=[0,0,1.0].
+        // Different z-position ensures both slices are retained after sort.
+        {
+            let tensor = Tensor::<B, 3>::from_data(
+                TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+                &device,
+            );
+            let image = Image::<B, 3>::new(
+                tensor,
+                Point::new([0.0, 0.0, 1.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            let meta = DicomReadMetadata {
+                series_instance_uid: Some("2.25.63003".to_string()),
+                study_instance_uid: Some("2.25.63004".to_string()),
+                frame_of_reference_uid: None,
+                series_description: None,
+                modality: Some("CT".to_string()),
+                patient_id: None,
+                patient_name: None,
+                study_date: None,
+                series_date: None,
+                series_time: None,
+                dimensions: [2, 2, 1],
+                spacing: [1.0, 1.0, 1.0],
+                origin: [0.0, 0.0, 1.0],
+                direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
+                bits_allocated: Some(16),
+                bits_stored: Some(16),
+                high_bit: Some(15),
+                photometric_interpretation: Some("MONOCHROME2".to_string()),
+                slices: Vec::new(),
+                private_tags: HashMap::new(),
+                preservation: crate::format::dicom::DicomPreservationSet::new(),
+            };
+            crate::format::dicom::writer::write_dicom_series_with_metadata(
+                &dir_b,
+                &image,
+                Some(&meta),
+            )
+            .expect("write series_b");
+        }
+
+        // Copy slice_0000.dcm (0.8 spacing) first; on NTFS temp-dirs are returned
+        // alphabetically so slice_0000 precedes slice_0001 in read_dir iteration,
+        // making 0.8-spacing the first_pixel_spacing captured during parsing.
+        std::fs::copy(dir_a.join("slice_0000.dcm"), mixed.join("slice_0000.dcm"))
+            .expect("copy series_a slice");
+        std::fs::copy(dir_b.join("slice_0000.dcm"), mixed.join("slice_0001.dcm"))
+            .expect("copy series_b slice");
+
+        let result = scan_dicom_directory(&mixed);
+        assert!(
+            result.is_ok(),
+            "scan must return Ok for mixed-PixelSpacing series; err={:?}",
+            result.err()
+        );
+
+        let info = result.unwrap();
+
+        // Both slices must be retained regardless of PixelSpacing inconsistency.
+        assert_eq!(
+            info.metadata.dimensions[2], 2,
+            "both slices must be loaded; got {}",
+            info.metadata.dimensions[2]
+        );
+
+        // spacing[1] and spacing[2] reflect the first slice's pixel spacing (0.8 mm).
+        // RITK convention: spacing = [Δz, ΔRow, ΔCol].
+        let tol = 1e-5_f64;
+        assert!(
+            (info.metadata.spacing[1] - 0.8).abs() < tol,
+            "spacing[1] (ΔRow) must be 0.8 ± 1e-5 (first slice pixel spacing row); got {}",
+            info.metadata.spacing[1]
+        );
+        assert!(
+            (info.metadata.spacing[2] - 0.8).abs() < tol,
+            "spacing[2] (ΔCol) must be 0.8 ± 1e-5 (first slice pixel spacing col); got {}",
+            info.metadata.spacing[2]
+        );
+    }
+
+    #[test]
+    fn test_physical_transform_depth_index_advances_along_slice_normal() {
+        // Invariant: advancing the depth index by 1 must move the physical point by exactly
+        // Δz along the slice normal N̂. With spacing=[Δz, ΔRow, ΔCol] and direction
+        // cols=[N̂, F_c, F_r]: point(1,0,0) = origin + 1*Δz*N̂.
+        use burn::tensor::{Shape, Tensor, TensorData};
+        use nalgebra::SMatrix;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        type B = burn_ndarray::NdArray<f32>;
+        const TOL: f64 = 1e-10;
+
+        let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.0f32; 2 * 4 * 4], Shape::new([2, 4, 4])),
+            &device,
+        );
+        // Axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Δz=2.5, ΔRow=0.8, ΔCol=0.8
+        let origin = Point::new([10.0, 20.0, -50.0]);
+        let spacing = Spacing::new([2.5, 0.8, 0.8]);
+        // direction from_column_slice([0,0,1, 0,1,0, 1,0,0]) — axial RITK convention
+        let dir = Direction(SMatrix::<f64, 3, 3>::from_column_slice(&[
+            0.0, 0.0, 1.0, // col 0 = N̂
+            0.0, 1.0, 0.0, // col 1 = F_c
+            1.0, 0.0, 0.0, // col 2 = F_r
+        ]));
+        let image = ritk_core::image::Image::new(tensor, origin, spacing, dir);
+
+        // Voxel (0,0,0): must be at origin
+        let p0 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 0.0]));
+        assert!((p0[0] - 10.0).abs() < TOL, "origin x; got {}", p0[0]);
+        assert!((p0[1] - 20.0).abs() < TOL, "origin y; got {}", p0[1]);
+        assert!((p0[2] + 50.0).abs() < TOL, "origin z; got {}", p0[2]);
+
+        // Voxel (1,0,0): depth=1 → origin + 2.5*[0,0,1] = [10,20,-47.5]
+        let p1 = image.transform_continuous_index_to_physical_point(&Point::new([1.0, 0.0, 0.0]));
+        assert!(
+            (p1[0] - 10.0).abs() < TOL,
+            "depth=1: x must stay; got {}",
+            p1[0]
+        );
+        assert!(
+            (p1[1] - 20.0).abs() < TOL,
+            "depth=1: y must stay; got {}",
+            p1[1]
+        );
+        assert!(
+            (p1[2] - (-47.5)).abs() < TOL,
+            "depth=1: z must advance 2.5mm; got {}",
+            p1[2]
+        );
+
+        // Voxel (0,1,0): row=1 → origin + 0.8*F_c = origin + 0.8*[0,1,0]
+        let p2 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 1.0, 0.0]));
+        assert!((p2[0] - 10.0).abs() < TOL, "row=1: x stays; got {}", p2[0]);
+        assert!(
+            (p2[1] - 20.8).abs() < TOL,
+            "row=1: y advances 0.8mm; got {}",
+            p2[1]
+        );
+        assert!((p2[2] + 50.0).abs() < TOL, "row=1: z stays; got {}", p2[2]);
+
+        // Voxel (0,0,1): col=1 → origin + 0.8*F_r = origin + 0.8*[1,0,0]
+        let p3 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0]));
+        assert!(
+            (p3[0] - 10.8).abs() < TOL,
+            "col=1: x advances 0.8mm; got {}",
+            p3[0]
+        );
+        assert!((p3[1] - 20.0).abs() < TOL, "col=1: y stays; got {}", p3[1]);
+        assert!((p3[2] + 50.0).abs() < TOL, "col=1: z stays; got {}", p3[2]);
+    }
+
+    #[test]
+    fn test_gantry_tilt_synthesizes_oblique_orientation() {
+        // Invariant: axial IOP [1,0,0,0,1,0] + GantryDetectorTilt=15° must produce
+        // synthesized F_c=[0,cos(15°),-sin(15°)] and N̂=[0,sin(15°),cos(15°)].
+        use dicom::core::{Tag, VR};
+        use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+        use dicom_core::smallvec::SmallVec;
+        use dicom_core::PrimitiveValue;
+        use std::f64::consts::PI;
+
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("tilted_series");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let tilt_deg = 15.0_f64;
+        let theta = tilt_deg * PI / 180.0;
+        let expected_cos = theta.cos();
+        let expected_sin = theta.sin();
+
+        let slice_path = dir.join("slice_0000.dcm");
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.999001"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("CT"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[2u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[2u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[15u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[0u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[1u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        // Axial IOP [1,0,0,0,1,0]
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0020, 0x0037),
+            VR::DS,
+            PrimitiveValue::from("1.000000\\0.000000\\0.000000\\0.000000\\1.000000\\0.000000"),
+        ));
+        // IPP at origin
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0020, 0x0032),
+            VR::DS,
+            PrimitiveValue::from("0.000000\\0.000000\\0.000000"),
+        ));
+        // PixelSpacing
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0030),
+            VR::DS,
+            PrimitiveValue::from("1.000000\\1.000000"),
+        ));
+        // SliceThickness
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0018, 0x0050),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        // GantryDetectorTilt = 15°
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0018, 0x1120),
+            VR::DS,
+            PrimitiveValue::from(format!("{:.6}", tilt_deg).as_str()),
+        ));
+        // Pixel data: 2×2 u16 = 8 bytes
+        let pixel_u16: Vec<u16> = vec![100, 200, 300, 400];
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
+        ));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                    .media_storage_sop_instance_uid("2.25.999001")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build failed");
+        file_obj
+            .write_to_file(&slice_path)
+            .expect("write slice failed");
+
+        let info = scan_dicom_directory(&dir).expect("scan must succeed");
+        assert_eq!(
+            info.num_slices, 1,
+            "must find 1 slice; got {}",
+            info.num_slices
+        );
+
+        let slice = &info.metadata.slices[0];
+
+        // gantry_tilt field must be populated
+        let tilt_read = slice
+            .gantry_tilt
+            .expect("gantry_tilt must be Some after reading tag");
+        assert!(
+            (tilt_read - tilt_deg).abs() < 1e-5,
+            "gantry_tilt must be 15.0; got {}",
+            tilt_read
+        );
+
+        // IOP must be synthesized from tilt
+        let iop = slice
+            .image_orientation_patient
+            .expect("IOP must be set after tilt synthesis");
+        const TOL: f64 = 1e-10;
+
+        // F_r stays [1,0,0]
+        assert!(
+            (iop[0] - 1.0).abs() < TOL,
+            "iop[0]=F_r[0] must be 1; got {}",
+            iop[0]
+        );
+        assert!(
+            iop[1].abs() < TOL,
+            "iop[1]=F_r[1] must be 0; got {}",
+            iop[1]
+        );
+        assert!(
+            iop[2].abs() < TOL,
+            "iop[2]=F_r[2] must be 0; got {}",
+            iop[2]
+        );
+        // F_c = [0, cos(θ), -sin(θ)]
+        assert!(
+            iop[3].abs() < TOL,
+            "iop[3]=F_c[0] must be 0; got {}",
+            iop[3]
+        );
+        assert!(
+            (iop[4] - expected_cos).abs() < TOL,
+            "iop[4]=F_c[1] must be cos(15°)={:.10}; got {}",
+            expected_cos,
+            iop[4]
+        );
+        assert!(
+            (iop[5] + expected_sin).abs() < TOL,
+            "iop[5]=F_c[2] must be -sin(15°)={:.10}; got {}",
+            -expected_sin,
+            iop[5]
+        );
+
+        // direction[0..3] = N̂ = F_r × F_c = [0, sin(15°), cos(15°)]
+        let dir = &info.metadata.direction;
+        assert!(dir[0].abs() < TOL, "N̂[0] must be 0; got {}", dir[0]);
+        assert!(
+            (dir[1] - expected_sin).abs() < TOL,
+            "N̂[1] must be sin(15°)={:.10}; got {}",
+            expected_sin,
+            dir[1]
+        );
+        assert!(
+            (dir[2] - expected_cos).abs() < TOL,
+            "N̂[2] must be cos(15°)={:.10}; got {}",
+            expected_cos,
+            dir[2]
+        );
+    }
+
+    #[test]
+    fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
+        let device: <burn_ndarray::NdArray<f32> as burn::tensor::backend::Backend>::Device =
+            Default::default();
+        let series_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
+        let series_path = series_path.as_path();
+        let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
+        assert!(
+            info.num_slices > 0,
+            "expected at least one slice from skull CT sample"
+        );
+        assert_eq!(
+            info.metadata.dimensions[2], info.num_slices,
+            "depth must match scanned slice count"
+        );
+        let image = read_dicom_series::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
+            .expect("read_dicom_series must succeed");
+        assert_eq!(
+            image.shape()[0],
+            info.num_slices,
+            "loaded image depth must match scan result"
+        );
+        assert!(
+            image.shape()[1] > 0 && image.shape()[2] > 0,
+            "loaded image must have nonzero in-plane dimensions"
+        );
+    }
+
+    #[test]
+    fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
+        let device: <burn_ndarray::NdArray<f32> as burn::tensor::backend::Backend>::Device =
+            Default::default();
+        let series_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
+        let series_path = series_path.as_path();
+        let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
+        let image = read_dicom_series::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
+            .expect("read_dicom_series must succeed");
+        let spatial = image.spacing();
+        assert!(
+            spatial[0] > 0.0 && spatial[1] > 0.0 && spatial[2] > 0.0,
+            "all spacing axes must be positive"
+        );
+        assert!(
+            info.metadata.direction.iter().all(|v| v.is_finite()),
+            "direction matrix must contain finite values"
+        );
+        assert!(
+            image.direction().0.determinant().abs() > 0.0,
+            "direction matrix must be invertible"
+        );
     }
 }

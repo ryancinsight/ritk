@@ -1,4 +1,3 @@
-pub mod intensity;
 pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
@@ -6,6 +5,7 @@ pub mod discrete_gaussian;
 pub mod downsample;
 pub mod edge;
 pub mod gaussian;
+pub mod intensity;
 pub mod median;
 pub mod morphology;
 pub mod pyramid;
@@ -19,25 +19,24 @@ pub use diffusion::{
     AnisotropicDiffusionFilter, ConductanceFunction, CurvatureAnisotropicDiffusionFilter,
     CurvatureConfig, DiffusionConfig,
 };
+pub use discrete_gaussian::DiscreteGaussianFilter;
 pub use downsample::DownsampleFilter;
 pub use edge::{
     CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
     SobelFilter,
 };
 pub use gaussian::GaussianFilter;
-pub use discrete_gaussian::DiscreteGaussianFilter;
+pub use intensity::{
+    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, IntensityWindowingFilter,
+    RescaleIntensityFilter, SigmoidImageFilter, ThresholdImageFilter, ThresholdMode,
+};
 pub use median::MedianFilter;
 pub use morphology::{
-    BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform,
-    LabelDilation, LabelErosion, LabelOpening, LabelClosing,
-    MorphologicalReconstruction, ReconstructionMode,
+    BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,
+    LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
     WhiteTopHatFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;
 pub use resample::ResampleImageFilter;
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};
-pub use intensity::{
-    BinaryThresholdImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, ThresholdImageFilter, ThresholdMode,
-};

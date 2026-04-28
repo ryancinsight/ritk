@@ -19,6 +19,7 @@
 //! | `curvature`         | `--iterations`, `--time-step`                      |
 //! | `sato`              | `--scales`, `--alpha`                              |
 //! | `discrete-gaussian` | `--variance`, `--maximum-error`, `--use-image-spacing` |
+//! | `bed-separation`    | `--body-threshold`, `--closing-radius`, `--opening-radius`, `--outside-value` |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -45,7 +46,7 @@ pub struct FilterArgs {
     /// Accepted values: `gaussian`, `n4-bias`, `anisotropic`, `frangi`,
     /// `gradient-magnitude`, `laplacian`, `median`, `bilateral`, `canny`,
     /// `sobel`, `log`, `recursive-gaussian`, `curvature`, `sato`,
-    /// `discrete-gaussian`.
+    /// `discrete-gaussian`, `bed-separation`.
     #[arg(long, value_name = "FILTER")]
     pub filter: String,
 
@@ -173,6 +174,30 @@ pub struct FilterArgs {
     #[arg(long, default_value = "true", value_name = "BOOL")]
     pub use_image_spacing: bool,
 
+    /// Lower intensity threshold for the bed separation filter.
+    ///
+    /// Used by: `bed-separation`.
+    #[arg(long, default_value = "-350.0", value_name = "FLOAT")]
+    pub body_threshold: f32,
+
+    /// Closing radius for the bed separation mask.
+    ///
+    /// Used by: `bed-separation`.
+    #[arg(long, default_value = "2", value_name = "INT")]
+    pub bed_closing_radius: usize,
+
+    /// Opening radius for the bed separation mask.
+    ///
+    /// Used by: `bed-separation`.
+    #[arg(long, default_value = "1", value_name = "INT")]
+    pub bed_opening_radius: usize,
+
+    /// Replacement value written outside the retained foreground mask.
+    ///
+    /// Used by: `bed-separation`.
+    #[arg(long, default_value = "-1024.0", value_name = "FLOAT")]
+    pub bed_outside_value: f32,
+
     // -- Intensity transform filters -------------------------------------------------
     /// Minimum output value for rescale-intensity and intensity-windowing filters.
     ///
@@ -277,6 +302,7 @@ pub fn run(args: FilterArgs) -> Result<()> {
         "curvature" => run_curvature(&args),
         "sato" => run_sato(&args),
         "discrete-gaussian" => run_discrete_gaussian(&args),
+        "bed-separation" => run_bed_separation(&args),
         "rescale-intensity" => run_rescale_intensity(&args),
         "intensity-windowing" => run_intensity_windowing(&args),
         "threshold-below" => run_threshold_below(&args),
@@ -816,6 +842,32 @@ fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+fn run_bed_separation(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::{BedSeparationConfig, BedSeparationFilter};
+
+    let image = read_image(&args.input)?;
+    let mut config = BedSeparationConfig::default();
+    config.body_threshold = args.body_threshold;
+    config.closing_radius = args.bed_closing_radius;
+    config.opening_radius = args.bed_opening_radius;
+    config.outside_value = args.bed_outside_value;
+
+    let filtered = BedSeparationFilter::new(config).apply(&image)?;
+    write_image_inferred(&args.output, &filtered)?;
+
+    println!(
+        "Applied bed-separation (body_threshold={}, closing_radius={}, opening_radius={}, outside={}) to {} -> {}",
+        args.body_threshold,
+        args.bed_closing_radius,
+        args.bed_opening_radius,
+        args.bed_outside_value,
+        args.input.display(),
+        args.output.display()
+    );
+    info!("filter: bed-separation complete");
+    Ok(())
+}
+
 fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::RescaleIntensityFilter;
     let image = read_image(&args.input)?;
@@ -1006,7 +1058,12 @@ fn run_label_dilation(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let filtered = LabelDilation::new(args.radius).apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
-    info!("filter: label-dilation complete radius={} input={} output={}", args.radius, args.input.display(), args.output.display());
+    info!(
+        "filter: label-dilation complete radius={} input={} output={}",
+        args.radius,
+        args.input.display(),
+        args.output.display()
+    );
     Ok(())
 }
 
@@ -1086,6 +1143,10 @@ mod tests {
             variance: 1.0,
             maximum_error: 0.01,
             use_image_spacing: true,
+            body_threshold: -350.0,
+            bed_closing_radius: 2,
+            bed_opening_radius: 1,
+            bed_outside_value: -1024.0,
             // new intensity filter fields
             out_min: 0.0,
             out_max: 1.0,
@@ -1113,6 +1174,52 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         )
+    }
+
+    #[test]
+    fn test_filter_bed_separation_masks_background() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.mha");
+        let output = dir.path().join("filtered.mha");
+
+        let values = vec![
+            -1000.0, -1000.0, -1000.0, -1000.0, -200.0, -150.0, 50.0, 60.0, -1000.0, -1000.0,
+            -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
+        ];
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let td = TensorData::new(values, Shape::new([1, 4, 4]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
+
+        ritk_io::write_metaimage(&input, &image).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "bed-separation");
+        args.body_threshold = -350.0;
+        args.bed_closing_radius = 0;
+        args.bed_opening_radius = 0;
+        args.bed_outside_value = -2048.0;
+        run(args).unwrap();
+
+        let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
+        let result_data: Vec<f32> = result
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec();
+
+        assert_eq!(result_data[0], -2048.0);
+        assert_eq!(result_data[1], -2048.0);
+        assert_eq!(result_data[4], -200.0);
+        assert_eq!(result_data[5], -150.0);
+        assert_eq!(result_data[6], 50.0);
+        assert_eq!(result_data[7], 60.0);
     }
 
     // ── Positive: Gaussian creates output file ────────────────────────────────

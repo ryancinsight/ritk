@@ -7,9 +7,10 @@
 pub mod convert;
 pub mod filter;
 pub mod register;
+pub mod resample;
 pub mod segment;
 pub mod stats;
-pub mod resample;
+pub mod viewer;
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
@@ -273,10 +274,18 @@ mod tests {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(tensor, Point::new([0.0; 3]),
-            Spacing::new([1.0; 3]), Direction::identity());
+        let image = Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        );
         let result = write_image(&out_path, &image, "dicom");
-        assert!(result.is_ok(), "DICOM write must succeed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "DICOM write must succeed: {:?}",
+            result.err()
+        );
         assert!(out_path.is_dir(), "DICOM output directory must exist");
     }
 

@@ -474,8 +474,8 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     let direction = metadata
         .map(|m| m.direction)
         .unwrap_or([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-    // Slice normal is direction[6..9].
-    let normal = [direction[6], direction[7], direction[8]];
+    // Slice normal is column 0 of direction matrix = direction[0..3] = N̂.
+    let normal = [direction[0], direction[1], direction[2]];
 
     let td = image.data().clone().into_data();
     let all_data: &[f32] = td
@@ -600,9 +600,9 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 
         // --- Spatial reference tags ---
         if metadata.is_some() {
-            let ipp_x = origin[0] + (z as f64) * spacing[2] * normal[0];
-            let ipp_y = origin[1] + (z as f64) * spacing[2] * normal[1];
-            let ipp_z = origin[2] + (z as f64) * spacing[2] * normal[2];
+            let ipp_x = origin[0] + (z as f64) * spacing[0] * normal[0];
+            let ipp_y = origin[1] + (z as f64) * spacing[0] * normal[1];
+            let ipp_z = origin[2] + (z as f64) * spacing[0] * normal[2];
             obj.put(DataElement::new(
                 Tag(0x0020, 0x0032),
                 VR::DS,
@@ -611,10 +611,11 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             obj.put(DataElement::new(
                 Tag(0x0020, 0x0037),
                 VR::DS,
+                // IOP = [F_r, F_c] = [direction[6..9], direction[3..6]]
                 PrimitiveValue::from(format_six([
-                    direction[0],
-                    direction[1],
-                    direction[2],
+                    direction[6],
+                    direction[7],
+                    direction[8],
                     direction[3],
                     direction[4],
                     direction[5],
@@ -623,12 +624,14 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             obj.put(DataElement::new(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                PrimitiveValue::from(format_pair([spacing[0], spacing[1]])),
+                // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
+                PrimitiveValue::from(format_pair([spacing[1], spacing[2]])),
             ));
             obj.put(DataElement::new(
                 Tag(0x0018, 0x0050),
                 VR::DS,
-                PrimitiveValue::from(format!("{:.6}", spacing[2])),
+                // SliceThickness = Δz = spacing[0]
+                PrimitiveValue::from(format!("{:.6}", spacing[0])),
             ));
         }
 
@@ -877,9 +880,11 @@ mod tests {
             series_date: Some("20240102".to_string()),
             series_time: Some("123456".to_string()),
             dimensions: [4, 4, 3],
-            spacing: [0.5, 0.5, 2.5],
+            // Axial convention: spacing=[Δz,ΔRow,ΔCol], direction cols=[N̂, F_c, F_r]
+            // N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+            spacing: [2.5, 0.5, 0.5],
             origin: [10.0, 20.0, 30.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),

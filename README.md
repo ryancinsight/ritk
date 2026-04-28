@@ -12,6 +12,7 @@ RITK provides a comprehensive framework for medical image analysis:
 - **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
 - **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
+- **CT Visualization Support**: Bed separation filter for CT foreground/body masking
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
