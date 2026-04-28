@@ -29,8 +29,7 @@ pub use distance_transform::{distance_transform, distance_transform_squared, Dis
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use level_set::{
     ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,
-    ShapeDetectionSegmentation,
-    ThresholdLevelSet,
+    ShapeDetectionSegmentation, ThresholdLevelSet,
 };
 pub use morphology::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
@@ -41,8 +40,8 @@ pub use region_growing::{
     ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
 pub use threshold::{
-    kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold, triangle_threshold,
-    yen_threshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
-    TriangleThreshold, YenThreshold,
+    binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
+    triangle_threshold, yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
+    MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
-pub use watershed::WatershedSegmentation;
+pub use watershed::{MarkerControlledWatershed, WatershedSegmentation};

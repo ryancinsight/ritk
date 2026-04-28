@@ -13,4 +13,7 @@ pub use label_statistics::{
     LabelIntensityStatistics,
 };
 pub use noise_estimation::{estimate_noise_mad, estimate_noise_mad_masked};
-pub use normalization::{HistogramMatcher, MinMaxNormalizer, ZScoreNormalizer};
+pub use normalization::{
+    HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
+    WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,
+};

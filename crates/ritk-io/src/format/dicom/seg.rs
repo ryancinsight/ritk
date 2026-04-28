@@ -22,10 +22,14 @@
 //! FRACTIONAL frames: pixel i of frame f = raw_bytes[f * rows*cols + i].
 
 use anyhow::{bail, Context, Result};
-use dicom::core::value::Value;
-use dicom::core::Tag;
+use dicom::core::header::Length;
+use dicom::core::smallvec::SmallVec;
+use dicom::core::value::{DataSetSequence, Value};
+use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
+use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::{open_file, InMemDicomObject};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// SOP Class UID for Segmentation Storage.
 pub const SEG_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.66.4";
@@ -461,6 +465,227 @@ fn unpack_pixel_data(
     }
 }
 
+// ── Writer ────────────────────────────────────────────────────────────────────
+
+/// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
+///
+/// # Invariants
+/// - SOP Class UID = 1.2.840.10008.5.1.4.1.1.66.4 (Segmentation Storage).
+/// - BitsAllocated = 1 (BINARY) or 8 (FRACTIONAL) based on `seg.bits_allocated`.
+/// - BINARY pixel data is packed MSB-first within each byte per DICOM PS3.5 §8.2:
+///   pixel i → byte = i/8, bit = 7-(i%8).
+/// - `seg.pixel_data.len()` must equal `seg.n_frames`.
+/// - Each `seg.pixel_data[f].len()` must equal `seg.rows * seg.cols`.
+pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Result<()> {
+    // ── Validation ──────────────────────────────────────────────────────────
+    if seg.pixel_data.len() != seg.n_frames {
+        bail!(
+            "pixel_data.len()={} != n_frames={}",
+            seg.pixel_data.len(),
+            seg.n_frames
+        );
+    }
+    let n_pixels = seg.rows * seg.cols;
+    for (f, frame) in seg.pixel_data.iter().enumerate() {
+        if frame.len() != n_pixels {
+            bail!(
+                "pixel_data[{}].len()={} != rows*cols={}",
+                f,
+                frame.len(),
+                n_pixels
+            );
+        }
+    }
+
+    // ── SOP Instance UID ────────────────────────────────────────────────────
+    static SEG_UID_COUNTER: AtomicU64 = AtomicU64::new(0);
+    let t = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+    let n = SEG_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let sop_instance_uid = format!("2.25.{}.{}", t, n);
+
+    // ── Pixel data packing ──────────────────────────────────────────────────
+    // BINARY: MSB-first packing — inverse of unpack_pixel_data (BitsAllocated == 1).
+    //   frame_byte_count = ⌈rows×cols / 8⌉
+    //   pixel i → bit (7 - i%8) of byte (base + i/8)
+    // FRACTIONAL: raw byte-per-pixel concatenation (BitsAllocated == 8).
+    let pixel_bytes: Vec<u8> = match seg.bits_allocated {
+        1 => {
+            let frame_byte_count = n_pixels.div_ceil(8);
+            let mut buf = vec![0u8; seg.n_frames * frame_byte_count];
+            for (f, frame) in seg.pixel_data.iter().enumerate() {
+                let base = f * frame_byte_count;
+                for (i, &px) in frame.iter().enumerate() {
+                    if px != 0 {
+                        buf[base + i / 8] |= 1u8 << (7 - (i % 8));
+                    }
+                }
+            }
+            buf
+        }
+        8 => seg.pixel_data.iter().flatten().copied().collect(),
+        _ => bail!("unsupported bits_allocated={}", seg.bits_allocated),
+    };
+
+    // ── Build SegmentSequence (0062,0002) ───────────────────────────────────
+    let seg_items: Vec<InMemDicomObject> = seg
+        .segments
+        .iter()
+        .map(|info| {
+            let mut item = InMemDicomObject::new_empty();
+            item.put(DataElement::new(
+                Tag(0x0062, 0x0004),
+                VR::US,
+                PrimitiveValue::from(info.segment_number),
+            ));
+            item.put(DataElement::new(
+                Tag(0x0062, 0x0005),
+                VR::LO,
+                PrimitiveValue::from(info.segment_label.as_str()),
+            ));
+            item.put(DataElement::new(
+                Tag(0x0062, 0x0006),
+                VR::ST,
+                PrimitiveValue::from(info.segment_description.as_deref().unwrap_or("")),
+            ));
+            item.put(DataElement::new(
+                Tag(0x0062, 0x0008),
+                VR::CS,
+                PrimitiveValue::from(info.algorithm_type.as_deref().unwrap_or("MANUAL")),
+            ));
+            item
+        })
+        .collect();
+
+    // ── Assemble root InMemDicomObject ──────────────────────────────────────
+    let mut obj = InMemDicomObject::new_empty();
+
+    // SOP identification
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0016),
+        VR::UI,
+        PrimitiveValue::from(SEG_SOP_CLASS_UID),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from(sop_instance_uid.as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0060),
+        VR::CS,
+        PrimitiveValue::from("SEG"),
+    ));
+
+    // Study / Series / Instance identifiers (placeholder UIDs)
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000D),
+        VR::UI,
+        PrimitiveValue::from("2.25.999"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.998"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x0013),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+
+    // Image Pixel Module
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0008),
+        VR::IS,
+        PrimitiveValue::from(seg.n_frames.to_string().as_str()),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0010),
+        VR::US,
+        PrimitiveValue::from(seg.rows as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0011),
+        VR::US,
+        PrimitiveValue::from(seg.cols as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(seg.bits_allocated),
+    ));
+    // BitsStored = BitsAllocated for SEG IOD
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(seg.bits_allocated),
+    ));
+    // HighBit = BitsAllocated - 1
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(seg.bits_allocated - 1),
+    ));
+    // PixelRepresentation = 0 (unsigned)
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0u16),
+    ));
+    // SamplesPerPixel = 1
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0002),
+        VR::US,
+        PrimitiveValue::from(1u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0004),
+        VR::CS,
+        PrimitiveValue::from("MONOCHROME2"),
+    ));
+
+    // Segmentation type (0062,0001)
+    obj.put(DataElement::new(
+        Tag(0x0062, 0x0001),
+        VR::CS,
+        PrimitiveValue::from(seg.segmentation_type.as_str()),
+    ));
+
+    // Segment Sequence (0062,0002)
+    if !seg_items.is_empty() {
+        let seq = DataSetSequence::new(seg_items, Length::UNDEFINED);
+        obj.put(DataElement::new(
+            Tag(0x0062, 0x0002),
+            VR::SQ,
+            Value::from(seq),
+        ));
+    }
+
+    // Pixel Data (7FE0,0010) OW
+    obj.put(DataElement::new(
+        Tag(0x7FE0, 0x0010),
+        VR::OW,
+        PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+    ));
+
+    // ── Write Part-10 file ──────────────────────────────────────────────────
+    let path = path.as_ref();
+    obj.with_meta(
+        FileMetaTableBuilder::new()
+            .media_storage_sop_class_uid(SEG_SOP_CLASS_UID)
+            .media_storage_sop_instance_uid(sop_instance_uid.as_str())
+            .transfer_syntax("1.2.840.10008.1.2.1"),
+    )
+    .with_context(|| "build DICOM-SEG file meta")?
+    .write_to_file(path)
+    .with_context(|| format!("write DICOM-SEG to {}", path.display()))?;
+
+    Ok(())
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -832,6 +1057,140 @@ mod tests {
             seg.image_position_per_frame[1],
             Some([0.0, 0.0, 5.0]),
             "frame 1 position"
+        );
+    }
+
+    // ── Test 7: write_dicom_seg BINARY roundtrip ─────────────────────────────
+
+    /// Invariant: write_dicom_seg packs BINARY frames MSB-first (inverse of unpack_pixel_data).
+    /// Frame 0: pixels 0-7 = 1 → byte 0 = 0xFF; pixels 8-15 = 0 → byte 1 = 0x00.
+    /// Frame 1: pixels 0-7 = 0 → byte 0 = 0x00; pixels 8-15 = 1 → byte 1 = 0xFF.
+    /// read_dicom_seg must recover the original pixel vectors exactly.
+    #[test]
+    fn test_write_dicom_seg_binary_roundtrip() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("seg_write_binary.dcm");
+
+        let seg = DicomSegmentation {
+            rows: 4,
+            cols: 4,
+            n_frames: 2,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "body".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1, 1],
+            pixel_data: vec![
+                vec![1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                vec![0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+            ],
+            image_position_per_frame: vec![None, None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        write_dicom_seg(&path, &seg).expect("write_dicom_seg binary");
+        let result = read_dicom_seg(&path).expect("read_dicom_seg binary roundtrip");
+
+        assert_eq!(result.rows, 4, "rows");
+        assert_eq!(result.cols, 4, "cols");
+        assert_eq!(result.n_frames, 2, "n_frames");
+        assert_eq!(
+            result.pixel_data[0],
+            vec![1u8, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+            "frame 0 pixel values"
+        );
+        assert_eq!(
+            result.pixel_data[1],
+            vec![0u8, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+            "frame 1 pixel values"
+        );
+        assert_eq!(result.segments.len(), 1, "segment count");
+        assert_eq!(result.segments[0].segment_label, "body", "segment label");
+    }
+
+    // ── Test 8: write_dicom_seg FRACTIONAL roundtrip ─────────────────────────
+
+    /// Invariant: FRACTIONAL frames are stored as raw bytes (byte-per-pixel).
+    /// All four pixel values [0, 128, 200, 255] must survive the write-read cycle.
+    #[test]
+    fn test_write_dicom_seg_fractional_roundtrip() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("seg_write_fractional.dcm");
+
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 1,
+            bits_allocated: 8,
+            segmentation_type: "FRACTIONAL".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "prob".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1],
+            pixel_data: vec![vec![0, 128, 200, 255]],
+            image_position_per_frame: vec![None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        write_dicom_seg(&path, &seg).expect("write_dicom_seg fractional");
+        let result = read_dicom_seg(&path).expect("read_dicom_seg fractional roundtrip");
+
+        assert_eq!(result.rows, 2, "rows");
+        assert_eq!(result.cols, 2, "cols");
+        assert_eq!(result.n_frames, 1, "n_frames");
+        assert_eq!(result.pixel_data.len(), 1, "frame count");
+        assert_eq!(result.pixel_data[0][0], 0u8, "pixel[0]");
+        assert_eq!(result.pixel_data[0][1], 128u8, "pixel[1]");
+        assert_eq!(result.pixel_data[0][2], 200u8, "pixel[2]");
+        assert_eq!(result.pixel_data[0][3], 255u8, "pixel[3]");
+    }
+
+    // ── Test 9: write_dicom_seg rejects mismatched frame count ───────────────
+
+    /// Invariant: pixel_data.len() must equal n_frames; otherwise Err is returned
+    /// without creating or truncating any file.
+    #[test]
+    fn test_write_dicom_seg_rejects_mismatched_frame_count() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("seg_bad.dcm");
+
+        let seg = DicomSegmentation {
+            rows: 4,
+            cols: 4,
+            n_frames: 2, // declares 2 frames
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "x".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1],
+            pixel_data: vec![vec![0u8; 16]], // only 1 frame supplied
+            image_position_per_frame: vec![None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        let result = write_dicom_seg(&path, &seg);
+        assert!(result.is_err(), "mismatched frame count must return Err");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("pixel_data") || msg.contains("n_frames"),
+            "error must identify the frame-count mismatch; got: {msg}"
         );
     }
 }

@@ -50,6 +50,123 @@
 
 ---
 
+## Sprint 63 Gap Closures
+
+**Sprint 63 (2026):** Eight gaps closed. (1) GAP-R63-01: `BedSeparationFilter` + `BedSeparationConfig` added to `ritk-core/filter/intensity/bed_separation.rs`. Pipeline: `threshold_foreground` → `keep_largest_component` (BFS, 6-connected) → `binary_closing` → `binary_opening` → `apply_mask`. Conservative: prefer false negatives in table removal over removing anatomy. Default `body_threshold=-350.0` HU. (2) GAP-R63-02: `FilterKind` enum (`BedSeparation(BedSeparationConfig)`, `Gaussian { sigma }`, `Median { radius }`) added to `ritk-snap/src/lib.rs`. `apply_filter` method on `ViewerCore<B,3>`: concrete dispatch per arm, ownership-preserving via `take()`/restore, replaces study image in-place on success. `ModalityDisplay::for_modality`: CT→(center=-400,width=1500 HU lung window); MR→(600,1200); US→(128,256); default→(128,256). (3) GAP-R63-03: Modality-aware viewer tests added (`test_modality_display_ct_window_parameters`); geometry summary invariant confirmed. (4) GAP-R63-04: `per_file_series_uids: Vec<Option<String>>` parallel vec built in `scan_dicom_directory` scan loop reading Tag(0x0020,0x000E). Series-UID grouping block after plurality-dim filter: counts per-UID, selects unique plurality UID (`series_at_max==1` guard), emits `tracing::warn!` with excluded count and selected UID, overrides `first_series_instance_uid`. Backward-compatible: tie cases (equal count) leave all slices merged as before. (5) GAP-R63-05: `write_dicom_seg` added to `seg.rs`. BINARY: MSB-first packing per DICOM PS3.5 §8.2 (`buf[base+i/8] |= 1<<(7-i%8)`) — exact inverse of `unpack_pixel_data`. FRACTIONAL: byte-per-voxel concatenation. SegmentSequence SQ with per-segment items. FileMetaTableBuilder with SEG_SOP_CLASS_UID + Explicit VR LE. (6) GAP-R63-06: `write_vti_binary_appended_bytes` + `write_vti_binary_appended_to_file` added to `image_xml/writer.rs`; `read_vti_binary_appended_bytes` + `read_vti_binary_appended` added to `image_xml/reader.rs`. Format: uint32-LE length prefix + f32-LE data per array; arrays sorted lexicographically by name for deterministic offsets; `_` marker isolates binary block from XML. (7) GAP-R63-07: `read_rt_dose` + `RtDoseGrid` in new `ritk-io/src/format/dicom/rt_dose.rs`. DoseGridScaling × u32-LE PixelData → `dose_gy: Vec<f64>`; GridFrameOffsetVector; IPP/IOP/PixelSpacing. SOP class validated: `1.2.840.10008.5.1.4.1.1.481.2`. (8) GAP-R63-08: `read_rt_plan` + `RtPlanInfo` + `RtBeamInfo` + `RtFractionGroup` in new `ritk-io/src/format/dicom/rt_plan.rs`. BeamSequence (3-level SQ) + FractionGroupSequence with ReferencedBeamSequence. SOP class: `1.2.840.10008.5.1.4.1.1.481.5`. Additional fix: `HeadlessViewerBackend::Error = std::io::Error` in `viewer.rs` (satisfies `StdError+Send+Sync+'static` bound on `ViewerBackend::Error`); `load_dicom_series` reverted to `Result<Image<B,3>>` (backward-compatible; tuple-returning variant is `load_dicom_series_with_metadata`). 445/445 ritk-io lib tests pass (+13 from Sprint 62 baseline of 432). 7/7 ritk-snap lib tests pass (+3). 177/177 ritk-cli tests pass.
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R63-01 | CT bed separation filter absent | **Closed** — Sprint 63: `BedSeparationFilter` + `BedSeparationConfig` in `ritk-core` |
+| GAP-R63-02 | `ritk-snap` filter selection absent | **Closed** — Sprint 63: `FilterKind` enum + `apply_filter` + `ModalityDisplay` in `ritk-snap/src/lib.rs` |
+| GAP-R63-03 | Modality geometry audit | **Closed** — Sprint 63: `ModalityDisplay::for_modality` + modality-aware tests |
+| GAP-R63-04 | DICOMDIR multi-series SeriesUID selection | **Closed** — Sprint 63: `per_file_series_uids` parallel vec + series-UID grouping block in `scan_dicom_directory` |
+| GAP-R63-05 | DICOM-SEG writer absent | **Closed** — Sprint 63: `write_dicom_seg` in `seg.rs`; BINARY MSB-first packing; FRACTIONAL byte-per-voxel |
+| GAP-R63-06 | VTI binary-appended format absent | **Closed** — Sprint 63: `write_vti_binary_appended_bytes`/`read_vti_binary_appended_bytes` in `image_xml/` |
+| GAP-R63-07 | RT Dose reader absent | **Closed** — Sprint 63: `read_rt_dose` + `RtDoseGrid` in `rt_dose.rs` |
+| GAP-R63-08 | RT Plan reader absent | **Closed** — Sprint 63: `read_rt_plan` + `RtPlanInfo` + `RtBeamInfo` + `RtFractionGroup` in `rt_plan.rs` |
+
+## Sprint 64 Gap Closures
+
+**Sprint 64 (2026):** Four gaps closed. (1) GAP-R64-01: `write_rt_dose` added to `rt_dose.rs`. Validation: `dose_gy.len ≠ n_frames·rows·cols` → bail; `frame_offsets.len ≠ n_frames` → bail; `dose_grid_scaling ≤ 0 ∨ NaN` → bail. Pixel encoding: `raw_u32[k] = round(dose_gy[k] / dose_grid_scaling).clamp(0, u32::MAX)`; LE bytes. Tags: BitsAllocated=32, BitsStored=32, HighBit=31, PixelRepresentation=0, Modality=RTDOSE. Optional spatial metadata (IPP, IOP, PixelSpacing) preserved. Round-trip invariant verified: for integer multiples of scaling, `raw_u32[k] × dose_grid_scaling = dose_gy[k]` exactly in f64. (2) GAP-R64-02: `write_rt_plan` added to `rt_plan.rs`. Emits BeamSequence (300A,00B0) SQ with per-beam tags; FractionGroupSequence (300A,0070) SQ with per-group nested ReferencedBeamSequence (300A,00B6). All plan-level strings preserved through write-read cycle. (3) GAP-R64-03: `ritk-io/src/lib.rs` expanded with 25 new public symbols: all multiframe writer variants, RT Dose/Plan reader/writer, DICOM-SEG reader/writer, RT Struct types, VTI binary-appended reader/writer. `format/vtk/image_xml/mod.rs` updated to expose 4 binary-appended functions. (4) GAP-R64-04: 5 VTI binary-appended CellData tests added across `image_xml/writer.rs` (3 tests) and `image_xml/reader.rs` (2 tests). Tests cover: CellData-only round-trip, PointData+CellData mixed round-trip, CellData offset derivation (analytically: 4+n_pd_values×4 bytes from PointData block). 454/454 ritk-io lib tests pass (+9 from Sprint 63 baseline of 445). 7/7 ritk-snap lib tests pass. 177/177 ritk-cli tests pass.
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R64-01 | RT Dose writer absent | **Closed** — Sprint 64: `write_rt_dose` in `rt_dose.rs` |
+| GAP-R64-02 | RT Plan writer absent | **Closed** — Sprint 64: `write_rt_plan` in `rt_plan.rs` |
+| GAP-R64-03 | New DICOM/VTI types not in ritk-io crate-level pub-use | **Closed** — Sprint 64: `lib.rs` + `image_xml/mod.rs` updated |
+| GAP-R64-04 | VTI binary-appended CellData path not tested | **Closed** — Sprint 64: 5 new CellData binary-appended tests |
+
+## Sprint 65 Gap Closures
+
+**Sprint 65 (2026):** Five gaps closed. (1) GAP-R65-01: `BinaryThreshold` struct + `binary_threshold` free function + `apply_binary_threshold_to_slice` zero-copy variant added to `crates/ritk-core/src/segmentation/threshold/binary.rs`. Invariants: `lower ≤ upper` (panic); `inside_value` and `outside_value` must be finite (panic). Default: lower=NEG_INFINITY, upper=INFINITY, inside=1.0, outside=0.0 — matches ITK `BinaryThresholdImageFilter`. Re-exported in `threshold/mod.rs` and `segmentation/mod.rs`. 21 tests added covering all boundary conditions, custom values, half-open intervals (NEG_INFINITY/INFINITY), single-point band, 3D analytical voxel count, spatial metadata preservation, struct/function parity, and panic guards. (2) GAP-R65-02: `MarkerControlledWatershed` added to `crates/ritk-core/src/segmentation/watershed/marker_controlled.rs`. Priority-queue flooding (Meyer 1994) from explicit seed markers. Algorithm: initialize min-heap from unlabeled 6-neighbors of seeds; pop in ascending gradient order; assign single neighboring label or boundary (0) on conflict. Key correction: `QueueEntry` bug fixed — original `neg_grad_bits: u64 = (-(grad as f64)).to_bits()` was incorrect because negated f64 IEEE 754 bit patterns are not monotonically ordered as u64 (−1.0 = 0xBFF… < −2.0 = 0xC00… as u64, so larger-magnitude negatives have larger u64 values, inverting the min-heap). Fixed with `grad_bits: u32 = (non-negative f32).to_bits()` and reversed comparison. Second bug: tie-breaking by linear index produced non-FIFO ordering at equal-gradient plateaus, causing incorrect boundary placement. Fixed with monotonic `seq: u64` insertion counter (FIFO tie-break). Re-exported in `watershed/mod.rs` and `segmentation/mod.rs`. 11 tests added. (3) GAP-R65-03: 10 adversarial multi-Otsu tests appended to `multi_otsu.rs`: K=4 threshold count/separation/label correctness; K=5 threshold count/separation/label validity; σ²_B = P₁·P₂·(μ₁−μ₂)² algebraic identity verified within 1e-9 for two-point histogram; monotone-input → non-decreasing labels; K > distinct values (no panic); single-voxel degenerate case. (4) GAP-R65-04: CLI `binary` method (`run_binary`) and `marker-watershed` method (`run_marker_watershed`) added to `crates/ritk-cli/src/commands/segment.rs`; `markers: Option<String>` field added to `SegmentArgs`; `BinaryThreshold` and `MarkerControlledWatershed` imports added. 4 CLI tests added. (5) GAP-R65-05: Python `binary_threshold_segment(image, lower=None, upper=None, inside_value=1.0, outside_value=0.0)` binding added to `crates/ritk-python/src/segmentation.rs` and registered in `lib.rs`. 765/765 ritk-core lib tests pass (+41 from Sprint 64 baseline of 724). 454/454 ritk-io lib tests pass (no change). 181/181 ritk-cli tests pass (+4 from Sprint 64 baseline of 177).
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R65-01 | `BinaryThreshold` (user-specified band filter) absent | **Closed** — Sprint 65: `threshold/binary.rs`; re-exported in `threshold/mod.rs` and `segmentation/mod.rs` |
+| GAP-R65-02 | `MarkerControlledWatershed` absent | **Closed** — Sprint 65: `watershed/marker_controlled.rs`; FIFO priority-queue flooding; two QueueEntry ordering bugs fixed |
+| GAP-R65-03 | Multi-Otsu K≥4 adversarial tests and σ²_B invariant absent | **Closed** — Sprint 65: 10 adversarial tests in `multi_otsu.rs` |
+| GAP-R65-04 | CLI `binary` and `marker-watershed` methods absent | **Closed** — Sprint 65: `run_binary` + `run_marker_watershed` in `segment.rs` |
+| GAP-R65-05 | Python `binary_threshold_segment` binding absent | **Closed** — Sprint 65: `binary_threshold_segment` in `ritk-python/src/segmentation.rs` |
+
+## Sprint 66 Gap Closures
+
+**Sprint 66 (2026):** Four gaps closed. (1) GAP-R66-01: `statistics/mod.rs` `pub use normalization::` line expanded to re-export `NyulUdupaNormalizer`, `WhiteStripeNormalizer`, `WhiteStripeConfig`, `MriContrast`, `WhiteStripeResult` at the `ritk_core::statistics` facade; these types were already implemented in `normalization/` submodules but invisible to downstream consumers. Histogram matching (`HistogramMatcher`) was confirmed present from prior sprints; gap was an export omission and a CLI gap. (2) GAP-R66-02: `crates/ritk-cli/src/commands/normalize.rs` created — new `ritk normalize` CLI subcommand with five methods: `histogram-match` (requires `--reference`, configurable `--num-bins`), `nyul` (optional `--reference` to augment training set), `zscore`, `minmax`, `white-stripe` (accepts `--contrast t1/t2` and `--ws-width`). `pub mod normalize` added to `commands/mod.rs`. `Normalize(commands::normalize::NormalizeArgs)` variant and dispatch arm added to `main.rs`. 9 tests added in `normalize.rs` covering file creation, zscore zero-mean invariant, minmax [0,1] range invariant, histogram-match with/without reference, nyul single and dual image, unknown method error, and white-stripe invalid contrast error. (3) GAP-R66-03: BSpline FFD registration confirmed already closed in a prior sprint; `BSplineFFDRegistration` in `crates/ritk-registration/src/bspline_ffd/mod.rs`, re-exported from `ritk-registration/src/lib.rs`, Python binding `bspline_ffd_register` in `ritk-python/src/registration.rs`, and CLI `run_bspline_ffd` in `crates/ritk-cli/src/commands/register.rs` all confirmed present. Backlog entry corrected. (4) GAP-R66-04: `KMeansSegmentation` fields `max_iterations: usize`, `tolerance: f64`, `seed: u64` were implemented in core but unexposed in CLI and Python. Fix: three optional args `--kmeans-max-iterations`, `--kmeans-tolerance`, `--kmeans-seed` added to `SegmentArgs` in `segment.rs`; `run_kmeans` applies each via `if let Some`; Python `kmeans_segment` signature extended from `(image, k=3)` to `(image, k=3, max_iterations=None, tolerance=None, seed=None)`. 3 CLI tests added. 193/193 ritk-cli tests pass (+12 from Sprint 65 baseline of 181). 765/765 ritk-core lib tests pass (no change). 454/454 ritk-io lib tests pass (no change).
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R66-01 | `statistics/mod.rs` missing `NyulUdupaNormalizer`, `WhiteStripeNormalizer`, `WhiteStripeConfig`, `MriContrast`, `WhiteStripeResult` re-exports | **Closed** — Sprint 66: `pub use normalization::` expanded in `statistics/mod.rs` |
+| GAP-R66-02 | CLI normalization command absent | **Closed** — Sprint 66: `commands/normalize.rs` created; `pub mod normalize` in `commands/mod.rs`; `Normalize` variant in `main.rs` |
+| GAP-R66-03 | BSpline FFD registration absent (stated in Sprint 65 open risks) | **Closed (prior sprint)** — confirmed present in `bspline_ffd/mod.rs`, `lib.rs`, Python binding, and CLI; backlog corrected |
+| GAP-R66-04 | K-Means CLI/Python parity: `max_iterations`, `tolerance`, `seed` unexposed | **Closed** — Sprint 66: CLI `SegmentArgs` + `run_kmeans` updated; Python `kmeans_segment` signature extended |
+
+## Sprint 68 Gap Closures
+
+**Sprint 68 (2026):** Four gaps closed. (1) GAP-R68-01: `ZScoreNormalizer::normalize_masked` added to `ritk-core/src/statistics/normalization/zscore.rs`; computes μ and σ from mask foreground voxels (falls back to `compute_statistics` on empty mask to avoid `masked_statistics` contract violation); `zscore_normalize` Python binding extended with `#[pyo3(signature=(image, mask=None))]`; dispatches `normalize_masked` when mask is provided, `normalize` otherwise; 3 core tests added. (2) GAP-R68-02: `convergence_threshold: 1e-6` hard-code removed from `run_bspline_syn`; replaced with `convergence_threshold: args.convergence_threshold`; `RegisterArgs.convergence_threshold` docstring updated to name both BSpline FFD and BSpline SyN. (3) GAP-R68-03: `test_segment_marker_watershed_creates_output_with_correct_shape` and `test_segment_marker_watershed_output_contains_both_basin_labels` added to `ritk-cli/src/commands/segment.rs`; helpers `make_uniform_gradient_image` and `make_two_seed_marker_image` co-located in `mod tests`; tests assert shape=[3,3,3] and both basin labels 1 and 2 present in output. (4) GAP-R68-04: `validate_percentiles(p: &[f64]) -> Result<(), String>` extracted as private helper in `ritk-python/src/statistics.rs`; inline validation in `nyul_udupa_normalize` refactored to call helper (error messages byte-for-byte identical); 6 `#[cfg(test)]` tests added: empty slice, single element, equal pair, descending pair, minimal valid ascending pair, standard 13-element Nyul set. 777/777 ritk-core lib tests pass (+3 from Sprint 67 baseline of 774). 195/195 ritk-cli tests pass (+2). 6/6 ritk-python lib tests pass (new).
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R68-01 | `zscore_normalize` Python binding missing optional `mask` parameter | **Closed** — Sprint 68: `ZScoreNormalizer::normalize_masked` added to core; Python binding extended with `mask=None` optional parameter |
+| GAP-R68-02 | `run_bspline_syn` `convergence_threshold` hard-coded to `1e-6` | **Closed** — Sprint 68: wired `args.convergence_threshold` in `run_bspline_syn`; docstring updated |
+| GAP-R68-03 | `marker_watershed_segment` CLI integration smoke test absent | **Closed** — Sprint 68: two integration tests added to `segment.rs`; shape and label-presence asserted |
+| GAP-R68-04 | `nyul_udupa_normalize` `percentiles` parameter lacks Python-level negative tests | **Closed** — Sprint 68: `validate_percentiles` helper extracted; 6 negative/positive tests added |
+
+## Sprint 68 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R69-01 | `minmax_normalize_range` Python binding parameter parity not audited | Low | Sprint 69 |
+| GAP-R69-02 | `run_multires_syn` `convergence_threshold` still hard-coded to `1e-6` | Low | Sprint 69 |
+| GAP-R69-03 | `zscore_normalize(mask=...)` Python binding lacks integration smoke test | Low | Sprint 69 |
+| GAP-R69-04 | `ritk-python` lib tests absent from CI matrix | Low | Sprint 69 |
+
+## Sprint 67 Gap Closures
+
+**Sprint 67 (2026):** Four gaps closed. (1) GAP-R67-01: `histogram_match` Python binding extended with `#[pyo3(signature=(source,reference,num_bins=256))]`; guard `num_bins < 2 → PyValueError`; `nyul_udupa_normalize` Python binding extended with `percentiles: Option<Vec<f64>>`; pre-GIL validation (length ≥ 2, strictly ascending) before calling `NyulUdupaNormalizer::with_percentiles`; dispatches `::with_percentiles(p)` or `::new()` depending on presence. (2) GAP-R67-02: `MarkerControlledWatershed` added to `use` imports in `ritk-python/src/segmentation.rs`; `marker_watershed_segment(gradient, markers)` function added before the `register` function; registered in submodule under `// Watershed`. (3) GAP-R67-03: 5 adversarial tests added to `confidence_connected.rs`: (a) multi-seed two-cube isolation (seed A→3 voxels, seed B→3 voxels, no bleed); (b) large-k expansion on gradient image (k=2.0→2 voxels, k=10.0→3 voxels on [100,130,10]); (c) corner seed [0,0,0] on 4×4×4 uniform→64 voxels; (d) `max_iterations=0`→only seed voxel; (e) exact `initial_lower`/`initial_upper` boundary values inclusive. 4 adversarial tests added to `neighborhood_connected.rs`: (a) multi-seed two-cube isolation; (b) radius overflow clamped to domain (radius [2,2,2] on 3×3×3→27); (c) 6×6×6 uniform large-radius→216; (d) noisy boundary shell (5×5×5, shell=5, interior=200, radius [1,1,1]→1 voxel). (4) GAP-R67-04: `convergence_threshold: f64` field added to `RegisterArgs` (default `0.00001`); positioned after `regularization_weight`; `..Default::default()` removed from `run_bspline_ffd`; all 6 `BSplineFFDConfig` fields now explicitly set; 22 test struct literals updated. 774/774 ritk-core lib tests pass (+9 from Sprint 66 baseline of 765). 193/193 ritk-cli tests pass (no change).
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R67-01 | `histogram_match` missing `num_bins`; `nyul_udupa_normalize` missing `percentiles` | **Closed** — Sprint 67: `histogram_match` extended with `num_bins=256`; `nyul_udupa_normalize` extended with `percentiles: Option<Vec<f64>>` |
+| GAP-R67-02 | `marker_watershed_segment` Python binding absent | **Closed** — Sprint 67: `marker_watershed_segment` added to `ritk-python/src/segmentation.rs`; registered in submodule |
+| GAP-R67-03 | Confidence-connected and neighborhood-connected adversarial tests insufficient | **Closed** — Sprint 67: 5 adversarial tests in `confidence_connected.rs`; 4 adversarial tests in `neighborhood_connected.rs` |
+| GAP-R67-04 | `BSplineFFDConfig::convergence_threshold` not exposed in CLI | **Closed** — Sprint 67: `convergence_threshold: f64` field added to `RegisterArgs`; wired in `run_bspline_ffd` |
+
+## Sprint 67 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R68-01 | `zscore_normalize` Python binding missing optional `mask` parameter | Low | Sprint 68 |
+| GAP-R68-02 | `run_bspline_syn` `convergence_threshold` hard-coded to `1e-6`; not wired from `RegisterArgs` | Low | Sprint 68 |
+| GAP-R68-03 | `marker_watershed_segment` CLI integration smoke test absent | Low | Sprint 68 |
+| GAP-R68-04 | `nyul_udupa_normalize` `percentiles` parameter lacks Python-level negative tests | Low | Sprint 68 |
+
+## Sprint 66 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R67-01 | `normalize` Python binding `num_bins` / percentile params not exposed | Low | Sprint 67 — **Closed** |
+| GAP-R67-02 | `MarkerControlledWatershed` Python binding absent | Medium | Sprint 67 — **Closed** |
+| GAP-R67-03 | Confidence-connected / neighborhood-connected adversarial tests insufficient | Low | Sprint 67 — **Closed** |
+| GAP-R67-04 | BSpline FFD CLI parameter exposure audit pending | Low | Sprint 67 — **Closed** |
+
+## Sprint 65 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R66-01 | Histogram matching CLI absent | High | Sprint 66 — **Closed** |
+| GAP-R66-02 | Nyúl & Udupa histogram normalization re-export and CLI absent | High | Sprint 66 — **Closed** |
+| GAP-R66-03 | BSpline FFD deformable registration absent | High | Sprint 66 — **Closed (confirmed prior sprint)** |
+| GAP-R66-04 | K-Means CLI/Python parameter exposure audit pending | Low | Sprint 66 — **Closed** |
+
+## Sprint 64 Open Risks
+
+| ID | Risk | Severity | Target |
+|---|---|---|---|
+| GAP-R65-01 | Threshold-based segmentation absent | High | Sprint 65 — **Closed** |
+| GAP-R65-02 | Watershed segmentation absent | Medium | Sprint 65 — **Closed** |
+| GAP-R65-03 | Region growing absent | High | Sprint 65 — **Closed** |
+
+---
+
 ## Sprint 62 Gap Closures
 
 | ID | Gap | Status |
@@ -63,10 +180,10 @@
 
 | ID | Risk | Severity | Target |
 |---|---|---|---|
-| GAP-R63-01 | DICOM-SEG writer | High | Sprint 63 |
-| GAP-R63-02 | VTI binary-appended | Low | Sprint 63 |
-| GAP-R63-03 | RT Dose/Plan readers | Medium | Sprint 63 |
-| GAP-R63-04 | DICOMDIR multi-series selection | Medium | Sprint 63 |
+| GAP-R63-01 | DICOM-SEG writer | High | Sprint 63 — **Closed** |
+| GAP-R63-02 | VTI binary-appended | Low | Sprint 63 — **Closed** |
+| GAP-R63-03 | RT Dose/Plan readers | Medium | Sprint 63 — **Closed** |
+| GAP-R63-04 | DICOMDIR multi-series selection | Medium | Sprint 63 — **Closed** |
 
 ---
 
@@ -83,7 +200,7 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-core` | `spatial` | `Direction`, `Point`, `Spacing`, `Vector` |
 | `ritk-core` | `image` | `Image<B,D>`, `ImageGrid`, `ImageMetadata` |
 | `ritk-core` | `segmentation` | `OtsuThreshold`, `MultiOtsuThreshold`, `BinaryErosion`, `BinaryDilation`, `BinaryOpening`, `BinaryClosing`, `ConnectedComponentsFilter`, `LabelStatistics`, `ConnectedThresholdFilter`, `LiThreshold`, `YenThreshold`, `KapurThreshold`, `TriangleThreshold`, `KMeansSegmentation`, `WatershedSegmentation`, `ChanVeseSegmentation`, `GeodesicActiveContourSegmentation` |
-| `ritk-core` | `statistics` | `ImageStatistics`, `compute_statistics`, `masked_statistics`, `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `HistogramMatcher`, `MinMaxNormalizer`, `ZScoreNormalizer`, `estimate_noise_mad`, `psnr`, `ssim`, `NyulUdupaNormalizer` |
+| `ritk-core` | `statistics` | `ImageStatistics`, `compute_statistics`, `masked_statistics`, `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `HistogramMatcher`, `MinMaxNormalizer`, `ZScoreNormalizer`, `NyulUdupaNormalizer`, `MriContrast`, `WhiteStripeConfig`, `WhiteStripeNormalizer`, `WhiteStripeResult`, `estimate_noise_mad`, `psnr`, `ssim` |
 | `ritk-registration` | `metric` | `CorrelationRatio`, `LocalNCC`, `MSE`, `MutualInformation` (Standard / Mattes / NMI), `NCC`, DL-loss module, Parzen histogram |
 | `ritk-registration` | `optimizer` | `AdamOptimizer`, `CmaEsOptimizer`, `GradientDescentOptimizer`, `MomentumOptimizer` |
 | `ritk-registration` | `classical` | Kabsch-SVD landmark rigid (bug-fixed), MI hill-climb rigid/affine, temporal cross-correlation sync (bug-fixed) |
@@ -100,8 +217,8 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-python` | `io` | `read_image`, `write_image` (NIfTI, PNG, DICOM, MetaImage, NRRD), `read_transform`, `write_transform` |
 | `ritk-python` | `filter` | `gaussian_filter`, `discrete_gaussian`, `median_filter`, `bilateral_filter`, `n4_bias_correction`, `anisotropic_diffusion`, `gradient_magnitude`, `laplacian`, `frangi_vesselness`, `canny`, `laplacian_of_gaussian`, `recursive_gaussian`, `sobel_gradient`, `grayscale_erosion`, `grayscale_dilation`, `curvature_anisotropic_diffusion`, `sato_line_filter`, `rescale_intensity`, `intensity_windowing`, `threshold_below`, `threshold_above`, `threshold_outside`, `sigmoid_filter`, `binary_threshold`, `white_top_hat`, `black_top_hat`, `hit_or_miss`, `label_dilation`, `label_erosion`, `label_opening`, `label_closing`, `morphological_reconstruction`, `resample_image` |
 | `ritk-python` | `registration` | `demons_register` (Thirion), `diffeomorphic_demons_register`, `symmetric_demons_register`, `inverse_consistent_demons_register`, `multires_demons_register`, `syn_register`, `bspline_ffd_register`, `multires_syn_register`, `bspline_syn_register`, `lddmm_register`, `build_atlas`, `majority_vote_fusion`, `joint_label_fusion_py` |
-| `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans`, `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour` |
-| `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform), `stats` (summary/dice/hausdorff/psnr/ssim) |
+| `ritk-python` | `segmentation` | `otsu_threshold`, `li_threshold`, `yen_threshold`, `kapur_threshold`, `triangle_threshold`, `multi_otsu`, `connected_components`, `connected_threshold`, `kmeans` (k, max_iterations, tolerance, seed), `watershed`, `binary_erosion`, `binary_dilation`, `binary_opening`, `binary_closing`, `chan_vese`, `geodesic_active_contour`, `binary_threshold_segment` |
+| `ritk-cli` | `commands` | `convert`, `filter` (gaussian/n4-bias/anisotropic/gradient-magnitude/laplacian/frangi/median/bilateral/canny/sobel/log/recursive-gaussian), `register` (rigid-mi/affine-mi/demons/syn/bspline-ffd/multires-syn/bspline-syn/lddmm), `segment` (otsu/multi-otsu/connected-threshold/li/yen/kapur/triangle/watershed/kmeans/distance-transform/binary/marker-watershed; kmeans exposes --kmeans-max-iterations/--kmeans-tolerance/--kmeans-seed), `stats` (summary/dice/hausdorff/psnr/ssim/mean-surface-distance/noise-estimate), `normalize` (histogram-match/nyul/zscore/minmax/white-stripe), `resample` |
 | `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
 **Absent or incomplete at module level (zero source files, stub-only, or partial fidelity):**  

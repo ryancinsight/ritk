@@ -6,6 +6,7 @@
 
 pub mod convert;
 pub mod filter;
+pub mod normalize;
 pub mod register;
 pub mod resample;
 pub mod segment;

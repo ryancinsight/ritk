@@ -13,6 +13,7 @@
 //! - **Connected-threshold region growing** → `ritk_core::segmentation::connected_threshold`
 //! - **K-Means clustering** → `ritk_core::segmentation::KMeansSegmentation`
 //! - **Watershed segmentation** → `ritk_core::segmentation::WatershedSegmentation`
+//! - **Marker-controlled watershed** → `ritk_core::segmentation::MarkerControlledWatershed`
 //! - **Binary erosion** → `ritk_core::segmentation::BinaryErosion`
 //! - **Binary dilation** → `ritk_core::segmentation::BinaryDilation`
 //! - **Binary opening** → `ritk_core::segmentation::BinaryOpening`
@@ -31,24 +32,23 @@
 
 use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
+use ritk_core::segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
+use ritk_core::segmentation::threshold::li::compute_li_threshold_from_slice;
+use ritk_core::segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
+use ritk_core::segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
+use ritk_core::segmentation::threshold::triangle::compute_triangle_threshold_from_slice;
+use ritk_core::segmentation::threshold::yen::compute_yen_threshold_from_slice;
 use ritk_core::segmentation::{
     connected_components as core_connected_components,
     connected_threshold as core_connected_threshold, BinaryClosing, BinaryDilation, BinaryErosion,
-    BinaryOpening, ChanVeseSegmentation, ConnectedComponentsFilter, GeodesicActiveContourSegmentation,
-    KMeansSegmentation,
-    MorphologicalOperation, LaplacianLevelSet, ShapeDetectionSegmentation,
-    BinaryFillHoles, ConfidenceConnectedFilter, MorphologicalGradient,
-    NeighborhoodConnectedFilter, Skeletonization,
-    ThresholdLevelSet, WatershedSegmentation,
+    BinaryFillHoles, BinaryOpening, BinaryThreshold, ChanVeseSegmentation,
+    ConfidenceConnectedFilter, ConnectedComponentsFilter, GeodesicActiveContourSegmentation,
+    KMeansSegmentation, LaplacianLevelSet, MarkerControlledWatershed, MorphologicalGradient,
+    MorphologicalOperation, NeighborhoodConnectedFilter, ShapeDetectionSegmentation,
+    Skeletonization, ThresholdLevelSet, WatershedSegmentation,
 };
-use pyo3::types::{PyDict, PyList};
 use std::sync::Arc;
-use ritk_core::segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
-use ritk_core::segmentation::threshold::li::compute_li_threshold_from_slice;
-use ritk_core::segmentation::threshold::yen::compute_yen_threshold_from_slice;
-use ritk_core::segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
-use ritk_core::segmentation::threshold::triangle::compute_triangle_threshold_from_slice;
-use ritk_core::segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
 
 // ── Threshold: Otsu ───────────────────────────────────────────────────────────
 
@@ -327,26 +327,45 @@ pub fn connected_threshold_segment(
 
 // ── K-Means clustering ───────────────────────────────────────────────────────
 
-/// Segment an image into K clusters via K-Means (Lloyd's algorithm).
+/// Segment a 3D image via Lloyd's K-Means clustering.
 ///
-/// Delegates to `ritk_core::segmentation::KMeansSegmentation` with k-means++
-/// initialization. Each output voxel contains its cluster index (0..K−1) as f32.
+/// Delegates to `ritk_core::segmentation::KMeansSegmentation`. Voxel intensities
+/// are treated as 1-D feature vectors; centroids are initialized via k-means++.
 ///
 /// Args:
-///     image: Input PyImage.
-///     k:     Number of clusters (≥ 1). Default 3.
+///     image:           Input PyImage.
+///     k:               Number of clusters (≥ 1).  Default 3.
+///     max_iterations:  Maximum Lloyd iterations.  Default 100.
+///     tolerance:       Centroid-displacement convergence tolerance.  Default 1e-6.
+///     seed:            Deterministic seed for k-means++ initialization.  Default 42.
 ///
 /// Returns:
-///     Label PyImage with cluster indices.
+///     Label PyImage with cluster indices in [0, k−1].
 #[pyfunction]
-#[pyo3(signature = (image, k=3))]
-pub fn kmeans_segment(py: Python<'_>, image: &PyImage, k: usize) -> PyResult<PyImage> {
+#[pyo3(signature = (image, k=3, max_iterations=None, tolerance=None, seed=None))]
+pub fn kmeans_segment(
+    py: Python<'_>,
+    image: &PyImage,
+    k: usize,
+    max_iterations: Option<usize>,
+    tolerance: Option<f64>,
+    seed: Option<u64>,
+) -> PyResult<PyImage> {
     if k < 1 {
         return Err(pyo3::exceptions::PyValueError::new_err("k must be ≥ 1"));
     }
     let image = Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
-        let seg = KMeansSegmentation::new(k);
+        let mut seg = KMeansSegmentation::new(k);
+        if let Some(mi) = max_iterations {
+            seg.max_iterations = mi;
+        }
+        if let Some(tol) = tolerance {
+            seg.tolerance = tol;
+        }
+        if let Some(s) = seed {
+            seg.seed = s;
+        }
         seg.apply(image.as_ref())
     });
     Ok(into_py_image(result))
@@ -489,9 +508,7 @@ pub fn binary_closing(py: Python<'_>, image: &PyImage, radius: usize) -> PyResul
 #[pyfunction]
 pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
     let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || {
-        BinaryFillHoles.apply(inner.as_ref())
-    });
+    let result = py.allow_threads(move || BinaryFillHoles.apply(inner.as_ref()));
     Ok(into_py_image(result))
 }
 
@@ -510,9 +527,7 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
 #[pyo3(signature = (image, radius=1))]
 pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
     let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || {
-        MorphologicalGradient::new(radius).apply(inner.as_ref())
-    });
+    let result = py.allow_threads(move || MorphologicalGradient::new(radius).apply(inner.as_ref()));
     Ok(into_py_image(result))
 }
 
@@ -715,7 +730,6 @@ pub fn threshold_level_set_segment(
     Ok(into_py_image(result))
 }
 
-
 // -- laplacian_level_set_segment -----------------------------------------
 
 /// Laplacian level set segmentation.
@@ -762,7 +776,6 @@ pub fn laplacian_level_set_segment(
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
     Ok(into_py_image(result))
 }
-
 
 // ── confidence_connected_segment ─────────────────────────────────────────────
 
@@ -859,6 +872,65 @@ pub fn neighborhood_connected_segment(
 
 // ── skeletonization ───────────────────────────────────────────────────────────
 
+// ── Threshold: Binary ─────────────────────────────────────────────────────────
+
+/// Apply user-specified binary threshold segmentation.
+///
+/// Classifies voxels in `[lower, upper]` as `inside_value` (default 1.0)
+/// and all others as `outside_value` (default 0.0).
+///
+/// Delegates to `ritk_core::segmentation::BinaryThreshold`.
+///
+/// Args:
+///     image:         Input PyImage.
+///     lower:         Lower intensity bound (inclusive). Defaults to f32::NEG_INFINITY.
+///     upper:         Upper intensity bound (inclusive). Defaults to f32::INFINITY.
+///     inside_value:  Output value for voxels inside the band (default 1.0).
+///     outside_value: Output value for voxels outside the band (default 0.0).
+///
+/// Returns:
+///     Binary-labeled PyImage with the same shape as `image`.
+///
+/// Raises:
+///     ValueError: if lower > upper, or if inside_value / outside_value is not finite.
+#[pyfunction]
+#[pyo3(signature = (image, lower=None, upper=None, inside_value=1.0, outside_value=0.0))]
+pub fn binary_threshold_segment(
+    py: Python<'_>,
+    image: &PyImage,
+    lower: Option<f32>,
+    upper: Option<f32>,
+    inside_value: f32,
+    outside_value: f32,
+) -> PyResult<PyImage> {
+    let lower = lower.unwrap_or(f32::NEG_INFINITY);
+    let upper = upper.unwrap_or(f32::INFINITY);
+    if lower > upper {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "lower bound ({lower}) must be ≤ upper bound ({upper})"
+        )));
+    }
+    if !inside_value.is_finite() {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "inside_value must be finite, got {inside_value}"
+        )));
+    }
+    if !outside_value.is_finite() {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "outside_value must be finite, got {outside_value}"
+        )));
+    }
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        BinaryThreshold::new(lower, upper)
+            .with_values(inside_value, outside_value)
+            .apply(image.as_ref())
+    });
+    Ok(into_py_image(result))
+}
+
+// ── Skeletonization ───────────────────────────────────────────────────────────
+
 /// Topology-preserving morphological skeletonization.
 ///
 /// Thins a binary mask to its medial axis (skeleton) while preserving
@@ -875,12 +947,9 @@ pub fn neighborhood_connected_segment(
 #[pyfunction]
 pub fn skeletonization(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
     let inner = Arc::clone(&image.inner);
-    let result = py.allow_threads(move || {
-        Skeletonization::new().apply::<_, 3>(inner.as_ref())
-    });
+    let result = py.allow_threads(move || Skeletonization::new().apply::<_, 3>(inner.as_ref()));
     Ok(into_py_image(result))
 }
-
 
 // ── label_shape_statistics ───────────────────────────────────────────────────
 
@@ -936,6 +1005,48 @@ pub fn label_shape_statistics(
     Ok(list.into())
 }
 
+// ── marker_watershed_segment ─────────────────────────────────────────────────
+
+/// Run marker-controlled watershed segmentation on a gradient-magnitude image.
+///
+/// Delegates to `ritk_core::segmentation::MarkerControlledWatershed`.
+///
+/// Priority-queue flooding (Meyer algorithm): voxels are processed in
+/// ascending gradient order. Each unlabeled voxel is assigned the label of
+/// the lowest-gradient labeled neighbor. Watershed boundaries remain at zero.
+///
+/// Args:
+///     gradient: 3D scalar gradient-magnitude image (f32). Drives flooding order.
+///               Typically produced by a Sobel or Gaussian-derivative filter.
+///     markers:  3D label image (f32). Non-zero integer values define basin seeds.
+///               Zero voxels are unlabeled and will be flooded. Must be same shape
+///               as `gradient`.
+///
+/// Returns:
+///     PyImage (f32 label image) with the same shape and spatial metadata as
+///     `gradient`. Non-zero values are basin labels from the markers; zero values
+///     are watershed boundaries or voxels unreachable from any seed.
+///
+/// Raises:
+///     RuntimeError: if gradient and markers have different shapes, or if the
+///                   underlying tensor data cannot be read as f32.
+#[pyfunction]
+#[pyo3(signature = (gradient, markers))]
+pub fn marker_watershed_segment(
+    py: Python<'_>,
+    gradient: &PyImage,
+    markers: &PyImage,
+) -> PyResult<PyImage> {
+    let grad_arc = Arc::clone(&gradient.inner);
+    let mark_arc = Arc::clone(&markers.inner);
+    let result = py.allow_threads(|| {
+        MarkerControlledWatershed::new().apply(grad_arc.as_ref(), mark_arc.as_ref())
+    });
+    result
+        .map(into_py_image)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
 // ── Submodule registration ────────────────────────────────────────────────────
 
 /// Register the `segmentation` submodule with all exposed functions.
@@ -949,6 +1060,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(kapur_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(triangle_threshold, &m)?)?;
     m.add_function(wrap_pyfunction!(multi_otsu_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_threshold_segment, &m)?)?;
 
     // Labeling
     m.add_function(wrap_pyfunction!(connected_components, &m)?)?;
@@ -962,6 +1074,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Watershed
     m.add_function(wrap_pyfunction!(watershed_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(marker_watershed_segment, &m)?)?;
 
     // Morphology
     m.add_function(wrap_pyfunction!(binary_erosion, &m)?)?;

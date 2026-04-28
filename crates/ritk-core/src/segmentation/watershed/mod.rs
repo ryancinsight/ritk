@@ -40,6 +40,9 @@
 //! - Meyer, F. (1994). "Topographic distance and watershed lines."
 //!   *Signal Processing*, 38(1), 113–125.
 
+pub mod marker_controlled;
+pub use marker_controlled::MarkerControlledWatershed;
+
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 

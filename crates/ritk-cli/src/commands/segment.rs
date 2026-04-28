@@ -35,9 +35,10 @@ use std::path::PathBuf;
 use tracing::info;
 
 use ritk_core::segmentation::{
-    connected_threshold, multi_otsu_threshold, otsu_threshold, BinaryFillHoles, KMeansSegmentation,
-    KapurThreshold, LaplacianLevelSet, LiThreshold, MorphologicalGradient, MorphologicalOperation,
-    MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, WatershedSegmentation, YenThreshold,
+    connected_threshold, multi_otsu_threshold, otsu_threshold, BinaryFillHoles, BinaryThreshold,
+    KMeansSegmentation, KapurThreshold, LaplacianLevelSet, LiThreshold, MarkerControlledWatershed,
+    MorphologicalGradient, MorphologicalOperation, MultiOtsuThreshold, OtsuThreshold,
+    TriangleThreshold, WatershedSegmentation, YenThreshold,
 };
 
 use super::{read_image, write_image_inferred, Backend};
@@ -68,6 +69,19 @@ pub struct SegmentArgs {
     /// Must be ≥ 2 for `multi-otsu`.  For `kmeans`, must be ≥ 1.
     #[arg(long, default_value = "3", value_name = "INT")]
     pub classes: usize,
+
+    // ── K-Means extended parameters ────────────────────────────────────────
+    /// Maximum Lloyd iterations for `kmeans`. Default: 100.
+    #[arg(long, value_name = "INT")]
+    pub kmeans_max_iterations: Option<usize>,
+
+    /// Centroid-displacement convergence tolerance for `kmeans`. Default: 1e-6.
+    #[arg(long, value_name = "FLOAT")]
+    pub kmeans_tolerance: Option<f64>,
+
+    /// Deterministic seed for k-means++ initialization. Default: 42.
+    #[arg(long, value_name = "INT")]
+    pub kmeans_seed: Option<u64>,
 
     // ── Connected-threshold ───────────────────────────────────────────────
     /// Inclusive lower intensity bound for `connected-threshold`.
@@ -155,6 +169,10 @@ pub struct SegmentArgs {
     /// Regularisation width ε for Heaviside/Dirac in chan-vese.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub epsilon: f64,
+    // -- Marker-watershed --------------------------------------------------
+    /// Path to marker label image (for marker-watershed method).
+    #[arg(long, value_name = "PATH")]
+    pub markers: Option<String>,
 }
 
 impl Default for SegmentArgs {
@@ -164,6 +182,9 @@ impl Default for SegmentArgs {
             output: PathBuf::default(),
             method: String::default(),
             classes: 3,
+            kmeans_max_iterations: None,
+            kmeans_tolerance: None,
+            kmeans_seed: None,
             lower: None,
             upper: None,
             seed: None,
@@ -187,6 +208,7 @@ impl Default for SegmentArgs {
             lambda1: 1.0,
             lambda2: 1.0,
             epsilon: 1.0,
+            markers: None,
         }
     }
 }
@@ -251,7 +273,12 @@ fn count_foreground(image: &ritk_core::image::Image<Backend, 3>) -> usize {
 /// - The output image cannot be written.
 /// - An unknown method name is supplied.
 pub fn run(args: SegmentArgs) -> Result<()> {
-    info!("segment: starting input={} output={} method={}", args.input.display(), args.output.display(), args.method);
+    info!(
+        "segment: starting input={} output={} method={}",
+        args.input.display(),
+        args.output.display(),
+        args.method
+    );
     match args.method.as_str() {
         "otsu" => run_otsu(&args),
         "multi-otsu" => run_multi_otsu(&args),
@@ -274,13 +301,16 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         "connected-components" => run_connected_components(&args),
         "chan-vese" => run_chan_vese(&args),
         "geodesic-active-contour" => run_geodesic_active_contour(&args),
+        "binary" => run_binary(&args),
+        "marker-watershed" => run_marker_watershed(&args),
         other => Err(anyhow!(
             "Unknown segmentation method '{}'. \
         Supported methods: otsu, multi-otsu, connected-threshold, \
         li, yen, kapur, triangle, watershed, kmeans, distance-transform, \
         fill-holes, morphological-gradient, confidence-connected, \
         neighborhood-connected, shape-detection, threshold-level-set, \
-        laplacian-level-set, skeletonization, connected-components, chan-vese, geodesic-active-contour.",
+        laplacian-level-set, skeletonization, connected-components, chan-vese, \
+        geodesic-active-contour, binary, marker-watershed.",
             other
         )),
     }
@@ -310,7 +340,12 @@ fn run_otsu(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!("segment: otsu complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
+    info!(
+        "segment: otsu complete input={} threshold={} foreground={}",
+        args.input.display(),
+        threshold,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -349,7 +384,13 @@ fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
         thresh_str.join(", "),
     );
 
-    info!("segment: multi-otsu complete input={} classes={} thresholds={:?} labeled={}", args.input.display(), args.classes, thresholds, n_labeled);
+    info!(
+        "segment: multi-otsu complete input={} classes={} thresholds={:?} labeled={}",
+        args.input.display(),
+        args.classes,
+        thresholds,
+        n_labeled
+    );
 
     Ok(())
 }
@@ -418,7 +459,14 @@ fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
         upper,
     );
 
-    info!("segment: connected-threshold complete input={} seed={:?} lower={} upper={} foreground={}", args.input.display(), seed, lower, upper, n_foreground);
+    info!(
+        "segment: connected-threshold complete input={} seed={:?} lower={} upper={} foreground={}",
+        args.input.display(),
+        seed,
+        lower,
+        upper,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -446,7 +494,12 @@ fn run_li(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!("segment: li complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
+    info!(
+        "segment: li complete input={} threshold={} foreground={}",
+        args.input.display(),
+        threshold,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -474,7 +527,12 @@ fn run_yen(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!("segment: yen complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
+    info!(
+        "segment: yen complete input={} threshold={} foreground={}",
+        args.input.display(),
+        threshold,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -502,7 +560,12 @@ fn run_kapur(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!("segment: kapur complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
+    info!(
+        "segment: kapur complete input={} threshold={} foreground={}",
+        args.input.display(),
+        threshold,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -531,7 +594,12 @@ fn run_triangle(args: &SegmentArgs) -> Result<()> {
         threshold,
     );
 
-    info!("segment: triangle complete input={} threshold={} foreground={}", args.input.display(), threshold, n_foreground);
+    info!(
+        "segment: triangle complete input={} threshold={} foreground={}",
+        args.input.display(),
+        threshold,
+        n_foreground
+    );
 
     Ok(())
 }
@@ -565,7 +633,11 @@ fn run_watershed(args: &SegmentArgs) -> Result<()> {
         n_basins,
     );
 
-    info!("segment: watershed complete input={} basins={}", args.input.display(), n_basins);
+    info!(
+        "segment: watershed complete input={} basins={}",
+        args.input.display(),
+        n_basins
+    );
 
     Ok(())
 }
@@ -579,7 +651,16 @@ fn run_watershed(args: &SegmentArgs) -> Result<()> {
 fn run_kmeans(args: &SegmentArgs) -> Result<()> {
     let image = read_image(&args.input)?;
 
-    let km = KMeansSegmentation::new(args.classes);
+    let mut km = KMeansSegmentation::new(args.classes);
+    if let Some(mi) = args.kmeans_max_iterations {
+        km.max_iterations = mi;
+    }
+    if let Some(tol) = args.kmeans_tolerance {
+        km.tolerance = tol;
+    }
+    if let Some(seed) = args.kmeans_seed {
+        km.seed = seed;
+    }
     let labeled = km.apply(&image);
 
     write_image_inferred(&args.output, &labeled)?;
@@ -590,7 +671,11 @@ fn run_kmeans(args: &SegmentArgs) -> Result<()> {
         args.classes,
     );
 
-    info!("segment: kmeans complete input={} k={}", args.input.display(), args.classes);
+    info!(
+        "segment: kmeans complete input={} k={}",
+        args.input.display(),
+        args.classes
+    );
 
     Ok(())
 }
@@ -618,7 +703,11 @@ fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!("segment: distance-transform complete input={} output={}", args.input.display(), args.output.display());
+    info!(
+        "segment: distance-transform complete input={} output={}",
+        args.input.display(),
+        args.output.display()
+    );
 
     Ok(())
 }
@@ -639,7 +728,11 @@ fn run_fill_holes(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!("segment: fill-holes complete input={} output={}", args.input.display(), args.output.display());
+    info!(
+        "segment: fill-holes complete input={} output={}",
+        args.input.display(),
+        args.output.display()
+    );
 
     Ok(())
 }
@@ -659,7 +752,11 @@ fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
         args.output.display(),
     );
 
-    info!("segment: morphological-gradient complete input={} output={}", args.input.display(), args.output.display());
+    info!(
+        "segment: morphological-gradient complete input={} output={}",
+        args.input.display(),
+        args.output.display()
+    );
 
     Ok(())
 }
@@ -804,7 +901,12 @@ fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
         n_foreground,
     );
 
-    info!("segment: shape-detection complete input={} output={} foreground={}", args.input.display(), args.output.display(), n_foreground);
+    info!(
+        "segment: shape-detection complete input={} output={} foreground={}",
+        args.input.display(),
+        args.output.display(),
+        n_foreground
+    );
     Ok(())
 }
 
@@ -854,7 +956,14 @@ fn run_threshold_level_set(args: &SegmentArgs) -> Result<()> {
         upper,
     );
 
-    info!("segment: threshold-level-set complete input={} output={} lower={} upper={} foreground={}", args.input.display(), args.output.display(), lower, upper, n_foreground);
+    info!(
+        "segment: threshold-level-set complete input={} output={} lower={} upper={} foreground={}",
+        args.input.display(),
+        args.output.display(),
+        lower,
+        upper,
+        n_foreground
+    );
     Ok(())
 }
 
@@ -911,7 +1020,13 @@ fn run_connected_components(args: &SegmentArgs) -> Result<()> {
         stats.len(),
         args.connectivity,
     );
-    info!("segment: connected-components complete input={} output={} n_components={} connectivity={}", args.input.display(), args.output.display(), stats.len(), args.connectivity);
+    info!(
+        "segment: connected-components complete input={} output={} n_components={} connectivity={}",
+        args.input.display(),
+        args.output.display(),
+        stats.len(),
+        args.connectivity
+    );
     Ok(())
 }
 
@@ -1002,7 +1117,101 @@ fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
         n_skeleton,
     );
 
-    info!("segment: skeletonization complete input={} output={} skeleton={}", args.input.display(), args.output.display(), n_skeleton);
+    info!(
+        "segment: skeletonization complete input={} output={} skeleton={}",
+        args.input.display(),
+        args.output.display(),
+        n_skeleton
+    );
+    Ok(())
+}
+
+// ── Binary threshold segmentation ─────────────────────────────────────────────
+
+/// Apply user-specified binary threshold segmentation.
+///
+/// Classifies voxels in `[lower, upper]` as foreground (1.0) and all others as
+/// background (0.0).  Bounds default to `[-∞, +∞]` when not supplied, making
+/// all finite voxels foreground.
+///
+/// # Mathematical Specification
+///
+/// S(v) = 1.0  if lower ≤ I(v) ≤ upper
+/// S(v) = 0.0  otherwise
+///
+/// # Errors
+/// Returns an error if `lower > upper` (empty interval).
+fn run_binary(args: &SegmentArgs) -> Result<()> {
+    let lower = args.lower.unwrap_or(f32::NEG_INFINITY);
+    let upper = args.upper.unwrap_or(f32::INFINITY);
+    if lower > upper {
+        return Err(anyhow!(
+            "binary threshold: lower ({lower}) must be ≤ upper ({upper})"
+        ));
+    }
+
+    let image = read_image(&args.input)?;
+    let mask = BinaryThreshold::new(lower, upper).apply(&image);
+    let n_foreground = count_foreground(&mask);
+    write_image_inferred(&args.output, &mask)?;
+
+    println!(
+        "Segmented {} (binary): [{lower:.4}, {upper:.4}] → {n_foreground} foreground voxels",
+        args.input.display(),
+    );
+    info!(
+        "segment: binary complete input={} lower={lower} upper={upper} foreground={n_foreground}",
+        args.input.display()
+    );
+    Ok(())
+}
+
+// ── Marker-controlled watershed segmentation ──────────────────────────────────
+
+/// Apply marker-controlled watershed segmentation.
+///
+/// The gradient image (`--input`) drives the flooding order; the marker image
+/// (`--markers`) seeds the initial basin labels.  Non-zero voxels in the marker
+/// image define basin seeds; zero voxels are unlabeled.  Each unlabeled voxel
+/// receives the label of the adjacent seed reached via the lowest-gradient path.
+/// Voxels on the boundary between two distinct basins receive label 0.
+///
+/// # Errors
+/// Returns an error when:
+/// - `--markers` is not supplied.
+/// - The gradient and marker images have different shapes.
+fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
+    let markers_path = args
+        .markers
+        .as_ref()
+        .ok_or_else(|| anyhow!("marker-watershed requires --markers <PATH>"))?;
+
+    let gradient = read_image(&args.input)?;
+    let markers = read_image(&PathBuf::from(markers_path))?;
+
+    let labeled = MarkerControlledWatershed::new()
+        .apply(&gradient, &markers)
+        .with_context(|| format!("marker-watershed failed for input={}", args.input.display()))?;
+
+    let td = labeled.data().clone().into_data();
+    let vals = td
+        .as_slice::<f32>()
+        .expect("marker-watershed output must contain f32 data");
+    let max_label = vals.iter().cloned().fold(0.0_f32, f32::max);
+    let n_basins = max_label as usize;
+
+    write_image_inferred(&args.output, &labeled)?;
+
+    println!(
+        "Segmented {} (marker-watershed): found {} basins",
+        args.input.display(),
+        n_basins,
+    );
+    info!(
+        "segment: marker-watershed complete input={} markers={} basins={n_basins}",
+        args.input.display(),
+        markers_path,
+    );
     Ok(())
 }
 
@@ -1546,6 +1755,84 @@ mod tests {
             3,
             "trimodal image with k=3 must produce exactly 3 distinct labels, got {:?}",
             unique
+        );
+    }
+
+    #[test]
+    fn test_segment_kmeans_max_iterations_param_accepted() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("in.nii.gz");
+        let output = dir.path().join("out.nii.gz");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+        let args = SegmentArgs {
+            input,
+            output: output.clone(),
+            method: "kmeans".to_string(),
+            classes: 2,
+            kmeans_max_iterations: Some(50),
+            ..Default::default()
+        };
+        run(args).unwrap();
+        assert!(
+            output.exists(),
+            "kmeans output must be created when kmeans_max_iterations is set"
+        );
+    }
+
+    #[test]
+    fn test_segment_kmeans_seed_produces_deterministic_output() {
+        let dir = tempdir().unwrap();
+        let img = make_bimodal_image();
+        let inp1 = dir.path().join("in1.nii.gz");
+        let inp2 = dir.path().join("in2.nii.gz");
+        let out1 = dir.path().join("out1.nii.gz");
+        let out2 = dir.path().join("out2.nii.gz");
+        ritk_io::write_nifti(&inp1, &img).unwrap();
+        ritk_io::write_nifti(&inp2, &img).unwrap();
+        let make_args = |input: PathBuf, output: PathBuf| SegmentArgs {
+            input,
+            output,
+            method: "kmeans".to_string(),
+            classes: 2,
+            kmeans_seed: Some(7),
+            ..Default::default()
+        };
+        run(make_args(inp1, out1.clone())).unwrap();
+        run(make_args(inp2, out2.clone())).unwrap();
+        let read_vals = |p: &std::path::Path| -> Vec<f32> {
+            let im: Image<Backend, 3> = ritk_io::read_nifti(p, &Default::default()).unwrap();
+            im.data()
+                .clone()
+                .into_data()
+                .as_slice::<f32>()
+                .unwrap()
+                .to_vec()
+        };
+        assert_eq!(
+            read_vals(&out1),
+            read_vals(&out2),
+            "same seed must produce identical output"
+        );
+    }
+
+    #[test]
+    fn test_segment_kmeans_tolerance_param_accepted() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("in.nii.gz");
+        let output = dir.path().join("out.nii.gz");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+        let args = SegmentArgs {
+            input,
+            output: output.clone(),
+            method: "kmeans".to_string(),
+            classes: 2,
+            kmeans_tolerance: Some(1e-4),
+            ..Default::default()
+        };
+        run(args).unwrap();
+        assert!(
+            output.exists(),
+            "kmeans output must be created when kmeans_tolerance is set"
         );
     }
 
@@ -2764,6 +3051,226 @@ mod tests {
         assert!(
             msg.contains("--initial-phi"),
             "error must mention --initial-phi, got: {msg}"
+        );
+    }
+
+    // ── Binary threshold: output file with correct shape ──────────────────────
+
+    #[test]
+    fn test_segment_binary_threshold_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "binary");
+        args.lower = Some(100.0);
+        args.upper = Some(255.0);
+        run(args).unwrap();
+
+        assert!(output.exists(), "output file must be created");
+        let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(
+            out_image.shape(),
+            [4, 4, 4],
+            "output shape must match input 4×4×4"
+        );
+    }
+
+    // ── Binary threshold: output is strictly binary ───────────────────────────
+
+    #[test]
+    fn test_segment_binary_threshold_output_is_strictly_binary() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        let mut args = default_args(input.clone(), output.clone(), "binary");
+        args.lower = Some(100.0);
+        args.upper = Some(255.0);
+        run(args).unwrap();
+
+        let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = out_image.data().clone().into_data();
+        let slice = td.as_slice::<f32>().unwrap();
+        for &v in slice {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "binary threshold output must be in {{0,1}}, got {v}"
+            );
+        }
+    }
+
+    // ── Binary threshold: no bounds → all voxels inside ──────────────────────
+
+    #[test]
+    fn test_segment_binary_threshold_no_bounds_all_inside() {
+        // No lower/upper → NEG_INFINITY to INFINITY → every finite voxel is inside → all 1.0.
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("input.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        // default_args leaves lower=None, upper=None which run_binary maps to [-∞, +∞].
+        let args = default_args(input.clone(), output.clone(), "binary");
+        run(args).unwrap();
+
+        let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        let td = out_image.data().clone().into_data();
+        let slice = td.as_slice::<f32>().unwrap();
+        assert!(
+            slice.iter().all(|&v| v == 1.0),
+            "no bounds → all voxels inside → all 1.0"
+        );
+    }
+
+    // ── Marker-watershed: missing markers path returns error ──────────────────
+
+    #[test]
+    fn test_segment_marker_watershed_missing_markers_returns_error() {
+        let dir = tempdir().unwrap();
+        let input = dir.path().join("image.nii");
+        let output = dir.path().join("out.nii");
+        ritk_io::write_nifti(&input, &make_bimodal_image()).unwrap();
+
+        // markers is None by default → must return error.
+        let args = default_args(input.clone(), output.clone(), "marker-watershed");
+        let result = run(args);
+        assert!(
+            result.is_err(),
+            "marker-watershed without markers path must return error"
+        );
+        let msg = format!("{}", result.unwrap_err());
+        assert!(
+            msg.contains("marker"),
+            "error must mention 'marker', got: {msg}"
+        );
+    }
+
+    // ── Marker-watershed helpers ──────────────────────────────────────────────
+
+    /// Build a 3×3×3 image with uniform intensity 0.5.
+    ///
+    /// Used as a synthetic gradient image for marker-watershed tests.
+    /// A flat gradient means all pairwise edge weights are equal, so the
+    /// watershed assigns labels purely by proximity to the seed voxels.
+    fn make_uniform_gradient_image() -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let values = vec![0.5_f32; 27];
+        let td = TensorData::new(values, Shape::new([3, 3, 3]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    /// Build a 3×3×3 marker image with two seeds at opposite corners.
+    ///
+    /// Flat index 0  (z=0, y=0, x=0) → label 1.0
+    /// Flat index 26 (z=2, y=2, x=2) → label 2.0
+    /// All other voxels                → 0.0 (unmarked).
+    fn make_two_seed_marker_image() -> Image<Backend, 3> {
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let mut values = vec![0.0_f32; 27];
+        values[0] = 1.0;
+        values[26] = 2.0;
+        let td = TensorData::new(values, Shape::new([3, 3, 3]));
+        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
+    }
+
+    // ── Marker-watershed: positive integration tests ──────────────────────────
+
+    /// Marker-watershed must produce a 3×3×3 output image when given valid
+    /// gradient and marker inputs.
+    ///
+    /// Invariant: output shape == input shape == [3, 3, 3].
+    #[test]
+    fn test_segment_marker_watershed_creates_output_with_correct_shape() {
+        let dir = tempdir().unwrap();
+        let gradient_path = dir.path().join("gradient.nii");
+        let markers_path = dir.path().join("markers.nii");
+        let output_path = dir.path().join("out.nii");
+
+        ritk_io::write_nifti(&gradient_path, &make_uniform_gradient_image()).unwrap();
+        ritk_io::write_nifti(&markers_path, &make_two_seed_marker_image()).unwrap();
+
+        let args = SegmentArgs {
+            markers: Some(markers_path.to_string_lossy().to_string()),
+            ..default_args(
+                gradient_path.clone(),
+                output_path.clone(),
+                "marker-watershed",
+            )
+        };
+        let result = run(args);
+        assert!(
+            result.is_ok(),
+            "marker-watershed must succeed with valid inputs: {:?}",
+            result.err()
+        );
+
+        let img = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        assert_eq!(
+            img.shape(),
+            [3, 3, 3],
+            "output shape must equal input shape [3, 3, 3]"
+        );
+    }
+
+    /// Marker-watershed must propagate both seed labels into the output image.
+    ///
+    /// With two seeds at opposite corners of a uniform-gradient 3×3×3 volume,
+    /// the flood fill assigns every voxel to the nearer seed.  At minimum the
+    /// seed voxels themselves carry their original labels, so label 1.0 and
+    /// label 2.0 must each appear at least once in the output.
+    #[test]
+    fn test_segment_marker_watershed_output_contains_both_basin_labels() {
+        let dir = tempdir().unwrap();
+        let gradient_path = dir.path().join("gradient.nii");
+        let markers_path = dir.path().join("markers.nii");
+        let output_path = dir.path().join("out.nii");
+
+        ritk_io::write_nifti(&gradient_path, &make_uniform_gradient_image()).unwrap();
+        ritk_io::write_nifti(&markers_path, &make_two_seed_marker_image()).unwrap();
+
+        let args = SegmentArgs {
+            markers: Some(markers_path.to_string_lossy().to_string()),
+            ..default_args(
+                gradient_path.clone(),
+                output_path.clone(),
+                "marker-watershed",
+            )
+        };
+        run(args).expect("marker-watershed must succeed with valid inputs");
+
+        let img = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
+        let td = img.data().clone().into_data();
+        let vals = td.as_slice::<f32>().expect("output must contain f32 data");
+
+        let has_label_1 = vals.iter().any(|&v| v == 1.0_f32);
+        let has_label_2 = vals.iter().any(|&v| v == 2.0_f32);
+
+        assert!(
+            has_label_1,
+            "output must contain at least one voxel with label 1.0 (seed basin 1); \
+             got values: {:?}",
+            &vals[..vals.len().min(27)]
+        );
+        assert!(
+            has_label_2,
+            "output must contain at least one voxel with label 2.0 (seed basin 2); \
+             got values: {:?}",
+            &vals[..vals.len().min(27)]
         );
     }
 }

@@ -545,4 +545,174 @@ mod tests {
             "function and filter struct must produce identical results"
         );
     }
+
+    // ── Adversarial tests ─────────────────────────────────────────────────────
+
+    /// Two isolated uniform-intensity cubes separated by zero-intensity background.
+    /// Seeding from cube A must not bleed to cube B, and vice versa.
+    ///
+    /// Image: 1×1×8 = [100, 100, 100, 0, 0, 200, 200, 200]
+    ///   A = positions 0..3 (intensity 100), background = 4..5 (intensity 0)
+    ///   B = positions 5..8 (intensity 200)
+    /// Seed A at [0,0,0] with initial=[50,150]: grows exactly 3 voxels (cube A).
+    /// Seed B at [0,0,5] with initial=[150,250]: grows exactly 3 voxels (cube B).
+    #[test]
+    fn test_multi_seed_two_cubes_no_cross_contamination() {
+        let values = vec![100.0_f32, 100.0, 100.0, 0.0, 0.0, 200.0, 200.0, 200.0];
+        let image = make_image(values, [1, 1, 8]);
+
+        // Seed in cube A: bounds [50, 150], k=2.5.
+        // Iter 1: σ=0, bounds=[50,150]. Grows x=1 (100) and then x=2 (100).
+        // x=3 has intensity 0.0 < 50 → rejected. Result: 3 voxels.
+        let result_a = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 2.5, 15);
+        assert_eq!(
+            count_foreground(&result_a),
+            3,
+            "seed in cube A must grow exactly cube A (3 voxels)"
+        );
+        // Verify cube B voxels remain zero.
+        let vals_a = get_values(&result_a);
+        assert_eq!(
+            vals_a[5], 0.0,
+            "cube B voxel 5 must not be reached from seed A"
+        );
+        assert_eq!(
+            vals_a[6], 0.0,
+            "cube B voxel 6 must not be reached from seed A"
+        );
+        assert_eq!(
+            vals_a[7], 0.0,
+            "cube B voxel 7 must not be reached from seed A"
+        );
+
+        // Seed in cube B: bounds [150, 250], k=2.5.
+        let result_b = confidence_connected(&image, [0, 0, 5], 150.0, 250.0, 2.5, 15);
+        assert_eq!(
+            count_foreground(&result_b),
+            3,
+            "seed in cube B must grow exactly cube B (3 voxels)"
+        );
+        let vals_b = get_values(&result_b);
+        assert_eq!(
+            vals_b[0], 0.0,
+            "cube A voxel 0 must not be reached from seed B"
+        );
+        assert_eq!(
+            vals_b[1], 0.0,
+            "cube A voxel 1 must not be reached from seed B"
+        );
+        assert_eq!(
+            vals_b[2], 0.0,
+            "cube A voxel 2 must not be reached from seed B"
+        );
+    }
+
+    /// Large multiplier expands the confidence interval to include more voxels
+    /// in a gradient image than a small multiplier.
+    ///
+    /// Image: 1×1×3 = [100, 130, 10]. Seed at [0,0,0], initial=[50, 200].
+    /// k=2.0: After iteration 1 (seed+130=region), μ=115, σ=15.
+    ///   Bounds=[115-30, 115+30]=[85, 145]. Neighbor 10 ∉ [85,145] → stop = 2 voxels.
+    /// k=10.0: After iteration 1, μ=115, σ=15. Bounds=[115-150, 115+150]=[-35, 265].
+    ///   Neighbor 10 ∈ [-35, 265] → add = 3 voxels.
+    #[test]
+    fn test_large_multiplier_expands_region_over_gradient() {
+        let values = vec![100.0_f32, 130.0, 10.0];
+        let image = make_image(values, [1, 1, 3]);
+
+        let result_small_k = confidence_connected(&image, [0, 0, 0], 50.0, 200.0, 2.0, 15);
+        let result_large_k = confidence_connected(&image, [0, 0, 0], 50.0, 200.0, 10.0, 15);
+
+        let count_small = count_foreground(&result_small_k);
+        let count_large = count_foreground(&result_large_k);
+
+        // k=10.0 must capture all 3 voxels; k=2.0 must stop at 2.
+        assert_eq!(
+            count_large, 3,
+            "k=10.0 must expand to all 3 voxels (got {count_large})"
+        );
+        assert_eq!(
+            count_small, 2,
+            "k=2.0 must stop at 2 voxels (got {count_small})"
+        );
+        assert!(
+            count_large > count_small,
+            "large k must always produce region ≥ small k"
+        );
+    }
+
+    /// Seed placed at volume corner [0,0,0] of a 4×4×4 uniform image must still
+    /// grow the entire 64-voxel volume via BFS without out-of-bounds access.
+    #[test]
+    fn test_seed_at_volume_corner_grows_full_uniform_volume() {
+        let image = make_image(vec![100.0_f32; 64], [4, 4, 4]);
+        let result = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 2.5, 15);
+        assert_eq!(
+            count_foreground(&result),
+            64,
+            "corner seed on uniform 4×4×4 image must grow all 64 voxels"
+        );
+    }
+
+    /// `max_iterations = 0` means the iteration loop does not execute at all.
+    /// The algorithm adds the seed voxel to the output before the loop, so
+    /// the result must contain exactly 1 foreground voxel (the seed itself).
+    #[test]
+    fn test_zero_max_iterations_returns_only_seed_voxel() {
+        // 3×3×3 uniform image; seed at center with max_iterations=0.
+        let image = make_image(vec![100.0_f32; 27], [3, 3, 3]);
+        let result = confidence_connected(&image, [1, 1, 1], 50.0, 150.0, 2.5, 0);
+        assert_eq!(
+            count_foreground(&result),
+            1,
+            "max_iterations=0 must return only the seed voxel"
+        );
+        // Verify the seed voxel itself is the foreground voxel.
+        let vals = get_values(&result);
+        let seed_flat = 1 * 3 * 3 + 1 * 3 + 1;
+        assert_eq!(
+            vals[seed_flat], 1.0,
+            "the single foreground voxel must be the seed voxel"
+        );
+    }
+
+    /// Voxels with intensity exactly equal to `initial_lower` or `initial_upper`
+    /// must be included (inclusive bounds: L ≤ I(v) ≤ U).
+    ///
+    /// Image: 1×1×3 = [50, 100, 200]. initial_lower=50, initial_upper=200.
+    /// Seed at [0,0,0] (value 50 == initial_lower): must be included.
+    /// All 3 voxels are in [50, 200], so all are eventually grown.
+    /// Iteration 1: σ=0, bounds=[50,200]. Add 100 at position 1.
+    /// Iteration 2: μ=75, σ≈25. With k=2.5, bounds=[12.5, 137.5]. 200 ∉ → stop.
+    /// Result: 2 voxels. Both [0,0,0]=50 and [0,0,1]=100 must be foreground.
+    #[test]
+    fn test_initial_bound_exact_values_are_inclusive() {
+        let values = vec![50.0_f32, 100.0, 200.0];
+        let image = make_image(values, [1, 1, 3]);
+
+        let result = confidence_connected(&image, [0, 0, 0], 50.0, 200.0, 2.5, 15);
+        let vals = get_values(&result);
+
+        // Seed at exact initial_lower must be included.
+        assert_eq!(
+            vals[0], 1.0,
+            "voxel at exact initial_lower (50.0) must be foreground"
+        );
+        // Adjacent voxel 100 ∈ [50, 200] must be included.
+        assert_eq!(vals[1], 1.0, "voxel 100 ∈ [50, 200] must be foreground");
+        // Voxel 200 ∉ second-iteration bounds → background.
+        assert_eq!(
+            vals[2], 0.0,
+            "voxel 200 excluded by second-iteration bounds must be background"
+        );
+
+        // Separate test: seed exactly at initial_upper (1×1×1 single voxel).
+        let image_upper = make_image(vec![200.0_f32], [1, 1, 1]);
+        let result_upper = confidence_connected(&image_upper, [0, 0, 0], 100.0, 200.0, 2.5, 15);
+        assert_eq!(
+            count_foreground(&result_upper),
+            1,
+            "single voxel at exact initial_upper (200.0) must be foreground"
+        );
+    }
 }

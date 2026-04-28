@@ -400,6 +400,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     let mut first_transfer_syntax_uid: Option<String> = None;
 
     let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(raw_paths.len());
+    // Per-file SeriesInstanceUID in lockstep with per_file_dims (GAP-R63-04).
+    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(raw_paths.len());
 
     for file_path in &raw_paths {
         let mut slice_meta = DicomSliceMetadata {
@@ -425,12 +427,19 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         };
 
         let mut file_dim = (0u32, 0u32);
+        // SeriesInstanceUID read per-file for series-UID grouping (GAP-R63-04).
+        let mut file_series_uid: Option<String> = None;
 
         if let Ok(obj) = open_file(file_path) {
             // Per-slice tags
             if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
                 slice_meta.sop_instance_uid = elem.to_str().ok().map(String::from);
             }
+            // SeriesInstanceUID (0020,000E) — captured per-file for plurality selection.
+            file_series_uid = obj
+                .element(Tag(0x0020, 0x000E))
+                .ok()
+                .and_then(|e| e.to_str().ok().map(String::from));
             if let Ok(elem) = obj.element(Tag(0x0020, 0x0013)) {
                 slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
             }
@@ -696,6 +705,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         }
 
         per_file_dims.push(file_dim);
+        per_file_series_uids.push(file_series_uid);
         slices.push(slice_meta);
     }
 
@@ -731,15 +741,84 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     cr,
                     cc
                 );
-                let (new_slices, _): (Vec<_>, Vec<_>) = slices
+                let (new_slices, new_uids): (Vec<_>, Vec<_>) = slices
                     .into_iter()
+                    .zip(per_file_series_uids.into_iter())
                     .zip(per_file_dims.iter().copied())
-                    .filter(|(_, (r, c))| (*r == cr && *c == cc) || *r == 0)
+                    .filter(|((_, _), (r, c))| (*r == cr && *c == cc) || *r == 0)
+                    .map(|((s, u), _)| (s, u))
                     .unzip();
                 slices = new_slices;
+                per_file_series_uids = new_uids;
                 // Override first_rows/first_cols with canonical values.
                 first_rows = Some(cr);
                 first_cols = Some(cc);
+            }
+        }
+    }
+
+    // SeriesInstanceUID grouping (GAP-R63-04):
+    // After dimension filtering, select the most-populated series to avoid merging
+    // multiple acquisitions that share the same row/col dimensions.
+    // Only applied when there is a unique winner; if two or more series share the
+    // maximum slice count, no filtering is applied (ambiguous ownership — preserve
+    // backward-compatible merge behavior).
+    {
+        let mut uid_counts: HashMap<Option<String>, usize> = HashMap::new();
+        for uid in &per_file_series_uids {
+            *uid_counts.entry(uid.clone()).or_insert(0) += 1;
+        }
+        let distinct_count = uid_counts.keys().filter(|k| k.is_some()).count();
+        if distinct_count > 1 {
+            let max_count = uid_counts
+                .iter()
+                .filter(|(k, _)| k.is_some())
+                .map(|(_, &v)| v)
+                .max()
+                .unwrap_or(0);
+            let series_at_max = uid_counts
+                .iter()
+                .filter(|(k, &v)| k.is_some() && v == max_count)
+                .count();
+            // Only filter when exactly one series holds the maximum slice count.
+            // Ties are left unfiltered: no UID can be called "most-populated".
+            if series_at_max == 1 {
+                let best_uid: Option<String> = uid_counts
+                    .iter()
+                    .filter(|(k, _)| k.is_some())
+                    .max_by(|(ka, &va), (kb, &vb)| {
+                        va.cmp(&vb).then_with(|| kb.cmp(ka)) // count desc, then uid asc
+                    })
+                    .and_then(|(k, _)| k.clone());
+                if let Some(ref uid) = best_uid {
+                    let uid_str: &str = uid.as_str();
+                    let excluded = slices
+                        .iter()
+                        .zip(per_file_series_uids.iter())
+                        .filter(|(_, u)| u.as_deref() != Some(uid_str))
+                        .count();
+                    tracing::warn!(
+                        excluded = excluded,
+                        selected_series_uid = uid_str,
+                        total_distinct_series = distinct_count,
+                        "DICOM directory contains {} same-dimension series; selecting \
+                         most-populated (SeriesInstanceUID={}); {} file(s) from other \
+                         series excluded",
+                        distinct_count,
+                        uid_str,
+                        excluded
+                    );
+                    let retained: Vec<DicomSliceMetadata> = slices
+                        .into_iter()
+                        .zip(per_file_series_uids.into_iter())
+                        .filter(|(_, u)| u.as_deref() == Some(uid_str) || u.is_none())
+                        .map(|(s, _)| s)
+                        .collect();
+                    slices = retained;
+                }
+                if best_uid.is_some() {
+                    first_series_instance_uid = best_uid;
+                }
             }
         }
     }
@@ -1277,8 +1356,8 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
 pub fn load_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
-) -> Result<(Image<B, 3>, DicomReadMetadata)> {
-    read_dicom_series_with_metadata(path, device)
+) -> Result<Image<B, 3>> {
+    read_dicom_series(path, device)
 }
 
 /// Read a DICOM series and return both the image and metadata.
@@ -2617,7 +2696,7 @@ mod tests {
             .expect("write");
 
         let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let (img, _) = load_dicom_series::<B, _>(&series_dir, &device)
+        let img = load_dicom_series::<B, _>(&series_dir, &device)
             .expect("JPEG Baseline series load must succeed via codec path");
 
         let shape = img.shape();
@@ -2690,7 +2769,7 @@ mod tests {
         crate::format::dicom::writer::write_dicom_series(&series_path, &image)
             .expect("write_dicom_series must succeed");
 
-        let (loaded_image, _meta) = load_dicom_series::<B, _>(&series_path, &device)
+        let loaded_image = load_dicom_series::<B, _>(&series_path, &device)
             .expect("load_dicom_series must succeed");
 
         let loaded_td = loaded_image.data().clone().into_data();
@@ -2800,8 +2879,9 @@ mod tests {
         )
         .expect("write_dicom_series_with_metadata must succeed");
 
-        let (loaded_image, loaded_meta) = load_dicom_series::<B, _>(&series_path, &device)
-            .expect("load_dicom_series must succeed");
+        let (loaded_image, loaded_meta) =
+            load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+                .expect("load_dicom_series_with_metadata must succeed");
 
         // --- Intensity round-trip ---
         let loaded_td = loaded_image.data().clone().into_data();
@@ -4051,6 +4131,167 @@ mod tests {
         assert!(
             image.direction().0.determinant().abs() > 0.0,
             "direction matrix must be invertible"
+        );
+    }
+
+    /// GAP-R63-04: scan_dicom_directory must select the most-populated series when a
+    /// directory contains multiple same-dimension series identified by distinct
+    /// SeriesInstanceUIDs.
+    ///
+    /// # Specification
+    /// Given:
+    ///   - Series A: SeriesInstanceUID="2.25.A", 3 slices, 8×8 CT images
+    ///   - Series B: SeriesInstanceUID="2.25.B", 1 slice, 8×8 CT image
+    /// Plurality rule: Series A has 3 files vs Series B's 1 file.
+    ///
+    /// # Invariants
+    /// - `result.metadata.series_instance_uid == Some("2.25.A")`
+    /// - `result.num_slices == 3`
+    #[test]
+    fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
+        use dicom::core::smallvec::SmallVec;
+
+        let dir = tempfile::tempdir().unwrap();
+
+        // Write a minimal CT DICOM file with the given SeriesInstanceUID, instance
+        // number, and z-position (used for IPP and sort ordering).
+        let write_ct_slice = |path: &std::path::Path, series_uid: &str, instance: u32, z: f64| {
+            let sop_instance_uid = format!("{}.{}", series_uid, instance);
+            let mut obj = InMemDicomObject::new_empty();
+            // SOP class: CT Image Storage
+            obj.put(DataElement::new(
+                Tag(0x0008, 0x0016),
+                VR::UI,
+                PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0008, 0x0018),
+                VR::UI,
+                PrimitiveValue::from(sop_instance_uid.as_str()),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0008, 0x0060),
+                VR::CS,
+                PrimitiveValue::from("CT"),
+            ));
+            // SeriesInstanceUID (0020,000E) — the tag under test.
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x000E),
+                VR::UI,
+                PrimitiveValue::from(series_uid),
+            ));
+            // StudyInstanceUID
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x000D),
+                VR::UI,
+                PrimitiveValue::from("1.2.3.4.5"),
+            ));
+            // InstanceNumber
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x0013),
+                VR::IS,
+                PrimitiveValue::from(format!("{}", instance).as_str()),
+            ));
+            // ImagePositionPatient (0020,0032): 0.0\0.0\z
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x0032),
+                VR::DS,
+                PrimitiveValue::from(format!("0.0\\0.0\\{:.1}", z).as_str()),
+            ));
+            // ImageOrientationPatient (0020,0037): axial [1,0,0,0,1,0]
+            obj.put(DataElement::new(
+                Tag(0x0020, 0x0037),
+                VR::DS,
+                PrimitiveValue::from("1.0\\0.0\\0.0\\0.0\\1.0\\0.0"),
+            ));
+            // Rows / Cols: 8×8
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0010),
+                VR::US,
+                PrimitiveValue::from(8_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0011),
+                VR::US,
+                PrimitiveValue::from(8_u16),
+            ));
+            // BitsAllocated / BitsStored / HighBit / PixelRepresentation
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0100),
+                VR::US,
+                PrimitiveValue::from(16_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0101),
+                VR::US,
+                PrimitiveValue::from(16_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0102),
+                VR::US,
+                PrimitiveValue::from(15_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0103),
+                VR::US,
+                PrimitiveValue::from(0_u16),
+            ));
+            // SamplesPerPixel / PhotometricInterpretation
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0002),
+                VR::US,
+                PrimitiveValue::from(1_u16),
+            ));
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0004),
+                VR::CS,
+                PrimitiveValue::from("MONOCHROME2"),
+            ));
+            // PixelSpacing: 1.0\1.0
+            obj.put(DataElement::new(
+                Tag(0x0028, 0x0030),
+                VR::DS,
+                PrimitiveValue::from("1.0\\1.0"),
+            ));
+            // PixelData: 8×8 × 2 bytes = 128 bytes of zeroes
+            let pixel_bytes: Vec<u8> = vec![0u8; 8 * 8 * 2];
+            obj.put(DataElement::new(
+                Tag(0x7FE0, 0x0010),
+                VR::OW,
+                PrimitiveValue::U8(SmallVec::from_vec(pixel_bytes)),
+            ));
+            let file_obj = obj
+                .with_meta(
+                    FileMetaTableBuilder::new()
+                        .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                        .media_storage_sop_instance_uid(sop_instance_uid.as_str())
+                        .transfer_syntax("1.2.840.10008.1.2.1"),
+                )
+                .expect("meta build must not fail");
+            file_obj.write_to_file(path).expect("write must not fail");
+        };
+
+        // Series A: 3 slices — the most-populated series.
+        write_ct_slice(&dir.path().join("A1.dcm"), "2.25.A", 1, 0.0);
+        write_ct_slice(&dir.path().join("A2.dcm"), "2.25.A", 2, 1.0);
+        write_ct_slice(&dir.path().join("A3.dcm"), "2.25.A", 3, 2.0);
+        // Series B: 1 slice — must be excluded by plurality selection.
+        write_ct_slice(&dir.path().join("B1.dcm"), "2.25.B", 1, 5.0);
+
+        let result = scan_dicom_directory(dir.path())
+            .expect("scan_dicom_directory must succeed with valid CT slices");
+
+        assert_eq!(
+            result.metadata.series_instance_uid.as_deref(),
+            Some("2.25.A"),
+            "series_instance_uid must be the most-populated series (2.25.A, 3 slices); \
+             got {:?}",
+            result.metadata.series_instance_uid
+        );
+        assert_eq!(
+            result.num_slices, 3,
+            "num_slices must be 3 (Series A only); got {}",
+            result.num_slices
         );
     }
 }

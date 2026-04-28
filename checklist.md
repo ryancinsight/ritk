@@ -1,30 +1,144 @@
-## Sprint 63 — CT Bed Separation Filter, Viewer Selection, and Modality-Aware Geometry Audit — Planned
+## Sprint 69 — Planned
 
-- [ ] Close GAP-R63-01: add a core CT bed separation filter for masking table/bed voxels while preserving patient foreground
-- [ ] Close GAP-R63-02: expose `bed-separation` as a selectable filter in `ritk-snap` and CLI filter dispatch
-- [ ] Close GAP-R63-03: audit CT, MRI, and ultrasound geometry/orientation handling so visualization uses a unified display contract
-- [ ] Add `ritk-core` tests for bed separation mask correctness on CT-like intensity distributions
-- [ ] Add `ritk-snap` selection tests that confirm the bed separation filter is present in the filter menu/dispatch path
-- [ ] Add modality-aware viewer tests that verify CT, MRI, and ultrasound orientation metadata are rendered consistently
-- [ ] Verify CLI filter dispatch remains value-semantic for all selected filters, including bed separation
-- [ ] Verify `ritk-snap` geometry summary continues to use the loaded image geometry as authoritative source
-- [ ] Keep CT bed separation as a core filter implementation, not a viewer-only heuristic
-- [ ] Keep modality-specific orientation handling in the geometry layer, not duplicated in presentation code
-- [ ] Preserve DICOM affine invariants across CT, MRI, and ultrasound visualization paths
-- [x] Update `test_scan_directory_warns_on_inconsistent_pixel_spacing`: spacing[1,2] assertions
-- [x] Update `test_write_metadata_series_load_series_intensity_roundtrip`: new convention
-- [x] Update `test_scan_metadata_round_trip_rescale_params`: axial direction
-- [x] Update `tests/dicom_security.rs` make_test_metadata: new convention
-- [x] Update `writer.rs` make_test_metadata: spacing=[2.5,0.5,0.5], direction=axial
-- [x] Add `test_physical_transform_depth_index_advances_along_slice_normal`
-- [x] Add `test_gantry_tilt_synthesizes_oblique_orientation`
-- [x] Add serde to ritk-snap Cargo.toml; remove Eq from ViewerState
-- [x] Verify: cargo test -p ritk-io: 432 passed, 0 failed
-- [x] Verify: cargo test -p ritk-snap: 4 passed, 0 failed
-- [ ] Sprint 63: DICOM-SEG writer (GAP-R63-01)
-- [ ] Sprint 63: VTI binary-appended format (GAP-R63-02)
-- [ ] Sprint 63: RT Dose / RT Plan readers (GAP-R63-03)
-- [ ] Sprint 63: DICOMDIR multi-series selection by SeriesInstanceUID (GAP-R63-04)
+- [ ] GAP-R69-01: audit `minmax_normalize_range` Python binding; verify `target_min`/`target_max` parameters are exposed and validated (lower < upper)
+- [ ] GAP-R69-02: wire `convergence_threshold` in `run_multires_syn`; currently hard-coded to `1e-6`
+- [ ] GAP-R69-03: add Python-level integration smoke tests for `zscore_normalize` with mask (new Sprint 68 binding)
+- [ ] GAP-R69-04: add `cargo test -p ritk-python` to CI matrix (currently untested in CI)
+- [ ] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [ ] Verify: `cargo test -p ritk-core --lib` all pass
+- [ ] Update backlog.md and gap_audit.md on Sprint 69 closure
+
+---
+
+## Sprint 68 — zscore masked variant, bspline-syn convergence wiring, marker-watershed integration tests, percentile validation tests — Completed
+
+- [x] GAP-R68-01: `ZScoreNormalizer::normalize_masked` added to `ritk-core/src/statistics/normalization/zscore.rs`; `zscore_normalize` Python binding extended with `#[pyo3(signature=(image, mask=None))]`; dispatches `normalize_masked` when mask is provided; falls back to `normalize` otherwise; 3 core tests added (masked stats, empty-mask fallback, metadata preservation)
+- [x] GAP-R68-02: `convergence_threshold: 1e-6` hard-code removed from `run_bspline_syn`; replaced with `convergence_threshold: args.convergence_threshold`; `RegisterArgs.convergence_threshold` docstring updated to name both BSpline FFD and BSpline SyN
+- [x] GAP-R68-03: `test_segment_marker_watershed_creates_output_with_correct_shape` and `test_segment_marker_watershed_output_contains_both_basin_labels` added to `segment.rs` tests; both helpers (`make_uniform_gradient_image`, `make_two_seed_marker_image`) co-located in `mod tests`; tests assert shape=[3,3,3] and label presence value-semantically
+- [x] GAP-R68-04: `validate_percentiles(p: &[f64]) -> Result<(), String>` extracted as private helper in `ritk-python/src/statistics.rs`; inline validation in `nyul_udupa_normalize` refactored to call helper; 6 `#[cfg(test)]` tests added (empty, single-element, equal-pair, descending-pair, minimal valid, standard Nyul 13-element set)
+- [x] Verify: `cargo check --workspace --tests` — 0 errors, 0 warnings
+- [x] Verify: `cargo test -p ritk-core --lib` — 777 passed, 0 failed (was 774; +3)
+- [x] Verify: `cargo test -p ritk-python --lib` — 6 passed, 0 failed (new)
+- [x] Verify: `cargo test -p ritk-cli` — 195 passed, 0 failed (was 193; +2)
+- [x] backlog.md updated (Sprint 68 closed, Sprint 69 planned)
+- [x] gap_audit.md updated (Sprint 68 gap closures recorded)
+
+---
+
+## Sprint 67 — Python normalize parity, seeded watershed binding, adversarial region-growing tests, BSpline FFD CLI audit — Completed
+
+- [x] GAP-R67-01: `histogram_match` extended with `#[pyo3(signature=(source,reference,num_bins=256))]`; guard `num_bins < 2 → PyValueError`; `nyul_udupa_normalize` extended with `percentiles: Option<Vec<f64>>`; pre-GIL validation; dispatches `NyulUdupaNormalizer::with_percentiles` or `::new()`
+- [x] GAP-R67-02: `MarkerControlledWatershed` added to `use` imports in `segmentation.rs`; `marker_watershed_segment` function added before `register`; registered in submodule under `// Watershed`
+- [x] GAP-R67-03: 5 adversarial tests added to `confidence_connected.rs` (multi-seed isolation, large-k gradient expansion, corner seed, zero-max-iterations, inclusive boundary values); 4 adversarial tests added to `neighborhood_connected.rs` (multi-seed isolation, boundary-radius clamping, large uniform image, noisy-shell boundary rejection)
+- [x] GAP-R67-04: `convergence_threshold: f64` field added to `RegisterArgs` (default `0.00001`); `..Default::default()` removed from `run_bspline_ffd`; all 6 `BSplineFFDConfig` fields explicitly set; 22 test struct literals updated
+- [x] Verify: `cargo check -p ritk-python` — 0 errors, 0 warnings
+- [x] Verify: `cargo check -p ritk-cli` — 0 errors, 0 warnings
+- [x] Verify: `cargo test -p ritk-core --lib` — 774 passed, 0 failed (was 765; +9)
+- [x] Verify: `cargo test -p ritk-cli` — 193 passed, 0 failed (no change)
+- [x] backlog.md updated (Sprint 67 closed, Sprint 68 planned)
+
+---
+
+## Sprint 66 — statistics re-exports, K-Means parity, CLI normalize command — Completed
+
+- [x] GAP-R66-01: `statistics/mod.rs` `pub use normalization::` expanded to include `NyulUdupaNormalizer`, `WhiteStripeNormalizer`, `WhiteStripeConfig`, `MriContrast`, `WhiteStripeResult`
+- [x] GAP-R66-02: `crates/ritk-cli/src/commands/normalize.rs` created with methods: `histogram-match`, `nyul`, `zscore`, `minmax`, `white-stripe`; `pub mod normalize` added to `commands/mod.rs`; `Normalize` variant + dispatch arm added to `main.rs`
+- [x] GAP-R66-03: BSpline FFD gap confirmed already closed (prior sprint); backlog note corrected
+- [x] GAP-R66-04: K-Means CLI parity — `kmeans_max_iterations`, `kmeans_tolerance`, `kmeans_seed` optional args added to `SegmentArgs`; `run_kmeans` applies them; `Default` initialises all to `None`
+- [x] GAP-R66-04: K-Means Python parity — `kmeans_segment` signature extended with `max_iterations=None`, `tolerance=None`, `seed=None` via pyo3 signature attribute
+- [x] Verify: `cargo check --workspace --tests` — 0 errors, 0 warnings
+- [x] Verify: `cargo test -p ritk-core --lib` — 765 passed, 0 failed (no change from Sprint 65)
+- [x] Verify: `cargo test -p ritk-io --lib` — 454 passed, 0 failed (no change)
+- [x] Verify: `cargo test -p ritk-cli` — 193 passed, 0 failed (was 181; +12)
+- [x] backlog.md updated (Sprint 66 closed, Sprint 67 planned)
+
+---
+
+## Sprint 65 — BinaryThreshold, MarkerControlledWatershed, Multi-Otsu Adversarial Tests, CLI/Python Integration — Completed
+
+- [x] GAP-R65-01: `BinaryThreshold` struct + `binary_threshold` fn + `apply_binary_threshold_to_slice` added to `threshold/binary.rs`; re-exported in `threshold/mod.rs` and `segmentation/mod.rs`
+- [x] GAP-R65-02: `MarkerControlledWatershed` added to `watershed/marker_controlled.rs`; FIFO priority-queue flooding with `grad_bits: u32` + `seq: u64` ordering; re-exported in `watershed/mod.rs` and `segmentation/mod.rs`; two QueueEntry bugs fixed (neg-bits ordering + FIFO tie-breaking)
+- [x] GAP-R65-03: 10 adversarial multi-Otsu tests added to `multi_otsu.rs`: K=4 thresholds/labels, K=5 thresholds/labels, σ²_B = P₁·P₂·(μ₁−μ₂)² invariant, monotone-input monotone-output, K > distinct values, single-voxel degenerate
+- [x] GAP-R65-04: CLI `binary` method (`run_binary`) + `marker-watershed` method (`run_marker_watershed`) added to `segment.rs`; `markers: Option<String>` added to `SegmentArgs`
+- [x] GAP-R65-05: Python `binary_threshold_segment` binding added to `ritk-python/src/segmentation.rs`; registered in `lib.rs`
+- [x] Bug fix: `QueueEntry` in `marker_controlled.rs` — replaced `neg_grad_bits: u64` (broken IEEE 754 ordering) with `grad_bits: u32` (reversed comparison) + `seq: u64` (FIFO tie-breaking)
+- [x] Verify: `cargo check --workspace --tests` — 0 errors, 0 warnings
+- [x] Verify: `cargo test -p ritk-core --lib` — 765 passed, 0 failed (was 724; +41)
+- [x] Verify: `cargo test -p ritk-io --lib` — 454 passed, 0 failed (no change)
+- [x] Verify: `cargo test -p ritk-cli` — 181 passed, 0 failed (was 177; +4)
+- [x] backlog.md and gap_audit.md updated
+
+---
+
+## Sprint 64 — RT Dose/Plan Writers, VTI Binary CellData Coverage, crate-level re-exports — Completed
+
+- [x] GAP-R64-01: add `write_rt_dose` to `rt_dose.rs` + value-semantic round-trip test
+- [x] GAP-R64-02: add `write_rt_plan` to `rt_plan.rs` + value-semantic round-trip test
+- [x] GAP-R64-03: add `RtDoseGrid`, `RtPlanInfo`, `RtBeamInfo`, `RtFractionGroup`, `write_dicom_seg`, `read_rt_dose`, `write_rt_dose`, `read_rt_plan`, `write_rt_plan` and VTI binary-appended functions to `ritk-io/src/lib.rs` pub-use surface
+- [x] GAP-R64-04: extend VTI binary-appended tests to cover CellData + two-array offset correctness
+- [x] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [x] Verify: `cargo test -p ritk-io --lib` all pass after each change
+- [x] Update backlog.md and gap_audit.md on Sprint 64 closure
+
+---
+
+## Sprint 63 — CT Bed Separation Filter, Viewer Selection, and Modality-Aware Geometry Audit — Completed
+
+- [x] Close GAP-R63-01: add a core CT bed separation filter for masking table/bed voxels while preserving patient foreground
+  - `BedSeparationFilter` + `BedSeparationConfig` in `ritk-core/filter/intensity/bed_separation.rs`
+  - threshold_foreground → keep_largest_component → binary_closing → binary_opening → apply_mask pipeline
+- [x] Close GAP-R63-02: expose `bed-separation` as a selectable filter in `ritk-snap` and CLI filter dispatch
+  - `FilterKind` enum (`BedSeparation(BedSeparationConfig)`, `Gaussian { sigma }`, `Median { radius }`) in `ritk-snap/src/lib.rs`
+  - `apply_filter` method on `ViewerCore<B, 3>` — concrete dispatch, no dyn Trait, ownership-preserving via take/restore
+  - `run_bed_separation` in `ritk-cli/src/commands/filter.rs` (was already present; wired to `--filter bed-separation`)
+- [x] Close GAP-R63-03: audit CT, MRI, and ultrasound geometry/orientation handling so visualization uses a unified display contract
+  - `ModalityDisplay::for_modality` in `ritk-snap/src/lib.rs`: CT→(center=-400,width=1500), MR→(600,1200), US→(128,256)
+  - Geometry summary uses loaded image geometry as authoritative source (unchanged invariant, confirmed by test)
+- [x] Close GAP-R63-04 (residual): DICOMDIR multi-series selection by SeriesInstanceUID
+  - `per_file_series_uids: Vec<Option<String>>` parallel vec built in `scan_dicom_directory` scan loop
+  - Series-UID grouping block after plurality-dim filter: selects unique plurality UID; warns on multi-series DICOMDIR
+  - `first_series_instance_uid` overridden with selected UID
+- [x] Close GAP-R63-05 (residual): DICOM-SEG writer
+  - `write_dicom_seg` in `seg.rs`: BINARY MSB-first packing (inverse of `unpack_pixel_data`); FRACTIONAL byte-per-voxel
+  - SegmentSequence SQ with per-segment label/description/algorithm items
+  - FileMetaTableBuilder with SEG_SOP_CLASS_UID + Explicit VR LE transfer syntax
+- [x] Close GAP-R63-06 (residual): VTI binary-appended format
+  - `write_vti_binary_appended_bytes` + `write_vti_binary_appended_to_file` in `image_xml/writer.rs`
+  - `read_vti_binary_appended_bytes` + `read_vti_binary_appended` in `image_xml/reader.rs`
+  - uint32-LE length prefix + f32-LE data per array; lexicographic array sort for deterministic offsets
+- [x] Close GAP-R63-07 (residual): RT Dose reader
+  - `read_rt_dose` + `RtDoseGrid` in new `ritk-io/src/format/dicom/rt_dose.rs`
+  - DoseGridScaling × u32-LE PixelData → `dose_gy: Vec<f64>`; GridFrameOffsetVector; IPP/IOP/PixelSpacing
+- [x] Close GAP-R63-08 (residual): RT Plan reader
+  - `read_rt_plan` + `RtPlanInfo` + `RtBeamInfo` + `RtFractionGroup` in new `ritk-io/src/format/dicom/rt_plan.rs`
+  - BeamSequence (3-level SQ) + FractionGroupSequence with ReferencedBeamSequence
+- [x] Add `ritk-core` tests for bed separation: `test_threshold_foreground`, `test_keep_largest_component_selects_body`, `test_mask_preserves_foreground_and_removes_background`, `test_apply_uses_outside_value`, `test_binary_morphology_round_trip_identity_radius_zero`
+- [x] Add `ritk-snap` selection tests:
+  - `test_filter_kind_bed_separation_dispatch_replaces_study_image` — shape preserved; outside_value applied to sub-threshold voxels
+  - `test_filter_kind_no_study_returns_status_message` — message contains "no study"
+- [x] Add modality-aware viewer tests:
+  - `test_modality_display_ct_window_parameters` — CT:(-400,1500); MR:(600,1200); US:(128,256); None:(128,256)
+- [x] Add `test_scan_directory_selects_most_populated_series_when_same_dimensions` (reader.rs) — Series A (3 slices) wins over B (1 slice); SeriesUID confirmed
+- [x] Add VTI binary-appended tests:
+  - `test_write_vti_binary_appended_header_contains_appended_format`
+  - `test_write_vti_binary_appended_roundtrip` — 8-voxel 2×2×2; all values within 1e-6
+  - `test_write_vti_binary_appended_offset_correctness` — offset[1]=12 analytically
+- [x] Add DICOM-SEG writer tests:
+  - `test_write_dicom_seg_binary_roundtrip` — 4×4×2 BINARY; pack/unpack symmetry verified
+  - `test_write_dicom_seg_fractional_roundtrip` — 2×2×1 FRACTIONAL; {0,128,200,255} boundary values
+  - `test_write_dicom_seg_rejects_mismatched_frame_count` — pixel_data.len()≠n_frames → Err
+- [x] Add RT Dose tests: missing-file, wrong-SOP-class, synthetic-grid (1000×0.001=1.0 Gy)
+- [x] Add RT Plan tests: missing-file, wrong-SOP-class, synthetic-plan (2 beams, 30 fractions)
+- [x] Fix `HeadlessViewerBackend::Error = std::io::Error` in `ritk-cli/src/commands/viewer.rs` (satisfies StdError bound)
+- [x] Revert `load_dicom_series` to `Result<Image<B,3>>` — backward-compatible; metadata variant is `load_dicom_series_with_metadata`
+- [x] Verify: `cargo check --workspace --tests`: 0 errors
+- [x] Verify: `cargo test -p ritk-io --lib -- --test-threads=4`: 445 passed, 0 failed
+- [x] Verify: `cargo test -p ritk-snap --lib -- --test-threads=4`: 7 passed, 0 failed
+- [x] Verify: `cargo test -p ritk-cli -- --test-threads=4`: 177 passed, 0 failed
+- [ ] Sprint 64: RT Dose writer (GAP-R64-01)
+- [ ] Sprint 64: RT Plan writer (GAP-R64-02)
+- [ ] Sprint 64: crate-level re-exports (GAP-R64-03)
+- [ ] Sprint 64: VTI binary-appended CellData coverage (GAP-R64-04)
 
 ---
 

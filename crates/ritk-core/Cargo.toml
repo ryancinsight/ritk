@@ -14,6 +14,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 
+
 [dev-dependencies]
 burn-ndarray = { workspace = true }
 tempfile = { workspace = true }

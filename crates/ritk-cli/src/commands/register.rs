@@ -97,6 +97,11 @@ pub struct RegisterArgs {
     #[arg(long, default_value = "0.001", value_name = "FLOAT")]
     pub regularization_weight: f64,
 
+    /// Convergence threshold for BSpline FFD and BSpline SyN: optimization stops when the
+    /// relative NCC metric change between consecutive iterations falls below this value (default 1e-5).
+    #[arg(long, default_value = "0.00001", value_name = "FLOAT")]
+    pub convergence_threshold: f64,
+
     /// Control point spacing in voxels for BSpline FFD and BSpline SyN (default 8).
     #[arg(long, default_value = "8", value_name = "INT")]
     pub control_spacing: usize,
@@ -223,8 +228,12 @@ fn flat_vec_to_image(
 pub fn run(args: RegisterArgs) -> Result<()> {
     info!(
         "register: starting fixed={} moving={} output={} method={} iterations={} sigma_fixed={}",
-        args.fixed.display(), args.moving.display(), args.output.display(),
-        args.method, args.iterations, args.sigma_fixed
+        args.fixed.display(),
+        args.moving.display(),
+        args.output.display(),
+        args.method,
+        args.iterations,
+        args.sigma_fixed
     );
 
     match args.method.as_str() {
@@ -560,7 +569,7 @@ fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
         max_iterations_per_level: args.iterations,
         learning_rate: args.learning_rate,
         regularization_weight: args.regularization_weight,
-        ..Default::default()
+        convergence_threshold: args.convergence_threshold,
     };
 
     let result = BSplineFFDRegistration::register(
@@ -669,7 +678,7 @@ fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
             args.control_spacing,
         ],
         sigma_smooth: args.sigma_fixed,
-        convergence_threshold: 1e-6,
+        convergence_threshold: args.convergence_threshold,
         convergence_window: 10,
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
@@ -812,6 +821,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -857,6 +867,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -901,6 +912,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -967,6 +979,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1023,6 +1036,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1071,6 +1085,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1120,6 +1135,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1168,6 +1184,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1215,6 +1232,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         });
 
         assert!(result.is_err(), "unknown method must return Err");
@@ -1256,6 +1274,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         });
 
         assert!(result.is_err(), "missing fixed image must yield an error");
@@ -1375,6 +1394,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1423,6 +1443,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1470,6 +1491,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1515,6 +1537,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .unwrap();
 
@@ -1561,6 +1584,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("bspline-ffd must succeed");
 
@@ -1599,6 +1623,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("bspline-ffd must succeed");
 
@@ -1643,6 +1668,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("multires-syn must succeed");
 
@@ -1681,6 +1707,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("multires-syn must succeed");
 
@@ -1725,6 +1752,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("bspline-syn must succeed");
 
@@ -1763,6 +1791,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("bspline-syn must succeed");
 
@@ -1807,6 +1836,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("lddmm must succeed");
 
@@ -1845,6 +1875,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
+            convergence_threshold: 1e-5,
         })
         .expect("lddmm must succeed");
 

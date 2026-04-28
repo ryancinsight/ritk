@@ -46,6 +46,9 @@ enum Commands {
 
     /// Resample an image to a new voxel spacing using a configurable interpolation mode.
     Resample(commands::resample::ResampleArgs),
+
+    /// Normalize image intensities (histogram-match, nyul, zscore, minmax, white-stripe).
+    Normalize(commands::normalize::NormalizeArgs),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -64,5 +67,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Segment(args) => commands::segment::run(args),
         Commands::Stats(args) => commands::stats::run(args),
         Commands::Resample(args) => commands::resample::run(args),
+        Commands::Normalize(args) => commands::normalize::run(args),
     }
 }

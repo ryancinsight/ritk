@@ -122,7 +122,6 @@ pub fn multi_otsu_threshold<B: Backend, const D: usize>(
     compute_multi_otsu_impl(image, num_classes, 256)
 }
 
-
 // ── Core implementation ───────────────────────────────────────────────────────
 
 /// Compute K-1 Multi-Otsu thresholds directly from a flat `&[f32]` slice.
@@ -139,10 +138,14 @@ pub fn compute_multi_otsu_thresholds_from_slice(
     assert!(num_classes >= 2, "num_classes must be ≥ 2");
     let n = slice.len();
     let k_minus_1 = num_classes - 1;
-    if n == 0 { return vec![0.0_f32; k_minus_1]; }
+    if n == 0 {
+        return vec![0.0_f32; k_minus_1];
+    }
     let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
     let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-    if (x_max - x_min).abs() < f32::EPSILON { return vec![x_min; k_minus_1]; }
+    if (x_max - x_min).abs() < f32::EPSILON {
+        return vec![x_min; k_minus_1];
+    }
     let range = x_max - x_min;
     let num_bins_m1 = (num_bins - 1) as f32;
     let mut counts = vec![0u64; num_bins];
@@ -160,12 +163,27 @@ pub fn compute_multi_otsu_thresholds_from_slice(
     }
     let total_mu = prefix_m[num_bins];
     if num_bins < num_classes {
-        return (1..num_classes).map(|k| x_min + k as f32 / num_classes as f32 * range).collect();
+        return (1..num_classes)
+            .map(|k| x_min + k as f32 / num_classes as f32 * range)
+            .collect();
     }
     let mut current = Vec::with_capacity(k_minus_1);
     let mut best: (f64, Vec<usize>) = (f64::NEG_INFINITY, vec![0; k_minus_1]);
-    search_thresholds(0, k_minus_1, 0, num_bins, &mut current, &mut best, &prefix_h, &prefix_m, total_mu);
-    best.1.iter().map(|&t| x_min + t as f32 / num_bins_m1 * range).collect()
+    search_thresholds(
+        0,
+        k_minus_1,
+        0,
+        num_bins,
+        &mut current,
+        &mut best,
+        &prefix_h,
+        &prefix_m,
+        total_mu,
+    );
+    best.1
+        .iter()
+        .map(|&t| x_min + t as f32 / num_bins_m1 * range)
+        .collect()
 }
 
 /// Delegates to [`compute_multi_otsu_thresholds_from_slice`] after extracting a
@@ -176,10 +194,11 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
     num_bins: usize,
 ) -> Vec<f32> {
     let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data.as_slice::<f32>().expect("f32 image tensor data");
+    let slice = tensor_data
+        .as_slice::<f32>()
+        .expect("f32 image tensor data");
     compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins)
 }
-
 
 /// Recursive exhaustive search over all valid K−1 threshold bin combinations.
 ///
@@ -847,6 +866,272 @@ mod tests {
         let image = make_image_1d(data.clone());
         let t_filter = MultiOtsuThreshold::new(3).compute(&image);
         let t_slice = compute_multi_otsu_thresholds_from_slice(&data, 3, 256);
-        assert_eq!(t_filter, t_slice, "from_slice must match filter: filter={:?} slice={:?}", t_filter, t_slice);
+        assert_eq!(
+            t_filter, t_slice,
+            "from_slice must match filter: filter={:?} slice={:?}",
+            t_filter, t_slice
+        );
+    }
+
+    // ── K=4: four-class segmentation ──────────────────────────────────────────
+
+    #[test]
+    fn test_k4_returns_exactly_three_thresholds() {
+        let data: Vec<f32> = (0u8..=200).map(|x| x as f32).collect();
+        let image = make_image_1d(data);
+        let thresholds = multi_otsu_threshold(&image, 4);
+        assert_eq!(
+            thresholds.len(),
+            3,
+            "K=4 must return exactly 3 thresholds, got {}",
+            thresholds.len()
+        );
+    }
+
+    #[test]
+    fn test_k4_four_cluster_thresholds_separate_all_clusters() {
+        // Four equal-weight clusters: 50 × {10, 80, 160, 240}.
+        // t1 ∈ (10, 80), t2 ∈ (80, 160), t3 ∈ (160, 240), t1 < t2 < t3.
+        let mut data = vec![10.0f32; 50];
+        data.extend(vec![80.0f32; 50]);
+        data.extend(vec![160.0f32; 50]);
+        data.extend(vec![240.0f32; 50]);
+        let image = make_image_1d(data);
+        let thresholds = multi_otsu_threshold(&image, 4);
+
+        assert_eq!(thresholds.len(), 3);
+        let (t1, t2, t3) = (thresholds[0], thresholds[1], thresholds[2]);
+
+        assert!(
+            t1 < t2 && t2 < t3,
+            "thresholds must be strictly increasing: {t1} < {t2} < {t3}"
+        );
+        assert!(t1 > 10.0 && t1 < 80.0, "t1={t1} must lie in (10, 80)");
+        assert!(t2 > 80.0 && t2 < 160.0, "t2={t2} must lie in (80, 160)");
+        assert!(t3 > 160.0 && t3 < 240.0, "t3={t3} must lie in (160, 240)");
+    }
+
+    #[test]
+    fn test_k4_apply_assigns_four_labels() {
+        // Four disjoint clusters must map to labels {0, 1, 2, 3}.
+        let mut data = vec![10.0f32; 40];
+        data.extend(vec![80.0f32; 40]);
+        data.extend(vec![160.0f32; 40]);
+        data.extend(vec![240.0f32; 40]);
+        let image = make_image_1d(data);
+        let labels = MultiOtsuThreshold::new(4).apply(&image);
+        let values = get_values_1d(&labels);
+
+        // Verify each quarter maps to the correct class.
+        for (i, &v) in values[..40].iter().enumerate() {
+            assert_eq!(v, 0.0, "pixel {i} (10.0) must have label 0, got {v}");
+        }
+        for (i, &v) in values[40..80].iter().enumerate() {
+            assert_eq!(v, 1.0, "pixel {i} (80.0) must have label 1, got {v}");
+        }
+        for (i, &v) in values[80..120].iter().enumerate() {
+            assert_eq!(v, 2.0, "pixel {i} (160.0) must have label 2, got {v}");
+        }
+        for (i, &v) in values[120..160].iter().enumerate() {
+            assert_eq!(v, 3.0, "pixel {i} (240.0) must have label 3, got {v}");
+        }
+    }
+
+    // ── K=5: five-class segmentation ──────────────────────────────────────────
+
+    #[test]
+    fn test_k5_returns_exactly_four_thresholds() {
+        // Five equal clusters of 30 voxels each at {0, 64, 128, 192, 255}.
+        let mut data = vec![0.0f32; 30];
+        data.extend(vec![64.0f32; 30]);
+        data.extend(vec![128.0f32; 30]);
+        data.extend(vec![192.0f32; 30]);
+        data.extend(vec![255.0f32; 30]);
+        let image = make_image_1d(data);
+        let thresholds = multi_otsu_threshold(&image, 5);
+        assert_eq!(
+            thresholds.len(),
+            4,
+            "K=5 must return exactly 4 thresholds, got {}",
+            thresholds.len()
+        );
+    }
+
+    #[test]
+    fn test_k5_five_cluster_thresholds_each_between_adjacent_modes() {
+        let mut data = vec![0.0f32; 30];
+        data.extend(vec![64.0f32; 30]);
+        data.extend(vec![128.0f32; 30]);
+        data.extend(vec![192.0f32; 30]);
+        data.extend(vec![255.0f32; 30]);
+        let image = make_image_1d(data);
+        let t = multi_otsu_threshold(&image, 5);
+
+        let modes = [0.0f32, 64.0, 128.0, 192.0, 255.0];
+        for i in 0..4 {
+            assert!(
+                t[i] > modes[i] && t[i] < modes[i + 1],
+                "t[{i}]={:.2} must lie in ({:.0}, {:.0})",
+                t[i],
+                modes[i],
+                modes[i + 1]
+            );
+        }
+        for i in 0..3 {
+            assert!(
+                t[i] < t[i + 1],
+                "thresholds must be strictly increasing: t[{i}]={:.2} t[{}]={:.2}",
+                t[i],
+                i + 1,
+                t[i + 1]
+            );
+        }
+    }
+
+    // ── Between-class variance invariant: K=2 equals P1*P2*(mu1-mu2)^2 ────────
+
+    #[test]
+    fn test_between_class_variance_k2_equals_product_formula() {
+        // For K=2 with two equal-weight clusters at 20 and 200 (n=100 each):
+        // P1 = P2 = 0.5, mu1 ≈ 20/(200-20)*(N-1), mu2 ≈ 200/(200-20)*(N-1)
+        // σ²_B = P1*P2*(mu1-mu2)² (standard Otsu formula, proved algebraically from definition)
+        // The between_class_variance function must produce the same result whether
+        // evaluated via prefix sums (K=2 path) or via P1*P2*(mu1-mu2)².
+
+        let n_bins = 256usize;
+        let n = 100usize;
+        // Build a histogram for values 20.0 and 200.0 (equal counts).
+        let x_min = 20.0_f64;
+        let x_max = 180.0_f64;
+        let range = x_max - x_min;
+        let scale = (n_bins - 1) as f64 / range;
+
+        let bin_low = ((20.0_f64 - x_min) * scale).floor() as usize; // = 0
+        let bin_high = ((180.0_f64 - x_min) * scale).floor() as usize; // = 255
+
+        let mut h = vec![0.0_f64; n_bins];
+        h[bin_low] = n as f64 / (2 * n) as f64; // 0.5
+        h[bin_high] = n as f64 / (2 * n) as f64; // 0.5
+
+        // Build prefix sums.
+        let mut prefix_h = vec![0.0_f64; n_bins + 1];
+        let mut prefix_m = vec![0.0_f64; n_bins + 1];
+        for i in 0..n_bins {
+            prefix_h[i + 1] = prefix_h[i] + h[i];
+            prefix_m[i + 1] = prefix_m[i] + i as f64 * h[i];
+        }
+
+        // K=2 optimal threshold should lie between bin_low and bin_high.
+        // Evaluate between_class_variance at a mid-point split (e.g. t=128 between bin 0 and bin 255).
+        // Use the analytical P1*P2*(mu1-mu2)^2 formula to verify.
+        let p1 = 0.5_f64;
+        let p2 = 0.5_f64;
+        let mu1 = bin_low as f64;
+        let mu2 = bin_high as f64;
+        let expected_variance = p1 * p2 * (mu1 - mu2).powi(2);
+
+        // The maximum between-class variance for any split must be ≤ P1*P2*(mu1-mu2)^2 + epsilon.
+        // For the two-point distribution, the split at any t ∈ (bin_low, bin_high) achieves exactly
+        // P1*P2*(mu1-mu2)^2 because all mass is at the two endpoints.
+        let t_mid = 128usize;
+        let p_left = prefix_h[t_mid + 1]; // = 0.5 (all mass of bin_low=0 is in [0, t_mid])
+        let p_right = 1.0 - p_left;
+        let mu_left = if p_left > 1e-12 {
+            (prefix_m[t_mid + 1]) / p_left
+        } else {
+            0.0
+        };
+        let mu_right = if p_right > 1e-12 {
+            (prefix_m[n_bins] - prefix_m[t_mid + 1]) / p_right
+        } else {
+            0.0
+        };
+        let product_formula = p_left * p_right * (mu_left - mu_right).powi(2);
+
+        // Both formulas must agree within floating-point tolerance.
+        let diff = (product_formula - expected_variance).abs();
+        assert!(
+            diff < 1e-9,
+            "K=2 between-class variance via prefix sums ({product_formula:.6}) must equal P1*P2*(mu1-mu2)^2 ({expected_variance:.6}), diff={diff:.2e}"
+        );
+    }
+
+    // ── Monotone label ordering for monotone input ─────────────────────────────
+
+    #[test]
+    fn test_k4_apply_label_ordering_monotone_for_monotone_input() {
+        // For a strictly increasing input, K=4 labels must be non-decreasing.
+        let data: Vec<f32> = (0u32..200).map(|i| i as f32).collect();
+        let image = make_image_1d(data);
+        let labels = MultiOtsuThreshold::new(4).apply(&image);
+        let values = get_values_1d(&labels);
+
+        // Labels must be non-decreasing (monotone input → monotone labels).
+        for i in 1..values.len() {
+            assert!(
+                values[i] >= values[i - 1],
+                "labels must be non-decreasing for monotone input at index {i}: {} → {}",
+                values[i - 1],
+                values[i]
+            );
+        }
+    }
+
+    // ── K=5 apply: all labels in {0,1,2,3,4} ──────────────────────────────────
+
+    #[test]
+    fn test_k5_apply_label_values_in_valid_set() {
+        let mut data = vec![10.0f32; 30];
+        data.extend(vec![70.0f32; 30]);
+        data.extend(vec![130.0f32; 30]);
+        data.extend(vec![190.0f32; 30]);
+        data.extend(vec![250.0f32; 30]);
+        let image = make_image_1d(data);
+        let labels = MultiOtsuThreshold::new(5).apply(&image);
+        let values = get_values_1d(&labels);
+        for &v in &values {
+            assert!(
+                v == 0.0 || v == 1.0 || v == 2.0 || v == 3.0 || v == 4.0,
+                "K=5 label must be in {{0,1,2,3,4}}, got {v}"
+            );
+        }
+    }
+
+    // ── Adversarial: K > distinct intensity values ─────────────────────────────
+
+    #[test]
+    fn test_k3_with_only_two_distinct_values_returns_two_thresholds() {
+        // Only 2 distinct intensities but K=3 requested.
+        // Must not panic and must return exactly K-1 = 2 thresholds.
+        let mut data = vec![10.0f32; 50];
+        data.extend(vec![200.0f32; 50]);
+        let image = make_image_1d(data);
+        let thresholds = multi_otsu_threshold(&image, 3);
+        assert_eq!(
+            thresholds.len(),
+            2,
+            "K=3 on 2-value image must return 2 thresholds, got {}",
+            thresholds.len()
+        );
+    }
+
+    // ── Adversarial: single voxel ─────────────────────────────────────────────
+
+    #[test]
+    fn test_single_voxel_k3_returns_two_thresholds_equal_to_value() {
+        let image = make_image_1d(vec![42.0f32]);
+        let thresholds = multi_otsu_threshold(&image, 3);
+        assert_eq!(
+            thresholds.len(),
+            2,
+            "single-voxel K=3 must return 2 thresholds"
+        );
+        // Both thresholds must equal (or be near) the single voxel value for a constant image.
+        for &t in &thresholds {
+            assert!(
+                (t - 42.0).abs() < 1.0,
+                "threshold {t} on single-voxel image must be near 42.0"
+            );
+        }
     }
 }

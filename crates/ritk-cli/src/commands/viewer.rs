@@ -52,7 +52,7 @@ struct HeadlessViewerBackend {
 }
 
 impl ViewerBackend for HeadlessViewerBackend {
-    type Error = anyhow::Error;
+    type Error = std::io::Error;
 
     fn initialize(&mut self) -> Result<(), Self::Error> {
         Ok(())

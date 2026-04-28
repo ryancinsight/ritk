@@ -22,13 +22,19 @@
 //! - [`minmax_normalize`]:       Min-max rescale to \[0, 1\].
 //! - [`minmax_normalize_range`]: Min-max rescale to \[target\_min, target\_max\].
 //! - [`zscore_normalize`]:       Z-score standardization (zero mean, unit variance).
-//! - [`histogram_match`]:        CDF-based histogram matching to a reference image.
+//! - [`histogram_match`]:        CDF-based histogram matching to a reference image (`num_bins`, default 256).
 //! - [`white_stripe_normalize`]: Shinohara et al. (2014) white stripe MRI normalization.
 //! - [`nyul_udupa_normalize`]:    Nyul-Udupa piecewise-linear histogram standardization.
 
+use crate::image::with_tensor_slice;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use ritk_core::statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
+use ritk_core::statistics::image_statistics::compute_from_values;
+use ritk_core::statistics::noise_estimation::{
+    estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
+};
 use ritk_core::statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
@@ -36,21 +42,11 @@ use ritk_core::statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, NyulUdupaNormalizer, ZScoreNormalizer,
 };
 use ritk_core::statistics::{
-    dice_coefficient as core_dice_coefficient,
-    hausdorff_distance as core_hausdorff_distance,
-    mean_surface_distance as core_mean_surface_distance,
-    psnr as core_psnr,
-    ssim as core_ssim,
+    dice_coefficient as core_dice_coefficient, hausdorff_distance as core_hausdorff_distance,
+    mean_surface_distance as core_mean_surface_distance, psnr as core_psnr, ssim as core_ssim,
     ImageStatistics,
 };
-use ritk_core::statistics::image_statistics::compute_from_values;
-use ritk_core::statistics::noise_estimation::{
-    estimate_noise_mad_from_slice,
-    estimate_noise_mad_masked_from_slices,
-};
-use crate::image::with_tensor_slice;
 use std::sync::Arc;
-use ritk_core::statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -363,17 +359,37 @@ pub fn minmax_normalize_range(
 /// Delegates to `ritk_core::statistics::normalization::ZScoreNormalizer`.
 ///
 /// Formula: output = (input − μ) / (σ + ε), ε = 1e-8.
-/// μ and σ are population statistics computed from all voxels.
+/// When `mask` is provided, μ and σ are population statistics computed from
+/// foreground voxels only (mask > 0.5). If the mask contains no foreground
+/// voxels the method falls back to full-image statistics. All voxels are
+/// transformed regardless of mask membership.
+/// When `mask` is omitted, μ and σ are derived from all voxels.
 /// Spatial metadata (origin, spacing, direction) is preserved.
 ///
 /// Args:
 ///     image: Input PyImage.
+///     mask:  Optional binary mask PyImage (foreground > 0.5). Must have the
+///            same element count as `image`. Defaults to None (full-image stats).
 ///
 /// Returns:
 ///     Normalized PyImage with E[output] ≈ 0, Var[output] ≈ 1.
 #[pyfunction]
-pub fn zscore_normalize(image: &PyImage) -> PyResult<PyImage> {
-    let result = ZScoreNormalizer::new().normalize(image.inner.as_ref());
+#[pyo3(signature = (image, mask = None))]
+pub fn zscore_normalize(
+    py: Python<'_>,
+    image: &PyImage,
+    mask: Option<&PyImage>,
+) -> PyResult<PyImage> {
+    let image_arc = Arc::clone(&image.inner);
+    let result = match mask {
+        Some(m) => {
+            let mask_arc = Arc::clone(&m.inner);
+            py.allow_threads(|| {
+                ZScoreNormalizer::new().normalize_masked(image_arc.as_ref(), mask_arc.as_ref())
+            })
+        }
+        None => py.allow_threads(|| ZScoreNormalizer::new().normalize(image_arc.as_ref())),
+    };
     Ok(into_py_image(result))
 }
 
@@ -394,11 +410,23 @@ pub fn zscore_normalize(image: &PyImage) -> PyResult<PyImage> {
 /// Returns:
 ///     PyImage with matched histogram, same shape and spatial metadata as source.
 #[pyfunction]
-pub fn histogram_match(py: Python<'_>, source: &PyImage, reference: &PyImage) -> PyResult<PyImage> {
+#[pyo3(signature = (source, reference, num_bins = 256))]
+pub fn histogram_match(
+    py: Python<'_>,
+    source: &PyImage,
+    reference: &PyImage,
+    num_bins: usize,
+) -> PyResult<PyImage> {
+    if num_bins < 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "histogram_match: num_bins must be ≥ 2, got {num_bins}"
+        )));
+    }
     let source_arc = Arc::clone(&source.inner);
     let reference_arc = Arc::clone(&reference.inner);
     let result = py.allow_threads(|| {
-        HistogramMatcher::new(256).match_histograms(source_arc.as_ref(), reference_arc.as_ref())
+        HistogramMatcher::new(num_bins)
+            .match_histograms(source_arc.as_ref(), reference_arc.as_ref())
     });
     Ok(into_py_image(result))
 }
@@ -478,8 +506,36 @@ pub fn white_stripe_normalize(
     ))
 }
 
-
 // ── nyul_udupa_normalize ──────────────────────────────────────────────────────
+
+/// Validate that `percentiles` is strictly ascending with at least 2 elements.
+///
+/// Returns `Ok(())` if valid; returns `Err(msg)` describing the first violation.
+///
+/// # Invariants
+/// - `p.len() >= 2`
+/// - `p[i] > p[i-1]` for all valid `i`
+fn validate_percentiles(p: &[f64]) -> Result<(), String> {
+    if p.len() < 2 {
+        return Err(format!(
+            "nyul_udupa_normalize: percentiles must contain ≥ 2 values, got {}",
+            p.len()
+        ));
+    }
+    for i in 1..p.len() {
+        if p[i] <= p[i - 1] {
+            return Err(format!(
+                "nyul_udupa_normalize: percentiles must be strictly ascending: \
+                 p[{}]={} ≤ p[{}]={}",
+                i,
+                p[i],
+                i - 1,
+                p[i - 1]
+            ));
+        }
+    }
+    Ok(())
+}
 
 /// Normalize an image using Nyul-Udupa piecewise-linear histogram standardization.
 ///
@@ -493,22 +549,33 @@ pub fn white_stripe_normalize(
 ///     image:           Image to normalize.
 ///     training_images: List of PyImage used to learn the standard landmarks.
 ///                      Must contain at least one image.
+///     percentiles:     Optional list of percentile ranks in [0, 100] (strictly
+///                      ascending, ≥ 2 values) used as histogram landmarks.
+///                      Default: [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99].
 ///
 /// Returns:
 ///     Normalized PyImage with the same shape and spatial metadata as `image`.
 ///
 /// Raises:
+///     ValueError:   if percentiles has fewer than 2 values or is not strictly ascending.
 ///     RuntimeError: if training_images is empty or normalization fails.
 #[pyfunction]
+#[pyo3(signature = (image, training_images, percentiles = None))]
 pub fn nyul_udupa_normalize(
     py: Python<'_>,
     image: &PyImage,
     training_images: Vec<PyRef<'_, PyImage>>,
+    percentiles: Option<Vec<f64>>,
 ) -> PyResult<PyImage> {
     if training_images.is_empty() {
         return Err(pyo3::exceptions::PyRuntimeError::new_err(
             "training_images must contain at least one image",
         ));
+    }
+
+    // Validate custom percentiles before releasing the GIL (NyulUdupaNormalizer::with_percentiles panics).
+    if let Some(ref p) = percentiles {
+        validate_percentiles(p).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
     }
 
     // Clone Arc pointers before releasing the GIL (PyRef cannot cross GIL boundary).
@@ -522,7 +589,10 @@ pub fn nyul_udupa_normalize(
         .allow_threads(|| {
             let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
                 training_arcs.iter().map(|a| a.as_ref()).collect();
-            let mut normalizer = NyulUdupaNormalizer::new();
+            let mut normalizer = match percentiles {
+                Some(p) => NyulUdupaNormalizer::with_percentiles(p),
+                None => NyulUdupaNormalizer::new(),
+            };
             normalizer.learn_standard(&refs);
             normalizer
                 .apply(input_arc.as_ref())
@@ -598,4 +668,71 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_label_intensity_statistics, &m)?)?;
     parent.add_submodule(&m)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_percentiles;
+
+    #[test]
+    fn test_validate_percentiles_empty_returns_error() {
+        let result = validate_percentiles(&[]);
+        assert!(result.is_err(), "empty slice must be rejected");
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("≥ 2"),
+            "error must mention ≥ 2 values, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_percentiles_single_element_returns_error() {
+        let result = validate_percentiles(&[0.5]);
+        assert!(result.is_err(), "single element must be rejected");
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("≥ 2"),
+            "error must mention ≥ 2 values, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_percentiles_equal_elements_returns_error() {
+        // p[1] == p[0] → not strictly ascending
+        let result = validate_percentiles(&[0.1, 0.1]);
+        assert!(result.is_err(), "equal elements must be rejected");
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("strictly ascending"),
+            "error must mention strictly ascending, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_percentiles_descending_elements_returns_error() {
+        // p[1] < p[0] → descending
+        let result = validate_percentiles(&[0.5, 0.1, 0.9]);
+        assert!(result.is_err(), "descending pair must be rejected");
+        let msg = result.unwrap_err();
+        assert!(
+            msg.contains("strictly ascending"),
+            "error must mention strictly ascending, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_validate_percentiles_two_valid_ascending_returns_ok() {
+        // Minimal valid case: 2 strictly ascending values
+        let result = validate_percentiles(&[0.1, 0.9]);
+        assert_eq!(result, Ok(()), "two ascending values must be accepted");
+    }
+
+    #[test]
+    fn test_validate_percentiles_multi_ascending_returns_ok() {
+        // Standard Nyul percentile set
+        let result = validate_percentiles(&[
+            0.01, 0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9, 0.99,
+        ]);
+        assert_eq!(result, Ok(()), "standard Nyul percentiles must be accepted");
+    }
 }
