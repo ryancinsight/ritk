@@ -1,3 +1,47 @@
+## Sprint 72 — Completed
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Implement ritk-snap as a complete DICOM viewer binary with eframe/egui GUI shell, multi-planar MPR layout, DICOM series browser, 7 colormaps, 18 clinical W/L presets, measurement tools (Length, Angle, ROI, HU-point), NIfTI loading, DICOM overlay, and PNG slice export; add cranial MRI DICOM test data.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R72-01 | ritk-snap had no GUI application shell | No eframe/egui binary or SnapApp struct existed | Implemented `SnapApp` with `eframe::App` in `app.rs`; `main.rs` launches via `run_app`; 19 source files added across `render/`, `tools/`, `dicom/`, and `ui/` submodules | [minor] |
+| GAP-R72-02 | No DICOM series browser in ritk-snap | No sidebar or tree widget existed | Implemented `SidebarPanel` with Patient&#8594;Study&#8594;Series tree via `scan_dicom_directory` in `ui/sidebar.rs` and `dicom/series_tree.rs` | [minor] |
+| GAP-R72-03 | No MPR (multi-planar reconstruction) in viewer | No multi-viewport layout existed | Implemented 2×2 `MprLayout` with axial/coronal/sagittal viewports in `ui/layout.rs` and `ui/viewport.rs` | [minor] |
+| GAP-R72-04 | No W/L presets in viewer | No window/level preset registry existed | Implemented `WindowPreset` with 14 CT + 4 MR clinical presets in `ui/window_presets.rs`; exposed via View menu | [minor] |
+| GAP-R72-05 | No measurement tools in viewer | No interaction tool infrastructure existed | Implemented Length (mm), Angle (°), Rect ROI, Ellipse ROI, HU-point in `tools/kind.rs`, `tools/interaction.rs`, and `ui/measurements.rs` | [minor] |
+| GAP-R72-06 | No NIfTI loading in viewer | GUI had no file-open path | Implemented `load_nifti_volume` dispatch via `ritk-io` in the GUI file-open handler | [minor] |
+| GAP-R72-07 | No DICOM overlay in viewer | No viewport annotation layer existed | Implemented 4-corner DICOM text overlay + patient orientation labels in `ui/overlay.rs` | [minor] |
+| GAP-R72-08 | No slice export in viewer | No export path existed in the GUI | Implemented PNG export via `rfd` file dialog in `ui/toolbar.rs` | [minor] |
+| GAP-R72-09 | Missing cranial MRI DICOM test data | CT-to-MRI registration tests lacked real MRI input | Downloaded MRI-DIR T2 head phantom DICOM (94 slices, CC BY 4.0, TCIA) to `test_data/2_head_mri_t2/DICOM/`; documented in `test_data/README.md` | [patch] |
+| GAP-R72-10 | No colormaps in viewer | No LUT rendering infrastructure existed | Implemented 7 colormaps with piecewise-linear LUT in `render/colormap.rs` and `render/slice_render.rs`; 42+ colormap tests added | [minor] |
+
+### Architecture decisions
+- `SnapApp` implements `eframe::App`; all domain logic is separated from the GUI shell per the `GuiBackend` trait boundary.
+- `render/`, `tools/`, `dicom/`, and `ui/` submodules each own a single bounded responsibility; cross-module access is unidirectional.
+- `WindowPreset` encodes W/L variation as data (not cloned functions); presets are selected by name at runtime.
+- Colormap LUTs are piecewise-linear over `[0.0, 1.0]` and parameterized by control-point tables, not hardcoded per-colormap functions.
+- NIfTI and DICOM load paths share the `LoadedVolume` type; no duplication of volume representation.
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check --workspace --tests` | 0 errors, 0 warnings |
+| Total test count | 102 tests pass (up from 42) |
+| Commit | a3b08bd pushed to origin/main |
+
+### Updated artifacts
+- `backlog.md`: Sprint 72 marked completed; all 10 gaps recorded as closed.
+- `checklist.md`: Sprint 72 checklist items marked complete.
+- `gap_audit.md`: Sprint 72 closure notes added.
+
+### Residual risk
+- None identified from the selected Sprint 72 gaps.
+
+---
+
 ## Sprint 71 — Completed
 
 **Status**: Completed

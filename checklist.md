@@ -1,3 +1,21 @@
+## Sprint 72 — Completed
+
+- [x] GAP-R72-01: implemented `SnapApp` eframe/egui binary with full multi-viewport viewer in `crates/ritk-snap/src/app.rs` and `main.rs`; 19 new source files added across `render/`, `tools/`, `dicom/`, and `ui/` submodules
+- [x] GAP-R72-02: implemented `SidebarPanel` with Patient→Study→Series tree via `scan_dicom_directory` in `crates/ritk-snap/src/ui/sidebar.rs` and `dicom/series_tree.rs`
+- [x] GAP-R72-03: implemented 2×2 MPR layout with axial/coronal/sagittal viewports in `crates/ritk-snap/src/ui/layout.rs` and `ui/viewport.rs`
+- [x] GAP-R72-04: implemented `WindowPreset` with 14 CT + 4 MR clinical presets in `crates/ritk-snap/src/ui/window_presets.rs`; exposed via View → Window menu
+- [x] GAP-R72-05: implemented Length (mm), Angle (°), Rect/Ellipse ROI, and HU-point tools in `crates/ritk-snap/src/tools/kind.rs`, `tools/interaction.rs`, and `ui/measurements.rs` with mm-accurate computation from DICOM pixel-spacing metadata
+- [x] GAP-R72-06: implemented `load_nifti_volume` dispatch via `ritk-io` in the GUI file-open handler in `crates/ritk-snap/src/app.rs`; `LoadedVolume` carries the volume with affine metadata
+- [x] GAP-R72-07: implemented 4-corner DICOM text overlay + patient orientation labels (L/R, A/P, S/I) in `crates/ritk-snap/src/ui/overlay.rs`
+- [x] GAP-R72-08: implemented PNG slice export via `rfd` file dialog in `crates/ritk-snap/src/ui/toolbar.rs`
+- [x] GAP-R72-09: downloaded MRI-DIR T2 head phantom DICOM (94 slices, CC BY 4.0, TCIA) to `test_data/2_head_mri_t2/DICOM/`; provenance, license, and intended use documented in `test_data/README.md`
+- [x] GAP-R72-10: implemented 7 colormaps with piecewise-linear LUT in `crates/ritk-snap/src/render/colormap.rs` and `render/slice_render.rs`; 42+ colormap and render tests added
+- [x] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [x] Verify: 102 tests pass workspace-wide (up from 42 pre-Sprint-72 baseline)
+- [x] Update backlog.md and gap_audit.md on Sprint 72 closure
+
+---
+
 ## Sprint 71 — Completed
 
 - [x] GAP-R71-01: updated `crates/ritk-python/python/ritk/_ritk/statistics.pyi` so `zscore_normalize` exposes optional `mask: Image | None = None`
