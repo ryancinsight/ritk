@@ -830,6 +830,65 @@ def test_bspline_ffd_register_ncc_improves_on_shifted_gaussian_blob():
     )
 
 
+def test_syn_register_ncc_improves_on_shifted_gaussian_blob():
+    """RITK SyN registration improves NCC on a shifted Gaussian blob image.
+
+    Mathematical basis: Gaussian blob sigma=4, shifted by 4 voxels in x in a 24³
+    volume.  Before registration, global NCC is well below 1.0 because the blob
+    centres are displaced.  After SyN with 50 iterations (gradient_step=0.25,
+    sigma_smooth=1.5), the symmetric midpoint images should have higher NCC than
+    the unregistered pair, and NCC_after must reach >= 0.80.
+
+    This is the canonical test that verifies the corrected Avants 2008 eq. 10
+    force formula (Sprint 75 fix).  The linear-ramp test image used in Sprint 73
+    was unsuitable because local CC is shift-invariant for linear ramps.
+    """
+    np = pytest.importorskip("numpy")
+    SIZE = 24
+    c = SIZE // 2
+    z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
+    sigma = 4.0
+    # Fixed: Gaussian blob centred at (c, c, 5)
+    arr_fixed = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - 5) ** 2) / (2 * sigma**2)
+    ).astype(np.float32)
+    # Moving: blob shifted +4 voxels in x (centred at (c, c, 9))
+    arr_moving = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - 9) ** 2) / (2 * sigma**2)
+    ).astype(np.float32)
+
+    fixed_ritk = _ritk(arr_fixed)
+    moving_ritk = _ritk(arr_moving)
+
+    # NCC before registration (global, flat).
+    f_flat = arr_fixed.ravel().astype(np.float64)
+    m_flat = arr_moving.ravel().astype(np.float64)
+    ncc_before = float(np.corrcoef(f_flat, m_flat)[0, 1])
+
+    warped_fixed, warped_moving = ritk.registration.syn_register(
+        fixed_ritk,
+        moving_ritk,
+        max_iterations=50,
+        sigma_smooth=1.5,
+        cc_radius=2,
+        gradient_step=0.25,
+    )
+    wf = warped_fixed.to_numpy().ravel().astype(np.float64)
+    wm = (
+        warped_moving.ravel().astype(np.float64)
+        if hasattr(warped_moving, "ravel")
+        else warped_moving.to_numpy().ravel().astype(np.float64)
+    )
+    ncc_after = float(np.corrcoef(wf, wm)[0, 1])
+
+    assert ncc_after > ncc_before, (
+        f"SyN must improve NCC: before={ncc_before:.4f} after={ncc_after:.4f}"
+    )
+    assert ncc_after >= 0.80, (
+        f"SyN NCC after registration must be >= 0.80: got {ncc_after:.4f}"
+    )
+
+
 def test_symmetric_demons_register_ncc_improves_on_shifted_sphere():
     """Symmetric Demons registration must increase NCC above 0.90 after recovering
     a 3-voxel x-shift of a binary sphere.

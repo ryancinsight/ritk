@@ -15,18 +15,20 @@
 //! **Per-iteration update:**
 //! 1. φ₁ = exp(v₁),  φ₂ = exp(v₂)
 //! 2. I_w = warp(F, φ₁),  J_w = warp(M, φ₂)
-//! 3. u₁ = CC_gradient(I_w, J_w, ∇I_w)  (force on φ₁)
-//! 4. u₂ = CC_gradient(J_w, I_w, ∇J_w)  (force on φ₂, symmetric)
+//! 3. u₁ = CC_gradient(I_w, J_w, ∇I_w);  normalise max|u₁| ← gradient_step
+//! 4. u₂ = CC_gradient(J_w, I_w, ∇J_w);  normalise max|u₂| ← gradient_step
 //! 5. v₁ ← v₁ + u₁;  v₁ ← G_σ ∗ v₁
 //! 6. v₂ ← v₂ + u₂;  v₂ ← G_σ ∗ v₂
 //! 7. Check convergence via CC window
 //!
 //! **Local CC gradient** (Avants 2008, eq. 10) for force on φ₁:
 //!
-//!   fz[p] = -2 · cc_num / (cc_denom_I · cc_denom_J + ε) · (J_w[p] − μ_J) · gIz[p]
+//!   fz[p] = [(J_w[p]−μ_J)/(σ_I·σ_J) − CC·(I_w[p]−μ_I)/σ_I²] · gIz[p]
 //!
-//! where cc_num = Σ_{q∈W}(I_w(q)-μ_I)(J_w(q)-μ_J), cc_denom_I = Σ_{q∈W}(I_w(q)-μ_I)²,
-//! cc_denom_J = Σ_{q∈W}(J_w(q)-μ_J)², and W is the local window of radius r.
+//! where cc_num = Σ_{q∈W}(I_w(q)-μ_I)(J_w(q)-μ_J), σ_I = sqrt(Σ_{q∈W}(I_w(q)-μ_I)²),
+//! σ_J = sqrt(Σ_{q∈W}(J_w(q)-μ_J)²), CC = cc_num / (σ_I·σ_J), and W is the local
+//! window of radius r. The update is normalised so max|u| = gradient_step before
+//! accumulation (ANTs-compatible, default 0.25 voxels/iteration).
 //!
 //! # References
 //! - Avants, B. B., Epstein, C. L., Grossman, M. & Gee, J. C. (2008).
@@ -69,6 +71,10 @@ pub struct SyNConfig {
     pub n_squarings: usize,
     /// Radius of the local CC window (voxels).
     pub cc_window_radius: usize,
+    /// Maximum per-step displacement (voxels) used to normalise the CC gradient
+    /// before accumulating into the velocity field.  Mirrors the ANTs
+    /// `gradientStep` parameter.  Default: 0.25.
+    pub gradient_step: f64,
 }
 
 impl Default for SyNConfig {
@@ -80,6 +86,7 @@ impl Default for SyNConfig {
             convergence_window: 10,
             n_squarings: 6,
             cc_window_radius: 2,
+            gradient_step: 0.25,
         }
     }
 }
@@ -186,6 +193,34 @@ impl SyNRegistration {
             // 4. Compute CC forces for each velocity field.
             let (u1z, u1y, u1x) = cc_forces(&i_w, &j_w, &gi_z, &gi_y, &gi_x, dims, r);
             let (u2z, u2y, u2x) = cc_forces(&j_w, &i_w, &gj_z, &gj_y, &gj_x, dims, r);
+
+            // Normalise per-step displacement to `gradient_step` voxels (inf-norm).
+            let max_u1 = u1z
+                .iter()
+                .chain(u1y.iter())
+                .chain(u1x.iter())
+                .map(|&v| (v as f64).abs())
+                .fold(0.0_f64, f64::max);
+            let (mut u1z, mut u1y, mut u1x) = (u1z, u1y, u1x);
+            if max_u1 > 1e-10 {
+                let s = (self.config.gradient_step / max_u1) as f32;
+                u1z.iter_mut().for_each(|v| *v *= s);
+                u1y.iter_mut().for_each(|v| *v *= s);
+                u1x.iter_mut().for_each(|v| *v *= s);
+            }
+            let max_u2 = u2z
+                .iter()
+                .chain(u2y.iter())
+                .chain(u2x.iter())
+                .map(|&v| (v as f64).abs())
+                .fold(0.0_f64, f64::max);
+            let (mut u2z, mut u2y, mut u2x) = (u2z, u2y, u2x);
+            if max_u2 > 1e-10 {
+                let s = (self.config.gradient_step / max_u2) as f32;
+                u2z.iter_mut().for_each(|v| *v *= s);
+                u2y.iter_mut().for_each(|v| *v *= s);
+                u2x.iter_mut().for_each(|v| *v *= s);
+            }
 
             // 5. Update velocity fields.
             for i in 0..n {
@@ -324,12 +359,17 @@ fn cc_forces(
                 }
 
                 let fi = flat(iz, iy, ix, ny, nx);
+                let iw_c = i_w[fi] as f64 - mu_i;
                 let jw_c = j_w[fi] as f64 - mu_j;
-                let force_scale = -2.0 * cc_num / (var_i * var_j + 1e-10);
+                // Avants 2008, eq. 10 — gradient ascent on local CC.
+                // ∂CC/∂v₁_k(x) = [(J_w−μ_J)/√(σ_I²·σ_J²) − CC·(I_w−μ_I)/σ_I²] · ∇_k I_w
+                let denom = (var_i * var_j).sqrt() + 1e-10;
+                let cc = cc_num / denom;
+                let force_scale = jw_c / denom - cc * iw_c / (var_i + 1e-10);
 
-                fz[fi] = (force_scale * jw_c * gi_z[fi] as f64) as f32;
-                fy[fi] = (force_scale * jw_c * gi_y[fi] as f64) as f32;
-                fx[fi] = (force_scale * jw_c * gi_x[fi] as f64) as f32;
+                fz[fi] = (force_scale * gi_z[fi] as f64) as f32;
+                fy[fi] = (force_scale * gi_y[fi] as f64) as f32;
+                fx[fi] = (force_scale * gi_x[fi] as f64) as f32;
             }
         }
     }
@@ -652,6 +692,59 @@ mod tests {
         assert!(
             cc.is_finite(),
             "CC of constant images should be finite, got {cc}"
+        );
+    }
+
+    /// SyN recovers a pure x-translation on a Gaussian blob image (NCC improves).
+    ///
+    /// Uses a smooth Gaussian blob (sigma=3) centred at a corner region.
+    /// Linear-ramp images are unsuitable because local CC is shift-invariant for
+    /// linear ramps; this blob has informative local gradients.
+    ///
+    /// Verification: NCC_after > NCC_before AND NCC_after >= 0.80.
+    #[test]
+    fn syn_recovers_translation_ncc_improves() {
+        let dims = [16usize, 16, 20];
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let sigma = 3.0_f32;
+        // Gaussian blob centred at (nz/2, ny/2, 5).
+        let fixed: Vec<f32> = (0..n)
+            .map(|fi| {
+                let ix = (fi % nx) as f32;
+                let iy = ((fi / nx) % ny) as f32;
+                let iz = (fi / (ny * nx)) as f32;
+                let dz = iz - nz as f32 / 2.0;
+                let dy = iy - ny as f32 / 2.0;
+                let dx = ix - 5.0_f32;
+                (-(dz * dz + dy * dy + dx * dx) / (2.0 * sigma * sigma)).exp()
+            })
+            .collect();
+        // Moving = fixed shifted +4 voxels in x.
+        let moving = translate_x(&fixed, dims, 4);
+
+        let ncc_before = mean_local_cc(&fixed, &moving, dims, 2);
+
+        let reg = SyNRegistration::new(SyNConfig {
+            max_iterations: 60,
+            sigma_smooth: 1.5,
+            cc_window_radius: 2,
+            gradient_step: 0.25,
+            ..Default::default()
+        });
+        let result = reg
+            .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
+            .unwrap();
+
+        assert!(
+            result.final_cc > ncc_before,
+            "SyN must improve NCC: before={ncc_before:.4} after={:.4}",
+            result.final_cc
+        );
+        assert!(
+            result.final_cc >= 0.80,
+            "SyN final NCC must reach >= 0.80: got {:.4}",
+            result.final_cc
         );
     }
 }

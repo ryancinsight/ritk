@@ -293,6 +293,7 @@ mod tests {
             convergence_window: 3,
             n_squarings: 2,
             cc_window_radius: 1,
+            gradient_step: 0.25,
             enforce_inverse_consistency: false,
         }
     }

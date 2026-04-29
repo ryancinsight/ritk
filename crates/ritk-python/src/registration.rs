@@ -491,6 +491,8 @@ pub fn inverse_consistent_demons_register(
 ///     sigma_smooth:   Velocity field Gaussian smoothing sigma in voxels
 ///                     (default 3.0).
 ///     cc_radius:      Local CC window radius in voxels (default 2).
+///     gradient_step:  Max per-step voxel displacement for force normalization
+///                     (default 0.25, matches ANTs gradientStep).
 ///
 /// Returns:
 ///     (warped_fixed, warped_moving):
@@ -501,7 +503,7 @@ pub fn inverse_consistent_demons_register(
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, max_iterations=100, sigma_smooth=3.0, cc_radius=2))]
+#[pyo3(signature = (fixed, moving, max_iterations=100, sigma_smooth=3.0, cc_radius=2, gradient_step=0.25))]
 pub fn syn_register(
     py: Python<'_>,
     fixed: &PyImage,
@@ -509,6 +511,7 @@ pub fn syn_register(
     max_iterations: usize,
     sigma_smooth: f64,
     cc_radius: usize,
+    gradient_step: f64,
 ) -> PyResult<(PyImage, PyImage)> {
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
@@ -533,6 +536,7 @@ pub fn syn_register(
                 max_iterations,
                 sigma_smooth,
                 cc_window_radius: cc_radius,
+                gradient_step,
                 ..Default::default()
             };
             let reg = SyNRegistration::new(config);
@@ -662,6 +666,8 @@ pub fn bspline_ffd_register(
 ///     sigma_smooth:   Velocity field Gaussian smoothing sigma (default 3.0).
 ///     cc_radius:      Local CC window radius in voxels (default 2).
 ///     inverse_consistency: Enforce inverse consistency (default true).
+///     gradient_step:  Max per-step voxel displacement for force normalization
+///                     (default 0.25, matches ANTs gradientStep).
 ///
 /// Returns:
 ///     (warped_fixed, warped_moving):
@@ -671,7 +677,7 @@ pub fn bspline_ffd_register(
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, num_levels=3, iterations=None, sigma_smooth=3.0, cc_radius=2, inverse_consistency=true))]
+#[pyo3(signature = (fixed, moving, num_levels=3, iterations=None, sigma_smooth=3.0, cc_radius=2, inverse_consistency=true, gradient_step=0.25))]
 pub fn multires_syn_register(
     py: Python<'_>,
     fixed: &PyImage,
@@ -681,6 +687,7 @@ pub fn multires_syn_register(
     sigma_smooth: f64,
     cc_radius: usize,
     inverse_consistency: bool,
+    gradient_step: f64,
 ) -> PyResult<(PyImage, PyImage)> {
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
@@ -711,6 +718,7 @@ pub fn multires_syn_register(
                 n_squarings: 6,
                 cc_window_radius: cc_radius,
                 enforce_inverse_consistency: inverse_consistency,
+                gradient_step,
             };
             let reg = MultiResSyNRegistration::new(config);
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -757,6 +765,8 @@ pub fn multires_syn_register(
 ///     sigma_smooth:           Post-evaluation Gaussian smoothing sigma (default 1.0).
 ///     cc_radius:              Local CC window radius in voxels (default 2).
 ///     regularization_weight:  Bending energy weight (default 0.001).
+///     gradient_step:  Max per-step voxel displacement for force normalization
+///                     (default 0.25, matches ANTs gradientStep).
 ///
 /// Returns:
 ///     (warped_fixed, warped_moving):
@@ -766,7 +776,7 @@ pub fn multires_syn_register(
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, max_iterations=100, control_spacing_z=8, control_spacing_y=8, control_spacing_x=8, sigma_smooth=1.0, cc_radius=2, regularization_weight=0.001))]
+#[pyo3(signature = (fixed, moving, max_iterations=100, control_spacing_z=8, control_spacing_y=8, control_spacing_x=8, sigma_smooth=1.0, cc_radius=2, regularization_weight=0.001, gradient_step=0.25))]
 pub fn bspline_syn_register(
     py: Python<'_>,
     fixed: &PyImage,
@@ -778,6 +788,7 @@ pub fn bspline_syn_register(
     sigma_smooth: f64,
     cc_radius: usize,
     regularization_weight: f64,
+    gradient_step: f64,
 ) -> PyResult<(PyImage, PyImage)> {
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
@@ -807,6 +818,7 @@ pub fn bspline_syn_register(
                 n_squarings: 6,
                 cc_window_radius: cc_radius,
                 regularization_weight,
+                gradient_step,
             };
             let reg = BSplineSyNRegistration::new(config);
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -1000,6 +1012,7 @@ pub fn build_atlas(
                 n_squarings: 6,
                 cc_window_radius: cc_radius,
                 enforce_inverse_consistency: true,
+                gradient_step: 0.25,
             };
             let config = AtlasConfig {
                 max_iterations,

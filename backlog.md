@@ -1,3 +1,41 @@
+## Sprint 75 — Completed
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Close the SyN translation recovery gap (open since Sprint 74). Root cause: incorrect CC gradient force formula in all three diffeomorphic SyN variants (`mod.rs`, `multires_syn.rs`, `bspline_syn.rs`) plus absence of step-size normalization. Fix verified via new Rust unit test `syn_recovers_translation_ncc_improves` and new Python parity test `test_syn_register_ncc_improves_on_shifted_gaussian_blob`.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R75-01 | SyN CC gradient force formula inverted — translation not recovered | All three `cc_forces` functions used `force_scale = -2*cc_num/(var_i*var_j)`. Since `cc_num = CC*sqrt(var_i*var_j)`, this equals `-2*CC/sqrt(var_i*var_j)`, which for CC > 0 pushes the velocity field in the wrong direction (gradient descent on CC instead of ascent) | Replaced with Avants 2008 eq. 10: `force_scale = (J_W-&#956;_J)/sqrt(var_i*var_j) &#8722; CC*(I_W-&#956;_I)/var_i` in all three `cc_forces` functions (`diffeomorphic/mod.rs`, `diffeomorphic/multires_syn.rs`, `diffeomorphic/bspline_syn.rs`) | [patch] |
+| GAP-R75-02 | No step-size normalization — force magnitude depended on image intensity scale | Velocity field update `v += u` accumulated raw CC gradient forces; Gaussian smoothing after each step dissipated small forces before they could accumulate | Added `gradient_step: f64 = 0.25` to `SyNConfig` and `MultiResSyNConfig`; forces normalised per iteration so max|u| = gradient_step (inf-norm) before accumulation. `BSplineSyNConfig` also receives the field (consistent API) | [minor] |
+| GAP-R75-03 | `gradient_step` missing from Python `syn_register` / `multires_syn_register` / `bspline_syn_register` bindings | Bindings were not updated to expose the new config field | Added `gradient_step: float = 0.25` to all three Python function signatures, PyO3 pyi stubs, and doc-strings; `build_atlas` inner `MultiResSyNConfig` literal fixed | [minor] |
+| GAP-R75-04 | No Python parity test for SyN NCC improvement | `test_syn_register_ncc_improves_on_shifted_gaussian_blob` missing from `test_simpleitk_parity.py` Section 5 | Added test: Gaussian blob sigma=4 in 24&#179; volume, 4-voxel x-shift; `syn_register` 50 iter, gradient_step=0.25, sigma_smooth=1.5; asserts NCC_after > NCC_before AND NCC_after &#8805; 0.80; passes on rebuilt wheel | [minor] |
+
+### Architecture decisions
+- Force formula is gradient **ascent** on CC (minimise 1&#8722;CC). Avants 2008 eq. 10 first term `(J_W&#8722;&#956;_J)/sqrt(&#963;_I&#178;·&#963;_J&#178;)` is the primary force; the second term `&#8722;CC·(I_W&#8722;&#956;_I)/&#963;_I&#178;` provides second-order curvature correction. Both terms are implemented.
+- Gaussian blob images (not linear-ramp images) are the canonical synthetic test for SyN translation recovery. Local CC of a linear ramp is shift-invariant (near 1.0 for any x-offset), so the gradient is near zero and cannot drive convergence.
+- `gradient_step = 0.25` matches the ANTs default `gradientStep`. This is the canonical default; the parameter is exposed at the Python and CLI layers so users can tune for large-deformation cases.
+- `BSplineSyNConfig::gradient_step` is added for API consistency but is currently unused in the BSplineSyn register loop (BSplineSyn accumulates to a CP lattice whose implicit scale provides magnitude control via `accumulate_to_cp`). If BSplineSyn is found to need normalization in a future sprint, the field is already present.
+
+### Verification
+| Check | Result |
+|---|---------|
+| `cargo test -p ritk-registration diffeomorphic` | 56/56 pass including `syn_recovers_translation_ncc_improves` |
+| `cargo test -p ritk-registration atlas` | 28/28 pass |
+| `cargo check --workspace --tests` | 0 errors, 0 warnings |
+| `py -m pytest test_simpleitk_parity.py test_vtk_parity.py test_ct_mri_registration_parity.py -v` | 54 passed, 4 skipped (Elastix) in 24.41 s |
+| `ritk` wheel rebuilt with `--auditwheel repair` (MSVC toolchain) | Installed successfully; `import ritk` OK |
+
+### Updated artifacts
+- `checklist.md`: Sprint 75 checklist items marked complete.
+- `gap_audit.md`: GAP-R75-01..04 closed; SyN translation recovery risk removed; updated risk posture.
+
+### Residual risk
+- GAP-R08 (Elastix parity) — Medium: 4 Elastix tests still skipped (Elastix absent). ASGD optimizer and parameter-map interface remain absent. Not affected by this sprint.
+
+---
+
 ## Sprint 74 — Completed
 
 **Status**: Completed

@@ -49,6 +49,7 @@ def syn_register(
     max_iterations: int = 100,
     sigma_smooth: float = 3.0,
     cc_radius: int = 2,
+    gradient_step: float = 0.25,
 ) -> tuple[Image, Image]: ...
 def bspline_ffd_register(
     fixed: Image,
@@ -67,6 +68,7 @@ def multires_syn_register(
     sigma_smooth: float = 3.0,
     cc_radius: int = 2,
     inverse_consistency: bool = True,
+    gradient_step: float = 0.25,
 ) -> tuple[Image, Image]: ...
 def bspline_syn_register(
     fixed: Image,
@@ -78,6 +80,7 @@ def bspline_syn_register(
     sigma_smooth: float = 1.0,
     cc_radius: int = 2,
     regularization_weight: float = 0.001,
+    gradient_step: float = 0.25,
 ) -> tuple[Image, Image]: ...
 def lddmm_register(
     fixed: Image,

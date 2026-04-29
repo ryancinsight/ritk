@@ -70,6 +70,10 @@ pub struct MultiResSyNConfig {
     pub n_squarings: usize,
     /// Radius of local CC window (voxels).
     pub cc_window_radius: usize,
+    /// Maximum per-step displacement (voxels) used to normalise the CC gradient
+    /// before accumulating into the velocity field.  Mirrors the ANTs
+    /// `gradientStep` parameter.  Default: 0.25.
+    pub gradient_step: f64,
     /// Enforce inverse consistency via `v ← (v − compose(v₁,v₂)) / 2`.
     pub enforce_inverse_consistency: bool,
 }
@@ -195,6 +199,34 @@ impl MultiResSyNRegistration {
                 let (gjz, gjy, gjx) = compute_gradient(&j_w, ld, ls);
                 let (u1z, u1y, u1x) = cc_forces(&i_w, &j_w, &giz, &giy, &gix, ld, r);
                 let (u2z, u2y, u2x) = cc_forces(&j_w, &i_w, &gjz, &gjy, &gjx, ld, r);
+
+                // Normalise per-step displacement to `gradient_step` voxels (inf-norm).
+                let max_u1 = u1z
+                    .iter()
+                    .chain(u1y.iter())
+                    .chain(u1x.iter())
+                    .map(|&v| (v as f64).abs())
+                    .fold(0.0_f64, f64::max);
+                let (mut u1z, mut u1y, mut u1x) = (u1z, u1y, u1x);
+                if max_u1 > 1e-10 {
+                    let s = (self.config.gradient_step / max_u1) as f32;
+                    u1z.iter_mut().for_each(|v| *v *= s);
+                    u1y.iter_mut().for_each(|v| *v *= s);
+                    u1x.iter_mut().for_each(|v| *v *= s);
+                }
+                let max_u2 = u2z
+                    .iter()
+                    .chain(u2y.iter())
+                    .chain(u2x.iter())
+                    .map(|&v| (v as f64).abs())
+                    .fold(0.0_f64, f64::max);
+                let (mut u2z, mut u2y, mut u2x) = (u2z, u2y, u2x);
+                if max_u2 > 1e-10 {
+                    let s = (self.config.gradient_step / max_u2) as f32;
+                    u2z.iter_mut().for_each(|v| *v *= s);
+                    u2y.iter_mut().for_each(|v| *v *= s);
+                    u2x.iter_mut().for_each(|v| *v *= s);
+                }
 
                 for i in 0..ln {
                     v1z[i] += u1z[i];
@@ -400,15 +432,21 @@ fn cc_forces(
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
-                let (_, mu_j, num, vi, vj, _) = window_cc_stats(i_w, j_w, dims, iz, iy, ix, r);
+                let (mu_i, mu_j, num, vi, vj, _) = window_cc_stats(i_w, j_w, dims, iz, iy, ix, r);
                 if vi < 1e-10 {
                     continue;
                 }
                 let fi = flat(iz, iy, ix, ny, nx);
-                let s = -2.0 * num / (vi * vj + 1e-10) * (j_w[fi] as f64 - mu_j);
-                fz[fi] = (s * gi_z[fi] as f64) as f32;
-                fy[fi] = (s * gi_y[fi] as f64) as f32;
-                fx[fi] = (s * gi_x[fi] as f64) as f32;
+                let iw_c = i_w[fi] as f64 - mu_i;
+                let jw_c = j_w[fi] as f64 - mu_j;
+                // Avants 2008, eq. 10 — gradient ascent on local CC.
+                // ∂CC/∂v₁_k(x) = [(J_w−μ_J)/√(σ_I²·σ_J²) − CC·(I_w−μ_I)/σ_I²] · ∇_k I_w
+                let denom = (vi * vj).sqrt() + 1e-10;
+                let cc = num / denom;
+                let force_scale = jw_c / denom - cc * iw_c / (vi + 1e-10);
+                fz[fi] = (force_scale * gi_z[fi] as f64) as f32;
+                fy[fi] = (force_scale * gi_y[fi] as f64) as f32;
+                fx[fi] = (force_scale * gi_x[fi] as f64) as f32;
             }
         }
     }
@@ -486,6 +524,7 @@ mod tests {
             convergence_window: 10,
             n_squarings: 6,
             cc_window_radius: 2,
+            gradient_step: 0.25,
             enforce_inverse_consistency: ic,
         }
     }

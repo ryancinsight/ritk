@@ -1,3 +1,18 @@
+## Sprint 75 — Completed
+
+- [x] GAP-R75-01: fixed `cc_forces` force formula in all three SyN variants — replaced incorrect `-2*cc_num/(var_i*var_j)` with Avants 2008 eq. 10: `force_scale = (J_W-μ_J)/sqrt(var_i*var_j) - CC*(I_W-μ_I)/var_i` in `diffeomorphic/mod.rs`, `diffeomorphic/multires_syn.rs`, and `diffeomorphic/bspline_syn.rs`
+- [x] GAP-R75-02: added `gradient_step: f64 = 0.25` to `SyNConfig` and `MultiResSyNConfig`; forces normalised to inf-norm = gradient_step before velocity field accumulation; `BSplineSyNConfig` receives field for API consistency
+- [x] GAP-R75-03: exposed `gradient_step` in Python bindings `syn_register`, `multires_syn_register`, `bspline_syn_register` (signature, PyO3 `#[pyo3(signature = ...)]`, docstring, `.pyi` stub); fixed missing `gradient_step` in `build_atlas` inner `MultiResSyNConfig` literal
+- [x] GAP-R75-04: added `test_syn_register_ncc_improves_on_shifted_gaussian_blob` to `test_simpleitk_parity.py` Section 5 — Gaussian blob 24³, 4-voxel x-shift, 50 iter, NCC_after > NCC_before AND NCC_after ≥ 0.80; passes
+- [x] Verify: `cargo test -p ritk-registration diffeomorphic` → 56/56 including new `syn_recovers_translation_ncc_improves`
+- [x] Verify: `cargo test -p ritk-registration atlas` → 28/28
+- [x] Verify: `cargo check --workspace --tests` → 0 errors, 0 warnings
+- [x] Verify: `py -m pytest test_simpleitk_parity.py test_vtk_parity.py test_ct_mri_registration_parity.py -v` → 54 passed, 4 skipped (Elastix) in 24.41 s
+- [x] Wheel rebuilt `rustup run nightly-x86_64-pc-windows-msvc py -m maturin build --release --auditwheel repair` and reinstalled; `import ritk; ritk.registration.syn_register` accepts `gradient_step` kwarg
+- [x] Update backlog.md, checklist.md, gap_audit.md Sprint 75 closure notes
+
+---
+
 ## Sprint 74 — Completed
 
 - [x] GAP-R74-01: fixed Python wheel DLL load failure on Windows — built wheel with `rustup run nightly-x86_64-pc-windows-msvc py -m maturin build --release --auditwheel repair`; MinGW runtime libs (`libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll`) bundled into `ritk.libs/` inside wheel; `ritk` module imports successfully in CPython 3.13 (MSVC ABI)

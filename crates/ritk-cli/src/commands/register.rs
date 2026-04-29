@@ -515,6 +515,7 @@ fn run_syn(args: &RegisterArgs) -> Result<()> {
         max_iterations: args.iterations,
         sigma_smooth: 3.0,
         cc_window_radius: 2,
+        gradient_step: 0.25,
         ..Default::default()
     };
 
@@ -627,6 +628,7 @@ fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         enforce_inverse_consistency: args.inverse_consistency,
+        gradient_step: 0.25,
     };
 
     let reg = MultiResSyNRegistration::new(config);
@@ -683,6 +685,7 @@ fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         regularization_weight: args.regularization_weight,
+        gradient_step: 0.25,
     };
 
     let reg = BSplineSyNRegistration::new(config);
