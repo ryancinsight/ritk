@@ -35,6 +35,7 @@ image = _image_mod  # expose ritk.image as top-level attribute
 Image = _image_mod.Image  # extract from already-imported submodule attribute
 
 import sys as _sys
+
 # Register PyO3 submodule objects in sys.modules so that
 # "import ritk.filter", "import ritk.io", etc. work as expected.
 # PyO3 add_submodule() exposes submodules as attributes but does not
@@ -55,4 +56,4 @@ __all__ = [
     "statistics",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.10.0"

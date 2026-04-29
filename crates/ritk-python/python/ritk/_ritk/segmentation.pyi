@@ -18,6 +18,13 @@ def triangle_threshold(image: Image) -> tuple[float, Image]: ...
 def multi_otsu_threshold(
     image: Image, num_classes: int = 3
 ) -> tuple[list[float], Image]: ...
+def binary_threshold_segment(
+    image: Image,
+    lower: float | None = None,
+    upper: float | None = None,
+    inside_value: float = 1.0,
+    outside_value: float = 0.0,
+) -> Image: ...
 
 # ── Connected-component labeling ────────────────────────────────────────────
 
@@ -39,6 +46,7 @@ def kmeans_segment(image: Image, k: int = 3) -> Image: ...
 # ── Watershed ───────────────────────────────────────────────────────────────
 
 def watershed_segment(image: Image) -> Image: ...
+def marker_watershed_segment(gradient: Image, markers: Image) -> Image: ...
 
 # ── Binary morphology ──────────────────────────────────────────────────────
 
@@ -145,4 +153,3 @@ def label_shape_statistics(
         ValueError: if connectivity is not 6 or 26.
     """
     ...
-

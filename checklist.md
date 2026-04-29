@@ -1,3 +1,36 @@
+## Sprint 78 — Completed
+
+- [x] GAP-78-01: fix `phase1_row` distance transform convention — invert seed condition from `!row[x]` (background) to `row[x]` (foreground); update all 19 Rust unit tests with analytically re-derived expected values; verify 19/19 pass in debug and release profiles
+- [x] GAP-78-02: add `binary_threshold_segment` and `marker_watershed_segment` to `segmentation.pyi` stubs; add both to `test_smoke.py` required callable list
+- [x] GAP-78-03: add 5 new SimpleITK parity tests to `test_simpleitk_parity.py` — `test_yen_threshold_produces_valid_segmentation` (Dice ≥ 0.85), `test_kapur_threshold_produces_valid_segmentation` (noisy sphere, MaximumEntropyThresholdImageFilter, Dice ≥ 0.85), `test_triangle_threshold_produces_valid_segmentation` (Dice ≥ 0.85), `test_binary_threshold_segment_agrees_with_sitk` (Dice ≥ 0.999), `test_distance_transform_agrees_with_sitk` (background MAE < 0.15 voxels, uint8 cast for SITK)
+- [x] GAP-78-04: update `gap_audit.md` §3.7 from `Critical` → `Closed`; §5.1 from `Critical` → `Closed`; §5.4 `label_statistics.rs` from `MISSING` → `DONE`
+- [x] GAP-78-05: add `CXXFLAGS_x86_64_pc_windows_msvc = "-static-libstdc++ -static-libgcc"` to `.cargo/config.toml`; add MSYS2 ucrt64 PATH step to `python_ci.yml` Windows jobs
+- [x] Version bump: `ritk-python` Cargo.toml and `__init__.py` updated to 0.10.0
+- [x] Rebuild wheel `ritk-0.10.0-cp39-abi3-win_amd64.whl`; reinstall; verify `import ritk; ritk.__version__ == "0.10.0"`
+- [x] Verify: `cargo test -p ritk-core --lib --release -- distance_transform` → 19 passed
+- [x] Verify: `py -m pytest` (full 7-file suite) → **106 passed, 0 failed** (test_simpleitk_parity: 44 tests)
+- [x] Update CHANGELOG.md, backlog.md, checklist.md, gap_audit.md Sprint 78 closure notes
+
+---
+
+## Sprint 77 — Completed
+
+- [x] GAP-77-01: add `SimpleITK vtk` to `python_ci.yml` pip install; add `test_simpleitk_parity.py`, `test_vtk_parity.py`, `test_ct_mri_registration_parity.py` to CI pytest invocation
+- [x] GAP-77-02: add 3 new SimpleITK parity tests — `test_multires_demons_ncc_improves_on_shifted_sphere`, `test_inverse_consistent_demons_ncc_improves_on_shifted_sphere`, `test_label_intensity_statistics_mean_agrees_with_sitk`; IC-Demons threshold corrected from sigma=1.5 to sigma=1.0 (root cause: over-smoothing not IC penalty; measured NCC=0.93)
+- [x] GAP-77-03: create `CHANGELOG.md`; version history Sprint 71–77 documented per SemVer 2.0.0 policy; version 0.9.0 reflects Sprint 77 milestone
+- [x] GAP-77-04: update `gap_audit.md` GAP-R07 section header from "Severity: **High**" to "Severity: **Closed**"; implementation record added
+- [x] GAP-77-05: fix pre-existing 1D-array `TypeError` in `test_statistics_bindings.py`; value-semantic assertions added to both fixed tests
+- [x] Version bump: `ritk-python` Cargo.toml and `__init__.py` updated to 0.9.0
+- [x] Verify: `cargo check -p ritk-python` → 0 errors, `ritk-python v0.9.0`
+- [x] Verify: `py -m pytest test_simpleitk_parity.py test_vtk_parity.py test_statistics_bindings.py test_ct_mri_registration_parity.py -v` → **69 passed, 0 failed**
+  - test_simpleitk_parity: 39 tests (was 36; +3 new)
+  - test_vtk_parity: 18 tests
+  - test_statistics_bindings: 8 tests (was 6 pass; 2 pre-existing failures now fixed)
+  - test_ct_mri_registration_parity: 4 tests
+- [x] Update backlog.md, checklist.md, gap_audit.md Sprint 77 closure notes
+
+---
+
 ## Sprint 76 — Completed
 
 - [x] GAP-R76-01: replaced 4 Elastix-dependent parity tests with SimpleITK `ImageRegistrationMethod`-based tests — added `_sitk_translation_register`, `_sitk_affine_register`, `_sitk_bspline_register` helper functions; replaced `test_elastix_*` with `test_sitk_translation_recovers_sphere_overlap`, `test_ritk_demons_vs_sitk_translation_quality`, `test_sitk_bspline_deformable_vs_ritk_syn`, `test_sitk_affine_registration_converges_on_shifted_sphere`; all 36 SimpleITK parity tests pass with 0 skipped

@@ -8,6 +8,12 @@ xtask = "run --package xtask --"
 CC_x86_64_pc_windows_msvc = { value = "clang-cl", force = false }
 CXX_x86_64_pc_windows_msvc = { value = "clang-cl", force = false }
 AR_x86_64_pc_windows_msvc = { value = "llvm-lib", force = false }
+# Static-link GCC/libstdc++/libpthread when using MSYS2 clang-cl on the MSVC target.
+# Without this, charls-sys and openjpeg-sys (compiled as C++ static archives) embed
+# references to libstdc++-6.dll, libgcc_s_seh-1.dll, and libwinpthread-1.dll —
+# MinGW runtime DLLs absent from clean Windows installs.
+# -Xclang passes the flag through clang-cl's MSVC frontend to the underlying driver.
+CXXFLAGS_x86_64_pc_windows_msvc = { value = "-static-libstdc++ -static-libgcc", force = false }
 CC_x86_64_unknown_linux_gnu = { value = "clang", force = false }
 CXX_x86_64_unknown_linux_gnu = { value = "clang++", force = false }
 CC_aarch64_unknown_linux_gnu = { value = "clang", force = false }

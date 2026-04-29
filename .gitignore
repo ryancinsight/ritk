@@ -26,6 +26,8 @@ test_heredoc.*
 TransformParameters.*.txt
 
 # Scratch/generated artifacts (do not commit)
+dist/
+*.whl
 *.tmp
 *.nii
 sizes.csv

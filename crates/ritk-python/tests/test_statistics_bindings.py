@@ -98,7 +98,8 @@ def test_label_intensity_stats_four_voxels_known_mean_and_std() -> None:
 
 
 def test_minmax_normalize_range_inverted_bounds_raises() -> None:
-    image = _image(np.array([0.0, 1.0, 2.0], dtype=np.float32))
+    # ritk.Image requires 3-D arrays; reshape scalar sequence to (1, 1, 3).
+    image = _image(np.array([[[0.0, 1.0, 2.0]]], dtype=np.float32))
 
     with pytest.raises(ValueError, match="strictly less than"):
         ritk.statistics.minmax_normalize_range(image, 1.0, 0.0)
@@ -130,9 +131,18 @@ def test_zscore_normalize_mask_shape_mismatch_raises() -> None:
 
 
 def test_minmax_normalize_range_and_zscore_bindings_are_available() -> None:
-    image = _image(np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32))
+    # ritk.Image requires 3-D arrays; reshape to (1, 2, 2) so shape is valid.
+    image = _image(np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32))
     ranged = ritk.statistics.minmax_normalize_range(image, 0.0, 1.0)
     assert isinstance(ranged, ritk.Image)
+    # Verify the range: min should be 0.0 and max should be 1.0 after normalization.
+    ranged_np = ranged.to_numpy()
+    assert ranged_np.min() == pytest.approx(0.0, abs=1e-6)
+    assert ranged_np.max() == pytest.approx(1.0, abs=1e-6)
 
     zscore = ritk.statistics.zscore_normalize(image)
     assert isinstance(zscore, ritk.Image)
+    # Z-score output must have zero mean and unit std.
+    zscore_np = zscore.to_numpy()
+    assert zscore_np.mean() == pytest.approx(0.0, abs=1e-5)
+    assert zscore_np.std() == pytest.approx(1.0, abs=1e-4)

@@ -9,16 +9,17 @@
 //! Given a binary image B where B(p) ∈ {0, 1} (0 = background, 1 = foreground),
 //! the squared Euclidean Distance Transform is:
 //!
-//!   EDT²(p) = min_{q : B(q)=0} ‖p − q‖₂²
+//!   EDT²(p) = min_{q : B(q)=1} ‖p − q‖₂²
 //!
-//! Foreground voxels receive the squared distance to the nearest background voxel.
-//! Background voxels receive distance 0.
+//! The distance is computed from each voxel to the nearest foreground (object) voxel.
+//! Foreground voxels receive distance 0 (they are their own nearest seed).
+//! Background voxels receive the squared distance to the nearest foreground voxel.
 //!
 //! # Separability
 //! The algorithm decomposes the D-dimensional problem into D independent 1D passes.
 //! For 3D with shape `[nz, ny, nx]`:
 //!
-//! **Phase 1** (X-axis): For each (z, y) row, compute `g[z][y][x] = min_{x' : B[z][y][x']=0} |x - x'|`.
+//! **Phase 1** (X-axis): For each (z, y) row, compute `g[z][y][x] = min_{x' : B[z][y][x']=1} |x - x'|`.
 //! Two-pass forward/backward scan, O(nx) per row.
 //!
 //! **Phase 2** (Y-axis): For each (z, x) column, compute
@@ -30,7 +31,7 @@
 //! Total complexity: O(nz · ny · nx), i.e., linear in the number of voxels.
 //!
 //! # Sentinel Value
-//! When no background voxel exists (all-foreground image), `g` is initialized to
+//! When no foreground voxel exists (all-background image), `g` is initialized to
 //! `INF_DIST = (nz + ny + nx)` per row dimension, and the final squared distance
 //! saturates at `(nz + ny + nx)²`. This is a finite upper bound rather than
 //! `f32::INFINITY` to preserve numerical stability in downstream arithmetic.
@@ -47,8 +48,8 @@ fn inf_dist(shape: &[usize; 3]) -> i64 {
 
 // ─── Phase 1: 1D nearest-background scan along X ──────────────────────────
 
-/// For a single row of length `nx`, compute `g[x] = min_{x': row[x']=bg} |x - x'|`.
-/// If no background voxel exists in the row, all entries are set to `inf`.
+/// For a single row of length `nx`, compute `g[x] = min_{x': row[x']=fg} |x - x'|`.
+/// If no foreground voxel exists in the row, all entries are set to `inf`.
 fn phase1_row(row: &[bool], nx: usize, inf: i64, out: &mut [i64]) {
     debug_assert_eq!(row.len(), nx);
     debug_assert_eq!(out.len(), nx);
@@ -58,13 +59,13 @@ fn phase1_row(row: &[bool], nx: usize, inf: i64, out: &mut [i64]) {
     }
 
     // Forward pass: propagate distance from left.
-    if !row[0] {
-        out[0] = 0; // background
+    if row[0] {
+        out[0] = 0; // foreground seed
     } else {
         out[0] = inf;
     }
     for x in 1..nx {
-        if !row[x] {
+        if row[x] {
             out[x] = 0;
         } else {
             out[x] = out[x - 1].saturating_add(1).min(inf);
@@ -72,10 +73,10 @@ fn phase1_row(row: &[bool], nx: usize, inf: i64, out: &mut [i64]) {
     }
 
     // Backward pass: propagate distance from right, keep minimum.
-    let mut d = if !row[nx - 1] { 0i64 } else { inf };
+    let mut d = if row[nx - 1] { 0i64 } else { inf };
     out[nx - 1] = out[nx - 1].min(d);
     for x in (0..nx - 1).rev() {
-        if !row[x] {
+        if row[x] {
             d = 0;
         } else {
             d = d.saturating_add(1).min(inf);
@@ -211,10 +212,10 @@ fn idx3(z: usize, y: usize, x: usize, ny: usize, nx: usize) -> usize {
 ///
 /// # Input
 /// Binary mask where voxels with intensity > `foreground_threshold` are foreground (object).
-/// The distance is computed FROM each foreground voxel TO the nearest background voxel.
-/// Background voxels receive distance 0.
+/// The distance is computed from each voxel to the nearest foreground (object) voxel.
+/// Foreground voxels receive distance 0 (they are their own nearest seed).
 ///
-/// For the inverse (distance from background to nearest foreground), invert the mask
+/// For the inverse (distance from each voxel to nearest background), invert the mask
 /// before calling, or threshold with a value that inverts the sense.
 ///
 /// # Output
@@ -223,9 +224,9 @@ fn idx3(z: usize, y: usize, x: usize, ny: usize, nx: usize) -> usize {
 /// after the transform.
 ///
 /// # Edge Cases
-/// - All-background: all output values are 0.
-/// - All-foreground: output values are `(nz + ny + nx)²` (finite sentinel upper bound).
-/// - 1×1×1 image: output is 0 if background, sentinel² if foreground.
+/// - All-background: all output values are `(nz + ny + nx)²` (finite sentinel; no foreground exists).
+/// - All-foreground: all output values are 0 (all voxels are seeds).
+/// - 1×1×1 image: output is sentinel² if background, 0 if foreground.
 ///
 /// # Complexity
 /// O(N) where N = nz · ny · nx.
@@ -394,15 +395,10 @@ mod tests {
 
     #[test]
     fn test_single_foreground_voxel_center_5x5x5() {
-        // 5×5×5 image, all background (0.0) except center voxel (2,2,2) = 1.0.
-        // EDT²(2,2,2) = min over all background voxels of squared distance.
-        // The nearest background voxels are the 6 face-adjacent neighbors at distance 1.
-        // EDT²(2,2,2) = 1.
-        //
-        // Corner voxels at (0,0,0), (4,4,4), etc.:
-        //   distance to nearest background = 0 (they ARE background) → EDT² = 0.
-        //
-        // Since only the center is foreground, only that voxel has nonzero distance.
+        // 5×5×5 image, all background (0.0) except center voxel (2,2,2) = 1.0 (foreground).
+        // New convention: distance from each voxel to nearest foreground voxel.
+        // Foreground voxel (2,2,2) is the only seed → EDT²(2,2,2) = 0.
+        // Background voxel at (z,y,x): EDT²(z,y,x) = (z-2)²+(y-2)²+(x-2)².
         let dims = [5, 5, 5];
         let total = 125;
         let mut data = vec![0.0f32; total];
@@ -412,35 +408,44 @@ mod tests {
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
-        // Only the center voxel is foreground; nearest background is at distance 1.
+        // Center foreground voxel is the seed: EDT² = 0.
         assert_eq!(
             at(&vals, 2, 2, 2, 5, 5),
-            1.0,
-            "center foreground voxel EDT² must be 1"
+            0.0,
+            "center foreground voxel EDT² must be 0 (it is the seed)"
         );
 
-        // All background voxels must have EDT² = 0.
-        for z in 0..5 {
-            for y in 0..5 {
-                for x in 0..5 {
+        // Every background voxel (z,y,x) ≠ (2,2,2) gets EDT² = (z-2)²+(y-2)²+(x-2)².
+        for z in 0..5usize {
+            for y in 0..5usize {
+                for x in 0..5usize {
                     if (z, y, x) != (2, 2, 2) {
-                        let v = at(&vals, z, y, x, 5, 5);
+                        let expected = ((z as i32 - 2).pow(2)
+                            + (y as i32 - 2).pow(2)
+                            + (x as i32 - 2).pow(2)) as f32;
+                        let actual = at(&vals, z, y, x, 5, 5);
                         assert_eq!(
-                            v, 0.0,
-                            "background voxel ({z},{y},{x}) must have EDT²=0, got {v}"
+                            actual, expected,
+                            "background voxel ({z},{y},{x}) must have EDT²={expected}, got {actual}"
                         );
                     }
                 }
             }
         }
 
-        // Verify the non-squared transform: √1 = 1.0.
+        // Verify the non-squared transform: center is seed → EDT = 0.
         let edt = distance_transform(&image, 0.5);
         let edt_vals = get_values(&edt);
         let center_dist = at(&edt_vals, 2, 2, 2, 5, 5);
         assert!(
-            (center_dist - 1.0).abs() < 1e-6,
-            "center EDT must be 1.0, got {center_dist}"
+            (center_dist - 0.0).abs() < 1e-6,
+            "center EDT must be 0.0 (seed), got {center_dist}"
+        );
+        // Adjacent voxel (2,2,3) is background at distance 1 from seed.
+        let adj_dist = at(&edt_vals, 2, 2, 3, 5, 5);
+        assert!(
+            (adj_dist - 1.0).abs() < 1e-6,
+            "adjacent voxel (2,2,3) EDT must be 1.0, got {adj_dist}"
         );
     }
 
@@ -448,21 +453,20 @@ mod tests {
 
     #[test]
     fn test_all_foreground_image() {
-        // 3×3×3, all voxels = 1.0 (foreground). No background exists.
-        // EDT² for every voxel = inf_dist² = (3+3+3)² = 81.
+        // 3×3×3, all voxels = 1.0 (foreground). All voxels are seeds.
+        // New convention: EDT² = 0 for every voxel (each voxel is its own seed).
         let dims = [3, 3, 3];
         let data = vec![1.0f32; 27];
         let image = make_image_3d(data, dims);
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
-        let expected = (3 + 3 + 3) as f32;
-        let expected_sq = expected * expected; // 81.0
+        let expected_sq = 0.0f32;
 
         for (i, &v) in vals.iter().enumerate() {
             assert_eq!(
                 v, expected_sq,
-                "all-foreground voxel {i} must have EDT²={expected_sq}, got {v}"
+                "all-foreground voxel {i} must have EDT²=0 (all are seeds), got {v}"
             );
         }
     }
@@ -471,6 +475,8 @@ mod tests {
 
     #[test]
     fn test_all_background_image() {
+        // 4×3×5, all background. No foreground seeds → sentinel value.
+        // Sentinel: (nz+ny+nx)² = (4+3+5)² = 144.
         let dims = [4, 3, 5];
         let data = vec![0.0f32; 60];
         let image = make_image_3d(data, dims);
@@ -478,7 +484,10 @@ mod tests {
         let vals = get_values(&result);
 
         for (i, &v) in vals.iter().enumerate() {
-            assert_eq!(v, 0.0, "all-background voxel {i} must have EDT²=0, got {v}");
+            assert_eq!(
+                v, 144.0,
+                "all-background EDT²=144 (no foreground seeds), voxel {i} got {v}"
+            );
         }
     }
 
@@ -486,8 +495,9 @@ mod tests {
 
     #[test]
     fn test_single_background_voxel_at_corner() {
-        // 5×5×5, all foreground (1.0) except corner (0,0,0) = 0.0.
-        // EDT²(z,y,x) = z² + y² + x²  (distance to the only background voxel).
+        // 5×5×5, all foreground (1.0) except corner (0,0,0) = 0.0 (background).
+        // New convention: 124 foreground voxels are seeds → EDT²=0 for all fg.
+        // Background (0,0,0): nearest foreground is (1,0,0)/(0,1,0)/(0,0,1) at distance 1 → EDT²=1.
         let dims = [5, 5, 5];
         let total = 125;
         let mut data = vec![1.0f32; total];
@@ -497,27 +507,31 @@ mod tests {
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
+        // All foreground voxels are seeds: EDT²=0.
         for z in 0..5usize {
             for y in 0..5usize {
                 for x in 0..5usize {
-                    let expected = (z * z + y * y + x * x) as f32;
-                    let actual = at(&vals, z, y, x, 5, 5);
-                    assert_eq!(
-                        actual, expected,
-                        "EDT²({z},{y},{x}) = {actual}, expected {expected}"
-                    );
+                    if (z, y, x) != (0, 0, 0) {
+                        let actual = at(&vals, z, y, x, 5, 5);
+                        assert_eq!(
+                            actual, 0.0,
+                            "foreground voxel ({z},{y},{x}) must have EDT²=0 (seed), got {actual}"
+                        );
+                    }
                 }
             }
         }
+        // Background corner (0,0,0): nearest foreground at distance 1.
+        let corner_sq = at(&vals, 0, 0, 0, 5, 5);
+        assert_eq!(corner_sq, 1.0, "background corner EDT²=1, got {corner_sq}");
 
-        // Corner (4,4,4): EDT = √(16+16+16) = √48
+        // EDT(0,0,0) = √1 = 1.0.
         let edt = distance_transform(&image, 0.5);
         let edt_vals = get_values(&edt);
-        let corner = at(&edt_vals, 4, 4, 4, 5, 5);
-        let expected_corner = (48.0f32).sqrt();
+        let corner = at(&edt_vals, 0, 0, 0, 5, 5);
         assert!(
-            (corner - expected_corner).abs() < 1e-4,
-            "EDT(4,4,4) = {corner}, expected {expected_corner}"
+            (corner - 1.0).abs() < 1e-6,
+            "EDT(0,0,0) = {corner}, expected 1.0"
         );
     }
 
@@ -528,8 +542,9 @@ mod tests {
         // A 1×5×5 "plane" (flat in Z). Background is a vertical stripe at x=0.
         // All voxels at x=0 are background (0.0), rest are foreground (1.0).
         //
-        // For any foreground voxel at (0, y, x) with x > 0:
-        //   EDT² = x²  (nearest background is at (0, y, 0), distance = x).
+        // New convention: foreground voxels are seeds.
+        // For background voxel at (0, y, 0): nearest foreground is at (0, y, 1) → EDT²=1.
+        // For foreground voxel at (0, y, x) with x > 0: seed → EDT²=0.
         let ny = 5;
         let nx = 5;
         let dims = [1, ny, nx];
@@ -543,12 +558,15 @@ mod tests {
         let vals = get_values(&result);
 
         for y in 0..ny {
-            for x in 0..nx {
-                let expected = (x * x) as f32;
-                let actual = at(&vals, 0, y, x, ny, nx);
+            // x=0: background, nearest foreground at x=1 → EDT²=1
+            let bg = at(&vals, 0, y, 0, ny, nx);
+            assert_eq!(bg, 1.0, "EDT²(0,{y},0) background must be 1, got {bg}");
+            // x>0: foreground seed → EDT²=0
+            for x in 1..nx {
+                let fg = at(&vals, 0, y, x, ny, nx);
                 assert_eq!(
-                    actual, expected,
-                    "EDT²(0,{y},{x}) = {actual}, expected {expected}"
+                    fg, 0.0,
+                    "EDT²(0,{y},{x}) foreground seed must be 0, got {fg}"
                 );
             }
         }
@@ -558,21 +576,25 @@ mod tests {
 
     #[test]
     fn test_1x1x1_background() {
+        // 1×1×1 all-background: no foreground seeds → sentinel (nz+ny+nx)²=(1+1+1)²=9.
         let image = make_image_3d(vec![0.0], [1, 1, 1]);
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
         assert_eq!(vals.len(), 1);
-        assert_eq!(vals[0], 0.0, "single background voxel EDT² = 0");
+        assert_eq!(
+            vals[0], 9.0,
+            "1x1x1 all-background EDT²=9 (sentinel, no foreground)"
+        );
     }
 
     #[test]
     fn test_1x1x1_foreground() {
+        // 1×1×1 foreground: voxel is its own seed → EDT²=0.
         let image = make_image_3d(vec![1.0], [1, 1, 1]);
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
         assert_eq!(vals.len(), 1);
-        // Sentinel: (1+1+1)² = 9
-        assert_eq!(vals[0], 9.0, "single foreground voxel EDT² = sentinel²");
+        assert_eq!(vals[0], 0.0, "1x1x1 foreground EDT²=0 (it is the seed)");
     }
 
     // ── Test 7: Two background voxels — verify minimum is chosen ──────────
@@ -580,9 +602,10 @@ mod tests {
     #[test]
     fn test_two_background_voxels_minimum_distance() {
         // 1×1×7 row. Background at x=0 and x=6. Foreground at x=1..5.
-        // EDT²(0,0,x):
-        //   x=0: 0 (bg), x=1: 1, x=2: 4, x=3: 9 (but also 9 from x=6 side),
-        //   x=4: 4, x=5: 1, x=6: 0 (bg).
+        // New convention: foreground seeds at x=1..5.
+        // x=0 (bg): nearest foreground at x=1 → EDT²=1.
+        // x=1..5 (fg): seeds → EDT²=0.
+        // x=6 (bg): nearest foreground at x=5 → EDT²=1.
         let nx = 7;
         let mut data = vec![1.0f32; nx];
         data[0] = 0.0;
@@ -592,7 +615,7 @@ mod tests {
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
-        let expected = [0.0, 1.0, 4.0, 9.0, 4.0, 1.0, 0.0];
+        let expected = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0];
         for x in 0..nx {
             assert_eq!(
                 vals[x], expected[x],
@@ -659,25 +682,29 @@ mod tests {
     fn test_checkerboard_3d() {
         // 1×2×2 checkerboard:
         //   (0,0,0)=bg, (0,0,1)=fg, (0,1,0)=fg, (0,1,1)=bg
-        // Foreground voxels each have a face-adjacent background neighbor at distance 1.
-        // EDT² for foreground = 1, EDT² for background = 0.
+        // New convention: foreground voxels are seeds.
+        // bg(0,0,0): nearest fg at (0,0,1) or (0,1,0), distance 1 → EDT²=1.
+        // fg(0,0,1): seed → EDT²=0.
+        // fg(0,1,0): seed → EDT²=0.
+        // bg(0,1,1): nearest fg at (0,0,1) or (0,1,0), distance 1 → EDT²=1.
         let data = vec![0.0, 1.0, 1.0, 0.0];
         let image = make_image_3d(data, [1, 2, 2]);
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
-        assert_eq!(vals[0], 0.0, "(0,0,0) bg");
-        assert_eq!(vals[1], 1.0, "(0,0,1) fg, nearest bg at distance 1");
-        assert_eq!(vals[2], 1.0, "(0,1,0) fg, nearest bg at distance 1");
-        assert_eq!(vals[3], 0.0, "(0,1,1) bg");
+        assert_eq!(vals[0], 1.0, "(0,0,0) bg, nearest fg at distance 1");
+        assert_eq!(vals[1], 0.0, "(0,0,1) fg seed");
+        assert_eq!(vals[2], 0.0, "(0,1,0) fg seed");
+        assert_eq!(vals[3], 1.0, "(0,1,1) bg, nearest fg at distance 1");
     }
 
     // ── Test 11: Asymmetric shape ─────────────────────────────────────────
 
     #[test]
     fn test_asymmetric_shape_2x3x4() {
-        // All foreground except (0,0,0) = background.
-        // EDT²(z,y,x) = z² + y² + x².
+        // 2×3×4, all foreground except (0,0,0) = background.
+        // New convention: 23 foreground voxels are seeds → EDT²=0.
+        // Background (0,0,0): nearest foreground at (1,0,0)/(0,1,0)/(0,0,1) → EDT²=1.
         let dims = [2, 3, 4];
         let total = 24;
         let mut data = vec![1.0f32; total];
@@ -687,18 +714,23 @@ mod tests {
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
 
+        // All foreground voxels are seeds.
         for z in 0..2usize {
             for y in 0..3usize {
                 for x in 0..4usize {
-                    let expected = (z * z + y * y + x * x) as f32;
-                    let actual = at(&vals, z, y, x, 3, 4);
-                    assert_eq!(
-                        actual, expected,
-                        "EDT²({z},{y},{x}) = {actual}, expected {expected}"
-                    );
+                    if (z, y, x) != (0, 0, 0) {
+                        let actual = at(&vals, z, y, x, 3, 4);
+                        assert_eq!(
+                            actual, 0.0,
+                            "foreground voxel EDT²({z},{y},{x}) = {actual}, expected 0"
+                        );
+                    }
                 }
             }
         }
+        // Background (0,0,0): nearest foreground at distance 1.
+        let bg = at(&vals, 0, 0, 0, 3, 4);
+        assert_eq!(bg, 1.0, "background (0,0,0) EDT²=1, got {bg}");
     }
 
     // ── Internal: lower_envelope_transform correctness ────────────────────
@@ -748,34 +780,37 @@ mod tests {
 
     #[test]
     fn test_phase1_row_all_background() {
+        // All background, no foreground seeds → inf sentinel for all positions.
         let row = [false, false, false, false];
         let mut out = [0i64; 4];
         phase1_row(&row, 4, 100, &mut out);
-        assert_eq!(out, [0, 0, 0, 0]);
+        assert_eq!(out, [100, 100, 100, 100]);
     }
 
     #[test]
     fn test_phase1_row_single_bg_at_start() {
+        // Foreground seeds at x=1..4. Background x=0: nearest foreground at x=1 → dist=1.
         let row = [false, true, true, true, true];
         let mut out = [0i64; 5];
         phase1_row(&row, 5, 100, &mut out);
-        assert_eq!(out, [0, 1, 2, 3, 4]);
+        assert_eq!(out, [1, 0, 0, 0, 0]);
     }
 
     #[test]
     fn test_phase1_row_bg_at_both_ends() {
+        // Foreground seeds at x=1,2,3. Background x=0 → dist=1; background x=4 → dist=1.
         let row = [false, true, true, true, false];
         let mut out = [0i64; 5];
         phase1_row(&row, 5, 100, &mut out);
-        assert_eq!(out, [0, 1, 2, 1, 0]);
+        assert_eq!(out, [1, 0, 0, 0, 1]);
     }
 
     #[test]
     fn test_phase1_row_all_foreground() {
+        // All foreground: every position is a seed → distance = 0 for all.
         let row = [true, true, true];
         let mut out = [0i64; 3];
         phase1_row(&row, 3, 100, &mut out);
-        // All foreground, no background: distances saturate to inf=100.
-        assert_eq!(out, [100, 100, 100]);
+        assert_eq!(out, [0, 0, 0]);
     }
 }

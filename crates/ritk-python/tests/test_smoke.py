@@ -177,6 +177,8 @@ def test_segmentation_public_functions_exist():
         "neighborhood_connected_segment",
         "skeletonization",
         "label_shape_statistics",
+        "binary_threshold_segment",
+        "marker_watershed_segment",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"

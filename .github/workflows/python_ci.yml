@@ -61,8 +61,13 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Add MSYS2 ucrt64 to PATH (Windows — clang-cl C++ runtime DLLs)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo 'C:/msys64/ucrt64/bin' >> $GITHUB_PATH
+
       - name: Install Python test tooling
-        run: pip install maturin[patchelf] pytest numpy
+        run: pip install maturin[patchelf] pytest numpy SimpleITK vtk
 
       - name: Build ritk wheel
         run: >-
@@ -84,6 +89,9 @@ jobs:
           crates/ritk-python/tests/test_segmentation_bindings.py
           crates/ritk-python/tests/test_statistics_bindings.py
           crates/ritk-python/tests/test_smoke.py
+          crates/ritk-python/tests/test_simpleitk_parity.py
+          crates/ritk-python/tests/test_vtk_parity.py
+          crates/ritk-python/tests/test_ct_mri_registration_parity.py
           -v
           --tb=short
 

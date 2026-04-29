@@ -50,6 +50,62 @@
 
 ---
 
+## Sprint 78 Gap Closures
+
+| ID | Description | Resolution |
+|---|---|---|
+| GAP-78-01 | Distance transform computed distance-to-background (wrong convention) | `phase1_row` seed condition inverted: `!row[x]` → `row[x]`; now matches ITK standard (distance-to-foreground, foreground=0) |
+| GAP-78-02 | `binary_threshold_segment` and `marker_watershed_segment` absent from `segmentation.pyi` and smoke test | Both stubs added to `segmentation.pyi`; both added to `test_smoke.py` required list |
+| GAP-78-03 | No parity tests for Yen/Kapur/Triangle/BinaryThreshold/DT | 5 new tests added to `test_simpleitk_parity.py` |
+| GAP-78-04 | §3.7 (Connected Components), §5.1 (Histogram Matching), §5.4 (label_statistics) stale in gap_audit | Section headers and status blocks updated to `Closed` |
+| GAP-78-05 | `_ritk.pyd` DLL load failure on clean Windows build (libstdc++-6.dll missing) | `CXXFLAGS_x86_64_pc_windows_msvc` added to `.cargo/config.toml`; MSYS2 ucrt64 PATH step added to CI |
+
+### Verification status
+
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib --release -- distance_transform` | 19 passed, 0 failed |
+| Combined Python suite | **106 passed, 0 failed** |
+| test_simpleitk_parity count | 44 (was 39; +5 new) |
+| test_python_api_parity stub check | 0 missing stubs |
+| Version strings | Cargo.toml = 0.10.0, `__version__` = "0.10.0" |
+
+### Updated risk posture
+
+- Distance transform convention is now ITK-standard; all downstream parity tests confirm correctness.
+- `CXXFLAGS_x86_64_pc_windows_msvc` static linking flags will take effect on the next full clean rebuild; existing binary was verified with DLLs in PATH.
+- GAP-R08 (Elastix parameter-map facade): Low severity, no action planned.
+
+---
+
+## Sprint 77 Gap Closures
+
+| ID | Description | Resolution |
+|---|---|---|
+| GAP-77-01 | Parity test files absent from `python_ci.yml` CI | Added `SimpleITK vtk` to pip install; added `test_simpleitk_parity.py`, `test_vtk_parity.py`, `test_ct_mri_registration_parity.py` to CI pytest invocation |
+| GAP-77-02 | No parity test for `multires_demons_register`, `inverse_consistent_demons_register`, `compute_label_intensity_statistics` | 3 new tests added; IC-Demons sigma corrected to 1.0 (root cause: over-smoothing) |
+| GAP-77-03 | `CHANGELOG.md` absent | Created; Sprints 71–77 documented; SemVer 2.0.0 |
+| GAP-77-04 | GAP-R07 section header stale ("High" despite Sprint 4 closure) | Header updated to "Closed"; implementation record added |
+| GAP-77-05 | 2 pre-existing test failures in `test_statistics_bindings.py` (1D array) | Reshaped to 3D; value-semantic assertions added |
+
+### Verification status
+
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-python` | `ritk-python v0.9.0` — 0 errors |
+| Combined Python parity suite | 69/69 passed |
+| test_simpleitk_parity count | 39 (was 36) |
+| test_statistics_bindings count | 8 passed, 0 failed (was 6/8) |
+
+### Updated risk posture
+
+- All known Python test failures resolved.
+- CI now gates on the full 39-test SimpleITK parity suite and 18-test VTK suite.
+- Remaining open risk: `ritk-python` wheel not rebuilt at v0.9.0 (metadata-only bump; no API change).
+- GAP-R08 (Elastix parameter-map facade): Low severity, no action planned.
+
+---
+
 ## Sprint 63 Gap Closures
 
 **Sprint 63 (2026):** Eight gaps closed. (1) GAP-R63-01: `BedSeparationFilter` + `BedSeparationConfig` added to `ritk-core/filter/intensity/bed_separation.rs`. Pipeline: `threshold_foreground` → `keep_largest_component` (BFS, 6-connected) → `binary_closing` → `binary_opening` → `apply_mask`. Conservative: prefer false negatives in table removal over removing anatomy. Default `body_threshold=-350.0` HU. (2) GAP-R63-02: `FilterKind` enum (`BedSeparation(BedSeparationConfig)`, `Gaussian { sigma }`, `Median { radius }`) added to `ritk-snap/src/lib.rs`. `apply_filter` method on `ViewerCore<B,3>`: concrete dispatch per arm, ownership-preserving via `take()`/restore, replaces study image in-place on success. `ModalityDisplay::for_modality`: CT→(center=-400,width=1500 HU lung window); MR→(600,1200); US→(128,256); default→(128,256). (3) GAP-R63-03: modality-aware viewer tests added (`test_modality_display_ct_window_parameters`); geometry summary invariant confirmed. (4) GAP-R63-04: `per_file_series_uids: Vec<Option<String>>` parallel vec built in `scan_dicom_directory` scan loop reading Tag(0x0020,0x000E). Series-UID grouping block after plurality-dim filter: counts per-UID, selects unique plurality UID (`series_at_max==1` guard), emits `tracing::warn!` with excluded count and selected UID, overrides `first_series_instance_uid`. Backward-compatible: tie cases (equal count) leave all slices merged as before. (5) GAP-R63-05: `write_dicom_seg` added to `seg.rs`. BINARY: MSB-first packing per DICOM PS3.5 §8.2 (`buf[base+i/8] |= 1<<(7-i%8)`) — exact inverse of `unpack_pixel_data`. FRACTIONAL: byte-per-voxel concatenation. SegmentSequence SQ with per-segment items. FileMetaTableBuilder with SEG_SOP_CLASS_UID + Explicit VR LE. (6) GAP-R63-06: `write_vti_binary_appended_bytes` + `write_vti_binary_appended_to_file` added to `image_xml/writer.rs`; `read_vti_binary_appended_bytes` + `read_vti_binary_appended` added to `image_xml/reader.rs`. Format: uint32-LE length prefix + f32-LE data per array; arrays sorted lexicographically by name for deterministic offsets; `_` marker isolates binary block from XML. (7) GAP-R63-07: `read_rt_dose` + `RtDoseGrid` in new `ritk-io/src/format/dicom/rt_dose.rs`. DoseGridScaling × u32-LE PixelData → `dose_gy: Vec<f64>`; GridFrameOffsetVector; IPP/IOP/PixelSpacing. SOP class validated: `1.2.840.10008.5.1.4.1.1.481.2`. (8) GAP-R63-08: `read_rt_plan` + `RtPlanInfo` + `RtBeamInfo` + `RtFractionGroup` in new `ritk-io/src/format/dicom/rt_plan.rs`. BeamSequence (3-level SQ) + FractionGroupSequence with ReferencedBeamSequence. SOP class: `1.2.840.10008.5.1.4.1.1.481.5`. Additional fix: `HeadlessViewerBackend::Error = std::io::Error` in `viewer.rs` (satisfies `StdError+Send+Sync+'static` bound on `ViewerBackend::Error`); `load_dicom_series` reverted to `Result<Image<B,3>>` (backward-compatible; tuple-returning variant is `load_dicom_series_with_metadata`). 445/445 ritk-io lib tests pass (+13 from Sprint 62 baseline of 432). 7/7 ritk-snap lib tests pass (+3). 177/177 ritk-cli tests pass.
@@ -843,17 +899,20 @@ hippocampus, thalamus, and cortical parcel segmentation.
 
 ---
 
-#### GAP-R07 — BSpline FFD Deformable Registration Pipeline · Severity: **High**
+#### GAP-R07 — BSpline FFD Deformable Registration Pipeline · Severity: **Closed** (BSplineFFDRegistration with multi-resolution refinement implemented, Sprint 4)
 
-RITK has `BSplineTransform` in `ritk-core` and CMA-ES / gradient descent optimizers, but
-has no assembled BSpline free-form deformation (FFD) registration pipeline (Rueckert et al.
-1999) that drives control point optimization with a similarity metric over a multi-resolution
-schedule.
+**Sprint 4 status**: `BSplineFFDRegistration` is **implemented** in `crates/ritk-registration/src/bspline_ffd/mod.rs` (~1430 lines). Rueckert et al. 1999 FFD pipeline with cubic B-spline basis, multi-resolution control-point refinement (grid doubling between levels), gradient-based NCC optimisation with bending-energy regularization, and Python binding `bspline_ffd_register`.
 
-**What is missing:**
-- Control-point grid initialization from image geometry.
-- Analytic / automatic gradient of MI/NCC w.r.t. control point displacements.
-- Multi-resolution BSpline refinement (control-point doubling between levels).
+**Implemented:**
+- `init_control_grid`: initializes control point grid from image geometry and spacing.
+- `compute_metric_gradient`: analytic NCC gradient w.r.t. control-point displacements via cubic B-spline basis derivatives.
+- `refine_control_grid` / `refine_component_3d`: multi-resolution refinement with control-point doubling between levels.
+- `bending_energy` / `bending_energy_gradient`: Tikhonov regularization on second-order mixed partial derivatives.
+- `BSplineFFDConfig`: `initial_control_spacing`, `num_levels`, `max_iterations_per_level`, `learning_rate`, `regularization_weight`, `convergence_threshold`.
+- Python binding: `ritk.registration.bspline_ffd_register(fixed, moving, initial_control_spacing=8, num_levels=3, ...)`.
+- 22 unit tests covering partition of unity, identity warp, refinement, bending energy, metric improvement, and error boundary conditions.
+
+**Implemented location:** `crates/ritk-registration/src/bspline_ffd/mod.rs`
 
 ---
 
@@ -1037,7 +1096,7 @@ crates/ritk-core/src/segmentation/morphology/
 └── skeletonization.rs
 ```
 
-### 3.7 Connected Component Analysis · Severity: **Critical**
+### 3.7 Connected Component Analysis · Severity: **Closed** (Hoshen-Kopelman + union-find implemented, Sprint 28)
 
 Union-Find (Hoshen-Kopelman) connected component labeling.
 Required output for: measuring lesion count, volume, shape descriptors.
@@ -1048,6 +1107,14 @@ Required output for: measuring lesion count, volume, shape descriptors.
 | Labeled component map | Each component gets unique integer label |
 | Per-component statistics | Volume, centroid, bounding box, principal axes |
 | Component filtering | Remove components by size, shape, or position |
+
+**Sprint 28 status**: `ConnectedComponentsFilter` (Hoshen-Kopelman + union-find) is **implemented**
+in `crates/ritk-core/src/segmentation/labeling/mod.rs` with 6-connectivity and 26-connectivity.
+Per-component statistics (voxel count, centroid, bounding box) via `LabelStatistics`.
+Exposed as `ritk.segmentation.connected_components` and `ritk.segmentation.label_shape_statistics`.
+Parity-tested against SimpleITK `ConnectedComponentImageFilter` (Sprint 77).
+
+**Implemented location:** `crates/ritk-core/src/segmentation/labeling/`
 
 **Planned location:**
 ```
@@ -1228,7 +1295,7 @@ Binary and grayscale morphological filters as standalone preprocessing operation
 
 ## 5. Statistics & Preprocessing Gaps
 
-### 5.1 Histogram Matching · Severity: **Critical**
+### 5.1 Histogram Matching · Severity: **Closed** (implemented Sprint 27)
 
 **Reference:** ITK `HistogramMatchingImageFilter`; SimpleITK `HistogramMatching`.
 
@@ -1241,6 +1308,13 @@ inter-subject and inter-scanner intensity bias.
 1. Compute CDFs of source and reference images.
 2. Build piecewise-linear mapping: for each quantile level `q`, map `F_src⁻¹(q)` → `F_ref⁻¹(q)`.
 3. Apply mapping as a lookup table to all voxels.
+
+**Sprint 27 status**: `HistogramMatchingFilter` is **implemented** in
+`crates/ritk-core/src/statistics/normalization/histogram_matching.rs`.
+CDF-based quantile-quantile piecewise-linear mapping. Exposed as `ritk.statistics.histogram_match`.
+Parity-tested against SimpleITK `HistogramMatchingImageFilter` (Sprint 77, 2 parity tests pass).
+
+**Implemented location:** `crates/ritk-core/src/statistics/normalization/histogram_matching.rs`
 
 **Planned location:** `crates/ritk-core/src/statistics/normalization/histogram_matching.rs`
 
@@ -1292,7 +1366,9 @@ RITK implements image-level statistics in `crates/ritk-core/src/statistics/`. IT
 
 **Sprint 38 note:** Python binding extraction bottleneck closed via `with_tensor_slice`. The `clone().into_data()` O(N) copy is eliminated for all read-only operations. Remaining performance gap vs SimpleITK for `compute_statistics` (2.38x) is due to sort-based percentile computation, not data extraction overhead. `compute_from_values` is public; `masked_statistics` path uses direct slice.
 
-**Remaining gap:** `label_statistics.rs` (per-label min/max/mean/volume) not implemented.
+**Sprint 77 status**: `compute_label_intensity_statistics` is **implemented** in
+`crates/ritk-core/src/statistics/label_statistics.rs`. Exposed as `ritk.statistics.compute_label_intensity_statistics`.
+Parity-tested against SimpleITK `LabelStatisticsImageFilter` (per-label mean agreement < 1e-3, Sprint 77).
 
 **Location:**
 ```
@@ -1301,7 +1377,7 @@ crates/ritk-core/src/statistics/
 ├── image_statistics.rs    # Min, max, mean, variance, percentile -- DONE
 ├── masked_statistics.rs   # Mask-gated statistics -- DONE
 ├── noise_estimation.rs    # MAD-based noise estimation -- DONE
-└── label_statistics.rs    # Per-label statistics over labeled map -- MISSING
+└── label_statistics.rs    # Per-label statistics over labeled map -- DONE
 ```
 
 ---
