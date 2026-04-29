@@ -1,12 +1,12 @@
-## Sprint 70 — Planned
+## Sprint 70 — Completed
 
-- [ ] GAP-R70-01: audit `white_stripe_normalize` Python binding; verify `width` and `contrast` parameters are exposed and validated
-- [ ] GAP-R70-02: add negative test for `zscore_normalize(mask=...)` with shape-mismatched mask (assert clear error boundary)
-- [ ] GAP-R70-03: audit `run_lddmm` `learning_rate` wiring; verify `RegisterArgs.learning_rate` is plumbed into `LDDMMConfig`
-- [ ] GAP-R70-04: add `test_minmax_normalize_range_inverted_bounds_raises` to `tests/test_statistics_bindings.py` (Python-level `PyValueError` path)
-- [ ] Verify: `cargo check --workspace --tests` 0 errors after each change
-- [ ] Verify: `cargo test -p ritk-core --lib` all pass
-- [ ] Update backlog.md and gap_audit.md on Sprint 70 closure
+- [x] GAP-R70-01: audited `white_stripe_normalize` Python binding; `mask`, `contrast`, and `width` are exposed and validated in `crates/ritk-python/src/statistics.rs`; no code change required
+- [x] GAP-R70-02: added negative test for `zscore_normalize(mask=...)` with shape-mismatched mask in `crates/ritk-python/tests/test_statistics_bindings.py`; asserts value-semantic error boundary
+- [x] GAP-R70-03: audited `run_lddmm` `learning_rate` wiring; `RegisterArgs.learning_rate` is already plumbed into `LddmmConfig`; no code change required
+- [x] GAP-R70-04: added `test_minmax_normalize_range_inverted_bounds_raises` to `crates/ritk-python/tests/test_statistics_bindings.py`; asserts Python-level `PyValueError` path
+- [x] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [x] Verify: `cargo test -p ritk-python --lib` all pass
+- [x] Update backlog.md and gap_audit.md on Sprint 70 closure
 
 ---
 

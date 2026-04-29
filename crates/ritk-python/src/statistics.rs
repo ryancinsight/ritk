@@ -385,6 +385,12 @@ pub fn zscore_normalize(
     let image_arc = Arc::clone(&image.inner);
     let result = match mask {
         Some(m) => {
+            if image_arc.shape() != m.inner.shape() {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "zscore_normalize: mask must have the same shape as image",
+                ));
+            }
+
             let mask_arc = Arc::clone(&m.inner);
             py.allow_threads(|| {
                 ZScoreNormalizer::new().normalize_masked(image_arc.as_ref(), mask_arc.as_ref())

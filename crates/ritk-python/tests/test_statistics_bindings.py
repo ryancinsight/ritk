@@ -1,4 +1,5 @@
 import math
+
 import numpy as np
 import pytest
 import ritk
@@ -94,3 +95,27 @@ def test_label_intensity_stats_four_voxels_known_mean_and_std() -> None:
     assert s["max"] == pytest.approx(4.0, abs=1e-5)
     assert s["mean"] == pytest.approx(2.5, abs=1e-5)
     assert s["std"] == pytest.approx(expected_std, abs=1e-5)
+
+
+def test_minmax_normalize_range_inverted_bounds_raises() -> None:
+    image = _image(np.array([0.0, 1.0, 2.0], dtype=np.float32))
+
+    with pytest.raises(ValueError, match="strictly less than"):
+        ritk.statistics.minmax_normalize_range(image, 1.0, 0.0)
+
+
+def test_zscore_normalize_mask_shape_mismatch_raises() -> None:
+    image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
+    mask = _image(np.ones((2, 2, 1), dtype=np.float32))
+
+    with pytest.raises(ValueError, match="same shape as image"):
+        ritk.statistics.zscore_normalize(image, mask=mask)
+
+
+def test_minmax_normalize_range_and_zscore_bindings_are_available() -> None:
+    image = _image(np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32))
+    ranged = ritk.statistics.minmax_normalize_range(image, 0.0, 1.0)
+    assert isinstance(ranged, ritk.Image)
+
+    zscore = ritk.statistics.zscore_normalize(image)
+    assert isinstance(zscore, ritk.Image)
