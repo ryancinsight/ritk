@@ -314,12 +314,12 @@ impl SnapApp {
 
                     if ui.button("Next slice").clicked() {
                         ui.close_menu();
-                        self.step_slice_for_axis(self.axis, 1);
+                        self.step_slice(1);
                     }
 
                     if ui.button("Previous slice").clicked() {
                         ui.close_menu();
-                        self.step_slice_for_axis(self.axis, -1);
+                        self.step_slice(-1);
                     }
                 });
 
@@ -538,10 +538,10 @@ impl SnapApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             // Keyboard slice navigation.
             if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-                self.step_slice_for_axis(self.axis, -1);
+                self.step_slice(-1);
             }
             if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-                self.step_slice_for_axis(self.axis, 1);
+                self.step_slice(1);
             }
 
             if self.loaded.is_none() {

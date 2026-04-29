@@ -1,3 +1,43 @@
+## Sprint 73 — Completed
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Download a proper CT/MRI DICOM combo for registration testing; add VTK filter parity tests against SimpleITK; add CT/MRI DICOM registration integration tests; fix all remaining ritk-snap compiler warnings.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R73-01 | 3 `ritk-snap` compiler warnings (unused doc comment, unused mut, dead code `step_slice`) | Warnings introduced in Sprint 72 implementation; `step_slice` was defined but never called | Changed `///` &#8594; `//` on nested closure doc comment in `loader.rs:302`; removed `mut` from `let mut try_add` in `loader.rs:304`; replaced 4 direct `step_slice_for_axis(self.axis, ±1)` call sites in `app.rs` with `self.step_slice(±1)` | [patch] |
+| GAP-R73-02 | Paired CT test data absent — only porcine phantom MRI existed without matching CT | Sprint 72 downloaded MRI but not the CT from the same phantom | Downloaded 409-slice MRI-DIR CT (512×512, 0.390625 mm pixel spacing, 0.625 mm slice thickness, CC BY 4.0, PatientID=MRI-DIR-zzmeatphantom) from TCIA to `test_data/3_head_ct_mridir/DICOM/`; updated `test_data/README.md` | [patch] |
+| GAP-R73-03 | No VTK filter parity tests | `test_simpleitk_parity.py` covered SimpleITK but no VTK comparison existed | Created `crates/ritk-python/tests/test_vtk_parity.py` with 10 VTK 9.6.1 &#8596; SimpleITK 2.5.4 parity tests: Gaussian (constant invariant + NRMSE < 0.15), gradient magnitude (analytical + Pearson r > 0.95), Laplacian (&#8711;²=0), median spike suppression, binary erosion (A&#8854;B&#8838;A), binary dilation (A&#8838;A&#8853;B), scalar range; 10/10 pass | [minor] |
+| GAP-R73-04 | No CT/MRI DICOM registration integration tests | No Rust test exercised the BSpline FFD pipeline on real DICOM data | Created `crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs` with 4 `#[ignore]` tests: CT DICOM metadata invariants, MRI DICOM metadata invariants, BSpline FFD NCC improvement on stride-16 32³ CT sub-volume (2-voxel x-shift, NCC_after > NCC_before &#8743; &#8805; 0.80), cross-modal intensity statistics differ | [minor] |
+
+### Architecture decisions
+- MRI-DIR porcine phantom CT (same anatomy as existing T2 MRI, gold fiducial ground truth) is the canonical CT&#8596;MRI test pair; no synthetic or mismatched data.
+- VTK parity tests use `pytest.importorskip` for graceful skip when VTK/SimpleITK are absent; consistent with Elastix `@skipif` pattern.
+- `step_slice` closes the dead-code gap without new logic: it is the existing `step_slice_for_axis(self.axis, delta)` wrapper; call sites consolidate to it.
+- CT/MRI integration tests are `#[ignore]` (require 79.9 MB downloaded data); run explicitly with `-- --ignored`.
+- VTK gradient/Laplacian filters require `SetDimensionality(3)`; default=2 silently skips the z-axis — documented in `test_vtk_parity.py` at module scope.
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap --tests` | 0 errors, 0 warnings |
+| `cargo check --test ct_mri_dicom_registration_test -p ritk-registration` | 0 errors, 0 warnings |
+| `pytest crates/ritk-python/tests/test_vtk_parity.py -v` | 10/10 pass in 1.23 s |
+| CT download: 409 DCM files, modality=CT, PatientID=MRI-DIR-zzmeatphantom | Verified |
+
+### Updated artifacts
+- `backlog.md`: Sprint 73 marked completed; all 4 gaps recorded as closed.
+- `checklist.md`: Sprint 73 checklist items marked complete.
+- `gap_audit.md`: Sprint 73 closure notes added; GAP-R07 confirmed closed (Sprint 66); GAP-R08 risk posture updated.
+
+### Residual risk
+- GAP-R08 (Elastix parameter-map interface, ASGD optimizer, Transformix path) remains Medium — parity tests exist but are skipped because Elastix is absent in the current Python environment.
+- CT/MRI integration tests require manual download trigger (`cargo test -- --ignored`); not part of the standard CI pass.
+
+---
+
 ## Sprint 72 — Completed
 
 **Status**: Completed

@@ -99,6 +99,41 @@
 | GAP-R66-03 | BSpline FFD registration absent (stated in Sprint 65 open risks) | **Closed (prior sprint)** — confirmed present in `bspline_ffd/mod.rs`, `lib.rs`, Python binding, and CLI; backlog corrected |
 | GAP-R66-04 | K-Means CLI/Python parity: `max_iterations`, `tolerance`, `seed` unexposed | **Closed** — Sprint 66: CLI `SegmentArgs` + `run_kmeans` updated; Python `kmeans_segment` signature extended |
 
+## Sprint 73 Gap Closures
+
+**Sprint 73 (2026):** Four gaps closed. (1) GAP-R73-01: Three `ritk-snap` compiler warnings eliminated. `loader.rs:302` doc comment (`///`) on nested closure changed to plain comment (`//`); `loader.rs:304` `let mut try_add` → `let try_add` (closure never rebinds); `app.rs:1109` `step_slice` dead-code warning resolved by replacing four direct `step_slice_for_axis(self.axis, ±1)` call sites in `show_menu_bar` and `show_central_panel_single` with `self.step_slice(±1)` — the method now participates in scroll and keyboard dispatch. `cargo check -p ritk-snap --tests` → 0 errors, 0 warnings. (2) GAP-R73-02: 409-slice cranial CT DICOM series downloaded from TCIA MRI-DIR collection (PatientID `MRI-DIR-zzmeatphantom`, SeriesInstanceUID `1.3.6.1.4.1.14519.5.2.1.1706.4996.115936088547498980797393821518`, 79.9 MB ZIP, CC BY 4.0) and extracted to `test_data/3_head_ct_mridir/DICOM/`. Geometry: 512×512 in-plane, 0.390625 mm pixel spacing, 0.625 mm slice thickness. This CT is from the **same phantom** as the existing `test_data/2_head_mri_t2/` T2 MRI (94 slices), providing a true CT↔MRI pair with implanted 0.35 mm gold fiducial markers for ground-truth registration accuracy evaluation (Ger et al. 2018, DOI: 10.1002/mp.13090). `test_data/README.md` updated with the new dataset section, pairing note, and W/L reference values. (3) GAP-R73-03: `crates/ritk-python/tests/test_vtk_parity.py` created with 10 value-semantic VTK 9.6.1 ↔ SimpleITK 2.5.4 filter parity tests. Covered operations: `vtkImageGaussianSmooth` (constant-image invariant + sphere NRMSE < 0.15 vs SimpleITK `DiscreteGaussianImageFilter`); `vtkImageGradientMagnitude` (linear ramp → analytical magnitude 1.0; Pearson r > 0.95 vs SimpleITK); `vtkImageLaplacian` (linear image → ∇²=0); `vtkImageMedian3D` (single-spike suppression); `vtkImageDilateErode3D` (erosion shrinks sphere A⊖B⊆A; dilation grows sphere A⊆A⊕B); `vtkImageAccumulate` scalar range vs analytical. All 10 tests pass in 1.23 s. Key fix: `SetDimensionality(3)` required on all VTK gradient/Laplacian instances (default=2 silently skips z-axis). Numpy–VTK axis contract (`arr[iz,iy,ix]` ravelled `order='F'` maps to VTK x=iz, y=iy, z=ix) documented at module scope. (4) GAP-R73-04: `crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs` created with 4 integration tests (all `#[ignore = "requires test data"]`). Tests: `test_ct_dicom_series_metadata` (modality=CT, shape 405–413×512×512, spacing invariants); `test_mri_dir_mri_series_metadata` (modality=MR, 92–96 slices, non-trivial intensity range); `test_bspline_ffd_mridir_ct_synthetic_shift_recovery` (stride-16 downsampling to ≈32³, 2-voxel x-shift, BSpline FFD NCC_after > NCC_before, NCC_after ≥ 0.80); `test_ct_mri_pair_intensity_statistics_differ` (CT HU range > 100, cross-modality NCC < 0.95). `cargo check --test ct_mri_dicom_registration_test -p ritk-registration` → 0 errors, 0 warnings.
+
+| ID | Gap | Status |
+|---|---|---|
+| GAP-R73-01 | 3 `ritk-snap` compiler warnings (unused doc comment, unused mut, dead code `step_slice`) | **Closed** — Sprint 73: doc comment → plain comment in `loader.rs:302`; `mut` removed from `loader.rs:304`; `step_slice` connected to scroll/keyboard handler in `app.rs` |
+| GAP-R73-02 | MRI-DIR CT test data absent; only porcine phantom MRI existed without paired CT | **Closed** — Sprint 73: 409-slice CT (512×512, 0.625 mm, CC BY 4.0) downloaded to `test_data/3_head_ct_mridir/DICOM/`; `test_data/README.md` updated |
+| GAP-R73-03 | No VTK parity tests for image filter operations | **Closed** — Sprint 73: `test_vtk_parity.py` added; 10 tests covering Gaussian, gradient, Laplacian, median, binary morphology, statistics; all pass |
+| GAP-R73-04 | No CT/MRI DICOM registration integration tests | **Closed** — Sprint 73: `ct_mri_dicom_registration_test.rs` added; 4 `#[ignore]` tests validating DICOM metadata + BSpline FFD NCC improvement on real CT sub-volume |
+
+### Sprint 73 closure notes
+- VTK filter parity tests use `pytest.importorskip` guards; they are skipped gracefully when VTK or SimpleITK are absent, consistent with the Elastix `@skipif` pattern in `test_simpleitk_parity.py`.
+- The CT/MRI DICOM integration tests are marked `#[ignore]` because they require the 79.9 MB `test_data/3_head_ct_mridir/DICOM/` data, which is not committed to version control.
+- `step_slice` now reduces duplication: all ±1 axial step call sites use the method, which delegates to `step_slice_for_axis(self.axis, delta)`.
+- The MRI-DIR phantom CT+MRI pair (same anatomy, gold fiducial ground truth) is the canonical CT↔MRI registration test dataset for RITK.
+
+### Verification status
+| Check | Status | Notes |
+|---|---|---|
+| `cargo check -p ritk-snap --tests` | Passed | 0 errors, 0 warnings |
+| `cargo check --test ct_mri_dicom_registration_test -p ritk-registration` | Passed | 0 errors, 0 warnings |
+| `pytest crates/ritk-python/tests/test_vtk_parity.py -v` | Passed | 10/10 tests pass in 1.23 s |
+| CT download verified | Passed | 409 DCM files, modality=CT, PatientID=MRI-DIR-zzmeatphantom |
+
+### Updated risk posture
+| Risk | Status |
+|---|---|
+| GAP-R73-01 | Closed |
+| GAP-R73-02 | Closed |
+| GAP-R73-03 | Closed |
+| GAP-R73-04 | Closed |
+| GAP-R07 (BSpline FFD pipeline) | Closed — confirmed Sprint 66 (implementation present, Python+CLI exposed) |
+| GAP-R08 (Elastix parity tests) | Partially closed — parity tests exist (`test_simpleitk_parity.py` §4); Elastix not present in current env (tests skipped); ASGD optimizer and parameter-map interface remain absent |
+
 ## Sprint 72 Gap Closures
 
 **Sprint 72 (2026):** Ten gaps closed. (1) GAP-R72-01: `SnapApp` struct implementing `eframe::App` added in `crates/ritk-snap/src/app.rs`; `main.rs` binary entry point calls `run_app`; `lib.rs` extended with `LoadedVolume`, `run_app`, and module declarations for `render`, `tools`, `dicom`, and `ui` submodules. (2) GAP-R72-02: `SidebarPanel` added in `crates/ritk-snap/src/ui/sidebar.rs`; Patient→Study→Series tree populated by `scan_dicom_directory` via `dicom/series_tree.rs`. (3) GAP-R72-03: 2×2 `MprLayout` with axial, coronal, and sagittal viewports implemented in `crates/ritk-snap/src/ui/layout.rs` and `ui/viewport.rs`. (4) GAP-R72-04: `WindowPreset` with 14 CT presets (e.g., bone, lung, brain, abdomen) and 4 MR presets implemented in `crates/ritk-snap/src/ui/window_presets.rs`; preset selection exposed via View → Window menu. (5) GAP-R72-05: `ToolKind` enum and `InteractionState` implemented in `crates/ritk-snap/src/tools/kind.rs` and `tools/interaction.rs`; Length, Angle, Rect ROI, Ellipse ROI, and HU-point tools rendered and measured in `ui/measurements.rs` with mm-accurate computation using DICOM pixel-spacing metadata. (6) GAP-R72-06: `load_nifti_volume` dispatched via `ritk-io` in the GUI file-open handler; `LoadedVolume` carries the NIfTI volume with affine metadata. (7) GAP-R72-07: `OverlayRenderer` added in `crates/ritk-snap/src/ui/overlay.rs`; renders Patient/Study/Series/Slice DICOM tags at 4 corners and patient orientation labels (L/R, A/P, S/I) on each viewport edge. (8) GAP-R72-08: PNG export calls `rfd::FileDialog` save-file picker then encodes the current viewport slice via the `image` crate in `crates/ritk-snap/src/ui/toolbar.rs`. (9) GAP-R72-09: 94-slice MRI-DIR head T2 DICOM series downloaded from TCIA (CC BY 4.0) to `test_data/2_head_mri_t2/DICOM/`; provenance, license, and intended use documented in `test_data/README.md`. (10) GAP-R72-10: 7 colormaps (grayscale, hot, cool, jet, viridis, plasma, bone) implemented as piecewise-linear LUT tables in `crates/ritk-snap/src/render/colormap.rs`; `SliceRenderer` in `render/slice_render.rs` applies the active LUT during texture update; 42+ colormap and render tests added. Commit a3b08bd pushed to origin/main. 102/102 tests pass workspace-wide (up from 42 pre-Sprint-72 baseline).

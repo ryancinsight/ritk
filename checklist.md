@@ -1,3 +1,16 @@
+## Sprint 73 — Completed
+
+- [x] GAP-R73-01: fixed 3 `ritk-snap` compiler warnings — doc comment `///` → `//` on nested closure in `loader.rs:302`; `let mut try_add` → `let try_add` in `loader.rs:304`; `step_slice` dead-code resolved by connecting 4 `step_slice_for_axis(self.axis, ±1)` call sites to `self.step_slice(±1)` in `app.rs`
+- [x] GAP-R73-02: downloaded 409-slice MRI-DIR cranial CT (512×512, 0.625 mm, 0.390625 mm pixel spacing, CC BY 4.0, PatientID=MRI-DIR-zzmeatphantom) from TCIA to `test_data/3_head_ct_mridir/DICOM/`; updated `test_data/README.md` with dataset section, phantom pairing note, and W/L reference values
+- [x] GAP-R73-03: created `crates/ritk-python/tests/test_vtk_parity.py` with 10 VTK 9.6.1 ↔ SimpleITK 2.5.4 filter parity tests covering Gaussian smooth (constant invariant + sphere NRMSE < 0.15), gradient magnitude (linear ramp analytical + Pearson r > 0.95 vs SimpleITK), Laplacian (linear image → ∇²=0), median spike suppression, binary erosion (A⊖B⊆A), binary dilation (A⊆A⊕B), scalar range analytical; all 10 pass in 1.23 s; `SetDimensionality(3)` fix documented
+- [x] GAP-R73-04: created `crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs` with 4 `#[ignore = "requires test data"]` integration tests: CT metadata (modality, shape 405–413×512×512, spacing invariants), MRI metadata (modality=MR, 92–96 slices), BSpline FFD synthetic shift recovery (stride-16 32³ sub-volume, 2-voxel x-shift, NCC_after > NCC_before ∧ NCC_after ≥ 0.80), cross-modal intensity statistics differ (HU range > 100, NCC < 0.95)
+- [x] Verify: `cargo check -p ritk-snap --tests` → 0 errors, 0 warnings
+- [x] Verify: `cargo check --test ct_mri_dicom_registration_test -p ritk-registration` → 0 errors, 0 warnings
+- [x] Verify: `pytest crates/ritk-python/tests/test_vtk_parity.py -v` → 10/10 pass
+- [x] Update gap_audit.md, backlog.md Sprint 73 closure notes
+
+---
+
 ## Sprint 72 — Completed
 
 - [x] GAP-R72-01: implemented `SnapApp` eframe/egui binary with full multi-viewport viewer in `crates/ritk-snap/src/app.rs` and `main.rs`; 19 new source files added across `render/`, `tools/`, `dicom/`, and `ui/` submodules

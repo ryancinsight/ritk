@@ -299,11 +299,11 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
     let mut entries: Vec<SeriesEntry> = Vec::new();
     let mut seen_folders: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
 
-    /// Try to scan `dir` for DICOM content and append to `entries` if not
-    /// already seen.
-    let mut try_add = |dir: &Path,
-                       entries: &mut Vec<SeriesEntry>,
-                       seen: &mut std::collections::HashSet<PathBuf>| {
+    // Try to scan `dir` for DICOM content and append to `entries` if not
+    // already seen.
+    let try_add = |dir: &Path,
+                   entries: &mut Vec<SeriesEntry>,
+                   seen: &mut std::collections::HashSet<PathBuf>| {
         let canonical = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
         if seen.contains(&canonical) {
             return;
