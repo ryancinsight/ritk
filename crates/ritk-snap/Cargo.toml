@@ -2,8 +2,12 @@
 name = "ritk-snap"
 version = "0.1.0"
 edition = "2021"
-description = "RITK image viewer crate"
+description = "RITK DICOM image viewer — full-featured medical workstation viewer"
 license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "ritk-snap"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -15,3 +19,14 @@ ritk-io = { workspace = true }
 serde = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+eframe = { version = "0.28", default-features = true }
+egui = "0.28"
+rfd = "0.14"
+image = { workspace = true }
+nalgebra = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+walkdir = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+tempfile = { workspace = true }

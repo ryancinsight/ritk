@@ -440,6 +440,127 @@ impl ModalityDisplay {
     }
 }
 
+mod app;
+pub mod dicom;
+pub mod render;
+pub mod tools;
+pub mod ui;
+
+/// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
+///
+/// Data is stored in row-major `[depth, rows, cols]` order. Voxel values are
+/// in HU for CT or relative intensity for other modalities.
+#[derive(Debug, Clone)]
+pub struct LoadedVolume {
+    /// Pixel data in row-major [depth, rows, cols] order, f32 HU or relative intensity.
+    pub data: std::sync::Arc<Vec<f32>>,
+    /// Image shape [depth, rows, cols].
+    pub shape: [usize; 3],
+    /// Voxel spacing [dz, dy, dx] in mm/pixel.
+    pub spacing: [f64; 3],
+    /// Image origin in physical space.
+    pub origin: [f64; 3],
+    /// Direction cosine matrix (row-major 3x3 flattened).
+    pub direction: [f64; 9],
+    /// Optional DICOM metadata.
+    pub metadata: Option<Box<ritk_io::DicomReadMetadata>>,
+    /// Source path.
+    pub source: Option<std::path::PathBuf>,
+    /// DICOM modality string.
+    pub modality: Option<String>,
+    /// Patient name from metadata.
+    pub patient_name: Option<String>,
+    /// Patient ID from metadata.
+    pub patient_id: Option<String>,
+    /// Study date from metadata.
+    pub study_date: Option<String>,
+    /// Series description from metadata.
+    pub series_description: Option<String>,
+}
+
+impl LoadedVolume {
+    /// Get the pixel value at voxel position (d, r, c).
+    ///
+    /// Returns `0.0` when any index exceeds the corresponding dimension bound.
+    pub fn pixel_at(&self, d: usize, r: usize, c: usize) -> f32 {
+        let [depth, rows, cols] = self.shape;
+        if d >= depth || r >= rows || c >= cols {
+            return 0.0;
+        }
+        self.data[d * rows * cols + r * cols + c]
+    }
+
+    /// Extract a 2D slice as a flat `Vec<f32>` in row-major order.
+    ///
+    /// # Axis semantics
+    /// - `axis = 0` — axial (fixed depth index `d`): output shape `[rows, cols]`,
+    ///   returns `(pixels, cols, rows)`.
+    /// - `axis = 1` — coronal (fixed row index `r`): output shape `[depth, cols]`,
+    ///   returns `(pixels, cols, depth)`.
+    /// - `axis = 2` — sagittal (fixed column index `c`): output shape `[depth, rows]`,
+    ///   returns `(pixels, rows, depth)`.
+    ///
+    /// An out-of-range `index` is silently clamped to the last valid position.
+    /// An unknown `axis` returns an empty result `(vec![], 0, 0)`.
+    pub fn extract_slice(&self, axis: usize, index: usize) -> (Vec<f32>, usize, usize) {
+        let [depth, rows, cols] = self.shape;
+        match axis {
+            0 => {
+                // Axial: fixed d, iterate (r, c).
+                let d = index.min(depth.saturating_sub(1));
+                let pixels = (0..rows)
+                    .flat_map(|r| (0..cols).map(move |c| (r, c)))
+                    .map(|(r, c)| self.pixel_at(d, r, c))
+                    .collect();
+                (pixels, cols, rows)
+            }
+            1 => {
+                // Coronal: fixed r, iterate (d, c).
+                let r = index.min(rows.saturating_sub(1));
+                let pixels = (0..depth)
+                    .flat_map(|d| (0..cols).map(move |c| (d, c)))
+                    .map(|(d, c)| self.pixel_at(d, r, c))
+                    .collect();
+                (pixels, cols, depth)
+            }
+            2 => {
+                // Sagittal: fixed c, iterate (d, r).
+                let c = index.min(cols.saturating_sub(1));
+                let pixels = (0..depth)
+                    .flat_map(|d| (0..rows).map(move |r| (d, r)))
+                    .map(|(d, r)| self.pixel_at(d, r, c))
+                    .collect();
+                (pixels, rows, depth)
+            }
+            _ => (vec![], 0, 0),
+        }
+    }
+}
+
+/// Launch the `ritk-snap` native GUI application.
+///
+/// Initialises `eframe` with a 1280×800 viewport, constructs a [`app::SnapApp`]
+/// via [`Default`], and enters the platform event loop. This function blocks
+/// until the window is closed.
+///
+/// # Errors
+/// Returns an error if `eframe` cannot create a window or encounters a fatal
+/// platform error during the event loop.
+pub fn run_app() -> anyhow::Result<()> {
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_title("ritk-snap — DICOM Viewer")
+            .with_inner_size([1280.0, 800.0]),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "ritk-snap",
+        native_options,
+        Box::new(|_cc| Ok(Box::new(app::SnapApp::default()))),
+    )
+    .map_err(|e| anyhow::anyhow!("eframe error: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
