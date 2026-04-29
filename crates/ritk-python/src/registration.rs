@@ -958,14 +958,23 @@ pub fn lddmm_register(
 ///
 /// Returns:
 ///     (template, convergence_history):
-///     - `template`: the final atlas template image with spatial metadata from
-///       the first subject.
-///     - `convergence_history`: per-iteration RMS change values.
+/// - `template`: the final atlas template image with spatial metadata from
+/// the first subject.
+/// - `convergence_history`: per-iteration RMS change values.
+///
+/// Args:
+/// subjects: list of subject images (must share shape/dtype).
+/// max_iterations: outer atlas convergence iterations (default 5).
+/// convergence_threshold: RMS change threshold for atlas convergence (default 0.01).
+/// syn_iterations: per-level SyN iterations; defaults to [100, 70, 20].
+/// sigma_smooth: Gaussian regularisation sigma for SyN velocity fields (default 3.0).
+/// cc_radius: local cross-correlation window radius (default 2).
+/// gradient_step: maximum per-iteration displacement in voxels (inf-norm, default 0.25).
 ///
 /// Raises:
-///     RuntimeError: if subjects is empty, shapes mismatch, or registration fails.
+/// RuntimeError: if subjects is empty, shapes mismatch, or registration fails.
 #[pyfunction]
-#[pyo3(signature = (subjects, max_iterations=5, convergence_threshold=0.01, syn_iterations=None, sigma_smooth=3.0, cc_radius=2))]
+#[pyo3(signature = (subjects, max_iterations=5, convergence_threshold=0.01, syn_iterations=None, sigma_smooth=3.0, cc_radius=2, gradient_step=0.25))]
 pub fn build_atlas(
     py: Python<'_>,
     subjects: Vec<Py<PyImage>>,
@@ -974,6 +983,7 @@ pub fn build_atlas(
     syn_iterations: Option<Vec<usize>>,
     sigma_smooth: f64,
     cc_radius: usize,
+    gradient_step: f64,
 ) -> PyResult<(PyImage, Vec<f64>)> {
     if subjects.is_empty() {
         return Err(pyo3::exceptions::PyRuntimeError::new_err(
@@ -1012,7 +1022,7 @@ pub fn build_atlas(
                 n_squarings: 6,
                 cc_window_radius: cc_radius,
                 enforce_inverse_consistency: true,
-                gradient_step: 0.25,
+                gradient_step,
             };
             let config = AtlasConfig {
                 max_iterations,

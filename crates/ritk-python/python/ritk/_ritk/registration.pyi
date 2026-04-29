@@ -98,6 +98,7 @@ def build_atlas(
     syn_iterations: list[int] | None = None,
     sigma_smooth: float = 3.0,
     cc_radius: int = 2,
+    gradient_step: float = 0.25,
 ) -> tuple[Image, list[float]]: ...
 def majority_vote_fusion(
     atlas_labels: list[Image],
