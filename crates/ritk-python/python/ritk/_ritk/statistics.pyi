@@ -78,8 +78,12 @@ def minmax_normalize_range(image: Image, target_min: float, target_max: float) -
     """Min-max rescale to [target_min, target_max]."""
     ...
 
-def zscore_normalize(image: Image) -> Image:
-    """Z-score standardization (zero mean, unit variance)."""
+def zscore_normalize(image: Image, mask: Image | None = None) -> Image:
+    """Z-score standardization (zero mean, unit variance).
+
+    If *mask* is provided, statistics are computed from foreground voxels
+    (mask > 0.5) and applied to all voxels.
+    """
     ...
 
 def histogram_match(source: Image, reference: Image) -> Image:

@@ -104,6 +104,23 @@ def test_minmax_normalize_range_inverted_bounds_raises() -> None:
         ritk.statistics.minmax_normalize_range(image, 1.0, 0.0)
 
 
+def test_zscore_normalize_masked_matches_foreground_shape() -> None:
+    image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
+    mask = _image(
+        np.array([[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]]], dtype=np.float32)
+    )
+
+    result = ritk.statistics.zscore_normalize(image, mask=mask)
+    result_np = result.to_numpy()
+
+    assert result_np.shape == image.to_numpy().shape
+    assert np.isfinite(result_np).all()
+
+    foreground = result_np[mask.to_numpy() > 0.5]
+    assert foreground.size == 4
+    assert foreground.mean() == pytest.approx(0.0, abs=1e-5)
+
+
 def test_zscore_normalize_mask_shape_mismatch_raises() -> None:
     image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
     mask = _image(np.ones((2, 2, 1), dtype=np.float32))

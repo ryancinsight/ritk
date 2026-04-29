@@ -1,12 +1,12 @@
-## Sprint 71 — Planned
+## Sprint 71 — Completed
 
-- [ ] GAP-R71-01: update `crates/ritk-python/python/ritk/_ritk/statistics.pyi` so `zscore_normalize` exposes optional `mask: Image | None = None`
-- [ ] GAP-R71-02: add a positive Python-level smoke test for `zscore_normalize(image, mask=...)` with matching shapes and assert computed output values
-- [ ] GAP-R71-03: verify `test_smoke.py` and `test_statistics_bindings.py` match the compiled `zscore_normalize` callable signature
-- [ ] GAP-R71-04: sync `backlog.md`, `checklist.md`, and `gap_audit.md` after verification
-- [ ] Verify: `cargo check --workspace --tests` 0 errors after each change
-- [ ] Verify: `cargo test -p ritk-python --lib` all pass
-- [ ] Update backlog.md and gap_audit.md on Sprint 71 closure
+- [x] GAP-R71-01: updated `crates/ritk-python/python/ritk/_ritk/statistics.pyi` so `zscore_normalize` exposes optional `mask: Image | None = None`
+- [x] GAP-R71-02: added a positive Python-level smoke test for `zscore_normalize(image, mask=...)` with matching shapes and asserted computed output values
+- [x] GAP-R71-03: verified `test_smoke.py` and `test_statistics_bindings.py` match the compiled `zscore_normalize` callable signature
+- [x] GAP-R71-04: synced `backlog.md`, `checklist.md`, and `gap_audit.md` after verification
+- [x] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [x] Verify: `cargo test -p ritk-python --lib` all pass
+- [x] Update backlog.md and gap_audit.md on Sprint 71 closure
 
 ---
 
