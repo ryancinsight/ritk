@@ -1,3 +1,19 @@
+## Sprint 71 — Planned
+
+**Status**: Planned
+**Phase**: Foundation
+**Goal**: Expose `zscore_normalize` mask parity in the Python stub surface; add Python-level smoke coverage for masked z-score; verify the current API surface remains aligned with the compiled binding; preserve backward-compatible default behavior.
+
+### Gaps to close
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R71-01 | `zscore_normalize` Python stub lacks optional `mask` parity | Compiled binding accepts `mask=None`, but the stub file still exposes `def zscore_normalize(image: Image) -> Image` | Update `crates/ritk-python/python/ritk/_ritk/statistics.pyi` to include `mask: Image | None = None` | [patch] |
+| GAP-R71-02 | `zscore_normalize(mask=...)` smoke coverage absent in Python test suite | Existing regression test covers shape mismatch, but no positive Python-level smoke case asserts masked dispatch and output shape/value semantics | Add a Python regression test exercising `zscore_normalize(image, mask=...)` with matching shapes and asserting computed values | [patch] |
+| GAP-R71-03 | Python API contract drift between stub and runtime for `zscore_normalize` | The runtime binding has optional mask support; the stub and smoke suite must reflect the compiled callable signature | Audit `test_smoke.py` and `test_statistics_bindings.py`; update only if required | [patch] |
+| GAP-R71-04 | Sprint artifact drift after prior closure | Sprint 70 artifacts are complete, but Sprint 71 tracking needs a fresh entry before implementation proceeds | Update `backlog.md`, `checklist.md`, and `gap_audit.md` after verification | [patch] |
+
+---
+
 ## Sprint 70 — Completed
 
 **Status**: Completed

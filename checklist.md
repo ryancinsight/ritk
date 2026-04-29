@@ -1,3 +1,15 @@
+## Sprint 71 — Planned
+
+- [ ] GAP-R71-01: update `crates/ritk-python/python/ritk/_ritk/statistics.pyi` so `zscore_normalize` exposes optional `mask: Image | None = None`
+- [ ] GAP-R71-02: add a positive Python-level smoke test for `zscore_normalize(image, mask=...)` with matching shapes and assert computed output values
+- [ ] GAP-R71-03: verify `test_smoke.py` and `test_statistics_bindings.py` match the compiled `zscore_normalize` callable signature
+- [ ] GAP-R71-04: sync `backlog.md`, `checklist.md`, and `gap_audit.md` after verification
+- [ ] Verify: `cargo check --workspace --tests` 0 errors after each change
+- [ ] Verify: `cargo test -p ritk-python --lib` all pass
+- [ ] Update backlog.md and gap_audit.md on Sprint 71 closure
+
+---
+
 ## Sprint 70 — Completed
 
 - [x] GAP-R70-01: audited `white_stripe_normalize` Python binding; `mask`, `contrast`, and `width` are exposed and validated in `crates/ritk-python/src/statistics.rs`; no code change required

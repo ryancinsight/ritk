@@ -99,38 +99,38 @@
 | GAP-R66-03 | BSpline FFD registration absent (stated in Sprint 65 open risks) | **Closed (prior sprint)** — confirmed present in `bspline_ffd/mod.rs`, `lib.rs`, Python binding, and CLI; backlog corrected |
 | GAP-R66-04 | K-Means CLI/Python parity: `max_iterations`, `tolerance`, `seed` unexposed | **Closed** — Sprint 66: CLI `SegmentArgs` + `run_kmeans` updated; Python `kmeans_segment` signature extended |
 
-## Sprint 70 Gap Closures
+## Sprint 71 Gap Closures
 
-**Sprint 70 (2026):** Four gaps closed. (1) GAP-R70-01: `white_stripe_normalize` already exposed `mask: Option<&PyImage>`, `contrast: Option<&str>`, and `width: Option<f64>` in `ritk-python/src/statistics.rs`; `contrast` already validated invalid values with `PyValueError`; no code change required. (2) GAP-R70-02: `zscore_normalize` now validates that `mask.shape == image.shape` at the Python boundary and raises `PyValueError` on mismatch; `crates/ritk-python/tests/test_statistics_bindings.py` added `test_zscore_normalize_mask_shape_mismatch_raises` to assert the shape-mismatch error boundary. (3) GAP-R70-03: `run_lddmm` already wired `learning_rate: args.learning_rate` into `LddmmConfig` in `crates/ritk-cli/src/commands/register.rs`; no code change required. (4) GAP-R70-04: `test_minmax_normalize_range_and_zscore_bindings_are_available` and `test_minmax_normalize_range_inverted_bounds_raises` present in `crates/ritk-python/tests/test_statistics_bindings.py`; the former exercises the successful min-max and z-score bindings, and the latter exercises the `PyValueError` path for inverted bounds. 777/777 ritk-core lib tests pass (unchanged). 197/197 ritk-cli tests pass (unchanged). 11/11 ritk-python lib tests pass (unchanged).
+**Sprint 71 (2026):** Four gaps opened. (1) GAP-R71-01: the compiled `zscore_normalize` binding in `crates/ritk-python/src/statistics.rs` already accepts an optional `mask`, but the stub surface in `crates/ritk-python/python/ritk/_ritk/statistics.pyi` still exposes `def zscore_normalize(image: Image) -> Image`; update the stub to reflect the compiled callable signature. (2) GAP-R71-02: add a positive Python-level smoke case for `zscore_normalize(image, mask=...)` with matching shapes and assert value-semantic output behavior. (3) GAP-R71-03: verify `test_smoke.py` and `test_statistics_bindings.py` remain aligned with the compiled `zscore_normalize` signature after stub updates. (4) GAP-R71-04: refresh Sprint 71 tracking artifacts after verification. Current source evidence still shows `run_lddmm` wired with `learning_rate: args.learning_rate`, so no registration change is required. 777/777 ritk-core lib tests pass (unchanged). 197/197 ritk-cli tests pass (unchanged). 11/11 ritk-python lib tests pass (unchanged).
 
 | ID | Gap | Status |
 |---|---|---|
-| GAP-R70-01 | `white_stripe_normalize` Python binding parameter surface audit | **Closed by source audit** — `mask`, `contrast`, and `width` are already exposed; invalid `contrast` already raises `PyValueError` |
-| GAP-R70-02 | `zscore_normalize(mask=...)` shape-mismatch negative test | **Closed** — `zscore_normalize` now validates mask/image shape equality at the Python boundary and raises `PyValueError` on mismatch |
-| GAP-R70-03 | `run_lddmm` `learning_rate` wiring audit | **Closed by source audit** — `learning_rate: args.learning_rate` is already present in `LddmmConfig` |
-| GAP-R70-04 | `minmax_normalize_range` Python-level inverted-bounds test | **Closed** — Python regression test added in `crates/ritk-python/tests/test_statistics_bindings.py`; asserts `ValueError` and checks message contains "strictly less than" |
+| GAP-R71-01 | `zscore_normalize` Python stub lacks optional `mask` parity | **Open** — `crates/ritk-python/python/ritk/_ritk/statistics.pyi` still exposes `def zscore_normalize(image: Image) -> Image` |
+| GAP-R71-02 | `zscore_normalize(mask=...)` positive smoke case absent | **Open** — no Python regression currently asserts masked dispatch with matching shapes and value semantics |
+| GAP-R71-03 | `test_smoke.py` / `test_statistics_bindings.py` callable-surface drift audit | **Open** — verify the tests remain aligned with the compiled signature after stub updates |
+| GAP-R71-04 | Sprint 71 artifact refresh pending | **Open** — update backlog, checklist, and gap audit after verification |
 
-### Sprint 70 closure notes
-- No public API changes were required.
-- GAP-R70-01 and GAP-R70-03 were pre-closed in source and recorded as artifact-only closures.
-- GAP-R70-04 was closed by a Python regression test in the existing `ritk-python` suite.
-- GAP-R70-02 is closed by a Python-boundary shape check and regression test; the binding accepts `mask=` and rejects mismatched shapes with `PyValueError`.
+### Sprint 71 planning notes
+- The compiled `zscore_normalize` binding already accepts an optional `mask`; the stub surface is stale and must be updated to match the runtime callable.
+- Sprint 71 should add one positive Python regression case for masked z-score with matching shapes and confirm the output shape and computed values.
+- The existing `minmax_normalize_range` inverted-bounds regression remains valid and unchanged.
+- `run_lddmm` learning-rate wiring is already present and requires no code change.
 
 ### Verification status
 | Check | Status | Notes |
 |---|---|---|
 | `cargo check --workspace --tests` | Passed | Workspace compiled successfully in the prior sprint verification pass |
-| `cargo test -p ritk-python --lib` | Passed | 10/10 tests passed in the prior sprint verification pass |
-| Python regression tests | Passed | `test_minmax_normalize_range_inverted_bounds_raises` passed in `crates/ritk-python/tests/test_statistics_bindings.py` |
+| `cargo test -p ritk-python --lib` | Passed | 11/11 tests passed in the prior sprint verification pass |
+| Python regression tests | Passed | `test_minmax_normalize_range_inverted_bounds_raises` and `test_zscore_normalize_mask_shape_mismatch_raises` passed in `crates/ritk-python/tests/test_statistics_bindings.py` |
 | Commit / push | Pending | No new commit or push was created in this revision |
 
 ### Updated risk posture
 | Risk | Status |
 |---|---|
-| GAP-R70-02 | Open until the Python `zscore_normalize(mask=...)` surface exists or the scope is redefined to a Rust-level test |
-| GAP-R70-01 | Closed |
-| GAP-R70-03 | Closed |
-| GAP-R70-04 | Closed |
+| GAP-R71-01 | Open |
+| GAP-R71-02 | Open |
+| GAP-R71-03 | Open |
+| GAP-R71-04 | Open |
 
 ### Sprint 70 closure notes
 - No public API changes were required.
