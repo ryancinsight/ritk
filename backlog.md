@@ -1,3 +1,43 @@
+## Sprint 74 — Completed
+
+**Status**: Completed
+**Phase**: Closure
+**Goal**: Fix Python wheel DLL load failure on Windows; document the `ritk-python` build workflow; extend VTK parity tests with 8 CT/MRI-relevant operations; extend SimpleITK parity tests with 5 registration quality tests; add real-DICOM CT/MRI cross-modal parity test file.
+
+### Gaps closed
+| ID | Gap | Root cause | Resolution | Tag |
+|---|---|---|---|---|
+| GAP-R74-01 | Python wheel DLL load failure on Windows (MinGW runtime vs MSVC Python ABI) | Default toolchain `nightly-x86_64-pc-windows-gnu` links `_ritk.dll` against `libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll`; CPython 3.13 (MSVC ABI) cannot locate these DLLs via the default search path | Built wheel with `rustup run nightly-x86_64-pc-windows-msvc py -m maturin build --release --auditwheel repair`; maturin copies MinGW DLLs into `ritk.libs/` inside the wheel and patches the DLL search path at import time | [patch] |
+| GAP-R74-02 | No build/test documentation for `ritk-python` | Wheel build process was undocumented; `--auditwheel repair` requirement was unknown | Created `crates/ritk-python/README.md` with build requirements, correct build command, test execution instructions, module API table, architecture description, and DICOM I/O dispatch documentation | [patch] |
+| GAP-R74-03 | VTK parity tests lacked CT/MRI-relevant operations | `test_vtk_parity.py` covered only basic filters; no resampling, CT HU statistics, cross-modal NCC, anisotropic diffusion, cast, or spacing tests existed | Added 8 tests to `test_vtk_parity.py` (now 18 total): threshold, reslice identity, CT bimodal statistics, cross-modal NCC premise, histogram mass conservation, anisotropic diffusion spike reduction, integer&#8594;float cast, gradient magnitude with 0.5 mm spacing | [minor] |
+| GAP-R74-04 | SimpleITK parity tests lacked registration quality tests | `test_simpleitk_parity.py` had no tests comparing RITK registration output quality against analytical or reference expectations | Added Section 5 (5 tests): BSpline FFD NCC improvement on Gaussian blob (NCC &#8805; 0.80), Symmetric Demons NCC improvement (NCC &#8805; 0.90), histogram matching vs SimpleITK (Pearson r &#8805; 0.99), histogram matching median shift, Thirion Demons NCC improvement | [minor] |
+| GAP-R74-05 | No Python-level CT/MRI DICOM parity tests using real MRI-DIR data | No Python test exercised the full RITK I/O + statistics pipeline on real DICOM data and compared results against SimpleITK | Created `crates/ritk-python/tests/test_ct_mri_registration_parity.py` with 4 real-DICOM tests (skipif data absent): CT statistics vs SimpleITK, MRI statistics vs SimpleITK, cross-modal NCC < 0.5, histogram matching reduces distribution gap | [minor] |
+
+### Architecture decisions
+- `--auditwheel repair` is the canonical Windows build path; it bundles all MinGW runtime DLLs into the wheel, making `ritk` self-contained on MSVC Python installations.
+- BSpline FFD NCC tests require smooth (Gaussian-blurred) input images. Binary sphere images produce near-zero interior gradients that cause the optimiser to declare convergence after the first iteration (rel_change < 1e-6).
+- SyN translation recovery is not testable with the current synthetic volumes; velocity fields do not accumulate for pure translations under sigma_smooth=1.0–3.0. Symmetric Demons is used as the high-quality diffeomorphic parity reference.
+- CT/MRI DICOM parity tests use `@pytest.mark.skipif(not _DATA_PRESENT, ...)` consistent with the `#[ignore]` pattern in Rust integration tests.
+- VTK `DiffusionThreshold` means "diffuse faces with gradient **below** threshold" (same polarity as Perona-Malik conductance); set threshold > spike gradient to diffuse the spike.
+
+### Verification
+| Check | Result |
+|---|---|
+| `py -m pytest test_vtk_parity.py test_simpleitk_parity.py test_ct_mri_registration_parity.py -v` | 53 passed, 4 skipped (Elastix) in 18.79 s |
+| `cargo check --workspace --tests` | 0 errors, 0 warnings |
+| `ritk` wheel import (CPython 3.13, MSVC ABI, `--auditwheel repair`) | Confirmed working |
+| CT/MRI DICOM parity (4 real-data tests) | 4/4 pass with MRI-DIR data present |
+
+### Updated artifacts
+- `checklist.md`: Sprint 74 checklist items marked complete.
+- `gap_audit.md`: Sprint 74 closure notes added; SyN translation recovery gap recorded as open Medium risk.
+
+### Residual risk
+- SyN translation recovery — Medium: `syn_register` does not converge on synthetic translation test cases. The `warped_fixed` output equals the original fixed image identically, suggesting velocity fields do not accumulate. Requires investigation in `diffeomorphic/mod.rs` velocity field update loop.
+- GAP-R08 (Elastix parity) — Medium: 4 Elastix tests exist and are skipped (Elastix absent in current environment). ASGD optimizer and parameter-map interface remain absent.
+
+---
+
 ## Sprint 73 — Completed
 
 **Status**: Completed

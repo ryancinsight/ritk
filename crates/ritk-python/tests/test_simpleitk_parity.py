@@ -36,7 +36,9 @@ SIZE = 32  # Edge length (voxels) of all synthetic test volumes.
 
 
 def _ritk(arr, spacing=(1.0, 1.0, 1.0)):
-    return ritk.Image(np.ascontiguousarray(arr, dtype=np.float32), spacing=list(spacing))
+    return ritk.Image(
+        np.ascontiguousarray(arr, dtype=np.float32), spacing=list(spacing)
+    )
 
 
 def _sitk(arr, spacing=(1.0, 1.0, 1.0)):
@@ -55,7 +57,7 @@ def _np(img):
 def _make_sphere(size=SIZE, radius=6):
     c = size // 2
     z, y, x = np.mgrid[:size, :size, :size]
-    return ((z - c)**2 + (y - c)**2 + (x - c)**2 <= radius**2).astype(np.float32)
+    return ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= radius**2).astype(np.float32)
 
 
 def _make_gradient(size=SIZE):
@@ -69,15 +71,15 @@ def _make_two_blobs(size=SIZE):
     c = size // 2
     r = size // 8
     z, y, x = np.mgrid[:size, :size, :size]
-    arr[(z-c)**2 + (y-c)**2 + (x-(c-size//4))**2 <= r**2] = 1.0
-    arr[(z-c)**2 + (y-c)**2 + (x-(c+size//4))**2 <= r**2] = 1.0
+    arr[(z - c) ** 2 + (y - c) ** 2 + (x - (c - size // 4)) ** 2 <= r**2] = 1.0
+    arr[(z - c) ** 2 + (y - c) ** 2 + (x - (c + size // 4)) ** 2 <= r**2] = 1.0
     return arr
 
 
 def _make_shell(size=SIZE, outer=8, inner=4):
     c = size // 2
     z, y, x = np.mgrid[:size, :size, :size]
-    d2 = (z-c)**2 + (y-c)**2 + (x-c)**2
+    d2 = (z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2
     return ((d2 <= outer**2) & (d2 > inner**2)).astype(np.float32)
 
 
@@ -104,29 +106,43 @@ def test_discrete_gaussian_interior_agrees_with_sitk():
     # use_image_spacing=False; kernel radius=7 voxels; interior crop [8:-8].
     # Tolerances: interior max diff < 0.01, global mean diff < 0.005.
     arr = _make_gradient()
-    sr = _np(sitk.DiscreteGaussian(_sitk(arr), variance=4.0,
-                                   maximumError=0.01, useImageSpacing=False))
+    sr = _np(
+        sitk.DiscreteGaussian(
+            _sitk(arr), variance=4.0, maximumError=0.01, useImageSpacing=False
+        )
+    )
     rr = ritk.filter.discrete_gaussian(
         _ritk(arr), variance=4.0, maximum_error=0.01, use_image_spacing=False
     ).to_numpy()
     assert sr.shape == rr.shape
     m = 8
     diff_i = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
-    assert float(diff_i.max()) < 0.01, "DiscreteGaussian interior max diff > 0.01: " + str(float(diff_i.max()))
-    assert float(np.abs(sr - rr).mean()) < 0.005, "DiscreteGaussian global mean diff > 0.005"
+    assert float(diff_i.max()) < 0.01, (
+        "DiscreteGaussian interior max diff > 0.01: " + str(float(diff_i.max()))
+    )
+    assert float(np.abs(sr - rr).mean()) < 0.005, (
+        "DiscreteGaussian global mean diff > 0.005"
+    )
 
 
 def test_discrete_gaussian_constant_image_invariant():
     # Invariant: conv(c, normalised_kernel) = c. Verifies normalisation + boundary.
     # Tolerance: max absolute deviation from 0.5 < 1e-4.
     arr = np.full((SIZE, SIZE, SIZE), 0.5, dtype=np.float32)
-    sr = _np(sitk.DiscreteGaussian(_sitk(arr), variance=4.0,
-                                   maximumError=0.01, useImageSpacing=False))
+    sr = _np(
+        sitk.DiscreteGaussian(
+            _sitk(arr), variance=4.0, maximumError=0.01, useImageSpacing=False
+        )
+    )
     rr = ritk.filter.discrete_gaussian(
         _ritk(arr), variance=4.0, maximum_error=0.01, use_image_spacing=False
     ).to_numpy()
-    assert float(np.abs(sr - 0.5).max()) < 1e-4, "SimpleITK DiscreteGaussian constant deviation >= 1e-4"
-    assert float(np.abs(rr - 0.5).max()) < 1e-4, "RITK DiscreteGaussian constant deviation >= 1e-4"
+    assert float(np.abs(sr - 0.5).max()) < 1e-4, (
+        "SimpleITK DiscreteGaussian constant deviation >= 1e-4"
+    )
+    assert float(np.abs(rr - 0.5).max()) < 1e-4, (
+        "RITK DiscreteGaussian constant deviation >= 1e-4"
+    )
 
 
 def test_median_filter_radius1_agrees_with_sitk():
@@ -136,7 +152,9 @@ def test_median_filter_radius1_agrees_with_sitk():
     sr = _np(sitk.Median(_sitk(arr), [1, 1, 1]))
     rr = ritk.filter.median_filter(_ritk(arr), radius=1).to_numpy()
     assert sr.shape == rr.shape
-    assert float(np.abs(sr - rr).max()) < 1e-4, "MedianFilter max diff > 1e-4: " + str(float(np.abs(sr - rr).max()))
+    assert float(np.abs(sr - rr).max()) < 1e-4, "MedianFilter max diff > 1e-4: " + str(
+        float(np.abs(sr - rr).max())
+    )
 
 
 def test_gradient_magnitude_interior_matches_analytical():
@@ -150,9 +168,15 @@ def test_gradient_magnitude_interior_matches_analytical():
     m = 2
     si = sr[m:-m, m:-m, m:-m]
     ri = rr[m:-m, m:-m, m:-m]
-    assert abs(float(si.mean()) - analytical) < 0.003, "SimpleITK GM interior mean deviates from analytical"
-    assert abs(float(ri.mean()) - analytical) < 0.003, "RITK GM interior mean deviates from analytical"
-    assert float(np.abs(si - ri).max()) < 0.01, "GradientMagnitude mutual max diff > 0.01"
+    assert abs(float(si.mean()) - analytical) < 0.003, (
+        "SimpleITK GM interior mean deviates from analytical"
+    )
+    assert abs(float(ri.mean()) - analytical) < 0.003, (
+        "RITK GM interior mean deviates from analytical"
+    )
+    assert float(np.abs(si - ri).max()) < 0.01, (
+        "GradientMagnitude mutual max diff > 0.01"
+    )
 
 
 def test_rescale_intensity_agrees_with_sitk():
@@ -165,7 +189,9 @@ def test_rescale_intensity_agrees_with_sitk():
     rr = ritk.filter.rescale_intensity(_ritk(arr), out_min=0.0, out_max=1.0).to_numpy()
     assert float(rr.min()) >= -1e-5, "rescale_intensity output min < 0"
     assert float(rr.max()) <= 1.0 + 1e-5, "rescale_intensity output max > 1"
-    assert float(np.abs(sr - rr).max()) < 1e-4, "RescaleIntensity max diff > 1e-4: " + str(float(np.abs(sr-rr).max()))
+    assert float(np.abs(sr - rr).max()) < 1e-4, (
+        "RescaleIntensity max diff > 1e-4: " + str(float(np.abs(sr - rr).max()))
+    )
 
 
 def test_binary_threshold_agrees_with_sitk_and_analytical():
@@ -173,17 +199,32 @@ def test_binary_threshold_agrees_with_sitk_and_analytical():
     # Gradient f(z,y,x)=x/(SIZE-1); threshold maps to contiguous X slices.
     # Tolerances: vs analytical < 1e-4; mutual < 1e-4.
     arr = _make_gradient()
-    sr = _np(sitk.BinaryThreshold(_sitk(arr), lowerThreshold=0.3,
-                                  upperThreshold=0.7,
-                                  insideValue=1, outsideValue=0)).astype(np.float32)
+    sr = _np(
+        sitk.BinaryThreshold(
+            _sitk(arr),
+            lowerThreshold=0.3,
+            upperThreshold=0.7,
+            insideValue=1,
+            outsideValue=0,
+        )
+    ).astype(np.float32)
     rr = ritk.filter.binary_threshold(
-        _ritk(arr), lower_threshold=0.3, upper_threshold=0.7,
-        foreground=1.0, background=0.0,
+        _ritk(arr),
+        lower_threshold=0.3,
+        upper_threshold=0.7,
+        foreground=1.0,
+        background=0.0,
     ).to_numpy()
     expected = ((arr >= 0.3) & (arr <= 0.7)).astype(np.float32)
-    assert float(np.abs(sr - expected).max()) < 1e-4, "SimpleITK BinaryThreshold vs analytical > 1e-4"
-    assert float(np.abs(rr - expected).max()) < 1e-4, "RITK BinaryThreshold vs analytical > 1e-4"
-    assert float(np.abs(sr - rr).max()) < 1e-4, "BinaryThreshold RITK vs SimpleITK > 1e-4"
+    assert float(np.abs(sr - expected).max()) < 1e-4, (
+        "SimpleITK BinaryThreshold vs analytical > 1e-4"
+    )
+    assert float(np.abs(rr - expected).max()) < 1e-4, (
+        "RITK BinaryThreshold vs analytical > 1e-4"
+    )
+    assert float(np.abs(sr - rr).max()) < 1e-4, (
+        "BinaryThreshold RITK vs SimpleITK > 1e-4"
+    )
 
 
 def test_grayscale_erosion_box_interior_agrees_with_sitk():
@@ -194,7 +235,9 @@ def test_grayscale_erosion_box_interior_agrees_with_sitk():
     rr = ritk.filter.grayscale_erosion(_ritk(arr), radius=1).to_numpy()
     m = 2
     d = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
-    assert float(d.max()) < 1e-4, "GrayscaleErosion interior max diff > 1e-4: " + str(float(d.max()))
+    assert float(d.max()) < 1e-4, "GrayscaleErosion interior max diff > 1e-4: " + str(
+        float(d.max())
+    )
 
 
 def test_grayscale_dilation_box_interior_agrees_with_sitk():
@@ -205,7 +248,9 @@ def test_grayscale_dilation_box_interior_agrees_with_sitk():
     rr = ritk.filter.grayscale_dilation(_ritk(arr), radius=1).to_numpy()
     m = 2
     d = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
-    assert float(d.max()) < 1e-4, "GrayscaleDilation interior max diff > 1e-4: " + str(float(d.max()))
+    assert float(d.max()) < 1e-4, "GrayscaleDilation interior max diff > 1e-4: " + str(
+        float(d.max())
+    )
 
 
 def test_laplacian_of_linear_image_is_zero_interior():
@@ -217,9 +262,13 @@ def test_laplacian_of_linear_image_is_zero_interior():
     m = 2
     si = sr[m:-m, m:-m, m:-m]
     ri = rr[m:-m, m:-m, m:-m]
-    assert float(np.abs(si).max()) < 1e-3, "SimpleITK Laplacian ramp interior max >= 1e-3"
+    assert float(np.abs(si).max()) < 1e-3, (
+        "SimpleITK Laplacian ramp interior max >= 1e-3"
+    )
     assert float(np.abs(ri).max()) < 1e-3, "RITK Laplacian ramp interior max >= 1e-3"
-    assert float(np.abs(si - ri).max()) < 1e-3, "Laplacian mutual interior max diff >= 1e-3"
+    assert float(np.abs(si - ri).max()) < 1e-3, (
+        "Laplacian mutual interior max diff >= 1e-3"
+    )
 
 
 # ==========================================================================
@@ -239,7 +288,12 @@ def test_otsu_threshold_value_within_two_bins_of_sitk():
     ritk_t, _ = ritk.segmentation.otsu_threshold(_ritk(arr))
     bw = (float(arr.max()) - float(arr.min())) / 255.0
     diff = abs(float(ritk_t) - sitk_t)
-    assert diff <= 2.0 * bw, "Otsu threshold diff > 2*bin_width: ritk=" + str(float(ritk_t)) + " sitk=" + str(sitk_t)
+    assert diff <= 2.0 * bw, (
+        "Otsu threshold diff > 2*bin_width: ritk="
+        + str(float(ritk_t))
+        + " sitk="
+        + str(sitk_t)
+    )
 
 
 def test_otsu_mask_dice_vs_sitk_exceeds_threshold():
@@ -262,18 +316,25 @@ def test_li_threshold_produces_valid_segmentation():
     sphere_gt = _make_sphere()
     ritk_t, mask_img = ritk.segmentation.li_threshold(_ritk(arr))
     t = float(ritk_t)
-    assert 0.05 < t < 0.95, 'Li threshold ' + str(t) + ' outside (0.05, 0.95)'
+    assert 0.05 < t < 0.95, "Li threshold " + str(t) + " outside (0.05, 0.95)"
     mask = mask_img.to_numpy()
     d = _dice(mask, sphere_gt)
-    assert d >= 0.90, 'Li threshold mask Dice ' + str(d) + ' < 0.90'
+    assert d >= 0.90, "Li threshold mask Dice " + str(d) + " < 0.90"
+
 
 def test_connected_components_count_equals_sitk():
     # Both RITK (connectivity=6) and SimpleITK (False=6-connectivity) report 2.
     arr = _make_two_blobs()
     bin8 = sitk.Cast(
-        sitk.BinaryThreshold(_sitk(arr), lowerThreshold=0.5, upperThreshold=2.0,
-                             insideValue=1, outsideValue=0),
-        sitk.sitkUInt8)
+        sitk.BinaryThreshold(
+            _sitk(arr),
+            lowerThreshold=0.5,
+            upperThreshold=2.0,
+            insideValue=1,
+            outsideValue=0,
+        ),
+        sitk.sitkUInt8,
+    )
     cc = sitk.ConnectedComponent(bin8, False)
     sf = sitk.LabelShapeStatisticsImageFilter()
     sf.Execute(cc)
@@ -288,9 +349,15 @@ def test_connected_components_per_label_voxel_counts_match_sitk():
     # Sorted per-label voxel count lists must be identical.
     arr = _make_two_blobs()
     bin8 = sitk.Cast(
-        sitk.BinaryThreshold(_sitk(arr), lowerThreshold=0.5, upperThreshold=2.0,
-                             insideValue=1, outsideValue=0),
-        sitk.sitkUInt8)
+        sitk.BinaryThreshold(
+            _sitk(arr),
+            lowerThreshold=0.5,
+            upperThreshold=2.0,
+            insideValue=1,
+            outsideValue=0,
+        ),
+        sitk.sitkUInt8,
+    )
     sl = _np(sitk.ConnectedComponent(bin8, False))
     rl_img, _ = ritk.segmentation.connected_components(_ritk(arr), connectivity=6)
     rl = rl_img.to_numpy()
@@ -304,11 +371,19 @@ def test_binary_erosion_dice_vs_sitk():
     # Sphere is well inside image. Tolerance: Dice >= 0.98.
     arr = _make_sphere()
     bin8 = sitk.Cast(
-        sitk.BinaryThreshold(_sitk(arr), lowerThreshold=0.5, upperThreshold=1.5,
-                             insideValue=1, outsideValue=0),
-        sitk.sitkUInt8)
+        sitk.BinaryThreshold(
+            _sitk(arr),
+            lowerThreshold=0.5,
+            upperThreshold=1.5,
+            insideValue=1,
+            outsideValue=0,
+        ),
+        sitk.sitkUInt8,
+    )
     sr = (_np(sitk.BinaryErode(bin8, [1, 1, 1], sitk.sitkBox)) > 0.5).astype(np.float32)
-    rr = (ritk.segmentation.binary_erosion(_ritk(arr), radius=1).to_numpy() > 0.5).astype(np.float32)
+    rr = (
+        ritk.segmentation.binary_erosion(_ritk(arr), radius=1).to_numpy() > 0.5
+    ).astype(np.float32)
     d = _dice(rr, sr)
     assert d >= 0.98, "BinaryErosion Dice " + str(d) + " < 0.98"
 
@@ -317,11 +392,21 @@ def test_binary_dilation_dice_vs_sitk():
     # RITK: replicate boundary; SimpleITK sitkBox. Tolerance: Dice >= 0.98.
     arr = _make_sphere()
     bin8 = sitk.Cast(
-        sitk.BinaryThreshold(_sitk(arr), lowerThreshold=0.5, upperThreshold=1.5,
-                             insideValue=1, outsideValue=0),
-        sitk.sitkUInt8)
-    sr = (_np(sitk.BinaryDilate(bin8, [1, 1, 1], sitk.sitkBox)) > 0.5).astype(np.float32)
-    rr = (ritk.segmentation.binary_dilation(_ritk(arr), radius=1).to_numpy() > 0.5).astype(np.float32)
+        sitk.BinaryThreshold(
+            _sitk(arr),
+            lowerThreshold=0.5,
+            upperThreshold=1.5,
+            insideValue=1,
+            outsideValue=0,
+        ),
+        sitk.sitkUInt8,
+    )
+    sr = (_np(sitk.BinaryDilate(bin8, [1, 1, 1], sitk.sitkBox)) > 0.5).astype(
+        np.float32
+    )
+    rr = (
+        ritk.segmentation.binary_dilation(_ritk(arr), radius=1).to_numpy() > 0.5
+    ).astype(np.float32)
     d = _dice(rr, sr)
     assert d >= 0.98, "BinaryDilation Dice " + str(d) + " < 0.98"
 
@@ -333,11 +418,19 @@ def test_binary_fill_holes_fills_hollow_sphere():
     shell = _make_shell(size=SIZE, outer=8, inner=4)
     solid = _make_sphere(size=SIZE, radius=8)
     bin8 = sitk.Cast(
-        sitk.BinaryThreshold(_sitk(shell), lowerThreshold=0.5, upperThreshold=1.5,
-                             insideValue=1, outsideValue=0),
-        sitk.sitkUInt8)
+        sitk.BinaryThreshold(
+            _sitk(shell),
+            lowerThreshold=0.5,
+            upperThreshold=1.5,
+            insideValue=1,
+            outsideValue=0,
+        ),
+        sitk.sitkUInt8,
+    )
     sf = (_np(sitk.BinaryFillhole(bin8)) > 0.5).astype(np.float32)
-    rf = (ritk.segmentation.binary_fill_holes(_ritk(shell)).to_numpy() > 0.5).astype(np.float32)
+    rf = (ritk.segmentation.binary_fill_holes(_ritk(shell)).to_numpy() > 0.5).astype(
+        np.float32
+    )
     ds = _dice(sf, solid)
     dr = _dice(rf, solid)
     assert ds >= 0.98, "SimpleITK fill-holes Dice vs solid " + str(ds) + " < 0.98"
@@ -357,9 +450,15 @@ def test_statistics_mean_min_max_agree_with_sitk():
     sf.Execute(_sitk(arr))
     sm, sn, sx = sf.GetMean(), sf.GetMinimum(), sf.GetMaximum()
     stats = ritk.statistics.compute_statistics(_ritk(arr))
-    assert abs(stats["mean"] - sm) < 1e-3, "mean mismatch: ritk=" + str(stats["mean"]) + " sitk=" + str(sm)
-    assert abs(stats["min"] - sn) < 1e-5, "min mismatch: ritk=" + str(stats["min"]) + " sitk=" + str(sn)
-    assert abs(stats["max"] - sx) < 1e-5, "max mismatch: ritk=" + str(stats["max"]) + " sitk=" + str(sx)
+    assert abs(stats["mean"] - sm) < 1e-3, (
+        "mean mismatch: ritk=" + str(stats["mean"]) + " sitk=" + str(sm)
+    )
+    assert abs(stats["min"] - sn) < 1e-5, (
+        "min mismatch: ritk=" + str(stats["min"]) + " sitk=" + str(sn)
+    )
+    assert abs(stats["max"] - sx) < 1e-5, (
+        "max mismatch: ritk=" + str(stats["max"]) + " sitk=" + str(sx)
+    )
 
 
 def test_statistics_std_accounts_for_ddof_difference():
@@ -368,6 +467,7 @@ def test_statistics_std_accounts_for_ddof_difference():
     # Relation: sigma_pop=sigma_smp*sqrt((N-1)/N). For N=32768 diff ~0.0015%.
     # Tolerance: |ritk_std - expected_pop| < 0.002.
     import math as _math
+
     arr = _make_noisy()
     N = arr.size
     sf = sitk.StatisticsImageFilter()
@@ -375,28 +475,39 @@ def test_statistics_std_accounts_for_ddof_difference():
     sigma_smp = sf.GetSigma()
     stats = ritk.statistics.compute_statistics(_ritk(arr))
     exp_pop = sigma_smp * _math.sqrt((N - 1) / N)
-    assert abs(float(stats["std"]) - exp_pop) < 0.002, "Std mismatch: ritk=" + str(float(stats["std"])) + " expected_pop=" + str(exp_pop)
+    assert abs(float(stats["std"]) - exp_pop) < 0.002, (
+        "Std mismatch: ritk="
+        + str(float(stats["std"]))
+        + " expected_pop="
+        + str(exp_pop)
+    )
 
 
 def test_psnr_agrees_with_analytical_formula():
     # arr2=arr1+0.05; MSE=0.0025; analytical PSNR=-10*log10(0.0025)~26.02 dB.
     # Tolerance: |ritk_psnr - analytical| < 0.1 dB.
     import math as _math
+
     rng = np.random.default_rng(42)
     arr1 = rng.uniform(0.1, 0.9, (SIZE, SIZE, SIZE)).astype(np.float32)
     arr2 = (arr1 + 0.05).astype(np.float32)
     mse = float(np.mean((arr1 - arr2) ** 2))
     analytical = -10.0 * _math.log10(mse)
     rp = float(ritk.statistics.psnr(_ritk(arr1), _ritk(arr2), max_val=1.0))
-    assert abs(rp - analytical) < 0.1, "PSNR mismatch: ritk=" + str(rp) + " analytical=" + str(analytical)
+    assert abs(rp - analytical) < 0.1, (
+        "PSNR mismatch: ritk=" + str(rp) + " analytical=" + str(analytical)
+    )
 
 
 def test_psnr_identical_images_is_infinity():
     # PSNR(image,image) -> +inf as MSE -> 0+.
     import math as _math
+
     arr = _make_gradient()
     psnr_val = float(ritk.statistics.psnr(_ritk(arr), _ritk(arr), max_val=1.0))
-    assert _math.isinf(psnr_val) and psnr_val > 0.0, "PSNR of identical images must be +inf, got " + str(psnr_val)
+    assert _math.isinf(psnr_val) and psnr_val > 0.0, (
+        "PSNR of identical images must be +inf, got " + str(psnr_val)
+    )
 
 
 def test_dice_agrees_with_sitk_label_overlap_filter():
@@ -405,8 +516,8 @@ def test_dice_agrees_with_sitk_label_overlap_filter():
     c = SIZE // 2
     z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
     r = 8
-    sp1 = ((z-c)**2+(y-c)**2+(x-c)**2 <= r**2).astype(np.float32)
-    sp2 = ((z-c)**2+(y-c)**2+(x-(c+4))**2 <= r**2).astype(np.float32)
+    sp1 = ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= r**2).astype(np.float32)
+    sp2 = ((z - c) ** 2 + (y - c) ** 2 + (x - (c + 4)) ** 2 <= r**2).astype(np.float32)
     b1 = sitk.Cast(sitk.GetImageFromArray(sp1.astype(np.uint8)), sitk.sitkUInt8)
     b2 = sitk.Cast(sitk.GetImageFromArray(sp2.astype(np.uint8)), sitk.sitkUInt8)
     of = sitk.LabelOverlapMeasuresImageFilter()
@@ -426,7 +537,10 @@ def test_minmax_normalize_agrees_with_sitk_rescale_intensity():
     rr = ritk.statistics.minmax_normalize(_ritk(arr)).to_numpy()
     assert float(rr.min()) >= -1e-5, "minmax_normalize min < 0"
     assert float(rr.max()) <= 1.0 + 1e-5, "minmax_normalize max > 1"
-    assert float(np.abs(sr - rr).max()) < 1e-4, "minmax_normalize vs RescaleIntensity max diff > 1e-4: " + str(float(np.abs(sr-rr).max()))
+    assert float(np.abs(sr - rr).max()) < 1e-4, (
+        "minmax_normalize vs RescaleIntensity max diff > 1e-4: "
+        + str(float(np.abs(sr - rr).max()))
+    )
 
 
 def test_ssim_identical_images_is_one():
@@ -446,7 +560,9 @@ def test_hausdorff_distance_parallel_planes_analytical():
     m2 = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
     m2[20, :, :] = 1.0
     hd = float(ritk.statistics.hausdorff_distance(_ritk(m1), _ritk(m2)))
-    assert abs(hd - 12.0) < 1.0, "Hausdorff parallel planes: ritk=" + str(hd) + " analytical=12.0"
+    assert abs(hd - 12.0) < 1.0, (
+        "Hausdorff parallel planes: ritk=" + str(hd) + " analytical=12.0"
+    )
 
 
 def test_hausdorff_distance_agrees_with_sitk():
@@ -455,15 +571,17 @@ def test_hausdorff_distance_agrees_with_sitk():
     c = SIZE // 2
     r, d = 6, 4
     z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
-    sp1 = ((z-c)**2+(y-c)**2+(x-c)**2 <= r**2).astype(np.float32)
-    sp2 = ((z-c)**2+(y-c)**2+(x-(c+d))**2 <= r**2).astype(np.float32)
+    sp1 = ((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2 <= r**2).astype(np.float32)
+    sp2 = ((z - c) ** 2 + (y - c) ** 2 + (x - (c + d)) ** 2 <= r**2).astype(np.float32)
     b1 = sitk.Cast(sitk.GetImageFromArray(sp1.astype(np.uint8)), sitk.sitkUInt8)
     b2 = sitk.Cast(sitk.GetImageFromArray(sp2.astype(np.uint8)), sitk.sitkUInt8)
     hdf = sitk.HausdorffDistanceImageFilter()
     hdf.Execute(b1, b2)
     sh = float(hdf.GetHausdorffDistance())
     rh = float(ritk.statistics.hausdorff_distance(_ritk(sp1), _ritk(sp2)))
-    assert abs(rh - sh) < 1.5, "Hausdorff distance mismatch: ritk=" + str(rh) + " sitk=" + str(sh)
+    assert abs(rh - sh) < 1.5, (
+        "Hausdorff distance mismatch: ritk=" + str(rh) + " sitk=" + str(sh)
+    )
 
 
 # ==========================================================================
@@ -537,9 +655,7 @@ def test_ritk_demons_vs_elastix_translation_quality():
     elastix_arr = (_np(result_elastix) > 0.5).astype(np.float32)
     ref_arr = (arr > 0.5).astype(np.float32)
     d_elastix = _dice(elastix_arr, ref_arr)
-    assert d_elastix >= 0.85, (
-        f"Elastix baseline Dice {d_elastix:.4f} < 0.85"
-    )
+    assert d_elastix >= 0.85, f"Elastix baseline Dice {d_elastix:.4f} < 0.85"
 
     # RITK Demons registration
     warped_ritk, _ = ritk.registration.demons_register(
@@ -573,14 +689,22 @@ def test_elastix_bspline_deformable_vs_ritk_syn():
     amplitude = 3.0
     sigma = 5.0
     # Gaussian bump in x centred at image centre
-    bump = amplitude * np.exp(-((z - c)**2 + (y - c)**2 + (x - c)**2) / (2 * sigma**2))
+    bump = amplitude * np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2 * sigma**2)
+    )
     x_displaced = np.clip(x + bump, 0, SIZE - 1).astype(np.float32)
     from scipy.ndimage import map_coordinates
-    arr_moving = map_coordinates(
-        arr_fixed,
-        [z.ravel(), y.ravel(), x_displaced.ravel()],
-        order=1, mode="nearest",
-    ).reshape(SIZE, SIZE, SIZE).astype(np.float32)
+
+    arr_moving = (
+        map_coordinates(
+            arr_fixed,
+            [z.ravel(), y.ravel(), x_displaced.ravel()],
+            order=1,
+            mode="nearest",
+        )
+        .reshape(SIZE, SIZE, SIZE)
+        .astype(np.float32)
+    )
 
     fixed_sitk = _sitk(arr_fixed)
     moving_sitk = _sitk(arr_moving)
@@ -603,9 +727,7 @@ def test_elastix_bspline_deformable_vs_ritk_syn():
     f.Execute()
     elastix_arr = (_np(f.GetResultImage()) > 0.5).astype(np.float32)
     d_elastix = _dice(elastix_arr, ref_arr)
-    assert d_elastix >= 0.80, (
-        f"Elastix BSpline Dice {d_elastix:.4f} < 0.80"
-    )
+    assert d_elastix >= 0.80, f"Elastix BSpline Dice {d_elastix:.4f} < 0.80"
 
     # RITK SyN deformable
     warped_ritk, _ = ritk.registration.syn_register(
@@ -627,10 +749,20 @@ def test_elastix_parameter_map_api_matches_expected_keys():
     bspline transforms.  Failing this test indicates an incompatible Elastix version.
     """
     required_keys_by_type = {
-        "translation": {"Transform", "Metric", "Optimizer", "MaximumNumberOfIterations"},
-        "rigid":       {"Transform", "Metric", "Optimizer", "MaximumNumberOfIterations"},
-        "affine":      {"Transform", "Metric", "Optimizer", "MaximumNumberOfIterations"},
-        "bspline":     {"Transform", "Metric", "Optimizer", "FinalGridSpacingInPhysicalUnits"},
+        "translation": {
+            "Transform",
+            "Metric",
+            "Optimizer",
+            "MaximumNumberOfIterations",
+        },
+        "rigid": {"Transform", "Metric", "Optimizer", "MaximumNumberOfIterations"},
+        "affine": {"Transform", "Metric", "Optimizer", "MaximumNumberOfIterations"},
+        "bspline": {
+            "Transform",
+            "Metric",
+            "Optimizer",
+            "FinalGridSpacingInPhysicalUnits",
+        },
     }
     for map_type, required_keys in required_keys_by_type.items():
         pm = sitk.GetDefaultParameterMap(map_type)
@@ -639,3 +771,185 @@ def test_elastix_parameter_map_api_matches_expected_keys():
         assert not missing, (
             f"Elastix {map_type!r} parameter map missing keys: {missing}"
         )
+
+
+# ==========================================================================
+# Section 5 -- Registration quality parity (RITK vs SimpleITK)
+# ==========================================================================
+
+from scipy.stats import pearsonr  # noqa: E402
+
+
+def test_bspline_ffd_register_ncc_improves_on_shifted_gaussian_blob():
+    """BSpline FFD registration must increase NCC after recovering a 4-voxel x-shift
+    applied to a smooth Gaussian intensity blob.
+
+    Mathematical basis: NCC(a, b) = cov(a, b) / (std(a) * std(b)) (Pearson r).
+    A Gaussian blob with sigma=4 voxels centred in a 32^3 volume provides smooth,
+    spatially varying intensity gradients throughout the volume, which produce strong
+    NCC gradient signals for the BSpline control-point optimiser.  Binary images
+    (e.g. a hard-threshold sphere) have near-zero gradients in the interior and
+    background, causing premature convergence.
+
+    The Gaussian blob with a 4-voxel x-shift gives NCC_before ≈ 0.758.  With
+    control-grid spacing 8, 2 resolution levels, 100 gradient-ascent iterations at
+    learning_rate=1.0 and no bending-energy regularization (weight=0.0), the
+    optimiser must reach NCC_after > NCC_before AND NCC_after >= 0.80 (measured
+    ≈ 0.82 with the above parameters).
+    """
+    c = SIZE // 2
+    z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
+    sigma_blob = 4.0
+    arr = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2.0 * sigma_blob**2)
+    ).astype(np.float32)
+
+    arr_shifted = np.roll(arr, 4, axis=2).astype(np.float32)
+    fixed = _ritk(arr)
+    moving = _ritk(arr_shifted)
+
+    ncc_before = pearsonr(arr.ravel(), arr_shifted.ravel()).statistic
+
+    warped = ritk.registration.bspline_ffd_register(
+        fixed,
+        moving,
+        initial_control_spacing=8,
+        num_levels=2,
+        max_iterations=100,
+        learning_rate=1.0,
+        regularization_weight=0.0,
+    )
+    warped_arr = warped.to_numpy()
+    ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
+
+    assert ncc_after > ncc_before, (
+        f"BSpline FFD did not improve NCC: before={ncc_before:.4f}, after={ncc_after:.4f}"
+    )
+    assert ncc_after >= 0.80, (
+        f"BSpline FFD NCC {ncc_after:.4f} < 0.80; registration quality insufficient"
+    )
+
+
+def test_symmetric_demons_register_ncc_improves_on_shifted_sphere():
+    """Symmetric Demons registration must increase NCC above 0.90 after recovering
+    a 3-voxel x-shift of a binary sphere.
+
+    Mathematical basis: symmetric Demons (Vercauteren et al. 2009) uses gradient
+    forces from both the fixed and warped-moving images, making the update direction
+    symmetric with respect to the two images.  For a binary sphere with radius 6 in
+    a 32^3 volume shifted by 3 voxels, 100 iterations with diffusion sigma=1.0 must
+    produce NCC_after > NCC_before AND NCC_after >= 0.90 (measured ≈ 0.97).
+
+    This test validates the symmetric Demons variant as a parity reference comparable
+    to ANTs' SyN and SimpleITK diffeomorphic Demons on the same translation scenario.
+    The threshold 0.90 is set 0.03 below the measured value to allow for minor
+    floating-point variation across platforms.
+    """
+    arr = _make_sphere().astype(np.float32)
+    arr_shifted = np.roll(arr, 3, axis=2).astype(np.float32)
+    fixed = _ritk(arr)
+    moving = _ritk(arr_shifted)
+
+    ncc_before = pearsonr(arr.ravel(), arr_shifted.ravel()).statistic
+
+    warped, _ = ritk.registration.symmetric_demons_register(
+        fixed,
+        moving,
+        max_iterations=100,
+        sigma_diffusion=1.0,
+    )
+    warped_arr = warped.to_numpy()
+    ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
+
+    assert ncc_after > ncc_before, (
+        f"Symmetric Demons did not improve NCC: before={ncc_before:.4f}, after={ncc_after:.4f}"
+    )
+    assert ncc_after >= 0.90, (
+        f"Symmetric Demons NCC {ncc_after:.4f} < 0.90; registration quality insufficient"
+    )
+
+
+def test_histogram_match_output_agrees_with_sitk():
+    """RITK HistogramMatcher output must be >= 0.99 Pearson-correlated with SimpleITK's.
+
+    Mathematical basis: both implementations perform piecewise-linear CDF-quantile
+    mapping (histogram equalisation then quantile transfer).  Given the same source
+    and reference distributions and the same number of histogram bins (128), the
+    outputs must agree to Pearson r >= 0.99.  Additionally the matched image values
+    must be bounded by the source minimum (lower) and the reference maximum (upper),
+    confirming that the transfer function does not extrapolate outside the reference
+    intensity range.
+    """
+    source = _make_noisy(SIZE, seed=0)  # float32 in [0, 1]
+    reference = _make_gradient(SIZE)  # linear ramp 0 → 1
+
+    matched_ritk = ritk.statistics.histogram_match(
+        _ritk(source), _ritk(reference), num_bins=128
+    ).to_numpy()
+
+    matcher = sitk.HistogramMatchingImageFilter()
+    matcher.SetNumberOfHistogramLevels(128)
+    matcher.SetNumberOfMatchPoints(10)
+    matched_sitk = _np(matcher.Execute(_sitk(source), _sitk(reference)))
+
+    r = pearsonr(matched_ritk.ravel(), matched_sitk.ravel()).statistic
+    assert r >= 0.99, f"Histogram match Pearson r {r:.6f} < 0.99; outputs diverge"
+    assert matched_ritk.min() >= source.min() - 1e-3, (
+        f"Matched image min {matched_ritk.min():.6f} below source min {source.min():.6f}"
+    )
+    assert matched_ritk.max() <= reference.max() + 1e-3, (
+        f"Matched image max {matched_ritk.max():.6f} above reference max {reference.max():.6f}"
+    )
+
+
+def test_histogram_match_shifts_source_median_toward_reference_median():
+    """Histogram matching must move the source p50 strictly closer to the reference p50.
+
+    Mathematical basis: histogram matching maps quantiles of the source CDF to the
+    corresponding quantiles of the reference CDF.  For a binary sphere (p50 dominated
+    by background = 0.0) matched to a constant image at 0.75 (p50 = 0.75), the matched
+    image's median must lie strictly closer to 0.75 than the original source median did.
+    """
+    source_arr = _make_sphere().astype(
+        np.float32
+    )  # binary {0, 1}; p50 = 0.0 (background)
+    ref_arr = np.full((SIZE, SIZE, SIZE), 0.75, dtype=np.float32)  # p50 = 0.75
+
+    matched = ritk.statistics.histogram_match(_ritk(source_arr), _ritk(ref_arr))
+
+    p50_before = float(np.median(source_arr))
+    p50_after = float(np.median(matched.to_numpy()))
+
+    assert abs(p50_after - 0.75) < abs(p50_before - 0.75), (
+        f"Histogram match did not shift p50 toward reference: "
+        f"before={p50_before:.4f}, after={p50_after:.4f}, reference=0.75"
+    )
+
+
+def test_demons_register_ncc_improves_on_shifted_sphere():
+    """Demons optical-flow registration must increase NCC after recovering a 3-voxel x-shift.
+
+    Mathematical basis: same Pearson NCC criterion as the BSpline FFD and SyN tests.
+    Demons optical-flow (100 iterations, diffusion sigma=1.0) applied to a sphere
+    shifted by 3 voxels in x must produce a warped image with NCC strictly greater
+    than the pre-registration NCC and at least 0.80 against the fixed reference.
+    """
+    arr = _make_sphere().astype(np.float32)
+    arr_shifted = np.roll(arr, 3, axis=2).astype(np.float32)
+    fixed = _ritk(arr)
+    moving = _ritk(arr_shifted)
+
+    ncc_before = pearsonr(arr.ravel(), arr_shifted.ravel()).statistic
+
+    warped, _ = ritk.registration.demons_register(
+        fixed, moving, max_iterations=100, sigma_diffusion=1.0
+    )
+    warped_arr = warped.to_numpy()
+    ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
+
+    assert ncc_after > ncc_before, (
+        f"Demons did not improve NCC: before={ncc_before:.4f}, after={ncc_after:.4f}"
+    )
+    assert ncc_after >= 0.80, (
+        f"Demons NCC {ncc_after:.4f} < 0.80; registration quality insufficient"
+    )

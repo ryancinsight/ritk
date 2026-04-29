@@ -1,3 +1,16 @@
+## Sprint 74 — Completed
+
+- [x] GAP-R74-01: fixed Python wheel DLL load failure on Windows — built wheel with `rustup run nightly-x86_64-pc-windows-msvc py -m maturin build --release --auditwheel repair`; MinGW runtime libs (`libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll`) bundled into `ritk.libs/` inside wheel; `ritk` module imports successfully in CPython 3.13 (MSVC ABI)
+- [x] GAP-R74-02: created `crates/ritk-python/README.md` documenting build requirements, `--auditwheel repair` command, test execution instructions, module API table, architecture, and DICOM I/O dispatch
+- [x] GAP-R74-03: extended `crates/ritk-python/tests/test_vtk_parity.py` with 8 new CT/MRI-relevant VTK parity tests: `test_vtk_threshold_matches_sitk_binary_threshold` (Dice ≥ 0.99), `test_vtk_reslice_identity_preserves_sphere` (NRMSE < 0.02), `test_vtk_ct_bimodal_statistics_agree_with_numpy` (|vtk_mean − np_mean| < 5 HU), `test_vtk_cross_modal_ncc_lower_than_monomodal_ncc` (validates cross-modal registration premise), `test_vtk_image_accumulate_histogram_bin_counts_sum_to_nvoxels` (mass conservation), `test_vtk_anisotropic_diffusion_reduces_peak_spike` (DiffusionThreshold=200, ≥50% spike reduction), `test_vtk_image_cast_to_float_preserves_integer_values` (exact f32 preservation), `test_vtk_gradient_magnitude_nonunit_spacing_agrees_with_sitk` (spacing=0.5 mm, Pearson r ≥ 0.95, peak gradient ∈ [1.0, 4.0] mm⁻¹); all 18 VTK tests pass in 5.11 s
+- [x] GAP-R74-04: extended `crates/ritk-python/tests/test_simpleitk_parity.py` Section 5 with 5 registration quality parity tests: `test_bspline_ffd_register_ncc_improves_on_shifted_gaussian_blob` (Gaussian blob sigma=4, shift=4, LR=1.0, NCC ≥ 0.80), `test_symmetric_demons_register_ncc_improves_on_shifted_sphere` (NCC ≥ 0.90, measured ≈ 0.97), `test_histogram_match_output_agrees_with_sitk` (Pearson r ≥ 0.99 vs SimpleITK HistogramMatching), `test_histogram_match_shifts_source_median_toward_reference_median` (p50 strictly closer to reference), `test_demons_register_ncc_improves_on_shifted_sphere` (Thirion Demons NCC ≥ 0.80); 5/5 pass
+- [x] GAP-R74-05: created `crates/ritk-python/tests/test_ct_mri_registration_parity.py` with 4 real-DICOM CT/MRI parity tests (skipif data absent): `test_ct_statistics_agree_with_sitk` (min/max/mean within 5%, HU sanity bounds), `test_mri_statistics_agree_with_sitk` (min/max/mean within 5%), `test_ct_mri_ncc_is_low_before_registration` (|NCC| < 0.5 validates cross-modal premise), `test_histogram_match_ct_to_mri_reduces_distribution_gap` (gap_after < gap_before on normalised [0,1] data); all 4 pass with downloaded MRI-DIR DICOM pair
+- [x] Verify: `py -m pytest test_vtk_parity.py test_simpleitk_parity.py test_ct_mri_registration_parity.py -v` → 53 passed, 4 skipped (Elastix) in 18.79 s
+- [x] Verify: `cargo check --workspace --tests` → 0 errors, 0 warnings
+- [x] Update gap_audit.md, backlog.md Sprint 74 closure notes
+
+---
+
 ## Sprint 73 — Completed
 
 - [x] GAP-R73-01: fixed 3 `ritk-snap` compiler warnings — doc comment `///` → `//` on nested closure in `loader.rs:302`; `let mut try_add` → `let try_add` in `loader.rs:304`; `step_slice` dead-code resolved by connecting 4 `step_slice_for_axis(self.axis, ±1)` call sites to `self.step_slice(±1)` in `app.rs`
