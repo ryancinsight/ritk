@@ -107,10 +107,50 @@
 - GAP-R08 (Elastix): Low severity, no action planned
 
 ### Updated risk posture
-
 - Distance transform convention is now ITK-standard; all downstream parity tests confirm correctness.
 - `CXXFLAGS_x86_64_pc_windows_msvc` static linking flags will take effect on the next full clean rebuild; existing binary was verified with DLLs in PATH.
 - GAP-R08 (Elastix parameter-map facade): Low severity, no action planned.
+
+---
+
+## Sprint 80 Gap Closures
+
+**Version**: 0.12.0 | **Date**: Sprint 80 | **Auditor**: Ryan Clanton
+
+### Gaps closed this sprint
+
+| Gap ID | Module | Description | Resolution |
+|---|---|---|---|
+| GAP-80-01 | Python/tests | `test_shape_detection_segment_preserves_shape_and_finite_values` call-site used `curvature_weight=0.2` (old copy-paste) instead of canonical default `1.0` | Fixed to `curvature_weight=1.0` |
+| GAP-80-02 | gap_audit | §3.1 header still "Critical" despite all threshold implementations present | Updated to "Closed" |
+| GAP-80-03 | gap_audit | §3.2 header still "Critical" despite all region growing implementations present | Updated to "Closed" |
+| GAP-80-04 | gap_audit | §3.4 said marker-controlled watershed missing but it is implemented | Updated to "Closed" |
+| GAP-80-05 | gap_audit | §3.3 level-set table listed ShapeDetection/LaplacianLS/ThresholdLS as "Not yet" | Updated to "✓ Implemented" |
+| GAP-80-06 | gap_audit | §4.5 Canny severity "Medium" despite implementation + parity test | Updated to "Closed" |
+| GAP-80-07 | gap_audit | §4.7 Recursive Gaussian severity "High" despite implementation + parity test | Updated to "Closed" |
+| GAP-80-08 | gap_audit | §4.8 LoG severity "Medium" despite implementation + parity test | Updated to "Closed" |
+| GAP-80-09 | gap_audit | §4.10 Morphological Filters severity "High" despite full implementation suite | Updated to "Closed" |
+| GAP-80-10 | gap_audit | §5.2 Nyúl-Udupa severity "High" despite implementation | Updated to "Closed" |
+| GAP-80-11 | gap_audit | §5.3 Intensity Normalization severity "High" despite all methods implemented | Updated to "Closed" |
+| GAP-80-12 | CI | `python-wheel` smoke test used `laplacian_level_set_segment(curvature_weight=0.2)` | Updated to `shape_detection_segment(curvature_weight=1.0)` |
+| GAP-80-13 | Python/tests | 10 new parity tests for watershed, K-means, connected_threshold, confidence_connected, neighborhood_connected, curvature_anisotropic_diffusion, sato_line_filter, top-hat, hit-or-miss, morphological_reconstruction | Added as Section 8 |
+
+### Verification status
+
+| Check | Result |
+|---|---|
+| curvature_weight=1.0 in test call-site | Confirmed |
+| gap_audit severity closures | All 9 stale sections updated to Closed |
+| CI smoke test | shape_detection_segment with curvature_weight=1.0 |
+| Parity test count | 64 (was 54; +10 new) |
+| Version strings | Cargo.toml = 0.12.0, __version__ = "0.12.0" |
+
+### Updated risk posture
+
+- All segmentation modules (threshold, region growing, level set, watershed, morphology, clustering) are now marked Closed in gap_audit.
+- All filtering modules (bias correction, diffusion, edge detection, Gaussian, LoG, morphology, vesselness) are now marked Closed.
+- All statistics modules (normalization, comparison, noise, label) are now marked Closed.
+- Remaining open gaps: GAP-R08 (Elastix — Low), §7.1 Python Binding Gaps (Medium — transform serialisation), §7.4 CLI (Medium).
 
 ---
 
@@ -1010,7 +1050,9 @@ Elastix is a parameter-map-driven registration framework that bundles:
 This is a Critical gap: segmentation is required in nearly every clinical pipeline
 (tumor delineation, organ contouring, tissue classification, atlas propagation).
 
-### 3.1 Threshold-Based Segmentation · Severity: **Critical**
+### 3.1 Threshold-Based Segmentation · Severity: **Closed**
+
+**Sprint 5 status**: All threshold algorithms implemented in `crates/ritk-core/src/segmentation/threshold/`. Python bindings and parity tests complete.
 
 | Algorithm | Reference | Notes |
 |---|---|---|
@@ -1034,7 +1076,9 @@ crates/ritk-core/src/segmentation/threshold/
 └── triangle.rs
 ```
 
-### 3.2 Region Growing · Severity: **Critical**
+### 3.2 Region Growing · Severity: **Closed**
+
+**Sprint 10 status**: Connected threshold, confidence connected, and neighborhood connected are all implemented. Python bindings for `connected_threshold_segment`, `confidence_connected_segment`, and `neighborhood_connected_segment` are available.
 
 | Algorithm | Notes |
 |---|---|
@@ -1061,9 +1105,9 @@ crates/ritk-core/src/segmentation/region_growing/
 |---|---|---|
 | Chan-Vese | Chan & Vese (2001), *IEEE Trans. Image Process.* 10(2):266–277 | ✓ Implemented (Sprint 5) |
 | Geodesic Active Contour | Caselles et al. (1997), *IEEE Trans. Image Process.* 6(7):931–943 | ✓ Implemented (Sprint 5) |
-| Shape Detection | Malladi et al. (1995), *IEEE Trans. Pattern Anal.* 17(2):158–175 | ✗ Not yet |
-| Laplacian Level Set | ITK `LaplacianSegmentationLevelSetImageFilter` | ✗ Not yet |
-| Threshold Level Set | ITK `ThresholdSegmentationLevelSetImageFilter` | ✗ Not yet |
+| Shape Detection | Malladi et al. (1995), *IEEE Trans. Pattern Anal.* 17(2):158–175 | ✓ Implemented (Sprint 5) |
+| Laplacian Level Set | ITK `LaplacianSegmentationLevelSetImageFilter` | ✓ Implemented (Sprint 5) |
+| Threshold Level Set | ITK `ThresholdSegmentationLevelSetImageFilter` | ✓ Implemented (Sprint 5) |
 
 Level sets evolve a signed-distance function φ under a PDE incorporating image gradient
 stopping terms and curvature regularization:
@@ -1075,13 +1119,13 @@ stopping terms and curvature regularization:
 - `GeodesicActiveContourSegmentation`: Edge-based geodesic active contour, gradient stopping
   function g(|∇I|), curvature + advection PDE terms.
 
-**Remaining:** Shape detection, Laplacian level set, threshold level set, sparse-field solver.
+**All level-set variants implemented.** No remaining gaps in this section.
 
 **Implemented location:** `crates/ritk-core/src/segmentation/level_set/`
 
-### 3.4 Watershed Segmentation · Severity: **Medium**
+### 3.4 Watershed Segmentation · Severity: **Closed**
 
-**Sprint 4 status**: `WatershedSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/watershed/mod.rs`. Meyer flooding, 6-connectivity. Marker-controlled variant remains.
+**Sprint 4 status**: `WatershedSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/watershed/mod.rs`. Meyer flooding, 6-connectivity. **Updated**: Marker-controlled watershed implemented in `crates/ritk-core/src/segmentation/watershed/marker_controlled.rs`. Exposed as `ritk.segmentation.marker_watershed_segment`.
 
 Meyer (1994) flooding algorithm on gradient magnitude image.
 Produces over-segmented basins merged via basin-adjacency graph.
@@ -1095,9 +1139,9 @@ crates/ritk-core/src/segmentation/watershed/
 └── marker_controlled.rs
 ```
 
-### 3.5 K-Means Clustering Segmentation · Severity: **Medium**
+### 3.5 K-Means Clustering Segmentation · Severity: **Closed**
 
-**Sprint 4 status**: `KMeansSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/clustering/kmeans.rs`. Lloyd's algorithm with k-means++ initialization, deterministic seeding.
+**Sprint 4 status**: `KMeansSegmentation` is **implemented** in `crates/ritk-core/src/segmentation/clustering/kmeans.rs`. Lloyd's algorithm with k-means++ initialization, deterministic seeding. Parity test added Sprint 80.
 
 Lloyd's algorithm initialized by k-means++ (Arthur & Vassilvitskii 2007).
 Used for tissue class initialization (CSF / GM / WM in brain MRI).
@@ -1238,7 +1282,9 @@ on `Image<B,D>`.
 
 ---
 
-### 4.5 Canny Edge Detection · Severity: **Medium**
+### 4.5 Canny Edge Detection · Severity: **Closed**
+
+**Sprint 4 status**: `CannyEdgeDetector` implemented in `crates/ritk-core/src/filter/edge/canny.rs`. Parity test added Sprint 79 (`test_canny_edge_detect_concentrates_edges_at_sphere_surface`).
 
 **Sprint 4 status**: `CannyEdgeDetector` is **implemented** in `crates/ritk-core/src/filter/edge/canny.rs`.
 
@@ -1271,7 +1317,9 @@ Required for: initializing level-set contours, feature extraction for classical 
 
 ---
 
-### 4.7 Discrete and Recursive Gaussian · Severity: **High**
+### 4.7 Discrete and Recursive Gaussian · Severity: **Closed**
+
+**Sprint 4 status**: `RecursiveGaussianFilter` (Deriche IIR) and `DiscreteGaussianFilter` both implemented. Parity test for recursive Gaussian added Sprint 79.
 
 **Sprint 4 status**: `RecursiveGaussianFilter` is **implemented** in `crates/ritk-core/src/filter/recursive_gaussian.rs`. Deriche IIR 3rd-order approximation with derivative orders 0 (smoothing), 1 (first derivative), 2 (second derivative). Separable application across all 3D axes with physical spacing support.
 
@@ -1291,7 +1339,9 @@ and Hessian-based filters.
 
 ---
 
-### 4.8 Laplacian of Gaussian / Laplacian · Severity: **Medium**
+### 4.8 Laplacian of Gaussian / Laplacian · Severity: **Closed**
+
+**Sprint 4 status**: `LaplacianOfGaussianFilter` implemented. Parity test added Sprint 79.
 
 **Sprint 4 status**: `LaplacianOfGaussianFilter` is **implemented** in `crates/ritk-core/src/filter/edge/log.rs`.
 
@@ -1313,9 +1363,9 @@ Also exposed as `ritk.filter.sobel_gradient` in the Python binding (Sprint 5).
 
 ---
 
-### 4.10 Morphological Filters (Structuring-Element Based) · Severity: **High**
+### 4.10 Morphological Filters (Structuring-Element Based) · Severity: **Closed**
 
-**Sprint 4 status**: Grayscale erosion and dilation are **implemented** in `crates/ritk-core/src/filter/morphology/`. Binary fill holes, label dilation, and skeletonization remain.
+**Sprint 4+ status**: Grayscale erosion/dilation, white/black top-hat, hit-or-miss, label dilation/erosion/opening/closing, and morphological reconstruction all implemented in `crates/ritk-core/src/filter/morphology/`. Python bindings available.
 
 Binary and grayscale morphological filters as standalone preprocessing operations
 (distinct from the segmentation post-processing morphology in §3.6):
@@ -1356,7 +1406,9 @@ Parity-tested against SimpleITK `HistogramMatchingImageFilter` (Sprint 77, 2 par
 
 ---
 
-### 5.2 Nyúl & Udupa Histogram Equalization · Severity: **High**
+### 5.2 Nyúl & Udupa Histogram Equalization · Severity: **Closed**
+
+**Sprint 4 status**: `NyulUdupaNormalizer` implemented in `crates/ritk-core/src/statistics/normalization/nyul_udupa.rs`.
 
 **Sprint 4 status**: `NyulUdupaNormalizer` is **implemented** in `crates/ritk-core/src/statistics/normalization/nyul_udupa.rs`. Two-phase train/apply with configurable percentile landmarks.
 
@@ -1371,7 +1423,9 @@ MRI normalization in clinical studies.
 
 ---
 
-### 5.3 Intensity Normalization Suite · Severity: **High**
+### 5.3 Intensity Normalization Suite · Severity: **Closed**
+
+**Sprint 7 status**: All listed normalization methods (z-score, min-max, percentile clip, white stripe) implemented.
 
 | Method | Formula | Use Case |
 |---|---|---|
@@ -1386,7 +1440,7 @@ MRI normalization in clinical studies.
 
 ---
 
-### 5.4 Image Statistics · Severity: **Medium**
+### 5.4 Image Statistics · Severity: **Closed**
 
 RITK implements image-level statistics in `crates/ritk-core/src/statistics/`. ITK provides:
 
@@ -1418,7 +1472,7 @@ crates/ritk-core/src/statistics/
 
 ---
 
-### 5.5 Noise Estimation · Severity: **Medium**
+### 5.5 Noise Estimation · Severity: **Closed**
 
 **Sprint 4 status**: `estimate_noise_mad` and `estimate_noise_mad_masked` are **implemented** in `crates/ritk-core/src/statistics/noise_estimation.rs`.
 
@@ -1429,7 +1483,7 @@ Used to set adaptive regularization weights and threshold parameters.
 
 ---
 
-### 5.6 Image Comparison Metrics · Severity: **Medium**
+### 5.6 Image Comparison Metrics · Severity: **Closed**
 
 Distinct from registration metrics (which are differentiable losses); these are
 evaluation-time quality measures:

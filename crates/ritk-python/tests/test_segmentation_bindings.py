@@ -114,7 +114,7 @@ def test_shape_detection_segment_preserves_shape_and_finite_values() -> None:
     result = ritk.segmentation.shape_detection_segment(
         _image(image),
         _image(initial_phi),
-        curvature_weight=0.2,
+        curvature_weight=1.0,
         propagation_weight=1.0,
         advection_weight=1.0,
         edge_k=1.0,

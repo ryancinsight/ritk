@@ -1,3 +1,24 @@
+## Sprint 80 — Completed
+**Status**: Completed
+**Phase**: Execution
+**Version**: 0.12.0 [minor]
+
+- [x] GAP-80-01: fix `test_shape_detection_segment_preserves_shape_and_finite_values` call-site `curvature_weight=0.2→1.0` in `test_segmentation_bindings.py`
+- [x] GAP-80-02: gap_audit §3.1 Critical→Closed (all threshold algorithms implemented)
+- [x] GAP-80-03: gap_audit §3.2 Critical→Closed (all region growing implemented)
+- [x] GAP-80-04: gap_audit §3.4 Medium→Closed (marker-controlled watershed implemented)
+- [x] GAP-80-05: gap_audit §3.3 level-set table rows ShapeDetection/LaplacianLS/ThresholdLS → Implemented
+- [x] GAP-80-06: gap_audit §4.5 Canny Medium→Closed
+- [x] GAP-80-07: gap_audit §4.7 Recursive Gaussian High→Closed
+- [x] GAP-80-08: gap_audit §4.8 LoG Medium→Closed
+- [x] GAP-80-09: gap_audit §4.10 Morphological Filters High→Closed
+- [x] GAP-80-10: gap_audit §5.2 Nyul-Udupa High→Closed
+- [x] GAP-80-11: gap_audit §5.3 Intensity Normalization High→Closed
+- [x] GAP-80-12: update `ci.yml` python-wheel smoke test to `shape_detection_segment(curvature_weight=1.0)`
+- [x] GAP-80-13: add 10 new parity tests in `test_simpleitk_parity.py` Section 8
+- [x] Version bump: 0.11.0 → 0.12.0; `Cargo.toml` and `__init__.py` updated
+- [x] Update CHANGELOG.md, backlog.md, checklist.md, gap_audit.md Sprint 80 closure notes
+
 ## Sprint 79 — Completed
 
 - [x] GAP-79-01: fix `shape_detection_segment` Python stub default `curvature_weight=0.2→1.0` in `segmentation.pyi`

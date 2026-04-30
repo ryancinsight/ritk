@@ -1,3 +1,40 @@
+## Sprint 80 — Completed
+**Status**: Completed
+**Phase**: Execution
+**Version**: 0.12.0 [minor]
+**Goal**: Correct stale gap_audit severity levels (9 sections), fix shape_detection call-site curvature_weight default, add 10 new parity tests for implemented-but-untested algorithms, update CI smoke test.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-80-01 | Fix `test_shape_detection_segment` call-site `curvature_weight=0.2&#8594;1.0` | patch |
+| GAP-80-02 | gap_audit §3.1 Critical&#8594;Closed (all thresholds implemented) | patch |
+| GAP-80-03 | gap_audit §3.2 Critical&#8594;Closed (all region growing implemented) | patch |
+| GAP-80-04 | gap_audit §3.4 Medium&#8594;Closed (marker watershed implemented) | patch |
+| GAP-80-05 | gap_audit §3.3 level-set table rows Not yet&#8594;Implemented | patch |
+| GAP-80-06 | gap_audit §4.5 Canny Medium&#8594;Closed | patch |
+| GAP-80-07 | gap_audit §4.7 Recursive Gaussian High&#8594;Closed | patch |
+| GAP-80-08 | gap_audit §4.8 LoG Medium&#8594;Closed | patch |
+| GAP-80-09 | gap_audit §4.10 Morphological Filters High&#8594;Closed | patch |
+| GAP-80-10 | gap_audit §5.2 Nyúl-Udupa High&#8594;Closed | patch |
+| GAP-80-11 | gap_audit §5.3 Intensity Normalization High&#8594;Closed | patch |
+| GAP-80-12 | CI python-wheel smoke test uses shape_detection_segment with curvature_weight=1.0 | patch |
+| GAP-80-13 | 10 new parity tests (watershed, K-means, connected_threshold, confidence_connected, neighborhood_connected, curvature_anisotropic_diffusion, sato_line_filter, white_top_hat, hit_or_miss, morphological_reconstruction) | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| GAP-80-01: call-site default | `curvature_weight=1.0` in test_segmentation_bindings.py |
+| GAP-80-02–11: gap_audit closures | 9 sections updated Critical/High/Medium&#8594;Closed |
+| GAP-80-12: CI smoke test | shape_detection_segment(curvature_weight=1.0) |
+| GAP-80-13: parity test count | 64 (was 54; +10 new) |
+| Version strings | Cargo.toml = 0.12.0, `__version__` = "0.12.0" |
+
+### Residual risks
+- Multi-platform release workflow untested on hosted runners (from Sprint 79)
+- macOS Python CI untested on hosted runners (from Sprint 79)
+- GAP-R08 (Elastix): Low severity, no action planned
+
 ## Sprint 79 — Completed
 
 **Status**: Completed

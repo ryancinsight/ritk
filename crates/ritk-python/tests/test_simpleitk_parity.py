@@ -1736,3 +1736,309 @@ def test_sobel_gradient_is_zero_on_constant_image_and_nonzero_on_gradient():
     assert cv < 0.5, (
         f"Sobel interior CoV {cv:.4f} >= 0.5 (non-uniform response on linear gradient)"
     )
+
+
+# ==========================================================================
+# Section 8 — Segmentation & filter parity: watershed, K-means, region
+# growing, curvature anisotropic diffusion, Sato line filter,
+# morphological top-hat / hit-or-miss / reconstruction
+# ==========================================================================
+
+
+def test_watershed_segment_produces_valid_label_map():
+    """Watershed on gradient magnitude of a noisy sphere yields a valid label map.
+
+    Mathematical justification:
+    Watershed segmentation (Beucher & Lantuéjoul, 1979) partitions the gradient
+    magnitude image into catchment basins. A sphere on a zero background produces
+    a strong gradient ridge at its boundary, so the interior and exterior must
+    fall into distinct basins, yielding at least 2 labels (foreground basin +
+    background basin). All labels are finite integers by construction.
+    """
+    arr = _make_noisy()
+    grad_arr = sitk.GetArrayFromImage(sitk.GradientMagnitude(_sitk(arr))).astype(
+        np.float32
+    )
+    result = ritk.segmentation.watershed_segment(_ritk(grad_arr)).to_numpy()
+    assert np.all(np.isfinite(result)), "Watershed produced non-finite values"
+    assert result.shape == arr.shape, (
+        f"Watershed output shape {result.shape} != input shape {arr.shape}"
+    )
+    n_labels = len(np.unique(result))
+    assert n_labels >= 2, (
+        f"Watershed produced only {n_labels} unique label(s); expected >= 2"
+    )
+
+
+def test_kmeans_segment_produces_k_clusters():
+    """K-means clustering on a 3-class concentric image recovers at least 2 clusters.
+
+    Mathematical justification:
+    K-means (Lloyd, 1982) partitions pixels into k clusters by minimising
+    within-cluster variance. Three concentric shells with disjoint intensity
+    ranges (0.2, 0.5, 0.8) are linearly separable in the 1-D intensity feature
+    space; with k=3 the algorithm converges to centroids near the true class
+    means. At minimum 2 distinct cluster labels must appear because the inner
+    and outer regions differ by 0.6, far exceeding any reasonable convergence
+    tolerance.
+    """
+    s = SIZE
+    c = s // 2
+    z, y, x = np.mgrid[:s, :s, :s]
+    r = np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2)
+    arr = np.where(r < 4, 0.2, np.where(r < 8, 0.5, 0.8)).astype(np.float32)
+    result = ritk.segmentation.kmeans_segment(_ritk(arr), k=3).to_numpy()
+    unique_labels = np.unique(result.round(4))
+    assert len(unique_labels) >= 2, (
+        f"K-means produced only {len(unique_labels)} distinct cluster(s); expected >= 2"
+    )
+    assert result.shape == arr.shape, (
+        f"K-means output shape {result.shape} != input shape {arr.shape}"
+    )
+    assert np.all(np.isfinite(result)), "K-means produced non-finite values"
+
+
+def test_connected_threshold_segment_recovers_sphere():
+    """Connected-threshold region growing from the sphere centre recovers the sphere.
+
+    Mathematical justification:
+    Connected-threshold segmentation (ITK ConnectedThresholdImageFilter) performs
+    a flood fill from a seed voxel, adding all 6-connected neighbours whose
+    intensities lie within [lower, upper]. The noisy sphere has foreground
+    intensity ≈ 1.0 and background ≈ 0.0 (clipped to [0, 1]). The band
+    [0.5, 1.5] includes all foreground voxels and excludes the background,
+    so the flood fill from the centre recovers the sphere with high overlap.
+    Dice ≥ 0.90 accounts for edge voxels where noise may push intensity
+    outside the band.
+    """
+    arr = _make_noisy()
+    sphere_gt = _make_sphere()
+    c = SIZE // 2
+    result = ritk.segmentation.connected_threshold_segment(
+        _ritk(arr), seed=(c, c, c), lower=0.5, upper=1.5
+    ).to_numpy()
+    d = _dice(result, sphere_gt)
+    assert d >= 0.90, f"Connected-threshold Dice {d:.4f} < 0.90 vs ground-truth sphere"
+
+
+def test_confidence_connected_segment_recovers_sphere():
+    """Confidence-connected region growing adaptively recovers the sphere.
+
+    Mathematical justification:
+    Confidence-connected segmentation (ITK ConfidenceConnectedImageFilter)
+    iteratively estimates the mean and standard deviation of the current
+    region and grows to include neighbours within multiplier × σ of the mean.
+    With initial bounds [0.5, 1.5] centred on the sphere foreground (≈ 1.0)
+    and multiplier = 2.5, the initial region captures the sphere interior;
+    subsequent iterations adaptively expand. The criterion is more conservative
+    than fixed-threshold growing because the adaptive statistics may exclude
+    boundary voxels with outlying noise, so Dice ≥ 0.70 is the relaxed
+    threshold.
+    """
+    arr = _make_noisy()
+    sphere_gt = _make_sphere()
+    c = SIZE // 2
+    result = ritk.segmentation.confidence_connected_segment(
+        _ritk(arr),
+        seed=[c, c, c],
+        initial_lower=0.5,
+        initial_upper=1.5,
+        multiplier=2.5,
+        max_iterations=5,
+    ).to_numpy()
+    fg_count = int((result > 0).sum())
+    assert fg_count >= 1, "Confidence-connected produced zero foreground voxels"
+    assert np.all(np.isin(result, [0.0, 1.0])), (
+        "Confidence-connected output contains values outside {0.0, 1.0}"
+    )
+    d = _dice(result, sphere_gt)
+    assert d >= 0.70, f"Confidence-connected Dice {d:.4f} < 0.70 vs ground-truth sphere"
+
+
+def test_neighborhood_connected_segment_recovers_sphere():
+    """Neighborhood-connected region growing recovers the sphere.
+
+    Mathematical justification:
+    Neighborhood-connected segmentation (ITK NeighborhoodConnectedImageFilter)
+    adds a voxel only if ALL voxels in its neighbourhood (radius r) fall within
+    [lower, upper]. This is stricter than voxel-wise connected threshold because
+    a single noisy neighbour can block inclusion. With radius=1 (3×3×3
+    neighbourhood) and the band [0.5, 1.5], the interior of the sphere is
+    reliably captured while boundary voxels near noisy neighbours may be
+    excluded. Dice ≥ 0.80 accounts for this boundary conservatism.
+    """
+    arr = _make_noisy()
+    sphere_gt = _make_sphere()
+    c = SIZE // 2
+    result = ritk.segmentation.neighborhood_connected_segment(
+        _ritk(arr), seed=[c, c, c], lower=0.5, upper=1.5, radius=1
+    ).to_numpy()
+    fg_count = int((result > 0).sum())
+    assert fg_count >= 1, "Neighborhood-connected produced zero foreground voxels"
+    assert np.all(np.isfinite(result)), (
+        "Neighborhood-connected produced non-finite values"
+    )
+    d = _dice(result, sphere_gt)
+    assert d >= 0.80, (
+        f"Neighborhood-connected Dice {d:.4f} < 0.80 vs ground-truth sphere"
+    )
+
+
+def test_curvature_anisotropic_diffusion_smooths_noisy_image():
+    """Curvature anisotropic diffusion reduces noise while preserving mean intensity.
+
+    Mathematical justification:
+    Curvature anisotropic diffusion (Alvarez, Guichard, Lions & Morel, 1992;
+    ITK CurvatureAnisotropicDiffusionImageFilter) applies a diffusion process
+    where the conductance term is inversely proportional to the gradient
+    magnitude, preserving edges while smoothing homogeneous regions. On a
+    noisy image, the diffusion reduces noise variance (std decreases) while
+    preserving the global mean intensity (mass conservation under the PDE
+    with Neumann boundary conditions). The time-step 0.0625 satisfies the
+    CFL stability condition for 3-D (Δt ≤ 1/(2·D) = 1/6 ≈ 0.1667 for D=3).
+    """
+    arr = _make_noisy()
+    input_std = float(arr.std())
+    input_mean = float(arr.mean())
+    result = ritk.filter.curvature_anisotropic_diffusion(
+        _ritk(arr), iterations=10, time_step=0.0625
+    ).to_numpy()
+    output_std = float(result.std())
+    output_mean = float(result.mean())
+    assert output_std < input_std, (
+        f"Diffusion output std {output_std:.4f} >= input std {input_std:.4f} "
+        f"(noise not reduced)"
+    )
+    assert abs(output_mean - input_mean) < 0.05, (
+        f"Diffusion output mean {output_mean:.4f} differs from input mean "
+        f"{input_mean:.4f} by >= 0.05 (intensity not preserved)"
+    )
+    assert np.all(np.isfinite(result)), (
+        "Curvature anisotropic diffusion produced non-finite values"
+    )
+
+
+def test_sato_line_filter_responds_to_tube_like_structure():
+    """Sato line filter produces higher response on tube-like than background voxels.
+
+    Mathematical justification:
+    The Sato tubular enhancement filter (Sato et al., 1998) analyses eigenvalues
+    of the Hessian matrix at multiple scales. For a bright tube aligned with the
+    z-axis, the Hessian has two large-magnitude negative eigenvalues (λ₁, λ₂)
+    in the cross-sectional plane and one near-zero eigenvalue (λ₃) along the
+    tube. The line-response function reaches its maximum when |λ₁| ≈ |λ₂| ≫
+    |λ₃| and λ₁, λ₂ < 0 (bright tube). Background voxels (zero intensity,
+    zero Hessian) produce near-zero response.
+    """
+    s = SIZE
+    c = s // 2
+    arr = np.zeros((s, s, s), dtype=np.float32)
+    z, y, x = np.mgrid[:s, :s, :s]
+    tube = ((y - c) ** 2 + (x - c) ** 2) < 4  # radius-2 tube along z
+    arr[tube] = 1.0
+    result = ritk.filter.sato_line_filter(
+        _ritk(arr), scales=[1.0, 2.0], alpha=0.5, bright_tubes=True
+    ).to_numpy()
+    assert np.all(np.isfinite(result)), "Sato filter produced non-finite values"
+    tube_mean = float(result[tube].mean())
+    bg_mask = ~tube
+    bg_mean = float(result[bg_mask].mean())
+    assert tube_mean > bg_mean, (
+        f"Sato tube response {tube_mean:.6f} <= background response {bg_mean:.6f}"
+    )
+
+
+def test_white_top_hat_isolates_bright_small_structures():
+    """White top-hat extracts bright structures smaller than the structuring element.
+
+    Mathematical justification:
+    White top-hat = I − γ(I), where γ is morphological opening (erosion then
+    dilation) with a structuring element of radius r. Opening removes structures
+    smaller than r that are brighter than their surroundings; subtracting the
+    opened image from the original isolates exactly those bright structures.
+    A 3³ bright blob (radius ≈ 1.5 voxels) on a constant background is removed
+    by opening with radius 3, so the top-hat response is positive at the blob
+    and zero (up to floating-point rounding) on the constant background.
+    The result is non-negative by definition since γ(I) ≤ I for any opening.
+    """
+    s = SIZE
+    c = s // 2
+    arr = np.full((s, s, s), 0.5, dtype=np.float32)
+    arr[c - 1 : c + 2, c - 1 : c + 2, c - 1 : c + 2] = 1.0  # 3³ bright blob
+    result = ritk.filter.white_top_hat(_ritk(arr), radius=3).to_numpy()
+    assert float(result.max()) > 0, (
+        "White top-hat max is zero (bright structure not extracted)"
+    )
+    # Background region: everything outside the 3³ blob footprint
+    bg_mask = np.ones((s, s, s), dtype=bool)
+    bg_mask[c - 1 : c + 2, c - 1 : c + 2, c - 1 : c + 2] = False
+    bg_max = float(result[bg_mask].max())
+    assert bg_max < 0.05, (
+        f"White top-hat background max {bg_max:.6f} >= 0.05 (background not suppressed)"
+    )
+    assert float(result.min()) >= 0.0, (
+        f"White top-hat min {float(result.min()):.6f} < 0 (negative values impossible)"
+    )
+
+
+def test_hit_or_miss_detects_isolated_foreground_voxels():
+    """Hit-or-miss detects isolated foreground voxels surrounded by background.
+
+    Mathematical justification:
+    The hit-or-miss transform (Serra, 1982) detects positions where the
+    foreground structuring element (fg_radius) fits entirely within the image
+    foreground AND the background structuring element (bg_radius annulus) fits
+    entirely within the image background. An isolated single voxel with
+    fg_radius=1 (the voxel itself) and bg_radius=1 (6-connected neighbours must
+    be background) is the canonical detection target. Non-isolated voxels (those
+    with at least one foreground 6-neighbour) fail the background annulus
+    condition and are not detected.
+    """
+    s = 15
+    arr = np.zeros((s, s, s), dtype=np.float32)
+    arr[5, 5, 5] = 1.0
+    arr[10, 10, 10] = 1.0
+    result = ritk.filter.hit_or_miss(_ritk(arr), fg_radius=1, bg_radius=1).to_numpy()
+    # Isolated voxels must be detected
+    assert float(result[5, 5, 5]) > 0, (
+        "Hit-or-miss did not detect isolated voxel at (5,5,5)"
+    )
+    assert float(result[10, 10, 10]) > 0, (
+        "Hit-or-miss did not detect isolated voxel at (10,10,10)"
+    )
+    # All other positions must be zero
+    other_mask = np.ones((s, s, s), dtype=bool)
+    other_mask[5, 5, 5] = False
+    other_mask[10, 10, 10] = False
+    assert float(result[other_mask].max()) == 0, (
+        "Hit-or-miss detected non-isolated positions as foreground"
+    )
+    assert int((result > 0).sum()) >= 1, "Hit-or-miss produced zero foreground voxels"
+
+
+def test_morphological_reconstruction_dilation_fills_masked_region():
+    """Geodesic dilation by reconstruction fills the mask from a single seed.
+
+    Mathematical justification:
+    Morphological reconstruction by dilation (Vincent, 1993) iteratively dilates
+    the marker image, intersecting with the mask at each step, until idempotence.
+    For a binary mask with a single connected foreground region and a marker
+    containing a single seed inside that region, every dilation iteration
+    expands the seed into the mask. At convergence, the result equals the mask
+    (marker ≤ mask is preserved; dilation fills all connected mask voxels).
+    Dice ≥ 0.95 allows for edge effects at the boundary of the 10³ cube.
+    """
+    s = SIZE
+    c = s // 2
+    mask = np.zeros((s, s, s), dtype=np.float32)
+    mask[c - 5 : c + 5, c - 5 : c + 5, c - 5 : c + 5] = 1.0  # 10³ mask region
+    marker = np.zeros((s, s, s), dtype=np.float32)
+    marker[c, c, c] = 1.0  # single seed
+    result = ritk.filter.morphological_reconstruction(
+        _ritk(marker), _ritk(mask), mode="dilation"
+    ).to_numpy()
+    d = _dice(result, mask)
+    assert d >= 0.95, f"Morphological reconstruction Dice {d:.4f} < 0.95 vs mask"
+    assert np.all(np.isin(result, [0.0, 1.0])), (
+        "Morphological reconstruction output contains values outside {0.0, 1.0}"
+    )

@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.12.0] — Sprint 80
+
+### Added
+- 10 new parity tests (Section 8 of `test_simpleitk_parity.py`): watershed label map, K-means cluster count, connected-threshold sphere recovery, confidence-connected sphere recovery, neighborhood-connected sphere recovery, curvature anisotropic diffusion smoothing, Sato line filter tube response, white top-hat bright structure isolation, hit-or-miss isolated voxel detection, morphological reconstruction dilation fill
+- `gap_audit.md` severity corrections: §3.1 (thresholding) Critical→Closed, §3.2 (region growing) Critical→Closed, §3.4 (watershed) Medium→Closed, §4.5 (Canny) Medium→Closed, §4.7 (Recursive Gaussian) High→Closed, §4.8 (LoG) Medium→Closed, §4.10 (Morphological Filters) High→Closed, §5.2 (Nyúl-Udupa) High→Closed, §5.3 (Intensity Normalization) High→Closed
+- §3.3 level-set table updated: ShapeDetection, LaplacianLS, ThresholdLS rows changed from "Not yet" to "Implemented"
+
+### Fixed
+- `test_segmentation_bindings.py` `test_shape_detection_segment_preserves_shape_and_finite_values` call-site `curvature_weight=0.2` corrected to `1.0` (matches pyo3 canonical default fixed in Sprint 79)
+- `ci.yml` `python-wheel` smoke test updated from `laplacian_level_set_segment(curvature_weight=0.2)` to `shape_detection_segment(curvature_weight=1.0)` for representative default coverage
+
+### Changed
+- `ritk-python` version bumped from 0.11.0 to 0.12.0
+
 ## [0.11.0] — Sprint 79
 ### Added
 - 5 new level-set parity tests (Chan-Vese sphere Dice, GAC expansion in uniform image,
@@ -127,6 +141,10 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
 [Unreleased]: https://github.com/ryancinsight/ritk/compare/HEAD...HEAD
+[0.12.0]: https://github.com/ryancinsight/ritk/compare/v0.11.0...v0.12.0
+[0.11.0]: https://github.com/ryancinsight/ritk/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/ryancinsight/ritk/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/ryancinsight/ritk/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ryancinsight/ritk/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ryancinsight/ritk/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/ryancinsight/ritk/compare/v0.5.0...v0.6.0
