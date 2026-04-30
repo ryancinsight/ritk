@@ -1,4 +1,4 @@
-## Sprint 80 — Completed
+## Sprint 80 ï¿½ Completed
 **Status**: Completed
 **Phase**: Execution
 **Version**: 0.12.0 [minor]
@@ -8,16 +8,16 @@
 | Gap ID | Description | Severity |
 |---|---|---|
 | GAP-80-01 | Fix `test_shape_detection_segment` call-site `curvature_weight=0.2&#8594;1.0` | patch |
-| GAP-80-02 | gap_audit §3.1 Critical&#8594;Closed (all thresholds implemented) | patch |
-| GAP-80-03 | gap_audit §3.2 Critical&#8594;Closed (all region growing implemented) | patch |
-| GAP-80-04 | gap_audit §3.4 Medium&#8594;Closed (marker watershed implemented) | patch |
-| GAP-80-05 | gap_audit §3.3 level-set table rows Not yet&#8594;Implemented | patch |
-| GAP-80-06 | gap_audit §4.5 Canny Medium&#8594;Closed | patch |
-| GAP-80-07 | gap_audit §4.7 Recursive Gaussian High&#8594;Closed | patch |
-| GAP-80-08 | gap_audit §4.8 LoG Medium&#8594;Closed | patch |
-| GAP-80-09 | gap_audit §4.10 Morphological Filters High&#8594;Closed | patch |
-| GAP-80-10 | gap_audit §5.2 Nyúl-Udupa High&#8594;Closed | patch |
-| GAP-80-11 | gap_audit §5.3 Intensity Normalization High&#8594;Closed | patch |
+| GAP-80-02 | gap_audit ï¿½3.1 Critical&#8594;Closed (all thresholds implemented) | patch |
+| GAP-80-03 | gap_audit ï¿½3.2 Critical&#8594;Closed (all region growing implemented) | patch |
+| GAP-80-04 | gap_audit ï¿½3.4 Medium&#8594;Closed (marker watershed implemented) | patch |
+| GAP-80-05 | gap_audit ï¿½3.3 level-set table rows Not yet&#8594;Implemented | patch |
+| GAP-80-06 | gap_audit ï¿½4.5 Canny Medium&#8594;Closed | patch |
+| GAP-80-07 | gap_audit ï¿½4.7 Recursive Gaussian High&#8594;Closed | patch |
+| GAP-80-08 | gap_audit ï¿½4.8 LoG Medium&#8594;Closed | patch |
+| GAP-80-09 | gap_audit ï¿½4.10 Morphological Filters High&#8594;Closed | patch |
+| GAP-80-10 | gap_audit ï¿½5.2 Nyï¿½l-Udupa High&#8594;Closed | patch |
+| GAP-80-11 | gap_audit ï¿½5.3 Intensity Normalization High&#8594;Closed | patch |
 | GAP-80-12 | CI python-wheel smoke test uses shape_detection_segment with curvature_weight=1.0 | patch |
 | GAP-80-13 | 10 new parity tests (watershed, K-means, connected_threshold, confidence_connected, neighborhood_connected, curvature_anisotropic_diffusion, sato_line_filter, white_top_hat, hit_or_miss, morphological_reconstruction) | minor |
 
@@ -25,9 +25,9 @@
 | Check | Result |
 |---|---|
 | GAP-80-01: call-site default | `curvature_weight=1.0` in test_segmentation_bindings.py |
-| GAP-80-02–11: gap_audit closures | 9 sections updated Critical/High/Medium&#8594;Closed |
+| GAP-80-02ï¿½11: gap_audit closures | 9 sections updated Critical/High/Medium&#8594;Closed |
 | GAP-80-12: CI smoke test | shape_detection_segment(curvature_weight=1.0) |
-| GAP-80-13: parity test count | 64 (was 54; +10 new) |
+| GAP-80-13: parity test count | 64 total (was 54; +10 new; 3 pre-existing Sprint 79 failures unrelated to Sprint 80) |
 | Version strings | Cargo.toml = 0.12.0, `__version__` = "0.12.0" |
 
 ### Residual risks
@@ -35,7 +35,7 @@
 - macOS Python CI untested on hosted runners (from Sprint 79)
 - GAP-R08 (Elastix): Low severity, no action planned
 
-## Sprint 79 — Completed
+## Sprint 79 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Execution
@@ -67,12 +67,12 @@
 - macOS CI matrix untested on hosted runners
 - GAP-R08 (Elastix): Low severity, no action planned
 
-## Sprint 78 — Completed
+## Sprint 78 ï¿½ Completed
 
 **Status**: Completed  
 **Phase**: Execution  
 **Version**: 0.10.0 [minor]  
-**Goal**: Distance transform ITK convention fix (GAP-78-01), segmentation.pyi stub gaps (GAP-78-02), 5 new SimpleITK parity tests — Yen/Kapur/Triangle/BinaryThreshold/DT (GAP-78-03), gap_audit stale section closures (GAP-78-04), Windows DLL dependency fix (GAP-78-05).
+**Goal**: Distance transform ITK convention fix (GAP-78-01), segmentation.pyi stub gaps (GAP-78-02), 5 new SimpleITK parity tests ï¿½ Yen/Kapur/Triangle/BinaryThreshold/DT (GAP-78-03), gap_audit stale section closures (GAP-78-04), Windows DLL dependency fix (GAP-78-05).
 
 ### Gaps closed
 
@@ -81,13 +81,13 @@
 | GAP-78-01 | Distance transform returns distance-to-background instead of ITK convention distance-to-foreground | `phase1_row` seeded from background voxels (`!row[x]`); foreground voxels should be seeds | Inverted seed condition to `row[x]` (foreground seeds); all 19 Rust unit tests updated with analytically re-derived expected values; both debug and release profiles verified | [patch] |
 | GAP-78-02 | `binary_threshold_segment` and `marker_watershed_segment` absent from `segmentation.pyi` and smoke test required list | Functions registered in Rust but stub not updated when they were added | Added both stubs to `segmentation.pyi`; added both to smoke test `required` list | [patch] |
 | GAP-78-03 | No parity tests for Yen, Kapur, Triangle thresholds; no parity test for `binary_threshold_segment` or `distance_transform` | Tests not added when algorithms were exposed in prior sprints | 5 new parity tests added: `test_yen_threshold_produces_valid_segmentation` (Dice &#8805; 0.85), `test_kapur_threshold_produces_valid_segmentation` (Dice &#8805; 0.85, noisy sphere, MaximumEntropyThresholdImageFilter), `test_triangle_threshold_produces_valid_segmentation` (Dice &#8805; 0.85), `test_binary_threshold_segment_agrees_with_sitk` (Dice &#8805; 0.999), `test_distance_transform_agrees_with_sitk` (background MAE < 0.15 voxels) | [minor] |
-| GAP-78-04 | `gap_audit.md` §3.7 (Connected Components), §5.1 (Histogram Matching), §5.4 (label_statistics) marked as Critical/Missing despite being implemented | Stale status entries not updated when implementations were completed | Headers and implementation records updated; all three sections now show `Closed` | [patch] |
+| GAP-78-04 | `gap_audit.md` ï¿½3.7 (Connected Components), ï¿½5.1 (Histogram Matching), ï¿½5.4 (label_statistics) marked as Critical/Missing despite being implemented | Stale status entries not updated when implementations were completed | Headers and implementation records updated; all three sections now show `Closed` | [patch] |
 | GAP-78-05 | Full clean rebuild of `ritk-python` wheel fails to load on Windows: `ImportError: DLL load failed` due to `libstdc++-6.dll` dependency from MSYS2 clang-cl | MSYS2 clang-cl (ucrt64) compiles C++ native crates (charls-sys) and links `libstdc++.dll` dynamically; these DLLs are not present on clean Windows installs | Added `CXXFLAGS_x86_64_pc_windows_msvc = "-static-libstdc++ -static-libgcc"` to `.cargo/config.toml`; added MSYS2 ucrt64 PATH step to `python_ci.yml` Windows matrix jobs as belt-and-suspenders fix | [patch] |
 
 ### Architecture decisions
 
-- **Distance transform ITK parity**: The Meijster/Felzenszwalb DT is direction-neutral — the convention is determined by which sites seed with distance-0. Seeding from foreground gives the ITK convention (each voxel &#8594; nearest foreground). Seeding from background gives the interior distance convention (each foreground voxel &#8594; nearest background). The interior distance convention is not standard in medical imaging pipelines; ITK convention is used. The algorithmic change is a single boolean flip in `phase1_row`.
-- **Kapur threshold phantom**: Purely binary {0,1} phantoms are degenerate for maximum-entropy threshold algorithms — RITK returns 0.0 (boundary case), SITK returns near-zero. The test uses `_make_noisy(SIZE)` to produce a proper bimodal distribution with Gaussian noise &#963;=0.1, yielding thresholds &#8776; 0.165 for both RITK and SITK (MaximumEntropyThresholdImageFilter, Kapur 1985).
+- **Distance transform ITK parity**: The Meijster/Felzenszwalb DT is direction-neutral ï¿½ the convention is determined by which sites seed with distance-0. Seeding from foreground gives the ITK convention (each voxel &#8594; nearest foreground). Seeding from background gives the interior distance convention (each foreground voxel &#8594; nearest background). The interior distance convention is not standard in medical imaging pipelines; ITK convention is used. The algorithmic change is a single boolean flip in `phase1_row`.
+- **Kapur threshold phantom**: Purely binary {0,1} phantoms are degenerate for maximum-entropy threshold algorithms ï¿½ RITK returns 0.0 (boundary case), SITK returns near-zero. The test uses `_make_noisy(SIZE)` to produce a proper bimodal distribution with Gaussian noise &#963;=0.1, yielding thresholds &#8776; 0.165 for both RITK and SITK (MaximumEntropyThresholdImageFilter, Kapur 1985).
 - **libstdc++ DLL**: MSYS2 clang-cl target is `x86_64-pc-windows-msvc` (MSVC ABI) but links the GCC C++ standard library dynamically. `-static-libstdc++ -static-libgcc` are GCC driver flags recognized by MSYS2 clang-cl's underlying gcc driver mode; they force static resolution of `libstdc++.a` and `libgcc.a` at compile time so the final `_ritk.pyd` has no MinGW DLL dependencies.
 
 ### Verification
@@ -106,7 +106,7 @@
 
 - `checklist.md`: Sprint 78 entries added.
 - `backlog.md`: Sprint 78 closure record added.
-- `gap_audit.md`: §3.7, §5.1, §5.4 updated; Sprint 78 gap closures recorded.
+- `gap_audit.md`: ï¿½3.7, ï¿½5.1, ï¿½5.4 updated; Sprint 78 gap closures recorded.
 - `CHANGELOG.md`: v0.10.0 entry added.
 
 ### Residual risk
@@ -117,7 +117,7 @@
 
 ---
 
-## Sprint 77 — Completed
+## Sprint 77 ï¿½ Completed
 
 **Status**: Completed  
 **Phase**: Execution  
@@ -130,27 +130,27 @@
 |---|---|---|---|---|
 | GAP-77-01 | `test_simpleitk_parity.py`, `test_vtk_parity.py`, `test_ct_mri_registration_parity.py` absent from CI; `SimpleITK`, `vtk` absent from pip install | `python_ci.yml` only ran 4 test files with `numpy pytest maturin`; parity suites were verified manually only | Added `SimpleITK vtk` to pip install; appended 3 parity test files to pytest invocation | [patch] |
 | GAP-77-02 | No parity test for `multires_demons_register`, `inverse_consistent_demons_register`, `compute_label_intensity_statistics` | Tests were added in previous sprints but not parity-validated against reference implementations | Added `test_multires_demons_ncc_improves_on_shifted_sphere` (NCC &#8805; 0.90), `test_inverse_consistent_demons_ncc_improves_on_shifted_sphere` (NCC &#8805; 0.85; sigma=1.0), `test_label_intensity_statistics_mean_agrees_with_sitk` (delta < 1e-3 vs SimpleITK `LabelStatisticsImageFilter`) | [minor] |
-| GAP-77-03 | `CHANGELOG.md` absent from repository; required by SemVer versioning policy | No changelog was created during sprint history | Created `CHANGELOG.md` covering Sprints 71–77 (versions 0.3.0–0.9.0) per Keep a Changelog + SemVer 2.0.0 | [minor] |
+| GAP-77-03 | `CHANGELOG.md` absent from repository; required by SemVer versioning policy | No changelog was created during sprint history | Created `CHANGELOG.md` covering Sprints 71ï¿½77 (versions 0.3.0ï¿½0.9.0) per Keep a Changelog + SemVer 2.0.0 | [minor] |
 | GAP-77-04 | `gap_audit.md` GAP-R07 section header said "Severity: **High**" despite BSplineFFDRegistration being implemented in Sprint 4 | Section header not updated when Sprint 4 priority matrix entry was closed | Updated header to "Severity: **Closed**"; added full implementation record (multi-resolution refinement, 22 tests, Python binding) | [patch] |
 | GAP-77-05 | 2 pre-existing Python test failures in `test_statistics_bindings.py` | `_image()` passed 1D arrays `[0, 1, 2]` and `[1, 2, 3, 4]` to `ritk.Image` which requires 3D; not caught because CI only ran `cargo test -p ritk-python --lib` in Sprint 70 (Rust tests, not Python tests) | Reshaped to `(1,1,3)` and `(1,2,2)` respectively; added value-semantic assertions (min/max for minmax; mean/std for zscore) | [patch] |
 
 ### Architecture decisions
 
-- **IC-Demons convergence analysis**: IC-Demons NCC gap vs unconstrained Demons is caused by the bilateral energy update subtracting the backward force from the forward force (`v += (1-w)*u_fwd - w*u_bwd`). With `sigma_diffusion=1.5`, over-smoothing compounds this to NCC &#8776;0.84. With `sigma_diffusion=1.0` (canonical for binary sphere test), IC-Demons achieves NCC &#8776;0.93 (7% gap vs symmetric_demons &#8776;0.97 — analytically expected from bilateral energy at weight=0.1).
-- **Version mapping**: Sprint 71&#8722;76 are back-documented as versions 0.3.0–0.8.0 (each sprint = one [minor] bump). Sprint 77 = 0.9.0. The `ritk-python` Cargo.toml and `__init__.__version__` are aligned to 0.9.0. Pre-Sprint-71 history is not documented in CHANGELOG (Sprint 70 and earlier are pre-changelog baseline).
+- **IC-Demons convergence analysis**: IC-Demons NCC gap vs unconstrained Demons is caused by the bilateral energy update subtracting the backward force from the forward force (`v += (1-w)*u_fwd - w*u_bwd`). With `sigma_diffusion=1.5`, over-smoothing compounds this to NCC &#8776;0.84. With `sigma_diffusion=1.0` (canonical for binary sphere test), IC-Demons achieves NCC &#8776;0.93 (7% gap vs symmetric_demons &#8776;0.97 ï¿½ analytically expected from bilateral energy at weight=0.1).
+- **Version mapping**: Sprint 71&#8722;76 are back-documented as versions 0.3.0ï¿½0.8.0 (each sprint = one [minor] bump). Sprint 77 = 0.9.0. The `ritk-python` Cargo.toml and `__init__.__version__` are aligned to 0.9.0. Pre-Sprint-71 history is not documented in CHANGELOG (Sprint 70 and earlier are pre-changelog baseline).
 - **CI parity gate**: `test_simpleitk_parity.py` (39 tests) and `test_vtk_parity.py` (18 tests) are now active CI gates on all matrix targets. `test_ct_mri_registration_parity.py` is CI-safe (4 tests, all `skipif` data absent).
 
 ### Verification
 
 | Check | Result |
 |---|---|
-| `cargo check -p ritk-python` | `ritk-python v0.9.0` — 0 errors, 0 warnings |
+| `cargo check -p ritk-python` | `ritk-python v0.9.0` ï¿½ 0 errors, 0 warnings |
 | `py -m pytest test_simpleitk_parity.py` | 39 passed, 0 failed (was 36) |
 | `py -m pytest test_vtk_parity.py` | 18 passed |
 | `py -m pytest test_statistics_bindings.py` | 8 passed, 0 failed (was 6 pass, 2 fail) |
 | `py -m pytest test_ct_mri_registration_parity.py` | 4 passed |
 | Combined parity suite | **69 passed, 0 failed** in 31.24 s |
-| `CHANGELOG.md` created | Sprints 71–77, versions 0.3.0–0.9.0, SemVer format |
+| `CHANGELOG.md` created | Sprints 71ï¿½77, versions 0.3.0ï¿½0.9.0, SemVer format |
 | Version strings aligned | `Cargo.toml` = 0.9.0, `__version__` = "0.9.0" |
 
 ### Updated artifacts
@@ -168,7 +168,7 @@
 
 ---
 
-## Sprint 76 — Completed
+## Sprint 76 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -178,9 +178,9 @@
 
 | ID | Gap | Root cause | Resolution | Tag |
 |---|---|---|---|---|
-| GAP-R76-01 | 4 Elastix parity tests permanently skipped — SimpleElastix not installable on Python 3.13 | SimpleElastix last released ~2018 with no Python &#8805;3.9 wheels; installed SimpleITK 2.5.4 is vanilla (no `ElastixImageFilter`); tests used `@pytest.mark.skipif(not _has_elastix)` which evaluated to `True` on every run | Replaced all 4 Elastix tests with 4 SimpleITK `ImageRegistrationMethod`-based tests: `test_sitk_translation_recovers_sphere_overlap`, `test_ritk_demons_vs_sitk_translation_quality`, `test_sitk_bspline_deformable_vs_ritk_syn`, `test_sitk_affine_registration_converges_on_shifted_sphere`. Added 3 helper functions (`_sitk_translation_register`, `_sitk_affine_register`, `_sitk_bspline_register`) that use `ImageRegistrationMethod` + `Euler3DTransform` / `AffineTransform` / `BSplineTransform` + `RegularStepGradientDescent` + Mattes MI. | [minor] |
+| GAP-R76-01 | 4 Elastix parity tests permanently skipped ï¿½ SimpleElastix not installable on Python 3.13 | SimpleElastix last released ~2018 with no Python &#8805;3.9 wheels; installed SimpleITK 2.5.4 is vanilla (no `ElastixImageFilter`); tests used `@pytest.mark.skipif(not _has_elastix)` which evaluated to `True` on every run | Replaced all 4 Elastix tests with 4 SimpleITK `ImageRegistrationMethod`-based tests: `test_sitk_translation_recovers_sphere_overlap`, `test_ritk_demons_vs_sitk_translation_quality`, `test_sitk_bspline_deformable_vs_ritk_syn`, `test_sitk_affine_registration_converges_on_shifted_sphere`. Added 3 helper functions (`_sitk_translation_register`, `_sitk_affine_register`, `_sitk_bspline_register`) that use `ImageRegistrationMethod` + `Euler3DTransform` / `AffineTransform` / `BSplineTransform` + `RegularStepGradientDescent` + Mattes MI. | [minor] |
 | GAP-R76-02 | `build_atlas` Python binding did not expose `gradient_step` parameter | `build_atlas` hardcoded `gradient_step: 0.25` in the inner `MultiResSyNConfig` literal; users could not tune step size from Python | Added `gradient_step: f64 = 0.25` parameter to `build_atlas` PyO3 function signature; updated pyi stub; expanded docstring to document all parameters | [minor] |
-| GAP-R76-03 | `_sitk_bspline_register` used `scale=False` kwarg not present in SimpleITK 2.5.4's `SetInitialTransform` | `SetInitialTransform(transform, inPlace=True, scale=False)` — `scale` keyword removed/absent in SimpleITK 2.5.4 | Removed `scale=False` from `SetInitialTransform` call | [patch] |
+| GAP-R76-03 | `_sitk_bspline_register` used `scale=False` kwarg not present in SimpleITK 2.5.4's `SetInitialTransform` | `SetInitialTransform(transform, inPlace=True, scale=False)` ï¿½ `scale` keyword removed/absent in SimpleITK 2.5.4 | Removed `scale=False` from `SetInitialTransform` call | [patch] |
 | GAP-R76-04 | Affine Dice threshold 0.85 exceeded measured SimpleITK performance (0.8375) | 32&#179; volume with radius-6 sphere has only 3845 foreground voxels; 1-voxel residual translation error produces Dice &#8776; 0.83; multi-resolution affine with sampled MI cannot reliably achieve 0.85 on this volume | Lowered threshold to 0.80 with analytical justification in docstring | [patch] |
 
 ### Architecture decisions
@@ -219,7 +219,7 @@
 
 ---
 
-## Sprint 75 — Completed
+## Sprint 75 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -228,13 +228,13 @@
 ### Gaps closed
 | ID | Gap | Root cause | Resolution | Tag |
 |---|---|---|---|---|
-| GAP-R75-01 | SyN CC gradient force formula inverted — translation not recovered | All three `cc_forces` functions used `force_scale = -2*cc_num/(var_i*var_j)`. Since `cc_num = CC*sqrt(var_i*var_j)`, this equals `-2*CC/sqrt(var_i*var_j)`, which for CC > 0 pushes the velocity field in the wrong direction (gradient descent on CC instead of ascent) | Replaced with Avants 2008 eq. 10: `force_scale = (J_W-&#956;_J)/sqrt(var_i*var_j) &#8722; CC*(I_W-&#956;_I)/var_i` in all three `cc_forces` functions (`diffeomorphic/mod.rs`, `diffeomorphic/multires_syn.rs`, `diffeomorphic/bspline_syn.rs`) | [patch] |
-| GAP-R75-02 | No step-size normalization — force magnitude depended on image intensity scale | Velocity field update `v += u` accumulated raw CC gradient forces; Gaussian smoothing after each step dissipated small forces before they could accumulate | Added `gradient_step: f64 = 0.25` to `SyNConfig` and `MultiResSyNConfig`; forces normalised per iteration so max|u| = gradient_step (inf-norm) before accumulation. `BSplineSyNConfig` also receives the field (consistent API) | [minor] |
+| GAP-R75-01 | SyN CC gradient force formula inverted ï¿½ translation not recovered | All three `cc_forces` functions used `force_scale = -2*cc_num/(var_i*var_j)`. Since `cc_num = CC*sqrt(var_i*var_j)`, this equals `-2*CC/sqrt(var_i*var_j)`, which for CC > 0 pushes the velocity field in the wrong direction (gradient descent on CC instead of ascent) | Replaced with Avants 2008 eq. 10: `force_scale = (J_W-&#956;_J)/sqrt(var_i*var_j) &#8722; CC*(I_W-&#956;_I)/var_i` in all three `cc_forces` functions (`diffeomorphic/mod.rs`, `diffeomorphic/multires_syn.rs`, `diffeomorphic/bspline_syn.rs`) | [patch] |
+| GAP-R75-02 | No step-size normalization ï¿½ force magnitude depended on image intensity scale | Velocity field update `v += u` accumulated raw CC gradient forces; Gaussian smoothing after each step dissipated small forces before they could accumulate | Added `gradient_step: f64 = 0.25` to `SyNConfig` and `MultiResSyNConfig`; forces normalised per iteration so max|u| = gradient_step (inf-norm) before accumulation. `BSplineSyNConfig` also receives the field (consistent API) | [minor] |
 | GAP-R75-03 | `gradient_step` missing from Python `syn_register` / `multires_syn_register` / `bspline_syn_register` bindings | Bindings were not updated to expose the new config field | Added `gradient_step: float = 0.25` to all three Python function signatures, PyO3 pyi stubs, and doc-strings; `build_atlas` inner `MultiResSyNConfig` literal fixed | [minor] |
 | GAP-R75-04 | No Python parity test for SyN NCC improvement | `test_syn_register_ncc_improves_on_shifted_gaussian_blob` missing from `test_simpleitk_parity.py` Section 5 | Added test: Gaussian blob sigma=4 in 24&#179; volume, 4-voxel x-shift; `syn_register` 50 iter, gradient_step=0.25, sigma_smooth=1.5; asserts NCC_after > NCC_before AND NCC_after &#8805; 0.80; passes on rebuilt wheel | [minor] |
 
 ### Architecture decisions
-- Force formula is gradient **ascent** on CC (minimise 1&#8722;CC). Avants 2008 eq. 10 first term `(J_W&#8722;&#956;_J)/sqrt(&#963;_I&#178;·&#963;_J&#178;)` is the primary force; the second term `&#8722;CC·(I_W&#8722;&#956;_I)/&#963;_I&#178;` provides second-order curvature correction. Both terms are implemented.
+- Force formula is gradient **ascent** on CC (minimise 1&#8722;CC). Avants 2008 eq. 10 first term `(J_W&#8722;&#956;_J)/sqrt(&#963;_I&#178;ï¿½&#963;_J&#178;)` is the primary force; the second term `&#8722;CCï¿½(I_W&#8722;&#956;_I)/&#963;_I&#178;` provides second-order curvature correction. Both terms are implemented.
 - Gaussian blob images (not linear-ramp images) are the canonical synthetic test for SyN translation recovery. Local CC of a linear ramp is shift-invariant (near 1.0 for any x-offset), so the gradient is near zero and cannot drive convergence.
 - `gradient_step = 0.25` matches the ANTs default `gradientStep`. This is the canonical default; the parameter is exposed at the Python and CLI layers so users can tune for large-deformation cases.
 - `BSplineSyNConfig::gradient_step` is added for API consistency but is currently unused in the BSplineSyn register loop (BSplineSyn accumulates to a CP lattice whose implicit scale provides magnitude control via `accumulate_to_cp`). If BSplineSyn is found to need normalization in a future sprint, the field is already present.
@@ -253,11 +253,11 @@
 - `gap_audit.md`: GAP-R75-01..04 closed; SyN translation recovery risk removed; updated risk posture.
 
 ### Residual risk
-- GAP-R08 (Elastix parity) — Medium: 4 Elastix tests still skipped (Elastix absent). ASGD optimizer and parameter-map interface remain absent. Not affected by this sprint.
+- GAP-R08 (Elastix parity) ï¿½ Medium: 4 Elastix tests still skipped (Elastix absent). ASGD optimizer and parameter-map interface remain absent. Not affected by this sprint.
 
 ---
 
-## Sprint 74 — Completed
+## Sprint 74 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -275,7 +275,7 @@
 ### Architecture decisions
 - `--auditwheel repair` is the canonical Windows build path; it bundles all MinGW runtime DLLs into the wheel, making `ritk` self-contained on MSVC Python installations.
 - BSpline FFD NCC tests require smooth (Gaussian-blurred) input images. Binary sphere images produce near-zero interior gradients that cause the optimiser to declare convergence after the first iteration (rel_change < 1e-6).
-- SyN translation recovery is not testable with the current synthetic volumes; velocity fields do not accumulate for pure translations under sigma_smooth=1.0–3.0. Symmetric Demons is used as the high-quality diffeomorphic parity reference.
+- SyN translation recovery is not testable with the current synthetic volumes; velocity fields do not accumulate for pure translations under sigma_smooth=1.0ï¿½3.0. Symmetric Demons is used as the high-quality diffeomorphic parity reference.
 - CT/MRI DICOM parity tests use `@pytest.mark.skipif(not _DATA_PRESENT, ...)` consistent with the `#[ignore]` pattern in Rust integration tests.
 - VTK `DiffusionThreshold` means "diffuse faces with gradient **below** threshold" (same polarity as Perona-Malik conductance); set threshold > spike gradient to diffuse the spike.
 
@@ -292,12 +292,12 @@
 - `gap_audit.md`: Sprint 74 closure notes added; SyN translation recovery gap recorded as open Medium risk.
 
 ### Residual risk
-- SyN translation recovery — Medium: `syn_register` does not converge on synthetic translation test cases. The `warped_fixed` output equals the original fixed image identically, suggesting velocity fields do not accumulate. Requires investigation in `diffeomorphic/mod.rs` velocity field update loop.
-- GAP-R08 (Elastix parity) — Medium: 4 Elastix tests exist and are skipped (Elastix absent in current environment). ASGD optimizer and parameter-map interface remain absent.
+- SyN translation recovery ï¿½ Medium: `syn_register` does not converge on synthetic translation test cases. The `warped_fixed` output equals the original fixed image identically, suggesting velocity fields do not accumulate. Requires investigation in `diffeomorphic/mod.rs` velocity field update loop.
+- GAP-R08 (Elastix parity) ï¿½ Medium: 4 Elastix tests exist and are skipped (Elastix absent in current environment). ASGD optimizer and parameter-map interface remain absent.
 
 ---
 
-## Sprint 73 — Completed
+## Sprint 73 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -306,17 +306,17 @@
 ### Gaps closed
 | ID | Gap | Root cause | Resolution | Tag |
 |---|---|---|---|---|
-| GAP-R73-01 | 3 `ritk-snap` compiler warnings (unused doc comment, unused mut, dead code `step_slice`) | Warnings introduced in Sprint 72 implementation; `step_slice` was defined but never called | Changed `///` &#8594; `//` on nested closure doc comment in `loader.rs:302`; removed `mut` from `let mut try_add` in `loader.rs:304`; replaced 4 direct `step_slice_for_axis(self.axis, ±1)` call sites in `app.rs` with `self.step_slice(±1)` | [patch] |
-| GAP-R73-02 | Paired CT test data absent — only porcine phantom MRI existed without matching CT | Sprint 72 downloaded MRI but not the CT from the same phantom | Downloaded 409-slice MRI-DIR CT (512×512, 0.390625 mm pixel spacing, 0.625 mm slice thickness, CC BY 4.0, PatientID=MRI-DIR-zzmeatphantom) from TCIA to `test_data/3_head_ct_mridir/DICOM/`; updated `test_data/README.md` | [patch] |
-| GAP-R73-03 | No VTK filter parity tests | `test_simpleitk_parity.py` covered SimpleITK but no VTK comparison existed | Created `crates/ritk-python/tests/test_vtk_parity.py` with 10 VTK 9.6.1 &#8596; SimpleITK 2.5.4 parity tests: Gaussian (constant invariant + NRMSE < 0.15), gradient magnitude (analytical + Pearson r > 0.95), Laplacian (&#8711;²=0), median spike suppression, binary erosion (A&#8854;B&#8838;A), binary dilation (A&#8838;A&#8853;B), scalar range; 10/10 pass | [minor] |
-| GAP-R73-04 | No CT/MRI DICOM registration integration tests | No Rust test exercised the BSpline FFD pipeline on real DICOM data | Created `crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs` with 4 `#[ignore]` tests: CT DICOM metadata invariants, MRI DICOM metadata invariants, BSpline FFD NCC improvement on stride-16 32³ CT sub-volume (2-voxel x-shift, NCC_after > NCC_before &#8743; &#8805; 0.80), cross-modal intensity statistics differ | [minor] |
+| GAP-R73-01 | 3 `ritk-snap` compiler warnings (unused doc comment, unused mut, dead code `step_slice`) | Warnings introduced in Sprint 72 implementation; `step_slice` was defined but never called | Changed `///` &#8594; `//` on nested closure doc comment in `loader.rs:302`; removed `mut` from `let mut try_add` in `loader.rs:304`; replaced 4 direct `step_slice_for_axis(self.axis, ï¿½1)` call sites in `app.rs` with `self.step_slice(ï¿½1)` | [patch] |
+| GAP-R73-02 | Paired CT test data absent ï¿½ only porcine phantom MRI existed without matching CT | Sprint 72 downloaded MRI but not the CT from the same phantom | Downloaded 409-slice MRI-DIR CT (512ï¿½512, 0.390625 mm pixel spacing, 0.625 mm slice thickness, CC BY 4.0, PatientID=MRI-DIR-zzmeatphantom) from TCIA to `test_data/3_head_ct_mridir/DICOM/`; updated `test_data/README.md` | [patch] |
+| GAP-R73-03 | No VTK filter parity tests | `test_simpleitk_parity.py` covered SimpleITK but no VTK comparison existed | Created `crates/ritk-python/tests/test_vtk_parity.py` with 10 VTK 9.6.1 &#8596; SimpleITK 2.5.4 parity tests: Gaussian (constant invariant + NRMSE < 0.15), gradient magnitude (analytical + Pearson r > 0.95), Laplacian (&#8711;ï¿½=0), median spike suppression, binary erosion (A&#8854;B&#8838;A), binary dilation (A&#8838;A&#8853;B), scalar range; 10/10 pass | [minor] |
+| GAP-R73-04 | No CT/MRI DICOM registration integration tests | No Rust test exercised the BSpline FFD pipeline on real DICOM data | Created `crates/ritk-registration/tests/ct_mri_dicom_registration_test.rs` with 4 `#[ignore]` tests: CT DICOM metadata invariants, MRI DICOM metadata invariants, BSpline FFD NCC improvement on stride-16 32ï¿½ CT sub-volume (2-voxel x-shift, NCC_after > NCC_before &#8743; &#8805; 0.80), cross-modal intensity statistics differ | [minor] |
 
 ### Architecture decisions
 - MRI-DIR porcine phantom CT (same anatomy as existing T2 MRI, gold fiducial ground truth) is the canonical CT&#8596;MRI test pair; no synthetic or mismatched data.
 - VTK parity tests use `pytest.importorskip` for graceful skip when VTK/SimpleITK are absent; consistent with Elastix `@skipif` pattern.
 - `step_slice` closes the dead-code gap without new logic: it is the existing `step_slice_for_axis(self.axis, delta)` wrapper; call sites consolidate to it.
 - CT/MRI integration tests are `#[ignore]` (require 79.9 MB downloaded data); run explicitly with `-- --ignored`.
-- VTK gradient/Laplacian filters require `SetDimensionality(3)`; default=2 silently skips the z-axis — documented in `test_vtk_parity.py` at module scope.
+- VTK gradient/Laplacian filters require `SetDimensionality(3)`; default=2 silently skips the z-axis ï¿½ documented in `test_vtk_parity.py` at module scope.
 
 ### Verification
 | Check | Result |
@@ -332,12 +332,12 @@
 - `gap_audit.md`: Sprint 73 closure notes added; GAP-R07 confirmed closed (Sprint 66); GAP-R08 risk posture updated.
 
 ### Residual risk
-- GAP-R08 (Elastix parameter-map interface, ASGD optimizer, Transformix path) remains Medium — parity tests exist but are skipped because Elastix is absent in the current Python environment.
+- GAP-R08 (Elastix parameter-map interface, ASGD optimizer, Transformix path) remains Medium ï¿½ parity tests exist but are skipped because Elastix is absent in the current Python environment.
 - CT/MRI integration tests require manual download trigger (`cargo test -- --ignored`); not part of the standard CI pass.
 
 ---
 
-## Sprint 72 — Completed
+## Sprint 72 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -348,9 +348,9 @@
 |---|---|---|---|---|
 | GAP-R72-01 | ritk-snap had no GUI application shell | No eframe/egui binary or SnapApp struct existed | Implemented `SnapApp` with `eframe::App` in `app.rs`; `main.rs` launches via `run_app`; 19 source files added across `render/`, `tools/`, `dicom/`, and `ui/` submodules | [minor] |
 | GAP-R72-02 | No DICOM series browser in ritk-snap | No sidebar or tree widget existed | Implemented `SidebarPanel` with Patient&#8594;Study&#8594;Series tree via `scan_dicom_directory` in `ui/sidebar.rs` and `dicom/series_tree.rs` | [minor] |
-| GAP-R72-03 | No MPR (multi-planar reconstruction) in viewer | No multi-viewport layout existed | Implemented 2×2 `MprLayout` with axial/coronal/sagittal viewports in `ui/layout.rs` and `ui/viewport.rs` | [minor] |
+| GAP-R72-03 | No MPR (multi-planar reconstruction) in viewer | No multi-viewport layout existed | Implemented 2ï¿½2 `MprLayout` with axial/coronal/sagittal viewports in `ui/layout.rs` and `ui/viewport.rs` | [minor] |
 | GAP-R72-04 | No W/L presets in viewer | No window/level preset registry existed | Implemented `WindowPreset` with 14 CT + 4 MR clinical presets in `ui/window_presets.rs`; exposed via View menu | [minor] |
-| GAP-R72-05 | No measurement tools in viewer | No interaction tool infrastructure existed | Implemented Length (mm), Angle (°), Rect ROI, Ellipse ROI, HU-point in `tools/kind.rs`, `tools/interaction.rs`, and `ui/measurements.rs` | [minor] |
+| GAP-R72-05 | No measurement tools in viewer | No interaction tool infrastructure existed | Implemented Length (mm), Angle (ï¿½), Rect ROI, Ellipse ROI, HU-point in `tools/kind.rs`, `tools/interaction.rs`, and `ui/measurements.rs` | [minor] |
 | GAP-R72-06 | No NIfTI loading in viewer | GUI had no file-open path | Implemented `load_nifti_volume` dispatch via `ritk-io` in the GUI file-open handler | [minor] |
 | GAP-R72-07 | No DICOM overlay in viewer | No viewport annotation layer existed | Implemented 4-corner DICOM text overlay + patient orientation labels in `ui/overlay.rs` | [minor] |
 | GAP-R72-08 | No slice export in viewer | No export path existed in the GUI | Implemented PNG export via `rfd` file dialog in `ui/toolbar.rs` | [minor] |
@@ -381,7 +381,7 @@
 
 ---
 
-## Sprint 71 — Completed
+## Sprint 71 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
@@ -417,7 +417,7 @@
 
 ---
 
-## Sprint 70 — Completed
+## Sprint 70 ï¿½ Completed
 
 **Status**: Completed
 **Phase**: Closure
