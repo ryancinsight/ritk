@@ -1416,3 +1416,323 @@ def test_distance_transform_agrees_with_sitk() -> None:
     bg_mask = arr < 0.5
     mae = float(np.abs(dt_ritk[bg_mask] - dt_sitk[bg_mask]).mean())
     assert mae < 0.15, f"DT background MAE vs SITK = {mae:.4f} >= 0.15"
+
+
+# ==========================================================================
+# Section 6 -- Level-set segmentation parity
+# ==========================================================================
+
+
+def test_chan_vese_sphere_dice_vs_ground_truth():
+    """Chan-Vese on a noisy sphere image recovers the sphere with polarity-invariant Dice >= 0.80.
+
+    Mathematical justification: Chan-Vese (2001) minimises the piecewise-constant
+    Mumford-Shah functional.  A noisy sphere with mu_fg ~= 1.0 and mu_bg ~= 0.0
+    separates into two regions.  The regularised-Heaviside checkerboard initialisation
+    converges to the bimodal partition; polarity-invariant Dice >= 0.80 against the
+    ground-truth binary sphere is the acceptance criterion.
+    """
+    arr = _make_noisy()
+    sphere_gt = _make_sphere()
+    result = ritk.segmentation.chan_vese_segment(
+        _ritk(arr), mu=0.25, max_iterations=100
+    )
+    rn = result.to_numpy()
+    assert rn.shape == arr.shape
+    assert np.isfinite(rn).all()
+    unique_vals = set(np.unique(rn.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"Non-binary Chan-Vese output: {unique_vals}"
+    )
+    dice_pos = _dice((rn > 0.5).astype(np.float32), sphere_gt)
+    dice_neg = _dice((rn < 0.5).astype(np.float32), sphere_gt)
+    best_dice = max(dice_pos, dice_neg)
+    assert best_dice >= 0.80, (
+        f"Chan-Vese polarity-invariant Dice {best_dice:.4f} < 0.80"
+    )
+
+
+def test_geodesic_active_contour_expands_inside_uniform_image():
+    """GAC with propagation_weight > 0 expands the contour in a region without edges.
+
+    Mathematical justification: edge stopping function g = 1/(1+(|nabla I|/k)^2) = 1
+    everywhere in a uniform image (|nabla I| = 0), so the propagation term -g*|nabla phi|
+    drives phi lower (enlarging the phi < 0 interior).  After 50 iterations at dt=0.05
+    area_after > area_before confirms net outward evolution.
+    """
+    s = SIZE
+    c = s // 2
+    arr = np.ones((s, s, s), dtype=np.float32)
+    z, y, x = np.mgrid[:s, :s, :s]
+    r_init = 4.0
+    phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
+        np.float32
+    )
+    area_before = int((phi_init < 0).sum())
+    result = ritk.segmentation.geodesic_active_contour_segment(
+        _ritk(arr),
+        _ritk(phi_init),
+        propagation_weight=1.0,
+        curvature_weight=0.1,
+        advection_weight=0.0,
+        edge_k=1.0,
+        sigma=0.5,
+        dt=0.05,
+        max_iterations=50,
+    )
+    rn = result.to_numpy()
+    area_after = int((rn > 0.5).sum())
+    assert rn.shape == arr.shape
+    assert np.isfinite(rn).all()
+    unique_vals = set(np.unique(rn.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), f"Non-binary GAC output: {unique_vals}"
+    assert area_after > area_before, (
+        f"GAC did not expand in uniform image: before={area_before}, after={area_after}"
+    )
+
+
+def test_shape_detection_segment_produces_binary_output_near_sphere():
+    """Shape detection on a step-edge sphere produces binary output; polarity Dice >= 0.70.
+
+    Mathematical justification: g(|nabla I|) -> 0 at the step boundary halts evolution.
+    Output is strictly binary (phi < 0 -> 1.0, phi >= 0 -> 0.0) by construction.
+    Polarity-invariant Dice >= 0.70 against the sphere ground truth is the acceptance
+    criterion after 50 evolution steps.
+    """
+    s = SIZE
+    c = s // 2
+    arr = _make_sphere(s, radius=6).astype(np.float32)
+    z, y, x = np.mgrid[:s, :s, :s]
+    r_init = 4.0
+    phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
+        np.float32
+    )
+    result = ritk.segmentation.shape_detection_segment(
+        _ritk(arr),
+        _ritk(phi_init),
+        curvature_weight=1.0,
+        propagation_weight=1.0,
+        advection_weight=1.0,
+        edge_k=1.0,
+        sigma=0.5,
+        dt=0.05,
+        max_iterations=50,
+    )
+    rn = result.to_numpy()
+    assert rn.shape == arr.shape
+    assert np.isfinite(rn).all()
+    unique_vals = set(np.unique(rn.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"Non-binary ShapeDetection output: {unique_vals}"
+    )
+    sphere_gt = _make_sphere(s, radius=6).astype(np.float32)
+    dice_pos = _dice((rn > 0.5).astype(np.float32), sphere_gt)
+    dice_neg = _dice((rn < 0.5).astype(np.float32), sphere_gt)
+    best_dice = max(dice_pos, dice_neg)
+    assert best_dice >= 0.70, (
+        f"ShapeDetection polarity-invariant Dice {best_dice:.4f} < 0.70"
+    )
+
+
+def test_threshold_level_set_segment_expands_inside_intensity_band():
+    """Threshold level set in a uniform in-band image expands the contour.
+
+    Mathematical justification: all voxels at intensity 0.5 in [0.3, 0.7] yield T(I)=+1
+    everywhere, so d_phi/dt = |nabla phi|*(w_c*kappa - w_p*T(I)) < 0, driving phi lower
+    and enlarging the phi < 0 region.  area_after > area_before after 50 iterations.
+    """
+    s = SIZE
+    c = s // 2
+    arr = np.full((s, s, s), 0.5, dtype=np.float32)
+    z, y, x = np.mgrid[:s, :s, :s]
+    r_init = 4.0
+    phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
+        np.float32
+    )
+    area_before = int((phi_init < 0).sum())
+    result = ritk.segmentation.threshold_level_set_segment(
+        _ritk(arr),
+        _ritk(phi_init),
+        lower_threshold=0.3,
+        upper_threshold=0.7,
+        propagation_weight=1.0,
+        curvature_weight=0.2,
+        dt=0.05,
+        max_iterations=50,
+    )
+    rn = result.to_numpy()
+    area_after = int((rn > 0.5).sum())
+    assert rn.shape == arr.shape
+    assert np.isfinite(rn).all()
+    unique_vals = set(np.unique(rn.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"Non-binary ThresholdLS output: {unique_vals}"
+    )
+    assert area_after > area_before, (
+        f"ThresholdLS did not expand in-band: before={area_before}, after={area_after}"
+    )
+
+
+def test_laplacian_level_set_segment_produces_nontrivial_binary_mask():
+    """Laplacian level set on a Gaussian blob produces a non-trivial binary mask.
+
+    Mathematical justification: for a 3-D Gaussian blob G_sigma(r),
+    L(G) = (r^2/sigma^4 - 3/sigma^2) * G(r) changes sign at r = sigma*sqrt(3).
+    Speed F = L/(1+|L|) drives propagation where L < 0 (peak region) and contraction
+    where L > 0 (tail region), converging toward the zero-crossing surface.
+    Output must be strictly binary with at least one foreground voxel.
+    """
+    s = SIZE
+    c = s // 2
+    z, y, x = np.mgrid[:s, :s, :s]
+    sigma_blob = 4.0
+    arr = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2.0 * sigma_blob**2)
+    ).astype(np.float32)
+    r_init = 3.0
+    phi_init = (np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - r_init).astype(
+        np.float32
+    )
+    result = ritk.segmentation.laplacian_level_set_segment(
+        _ritk(arr),
+        _ritk(phi_init),
+        propagation_weight=1.0,
+        curvature_weight=0.2,
+        sigma=1.0,
+        dt=0.1,
+        max_iterations=50,
+    )
+    rn = result.to_numpy()
+    assert rn.shape == arr.shape
+    assert np.isfinite(rn).all()
+    unique_vals = set(np.unique(rn.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"Non-binary LaplacianLS output: {unique_vals}"
+    )
+    n_fg = int((rn > 0.5).sum())
+    assert n_fg > 0, "LaplacianLS produced all-background output"
+    assert n_fg < s**3, "LaplacianLS produced all-foreground output"
+
+
+# ==========================================================================
+# Section 7 -- Additional filter parity
+# ==========================================================================
+
+
+def test_recursive_gaussian_order0_interior_agrees_with_sitk():
+    """Zero-order recursive Gaussian interior must agree with sitk.SmoothingRecursiveGaussian.
+
+    Mathematical justification: both RITK and SimpleITK implement the Deriche (1992)
+    recursive IIR approximation.  On a linear gradient image with sigma=1.0,
+    interior values (margin crop m=6) should differ by < 0.05 after smoothing.
+    """
+    arr = _make_gradient()
+    sr = _np(sitk.SmoothingRecursiveGaussian(_sitk(arr), sigma=1.0))
+    rr = ritk.filter.recursive_gaussian(_ritk(arr), sigma=1.0, order=0).to_numpy()
+    assert sr.shape == rr.shape
+    m = 6
+    diff_i = np.abs(sr[m:-m, m:-m, m:-m] - rr[m:-m, m:-m, m:-m])
+    assert float(diff_i.max()) < 0.05, (
+        f"RecursiveGaussian interior max diff {float(diff_i.max()):.4f} >= 0.05"
+    )
+
+
+def test_laplacian_of_gaussian_near_zero_in_linear_interior():
+    """LoG of a linear image must be near-zero in the interior.
+
+    Mathematical justification: Gaussian smoothing G_sigma * f = f for linear f
+    in the interior (no boundary truncation), and Laplacian of a linear function = 0
+    analytically.  Interior max |LoG(f)| < 0.01 is the acceptance criterion.
+    """
+    arr = _make_gradient()
+    rr = ritk.filter.laplacian_of_gaussian(_ritk(arr), sigma=1.0).to_numpy()
+    m = 6
+    ri = rr[m:-m, m:-m, m:-m]
+    assert float(np.abs(ri).max()) < 0.01, (
+        f"LoG interior max |value| {float(np.abs(ri).max()):.4f} >= 0.01"
+    )
+    assert rr.shape == arr.shape
+
+
+def test_sigmoid_filter_midpoint_agrees_with_sitk_and_analytical():
+    """Sigmoid at input = beta produces (max+min)/2; agrees with SimpleITK.
+
+    Mathematical justification:
+        f(x; alpha, beta, min, max) = (max - min) / (1 + exp(-(x-beta)/alpha)) + min
+    At x = beta: exp(0) = 1, so f(beta) = (max - min)/2 + min = (max + min)/2.
+    With alpha=1.0, beta=0.5, min=0.0, max=1.0 the expected midpoint output is 0.5.
+    """
+    alpha, beta_val, min_out, max_out = 1.0, 0.5, 0.0, 1.0
+    arr = np.full((SIZE, SIZE, SIZE), beta_val, dtype=np.float32)
+    expected_midpoint = (max_out + min_out) / 2.0  # = 0.5
+    rr = ritk.filter.sigmoid_filter(
+        _ritk(arr), alpha=alpha, beta=beta_val, min_output=min_out, max_output=max_out
+    ).to_numpy()
+    assert float(np.abs(rr - expected_midpoint).max()) < 1e-4, (
+        f"Sigmoid midpoint error {float(np.abs(rr - expected_midpoint).max()):.2e} >= 1e-4"
+    )
+    sf = sitk.SigmoidImageFilter()
+    sf.SetAlpha(alpha)
+    sf.SetBeta(beta_val)
+    sf.SetOutputMinimum(min_out)
+    sf.SetOutputMaximum(max_out)
+    sr = _np(sf.Execute(_sitk(arr)))
+    assert float(np.abs(sr - expected_midpoint).max()) < 1e-4
+    assert float(np.abs(sr - rr).max()) < 1e-4, (
+        f"Sigmoid SITK vs RITK max diff {float(np.abs(sr - rr).max()):.2e} >= 1e-4"
+    )
+
+
+def test_canny_edge_detect_concentrates_edges_at_sphere_surface():
+    """Canny edge detector on a sphere concentrates >= 80% of edges within 3 voxels of surface.
+
+    Mathematical justification: Canny (1986) is an optimal step-edge detector.
+    On a binary sphere (step edge at r=6), the detected edge voxels must be concentrated
+    near the sphere boundary surface |dist_from_surface| <= 3 voxels.
+    The acceptance criterion is fraction_near_surface >= 0.80.
+    """
+    arr = _make_sphere().astype(np.float32)
+    rr = ritk.filter.canny_edge_detect(
+        _ritk(arr), sigma=1.0, low_threshold=0.1, high_threshold=0.5
+    ).to_numpy()
+    assert rr.shape == arr.shape
+    assert np.isfinite(rr).all()
+    unique_vals = set(np.unique(rr.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), f"Non-binary Canny output: {unique_vals}"
+    n_edge = int((rr > 0.5).sum())
+    assert n_edge > 0, "Canny detected no edges on the sphere"
+    c = SIZE // 2
+    z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
+    dist_to_surface = np.abs(np.sqrt((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) - 6.0)
+    near_surface = (dist_to_surface <= 3.0) & (rr > 0.5)
+    frac = float(near_surface.sum()) / max(float(n_edge), 1.0)
+    assert frac >= 0.80, (
+        f"Only {frac:.2f} of Canny edge voxels within 3 voxels of sphere surface (< 0.80)"
+    )
+
+
+def test_sobel_gradient_is_zero_on_constant_image_and_nonzero_on_gradient():
+    """Sobel gradient of a constant image is 0; interior is nonzero on a linear gradient.
+
+    Mathematical justification:
+    - Constant f: all finite-difference stencil outputs = 0 exactly -> |nabla f|_Sobel = 0.
+    - Linear gradient f(z,y,x) = x/(S-1): interior Sobel magnitude > 0 everywhere.
+    The coefficient of variation of the interior Sobel magnitude must be < 0.5
+    (uniform gradient produces approximately uniform magnitude response).
+    """
+    arr_const = np.full((SIZE, SIZE, SIZE), 0.5, dtype=np.float32)
+    rr_const = ritk.filter.sobel_gradient(_ritk(arr_const)).to_numpy()
+    assert float(np.abs(rr_const).max()) < 1e-5, (
+        f"Sobel of constant image max |val| {float(np.abs(rr_const).max()):.2e} >= 1e-5"
+    )
+    arr_grad = _make_gradient()
+    rr_grad = ritk.filter.sobel_gradient(_ritk(arr_grad)).to_numpy()
+    m = 2
+    interior = rr_grad[m:-m, m:-m, m:-m]
+    assert float(interior.min()) > 0.0, (
+        "Sobel of linear gradient image has zero interior values"
+    )
+    cv = float(interior.std()) / max(float(interior.mean()), 1e-10)
+    assert cv < 0.5, (
+        f"Sobel interior CoV {cv:.4f} >= 0.5 (non-uniform response on linear gradient)"
+    )

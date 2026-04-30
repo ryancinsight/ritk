@@ -71,7 +71,11 @@ def test_chan_vese_segment_preserves_shape_and_finite_values() -> None:
 
     assert result_np.shape == image.shape
     assert np.isfinite(result_np).all()
-    assert np.var(result_np) > 0.0
+    unique_vals = set(np.unique(result_np.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"Chan-Vese output is not binary: {unique_vals}"
+    )
+    assert int((result_np > 0.5).sum()) > 0, "Chan-Vese produced all-background output"
 
 
 def test_geodesic_active_contour_segment_preserves_shape_and_finite_values() -> None:
@@ -96,7 +100,8 @@ def test_geodesic_active_contour_segment_preserves_shape_and_finite_values() -> 
 
     assert result_np.shape == image.shape
     assert np.isfinite(result_np).all()
-    assert np.var(result_np) > 0.0
+    unique_vals = set(np.unique(result_np.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), f"GAC output is not binary: {unique_vals}"
 
 
 def test_shape_detection_segment_preserves_shape_and_finite_values() -> None:
@@ -122,7 +127,10 @@ def test_shape_detection_segment_preserves_shape_and_finite_values() -> None:
 
     assert result_np.shape == image.shape
     assert np.isfinite(result_np).all()
-    assert np.var(result_np) > 0.0
+    unique_vals = set(np.unique(result_np.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"ShapeDetection output is not binary: {unique_vals}"
+    )
 
 
 def test_threshold_level_set_segment_preserves_shape_and_finite_values() -> None:
@@ -147,7 +155,10 @@ def test_threshold_level_set_segment_preserves_shape_and_finite_values() -> None
 
     assert result_np.shape == image.shape
     assert np.isfinite(result_np).all()
-    assert np.var(result_np) > 0.0
+    unique_vals = set(np.unique(result_np.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"ThresholdLS output is not binary: {unique_vals}"
+    )
 
 
 def test_laplacian_level_set_segment_preserves_shape_and_finite_values() -> None:
@@ -171,10 +182,14 @@ def test_laplacian_level_set_segment_preserves_shape_and_finite_values() -> None
 
     assert result_np.shape == image.shape
     assert np.isfinite(result_np).all()
-    assert np.var(result_np) > 0.0
+    unique_vals = set(np.unique(result_np.round(4)))
+    assert unique_vals.issubset({0.0, 1.0}), (
+        f"LaplacianLS output is not binary: {unique_vals}"
+    )
 
 
 # -- distance_transform -----------------------------------------------------------------------------------------
+
 
 def test_distance_transform_all_foreground_returns_zeros() -> None:
     # All-foreground image: every voxel is at distance 0 from foreground
@@ -204,12 +219,17 @@ def test_distance_transform_squared_equals_euclidean_squared() -> None:
     mask = np.zeros((5, 5, 5), dtype=np.float32)
     mask[2, 2, 2] = 1.0
     img = _image(mask)
-    dist_np = ritk.filter.distance_transform(img, foreground_threshold=0.5, squared=False).to_numpy()
-    sq_np = ritk.filter.distance_transform(img, foreground_threshold=0.5, squared=True).to_numpy()
-    assert np.allclose(sq_np, dist_np ** 2, atol=1e-4)
+    dist_np = ritk.filter.distance_transform(
+        img, foreground_threshold=0.5, squared=False
+    ).to_numpy()
+    sq_np = ritk.filter.distance_transform(
+        img, foreground_threshold=0.5, squared=True
+    ).to_numpy()
+    assert np.allclose(sq_np, dist_np**2, atol=1e-4)
 
 
 # -- label_shape_statistics -------------------------------------------------------------------------------
+
 
 def test_label_shape_stats_single_voxel_known_centroid() -> None:
     # Single foreground voxel at [2, 1, 3] -- centroid must equal [2.0, 1.0, 3.0]

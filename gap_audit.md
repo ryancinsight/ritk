@@ -70,6 +70,42 @@
 | test_python_api_parity stub check | 0 missing stubs |
 | Version strings | Cargo.toml = 0.10.0, `__version__` = "0.10.0" |
 
+## Sprint 79 Gap Closures
+
+**Version**: 0.11.0 | **Date**: Sprint 79 | **Auditor**: Ryan Clanton
+
+### Gaps closed this sprint
+
+| Gap ID | Module | Description | Resolution |
+|---|---|---|---|
+| GAP-79-01 | Python/segmentation | `shape_detection_segment` stub default `curvature_weight` was `0.2` (copy-paste from threshold_level_set); pyo3 binding uses `1.0` matching Rust struct | Fixed `segmentation.pyi` line 83 default to `1.0` |
+| GAP-79-02 | Python/packaging | `pyproject.toml` `requires-python=">=3.8"` mismatched `abi3-py39` feature | Changed to `>=3.9` |
+| GAP-79-03 | Python/tests | 5 level-set methods (ChanVese, GAC, ShapeDetect, ThresholdLS, LaplacianLS) had no SimpleITK/analytical parity tests | Added Section 6 (5 tests) to `test_simpleitk_parity.py` |
+| GAP-79-04 | Python/tests | 5 filter functions (RecursiveGaussian, LoG, Sigmoid, Canny, Sobel) had no parity tests | Added Section 7 (5 tests) to `test_simpleitk_parity.py` |
+| GAP-79-05 | CI/release | `release.yml` built Linux-only wheel with no PyPI publish | Rewrote to multi-platform (Linux manylinux, Windows, macOS) + OIDC PyPI publish |
+| GAP-79-06 | CI | macOS absent from `python_ci.yml` matrix | Added `macos-latest` to os matrix |
+| GAP-79-07 | Python/tests | 5 level-set binding tests asserted `np.var > 0.0` (too weak, no binary check) | Replaced with `set(unique).issubset({0.0, 1.0})` binary assertion |
+
+### §3.3 Level Set Segmentation — Updated
+- Shape Detection: Python tests now value-semantic with binary assertion (GAP-79-07) + 2 parity tests added (GAP-79-03)
+- Laplacian LS: same
+- Threshold LS: same
+- Status: §3.3 fully closed (all 5 level-set methods have implementation + Python binding + parity tests)
+
+### Verification status
+| Check | Result |
+|---|---|
+| stub default fix | `curvature_weight: float = 1.0` in segmentation.pyi L85 |
+| pyproject requires-python | `>=3.9` |
+| test_simpleitk_parity count | 54 (was 44; +10 new) |
+| test_segmentation_bindings level-set | 5 tests with binary assertion |
+| Version strings | Cargo.toml = 0.11.0, `__version__` = "0.11.0" |
+
+### Risk posture
+- Multi-platform release workflow untested on hosted runners
+- macOS Python CI untested on hosted runners
+- GAP-R08 (Elastix): Low severity, no action planned
+
 ### Updated risk posture
 
 - Distance transform convention is now ITK-standard; all downstream parity tests confirm correctness.

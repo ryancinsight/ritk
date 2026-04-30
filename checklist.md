@@ -1,3 +1,14 @@
+## Sprint 79 — Completed
+
+- [x] GAP-79-01: fix `shape_detection_segment` Python stub default `curvature_weight=0.2→1.0` in `segmentation.pyi`
+- [x] GAP-79-02: fix `pyproject.toml` `requires-python=">=3.8"→">=3.9"`
+- [x] GAP-79-03: add 5 new level-set parity tests in `test_simpleitk_parity.py` (Section 6: ChanVese/GAC/ShapeDetect/ThresholdLS/LaplacianLS)
+- [x] GAP-79-04: add 5 new filter parity tests in `test_simpleitk_parity.py` (Section 7: RecursiveGaussian/LoG/Sigmoid/Canny/Sobel)
+- [x] GAP-79-05: rewrite `release.yml` with multi-platform matrix (Linux manylinux, Windows, macOS universal2) and PyPI OIDC trusted publishing
+- [x] GAP-79-06: add `macos-latest` to `python_ci.yml` os matrix
+- [x] GAP-79-07: replace `np.var > 0.0` with binary output assertion in 5 level-set binding tests in `test_segmentation_bindings.py`
+- [x] Version bump: 0.10.0 → 0.11.0; `Cargo.toml` and `__init__.py` updated
+
 ## Sprint 78 — Completed
 
 - [x] GAP-78-01: fix `phase1_row` distance transform convention — invert seed condition from `!row[x]` (background) to `row[x]` (foreground); update all 19 Rust unit tests with analytically re-derived expected values; verify 19/19 pass in debug and release profiles

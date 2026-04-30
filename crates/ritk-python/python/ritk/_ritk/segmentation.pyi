@@ -83,7 +83,7 @@ def geodesic_active_contour_segment(
 def shape_detection_segment(
     image: Image,
     initial_phi: Image,
-    curvature_weight: float = 0.2,
+    curvature_weight: float = 1.0,
     propagation_weight: float = 1.0,
     advection_weight: float = 1.0,
     edge_k: float = 1.0,

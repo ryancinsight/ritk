@@ -1,3 +1,35 @@
+## Sprint 79 — Completed
+
+**Status**: Completed
+**Phase**: Execution
+**Version**: 0.11.0 [minor]
+**Goal**: Level-set parity tests (GAP-79-03), filter parity tests (GAP-79-04), stub correctness fix (GAP-79-01), pyproject.toml fix (GAP-79-02), macOS CI matrix (GAP-79-06), multi-platform release workflow (GAP-79-05).
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-79-01 | Fix `shape_detection_segment` Python stub default `curvature_weight=0.2&#8594;1.0` | patch |
+| GAP-79-02 | Fix `pyproject.toml` `requires-python=">=3.8"&#8594;">=3.9"` | patch |
+| GAP-79-03 | 5 new level-set parity tests (ChanVese/GAC/ShapeDetect/ThresholdLS/LaplacianLS) | minor |
+| GAP-79-04 | 5 new filter parity tests (RecursiveGaussian/LoG/Sigmoid/Canny/Sobel) | minor |
+| GAP-79-05 | Multi-platform `release.yml` with PyPI OIDC trusted publishing | minor |
+| GAP-79-06 | macOS added to `python_ci.yml` Python matrix | minor |
+| GAP-79-07 | 5 level-set binding tests enhanced with binary output assertion | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| GAP-79-01: stub default | `curvature_weight: float = 1.0` in segmentation.pyi |
+| GAP-79-02: pyproject.toml | `requires-python = ">=3.9"` |
+| GAP-79-03/04: test count | 116 Python tests (was 106; +10 new parity tests) |
+| GAP-79-07: binding tests | Binary assertion replaces `np.var > 0.0` in 5 tests |
+| Version strings | Cargo.toml = 0.11.0, `__version__` = "0.11.0" |
+
+### Residual risks
+- Multi-platform release workflow untested on hosted runners (local wheel build not run)
+- macOS CI matrix untested on hosted runners
+- GAP-R08 (Elastix): Low severity, no action planned
+
 ## Sprint 78 — Completed
 
 **Status**: Completed  

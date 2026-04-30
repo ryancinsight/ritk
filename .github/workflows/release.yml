@@ -1,3 +1,15 @@
+# Multi-platform wheel build and PyPI publish.
+#
+# Triggered on any v*.*.* tag push.
+# Builds wheels for Linux (manylinux x86_64), Windows (x86_64-msvc), and macOS (universal2).
+# Publishes to PyPI via OIDC trusted publishing after all wheels are built.
+#
+# Requirements:
+#   - A PyPI "pypi" environment configured in GitHub repository settings with
+#     trusted publishing for this workflow (OIDC; no API token required).
+#   - MSYS2 at C:/msys64/ucrt64/bin must be present on windows-latest runners
+#     (GitHub-hosted runners include it by default).
+
 name: Release Wheel
 
 on:
@@ -5,33 +17,70 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+
 jobs:
   build-wheel:
-    name: Build and Upload Python Wheel
-    runs-on: ubuntu-latest
+    name: Build wheel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: auto
+          - os: windows-latest
+            target: x86_64
+            manylinux: "off"
+          - os: macos-latest
+            target: universal2-apple-darwin
+            manylinux: "off"
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Add MSYS2 ucrt64 to PATH (Windows — clang-cl C++ runtime DLLs)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo 'C:/msys64/ucrt64/bin' >> $GITHUB_PATH
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
         with:
-          python-version: "3.11"
+          target: ${{ matrix.target }}
+          args: >-
+            --release
+            --manifest-path crates/ritk-python/Cargo.toml
+            --out dist
+          manylinux: ${{ matrix.manylinux }}
+          sccache: true
 
-      - name: Install maturin
-        run: pip install maturin
-
-      - name: Build wheel
-        run: >-
-          maturin build
-          --release
-          --manifest-path crates/ritk-python/Cargo.toml
-          --out dist/
-
-      - name: Upload wheel artifact
+      - name: Upload wheel artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: python-wheel
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}
           path: dist/
+
+  publish:
+    name: Publish to PyPI
+    needs: build-wheel
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # Required for OIDC trusted publishing
+    steps:
+      - name: Download all wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist/
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true

@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.11.0] — Sprint 79
+### Added
+- 5 new level-set parity tests (Chan-Vese sphere Dice, GAC expansion in uniform image,
+  ShapeDetection binary output near sphere, ThresholdLS expansion inside intensity band,
+  LaplacianLS nontrivial binary mask)
+- 5 new filter parity tests (RecursiveGaussian interior vs SITK, LoG near-zero in linear
+  interior, Sigmoid midpoint analytical+SITK agreement, Canny edge concentration at sphere
+  surface, Sobel zero-on-constant and nonzero-on-gradient)
+- macOS added to `python_ci.yml` matrix (Python 3.9–3.12 on ubuntu+windows+macos)
+- Multi-platform `release.yml` (Linux manylinux, Windows, macOS universal2) with PyPI
+  OIDC trusted publishing
+### Fixed
+- `segmentation.pyi` `shape_detection_segment` default `curvature_weight` corrected
+  from `0.2` to `1.0` (now matches pyo3 binding and Rust struct defaults)
+- `pyproject.toml` `requires-python` corrected from `>=3.8` to `>=3.9` (matches abi3-py39)
+### Changed
+- 5 level-set binding tests in `test_segmentation_bindings.py` enhanced with binary
+  output assertion (strictly {0.0, 1.0}) replacing the weak `np.var > 0.0` check
+- `ritk-python` version bumped from 0.10.0 to 0.11.0
+
 ## [0.10.0] — Sprint 78
 ### Added
 - 5 new SimpleITK parity tests in `test_simpleitk_parity.py`:
