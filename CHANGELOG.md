@@ -20,6 +20,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **DICOM JPEG backend dispatch**: JPEG Baseline and JPEG Extended now attempt RITK native Rust decode first and use `dicom-rs` only as a compatibility fallback. [patch]
 - **DICOM JPEG syntax ownership**: Added `TransferSyntaxKind::is_native_jpeg_codec()` so native JPEG ownership is classified in the transfer-syntax SSOT instead of backend match arms. [patch]
 - **DICOM backend SRP split**: `DicomRsBackend` now delegates native JPEG/RLE transfer syntaxes to `NativeCodecBackend` and keeps external `dicom-rs` decode as the fallback path. [patch]
+- **Native codec cleanup**: `NativeCodecBackend` now rejects unsupported transfer syntaxes before reading encapsulated frame bytes, and RLE Lossless header parsing uses contextual checked reads instead of production `unwrap()`. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.

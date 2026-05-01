@@ -1,3 +1,18 @@
+## Sprint 89 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.4 [patch]
+
+- [x] GAP-89-01: make `NativeCodecBackend` validate native syntax before calling `EncapsulatedFrameSource::encapsulated_frame`
+- [x] GAP-89-02: replace RLE header `try_into().unwrap()` calls with contextual checked little-endian reads
+- [x] GAP-89-03: add native-backend unsupported-syntax test that fails if pixel data is read
+- [x] GAP-89-04: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 88 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

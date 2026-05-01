@@ -19,12 +19,13 @@ where
     O: EncapsulatedFrameSource,
 {
     fn decode_frame(object: &O, request: DecodeFrameRequest) -> Result<DecodedFrame> {
-        let fragment = object.encapsulated_frame(request.frame_index)?;
         let pixels = match &request.transfer_syntax {
             syntax if syntax.is_native_jpeg_codec() => {
+                let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_jpeg_fragment(&fragment, request.layout)?
             }
             TransferSyntaxKind::RleLossless => {
+                let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_rle_lossless_fragment(&fragment, request.layout)?
             }
             syntax => bail!(
@@ -53,6 +54,15 @@ mod tests {
             } else {
                 bail!("test frame index {frame_index} out of range")
             }
+        }
+    }
+
+    #[derive(Debug)]
+    struct NoFragmentRead;
+
+    impl EncapsulatedFrameSource for NoFragmentRead {
+        fn encapsulated_frame(&self, _frame_index: u32) -> Result<Vec<u8>> {
+            bail!("encapsulated frame must not be read for unsupported native syntax")
         }
     }
 
@@ -95,7 +105,7 @@ mod tests {
 
     #[test]
     fn native_backend_rejects_non_native_codec_syntax() {
-        let source = SingleFragment(vec![0u8; 4]);
+        let source = NoFragmentRead;
         let err = NativeCodecBackend::decode_frame(
             &source,
             DecodeFrameRequest {

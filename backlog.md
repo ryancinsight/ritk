@@ -1,3 +1,29 @@
+## Sprint 89 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.4 [patch]
+**Goal**: Tighten native codec backend correctness and cleanup by avoiding unnecessary encapsulated frame reads and removing production `unwrap()` from RLE header parsing.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-89-01 | `NativeCodecBackend` fetched encapsulated pixel bytes before confirming the transfer syntax was implemented natively | patch |
+| GAP-89-02 | RLE header parsing used `try_into().unwrap()` in production decode code despite the crate policy to preserve error context | patch |
+| GAP-89-03 | Unsupported native-backend syntax rejection was not value-tested to prove it avoids pixel-data access | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 12 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- Existing `ritk-io` dead-code warnings remain outside this native-codec cleanup slice.
+- Windows GNU runtime tests still require `D:\msys64\ucrt64\bin` first on `PATH`.
+
 ## Sprint 88 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure
