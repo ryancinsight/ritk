@@ -1,3 +1,29 @@
+## Sprint 93 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.8 [patch]
+**Goal**: Validate native DICOM modality LUT parameters so checked pixel decode paths cannot silently produce NaN or infinite outputs from invalid rescale metadata.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-93-01 | Checked native pixel decode accepted non-finite `rescale_slope`, producing non-finite output samples | patch |
+| GAP-93-02 | Checked native pixel decode accepted non-finite `rescale_intercept`, producing non-finite output samples | patch |
+| GAP-93-03 | Native JPEG L16 decode validated pixel representation but not modality LUT finiteness | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | Passed with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 19 passed |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld; 5 existing dead-code warnings remain |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- Existing unchecked `decode_native_pixel_bytes` remains a compatibility helper; checked decode paths validate rescale metadata.
+- Existing `ritk-io` dead-code warnings remain outside this native pixel contract slice.
+
 ## Sprint 92 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

@@ -1,3 +1,19 @@
+## Sprint 93 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.8 [patch]
+
+- [x] GAP-93-01: add `PixelLayout::validate_rescale_parameters`
+- [x] GAP-93-02: call rescale validation from `decode_native_pixel_bytes_checked`
+- [x] GAP-93-03: call rescale validation from native JPEG L16 decode
+- [x] GAP-93-04: add negative tests for NaN slope and infinite intercept
+- [x] GAP-93-05: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom` passed 19 tests
+- [x] Verification: `cargo check -p ritk-io` passed with 5 existing dead-code warnings
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 92 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

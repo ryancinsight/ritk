@@ -72,6 +72,16 @@ impl PixelLayout {
             other => bail!("pixel_representation={} is invalid; expected 0 or 1", other),
         }
     }
+
+    pub fn validate_rescale_parameters(self) -> Result<()> {
+        if !self.rescale_slope.is_finite() {
+            bail!("rescale_slope={} is not finite", self.rescale_slope);
+        }
+        if !self.rescale_intercept.is_finite() {
+            bail!("rescale_intercept={} is not finite", self.rescale_intercept);
+        }
+        Ok(())
+    }
 }
 
 pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
@@ -135,6 +145,7 @@ fn sign_extend_i24(bytes: &[u8]) -> i32 {
 
 pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     layout.validate_pixel_representation()?;
+    layout.validate_rescale_parameters()?;
     let expected = layout.bytes_per_frame()?;
     if bytes.len() != expected {
         bail!(
@@ -287,6 +298,50 @@ mod tests {
         assert!(
             err.to_string().contains("pixel_representation"),
             "expected pixel representation validation error, got {err:#}"
+        );
+    }
+
+    #[test]
+    fn checked_native_decode_rejects_nonfinite_rescale_slope() {
+        let err = decode_native_pixel_bytes_checked(
+            &[1],
+            PixelLayout {
+                rows: 1,
+                cols: 1,
+                samples_per_pixel: 1,
+                bits_allocated: 8,
+                pixel_representation: 0,
+                rescale_slope: f32::NAN,
+                rescale_intercept: 0.0,
+            },
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("rescale_slope"),
+            "expected rescale_slope validation error, got {err:#}"
+        );
+    }
+
+    #[test]
+    fn checked_native_decode_rejects_nonfinite_rescale_intercept() {
+        let err = decode_native_pixel_bytes_checked(
+            &[1],
+            PixelLayout {
+                rows: 1,
+                cols: 1,
+                samples_per_pixel: 1,
+                bits_allocated: 8,
+                pixel_representation: 0,
+                rescale_slope: 1.0,
+                rescale_intercept: f32::INFINITY,
+            },
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("rescale_intercept"),
+            "expected rescale_intercept validation error, got {err:#}"
         );
     }
 }
