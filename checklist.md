@@ -1,3 +1,18 @@
+## Sprint 94 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.9 [patch]
+
+- [x] GAP-94-01: split private unchecked primitive from public compatibility wrapper
+- [x] GAP-94-02: route internal unit coverage through `decode_native_pixel_bytes_checked`
+- [x] GAP-94-03: mark `decode_native_pixel_bytes` deprecated with checked-decode migration guidance
+- [x] GAP-94-04: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom` passed 19 tests
+- [x] Verification: `cargo check -p ritk-io` passed with 5 existing dead-code warnings
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 93 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

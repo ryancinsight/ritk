@@ -84,7 +84,15 @@ impl PixelLayout {
     }
 }
 
+#[deprecated(
+    since = "0.14.9",
+    note = "use decode_native_pixel_bytes_checked to validate DICOM pixel layout metadata"
+)]
 pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
+    decode_native_pixel_bytes_unchecked(bytes, layout)
+}
+
+fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
     match (layout.bits_allocated, layout.pixel_representation) {
         (8, _) => bytes
             .iter()
@@ -154,7 +162,7 @@ pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> R
             expected
         );
     }
-    Ok(decode_native_pixel_bytes(bytes, layout))
+    Ok(decode_native_pixel_bytes_unchecked(bytes, layout))
 }
 
 #[cfg(test)]
@@ -167,7 +175,7 @@ mod tests {
             .iter()
             .flat_map(|v| v.to_le_bytes())
             .collect::<Vec<_>>();
-        let out = decode_native_pixel_bytes(
+        let out = decode_native_pixel_bytes_checked(
             &bytes,
             PixelLayout {
                 rows: 1,
@@ -178,7 +186,8 @@ mod tests {
                 rescale_slope: 2.0,
                 rescale_intercept: 5.0,
             },
-        );
+        )
+        .unwrap();
         assert_eq!(out, vec![1.0, 5.0, 25.0]);
     }
 

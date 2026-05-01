@@ -25,6 +25,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **24/32-bit native pixel decode**: Native pixel decoding now handles 24-bit signed/unsigned samples and 32-bit signed/unsigned integer samples explicitly under the checked layout contract. [patch]
 - **Pixel representation validation**: Checked native pixel decode and native JPEG L16 decode now reject invalid DICOM `PixelRepresentation` values instead of treating all non-signed values as unsigned. [patch]
 - **Rescale metadata validation**: Checked native pixel decode and native JPEG L16 decode now reject non-finite rescale slope/intercept values before applying the modality LUT. [patch]
+- **Checked native pixel SSOT**: `decode_native_pixel_bytes_checked` now delegates to a private unchecked primitive after validation, and the public unchecked helper is deprecated as compatibility surface. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.

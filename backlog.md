@@ -1,3 +1,29 @@
+## Sprint 94 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.9 [patch]
+**Goal**: Remove internal dependency on unchecked native DICOM pixel decoding while preserving the compatibility API for downstream callers.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-94-01 | `decode_native_pixel_bytes_checked` delegated to the public unchecked compatibility function, leaving the SSOT validation path coupled to legacy API surface | patch |
+| GAP-94-02 | A `ritk-dicom` unit test still exercised the unchecked helper as the primary decode entry point | patch |
+| GAP-94-03 | The unchecked helper did not communicate that it skips byte-length, pixel-representation, and rescale metadata validation | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | Passed with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 19 passed |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld; 5 existing dead-code warnings remain |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- Public `decode_native_pixel_bytes` remains as a deprecated compatibility helper until downstream callers migrate to checked decode.
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- Existing `ritk-io` dead-code warnings remain outside this compatibility cleanup slice.
+
 ## Sprint 93 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure
