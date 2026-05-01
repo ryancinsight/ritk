@@ -30,8 +30,13 @@ ritk/
 │   │       ├── interpolation/    # Interpolator trait + implementations
 │   │       ├── filter/           # Image filters
 │   │       ├── segmentation/     # Segmentation algorithms + distance transform
-│   │       └── statistics/       # Image statistics & normalization
 │   │       └── statistics/       # Image statistics, normalization, comparison
+│   ├── ritk-dicom/               # DICOM transfer syntax, pixel codec contracts, backend boundary
+│   │   └── src/
+│   │       ├── syntax/           # Canonical TransferSyntaxKind and predicates
+│   │       ├── pixel/            # PixelLayout and modality LUT byte decode
+│   │       ├── codec/native/     # Native PackBits and RLE Lossless decoders
+│   │       └── backend/          # FrameDecodeBackend and dicom-rs backend adapter
 │   ├── ritk-io/                  # Format readers/writers
 │   │   └── src/format/
 │   │       ├── dicom/
@@ -65,9 +70,9 @@ ritk/
 │   │       └── io/               # Model I/O
 │   ├── ritk-python/              # Python bindings (PyO3 + maturin)
 │   │   └── src/
-│   │       ├── filter.rs         # 14 filter functions
-│   │       ├── segmentation.rs   # 16 segmentation functions
-│   │       ├── registration.rs   # 11 registration / atlas / label-fusion functions
+│   │       ├── filter.rs         # 34 filter functions
+│   │       ├── segmentation.rs   # 27 segmentation functions
+│   │       ├── registration.rs   # 13 registration / atlas / label-fusion functions
 │   │       ├── statistics.rs     # 13 statistics/normalization/comparison functions
 │   │       ├── image.rs          # Image wrapper
 │   │       └── io.rs             # Image + composite transform I/O

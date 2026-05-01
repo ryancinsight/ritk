@@ -4,6 +4,7 @@
 //! - `from_uid(x.uid()) == x` for every non-unknown variant.
 //! - `is_native_uncompressed() -> !is_encapsulated()`.
 //! - `is_backend_codec_candidate() -> is_encapsulated()`.
+//! - `is_codec_supported() -> is_compressed()`.
 
 /// DICOM Transfer Syntax classification used by RITK decode dispatch.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +91,10 @@ impl TransferSyntaxKind {
         )
     }
 
+    pub fn is_compressed(&self) -> bool {
+        self.is_encapsulated()
+    }
+
     pub fn is_lossless(&self) -> bool {
         matches!(
             self,
@@ -113,12 +118,20 @@ impl TransferSyntaxKind {
         )
     }
 
+    pub fn is_natively_supported(&self) -> bool {
+        self.is_native_uncompressed()
+    }
+
     pub fn is_big_endian(&self) -> bool {
         matches!(self, Self::ExplicitVrBigEndian)
     }
 
     pub fn is_backend_codec_candidate(&self) -> bool {
         self.is_encapsulated()
+    }
+
+    pub fn is_codec_supported(&self) -> bool {
+        self.is_backend_codec_candidate()
     }
 
     pub fn is_native_ritk_codec(&self) -> bool {
@@ -163,12 +176,32 @@ mod tests {
         for syntax in variants() {
             if syntax.is_native_uncompressed() {
                 assert!(!syntax.is_encapsulated());
+                assert!(!syntax.is_compressed());
                 assert!(!syntax.is_backend_codec_candidate());
+                assert!(!syntax.is_codec_supported());
+                assert!(syntax.is_natively_supported());
                 assert!(!syntax.is_big_endian());
             }
             if syntax.is_backend_codec_candidate() {
                 assert!(syntax.is_encapsulated());
+                assert!(syntax.is_compressed());
+                assert!(syntax.is_codec_supported());
             }
+        }
+    }
+
+    #[test]
+    fn compatibility_predicates_match_canonical_predicates() {
+        for syntax in variants() {
+            assert_eq!(syntax.is_compressed(), syntax.is_encapsulated());
+            assert_eq!(
+                syntax.is_codec_supported(),
+                syntax.is_backend_codec_candidate()
+            );
+            assert_eq!(
+                syntax.is_natively_supported(),
+                syntax.is_native_uncompressed()
+            );
         }
     }
 }

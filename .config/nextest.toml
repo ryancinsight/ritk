@@ -1,0 +1,19 @@
+# Nextest configuration for RITK workspace.
+# Reference: https://nexte.st/docs/configuration/
+
+[profile.default]
+# Default per-test timeout: abort tests that hang unexpectedly.
+slow-timeout = { period = "60s", terminate-after = 3 }
+
+# Give gradient-based registration integration tests extra time.
+# BSpline+autodiff tests on NdArray backend are CPU-bound and can run 90–180 s.
+[[profile.default.overrides]]
+filter = 'test(bspline_registration) | test(bspline_cr) | test(multires_cr) | test(multires_registration) | test(affine_registration) | test(rigid_registration) | test(versor_registration)'
+slow-timeout = { period = "300s", terminate-after = 2 }
+
+[profile.ci]
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[[profile.ci.overrides]]
+filter = 'test(bspline_registration) | test(bspline_cr) | test(multires_cr) | test(multires_registration) | test(affine_registration) | test(rigid_registration) | test(versor_registration)'
+slow-timeout = { period = "300s", terminate-after = 2 }

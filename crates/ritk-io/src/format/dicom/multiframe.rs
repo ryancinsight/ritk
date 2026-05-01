@@ -51,7 +51,6 @@
 //!   but does NOT carry a conformance statement or General Series / Frame Of
 //!   Reference modules required for Enhanced Multi-Frame objects.
 
-use super::transfer_syntax::TransferSyntaxKind;
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -63,6 +62,7 @@ use dicom::object::{open_file, InMemDicomObject};
 use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_dicom::TransferSyntaxKind;
 use std::path::{Path, PathBuf};
 
 /// SOP Class UID for Multi-Frame Grayscale Word Secondary Capture Image Storage.

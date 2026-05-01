@@ -47,9 +47,9 @@ use ritk_core::interpolation::linear::LinearInterpolator;
 use ritk_core::interpolation::{
     BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator,
 };
+use ritk_core::segmentation::DistanceTransform;
 use ritk_core::spatial::Spacing as CoreSpacing;
 use ritk_core::transform::translation::TranslationTransform;
-use ritk_core::segmentation::DistanceTransform;
 
 // ── gaussian_filter ───────────────────────────────────────────────────────────
 
@@ -487,7 +487,12 @@ pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> PyR
 ///     RuntimeError:  on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0, order=0))]
-pub fn recursive_gaussian(image: &PyImage, sigma: f64, order: usize) -> PyResult<PyImage> {
+pub fn recursive_gaussian(
+    py: Python<'_>,
+    image: &PyImage,
+    sigma: f64,
+    order: usize,
+) -> PyResult<PyImage> {
     let derivative_order = match order {
         0 => DerivativeOrder::Zero,
         1 => DerivativeOrder::First,
@@ -498,10 +503,13 @@ pub fn recursive_gaussian(image: &PyImage, sigma: f64, order: usize) -> PyResult
             )));
         }
     };
-    let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
-    let result = filter
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    let image = std::sync::Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
+        filter
+            .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(into_py_image(result))
 }
 

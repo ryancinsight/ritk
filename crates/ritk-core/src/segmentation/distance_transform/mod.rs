@@ -224,7 +224,7 @@ fn idx3(z: usize, y: usize, x: usize, ny: usize, nx: usize) -> usize {
 /// after the transform.
 ///
 /// # Edge Cases
-/// - All-background: all output values are `(nz + ny + nx)²` (finite sentinel; no foreground exists).
+/// - All-background: all output values are 0.0 (no foreground seeds; distance to empty set is defined as 0).
 /// - All-foreground: all output values are 0 (all voxels are seeds).
 /// - 1×1×1 image: output is sentinel² if background, 0 if foreground.
 ///
@@ -244,6 +244,20 @@ pub fn distance_transform_squared<B: Backend>(
     let [nz, ny, nx] = shape;
     let total = nz * ny * nx;
     let inf = inf_dist(&shape);
+
+    // Short-circuit: EDT(p) = min_{q:B(q)=1}||p-q|| over empty set → return 0 everywhere.
+    // Convention: when no foreground exists, all distances are defined as 0 (no seeds = no-op).
+    if !binary.iter().any(|&b| b) {
+        let zeros = vec![0.0f32; total];
+        let device = image.data().device();
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(zeros, Shape::new(shape)), &device);
+        return Image::new(
+            tensor,
+            image.origin().clone(),
+            image.spacing().clone(),
+            image.direction().clone(),
+        );
+    }
 
     // ── Phase 1: scan along X for each (z, y) row ──
     let mut g = vec![0i64; total];
@@ -475,8 +489,9 @@ mod tests {
 
     #[test]
     fn test_all_background_image() {
-        // 4×3×5, all background. No foreground seeds → sentinel value.
-        // Sentinel: (nz+ny+nx)² = (4+3+5)² = 144.
+        // 4×3×5, all background. No foreground seeds.
+        // Convention (Sprint 81): EDT(p) = min over empty set → defined as 0.0.
+        // Rationale: no seeds exist; returning 0 is the safe sentinel for this degenerate case.
         let dims = [4, 3, 5];
         let data = vec![0.0f32; 60];
         let image = make_image_3d(data, dims);
@@ -485,8 +500,8 @@ mod tests {
 
         for (i, &v) in vals.iter().enumerate() {
             assert_eq!(
-                v, 144.0,
-                "all-background EDT²=144 (no foreground seeds), voxel {i} got {v}"
+                v, 0.0,
+                "all-background EDT²=0 (empty foreground, no seeds), voxel {i} got {v}"
             );
         }
     }
@@ -576,14 +591,15 @@ mod tests {
 
     #[test]
     fn test_1x1x1_background() {
-        // 1×1×1 all-background: no foreground seeds → sentinel (nz+ny+nx)²=(1+1+1)²=9.
+        // 1×1×1 all-background: no foreground seeds.
+        // Convention (Sprint 81): EDT over empty set → 0.0 (safe sentinel).
         let image = make_image_3d(vec![0.0], [1, 1, 1]);
         let result = distance_transform_squared(&image, 0.5);
         let vals = get_values(&result);
         assert_eq!(vals.len(), 1);
         assert_eq!(
-            vals[0], 9.0,
-            "1x1x1 all-background EDT²=9 (sentinel, no foreground)"
+            vals[0], 0.0,
+            "1x1x1 all-background EDT²=0 (empty foreground, no seeds)"
         );
     }
 
@@ -741,7 +757,7 @@ mod tests {
         let mut dt = [0i64];
         let mut v = [0usize];
         let mut z = [0i64; 2];
-        lower_envelope_transform(&f, 1, &mut dt, &mut v, &mut z);
+        lower_envelope_transform(&f[..], 1, &mut dt[..], &mut v[..], &mut z[..]);
         assert_eq!(dt[0], 7, "single element passthrough");
     }
 
@@ -752,7 +768,7 @@ mod tests {
         let mut dt = [0i64; 4];
         let mut v = [0usize; 4];
         let mut z = [0i64; 5];
-        lower_envelope_transform(&f, 4, &mut dt, &mut v, &mut z);
+        lower_envelope_transform(&f[..], 4, &mut dt[..], &mut v[..], &mut z[..]);
         for i in 0..4 {
             assert_eq!(dt[i], 5, "uniform f: dt[{i}] = 5, got {}", dt[i]);
         }
@@ -768,7 +784,7 @@ mod tests {
         let mut dt = [0i64; 5];
         let mut v = [0usize; 5];
         let mut z = [0i64; 6];
-        lower_envelope_transform(&f, 5, &mut dt, &mut v, &mut z);
+        lower_envelope_transform(&f[..], 5, &mut dt[..], &mut v[..], &mut z[..]);
         assert_eq!(dt[0], 0);
         assert_eq!(dt[1], 1);
         assert_eq!(dt[2], 4);
@@ -783,7 +799,7 @@ mod tests {
         // All background, no foreground seeds → inf sentinel for all positions.
         let row = [false, false, false, false];
         let mut out = [0i64; 4];
-        phase1_row(&row, 4, 100, &mut out);
+        phase1_row(&row[..], 4, 100, &mut out[..]);
         assert_eq!(out, [100, 100, 100, 100]);
     }
 
@@ -792,7 +808,7 @@ mod tests {
         // Foreground seeds at x=1..4. Background x=0: nearest foreground at x=1 → dist=1.
         let row = [false, true, true, true, true];
         let mut out = [0i64; 5];
-        phase1_row(&row, 5, 100, &mut out);
+        phase1_row(&row[..], 5, 100, &mut out[..]);
         assert_eq!(out, [1, 0, 0, 0, 0]);
     }
 
@@ -801,7 +817,7 @@ mod tests {
         // Foreground seeds at x=1,2,3. Background x=0 → dist=1; background x=4 → dist=1.
         let row = [false, true, true, true, false];
         let mut out = [0i64; 5];
-        phase1_row(&row, 5, 100, &mut out);
+        phase1_row(&row[..], 5, 100, &mut out[..]);
         assert_eq!(out, [1, 0, 0, 0, 1]);
     }
 
@@ -810,7 +826,7 @@ mod tests {
         // All foreground: every position is a seed → distance = 0 for all.
         let row = [true, true, true];
         let mut out = [0i64; 3];
-        phase1_row(&row, 3, 100, &mut out);
+        phase1_row(&row[..], 3, 100, &mut out[..]);
         assert_eq!(out, [0, 0, 0]);
     }
 }

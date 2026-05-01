@@ -163,14 +163,14 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
 /// Returns:
 ///     Hausdorff distance (float, mm). Returns 0.0 if both boundaries are empty.
 #[pyfunction]
-pub fn hausdorff_distance(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+    // GIL released: O(M·N) boundary-voxel distance computation can be expensive for
+    // large clinical masks (M, N = boundary voxel counts of the two masks).
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    Ok(core_hausdorff_distance(
-        image1.inner.as_ref(),
-        image2.inner.as_ref(),
-        &spacing,
-    ))
+    let arc1 = Arc::clone(&image1.inner);
+    let arc2 = Arc::clone(&image2.inner);
+    Ok(py.allow_threads(|| core_hausdorff_distance(arc1.as_ref(), arc2.as_ref(), &spacing)))
 }
 
 // ── mean_surface_distance ─────────────────────────────────────────────────────
@@ -189,14 +189,13 @@ pub fn hausdorff_distance(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
 /// Returns:
 ///     Mean surface distance (float, mm). Returns 0.0 if both boundaries are empty.
 #[pyfunction]
-pub fn mean_surface_distance(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+    // GIL released: O(M·N) boundary-voxel distance computation.
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    Ok(core_mean_surface_distance(
-        image1.inner.as_ref(),
-        image2.inner.as_ref(),
-        &spacing,
-    ))
+    let arc1 = Arc::clone(&image1.inner);
+    let arc2 = Arc::clone(&image2.inner);
+    Ok(py.allow_threads(|| core_mean_surface_distance(arc1.as_ref(), arc2.as_ref(), &spacing)))
 }
 
 // ── psnr ──────────────────────────────────────────────────────────────────────

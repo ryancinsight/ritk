@@ -1,3 +1,19 @@
+## Sprint 85 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.0 [minor]
+
+- [x] GAP-85-01: move `is_compressed`, `is_codec_supported`, and `is_natively_supported` compatibility predicates into `ritk-dicom::TransferSyntaxKind`
+- [x] GAP-85-02: replace `ritk-io` internal DICOM reader imports with `ritk_dicom::TransferSyntaxKind`
+- [x] GAP-85-03: convert `crates/ritk-io/src/format/dicom/transfer_syntax.rs` to a compatibility re-export with regression tests
+- [x] GAP-85-04: update README crate tree with `ritk-dicom` and correct Python binding counts
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: `cargo test -p ritk-io transfer_syntax`
+- [x] Verification: targeted RLE consumer test with UCRT64 first on `PATH`
+- [x] Commit policy: stage tracked and untracked current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 84 — Completed
 **Status**: Completed
 **Phase**: Foundation → Execution

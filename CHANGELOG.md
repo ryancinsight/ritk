@@ -13,12 +13,14 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]
 - **Windows GNU native build toolchain**: `.cargo/config.toml` now sets global and target-qualified UCRT clang/clang++/llvm-ar compiler variables for native C/C++ build scripts and keeps lld as the linker. [patch]
+- **Transfer syntax SSOT**: `ritk-dicom::TransferSyntaxKind` now owns all transfer-syntax predicates used by DICOM readers. `ritk-io` keeps only a compatibility re-export for downstream callers. [minor]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.
-- `cargo test -p ritk-dicom`: 5 passed.
+- `cargo test -p ritk-dicom`: 6 passed.
 - `cargo check -p ritk-io`: passed with UCRT clang/lld.
 - `cargo test -p ritk-io test_decode_compressed_frame_rle_lossless_unrestricted_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
+- `cargo test -p ritk-io transfer_syntax`: passed.
 
 ## [0.12.3] — Sprint 83
 

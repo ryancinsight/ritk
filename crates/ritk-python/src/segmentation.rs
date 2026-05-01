@@ -554,6 +554,7 @@ pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) ->
 #[pyfunction]
 #[pyo3(signature = (image, mu=0.25, nu=0.0, lambda1=1.0, lambda2=1.0, max_iterations=200, dt=0.1, tolerance=1e-3))]
 pub fn chan_vese_segment(
+    py: Python<'_>,
     image: &PyImage,
     mu: f64,
     nu: f64,
@@ -563,17 +564,21 @@ pub fn chan_vese_segment(
     dt: f64,
     tolerance: f64,
 ) -> PyResult<PyImage> {
-    let mut seg = ChanVeseSegmentation::new();
-    seg.mu = mu;
-    seg.nu = nu;
-    seg.lambda1 = lambda1;
-    seg.lambda2 = lambda2;
-    seg.max_iterations = max_iterations;
-    seg.dt = dt;
-    seg.tolerance = tolerance;
-    let result = seg
-        .apply(image.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // GIL released for the full PDE iteration loop (up to max_iterations Euler steps).
+    let image_arc = Arc::clone(&image.inner);
+    let result = py
+        .allow_threads(|| {
+            let mut seg = ChanVeseSegmentation::new();
+            seg.mu = mu;
+            seg.nu = nu;
+            seg.lambda1 = lambda1;
+            seg.lambda2 = lambda2;
+            seg.max_iterations = max_iterations;
+            seg.dt = dt;
+            seg.tolerance = tolerance;
+            seg.apply(image_arc.as_ref()).map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     Ok(into_py_image(result))
 }
 
@@ -605,6 +610,7 @@ pub fn chan_vese_segment(
 #[pyfunction]
 #[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200))]
 pub fn geodesic_active_contour_segment(
+    py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
     propagation_weight: f64,
@@ -615,17 +621,23 @@ pub fn geodesic_active_contour_segment(
     dt: f64,
     max_iterations: usize,
 ) -> PyResult<PyImage> {
-    let mut seg = GeodesicActiveContourSegmentation::new();
-    seg.propagation_weight = propagation_weight;
-    seg.curvature_weight = curvature_weight;
-    seg.advection_weight = advection_weight;
-    seg.edge_k = edge_k;
-    seg.sigma = sigma;
-    seg.dt = dt;
-    seg.max_iterations = max_iterations;
-    let result = seg
-        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // GIL released for the full GAC PDE evolution loop.
+    let image_arc = Arc::clone(&image.inner);
+    let phi_arc = Arc::clone(&initial_phi.inner);
+    let result = py
+        .allow_threads(|| {
+            let mut seg = GeodesicActiveContourSegmentation::new();
+            seg.propagation_weight = propagation_weight;
+            seg.curvature_weight = curvature_weight;
+            seg.advection_weight = advection_weight;
+            seg.edge_k = edge_k;
+            seg.sigma = sigma;
+            seg.dt = dt;
+            seg.max_iterations = max_iterations;
+            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     Ok(into_py_image(result))
 }
 
@@ -656,6 +668,7 @@ pub fn geodesic_active_contour_segment(
 #[pyfunction]
 #[pyo3(signature = (image, initial_phi, curvature_weight=1.0, propagation_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
 pub fn shape_detection_segment(
+    py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
     curvature_weight: f64,
@@ -667,18 +680,24 @@ pub fn shape_detection_segment(
     max_iterations: usize,
     tolerance: f64,
 ) -> PyResult<PyImage> {
-    let mut seg = ShapeDetectionSegmentation::new();
-    seg.curvature_weight = curvature_weight;
-    seg.propagation_weight = propagation_weight;
-    seg.advection_weight = advection_weight;
-    seg.edge_k = edge_k;
-    seg.sigma = sigma;
-    seg.dt = dt;
-    seg.max_iterations = max_iterations;
-    seg.tolerance = tolerance;
-    let result = seg
-        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // GIL released for the full shape-detection PDE evolution loop.
+    let image_arc = Arc::clone(&image.inner);
+    let phi_arc = Arc::clone(&initial_phi.inner);
+    let result = py
+        .allow_threads(|| {
+            let mut seg = ShapeDetectionSegmentation::new();
+            seg.curvature_weight = curvature_weight;
+            seg.propagation_weight = propagation_weight;
+            seg.advection_weight = advection_weight;
+            seg.edge_k = edge_k;
+            seg.sigma = sigma;
+            seg.dt = dt;
+            seg.max_iterations = max_iterations;
+            seg.tolerance = tolerance;
+            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     Ok(into_py_image(result))
 }
 
@@ -708,6 +727,7 @@ pub fn shape_detection_segment(
 #[pyfunction]
 #[pyo3(signature = (image, initial_phi, lower_threshold, upper_threshold, propagation_weight=1.0, curvature_weight=0.2, dt=0.05, max_iterations=200, tolerance=1e-3))]
 pub fn threshold_level_set_segment(
+    py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
     lower_threshold: f64,
@@ -718,15 +738,21 @@ pub fn threshold_level_set_segment(
     max_iterations: usize,
     tolerance: f64,
 ) -> PyResult<PyImage> {
-    let mut seg = ThresholdLevelSet::new(lower_threshold, upper_threshold);
-    seg.propagation_weight = propagation_weight;
-    seg.curvature_weight = curvature_weight;
-    seg.dt = dt;
-    seg.max_iterations = max_iterations;
-    seg.tolerance = tolerance;
-    let result = seg
-        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // GIL released for the full threshold level-set PDE evolution loop.
+    let image_arc = Arc::clone(&image.inner);
+    let phi_arc = Arc::clone(&initial_phi.inner);
+    let result = py
+        .allow_threads(|| {
+            let mut seg = ThresholdLevelSet::new(lower_threshold, upper_threshold);
+            seg.propagation_weight = propagation_weight;
+            seg.curvature_weight = curvature_weight;
+            seg.dt = dt;
+            seg.max_iterations = max_iterations;
+            seg.tolerance = tolerance;
+            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     Ok(into_py_image(result))
 }
 
@@ -755,6 +781,7 @@ pub fn threshold_level_set_segment(
 #[pyfunction]
 #[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
 pub fn laplacian_level_set_segment(
+    py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
     propagation_weight: f64,
@@ -764,16 +791,22 @@ pub fn laplacian_level_set_segment(
     max_iterations: usize,
     tolerance: f64,
 ) -> PyResult<PyImage> {
-    let mut seg = LaplacianLevelSet::new();
-    seg.propagation_weight = propagation_weight;
-    seg.curvature_weight = curvature_weight;
-    seg.sigma = sigma;
-    seg.dt = dt;
-    seg.max_iterations = max_iterations;
-    seg.tolerance = tolerance;
-    let result = seg
-        .apply(image.inner.as_ref(), initial_phi.inner.as_ref())
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    // GIL released for the full Laplacian level-set PDE evolution loop.
+    let image_arc = Arc::clone(&image.inner);
+    let phi_arc = Arc::clone(&initial_phi.inner);
+    let result = py
+        .allow_threads(|| {
+            let mut seg = LaplacianLevelSet::new();
+            seg.propagation_weight = propagation_weight;
+            seg.curvature_weight = curvature_weight;
+            seg.sigma = sigma;
+            seg.dt = dt;
+            seg.max_iterations = max_iterations;
+            seg.tolerance = tolerance;
+            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+                .map_err(|e| e.to_string())
+        })
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
     Ok(into_py_image(result))
 }
 

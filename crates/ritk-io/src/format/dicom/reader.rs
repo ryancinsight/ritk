@@ -46,7 +46,7 @@ use super::object_model::{
     DicomSequenceItem, DicomTag, DicomValue,
 };
 use super::sop_class::{classify_sop_class, SopClassKind};
-use super::transfer_syntax::TransferSyntaxKind;
+use ritk_dicom::TransferSyntaxKind;
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]

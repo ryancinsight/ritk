@@ -1,3 +1,30 @@
+## Sprint 85 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.0 [minor]
+**Goal**: Complete transfer-syntax migration so `ritk-dicom::TransferSyntaxKind` is the single authoritative classifier and `ritk-io` preserves only a compatibility re-export.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-85-01 | `ritk-io` retained a duplicate `TransferSyntaxKind` enum and predicate implementation after `ritk-dicom` extraction | minor |
+| GAP-85-02 | `reader.rs` and `multiframe.rs` imported transfer-syntax classification from `ritk-io` internals instead of the canonical `ritk-dicom` crate | patch |
+| GAP-85-03 | README crate tree omitted `ritk-dicom` and still listed stale Python binding counts | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors |
+| `cargo test -p ritk-dicom` | Passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-io transfer_syntax` | Compatibility re-export tests passed |
+| `cargo test -p ritk-io test_decode_compressed_frame_rle_lossless_unrestricted_round_trip -- --no-capture` | Native RLE consumer test passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG Baseline/Extended, JPEG-LS, JPEG 2000, and JPEG XL still use `DicomRsBackend`; Stage 86 starts native JPEG Baseline/Extended replacement.
+- `ritk-io` public re-export remains intentionally for compatibility; direct internal use should stay on `ritk_dicom::TransferSyntaxKind`.
+- Windows GNU runtime test execution still requires UCRT64 DLLs ahead of other MSYS/MinGW paths.
+
 ## Sprint 84 — Completed
 **Status**: Completed
 **Phase**: Foundation → Execution

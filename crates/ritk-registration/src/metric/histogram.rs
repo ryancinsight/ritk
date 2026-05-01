@@ -14,7 +14,13 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct HistogramCache<B: Backend> {
+    /// World-space coordinates of all fixed-image voxels [N, D].
     points: Tensor<B, 2>,
+    /// Precomputed Parzen weight matrix for the fixed image, transposed: [num_bins, N].
+    /// Constant across all registration iterations because the fixed image never changes.
+    /// Reusing this avoids O(N × num_bins) kernel computation and removes the fixed-image
+    /// Parzen path from the autodiff graph on every iteration after the first.
+    w_fixed_transposed: Option<Tensor<B, 2>>,
     shape: Vec<usize>,
     origin: Vec<f64>,
     spacing: Vec<f64>,
@@ -49,6 +55,43 @@ impl<B: Backend> ParzenJointHistogram<B> {
             cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
         }
+    }
+
+    /// Compute joint histogram from a precomputed W_fixed^T [num_bins, N] and live moving values [N].
+    ///
+    /// `w_fixed_transposed` is the transposed Parzen weight matrix for the fixed image,
+    /// precomputed once and cached. `moving_values` carries the autodiff gradient path.
+    /// Only the moving-image side needs recomputation each iteration.
+    fn compute_joint_histogram_from_cache(
+        &self,
+        w_fixed_transposed: &Tensor<B, 2>, // [num_bins, N]
+        moving_values: &Tensor<B, 1>,      // [N]
+    ) -> Tensor<B, 2> {
+        let device = moving_values.device();
+        let [n] = moving_values.dims();
+        let num_bins = self.num_bins;
+        let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+
+        // Normalize moving values to [0, num_bins-1]
+        let moving_norm = {
+            let t = moving_values.clone() - self.min_intensity;
+            let t = t / (self.max_intensity - self.min_intensity);
+            let t = t * (num_bins as f32 - 1.0);
+            t.clamp(0.0, num_bins as f32 - 1.0)
+        };
+
+        // Bin centers [1, num_bins]
+        let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &device)
+            .float()
+            .reshape([1, num_bins]);
+
+        // W_moving [N, num_bins] = exp(-0.5 * ((val - bin) / sigma)^2)
+        let vals_exp = moving_norm.reshape([n, 1]);
+        let diff = vals_exp - bins_exp;
+        let w_moving = (diff.powf_scalar(2.0) * (-0.5 / sigma_sq)).exp();
+
+        // Joint histogram [num_bins, num_bins] = W_fixed^T @ W_moving
+        w_fixed_transposed.clone().matmul(w_moving)
     }
 
     /// Compute soft joint histogram between two images (vectorized).
@@ -191,35 +234,80 @@ impl<B: Backend> ParzenJointHistogram<B> {
         const CHUNK_SIZE: usize = 32768;
 
         if n <= CHUNK_SIZE {
-            // Process all at once
-            // If we have cached points, use them. Else compute.
+            // ── Non-chunked path ──
+            // For the non-sampling case, check if we have a cached W_fixed^T.
+            // This avoids recomputing the O(N × num_bins) Parzen matrix for the
+            // constant fixed image on every registration iteration.
+            let cached_w_fixed_t: Option<Tensor<B, 2>> = if !use_sampling {
+                let cache = self.cache.lock().unwrap();
+                cache.as_ref().and_then(|c| {
+                    let matches = c.shape == fixed.shape().to_vec()
+                        && c.origin == fixed.origin().0.iter().cloned().collect::<Vec<f64>>()
+                        && c.spacing == fixed.spacing().0.iter().cloned().collect::<Vec<f64>>()
+                        && c.direction == fixed.direction().0.iter().cloned().collect::<Vec<f64>>();
+                    if matches {
+                        c.w_fixed_transposed.clone()
+                    } else {
+                        None
+                    }
+                })
+            } else {
+                None
+            };
+
+            // Determine fixed world-space points (from cache or freshly computed).
             let fixed_points = if let Some(pts) = cached_points {
                 pts
             } else {
-                let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
-                // Only cache if NOT sampling and not using cache (implies miss)
-                if !use_sampling {
-                    let mut cache = self.cache.lock().unwrap();
-                    *cache = Some(HistogramCache {
-                        points: pts.clone(),
-                        shape: fixed.shape().to_vec(),
-                        origin: fixed.origin().0.iter().cloned().collect(),
-                        spacing: fixed.spacing().0.iter().cloned().collect(),
-                        direction: fixed.direction().0.iter().cloned().collect(),
-                    });
-                }
-                pts
+                fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone())
             };
 
-            let moving_points = transform.transform_points(fixed_points);
+            let moving_points = transform.transform_points(fixed_points.clone());
             let moving_indices = moving.world_to_index_tensor(moving_points);
             let moving_values = interpolator.interpolate(moving.data(), moving_indices);
 
+            if !use_sampling {
+                if let Some(ref w_ft) = cached_w_fixed_t {
+                    // Cache hit: W_fixed^T already computed; only W_moving needs autodiff.
+                    return self.compute_joint_histogram_from_cache(w_ft, &moving_values);
+                }
+            }
+
+            // Cache miss (or sampling): compute fixed_values and W_fixed, then populate cache.
             let fixed_values = if use_sampling {
                 interpolator.interpolate(fixed.data(), fixed_indices.unwrap())
             } else {
                 fixed.data().clone().reshape([n])
             };
+
+            // For the non-sampling path, precompute W_fixed^T and store alongside points.
+            if !use_sampling {
+                let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+                let fixed_norm = {
+                    let t = fixed_values.clone() - self.min_intensity;
+                    let t = t / (self.max_intensity - self.min_intensity);
+                    let t = t * (self.num_bins as f32 - 1.0);
+                    t.clamp(0.0, self.num_bins as f32 - 1.0)
+                };
+                let bins_exp = Tensor::<B, 1, Int>::arange(0..self.num_bins as i64, &device)
+                    .float()
+                    .reshape([1, self.num_bins]);
+                let vals_exp = fixed_norm.reshape([n, 1]);
+                let diff = vals_exp - bins_exp;
+                let w_fixed_t = (diff.powf_scalar(2.0) * (-0.5 / sigma_sq))
+                    .exp()
+                    .transpose(); // [num_bins, N]
+
+                let mut cache = self.cache.lock().unwrap();
+                *cache = Some(HistogramCache {
+                    points: fixed_points,
+                    w_fixed_transposed: Some(w_fixed_t),
+                    shape: fixed.shape().to_vec(),
+                    origin: fixed.origin().0.iter().cloned().collect(),
+                    spacing: fixed.spacing().0.iter().cloned().collect(),
+                    direction: fixed.direction().0.iter().cloned().collect(),
+                });
+            }
 
             self.compute_joint_histogram(&fixed_values, &moving_values)
         } else {
@@ -231,11 +319,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let all_fixed_points = if let Some(pts) = cached_points {
                 pts
             } else if !use_sampling {
-                // Compute all points and cache
+                // Compute all points and cache (chunk path: W_fixed^T not cached per-chunk
+                // because the chunk boundary sizes vary; full-N W_fixed^T is not assembled here).
                 let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
                 let mut cache = self.cache.lock().unwrap();
                 *cache = Some(HistogramCache {
                     points: pts.clone(),
+                    w_fixed_transposed: None, // chunk path does not cache W_fixed^T
                     shape: fixed.shape().to_vec(),
                     origin: fixed.origin().0.iter().cloned().collect(),
                     spacing: fixed.spacing().0.iter().cloned().collect(),
