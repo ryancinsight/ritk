@@ -80,13 +80,49 @@ pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> 
                     + layout.rescale_intercept
             })
             .collect(),
-        _ => bytes
+        (16, _) => bytes
             .chunks_exact(2)
             .map(|c| {
                 u16::from_le_bytes([c[0], c[1]]) as f32 * layout.rescale_slope
                     + layout.rescale_intercept
             })
             .collect(),
+        (24, 1) => bytes
+            .chunks_exact(3)
+            .map(|c| sign_extend_i24(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .collect(),
+        (24, _) => bytes
+            .chunks_exact(3)
+            .map(|c| u24_le(c) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .collect(),
+        (32, 1) => bytes
+            .chunks_exact(4)
+            .map(|c| {
+                i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
+                    + layout.rescale_intercept
+            })
+            .collect(),
+        (32, _) => bytes
+            .chunks_exact(4)
+            .map(|c| {
+                u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * layout.rescale_slope
+                    + layout.rescale_intercept
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn u24_le(bytes: &[u8]) -> u32 {
+    u32::from(bytes[0]) | (u32::from(bytes[1]) << 8) | (u32::from(bytes[2]) << 16)
+}
+
+fn sign_extend_i24(bytes: &[u8]) -> i32 {
+    let raw = u24_le(bytes) as i32;
+    if raw & 0x0080_0000 != 0 {
+        raw | !0x00FF_FFFF
+    } else {
+        raw
     }
 }
 
@@ -147,5 +183,80 @@ mod tests {
             err.to_string().contains("byte length"),
             "expected byte-length validation error, got {err:#}"
         );
+    }
+
+    #[test]
+    fn checked_native_decode_handles_unsigned_32bit_samples() {
+        let bytes = [1u32, 65_535, 1_000_000]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<_>>();
+
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 3,
+                samples_per_pixel: 1,
+                bits_allocated: 32,
+                pixel_representation: 0,
+                rescale_slope: 0.5,
+                rescale_intercept: -1.0,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(out, vec![-0.5, 32766.5, 499999.0]);
+    }
+
+    #[test]
+    fn checked_native_decode_handles_signed_24bit_samples() {
+        let bytes = [-2i32, 0, 10]
+            .iter()
+            .flat_map(|v| {
+                let le = v.to_le_bytes();
+                [le[0], le[1], le[2]]
+            })
+            .collect::<Vec<_>>();
+
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 3,
+                samples_per_pixel: 1,
+                bits_allocated: 24,
+                pixel_representation: 1,
+                rescale_slope: 2.0,
+                rescale_intercept: 5.0,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(out, vec![1.0, 5.0, 25.0]);
+    }
+
+    #[test]
+    fn checked_native_decode_handles_signed_32bit_samples() {
+        let bytes = [-2i32, 0, 10]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<_>>();
+
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 3,
+                samples_per_pixel: 1,
+                bits_allocated: 32,
+                pixel_representation: 1,
+                rescale_slope: 2.0,
+                rescale_intercept: 5.0,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(out, vec![1.0, 5.0, 25.0]);
     }
 }

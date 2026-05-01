@@ -1,3 +1,19 @@
+## Sprint 91 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.6 [patch]
+
+- [x] GAP-91-01: decode 32-bit unsigned native samples as `u32` little-endian values
+- [x] GAP-91-02: decode 24-bit signed native samples with sign extension
+- [x] GAP-91-03: decode 32-bit signed native samples as `i32` little-endian values
+- [x] GAP-91-04: add value-semantic 24-bit signed plus 32-bit signed/unsigned modality LUT tests
+- [x] GAP-91-05: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 90 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

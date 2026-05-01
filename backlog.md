@@ -1,3 +1,29 @@
+## Sprint 91 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.6 [patch]
+**Goal**: Complete the native pixel byte contract by adding value-correct 24-bit and 32-bit signed/unsigned sample decoding instead of silently misinterpreting byte-addressable samples.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-91-01 | `PixelLayout::bytes_per_sample()` accepted 3-byte and 4-byte samples while `decode_native_pixel_bytes` decoded non-8/16 data as 16-bit chunks | patch |
+| GAP-91-02 | 32-bit unsigned native samples had no value-semantic modality LUT test | patch |
+| GAP-91-03 | 24-bit and 32-bit signed native samples had no value-semantic modality LUT tests | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 16 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- 24-bit and 32-bit native integer samples are decoded by the SSOT native pixel path; remaining codec gaps are compressed-codec specific.
+- Existing `ritk-io` dead-code warnings remain outside this native pixel contract slice.
+
 ## Sprint 90 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure
