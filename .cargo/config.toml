@@ -4,6 +4,8 @@ xtask = "run --package xtask --"
 [env]
 # Use LLVM/Clang as the C/C++ compiler for native build dependencies (charls-sys, openjpeg-sys).
 # force = false: CI and developer environment variables take precedence.
+CC = { value = "D:/msys64/ucrt64/bin/clang.exe", force = false }
+CXX = { value = "D:/msys64/ucrt64/bin/clang++.exe", force = false }
 # x86_64-pc-windows-msvc: clang-cl provides MSVC ABI compatibility.
 CC_x86_64_pc_windows_msvc = { value = "clang-cl", force = false }
 CXX_x86_64_pc_windows_msvc = { value = "clang-cl", force = false }
@@ -14,6 +16,11 @@ AR_x86_64_pc_windows_msvc = { value = "llvm-lib", force = false }
 # MinGW runtime DLLs absent from clean Windows installs.
 # -Xclang passes the flag through clang-cl's MSVC frontend to the underlying driver.
 CXXFLAGS_x86_64_pc_windows_msvc = { value = "-static-libstdc++ -static-libgcc", force = false }
+CC_x86_64_pc_windows_gnu = { value = "clang", force = false }
+CXX_x86_64_pc_windows_gnu = { value = "clang++", force = false }
+AR_x86_64_pc_windows_gnu = { value = "llvm-ar", force = false }
+CMAKE_C_COMPILER = { value = "D:/msys64/ucrt64/bin/clang.exe", force = false }
+CMAKE_CXX_COMPILER = { value = "D:/msys64/ucrt64/bin/clang++.exe", force = false }
 CC_x86_64_unknown_linux_gnu = { value = "clang", force = false }
 CXX_x86_64_unknown_linux_gnu = { value = "clang++", force = false }
 CC_aarch64_unknown_linux_gnu = { value = "clang", force = false }

@@ -5859,6 +5859,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-dicom"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dicom",
+ "dicom-pixeldata",
+ "proptest",
+]
+
+[[package]]
 name = "ritk-io"
 version = "0.1.0"
 dependencies = [
@@ -5882,6 +5892,7 @@ dependencies = [
  "openjpeg-sys",
  "rayon",
  "ritk-core",
+ "ritk-dicom",
  "tempfile",
  "thiserror 2.0.18",
  "tiff 0.9.1",
@@ -5907,7 +5918,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-python"
-version = "0.12.0"
+version = "0.12.3"
 dependencies = [
  "anyhow",
  "burn",

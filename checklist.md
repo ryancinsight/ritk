@@ -1,3 +1,61 @@
+## Sprint 84 — Completed
+**Status**: Completed
+**Phase**: Foundation → Execution
+**Version**: 0.13.0 [minor]
+
+- [x] GAP-84-01: add `crates/ritk-dicom` workspace member as SSOT for DICOM transfer syntax classification and pixel-codec contracts
+- [x] GAP-84-02: add `PixelLayout`, `decode_native_pixel_bytes`, `packbits_decode`, and `decode_rle_lossless_fragment` with value-semantic tests
+- [x] GAP-84-03: add generic `FrameDecodeBackend<O>` and `DicomRsBackend`; `dicom-rs` remains a backend instead of the RITK domain boundary
+- [x] GAP-84-04: configure Windows GNU native build scripts for UCRT clang/clang++/llvm-ar and lld
+- [x] Integrate `ritk-io::format::dicom::codec::decode_compressed_frame` with `ritk_dicom::DicomRsBackend`
+- [x] Verification: `cargo check -p ritk-dicom` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed 5/5 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld
+- [x] Verification: targeted RLE consumer test passed with `D:\msys64\ucrt64\bin` first on `PATH`
+
+## Sprint 83 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.3 [patch]
+
+- [x] GAP-83-01: add `py: Python<'_>` + `py.allow_threads` to `recursive_gaussian`; clone Arc before closure
+- [x] GAP-83-02: gap_audit §3.6 Skeletonization row → ✓ implemented (Sprint 10/28, Python Sprint 20, CLI Sprint 20, 50+ tests); severity → Closed
+- [x] GAP-83-03: gap_audit §7.1 remove 4 stale remaining-gap bullets; severity → Low
+- [x] GAP-83-04: gap_audit §7.3 update filter.rs (14→34 fns), segmentation.rs (16→27 fns), registration.rs (8→13 fns), total (91→93+)
+- [x] Version bump: 0.12.2 → 0.12.3 in `crates/ritk-python/Cargo.toml` and `ritk/__init__.py`
+- [x] CHANGELOG.md [0.12.3] Sprint 83 entry added
+- [x] backlog.md Sprint 83 closure record added
+
+## Sprint 82 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.2 [patch]
+
+- [x] GAP-82-01: add `py: Python<'_>` + `py.allow_threads` to `chan_vese_segment`; move Arc clone outside closure
+- [x] GAP-82-02: add `py: Python<'_>` + `py.allow_threads` to `geodesic_active_contour_segment`
+- [x] GAP-82-03: add `py: Python<'_>` + `py.allow_threads` to `shape_detection_segment`
+- [x] GAP-82-04: add `py: Python<'_>` + `py.allow_threads` to `threshold_level_set_segment`
+- [x] GAP-82-05: add `py: Python<'_>` + `py.allow_threads` to `laplacian_level_set_segment`
+- [x] GAP-82-06: add `py: Python<'_>` + `py.allow_threads` to `hausdorff_distance` and `mean_surface_distance`
+- [x] GAP-82-07: gap_audit §7.1 Sprint 82 note added; status → Closed
+- [x] Version bump: 0.12.1 → 0.12.2 in `crates/ritk-python/Cargo.toml` and `ritk/__init__.py`
+- [x] CHANGELOG.md [0.12.2] Sprint 82 entry added
+- [x] backlog.md Sprint 82 closure record added
+
+## Sprint 81 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.1 [patch]
+
+- [x] GAP-81-01: fix `distance_transform_squared` all-background early-return → 0.0 (was inf²); update doc comment
+- [x] GAP-81-02: add `w_fixed_transposed: Tensor<B, 2>` to `HistogramCache`; compute once on cache miss; reuse on cache hit
+- [x] GAP-81-03: create `.config/nextest.toml` with `slow-timeout = {period="60s", terminate-after=3}` default and 300s override for BSpline/multires/affine/rigid/versor tests
+- [x] GAP-81-04: remove `confidence_connected`, `neighborhood_connected` from gap_audit "Absent" list; add Sprint 81 note
+- [x] Version bump: 0.12.0 → 0.12.1 in `Cargo.toml` (workspace) and `ritk-python/python/ritk/__init__.py`
+- [x] CHANGELOG.md Sprint 81 entry added
+- [x] backlog.md Sprint 81 closure record added
+- [x] checklist.md Sprint 81 entry added
+
 ## Sprint 80 — Completed
 **Status**: Completed
 **Phase**: Execution

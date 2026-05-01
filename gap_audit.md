@@ -1,5 +1,11 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Sprint 84 (2026):** GAP-84 closed the first `ritk-dicom` extraction increment. Added `crates/ritk-dicom` as the Rust-owned DICOM boundary with `TransferSyntaxKind`, `PixelLayout`, native byte decode, PackBits decode, native DICOM RLE Lossless fragment decode, generic `FrameDecodeBackend<O>`, and `DicomRsBackend`. The crate now uses an SRP file tree: `backend/dicom_rs.rs`, `codec/native/packbits.rs`, `codec/native/rle.rs`, `pixel/mod.rs`, and `syntax/mod.rs`. `ritk-io::format::dicom::codec::decode_compressed_frame` now delegates through the backend trait, keeping `dicom-rs` as a replaceable backend while preserving the existing public `ritk-io` series API. `.cargo/config.toml` now forces Windows GNU native build scripts onto UCRT clang/clang++/llvm-ar and lld while preserving developer override via `force=false`. Verification: `cargo check -p ritk-dicom` passed; `cargo test -p ritk-dicom` passed 5/5; `cargo check -p ritk-io` passed with UCRT clang/lld; targeted `ritk-io` RLE consumer test passed with `D:\msys64\ucrt64\bin` first on `PATH`. Residual DICOM gaps: migrate `ritk-io::format::dicom::transfer_syntax` callers to `ritk-dicom::TransferSyntaxKind`; replace JPEG Baseline/Extended, JPEG-LS, JPEG 2000, and JPEG XL backend paths with Rust-owned codecs where feasible; make UCRT runtime PATH handling automatic for Windows GNU test execution.
+
+**Sprint 83 (2026):** GAP-83-01 closed: `recursive_gaussian` in `crates/ritk-python/src/filter.rs` was the sole `#[pyfunction]` without `py.allow_threads`; added `py: Python<'_>`, Arc clone before closure, and `py.allow_threads(||{...})` wrapping. Documentation drift corrected: §3.6 Skeletonization row marked ✓ (implemented Sprint 10/28, Python Sprint 20, CLI Sprint 20, 50+ tests); §3.6 severity upgraded to Closed; §7.1 four stale remaining-gap bullets removed (transform I/O closed Sprint 8; type stubs present since Sprint 31; `py.allow_threads` now fully applied; atlas/JLF closed Sprint 8); §7.1 severity downgraded Low; §7.3 code-tree comment updated to reflect 34 filter functions and 27 segmentation functions. `cargo check -p ritk-python`: 0 errors, 0 warnings. `cargo test -p ritk-python --lib`: 10/10 passed. `ritk-python` bumped 0.12.2 → 0.12.3.
+
+**Sprint 82 (2026):** GAP-82 closed: seven Python bindings that held the CPython GIL through multi-iteration PDE loops now release it via `py.allow_threads`. Functions fixed in `crates/ritk-python/src/segmentation.rs`: `chan_vese_segment` (up to 200 Euler iterations, Chan & Vese 2001 PDE), `geodesic_active_contour_segment` (Caselles et al. 1997 GAC PDE), `shape_detection_segment` (Sethian edge-based LS PDE), `threshold_level_set_segment` (intensity-band LS PDE), `laplacian_level_set_segment` (Laplacian-driven LS PDE). Functions fixed in `crates/ritk-python/src/statistics.rs`: `hausdorff_distance` (O(M·N) directed distance, M/N = boundary voxel counts), `mean_surface_distance` (same complexity). Pattern: clone Arc handles before `py.allow_threads(||{...})` so closures are `Send + Ungil`; all parameters are Copy scalars captured by value. Python-visible API unchanged. `cargo check -p ritk-python`: 0 errors, 0 warnings. `cargo test -p ritk-python --lib`: 10/10 passed. gap_audit §7.1 status: **Closed**.
+
 **Sprint 61 (2026):** Three gaps closed. (1) GAP-C61-01: `load_from_series` (`reader.rs`) used `from_row_slice` on the `[rx,ry,rz, cx,cy,cz, nx,ny,nz]` layout — this is column-major and must be consumed by `from_column_slice` to produce the ITK-convention direction matrix (columns = basis vectors). Fix: changed to `from_column_slice`. Now consistent with `load_dicom_multiframe` (`multiframe.rs`). Discriminating test: coronal IOP [1,0,0, 0,0,-1] — `from_column_slice` gives dir[(2,1)]=-1,dir[(1,2)]=+1; `from_row_slice` gives the opposite. (2) GAP-C61-02: Added cross-slice IOP consistency guard in `scan_dicom_directory`; emits `tracing::warn!` when max |Δiop_component| > 1e-4; policy warn-and-continue; canonical IOP = first post-sort slice. (3) GAP-C61-03: Added cross-slice PixelSpacing consistency guard; same policy; threshold 1e-4 mm. 428/428 ritk-io tests pass (+3 from Sprint 60 baseline of 425). Residual risks: DICOM-SEG writer absent (GAP-R60-04); VTI binary-appended absent (GAP-R60-05); RT Dose/Plan readers absent (GAP-R60-06).
 
 **Sprint 60 (2026):** DICOM slice geometry hardening. Four gaps closed. (1) GAP-C60-01: `load_from_series` (`reader.rs`) silently masked nonuniform and missing slice spacing via a single-span average `(last_z − first_z)/(N−1)`. Fix: decode frames into `Vec<Vec<f32>>`, project each `ImagePositionPatient` onto the slice normal N̂ = normalize(row × col), compute all N−1 adjacent-pair gaps, derive `nominal_spacing` = median(gaps), flag `is_nonuniform` when max relative deviation > 1% and `has_missing_slices` when any gap > 1.5 × nominal, emit `tracing::warn!` with structured fields for both conditions, resample to a uniform grid via per-pixel linear interpolation (`resample_frames_linear`), update `metadata.dimensions[2]` and `metadata.spacing[2]` to reflect the resampled geometry. (2) GAP-C60-02: `scan_dicom_directory` sorted slices by raw `IPP[2]` (LPS z-component); for coronal, sagittal, and oblique acquisitions this produces an incorrect order. Fix: compute `maybe_normal` from the first IOP-bearing slice via `slice_normal_from_iop`; sort by `dot_3d(IPP, N̂)`; fall back to `IPP[2]` when IOP is absent. (3) GAP-C60-03: `scan_dicom_directory` spacing derivation replaced by `analyze_slice_spacing(&positions).nominal_spacing` (median of adjacent-pair gaps instead of single-span average). (4) GAP-C60-04: `load_dicom_multiframe` (`multiframe.rs`) used the global `SliceThickness` tag unconditionally even when `per_frame` carries accurate per-frame `image_position` values. Fix: when `per_frame.len() >= 2` and all frames carry `image_position`, project onto N̂, call `analyze_slice_spacing`, emit structured warnings, resample via `resample_frames_linear` when nonuniform or missing frames are detected; fall back to `frame_thickness` otherwise. New `pub(super)` geometry utilities added to `reader.rs`: `normalize_3d`, `dot_3d`, `slice_normal_from_iop`, `SliceGeometryReport`, `analyze_slice_spacing`, `resample_frames_linear`, constants `NONUNIFORM_SPACING_THRESHOLD = 0.01` and `MISSING_SLICE_GAP_FACTOR = 1.5`. 425/425 ritk-io tests pass (+10 from Sprint 59 baseline of 415). Residual risks: IOP consistency across slices not validated (GAP-R60-01); PixelSpacing consistency across slices not validated (GAP-R60-02); direction matrix construction inconsistency between series and multiframe readers — `load_dicom_multiframe` uses `from_column_slice`, `load_from_series` uses `from_row_slice` for the same [rx,ry,rz,cx,cy,cz,nx,ny,nz] layout, producing the transpose of each other (GAP-R60-03).
@@ -612,7 +618,9 @@ selected implementation files. Items listed in comments or `TODO` blocks are exc
 | `ritk-io` | `format::dicom` | `scan_dicom_directory`, `load_dicom_series`, `read_dicom_series`, `load_dicom_series_with_metadata`, `read_dicom_series_with_metadata`, `DicomSeriesInfo`, `DicomReadMetadata`, `DicomSliceMetadata` |
 
 **Absent or incomplete at module level (zero source files, stub-only, or partial fidelity):**  
-Confidence-connected region growing, neighborhood-connected region growing, skeletonization, hole filling, generalized DICOM object-model preservation, private tag round-trip on the series reader/writer path, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits, PYTHON-CI-VALIDATION (deferred Sprint 30): validate Python wheel CI workflow on hosted runners.
+Skeletonization, hole filling, generalized DICOM object-model preservation, private tag round-trip on the series reader/writer path, generalized DICOM write-path support, VTK polydata / grid data models, visualization pipeline abstractions, ITK-SNAP workflow state primitives, comparison harnesses against Python reference toolkits, PYTHON-CI-VALIDATION (deferred Sprint 30): validate Python wheel CI workflow on hosted runners.
+
+*Note (Sprint 81):* `confidence_connected` and `neighborhood_connected` are confirmed present in `ritk-python/src/segmentation.rs` and exposed through the Python API; parity tests added in Sprint 80 (GAP-80-13). Both were removed from the absent list.
 
 ---
 
@@ -1148,7 +1156,7 @@ Used for tissue class initialization (CSF / GM / WM in brain MRI).
 
 **Planned location:** `crates/ritk-core/src/segmentation/clustering/kmeans.rs`
 
-### 3.6 Morphological Operations · Severity: **Low**
+### 3.6 Morphological Operations · Severity: **Closed** (Skeletonization implemented Sprint 10/28; label voting is the sole unimplemented op — Low severity, no blocking workflows)
 
 Essential post-processing for every segmentation pipeline.
 
@@ -1160,7 +1168,7 @@ Essential post-processing for every segmentation pipeline.
 | Closing | `A • B = (A ⊕ B) ⊖ B` |
 | Morphological gradient | `(A ⊕ B) − (A ⊖ B)` — ✓ **MorphologicalGradient** (Sprint 21, `ritk-core/src/segmentation/morphology/morphological_gradient.rs`) |
 | Distance transform | Exact Euclidean via Meijster et al. (2000) — ✓ **Implemented** (Sprint 7, `ritk-core/src/segmentation/distance_transform/`, 19 tests) |
-| Skeletonization | Thinning via topology-preserving erosion |
+| Skeletonization | Thinning via topology-preserving erosion — ✓ **Skeletonization** (Sprint 10/28, `ritk-core/src/segmentation/morphology/skeletonization.rs`; Zhang-Suen 2D + 3D topology-preserving thinning; Python: Sprint 20 `ritk.segmentation.skeletonization`; CLI: Sprint 20 `ritk segment --method skeletonization`; 50+ unit tests) |
 | Hole filling | Geodesic dilation constrained by mask — ✓ **BinaryFillHoles** (Sprint 21, `ritk-core/src/segmentation/morphology/fill_holes.rs`) |
 | Label voting | Majority vote in structuring element neighborhood |
 
@@ -1797,7 +1805,7 @@ analysis pipelines. MGH is the raw format; MGZ is gzip-compressed MGH.
 
 ## 7. Python Binding Gaps
 
-### 7.1 Python Bindings — Sprint 7 Updated · Severity: **Medium** (was High)
+### 7.1 Python Bindings — Sprint 83 Updated · Severity: **Low** (was Medium → High; one operational gap remains: hosted-CI maturin matrix validation)
 
 `ritk-python` is a PyO3 0.22 native extension (`cdylib`) with six submodules.
 `abi3-py39` enables CPython 3.9–3.14 compatibility without recompilation.
@@ -1811,11 +1819,7 @@ metrics (Dice, Hausdorff, mean surface distance, PSNR, SSIM), normalization (z-s
 histogram matching, Nyúl-Udupa), and white stripe normalization.
 
 Remaining gaps relative to SimpleITK / ANTsPy:
-- No `maturin develop` / wheel publish workflow verified end-to-end in CI.
-- No transform serialisation / `read_transform` / `write_transform` Python API.
-- No type stubs (`.pyi` files) for IDE autocomplete.
-- `py.allow_threads` GIL release not yet applied to long-running filter/registration calls.
-- No Python API for atlas building or joint label fusion (Rust implementations available).
+- No `maturin develop` / wheel publish workflow verified end-to-end on hosted CI runners (Sprint 33 configured `python_ci.yml` with a build-wheel-and-reinstall path; requires matrix-runner execution to confirm all OS/Python combinations). All other prior gaps closed: transform I/O (Sprint 8), type stubs (Sprint 31, `__init__.pyi` present), `py.allow_threads` (Sprint 82 segmentation/statistics + Sprint 83 `recursive_gaussian`), atlas/JLF Python API (Sprint 8).
 
 ### 7.2 Python API Surface · Severity: **Medium** (was High — significantly expanded through Sprint 5)
 
@@ -1880,8 +1884,8 @@ Remaining gaps relative to SimpleITK / ANTsPy:
 **Technology:** PyO3 0.22 with `maturin` build backend, `abi3-py39` stable ABI.
 **Interop:** `numpy` crate (`PyReadonlyArray3`, `IntoPyArray`) via `pyo3-numpy`.
 
-**Sprint 41 function counts:** 34 filter functions, 25 segmentation functions, 13 registration
-functions, 15 statistics functions, 4 IO functions, image bridge — 91+ total Python-callable functions.
+**Sprint 83 function counts:** 34 filter functions, 27 segmentation functions, 13 registration
+functions, 15 statistics functions, 4 IO functions, image bridge — 93+ total Python-callable functions.
 
 ```
 crates/ritk-python/
@@ -1891,19 +1895,31 @@ crates/ritk-python/
 │   ├── lib.rs            # #[pymodule] fn _ritk — registers 6 submodules
 │   ├── image.rs          # PyImage(Arc<Image<NdArray,3>>), to_numpy(), shape/spacing/origin
 │   ├── io.rs             # read_image / write_image / read_transform / write_transform
-│   ├── filter.rs         # 14 functions: gaussian, median, bilateral, n4_bias_correction,
-│   │                     #   anisotropic_diffusion, gradient_magnitude, laplacian,
-│   │                     #   frangi_vesselness, canny, laplacian_of_gaussian,
-│   │                     #   recursive_gaussian, sobel_gradient, grayscale_erosion,
-│   │                     #   grayscale_dilation
-│   ├── registration.rs   # demons_register, diffeomorphic_demons_register,
-│   │                     #   symmetric_demons_register, syn_register,
-│   │                     #   bspline_ffd_register, multires_syn_register,
-│   │                     #   bspline_syn_register, lddmm_register
-│   ├── segmentation.rs   # 16 functions: otsu, li, yen, kapur, triangle, multi_otsu,
+│   ├── filter.rs         # 34 functions: gaussian, discrete_gaussian, median, bilateral,
+│   │                     #   n4_bias_correction, anisotropic_diffusion, curvature_aniso_diffusion,
+│   │                     #   gradient_magnitude, laplacian, laplacian_of_gaussian,
+│   │                     #   recursive_gaussian, sobel_gradient, frangi_vesselness,
+│   │                     #   sato_line_filter, canny_edge_detect, grayscale_erosion,
+│   │                     #   grayscale_dilation, label_erosion, label_opening, label_closing,
+│   │                     #   label_dilation, morphological_reconstruction, white_top_hat,
+│   │                     #   black_top_hat, hit_or_miss, rescale_intensity, intensity_windowing,
+│   │                     #   threshold_below, threshold_above, threshold_outside,
+│   │                     #   sigmoid_filter, binary_threshold, resample_image, distance_transform
+│   ├── registration.rs   # 13 functions: demons_register, diffeomorphic_demons_register,
+│   │                     #   symmetric_demons_register, multires_demons_register,
+│   │                     #   inverse_consistent_demons_register, syn_register,
+│   │                     #   bspline_ffd_register, multires_syn_register, bspline_syn_register,
+│   │                     #   lddmm_register, build_atlas, majority_vote_fusion,
+│   │                     #   joint_label_fusion_py
+│   ├── segmentation.rs   # 27 functions: otsu, li, yen, kapur, triangle, multi_otsu,
 │   │                     #   connected_components, connected_threshold, kmeans, watershed,
 │   │                     #   binary_erosion, binary_dilation, binary_opening, binary_closing,
-│   │                     #   chan_vese, geodesic_active_contour
+│   │                     #   binary_fill_holes, morphological_gradient, chan_vese_segment,
+│   │                     #   geodesic_active_contour_segment, shape_detection_segment,
+│   │                     #   threshold_level_set_segment, laplacian_level_set_segment,
+│   │                     #   confidence_connected_segment, neighborhood_connected_segment,
+│   │                     #   binary_threshold_segment, skeletonization,
+│   │                     #   label_shape_statistics, marker_watershed_segment
 │   └── statistics.rs     # 13 functions: image_statistics, dice_coefficient,
 │                         #   hausdorff_distance, mean_surface_distance, psnr, ssim,
 │                         #   zscore_normalize, minmax_normalize, histogram_matching,

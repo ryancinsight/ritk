@@ -49,14 +49,11 @@
 //! - Output length equals `rows × cols` for a single-frame decode.
 //! - Rescale is always applied; identity rescale (slope=1, intercept=0) is valid.
 
-use anyhow::{bail, Context, Result};
-use dicom::core::value::Value;
-use dicom::core::Tag;
+use anyhow::{Context, Result};
 use dicom::object::DefaultDicomObject;
-use dicom_pixeldata::PixelDecoder;
-
-use super::reader::decode_pixel_bytes;
-use super::transfer_syntax::TransferSyntaxKind;
+use ritk_dicom::{
+    DecodeFrameRequest, DicomRsBackend, FrameDecodeBackend, PixelLayout, TransferSyntaxKind,
+};
 
 /// Decode one frame from a compressed DICOM object using the registered codec.
 ///
@@ -85,291 +82,44 @@ pub(super) fn decode_compressed_frame(
     slope: f32,
     intercept: f32,
 ) -> Result<Vec<f32>> {
-    // RLE Lossless: bypass the upstream codec.
-    // `dicom-transfer-syntax-registry v0.8.2` computes the write-start offset as
-    // `start = spp − byte_offset` for the first sample, which yields 1 (not 0)
-    // for 8-bit grayscale. This silently forces `dst[0] = 0` and loses `dst[N−1]`
-    // for any file where `pixel[0] ≠ 0`. `decode_rle_lossless_frame` is a correct
-    // native implementation per DICOM PS3.5 Annex G.
-    if TransferSyntaxKind::from_uid(obj.meta().transfer_syntax()) == TransferSyntaxKind::RleLossless
-    {
-        return decode_rle_lossless_frame(
-            obj,
-            frame_idx,
-            bits_allocated,
-            pixel_representation,
-            slope,
-            intercept,
-        );
-    }
-
-    let decoded = obj
-        .decode_pixel_data_frame(frame_idx)
-        .with_context(|| format!("codec decode failed for frame {frame_idx}"))?;
-    let raw = decoded.data();
-    Ok(decode_pixel_bytes(
-        raw,
-        bits_allocated,
-        pixel_representation,
-        slope,
-        intercept,
-    ))
-}
-
-/// Decode one PackBits-compressed byte segment (DICOM PS3.5 Annex G.3.1).
-///
-/// # Algorithm
-///
-/// For each header byte `h` (interpreted as `i8`):
-/// - `h ∈ [0, 127]`:   copy the next `h + 1` literal bytes verbatim.
-/// - `h = −128`:        no-op; advance past the header byte.
-/// - `h ∈ [−127, −1]`: repeat the next byte `−h + 1` times.
-///
-/// # Mathematical contract
-///
-/// `packbits_decode(packbits_encode(S), S.len()) = S` for all `S: &[u8]`.
-/// PackBits is lossless; decode is the strict left inverse of encode.
-///
-/// # Errors
-///
-/// Returns `Err` when the encoded stream is truncated before `expected_len`
-/// bytes are produced, or when a literal run overflows the input buffer.
-fn packbits_decode(input: &[u8], expected_len: usize) -> Result<Vec<u8>> {
-    let mut out: Vec<u8> = Vec::with_capacity(expected_len);
-    let mut pos = 0usize;
-    while pos < input.len() && out.len() < expected_len {
-        let h = input[pos] as i8;
-        pos += 1;
-        if h >= 0 {
-            // Literal run: copy h+1 bytes verbatim.
-            let count = h as usize + 1;
-            let end = pos + count;
-            if end > input.len() {
-                bail!(
-                    "PackBits decode: literal run of {} bytes overflows input \
-                     at pos {} (input length {})",
-                    count,
-                    pos,
-                    input.len()
-                );
-            }
-            out.extend_from_slice(&input[pos..end]);
-            pos = end;
-        } else if h != i8::MIN {
-            // Repeat run: h ∈ [−127, −1] → count = −h + 1 ∈ [2, 128].
-            // Cast via i16 to avoid i8 overflow when negating i8::MIN.
-            let count = (-(h as i16)) as usize + 1;
-            if pos >= input.len() {
-                bail!(
-                    "PackBits decode: repeat run at pos {} has no data byte",
-                    pos
-                );
-            }
-            let byte = input[pos];
-            pos += 1;
-            out.resize(out.len() + count, byte);
-        }
-        // h == i8::MIN (−128): no-op; already advanced past the header byte.
-    }
-    if out.len() < expected_len {
-        bail!(
-            "PackBits decode: produced {} bytes but expected {} \
-             (input exhausted at pos {})",
-            out.len(),
-            expected_len,
-            pos
-        );
-    }
-    out.truncate(expected_len);
-    Ok(out)
-}
-
-/// Decode one frame from a DICOM RLE Lossless object using the native decoder.
-///
-/// # DICOM RLE Lossless format (PS3.5 Annex G)
-///
-/// Each pixel fragment begins with a 64-byte RLE header (16 × `u32` LE):
-/// - `header[0]`: total number of byte-plane segments.
-/// - `header[k+1]` (`k ∈ [0, N-1]`): byte offset of segment `k` from the
-///   start of the fragment.
-///
-/// Each segment contains PackBits-encoded bytes for one byte-plane of
-/// `rows × cols` pixels.
-///
-/// # Segment ordering and LE byte reassembly
-///
-/// Per DICOM PS3.5 §G.5, `segment[s × B + b]` holds byte-plane `b` (MSB-first,
-/// `b = 0` is MSB) for sample `s`, where `B = bits_allocated / 8`.
-///
-/// Reassembly into LE pixel bytes (as expected by `decode_pixel_bytes`):
-///
-/// ```text
-/// raw[p × S × B + s × B + j] = segment[s × B + (B − 1 − j)][p]
-/// ```
-///
-/// where `j = 0` is the LE LSB and `j = B − 1` is the LE MSB.
-///
-/// # Why the upstream codec is bypassed
-///
-/// `dicom-transfer-syntax-registry v0.8.2` computes the write-start as
-/// `start = spp − byte_offset` (evaluates to 1, not 0, for 8-bit grayscale),
-/// silently forcing `dst[0] = 0` and losing `dst[N−1]`. This decoder is correct
-/// for all `bits_allocated ∈ {8, 16}` and any `samples_per_pixel`.
-///
-/// # Errors
-///
-/// Returns `Err` for missing DICOM tags, malformed RLE headers, segment offsets
-/// out of bounds, or PackBits streams too short to fill the expected frame.
-fn decode_rle_lossless_frame(
-    obj: &DefaultDicomObject,
-    frame_idx: u32,
-    bits_allocated: u16,
-    pixel_representation: u16,
-    slope: f32,
-    intercept: f32,
-) -> Result<Vec<f32>> {
-    // Read image geometry from the DICOM object.
-    let rows: u32 = obj
-        .element(Tag(0x0028, 0x0010))
-        .context("RLE: missing Rows (0028,0010)")?
+    let rows: usize = obj
+        .element(dicom::core::Tag(0x0028, 0x0010))
+        .context("DICOM codec: missing Rows (0028,0010)")?
         .to_str()
-        .context("RLE: Rows (0028,0010) not string-readable")?
+        .context("DICOM codec: Rows not string-readable")?
         .trim()
         .parse()
-        .context("RLE: Rows (0028,0010) not a valid integer")?;
-    let cols: u32 = obj
-        .element(Tag(0x0028, 0x0011))
-        .context("RLE: missing Columns (0028,0011)")?
+        .context("DICOM codec: Rows not a valid integer")?;
+    let cols: usize = obj
+        .element(dicom::core::Tag(0x0028, 0x0011))
+        .context("DICOM codec: missing Columns (0028,0011)")?
         .to_str()
-        .context("RLE: Columns (0028,0011) not string-readable")?
+        .context("DICOM codec: Columns not string-readable")?
         .trim()
         .parse()
-        .context("RLE: Columns (0028,0011) not a valid integer")?;
+        .context("DICOM codec: Columns not a valid integer")?;
     let samples_per_pixel: usize = obj
-        .element(Tag(0x0028, 0x0002))
+        .element(dicom::core::Tag(0x0028, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(1);
-
-    let pixels_per_frame = (rows as usize) * (cols as usize);
-    if pixels_per_frame == 0 {
-        bail!("RLE: rows={} cols={} yields 0 pixels per frame", rows, cols);
-    }
-
-    let bytes_per_sample = (bits_allocated / 8) as usize;
-    if bytes_per_sample == 0 || bytes_per_sample > 4 {
-        bail!(
-            "RLE: bits_allocated={} → bytes_per_sample={} (must be 1–4)",
+    let request = DecodeFrameRequest {
+        frame_index: frame_idx,
+        transfer_syntax: TransferSyntaxKind::from_uid(obj.meta().transfer_syntax()),
+        layout: PixelLayout {
+            rows,
+            cols,
+            samples_per_pixel,
             bits_allocated,
-            bytes_per_sample
-        );
-    }
-
-    let expected_segments = samples_per_pixel * bytes_per_sample;
-
-    // Retrieve the raw RLE fragment bytes for this frame.
-    let pdata_elem = obj
-        .element(Tag(0x7FE0, 0x0010))
-        .context("RLE: missing Pixel Data (7FE0,0010)")?;
-    let fragment_bytes: Vec<u8> = match pdata_elem.value() {
-        Value::PixelSequence(seq) => {
-            let frags = seq.fragments();
-            frags
-                .get(frame_idx as usize)
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "RLE: frame {} out of range ({} fragments in pixel sequence)",
-                        frame_idx,
-                        frags.len()
-                    )
-                })?
-                .to_vec()
-        }
-        _ => bail!(
-            "RLE: Pixel Data (7FE0,0010) is not a PixelSequence \
-             (expected encapsulated format for RLE Lossless)"
-        ),
+            pixel_representation,
+            rescale_slope: slope,
+            rescale_intercept: intercept,
+        },
     };
-
-    // Parse the 64-byte DICOM RLE header.
-    const HEADER_BYTES: usize = 64;
-    if fragment_bytes.len() < HEADER_BYTES {
-        bail!(
-            "RLE: fragment is {} bytes; minimum is {} for the RLE header",
-            fragment_bytes.len(),
-            HEADER_BYTES
-        );
-    }
-    let n_segments = u32::from_le_bytes(fragment_bytes[0..4].try_into().unwrap()) as usize;
-    if n_segments != expected_segments {
-        bail!(
-            "RLE: header declares {} segments; expected {} \
-             (bits_allocated={}, samples_per_pixel={})",
-            n_segments,
-            expected_segments,
-            bits_allocated,
-            samples_per_pixel
-        );
-    }
-
-    // Extract segment byte offsets from header slots 1..=N (each u32 LE).
-    let seg_offsets: Vec<usize> = (0..n_segments)
-        .map(|k| {
-            u32::from_le_bytes(fragment_bytes[4 + k * 4..8 + k * 4].try_into().unwrap()) as usize
-        })
-        .collect();
-
-    // Decode each byte-plane segment via PackBits.
-    let mut segments: Vec<Vec<u8>> = Vec::with_capacity(n_segments);
-    for (k, &offset) in seg_offsets.iter().enumerate() {
-        if offset >= fragment_bytes.len() {
-            bail!(
-                "RLE: segment {} offset {} out of bounds (fragment {} bytes)",
-                k,
-                offset,
-                fragment_bytes.len()
-            );
-        }
-        // Segment data spans from `offset` to the start of the next segment
-        // (or to the end of the fragment for the last segment).
-        let end = if k + 1 < n_segments {
-            seg_offsets[k + 1]
-        } else {
-            fragment_bytes.len()
-        };
-        let decoded_seg = packbits_decode(&fragment_bytes[offset..end], pixels_per_frame)
-            .with_context(|| format!("RLE: PackBits decode failed for segment {k}"))?;
-        segments.push(decoded_seg);
-    }
-
-    // Reassemble byte-plane segments into LE pixel bytes.
-    //
-    // DICOM segment ordering: segment[s*B + b] = byte-plane b (MSB-first) for sample s.
-    // LE byte layout: LE byte j (0=LSB) of sample s for pixel p
-    //   → segment index s*B + (B−1−j).
-    let bps = bytes_per_sample;
-    let spp = samples_per_pixel;
-    let mut raw: Vec<u8> = Vec::with_capacity(pixels_per_frame * bps * spp);
-    for pixel_idx in 0..pixels_per_frame {
-        for s in 0..spp {
-            for j in 0..bps {
-                // j=0 → LE LSB → MSB-first segment index s*B + (B-1)
-                // j=1 → next LE byte   → segment index s*B + (B-2)
-                // j=B-1 → LE MSB → segment index s*B + 0
-                let seg_idx = s * bps + (bps - 1 - j);
-                raw.push(segments[seg_idx][pixel_idx]);
-            }
-        }
-    }
-
-    Ok(decode_pixel_bytes(
-        &raw,
-        bits_allocated,
-        pixel_representation,
-        slope,
-        intercept,
-    ))
+    Ok(DicomRsBackend::decode_frame(obj, request)
+        .with_context(|| format!("codec decode failed for frame {frame_idx}"))?
+        .pixels)
 }
 
 #[cfg(test)]

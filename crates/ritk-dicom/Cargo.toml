@@ -1,0 +1,12 @@
+[package]
+name = "ritk-dicom"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+dicom = { workspace = true }
+dicom-pixeldata = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

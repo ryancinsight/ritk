@@ -1,3 +1,117 @@
+## Sprint 84 — Completed
+**Status**: Completed
+**Phase**: Foundation → Execution
+**Version**: 0.13.0 [minor]
+**Goal**: Establish a Rust-owned DICOM crate boundary so `dicom-rs` is a replaceable backend and native codec replacement can proceed without binding `ritk-io` algorithms to a concrete DICOM implementation.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-84-01 | DICOM transfer syntax and pixel-codec contracts lived inside `ritk-io`, preventing an independent `ritk-dicom` replacement path | minor |
+| GAP-84-02 | Native RLE Lossless decoder was private to `ritk-io::format::dicom::codec`, so backend replacement could not reuse the verified PackBits/byte-plane implementation | patch |
+| GAP-84-03 | Compressed-frame dispatch hardcoded `dicom_pixeldata::PixelDecoder` at the `ritk-io` codec boundary instead of a backend trait | minor |
+| GAP-84-04 | Windows GNU native codec builds did not force UCRT clang for CMake build scripts, causing `charls-sys` to select `cc.exe` while receiving clang-only flags | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors |
+| `cargo test -p ritk-dicom` | 5 passed, 0 failed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-io test_decode_compressed_frame_rle_lossless_unrestricted_round_trip -- --no-capture` | 1 passed with `D:\msys64\ucrt64\bin` first on `PATH` |
+
+### Residual risks
+- JPEG Baseline/Extended, JPEG-LS, JPEG 2000, and JPEG XL still route through the `DicomRsBackend`; only native RLE has moved behind RITK-owned pixel primitives in this slice.
+- Runtime execution of `ritk-io` tests on Windows GNU requires `D:\msys64\ucrt64\bin` before other toolchain directories on `PATH` so UCRT DLLs match clang/ucrt-linked artifacts.
+- Existing `ritk-io::format::dicom::transfer_syntax::TransferSyntaxKind` remains until callers are migrated to `ritk-dicom::TransferSyntaxKind`.
+
+## Sprint 83 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.3 [patch]
+**Goal**: Fix sole remaining GIL-holding Python binding (`recursive_gaussian`); correct four stale gap_audit documentation sections (§3.6 skeletonization, §7.1 remaining gaps, §7.3 function counts).
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-83-01 | `recursive_gaussian` missing `py.allow_threads`; sole GIL-holding function in filter.rs | patch |
+| GAP-83-02 | gap_audit §3.6 Skeletonization row blank despite implementation since Sprint 10/28 | patch |
+| GAP-83-03 | gap_audit §7.1 lists 4 stale remaining gaps (transform I/O, stubs, py.allow_threads, atlas/JLF) all closed in prior sprints | patch |
+| GAP-83-04 | gap_audit §7.3 code tree shows 14 filter functions; actual count is 34 | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| cargo check -p ritk-python | 0 errors, 0 warnings |
+| cargo test -p ritk-python --lib | 10/10 passed |
+| recursive_gaussian py.allow_threads | Arc clone before closure; py.allow_threads wraps filter.apply |
+| gap_audit §3.6 Skeletonization | Row updated; severity → Closed |
+| gap_audit §7.1 remaining gaps | 4 stale bullets removed; severity → Low |
+| gap_audit §7.3 counts | filter 34, segmentation 27, registration 13, total 93+ |
+
+### Residual risks
+- Hosted-CI `maturin` matrix validation (python_ci.yml) not yet executed on hosted runners (from Sprint 33)
+- BSpline CR test runtime ~4 min (nextest 300s guard active; from Sprint 81)
+- GAP-R08 (Elastix): Low severity, no action planned
+
+## Sprint 82 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.2 [patch]
+**Goal**: Release GIL in all GIL-holding PyO3 segmentation level-set and statistics surface-distance bindings; close gap_audit §7.1.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-82-01 | `chan_vese_segment` held GIL for up to 200 Chan-Vese PDE iterations | patch |
+| GAP-82-02 | `geodesic_active_contour_segment` held GIL for full GAC PDE loop | patch |
+| GAP-82-03 | `shape_detection_segment` held GIL for full shape-detection LS loop | patch |
+| GAP-82-04 | `threshold_level_set_segment` held GIL for full threshold-LS loop | patch |
+| GAP-82-05 | `laplacian_level_set_segment` held GIL for full Laplacian-LS loop | patch |
+| GAP-82-06 | `hausdorff_distance` / `mean_surface_distance` held GIL for O(M·N) surface computation | patch |
+| GAP-82-07 | gap_audit §7.1 `py.allow_threads` status listed as incomplete; now **Closed** | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| cargo check -p ritk-python | 0 errors, 0 warnings |
+| cargo test -p ritk-python --lib | 10/10 passed |
+| segmentation.rs diagnostics | Clean |
+| statistics.rs diagnostics | Pre-existing RA false positives only (array→slice coercion) |
+
+### Residual risks
+- BSpline CR test runtime ~4 min (unchanged from Sprint 81; nextest 300s slow-timeout prevents CI hang)
+- Multi-platform release workflow untested on hosted runners (from Sprint 79)
+- GAP-R08 (Elastix): Low severity, no action planned
+
+## Sprint 81 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.12.1 [patch]
+**Goal**: Fix EDT all-background correctness bug, cache W_fixed^T in ParzenJointHistogram, add nextest timeout config, sync gap_audit with verified implementations.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-81-01 | `distance_transform_squared` returns sentinel² for all-background image; `test_segment_distance_transform_background_is_zero` fails with 9.0 | patch |
+| GAP-81-02 | `ParzenJointHistogram` recomputes W_fixed every iteration; cache miss on constant fixed image adds unnecessary autodiff graph nodes | patch |
+| GAP-81-03 | No nextest timeout configuration; slow BSpline CR integration test blocks workspace CI | patch |
+| GAP-81-04 | `gap_audit.md` "Absent" list includes `confidence_connected` and `neighborhood_connected` despite both being present in Python API since Sprint 10 | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| GAP-81-01: `test_segment_distance_transform_background_is_zero` | Fixed: returns 0.0 for all-background |
+| GAP-81-02: W_fixed cache | ParzenJointHistogram caches W_fixed^T on first call; reuses on subsequent iterations |
+| GAP-81-03: nextest config | `.config/nextest.toml` created; slow-timeout 300s for registration tests |
+| GAP-81-04: gap_audit sync | confidence_connected, neighborhood_connected removed from absent list |
+| cargo check --workspace --tests | 0 errors, 0 warnings |
+
+### Residual risks
+- `test_bspline_cr_registration_small` runtime: W_fixed^T cache reduces per-iteration graph size but BSpline autodiff remains the dominant cost; full 100-iteration run still ~4 min on NdArray backend; nextest 300s slow-timeout prevents CI hang
+- Multi-platform release workflow untested on hosted runners (from Sprint 79)
+- GAP-R08 (Elastix): Low severity, no action planned
+
 ## Sprint 80 � Completed
 **Status**: Completed
 **Phase**: Execution

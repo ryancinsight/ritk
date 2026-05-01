@@ -7,6 +7,53 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+### Added
+- **`ritk-dicom` crate**: Added a Rust-owned DICOM boundary with transfer syntax classification, `PixelLayout`, native pixel byte decoding, PackBits decoding, native RLE Lossless fragment decoding, and a generic `FrameDecodeBackend<O>` trait. [minor]
+
+### Changed
+- **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]
+- **Windows GNU native build toolchain**: `.cargo/config.toml` now sets global and target-qualified UCRT clang/clang++/llvm-ar compiler variables for native C/C++ build scripts and keeps lld as the linker. [patch]
+
+### Verification
+- `cargo check -p ritk-dicom`: passed.
+- `cargo test -p ritk-dicom`: 5 passed.
+- `cargo check -p ritk-io`: passed with UCRT clang/lld.
+- `cargo test -p ritk-io test_decode_compressed_frame_rle_lossless_unrestricted_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
+
+## [0.12.3] — Sprint 83
+
+### Fixed
+- **`recursive_gaussian` GIL hold** (`ritk-python`): `recursive_gaussian` was the sole `#[pyfunction]` in `filter.rs` without `py.allow_threads`. Added `py: Python<'_>` as first parameter, moved Arc clone before the closure, and wrapped filter construction + `apply` call inside `py.allow_threads(|| { … })`. Consistent with the pattern applied to all other filter and registration bindings. Python-visible API unchanged. [patch]
+
+### Documentation
+- `gap_audit.md` §3.6: Skeletonization row updated from blank status to ✓ implemented (Sprint 10/28, `skeletonization.rs`; Python: Sprint 20; CLI: Sprint 20; 50+ tests). Section severity updated from Low to Closed. [patch]
+- `gap_audit.md` §7.1: Removed four stale remaining-gap bullets (transform I/O closed Sprint 8; type stubs present Sprint 31; `py.allow_threads` now fully applied across all bindings; atlas/JLF closed Sprint 8). Severity downgraded from Medium to Low. One operational gap remains: hosted-CI `maturin` matrix validation. [patch]
+- `gap_audit.md` §7.3: Updated filter.rs function count (14 → 34), segmentation.rs count (16 → 27), registration.rs count (8 → 13), total (91+ → 93+). Stale Sprint-5-vintage code tree replaced with Sprint-83-accurate listing. [patch]
+
+### Changed
+- `ritk-python` version bumped from 0.12.2 to 0.12.3. [patch]
+
+## [0.12.2] — Sprint 82
+
+### Fixed
+- **GIL-blocking level-set segmentation bindings** (`ritk-python`): Five level-set functions previously held the CPython GIL for their full PDE iteration loop. Each function now clones the image `Arc` handles before calling `py.allow_threads(|| { ... })`, releasing the GIL for the duration of the computation. Affected: `chan_vese_segment`, `geodesic_active_contour_segment`, `shape_detection_segment`, `threshold_level_set_segment`, `laplacian_level_set_segment`. Python-visible API unchanged (adding `py: Python<'_>` to `#[pyfunction]` does not alter the Python signature). [patch]
+- **GIL-blocking surface distance statistics** (`ritk-python`): `hausdorff_distance` and `mean_surface_distance` now release the GIL via `py.allow_threads`. Both functions have O(M·N) complexity where M and N are boundary voxel counts; for large clinical masks this was a significant GIL hold. [patch]
+
+### Changed
+- `ritk-python` version bumped from 0.12.1 to 0.12.2. [patch]
+
+## [0.12.1] — Sprint 81
+
+### Fixed
+- **Distance transform all-background convention** (`ritk-core`): `distance_transform_squared` now returns all-zeros when no foreground voxels exist (empty foreground set → distance to nearest foreground is defined as 0). Previously returned `(nz+ny+nx)²` sentinel, causing `test_segment_distance_transform_background_is_zero` to fail with value 9.0 on a 3×3×3 all-zero image. [patch]
+- **Parzen histogram fixed-image weight cache** (`ritk-registration`): `ParzenJointHistogram` now caches the transposed fixed-image weight matrix `W_fixed^T` on first call and reuses it in subsequent iterations without recomputing. Reduces per-iteration autodiff graph size for CR/MI-based registration. [patch]
+
+### Added
+- **Nextest configuration** (`.config/nextest.toml`): Per-test slow-timeout bounds for gradient-based registration integration tests (BSpline, multi-res, affine, rigid, versor). Default 60 s slow-timeout; 300 s for registration-heavy tests. Prevents indefinite CI hangs. [patch]
+
+### Documentation
+- `gap_audit.md`: Removed `confidence_connected` and `neighborhood_connected` from "Absent or incomplete" list; both confirmed present in Python API since Sprint 10. [patch]
+
 ## [0.12.0] — Sprint 80
 
 ### Added
@@ -141,6 +188,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
 [Unreleased]: https://github.com/ryancinsight/ritk/compare/HEAD...HEAD
+[0.12.3]: https://github.com/ryancinsight/ritk/compare/v0.12.2...v0.12.3
 [0.12.0]: https://github.com/ryancinsight/ritk/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/ryancinsight/ritk/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/ryancinsight/ritk/compare/v0.9.0...v0.10.0
