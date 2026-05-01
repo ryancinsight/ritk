@@ -11,8 +11,8 @@ use dicom_pixeldata::PixelDecoder;
 
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
+    NativeCodecBackend,
 };
-use crate::codec::{decode_jpeg_fragment, decode_rle_lossless_fragment};
 use crate::pixel::decode_native_pixel_bytes;
 use crate::syntax::TransferSyntaxKind;
 
@@ -51,8 +51,7 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
                 decode_jpeg_with_backend_fallback(object, &request)?
             }
             TransferSyntaxKind::RleLossless => {
-                let fragment = object.encapsulated_frame(request.frame_index)?;
-                decode_rle_lossless_fragment(&fragment, request.layout)?
+                NativeCodecBackend::decode_frame(object, request.clone())?.pixels
             }
             syntax if syntax.is_backend_codec_candidate() => decode_via_dicom_rs(object, &request)?,
             _ => {
@@ -73,9 +72,8 @@ fn decode_jpeg_with_backend_fallback(
     object: &DefaultDicomObject,
     request: &DecodeFrameRequest,
 ) -> Result<Vec<f32>> {
-    let fragment = object.encapsulated_frame(request.frame_index)?;
-    match decode_jpeg_fragment(&fragment, request.layout) {
-        Ok(pixels) => Ok(pixels),
+    match NativeCodecBackend::decode_frame(object, request.clone()) {
+        Ok(decoded) => Ok(decoded.pixels),
         Err(native_error) => decode_via_dicom_rs(object, request).with_context(|| {
             format!("native JPEG decode failed ({native_error:#}); dicom-rs fallback failed")
         }),

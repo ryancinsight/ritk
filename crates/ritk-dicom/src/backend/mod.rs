@@ -4,6 +4,7 @@
 //! Concrete backends remain replaceable implementation details.
 
 pub mod dicom_rs;
+pub mod native;
 
 use anyhow::Result;
 
@@ -31,3 +32,4 @@ pub trait EncapsulatedFrameSource {
 }
 
 pub use dicom_rs::DicomRsBackend;
+pub use native::NativeCodecBackend;

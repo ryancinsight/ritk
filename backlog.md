@@ -1,3 +1,29 @@
+## Sprint 88 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.3 [patch]
+**Goal**: Separate RITK-native codec dispatch from the `dicom-rs` fallback adapter so backend responsibilities remain SRP/SoC aligned while compressed-codec migration continues.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-88-01 | `DicomRsBackend` mixed native JPEG/RLE dispatch with external `dicom-rs` fallback behavior | patch |
+| GAP-88-02 | Native codec dispatch could not be value-tested without a `dicom-rs` object | patch |
+| GAP-88-03 | `NativeCodecBackend` was not exposed as a reusable backend boundary for later JPEG-LS/JPEG2000 replacement slices | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 12 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- `DicomRsBackend` remains the current public consumer adapter for full DICOM objects; `NativeCodecBackend` owns only RITK-native encapsulated frame codecs.
+- Windows GNU runtime tests still require `D:\msys64\ucrt64\bin` first on `PATH`.
+
 ## Sprint 87 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

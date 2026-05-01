@@ -11,6 +11,7 @@ pub mod syntax;
 
 pub use backend::{
     DecodeFrameRequest, DecodedFrame, DicomRsBackend, EncapsulatedFrameSource, FrameDecodeBackend,
+    NativeCodecBackend,
 };
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
 pub use pixel::{decode_native_pixel_bytes, PixelLayout};

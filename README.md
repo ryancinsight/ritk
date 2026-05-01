@@ -36,7 +36,7 @@ ritk/
 │   │       ├── syntax/           # Canonical TransferSyntaxKind and predicates
 │   │       ├── pixel/            # PixelLayout and modality LUT byte decode
 │   │       ├── codec/native/     # Native PackBits, RLE Lossless, and JPEG grayscale decoders
-│   │       └── backend/          # FrameDecodeBackend and dicom-rs backend adapter
+│   │       └── backend/          # NativeCodecBackend, FrameDecodeBackend, and dicom-rs fallback adapter
 │   ├── ritk-io/                  # Format readers/writers
 │   │   └── src/format/
 │   │       ├── dicom/

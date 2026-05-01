@@ -1,3 +1,19 @@
+## Sprint 88 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.3 [patch]
+
+- [x] GAP-88-01: add `crates/ritk-dicom/src/backend/native.rs` with `NativeCodecBackend`
+- [x] GAP-88-02: route RLE Lossless and native JPEG syntaxes through `NativeCodecBackend`
+- [x] GAP-88-03: keep `DicomRsBackend` focused on DICOM object access and backend fallback
+- [x] GAP-88-04: add native-backend tests using an `EncapsulatedFrameSource` test object without `dicom-rs`
+- [x] GAP-88-05: export `NativeCodecBackend` and update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 87 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure
