@@ -1,3 +1,38 @@
+## Sprint 96 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.11 [patch]
+**Goal**: Advance `ritk-snap` toward workstation-grade DICOM viewer behavior by supporting direct startup loading of a DICOM folder or medical image file while preserving CLI/UI/core separation.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-96-01 | `ritk-snap` could load DICOM folders only after GUI startup, blocking direct viewer launch against a study path | patch |
+| GAP-96-02 | CLI argument parsing was absent despite `clap` being a dependency, leaving startup workflow outside the typed launch boundary | patch |
+| GAP-96-03 | Launch-time DICOM folder scanning was not connected to the series browser before first-frame loading | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH` after DICOM series-browser API drift correction |
+| `cargo test -p ritk-snap` | Passed: 104 tests |
+| `cargo check -p ritk-dicom` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH`; 5 existing dead-code warnings remain |
+| `cargo test -p ritk-io --examples` | Passed |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test -p ritk-core` | Passed: 772 library tests plus integration suites |
+| `cargo test -p ritk-cli` | Passed: 197 tests |
+| `cargo test -p ritk-python` | Passed: 10 tests |
+| `cargo test -p ritk-model --test affine_test` | Passed: 2 tests |
+| `cargo test --workspace` | Attempted; timed out after 15 minutes after prior API drift failures were corrected, so the full aggregate command is not recorded as passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity cannot be truthfully declared from this slice; remaining gaps require continued audited feature-by-feature closure.
+- `ritk-snap` still requires additional viewer slices for DICOMDIR import, hanging protocol/state persistence, segmentation label editing, and richer metadata inspection before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 95 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

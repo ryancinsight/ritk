@@ -37,6 +37,15 @@ pub struct ImageStatistics {
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let tensor_data = image.data().clone().into_data();
     let slice = tensor_data.as_slice::<f32>().expect("f32 tensor data");
+    compute_statistics_from_slice(slice)
+}
+
+/// Compute statistics from an immutable slice.
+///
+/// This is the zero-domain-logic public helper for callers that already have
+/// borrowed f32 tensor storage. It clones the values once because percentile
+/// computation sorts in-place.
+pub fn compute_statistics_from_slice(slice: &[f32]) -> ImageStatistics {
     let mut values: Vec<f32> = slice.to_vec();
     compute_from_values(&mut values)
 }

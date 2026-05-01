@@ -1,14 +1,12 @@
-use burn::{
-    backend::{wgpu::WgpuDevice, Autodiff, Wgpu},
-    tensor::{Distribution, Tensor},
-};
+use burn::tensor::{Distribution, Tensor};
+use burn_ndarray::{NdArray, NdArrayDevice};
 use ritk_model::affine::{AffineNetworkConfig, AffineTransform};
 
-type TestBackend = Autodiff<Wgpu>;
+type TestBackend = NdArray;
 
 #[test]
 fn test_affine_network_forward() {
-    let device = WgpuDevice::default();
+    let device = NdArrayDevice::default();
     let config = AffineNetworkConfig::default();
     let model = config.init::<TestBackend>(&device);
 
@@ -24,7 +22,7 @@ fn test_affine_network_forward() {
 
 #[test]
 fn test_affine_transform_forward() {
-    let device = WgpuDevice::default();
+    let device = NdArrayDevice::default();
     let stn = AffineTransform::<TestBackend>::new();
 
     let image = Tensor::<TestBackend, 5>::random(

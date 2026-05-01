@@ -14,6 +14,7 @@
 //! - [`level_set`]: Level set methods (Chan-Vese, Geodesic Active Contour).
 
 pub mod clustering;
+pub mod distance_transform;
 pub mod labeling;
 pub mod level_set;
 pub mod morphology;
@@ -22,15 +23,23 @@ pub mod threshold;
 pub mod watershed;
 
 pub use clustering::{kmeans_segment, KMeansSegmentation};
+pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
-pub use level_set::{ChanVeseSegmentation, GeodesicActiveContourSegmentation};
-pub use morphology::{
-    BinaryClosing, BinaryDilation, BinaryErosion, BinaryOpening, MorphologicalOperation,
+pub use level_set::{
+    ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,
+    ShapeDetectionSegmentation, ThresholdLevelSet,
 };
-pub use region_growing::{connected_threshold, ConnectedThresholdFilter};
+pub use morphology::{
+    BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
+    MorphologicalGradient, MorphologicalOperation, Skeletonization,
+};
+pub use region_growing::{
+    connected_threshold, ConfidenceConnectedFilter, ConnectedThresholdFilter,
+    NeighborhoodConnectedFilter,
+};
 pub use threshold::{
     kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold, triangle_threshold,
-    yen_threshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
+    yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
     TriangleThreshold, YenThreshold,
 };
-pub use watershed::WatershedSegmentation;
+pub use watershed::{MarkerControlledWatershed, WatershedSegmentation};

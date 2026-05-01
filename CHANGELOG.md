@@ -12,6 +12,8 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **Native DICOM JPEG decode path** (`ritk-dicom`): Added grayscale JPEG Baseline/Extended fragment decoding with DICOM layout validation and modality LUT application before falling back to `dicom-rs` for unsupported JPEG cases. [patch]
 - **Native JPEG Lossless dispatch** (`ritk-dicom`): JPEG Lossless Non-Hierarchical and First-Order Prediction now route through the RITK-native JPEG decoder before backend fallback. [patch]
 - **`NativeCodecBackend`** (`ritk-dicom`): Added a native backend that decodes RITK-owned encapsulated frame codecs for any `EncapsulatedFrameSource`, separating native dispatch from the `dicom-rs` fallback adapter. [patch]
+- **`ritk-snap` startup path loading**: Added `ritk-snap [PATH]` support so the DICOM viewer can launch directly against a DICOM folder or medical image file. [patch]
+- **Sprint 96 verification recovery**: Corrected DICOM series-browser, CLI viewer, Python statistics, segmentation export, and model affine-test drift found while validating the startup viewer slice. `cargo test --workspace` was attempted and timed out after 15 minutes; package-level recovery gates passed for `ritk-snap`, `ritk-core`, `ritk-cli`, `ritk-python`, `ritk-dicom`, `ritk-io`, and `ritk-model --test affine_test`. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

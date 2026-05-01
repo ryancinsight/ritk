@@ -287,13 +287,13 @@ mod tests {
                 // Value-semantic: all channels must be in [0, 255] (trivially true
                 // for u8, but verifies no wrapping occurred in intermediate maths).
                 // All channels are u8, so values are structurally bounded to [0, 255].
-                    // Verify the array has exactly 3 channels (value-semantic length check).
-                    assert_eq!(
-                        rgb.len(),
-                        3,
-                        "{:?} map({t}) must return exactly 3 channels",
-                        cm
-                    );
+                // Verify the array has exactly 3 channels (value-semantic length check).
+                assert_eq!(
+                    rgb.len(),
+                    3,
+                    "{:?} map({t}) must return exactly 3 channels",
+                    cm
+                );
             }
         }
     }

@@ -31,7 +31,7 @@ use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_core::statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
-use ritk_core::statistics::image_statistics::compute_from_values;
+use ritk_core::statistics::image_statistics::compute_statistics_from_slice;
 use ritk_core::statistics::noise_estimation::{
     estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
 };
@@ -79,7 +79,7 @@ fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> PyResult<Py<PyDict>
 #[pyfunction]
 pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> PyResult<Py<PyDict>> {
     // Zero-copy path: extract &[f32] from NdArray ArcArray without clone().into_data().
-    let stats = with_tensor_slice(image.inner.data(), compute_from_values);
+    let stats = with_tensor_slice(image.inner.data(), compute_statistics_from_slice);
     stats_to_dict(py, &stats)
 }
 
@@ -116,7 +116,7 @@ pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> PyR
                 .map(|(&v, _)| v)
                 .collect();
             assert!(!values.is_empty(), "mask contains no foreground voxels");
-            compute_from_values(&values)
+            compute_statistics_from_slice(&values)
         })
     });
     stats_to_dict(py, &stats)

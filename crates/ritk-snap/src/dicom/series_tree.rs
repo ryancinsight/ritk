@@ -53,20 +53,26 @@ impl SeriesEntry {
     /// Construct a [`SeriesEntry`] from a [`DicomSeriesInfo`] returned by
     /// `ritk_io::scan_dicom_directory`.
     ///
-    /// All optional metadata fields are propagated from
-    /// `info.metadata`; absent values fall back to empty strings or `None`.
+    /// The current public `ritk_io::scan_dicom_directory` surface exposes
+    /// series-level identifiers plus file paths. Fields not present in that
+    /// summary stay empty until the full series is loaded.
     pub fn from_dicom_series_info(info: DicomSeriesInfo) -> Self {
-        let m = &info.metadata;
+        let folder = info
+            .file_paths
+            .first()
+            .and_then(|path| path.parent())
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
         Self {
-            series_uid: m.series_instance_uid.clone().unwrap_or_default(),
-            folder: info.path.clone(),
-            patient_name: m.patient_name.clone().unwrap_or_default(),
-            patient_id: m.patient_id.clone().unwrap_or_default(),
-            modality: m.modality.clone().unwrap_or_default(),
-            series_description: m.series_description.clone().unwrap_or_default(),
-            num_slices: info.num_slices,
-            study_date: m.study_date.clone(),
-            study_uid: m.study_instance_uid.clone(),
+            series_uid: info.series_instance_uid,
+            folder,
+            patient_name: String::new(),
+            patient_id: info.patient_id,
+            modality: info.modality,
+            series_description: info.series_description,
+            num_slices: info.file_paths.len(),
+            study_date: None,
+            study_uid: None,
         }
     }
 
@@ -519,6 +525,29 @@ mod tests {
             label.contains("42"),
             "display_label() must contain the slice count '42'; got: {label}"
         );
+    }
+
+    #[test]
+    fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
+        let info = DicomSeriesInfo {
+            series_instance_uid: "1.2.3".to_string(),
+            series_description: "Axial CT".to_string(),
+            modality: "CT".to_string(),
+            patient_id: "P001".to_string(),
+            file_paths: vec![
+                PathBuf::from("C:/study/series/slice_0001.dcm"),
+                PathBuf::from("C:/study/series/slice_0002.dcm"),
+            ],
+        };
+
+        let entry = SeriesEntry::from_dicom_series_info(info);
+
+        assert_eq!(entry.series_uid, "1.2.3");
+        assert_eq!(entry.folder, PathBuf::from("C:/study/series"));
+        assert_eq!(entry.patient_id, "P001");
+        assert_eq!(entry.modality, "CT");
+        assert_eq!(entry.series_description, "Axial CT");
+        assert_eq!(entry.num_slices, 2);
     }
 
     /// `modality_icon()` must return a non-empty string for every supported

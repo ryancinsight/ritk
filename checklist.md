@@ -1,3 +1,26 @@
+## Sprint 96 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.11 [patch]
+
+- [x] GAP-96-01: add `AppLaunchOptions` as the typed startup configuration boundary
+- [x] GAP-96-02: add `run_app_with_options` and first-frame initial path load wiring
+- [x] GAP-96-03: add `SnapApp::with_initial_path` with pre-load DICOM folder scanning
+- [x] GAP-96-04: add `ritk-snap [PATH]` CLI parsing in `main.rs`
+- [x] GAP-96-05: add value-semantic launch-options test
+- [x] GAP-96-06: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 104 tests
+- [x] Verification: `cargo check -p ritk-dicom` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`; 5 existing dead-code warnings remain
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests passed with UCRT64 first on `PATH`
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification: package-level workspace recovery gates passed: `ritk-core`, `ritk-cli`, `ritk-python`, and `ritk-model --test affine_test`
+- [x] Verification note: `cargo test --workspace` was attempted and timed out after 15 minutes after earlier API drift failures were corrected; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 95 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

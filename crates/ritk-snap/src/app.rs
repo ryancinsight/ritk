@@ -139,6 +139,23 @@ impl Default for SnapApp {
     }
 }
 
+impl SnapApp {
+    /// Construct an app that loads `path` on the first update cycle.
+    ///
+    /// Directory paths are scanned immediately so the series browser is
+    /// populated before the deferred volume load runs. File paths are queued
+    /// directly because they do not contain a DICOM series tree.
+    pub(crate) fn with_initial_path(path: std::path::PathBuf) -> Self {
+        let mut app = Self::default();
+        if path.is_dir() {
+            app.scan_for_series(path.clone());
+        }
+        app.status_message = format!("Queued initial load: {}", path.display());
+        app.pending_load = Some(path);
+        app
+    }
+}
+
 // ── eframe::App ───────────────────────────────────────────────────────────────
 
 impl eframe::App for SnapApp {

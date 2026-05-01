@@ -174,9 +174,9 @@ impl<'a> SidebarPanel<'a> {
                                     (None, None) => "📅 (unknown date)".to_string(),
                                 };
 
-                                CollapsingHeader::new(study_label)
-                                    .default_open(true)
-                                    .show(ui, |ui| {
+                                CollapsingHeader::new(study_label).default_open(true).show(
+                                    ui,
+                                    |ui| {
                                         for series in &study.series {
                                             // ── Series entry ──────────────────
                                             let is_selected = current_path
@@ -199,11 +199,11 @@ impl<'a> SidebarPanel<'a> {
                                                 .on_hover_text(hover_text);
 
                                             if resp.clicked() {
-                                                new_selection =
-                                                    Some(series.folder.clone());
+                                                new_selection = Some(series.folder.clone());
                                             }
                                         }
-                                    });
+                                    },
+                                );
                             }
                         });
                 }
@@ -258,21 +258,9 @@ impl<'a> SidebarPanel<'a> {
                             "Series:",
                             vol.series_description.as_deref().unwrap_or("—"),
                         );
-                        row(
-                            ui,
-                            "Dimensions:",
-                            &format!("{depth} × {rows} × {cols}"),
-                        );
-                        row(
-                            ui,
-                            "Spacing:",
-                            &format!("{dz:.3} × {dy:.3} × {dx:.3} mm"),
-                        );
-                        row(
-                            ui,
-                            "Origin:",
-                            &format!("{ox:.2}, {oy:.2}, {oz:.2}"),
-                        );
+                        row(ui, "Dimensions:", &format!("{depth} × {rows} × {cols}"));
+                        row(ui, "Spacing:", &format!("{dz:.3} × {dy:.3} × {dx:.3} mm"));
+                        row(ui, "Origin:", &format!("{ox:.2}, {oy:.2}, {oz:.2}"));
 
                         if let Some(src) = &vol.source {
                             row(ui, "Source:", &src.to_string_lossy());

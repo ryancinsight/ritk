@@ -310,8 +310,12 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
         }
         seen.insert(canonical);
         match scan_dicom_directory(dir) {
-            Ok(info) => {
-                entries.push(SeriesEntry::from_dicom_series_info(info));
+            Ok(series_list) => {
+                entries.extend(
+                    series_list
+                        .into_iter()
+                        .map(SeriesEntry::from_dicom_series_info),
+                );
             }
             Err(e) => {
                 warn!(path = %dir.display(), error = %e, "skipping directory (not a DICOM series)");

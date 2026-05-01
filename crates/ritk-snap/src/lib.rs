@@ -24,6 +24,13 @@ use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Startup configuration for the native `ritk-snap` application.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppLaunchOptions {
+    /// Optional DICOM folder or medical image file to load at startup.
+    pub initial_path: Option<PathBuf>,
+}
+
 /// Shared CPU backend used by the default viewer core tests and headless tools.
 ///
 /// The viewer core itself is backend-agnostic at the API boundary; this alias
@@ -547,6 +554,15 @@ impl LoadedVolume {
 /// Returns an error if `eframe` cannot create a window or encounters a fatal
 /// platform error during the event loop.
 pub fn run_app() -> anyhow::Result<()> {
+    run_app_with_options(AppLaunchOptions::default())
+}
+
+/// Launch the `ritk-snap` native GUI application with startup options.
+///
+/// When `initial_path` is present, the app queues that path for loading on the
+/// first UI update. Directory paths are also scanned for the DICOM series
+/// browser before the first frame.
+pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("ritk-snap — DICOM Viewer")
@@ -556,7 +572,13 @@ pub fn run_app() -> anyhow::Result<()> {
     eframe::run_native(
         "ritk-snap",
         native_options,
-        Box::new(|_cc| Ok(Box::new(app::SnapApp::default()))),
+        Box::new(move |_cc| {
+            let app = match options.initial_path.clone() {
+                Some(path) => app::SnapApp::with_initial_path(path),
+                None => app::SnapApp::default(),
+            };
+            Ok(Box::new(app))
+        }),
     )
     .map_err(|e| anyhow::anyhow!("eframe error: {e}"))
 }
@@ -641,6 +663,15 @@ mod tests {
     fn test_viewer_status_new() {
         let status = ViewerStatus::new("loaded");
         assert_eq!(status.message, "loaded");
+    }
+
+    #[test]
+    fn test_app_launch_options_default_has_no_initial_path() {
+        let options = AppLaunchOptions::default();
+        assert_eq!(
+            options.initial_path, None,
+            "default launch options must not queue a startup load"
+        );
     }
 
     // ── New tests ─────────────────────────────────────────────────────────────

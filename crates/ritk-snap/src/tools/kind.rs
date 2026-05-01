@@ -55,31 +55,36 @@ impl ToolKind {
     /// Longer description shown in the toolbar tooltip on hover.
     pub fn tooltip(&self) -> &'static str {
         match self {
-            ToolKind::Pan =>
-                "Pan: drag to scroll the viewport without changing zoom or W/L.",
-            ToolKind::Zoom =>
-                "Zoom: scroll wheel to zoom in/out; right-drag for continuous zoom.",
-            ToolKind::WindowLevel =>
+            ToolKind::Pan => "Pan: drag to scroll the viewport without changing zoom or W/L.",
+            ToolKind::Zoom => "Zoom: scroll wheel to zoom in/out; right-drag for continuous zoom.",
+            ToolKind::WindowLevel => {
                 "Window/Level: drag horizontally to change window width, \
-                 vertically to change window centre.",
-            ToolKind::MeasureLength =>
+                 vertically to change window centre."
+            }
+            ToolKind::MeasureLength => {
                 "Measure Length: click two points to display the straight-line \
-                 distance in millimetres.",
-            ToolKind::MeasureAngle =>
+                 distance in millimetres."
+            }
+            ToolKind::MeasureAngle => {
                 "Measure Angle: click three points — the second point is the vertex — \
-                 to display the included angle in degrees.",
-            ToolKind::RoiRect =>
+                 to display the included angle in degrees."
+            }
+            ToolKind::RoiRect => {
                 "ROI Rectangle: drag a rectangle to compute mean, std, min, max \
-                 HU and area (mm²) within the selection.",
-            ToolKind::RoiEllipse =>
+                 HU and area (mm²) within the selection."
+            }
+            ToolKind::RoiEllipse => {
                 "ROI Ellipse: drag an ellipse to compute mean, std, min, max \
-                 HU and area (mm²) within the selection.",
-            ToolKind::Crosshair =>
+                 HU and area (mm²) within the selection."
+            }
+            ToolKind::Crosshair => {
                 "Crosshair: click to set a reference point that is synchronised \
-                 across all three MPR views.",
-            ToolKind::PointHu =>
+                 across all three MPR views."
+            }
+            ToolKind::PointHu => {
                 "HU Point: click to display the Hounsfield Unit value at the \
-                 cursor position.",
+                 cursor position."
+            }
         }
     }
 
@@ -152,11 +157,7 @@ mod tests {
     fn test_tool_kind_label_non_empty() {
         for tool in ToolKind::all() {
             let label = tool.label();
-            assert!(
-                !label.is_empty(),
-                "{:?}.label() must not be empty",
-                tool
-            );
+            assert!(!label.is_empty(), "{:?}.label() must not be empty", tool);
         }
     }
 
@@ -185,11 +186,7 @@ mod tests {
     fn test_tool_kind_icon_non_empty() {
         for tool in ToolKind::all() {
             let icon = tool.icon();
-            assert!(
-                !icon.is_empty(),
-                "{:?}.icon() must not be empty",
-                tool
-            );
+            assert!(!icon.is_empty(), "{:?}.icon() must not be empty", tool);
         }
     }
 

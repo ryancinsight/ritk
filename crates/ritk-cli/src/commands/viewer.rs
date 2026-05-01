@@ -14,7 +14,8 @@ use burn_ndarray::NdArray;
 use clap::Parser;
 use ritk_core::image::Image;
 use ritk_io::{
-    load_dicom_series, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata,
+    load_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
+    DicomSliceMetadata,
 };
 use ritk_snap::{GeometrySummary, Study, ViewerBackend, ViewerCore, ViewerEvent, ViewerState};
 use std::path::PathBuf;
@@ -87,13 +88,17 @@ pub fn run(args: ViewerArgs) -> Result<()> {
     let device: <Backend as BurnBackend>::Device = Default::default();
     let path = args.path.as_path();
 
-    let series = scan_dicom_directory(path)
+    let series_list = scan_dicom_directory(path)
         .with_context(|| format!("failed to scan DICOM study at {}", path.display()))?;
-    let image = load_dicom_series::<Backend, _>(path, &device)
+    let selected_series = series_list
+        .iter()
+        .max_by_key(|series| series.file_paths.len())
+        .with_context(|| format!("no DICOM series found at {}", path.display()))?;
+    let (image, metadata) = load_dicom_series_with_metadata::<Backend, _>(path, &device)
         .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
 
     let study = Study::new(image.clone())
-        .with_dicom(series.metadata.clone())
+        .with_dicom(metadata.clone())
         .with_source(path.to_path_buf());
 
     let mut core = ViewerCore::<Backend, 3>::new();
@@ -104,14 +109,14 @@ pub fn run(args: ViewerArgs) -> Result<()> {
     backend.handle_event(loaded_event)?;
     backend.render()?;
 
-    print_summary(path, &series, &image);
+    print_summary(path, selected_series, &image);
 
     if args.geometry || args.slices {
-        print_geometry(&series.metadata);
+        print_geometry(&metadata);
     }
 
     if args.slices {
-        print_slice_table(&series.metadata.slices);
+        print_slice_table(&metadata.slices);
     }
 
     if args.summary {
@@ -124,7 +129,10 @@ pub fn run(args: ViewerArgs) -> Result<()> {
 fn print_summary(path: &std::path::Path, series: &DicomSeriesInfo, image: &Image<Backend, 3>) {
     let shape = image.shape();
     println!("DICOM study: {}", path.display());
-    println!("  slices: {}", series.num_slices);
+    println!("  series_uid: {}", series.series_instance_uid);
+    println!("  modality: {}", series.modality);
+    println!("  description: {}", series.series_description);
+    println!("  slices: {}", series.file_paths.len());
     println!("  shape:  [{}, {}, {}]", shape[0], shape[1], shape[2]);
     println!(
         "  origin: [{:.6}, {:.6}, {:.6}]",
