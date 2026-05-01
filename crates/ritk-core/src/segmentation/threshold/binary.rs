@@ -93,7 +93,13 @@ impl BinaryThreshold {
     /// Each voxel is set to `inside_value` or `outside_value` according to the
     /// threshold interval \[lower, upper\].
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        binary_threshold(image, self.lower, self.upper, self.inside_value, self.outside_value)
+        binary_threshold(
+            image,
+            self.lower,
+            self.upper,
+            self.inside_value,
+            self.outside_value,
+        )
     }
 }
 
@@ -128,8 +134,14 @@ pub fn binary_threshold<B: Backend, const D: usize>(
         lower <= upper,
         "lower bound {lower} must be ≤ upper bound {upper}"
     );
-    assert!(inside_value.is_finite(), "inside_value must be finite, got {inside_value}");
-    assert!(outside_value.is_finite(), "outside_value must be finite, got {outside_value}");
+    assert!(
+        inside_value.is_finite(),
+        "inside_value must be finite, got {inside_value}"
+    );
+    assert!(
+        outside_value.is_finite(),
+        "outside_value must be finite, got {outside_value}"
+    );
 
     let device = image.data().device();
     let shape: [usize; D] = image.shape();
@@ -137,7 +149,8 @@ pub fn binary_threshold<B: Backend, const D: usize>(
     let img_data = image.data().clone().into_data();
     let slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
 
-    let output: Vec<f32> = apply_binary_threshold_to_slice(slice, lower, upper, inside_value, outside_value);
+    let output: Vec<f32> =
+        apply_binary_threshold_to_slice(slice, lower, upper, inside_value, outside_value);
 
     let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
@@ -208,11 +221,23 @@ mod tests {
     }
 
     fn get_slice_1d(image: &Image<B, 1>) -> Vec<f32> {
-        image.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        image
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     fn get_slice_3d(image: &Image<B, 3>) -> Vec<f32> {
-        image.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        image
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     // ── Positive: all inside band ─────────────────────────────────────────────
@@ -223,7 +248,11 @@ mod tests {
         let image = make_image_1d(vec![100.0_f32; 20]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert!(vals.iter().all(|&v| v == 1.0), "all voxels in band must be inside_value=1.0, got {:?}", vals);
+        assert!(
+            vals.iter().all(|&v| v == 1.0),
+            "all voxels in band must be inside_value=1.0, got {:?}",
+            vals
+        );
     }
 
     // ── Positive: all outside band ───────────────────────────────────────────
@@ -234,7 +263,11 @@ mod tests {
         let image = make_image_1d(vec![200.0_f32; 20]);
         let result = BinaryThreshold::new(0.0, 100.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert!(vals.iter().all(|&v| v == 0.0), "all voxels outside band must be outside_value=0.0, got {:?}", vals);
+        assert!(
+            vals.iter().all(|&v| v == 0.0),
+            "all voxels outside band must be outside_value=0.0, got {:?}",
+            vals
+        );
     }
 
     // ── Positive: exact band boundary (inclusive) ─────────────────────────────
@@ -245,7 +278,10 @@ mod tests {
         let image = make_image_1d(vec![50.0_f32]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals[0], 1.0, "voxel at lower bound must be inside_value=1.0");
+        assert_eq!(
+            vals[0], 1.0,
+            "voxel at lower bound must be inside_value=1.0"
+        );
     }
 
     #[test]
@@ -254,7 +290,10 @@ mod tests {
         let image = make_image_1d(vec![150.0_f32]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals[0], 1.0, "voxel at upper bound must be inside_value=1.0");
+        assert_eq!(
+            vals[0], 1.0,
+            "voxel at upper bound must be inside_value=1.0"
+        );
     }
 
     #[test]
@@ -262,7 +301,10 @@ mod tests {
         let image = make_image_1d(vec![49.9_f32]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals[0], 0.0, "voxel just below lower bound must be outside_value=0.0");
+        assert_eq!(
+            vals[0], 0.0,
+            "voxel just below lower bound must be outside_value=0.0"
+        );
     }
 
     #[test]
@@ -270,7 +312,10 @@ mod tests {
         let image = make_image_1d(vec![150.1_f32]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals[0], 0.0, "voxel just above upper bound must be outside_value=0.0");
+        assert_eq!(
+            vals[0], 0.0,
+            "voxel just above upper bound must be outside_value=0.0"
+        );
     }
 
     // ── Positive: split band ──────────────────────────────────────────────────
@@ -282,7 +327,11 @@ mod tests {
         let image = make_image_1d(vec![10.0, 50.0, 100.0, 150.0, 200.0]);
         let result = BinaryThreshold::new(50.0, 150.0).apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals, vec![0.0, 1.0, 1.0, 1.0, 0.0], "band [50,150] must select {{50,100,150}}");
+        assert_eq!(
+            vals,
+            vec![0.0, 1.0, 1.0, 1.0, 0.0],
+            "band [50,150] must select {{50,100,150}}"
+        );
     }
 
     // ── Positive: custom inside/outside values ───────────────────────────────
@@ -294,9 +343,18 @@ mod tests {
             .with_values(255.0, 128.0)
             .apply(&image);
         let vals = get_slice_1d(&result);
-        assert_eq!(vals[0], 128.0, "voxel 10.0 outside band → outside_value=128.0");
-        assert_eq!(vals[1], 255.0, "voxel 100.0 inside band → inside_value=255.0");
-        assert_eq!(vals[2], 128.0, "voxel 200.0 outside band → outside_value=128.0");
+        assert_eq!(
+            vals[0], 128.0,
+            "voxel 10.0 outside band → outside_value=128.0"
+        );
+        assert_eq!(
+            vals[1], 255.0,
+            "voxel 100.0 inside band → inside_value=255.0"
+        );
+        assert_eq!(
+            vals[2], 128.0,
+            "voxel 200.0 outside band → outside_value=128.0"
+        );
     }
 
     // ── Positive: half-open intervals using infinity ──────────────────────────
@@ -447,6 +505,10 @@ mod tests {
         let image = make_image_3d(data, [4, 4, 4]);
         let result = BinaryThreshold::new(16.0, 32.0).apply(&image);
         let inside_count = get_slice_3d(&result).iter().filter(|&&v| v == 1.0).count();
-        assert_eq!(inside_count, 17, "band [16,32] on 0..63 must select exactly 17 voxels, got {}", inside_count);
+        assert_eq!(
+            inside_count, 17,
+            "band [16,32] on 0..63 must select exactly 17 voxels, got {}",
+            inside_count
+        );
     }
 }

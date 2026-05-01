@@ -140,8 +140,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
 
         // 3. Reshape back to spatial dimensions for convolution
         let shape_dims: [usize; D] = fixed.data().shape().dims(); // [usize; D]
-        let moving_values =
-            moving_values_flat.reshape(burn::tensor::Shape::new(shape_dims));
+        let moving_values = moving_values_flat.reshape(burn::tensor::Shape::new(shape_dims));
         let fixed_values = fixed.data().clone(); // Already spatial [D, H, W]
 
         // 4. Setup filter

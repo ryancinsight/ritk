@@ -45,8 +45,7 @@ pub trait Metric<B: Backend, const D: usize> {
 ///
 /// Controls how metric values are normalized to ensure consistent ranges
 /// across different image pairs.
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum NormalizationMode {
     /// No normalization applied.
     None,
@@ -58,7 +57,6 @@ pub enum NormalizationMode {
     /// Normalize by the product of standard deviations.
     ByJointStd,
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -106,9 +106,13 @@ pub fn compute_label_intensity_statistics_from_slices(
                 if label == 0 {
                     return acc;
                 }
-                let entry = acc
-                    .entry(label)
-                    .or_insert((f32::INFINITY, f32::NEG_INFINITY, 0.0_f64, 0.0_f64, 0_usize));
+                let entry = acc.entry(label).or_insert((
+                    f32::INFINITY,
+                    f32::NEG_INFINITY,
+                    0.0_f64,
+                    0.0_f64,
+                    0_usize,
+                ));
                 let v_f64 = intensity as f64;
                 entry.0 = entry.0.min(intensity);
                 entry.1 = entry.1.max(intensity);
@@ -144,7 +148,14 @@ pub fn compute_label_intensity_statistics_from_slices(
             // Population variance: E[X^2] - E[X]^2; .max(0.0) absorbs f64 cancellation.
             let variance = ((sum_sq / n) - mean_f64 * mean_f64).max(0.0) as f32;
             let std = variance.sqrt();
-            LabelIntensityStatistics { label, count, min, max, mean, std }
+            LabelIntensityStatistics {
+                label,
+                count,
+                min,
+                max,
+                mean,
+                std,
+            }
         })
         .collect();
 
@@ -163,10 +174,8 @@ mod tests {
 
     fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
         let device = Default::default();
-        let tensor = Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(data, Shape::new(dims)),
-            &device,
-        );
+        let tensor =
+            Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -231,7 +240,12 @@ mod tests {
         assert_eq!(s1.max, 30.0);
         assert!((s1.mean - 20.0).abs() < 1e-5, "label1 mean={}", s1.mean);
         let exp1 = (200.0_f64 / 3.0).sqrt() as f32;
-        assert!((s1.std - exp1).abs() < 1e-4, "label1 std={} expected={}", s1.std, exp1);
+        assert!(
+            (s1.std - exp1).abs() < 1e-4,
+            "label1 std={} expected={}",
+            s1.std,
+            exp1
+        );
         let s2 = &stats[1];
         assert_eq!(s2.label, 2);
         assert_eq!(s2.count, 2);
@@ -290,10 +304,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "equal length")]
     fn test_length_mismatch_panics() {
-        let _ = compute_label_intensity_statistics_from_slices(
-            &vec![1.0_f32; 4],
-            &vec![1.0_f32; 5],
-        );
+        let _ =
+            compute_label_intensity_statistics_from_slices(&vec![1.0_f32; 4], &vec![1.0_f32; 5]);
     }
 
     #[test]

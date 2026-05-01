@@ -11,9 +11,9 @@
 //! - Thirion (1998), Med. Image Anal. 2(3):243-260.
 //! - Vercauteren et al. (2009), NeuroImage 45(S1):S61-S72.
 
-use crate::error::RegistrationError;
 use super::diffeomorphic::DiffeomorphicDemonsRegistration;
 use super::thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};
+use crate::error::RegistrationError;
 
 /// Configuration for multi-resolution Demons registration.
 #[derive(Debug, Clone)]
@@ -108,8 +108,12 @@ impl MultiResDemonsRegistration {
                 )
                 .register(&fixed_c, &warmed_moving, cdims, coarse_spacing)?
             } else {
-                ThirionDemonsRegistration::new(level_config)
-                    .register(&fixed_c, &warmed_moving, cdims, coarse_spacing)?
+                ThirionDemonsRegistration::new(level_config).register(
+                    &fixed_c,
+                    &warmed_moving,
+                    cdims,
+                    coarse_spacing,
+                )?
             };
 
             // First-order displacement composition: d_total = d_init + d_level.
@@ -276,18 +280,36 @@ mod tests {
         let n = dims[0] * dims[1] * dims[2];
         let image = make_sphere_image(dims, [8.0, 8.0, 8.0], 5.0);
         let config = MultiResDemonsConfig {
-            base_config: DemonsConfig { max_iterations: 30, ..DemonsConfig::default() },
+            base_config: DemonsConfig {
+                max_iterations: 30,
+                ..DemonsConfig::default()
+            },
             levels: 2,
             use_diffeomorphic: false,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
-        let result = reg.register(&image, &image, dims, [1.0f32, 1.0, 1.0]).unwrap();
-        assert!(result.final_mse < 1e-3, "identity MSE must be < 1e-3, got {}", result.final_mse);
+        let result = reg
+            .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
+            .unwrap();
+        assert!(
+            result.final_mse < 1e-3,
+            "identity MSE must be < 1e-3, got {}",
+            result.final_mse
+        );
         assert_eq!(result.disp_z.len(), n, "disp_z must have correct length");
-        assert!(result.disp_z.iter().all(|v| v.is_finite()), "disp_z must be finite");
-        assert!(result.disp_y.iter().all(|v| v.is_finite()), "disp_y must be finite");
-        assert!(result.disp_x.iter().all(|v| v.is_finite()), "disp_x must be finite");
+        assert!(
+            result.disp_z.iter().all(|v| v.is_finite()),
+            "disp_z must be finite"
+        );
+        assert!(
+            result.disp_y.iter().all(|v| v.is_finite()),
+            "disp_y must be finite"
+        );
+        assert!(
+            result.disp_x.iter().all(|v| v.is_finite()),
+            "disp_x must be finite"
+        );
     }
 
     #[test]
@@ -302,13 +324,18 @@ mod tests {
             .sum::<f32>() as f64
             / (dims[0] * dims[1] * dims[2]) as f64;
         let config = MultiResDemonsConfig {
-            base_config: DemonsConfig { max_iterations: 50, ..DemonsConfig::default() },
+            base_config: DemonsConfig {
+                max_iterations: 50,
+                ..DemonsConfig::default()
+            },
             levels: 2,
             use_diffeomorphic: false,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
-        let result = reg.register(&fixed, &moving, dims, [1.0f32, 1.0, 1.0]).unwrap();
+        let result = reg
+            .register(&fixed, &moving, dims, [1.0f32, 1.0, 1.0])
+            .unwrap();
         assert!(
             result.final_mse < initial_mse,
             "final MSE {} must be less than initial MSE {}",
@@ -322,19 +349,27 @@ mod tests {
         let dims = [16usize, 16, 16];
         let image = make_sphere_image(dims, [8.0, 8.0, 8.0], 5.0);
         let config = MultiResDemonsConfig {
-            base_config: DemonsConfig { max_iterations: 30, ..DemonsConfig::default() },
+            base_config: DemonsConfig {
+                max_iterations: 30,
+                ..DemonsConfig::default()
+            },
             levels: 2,
             use_diffeomorphic: true,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
-        let result = reg.register(&image, &image, dims, [1.0f32, 1.0, 1.0]).unwrap();
+        let result = reg
+            .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
+            .unwrap();
         assert!(
             result.final_mse < 1e-3,
             "diffeomorphic identity MSE must be < 1e-3, got {}",
             result.final_mse
         );
-        assert!(result.disp_z.iter().all(|v| v.is_finite()), "disp_z must be finite");
+        assert!(
+            result.disp_z.iter().all(|v| v.is_finite()),
+            "disp_z must be finite"
+        );
     }
 
     #[test]
@@ -344,7 +379,9 @@ mod tests {
         let image = vec![0.5f32; n];
         let config = MultiResDemonsConfig::default();
         let reg = MultiResDemonsRegistration::new(config);
-        let result = reg.register(&image, &image, dims, [1.0f32, 1.0, 1.0]).unwrap();
+        let result = reg
+            .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
+            .unwrap();
         assert_eq!(result.disp_z.len(), n);
         assert_eq!(result.disp_y.len(), n);
         assert_eq!(result.disp_x.len(), n);
@@ -355,7 +392,10 @@ mod tests {
     fn test_multires_single_level_equals_thirion() {
         let dims = [8usize, 8, 8];
         let image = make_sphere_image(dims, [4.0, 4.0, 4.0], 3.0);
-        let base_config = DemonsConfig { max_iterations: 10, ..DemonsConfig::default() };
+        let base_config = DemonsConfig {
+            max_iterations: 10,
+            ..DemonsConfig::default()
+        };
         let multi_config = MultiResDemonsConfig {
             base_config: base_config.clone(),
             levels: 1,

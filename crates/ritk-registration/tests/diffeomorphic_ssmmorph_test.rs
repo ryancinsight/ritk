@@ -65,12 +65,7 @@ fn test_diffeomorphic_ssmmorph_integration() {
     let origin = Point::new([0.0, 0.0, 0.0]);
     let direction = Direction::identity();
 
-    let fixed_image = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed_image = Image::new(fixed_tensor, origin, spacing, direction);
     let moving_image = Image::new(moving_tensor, origin, spacing, direction);
 
     // 4. Run Registration

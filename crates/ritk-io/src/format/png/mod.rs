@@ -172,8 +172,7 @@ impl<B: Backend> PngReader<B> {
 
 impl<B: Backend> ImageReader<B, 3> for PngReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_png_to_image(path, &self.device)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        read_png_to_image(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -190,7 +189,6 @@ impl<B: Backend> PngSeriesReader<B> {
 
 impl<B: Backend> ImageReader<B, 3> for PngSeriesReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_png_series(path, &self.device)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        read_png_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }

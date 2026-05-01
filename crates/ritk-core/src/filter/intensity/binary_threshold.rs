@@ -25,8 +25,18 @@ pub struct BinaryThresholdImageFilter {
 }
 
 impl BinaryThresholdImageFilter {
-    pub fn new(lower_threshold: f32, upper_threshold: f32, foreground: f32, background: f32) -> Self {
-        Self { lower_threshold, upper_threshold, foreground, background }
+    pub fn new(
+        lower_threshold: f32,
+        upper_threshold: f32,
+        foreground: f32,
+        background: f32,
+    ) -> Self {
+        Self {
+            lower_threshold,
+            upper_threshold,
+            foreground,
+            background,
+        }
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
@@ -35,7 +45,8 @@ impl BinaryThresholdImageFilter {
         let hi = self.upper_threshold;
         let fg = self.foreground;
         let bg = self.background;
-        let out: Vec<f32> = vals.iter()
+        let out: Vec<f32> = vals
+            .iter()
             .map(|&v| if v >= lo && v <= hi { fg } else { bg })
             .collect();
         Ok(rebuild(out, dims, image))
@@ -43,7 +54,10 @@ impl BinaryThresholdImageFilter {
 }
 
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image.data().clone().into_data()
+    let vals = image
+        .data()
+        .clone()
+        .into_data()
         .into_vec::<f32>()
         .map_err(|e| anyhow::anyhow!("BinaryThresholdImageFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
@@ -53,7 +67,12 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let device = src.data().device();
     let td = TensorData::new(vals, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, src.origin().clone(), src.spacing().clone(), src.direction().clone())
+    Image::new(
+        tensor,
+        src.origin().clone(),
+        src.spacing().clone(),
+        src.direction().clone(),
+    )
 }
 
 #[cfg(test)]
@@ -70,7 +89,12 @@ mod tests {
         let device = Default::default();
         let td = TensorData::new(vals, Shape::new([1, 1, n]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
     }
 
     fn get_vals(img: &Image<B, 3>) -> Vec<f32> {

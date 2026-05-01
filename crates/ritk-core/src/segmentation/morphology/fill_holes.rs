@@ -8,9 +8,9 @@
 //! any border voxel via 6-connected background paths.
 //! Output(x) = M(x) if M(x)=1 OR x in E, else 1 (hole -> foreground).
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use crate::image::Image;
 use super::MorphologicalOperation;
+use crate::image::Image;
+use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::collections::VecDeque;
 
 /// Fills enclosed background holes in a 3-D binary mask.
@@ -38,7 +38,12 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
-                    let border = iz == 0 || iz == nz - 1 || iy == 0 || iy == ny - 1 || ix == 0 || ix == nx - 1;
+                    let border = iz == 0
+                        || iz == nz - 1
+                        || iy == 0
+                        || iy == ny - 1
+                        || ix == 0
+                        || ix == nx - 1;
                     if border && is_background(vals[idx(iz, iy, ix)]) {
                         let i = idx(iz, iy, ix);
                         if !reachable[i] {
@@ -51,7 +56,12 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         }
 
         const NEIGHBORS: [(isize, isize, isize); 6] = [
-            (-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1),
+            (-1, 0, 0),
+            (1, 0, 0),
+            (0, -1, 0),
+            (0, 1, 0),
+            (0, 0, -1),
+            (0, 0, 1),
         ];
 
         while let Some((iz, iy, ix)) = queue.pop_front() {
@@ -86,10 +96,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
             }
         }
 
-        let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(out, Shape::new([nz, ny, nx])),
-            &device,
-        );
+        let tensor =
+            Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
         Image::new(
             tensor,
             mask.origin().clone(),
@@ -102,17 +110,15 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
     type Backend = burn_ndarray::NdArray<f32>;
 
     fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
         let device = Default::default();
-        let tensor = Tensor::<Backend, 3>::from_data(
-            TensorData::new(vals, Shape::new(shape)),
-            &device,
-        );
+        let tensor =
+            Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
         Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -177,7 +183,9 @@ mod tests {
                             out_vals[iz * 49 + iy * 7 + ix],
                             1.0,
                             "interior hole at ({},{},{}) must be filled",
-                            iz, iy, ix
+                            iz,
+                            iy,
+                            ix
                         );
                     }
                 }

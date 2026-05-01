@@ -30,12 +30,7 @@ fn test_mse_identity() {
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
     let direction = Direction3::identity();
 
-    let fixed = Image::new(
-        data.clone(),
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(data.clone(), origin, spacing, direction);
     let moving = Image::new(data.clone(), origin, spacing, direction);
 
     // Identity transform
@@ -77,12 +72,7 @@ fn test_mse_translation() {
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
     let direction = Direction3::identity();
 
-    let fixed = Image::new(
-        data.clone(),
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(data.clone(), origin, spacing, direction);
     let moving = Image::new(data.clone(), origin, spacing, direction);
 
     // Shift by 1.0 in X.

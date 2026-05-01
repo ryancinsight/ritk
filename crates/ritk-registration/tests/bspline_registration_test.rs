@@ -56,12 +56,7 @@ fn test_registration_bspline_3d() {
     let spacing = Spacing::new([2.5, 2.5, 2.5]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize BSpline Transform

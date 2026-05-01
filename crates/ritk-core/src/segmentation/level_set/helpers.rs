@@ -26,14 +26,7 @@ use std::f64::consts::PI;
 /// Each axis coordinate is clamped to `[0, dim-1]` before computing the
 /// row-major linear index `z * ny * nx + y * nx + x`.
 #[inline]
-pub(crate) fn idx_clamped(
-    z: isize,
-    y: isize,
-    x: isize,
-    nz: usize,
-    ny: usize,
-    nx: usize,
-) -> usize {
+pub(crate) fn idx_clamped(z: isize, y: isize, x: isize, nz: usize, ny: usize, nx: usize) -> usize {
     let cz = z.clamp(0, nz as isize - 1) as usize;
     let cy = y.clamp(0, ny as isize - 1) as usize;
     let cx = x.clamp(0, nx as isize - 1) as usize;
@@ -383,10 +376,7 @@ mod tests {
 
     #[test]
     fn test_idx_clamped_overflow() {
-        assert_eq!(
-            idx_clamped(10, 10, 10, 4, 5, 6),
-            3 * 5 * 6 + 4 * 6 + 5
-        );
+        assert_eq!(idx_clamped(10, 10, 10, 4, 5, 6), 3 * 5 * 6 + 4 * 6 + 5);
     }
 
     // ── Gaussian kernel ────────────────────────────────────────────────────────
@@ -481,10 +471,7 @@ mod tests {
     fn test_dirac_positive_everywhere() {
         for i in -100..=100 {
             let z = i as f64 * 0.3;
-            assert!(
-                regularised_dirac(z, 1.0) > 0.0,
-                "delta({z}) <= 0"
-            );
+            assert!(regularised_dirac(z, 1.0) > 0.0, "delta({z}) <= 0");
         }
     }
 
@@ -542,7 +529,7 @@ mod tests {
         compute_curvature_into(&phi, dims, &mut kappa);
 
         let expected_kappa = 2.0 / r; // 0.6667
-        // Check voxels on the surface (|phi| < 0.6).
+                                      // Check voxels on the surface (|phi| < 0.6).
         let mut checked = 0_usize;
         for iz in 1..side - 1 {
             for iy in 1..side - 1 {

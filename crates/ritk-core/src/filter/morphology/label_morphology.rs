@@ -31,18 +31,29 @@ pub struct LabelDilation {
 }
 
 impl LabelDilation {
-    pub fn new(radius: usize) -> Self { Self { radius } }
-    pub fn with_radius(mut self, r: usize) -> Self { self.radius = r; self }
+    pub fn new(radius: usize) -> Self {
+        Self { radius }
+    }
+    pub fn with_radius(mut self, r: usize) -> Self {
+        self.radius = r;
+        self
+    }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let td = image.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>()
+        let vals: &[f32] = td
+            .as_slice::<f32>()
             .map_err(|e| anyhow::anyhow!("LabelDilation requires f32 data: {:?}", e))?;
         let result = dilate_labels(vals, dims, self.radius);
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(t, *image.origin(), *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            t,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -56,14 +67,25 @@ fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
             for ix in 0..nx {
                 let idx = iz * ny * nx + iy * nx + ix;
                 // Only expand into background voxels
-                if data[idx] > 0.5 { continue; }
+                if data[idx] > 0.5 {
+                    continue;
+                }
                 let mut min_label: f32 = 0.0;
                 for dz in -r..=r {
                     for dy in -r..=r {
                         for dx in -r..=r {
-                            let (zz,yy,xx)=(iz as isize+dz,iy as isize+dy,ix as isize+dx);
-                            if zz<0||zz>=nz as isize||yy<0||yy>=ny as isize||xx<0||xx>=nx as isize { continue; }
-                            let v = data[zz as usize*ny*nx+yy as usize*nx+xx as usize];
+                            let (zz, yy, xx) =
+                                (iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                            if zz < 0
+                                || zz >= nz as isize
+                                || yy < 0
+                                || yy >= ny as isize
+                                || xx < 0
+                                || xx >= nx as isize
+                            {
+                                continue;
+                            }
+                            let v = data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
                             if v > 0.5 && (min_label < 0.5 || v < min_label) {
                                 min_label = v;
                             }
@@ -76,7 +98,6 @@ fn dilate_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     }
     out
 }
-
 
 // ════════════════════════════════════════════════════════════════════════════
 // LabelErosion
@@ -105,18 +126,29 @@ pub struct LabelErosion {
 }
 
 impl LabelErosion {
-    pub fn new(radius: usize) -> Self { Self { radius } }
-    pub fn with_radius(mut self, r: usize) -> Self { self.radius = r; self }
+    pub fn new(radius: usize) -> Self {
+        Self { radius }
+    }
+    pub fn with_radius(mut self, r: usize) -> Self {
+        self.radius = r;
+        self
+    }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let td = image.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>()
+        let vals: &[f32] = td
+            .as_slice::<f32>()
             .map_err(|e| anyhow::anyhow!("LabelErosion requires f32 data: {:?}", e))?;
         let result = erode_labels(vals, dims, self.radius);
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(t, *image.origin(), *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            t,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -140,17 +172,18 @@ fn erode_labels(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                             let zz = iz as isize + dz;
                             let yy = iy as isize + dy;
                             let xx = ix as isize + dx;
-                            if zz < 0 || zz >= nz as isize
-                                || yy < 0 || yy >= ny as isize
-                                || xx < 0 || xx >= nx as isize
+                            if zz < 0
+                                || zz >= nz as isize
+                                || yy < 0
+                                || yy >= ny as isize
+                                || xx < 0
+                                || xx >= nx as isize
                             {
                                 // Out-of-bounds treated as background
                                 erode = true;
                                 break 'outer;
                             }
-                            let nidx = zz as usize * ny * nx
-                                + yy as usize * nx
-                                + xx as usize;
+                            let nidx = zz as usize * ny * nx + yy as usize * nx + xx as usize;
                             if data[nidx] <= 0.5 {
                                 erode = true;
                                 break 'outer;
@@ -181,7 +214,9 @@ pub struct LabelOpening {
 }
 
 impl LabelOpening {
-    pub fn new(radius: usize) -> Self { Self { radius } }
+    pub fn new(radius: usize) -> Self {
+        Self { radius }
+    }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let eroded = LabelErosion::new(self.radius).apply(image)?;
@@ -203,7 +238,9 @@ pub struct LabelClosing {
 }
 
 impl LabelClosing {
-    pub fn new(radius: usize) -> Self { Self { radius } }
+    pub fn new(radius: usize) -> Self {
+        Self { radius }
+    }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dilated = LabelDilation::new(self.radius).apply(image)?;
@@ -250,7 +287,10 @@ pub struct MorphologicalReconstruction {
 
 impl MorphologicalReconstruction {
     pub fn new(mode: ReconstructionMode) -> Self {
-        Self { mode, max_iter: 200 }
+        Self {
+            mode,
+            max_iter: 200,
+        }
     }
 
     pub fn with_max_iter(mut self, n: usize) -> Self {
@@ -341,11 +381,13 @@ impl MorphologicalReconstruction {
         }
 
         let device = marker.data().device();
-        let t = Tensor::<B, 3>::from_data(
-            TensorData::new(current, Shape::new(dims)),
-            &device,
-        );
-        Ok(Image::new(t, *marker.origin(), *marker.spacing(), *marker.direction()))
+        let t = Tensor::<B, 3>::from_data(TensorData::new(current, Shape::new(dims)), &device);
+        Ok(Image::new(
+            t,
+            *marker.origin(),
+            *marker.spacing(),
+            *marker.direction(),
+        ))
     }
 }
 
@@ -364,7 +406,9 @@ fn dilate1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
                             let yy = (iy as i32 + dy).clamp(0, ny as i32 - 1) as usize;
                             let xx = (ix as i32 + dx).clamp(0, nx as i32 - 1) as usize;
                             let v = data[zz * ny * nx + yy * nx + xx];
-                            if v > mx { mx = v; }
+                            if v > mx {
+                                mx = v;
+                            }
                         }
                     }
                 }
@@ -394,17 +438,20 @@ fn erode1_scalar(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
                             let zz = iz as i32 + dz;
                             let yy = iy as i32 + dy;
                             let xx = ix as i32 + dx;
-                            if zz < 0 || zz >= nz as i32
-                                || yy < 0 || yy >= ny as i32
-                                || xx < 0 || xx >= nx as i32
+                            if zz < 0
+                                || zz >= nz as i32
+                                || yy < 0
+                                || yy >= ny as i32
+                                || xx < 0
+                                || xx >= nx as i32
                             {
                                 mn = f32::NEG_INFINITY;
                                 break 'outer_e;
                             }
-                            let v = data[zz as usize * ny * nx
-                                + yy as usize * nx
-                                + xx as usize];
-                            if v < mn { mn = v; }
+                            let v = data[zz as usize * ny * nx + yy as usize * nx + xx as usize];
+                            if v < mn {
+                                mn = v;
+                            }
                         }
                     }
                 }
@@ -423,49 +470,91 @@ mod tests {
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
     type B = NdArray<f32>;
-    fn img(v: Vec<f32>, d: [usize;3]) -> Image<B,3> {
-        let t=Tensor::<B,3>::from_data(TensorData::new(v,Shape::new(d)),&Default::default());
-        Image::new(t,Point::new([0.0,0.0,0.0]),Spacing::new([1.0,1.0,1.0]),Direction::identity())
+    fn img(v: Vec<f32>, d: [usize; 3]) -> Image<B, 3> {
+        let t = Tensor::<B, 3>::from_data(TensorData::new(v, Shape::new(d)), &Default::default());
+        Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
     }
-    fn vv(i: &Image<B,3>) -> Vec<f32> { i.data().clone().into_data().into_vec::<f32>().unwrap() }
+    fn vv(i: &Image<B, 3>) -> Vec<f32> {
+        i.data().clone().into_data().into_vec::<f32>().unwrap()
+    }
 
-    #[test] fn test_all_background_unchanged() {
-        let d=[6,6,6]; let n=d[0]*d[1]*d[2];
-        let v=vec![0.0_f32;n];
-        let out=vv(&LabelDilation::new(1).apply(&img(v.clone(),d)).unwrap());
-        for &x in &out { assert!(x.abs()<1e-6,"all-bg: {x}"); }
-    }
-    #[test] fn test_label_expands_into_background() {
-        let d=[7,7,7]; let [nz,ny,nx]=d; let n=nz*ny*nx;
-        let mut v=vec![0.0_f32;n]; let c=3*ny*nx+3*nx+3; v[c]=1.0;
-        let out=vv(&LabelDilation::new(1).apply(&img(v,d)).unwrap());
-        assert!((out[c]-1.0).abs()<1e-6,"centre preserved");
-        let neighbour=3*ny*nx+3*nx+4;
-        assert!((out[neighbour]-1.0).abs()<1e-6,"neighbour expanded to label 1");
-    }
-    #[test] fn test_conflict_min_label_wins() {
-        let d=[5,5,5]; let [_,ny,nx]=d; let n=d[0]*d[1]*d[2];
-        let mut v=vec![0.0_f32;n];
-        let a=2*ny*nx+1*nx+1; v[a]=1.0;
-        let b=2*ny*nx+1*nx+3; v[b]=2.0;
-        let out=vv(&LabelDilation::new(1).apply(&img(v,d)).unwrap());
-        let middle=2*ny*nx+1*nx+2;
-        assert!((out[middle]-1.0).abs()<1e-6,"conflict: min label wins (got {})",out[middle]);
-    }
-    #[test] fn test_radius_zero_identity() {
-        let d=[6,6,6]; let [_,ny,nx]=d; let n=d[0]*d[1]*d[2];
-        let mut v=vec![0.0_f32;n]; v[2*ny*nx+2*nx+2]=1.0; v[3*ny*nx+3*nx+3]=2.0;
-        let out=vv(&LabelDilation::new(0).apply(&img(v.clone(),d)).unwrap());
-        for (i,(&e,&a)) in v.iter().zip(out.iter()).enumerate() {
-            assert!((a-e).abs()<1e-6,"r=0 identity voxel {i}: {a} != {e}");
+    #[test]
+    fn test_all_background_unchanged() {
+        let d = [6, 6, 6];
+        let n = d[0] * d[1] * d[2];
+        let v = vec![0.0_f32; n];
+        let out = vv(&LabelDilation::new(1).apply(&img(v.clone(), d)).unwrap());
+        for &x in &out {
+            assert!(x.abs() < 1e-6, "all-bg: {x}");
         }
     }
-    #[test] fn test_metadata_preserved() {
-        let d=[5,5,5]; let n=d[0]*d[1]*d[2];
-        let t=Tensor::<B,3>::from_data(TensorData::new(vec![0.0_f32;n],Shape::new(d)),&Default::default());
-        let o=Point::new([1.0,2.0,3.0]); let s=Spacing::new([0.5,0.5,0.5]);
-        let r=LabelDilation::new(1).apply(&Image::new(t,o,s,Direction::identity())).unwrap();
-        assert_eq!(*r.origin(),o); assert_eq!(*r.spacing(),s);
+    #[test]
+    fn test_label_expands_into_background() {
+        let d = [7, 7, 7];
+        let [nz, ny, nx] = d;
+        let n = nz * ny * nx;
+        let mut v = vec![0.0_f32; n];
+        let c = 3 * ny * nx + 3 * nx + 3;
+        v[c] = 1.0;
+        let out = vv(&LabelDilation::new(1).apply(&img(v, d)).unwrap());
+        assert!((out[c] - 1.0).abs() < 1e-6, "centre preserved");
+        let neighbour = 3 * ny * nx + 3 * nx + 4;
+        assert!(
+            (out[neighbour] - 1.0).abs() < 1e-6,
+            "neighbour expanded to label 1"
+        );
+    }
+    #[test]
+    fn test_conflict_min_label_wins() {
+        let d = [5, 5, 5];
+        let [_, ny, nx] = d;
+        let n = d[0] * d[1] * d[2];
+        let mut v = vec![0.0_f32; n];
+        let a = 2 * ny * nx + 1 * nx + 1;
+        v[a] = 1.0;
+        let b = 2 * ny * nx + 1 * nx + 3;
+        v[b] = 2.0;
+        let out = vv(&LabelDilation::new(1).apply(&img(v, d)).unwrap());
+        let middle = 2 * ny * nx + 1 * nx + 2;
+        assert!(
+            (out[middle] - 1.0).abs() < 1e-6,
+            "conflict: min label wins (got {})",
+            out[middle]
+        );
+    }
+    #[test]
+    fn test_radius_zero_identity() {
+        let d = [6, 6, 6];
+        let [_, ny, nx] = d;
+        let n = d[0] * d[1] * d[2];
+        let mut v = vec![0.0_f32; n];
+        v[2 * ny * nx + 2 * nx + 2] = 1.0;
+        v[3 * ny * nx + 3 * nx + 3] = 2.0;
+        let out = vv(&LabelDilation::new(0).apply(&img(v.clone(), d)).unwrap());
+        for (i, (&e, &a)) in v.iter().zip(out.iter()).enumerate() {
+            assert!((a - e).abs() < 1e-6, "r=0 identity voxel {i}: {a} != {e}");
+        }
+    }
+    #[test]
+    fn test_metadata_preserved() {
+        let d = [5, 5, 5];
+        let n = d[0] * d[1] * d[2];
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.0_f32; n], Shape::new(d)),
+            &Default::default(),
+        );
+        let o = Point::new([1.0, 2.0, 3.0]);
+        let s = Spacing::new([0.5, 0.5, 0.5]);
+        let r = LabelDilation::new(1)
+            .apply(&Image::new(t, o, s, Direction::identity()))
+            .unwrap();
+        assert_eq!(*r.origin(), o);
+        assert_eq!(*r.spacing(), s);
     }
 
     // ── LabelErosion tests ─────────────────────────────────────────────────
@@ -474,8 +563,12 @@ mod tests {
     fn test_label_erosion_all_background_unchanged() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let out = vv(&LabelErosion::new(1).apply(&img(vec![0.0_f32; n], d)).unwrap());
-        for &x in &out { assert!(x.abs() < 1e-6, "all-bg erosion: {x}"); }
+        let out = vv(&LabelErosion::new(1)
+            .apply(&img(vec![0.0_f32; n], d))
+            .unwrap());
+        for &x in &out {
+            assert!(x.abs() < 1e-6, "all-bg erosion: {x}");
+        }
     }
 
     #[test]
@@ -487,7 +580,11 @@ mod tests {
         let c = 2 * ny * nx + 2 * nx + 2;
         v[c] = 1.0;
         let out = vv(&LabelErosion::new(1).apply(&img(v, d)).unwrap());
-        assert!(out[c].abs() < 1e-6, "single voxel should erode to 0, got {}", out[c]);
+        assert!(
+            out[c].abs() < 1e-6,
+            "single voxel should erode to 0, got {}",
+            out[c]
+        );
     }
 
     #[test]
@@ -518,17 +615,26 @@ mod tests {
         }
         let out = vv(&LabelErosion::new(1).apply(&img(v, d)).unwrap());
         let centre = 4 * ny * nx + 4 * nx + 4;
-        assert!((out[centre] - 1.0).abs() < 1e-6, "interior preserved, got {}", out[centre]);
+        assert!(
+            (out[centre] - 1.0).abs() < 1e-6,
+            "interior preserved, got {}",
+            out[centre]
+        );
     }
 
     #[test]
     fn test_label_erosion_metadata_preserved() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vec![0.0_f32; n], Shape::new(d)), &Default::default());
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.0_f32; n], Shape::new(d)),
+            &Default::default(),
+        );
         let o = Point::new([1.0, 2.0, 3.0]);
         let s = Spacing::new([0.5, 0.5, 0.5]);
-        let r = LabelErosion::new(1).apply(&Image::new(t, o, s, Direction::identity())).unwrap();
+        let r = LabelErosion::new(1)
+            .apply(&Image::new(t, o, s, Direction::identity()))
+            .unwrap();
         assert_eq!(*r.origin(), o);
         assert_eq!(*r.spacing(), s);
     }
@@ -541,30 +647,47 @@ mod tests {
         let [_, ny, nx] = d;
         let n = d[0] * d[1] * d[2];
         let mut v = vec![0.0_f32; n];
-        for iz in 2..6 { for iy in 2..6 { for ix in 2..6 {
-            v[iz * ny * nx + iy * nx + ix] = 1.0;
-        }}}
+        for iz in 2..6 {
+            for iy in 2..6 {
+                for ix in 2..6 {
+                    v[iz * ny * nx + iy * nx + ix] = 1.0;
+                }
+            }
+        }
         v[0] = 1.0;
         let out = vv(&LabelOpening::new(1).apply(&img(v, d)).unwrap());
-        assert!(out[0].abs() < 1e-6, "isolated voxel removed by opening, got {}", out[0]);
+        assert!(
+            out[0].abs() < 1e-6,
+            "isolated voxel removed by opening, got {}",
+            out[0]
+        );
     }
 
     #[test]
     fn test_label_opening_empty_is_identity() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let out = vv(&LabelOpening::new(1).apply(&img(vec![0.0_f32; n], d)).unwrap());
-        for &x in &out { assert!(x.abs() < 1e-6, "empty opening: {x}"); }
+        let out = vv(&LabelOpening::new(1)
+            .apply(&img(vec![0.0_f32; n], d))
+            .unwrap());
+        for &x in &out {
+            assert!(x.abs() < 1e-6, "empty opening: {x}");
+        }
     }
 
     #[test]
     fn test_label_opening_metadata_preserved() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vec![0.0_f32; n], Shape::new(d)), &Default::default());
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.0_f32; n], Shape::new(d)),
+            &Default::default(),
+        );
         let o = Point::new([1.0, 0.0, 0.0]);
         let s = Spacing::new([2.0, 2.0, 2.0]);
-        let r = LabelOpening::new(1).apply(&Image::new(t, o, s, Direction::identity())).unwrap();
+        let r = LabelOpening::new(1)
+            .apply(&Image::new(t, o, s, Direction::identity()))
+            .unwrap();
         assert_eq!(*r.origin(), o);
         assert_eq!(*r.spacing(), s);
     }
@@ -580,25 +703,38 @@ mod tests {
         let hole = 3 * ny * nx + 3 * nx + 3;
         v[hole] = 0.0;
         let out = vv(&LabelClosing::new(1).apply(&img(v, d)).unwrap());
-        assert!((out[hole] - 1.0).abs() < 1e-6, "hole should be filled, got {}", out[hole]);
+        assert!(
+            (out[hole] - 1.0).abs() < 1e-6,
+            "hole should be filled, got {}",
+            out[hole]
+        );
     }
 
     #[test]
     fn test_label_closing_empty_is_identity() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let out = vv(&LabelClosing::new(1).apply(&img(vec![0.0_f32; n], d)).unwrap());
-        for &x in &out { assert!(x.abs() < 1e-6, "empty closing: {x}"); }
+        let out = vv(&LabelClosing::new(1)
+            .apply(&img(vec![0.0_f32; n], d))
+            .unwrap());
+        for &x in &out {
+            assert!(x.abs() < 1e-6, "empty closing: {x}");
+        }
     }
 
     #[test]
     fn test_label_closing_metadata_preserved() {
         let d = [5, 5, 5];
         let n = d[0] * d[1] * d[2];
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vec![0.0_f32; n], Shape::new(d)), &Default::default());
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.0_f32; n], Shape::new(d)),
+            &Default::default(),
+        );
         let o = Point::new([0.0, 1.0, 2.0]);
         let s = Spacing::new([1.5, 1.5, 1.5]);
-        let r = LabelClosing::new(1).apply(&Image::new(t, o, s, Direction::identity())).unwrap();
+        let r = LabelClosing::new(1)
+            .apply(&Image::new(t, o, s, Direction::identity()))
+            .unwrap();
         assert_eq!(*r.origin(), o);
         assert_eq!(*r.spacing(), s);
     }
@@ -621,7 +757,10 @@ mod tests {
                 .unwrap(),
         );
         let mean: f32 = out.iter().sum::<f32>() / n as f32;
-        assert!((mean - 1.0).abs() < 1e-3, "dilation should fill mask, mean={mean}");
+        assert!(
+            (mean - 1.0).abs() < 1e-3,
+            "dilation should fill mask, mean={mean}"
+        );
     }
 
     #[test]
@@ -636,7 +775,10 @@ mod tests {
                 .unwrap(),
         );
         let max_val = out.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        assert!(max_val < 1e-4, "erosion should contract to 0, max={max_val}");
+        assert!(
+            max_val < 1e-4,
+            "erosion should contract to 0, max={max_val}"
+        );
     }
 
     #[test]
@@ -660,8 +802,8 @@ mod tests {
     fn test_recon_shape_mismatch_returns_error() {
         let marker = img(vec![0.0_f32; 27], [3, 3, 3]);
         let mask = img(vec![1.0_f32; 64], [4, 4, 4]);
-        let result = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
-            .apply(&marker, &mask);
+        let result =
+            MorphologicalReconstruction::new(ReconstructionMode::Dilation).apply(&marker, &mask);
         assert!(result.is_err(), "shape mismatch must return Err");
     }
 
@@ -671,7 +813,10 @@ mod tests {
         let n = d[0] * d[1] * d[2];
         let o = Point::new([1.0, 2.0, 3.0]);
         let s = Spacing::new([0.5, 0.5, 0.5]);
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vec![0.5_f32; n], Shape::new(d)), &Default::default());
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![0.5_f32; n], Shape::new(d)),
+            &Default::default(),
+        );
         let marker = Image::new(t.clone(), o, s, Direction::identity());
         let mask = Image::new(t, o, s, Direction::identity());
         let out = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
@@ -680,5 +825,4 @@ mod tests {
         assert_eq!(*out.origin(), o);
         assert_eq!(*out.spacing(), s);
     }
-
 }

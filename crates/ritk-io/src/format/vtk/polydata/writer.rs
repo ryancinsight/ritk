@@ -73,7 +73,9 @@ pub(crate) fn write_polydata(w: &mut dyn Write, poly: &VtkPolyData) -> Result<()
 }
 
 fn write_cell_section(w: &mut dyn Write, keyword: &str, cells: &[Vec<u32>]) -> Result<()> {
-    if cells.is_empty() { return Ok(()); }
+    if cells.is_empty() {
+        return Ok(());
+    }
     // total_size = sum of (cell.len() + 1) for each cell (the +1 is the leading count integer)
     let total_size: usize = cells.iter().map(|c| c.len() + 1).sum();
     writeln!(w, "{} {} {}", keyword, cells.len(), total_size)?;
@@ -88,7 +90,10 @@ fn write_cell_section(w: &mut dyn Write, keyword: &str, cells: &[Vec<u32>]) -> R
 
 fn write_attribute(w: &mut dyn Write, name: &str, attr: &AttributeArray) -> Result<()> {
     match attr {
-        AttributeArray::Scalars { values, num_components } => {
+        AttributeArray::Scalars {
+            values,
+            num_components,
+        } => {
             writeln!(w, "SCALARS {} float {}", name, num_components)?;
             writeln!(w, "LOOKUP_TABLE default")?;
             for v in values {
@@ -166,7 +171,10 @@ mod tests {
         };
         poly.point_data.insert(
             "temperature".to_string(),
-            AttributeArray::Scalars { values: vec![36.0, 37.0, 38.0], num_components: 1 },
+            AttributeArray::Scalars {
+                values: vec![36.0, 37.0, 38.0],
+                num_components: 1,
+            },
         );
         let result = round_trip(&poly);
         match result.point_data.get("temperature").unwrap() {
@@ -216,8 +224,7 @@ mod tests {
         };
         let tmp = NamedTempFile::new().unwrap();
         write_vtk_polydata(tmp.path(), &poly).unwrap();
-        let result =
-            crate::format::vtk::polydata::reader::read_vtk_polydata(tmp.path()).unwrap();
+        let result = crate::format::vtk::polydata::reader::read_vtk_polydata(tmp.path()).unwrap();
         assert!(
             result.validate().is_ok(),
             "round-trip result must satisfy VtkPolyData::validate()"
@@ -233,7 +240,9 @@ mod tests {
         };
         poly.point_data.insert(
             "velocity".to_string(),
-            AttributeArray::Vectors { values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]] },
+            AttributeArray::Vectors {
+                values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            },
         );
         let result = round_trip(&poly);
         match result.point_data.get("velocity").unwrap() {

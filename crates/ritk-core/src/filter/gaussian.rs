@@ -37,12 +37,7 @@ impl<B: Backend> GaussianFilter<B> {
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         let data = self.apply_tensor(image.data().clone(), image.spacing());
 
-        Image::new(
-            data,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        Image::new(data, *image.origin(), *image.spacing(), *image.direction())
     }
 
     /// Apply the filter to a tensor directly.

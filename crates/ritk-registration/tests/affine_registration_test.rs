@@ -56,12 +56,7 @@ fn test_registration_affine_translation() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Affine Transform (Identity)
@@ -150,12 +145,7 @@ fn test_registration_affine_scaling() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Affine Transform (Identity)

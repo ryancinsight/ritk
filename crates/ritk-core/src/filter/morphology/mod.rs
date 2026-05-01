@@ -38,7 +38,7 @@ pub mod top_hat;
 
 pub use hit_or_miss::HitOrMissTransform;
 pub use label_morphology::{
-    LabelDilation, LabelErosion, LabelOpening, LabelClosing,
-    MorphologicalReconstruction, ReconstructionMode,
+    LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
+    ReconstructionMode,
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};

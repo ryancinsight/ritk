@@ -52,12 +52,7 @@ fn test_multires_registration_translation() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Transform
@@ -77,13 +72,7 @@ fn test_multires_registration_translation() {
 
     // 4. Execute
     // We use a closure to create a fresh Adam optimizer for each level
-    let result = multires.execute(
-        &fixed,
-        &moving,
-        transform,
-        AdamOptimizer::new,
-        schedule,
-    );
+    let result = multires.execute(&fixed, &moving, transform, AdamOptimizer::new, schedule);
 
     // 5. Verify
     let t_est = result.translation().into_data();

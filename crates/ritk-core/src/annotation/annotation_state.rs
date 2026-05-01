@@ -24,12 +24,18 @@ pub struct PointAnnotation {
 impl PointAnnotation {
     /// Construct a point annotation with no label association.
     pub fn new(position: [f64; 3]) -> Self {
-        Self { position, label_id: None }
+        Self {
+            position,
+            label_id: None,
+        }
     }
 
     /// Construct a point annotation bound to a label ID.
     pub fn with_label(position: [f64; 3], label_id: u32) -> Self {
-        Self { position, label_id: Some(label_id) }
+        Self {
+            position,
+            label_id: Some(label_id),
+        }
     }
 }
 
@@ -46,7 +52,9 @@ pub struct AnnotationState {
 
 impl AnnotationState {
     /// Construct an empty annotation state.
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Add a seed point.
     pub fn add_point(&mut self, annotation: PointAnnotation) {
@@ -56,7 +64,10 @@ impl AnnotationState {
     /// Add a closed contour. Returns `Err` if the contour has fewer than 2 points.
     pub fn add_contour(&mut self, points: Vec<[f64; 3]>) -> Result<(), String> {
         if points.len() < 2 {
-            return Err(format!("contour requires >= 2 points, got {}", points.len()));
+            return Err(format!(
+                "contour requires >= 2 points, got {}",
+                points.len()
+            ));
         }
         self.contours.push(points);
         Ok(())
@@ -65,7 +76,10 @@ impl AnnotationState {
     /// Add an open polyline. Returns `Err` if the polyline has fewer than 2 points.
     pub fn add_polyline(&mut self, points: Vec<[f64; 3]>) -> Result<(), String> {
         if points.len() < 2 {
-            return Err(format!("polyline requires >= 2 points, got {}", points.len()));
+            return Err(format!(
+                "polyline requires >= 2 points, got {}",
+                points.len()
+            ));
         }
         self.polylines.push(points);
         Ok(())
@@ -79,13 +93,19 @@ impl AnnotationState {
     }
 
     /// Remove the last added point. Returns the removed annotation if present.
-    pub fn pop_point(&mut self) -> Option<PointAnnotation> { self.points.pop() }
+    pub fn pop_point(&mut self) -> Option<PointAnnotation> {
+        self.points.pop()
+    }
 
     /// Remove the last added contour. Returns the removed contour if present.
-    pub fn pop_contour(&mut self) -> Option<Vec<[f64; 3]>> { self.contours.pop() }
+    pub fn pop_contour(&mut self) -> Option<Vec<[f64; 3]>> {
+        self.contours.pop()
+    }
 
     /// Remove the last added polyline. Returns the removed polyline if present.
-    pub fn pop_polyline(&mut self) -> Option<Vec<[f64; 3]>> { self.polylines.pop() }
+    pub fn pop_polyline(&mut self) -> Option<Vec<[f64; 3]>> {
+        self.polylines.pop()
+    }
 
     /// Total annotation count across all types.
     pub fn total_count(&self) -> usize {
@@ -94,7 +114,8 @@ impl AnnotationState {
 
     /// Collect all seed points for a given label ID.
     pub fn seeds_for_label(&self, label_id: u32) -> Vec<[f64; 3]> {
-        self.points.iter()
+        self.points
+            .iter()
             .filter(|p| p.label_id == Some(label_id))
             .map(|p| p.position)
             .collect()
@@ -155,7 +176,12 @@ mod tests {
     #[test]
     fn test_add_polyline_valid() {
         let mut state = AnnotationState::new();
-        let pts = vec![[0.0,0.0,0.0],[1.0,0.0,0.0],[2.0,0.0,0.0],[3.0,0.0,0.0]];
+        let pts = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [3.0, 0.0, 0.0],
+        ];
         state.add_polyline(pts.clone()).unwrap();
         assert_eq!(state.polylines.len(), 1);
         assert_eq!(state.polylines[0], pts);
@@ -174,8 +200,12 @@ mod tests {
     fn test_clear() {
         let mut state = AnnotationState::new();
         state.add_point(PointAnnotation::new([0.0, 0.0, 0.0]));
-        state.add_contour(vec![[0.0,0.0,0.0],[1.0,0.0,0.0]]).unwrap();
-        state.add_polyline(vec![[0.0,0.0,0.0],[1.0,0.0,0.0]]).unwrap();
+        state
+            .add_contour(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+            .unwrap();
+        state
+            .add_polyline(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+            .unwrap();
         state.clear();
         assert_eq!(state.total_count(), 0);
         assert!(state.points.is_empty());
@@ -202,8 +232,12 @@ mod tests {
     fn test_json_roundtrip() {
         let mut state = AnnotationState::new();
         state.add_point(PointAnnotation::with_label([10.0, 20.0, 30.0], 3));
-        state.add_contour(vec![[0.0,0.0,0.0],[1.0,0.0,0.0],[0.5,1.0,0.0]]).unwrap();
-        state.add_polyline(vec![[5.0,5.0,5.0],[6.0,5.0,5.0]]).unwrap();
+        state
+            .add_contour(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]])
+            .unwrap();
+        state
+            .add_polyline(vec![[5.0, 5.0, 5.0], [6.0, 5.0, 5.0]])
+            .unwrap();
         let json = state.to_json().expect("serialization must succeed");
         let restored = AnnotationState::from_json(&json).expect("deserialization must succeed");
         assert_eq!(restored.points.len(), state.points.len());

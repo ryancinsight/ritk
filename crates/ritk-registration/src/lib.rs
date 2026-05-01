@@ -66,11 +66,10 @@ pub use validation::ValidationConfig;
 // Re-exports — Demons-family deformable registration
 // ============================================================================
 pub use demons::{
-    DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration,
-    InverseConsistentDemonsConfig, InverseConsistentDemonsResult,
-    InverseConsistentDiffeomorphicDemonsRegistration,
-    MultiResDemonsConfig, MultiResDemonsRegistration,
-    SymmetricDemonsRegistration, ThirionDemonsRegistration,
+    DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration, InverseConsistentDemonsConfig,
+    InverseConsistentDemonsResult, InverseConsistentDiffeomorphicDemonsRegistration,
+    MultiResDemonsConfig, MultiResDemonsRegistration, SymmetricDemonsRegistration,
+    ThirionDemonsRegistration,
 };
 
 // ============================================================================

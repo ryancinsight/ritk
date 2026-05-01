@@ -8,9 +8,9 @@
 //! The result is 1.0 at boundary voxels (in dilation but not erosion) and
 //! 0.0 at interior foreground, exterior background, and all other voxels.
 
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use crate::image::Image;
 use super::{BinaryDilation, BinaryErosion, MorphologicalOperation};
+use crate::image::Image;
+use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 /// Extracts the morphological gradient (boundary) of a binary mask.
 ///
@@ -34,8 +34,14 @@ impl MorphologicalGradient {
 
 impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
     fn apply(&self, mask: &Image<B, 3>) -> Image<B, 3> {
-        let dilated = BinaryDilation { radius: self.radius }.apply(mask);
-        let eroded = BinaryErosion { radius: self.radius }.apply(mask);
+        let dilated = BinaryDilation {
+            radius: self.radius,
+        }
+        .apply(mask);
+        let eroded = BinaryErosion {
+            radius: self.radius,
+        }
+        .apply(mask);
 
         let shape = mask.shape();
         let [nz, ny, nx] = shape;
@@ -55,10 +61,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
             }
         }
 
-        let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(out, Shape::new([nz, ny, nx])),
-            &device,
-        );
+        let tensor =
+            Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
         Image::new(
             tensor,
             mask.origin().clone(),
@@ -71,18 +75,21 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::{Shape, Tensor, TensorData};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
     type Backend = burn_ndarray::NdArray<f32>;
 
     fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
         let device = Default::default();
-        let tensor = Tensor::<Backend, 3>::from_data(
-            TensorData::new(vals, Shape::new(shape)),
-            &device,
-        );
-        Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        let tensor =
+            Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
     }
 
     #[test]
@@ -91,7 +98,10 @@ mod tests {
         let result = MorphologicalGradient::new(1).apply(&mask);
         let result_data = result.data().clone().into_data();
         let vals = result_data.as_slice::<f32>().unwrap();
-        assert!(vals.iter().all(|&v| v < 0.5), "all-zero input must produce all-zero gradient");
+        assert!(
+            vals.iter().all(|&v| v < 0.5),
+            "all-zero input must produce all-zero gradient"
+        );
     }
 
     /// BinaryErosion treats out-of-bounds neighbors as background (0.0).
@@ -141,9 +151,15 @@ mod tests {
         let result_data = result.data().clone().into_data();
         let out_vals = result_data.as_slice::<f32>().unwrap();
         let center_idx = 3 * 49 + 3 * 7 + 3;
-        assert_eq!(out_vals[center_idx], 0.0, "center voxel must not be a boundary");
+        assert_eq!(
+            out_vals[center_idx], 0.0,
+            "center voxel must not be a boundary"
+        );
         let boundary_count = out_vals.iter().filter(|&&v| v >= 0.5).count();
-        assert!(boundary_count > 0, "gradient must detect at least one boundary voxel");
+        assert!(
+            boundary_count > 0,
+            "gradient must detect at least one boundary voxel"
+        );
     }
 
     #[test]

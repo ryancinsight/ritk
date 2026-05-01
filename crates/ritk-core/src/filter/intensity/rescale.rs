@@ -32,7 +32,10 @@ impl RescaleIntensityFilter {
 
     /// Construct with unit output range [0.0, 1.0].
     pub fn unit() -> Self {
-        Self { out_min: 0.0, out_max: 1.0 }
+        Self {
+            out_min: 0.0,
+            out_max: 1.0,
+        }
     }
 
     /// Apply the rescaling to a 3-D image.
@@ -56,7 +59,10 @@ impl RescaleIntensityFilter {
 }
 
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image.data().clone().into_data()
+    let vals = image
+        .data()
+        .clone()
+        .into_data()
         .into_vec::<f32>()
         .map_err(|e| anyhow::anyhow!("RescaleIntensityFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
@@ -88,7 +94,12 @@ mod tests {
         let device = Default::default();
         let td = TensorData::new(vals, Shape::new([1, 1, n]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
     }
 
     fn get_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -101,7 +112,11 @@ mod tests {
         let out = RescaleIntensityFilter::unit().apply(&img).unwrap();
         let vals = get_vals(&out);
         for &v in &vals {
-            assert!((v - 0.0).abs() < 1e-6, "uniform image -> out_min=0.0, got {}", v);
+            assert!(
+                (v - 0.0).abs() < 1e-6,
+                "uniform image -> out_min=0.0, got {}",
+                v
+            );
         }
     }
 
@@ -111,11 +126,24 @@ mod tests {
         let img = make_image(vals);
         let out = RescaleIntensityFilter::unit().apply(&img).unwrap();
         let result = get_vals(&out);
-        assert!((result[0] - 0.0).abs() < 1e-6, "min -> 0.0, got {}", result[0]);
-        assert!((result[9] - 1.0).abs() < 1e-6, "max -> 1.0, got {}", result[9]);
+        assert!(
+            (result[0] - 0.0).abs() < 1e-6,
+            "min -> 0.0, got {}",
+            result[0]
+        );
+        assert!(
+            (result[9] - 1.0).abs() < 1e-6,
+            "max -> 1.0, got {}",
+            result[9]
+        );
         // Intermediate: (5 - 0) / (9 - 0) = 5/9
         let expected_mid = 5.0_f32 / 9.0;
-        assert!((result[5] - expected_mid).abs() < 1e-5, "mid -> {}, got {}", expected_mid, result[5]);
+        assert!(
+            (result[5] - expected_mid).abs() < 1e-5,
+            "mid -> {}, got {}",
+            expected_mid,
+            result[5]
+        );
     }
 
     #[test]
@@ -124,8 +152,16 @@ mod tests {
         let img = make_image(vals);
         let out = RescaleIntensityFilter::new(2.0, 5.0).apply(&img).unwrap();
         let result = get_vals(&out);
-        assert!((result[0] - 2.0).abs() < 1e-5, "min -> 2.0, got {}", result[0]);
-        assert!((result[9] - 5.0).abs() < 1e-5, "max -> 5.0, got {}", result[9]);
+        assert!(
+            (result[0] - 2.0).abs() < 1e-5,
+            "min -> 2.0, got {}",
+            result[0]
+        );
+        assert!(
+            (result[9] - 5.0).abs() < 1e-5,
+            "max -> 5.0, got {}",
+            result[9]
+        );
     }
 
     #[test]
@@ -134,8 +170,16 @@ mod tests {
         let img = make_image(vals);
         let out = RescaleIntensityFilter::unit().apply(&img).unwrap();
         let result = get_vals(&out);
-        assert!((result[0] - 0.0).abs() < 1e-5, "min=-5 -> 0.0, got {}", result[0]);
-        assert!((result[10] - 1.0).abs() < 1e-5, "max=5 -> 1.0, got {}", result[10]);
+        assert!(
+            (result[0] - 0.0).abs() < 1e-5,
+            "min=-5 -> 0.0, got {}",
+            result[0]
+        );
+        assert!(
+            (result[10] - 1.0).abs() < 1e-5,
+            "max=5 -> 1.0, got {}",
+            result[10]
+        );
     }
 
     #[test]
@@ -144,6 +188,10 @@ mod tests {
         let out = RescaleIntensityFilter::new(3.0, 7.0).apply(&img).unwrap();
         let result = get_vals(&out);
         assert_eq!(result.len(), 1);
-        assert!((result[0] - 3.0).abs() < 1e-6, "single voxel -> out_min=3.0, got {}", result[0]);
+        assert!(
+            (result[0] - 3.0).abs() < 1e-6,
+            "single voxel -> out_min=3.0, got {}",
+            result[0]
+        );
     }
 }

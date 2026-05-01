@@ -49,12 +49,7 @@ fn test_bspline_cr_registration_small() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize BSpline Transform

@@ -30,7 +30,12 @@ pub struct LabelEntry {
 impl LabelEntry {
     /// Construct a new fully-visible label entry.
     pub fn new(id: u32, name: impl Into<String>, color: [u8; 4]) -> Self {
-        Self { id, name: name.into(), color, visible: true }
+        Self {
+            id,
+            name: name.into(),
+            color,
+            visible: true,
+        }
     }
 }
 
@@ -44,10 +49,17 @@ pub struct LabelTable {
 
 impl LabelTable {
     /// Construct an empty label table.
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Add a label entry. Returns Err if the ID already exists in the table.
-    pub fn add_label(&mut self, id: u32, name: impl Into<String>, color: [u8; 4]) -> Result<(), String> {
+    pub fn add_label(
+        &mut self,
+        id: u32,
+        name: impl Into<String>,
+        color: [u8; 4],
+    ) -> Result<(), String> {
         if self.entries.iter().any(|e| e.id == id) {
             return Err(format!("label id {} already exists", id));
         }
@@ -73,21 +85,30 @@ impl LabelTable {
     }
 
     /// View all entries in insertion order.
-    pub fn entries(&self) -> &[LabelEntry] { &self.entries }
+    pub fn entries(&self) -> &[LabelEntry] {
+        &self.entries
+    }
 
     /// Set the visibility of the label with id. Returns false if the ID is not present.
     pub fn set_visibility(&mut self, id: u32, visible: bool) -> bool {
         match self.get_label_mut(id) {
-            Some(e) => { e.visible = visible; true }
+            Some(e) => {
+                e.visible = visible;
+                true
+            }
             None => false,
         }
     }
 
     /// Number of labels in the table.
-    pub fn len(&self) -> usize { self.entries.len() }
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
 
     /// True if the table contains no labels.
-    pub fn is_empty(&self) -> bool { self.entries.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 
     /// Return the smallest positive integer not already used as a label ID.
     ///
@@ -136,7 +157,10 @@ mod tests {
         table.add_label(3, "Liver", [0, 255, 0, 255]).unwrap();
         let removed = table.remove_label(3);
         assert!(removed, "remove must return true for present label");
-        assert!(table.get_label(3).is_none(), "label must be absent after removal");
+        assert!(
+            table.get_label(3).is_none(),
+            "label must be absent after removal"
+        );
     }
 
     #[test]
@@ -161,7 +185,11 @@ mod tests {
     #[test]
     fn test_label_table_next_free_id_empty() {
         let table = LabelTable::new();
-        assert_eq!(table.next_free_id(), 1, "next_free_id on empty table must be 1");
+        assert_eq!(
+            table.next_free_id(),
+            1,
+            "next_free_id on empty table must be 1"
+        );
     }
 
     #[test]
@@ -171,7 +199,11 @@ mod tests {
         table.add_label(3, "B", [0, 0, 0, 255]).unwrap();
         table.add_label(4, "C", [0, 0, 0, 255]).unwrap();
         // IDs present: {1, 3, 4}; smallest positive absent: 2
-        assert_eq!(table.next_free_id(), 2, "next_free_id must return 2 when 1,3,4 are occupied");
+        assert_eq!(
+            table.next_free_id(),
+            2,
+            "next_free_id must return 2 when 1,3,4 are occupied"
+        );
     }
 
     #[test]

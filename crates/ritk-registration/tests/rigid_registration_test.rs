@@ -69,12 +69,7 @@ fn test_registration_rigid_3d() {
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Rigid Transform
@@ -161,12 +156,7 @@ fn test_registration_rigid_full() {
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     let translation = Tensor::<B, 1>::zeros([3], &device);

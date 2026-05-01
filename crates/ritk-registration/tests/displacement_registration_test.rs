@@ -50,18 +50,8 @@ fn test_displacement_registration_2d() {
     let spacing = Spacing::new([1.0; D]);
     let direction = Direction::identity();
 
-    let fixed = Image::new(
-        fixed_tensor.clone(),
-        origin,
-        spacing,
-        direction,
-    );
-    let moving = Image::new(
-        moving_tensor.clone(),
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor.clone(), origin, spacing, direction);
+    let moving = Image::new(moving_tensor.clone(), origin, spacing, direction);
 
     // 2. Initialize Displacement Field (Zero)
     // Grid matches image size 10x10
@@ -71,12 +61,7 @@ fn test_displacement_registration_2d() {
     let comp_x = Tensor::<B, 2>::zeros(comp_shape, &device);
     let comp_y = Tensor::<B, 2>::zeros(comp_shape, &device);
 
-    let field = DisplacementField::new(
-        vec![comp_x, comp_y],
-        origin,
-        spacing,
-        direction,
-    );
+    let field = DisplacementField::new(vec![comp_x, comp_y], origin, spacing, direction);
 
     let transform = DisplacementFieldTransform::new(field, LinearInterpolator::new());
 

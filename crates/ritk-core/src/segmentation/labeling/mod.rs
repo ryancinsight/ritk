@@ -133,12 +133,7 @@ impl ConnectedComponentsFilter {
         let td = TensorData::new(label_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
 
-        let label_image = Image::new(
-            tensor,
-            *mask.origin(),
-            *mask.spacing(),
-            *mask.direction(),
-        );
+        let label_image = Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction());
 
         (label_image, stats)
     }

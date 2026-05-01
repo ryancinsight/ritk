@@ -234,10 +234,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
             forward_disp.direction(),
         );
 
-        StaticDisplacementFieldTransform3D::new(
-            inverse_disp,
-            *forward_transform.interpolator(),
-        )
+        StaticDisplacementFieldTransform3D::new(inverse_disp, *forward_transform.interpolator())
     }
 
     /// Validate transformation quality (composition should be identity)

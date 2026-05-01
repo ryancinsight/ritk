@@ -119,10 +119,11 @@ pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 
     }
 
     // -- Intensity range -------------------------------------------------------
-    let (x_min, x_max) = slice.iter().fold(
-        (f32::INFINITY, f32::NEG_INFINITY),
-        |(mn, mx), &v| (mn.min(v), mx.max(v)),
-    );
+    let (x_min, x_max) = slice
+        .iter()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), &v| {
+            (mn.min(v), mx.max(v))
+        });
 
     // Degenerate case: constant image has no separable classes.
     if (x_max - x_min).abs() < f32::EPSILON {
@@ -151,7 +152,7 @@ pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 
     let mut best_sigma2 = 0.0_f64;
     let mut best_t = 0_usize;
 
-    let mut w1 = 0.0_f64;        // sum h[0..t-1]
+    let mut w1 = 0.0_f64; // sum h[0..t-1]
     let mut mu1_partial = 0.0_f64; // sum i*h[i] for i in [0, t-1]
 
     for t in 1..num_bins {
@@ -182,7 +183,6 @@ pub fn compute_otsu_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 
     x_min + best_t as f32 / num_bins_f * range
 }
 
-
 /// Core Otsu threshold computation.
 ///
 /// # Algorithm
@@ -209,10 +209,11 @@ fn compute_otsu_threshold_impl<B: Backend, const D: usize>(
     }
 
     // ── Intensity range ────────────────────────────────────────────────────────
-    let (x_min, x_max) = slice.iter().fold(
-        (f32::INFINITY, f32::NEG_INFINITY),
-        |(mn, mx), &v| (mn.min(v), mx.max(v)),
-    );
+    let (x_min, x_max) = slice
+        .iter()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), &v| {
+            (mn.min(v), mx.max(v))
+        });
 
     // Degenerate case: constant image has no separable classes.
     if (x_max - x_min).abs() < f32::EPSILON {
@@ -588,10 +589,8 @@ mod tests {
         vals.extend(vec![90.0_f32; 128]);
 
         let device = Default::default();
-        let tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(vals.clone(), Shape::new([256])),
-            &device,
-        );
+        let tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(vals.clone(), Shape::new([256])), &device);
         let img = crate::image::Image::new(
             tensor,
             Point::new([0.0]),

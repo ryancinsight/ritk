@@ -129,7 +129,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     pub fn compute_entropy(&self, p: Tensor<B, 1>) -> Tensor<B, 1> {
         let eps = 1e-10;
         let log_p = (p.clone() + eps).log();
-        
+
         p.mul(log_p).sum().neg()
     }
 

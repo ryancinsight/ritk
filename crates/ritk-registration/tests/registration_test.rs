@@ -55,12 +55,7 @@ fn test_registration_translation_2d() {
     let spacing = Spacing2::new([1.0, 1.0]);
     let direction = Direction2::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // Initial Transform: Identity (0, 0)

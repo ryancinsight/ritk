@@ -96,12 +96,9 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                     for dz in -r..=r {
                         for dy in -r..=r {
                             for dx in -r..=r {
-                                let zz =
-                                    (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
-                                let yy =
-                                    (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
-                                let xx =
-                                    (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
+                                let zz = (iz as isize + dz).max(0).min(nz as isize - 1) as usize;
+                                let yy = (iy as isize + dy).max(0).min(ny as isize - 1) as usize;
+                                let xx = (ix as isize + dx).max(0).min(nx as isize - 1) as usize;
                                 neighbors.push(data[zz * ny * nx + yy * nx + xx]);
                             }
                         }

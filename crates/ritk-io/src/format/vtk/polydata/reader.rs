@@ -65,14 +65,21 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             if !lt.to_ascii_uppercase().starts_with("LOOKUP_TABLE") {
                 bail!("expected LOOKUP_TABLE after SCALARS, got '{}'", lt);
             }
-            let n = if is_pd { poly.points.len() } else { poly.num_cells() };
+            let n = if is_pd {
+                poly.points.len()
+            } else {
+                poly.num_cells()
+            };
             let total = n * ncomp;
             let values = if binary {
                 read_binary_f32(reader, total)?
             } else {
                 read_ascii_f32(reader, total)?
             };
-            let arr = AttributeArray::Scalars { values, num_components: ncomp };
+            let arr = AttributeArray::Scalars {
+                values,
+                num_components: ncomp,
+            };
             if is_pd {
                 poly.point_data.insert(name, arr);
             } else {
@@ -81,33 +88,43 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             continue;
         }
         if let Some((name, is_pd)) = pending_vectors.take() {
-            let n = if is_pd { poly.points.len() } else { poly.num_cells() };
+            let n = if is_pd {
+                poly.points.len()
+            } else {
+                poly.num_cells()
+            };
             let flat = if binary {
                 read_binary_f32(reader, n * 3)?
             } else {
                 read_ascii_f32(reader, n * 3)?
             };
-            let values: Vec<[f32; 3]> = flat
-                .chunks_exact(3)
-                .map(|c| [c[0], c[1], c[2]])
-                .collect();
+            let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Vectors { values };
-            if is_pd { poly.point_data.insert(name, arr); } else { poly.cell_data.insert(name, arr); }
+            if is_pd {
+                poly.point_data.insert(name, arr);
+            } else {
+                poly.cell_data.insert(name, arr);
+            }
             continue;
         }
         if let Some((name, is_pd)) = pending_normals.take() {
-            let n = if is_pd { poly.points.len() } else { poly.num_cells() };
+            let n = if is_pd {
+                poly.points.len()
+            } else {
+                poly.num_cells()
+            };
             let flat = if binary {
                 read_binary_f32(reader, n * 3)?
             } else {
                 read_ascii_f32(reader, n * 3)?
             };
-            let values: Vec<[f32; 3]> = flat
-                .chunks_exact(3)
-                .map(|c| [c[0], c[1], c[2]])
-                .collect();
+            let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Normals { values };
-            if is_pd { poly.point_data.insert(name, arr); } else { poly.cell_data.insert(name, arr); }
+            if is_pd {
+                poly.point_data.insert(name, arr);
+            } else {
+                poly.cell_data.insert(name, arr);
+            }
             continue;
         }
 
@@ -117,10 +134,14 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
         };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
-        if tokens.is_empty() { continue; }
+        if tokens.is_empty() {
+            continue;
+        }
 
         if upper.starts_with("POINTS") {
-            if tokens.len() < 2 { bail!("POINTS line malformed: '{}'", line); }
+            if tokens.len() < 2 {
+                bail!("POINTS line malformed: '{}'", line);
+            }
             let n: usize = tokens[1].parse().with_context(|| "bad POINTS count")?;
             let is_double = tokens
                 .get(2)
@@ -155,15 +176,21 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             in_cell_data = true;
             in_point_data = false;
         } else if upper.starts_with("SCALARS") {
-            if tokens.len() < 3 { bail!("SCALARS line malformed: '{}'", line); }
+            if tokens.len() < 3 {
+                bail!("SCALARS line malformed: '{}'", line);
+            }
             let name = tokens[1].to_string();
             let ncomp: usize = tokens.get(3).and_then(|s| s.parse().ok()).unwrap_or(1);
             pending_scalars = Some((name, ncomp, in_point_data));
         } else if upper.starts_with("VECTORS") {
-            if tokens.len() < 2 { bail!("VECTORS line malformed: '{}'", line); }
+            if tokens.len() < 2 {
+                bail!("VECTORS line malformed: '{}'", line);
+            }
             pending_vectors = Some((tokens[1].to_string(), in_point_data));
         } else if upper.starts_with("NORMALS") {
-            if tokens.len() < 2 { bail!("NORMALS line malformed: '{}'", line); }
+            if tokens.len() < 2 {
+                bail!("NORMALS line malformed: '{}'", line);
+            }
             pending_normals = Some((tokens[1].to_string(), in_point_data));
         } else if upper.starts_with("LOOKUP_TABLE") {
             // Standalone LOOKUP_TABLE outside SCALARS context: skip.
@@ -182,9 +209,13 @@ fn read_line(reader: &mut dyn BufRead) -> Result<Option<String>> {
     loop {
         buf.clear();
         let n = reader.read_line(&mut buf)?;
-        if n == 0 { return Ok(None); }
+        if n == 0 {
+            return Ok(None);
+        }
         let trimmed = buf.trim();
-        if !trimmed.is_empty() { return Ok(Some(trimmed.to_owned())); }
+        if !trimmed.is_empty() {
+            return Ok(Some(trimmed.to_owned()));
+        }
     }
 }
 
@@ -194,10 +225,16 @@ fn read_ascii_f32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<f32>> {
     while out.len() < count {
         buf.clear();
         let n = reader.read_line(&mut buf)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         for tok in buf.split_whitespace() {
-            if out.len() >= count { break; }
-            let v: f32 = tok.parse().with_context(|| format!("bad f32 token '{}'", tok))?;
+            if out.len() >= count {
+                break;
+            }
+            let v: f32 = tok
+                .parse()
+                .with_context(|| format!("bad f32 token '{}'", tok))?;
             out.push(v);
         }
     }
@@ -213,10 +250,16 @@ fn read_ascii_i32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<i32>> {
     while out.len() < count {
         buf.clear();
         let n = reader.read_line(&mut buf)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         for tok in buf.split_whitespace() {
-            if out.len() >= count { break; }
-            let v: i32 = tok.parse().with_context(|| format!("bad i32 token '{}'", tok))?;
+            if out.len() >= count {
+                break;
+            }
+            let v: i32 = tok
+                .parse()
+                .with_context(|| format!("bad i32 token '{}'", tok))?;
             out.push(v);
         }
     }
@@ -267,9 +310,15 @@ fn read_cell_section(
     tokens: &[&str],
     binary: bool,
 ) -> Result<Vec<Vec<u32>>> {
-    if tokens.len() < 3 { bail!("cell section header malformed: {:?}", tokens); }
-    let n_cells: usize = tokens[1].parse().with_context(|| "bad cell section count")?;
-    let total_size: usize = tokens[2].parse().with_context(|| "bad cell section total_size")?;
+    if tokens.len() < 3 {
+        bail!("cell section header malformed: {:?}", tokens);
+    }
+    let n_cells: usize = tokens[1]
+        .parse()
+        .with_context(|| "bad cell section count")?;
+    let total_size: usize = tokens[2]
+        .parse()
+        .with_context(|| "bad cell section total_size")?;
 
     if binary {
         let ints = read_binary_i32(reader, total_size)?;
@@ -284,10 +333,14 @@ fn parse_cells_from_ints(ints: &[i32], n_cells: usize) -> Result<Vec<Vec<u32>>> 
     let mut cells = Vec::with_capacity(n_cells);
     let mut pos = 0;
     for _ in 0..n_cells {
-        if pos >= ints.len() { bail!("truncated cell data"); }
+        if pos >= ints.len() {
+            bail!("truncated cell data");
+        }
         let count = ints[pos] as usize;
         pos += 1;
-        if pos + count > ints.len() { bail!("cell overruns data buffer"); }
+        if pos + count > ints.len() {
+            bail!("cell overruns data buffer");
+        }
         let cell: Vec<u32> = ints[pos..pos + count].iter().map(|&i| i as u32).collect();
         cells.push(cell);
         pos += count;
@@ -352,7 +405,10 @@ LOOKUP_TABLE default\n\
         let poly = parse_str(s).unwrap();
         let attr = poly.point_data.get("intensity").unwrap();
         match attr {
-            AttributeArray::Scalars { values, num_components } => {
+            AttributeArray::Scalars {
+                values,
+                num_components,
+            } => {
                 assert_eq!(*num_components, 1);
                 assert!((values[0] - 10.0).abs() < 1e-6);
                 assert!((values[1] - 20.0).abs() < 1e-6);
@@ -386,7 +442,11 @@ LOOKUP_TABLE default\n\
         let attr = poly.cell_data.get("pressure").unwrap();
         match attr {
             AttributeArray::Scalars { values, .. } => {
-                assert!((values[0] - 42.5).abs() < 1e-5, "expected 42.5, got {}", values[0]);
+                assert!(
+                    (values[0] - 42.5).abs() < 1e-5,
+                    "expected 42.5, got {}",
+                    values[0]
+                );
             }
             _ => panic!("expected Scalars"),
         }

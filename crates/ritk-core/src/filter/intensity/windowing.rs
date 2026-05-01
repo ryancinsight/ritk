@@ -29,7 +29,12 @@ pub struct IntensityWindowingFilter {
 impl IntensityWindowingFilter {
     /// Construct with explicit window and output ranges.
     pub fn new(window_min: f32, window_max: f32, out_min: f32, out_max: f32) -> Self {
-        Self { window_min, window_max, out_min, out_max }
+        Self {
+            window_min,
+            window_max,
+            out_min,
+            out_max,
+        }
     }
 
     /// Apply windowing to a 3-D image.
@@ -57,7 +62,10 @@ impl IntensityWindowingFilter {
 }
 
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image.data().clone().into_data()
+    let vals = image
+        .data()
+        .clone()
+        .into_data()
         .into_vec::<f32>()
         .map_err(|e| anyhow::anyhow!("IntensityWindowingFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
@@ -89,7 +97,12 @@ mod tests {
         let device = Default::default();
         let td = TensorData::new(vals, Shape::new([1, 1, n]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
     }
 
     fn get_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -103,7 +116,11 @@ mod tests {
         let f = IntensityWindowingFilter::new(0.0, 100.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
         for &v in &result {
-            assert!((v - 0.0).abs() < 1e-6, "below window -> out_min=0.0, got {}", v);
+            assert!(
+                (v - 0.0).abs() < 1e-6,
+                "below window -> out_min=0.0, got {}",
+                v
+            );
         }
     }
 
@@ -113,7 +130,11 @@ mod tests {
         let f = IntensityWindowingFilter::new(0.0, 100.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
         for &v in &result {
-            assert!((v - 1.0).abs() < 1e-6, "above window -> out_max=1.0, got {}", v);
+            assert!(
+                (v - 1.0).abs() < 1e-6,
+                "above window -> out_max=1.0, got {}",
+                v
+            );
         }
     }
 
@@ -123,7 +144,11 @@ mod tests {
         let img = make_image(vec![50.0]); // midpoint of [0, 100]
         let f = IntensityWindowingFilter::new(0.0, 100.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
-        assert!((result[0] - 0.5).abs() < 1e-5, "midpoint -> 0.5, got {}", result[0]);
+        assert!(
+            (result[0] - 0.5).abs() < 1e-5,
+            "midpoint -> 0.5, got {}",
+            result[0]
+        );
     }
 
     #[test]
@@ -134,8 +159,16 @@ mod tests {
         let result = get_vals(&f.apply(&img).unwrap());
         let min_out = result.iter().cloned().fold(f32::INFINITY, f32::min);
         let max_out = result.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        assert!((min_out - 0.0).abs() < 1e-4, "min output = 0.0, got {}", min_out);
-        assert!((max_out - 255.0).abs() < 1e-4, "max output = 255.0, got {}", max_out);
+        assert!(
+            (min_out - 0.0).abs() < 1e-4,
+            "min output = 0.0, got {}",
+            min_out
+        );
+        assert!(
+            (max_out - 255.0).abs() < 1e-4,
+            "max output = 255.0, got {}",
+            max_out
+        );
     }
 
     #[test]
@@ -145,7 +178,11 @@ mod tests {
         let f = IntensityWindowingFilter::new(100.0, 100.0, 3.0, 7.0);
         let result = get_vals(&f.apply(&img).unwrap());
         for &v in &result {
-            assert!((v - 3.0).abs() < 1e-6, "equal window -> out_min=3.0, got {}", v);
+            assert!(
+                (v - 3.0).abs() < 1e-6,
+                "equal window -> out_min=3.0, got {}",
+                v
+            );
         }
     }
 }

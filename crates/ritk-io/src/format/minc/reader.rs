@@ -162,7 +162,9 @@ impl MincReader {
 ///
 /// A vector of `MincDimension` structs, one per spatial dimension found.
 /// The vector may have fewer than 3 entries if dimension groups are missing.
-fn read_dimension_metadata<R: consus_io::ReadAt>(hdf5: &Hdf5File<R>) -> Result<Vec<MincDimension>> {
+fn read_dimension_metadata<R: consus_io::ReadAt + Sync>(
+    hdf5: &Hdf5File<R>,
+) -> Result<Vec<MincDimension>> {
     let dims_addr = hdf5
         .open_path(DIMENSIONS_PATH)
         .map_err(|e| anyhow::anyhow!("Cannot locate {}: {}", DIMENSIONS_PATH, e))?;

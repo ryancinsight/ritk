@@ -66,20 +66,35 @@ impl GradientMagnitudeFilter {
                 let ix = flat % nx;
                 let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
 
-                let gz = if nz == 1 { 0.0_f32 }
-                    else if iz == 0 { (f(1, iy, ix) - f(0, iy, ix)) / sz }
-                    else if iz == nz - 1 { (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz }
-                    else { (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz) };
+                let gz = if nz == 1 {
+                    0.0_f32
+                } else if iz == 0 {
+                    (f(1, iy, ix) - f(0, iy, ix)) / sz
+                } else if iz == nz - 1 {
+                    (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz
+                } else {
+                    (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz)
+                };
 
-                let gy = if ny == 1 { 0.0_f32 }
-                    else if iy == 0 { (f(iz, 1, ix) - f(iz, 0, ix)) / sy }
-                    else if iy == ny - 1 { (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy }
-                    else { (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy) };
+                let gy = if ny == 1 {
+                    0.0_f32
+                } else if iy == 0 {
+                    (f(iz, 1, ix) - f(iz, 0, ix)) / sy
+                } else if iy == ny - 1 {
+                    (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy
+                } else {
+                    (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy)
+                };
 
-                let gx = if nx == 1 { 0.0_f32 }
-                    else if ix == 0 { (f(iz, iy, 1) - f(iz, iy, 0)) / sx }
-                    else if ix == nx - 1 { (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx }
-                    else { (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx) };
+                let gx = if nx == 1 {
+                    0.0_f32
+                } else if ix == 0 {
+                    (f(iz, iy, 1) - f(iz, iy, 0)) / sx
+                } else if ix == nx - 1 {
+                    (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx
+                } else {
+                    (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx)
+                };
 
                 (gz * gz + gy * gy + gx * gx).sqrt()
             })
@@ -143,20 +158,35 @@ impl GradientMagnitudeFilter {
                 let ix = flat % nx;
                 let f = |z: usize, y: usize, x: usize| vals[z * ny * nx + y * nx + x];
 
-                let gz = if nz == 1 { 0.0_f32 }
-                    else if iz == 0 { (f(1, iy, ix) - f(0, iy, ix)) / sz }
-                    else if iz == nz - 1 { (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz }
-                    else { (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz) };
+                let gz = if nz == 1 {
+                    0.0_f32
+                } else if iz == 0 {
+                    (f(1, iy, ix) - f(0, iy, ix)) / sz
+                } else if iz == nz - 1 {
+                    (f(nz - 1, iy, ix) - f(nz - 2, iy, ix)) / sz
+                } else {
+                    (f(iz + 1, iy, ix) - f(iz - 1, iy, ix)) / (2.0 * sz)
+                };
 
-                let gy = if ny == 1 { 0.0_f32 }
-                    else if iy == 0 { (f(iz, 1, ix) - f(iz, 0, ix)) / sy }
-                    else if iy == ny - 1 { (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy }
-                    else { (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy) };
+                let gy = if ny == 1 {
+                    0.0_f32
+                } else if iy == 0 {
+                    (f(iz, 1, ix) - f(iz, 0, ix)) / sy
+                } else if iy == ny - 1 {
+                    (f(iz, ny - 1, ix) - f(iz, ny - 2, ix)) / sy
+                } else {
+                    (f(iz, iy + 1, ix) - f(iz, iy - 1, ix)) / (2.0 * sy)
+                };
 
-                let gx = if nx == 1 { 0.0_f32 }
-                    else if ix == 0 { (f(iz, iy, 1) - f(iz, iy, 0)) / sx }
-                    else if ix == nx - 1 { (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx }
-                    else { (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx) };
+                let gx = if nx == 1 {
+                    0.0_f32
+                } else if ix == 0 {
+                    (f(iz, iy, 1) - f(iz, iy, 0)) / sx
+                } else if ix == nx - 1 {
+                    (f(iz, iy, nx - 1) - f(iz, iy, nx - 2)) / sx
+                } else {
+                    (f(iz, iy, ix + 1) - f(iz, iy, ix - 1)) / (2.0 * sx)
+                };
 
                 (gz * gz + gy * gy + gx * gx).sqrt()
             })
@@ -184,12 +214,7 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let device = src.data().device();
     let td = TensorData::new(vals, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    )
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 /// Compute gradient component vectors (gz, gy, gx) via finite differences.

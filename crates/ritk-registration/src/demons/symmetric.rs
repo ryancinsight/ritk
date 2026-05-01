@@ -190,6 +190,9 @@ impl SymmetricDemonsRegistration {
             disp_z,
             disp_y,
             disp_x,
+            vel_z: None,
+            vel_y: None,
+            vel_x: None,
             final_mse,
             num_iterations: iter,
         })

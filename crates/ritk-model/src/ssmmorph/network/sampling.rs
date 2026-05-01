@@ -6,8 +6,7 @@
 use burn::prelude::*;
 
 /// Padding mode for grid sampling
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum GridPaddingMode {
     /// Use zeros for out-of-bounds samples
     Zero,
@@ -18,10 +17,8 @@ pub enum GridPaddingMode {
     Reflection,
 }
 
-
 /// Interpolation mode for grid sampling
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InterpolationMode {
     /// Nearest neighbor sampling
     Nearest,
@@ -29,7 +26,6 @@ pub enum InterpolationMode {
     #[default]
     Linear,
 }
-
 
 /// Configuration for grid sampling operations
 #[derive(Debug, Clone, Copy, PartialEq)]

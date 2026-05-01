@@ -570,8 +570,18 @@ mod tests {
         let tube_out = filter.apply(&tube_image).unwrap();
         let sphere_out = filter.apply(&sphere_image).unwrap();
 
-        let tube_v: Vec<f32> = tube_out.data().clone().into_data().into_vec::<f32>().unwrap();
-        let sphere_v: Vec<f32> = sphere_out.data().clone().into_data().into_vec::<f32>().unwrap();
+        let tube_v: Vec<f32> = tube_out
+            .data()
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .unwrap();
+        let sphere_v: Vec<f32> = sphere_out
+            .data()
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .unwrap();
 
         // Centre index for 20×20×20 image.
         let c = 9usize;

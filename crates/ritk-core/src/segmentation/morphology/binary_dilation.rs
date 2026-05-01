@@ -57,12 +57,7 @@ impl BinaryDilation {
 
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
-        Image::new(
-            tensor,
-            *mask.origin(),
-            *mask.spacing(),
-            *mask.direction(),
-        )
+        Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
 }
 

@@ -73,9 +73,9 @@
 //! - Chan, T. F. & Vese, L. A. (2001). "Active Contours Without Edges."
 //!   *IEEE Transactions on Image Processing*, 10(2), 266–277.
 
+use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -278,7 +278,6 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
 
     (c1, c2)
 }
-
 
 /// Test-only delegation wrapper preserving the old `compute_curvature` name.
 /// Tests call this via `use super::*;`; production code uses `compute_curvature_into` directly.

@@ -209,7 +209,7 @@ impl<B: Backend> SwinTransformerBlock<B> {
         // Implementation of roll for D, H, W using slice and cat.
         let x = self.roll(x, shift, 1); // D
         let x = self.roll(x, shift, 2); // H
-         // W
+                                        // W
         self.roll(x, shift, 3)
     }
 

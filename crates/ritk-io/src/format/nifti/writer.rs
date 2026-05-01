@@ -41,9 +41,24 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     let m_col1 = direction.column(1) * spacing[1];
     let m_col2 = direction.column(2) * spacing[2];
 
-    let srow_x = [m_col0[0] as f32, m_col1[0] as f32, m_col2[0] as f32, origin[0] as f32];
-    let srow_y = [m_col0[1] as f32, m_col1[1] as f32, m_col2[1] as f32, origin[1] as f32];
-    let srow_z = [m_col0[2] as f32, m_col1[2] as f32, m_col2[2] as f32, origin[2] as f32];
+    let srow_x = [
+        m_col0[0] as f32,
+        m_col1[0] as f32,
+        m_col2[0] as f32,
+        origin[0] as f32,
+    ];
+    let srow_y = [
+        m_col0[1] as f32,
+        m_col1[1] as f32,
+        m_col2[1] as f32,
+        origin[1] as f32,
+    ];
+    let srow_z = [
+        m_col0[2] as f32,
+        m_col1[2] as f32,
+        m_col2[2] as f32,
+        origin[2] as f32,
+    ];
 
     let header = NiftiHeader {
         sform_code: 1,
@@ -51,8 +66,16 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
         srow_x,
         srow_y,
         srow_z,
-        pixdim: [1.0, spacing[0] as f32, spacing[1] as f32, spacing[2] as f32,
-                 1.0, 1.0, 1.0, 1.0],
+        pixdim: [
+            1.0,
+            spacing[0] as f32,
+            spacing[1] as f32,
+            spacing[2] as f32,
+            1.0,
+            1.0,
+            1.0,
+            1.0,
+        ],
         xyzt_units: 2, // NIFTI_UNITS_MM
         ..NiftiHeader::default()
     };

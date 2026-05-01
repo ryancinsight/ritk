@@ -126,13 +126,15 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         if fixed.len() != n {
             return Err(RegistrationError::DimensionMismatch(format!(
                 "fixed length {} != dims product {}",
-                fixed.len(), n
+                fixed.len(),
+                n
             )));
         }
         if moving.len() != n {
             return Err(RegistrationError::DimensionMismatch(format!(
                 "moving length {} != dims product {}",
-                moving.len(), n
+                moving.len(),
+                n
             )));
         }
 
@@ -150,7 +152,10 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         let mut final_mse: f64 = fixed
             .iter()
             .zip(moving.iter())
-            .map(|(&fi, &mi)| { let d = (fi - mi) as f64; d * d })
+            .map(|(&fi, &mi)| {
+                let d = (fi - mi) as f64;
+                d * d
+            })
             .sum::<f64>()
             / n as f64;
 
@@ -160,12 +165,10 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             iter = it + 1;
 
             // Forward field phi_fwd = exp(v)
-            let (phi_z, phi_y, phi_x) =
-                scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
+            let (phi_z, phi_y, phi_x) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
 
             // Inverse field phi_inv = exp(-v) via SVF negation
-            let (inv_vel_z, inv_vel_y, inv_vel_x) =
-                invert_velocity_field(&vel_z, &vel_y, &vel_x);
+            let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(&vel_z, &vel_y, &vel_x);
             let (psi_z, psi_y, psi_x) =
                 scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, n_sq);
 
@@ -174,15 +177,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             let f_warped = warp_image(fixed, dims, &psi_z, &psi_y, &psi_x);
 
             // Forward Thirion forces: (F, M_warp, grad_F)
-            let (fz_fwd, fy_fwd, fx_fwd) = thirion_forces(
-                fixed, &m_warped, &gf_z, &gf_y, &gf_x, cfg.max_step_length,
-            );
+            let (fz_fwd, fy_fwd, fx_fwd) =
+                thirion_forces(fixed, &m_warped, &gf_z, &gf_y, &gf_x, cfg.max_step_length);
 
             // Backward Thirion forces: (M, F_warp, grad_M)
             // These act on -v so gradient w.r.t. v is negated.
-            let (fz_bwd, fy_bwd, fx_bwd) = thirion_forces(
-                moving, &f_warped, &gm_z, &gm_y, &gm_x, cfg.max_step_length,
-            );
+            let (fz_bwd, fy_bwd, fx_bwd) =
+                thirion_forces(moving, &f_warped, &gm_z, &gm_y, &gm_x, cfg.max_step_length);
 
             // Bilateral update: v <- v + (1-w)*u_fwd - w*u_bwd
             let w_fwd = (1.0 - w) as f32;
@@ -202,29 +203,22 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
 
             // Update MSE using current (post-update) velocity field
             {
-                let (pz, py, px) =
-                    scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
+                let (pz, py, px) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
                 final_mse = compute_mse_streaming(fixed, moving, dims, &pz, &py, &px);
             }
         }
 
         // Final forward field
-        let (phi_z, phi_y, phi_x) =
-            scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
+        let (phi_z, phi_y, phi_x) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
         let warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
 
         // Final exact inverse field
-        let (inv_vel_z, inv_vel_y, inv_vel_x) =
-            invert_velocity_field(&vel_z, &vel_y, &vel_x);
+        let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(&vel_z, &vel_y, &vel_x);
         let (psi_z, psi_y, psi_x) =
             scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, n_sq);
 
         // IC residual
-        let ic_residual = compute_ic_residual(
-            &phi_z, &phi_y, &phi_x,
-            &psi_z, &psi_y, &psi_x,
-            dims,
-        );
+        let ic_residual = compute_ic_residual(&phi_z, &phi_y, &phi_x, &psi_z, &psi_y, &psi_x, dims);
 
         Ok(InverseConsistentDemonsResult {
             warped,
@@ -315,9 +309,8 @@ mod tests {
                 let cz = nz as f32 / 2.0;
                 let cy = ny as f32 / 2.0;
                 let cx = nx as f32 / 2.0;
-                let r2 = (z as f32 - cz).powi(2)
-                    + (y as f32 - cy).powi(2)
-                    + (x as f32 - cx).powi(2);
+                let r2 =
+                    (z as f32 - cz).powi(2) + (y as f32 - cy).powi(2) + (x as f32 - cx).powi(2);
                 (-(r2 / (2.0 * 4.0_f32.powi(2)))).exp()
             })
             .collect()
@@ -333,7 +326,8 @@ mod tests {
         let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).unwrap();
         assert!(
             result.final_mse < 1e-4,
-            "identity MSE must be < 1e-4; got {}", result.final_mse
+            "identity MSE must be < 1e-4; got {}",
+            result.final_mse
         );
     }
 
@@ -345,7 +339,8 @@ mod tests {
         let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).unwrap();
         assert!(
             result.inverse_consistency_residual < 1e-3,
-            "IC residual must be < 1e-3; got {}", result.inverse_consistency_residual
+            "IC residual must be < 1e-3; got {}",
+            result.inverse_consistency_residual
         );
     }
 
@@ -363,13 +358,23 @@ mod tests {
                 }
             }
         }
-        let initial_mse: f64 = fixed.iter().zip(moving.iter())
-            .map(|(&fi, &mi)| { let d = (fi - mi) as f64; d * d }).sum::<f64>() / n as f64;
+        let initial_mse: f64 = fixed
+            .iter()
+            .zip(moving.iter())
+            .map(|(&fi, &mi)| {
+                let d = (fi - mi) as f64;
+                d * d
+            })
+            .sum::<f64>()
+            / n as f64;
         let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
-        let result = reg.register(&fixed, &moving, [nz, ny, nx], [1.0, 1.0, 1.0]).unwrap();
+        let result = reg
+            .register(&fixed, &moving, [nz, ny, nx], [1.0, 1.0, 1.0])
+            .unwrap();
         assert!(
             result.final_mse < initial_mse,
-            "registration must reduce MSE: initial={initial_mse:.6} final={:.6}", result.final_mse
+            "registration must reduce MSE: initial={initial_mse:.6} final={:.6}",
+            result.final_mse
         );
     }
 
@@ -394,15 +399,25 @@ mod tests {
         let img = make_image(12, 12, 12);
         let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
         let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).unwrap();
-        for (&dz, (&dy, &dx)) in result.disp_z.iter()
-            .zip(result.disp_y.iter().zip(result.disp_x.iter())) {
-            assert!(dz.is_finite() && dy.is_finite() && dx.is_finite(),
-                "forward disp must be finite: ({dz},{dy},{dx})");
+        for (&dz, (&dy, &dx)) in result
+            .disp_z
+            .iter()
+            .zip(result.disp_y.iter().zip(result.disp_x.iter()))
+        {
+            assert!(
+                dz.is_finite() && dy.is_finite() && dx.is_finite(),
+                "forward disp must be finite: ({dz},{dy},{dx})"
+            );
         }
-        for (&dz, (&dy, &dx)) in result.inv_disp_z.iter()
-            .zip(result.inv_disp_y.iter().zip(result.inv_disp_x.iter())) {
-            assert!(dz.is_finite() && dy.is_finite() && dx.is_finite(),
-                "inverse disp must be finite: ({dz},{dy},{dx})");
+        for (&dz, (&dy, &dx)) in result
+            .inv_disp_z
+            .iter()
+            .zip(result.inv_disp_y.iter().zip(result.inv_disp_x.iter()))
+        {
+            assert!(
+                dz.is_finite() && dy.is_finite() && dx.is_finite(),
+                "inverse disp must be finite: ({dz},{dy},{dx})"
+            );
         }
     }
 
@@ -439,7 +454,8 @@ mod tests {
         assert!(
             (result_ic.final_mse - result_std.final_mse).abs() < 1e-8,
             "w=0 IC must match standard: ic={:.9} std={:.9}",
-            result_ic.final_mse, result_std.final_mse
+            result_ic.final_mse,
+            result_std.final_mse
         );
     }
 
@@ -448,26 +464,28 @@ mod tests {
         let dims = [12usize, 12, 12];
         let img = make_image(12, 12, 12);
 
-        let reg_fwd = InverseConsistentDiffeomorphicDemonsRegistration::new(
-            InverseConsistentDemonsConfig {
+        let reg_fwd =
+            InverseConsistentDiffeomorphicDemonsRegistration::new(InverseConsistentDemonsConfig {
                 demons: DemonsConfig {
-                    max_iterations: 15, sigma_diffusion: 1.0,
-                    sigma_fluid: 0.0, max_step_length: 2.0,
+                    max_iterations: 15,
+                    sigma_diffusion: 1.0,
+                    sigma_fluid: 0.0,
+                    max_step_length: 2.0,
                 },
                 inverse_consistency_weight: 0.0,
                 n_squarings: 6,
-            },
-        );
-        let reg_sym = InverseConsistentDiffeomorphicDemonsRegistration::new(
-            InverseConsistentDemonsConfig {
+            });
+        let reg_sym =
+            InverseConsistentDiffeomorphicDemonsRegistration::new(InverseConsistentDemonsConfig {
                 demons: DemonsConfig {
-                    max_iterations: 15, sigma_diffusion: 1.0,
-                    sigma_fluid: 0.0, max_step_length: 2.0,
+                    max_iterations: 15,
+                    sigma_diffusion: 1.0,
+                    sigma_fluid: 0.0,
+                    max_step_length: 2.0,
                 },
                 inverse_consistency_weight: 0.5,
                 n_squarings: 6,
-            },
-        );
+            });
         let result_fwd = reg_fwd.register(&img, &img, dims, [1.0; 3]).unwrap();
         let result_sym = reg_sym.register(&img, &img, dims, [1.0; 3]).unwrap();
 

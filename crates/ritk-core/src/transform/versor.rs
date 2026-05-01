@@ -160,8 +160,7 @@ mod tests {
         // Rotate 90 degrees around X axis
         // q = [sin(45)*1, 0, 0, cos(45)] = [1/√2, 0, 0, 1/√2]
         let s = std::f32::consts::FRAC_1_SQRT_2;
-        let rotation =
-            Tensor::<TestBackend, 1>::from_floats([s, 0.0, 0.0, s], &device);
+        let rotation = Tensor::<TestBackend, 1>::from_floats([s, 0.0, 0.0, s], &device);
         let center = Tensor::<TestBackend, 1>::zeros([3], &device);
         let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
 

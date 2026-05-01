@@ -344,7 +344,6 @@ fn thirion_forces_into(
     clamp_field_magnitude(fz, fy, fx, max_step_length);
 }
 
-
 /// Clamp per-voxel displacement/force magnitude to `max_length`.
 fn clamp_field_magnitude(fz: &mut [f32], fy: &mut [f32], fx: &mut [f32], max_length: f32) {
     let max2 = max_length * max_length;

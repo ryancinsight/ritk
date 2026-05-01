@@ -123,7 +123,6 @@ impl<B: Backend> Regularizer<B> for ElasticRegularizer {
                 let div_u = grad_h.narrow(1, 0, 1) + grad_w.narrow(1, 1, 1);
                 let volume_term = div_u.powf_scalar(2.0);
 
-                
                 membrane.mean() * self.alpha + volume_term.mean() * self.beta
             }
             5 => {
@@ -150,7 +149,6 @@ impl<B: Backend> Regularizer<B> for ElasticRegularizer {
                     grad_d.narrow(1, 0, 1) + grad_h.narrow(1, 1, 1) + grad_w.narrow(1, 2, 1);
                 let volume_term = div_u.powf_scalar(2.0);
 
-                
                 membrane.mean() * self.alpha + volume_term.mean() * self.beta
             }
             _ => panic!("ElasticRegularizer only supports 4D (2D) or 5D (3D) displacement fields"),

@@ -208,21 +208,17 @@ impl GeodesicActiveContourSegmentation {
 
             for i in 0..n {
                 let grad_phi_mag =
-                    (phi_gz[i] * phi_gz[i] + phi_gy[i] * phi_gy[i] + phi_gx[i] * phi_gx[i])
-                        .sqrt();
+                    (phi_gz[i] * phi_gz[i] + phi_gy[i] * phi_gy[i] + phi_gx[i] * phi_gx[i]).sqrt();
 
                 // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
-                let curv =
-                    self.curvature_weight * g[i] * kappa[i] * grad_phi_mag;
+                let curv = self.curvature_weight * g[i] * kappa[i] * grad_phi_mag;
 
                 // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
                 let prop = self.propagation_weight * g[i] * grad_phi_mag;
 
                 // Advection term (attracts toward edges): −w_a·∇g·∇φ
                 let advection = self.advection_weight
-                    * (g_grad_z[i] * phi_gz[i]
-                        + g_grad_y[i] * phi_gy[i]
-                        + g_grad_x[i] * phi_gx[i]);
+                    * (g_grad_z[i] * phi_gz[i] + g_grad_y[i] * phi_gy[i] + g_grad_x[i] * phi_gx[i]);
 
                 let dphi = self.dt * (curv - prop - advection);
                 phi_new[i] = phi[i] + dphi;
@@ -265,7 +261,7 @@ impl Default for GeodesicActiveContourSegmentation {
 
 // ── Test-only wrappers ─────────────────────────────────────────────────────────────────────────
 //
-// The existing tests call  and 
+// The existing tests call  and
 // with f32 data. These thin wrappers delegate to the shared f64 helpers and
 // convert back to f32, preserving the test-facing signatures without modifying
 // any test function.

@@ -141,7 +141,9 @@ mod tests {
     fn test_pipeline_source_only() {
         let pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
         let out = pipeline.execute().unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!("expected PolyData variant") };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!("expected PolyData variant")
+        };
         assert_eq!(p.points.len(), 3);
         assert_eq!(p.polygons, vec![vec![0u32, 1, 2]]);
     }
@@ -152,7 +154,9 @@ mod tests {
         pipeline.add_filter(Box::new(IdentityFilter));
         pipeline.add_filter(Box::new(IdentityFilter));
         let out = pipeline.execute().unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!("expected PolyData variant") };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!("expected PolyData variant")
+        };
         assert_eq!(p.points.len(), 3);
         assert_eq!(p.polygons[0], vec![0u32, 1, 2]);
     }
@@ -172,11 +176,25 @@ mod tests {
         let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
         pipeline.add_filter(Box::new(TranslateFilter(delta)));
         let out = pipeline.execute().unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!("expected PolyData variant") };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!("expected PolyData variant")
+        };
         // Original first point was [0,0,0]; after translate by 10.0 -> [10,10,10].
-        assert!((p.points[0][0] - delta).abs() < 1e-6, "x should be {}", delta);
-        assert!((p.points[0][1] - delta).abs() < 1e-6, "y should be {}", delta);
-        assert!((p.points[0][2] - delta).abs() < 1e-6, "z should be {}", delta);
+        assert!(
+            (p.points[0][0] - delta).abs() < 1e-6,
+            "x should be {}",
+            delta
+        );
+        assert!(
+            (p.points[0][1] - delta).abs() < 1e-6,
+            "y should be {}",
+            delta
+        );
+        assert!(
+            (p.points[0][2] - delta).abs() < 1e-6,
+            "z should be {}",
+            delta
+        );
     }
 
     #[test]
@@ -185,7 +203,9 @@ mod tests {
         pipeline.add_filter(Box::new(TranslateFilter(1.0)));
         pipeline.add_filter(Box::new(TranslateFilter(2.0)));
         let out = pipeline.execute().unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!("expected PolyData variant") };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!("expected PolyData variant")
+        };
         // Original first point [0,0,0] + 1.0 + 2.0 = [3,3,3]
         assert!((p.points[0][0] - 3.0).abs() < 1e-6);
     }

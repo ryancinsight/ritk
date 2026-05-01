@@ -34,17 +34,17 @@ impl LabelMap {
     /// Construct a LabelMap filled with background (0) for the given shape and table.
     pub fn new(shape: [usize; 3], table: LabelTable) -> Self {
         let n = shape[0] * shape[1] * shape[2];
-        Self { shape, data: vec![0u32; n], table }
+        Self {
+            shape,
+            data: vec![0u32; n],
+            table,
+        }
     }
 
     /// Construct a LabelMap from an existing flat buffer.
     ///
     /// Returns `Err` if `data.len() != shape[0] * shape[1] * shape[2]`.
-    pub fn from_data(
-        shape: [usize; 3],
-        data: Vec<u32>,
-        table: LabelTable,
-    ) -> Result<Self, String> {
+    pub fn from_data(shape: [usize; 3], data: Vec<u32>, table: LabelTable) -> Result<Self, String> {
         let expected = shape[0] * shape[1] * shape[2];
         if data.len() != expected {
             return Err(format!(
@@ -57,7 +57,9 @@ impl LabelMap {
     }
 
     /// Total number of voxels.
-    pub fn num_voxels(&self) -> usize { self.data.len() }
+    pub fn num_voxels(&self) -> usize {
+        self.data.len()
+    }
 
     /// Get the label at voxel [z, y, x]. Panics if the index is out of bounds.
     pub fn label_at(&self, idx: [usize; 3]) -> u32 {
@@ -71,7 +73,9 @@ impl LabelMap {
     }
 
     /// Return the flat buffer (read-only).
-    pub fn as_slice(&self) -> &[u32] { &self.data }
+    pub fn as_slice(&self) -> &[u32] {
+        &self.data
+    }
 
     /// Compute a binary mask: `mask[i] = true` iff `data[i] == label_id`.
     ///
@@ -103,7 +107,10 @@ impl LabelMap {
         assert!(
             z < self.shape[0] && y < self.shape[1] && x < self.shape[2],
             "LabelMap index [{},{},{}] out of bounds for shape {:?}",
-            z, y, x, self.shape
+            z,
+            y,
+            x,
+            self.shape
         );
         z * self.shape[1] * self.shape[2] + y * self.shape[2] + x
     }
@@ -113,7 +120,9 @@ impl LabelMap {
 mod tests {
     use super::*;
 
-    fn empty_table() -> LabelTable { LabelTable::new() }
+    fn empty_table() -> LabelTable {
+        LabelTable::new()
+    }
 
     #[test]
     fn test_label_map_new_all_background() {
@@ -167,7 +176,7 @@ mod tests {
     #[test]
     fn test_label_map_count_label() {
         let mut lm = LabelMap::new([3, 3, 3], empty_table());
-        for pos in [[0,0,0],[0,0,1],[1,1,1],[2,2,2]] {
+        for pos in [[0, 0, 0], [0, 0, 1], [1, 1, 1], [2, 2, 2]] {
             lm.set_label_at(pos, 7);
         }
         assert_eq!(lm.count_label(7), 4);

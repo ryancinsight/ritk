@@ -5,7 +5,9 @@ use std::path::Path;
 pub mod vtk_data_object;
 pub mod vtk_pipeline;
 
-pub use vtk_data_object::{AttributeArray, VtkDataObject, VtkPolyData, VtkStructuredGrid, VtkUnstructuredGrid};
+pub use vtk_data_object::{
+    AttributeArray, VtkDataObject, VtkPolyData, VtkStructuredGrid, VtkUnstructuredGrid,
+};
 pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
 
 /// High-level trait for abstracting image reading.

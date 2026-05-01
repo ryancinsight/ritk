@@ -173,10 +173,7 @@ impl LaplacianLevelSet {
         }
 
         // F[i] = L[i] / (1.0 + |L[i]|) maps L into (-1, +1).
-        let speed_field: Vec<f64> = laplacian
-            .iter()
-            .map(|&l| l / (1.0 + l.abs()))
-            .collect();
+        let speed_field: Vec<f64> = laplacian.iter().map(|&l| l / (1.0 + l.abs())).collect();
 
         // PDE scratch buffer for mean curvature kappa.
         let mut kappa = vec![0.0_f64; n];
@@ -189,13 +186,11 @@ impl LaplacianLevelSet {
             let mut max_change = 0.0_f64;
 
             for i in 0..n {
-                let grad_phi_mag = (phi_z[i] * phi_z[i]
-                    + phi_y[i] * phi_y[i]
-                    + phi_x[i] * phi_x[i])
-                    .sqrt();
+                let grad_phi_mag =
+                    (phi_z[i] * phi_z[i] + phi_y[i] * phi_y[i] + phi_x[i] * phi_x[i]).sqrt();
 
-                let speed = self.propagation_weight * speed_field[i]
-                    + self.curvature_weight * kappa[i];
+                let speed =
+                    self.propagation_weight * speed_field[i] + self.curvature_weight * kappa[i];
                 let dphi = self.dt * speed * grad_phi_mag;
                 phi[i] += dphi;
 
@@ -287,8 +282,7 @@ mod tests {
             }
         }
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -452,11 +446,9 @@ mod tests {
         let result = ls.apply(&image, &phi).unwrap();
         let actual_fg = count_foreground(&result);
         assert_eq!(
-            actual_fg,
-            expected_inside,
+            actual_fg, expected_inside,
             "Zero iterations: fg count must equal initial phi threshold: {} == {}",
-            actual_fg,
-            expected_inside
+            actual_fg, expected_inside
         );
     }
 }

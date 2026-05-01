@@ -182,28 +182,36 @@ pub fn classify_sop_class(uid: &str) -> SopClassKind {
     let uid = uid.trim();
     match uid {
         // Image SOP classes
-        "1.2.840.10008.5.1.4.1.1.2"     => SopClassKind::CtImageStorage,
-        "1.2.840.10008.5.1.4.1.1.2.1"   => SopClassKind::EnhancedCtImageStorage,
-        "1.2.840.10008.5.1.4.1.1.2.2"   => SopClassKind::LegacyConvertedEnhancedCtImageStorage,
-        "1.2.840.10008.5.1.4.1.1.4"     => SopClassKind::MrImageStorage,
-        "1.2.840.10008.5.1.4.1.1.4.1"   => SopClassKind::EnhancedMrImageStorage,
-        "1.2.840.10008.5.1.4.1.1.4.4"   => SopClassKind::LegacyConvertedEnhancedMrImageStorage,
-        "1.2.840.10008.5.1.4.1.1.128"   => SopClassKind::PetImageStorage,
-        "1.2.840.10008.5.1.4.1.1.130"   => SopClassKind::EnhancedPetImageStorage,
+        "1.2.840.10008.5.1.4.1.1.2" => SopClassKind::CtImageStorage,
+        "1.2.840.10008.5.1.4.1.1.2.1" => SopClassKind::EnhancedCtImageStorage,
+        "1.2.840.10008.5.1.4.1.1.2.2" => SopClassKind::LegacyConvertedEnhancedCtImageStorage,
+        "1.2.840.10008.5.1.4.1.1.4" => SopClassKind::MrImageStorage,
+        "1.2.840.10008.5.1.4.1.1.4.1" => SopClassKind::EnhancedMrImageStorage,
+        "1.2.840.10008.5.1.4.1.1.4.4" => SopClassKind::LegacyConvertedEnhancedMrImageStorage,
+        "1.2.840.10008.5.1.4.1.1.128" => SopClassKind::PetImageStorage,
+        "1.2.840.10008.5.1.4.1.1.130" => SopClassKind::EnhancedPetImageStorage,
         "1.2.840.10008.5.1.4.1.1.128.1" => SopClassKind::LegacyConvertedEnhancedPetImageStorage,
-        "1.2.840.10008.5.1.4.1.1.1"     => SopClassKind::CrImageStorage,
-        "1.2.840.10008.5.1.4.1.1.1.1"   => SopClassKind::DigitalXRayImageStorageForPresentation,
+        "1.2.840.10008.5.1.4.1.1.1" => SopClassKind::CrImageStorage,
+        "1.2.840.10008.5.1.4.1.1.1.1" => SopClassKind::DigitalXRayImageStorageForPresentation,
         "1.2.840.10008.5.1.4.1.1.1.1.1" => SopClassKind::DigitalXRayImageStorageForProcessing,
-        "1.2.840.10008.5.1.4.1.1.1.2"   => SopClassKind::DigitalMammographyXRayImageStorageForPresentation,
-        "1.2.840.10008.5.1.4.1.1.6.1"   => SopClassKind::UltrasoundImageStorage,
-        "1.2.840.10008.5.1.4.1.1.3.1"   => SopClassKind::UltrasoundMultiFrameImageStorage,
-        "1.2.840.10008.5.1.4.1.1.20"    => SopClassKind::NuclearMedicineImageStorage,
-        "1.2.840.10008.5.1.4.1.1.7"     => SopClassKind::SecondaryCaptureImageStorage,
-        "1.2.840.10008.5.1.4.1.1.7.2"   => SopClassKind::MultiFrameGrayscaleByteSecondaryCaptureImageStorage,
-        "1.2.840.10008.5.1.4.1.1.7.3"   => SopClassKind::MultiFrameGrayscaleWordSecondaryCaptureImageStorage,
-        "1.2.840.10008.5.1.4.1.1.7.4"   => SopClassKind::MultiFrameTrueColorSecondaryCaptureImageStorage,
-        "1.2.840.10008.5.1.4.1.1.12.1"  => SopClassKind::XRayAngiographicImageStorage,
-        "1.2.840.10008.5.1.4.1.1.12.2"  => SopClassKind::XRayRadioFluoroscopicImageStorage,
+        "1.2.840.10008.5.1.4.1.1.1.2" => {
+            SopClassKind::DigitalMammographyXRayImageStorageForPresentation
+        }
+        "1.2.840.10008.5.1.4.1.1.6.1" => SopClassKind::UltrasoundImageStorage,
+        "1.2.840.10008.5.1.4.1.1.3.1" => SopClassKind::UltrasoundMultiFrameImageStorage,
+        "1.2.840.10008.5.1.4.1.1.20" => SopClassKind::NuclearMedicineImageStorage,
+        "1.2.840.10008.5.1.4.1.1.7" => SopClassKind::SecondaryCaptureImageStorage,
+        "1.2.840.10008.5.1.4.1.1.7.2" => {
+            SopClassKind::MultiFrameGrayscaleByteSecondaryCaptureImageStorage
+        }
+        "1.2.840.10008.5.1.4.1.1.7.3" => {
+            SopClassKind::MultiFrameGrayscaleWordSecondaryCaptureImageStorage
+        }
+        "1.2.840.10008.5.1.4.1.1.7.4" => {
+            SopClassKind::MultiFrameTrueColorSecondaryCaptureImageStorage
+        }
+        "1.2.840.10008.5.1.4.1.1.12.1" => SopClassKind::XRayAngiographicImageStorage,
+        "1.2.840.10008.5.1.4.1.1.12.2" => SopClassKind::XRayRadioFluoroscopicImageStorage,
         "1.2.840.10008.5.1.4.1.1.13.1.3" => SopClassKind::BreastTomosynthesisImageStorage,
         "1.2.840.10008.5.1.4.1.1.77.1.1" => SopClassKind::VlEndoscopicImageStorage,
         "1.2.840.10008.5.1.4.1.1.77.1.2" => SopClassKind::VlMicroscopicImageStorage,
@@ -211,8 +219,8 @@ pub fn classify_sop_class(uid: &str) -> SopClassKind {
         "1.2.840.10008.5.1.4.1.1.77.1.4" => SopClassKind::VlPhotographicImageStorage,
         "1.2.840.10008.5.1.4.1.1.77.1.5.1" => SopClassKind::OphthalmicPhotography8BitImageStorage,
         "1.2.840.10008.5.1.4.1.1.77.1.5.2" => SopClassKind::OphthalmicPhotography16BitImageStorage,
-        "1.2.840.10008.5.1.4.1.1.66.4"  => SopClassKind::SegmentationStorage,
-        "1.2.840.10008.5.1.4.1.1.30"    => SopClassKind::ParametricMapStorage,
+        "1.2.840.10008.5.1.4.1.1.66.4" => SopClassKind::SegmentationStorage,
+        "1.2.840.10008.5.1.4.1.1.30" => SopClassKind::ParametricMapStorage,
         // Non-image SOP classes
         "1.2.840.10008.5.1.4.1.1.481.3" => SopClassKind::RtStructureSetStorage,
         "1.2.840.10008.5.1.4.1.1.481.5" => SopClassKind::RtPlanStorage,
@@ -222,18 +230,18 @@ pub fn classify_sop_class(uid: &str) -> SopClassKind {
         "1.2.840.10008.5.1.4.1.1.88.33" => SopClassKind::ComprehensiveSrStorage,
         "1.2.840.10008.5.1.4.1.1.88.34" => SopClassKind::Comprehensive3DSrStorage,
         "1.2.840.10008.5.1.4.1.1.88.59" => SopClassKind::KeyObjectSelectionDocumentStorage,
-        "1.2.840.10008.5.1.4.1.1.11.1"  => SopClassKind::GrayscaleSoftcopyPresentationStateStorage,
-        "1.2.840.10008.5.1.4.1.1.11.2"  => SopClassKind::ColorSoftcopyPresentationStateStorage,
-        "1.2.840.10008.3.1.2.3.3"       => SopClassKind::ModalityPerformedProcedureStep,
+        "1.2.840.10008.5.1.4.1.1.11.1" => SopClassKind::GrayscaleSoftcopyPresentationStateStorage,
+        "1.2.840.10008.5.1.4.1.1.11.2" => SopClassKind::ColorSoftcopyPresentationStateStorage,
+        "1.2.840.10008.3.1.2.3.3" => SopClassKind::ModalityPerformedProcedureStep,
         "1.2.840.10008.5.1.4.1.1.9.1.1" => SopClassKind::TwelveLeadEcgWaveformStorage,
         "1.2.840.10008.5.1.4.1.1.9.1.2" => SopClassKind::AmbulatoryEcgWaveformStorage,
         "1.2.840.10008.5.1.4.1.1.9.2.1" => SopClassKind::HemodynamicWaveformStorage,
         "1.2.840.10008.5.1.4.1.1.104.1" => SopClassKind::EncapsulatedPdfStorage,
-        "1.2.840.10008.5.1.4.1.1.66.2"  => SopClassKind::FiducialsStorage,
+        "1.2.840.10008.5.1.4.1.1.66.2" => SopClassKind::FiducialsStorage,
         "1.2.840.10008.5.1.4.1.1.77.1.5.3" => SopClassKind::StereometricRelationshipStorage,
-        "1.2.840.10008.5.1.4.1.1.79.1"  => SopClassKind::MacularGridThicknessAndVolumeReportStorage,
-        "1.2.840.10008.5.1.4.1.1.78.7"  => SopClassKind::OphthalmicAxialMeasurementsStorage,
-        other                            => SopClassKind::Other(other.to_string()),
+        "1.2.840.10008.5.1.4.1.1.79.1" => SopClassKind::MacularGridThicknessAndVolumeReportStorage,
+        "1.2.840.10008.5.1.4.1.1.78.7" => SopClassKind::OphthalmicAxialMeasurementsStorage,
+        other => SopClassKind::Other(other.to_string()),
     }
 }
 
@@ -255,19 +263,28 @@ mod tests {
 
     #[test]
     fn test_ct_is_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.2"), SopClassKind::CtImageStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.2"),
+            SopClassKind::CtImageStorage
+        );
         assert!(is_image_sop_class("1.2.840.10008.5.1.4.1.1.2"));
     }
 
     #[test]
     fn test_mr_is_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.4"), SopClassKind::MrImageStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.4"),
+            SopClassKind::MrImageStorage
+        );
         assert!(is_image_sop_class("1.2.840.10008.5.1.4.1.1.4"));
     }
 
     #[test]
     fn test_pet_is_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.128"), SopClassKind::PetImageStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.128"),
+            SopClassKind::PetImageStorage
+        );
         assert!(is_image_sop_class("1.2.840.10008.5.1.4.1.1.128"));
     }
 
@@ -305,13 +322,19 @@ mod tests {
 
     #[test]
     fn test_rtstruct_is_not_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.481.3"), SopClassKind::RtStructureSetStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.481.3"),
+            SopClassKind::RtStructureSetStorage
+        );
         assert!(!is_image_sop_class("1.2.840.10008.5.1.4.1.1.481.3"));
     }
 
     #[test]
     fn test_rtplan_is_not_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.481.5"), SopClassKind::RtPlanStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.481.5"),
+            SopClassKind::RtPlanStorage
+        );
         assert!(!is_image_sop_class("1.2.840.10008.5.1.4.1.1.481.5"));
     }
 
@@ -322,7 +345,10 @@ mod tests {
 
     #[test]
     fn test_basic_text_sr_is_not_image_storage() {
-        assert_eq!(classify_sop_class("1.2.840.10008.5.1.4.1.1.88.11"), SopClassKind::BasicTextSrStorage);
+        assert_eq!(
+            classify_sop_class("1.2.840.10008.5.1.4.1.1.88.11"),
+            SopClassKind::BasicTextSrStorage
+        );
         assert!(!is_image_sop_class("1.2.840.10008.5.1.4.1.1.88.11"));
     }
 
@@ -393,7 +419,10 @@ mod tests {
             "1.2.840.10008.5.1.4.1.1.30",
         ];
         for uid in &image_uids {
-            assert!(is_image_sop_class(uid), "Expected {uid} to be image storage");
+            assert!(
+                is_image_sop_class(uid),
+                "Expected {uid} to be image storage"
+            );
         }
     }
 

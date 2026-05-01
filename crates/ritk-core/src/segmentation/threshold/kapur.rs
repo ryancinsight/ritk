@@ -129,6 +129,13 @@ fn compute_kapur_threshold_impl<B: Backend, const D: usize>(
         .as_slice::<f32>()
         .expect("f32 image tensor data");
 
+    compute_kapur_threshold_from_slice(slice, num_bins)
+}
+
+/// Compute the Kapur threshold for a contiguous f32 intensity slice.
+pub fn compute_kapur_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
+    assert!(num_bins >= 2, "num_bins must be >= 2");
+
     let n = slice.len();
     if n == 0 {
         return 0.0;

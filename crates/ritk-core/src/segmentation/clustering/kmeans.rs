@@ -379,7 +379,11 @@ mod tests {
 
         // Labels in [0, K-1].
         for &l in &labels {
-            assert!((0.0..2.0).contains(&l), "label must be in [0, 2), got {}", l);
+            assert!(
+                (0.0..2.0).contains(&l),
+                "label must be in [0, 2), got {}",
+                l
+            );
         }
 
         // The first 50 must share a label, the last 50 must share a different label.

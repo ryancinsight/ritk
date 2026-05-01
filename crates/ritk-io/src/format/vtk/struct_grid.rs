@@ -23,10 +23,7 @@ pub fn read_vtk_structured_grid<P: AsRef<Path>>(path: P) -> Result<VtkStructured
 
 /// Write a VtkStructuredGrid to a VTK legacy ASCII file.
 /// Returns Err immediately if grid.validate() fails.
-pub fn write_vtk_structured_grid<P: AsRef<Path>>(
-    path: P,
-    grid: &VtkStructuredGrid,
-) -> Result<()> {
+pub fn write_vtk_structured_grid<P: AsRef<Path>>(path: P, grid: &VtkStructuredGrid) -> Result<()> {
     grid.validate().map_err(|e| anyhow!("{}", e))?;
     let path = path.as_ref();
     let file = std::fs::File::create(path)
@@ -74,48 +71,83 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
             } else {
                 read_ascii_f32(reader, total)?
             };
-            let arr = AttributeArray::Scalars { values, num_components: ncomp };
-            if is_pd { grid.point_data.insert(name, arr); } else { grid.cell_data.insert(name, arr); }
+            let arr = AttributeArray::Scalars {
+                values,
+                num_components: ncomp,
+            };
+            if is_pd {
+                grid.point_data.insert(name, arr);
+            } else {
+                grid.cell_data.insert(name, arr);
+            }
             continue;
         }
         if let Some((name, is_pd)) = pending_vectors.take() {
             let n = if is_pd { pd_n } else { cd_n };
-            let flat = if binary { read_binary_f32(reader, n * 3)? } else { read_ascii_f32(reader, n * 3)? };
+            let flat = if binary {
+                read_binary_f32(reader, n * 3)?
+            } else {
+                read_ascii_f32(reader, n * 3)?
+            };
             let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Vectors { values };
-            if is_pd { grid.point_data.insert(name, arr); } else { grid.cell_data.insert(name, arr); }
+            if is_pd {
+                grid.point_data.insert(name, arr);
+            } else {
+                grid.cell_data.insert(name, arr);
+            }
             continue;
         }
         if let Some((name, is_pd)) = pending_normals.take() {
             let n = if is_pd { pd_n } else { cd_n };
-            let flat = if binary { read_binary_f32(reader, n * 3)? } else { read_ascii_f32(reader, n * 3)? };
+            let flat = if binary {
+                read_binary_f32(reader, n * 3)?
+            } else {
+                read_ascii_f32(reader, n * 3)?
+            };
             let values: Vec<[f32; 3]> = flat.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
             let arr = AttributeArray::Normals { values };
-            if is_pd { grid.point_data.insert(name, arr); } else { grid.cell_data.insert(name, arr); }
+            if is_pd {
+                grid.point_data.insert(name, arr);
+            } else {
+                grid.cell_data.insert(name, arr);
+            }
             continue;
         }
 
-        let line = match read_line(reader)? { Some(l) => l, None => break };
+        let line = match read_line(reader)? {
+            Some(l) => l,
+            None => break,
+        };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
-        if tokens.is_empty() { continue; }
+        if tokens.is_empty() {
+            continue;
+        }
 
         if upper.starts_with("DIMENSIONS") {
-            if tokens.len() < 4 { bail!("DIMENSIONS malformed: {}", line); }
+            if tokens.len() < 4 {
+                bail!("DIMENSIONS malformed: {}", line);
+            }
             let nx: usize = tokens[1].parse().with_context(|| "bad DIMENSIONS nx")?;
             let ny: usize = tokens[2].parse().with_context(|| "bad DIMENSIONS ny")?;
             let nz: usize = tokens[3].parse().with_context(|| "bad DIMENSIONS nz")?;
             grid.dimensions = [nx, ny, nz];
         } else if upper.starts_with("POINTS") {
-            if tokens.len() < 2 { bail!("POINTS malformed: {}", line); }
+            if tokens.len() < 2 {
+                bail!("POINTS malformed: {}", line);
+            }
             let n: usize = tokens[1].parse().with_context(|| "bad POINTS count")?;
-            let is_double = tokens.get(2)
+            let is_double = tokens
+                .get(2)
                 .map(|s| s.to_ascii_lowercase() == "double")
                 .unwrap_or(false);
             grid.points = if binary {
                 if is_double {
                     let raw = read_binary_f64(reader, n * 3)?;
-                    raw.chunks_exact(3).map(|c| [c[0] as f32, c[1] as f32, c[2] as f32]).collect()
+                    raw.chunks_exact(3)
+                        .map(|c| [c[0] as f32, c[1] as f32, c[2] as f32])
+                        .collect()
                 } else {
                     let raw = read_binary_f32(reader, n * 3)?;
                     raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
@@ -125,23 +157,35 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
                 raw.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect()
             };
         } else if upper.starts_with("POINT_DATA") {
-            if tokens.len() < 2 { bail!("POINT_DATA malformed: {}", line); }
+            if tokens.len() < 2 {
+                bail!("POINT_DATA malformed: {}", line);
+            }
             pd_n = tokens[1].parse().with_context(|| "bad POINT_DATA count")?;
-            in_point_data = true; in_cell_data = false;
+            in_point_data = true;
+            in_cell_data = false;
         } else if upper.starts_with("CELL_DATA") {
-            if tokens.len() < 2 { bail!("CELL_DATA malformed: {}", line); }
+            if tokens.len() < 2 {
+                bail!("CELL_DATA malformed: {}", line);
+            }
             cd_n = tokens[1].parse().with_context(|| "bad CELL_DATA count")?;
-            in_cell_data = true; in_point_data = false;
+            in_cell_data = true;
+            in_point_data = false;
         } else if upper.starts_with("SCALARS") {
-            if tokens.len() < 3 { bail!("SCALARS malformed: {}", line); }
+            if tokens.len() < 3 {
+                bail!("SCALARS malformed: {}", line);
+            }
             let name = tokens[1].to_string();
             let ncomp: usize = tokens.get(3).and_then(|s| s.parse().ok()).unwrap_or(1);
             pending_scalars = Some((name, ncomp, in_point_data));
         } else if upper.starts_with("VECTORS") {
-            if tokens.len() < 2 { bail!("VECTORS malformed: {}", line); }
+            if tokens.len() < 2 {
+                bail!("VECTORS malformed: {}", line);
+            }
             pending_vectors = Some((tokens[1].to_string(), in_point_data));
         } else if upper.starts_with("NORMALS") {
-            if tokens.len() < 2 { bail!("NORMALS malformed: {}", line); }
+            if tokens.len() < 2 {
+                bail!("NORMALS malformed: {}", line);
+            }
             pending_normals = Some((tokens[1].to_string(), in_point_data));
         } else if upper.starts_with("LOOKUP_TABLE") {
             // Standalone LOOKUP_TABLE outside SCALARS context: skip.
@@ -184,18 +228,27 @@ fn write_structured_grid(w: &mut dyn Write, grid: &VtkStructuredGrid) -> Result<
 
 fn write_attribute(w: &mut dyn Write, name: &str, attr: &AttributeArray) -> Result<()> {
     match attr {
-        AttributeArray::Scalars { values, num_components } => {
+        AttributeArray::Scalars {
+            values,
+            num_components,
+        } => {
             writeln!(w, "SCALARS {} float {}", name, num_components)?;
             writeln!(w, "LOOKUP_TABLE default")?;
-            for v in values { writeln!(w, "{}", v)?; }
+            for v in values {
+                writeln!(w, "{}", v)?;
+            }
         }
         AttributeArray::Vectors { values } => {
             writeln!(w, "VECTORS {} float", name)?;
-            for [x, y, z] in values { writeln!(w, "{} {} {}", x, y, z)?; }
+            for [x, y, z] in values {
+                writeln!(w, "{} {} {}", x, y, z)?;
+            }
         }
         AttributeArray::Normals { values } => {
             writeln!(w, "NORMALS {} float", name)?;
-            for [x, y, z] in values { writeln!(w, "{} {} {}", x, y, z)?; }
+            for [x, y, z] in values {
+                writeln!(w, "{} {} {}", x, y, z)?;
+            }
         }
         AttributeArray::TextureCoords { values, dim } => {
             writeln!(w, "TEXTURE_COORDINATES {} float {}", name, dim)?;
@@ -213,9 +266,13 @@ fn read_line(reader: &mut dyn BufRead) -> Result<Option<String>> {
     loop {
         buf.clear();
         let n = reader.read_line(&mut buf)?;
-        if n == 0 { return Ok(None); }
+        if n == 0 {
+            return Ok(None);
+        }
         let trimmed = buf.trim();
-        if !trimmed.is_empty() { return Ok(Some(trimmed.to_owned())); }
+        if !trimmed.is_empty() {
+            return Ok(Some(trimmed.to_owned()));
+        }
     }
 }
 
@@ -225,29 +282,43 @@ fn read_ascii_f32(reader: &mut dyn BufRead, count: usize) -> Result<Vec<f32>> {
     while out.len() < count {
         buf.clear();
         let n = reader.read_line(&mut buf)?;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
         for tok in buf.split_whitespace() {
-            if out.len() >= count { break; }
-            let v: f32 = tok.parse().with_context(|| format!("bad f32 token: {}", tok))?;
+            if out.len() >= count {
+                break;
+            }
+            let v: f32 = tok
+                .parse()
+                .with_context(|| format!("bad f32 token: {}", tok))?;
             out.push(v);
         }
     }
-    if out.len() != count { bail!("expected {} f32 values, got {}", count, out.len()); }
+    if out.len() != count {
+        bail!("expected {} f32 values, got {}", count, out.len());
+    }
     Ok(out)
 }
 
 fn read_binary_f32(reader: &mut dyn Read, count: usize) -> Result<Vec<f32>> {
     let mut buf = vec![0u8; count * 4];
-    reader.read_exact(&mut buf)
+    reader
+        .read_exact(&mut buf)
         .with_context(|| format!("truncated binary f32 (need {})", count))?;
-    Ok(buf.chunks_exact(4).map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]])).collect())
+    Ok(buf
+        .chunks_exact(4)
+        .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
+        .collect())
 }
 
 fn read_binary_f64(reader: &mut dyn Read, count: usize) -> Result<Vec<f64>> {
     let mut buf = vec![0u8; count * 8];
-    reader.read_exact(&mut buf)
+    reader
+        .read_exact(&mut buf)
         .with_context(|| format!("truncated binary f64 (need {})", count))?;
-    Ok(buf.chunks_exact(8)
+    Ok(buf
+        .chunks_exact(8)
         .map(|c| f64::from_be_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]))
         .collect())
 }
@@ -286,17 +357,35 @@ mod tests {
         assert_eq!(result.n_points(), 12);
         for (i, (expected, got)) in points.iter().zip(result.points.iter()).enumerate() {
             for c in 0..3 {
-                assert!((expected[c] - got[c]).abs() < 1e-5,
-                    "point[{}][{}]: expected {} got {}", i, c, expected[c], got[c]);
+                assert!(
+                    (expected[c] - got[c]).abs() < 1e-5,
+                    "point[{}][{}]: expected {} got {}",
+                    i,
+                    c,
+                    expected[c],
+                    got[c]
+                );
             }
         }
-        match result.point_data.get("intensity").expect("intensity attribute") {
-            AttributeArray::Scalars { values, num_components } => {
+        match result
+            .point_data
+            .get("intensity")
+            .expect("intensity attribute")
+        {
+            AttributeArray::Scalars {
+                values,
+                num_components,
+            } => {
                 assert_eq!(*num_components, 1);
                 assert_eq!(values.len(), 12);
                 for i in 0..12 {
-                    assert!((values[i] - i as f32).abs() < 1e-5,
-                        "scalar[{}]: expected {} got {}", i, i as f32, values[i]);
+                    assert!(
+                        (values[i] - i as f32).abs() < 1e-5,
+                        "scalar[{}]: expected {} got {}",
+                        i,
+                        i as f32,
+                        values[i]
+                    );
                 }
             }
             other => panic!("expected Scalars, got {:?}", other),
@@ -310,10 +399,16 @@ mod tests {
         grid.points = vec![[0.0f32; 3]; 5];
         let tmp = NamedTempFile::new().expect("temp file");
         let result = write_vtk_structured_grid(tmp.path(), &grid);
-        assert!(result.is_err(), "write must fail when point count mismatches dimensions");
+        assert!(
+            result.is_err(),
+            "write must fail when point count mismatches dimensions"
+        );
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("n_points") || msg.contains("points"),
-            "error message must reference point count: got {}", msg);
+        assert!(
+            msg.contains("n_points") || msg.contains("points"),
+            "error message must reference point count: got {}",
+            msg
+        );
     }
 
     #[test]
@@ -338,7 +433,9 @@ mod tests {
         grid.points = points;
         grid.point_data.insert(
             "velocity".to_string(),
-            AttributeArray::Vectors { values: expected_vecs.clone() },
+            AttributeArray::Vectors {
+                values: expected_vecs.clone(),
+            },
         );
 
         let tmp = NamedTempFile::new().expect("temp file");
@@ -346,13 +443,23 @@ mod tests {
         let result = read_vtk_structured_grid(tmp.path()).expect("read");
 
         assert_eq!(result.n_points(), 4);
-        match result.point_data.get("velocity").expect("velocity attribute") {
+        match result
+            .point_data
+            .get("velocity")
+            .expect("velocity attribute")
+        {
             AttributeArray::Vectors { values } => {
                 assert_eq!(values.len(), 4);
                 for (i, (exp, got)) in expected_vecs.iter().zip(values.iter()).enumerate() {
                     for c in 0..3 {
-                        assert!((exp[c] - got[c]).abs() < 1e-5,
-                            "velocity[{}][{}]: expected {} got {}", i, c, exp[c], got[c]);
+                        assert!(
+                            (exp[c] - got[c]).abs() < 1e-5,
+                            "velocity[{}][{}]: expected {} got {}",
+                            i,
+                            c,
+                            exp[c],
+                            got[c]
+                        );
                     }
                 }
             }

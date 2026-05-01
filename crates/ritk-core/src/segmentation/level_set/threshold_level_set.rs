@@ -214,10 +214,8 @@ mod tests {
     fn make_image(dims: [usize; 3], val: f32) -> Image<B, 3> {
         let n: usize = dims.iter().product();
         let device = Default::default();
-        let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(vec![val; n], Shape::new(dims)),
-            &device,
-        );
+        let tensor =
+            Tensor::<B, 3>::from_data(TensorData::new(vec![val; n], Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -234,10 +232,8 @@ mod tests {
     ) -> Image<B, 3> {
         let n: usize = dims.iter().product();
         let device = Default::default();
-        let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(vec![val; n], Shape::new(dims)),
-            &device,
-        );
+        let tensor =
+            Tensor::<B, 3>::from_data(TensorData::new(vec![val; n], Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new(origin),
@@ -262,8 +258,7 @@ mod tests {
             }
         }
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -296,8 +291,7 @@ mod tests {
             }
         }
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -375,7 +369,9 @@ mod tests {
         let image = make_image(dims, 128.0);
         let phi = sphere_phi(dims, [4.0, 4.0, 4.0], 2.0);
 
-        let result = ThresholdLevelSet::new(100.0, 200.0).apply(&image, &phi).unwrap();
+        let result = ThresholdLevelSet::new(100.0, 200.0)
+            .apply(&image, &phi)
+            .unwrap();
         let vals = get_values(&result);
 
         for (i, &v) in vals.iter().enumerate() {
@@ -396,11 +392,25 @@ mod tests {
         let image = make_image_with_metadata(dims, 128.0, origin, spacing);
         let phi = sphere_phi(dims, [3.0, 3.0, 3.0], 2.0);
 
-        let result = ThresholdLevelSet::new(100.0, 200.0).apply(&image, &phi).unwrap();
+        let result = ThresholdLevelSet::new(100.0, 200.0)
+            .apply(&image, &phi)
+            .unwrap();
 
-        assert_eq!(result.origin(), &Point::new(origin), "Origin must be preserved");
-        assert_eq!(result.spacing(), &Spacing::new(spacing), "Spacing must be preserved");
-        assert_eq!(result.direction(), image.direction(), "Direction must be preserved");
+        assert_eq!(
+            result.origin(),
+            &Point::new(origin),
+            "Origin must be preserved"
+        );
+        assert_eq!(
+            result.spacing(),
+            &Spacing::new(spacing),
+            "Spacing must be preserved"
+        );
+        assert_eq!(
+            result.direction(),
+            image.direction(),
+            "Direction must be preserved"
+        );
         assert_eq!(result.shape(), dims, "Shape must be preserved");
     }
 

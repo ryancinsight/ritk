@@ -81,12 +81,7 @@ fn test_verify_affine_scale_recovery() {
     let spacing = Spacing2::new([1.0, 1.0]);
     let direction = Direction2::identity();
 
-    let fixed = Image::new(
-        fixed_tensor,
-        origin,
-        spacing,
-        direction,
-    );
+    let fixed = Image::new(fixed_tensor, origin, spacing, direction);
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // Initial Transform: Identity

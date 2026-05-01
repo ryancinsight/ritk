@@ -213,7 +213,6 @@ pub fn estimate_noise_mad_masked_from_slices(img_slice: &[f32], mask_slice: &[f3
     mad_sigma(&mut values)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

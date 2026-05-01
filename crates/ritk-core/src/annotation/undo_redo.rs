@@ -30,7 +30,10 @@ impl<S: Clone> UndoRedoStack<S> {
     /// Construct a new stack with the given initial state.
     /// `history = [initial]`, `future = []`.
     pub fn new(initial: S) -> Self {
-        Self { history: vec![initial], future: Vec::new() }
+        Self {
+            history: vec![initial],
+            future: Vec::new(),
+        }
     }
 
     /// Push a new state onto the history. Clears the redo future.
@@ -58,27 +61,40 @@ impl<S: Clone> UndoRedoStack<S> {
     /// Returns `false` if no future state is available.
     pub fn redo(&mut self) -> bool {
         match self.future.pop() {
-            Some(state) => { self.history.push(state); true }
+            Some(state) => {
+                self.history.push(state);
+                true
+            }
             None => false,
         }
     }
 
     /// Return a reference to the current state (most recently pushed or undone-to).
     pub fn current(&self) -> &S {
-        self.history.last().expect("UndoRedoStack history invariant: non-empty")
+        self.history
+            .last()
+            .expect("UndoRedoStack history invariant: non-empty")
     }
 
     /// `true` if undo is possible (history depth > 1).
-    pub fn can_undo(&self) -> bool { self.history.len() > 1 }
+    pub fn can_undo(&self) -> bool {
+        self.history.len() > 1
+    }
 
     /// `true` if redo is possible (future is non-empty).
-    pub fn can_redo(&self) -> bool { !self.future.is_empty() }
+    pub fn can_redo(&self) -> bool {
+        !self.future.is_empty()
+    }
 
     /// Number of states in history (including current).
-    pub fn history_depth(&self) -> usize { self.history.len() }
+    pub fn history_depth(&self) -> usize {
+        self.history.len()
+    }
 
     /// Number of states available for redo.
-    pub fn future_depth(&self) -> usize { self.future.len() }
+    pub fn future_depth(&self) -> usize {
+        self.future.len()
+    }
 }
 
 #[cfg(test)]
@@ -160,10 +176,13 @@ mod tests {
             stack.push(i);
         }
         // history: [0,1,2,3,4,5]
-        stack.undo(); stack.undo(); stack.undo();
+        stack.undo();
+        stack.undo();
+        stack.undo();
         // history: [0,1,2], future: [5,4,3]
         assert_eq!(stack.current(), &2);
-        stack.redo(); stack.redo();
+        stack.redo();
+        stack.redo();
         // history: [0,1,2,3,4], future: [5]
         assert_eq!(stack.current(), &4);
         assert_eq!(stack.history_depth(), 5);

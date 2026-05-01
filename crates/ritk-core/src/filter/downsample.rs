@@ -46,8 +46,8 @@ impl<B: Backend> DownsampleFilter<B> {
 
             let size = dims[d];
             let _new_size = size.div_ceil(factor); // ceil division? or just floor?
-                                                          // Standard downsample usually floors: 0, factor, 2*factor...
-                                                          // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
+                                                   // Standard downsample usually floors: 0, factor, 2*factor...
+                                                   // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
 
             let indices_vec: Vec<i32> = (0..size).step_by(factor).map(|x| x as i32).collect();
             let indices =
@@ -59,11 +59,6 @@ impl<B: Backend> DownsampleFilter<B> {
             new_spacing[d] *= factor as f64;
         }
 
-        Image::new(
-            data,
-            *image.origin(),
-            new_spacing,
-            *image.direction(),
-        )
+        Image::new(data, *image.origin(), new_spacing, *image.direction())
     }
 }

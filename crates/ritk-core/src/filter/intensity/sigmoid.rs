@@ -34,7 +34,12 @@ pub struct SigmoidImageFilter {
 
 impl SigmoidImageFilter {
     pub fn new(alpha: f32, beta: f32, min_output: f32, max_output: f32) -> Self {
-        Self { alpha, beta, min_output, max_output }
+        Self {
+            alpha,
+            beta,
+            min_output,
+            max_output,
+        }
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
@@ -46,7 +51,9 @@ impl SigmoidImageFilter {
         let range = max_o - min_o;
 
         let out: Vec<f32> = if beta.abs() < 1e-12 {
-            vals.iter().map(|&v| if v >= alpha { max_o } else { min_o }).collect()
+            vals.iter()
+                .map(|&v| if v >= alpha { max_o } else { min_o })
+                .collect()
         } else {
             vals.iter()
                 .map(|&v| range / (1.0 + (-(v - alpha) / beta).exp()) + min_o)
@@ -58,7 +65,10 @@ impl SigmoidImageFilter {
 }
 
 fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image.data().clone().into_data()
+    let vals = image
+        .data()
+        .clone()
+        .into_data()
         .into_vec::<f32>()
         .map_err(|e| anyhow::anyhow!("SigmoidImageFilter requires f32 data: {:?}", e))?;
     Ok((vals, image.shape()))
@@ -68,7 +78,12 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let device = src.data().device();
     let td = TensorData::new(vals, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, src.origin().clone(), src.spacing().clone(), src.direction().clone())
+    Image::new(
+        tensor,
+        src.origin().clone(),
+        src.spacing().clone(),
+        src.direction().clone(),
+    )
 }
 
 #[cfg(test)]
@@ -85,7 +100,12 @@ mod tests {
         let device = Default::default();
         let td = TensorData::new(vals, Shape::new([1, 1, n]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Image::new(tensor, Point::new([0.0; 3]), Spacing::new([1.0; 3]), Direction::identity())
+        Image::new(
+            tensor,
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+        )
     }
 
     fn get_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -99,7 +119,11 @@ mod tests {
         let f = SigmoidImageFilter::new(2.0, 1.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
         let expected = 0.5_f32;
-        assert!((result[0] - expected).abs() < 1e-5, "at alpha -> 0.5, got {}", result[0]);
+        assert!(
+            (result[0] - expected).abs() < 1e-5,
+            "at alpha -> 0.5, got {}",
+            result[0]
+        );
     }
 
     #[test]
@@ -109,7 +133,12 @@ mod tests {
         let f = SigmoidImageFilter::new(2.0, 1.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
         for i in 0..result.len() - 1 {
-            assert!(result[i] < result[i + 1], "sigmoid must be monotone increasing, positions {} and {}", i, i+1);
+            assert!(
+                result[i] < result[i + 1],
+                "sigmoid must be monotone increasing, positions {} and {}",
+                i,
+                i + 1
+            );
         }
     }
 
@@ -122,7 +151,11 @@ mod tests {
         for &v in &result {
             // In f32, exp(-50) < f32::EPSILON, so 1.0 + exp(-50) == 1.0 exactly.
             // The sigmoid is bounded in [0, 1] in f32; strict-open bound requires wider domain.
-            assert!(v >= 0.0 && v <= 1.0, "sigmoid output must be in [0, 1], got {}", v);
+            assert!(
+                v >= 0.0 && v <= 1.0,
+                "sigmoid output must be in [0, 1], got {}",
+                v
+            );
         }
     }
 
@@ -131,7 +164,11 @@ mod tests {
         let img = make_image(vec![1e6_f32]);
         let f = SigmoidImageFilter::new(0.0, 1.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
-        assert!(result[0] > 0.9999, "large positive input should approach max_output=1.0, got {}", result[0]);
+        assert!(
+            result[0] > 0.9999,
+            "large positive input should approach max_output=1.0, got {}",
+            result[0]
+        );
     }
 
     #[test]
@@ -139,6 +176,10 @@ mod tests {
         let img = make_image(vec![-1e6_f32]);
         let f = SigmoidImageFilter::new(0.0, 1.0, 0.0, 1.0);
         let result = get_vals(&f.apply(&img).unwrap());
-        assert!(result[0] < 0.0001, "large negative input should approach min_output=0.0, got {}", result[0]);
+        assert!(
+            result[0] < 0.0001,
+            "large negative input should approach min_output=0.0, got {}",
+            result[0]
+        );
     }
 }

@@ -42,13 +42,16 @@
 pub mod diffeomorphic;
 pub mod exact_inverse_diffeomorphic;
 pub mod inverse;
-pub mod symmetric;
 pub mod multires;
+pub mod symmetric;
 pub mod thirion;
 
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
-pub use exact_inverse_diffeomorphic::{InverseConsistentDemonsConfig, InverseConsistentDemonsResult, InverseConsistentDiffeomorphicDemonsRegistration};
+pub use exact_inverse_diffeomorphic::{
+    InverseConsistentDemonsConfig, InverseConsistentDemonsResult,
+    InverseConsistentDiffeomorphicDemonsRegistration,
+};
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
+pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};
 pub use symmetric::SymmetricDemonsRegistration;
 pub use thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};
-pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};

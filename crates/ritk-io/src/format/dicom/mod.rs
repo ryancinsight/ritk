@@ -13,6 +13,42 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+mod codec;
+mod multiframe;
+mod object_model;
+mod reader;
+mod rt_dose;
+mod rt_plan;
+mod rt_struct;
+mod seg;
+mod sop_class;
+mod transfer_syntax;
+mod writer;
+mod writer_object;
+
+pub use multiframe::{
+    load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
+    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
+    MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+};
+pub use object_model::{
+    is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomSequenceItem, DicomTag, DicomValue,
+};
+pub use reader::{
+    load_dicom_series_with_metadata, read_dicom_series_with_metadata, DicomReadMetadata,
+    DicomSliceMetadata,
+};
+pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
+pub use rt_plan::{
+    read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
+};
+pub use rt_struct::{read_rt_struct, rt_roi_to_polydata, RtContour, RtRoiInfo, RtStructureSet};
+pub use seg::{read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation};
+pub use transfer_syntax::TransferSyntaxKind;
+pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
+pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
+
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]
 pub struct DicomSeriesInfo {
@@ -319,8 +355,7 @@ impl<B: Backend> DicomReader<B> {
 
 impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_dicom_series(path, &self.device)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
