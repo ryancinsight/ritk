@@ -35,7 +35,7 @@ ritk/
 │   │   └── src/
 │   │       ├── syntax/           # Canonical TransferSyntaxKind and predicates
 │   │       ├── pixel/            # PixelLayout and modality LUT byte decode
-│   │       ├── codec/native/     # Native PackBits and RLE Lossless decoders
+│   │       ├── codec/native/     # Native PackBits, RLE Lossless, and JPEG grayscale decoders
 │   │       └── backend/          # FrameDecodeBackend and dicom-rs backend adapter
 │   ├── ritk-io/                  # Format readers/writers
 │   │   └── src/format/
@@ -166,6 +166,8 @@ ritk/
 | JPEG (`.jpg`, `.jpeg`) | ✓ | ✓* |
 
 *JPEG write support is limited to 2-D grayscale images represented in RITK as shape `[1, height, width]`.
+
+`ritk-dicom` owns DICOM transfer-syntax classification and native pixel-codec primitives. Native Rust decode now covers uncompressed little-endian pixels, RLE Lossless, and grayscale JPEG Baseline/Extended fragments. `dicom-rs` remains a backend adapter for compressed transfer syntaxes not yet replaced natively, including JPEG-LS, JPEG 2000, JPEG XL, and unsupported JPEG color/high-bit-depth variants.
 
 ### Registration (`ritk-registration`)
 

@@ -135,7 +135,10 @@ impl TransferSyntaxKind {
     }
 
     pub fn is_native_ritk_codec(&self) -> bool {
-        matches!(self, Self::RleLossless)
+        matches!(
+            self,
+            Self::JpegBaseline | Self::JpegExtended | Self::RleLossless
+        )
     }
 }
 

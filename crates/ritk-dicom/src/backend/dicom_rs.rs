@@ -12,7 +12,7 @@ use dicom_pixeldata::PixelDecoder;
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
 };
-use crate::codec::decode_rle_lossless_fragment;
+use crate::codec::{decode_jpeg_fragment, decode_rle_lossless_fragment};
 use crate::pixel::decode_native_pixel_bytes;
 use crate::syntax::TransferSyntaxKind;
 
@@ -46,23 +46,15 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
         object: &DefaultDicomObject,
         request: DecodeFrameRequest,
     ) -> Result<DecodedFrame> {
-        let pixels = match request.transfer_syntax {
+        let pixels = match &request.transfer_syntax {
+            TransferSyntaxKind::JpegBaseline | TransferSyntaxKind::JpegExtended => {
+                decode_jpeg_with_backend_fallback(object, &request)?
+            }
             TransferSyntaxKind::RleLossless => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_rle_lossless_fragment(&fragment, request.layout)?
             }
-            ref syntax if syntax.is_backend_codec_candidate() => {
-                let decoded = object
-                    .decode_pixel_data_frame(request.frame_index)
-                    .with_context(|| {
-                        format!(
-                            "dicom-rs backend failed to decode frame {} with transfer syntax {}",
-                            request.frame_index,
-                            syntax.uid()
-                        )
-                    })?;
-                decode_native_pixel_bytes(decoded.data(), request.layout)
-            }
+            syntax if syntax.is_backend_codec_candidate() => decode_via_dicom_rs(object, &request)?,
             _ => {
                 let bytes = object
                     .element(Tag(0x7FE0, 0x0010))
@@ -75,4 +67,33 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
         };
         Ok(DecodedFrame { pixels })
     }
+}
+
+fn decode_jpeg_with_backend_fallback(
+    object: &DefaultDicomObject,
+    request: &DecodeFrameRequest,
+) -> Result<Vec<f32>> {
+    let fragment = object.encapsulated_frame(request.frame_index)?;
+    match decode_jpeg_fragment(&fragment, request.layout) {
+        Ok(pixels) => Ok(pixels),
+        Err(native_error) => decode_via_dicom_rs(object, request).with_context(|| {
+            format!("native JPEG decode failed ({native_error:#}); dicom-rs fallback failed")
+        }),
+    }
+}
+
+fn decode_via_dicom_rs(
+    object: &DefaultDicomObject,
+    request: &DecodeFrameRequest,
+) -> Result<Vec<f32>> {
+    let decoded = object
+        .decode_pixel_data_frame(request.frame_index)
+        .with_context(|| {
+            format!(
+                "dicom-rs backend failed to decode frame {} with transfer syntax {}",
+                request.frame_index,
+                request.transfer_syntax.uid()
+            )
+        })?;
+    Ok(decode_native_pixel_bytes(decoded.data(), request.layout))
 }

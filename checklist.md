@@ -1,3 +1,19 @@
+## Sprint 86 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.1 [patch]
+
+- [x] GAP-86-01: add `ritk-dicom::codec::native::jpeg` with grayscale JPEG fragment decode, dimension validation, byte-length validation, and modality LUT application
+- [x] GAP-86-02: route JPEG Baseline/Extended through the native decoder first and preserve `dicom-rs` fallback for unsupported JPEG cases
+- [x] GAP-86-03: mark JPEG Baseline/Extended as `is_native_ritk_codec`
+- [x] GAP-86-04: add native JPEG value-semantic tests for rescale application and dimension rejection
+- [x] GAP-86-05: update README, backlog, checklist, gap_audit, and CHANGELOG with Stage 86 closure and residual compressed-codec gaps
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted `ritk-io` JPEG Baseline/Extended/rescale tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 85 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

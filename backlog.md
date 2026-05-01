@@ -1,3 +1,29 @@
+## Sprint 86 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.1 [patch]
+**Goal**: Start native Rust JPEG replacement inside `ritk-dicom` while keeping `dicom-rs` as the fallback backend for unsupported compressed DICOM transfer syntaxes.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-86-01 | JPEG Baseline/Extended DICOM frames always entered the `dicom-rs` backend path instead of a RITK-owned native codec path | patch |
+| GAP-86-02 | `ritk-dicom` had no native JPEG fragment tests covering modality LUT application and layout rejection | patch |
+| GAP-86-03 | README and sprint artifacts did not record the first native JPEG replacement slice or remaining JPEG-family codec gaps | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 8 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG Baseline/Extended/rescale tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- Native JPEG is intentionally bounded to grayscale L8/L16 layouts validated against DICOM metadata; color, CMYK, and unsupported high-bit-depth cases fall back to `dicom-rs`.
+- JPEG-LS, JPEG 2000, JPEG XL, and full JPEG Lossless replacement remain Stage 87+ codec gaps.
+- Windows GNU runtime tests still require `D:\msys64\ucrt64\bin` first on `PATH`.
+
 ## Sprint 85 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

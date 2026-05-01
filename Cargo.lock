@@ -5865,6 +5865,8 @@ dependencies = [
  "anyhow",
  "dicom",
  "dicom-pixeldata",
+ "image 0.24.9",
+ "jpeg-decoder",
  "proptest",
 ]
 

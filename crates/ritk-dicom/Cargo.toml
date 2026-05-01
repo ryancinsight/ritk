@@ -7,6 +7,8 @@ edition = "2021"
 anyhow = { workspace = true }
 dicom = { workspace = true }
 dicom-pixeldata = { workspace = true }
+jpeg-decoder = { workspace = true }
 
 [dev-dependencies]
+image = { workspace = true }
 proptest = { workspace = true }

@@ -9,16 +9,21 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 ### Added
 - **`ritk-dicom` crate**: Added a Rust-owned DICOM boundary with transfer syntax classification, `PixelLayout`, native pixel byte decoding, PackBits decoding, native RLE Lossless fragment decoding, and a generic `FrameDecodeBackend<O>` trait. [minor]
+- **Native DICOM JPEG decode path** (`ritk-dicom`): Added grayscale JPEG Baseline/Extended fragment decoding with DICOM layout validation and modality LUT application before falling back to `dicom-rs` for unsupported JPEG cases. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]
 - **Windows GNU native build toolchain**: `.cargo/config.toml` now sets global and target-qualified UCRT clang/clang++/llvm-ar compiler variables for native C/C++ build scripts and keeps lld as the linker. [patch]
 - **Transfer syntax SSOT**: `ritk-dicom::TransferSyntaxKind` now owns all transfer-syntax predicates used by DICOM readers. `ritk-io` keeps only a compatibility re-export for downstream callers. [minor]
+- **DICOM JPEG backend dispatch**: JPEG Baseline and JPEG Extended now attempt RITK native Rust decode first and use `dicom-rs` only as a compatibility fallback. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.
-- `cargo test -p ritk-dicom`: 6 passed.
+- `cargo test -p ritk-dicom`: 8 passed.
 - `cargo check -p ritk-io`: passed with UCRT clang/lld.
+- `cargo test -p ritk-io test_decode_compressed_frame_jpeg_baseline_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
+- `cargo test -p ritk-io test_decode_compressed_frame_jpeg_extended_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
+- `cargo test -p ritk-io test_decode_compressed_frame_rescale_contract -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
 - `cargo test -p ritk-io test_decode_compressed_frame_rle_lossless_unrestricted_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
 - `cargo test -p ritk-io transfer_syntax`: passed.
 
