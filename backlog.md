@@ -1,3 +1,29 @@
+## Sprint 95 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.10 [patch]
+**Goal**: Make external DICOM codec fallback ownership explicit in the transfer-syntax SSOT before replacing JPEG-LS, JPEG 2000, or JPEG XL backends.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-95-01 | `DicomRsBackend` selected fallback codecs through a broad encapsulated predicate after native match arms instead of an explicit external-backend predicate | patch |
+| GAP-95-02 | `TransferSyntaxKind` did not expose a predicate distinguishing RITK-owned native codecs from external backend codec candidates | patch |
+| GAP-95-03 | Predicate tests did not prove JPEG-LS, JPEG 2000, and JPEG XL remain external fallback surfaces while JPEG/RLE remain native-owned | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | Passed with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 20 passed |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld; 5 existing dead-code warnings remain |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+- Public `decode_native_pixel_bytes` remains as a deprecated compatibility helper until downstream callers migrate to checked decode.
+- Existing `ritk-io` dead-code warnings remain outside this syntax-ownership slice.
+
 ## Sprint 94 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

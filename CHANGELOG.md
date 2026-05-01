@@ -26,10 +26,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **Pixel representation validation**: Checked native pixel decode and native JPEG L16 decode now reject invalid DICOM `PixelRepresentation` values instead of treating all non-signed values as unsigned. [patch]
 - **Rescale metadata validation**: Checked native pixel decode and native JPEG L16 decode now reject non-finite rescale slope/intercept values before applying the modality LUT. [patch]
 - **Checked native pixel SSOT**: `decode_native_pixel_bytes_checked` now delegates to a private unchecked primitive after validation, and the public unchecked helper is deprecated as compatibility surface. [patch]
+- **External DICOM codec fallback ownership**: `TransferSyntaxKind` now exposes `is_external_backend_codec_candidate()`, and `DicomRsBackend` uses it to keep JPEG-LS, JPEG 2000, and JPEG XL fallback ownership explicit. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.
-- `cargo test -p ritk-dicom`: 19 passed.
+- `cargo test -p ritk-dicom`: 20 passed.
 - `cargo check -p ritk-io`: passed with UCRT clang/lld.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_baseline_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_extended_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.

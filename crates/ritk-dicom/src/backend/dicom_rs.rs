@@ -53,7 +53,9 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
             TransferSyntaxKind::RleLossless => {
                 NativeCodecBackend::decode_frame(object, request.clone())?.pixels
             }
-            syntax if syntax.is_backend_codec_candidate() => decode_via_dicom_rs(object, &request)?,
+            syntax if syntax.is_external_backend_codec_candidate() => {
+                decode_via_dicom_rs(object, &request)?
+            }
             _ => {
                 let bytes = object
                     .element(Tag(0x7FE0, 0x0010))

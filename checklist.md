@@ -1,3 +1,18 @@
+## Sprint 95 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.10 [patch]
+
+- [x] GAP-95-01: add `TransferSyntaxKind::is_external_backend_codec_candidate`
+- [x] GAP-95-02: route `DicomRsBackend` fallback dispatch through the external-backend predicate
+- [x] GAP-95-03: add predicate tests for JPEG-LS, JPEG 2000, JPEG XL, native JPEG, and RLE ownership
+- [x] GAP-95-04: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom` passed 20 tests
+- [x] Verification: `cargo check -p ritk-io` passed with 5 existing dead-code warnings
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 94 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure
