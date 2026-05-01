@@ -1,3 +1,29 @@
+## Sprint 92 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.7 [patch]
+**Goal**: Validate DICOM native pixel representation values at the `ritk-dicom` pixel SSOT so invalid metadata cannot be silently interpreted as unsigned samples.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-92-01 | Checked native pixel decode treated any `pixel_representation != 1` as unsigned instead of rejecting invalid DICOM values | patch |
+| GAP-92-02 | Native JPEG L16 decode used the same implicit unsigned fallback for invalid pixel representation metadata | patch |
+| GAP-92-03 | No value-semantic negative test covered invalid `PixelRepresentation` metadata | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 17 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- Existing unchecked `decode_native_pixel_bytes` remains a compatibility helper; checked decode paths validate `PixelRepresentation`.
+- Existing `ritk-io` dead-code warnings remain outside this native pixel contract slice.
+
 ## Sprint 91 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

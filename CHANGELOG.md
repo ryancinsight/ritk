@@ -23,10 +23,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **Native codec cleanup**: `NativeCodecBackend` now rejects unsupported transfer syntaxes before reading encapsulated frame bytes, and RLE Lossless header parsing uses contextual checked reads instead of production `unwrap()`. [patch]
 - **Native pixel byte contract**: Added `decode_native_pixel_bytes_checked` and `PixelLayout` frame-size helpers; DICOM decode paths now reject mismatched native byte lengths instead of accepting extra samples or truncating partial samples. [patch]
 - **24/32-bit native pixel decode**: Native pixel decoding now handles 24-bit signed/unsigned samples and 32-bit signed/unsigned integer samples explicitly under the checked layout contract. [patch]
+- **Pixel representation validation**: Checked native pixel decode and native JPEG L16 decode now reject invalid DICOM `PixelRepresentation` values instead of treating all non-signed values as unsigned. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.
-- `cargo test -p ritk-dicom`: 16 passed.
+- `cargo test -p ritk-dicom`: 17 passed.
 - `cargo check -p ritk-io`: passed with UCRT clang/lld.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_baseline_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_extended_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.

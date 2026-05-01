@@ -65,6 +65,13 @@ impl PixelLayout {
             .checked_mul(self.bytes_per_sample()?)
             .ok_or_else(|| anyhow::anyhow!("pixel layout byte count overflows usize"))
     }
+
+    pub fn validate_pixel_representation(self) -> Result<()> {
+        match self.pixel_representation {
+            0 | 1 => Ok(()),
+            other => bail!("pixel_representation={} is invalid; expected 0 or 1", other),
+        }
+    }
 }
 
 pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
@@ -127,6 +134,7 @@ fn sign_extend_i24(bytes: &[u8]) -> i32 {
 }
 
 pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+    layout.validate_pixel_representation()?;
     let expected = layout.bytes_per_frame()?;
     if bytes.len() != expected {
         bail!(
@@ -258,5 +266,27 @@ mod tests {
         .unwrap();
 
         assert_eq!(out, vec![1.0, 5.0, 25.0]);
+    }
+
+    #[test]
+    fn checked_native_decode_rejects_invalid_pixel_representation() {
+        let err = decode_native_pixel_bytes_checked(
+            &[1],
+            PixelLayout {
+                rows: 1,
+                cols: 1,
+                samples_per_pixel: 1,
+                bits_allocated: 8,
+                pixel_representation: 2,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            },
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("pixel_representation"),
+            "expected pixel representation validation error, got {err:#}"
+        );
     }
 }

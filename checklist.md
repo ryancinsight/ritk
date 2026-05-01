@@ -1,3 +1,19 @@
+## Sprint 92 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.7 [patch]
+
+- [x] GAP-92-01: add `PixelLayout::validate_pixel_representation`
+- [x] GAP-92-02: call pixel representation validation from `decode_native_pixel_bytes_checked`
+- [x] GAP-92-03: call pixel representation validation from native JPEG L16 decode
+- [x] GAP-92-04: add invalid `pixel_representation` negative test
+- [x] GAP-92-05: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 91 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

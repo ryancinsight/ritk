@@ -98,6 +98,7 @@ fn validate_jpeg_layout(
 }
 
 fn decode_l16_native_endian(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+    layout.validate_pixel_representation()?;
     if bytes.len() % 2 != 0 {
         bail!("L16 JPEG decoder returned odd byte length {}", bytes.len());
     }
