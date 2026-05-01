@@ -47,7 +47,7 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
         request: DecodeFrameRequest,
     ) -> Result<DecodedFrame> {
         let pixels = match &request.transfer_syntax {
-            TransferSyntaxKind::JpegBaseline | TransferSyntaxKind::JpegExtended => {
+            syntax if syntax.is_native_jpeg_codec() => {
                 decode_jpeg_with_backend_fallback(object, &request)?
             }
             TransferSyntaxKind::RleLossless => {

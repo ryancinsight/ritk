@@ -1,3 +1,29 @@
+## Sprint 87 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.2 [patch]
+**Goal**: Extend the native Rust JPEG path from Baseline/Extended to JPEG Lossless transfer syntaxes while preserving `dicom-rs` fallback for unsupported JPEG cases.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-87-01 | JPEG Lossless Non-Hierarchical and First-Order Prediction still entered `dicom-rs` before the RITK-native JPEG decoder | patch |
+| GAP-87-02 | Native JPEG ownership was encoded in backend match arms instead of a transfer-syntax predicate | patch |
+| GAP-87-03 | `ritk-dicom` crate root did not re-export the native JPEG fragment decoder alongside other codec primitives | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 10 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG Lossless coverage uses the native Rust JPEG decoder and validated grayscale layouts; unsupported JPEG layouts still fall back to `dicom-rs`.
+- JPEG-LS, JPEG 2000, and JPEG XL remain separate codec replacement/optionalization gaps.
+- Windows GNU runtime tests still require `D:\msys64\ucrt64\bin` first on `PATH`.
+
 ## Sprint 86 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

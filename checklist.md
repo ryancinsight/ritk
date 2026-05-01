@@ -1,3 +1,19 @@
+## Sprint 87 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.2 [patch]
+
+- [x] GAP-87-01: add `TransferSyntaxKind::is_native_jpeg_codec()` as SSOT for RITK-owned JPEG syntaxes
+- [x] GAP-87-02: route JPEG Lossless Non-Hierarchical and First-Order Prediction through the native JPEG path before backend fallback
+- [x] GAP-87-03: re-export `decode_jpeg_fragment` from the `ritk-dicom` crate root
+- [x] GAP-87-04: add exact-value native JPEG Lossless test using a hand-constructed 1x1 lossless Huffman JPEG stream
+- [x] GAP-87-05: update README, backlog, checklist, gap_audit, and CHANGELOG with Stage 87 closure and residual codec gaps
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 86 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

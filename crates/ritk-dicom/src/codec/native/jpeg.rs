@@ -145,6 +145,34 @@ mod tests {
         jpeg
     }
 
+    fn lossless_single_pixel_jpeg_8bit_gray_128() -> Vec<u8> {
+        vec![
+            0xFF, 0xD8, // SOI
+            0xFF, 0xC3, // SOF3: lossless Huffman
+            0x00, 0x0B, // segment length
+            0x08, // precision
+            0x00, 0x01, // height
+            0x00, 0x01, // width
+            0x01, // components
+            0x01, 0x11, 0x00, // component id, sampling, quant table
+            0xFF, 0xC4, // DHT
+            0x00, 0x14, // segment length
+            0x00, // DC table 0
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // one 1-bit code
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // no longer codes
+            0x00, // symbol: category 0
+            0xFF, 0xDA, // SOS
+            0x00, 0x08, // segment length
+            0x01, // components
+            0x01, 0x00, // component id, DC/AC table selectors
+            0x01, // predictor selection Ra
+            0x00, // spectral selection end, must be zero for lossless
+            0x00, // point transform
+            0x7F, // Huffman code 0 padded with ones: diff=0, prediction=128
+            0xFF, 0xD9, // EOI
+        ]
+    }
+
     #[test]
     fn jpeg_baseline_grayscale_fragment_decodes_with_modality_lut() {
         let source = [32u8, 32, 32, 32];
@@ -171,5 +199,14 @@ mod tests {
             err.to_string().contains("dimensions"),
             "expected dimension validation error, got {err:#}"
         );
+    }
+
+    #[test]
+    fn jpeg_lossless_grayscale_fragment_decodes_exact_sample() {
+        let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
+
+        let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0)).unwrap();
+
+        assert_eq!(decoded, vec![190.0]);
     }
 }

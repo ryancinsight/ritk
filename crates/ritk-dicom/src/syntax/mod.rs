@@ -135,9 +135,16 @@ impl TransferSyntaxKind {
     }
 
     pub fn is_native_ritk_codec(&self) -> bool {
+        self.is_native_jpeg_codec() || matches!(self, Self::RleLossless)
+    }
+
+    pub fn is_native_jpeg_codec(&self) -> bool {
         matches!(
             self,
-            Self::JpegBaseline | Self::JpegExtended | Self::RleLossless
+            Self::JpegBaseline
+                | Self::JpegExtended
+                | Self::JpegLosslessNonHierarchical
+                | Self::JpegLosslessFirstOrderPrediction
         )
     }
 }
@@ -205,6 +212,28 @@ mod tests {
                 syntax.is_natively_supported(),
                 syntax.is_native_uncompressed()
             );
+        }
+    }
+
+    #[test]
+    fn native_ritk_codec_predicate_tracks_owned_codec_surface() {
+        for syntax in variants() {
+            match syntax {
+                TransferSyntaxKind::JpegBaseline
+                | TransferSyntaxKind::JpegExtended
+                | TransferSyntaxKind::JpegLosslessNonHierarchical
+                | TransferSyntaxKind::JpegLosslessFirstOrderPrediction => {
+                    assert!(syntax.is_native_jpeg_codec());
+                    assert!(syntax.is_native_ritk_codec());
+                }
+                TransferSyntaxKind::RleLossless => {
+                    assert!(!syntax.is_native_jpeg_codec());
+                    assert!(syntax.is_native_ritk_codec());
+                }
+                _ => {
+                    assert!(!syntax.is_native_jpeg_codec());
+                }
+            }
         }
     }
 }
