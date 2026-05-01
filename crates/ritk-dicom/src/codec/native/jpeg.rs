@@ -11,7 +11,7 @@ use std::io::Cursor;
 use anyhow::{bail, Context, Result};
 use jpeg_decoder::{Decoder, PixelFormat};
 
-use crate::pixel::{decode_native_pixel_bytes, PixelLayout};
+use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 
 pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     let mut decoder = Decoder::new(Cursor::new(fragment));
@@ -31,7 +31,7 @@ pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<
     )?;
 
     match info.pixel_format {
-        PixelFormat::L8 => Ok(decode_native_pixel_bytes(&decoded, layout)),
+        PixelFormat::L8 => decode_native_pixel_bytes_checked(&decoded, layout),
         PixelFormat::L16 => decode_l16_native_endian(&decoded, layout),
         PixelFormat::RGB24 | PixelFormat::CMYK32 => bail!(
             "native JPEG decoder only accepts grayscale DICOM pixel data; decoded format was {:?}",
@@ -78,12 +78,7 @@ fn validate_jpeg_layout(
         );
     }
 
-    let bytes_per_sample = layout.bytes_per_sample()?;
-    let expected_layout_bytes = layout
-        .pixels_per_frame()?
-        .checked_mul(layout.samples_per_pixel)
-        .and_then(|n| n.checked_mul(bytes_per_sample))
-        .context("DICOM layout byte length overflow")?;
+    let expected_layout_bytes = layout.bytes_per_frame()?;
     if expected_bytes != expected_layout_bytes {
         bail!(
             "JPEG decoded byte length {} does not match DICOM layout byte length {}",

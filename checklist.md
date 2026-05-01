@@ -1,3 +1,19 @@
+## Sprint 90 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.5 [patch]
+
+- [x] GAP-90-01: add `PixelLayout::samples_per_frame` and `PixelLayout::bytes_per_frame`
+- [x] GAP-90-02: add `decode_native_pixel_bytes_checked` with exact frame byte-length validation
+- [x] GAP-90-03: route RLE, JPEG L8, uncompressed DICOM, and `dicom-rs` fallback bytes through the checked decoder
+- [x] GAP-90-04: add value-semantic rejection test for trailing native bytes
+- [x] GAP-90-05: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-dicom`
+- [x] Verification: `cargo test -p ritk-dicom`
+- [x] Verification: `cargo check -p ritk-io`
+- [x] Verification: targeted JPEG/RLE/JPEG-LS/JPEG2000 consumer tests with UCRT64 first on `PATH`
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 89 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

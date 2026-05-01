@@ -13,7 +13,7 @@ use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
     NativeCodecBackend,
 };
-use crate::pixel::decode_native_pixel_bytes;
+use crate::pixel::decode_native_pixel_bytes_checked;
 use crate::syntax::TransferSyntaxKind;
 
 impl EncapsulatedFrameSource for DefaultDicomObject {
@@ -61,7 +61,7 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
                     .value()
                     .to_bytes()
                     .map_err(|e| anyhow::anyhow!("Pixel Data bytes unreadable: {:?}", e))?;
-                decode_native_pixel_bytes(&bytes, request.layout)
+                decode_native_pixel_bytes_checked(&bytes, request.layout)?
             }
         };
         Ok(DecodedFrame { pixels })
@@ -93,5 +93,5 @@ fn decode_via_dicom_rs(
                 request.transfer_syntax.uid()
             )
         })?;
-    Ok(decode_native_pixel_bytes(decoded.data(), request.layout))
+    decode_native_pixel_bytes_checked(decoded.data(), request.layout)
 }

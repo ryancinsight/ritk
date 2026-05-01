@@ -8,7 +8,7 @@
 use anyhow::{bail, Context, Result};
 
 use crate::codec::native::packbits_decode;
-use crate::pixel::{decode_native_pixel_bytes, PixelLayout};
+use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 
 pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     const HEADER_BYTES: usize = 64;
@@ -82,7 +82,7 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
         }
     }
 
-    Ok(decode_native_pixel_bytes(&raw, layout))
+    decode_native_pixel_bytes_checked(&raw, layout)
 }
 
 fn read_u32_le(bytes: &[u8], offset: usize, field: &str) -> Result<u32> {

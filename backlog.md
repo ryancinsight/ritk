@@ -1,3 +1,29 @@
+## Sprint 90 — Completed
+**Status**: Completed
+**Phase**: Execution → Closure
+**Version**: 0.14.5 [patch]
+**Goal**: Add a checked native pixel byte-length contract and route DICOM decode paths through it so frame decoders cannot silently accept extra bytes or truncate trailing partial samples.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-90-01 | `decode_native_pixel_bytes` accepted any 8-bit byte length, allowing extra samples to leak into output | patch |
+| GAP-90-02 | 16-bit native decode used `chunks_exact(2)` without byte-length validation, silently dropping a trailing odd byte | patch |
+| GAP-90-03 | `DicomRsBackend`, native JPEG L8, and RLE Lossless decode paths lacked one SSOT for expected frame byte length | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-dicom` | 0 errors with UCRT clang/lld |
+| `cargo test -p ritk-dicom` | 13 passed |
+| `cargo check -p ritk-io` | 0 errors with UCRT clang/lld; 5 pre-existing dead-code warnings |
+| Targeted `ritk-io` JPEG/RLE/JPEG-LS/JPEG2000 consumer tests | Passed with UCRT64 first on `PATH` |
+
+### Residual risks
+- JPEG-LS, JPEG 2000, and JPEG XL remain backend-fallback codec replacement/optionalization gaps.
+- Existing `decode_native_pixel_bytes` remains as a compatibility helper; new decode paths use `decode_native_pixel_bytes_checked`.
+- Existing `ritk-io` dead-code warnings remain outside this native pixel contract slice.
+
 ## Sprint 89 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

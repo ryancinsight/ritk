@@ -21,10 +21,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **DICOM JPEG syntax ownership**: Added `TransferSyntaxKind::is_native_jpeg_codec()` so native JPEG ownership is classified in the transfer-syntax SSOT instead of backend match arms. [patch]
 - **DICOM backend SRP split**: `DicomRsBackend` now delegates native JPEG/RLE transfer syntaxes to `NativeCodecBackend` and keeps external `dicom-rs` decode as the fallback path. [patch]
 - **Native codec cleanup**: `NativeCodecBackend` now rejects unsupported transfer syntaxes before reading encapsulated frame bytes, and RLE Lossless header parsing uses contextual checked reads instead of production `unwrap()`. [patch]
+- **Native pixel byte contract**: Added `decode_native_pixel_bytes_checked` and `PixelLayout` frame-size helpers; DICOM decode paths now reject mismatched native byte lengths instead of accepting extra samples or truncating partial samples. [patch]
 
 ### Verification
 - `cargo check -p ritk-dicom`: passed.
-- `cargo test -p ritk-dicom`: 12 passed.
+- `cargo test -p ritk-dicom`: 13 passed.
 - `cargo check -p ritk-io`: passed with UCRT clang/lld.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_baseline_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.
 - `cargo test -p ritk-io test_decode_compressed_frame_jpeg_extended_round_trip -- --no-capture`: passed with `D:\msys64\ucrt64\bin` first on `PATH`.

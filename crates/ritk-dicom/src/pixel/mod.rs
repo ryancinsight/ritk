@@ -32,6 +32,16 @@ impl PixelLayout {
         Ok(pixels)
     }
 
+    pub fn samples_per_frame(self) -> Result<usize> {
+        let pixels = self.pixels_per_frame()?;
+        if self.samples_per_pixel == 0 {
+            bail!("samples_per_pixel=0 is invalid");
+        }
+        pixels
+            .checked_mul(self.samples_per_pixel)
+            .ok_or_else(|| anyhow::anyhow!("pixel layout sample count overflows usize"))
+    }
+
     pub fn bytes_per_sample(self) -> Result<usize> {
         if self.bits_allocated % 8 != 0 {
             bail!(
@@ -48,6 +58,12 @@ impl PixelLayout {
             );
         }
         Ok(bytes)
+    }
+
+    pub fn bytes_per_frame(self) -> Result<usize> {
+        self.samples_per_frame()?
+            .checked_mul(self.bytes_per_sample()?)
+            .ok_or_else(|| anyhow::anyhow!("pixel layout byte count overflows usize"))
     }
 }
 
@@ -74,6 +90,18 @@ pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> 
     }
 }
 
+pub fn decode_native_pixel_bytes_checked(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
+    let expected = layout.bytes_per_frame()?;
+    if bytes.len() != expected {
+        bail!(
+            "native pixel byte length {} does not match expected frame byte length {}",
+            bytes.len(),
+            expected
+        );
+    }
+    Ok(decode_native_pixel_bytes(bytes, layout))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,5 +125,27 @@ mod tests {
             },
         );
         assert_eq!(out, vec![1.0, 5.0, 25.0]);
+    }
+
+    #[test]
+    fn checked_native_decode_rejects_trailing_bytes() {
+        let err = decode_native_pixel_bytes_checked(
+            &[1, 0, 2],
+            PixelLayout {
+                rows: 1,
+                cols: 1,
+                samples_per_pixel: 1,
+                bits_allocated: 16,
+                pixel_representation: 0,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            },
+        )
+        .unwrap_err();
+
+        assert!(
+            err.to_string().contains("byte length"),
+            "expected byte-length validation error, got {err:#}"
+        );
     }
 }

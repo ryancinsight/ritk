@@ -14,5 +14,5 @@ pub use backend::{
     NativeCodecBackend,
 };
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
-pub use pixel::{decode_native_pixel_bytes, PixelLayout};
+pub use pixel::{decode_native_pixel_bytes, decode_native_pixel_bytes_checked, PixelLayout};
 pub use syntax::TransferSyntaxKind;
