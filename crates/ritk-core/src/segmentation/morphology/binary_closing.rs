@@ -80,7 +80,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
     let mut output = vec![0.0f32; total];
     let r = radius as isize;
 
-    for flat_idx in 0..total {
+    for (flat_idx, out) in output.iter_mut().enumerate().take(total) {
         // Decompose flat_idx into D-dimensional coordinates.
         let mut coords = [0isize; D];
         let mut rem = flat_idx;
@@ -90,7 +90,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
         }
 
         let result = scan_neighborhood::<D>(input_vals, &coords, &shape, &strides, r, is_erosion);
-        output[flat_idx] = if result { 1.0 } else { 0.0 };
+        *out = if result { 1.0 } else { 0.0 };
     }
 
     let device = mask.data().device();

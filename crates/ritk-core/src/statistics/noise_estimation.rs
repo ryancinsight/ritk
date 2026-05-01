@@ -70,7 +70,7 @@ fn sort_f32(values: &mut [f32]) {
 /// Compute σ̂ = 1.4826 · median(|Xᵢ − median(X)|) from a mutable slice of values.
 ///
 /// Returns 0.0 for empty or single-element inputs and for constant-valued inputs.
-fn mad_sigma(values: &mut Vec<f32>) -> f32 {
+fn mad_sigma(values: &mut [f32]) -> f32 {
     let n = values.len();
     if n <= 1 {
         return 0.0;

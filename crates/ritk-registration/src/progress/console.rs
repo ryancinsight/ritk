@@ -36,7 +36,7 @@ impl ConsoleProgressCallback {
 
 impl ProgressCallback for ConsoleProgressCallback {
     fn on_progress(&self, info: &ProgressInfo) {
-        if info.iteration % self.log_interval == 0 || info.total_iterations == Some(info.iteration)
+        if info.iteration.is_multiple_of(self.log_interval) || info.total_iterations == Some(info.iteration)
         {
             let progress = info.progress_percent().unwrap_or(0.0);
             let elapsed = format!("{:.2}s", info.elapsed.as_secs_f64());

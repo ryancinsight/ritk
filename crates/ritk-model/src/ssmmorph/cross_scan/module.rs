@@ -65,10 +65,7 @@ impl CrossScan {
     /// Apply cross-scan to input tensor
     ///
     /// Returns a vector of scanned sequences, one per direction
-    pub fn apply<B: Backend, const D: usize>(&self, input: Tensor<B, D>) -> Vec<Tensor<B, 3>>
-    where
-        B: Backend,
-    {
+    pub fn apply<B: Backend, const D: usize>(&self, input: Tensor<B, D>) -> Vec<Tensor<B, 3>> {
         let directions = self.directions();
 
         if self.config.use_3d {

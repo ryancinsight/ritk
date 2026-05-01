@@ -60,9 +60,9 @@ impl<B: Backend> ImageToTensorAdapter<B> {
 
         Ok(StaticDisplacementField::new(
             components,
-            reference.origin().clone(),
-            reference.spacing().clone(),
-            reference.direction().clone(),
+            *reference.origin(),
+            *reference.spacing(),
+            *reference.direction(),
         ))
     }
 }

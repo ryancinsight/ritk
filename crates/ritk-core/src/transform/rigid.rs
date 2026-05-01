@@ -86,6 +86,7 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Build the rotation matrix from Euler angles.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         let r = self.rotation.val();
 
@@ -173,6 +174,7 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for RigidTransform<B, D> {
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
+    #[allow(clippy::single_range_in_vec_init)]
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         // points: [Batch, D]
         // R: [D, D]
@@ -198,7 +200,7 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
             rotated + c + t
         } else {
             let mut chunks = Vec::new();
-            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n_points.div_ceil(CHUNK_SIZE);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;

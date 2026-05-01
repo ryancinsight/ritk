@@ -88,9 +88,9 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], reference: &Image<B, 3>
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,
-        reference.origin().clone(),
-        reference.spacing().clone(),
-        reference.direction().clone(),
+        *reference.origin(),
+        *reference.spacing(),
+        *reference.direction(),
     )
 }
 

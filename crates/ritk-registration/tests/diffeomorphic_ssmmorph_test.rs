@@ -67,9 +67,9 @@ fn test_diffeomorphic_ssmmorph_integration() {
 
     let fixed_image = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving_image = Image::new(moving_tensor, origin, spacing, direction);
 

@@ -10,6 +10,12 @@ pub struct AffineTransform<B: Backend> {
     phantom: PhantomData<B>,
 }
 
+impl<B: Backend> Default for AffineTransform<B> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B: Backend> AffineTransform<B> {
     pub fn new() -> Self {
         Self {
@@ -32,11 +38,7 @@ impl<B: Backend> AffineTransform<B> {
         let device = image.device();
 
         // Ensure theta is [B, 3, 4]
-        let theta = if theta.shape().dims[1] == 12 {
-            theta.reshape([b, 3, 4])
-        } else {
-            theta.reshape([b, 3, 4]) // Assume it fits or let it panic
-        };
+        let theta = theta.reshape([b, 3, 4]);
 
         // 1. Create normalized meshgrid [-1, 1]
         // [B, 4, D*H*W]

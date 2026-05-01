@@ -59,9 +59,9 @@ impl BinaryDilation {
 
         Image::new(
             tensor,
-            mask.origin().clone(),
-            mask.spacing().clone(),
-            mask.direction().clone(),
+            *mask.origin(),
+            *mask.spacing(),
+            *mask.direction(),
         )
     }
 }
@@ -98,7 +98,7 @@ fn dilate_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
     let mut output = vec![0.0_f32; nx];
 
-    for ix in 0..nx {
+    for (ix, out) in output.iter_mut().enumerate().take(nx) {
         let any_fg = ((-r)..=r).any(|dx| {
             let nb = ix as isize + dx;
             if nb < 0 || nb >= nx as isize {
@@ -107,7 +107,7 @@ fn dilate_1d(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
             flat[nb as usize] > 0.5
         });
         if any_fg {
-            output[ix] = 1.0;
+            *out = 1.0;
         }
     }
 

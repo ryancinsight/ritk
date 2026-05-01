@@ -97,6 +97,7 @@ impl CmaEsOptimizer {
     }
 
     /// Create with default configuration.
+    #[allow(clippy::should_implement_trait)]
     pub fn default() -> Self {
         Self::new(CmaEsConfig::default())
     }

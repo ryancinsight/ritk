@@ -46,10 +46,12 @@ pub trait Metric<B: Backend, const D: usize> {
 /// Controls how metric values are normalized to ensure consistent ranges
 /// across different image pairs.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum NormalizationMode {
     /// No normalization applied.
     None,
     /// Normalize by the number of samples.
+    #[default]
     ByCount,
     /// Normalize by the variance of the fixed image.
     ByFixedVariance,
@@ -57,11 +59,6 @@ pub enum NormalizationMode {
     ByJointStd,
 }
 
-impl Default for NormalizationMode {
-    fn default() -> Self {
-        Self::ByCount
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -129,9 +129,9 @@ impl AnisotropicDiffusionFilter {
         let tensor = Tensor::<B, 3>::from_data(td2, &device);
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }

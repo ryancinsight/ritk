@@ -18,7 +18,7 @@ pub trait Interpolator<B: Backend> {
     /// # Arguments
     /// * `data` - The source tensor (e.g., 3D volume `[D, H, W]` or 2D image `[H, W]`)
     /// * `indices` - The indices at which to interpolate `[Batch, Rank]`
-    ///               Rank must match `data` dimensionality
+    ///   Rank must match `data` dimensionality
     ///
     /// # Returns
     /// Tensor of sampled values `[Batch]`

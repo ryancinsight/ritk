@@ -58,6 +58,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Returns
     /// A tensor of shape `[Batch, D]` containing continuous indices
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
         let [n_points, _] = points.dims();
@@ -97,7 +98,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
             diff.matmul(t_tensor)
         } else {
             let mut chunks = Vec::new();
-            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n_points.div_ceil(CHUNK_SIZE);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
@@ -122,6 +123,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Returns
     /// A tensor of shape `[Batch, D]` containing physical points
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = indices.device();
         let [n_points, _] = indices.dims();
@@ -156,7 +158,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
             rotated + origin_tensor
         } else {
             let mut chunks = Vec::new();
-            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n_points.div_ceil(CHUNK_SIZE);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;

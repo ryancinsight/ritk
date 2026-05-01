@@ -32,9 +32,9 @@ fn test_mse_identity() {
 
     let fixed = Image::new(
         data.clone(),
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(data.clone(), origin, spacing, direction);
 
@@ -79,9 +79,9 @@ fn test_mse_translation() {
 
     let fixed = Image::new(
         data.clone(),
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(data.clone(), origin, spacing, direction);
 

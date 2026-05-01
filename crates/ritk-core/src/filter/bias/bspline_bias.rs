@@ -63,11 +63,11 @@ pub fn bspline_evaluate(
             for ix in 0..nx {
                 let (kx, bx) = basis_and_span(ix, nx, cx);
                 let mut val = 0.0f64;
-                for a in 0..4usize {
-                    for b in 0..4usize {
-                        for c in 0..4usize {
+                for (a, &bza) in bz.iter().enumerate() {
+                    for (b, &byb) in by.iter().enumerate() {
+                        for (c, &bxc) in bx.iter().enumerate() {
                             let cp = (kz + a) * cy * cx + (ky + b) * cx + (kx + c);
-                            val += bz[a] * by[b] * bx[c] * control_points[cp];
+                            val += bza * byb * bxc * control_points[cp];
                         }
                     }
                 }
@@ -125,12 +125,12 @@ pub fn bspline_fit(
         let (ky, by) = basis_and_span(iy, ny, cy);
         let (kx, bx) = basis_and_span(ix, nx, cx);
 
-        for a in 0..4usize {
-            for b in 0..4usize {
-                for c in 0..4usize {
+        for (a, &bza) in bz.iter().enumerate() {
+            for (b, &byb) in by.iter().enumerate() {
+                for (c, &bxc) in bx.iter().enumerate() {
                     let cp = (kz + a) * cy * cx + (ky + b) * cx + (kx + c);
                     // cp ∈ [0, n_cp) by construction (kz+a ≤ cz-1, etc.)
-                    a_data[si * n_cp + cp] += bz[a] * by[b] * bx[c];
+                    a_data[si * n_cp + cp] += bza * byb * bxc;
                 }
             }
         }

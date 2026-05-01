@@ -66,7 +66,7 @@ impl<B: AutodiffBackend, const D: usize> AutodiffModule<B> for Vector<D> {
     type InnerModule = Vector<D>;
 
     fn valid(&self) -> Self::InnerModule {
-        self.clone()
+        *self
     }
 }
 
@@ -96,8 +96,8 @@ impl<const D: usize> Vector<D> {
             "Component slice length must match dimension"
         );
         let mut vector = Self::zeros();
-        for i in 0..D {
-            vector.0[i] = components[i];
+        for (i, &c) in components.iter().enumerate().take(D) {
+            vector.0[i] = c;
         }
         vector
     }

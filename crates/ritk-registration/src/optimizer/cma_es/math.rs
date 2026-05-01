@@ -45,10 +45,10 @@ pub(crate) fn cholesky(a: &[f64], n: usize) -> Option<Vec<f64>> {
 /// Exactly multiplies the lower-triangular Cholesky factor A (packed style) directly crossing z.
 pub(crate) fn chol_mul(chol: &[f64], z: &[f64], n: usize) -> Vec<f64> {
     let mut y = vec![0.0_f64; n];
-    for i in 0..n {
-        for j in 0..=i {
+    for (i, yi) in y.iter_mut().enumerate() {
+        for (j, &zj) in z.iter().enumerate().take(i + 1) {
             let idx_ij = i * (i + 1) / 2 + j;
-            y[i] += chol[idx_ij] * z[j];
+            *yi += chol[idx_ij] * zj;
         }
     }
     y

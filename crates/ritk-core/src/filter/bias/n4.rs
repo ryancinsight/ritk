@@ -161,9 +161,9 @@ impl N4BiasFieldCorrectionFilter {
 
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }
@@ -178,7 +178,7 @@ impl N4BiasFieldCorrectionFilter {
 /// 2. σ_bins = max(0.5, noise_fraction · n_bins).
 /// 3. Gaussian kernel G(σ_bins), zero-padded DFT of length N = next_pow2(n_bins).
 /// 4. Wiener deconvolution:
-///      Ĥ_sharp[k] = Ĥ[k]·Ĝ*[k] / (|Ĝ[k]|² + σ_noise)
+///    Ĥ_sharp[k] = Ĥ[k]·Ĝ*[k] / (|Ĝ[k]|² + σ_noise)
 ///    where σ_noise = 0.01 · max_k |Ĥ[k]|².
 /// 5. IDFT → H_sharp; clamp negatives to 0.
 /// 6. CDF transfer: each voxel intensity maps to the quantile bin in H_sharp
@@ -325,7 +325,7 @@ fn dft_real(data: &[f64], n: usize) -> Vec<(f64, f64)> {
     let len = data.len().min(n);
     let mut out = vec![(0.0f64, 0.0f64); n];
     let two_pi_n = -2.0 * std::f64::consts::PI / n as f64;
-    for k in 0..n {
+    for (k, out_k) in out.iter_mut().enumerate() {
         let mut re = 0.0f64;
         let mut im = 0.0f64;
         for (j, &dj) in data[..len].iter().enumerate() {
@@ -333,7 +333,7 @@ fn dft_real(data: &[f64], n: usize) -> Vec<(f64, f64)> {
             re += dj * angle.cos();
             im += dj * angle.sin();
         }
-        out[k] = (re, im);
+        *out_k = (re, im);
     }
     out
 }
@@ -774,7 +774,7 @@ mod tests {
     /// histogram_sharpen returns the input unchanged for a constant signal.
     #[test]
     fn histogram_sharpen_passthrough_for_constant_input() {
-        let w = vec![3.14f32; 64];
+        let w = vec![2.71f32; 64]; // arbitrary non-zero constant; not π
         let out = histogram_sharpen(&w, 100, 0.01).unwrap();
         for (&o, &i) in out.iter().zip(w.iter()) {
             assert_eq!(o, i);

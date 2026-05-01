@@ -55,6 +55,7 @@ impl Default for NormalizedCrossCorrelation {
 }
 
 impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
+    #[allow(clippy::single_range_in_vec_init)]
     fn forward(
         &self,
         fixed: &Image<B, D>,
@@ -88,7 +89,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
                 (f * m).sum(),
             )
         } else {
-            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n.div_ceil(CHUNK_SIZE);
 
             let mut acc_f = Tensor::zeros([1], &device);
             let mut acc_m = Tensor::zeros([1], &device);

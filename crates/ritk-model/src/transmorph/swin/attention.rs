@@ -79,8 +79,7 @@ impl WindowAttentionConfig {
 
         for i in 0..n {
             let (d1, h1, w1) = coords[i];
-            for j in 0..n {
-                let (d2, h2, w2) = coords[j];
+            for &(d2, h2, w2) in coords.iter().take(n) {
 
                 let rd = (d1 - d2) + (m as i32 - 1);
                 let rh = (h1 - h2) + (m as i32 - 1);

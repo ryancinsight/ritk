@@ -504,12 +504,12 @@ mod tests {
         // Non-overlapping masks: intersection = 0 → Dice = 0.
         // P: indices 0..13, G: indices 14..27.
         let mut pred = vec![0.0f32; 27];
-        for i in 0..13 {
-            pred[i] = 1.0;
+        for v in pred.iter_mut().take(13) {
+            *v = 1.0;
         }
         let mut gt = vec![0.0f32; 27];
-        for i in 14..27 {
-            gt[i] = 1.0;
+        for v in gt.iter_mut().take(27).skip(14) {
+            *v = 1.0;
         }
         let pred_img = make_mask_3d(pred, [3, 3, 3]);
         let gt_img = make_mask_3d(gt, [3, 3, 3]);

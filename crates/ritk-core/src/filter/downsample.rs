@@ -45,7 +45,7 @@ impl<B: Backend> DownsampleFilter<B> {
             }
 
             let size = dims[d];
-            let _new_size = (size + factor - 1) / factor; // ceil division? or just floor?
+            let _new_size = size.div_ceil(factor); // ceil division? or just floor?
                                                           // Standard downsample usually floors: 0, factor, 2*factor...
                                                           // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
 
@@ -61,9 +61,9 @@ impl<B: Backend> DownsampleFilter<B> {
 
         Image::new(
             data,
-            image.origin().clone(),
+            *image.origin(),
             new_spacing,
-            image.direction().clone(),
+            *image.direction(),
         )
     }
 }

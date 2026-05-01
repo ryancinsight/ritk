@@ -229,14 +229,14 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         // Create new field with negated components
         let inverse_disp = StaticDisplacementField::new(
             neg_components,
-            forward_disp.origin().clone(),
-            forward_disp.spacing().clone(),
-            forward_disp.direction().clone(),
+            *forward_disp.origin(),
+            *forward_disp.spacing(),
+            forward_disp.direction(),
         );
 
         StaticDisplacementFieldTransform3D::new(
             inverse_disp,
-            forward_transform.interpolator().clone(),
+            *forward_transform.interpolator(),
         )
     }
 

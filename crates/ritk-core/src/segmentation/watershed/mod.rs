@@ -13,7 +13,7 @@
 //!    linear index for determinism).
 //! 2. **Process** each voxel v in sorted order:
 //!    a. Collect the set L of distinct labels among v's 6-connected neighbours
-//!       that have already been labelled (label > 0).
+//!    that have already been labelled (label > 0).
 //!    b. If L = ∅ → assign v a new unique label (next_label += 1).
 //!    c. If |L| = 1 → assign v the single label in L.
 //!    d. If |L| > 1 → mark v as a watershed boundary (label = 0).
@@ -87,9 +87,9 @@ impl WatershedSegmentation {
 
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }
@@ -180,8 +180,8 @@ fn watershed_flooding(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
 
             // Check if this label is already recorded.
             let mut found = false;
-            for k in 0..n_distinct {
-                if neighbour_labels[k] == lbl {
+            for &nl in neighbour_labels.iter().take(n_distinct) {
+                if nl == lbl {
                     found = true;
                     break;
                 }

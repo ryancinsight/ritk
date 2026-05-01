@@ -50,6 +50,7 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     }
 
     /// Build the rotation matrix from Quaternion.
+    #[allow(clippy::single_range_in_vec_init)]
     fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         // Normalize quaternion to ensure it represents a rotation
         let q = self.rotation.val();
@@ -157,9 +158,10 @@ mod tests {
         let device = Default::default();
         let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
         // Rotate 90 degrees around X axis
-        // q = [sin(45)*1, 0, 0, cos(45)] = [0.7071, 0, 0, 0.7071]
+        // q = [sin(45)*1, 0, 0, cos(45)] = [1/√2, 0, 0, 1/√2]
+        let s = std::f32::consts::FRAC_1_SQRT_2;
         let rotation =
-            Tensor::<TestBackend, 1>::from_floats([0.70710678, 0.0, 0.0, 0.70710678], &device);
+            Tensor::<TestBackend, 1>::from_floats([s, 0.0, 0.0, s], &device);
         let center = Tensor::<TestBackend, 1>::zeros([3], &device);
         let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
 

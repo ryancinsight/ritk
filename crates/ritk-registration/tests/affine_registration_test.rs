@@ -58,9 +58,9 @@ fn test_registration_affine_translation() {
 
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
@@ -152,9 +152,9 @@ fn test_registration_affine_scaling() {
 
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 

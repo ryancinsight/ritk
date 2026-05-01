@@ -54,9 +54,9 @@ fn test_multires_cr_registration() {
 
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
@@ -86,7 +86,7 @@ fn test_multires_cr_registration() {
         &fixed,
         &moving,
         transform,
-        |lr| AdamOptimizer::new(lr),
+        AdamOptimizer::new,
         schedule,
     );
 

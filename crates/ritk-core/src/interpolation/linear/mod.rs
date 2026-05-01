@@ -71,7 +71,7 @@ impl<B: AutodiffBackend> AutodiffModule<B> for LinearInterpolator {
     type InnerModule = LinearInterpolator;
 
     fn valid(&self) -> Self::InnerModule {
-        self.clone()
+        *self
     }
 }
 

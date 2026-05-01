@@ -7,35 +7,29 @@ use burn::prelude::*;
 
 /// Padding mode for grid sampling
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum GridPaddingMode {
     /// Use zeros for out-of-bounds samples
     Zero,
     /// Use border values for out-of-bounds samples
+    #[default]
     Border,
     /// Reflect coordinates at the border
     Reflection,
 }
 
-impl Default for GridPaddingMode {
-    fn default() -> Self {
-        GridPaddingMode::Border
-    }
-}
 
 /// Interpolation mode for grid sampling
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum InterpolationMode {
     /// Nearest neighbor sampling
     Nearest,
     /// Bilinear/trilinear interpolation
+    #[default]
     Linear,
 }
 
-impl Default for InterpolationMode {
-    fn default() -> Self {
-        InterpolationMode::Linear
-    }
-}
 
 /// Configuration for grid sampling operations
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -233,6 +227,7 @@ impl<B: Backend> GridSampler<B> {
     }
 
     /// Gather values from input at specified coordinates
+    #[allow(clippy::too_many_arguments)]
     fn gather(
         &self,
         input: &Tensor<B, 5>,

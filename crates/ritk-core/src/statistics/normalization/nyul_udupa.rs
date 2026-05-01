@@ -280,9 +280,9 @@ impl NyulUdupaNormalizer {
 
         Ok(Image::new(
             out_tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }

@@ -83,9 +83,9 @@ fn test_verify_affine_scale_recovery() {
 
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 

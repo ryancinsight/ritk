@@ -57,7 +57,7 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for DisplacementFieldTransfo
         direction: Direction<D>,
     ) -> Self {
         let new_field = self.field.resample(shape, origin, spacing, direction);
-        Self::new(new_field, self.interpolator.clone())
+        Self::new(new_field, self.interpolator)
     }
 }
 

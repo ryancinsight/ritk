@@ -186,7 +186,7 @@ fn create_mock_batch<B: Backend>(
     for _ in 0..batch_size {
         // Create random data [D, H, W]
         let data = Tensor::<B, 3>::random(shape, Distribution::Normal(0.5, 0.1), device);
-        let image = Image::new(data, origin.clone(), spacing.clone(), direction.clone());
+        let image = Image::new(data, origin, spacing, direction);
         images.push(image);
     }
 

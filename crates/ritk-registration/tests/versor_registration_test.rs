@@ -62,9 +62,9 @@ fn test_registration_versor_3d_rotation() {
     let direction = Direction::identity();
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 

@@ -33,6 +33,7 @@ impl Default for MeanSquaredError {
 }
 
 impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
+    #[allow(clippy::single_range_in_vec_init)]
     fn forward(
         &self,
         fixed: &Image<B, D>,
@@ -61,7 +62,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
             // Sample moving image at moving_indices
             self.interpolator.interpolate(moving.data(), moving_indices) // [N]
         } else {
-            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n.div_ceil(CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {

@@ -141,9 +141,9 @@ impl FrangiVesselnessFilter {
         let tensor = burn::tensor::Tensor::<B, 3>::from_data(td2, &image.data().device());
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 
@@ -220,8 +220,8 @@ pub(crate) fn gaussian_blur_vec(
     let n = nz * ny * nx;
     let mut buf = data.to_vec();
 
-    for axis in 0..3usize {
-        let sigma_px = sigma_mm / spacing[axis];
+    for (axis, &sp) in spacing.iter().enumerate() {
+        let sigma_px = sigma_mm / sp;
         if sigma_px < 1e-9 {
             continue;
         }

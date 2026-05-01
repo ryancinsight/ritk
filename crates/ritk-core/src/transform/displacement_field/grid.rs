@@ -6,6 +6,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     /// Convert physical continuous points iteratively to indices isolated across chunked dimensional grids.
     ///
     /// Follows the mathematically verified mapping $ v^T = (w - O) T $.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let [n_points, _] = points.dims();
 
@@ -16,7 +17,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             diff.matmul(self.world_to_index_matrix.clone())
         } else {
             let mut chunks = Vec::new();
-            let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n_points.div_ceil(CHUNK_SIZE);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;

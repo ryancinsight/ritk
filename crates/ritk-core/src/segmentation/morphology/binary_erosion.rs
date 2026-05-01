@@ -57,9 +57,9 @@ impl BinaryErosion {
 
         Image::new(
             tensor,
-            mask.origin().clone(),
-            mask.spacing().clone(),
-            mask.direction().clone(),
+            *mask.origin(),
+            *mask.spacing(),
+            *mask.direction(),
         )
     }
 }

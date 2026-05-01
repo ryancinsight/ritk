@@ -52,15 +52,15 @@ fn test_displacement_registration_2d() {
 
     let fixed = Image::new(
         fixed_tensor.clone(),
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(
         moving_tensor.clone(),
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
 
     // 2. Initialize Displacement Field (Zero)
@@ -73,9 +73,9 @@ fn test_displacement_registration_2d() {
 
     let field = DisplacementField::new(
         vec![comp_x, comp_y],
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
 
     let transform = DisplacementFieldTransform::new(field, LinearInterpolator::new());
@@ -104,8 +104,8 @@ fn test_displacement_registration_2d() {
     // components are [X, Y]
     // data is [Y, X] (10x10)
     // slice uses [dim0_range, dim1_range] -> [y_range, x_range]
-    let dx = comps[0].clone().slice([5..6, 5..6]).into_scalar() as f32;
-    let dy = comps[1].clone().slice([5..6, 5..6]).into_scalar() as f32;
+    let dx = comps[0].clone().slice([5..6, 5..6]).into_scalar();
+    let dy = comps[1].clone().slice([5..6, 5..6]).into_scalar();
 
     println!("Recovered Displacement at center: dx={}, dy={}", dx, dy);
 

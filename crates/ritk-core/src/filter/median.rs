@@ -57,9 +57,9 @@ impl MedianFilter {
 
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }
@@ -250,7 +250,7 @@ mod tests {
     #[test]
     fn test_metadata_preserved() {
         let dims = [4, 4, 4];
-        let origin = [10.0, -5.5, 3.14];
+        let origin = [10.0, -5.5, 2.71]; // arbitrary float coordinates
         let spacing = [0.5, 0.75, 1.25];
         let vals = vec![7.0_f32; dims[0] * dims[1] * dims[2]];
         let img = make_image(vals, dims, origin, spacing);

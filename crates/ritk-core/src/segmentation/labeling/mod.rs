@@ -135,9 +135,9 @@ impl ConnectedComponentsFilter {
 
         let label_image = Image::new(
             tensor,
-            mask.origin().clone(),
-            mask.spacing().clone(),
-            mask.direction().clone(),
+            *mask.origin(),
+            *mask.spacing(),
+            *mask.direction(),
         );
 
         (label_image, stats)
@@ -273,14 +273,14 @@ fn hoshen_kopelman(
     // Map canonical root → consecutive final label [1, K].
     let mut root_to_final = vec![0usize; next_label];
     let mut num_components = 0usize;
-    for i in 0..n {
-        if provisional[i] > 0 {
-            let root = uf.find(provisional[i]);
+    for prov in provisional.iter_mut().take(n) {
+        if *prov > 0 {
+            let root = uf.find(*prov);
             if root_to_final[root] == 0 {
                 num_components += 1;
                 root_to_final[root] = num_components;
             }
-            provisional[i] = root_to_final[root];
+            *prov = root_to_final[root];
         }
     }
 
@@ -429,13 +429,13 @@ mod tests {
     #[test]
     fn test_label_values_are_consecutive_integers() {
         // Two components: half-split along Z.
-        let mut values = vec![0.0_f32; 16];
+        let mut values = [0.0_f32; 16];
         // First 8 voxels form component 1, last 8 form component 2.
-        for i in 0..8 {
-            values[i] = 1.0;
+        for v in values.iter_mut().take(8) {
+            *v = 1.0;
         }
-        for i in 8..16 {
-            values[i] = 1.0;
+        for v in values.iter_mut().skip(8) {
+            *v = 1.0;
         }
         // Make a gap at z=1 boundary: set z=1 layer to 0 for a 4×2×2 split.
         // Actually just use 1×1×8 with gap in middle.

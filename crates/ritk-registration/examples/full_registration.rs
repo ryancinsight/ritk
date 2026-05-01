@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &fixed_image,
         &moving_image,
         initial_transform,
-        |lr| AdamOptimizer::new(lr),
+        AdamOptimizer::new,
         schedule,
     );
     let duration = start.elapsed();

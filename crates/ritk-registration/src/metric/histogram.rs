@@ -53,6 +53,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
     /// Compute soft joint histogram between two images (vectorized).
     /// Uses Gaussian kernel for differentiability.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn compute_joint_histogram(
         &self,
         fixed: &Tensor<B, 1>,
@@ -102,7 +103,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             w_fixed.transpose().matmul(w_moving)
         } else {
             let mut joint_hist = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
-            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n.div_ceil(CHUNK_SIZE);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
@@ -128,12 +129,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
     pub fn compute_entropy(&self, p: Tensor<B, 1>) -> Tensor<B, 1> {
         let eps = 1e-10;
         let log_p = (p.clone() + eps).log();
-        let entropy = p.mul(log_p).sum().neg();
-        entropy
+        
+        p.mul(log_p).sum().neg()
     }
 
     /// Compute joint histogram from images with transform and sampling.
     /// Handles chunking of the spatial domain to respect memory and dispatch limits.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn compute_image_joint_histogram<const D: usize>(
         &self,
         fixed: &Image<B, D>,
@@ -222,7 +224,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             self.compute_joint_histogram(&fixed_values, &moving_values)
         } else {
             // Process in chunks
-            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n.div_ceil(CHUNK_SIZE);
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
             // Populate cache if needed (and we are not using cached points yet)

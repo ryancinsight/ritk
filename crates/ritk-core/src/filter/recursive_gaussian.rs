@@ -168,9 +168,9 @@ impl RecursiveGaussianFilter {
         let tensor = Tensor::<B, 3>::from_data(out_td, &device);
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }
@@ -460,9 +460,8 @@ fn gradient_magnitude_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> V
     let n = data.len();
     let mut sum_sq = vec![0.0_f64; n];
 
-    for dim in 0..3 {
+    for (dim, &s) in spacing.iter().enumerate() {
         let deriv = apply_first_derivative_1d(data, dims, dim);
-        let s = spacing[dim];
         for i in 0..n {
             let d = deriv[i] as f64 / s;
             sum_sq[i] += d * d;
@@ -483,9 +482,9 @@ fn laplacian_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
     let n = data.len();
     let mut result = vec![0.0_f64; n];
 
-    for dim in 0..3 {
+    for (dim, &s) in spacing.iter().enumerate() {
         let d2 = apply_second_derivative_1d(data, dims, dim);
-        let s2 = spacing[dim] * spacing[dim];
+        let s2 = s * s;
         for i in 0..n {
             result[i] += d2[i] as f64 / s2;
         }

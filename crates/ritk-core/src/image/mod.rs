@@ -4,6 +4,7 @@
 //! for representing medical images with physical metadata.
 
 pub mod grid;
+#[allow(clippy::module_inception)]
 pub mod image;
 pub mod metadata;
 pub mod transform;

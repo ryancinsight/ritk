@@ -39,9 +39,9 @@ impl<B: Backend> GaussianFilter<B> {
 
         Image::new(
             data,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         )
     }
 
@@ -76,7 +76,7 @@ impl<B: Backend> GaussianFilter<B> {
             let pixel_sigma = sigma / spacing_val;
             let radius = (3.0 * pixel_sigma).ceil() as usize;
             let mut width = (2 * radius + 1).min(self.max_kernel_width);
-            if width % 2 == 0 {
+            if width.is_multiple_of(2) {
                 width -= 1;
             }
             let actual_radius = (width - 1) / 2;
@@ -112,6 +112,7 @@ impl<B: Backend> GaussianFilter<B> {
         kernel
     }
 
+    #[allow(clippy::single_range_in_vec_init)]
     fn convolve_1d<const D: usize>(
         &self,
         input: Tensor<B, D>,
@@ -138,9 +139,9 @@ impl<B: Backend> GaussianFilter<B> {
         // 2. Flatten other dimensions into batch
         let last_dim_size = dims[dim];
         let mut batch_size = 1;
-        for i in 0..D {
+        for (i, &d) in dims.iter().enumerate() {
             if i != dim {
-                batch_size *= dims[i];
+                batch_size *= d;
             }
         }
 
@@ -168,7 +169,7 @@ impl<B: Backend> GaussianFilter<B> {
                 options,
             )
         } else {
-            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = batch_size.div_ceil(CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
@@ -195,9 +196,9 @@ impl<B: Backend> GaussianFilter<B> {
         // Reshape back to permuted shape
         let mut permuted_shape = [0; D];
         let mut p_idx = 0;
-        for i in 0..D {
+        for (i, &d) in dims.iter().enumerate() {
             if i != dim {
-                permuted_shape[p_idx] = dims[i];
+                permuted_shape[p_idx] = d;
                 p_idx += 1;
             }
         }

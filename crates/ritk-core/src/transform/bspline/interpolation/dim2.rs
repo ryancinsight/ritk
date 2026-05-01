@@ -3,6 +3,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
+    #[allow(clippy::single_range_in_vec_init)]
     pub(crate) fn transform_2d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let batch_size = points.shape().dims[0];
         const CHUNK_SIZE: usize = 32768;
@@ -10,7 +11,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         if batch_size <= CHUNK_SIZE {
             self.transform_2d_chunk(points)
         } else {
-            let num_chunks = (batch_size + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = batch_size.div_ceil(CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {

@@ -23,7 +23,7 @@ impl<B: Backend> NiftiReader<B> {
 impl<B: Backend> ImageReader<B, 3> for NiftiReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         read_nifti(path, &self.device)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -43,7 +43,7 @@ impl<B: Backend> Default for NiftiWriter<B> {
 impl<B: Backend> ImageWriter<B, 3> for NiftiWriter<B> {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_nifti(path, image)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

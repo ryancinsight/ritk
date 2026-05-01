@@ -794,9 +794,9 @@ fn bending_energy_gradient(
     let count = count_interior(ctrl_dims);
     let norm = if count > 0 { 2.0 / count as f64 } else { 0.0 };
 
-    let sz2 = (ctrl_spacing[0] * ctrl_spacing[0]) as f64;
-    let sy2 = (ctrl_spacing[1] * ctrl_spacing[1]) as f64;
-    let sx2 = (ctrl_spacing[2] * ctrl_spacing[2]) as f64;
+    let sz2 = ctrl_spacing[0] * ctrl_spacing[0];
+    let sy2 = ctrl_spacing[1] * ctrl_spacing[1];
+    let sx2 = ctrl_spacing[2] * ctrl_spacing[2];
 
     let mut out_z = vec![0.0_f32; cn];
     let mut out_y = vec![0.0_f32; cn];
@@ -875,6 +875,7 @@ fn count_interior(ctrl_dims: &[usize; 3]) -> usize {
 /// ```
 ///
 /// with boundary extension by clamping.
+#[allow(clippy::type_complexity)]
 fn refine_control_grid(
     cp_z: &[f32],
     cp_y: &[f32],

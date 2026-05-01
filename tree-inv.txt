@@ -1,0 +1,9 @@
+bzip2-sys v0.1.13+1.0.8
+└── bzip2 v0.4.4
+    └── zip v0.6.6
+        └── xtask v0.1.0 (D:\kwavers\ritk\xtask)
+
+zstd-sys v2.0.16+zstd.1.5.7
+└── zstd-safe v5.0.2+zstd.1.5.2
+    └── zstd v0.11.2+zstd.1.5.2
+        └── zip v0.6.6 (*)

@@ -59,7 +59,7 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
         );
 
         let shape = data.shape();
-        let dims: Vec<usize> = shape.dims.into();
+        let dims: Vec<usize> = shape.dims;
 
         // Get all index data at once
         let indices_data = indices.to_data();
@@ -225,7 +225,7 @@ mod tests {
         let val = result.into_scalar().elem::<f32>();
         // Value should be within reasonable range (cubic B-spline center coefficient is 2/3)
         assert!(
-            val >= 0.0 && val <= 8.0,
+            (0.0..=8.0).contains(&val),
             "Interpolated value {} out of range",
             val
         );
@@ -236,7 +236,7 @@ mod tests {
         let val = result.into_scalar().elem::<f32>();
         // Value should be between min and max
         assert!(
-            val >= 0.0 && val <= 8.0,
+            (0.0..=8.0).contains(&val),
             "Interpolated value {} out of range",
             val
         );
@@ -259,7 +259,7 @@ mod tests {
         let val = result.into_scalar().elem::<f32>();
         // Value should be within reasonable range
         assert!(
-            val >= 0.0 && val <= 5.0,
+            (0.0..=5.0).contains(&val),
             "Interpolated value {} out of range",
             val
         );

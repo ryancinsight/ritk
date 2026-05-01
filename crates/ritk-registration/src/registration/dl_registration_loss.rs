@@ -82,6 +82,12 @@ pub struct GlobalNCCLoss<B: Backend> {
     phantom: PhantomData<B>,
 }
 
+impl<B: Backend> Default for GlobalNCCLoss<B> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B: Backend> GlobalNCCLoss<B> {
     pub fn new() -> Self {
         Self {

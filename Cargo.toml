@@ -17,12 +17,12 @@ ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
 
-burn = { version = "0.19", features = ["wgpu", "autodiff"] }
+burn = { version = "0.19", default-features = false, features = ["wgpu", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
 numpy = "0.22"
-dicom = "0.8.0"
-nifti = "0.17.0"
+dicom = { version = "0.8.0", default-features = false, features = ["pixeldata", "ndarray"] }
+nifti = { version = "0.17.0", default-features = false, features = ["ndarray_volumes"] }
 tokio = { version = "1.0", features = ["full"] }
 anyhow = "1.0"
 thiserror = "2.0"

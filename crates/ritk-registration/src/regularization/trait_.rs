@@ -116,9 +116,9 @@ pub mod utils {
         let zeros_h = Tensor::zeros([b, c, 1, w - 2], &field.device());
         let laplacian = Tensor::cat(vec![zeros_h.clone(), laplacian_center, zeros_h], 2);
         let zeros_w = Tensor::zeros([b, c, h, 1], &field.device());
-        let laplacian = Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 3);
+        
 
-        laplacian
+        Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 3)
     }
 
     /// Compute spatial Laplacian for 4D field.
@@ -169,8 +169,8 @@ pub mod utils {
         let zeros_h = Tensor::zeros([b, c, d, 1, w - 2], &field.device());
         let laplacian = Tensor::cat(vec![zeros_h.clone(), laplacian, zeros_h.clone()], 3);
         let zeros_w = Tensor::zeros([b, c, d, h, 1], &field.device());
-        let laplacian = Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 4);
+        
 
-        laplacian
+        Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 4)
     }
 }

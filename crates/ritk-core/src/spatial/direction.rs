@@ -68,7 +68,7 @@ impl<B: AutodiffBackend, const D: usize> AutodiffModule<B> for Direction<D> {
     type InnerModule = Direction<D>;
 
     fn valid(&self) -> Self::InnerModule {
-        self.clone()
+        *self
     }
 }
 

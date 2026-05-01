@@ -37,7 +37,9 @@ proptest! {
     fn test_coordinate_roundtrip(
         ox in -100.0f64..100.0, oy in -100.0f64..100.0, oz in -100.0f64..100.0,
         sx in 0.1f64..5.0, sy in 0.1f64..5.0, sz in 0.1f64..5.0,
-        ax in -3.14f64..3.14, ay in -3.14f64..3.14, az in -3.14f64..3.14,
+        ax in -std::f64::consts::PI..std::f64::consts::PI,
+        ay in -std::f64::consts::PI..std::f64::consts::PI,
+        az in -std::f64::consts::PI..std::f64::consts::PI,
         px in -50.0f64..50.0, py in -50.0f64..50.0, pz in -50.0f64..50.0
     ) {
         let device = Default::default();

@@ -277,7 +277,7 @@ mod tests {
         let direction = Tensor::<TestBackend, 2>::eye(1, &device);
 
         let num_control_points = 4;
-        let mut coeffs_data = vec![0.0; num_control_points * 1];
+        let mut coeffs_data = vec![0.0; num_control_points];
         // Index 1 (x=1) -> 2.0.
         coeffs_data[1] = 2.0;
 

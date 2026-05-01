@@ -1,0 +1,9 @@
+error: failed to select a version for `nifti`.
+    ... required by package `ritk-io v0.1.0 (D:\kwavers\ritk\crates\ritk-io)`
+versions that meet the requirements `^0.17.0` (locked to 0.17.0) are: 0.17.0
+
+package `ritk-io` depends on `nifti` with feature `flate2` but `nifti` does not have that feature.
+ A required dependency with that name exists, but only optional dependencies can be used as features.
+
+
+failed to select a version for `nifti` which could resolve this conflict

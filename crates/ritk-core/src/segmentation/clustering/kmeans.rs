@@ -147,9 +147,9 @@ impl KMeansSegmentation {
 
         Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         )
     }
 }
@@ -224,8 +224,8 @@ fn kmeans_impl(
         let target = rng.next_f64() * total;
         let mut cumulative = 0.0_f64;
         let mut chosen = n - 1;
-        for i in 0..n {
-            cumulative += dist_sq[i];
+        for (i, &d) in dist_sq.iter().enumerate() {
+            cumulative += d;
             if cumulative >= target {
                 chosen = i;
                 break;
@@ -379,7 +379,7 @@ mod tests {
 
         // Labels in [0, K-1].
         for &l in &labels {
-            assert!(l >= 0.0 && l < 2.0, "label must be in [0, 2), got {}", l);
+            assert!((0.0..2.0).contains(&l), "label must be in [0, 2), got {}", l);
         }
 
         // The first 50 must share a label, the last 50 must share a different label.
@@ -392,21 +392,21 @@ mod tests {
             high_label
         );
 
-        for i in 0..50 {
+        for (i, &lbl) in labels.iter().enumerate().take(50) {
             assert!(
-                (labels[i] - low_label).abs() < f32::EPSILON,
+                (lbl - low_label).abs() < f32::EPSILON,
                 "low-mode voxel {} has inconsistent label {} (expected {})",
                 i,
-                labels[i],
+                lbl,
                 low_label
             );
         }
-        for i in 50..100 {
+        for (i, &lbl) in labels.iter().enumerate().skip(50).take(50) {
             assert!(
-                (labels[i] - high_label).abs() < f32::EPSILON,
+                (lbl - high_label).abs() < f32::EPSILON,
                 "high-mode voxel {} has inconsistent label {} (expected {})",
                 i,
-                labels[i],
+                lbl,
                 high_label
             );
         }

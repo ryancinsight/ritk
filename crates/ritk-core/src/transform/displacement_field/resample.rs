@@ -12,6 +12,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     ///
     /// By determining affine target positions dynamically matching local space intervals exactly, linear projection
     /// enforces mathematical equivalence mapping bounded geometric states precisely onto the local continuous components.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn resample(
         &self,
         new_shape: [usize; D],
@@ -43,7 +44,7 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         const CHUNK_SIZE: usize = 32768;
 
         let mut component_chunks: Vec<Vec<Tensor<B, 1>>> = vec![Vec::new(); D];
-        let num_chunks = (n_points + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        let num_chunks = n_points.div_ceil(CHUNK_SIZE);
 
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
@@ -55,16 +56,16 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
 
             let old_indices = self.world_to_index_tensor(world);
 
-            for d in 0..D {
+            for (d, cc) in component_chunks.iter_mut().enumerate() {
                 let comp = &self.components[d].val();
                 let val = interpolator.interpolate(comp, old_indices.clone());
-                component_chunks[d].push(val);
+                cc.push(val);
             }
         }
 
         let mut final_components = Vec::with_capacity(D);
-        for d in 0..D {
-            let flat = Tensor::cat(component_chunks[d].clone(), 0);
+        for cc in component_chunks.into_iter() {
+            let flat = Tensor::cat(cc, 0);
             let reshaped = flat.reshape(Shape::new(new_shape));
             final_components.push(reshaped);
         }

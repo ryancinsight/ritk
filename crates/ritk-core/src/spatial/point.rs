@@ -67,7 +67,7 @@ impl<B: AutodiffBackend, const D: usize> AutodiffModule<B> for Point<D> {
     type InnerModule = Point<D>;
 
     fn valid(&self) -> Self::InnerModule {
-        self.clone()
+        *self
     }
 }
 
@@ -97,8 +97,8 @@ impl<const D: usize> Point<D> {
             "Coordinate slice length must match dimension"
         );
         let mut point = Self::origin();
-        for i in 0..D {
-            point.0.coords[i] = coords[i];
+        for (i, &c) in coords.iter().enumerate().take(D) {
+            point.0.coords[i] = c;
         }
         point
     }

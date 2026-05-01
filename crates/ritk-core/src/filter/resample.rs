@@ -96,6 +96,7 @@ where
     }
 
     /// Apply filter to an input image.
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn apply(&self, input: &Image<B, D>) -> Image<B, D> {
         let device = input.data().device();
 
@@ -122,7 +123,7 @@ where
             self.interpolator.interpolate(input.data(), input_indices)
         } else {
             // Process in chunks
-            let num_chunks = (n_pixels + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n_pixels.div_ceil(CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {

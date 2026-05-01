@@ -208,6 +208,7 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
 /// - hi_inclusive = N − k_minus_1 + level (must leave ≥ 1 bin per remaining class)
 ///
 /// For K = 2 (k_minus_1 = 1), this reduces to a linear scan over [1, N−1].
+#[allow(clippy::too_many_arguments)]
 fn search_thresholds(
     level: usize,
     k_minus_1: usize,
@@ -334,9 +335,9 @@ fn apply_multi_otsu_labels<B: Backend, const D: usize>(
 
     Image::new(
         tensor,
-        image.origin().clone(),
-        image.spacing().clone(),
-        image.direction().clone(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
     )
 }
 

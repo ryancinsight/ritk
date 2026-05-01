@@ -10,6 +10,12 @@ pub struct SpatialTransformer<B: Backend> {
     phantom: PhantomData<B>,
 }
 
+impl<B: Backend> Default for SpatialTransformer<B> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<B: Backend> SpatialTransformer<B> {
     pub fn new() -> Self {
         Self {

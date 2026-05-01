@@ -15,7 +15,6 @@
 
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 
 /// Descriptive statistics over image intensities.
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +37,8 @@ pub struct ImageStatistics {
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let tensor_data = image.data().clone().into_data();
     let slice = tensor_data.as_slice::<f32>().expect("f32 tensor data");
-    compute_from_values(slice)
+    let mut values: Vec<f32> = slice.to_vec();
+    compute_from_values(&mut values)
 }
 
 /// Compute statistics restricted to voxels where `mask` > 0.5 (foreground).
@@ -61,7 +61,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         "image and mask must have identical element count"
     );
 
-    let values: Vec<f32> = image_slice
+    let mut values: Vec<f32> = image_slice
         .iter()
         .zip(mask_slice.iter())
         .filter(|(_, &m)| m > 0.5)
@@ -69,65 +69,41 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         .collect();
 
     assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_values(&values)
+    compute_from_values(&mut values)
 }
 
-/// Compute descriptive statistics from a flat value slice.
+/// Core statistics computation.
 ///
-/// - Phase 1: single O(N) parallel pass for min, max, mean, std.
-/// - Phase 2: O(N) amortized percentile selection via select_nth_unstable_by
-///   (introselect / pdqselect), applying three nested selections from highest
-///   to lowest index to preserve the partition invariant.
-pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
+/// # Invariants
+/// - `values` is non-empty (caller enforced).
+/// - Sorts `values` in-place; NaN propagates arithmetic and is ordered last by
+///   the `partial_cmp` fallback.
+fn compute_from_values(values: &mut [f32]) -> ImageStatistics {
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");
 
-    // Phase 1: single parallel pass accumulating min, max, sum, sum_sq.
-    let (min, max, sum, sum_sq) = values
-        .par_iter()
-        .fold(
-            || (f32::INFINITY, f32::NEG_INFINITY, 0.0_f64, 0.0_f64),
-            |(mn, mx, s, sq), &v| {
-                let vd = v as f64;
-                (mn.min(v), mx.max(v), s + vd, sq + vd * vd)
-            },
-        )
-        .reduce(
-            || (f32::INFINITY, f32::NEG_INFINITY, 0.0_f64, 0.0_f64),
-            |(mn1, mx1, s1, sq1), (mn2, mx2, s2, sq2)| {
-                (mn1.min(mn2), mx1.max(mx2), s1 + s2, sq1 + sq2)
-            },
-        );
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let n_f64 = n as f64;
-    let mean_f64 = sum / n_f64;
-    let mean = mean_f64 as f32;
+    let min = values[0];
+    let max = values[n - 1];
 
-    // Population variance: E[X^2] - E[X]^2. .max(0.0) absorbs f64 cancellation.
-    let variance = ((sum_sq / n_f64) - mean_f64 * mean_f64).max(0.0) as f32;
+    let mean: f32 = values.iter().sum::<f32>() / n as f32;
+
+    let variance: f32 = values.iter().map(|&v| (v - mean) * (v - mean)).sum::<f32>() / n as f32;
     let std = variance.sqrt();
 
-    // Phase 2: selection-based percentile computation — O(N) amortized via
-    // select_nth_unstable_by (introselect / pdqselect), versus O(N log N) for
-    // full sort. Process from highest to lowest index to preserve the partition
-    // invariant: after selecting i75, the sub-slice [0..=i75] contains exactly
-    // the i75+1 smallest elements; selecting i50 within it is correct, and so on.
-    //
-    // Proof of index bounds: i25 = floor(n/4) <= floor(n/2) = i50 <= floor(3n/4) = i75 < n.
-    // Therefore: i25 < i50+1 and i50 < i75+1, satisfying select_nth precondition.
-    let i25 = n / 4;
-    let i50 = n / 2;
-    let i75 = (3 * n) / 4;
-    let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-    let mut sel: Vec<f32> = values.to_vec();
-    sel.select_nth_unstable_by(i75, cmp);
-    sel[..=i75].select_nth_unstable_by(i50, cmp);
-    sel[..=i50].select_nth_unstable_by(i25, cmp);
-    let p25 = sel[i25];
-    let p50 = sel[i50];
-    let p75 = sel[i75];
+    // Floor-division percentile indices as specified in the module contract.
+    let p25 = values[n / 4];
+    let p50 = values[n / 2];
+    let p75 = values[(3 * n) / 4];
 
-    ImageStatistics { min, max, mean, std, percentiles: [p25, p50, p75] }
+    ImageStatistics {
+        min,
+        max,
+        mean,
+        std,
+        percentiles: [p25, p50, p75],
+    }
 }
 
 #[cfg(test)]
@@ -265,8 +241,8 @@ mod tests {
         //   p75 = values[12/4=3] = 6.0
         let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
         let mut mask_data = vec![0.0f32; 8];
-        for i in 2usize..=5 {
-            mask_data[i] = 1.0;
+        for v in mask_data.iter_mut().take(6).skip(2) {
+            *v = 1.0;
         }
 
         let image = make_image_1d(data);
@@ -340,43 +316,5 @@ mod tests {
         let image = make_image_1d(vec![1.0, 2.0, 3.0]);
         let mask = make_image_1d(vec![1.0, 1.0]);
         let _ = masked_statistics(&image, &mask);
-    }
-
-    #[test]
-    fn test_select_percentiles_match_sort_parity() {
-        // Verify select_nth_unstable_by produces bit-identical percentile values
-        // to a full sort for a deterministic pseudo-random input (n=1000).
-        // LCG parameters from Knuth/Numerical Recipes for reproducibility.
-        let n = 1000usize;
-        let mut state: u64 = 0xdeadbeef_cafebabe;
-        let a: u64 = 6_364_136_223_846_793_005;
-        let c: u64 = 1_442_695_040_888_963_407;
-        let values: Vec<f32> = (0..n)
-            .map(|_| {
-                state = state.wrapping_mul(a).wrapping_add(c);
-                (state >> 32) as f32 / u32::MAX as f32 * 1000.0
-            })
-            .collect();
-
-        // Reference: full sort
-        let mut sorted = values.clone();
-        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let ref_p25 = sorted[n / 4];
-        let ref_p50 = sorted[n / 2];
-        let ref_p75 = sorted[(3 * n) / 4];
-
-        // Under test: select-based (same logic as compute_from_values Phase 2)
-        let i25 = n / 4;
-        let i50 = n / 2;
-        let i75 = (3 * n) / 4;
-        let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-        let mut sel = values.clone();
-        sel.select_nth_unstable_by(i75, cmp);
-        sel[..=i75].select_nth_unstable_by(i50, cmp);
-        sel[..=i50].select_nth_unstable_by(i25, cmp);
-
-        assert_eq!(sel[i25], ref_p25, "p25: select={} sort={}", sel[i25], ref_p25);
-        assert_eq!(sel[i50], ref_p50, "p50: select={} sort={}", sel[i50], ref_p50);
-        assert_eq!(sel[i75], ref_p75, "p75: select={} sort={}", sel[i75], ref_p75);
     }
 }

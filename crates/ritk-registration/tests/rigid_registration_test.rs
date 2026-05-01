@@ -71,9 +71,9 @@ fn test_registration_rigid_3d() {
 
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
@@ -163,9 +163,9 @@ fn test_registration_rigid_full() {
     let direction = Direction::identity();
     let fixed = Image::new(
         fixed_tensor,
-        origin.clone(),
-        spacing.clone(),
-        direction.clone(),
+        origin,
+        spacing,
+        direction,
     );
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 

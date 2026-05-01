@@ -96,6 +96,7 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
 }
 
 impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelation<B> {
+    #[allow(clippy::single_range_in_vec_init)]
     fn forward(
         &self,
         fixed: &Image<B, D>,
@@ -118,7 +119,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
             let moving_indices = moving.world_to_index_tensor(moving_points);
             self.interpolator.interpolate(moving.data(), moving_indices)
         } else {
-            let num_chunks = (n + CHUNK_SIZE - 1) / CHUNK_SIZE;
+            let num_chunks = n.div_ceil(CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
@@ -140,7 +141,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         // 3. Reshape back to spatial dimensions for convolution
         let shape_dims: [usize; D] = fixed.data().shape().dims(); // [usize; D]
         let moving_values =
-            moving_values_flat.reshape(burn::tensor::Shape::new(shape_dims.clone()));
+            moving_values_flat.reshape(burn::tensor::Shape::new(shape_dims));
         let fixed_values = fixed.data().clone(); // Already spatial [D, H, W]
 
         // 4. Setup filter
@@ -170,11 +171,11 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
                 let m_f = c
                     .mean_f_flat
                     .clone()
-                    .reshape(burn::tensor::Shape::new(shape_dims.clone()));
+                    .reshape(burn::tensor::Shape::new(shape_dims));
                 let v_f = c
                     .var_f_flat
                     .clone()
-                    .reshape(burn::tensor::Shape::new(shape_dims.clone()));
+                    .reshape(burn::tensor::Shape::new(shape_dims));
                 (m_f, v_f)
             } else {
                 let (m_f, v_f) =

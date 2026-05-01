@@ -209,8 +209,8 @@ impl<B: Backend> SwinTransformerBlock<B> {
         // Implementation of roll for D, H, W using slice and cat.
         let x = self.roll(x, shift, 1); // D
         let x = self.roll(x, shift, 2); // H
-        let x = self.roll(x, shift, 3); // W
-        x
+         // W
+        self.roll(x, shift, 3)
     }
 
     fn roll(&self, x: Tensor<B, 5>, shift: i32, dim: usize) -> Tensor<B, 5> {

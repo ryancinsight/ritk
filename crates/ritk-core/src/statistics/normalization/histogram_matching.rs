@@ -99,9 +99,9 @@ impl HistogramMatcher {
         if (src_max - src_min).abs() < f32::EPSILON {
             return Image::new(
                 source.data().clone(),
-                source.origin().clone(),
-                source.spacing().clone(),
-                source.direction().clone(),
+                *source.origin(),
+                *source.spacing(),
+                *source.direction(),
             );
         }
 
@@ -146,9 +146,9 @@ impl HistogramMatcher {
 
         Image::new(
             out_tensor,
-            source.origin().clone(),
-            source.spacing().clone(),
-            source.direction().clone(),
+            *source.origin(),
+            *source.spacing(),
+            *source.direction(),
         )
     }
 
