@@ -24,6 +24,9 @@ use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
+use crate::ui::{
+    axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor,
+};
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
 use crate::{LoadedVolume, ModalityDisplay, ViewerState};
@@ -97,6 +100,8 @@ pub struct SnapApp {
     show_overlay: bool,
     /// `true` when crosshair lines are drawn on viewports.
     show_crosshair: bool,
+    /// Shared voxel cursor used to synchronize all MPR viewports.
+    linked_cursor: Option<LinkedCursor>,
     /// `true` when the series browser left panel is visible.
     show_series_browser: bool,
 
@@ -141,6 +146,7 @@ impl Default for SnapApp {
             multi_planar: false,
             show_overlay: true,
             show_crosshair: false,
+            linked_cursor: None,
             show_series_browser: true,
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
@@ -473,6 +479,14 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.linked_cursor = self.loaded.as_ref().map(|vol| {
+            LinkedCursor::from_slices(
+                vol.shape,
+                self.viewer_state.slice_index,
+                self.coronal_slice,
+                self.sagittal_slice,
+            )
+        });
         if let Some(source) = snapshot.source {
             self.pending_load = Some(source);
         }
@@ -880,25 +894,27 @@ impl SnapApp {
             self.draw_label_overlay(&painter, response.rect, axis);
         }
 
-        // Crosshair at viewport centre.
-        if self.show_crosshair && self.loaded.is_some() {
-            let cx = response.rect.center().x;
-            let cy = response.rect.center().y;
-            let color = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 120);
-            painter.line_segment(
-                [
-                    egui::pos2(response.rect.min.x, cy),
-                    egui::pos2(response.rect.max.x, cy),
-                ],
-                egui::Stroke::new(1.0, color),
-            );
-            painter.line_segment(
-                [
-                    egui::pos2(cx, response.rect.min.y),
-                    egui::pos2(cx, response.rect.max.y),
-                ],
-                egui::Stroke::new(1.0, color),
-            );
+        // Crosshair at the linked study-coordinate cursor.
+        if self.show_crosshair {
+            if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor) {
+                if let Some(crosshair) = cursor.viewport_crosshair(vol.shape, axis, response.rect) {
+                    let color = egui::Color32::from_rgba_unmultiplied(255, 255, 0, 120);
+                    painter.line_segment(
+                        [
+                            egui::pos2(response.rect.min.x, crosshair.y),
+                            egui::pos2(response.rect.max.x, crosshair.y),
+                        ],
+                        egui::Stroke::new(1.0, color),
+                    );
+                    painter.line_segment(
+                        [
+                            egui::pos2(crosshair.x, response.rect.min.y),
+                            egui::pos2(crosshair.x, response.rect.max.y),
+                        ],
+                        egui::Stroke::new(1.0, color),
+                    );
+                }
+            }
         }
 
         // painter is dropped here; no longer borrows ui.
@@ -930,6 +946,7 @@ impl SnapApp {
             self.on_drag_end(response.interact_pointer_pos());
         }
         if response.clicked() {
+            self.update_linked_cursor_from_pointer(axis, response.interact_pointer_pos(), response.rect);
             if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
             {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
@@ -1015,6 +1032,15 @@ impl SnapApp {
                             "Sagittal:",
                             &format!("{}/{}", self.sagittal_slice + 1, cols),
                         );
+                        let cursor = self
+                            .linked_cursor
+                            .map(|cursor| cursor.voxel())
+                            .unwrap_or([self.viewer_state.slice_index, self.coronal_slice, self.sagittal_slice]);
+                        row(
+                            ui,
+                            "Cursor:",
+                            &format!("z={} y={} x={}", cursor[0] + 1, cursor[1] + 1, cursor[2] + 1),
+                        );
                         row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
                         row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
                         row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));
@@ -1023,6 +1049,7 @@ impl SnapApp {
 
                 ui.separator();
                 ui.label("Scroll wheel: navigate slices.");
+                ui.label("Click: move the linked MPR cursor.");
                 ui.label("Drag: active tool interaction.");
             } else {
                 ui.label("No volume loaded.");
@@ -1238,6 +1265,12 @@ impl SnapApp {
                 self.coronal_slice = shape[1] / 2;
                 self.sagittal_slice = shape[2] / 2;
                 self.multi_planar = protocol.multi_planar;
+                self.linked_cursor = Some(LinkedCursor::from_slices(
+                    shape,
+                    self.viewer_state.slice_index,
+                    self.coronal_slice,
+                    self.sagittal_slice,
+                ));
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;
@@ -1295,6 +1328,12 @@ impl SnapApp {
                 self.coronal_slice = shape[1] / 2;
                 self.sagittal_slice = shape[2] / 2;
                 self.multi_planar = protocol.multi_planar;
+                self.linked_cursor = Some(LinkedCursor::from_slices(
+                    shape,
+                    self.viewer_state.slice_index,
+                    self.coronal_slice,
+                    self.sagittal_slice,
+                ));
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;
@@ -1350,6 +1389,9 @@ impl SnapApp {
                 if next != self.viewer_state.slice_index {
                     self.viewer_state.slice_index = next;
                     self.texture_dirty = true;
+                    if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                        cursor.set_axis_slice(vol.shape, 0, next);
+                    }
                 }
             }
             1 => {
@@ -1357,6 +1399,9 @@ impl SnapApp {
                 if next != self.coronal_slice {
                     self.coronal_slice = next;
                     self.coronal_dirty = true;
+                    if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                        cursor.set_axis_slice(vol.shape, 1, next);
+                    }
                 }
             }
             _ => {
@@ -1364,6 +1409,9 @@ impl SnapApp {
                 if next != self.sagittal_slice {
                     self.sagittal_slice = next;
                     self.sagittal_dirty = true;
+                    if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                        cursor.set_axis_slice(vol.shape, 2, next);
+                    }
                 }
             }
         }
@@ -1613,6 +1661,40 @@ impl SnapApp {
         }
     }
 
+    fn update_linked_cursor_from_pointer(
+        &mut self,
+        axis: usize,
+        pos: Option<egui::Pos2>,
+        rect: egui::Rect,
+    ) {
+        let Some(point) = pos else { return };
+        let Some(volume) = &self.loaded else { return };
+        let Some(cursor) = self.linked_cursor.as_mut() else {
+            return;
+        };
+        let Some(voxel) = cursor.update_from_viewport_point(
+            volume.shape,
+            axis,
+            self.axis_slice_info(axis).0,
+            point,
+            rect,
+        ) else {
+            return;
+        };
+
+        self.viewer_state.slice_index = voxel[0];
+        self.coronal_slice = voxel[1];
+        self.sagittal_slice = voxel[2];
+        self.axis = axis.min(2);
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
+        self.status_message = format!(
+            "Linked cursor axis={} voxel=[{},{},{}]",
+            axis, voxel[0], voxel[1], voxel[2]
+        );
+    }
+
     fn draw_label_overlay(&self, painter: &egui::Painter, rect: egui::Rect, axis: usize) {
         let Some(editor) = &self.label_editor else { return };
         let Some(volume) = &self.loaded else { return };
@@ -1670,85 +1752,4 @@ fn palette_color(label_id: u32) -> [u8; 4] {
         [180, 0, 255, 180],
     ];
     PALETTE[(label_id as usize) % PALETTE.len()]
-}
-
-fn axis_slice_dimensions(shape: [usize; 3], axis: usize) -> Option<(usize, usize)> {
-    match axis {
-        0 => Some((shape[2], shape[1])),
-        1 => Some((shape[2], shape[0])),
-        2 => Some((shape[1], shape[0])),
-        _ => None,
-    }
-}
-
-fn map_view_row_col_to_voxel(
-    axis: usize,
-    slice_index: usize,
-    row: usize,
-    col: usize,
-) -> [usize; 3] {
-    match axis {
-        0 => [slice_index, row, col],
-        1 => [row, slice_index, col],
-        2 => [row, col, slice_index],
-        _ => [slice_index, row, col],
-    }
-}
-
-fn viewport_point_to_voxel(
-    shape: [usize; 3],
-    axis: usize,
-    slice_index: usize,
-    point: egui::Pos2,
-    rect: egui::Rect,
-) -> Option<[usize; 3]> {
-    let (width, height) = axis_slice_dimensions(shape, axis)?;
-    if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
-        return None;
-    }
-    if !rect.contains(point) {
-        return None;
-    }
-
-    let col = ((point.x - rect.min.x) / rect.width() * width as f32)
-        .floor()
-        .clamp(0.0, (width - 1) as f32) as usize;
-    let row = ((point.y - rect.min.y) / rect.height() * height as f32)
-        .floor()
-        .clamp(0.0, (height - 1) as f32) as usize;
-
-    Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn viewport_mapping_axial_center_hits_expected_voxel() {
-        let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
-        let voxel = viewport_point_to_voxel(
-            [8, 10, 20],
-            0,
-            3,
-            egui::pos2(100.0, 50.0),
-            rect,
-        )
-        .expect("center point must map to a voxel");
-        assert_eq!(voxel, [3, 5, 10]);
-    }
-
-    #[test]
-    fn viewport_mapping_coronal_maps_row_to_depth() {
-        let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 160.0));
-        let voxel = viewport_point_to_voxel([8, 10, 20], 1, 4, egui::pos2(50.0, 80.0), rect)
-            .expect("point must map to voxel");
-        assert_eq!(voxel, [4, 4, 10]);
-    }
-
-    #[test]
-    fn viewport_mapping_rejects_outside_points() {
-        let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(50.0, 50.0));
-        assert!(viewport_point_to_voxel([8, 10, 20], 2, 6, egui::pos2(5.0, 5.0), rect).is_none());
-    }
 }
