@@ -1,3 +1,31 @@
+## Sprint 102 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.17 [patch]
+**Goal**: Close the next `ritk-snap` viewer workflow gap by adding deterministic hanging-protocol rule matching and applying those rules at load time.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-102-01 | `ritk-snap` had no SSOT for deriving startup display protocol from study metadata, so load-time view defaults were implicit and non-deterministic | patch |
+| GAP-102-02 | Viewer load paths did not apply modality/series-specific protocol decisions for windowing, preferred axis, or multi-planar layout | patch |
+| GAP-102-03 | Hanging-protocol rule selection had no value-semantic tests for CT and MR series routing or axis fallback behavior | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-snap hanging_protocol` | Targeted hanging-protocol tests passed; terminal output capture remained incomplete on longer `ritk-snap` test invocations in this environment |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 194 tests plus doc tests |
+| `cargo test --workspace --examples` | Attempted; terminal returned no captured output in this environment, so not recorded as a verified pass |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires broader viewer workflow coverage beyond deterministic hanging protocols before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 101 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

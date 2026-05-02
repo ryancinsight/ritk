@@ -1,3 +1,21 @@
+## Sprint 102 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.17 [patch]
+
+- [x] GAP-102-01: add `dicom::hanging_protocol` as the SSOT for deterministic startup protocol selection from modality and series metadata
+- [x] GAP-102-02: encode protocol decisions for CT lung/angio/bone/brain/soft-tissue, MR FLAIR/T1/T2/spine, and generic fallback
+- [x] GAP-102-03: apply protocol decisions during DICOM and NIfTI load to set window/level, initial slice, preferred axis, and multi-planar layout
+- [x] GAP-102-04: add value-semantic tests for CT and MR rule routing, generic fallback, and preferred-axis repair on degenerate shapes
+- [x] GAP-102-05: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: targeted `cargo test -p ritk-snap hanging_protocol` passed; longer `ritk-snap` test invocations had incomplete terminal output capture in this environment
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 194 tests plus doc tests
+- [x] Verification note: `cargo test --workspace --examples` was attempted but returned no captured output in this environment, so it is not recorded as a verified pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 101 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

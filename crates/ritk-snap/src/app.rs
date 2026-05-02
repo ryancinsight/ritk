@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use tracing::{error, info};
 
+use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
@@ -1202,10 +1203,15 @@ impl SnapApp {
                     }
                 };
 
-                let display = ModalityDisplay::for_modality(meta.modality.as_deref());
+                let protocol = select_hanging_protocol(
+                    meta.modality.as_deref(),
+                    meta.series_description.as_deref(),
+                    shape,
+                );
                 let mut state = ViewerState::new();
-                state.window_center = Some(display.window_center as f32);
-                state.window_width = Some(display.window_width as f32);
+                state.window_center = Some(protocol.window_center);
+                state.window_width = Some(protocol.window_width);
+                state.slice_index = shape[0] / 2;
 
                 let modality = meta.modality.clone();
                 let patient_name = meta.patient_name.clone();
@@ -1228,9 +1234,10 @@ impl SnapApp {
                     series_description,
                 });
                 self.viewer_state = state;
-                self.axis = 0;
-                self.coronal_slice = 0;
-                self.sagittal_slice = 0;
+                self.axis = protocol.preferred_axis.min(2);
+                self.coronal_slice = shape[1] / 2;
+                self.sagittal_slice = shape[2] / 2;
+                self.multi_planar = protocol.multi_planar;
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;
@@ -1241,11 +1248,12 @@ impl SnapApp {
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
                 self.status_message = format!(
-                    "Loaded {} — shape [{}, {}, {}]",
+                    "Loaded {} — shape [{}, {}, {}] — protocol {}",
                     path.display(),
                     shape[0],
                     shape[1],
                     shape[2],
+                    protocol.protocol_name,
                 );
                 info!("{}", self.status_message);
             }
@@ -1265,17 +1273,28 @@ impl SnapApp {
     fn load_nifti_file(&mut self, path: std::path::PathBuf) {
         match crate::dicom::loader::load_nifti_volume(&path) {
             Ok(vol) => {
-                let display = ModalityDisplay::for_modality(vol.modality.as_deref());
-                let mut state = ViewerState::new();
-                state.window_center = Some(display.window_center as f32);
-                state.window_width = Some(display.window_width as f32);
                 let shape = vol.shape;
-                let msg = format!("Loaded {} — shape {:?}", path.display(), shape);
+                let protocol = select_hanging_protocol(
+                    vol.modality.as_deref(),
+                    vol.series_description.as_deref(),
+                    shape,
+                );
+                let mut state = ViewerState::new();
+                state.window_center = Some(protocol.window_center);
+                state.window_width = Some(protocol.window_width);
+                state.slice_index = shape[0] / 2;
+                let msg = format!(
+                    "Loaded {} — shape {:?} — protocol {}",
+                    path.display(),
+                    shape,
+                    protocol.protocol_name
+                );
                 self.loaded = Some(vol);
                 self.viewer_state = state;
-                self.axis = 0;
-                self.coronal_slice = 0;
-                self.sagittal_slice = 0;
+                self.axis = protocol.preferred_axis.min(2);
+                self.coronal_slice = shape[1] / 2;
+                self.sagittal_slice = shape[2] / 2;
+                self.multi_planar = protocol.multi_planar;
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;

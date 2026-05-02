@@ -7,12 +7,15 @@
 //!   wraps `ritk-io` and produces [`crate::LoadedVolume`] values.
 //! - [`metadata_table`] — presentation-neutral DICOM tag inspector rows.
 //! - [`input_path`] — DICOM folder and DICOMDIR file normalization.
+//! - [`hanging_protocol`] — deterministic load-time protocol selection.
 
+pub mod hanging_protocol;
 pub mod input_path;
 pub mod loader;
 pub mod metadata_table;
 pub mod series_tree;
 
+pub use hanging_protocol::{select_hanging_protocol, HangingProtocolDecision};
 pub use input_path::{classify_dicom_input_path, DicomInputPath};
 pub use loader::{
     load_dicom_volume, load_nifti_volume, load_volume_from_path, scan_folder_for_series,
