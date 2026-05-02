@@ -104,8 +104,9 @@ construction, session snapshot persistence, rendering, tools, and egui widgets.
 
 Current viewer capabilities include DICOM series browsing, axial/coronal/
 sagittal MPR layout, modality-aware window presets, colormaps, measurement and
-ROI tools, segmentation label-map editing primitives with undo/redo, PNG slice
-export, DICOM overlays, and a deterministic Tags panel covering series
+ROI tools, interactive segmentation label paint/erase with brush radius,
+label visibility/active-label controls with undo/redo, viewport label overlays,
+PNG slice export, DICOM overlays, and a deterministic Tags panel covering series
 metadata, first-slice geometry/display tags, private scalar tags, preserved
 object-model nodes, and raw preserved element byte counts. Viewer session
 save/load stores presentation state as JSON, including source path, slice

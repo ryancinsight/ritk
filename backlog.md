@@ -1,3 +1,32 @@
+## Sprint 101 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.16 [patch]
+**Goal**: Close the next `ritk-snap` segmentation workflow gap by wiring the existing label editor into interactive viewport paint/erase and label overlay rendering.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-101-01 | `ritk-snap` label editing primitives were not connected to viewport pointer interaction, so brush paint/erase could not be executed from the UI | patch |
+| GAP-101-02 | `ritk-snap` had no in-viewport segmentation label overlay compositing path, so edited labels were not visually verifiable in the viewer | patch |
+| GAP-101-03 | The viewer had no segmentation control surface for label visibility, active-label selection, brush radius, or undo/redo on label edits | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-snap` | Passed: 123 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace --quiet` | Exited with code 1 in this environment without returned failure diagnostics in the captured output; not recorded as a full aggregate pass |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires full hanging-protocol rule matching and broader viewer workflow coverage before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 100 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

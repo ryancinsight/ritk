@@ -18,6 +18,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` DICOMDIR import**: Added DICOM input path classification so selected `DICOMDIR` files and CLI startup paths normalize to the containing DICOM root before scan/load, plus a File -> Open DICOMDIR command. [patch]
 - **`ritk-snap` session persistence**: Added JSON viewer session snapshots with File -> Save session and File -> Load session workflows for presentation-state restoration. [patch]
 - **`ritk-snap` label editing model**: Added a viewer-side `label::LabelEditor` over `ritk-core` annotation primitives with active label selection, label creation, visibility updates, voxel/spherical brush paint and erase, label counts, undo, and redo. [patch]
+- **`ritk-snap` interactive label workflow**: Wired `LabelEditor` into viewport click/drag paint and erase tools, added per-viewport segmentation label overlays, and added sidebar segmentation controls for active label selection, visibility, brush radius, add-label, and undo/redo. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

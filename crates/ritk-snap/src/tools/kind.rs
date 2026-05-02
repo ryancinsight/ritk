@@ -34,6 +34,10 @@ pub enum ToolKind {
     Crosshair,
     /// Click to display the HU value at the cursor position.
     PointHu,
+    /// Paint the active segmentation label onto voxels under the cursor.
+    LabelPaint,
+    /// Erase segmentation labels to background under the cursor.
+    LabelErase,
 }
 
 impl ToolKind {
@@ -49,6 +53,8 @@ impl ToolKind {
             ToolKind::RoiEllipse => "ROI Ellipse",
             ToolKind::Crosshair => "Crosshair",
             ToolKind::PointHu => "HU Point",
+            ToolKind::LabelPaint => "Label Paint",
+            ToolKind::LabelErase => "Label Erase",
         }
     }
 
@@ -85,6 +91,14 @@ impl ToolKind {
                 "HU Point: click to display the Hounsfield Unit value at the \
                  cursor position."
             }
+            ToolKind::LabelPaint => {
+                "Label Paint: click or drag to paint the active segmentation \
+                 label with the current brush radius."
+            }
+            ToolKind::LabelErase => {
+                "Label Erase: click or drag to erase segmentation labels \
+                 back to background with the current brush radius."
+            }
         }
     }
 
@@ -100,6 +114,8 @@ impl ToolKind {
             ToolKind::RoiEllipse => "⬭",
             ToolKind::Crosshair => "⊕",
             ToolKind::PointHu => "⊙",
+            ToolKind::LabelPaint => "P",
+            ToolKind::LabelErase => "E",
         }
     }
 
@@ -119,6 +135,8 @@ impl ToolKind {
             ToolKind::RoiEllipse,
             ToolKind::Crosshair,
             ToolKind::PointHu,
+            ToolKind::LabelPaint,
+            ToolKind::LabelErase,
         ]
     }
 }
@@ -137,8 +155,8 @@ mod tests {
         let all = ToolKind::all();
         assert_eq!(
             all.len(),
-            9,
-            "ToolKind::all() must contain all 9 variants, found {}",
+            11,
+            "ToolKind::all() must contain all 11 variants, found {}",
             all.len()
         );
         for i in 0..all.len() {

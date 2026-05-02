@@ -1,3 +1,23 @@
+## Sprint 101 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.16 [patch]
+
+- [x] GAP-101-01: wire `label::LabelEditor` into viewport pointer events for click/drag paint and erase operations
+- [x] GAP-101-02: add segmentation overlay rendering in `ritk-snap` viewports using label table color + visibility
+- [x] GAP-101-03: add Segmentation UI controls for active label selection, visibility toggles, brush radius, add-label, and undo/redo
+- [x] GAP-101-04: add value-semantic viewport-to-voxel mapping tests for axial/coronal and out-of-viewport rejection
+- [x] GAP-101-05: extend tool taxonomy with `LabelPaint` and `LabelErase` including serde/tooling tests
+- [x] GAP-101-06: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 123 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace --quiet` exited with code 1 without returned failure diagnostics in the captured output; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 100 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

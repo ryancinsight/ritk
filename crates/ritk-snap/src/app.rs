@@ -17,6 +17,7 @@ use std::sync::Arc;
 
 use tracing::{error, info};
 
+use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::session::ViewerSessionSnapshot;
@@ -54,6 +55,12 @@ pub struct SnapApp {
     tool_state: ToolState,
     /// Completed measurement annotations.
     annotations: Vec<Annotation>,
+    /// Segmentation label editor for the currently loaded volume.
+    label_editor: Option<LabelEditor>,
+    /// Brush radius in voxels for paint/erase tools.
+    label_brush_radius: usize,
+    /// Whether label overlays are rendered on viewports.
+    show_label_overlay: bool,
 
     // ── Texture cache — axial ─────────────────────────────────────────────────
     /// Cached egui texture for the axial slice.
@@ -117,6 +124,9 @@ impl Default for SnapApp {
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,
             annotations: Vec::new(),
+            label_editor: None,
+            label_brush_radius: 1,
+            show_label_overlay: true,
             texture: None,
             texture_dirty: false,
             coronal_tex: None,
@@ -245,6 +255,7 @@ impl SnapApp {
                         self.coronal_tex = None;
                         self.sagittal_tex = None;
                         self.annotations.clear();
+                        self.label_editor = None;
                         self.viewer_state = ViewerState::new();
                         self.texture_dirty = false;
                         self.coronal_dirty = false;
@@ -286,6 +297,16 @@ impl SnapApp {
                     if ui.button(overlay_label).clicked() {
                         ui.close_menu();
                         self.show_overlay = !self.show_overlay;
+                    }
+
+                    let label_overlay_label = if self.show_label_overlay {
+                        "✔ Show Label Overlay"
+                    } else {
+                        "  Show Label Overlay"
+                    };
+                    if ui.button(label_overlay_label).clicked() {
+                        ui.close_menu();
+                        self.show_label_overlay = !self.show_label_overlay;
                     }
 
                     let xhair_label = if self.show_crosshair {
@@ -546,6 +567,74 @@ impl SnapApp {
                     }
                 }
 
+                if let Some(editor) = self.label_editor.as_mut() {
+                    ui.separator();
+                    ui.heading("Segmentation");
+                    ui.separator();
+
+                    ui.checkbox(&mut self.show_label_overlay, "Show labels");
+                    ui.horizontal(|ui| {
+                        if ui
+                            .add_enabled(editor.can_undo(), egui::Button::new("Undo"))
+                            .clicked()
+                        {
+                            let _ = editor.undo();
+                        }
+                        if ui
+                            .add_enabled(editor.can_redo(), egui::Button::new("Redo"))
+                            .clicked()
+                        {
+                            let _ = editor.redo();
+                        }
+                    });
+
+                    ui.add(
+                        egui::Slider::new(&mut self.label_brush_radius, 0..=6)
+                            .text("Brush radius (vox)"),
+                    );
+
+                    if ui.button("Add label").clicked() {
+                        let next_id = editor.current_map().table.next_free_id();
+                        let color = palette_color(next_id);
+                        if let Err(e) = editor.add_label(format!("Label {next_id}"), color) {
+                            self.status_message = format!("Add label failed: {e}");
+                        }
+                    }
+
+                    let mut pending_active: Option<u32> = None;
+                    let mut pending_visibility: Vec<(u32, bool)> = Vec::new();
+                    for entry in editor.current_map().table.entries() {
+                        ui.horizontal(|ui| {
+                            let selected = editor.active_label_id() == entry.id;
+                            if ui
+                                .selectable_label(selected, format!("{} {}", entry.id, entry.name))
+                                .clicked()
+                            {
+                                pending_active = Some(entry.id);
+                            }
+
+                            let mut visible = entry.visible;
+                            if ui.checkbox(&mut visible, "visible").changed() {
+                                pending_visibility.push((entry.id, visible));
+                            }
+
+                            let count = editor.current_map().count_label(entry.id);
+                            ui.label(format!("voxels: {count}"));
+                        });
+                    }
+
+                    if let Some(id) = pending_active {
+                        if let Err(e) = editor.set_active_label(id) {
+                            self.status_message = format!("Set active label failed: {e}");
+                        }
+                    }
+                    for (id, visible) in pending_visibility {
+                        if let Err(e) = editor.set_label_visibility(id, visible) {
+                            self.status_message = format!("Set label visibility failed: {e}");
+                        }
+                    }
+                }
+
                 // ── Annotations ───────────────────────────────────────────────
                 ui.separator();
                 ui.heading("Annotations");
@@ -786,6 +875,10 @@ impl SnapApp {
             }
         }
 
+        if self.show_label_overlay {
+            self.draw_label_overlay(&painter, response.rect, axis);
+        }
+
         // Crosshair at viewport centre.
         if self.show_crosshair && self.loaded.is_some() {
             let cx = response.rect.center().x;
@@ -819,15 +912,27 @@ impl SnapApp {
 
         // ── 8. Pointer events ──────────────────────────────────────────────────
         if response.drag_started() {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
+                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+            }
             self.on_drag_start(response.interact_pointer_pos());
         }
         if response.dragged() {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
+                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+            }
             self.on_drag(response.interact_pointer_pos());
         }
         if response.drag_stopped() {
             self.on_drag_end(response.interact_pointer_pos());
         }
         if response.clicked() {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
+                self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
+            }
             self.on_click(response.interact_pointer_pos());
         }
     }
@@ -1127,6 +1232,7 @@ impl SnapApp {
                 self.coronal_slice = 0;
                 self.sagittal_slice = 0;
                 self.annotations.clear();
+                self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;
                 self.texture = None;
                 self.texture_dirty = true;
@@ -1163,13 +1269,15 @@ impl SnapApp {
                 let mut state = ViewerState::new();
                 state.window_center = Some(display.window_center as f32);
                 state.window_width = Some(display.window_width as f32);
-                let msg = format!("Loaded {} — shape {:?}", path.display(), vol.shape);
+                let shape = vol.shape;
+                let msg = format!("Loaded {} — shape {:?}", path.display(), shape);
                 self.loaded = Some(vol);
                 self.viewer_state = state;
                 self.axis = 0;
                 self.coronal_slice = 0;
                 self.sagittal_slice = 0;
                 self.annotations.clear();
+                self.label_editor = Some(LabelEditor::new(shape));
                 self.tool_state = ToolState::Idle;
                 self.texture = None;
                 self.texture_dirty = true;
@@ -1407,6 +1515,7 @@ impl SnapApp {
                     self.status_message = format!("HU at col={col} row={row}: {value:.0}");
                 }
             }
+            ToolKind::LabelPaint | ToolKind::LabelErase => {}
             _ => {}
         }
     }
@@ -1453,5 +1562,174 @@ impl SnapApp {
             1 => [dz, dx],
             _ => [dz, dy],
         }
+    }
+
+    fn apply_label_at_pointer(&mut self, axis: usize, pos: Option<egui::Pos2>, rect: egui::Rect) {
+        let Some(point) = pos else { return };
+        let Some(volume) = &self.loaded else { return };
+        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, self.axis_slice_info(axis).0, point, rect) else {
+            return;
+        };
+        let Some(editor) = self.label_editor.as_mut() else {
+            return;
+        };
+
+        let result = match self.active_tool {
+            ToolKind::LabelPaint => editor.paint_sphere(voxel, self.label_brush_radius),
+            ToolKind::LabelErase => editor.erase_sphere(voxel, self.label_brush_radius),
+            _ => return,
+        };
+
+        match result {
+            Ok(changed) if changed > 0 => {
+                self.status_message = format!(
+                    "Label edit axis={} voxel=[{},{},{}] changed {} voxels",
+                    axis, voxel[0], voxel[1], voxel[2], changed
+                );
+            }
+            Ok(_) => {}
+            Err(e) => {
+                self.status_message = format!("Label edit failed: {e}");
+            }
+        }
+    }
+
+    fn draw_label_overlay(&self, painter: &egui::Painter, rect: egui::Rect, axis: usize) {
+        let Some(editor) = &self.label_editor else { return };
+        let Some(volume) = &self.loaded else { return };
+        let Some((width, height)) = axis_slice_dimensions(volume.shape, axis) else {
+            return;
+        };
+        if width == 0 || height == 0 {
+            return;
+        }
+
+        let slice_index = self.axis_slice_info(axis).0;
+        let cell_w = rect.width() / width as f32;
+        let cell_h = rect.height() / height as f32;
+
+        for row in 0..height {
+            for col in 0..width {
+                let voxel = map_view_row_col_to_voxel(axis, slice_index, row, col);
+                let label_id = editor.current_map().label_at(voxel);
+                if label_id == 0 {
+                    continue;
+                }
+                let Some(entry) = editor.current_map().table.get_label(label_id) else {
+                    continue;
+                };
+                if !entry.visible {
+                    continue;
+                }
+
+                let x0 = rect.min.x + col as f32 * cell_w;
+                let y0 = rect.min.y + row as f32 * cell_h;
+                painter.rect_filled(
+                    egui::Rect::from_min_size(egui::pos2(x0, y0), egui::vec2(cell_w, cell_h)),
+                    0.0,
+                    egui::Color32::from_rgba_unmultiplied(
+                        entry.color[0],
+                        entry.color[1],
+                        entry.color[2],
+                        entry.color[3],
+                    ),
+                );
+            }
+        }
+    }
+}
+
+fn palette_color(label_id: u32) -> [u8; 4] {
+    const PALETTE: [[u8; 4]; 8] = [
+        [255, 0, 0, 180],
+        [0, 255, 0, 180],
+        [0, 128, 255, 180],
+        [255, 196, 0, 180],
+        [255, 0, 255, 180],
+        [0, 255, 255, 180],
+        [255, 128, 0, 180],
+        [180, 0, 255, 180],
+    ];
+    PALETTE[(label_id as usize) % PALETTE.len()]
+}
+
+fn axis_slice_dimensions(shape: [usize; 3], axis: usize) -> Option<(usize, usize)> {
+    match axis {
+        0 => Some((shape[2], shape[1])),
+        1 => Some((shape[2], shape[0])),
+        2 => Some((shape[1], shape[0])),
+        _ => None,
+    }
+}
+
+fn map_view_row_col_to_voxel(
+    axis: usize,
+    slice_index: usize,
+    row: usize,
+    col: usize,
+) -> [usize; 3] {
+    match axis {
+        0 => [slice_index, row, col],
+        1 => [row, slice_index, col],
+        2 => [row, col, slice_index],
+        _ => [slice_index, row, col],
+    }
+}
+
+fn viewport_point_to_voxel(
+    shape: [usize; 3],
+    axis: usize,
+    slice_index: usize,
+    point: egui::Pos2,
+    rect: egui::Rect,
+) -> Option<[usize; 3]> {
+    let (width, height) = axis_slice_dimensions(shape, axis)?;
+    if width == 0 || height == 0 || rect.width() <= 0.0 || rect.height() <= 0.0 {
+        return None;
+    }
+    if !rect.contains(point) {
+        return None;
+    }
+
+    let col = ((point.x - rect.min.x) / rect.width() * width as f32)
+        .floor()
+        .clamp(0.0, (width - 1) as f32) as usize;
+    let row = ((point.y - rect.min.y) / rect.height() * height as f32)
+        .floor()
+        .clamp(0.0, (height - 1) as f32) as usize;
+
+    Some(map_view_row_col_to_voxel(axis, slice_index, row, col))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn viewport_mapping_axial_center_hits_expected_voxel() {
+        let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
+        let voxel = viewport_point_to_voxel(
+            [8, 10, 20],
+            0,
+            3,
+            egui::pos2(100.0, 50.0),
+            rect,
+        )
+        .expect("center point must map to a voxel");
+        assert_eq!(voxel, [3, 5, 10]);
+    }
+
+    #[test]
+    fn viewport_mapping_coronal_maps_row_to_depth() {
+        let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(100.0, 160.0));
+        let voxel = viewport_point_to_voxel([8, 10, 20], 1, 4, egui::pos2(50.0, 80.0), rect)
+            .expect("point must map to voxel");
+        assert_eq!(voxel, [4, 4, 10]);
+    }
+
+    #[test]
+    fn viewport_mapping_rejects_outside_points() {
+        let rect = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(50.0, 50.0));
+        assert!(viewport_point_to_voxel([8, 10, 20], 2, 6, egui::pos2(5.0, 5.0), rect).is_none());
     }
 }
