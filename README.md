@@ -108,7 +108,8 @@ sagittal MPR layout, modality-aware window presets, colormaps, measurement and
 ROI tools, interactive segmentation label paint/erase with brush radius,
 label visibility/active-label controls with undo/redo, viewport label overlays,
 load-time hanging-protocol defaults for CT/MR series, linked MPR cursor
-navigation across all three planes, PNG slice export, DICOM overlays, and a
+navigation across all three planes, DICOM-style patient-orientation labels,
+linked-cursor HU overlay readout, PNG slice export, DICOM overlays, and a
 deterministic Tags panel covering series metadata, first-slice geometry/display
 tags, private scalar tags, preserved object-model nodes, and raw preserved
 element byte counts. Viewer session save/load stores presentation state as

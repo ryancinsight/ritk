@@ -1,3 +1,22 @@
+## Sprint 104 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.19 [patch]
+
+- [x] GAP-104-01: wire `OverlayRenderer::draw_orientation_labels` into the active `SnapApp` viewport path instead of leaving orientation labels stranded in the unused viewport abstraction
+- [x] GAP-104-02: add `SnapApp::current_cursor_value` and pass the linked-cursor voxel intensity into the DICOM overlay HU slot
+- [x] GAP-104-03: extract pure orientation-label derivation helpers and add value-semantic tests for dominant-axis label selection and standard axial/coronal/sagittal label layouts
+- [x] GAP-104-04: add an app-level value-semantic test proving linked-cursor HU lookup reads the loaded voxel at the shared cursor position
+- [x] GAP-104-05: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo test -p ritk-snap` passed: 140 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests plus doc tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification: `cargo test --workspace` passed (terminal notification captured aggregate run summaries with no failures)
+- [x] Verification note: a prior `cargo check -p ritk-snap` nonzero exit was traced to an overlapping Cargo artifact-directory lock during concurrent validation, not to a source defect
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 103 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

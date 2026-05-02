@@ -877,6 +877,7 @@ impl SnapApp {
                 let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
                 let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
                 let wl = WindowLevel::new(wc, ww);
+                let cursor_value = self.current_cursor_value();
                 OverlayRenderer::draw(
                     &painter,
                     response.rect,
@@ -885,7 +886,13 @@ impl SnapApp {
                     slice_idx,
                     wl,
                     self.zoom,
-                    None,
+                    cursor_value,
+                );
+                OverlayRenderer::draw_orientation_labels(
+                    &painter,
+                    response.rect,
+                    axis,
+                    &vol.direction,
                 );
             }
         }
@@ -1696,6 +1703,13 @@ impl SnapApp {
         );
     }
 
+    fn current_cursor_value(&self) -> Option<f32> {
+        let volume = self.loaded.as_ref()?;
+        let cursor = self.linked_cursor?;
+        let [z, y, x] = cursor.voxel();
+        Some(volume.pixel_at(z, y, x))
+    }
+
     fn draw_label_overlay(&self, painter: &egui::Painter, rect: egui::Rect, axis: usize) {
         let Some(editor) = &self.label_editor else { return };
         let Some(volume) = &self.loaded else { return };
@@ -1811,5 +1825,16 @@ mod tests {
 
         assert_eq!(app.coronal_slice, 7);
         assert_eq!(app.linked_cursor.expect("cursor").voxel(), [3, 7, 9]);
+    }
+
+    #[test]
+    fn current_cursor_value_reads_loaded_voxel_at_linked_position() {
+        let mut app = SnapApp::default();
+        let mut volume = test_volume([2, 3, 4]);
+        volume.data = Arc::new((0..24).map(|v| v as f32).collect());
+        app.loaded = Some(volume);
+        app.linked_cursor = Some(LinkedCursor::from_slices([2, 3, 4], 1, 2, 3));
+
+        assert_eq!(app.current_cursor_value(), Some(23.0));
     }
 }

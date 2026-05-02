@@ -1,3 +1,32 @@
+## Sprint 104 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.19 [patch]
+**Goal**: Close the next `ritk-snap` workstation overlay gap by wiring patient-orientation labels and linked-cursor HU readout into the active app shell.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-104-01 | The active `SnapApp` overlay path did not render patient-orientation labels even though `ui::overlay` already provided the canonical label renderer | patch |
+| GAP-104-02 | The active `SnapApp` overlay path passed no cursor intensity value to the DICOM overlay, so the linked cursor had no HU readout in the viewer overlay | patch |
+| GAP-104-03 | Orientation-label derivation had no pure SSOT helper or value-semantic tests for standard axial/coronal/sagittal conventions | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap` | Passed: 140 tests |
+| `cargo check -p ritk-snap` | Implicitly validated by the passing `cargo test -p ritk-snap` build; prior nonzero exit was traced to an overlapping Cargo artifact lock rather than a source defect |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests plus doc tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace` | Passed (terminal notification captured crate-level summaries including `ritk-core` 772 passed and `ritk-io` 413 passed with no failures) |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires broader workstation workflow coverage beyond overlay orientation/HU wiring before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 103 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

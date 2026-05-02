@@ -226,54 +226,12 @@ impl OverlayRenderer {
         axis: usize,
         direction: &[f64; 9],
     ) {
-        // Extract the three column vectors from the row-major direction matrix.
-        // Column j is [dir[0*3+j], dir[1*3+j], dir[2*3+j]].
-        let col = |j: usize| -> [f64; 3] { [direction[j], direction[3 + j], direction[6 + j]] };
-
-        // Column indices: 0 = depth axis (N̂), 1 = row axis, 2 = column axis.
-        let depth_axis = col(0);
-        let row_axis = col(1);
-        let col_axis = col(2);
-
-        // For each display axis, determine which direction vectors map to
-        // the horizontal (left→right) and vertical (top→bottom) display axes.
-        let (horiz, vert) = match axis {
-            0 => (col_axis, row_axis),   // axial
-            1 => (col_axis, depth_axis), // coronal
-            _ => (row_axis, depth_axis), // sagittal
-        };
-
-        // Determine the anatomical label for a direction vector.
-        // The dominant LPS component determines the label.
-        // LPS: +X = Left, +Y = Posterior, +Z = Superior.
-        let lps_label = |v: [f64; 3], positive: bool| -> &'static str {
-            let v = if positive { v } else { [-v[0], -v[1], -v[2]] };
-            let abs = [v[0].abs(), v[1].abs(), v[2].abs()];
-            let max_idx = if abs[0] >= abs[1] && abs[0] >= abs[2] {
-                0
-            } else if abs[1] >= abs[2] {
-                1
-            } else {
-                2
-            };
-            match (max_idx, v[max_idx] >= 0.0) {
-                (0, true) => "L",
-                (0, false) => "R",
-                (1, true) => "P",
-                (1, false) => "A",
-                (2, true) => "S",
-                _ => "I",
-            }
-        };
-
-        // left edge: negative horizontal direction
-        let label_left = lps_label(horiz, false);
-        // right edge: positive horizontal direction
-        let label_right = lps_label(horiz, true);
-        // top edge: negative vertical direction
-        let label_top = lps_label(vert, false);
-        // bottom edge: positive vertical direction
-        let label_bottom = lps_label(vert, true);
+        let OrientationLabels {
+            left: label_left,
+            right: label_right,
+            top: label_top,
+            bottom: label_bottom,
+        } = orientation_labels(axis, direction);
 
         let font = FontId::proportional(14.0);
         let cx = rect.center().x;
@@ -354,6 +312,55 @@ impl OverlayRenderer {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct OrientationLabels {
+    left: &'static str,
+    right: &'static str,
+    top: &'static str,
+    bottom: &'static str,
+}
+
+fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
+    let col = |j: usize| -> [f64; 3] { [direction[j], direction[3 + j], direction[6 + j]] };
+
+    let depth_axis = col(0);
+    let row_axis = col(1);
+    let col_axis = col(2);
+
+    let (horiz, vert) = match axis {
+        0 => (col_axis, row_axis),
+        1 => (col_axis, depth_axis),
+        _ => (row_axis, depth_axis),
+    };
+
+    OrientationLabels {
+        left: lps_label(horiz, false),
+        right: lps_label(horiz, true),
+        top: lps_label(vert, false),
+        bottom: lps_label(vert, true),
+    }
+}
+
+fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
+    let v = if positive { v } else { [-v[0], -v[1], -v[2]] };
+    let abs = [v[0].abs(), v[1].abs(), v[2].abs()];
+    let max_idx = if abs[0] >= abs[1] && abs[0] >= abs[2] {
+        0
+    } else if abs[1] >= abs[2] {
+        1
+    } else {
+        2
+    };
+    match (max_idx, v[max_idx] >= 0.0) {
+        (0, true) => "L",
+        (0, false) => "R",
+        (1, true) => "P",
+        (1, false) => "A",
+        (2, true) => "S",
+        _ => "I",
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -406,5 +413,42 @@ mod tests {
             (pos.y - 40.0).abs() < 1e-4,
             "CENTER_CENTER y must be rect centre y = 40"
         );
+    }
+
+    #[test]
+    fn test_lps_label_selects_dominant_signed_axis() {
+        assert_eq!(lps_label([0.9, 0.1, 0.0], true), "L");
+        assert_eq!(lps_label([0.0, -2.0, 0.5], true), "A");
+        assert_eq!(lps_label([0.0, 0.2, -3.0], true), "I");
+    }
+
+    #[test]
+    fn test_orientation_labels_axial_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(0, &direction);
+        assert_eq!(labels.left, "R");
+        assert_eq!(labels.right, "L");
+        assert_eq!(labels.top, "A");
+        assert_eq!(labels.bottom, "P");
+    }
+
+    #[test]
+    fn test_orientation_labels_coronal_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(1, &direction);
+        assert_eq!(labels.left, "R");
+        assert_eq!(labels.right, "L");
+        assert_eq!(labels.top, "I");
+        assert_eq!(labels.bottom, "S");
+    }
+
+    #[test]
+    fn test_orientation_labels_sagittal_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(2, &direction);
+        assert_eq!(labels.left, "A");
+        assert_eq!(labels.right, "P");
+        assert_eq!(labels.top, "I");
+        assert_eq!(labels.bottom, "S");
     }
 }
