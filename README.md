@@ -81,6 +81,7 @@ ritk/
 │   │   └── src/
 │   │       ├── dicom/            # Input path normalization, series tree, loader bridge, metadata tag table
 │   │       ├── render/           # Slice extraction, window/level, colormap LUTs
+│   │       ├── session/          # Serializable viewer session snapshots
 │   │       ├── tools/            # Measurement and interaction state
 │   │       └── ui/               # egui layout, viewport, sidebar, toolbar, overlays
 │   └── ritk-cli/                 # CLI binary
@@ -98,13 +99,16 @@ ritk/
 a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, series discovery, metadata row
-construction, rendering, tools, and egui widgets.
+construction, session snapshot persistence, rendering, tools, and egui widgets.
 
 Current viewer capabilities include DICOM series browsing, axial/coronal/
 sagittal MPR layout, modality-aware window presets, colormaps, measurement and
 ROI tools, PNG slice export, DICOM overlays, and a deterministic Tags panel
 covering series metadata, first-slice geometry/display tags, private scalar
 tags, preserved object-model nodes, and raw preserved element byte counts.
+Viewer session save/load stores presentation state as JSON, including source
+path, slice indices, window/level, colormap, active tool, layout flags, overlay
+flags, sidebar tab, pan, and zoom.
 
 ## Features
 

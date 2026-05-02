@@ -1,3 +1,23 @@
+## Sprint 99 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.14 [patch]
+
+- [x] GAP-99-01: add `session::ViewerSessionSnapshot` for serializable viewer presentation state
+- [x] GAP-99-02: include source path, slice indices, window/level, colormap, active tool, layout flags, overlay flags, sidebar tab, pan, and zoom in the snapshot
+- [x] GAP-99-03: make `SidebarTab` serde-compatible
+- [x] GAP-99-04: add File -> Save session and File -> Load session JSON workflows
+- [x] GAP-99-05: add value-semantic tests for default snapshot values and JSON round trip
+- [x] GAP-99-06: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 112 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace` was attempted with a 20 minute bound and timed out without returned failure diagnostics; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 98 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

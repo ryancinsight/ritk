@@ -450,6 +450,7 @@ impl ModalityDisplay {
 mod app;
 pub mod dicom;
 pub mod render;
+pub mod session;
 pub mod tools;
 pub mod ui;
 

@@ -29,7 +29,7 @@ use crate::LoadedVolume;
 ///
 /// Governs which of the two content areas is displayed when
 /// [`SidebarPanel::show`] is called.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum SidebarTab {
     /// Shows the collapsible Patient → Study → Series browser tree.
     #[default]

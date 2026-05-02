@@ -16,6 +16,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **Sprint 96 verification recovery**: Corrected DICOM series-browser, CLI viewer, Python statistics, segmentation export, and model affine-test drift found while validating the startup viewer slice. `cargo test --workspace` was attempted and timed out after 15 minutes; package-level recovery gates passed for `ritk-snap`, `ritk-core`, `ritk-cli`, `ritk-python`, `ritk-dicom`, `ritk-io`, and `ritk-model --test affine_test`. [patch]
 - **`ritk-snap` DICOM tag inspector**: Added a deterministic metadata row model and expanded the Tags panel to show series, first-slice geometry/display, private, preserved object-model, and raw preserved element metadata. [patch]
 - **`ritk-snap` DICOMDIR import**: Added DICOM input path classification so selected `DICOMDIR` files and CLI startup paths normalize to the containing DICOM root before scan/load, plus a File -> Open DICOMDIR command. [patch]
+- **`ritk-snap` session persistence**: Added JSON viewer session snapshots with File -> Save session and File -> Load session workflows for presentation-state restoration. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

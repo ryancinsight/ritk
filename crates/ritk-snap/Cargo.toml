@@ -17,6 +17,7 @@ burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
 ritk-io = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 eframe = { version = "0.28", default-features = true }
@@ -28,5 +29,4 @@ tokio = { workspace = true, features = ["full"] }
 walkdir = { workspace = true }
 
 [dev-dependencies]
-serde_json = { workspace = true }
 tempfile = { workspace = true }

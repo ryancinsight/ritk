@@ -1,3 +1,32 @@
+## Sprint 99 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.14 [patch]
+**Goal**: Close the first `ritk-snap` state-persistence gap by adding a presentation-state snapshot model plus JSON save/load workflow.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-99-01 | `ritk-snap` had no serializable viewer session state for restoring layout/navigation/windowing between runs | patch |
+| GAP-99-02 | Sidebar tab state was not serializable, blocking complete presentation snapshot round trips | patch |
+| GAP-99-03 | The File menu had no save/load session commands for workflow state persistence | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-snap` | Passed: 112 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace` | Attempted with a 20 minute bound; timed out without returned failure diagnostics, so the full aggregate command is not recorded as passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires full hanging-protocol rule matching, segmentation label editing, and broader viewer workflow coverage before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 98 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

@@ -19,6 +19,7 @@ use tracing::{error, info};
 
 use crate::render::colormap::Colormap;
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
+use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::OverlayRenderer;
@@ -227,6 +228,16 @@ impl SnapApp {
                         self.export_current_slice();
                     }
 
+                    if ui.button("Save session…").clicked() {
+                        ui.close_menu();
+                        self.save_session_dialog();
+                    }
+
+                    if ui.button("Load session…").clicked() {
+                        ui.close_menu();
+                        self.load_session_dialog();
+                    }
+
                     if ui.button("Close study").clicked() {
                         ui.close_menu();
                         self.loaded = None;
@@ -401,6 +412,48 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+    }
+
+    fn session_snapshot(&self) -> ViewerSessionSnapshot {
+        ViewerSessionSnapshot {
+            source: self.loaded.as_ref().and_then(|vol| vol.source.clone()),
+            viewer_state: self.viewer_state,
+            colormap: self.colormap,
+            axis: self.axis,
+            active_tool: self.active_tool,
+            multi_planar: self.multi_planar,
+            show_overlay: self.show_overlay,
+            show_crosshair: self.show_crosshair,
+            show_series_browser: self.show_series_browser,
+            sidebar_tab: self.sidebar_tab,
+            coronal_slice: self.coronal_slice,
+            sagittal_slice: self.sagittal_slice,
+            pan_offset: [self.pan_offset.x, self.pan_offset.y],
+            zoom: self.zoom,
+        }
+    }
+
+    fn apply_session_snapshot(&mut self, snapshot: ViewerSessionSnapshot) {
+        self.viewer_state = snapshot.viewer_state;
+        self.colormap = snapshot.colormap;
+        self.axis = snapshot.axis.min(2);
+        self.active_tool = snapshot.active_tool;
+        self.multi_planar = snapshot.multi_planar;
+        self.show_overlay = snapshot.show_overlay;
+        self.show_crosshair = snapshot.show_crosshair;
+        self.show_series_browser = snapshot.show_series_browser;
+        self.sidebar_tab = snapshot.sidebar_tab;
+        self.coronal_slice = snapshot.coronal_slice;
+        self.sagittal_slice = snapshot.sagittal_slice;
+        self.pan_offset = egui::Vec2::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
+        self.zoom = snapshot.zoom.clamp(0.05, 32.0);
+        self.tool_state = ToolState::Idle;
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
+        if let Some(source) = snapshot.source {
+            self.pending_load = Some(source);
+        }
     }
 
     // ── Left panel ────────────────────────────────────────────────────────────
@@ -916,6 +969,59 @@ impl SnapApp {
                 None => {
                     error!("PNG export: buffer length mismatch — image not saved");
                 }
+            }
+        }
+    }
+
+    fn save_session_dialog(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .set_file_name("ritk-snap-session.json")
+            .add_filter("JSON", &["json"])
+            .save_file()
+        else {
+            return;
+        };
+
+        let snapshot = self.session_snapshot();
+        match serde_json::to_string_pretty(&snapshot)
+            .map_err(anyhow::Error::from)
+            .and_then(|json| {
+                std::fs::write(&path, json)
+                    .map_err(anyhow::Error::from)
+                    .map(|_| ())
+            }) {
+            Ok(()) => {
+                self.status_message = format!("Saved session to {}", path.display());
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("Session save failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    fn load_session_dialog(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("JSON", &["json"])
+            .pick_file()
+        else {
+            return;
+        };
+
+        match std::fs::read_to_string(&path)
+            .map_err(anyhow::Error::from)
+            .and_then(|json| {
+                serde_json::from_str::<ViewerSessionSnapshot>(&json).map_err(anyhow::Error::from)
+            }) {
+            Ok(snapshot) => {
+                self.apply_session_snapshot(snapshot);
+                self.status_message = format!("Loaded session from {}", path.display());
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("Session load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
             }
         }
     }
