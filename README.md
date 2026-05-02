@@ -7,13 +7,13 @@ A high-performance medical image processing and registration toolkit built in Ru
 RITK provides a comprehensive framework for medical image analysis:
 
 - **GPU Acceleration**: Built on the Burn framework for efficient GPU/CPU tensor computation with automatic differentiation
-- **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across six workspace crates
+- **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across workspace crates
 - **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ, VTK, JPEG
 - **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
 - **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
-- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder launch, MPR viewports, overlays, measurements, and tag inspection
+- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
@@ -79,7 +79,7 @@ ritk/
 │   │       └── io.rs             # Image + composite transform I/O
 │   ├── ritk-snap/                # Native DICOM/NIfTI viewer
 │   │   └── src/
-│   │       ├── dicom/            # Series tree, loader bridge, metadata tag table
+│   │       ├── dicom/            # Input path normalization, series tree, loader bridge, metadata tag table
 │   │       ├── render/           # Slice extraction, window/level, colormap LUTs
 │   │       ├── tools/            # Measurement and interaction state
 │   │       └── ui/               # egui layout, viewport, sidebar, toolbar, overlays
@@ -94,10 +94,11 @@ ritk/
 
 ### Viewer (`ritk-snap`)
 
-`ritk-snap [PATH]` launches the native viewer directly against a DICOM folder
-or supported medical image file. The viewer keeps DICOM I/O in `ritk-io` and
-presentation logic in `ritk-snap`, with a vertical module split for series
-discovery, metadata row construction, rendering, tools, and egui widgets.
+`ritk-snap [PATH]` launches the native viewer directly against a DICOM folder,
+a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
+I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
+split for input path normalization, series discovery, metadata row
+construction, rendering, tools, and egui widgets.
 
 Current viewer capabilities include DICOM series browsing, axial/coronal/
 sagittal MPR layout, modality-aware window presets, colormaps, measurement and

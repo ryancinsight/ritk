@@ -147,7 +147,10 @@ impl SnapApp {
     /// directly because they do not contain a DICOM series tree.
     pub(crate) fn with_initial_path(path: std::path::PathBuf) -> Self {
         let mut app = Self::default();
-        if path.is_dir() {
+        if crate::dicom::classify_dicom_input_path(&path)
+            .dicom_root()
+            .is_some()
+        {
             app.scan_for_series(path.clone());
         }
         app.status_message = format!("Queued initial load: {}", path.display());
@@ -193,6 +196,16 @@ impl SnapApp {
                         if let Some(folder) = rfd::FileDialog::new().pick_folder() {
                             self.scan_for_series(folder.clone());
                             self.pending_load = Some(folder);
+                        }
+                    }
+
+                    if ui.button("Open DICOMDIR…").clicked() {
+                        ui.close_menu();
+                        if let Some(path) =
+                            rfd::FileDialog::new().set_file_name("DICOMDIR").pick_file()
+                        {
+                            self.scan_for_series(path.clone());
+                            self.pending_load = Some(path);
                         }
                     }
 
@@ -917,15 +930,19 @@ impl SnapApp {
     ///
     /// [`series_tree`]: SnapApp::series_tree
     fn scan_for_series(&mut self, folder: std::path::PathBuf) {
-        match crate::dicom::loader::scan_folder_for_series(&folder) {
+        let scan_root = crate::dicom::classify_dicom_input_path(&folder)
+            .dicom_root()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| folder.clone());
+        match crate::dicom::loader::scan_folder_for_series(&scan_root) {
             Ok(tree) => {
                 let n = tree.total_series();
                 self.series_tree = tree;
-                self.status_message = format!("Found {n} series in {}", folder.display());
+                self.status_message = format!("Found {n} series in {}", scan_root.display());
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                let msg = format!("Scan failed for {}: {e:#}", folder.display());
+                let msg = format!("Scan failed for {}: {e:#}", scan_root.display());
                 error!("{msg}");
                 self.status_message = msg;
             }

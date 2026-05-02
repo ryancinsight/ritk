@@ -1,3 +1,23 @@
+## Sprint 98 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.13 [patch]
+
+- [x] GAP-98-01: add `dicom::input_path` as the viewer SSOT for DICOM directory, DICOMDIR file, and non-DICOMDIR file classification
+- [x] GAP-98-02: route startup path scanning/loading through the DICOM input classifier
+- [x] GAP-98-03: route DICOM loader and series scanner through the normalized DICOM root
+- [x] GAP-98-04: add File -> Open DICOMDIR command
+- [x] GAP-98-05: add value-semantic tests for directory, DICOMDIR, case-insensitive DICOMDIR, and non-DICOMDIR file inputs
+- [x] GAP-98-06: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 110 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace` was attempted with a 20 minute bound and timed out without returned failure diagnostics; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 97 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

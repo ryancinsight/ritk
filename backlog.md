@@ -1,3 +1,32 @@
+## Sprint 98 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.13 [patch]
+**Goal**: Close the `ritk-snap` DICOMDIR viewer import gap by making DICOM folder and DICOMDIR file inputs share one canonical path-normalization boundary.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-98-01 | Selecting or launching `ritk-snap` with a `DICOMDIR` file passed the file path into a directory-oriented DICOM loader instead of the parent DICOM root | patch |
+| GAP-98-02 | DICOMDIR path handling was implicit at call sites rather than represented as a reusable viewer-domain classifier | patch |
+| GAP-98-03 | The viewer menu exposed folder import but no explicit DICOMDIR import command | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-snap` | Passed: 110 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace` | Attempted with a 20 minute bound; timed out without returned failure diagnostics, so the full aggregate command is not recorded as passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires hanging protocol/state persistence, segmentation label editing, and broader viewer workflow coverage before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 97 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

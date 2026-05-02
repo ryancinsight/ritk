@@ -28,6 +28,7 @@ use ritk_io::{load_dicom_series_with_metadata, read_nifti, scan_dicom_directory}
 use tracing::{info, warn};
 use walkdir::WalkDir;
 
+use crate::dicom::input_path::classify_dicom_input_path;
 use crate::dicom::series_tree::{SeriesEntry, SeriesTree};
 use crate::LoadedVolume;
 
@@ -49,11 +50,15 @@ type B = NdArray<f32>;
 /// # Errors
 /// Propagates any error returned by `ritk_io`.
 pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
-    let folder = folder.as_ref();
+    let requested = folder.as_ref();
+    let folder = classify_dicom_input_path(requested)
+        .dicom_root()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| requested.to_path_buf());
     info!(path = %folder.display(), "loading DICOM volume");
 
     let device = <B as burn::tensor::backend::Backend>::Device::default();
-    let (image, meta) = load_dicom_series_with_metadata::<B, _>(folder, &device)
+    let (image, meta) = load_dicom_series_with_metadata::<B, _>(&folder, &device)
         .with_context(|| format!("failed to load DICOM series from '{}'", folder.display()))?;
 
     let shape = image.shape(); // [depth, rows, cols]
@@ -97,7 +102,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
         origin,
         direction,
         metadata: Some(Box::new(meta)),
-        source: Some(folder.to_path_buf()),
+        source: Some(folder),
         modality,
         patient_name,
         patient_id,
@@ -191,7 +196,7 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
 pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let path = path.as_ref();
 
-    if path.is_dir() {
+    if classify_dicom_input_path(path).dicom_root().is_some() {
         return load_dicom_volume(path);
     }
 
@@ -293,7 +298,11 @@ fn volume_from_image_no_meta(
 /// # Errors
 /// Returns an error only when `folder` itself cannot be read as a directory.
 pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
-    let folder = folder.as_ref();
+    let requested = folder.as_ref();
+    let folder = classify_dicom_input_path(requested)
+        .dicom_root()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| requested.to_path_buf());
     info!(path = %folder.display(), "scanning folder for DICOM series");
 
     let mut entries: Vec<SeriesEntry> = Vec::new();
@@ -324,10 +333,10 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
     };
 
     // Scan the root folder itself.
-    try_add(folder, &mut entries, &mut seen_folders);
+    try_add(&folder, &mut entries, &mut seen_folders);
 
     // Walk subdirectories up to depth 5.
-    for entry in WalkDir::new(folder)
+    for entry in WalkDir::new(&folder)
         .min_depth(1)
         .max_depth(5)
         .follow_links(false)
