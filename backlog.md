@@ -1,3 +1,32 @@
+## Sprint 103 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.18 [patch]
+**Goal**: Close the next `ritk-snap` workstation workflow gap by replacing static crosshair overlays with a linked MPR study-coordinate cursor.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-103-01 | `ritk-snap` crosshair overlays were viewport-center decorations rather than a study-coordinate cursor shared across axial, coronal, and sagittal planes | patch |
+| GAP-103-02 | Clicking an MPR viewport did not synchronize the other two slice indices to the selected voxel, blocking standard linked-cursor navigation | patch |
+| GAP-103-03 | Viewport-to-voxel and voxel-to-viewport linked-cursor transforms had no dedicated SSOT module or value-semantic tests | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-snap` | Passed: 135 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH` |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests plus doc tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace` | Running under async terminal capture at sprint-record time; only package-cache lock output had been observed, so not yet recorded as a verified aggregate pass |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires broader workstation workflow coverage beyond linked cursor navigation before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 102 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

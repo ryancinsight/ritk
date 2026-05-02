@@ -20,6 +20,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` label editing model**: Added a viewer-side `label::LabelEditor` over `ritk-core` annotation primitives with active label selection, label creation, visibility updates, voxel/spherical brush paint and erase, label counts, undo, and redo. [patch]
 - **`ritk-snap` interactive label workflow**: Wired `LabelEditor` into viewport click/drag paint and erase tools, added per-viewport segmentation label overlays, and added sidebar segmentation controls for active label selection, visibility, brush radius, add-label, and undo/redo. [patch]
 - **`ritk-snap` hanging protocol SSOT**: Added deterministic hanging-protocol rule matching for CT/MR series and applied protocol-selected windowing, preferred axis, and multi-planar layout defaults during load. [patch]
+- **`ritk-snap` linked MPR cursor**: Added a shared study-coordinate cursor with viewport click synchronization across axial, coronal, and sagittal slices, projected crosshair rendering, and dedicated cursor transform tests. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

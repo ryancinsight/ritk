@@ -1,3 +1,23 @@
+## Sprint 103 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.18 [patch]
+
+- [x] GAP-103-01: add `ui::mpr_cursor` as the SSOT for linked MPR cursor state and viewport/voxel transforms
+- [x] GAP-103-02: replace static center crosshair rendering with projected study-coordinate cursor rendering
+- [x] GAP-103-03: update click handling so viewport selection synchronizes axial, coronal, and sagittal slice indices through one linked cursor
+- [x] GAP-103-04: keep linked cursor synchronized when scrolling slice indices and surface current cursor coordinates in the MPR info panel
+- [x] GAP-103-05: add value-semantic tests for cursor centering, click mapping, projection, clamping, and app-level slice synchronization
+- [x] GAP-103-06: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 135 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests plus doc tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace` was launched under async terminal capture; only package-cache lock output had been observed at record time, so the aggregate command is not yet recorded as passed
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 102 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

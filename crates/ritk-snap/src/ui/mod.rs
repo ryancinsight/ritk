@@ -11,10 +11,12 @@
 //! | [`sidebar`]      | [`SidebarPanel`] — series browser + metadata tab.       |
 //! | [`overlay`]      | [`OverlayRenderer`] — DICOM 4-corner text overlays.     |
 //! | [`measurements`] | [`MeasurementLayer`] — annotation drawing helpers.     |
+//! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
 pub mod layout;
 pub mod measurements;
+pub mod mpr_cursor;
 pub mod overlay;
 pub mod sidebar;
 pub mod toolbar;
@@ -23,6 +25,7 @@ pub mod window_presets;
 
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
+pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor};
 pub use overlay::OverlayRenderer;
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
