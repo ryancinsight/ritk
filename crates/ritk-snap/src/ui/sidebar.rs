@@ -19,6 +19,7 @@
 
 use egui::{CollapsingHeader, ScrollArea, Ui};
 
+use crate::dicom::metadata_table::build_metadata_rows;
 use crate::dicom::series_tree::SeriesTree;
 use crate::LoadedVolume;
 
@@ -220,10 +221,6 @@ impl<'a> SidebarPanel<'a> {
     // ── Metadata (Tags) tab ───────────────────────────────────────────────────
 
     /// Render a scrollable table of DICOM metadata for the loaded volume.
-    ///
-    /// Displays standard fields (patient, modality, geometry, spacing, origin,
-    /// source path) and, when DICOM metadata is present, series/study UIDs,
-    /// bits allocated, photometric interpretation, and any private tags.
     fn show_metadata_tab(&self, ui: &mut Ui) {
         ScrollArea::vertical()
             .id_source("metadata_scroll")
@@ -265,45 +262,36 @@ impl<'a> SidebarPanel<'a> {
                         if let Some(src) = &vol.source {
                             row(ui, "Source:", &src.to_string_lossy());
                         }
+                    });
 
-                        // DICOM-specific fields from optional metadata.
-                        if let Some(meta) = &vol.metadata {
-                            row(
-                                ui,
-                                "Series UID:",
-                                meta.series_instance_uid.as_deref().unwrap_or("—"),
-                            );
-                            row(
-                                ui,
-                                "Study UID:",
-                                meta.study_instance_uid.as_deref().unwrap_or("—"),
-                            );
+                let Some(meta) = &vol.metadata else {
+                    ui.separator();
+                    ui.label("No DICOM metadata attached.");
+                    return;
+                };
 
-                            if let Some(bits) = meta.bits_allocated {
-                                row(ui, "Bits Alloc:", &bits.to_string());
-                            }
+                ui.separator();
+                ui.label("DICOM Tags");
 
-                            if let Some(pi) = &meta.photometric_interpretation {
-                                row(ui, "Photometric:", pi.as_str());
-                            }
+                egui::Grid::new("dicom_tag_grid")
+                    .num_columns(5)
+                    .spacing([8.0, 4.0])
+                    .striped(true)
+                    .show(ui, |ui| {
+                        ui.label("Scope");
+                        ui.label("Tag");
+                        ui.label("Keyword");
+                        ui.label("VR");
+                        ui.label("Value");
+                        ui.end_row();
 
-                            // Private tags, sorted by key for stable display order.
-                            if !meta.private_tags.is_empty() {
-                                ui.separator();
-                                ui.end_row();
-
-                                let mut tags: Vec<(&str, &str)> = meta
-                                    .private_tags
-                                    .iter()
-                                    .map(|(k, v)| (k.as_str(), v.as_str()))
-                                    .collect();
-                                // Sort by key for deterministic UI order.
-                                tags.sort_by_key(|(k, _)| *k);
-
-                                for (tag, val) in tags {
-                                    row(ui, tag, val);
-                                }
-                            }
+                        for row in build_metadata_rows(meta) {
+                            ui.label(row.scope.label());
+                            ui.label(row.tag);
+                            ui.label(row.keyword);
+                            ui.label(row.vr);
+                            ui.label(row.value);
+                            ui.end_row();
                         }
                     });
             });

@@ -1,0 +1,117 @@
+use super::*;
+use ritk_io::{
+    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
+    DicomSliceMetadata, DicomTag,
+};
+use std::collections::HashMap;
+use std::path::PathBuf;
+
+fn metadata_fixture() -> DicomReadMetadata {
+    let mut private_tags = HashMap::new();
+    private_tags.insert("0019,10AA".to_string(), "PRIVATE_SERIES".to_string());
+
+    let mut preservation = DicomPreservationSet::new();
+    preservation.object.insert(DicomObjectNode::text(
+        DicomTag::new(0x0009, 0x1000),
+        "LO",
+        "SERIES_NODE",
+    ));
+    preservation.preserve(DicomPreservedElement::new(
+        DicomTag::new(0x0019, 0x1001),
+        Some("OB".to_string()),
+        vec![1, 2, 3, 4],
+    ));
+
+    DicomReadMetadata {
+        series_instance_uid: Some("1.2.840.series".to_string()),
+        study_instance_uid: Some("1.2.840.study".to_string()),
+        frame_of_reference_uid: Some("1.2.840.frame".to_string()),
+        series_description: Some("Axial CT".to_string()),
+        modality: Some("CT".to_string()),
+        patient_id: Some("P001".to_string()),
+        patient_name: Some("DOE^JANE".to_string()),
+        study_date: Some("20260101".to_string()),
+        series_date: Some("20260102".to_string()),
+        series_time: Some("120000".to_string()),
+        dimensions: [3, 4, 5],
+        spacing: [0.7, 0.8, 1.5],
+        origin: [10.0, 20.0, -30.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        bits_allocated: Some(16),
+        bits_stored: Some(12),
+        high_bit: Some(11),
+        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        slices: vec![DicomSliceMetadata {
+            path: PathBuf::from("slice001.dcm"),
+            sop_instance_uid: Some("1.2.840.slice".to_string()),
+            instance_number: Some(7),
+            slice_location: Some(42.25),
+            image_position_patient: Some([1.0, 2.0, 3.0]),
+            image_orientation_patient: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            pixel_spacing: Some([0.7, 0.8]),
+            slice_thickness: Some(1.5),
+            rescale_slope: 2.0,
+            rescale_intercept: -1024.0,
+            sop_class_uid: Some("1.2.840.sop".to_string()),
+            transfer_syntax_uid: Some("1.2.840.10008.1.2.1".to_string()),
+            pixel_representation: 1,
+            bits_allocated: 16,
+            window_center: Some(40.0),
+            window_width: Some(400.0),
+            gantry_tilt: Some(0.5),
+            ..Default::default()
+        }],
+        private_tags,
+        preservation,
+    }
+}
+
+#[test]
+fn metadata_rows_include_series_slice_private_and_preserved_values() {
+    let rows = build_metadata_rows(&metadata_fixture());
+
+    assert!(
+        rows.iter().any(|row| {
+            row.scope == MetadataScope::Series
+                && row.tag == "0020,000E"
+                && row.keyword == "SeriesInstanceUID"
+                && row.value == "1.2.840.series"
+        }),
+        "series UID row must be present"
+    );
+    assert!(
+        rows.iter().any(|row| {
+            row.scope == MetadataScope::FirstSlice
+                && row.tag == "0020,0032"
+                && row.keyword == "ImagePositionPatient"
+                && row.value == "1.000000 x 2.000000 x 3.000000"
+        }),
+        "first-slice image position row must be present"
+    );
+    assert!(
+        rows.iter().any(|row| {
+            row.scope == MetadataScope::PrivateTag
+                && row.tag == "0019,10AA"
+                && row.value == "PRIVATE_SERIES"
+        }),
+        "private tag row must be present"
+    );
+    assert!(
+        rows.iter().any(|row| {
+            row.scope == MetadataScope::PreservedRaw
+                && row.tag == "0019,1001"
+                && row.vr == "OB"
+                && row.value == "4 bytes"
+        }),
+        "raw preserved element row must expose byte length"
+    );
+}
+
+#[test]
+fn metadata_scope_labels_are_stable() {
+    assert_eq!(MetadataScope::Series.label(), "Series");
+    assert_eq!(MetadataScope::FirstSlice.label(), "Slice[0]");
+    assert_eq!(MetadataScope::PreservedNode.label(), "Preserved");
+    assert_eq!(MetadataScope::PreservedRaw.label(), "Raw");
+    assert_eq!(MetadataScope::PrivateTag.label(), "Private");
+}

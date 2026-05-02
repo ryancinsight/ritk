@@ -1,3 +1,32 @@
+## Sprint 97 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.12 [patch]
+**Goal**: Close the next `ritk-snap` DICOM viewer parity gap by replacing the compact metadata summary with a deterministic DICOM tag inspector backed by a presentation-neutral row model.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-97-01 | `ritk-snap` Tags tab exposed only a compact summary plus private tags, leaving standard DICOM identifiers, slice geometry, transfer syntax, windowing, preserved object nodes, and raw preserved elements hidden from the viewer | patch |
+| GAP-97-02 | DICOM tag extraction was embedded in egui sidebar rendering instead of a reusable SSOT row builder | patch |
+| GAP-97-03 | README did not document the current `ritk-snap` crate tree or tag-inspector capability | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-snap` | Passed: 106 tests |
+| `cargo check -p ritk-io` | Passed with UCRT clang/lld on `PATH`; existing `ritk-io` dead-code warnings remain |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace` | Attempted with a 20 minute bound; timed out without returned failure diagnostics, so the full aggregate command is not recorded as passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires DICOMDIR import, hanging protocol/state persistence, segmentation label editing, and broader viewer workflow coverage before ITK-SNAP parity can be claimed.
+- JPEG-LS, JPEG 2000, and JPEG XL remain external backend-fallback codec replacement/optionalization gaps.
+
 ## Sprint 96 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

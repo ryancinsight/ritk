@@ -1,3 +1,23 @@
+## Sprint 97 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.12 [patch]
+
+- [x] GAP-97-01: add `dicom::metadata_table` as the presentation-neutral DICOM tag inspector row builder
+- [x] GAP-97-02: include series identifiers, patient/study fields, dimensions, spacing, origin, direction, bit-depth, photometric interpretation, first-slice SOP/geometry/display/transfer-syntax fields, private tags, preserved nodes, and raw preserved byte counts
+- [x] GAP-97-03: replace sidebar Tags-tab DICOM extraction with `build_metadata_rows`
+- [x] GAP-97-04: add value-semantic tests for metadata row content and scope labels
+- [x] GAP-97-05: update README crate tree and viewer capability documentation
+- [x] GAP-97-06: update backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 106 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace` was attempted with a 20 minute bound and timed out without returned failure diagnostics; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 96 — Completed
 **Status**: Completed
 **Phase**: Execution → Closure

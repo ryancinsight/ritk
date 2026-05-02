@@ -13,6 +13,7 @@ RITK provides a comprehensive framework for medical image analysis:
 - **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
+- **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder launch, MPR viewports, overlays, measurements, and tag inspection
 - **Python Bindings**: PyO3 + maturin with NumPy bridge, packaged type stubs, and `py.typed`
 - **CLI**: `ritk` binary with `convert`, `filter`, `register`, `segment`, and `stats` subcommands
 
@@ -76,6 +77,12 @@ ritk/
 │   │       ├── statistics.rs     # 13 statistics/normalization/comparison functions
 │   │       ├── image.rs          # Image wrapper
 │   │       └── io.rs             # Image + composite transform I/O
+│   ├── ritk-snap/                # Native DICOM/NIfTI viewer
+│   │   └── src/
+│   │       ├── dicom/            # Series tree, loader bridge, metadata tag table
+│   │       ├── render/           # Slice extraction, window/level, colormap LUTs
+│   │       ├── tools/            # Measurement and interaction state
+│   │       └── ui/               # egui layout, viewport, sidebar, toolbar, overlays
 │   └── ritk-cli/                 # CLI binary
 │       └── src/commands/
 │           ├── convert.rs
@@ -84,6 +91,19 @@ ritk/
 │           ├── segment.rs
 │           └── stats.rs
 ```
+
+### Viewer (`ritk-snap`)
+
+`ritk-snap [PATH]` launches the native viewer directly against a DICOM folder
+or supported medical image file. The viewer keeps DICOM I/O in `ritk-io` and
+presentation logic in `ritk-snap`, with a vertical module split for series
+discovery, metadata row construction, rendering, tools, and egui widgets.
+
+Current viewer capabilities include DICOM series browsing, axial/coronal/
+sagittal MPR layout, modality-aware window presets, colormaps, measurement and
+ROI tools, PNG slice export, DICOM overlays, and a deterministic Tags panel
+covering series metadata, first-slice geometry/display tags, private scalar
+tags, preserved object-model nodes, and raw preserved element byte counts.
 
 ## Features
 
