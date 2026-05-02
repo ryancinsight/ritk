@@ -1,3 +1,22 @@
+## Sprint 100 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.15 [patch]
+
+- [x] GAP-100-01: add `label::LabelEditor` as the `ritk-snap` application boundary for segmentation label editing
+- [x] GAP-100-02: compose `ritk_core::annotation::{LabelMap, LabelTable, UndoRedoStack}` instead of duplicating label storage/history in the viewer crate
+- [x] GAP-100-03: support active label selection, label creation, visibility updates, voxel paint/erase, spherical brush paint/erase, label counts, undo, and redo
+- [x] GAP-100-04: add value-semantic tests for default labels, exact radius-one brush geometry, erase behavior, label counts, visibility, custom tables, out-of-bounds rejection, and no-op history behavior
+- [x] GAP-100-05: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo check -p ritk-snap` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-snap` passed: 120 tests
+- [x] Verification: `cargo check -p ritk-io` passed with UCRT clang/lld on `PATH`
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace` was attempted with a 20 minute bound and timed out without returned failure diagnostics; not recorded as a full aggregate pass
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 99 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
