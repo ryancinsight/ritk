@@ -1,3 +1,18 @@
+## Sprint 106 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.21 [patch]
+
+- [x] GAP-106-01: add `ui::cursor_info` SSOT with `voxel_to_lps` implementing the ITK affine `P = origin + D·diag(spacing)·v`
+- [x] GAP-106-02: add `format_lps` display helper and export both via `ui::mod.rs`
+- [x] GAP-106-03: wire voxel I/J/K + LPS mm into the bottom status bar (visible when linked cursor is active)
+- [x] GAP-106-04: wire LPS mm into the MPR Info 4th-quadrant panel below the cursor row
+- [x] GAP-106-05: add 7 value-semantic tests (identity, zero voxel, non-unit spacing, additive origin, 90° Z-rotation, X-rotation, format_lps)
+- [x] GAP-106-06: update CHANGELOG, gap_audit, backlog, checklist
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 154 tests
+- [x] Verification: `cargo check -p ritk-snap` passed with exit code 0
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 105 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

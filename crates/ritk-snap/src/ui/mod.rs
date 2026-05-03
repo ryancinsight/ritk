@@ -13,11 +13,13 @@
 //! | [`measurements`] | [`MeasurementLayer`] — annotation drawing helpers.     |
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
+//! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
 pub mod layout;
 pub mod measurements;
 pub mod cine;
+pub mod cursor_info;
 pub mod mpr_cursor;
 pub mod overlay;
 pub mod sidebar;
@@ -26,6 +28,7 @@ pub mod viewport;
 pub mod window_presets;
 
 pub use cine::CinePlayback;
+pub use cursor_info::{format_lps, voxel_to_lps};
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor};

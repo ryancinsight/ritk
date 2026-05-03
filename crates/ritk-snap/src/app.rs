@@ -26,8 +26,8 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, CinePlayback,
-    LinkedCursor,
+    axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, viewport_point_to_voxel,
+    voxel_to_lps, CinePlayback, LinkedCursor,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -747,6 +747,23 @@ impl SnapApp {
                     ui.separator();
                     let axis_name = ["Axial", "Coronal", "Sagittal"][self.axis.min(2)];
                     ui.label(axis_name);
+
+                    // Voxel I/J/K index and physical LPS position from linked cursor.
+                    if let (Some(cursor), Some(vol)) =
+                        (self.linked_cursor, self.loaded.as_ref())
+                    {
+                        let [d, r, c] = cursor.voxel();
+                        ui.separator();
+                        ui.label(format!("I={d} J={r} K={c}"));
+                        let lps = voxel_to_lps(
+                            [d, r, c],
+                            vol.origin,
+                            vol.direction,
+                            vol.spacing,
+                        );
+                        ui.separator();
+                        ui.label(format_lps(lps));
+                    }
                 }
             });
         });
@@ -1082,6 +1099,9 @@ impl SnapApp {
                             "Cursor:",
                             &format!("z={} y={} x={}", cursor[0] + 1, cursor[1] + 1, cursor[2] + 1),
                         );
+                        // Physical LPS position derived from voxel cursor via ITK affine.
+                        let lps = voxel_to_lps(cursor, vol.origin, vol.direction, vol.spacing);
+                        row(ui, "LPS:", &format_lps(lps));
                         row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
                         row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
                         row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));

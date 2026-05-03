@@ -1,3 +1,27 @@
+## Sprint 106 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.21 [patch]
+**Goal**: Close the physical cursor position readout gap by adding the ITK affine voxel-to-LPS transform as an SSOT module and wiring it to the status bar and MPR Info panel.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-106-01 | `ritk-snap` status bar showed no physical mm position for the cursor — ITK-SNAP always shows I/J/K voxel index + LPS mm | patch |
+| GAP-106-02 | No SSOT module existed for the ITK `P = origin + D·diag(spacing)·v` affine with analytically proven tests | patch |
+| GAP-106-03 | MPR Info 4th-quadrant panel showed voxel index but no physical LPS position row | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib` | Passed: 154 tests (7 new `ui::cursor_info` tests) |
+| `cargo check -p ritk-snap` | Finished with exit code 0, existing warnings only |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- Next high-value gap: Ctrl+scroll zoom (cursor-centered), zoom-to-fit, RT-STRUCT overlay, or export-all-MPR.
+- Workspace-level `cargo test --workspace` exits nonzero in `ritk-model` long-running SSMMorph path; unrelated to Sprint 106 change surface.
+
 ## Sprint 105 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
