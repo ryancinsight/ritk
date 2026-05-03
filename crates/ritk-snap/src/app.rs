@@ -496,6 +496,30 @@ impl SnapApp {
         if ctx.input_mut(|input| input.consume_shortcut(&undo_z)) {
             self.undo_label_edit_shortcut();
         }
+
+        let nav = ctx.input(|input| {
+            (
+                input.key_pressed(egui::Key::ArrowUp),
+                input.key_pressed(egui::Key::ArrowDown),
+                input.key_pressed(egui::Key::PageUp),
+                input.key_pressed(egui::Key::PageDown),
+            )
+        });
+        self.apply_slice_navigation_shortcuts(nav.0, nav.1, nav.2, nav.3);
+    }
+
+    fn apply_slice_navigation_shortcuts(
+        &mut self,
+        arrow_up: bool,
+        arrow_down: bool,
+        page_up: bool,
+        page_down: bool,
+    ) {
+        if arrow_up || page_up {
+            self.step_slice(-1);
+        } else if arrow_down || page_down {
+            self.step_slice(1);
+        }
     }
 
     fn reset_view_to_fit(&mut self) {
@@ -873,14 +897,6 @@ impl SnapApp {
     /// Render the current axis into the full central panel (single-viewport mode).
     fn show_central_panel_single(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            // Keyboard slice navigation.
-            if ctx.input(|i| i.key_pressed(egui::Key::ArrowUp)) {
-                self.step_slice(-1);
-            }
-            if ctx.input(|i| i.key_pressed(egui::Key::ArrowDown)) {
-                self.step_slice(1);
-            }
-
             if self.loaded.is_none() {
                 ui.centered_and_justified(|ui| {
                     ui.label("Open a DICOM folder or NIfTI file via File menu to begin.");
@@ -2331,5 +2347,30 @@ mod tests {
             .label_at([0, 0, 0]);
         assert_eq!(label_after_redo, 1);
         assert_eq!(app.status_message, "Segmentation redo.");
+    }
+
+    #[test]
+    fn slice_navigation_shortcuts_advance_or_rewind_active_axis() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 5]));
+        app.axis = 0;
+        app.viewer_state.slice_index = 1;
+
+        app.apply_slice_navigation_shortcuts(true, false, false, false);
+        assert_eq!(app.viewer_state.slice_index, 0);
+
+        app.apply_slice_navigation_shortcuts(false, false, false, true);
+        assert_eq!(app.viewer_state.slice_index, 1);
+    }
+
+    #[test]
+    fn slice_navigation_shortcuts_use_priority_when_multiple_keys_pressed() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 5]));
+        app.axis = 0;
+        app.viewer_state.slice_index = 1;
+
+        app.apply_slice_navigation_shortcuts(true, true, false, false);
+        assert_eq!(app.viewer_state.slice_index, 0);
     }
 }

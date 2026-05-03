@@ -1,3 +1,30 @@
+## Sprint 113 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.28 [patch]
+**Goal**: Close slice-navigation keyboard parity by moving Arrow/Page key handling into global app-shell shortcuts so behavior is consistent across single and multi-planar layouts.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-113-01 | Slice keyboard navigation was handled only in single-layout render path and was not guaranteed in multi-planar mode | patch |
+| GAP-113-02 | No shared deterministic app-shell shortcut routing existed for Arrow/Page slice stepping | patch |
+| GAP-113-03 | Viewer interaction hints did not document PageUp/PageDown slice navigation | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_advance_or_rewind_active_axis -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_use_priority_when_multiple_keys_pressed -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 176 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 112 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

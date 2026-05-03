@@ -1,3 +1,21 @@
+## Sprint 113 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.28 [patch]
+
+- [x] GAP-113-01: move slice-navigation keyboard handling into app-shell global shortcut routing
+- [x] GAP-113-02: add deterministic Arrow Up/Down and Page Up/Down command handling for active-axis slice stepping
+- [x] GAP-113-03: remove single-layout-only Arrow key duplication from central-panel render path
+- [x] GAP-113-04: add app-level value-semantic tests for shortcut slice stepping and shortcut-priority behavior
+- [x] GAP-113-05: update viewer interaction hints to include Arrow/Page slice navigation discoverability
+- [x] GAP-113-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_advance_or_rewind_active_axis -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_use_priority_when_multiple_keys_pressed -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 176 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 112 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
