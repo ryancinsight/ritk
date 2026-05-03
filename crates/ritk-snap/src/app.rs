@@ -27,8 +27,8 @@ use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, plan_all_mpr_exports,
-    viewport_point_to_voxel, should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll,
-    CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
+    project_rt_struct_contours_for_slice, viewport_point_to_voxel, should_zoom_with_scroll,
+    voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -68,6 +68,10 @@ pub struct SnapApp {
     label_brush_radius: usize,
     /// Whether label overlays are rendered on viewports.
     show_label_overlay: bool,
+    /// RT-STRUCT contour overlay visibility.
+    show_rt_struct_overlay: bool,
+    /// Currently loaded RT Structure Set.
+    rt_struct: Option<ritk_io::RtStructureSet>,
 
     // ── Texture cache — axial ─────────────────────────────────────────────────
     /// Cached egui texture for the axial slice.
@@ -138,6 +142,8 @@ impl Default for SnapApp {
             label_editor: None,
             label_brush_radius: 1,
             show_label_overlay: true,
+            show_rt_struct_overlay: true,
+            rt_struct: None,
             texture: None,
             texture_dirty: false,
             coronal_tex: None,
@@ -248,6 +254,16 @@ impl SnapApp {
                         }
                     }
 
+                    if ui.button("Open RT-STRUCT file…").clicked() {
+                        ui.close_menu();
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("DICOM", &["dcm"])
+                            .pick_file()
+                        {
+                            self.load_rt_struct_file(path);
+                        }
+                    }
+
                     if ui.button("Export current slice as PNG…").clicked() {
                         ui.close_menu();
                         self.export_current_slice();
@@ -276,6 +292,7 @@ impl SnapApp {
                         self.sagittal_tex = None;
                         self.annotations.clear();
                         self.label_editor = None;
+                        self.rt_struct = None;
                         self.viewer_state = ViewerState::new();
                         self.texture_dirty = false;
                         self.coronal_dirty = false;
@@ -328,6 +345,16 @@ impl SnapApp {
                     if ui.button(label_overlay_label).clicked() {
                         ui.close_menu();
                         self.show_label_overlay = !self.show_label_overlay;
+                    }
+
+                    let rt_overlay_label = if self.show_rt_struct_overlay {
+                        "✔ Show RT-STRUCT Overlay"
+                    } else {
+                        "  Show RT-STRUCT Overlay"
+                    };
+                    if ui.button(rt_overlay_label).clicked() {
+                        ui.close_menu();
+                        self.show_rt_struct_overlay = !self.show_rt_struct_overlay;
                     }
 
                     let xhair_label = if self.show_crosshair {
@@ -466,6 +493,7 @@ impl SnapApp {
             multi_planar: self.multi_planar,
             show_overlay: self.show_overlay,
             show_crosshair: self.show_crosshair,
+            show_rt_struct_overlay: self.show_rt_struct_overlay,
             show_series_browser: self.show_series_browser,
             sidebar_tab: self.sidebar_tab,
             coronal_slice: self.coronal_slice,
@@ -485,6 +513,7 @@ impl SnapApp {
         self.multi_planar = snapshot.multi_planar;
         self.show_overlay = snapshot.show_overlay;
         self.show_crosshair = snapshot.show_crosshair;
+        self.show_rt_struct_overlay = snapshot.show_rt_struct_overlay;
         self.show_series_browser = snapshot.show_series_browser;
         self.sidebar_tab = snapshot.sidebar_tab;
         self.coronal_slice = snapshot.coronal_slice;
@@ -688,6 +717,15 @@ impl SnapApp {
                             self.status_message = format!("Set label visibility failed: {e}");
                         }
                     }
+                }
+
+                if let Some(rt) = &self.rt_struct {
+                    ui.separator();
+                    ui.heading("RT-STRUCT");
+                    ui.separator();
+                    ui.label(format!("Label: {}", rt.structure_set_label));
+                    ui.label(format!("ROIs: {}", rt.rois.len()));
+                    ui.checkbox(&mut self.show_rt_struct_overlay, "Show RT-STRUCT contours");
                 }
 
                 // ── Annotations ───────────────────────────────────────────────
@@ -958,6 +996,16 @@ impl SnapApp {
             self.draw_label_overlay(&painter, response.rect, axis);
         }
 
+        if self.show_rt_struct_overlay {
+            self.draw_rt_struct_overlay(
+                &painter,
+                response.rect,
+                axis,
+                tex_h_usize,
+                tex_w_usize,
+            );
+        }
+
         // Crosshair at the linked study-coordinate cursor.
         if self.show_crosshair {
             if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor) {
@@ -1177,6 +1225,28 @@ impl SnapApp {
                     self.status_message = format!("PNG export failed for {}: {e:#}", path.display());
                     error!("{}", self.status_message);
                 }
+            }
+        }
+    }
+
+    fn load_rt_struct_file(&mut self, path: std::path::PathBuf) {
+        match ritk_io::read_rt_struct(&path) {
+            Ok(rt) => {
+                let roi_count = rt.rois.len();
+                let label = rt.structure_set_label.clone();
+                self.rt_struct = Some(rt);
+                self.show_rt_struct_overlay = true;
+                self.status_message = format!(
+                    "Loaded RT-STRUCT {} ({} ROIs) from {}",
+                    label,
+                    roi_count,
+                    path.display()
+                );
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("RT-STRUCT load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
             }
         }
     }
@@ -1414,6 +1484,7 @@ impl SnapApp {
                 ));
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
+                self.rt_struct = None;
                 self.tool_state = ToolState::Idle;
                 self.texture = None;
                 self.texture_dirty = true;
@@ -1478,6 +1549,7 @@ impl SnapApp {
                 ));
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
+                self.rt_struct = None;
                 self.tool_state = ToolState::Idle;
                 self.texture = None;
                 self.texture_dirty = true;
@@ -1946,6 +2018,69 @@ impl SnapApp {
                         entry.color[3],
                     ),
                 );
+            }
+        }
+    }
+
+    fn draw_rt_struct_overlay(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        axis: usize,
+        image_h: usize,
+        image_w: usize,
+    ) {
+        let Some(volume) = &self.loaded else { return };
+        let Some(rt) = &self.rt_struct else { return };
+        if image_h == 0 || image_w == 0 {
+            return;
+        }
+
+        let (slice_index, _) = self.axis_slice_info(axis);
+        let projected = project_rt_struct_contours_for_slice(
+            rt,
+            axis,
+            slice_index,
+            volume.shape,
+            volume.origin,
+            volume.direction,
+            volume.spacing,
+        );
+
+        let to_screen = |row: f32, col: f32| -> egui::Pos2 {
+            egui::pos2(
+                rect.min.x + ((col + 0.5) / image_w as f32) * rect.width(),
+                rect.min.y + ((row + 0.5) / image_h as f32) * rect.height(),
+            )
+        };
+
+        for contour in projected {
+            let color = egui::Color32::from_rgb(contour.color[0], contour.color[1], contour.color[2]);
+            if contour.points_row_col.len() == 1 {
+                let [row, col] = contour.points_row_col[0];
+                painter.circle_filled(to_screen(row, col), 2.0, color);
+                continue;
+            }
+
+            for pair in contour.points_row_col.windows(2) {
+                let a = pair[0];
+                let b = pair[1];
+                painter.line_segment(
+                    [to_screen(a[0], a[1]), to_screen(b[0], b[1])],
+                    egui::Stroke::new(1.5, color),
+                );
+            }
+
+            if contour.closed {
+                if let (Some(first), Some(last)) = (
+                    contour.points_row_col.first().copied(),
+                    contour.points_row_col.last().copied(),
+                ) {
+                    painter.line_segment(
+                        [to_screen(last[0], last[1]), to_screen(first[0], first[1])],
+                        egui::Stroke::new(1.5, color),
+                    );
+                }
             }
         }
     }

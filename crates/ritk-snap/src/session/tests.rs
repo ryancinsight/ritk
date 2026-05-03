@@ -14,6 +14,7 @@ fn session_snapshot_default_matches_viewer_defaults() {
     assert!(!snapshot.multi_planar);
     assert!(snapshot.show_overlay);
     assert!(!snapshot.show_crosshair);
+    assert!(snapshot.show_rt_struct_overlay);
     assert!(snapshot.show_series_browser);
     assert_eq!(snapshot.sidebar_tab, SidebarTab::Series);
     assert_eq!(snapshot.coronal_slice, 0);
@@ -39,6 +40,7 @@ fn session_snapshot_json_round_trip_preserves_values() {
         multi_planar: true,
         show_overlay: false,
         show_crosshair: true,
+        show_rt_struct_overlay: false,
         show_series_browser: false,
         sidebar_tab: SidebarTab::Metadata,
         coronal_slice: 7,

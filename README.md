@@ -112,6 +112,7 @@ navigation across all three planes, DICOM-style patient-orientation labels,
 linked-cursor HU overlay readout, linked-cursor physical LPS readout,
 active-axis cine playback with FPS control, Ctrl/Cmd+scroll viewport zoom,
 PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
+RT-STRUCT contour overlay loading and rendering,
 and a
 deterministic Tags panel covering series metadata, first-slice geometry/display
 tags, private scalar tags, preserved object-model nodes, and raw preserved

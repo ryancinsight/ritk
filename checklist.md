@@ -1,3 +1,21 @@
+## Sprint 109 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.24 [patch]
+
+- [x] GAP-109-01: add `ui::rtstruct_overlay` SSOT for RT contour projection from patient mm to per-axis row/column image space
+- [x] GAP-109-02: expose RT-STRUCT overlay API through `ui::mod.rs`
+- [x] GAP-109-03: add `File -> Open RT-STRUCT file…` workflow in `SnapApp`
+- [x] GAP-109-04: add View toggle for RT-STRUCT overlay visibility and left-panel RT summary controls
+- [x] GAP-109-05: render projected RT contours in the active viewport paint path
+- [x] GAP-109-06: persist RT-STRUCT overlay visibility in session snapshots and tests
+- [x] GAP-109-07: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::rtstruct_overlay:: -- --nocapture` passed: 4 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 167 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 108 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

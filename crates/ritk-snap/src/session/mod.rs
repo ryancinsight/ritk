@@ -29,6 +29,8 @@ pub struct ViewerSessionSnapshot {
     pub show_overlay: bool,
     /// Crosshair visibility.
     pub show_crosshair: bool,
+    /// RT-STRUCT overlay visibility.
+    pub show_rt_struct_overlay: bool,
     /// Series browser visibility.
     pub show_series_browser: bool,
     /// Sidebar tab.
@@ -59,6 +61,7 @@ impl ViewerSessionSnapshot {
             multi_planar: false,
             show_overlay: true,
             show_crosshair: false,
+            show_rt_struct_overlay: true,
             show_series_browser: true,
             sidebar_tab: SidebarTab::Series,
             coronal_slice: 0,

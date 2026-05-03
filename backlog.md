@@ -1,3 +1,29 @@
+## Sprint 109 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.24 [patch]
+**Goal**: Close the RT-STRUCT viewer overlay gap by adding deterministic contour projection and app-shell load/toggle/render integration.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-109-01 | `ritk-snap` had no RT-STRUCT contour overlay path in the active viewport renderer | patch |
+| GAP-109-02 | No SSOT module existed for patient-mm RT contour projection into axis/slice row-column coordinates | patch |
+| GAP-109-03 | Viewer state/session lacked explicit RT-STRUCT overlay visibility persistence | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::rtstruct_overlay:: -- --nocapture` | Passed: 4 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 167 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- RT-STRUCT projection currently accepts contours that lie within half-voxel slice tolerance; future work can add optional per-ROI slice snapping diagnostics.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 108 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

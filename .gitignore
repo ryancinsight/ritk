@@ -6,3 +6,4 @@
 .DS_Store
 *.err
 /*.py
+/checklist.pdf
