@@ -1,3 +1,20 @@
+## Sprint 112 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.27 [patch]
+
+- [x] GAP-112-01: add app-shell keyboard shortcut routing for segmentation undo/redo
+- [x] GAP-112-02: wire `Ctrl/Cmd+Z` to deterministic label undo behavior
+- [x] GAP-112-03: wire `Ctrl/Cmd+Shift+Z` and `Ctrl/Cmd+Y` to deterministic label redo behavior
+- [x] GAP-112-04: add app-level value-semantic test for shortcut-driven undo/redo map transitions
+- [x] GAP-112-05: update in-view interaction hints and segmentation control labels for shortcut discoverability
+- [x] GAP-112-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::label_shortcut_undo_redo_updates_map_and_status -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 174 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 111 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

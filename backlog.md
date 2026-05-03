@@ -1,3 +1,30 @@
+## Sprint 112 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.27 [patch]
+**Goal**: Close segmentation keyboard shortcut parity in the active `ritk-snap` shell by wiring deterministic undo/redo shortcuts to the existing label history stack.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-112-01 | Segmentation undo/redo existed only as sidebar buttons; no keyboard parity path existed | patch |
+| GAP-112-02 | App-shell shortcut handling lacked deterministic label-history undo/redo command routing | patch |
+| GAP-112-03 | Viewer interaction hints and segmentation controls did not expose keyboard undo/redo discoverability | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib app::tests::label_shortcut_undo_redo_updates_map_and_status -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib app::tests::zoom_tool_drag_updates_zoom_from_pointer_delta -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 174 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 111 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

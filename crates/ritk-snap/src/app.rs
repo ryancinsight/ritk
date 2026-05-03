@@ -474,8 +474,27 @@ impl SnapApp {
 
     fn consume_global_shortcuts(&mut self, ctx: &egui::Context) {
         let zoom_to_fit = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Num0);
+        let redo_shift_z = egui::KeyboardShortcut::new(
+            egui::Modifiers {
+                command: true,
+                shift: true,
+                ..Default::default()
+            },
+            egui::Key::Z,
+        );
+        let redo_y = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Y);
+        let undo_z = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Z);
+
         if ctx.input_mut(|input| input.consume_shortcut(&zoom_to_fit)) {
             self.reset_view_to_fit();
+        }
+        if ctx.input_mut(|input| {
+            input.consume_shortcut(&redo_shift_z) || input.consume_shortcut(&redo_y)
+        }) {
+            self.redo_label_edit_shortcut();
+        }
+        if ctx.input_mut(|input| input.consume_shortcut(&undo_z)) {
+            self.undo_label_edit_shortcut();
         }
     }
 
@@ -487,6 +506,24 @@ impl SnapApp {
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
         self.status_message = "Zoom reset to fit.".to_owned();
+    }
+
+    fn undo_label_edit_shortcut(&mut self) {
+        let Some(editor) = self.label_editor.as_mut() else {
+            return;
+        };
+        if editor.undo() {
+            self.status_message = "Segmentation undo.".to_owned();
+        }
+    }
+
+    fn redo_label_edit_shortcut(&mut self) {
+        let Some(editor) = self.label_editor.as_mut() else {
+            return;
+        };
+        if editor.redo() {
+            self.status_message = "Segmentation redo.".to_owned();
+        }
     }
 
     /// Apply a [`WindowPreset`] and mark all textures dirty.
@@ -674,13 +711,16 @@ impl SnapApp {
                     ui.checkbox(&mut self.show_label_overlay, "Show labels");
                     ui.horizontal(|ui| {
                         if ui
-                            .add_enabled(editor.can_undo(), egui::Button::new("Undo"))
+                            .add_enabled(editor.can_undo(), egui::Button::new("Undo (Ctrl/Cmd+Z)"))
                             .clicked()
                         {
                             let _ = editor.undo();
                         }
                         if ui
-                            .add_enabled(editor.can_redo(), egui::Button::new("Redo"))
+                            .add_enabled(
+                                editor.can_redo(),
+                                egui::Button::new("Redo (Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y)"),
+                            )
                             .clicked()
                         {
                             let _ = editor.redo();
@@ -1187,6 +1227,7 @@ impl SnapApp {
                 ui.label("Scroll wheel: navigate slices.");
                 ui.label("Ctrl/Cmd + scroll: zoom in/out.");
                 ui.label("Ctrl/Cmd + 0: zoom to fit.");
+                ui.label("Ctrl/Cmd + Z / Shift+Z / Y: segmentation undo/redo.");
                 ui.label("Click: move the linked MPR cursor.");
                 ui.label("Drag: active tool interaction.");
             } else {
@@ -2260,5 +2301,35 @@ mod tests {
 
         assert!(app.zoom > 1.0, "expected drag-up zoom-in, got {}", app.zoom);
         assert!(app.status_message.starts_with("Zoom:"));
+    }
+
+    #[test]
+    fn label_shortcut_undo_redo_updates_map_and_status() {
+        let mut app = SnapApp::default();
+        let mut editor = crate::label::LabelEditor::new([2, 2, 2]);
+        let _ = editor.paint_voxel([0, 0, 0]).expect("paint must succeed");
+        app.label_editor = Some(editor);
+
+        app.undo_label_edit_shortcut();
+
+        let label_after_undo = app
+            .label_editor
+            .as_ref()
+            .expect("editor")
+            .current_map()
+            .label_at([0, 0, 0]);
+        assert_eq!(label_after_undo, 0);
+        assert_eq!(app.status_message, "Segmentation undo.");
+
+        app.redo_label_edit_shortcut();
+
+        let label_after_redo = app
+            .label_editor
+            .as_ref()
+            .expect("editor")
+            .current_map()
+            .label_at([0, 0, 0]);
+        assert_eq!(label_after_redo, 1);
+        assert_eq!(app.status_message, "Segmentation redo.");
     }
 }
