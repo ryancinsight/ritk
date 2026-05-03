@@ -14,6 +14,7 @@
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / Info.|
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tracing::{error, info};
 
@@ -25,7 +26,8 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor,
+    axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, CinePlayback,
+    LinkedCursor,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -102,6 +104,8 @@ pub struct SnapApp {
     show_crosshair: bool,
     /// Shared voxel cursor used to synchronize all MPR viewports.
     linked_cursor: Option<LinkedCursor>,
+    /// Cine playback controller for automatic slice stepping.
+    cine: CinePlayback,
     /// `true` when the series browser left panel is visible.
     show_series_browser: bool,
 
@@ -147,6 +151,7 @@ impl Default for SnapApp {
             show_overlay: true,
             show_crosshair: false,
             linked_cursor: None,
+            cine: CinePlayback::default(),
             show_series_browser: true,
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
@@ -186,6 +191,8 @@ impl eframe::App for SnapApp {
         if let Some(path) = self.pending_load.take() {
             self.load_from_path(path);
         }
+
+        self.tick_cine(ctx);
 
         self.show_menu_bar(ctx);
         self.show_left_panel(ctx);
@@ -267,6 +274,7 @@ impl SnapApp {
                         self.texture_dirty = false;
                         self.coronal_dirty = false;
                         self.sagittal_dirty = false;
+                        self.cine.stop();
                         self.status_message = "Study closed.".to_owned();
                     }
 
@@ -458,6 +466,8 @@ impl SnapApp {
             sagittal_slice: self.sagittal_slice,
             pan_offset: [self.pan_offset.x, self.pan_offset.y],
             zoom: self.zoom,
+            cine_enabled: self.cine.enabled,
+            cine_fps: self.cine.fps,
         }
     }
 
@@ -475,6 +485,7 @@ impl SnapApp {
         self.sagittal_slice = snapshot.sagittal_slice;
         self.pan_offset = egui::Vec2::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
         self.zoom = snapshot.zoom.clamp(0.05, 32.0);
+        self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.tool_state = ToolState::Idle;
         self.texture_dirty = true;
         self.coronal_dirty = true;
@@ -565,6 +576,29 @@ impl SnapApp {
                 let ww = self.viewer_state.window_width.unwrap_or(256.0);
                 ui.label(format!("Centre : {wc:.0}"));
                 ui.label(format!("Width  : {ww:.0}"));
+
+                ui.separator();
+                ui.heading("Cine");
+                ui.separator();
+
+                let now = ctx.input(|i| i.time);
+                let play_label = if self.cine.enabled { "Pause" } else { "Play" };
+                if ui.button(play_label).clicked() {
+                    if self.cine.enabled {
+                        self.cine.stop();
+                    } else {
+                        self.cine.set_enabled(true, now);
+                    }
+                }
+                let mut fps = self.cine.fps;
+                if ui
+                    .add(egui::Slider::new(&mut fps, 1.0..=60.0).text("FPS"))
+                    .changed()
+                {
+                    self.cine.set_fps(fps);
+                }
+                let cine_axis = ["Axial", "Coronal", "Sagittal"][self.axis.min(2)];
+                ui.label(format!("Axis: {cine_axis}"));
 
                 // ── Tool palette ──────────────────────────────────────────────
                 ui.separator();
@@ -1205,6 +1239,7 @@ impl SnapApp {
     /// updated and any previously loaded volume is preserved.
     fn load_from_path(&mut self, path: std::path::PathBuf) {
         info!("loading DICOM series from {}", path.display());
+        self.cine.stop();
         let device: <LoadBackend as burn::tensor::backend::Backend>::Device = Default::default();
 
         match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&path, &device) {
@@ -1311,6 +1346,7 @@ impl SnapApp {
     /// viewer state and textures are reset exactly as in [`load_from_path`].
     /// NIfTI files carry no patient metadata; DICOM-specific fields are `None`.
     fn load_nifti_file(&mut self, path: std::path::PathBuf) {
+        self.cine.stop();
         match crate::dicom::loader::load_nifti_volume(&path) {
             Ok(vol) => {
                 let shape = vol.shape;
@@ -1430,6 +1466,67 @@ impl SnapApp {
     /// [`step_slice_for_axis`]: SnapApp::step_slice_for_axis
     fn step_slice(&mut self, delta: i32) {
         self.step_slice_for_axis(self.axis, delta);
+    }
+
+    /// Advance `axis` by `steps` with wrap-around.
+    fn advance_slice_for_axis_loop(&mut self, axis: usize, steps: u32) {
+        if steps == 0 {
+            return;
+        }
+        let total = match axis {
+            0 => self.loaded.as_ref().map(|v| v.shape[0]).unwrap_or(1),
+            1 => self.loaded.as_ref().map(|v| v.shape[1]).unwrap_or(1),
+            _ => self.loaded.as_ref().map(|v| v.shape[2]).unwrap_or(1),
+        };
+        if total == 0 {
+            return;
+        }
+
+        let next = |current: usize| (current + steps as usize) % total;
+
+        match axis {
+            0 => {
+                self.viewer_state.slice_index = next(self.viewer_state.slice_index);
+                self.texture_dirty = true;
+                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                    cursor.set_axis_slice(vol.shape, 0, self.viewer_state.slice_index);
+                }
+            }
+            1 => {
+                self.coronal_slice = next(self.coronal_slice);
+                self.coronal_dirty = true;
+                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                    cursor.set_axis_slice(vol.shape, 1, self.coronal_slice);
+                }
+            }
+            _ => {
+                self.sagittal_slice = next(self.sagittal_slice);
+                self.sagittal_dirty = true;
+                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
+                    cursor.set_axis_slice(vol.shape, 2, self.sagittal_slice);
+                }
+            }
+        }
+    }
+
+    /// Advance cine playback for the active axis and schedule repaints.
+    fn tick_cine(&mut self, ctx: &egui::Context) {
+        if self.loaded.is_none() {
+            self.cine.stop();
+            return;
+        }
+        if !self.cine.enabled {
+            return;
+        }
+
+        let now = ctx.input(|i| i.time);
+        let steps = self.cine.consume_steps(now);
+        if steps > 0 {
+            self.advance_slice_for_axis_loop(self.axis, steps);
+            ctx.request_repaint();
+        } else {
+            ctx.request_repaint_after(Duration::from_millis(8));
+        }
     }
 
     // ── Tool event handlers ───────────────────────────────────────────────────
@@ -1836,5 +1933,36 @@ mod tests {
         app.linked_cursor = Some(LinkedCursor::from_slices([2, 3, 4], 1, 2, 3));
 
         assert_eq!(app.current_cursor_value(), Some(23.0));
+    }
+
+    #[test]
+    fn cine_loop_advances_and_wraps_active_axis() {
+        let mut app = SnapApp::default();
+        let shape = [3, 4, 5];
+        app.loaded = Some(test_volume(shape));
+        app.viewer_state.slice_index = 2;
+        app.linked_cursor = Some(LinkedCursor::from_slices(shape, 2, 0, 0));
+
+        app.advance_slice_for_axis_loop(0, 1);
+
+        assert_eq!(app.viewer_state.slice_index, 0);
+        assert_eq!(app.linked_cursor.expect("cursor").voxel(), [0, 0, 0]);
+    }
+
+    #[test]
+    fn session_snapshot_round_trip_preserves_cine_state() {
+        let mut app = SnapApp::default();
+        app.cine.restore(true, 18.0);
+
+        let snapshot = app.session_snapshot();
+
+        assert!(snapshot.cine_enabled);
+        assert_eq!(snapshot.cine_fps, 18.0);
+
+        let mut recovered = SnapApp::default();
+        recovered.apply_session_snapshot(snapshot);
+
+        assert!(recovered.cine.enabled);
+        assert_eq!(recovered.cine.fps, 18.0);
     }
 }

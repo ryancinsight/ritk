@@ -1,3 +1,22 @@
+## Sprint 105 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.20 [patch]
+
+- [x] GAP-105-01: add `ui::cine::CinePlayback` SSOT for playback enable/disable, FPS clamping, and frame-step consumption
+- [x] GAP-105-02: wire cine playback into `SnapApp` frame update loop with active-axis looping slice advance and repaint scheduling
+- [x] GAP-105-03: add Cine controls (`Play`/`Pause`, FPS slider, active-axis label) to the left-panel viewer UI
+- [x] GAP-105-04: persist cine state in session snapshots (`cine_enabled`, `cine_fps`) and restore on load
+- [x] GAP-105-05: add value-semantic tests for cine timing behavior, looped slice advancement, and session cine round-trip behavior
+- [x] GAP-105-06: update README, backlog, checklist, gap_audit, and CHANGELOG
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 147 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests plus doc tests
+- [x] Verification: `cargo check -p ritk-io` passed with existing warnings
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Verification: `cargo test --workspace --examples` passed
+- [x] Verification note: `cargo test --workspace --quiet` shows core crates passing but exits nonzero in the long-running `ritk-model` SSMMorph path in this environment; outside the Sprint 105 change surface
+- [x] Commit policy: stage current worktree changes, commit, rebase if required, push `origin/main`
+
 ## Sprint 104 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

@@ -1,3 +1,31 @@
+## Sprint 105 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.20 [patch]
+**Goal**: Close the next `ritk-snap` workstation navigation gap by adding deterministic cine playback (play/pause + FPS control) on the active viewport axis.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-105-01 | `ritk-snap` had no cine playback loop for sequential slice navigation, blocking common workstation review workflow | patch |
+| GAP-105-02 | Cine playback timing logic was absent from a dedicated SSOT and had no value-semantic tests for frame-step scheduling/clamping | patch |
+| GAP-105-03 | Session snapshots did not persist cine state (`enabled`, `fps`) across save/load workflows | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib` | Passed: 147 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests plus doc tests |
+| `cargo check -p ritk-io` | Passed with existing warnings |
+| `cargo test -p ritk-io --examples` | Passed |
+| `cargo test --workspace --examples` | Passed |
+| `cargo test --workspace --quiet` | Core crates observed passing in run output (`ritk-cli` 197, `ritk-core` 772, `ritk-io` 413, `ritk-dicom` 20, integration suites). Command still exits nonzero in `ritk-model` long-running SSMMorph path in this environment; unrelated to Sprint 105 file set |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open and must be closed by audited feature slices, not a blanket claim.
+- `ritk-snap` still requires broader workstation workflow parity beyond cine playback (remaining viewer behavior breadth).
+- Workspace-level `cargo test --workspace` currently exits nonzero in `ritk-model` long-running SSMMorph path; isolate/fix in a dedicated `ritk-model` sprint.
+
 ## Sprint 104 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

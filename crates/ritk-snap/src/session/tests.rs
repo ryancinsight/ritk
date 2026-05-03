@@ -20,6 +20,8 @@ fn session_snapshot_default_matches_viewer_defaults() {
     assert_eq!(snapshot.sagittal_slice, 0);
     assert_eq!(snapshot.pan_offset, [0.0, 0.0]);
     assert_eq!(snapshot.zoom, 1.0);
+    assert!(!snapshot.cine_enabled);
+    assert_eq!(snapshot.cine_fps, 12.0);
 }
 
 #[test]
@@ -43,6 +45,8 @@ fn session_snapshot_json_round_trip_preserves_values() {
         sagittal_slice: 9,
         pan_offset: [11.5, -3.25],
         zoom: 2.5,
+        cine_enabled: true,
+        cine_fps: 18.0,
     };
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");

@@ -22,6 +22,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` hanging protocol SSOT**: Added deterministic hanging-protocol rule matching for CT/MR series and applied protocol-selected windowing, preferred axis, and multi-planar layout defaults during load. [patch]
 - **`ritk-snap` linked MPR cursor**: Added a shared study-coordinate cursor with viewport click synchronization across axial, coronal, and sagittal slices, projected crosshair rendering, and dedicated cursor transform tests. [patch]
 - **`ritk-snap` overlay orientation/HU wiring**: Wired the active app-shell overlay path to render patient-orientation edge labels and display the linked-cursor voxel intensity in the DICOM-style HU readout. [patch]
+- **`ritk-snap` cine playback**: Added active-axis cine playback with play/pause, FPS control, looping slice advance, session-state persistence (`cine_enabled`, `cine_fps`), and dedicated timing/unit tests. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

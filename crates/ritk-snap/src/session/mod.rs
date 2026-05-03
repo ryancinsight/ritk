@@ -41,6 +41,10 @@ pub struct ViewerSessionSnapshot {
     pub pan_offset: [f32; 2],
     /// Viewport zoom multiplier.
     pub zoom: f32,
+    /// Cine playback enabled state.
+    pub cine_enabled: bool,
+    /// Cine playback target frame rate.
+    pub cine_fps: f32,
 }
 
 impl ViewerSessionSnapshot {
@@ -61,6 +65,8 @@ impl ViewerSessionSnapshot {
             sagittal_slice: 0,
             pan_offset: [0.0, 0.0],
             zoom: 1.0,
+            cine_enabled: false,
+            cine_fps: 12.0,
         }
     }
 }
