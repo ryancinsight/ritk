@@ -1,3 +1,29 @@
+## Sprint 108 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.23 [patch]
+**Goal**: Close the full-volume export workflow gap by adding deterministic all-axis MPR PNG export planning and wiring it into the active viewer shell.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-108-01 | `ritk-snap` could export only the current slice; no all-axis MPR slice export workflow existed | patch |
+| GAP-108-02 | There was no SSOT planning module for deterministic all-axis export file/folder layout | patch |
+| GAP-108-03 | Viewer UI lacked a command for full MPR export rooted at a selected directory | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::export_plan:: -- --nocapture` | Passed: 4 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 163 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- Next high-value viewer gaps: RT-STRUCT overlay rendering and zoom-to-fit command shortcut polishing.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 107 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
@@ -20,7 +46,7 @@
 
 ### Residual risks
 - Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
-- Next high-value viewer gaps: RT-STRUCT overlay rendering, export-all-MPR pipeline, zoom-to-fit command shortcut polishing.
+- Next high-value viewer gaps: RT-STRUCT overlay rendering and zoom-to-fit command shortcut polishing.
 - Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
 
 ## Sprint 106 — Completed

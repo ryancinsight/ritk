@@ -111,7 +111,8 @@ load-time hanging-protocol defaults for CT/MR series, linked MPR cursor
 navigation across all three planes, DICOM-style patient-orientation labels,
 linked-cursor HU overlay readout, linked-cursor physical LPS readout,
 active-axis cine playback with FPS control, Ctrl/Cmd+scroll viewport zoom,
-PNG slice export, DICOM overlays, and a
+PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
+and a
 deterministic Tags panel covering series metadata, first-slice geometry/display
 tags, private scalar tags, preserved object-model nodes, and raw preserved
 element byte counts. Viewer session save/load stores presentation state as

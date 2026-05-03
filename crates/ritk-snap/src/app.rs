@@ -26,9 +26,9 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, viewport_point_to_voxel,
-    should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor,
-    MAX_ZOOM, MIN_ZOOM,
+    axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, plan_all_mpr_exports,
+    viewport_point_to_voxel, should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll,
+    CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -251,6 +251,11 @@ impl SnapApp {
                     if ui.button("Export current slice as PNG…").clicked() {
                         ui.close_menu();
                         self.export_current_slice();
+                    }
+
+                    if ui.button("Export all MPR slices as PNG…").clicked() {
+                        ui.close_menu();
+                        self.export_all_mpr_slices();
                     }
 
                     if ui.button("Save session…").clicked() {
@@ -1134,7 +1139,7 @@ impl SnapApp {
     /// Uses a synchronous OS save dialog (blocks the UI thread while open).
     /// On success the file is written silently; on failure the save dialog
     /// returns `None` and no file is written.
-    fn export_current_slice(&self) {
+    fn export_current_slice(&mut self) {
         let Some(vol) = &self.loaded else { return };
         let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
         let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
@@ -1160,19 +1165,85 @@ impl SnapApp {
             .add_filter("PNG", &["png"])
             .save_file()
         {
-            match image::RgbImage::from_raw(w as u32, h as u32, rgb_bytes) {
-                Some(img) => {
-                    if let Err(e) = img.save(&path) {
-                        error!(path = %path.display(), error = %e, "PNG export failed");
-                    } else {
-                        info!(path = %path.display(), "slice exported as PNG");
-                    }
+            match image::RgbImage::from_raw(w as u32, h as u32, rgb_bytes)
+                .ok_or_else(|| anyhow::anyhow!("buffer length mismatch"))
+                .and_then(|img| img.save(&path).map_err(anyhow::Error::from))
+            {
+                Ok(()) => {
+                    self.status_message = format!("Exported slice PNG: {}", path.display());
+                    info!("{}", self.status_message);
                 }
-                None => {
-                    error!("PNG export: buffer length mismatch — image not saved");
+                Err(e) => {
+                    self.status_message = format!("PNG export failed for {}: {e:#}", path.display());
+                    error!("{}", self.status_message);
                 }
             }
         }
+    }
+
+    /// Export all axial/coronal/sagittal slices as PNG files under a selected
+    /// directory using the canonical MPR export plan.
+    fn export_all_mpr_slices(&mut self) {
+        let Some(vol) = &self.loaded else {
+            self.status_message = "No volume loaded; MPR export skipped.".to_owned();
+            return;
+        };
+
+        let Some(root) = rfd::FileDialog::new().pick_folder() else {
+            return;
+        };
+
+        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
+        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wl = WindowLevel::new(wc, ww);
+        let plan = plan_all_mpr_exports(vol.shape);
+
+        let mut success = 0usize;
+        let mut failed = 0usize;
+
+        for export in plan {
+            let axis_dir = root.join(export.axis_folder);
+            if let Err(e) = std::fs::create_dir_all(&axis_dir) {
+                failed += 1;
+                error!(path = %axis_dir.display(), error = %e, "failed to create axis export directory");
+                continue;
+            }
+
+            let path = axis_dir.join(export.file_name);
+            let color_image = SliceRenderer::render(
+                vol,
+                export.axis,
+                export.slice_index,
+                wl,
+                self.colormap,
+            );
+            let rgb_bytes: Vec<u8> = color_image
+                .pixels
+                .iter()
+                .flat_map(|c| [c.r(), c.g(), c.b()])
+                .collect();
+            let [w, h] = color_image.size;
+
+            let result = image::RgbImage::from_raw(w as u32, h as u32, rgb_bytes)
+                .ok_or_else(|| anyhow::anyhow!("buffer length mismatch"))
+                .and_then(|img| img.save(&path).map_err(anyhow::Error::from));
+
+            match result {
+                Ok(()) => success += 1,
+                Err(e) => {
+                    failed += 1;
+                    error!(path = %path.display(), error = %e, "failed to export MPR PNG slice");
+                }
+            }
+        }
+
+        self.status_message = format!(
+            "MPR export complete: {} succeeded, {} failed ({})",
+            success,
+            failed,
+            root.display()
+        );
+        info!("{}", self.status_message);
     }
 
     fn save_session_dialog(&mut self) {

@@ -14,6 +14,7 @@
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
+//! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
@@ -21,6 +22,7 @@ pub mod layout;
 pub mod measurements;
 pub mod cine;
 pub mod cursor_info;
+pub mod export_plan;
 pub mod mpr_cursor;
 pub mod overlay;
 pub mod sidebar;
@@ -31,6 +33,7 @@ pub mod zoom;
 
 pub use cine::CinePlayback;
 pub use cursor_info::{format_lps, voxel_to_lps};
+pub use export_plan::{axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport};
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor};

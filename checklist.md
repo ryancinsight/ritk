@@ -1,3 +1,20 @@
+## Sprint 108 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.23 [patch]
+
+- [x] GAP-108-01: add `ui::export_plan` SSOT for deterministic all-axis MPR export planning
+- [x] GAP-108-02: expose export plan API through `ui::mod.rs`
+- [x] GAP-108-03: add `File -> Export all MPR slices as PNG…` workflow in `SnapApp`
+- [x] GAP-108-04: keep single-slice export and full-export paths value-safe with explicit status/error reporting
+- [x] GAP-108-05: add export-plan value-semantic tests (axis totals, folder names, plan count, first/last ordering)
+- [x] GAP-108-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::export_plan:: -- --nocapture` passed: 4 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 163 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 107 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

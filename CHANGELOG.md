@@ -25,6 +25,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` cine playback**: Added active-axis cine playback with play/pause, FPS control, looping slice advance, session-state persistence (`cine_enabled`, `cine_fps`), and dedicated timing/unit tests. [patch]
 - **`ritk-snap` physical cursor position readout**: Added `ui::cursor_info` SSOT with `voxel_to_lps` (ITK affine voxel-to-LPS transform, mathematically proven) and `format_lps`. Physical mm position is now shown in the status bar and MPR Info quadrant whenever a linked cursor is active, providing ITK-SNAP-parity I/J/K + LPS readout. [patch]
 - **`ritk-snap` Ctrl/Cmd+scroll zoom**: Added `ui::zoom` SSOT with explicit zoom bounds and wheel-to-zoom mapping; wired viewport wheel handling so Ctrl/Cmd+scroll zooms while plain wheel continues slice navigation. [patch]
+- **`ritk-snap` full MPR PNG export**: Added `ui::export_plan` SSOT and a File-menu workflow to export all axial/coronal/sagittal slices as PNG files under deterministic per-axis folders. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]
