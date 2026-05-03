@@ -14,6 +14,7 @@
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
+//! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
 pub mod layout;
@@ -26,6 +27,7 @@ pub mod sidebar;
 pub mod toolbar;
 pub mod viewport;
 pub mod window_presets;
+pub mod zoom;
 
 pub use cine::CinePlayback;
 pub use cursor_info::{format_lps, voxel_to_lps};
@@ -37,3 +39,4 @@ pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_presets::WindowPreset;
+pub use zoom::{should_zoom_with_scroll, zoom_from_scroll, MAX_ZOOM, MIN_ZOOM};

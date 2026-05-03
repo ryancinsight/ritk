@@ -1,3 +1,28 @@
+## Sprint 107 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.22 [patch]
+**Goal**: Close the viewport wheel interaction gap by adding deterministic Ctrl/Cmd+scroll zoom behavior through an isolated zoom-policy SSOT.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-107-01 | Wheel interaction always stepped slices; no Ctrl/Cmd+wheel zoom path existed in the active app shell | patch |
+| GAP-107-02 | Zoom bounds and wheel-to-zoom mapping were not centralized in a dedicated SSOT module | patch |
+| GAP-107-03 | Viewer interaction hints did not document Ctrl/Cmd+scroll zoom behavior | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` | Passed: 5 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- Next high-value viewer gaps: RT-STRUCT overlay rendering, export-all-MPR pipeline, zoom-to-fit command shortcut polishing.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 106 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

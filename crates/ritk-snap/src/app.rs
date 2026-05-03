@@ -27,7 +27,8 @@ use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, viewport_point_to_voxel,
-    voxel_to_lps, CinePlayback, LinkedCursor,
+    should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor,
+    MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -484,7 +485,7 @@ impl SnapApp {
         self.coronal_slice = snapshot.coronal_slice;
         self.sagittal_slice = snapshot.sagittal_slice;
         self.pan_offset = egui::Vec2::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
-        self.zoom = snapshot.zoom.clamp(0.05, 32.0);
+        self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
         self.tool_state = ToolState::Idle;
         self.texture_dirty = true;
@@ -847,7 +848,7 @@ impl SnapApp {
     /// 4. Draw the axis label and slice counter as overlay text.
     /// 5. Draw the DICOM 4-corner overlay when `show_overlay` is set.
     /// 6. Draw crosshair lines when `show_crosshair` is set.
-    /// 7. Handle scroll wheel for slice navigation on this axis.
+    /// 7. Handle wheel input: Ctrl/Cmd+wheel zooms, plain wheel steps slices.
     /// 8. Dispatch pointer events to the active tool handler.
     fn render_axis_viewport(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, axis: usize) {
         // ── 1. Rebuild texture if stale ────────────────────────────────────────
@@ -978,11 +979,17 @@ impl SnapApp {
         // painter is dropped here; no longer borrows ui.
         drop(painter);
 
-        // ── 7. Scroll wheel: slice navigation ──────────────────────────────────
-        let scroll_y = ctx.input(|i| i.smooth_scroll_delta.y);
+        // ── 7. Wheel input: zoom or slice navigation ───────────────────────────
+        let (scroll_y, ctrl_or_cmd) =
+            ctx.input(|i| (i.smooth_scroll_delta.y, i.modifiers.ctrl || i.modifiers.command));
         if response.hovered() && scroll_y != 0.0 {
-            let step = if scroll_y > 0.0 { -1i32 } else { 1 };
-            self.step_slice_for_axis(axis, step);
+            if should_zoom_with_scroll(ctrl_or_cmd) {
+                self.zoom = zoom_from_scroll(self.zoom, scroll_y);
+                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
+            } else {
+                let step = if scroll_y > 0.0 { -1i32 } else { 1 };
+                self.step_slice_for_axis(axis, step);
+            }
         }
 
         // ── 8. Pointer events ──────────────────────────────────────────────────
@@ -1110,6 +1117,7 @@ impl SnapApp {
 
                 ui.separator();
                 ui.label("Scroll wheel: navigate slices.");
+                ui.label("Ctrl/Cmd + scroll: zoom in/out.");
                 ui.label("Click: move the linked MPR cursor.");
                 ui.label("Drag: active tool interaction.");
             } else {

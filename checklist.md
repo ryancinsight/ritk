@@ -1,3 +1,20 @@
+## Sprint 107 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.22 [patch]
+
+- [x] GAP-107-01: add `ui::zoom` SSOT for wheel-to-zoom mapping and zoom-modifier policy
+- [x] GAP-107-02: centralize zoom bounds as `MIN_ZOOM` and `MAX_ZOOM`
+- [x] GAP-107-03: wire Ctrl/Cmd + wheel zoom into `SnapApp::render_axis_viewport` without regressing plain-wheel slice stepping
+- [x] GAP-107-04: route session restore zoom clamping through shared zoom constants
+- [x] GAP-107-05: add value-semantic zoom tests (modifier policy, in/out monotonicity, clamp bounds, zero-scroll invariance)
+- [x] GAP-107-06: update in-viewer interaction hints for Ctrl/Cmd+scroll zoom
+- [x] GAP-107-07: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` passed: 5 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 106 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
