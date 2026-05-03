@@ -118,6 +118,7 @@ tool keyboard shortcuts (L=length, A=angle, R=rect ROI, E=ellipse ROI, H=HU poin
 Zoom tool continuous drag zoom,
 Segmentation keyboard undo/redo shortcuts,
 Pan tool drag mapping (additive viewport offset) via SSOT `ui/pan`,
+ROI Ellipse true pixel-mask statistics (ellipse membership test `((r−cy)/a)²+((c−cx)/b)²≤1`) via `Annotation::compute_roi_ellipse_stats`,
 W/L drag mapping (horizontal width, vertical center) via SSOT `ui/window_level`,
 PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
 RT-STRUCT contour overlay loading and rendering,

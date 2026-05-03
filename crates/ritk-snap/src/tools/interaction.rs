@@ -194,6 +194,41 @@ pub enum Annotation {
         /// ROI area in mm².
         area_mm2: f32,
     },
+    /// Ellipse ROI with intensity statistics computed over pixels whose centres
+    /// lie inside the ellipse mask.
+    ///
+    /// # Ellipse membership condition
+    ///
+    /// A pixel at integer coordinates `(r, c)` is included when:
+    ///
+    /// ```text
+    /// ((r − center[0]) / radii[0])² + ((c − center[1]) / radii[1])² ≤ 1
+    /// ```
+    ///
+    /// When `radii[0]` or `radii[1]` is zero (degenerate ellipse), no pixels
+    /// are collected and all statistics return `0.0`.
+    ///
+    /// # Physical area
+    ///
+    /// ```text
+    /// area_mm² = π × radii[0] × spacing[0] × radii[1] × spacing[1]
+    /// ```
+    RoiEllipse {
+        /// Centre of the ellipse as `[row, col]` in image pixels.
+        center: [f32; 2],
+        /// Semi-axis radii as `[row_radius, col_radius]` in image pixels.
+        radii: [f32; 2],
+        /// Mean intensity within the ellipse mask.
+        mean: f32,
+        /// Population standard deviation of intensities within the ellipse mask.
+        std_dev: f32,
+        /// Minimum intensity within the ellipse mask.
+        min: f32,
+        /// Maximum intensity within the ellipse mask.
+        max: f32,
+        /// Physical area of the ellipse in mm².
+        area_mm2: f32,
+    },
     /// Single-point HU measurement.
     HuPoint {
         /// Point location as `[row, col]` in image pixels.
@@ -324,6 +359,93 @@ impl Annotation {
         let area_mm2 = h_px * spacing[0] * w_px * spacing[1];
 
         (mean, std_dev, min, max, area_mm2)
+    }
+
+    /// Compute intensity statistics for pixels whose centres lie inside the
+    /// ellipse defined by two opposite corners `p1` and `p2`.
+    ///
+    /// # Parameters
+    /// - `p1`, `p2`  — opposite corners of the bounding rectangle as `[row, col]`.
+    /// - `pixels`    — flat row-major pixel buffer of the slice.
+    /// - `width`     — number of columns in the slice.
+    /// - `height`    — number of rows in the slice.
+    /// - `spacing`   — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
+    ///
+    /// # Returns
+    /// `(center, radii, mean, std_dev, min, max, area_mm2)`.
+    ///
+    /// Returns `([0,0], [0,0], 0, 0, 0, 0, 0)` when the ellipse contains no
+    /// pixels (degenerate or fully outside the image bounds).
+    ///
+    /// # Ellipse membership
+    ///
+    /// ```text
+    /// cy = (p1[0] + p2[0]) / 2
+    /// cx = (p1[1] + p2[1]) / 2
+    /// a  = |p2[0] − p1[0]| / 2   (row semi-axis)
+    /// b  = |p2[1] − p1[1]| / 2   (col semi-axis)
+    ///
+    /// pixel (r,c) is inside ⟺  ((r−cy)/a)² + ((c−cx)/b)² ≤ 1
+    ///
+    /// area_mm² = π × a × spacing[0] × b × spacing[1]
+    /// ```
+    pub fn compute_roi_ellipse_stats(
+        p1: [f32; 2],
+        p2: [f32; 2],
+        pixels: &[f32],
+        width: usize,
+        height: usize,
+        spacing: [f32; 2],
+    ) -> ([f32; 2], [f32; 2], f32, f32, f32, f32, f32) {
+        let cy = (p1[0] + p2[0]) * 0.5;
+        let cx = (p1[1] + p2[1]) * 0.5;
+        let a = (p2[0] - p1[0]).abs() * 0.5; // row semi-axis
+        let b = (p2[1] - p1[1]).abs() * 0.5; // col semi-axis
+
+        let center = [cy, cx];
+        let radii = [a, b];
+
+        // Degenerate ellipse: one or both semi-axes are zero.
+        if a < f32::EPSILON || b < f32::EPSILON {
+            return (center, radii, 0.0, 0.0, 0.0, 0.0, 0.0);
+        }
+
+        // Scan the bounding box and apply the ellipse membership test.
+        let r_min = ((cy - a).floor().max(0.0) as usize).min(height.saturating_sub(1));
+        let r_max = ((cy + a).ceil().max(0.0) as usize).min(height.saturating_sub(1));
+        let c_min = ((cx - b).floor().max(0.0) as usize).min(width.saturating_sub(1));
+        let c_max = ((cx + b).ceil().max(0.0) as usize).min(width.saturating_sub(1));
+
+        let mut vals: Vec<f32> = Vec::with_capacity((r_max - r_min + 1) * (c_max - c_min + 1));
+        for r in r_min..=r_max {
+            let dr = (r as f32 - cy) / a;
+            for c in c_min..=c_max {
+                let dc = (c as f32 - cx) / b;
+                // Membership: (dr)² + (dc)² ≤ 1
+                if dr * dr + dc * dc <= 1.0 {
+                    let idx = r * width + c;
+                    if idx < pixels.len() {
+                        vals.push(pixels[idx]);
+                    }
+                }
+            }
+        }
+
+        if vals.is_empty() {
+            return (center, radii, 0.0, 0.0, 0.0, 0.0, 0.0);
+        }
+
+        let n = vals.len() as f32;
+        let mean = vals.iter().copied().sum::<f32>() / n;
+        let variance = vals.iter().map(|&v| (v - mean) * (v - mean)).sum::<f32>() / n;
+        let std_dev = variance.sqrt();
+        let min = vals.iter().copied().fold(f32::INFINITY, f32::min);
+        let max = vals.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+
+        // Physical area of the ellipse: π × a × dr × b × dc
+        let area_mm2 = std::f32::consts::PI * a * spacing[0] * b * spacing[1];
+
+        (center, radii, mean, std_dev, min, max, area_mm2)
     }
 }
 
@@ -628,5 +750,132 @@ mod tests {
             "clamped out-of-bounds ROI over constant field must have mean=1.0, got {mean}"
         );
         let _ = (min, max); // min/max are valid but their exact values depend on clamping
+    }
+
+    // ── compute_roi_ellipse_stats ─────────────────────────────────────────────
+
+    /// A 5×5 constant field (all pixels = 2.0) with a 5×5 bounding box must
+    /// produce mean = 2.0 and std_dev = 0.0 over only the pixels inside the
+    /// inscribed ellipse.
+    ///
+    /// Analytical:
+    ///   p1=[0,0], p2=[4,4] → center=[2,2], a=2, b=2 (circle radius 2)
+    ///   Pixel (r,c) inside when ((r−2)/2)²+((c−2)/2)²≤1, i.e., (r−2)²+(c−2)²≤4
+    ///   Inside pixels: center ring pattern (13 pixels in a 5×5 grid for r=2 circle)
+    ///   All values = 2.0 → mean = 2.0, std_dev = 0.0
+    #[test]
+    fn test_compute_roi_ellipse_constant_field_mean_and_stddev() {
+        let pixels: Vec<f32> = vec![2.0; 25]; // 5×5 grid
+        let (center, radii, mean, std_dev, min, max, area_mm2) =
+            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [4.0, 4.0], &pixels, 5, 5, [1.0, 1.0]);
+        assert_eq!(center, [2.0, 2.0], "center must be midpoint [2,2]");
+        assert_eq!(radii, [2.0, 2.0], "radii must be half bounding box [2,2]");
+        assert!(
+            (mean - 2.0).abs() < 1e-5,
+            "constant field mean must be 2.0, got {mean}"
+        );
+        assert!(
+            std_dev.abs() < 1e-5,
+            "constant field std_dev must be 0.0, got {std_dev}"
+        );
+        assert_eq!(min, 2.0, "constant field min must be 2.0");
+        assert_eq!(max, 2.0, "constant field max must be 2.0");
+        // area = π × 2 × 1.0 × 2 × 1.0 = 4π ≈ 12.566
+        let expected_area = std::f32::consts::PI * 2.0 * 2.0;
+        assert!(
+            (area_mm2 - expected_area).abs() < 1e-4,
+            "area must be π×2×2 = {expected_area:.4}, got {area_mm2:.4}"
+        );
+    }
+
+    /// Degenerate ellipse (zero row semi-axis) must return all-zero statistics.
+    ///
+    /// Analytical: p1=[2,0], p2=[2,4] → a=0, b=2. Since a=0, membership
+    /// condition has division by zero — function must return zeros.
+    #[test]
+    fn test_compute_roi_ellipse_degenerate_zero_row_radius() {
+        let pixels: Vec<f32> = vec![5.0; 25];
+        let (center, radii, mean, std_dev, min, max, area_mm2) =
+            Annotation::compute_roi_ellipse_stats([2.0, 0.0], [2.0, 4.0], &pixels, 5, 5, [1.0, 1.0]);
+        assert_eq!(center, [2.0, 2.0]);
+        assert_eq!(radii[0], 0.0, "row radius must be 0 for degenerate input");
+        assert_eq!(mean, 0.0, "degenerate ellipse must have mean=0.0");
+        assert_eq!(std_dev, 0.0);
+        assert_eq!(min, 0.0);
+        assert_eq!(max, 0.0);
+        assert_eq!(area_mm2, 0.0);
+    }
+
+    /// Pixels strictly outside the ellipse boundary must be excluded.
+    ///
+    /// 3×3 pixel grid with corner pixels set to 100 and centre set to 1.0.
+    /// Ellipse p1=[0,0], p2=[2,2] → center=[1,1], a=1, b=1 (unit circle).
+    ///
+    /// Membership: ((r−1)/1)²+((c−1)/1)²≤1
+    ///   (0,0): (−1)²+(−1)²=2 > 1 → outside
+    ///   (0,1): (−1)²+(0)²=1 ≤ 1 → inside
+    ///   (0,2): (−1)²+(1)²=2 > 1 → outside
+    ///   (1,0): (0)²+(−1)²=1 ≤ 1 → inside
+    ///   (1,1): (0)²+(0)²=0 ≤ 1 → inside
+    ///   (1,2): (0)²+(1)²=1 ≤ 1 → inside
+    ///   (2,0): (1)²+(−1)²=2 > 1 → outside
+    ///   (2,1): (1)²+(0)²=1 ≤ 1 → inside
+    ///   (2,2): (1)²+(1)²=2 > 1 → outside
+    ///
+    /// Corner pixels (value 100) at (0,0),(0,2),(2,0),(2,2) are excluded.
+    /// Inside pixels: (0,1),(1,0),(1,1),(1,2),(2,1) with values [0,1,2,3,4]
+    #[test]
+    fn test_compute_roi_ellipse_excludes_corners() {
+        // 3×3 grid, values 0..9 row-major
+        // (0,0)=0, (0,1)=1, (0,2)=2, (1,0)=3, (1,1)=4, (1,2)=5, (2,0)=6, (2,1)=7, (2,2)=8
+        let pixels: Vec<f32> = (0..9).map(|v| v as f32).collect();
+        let (_center, _radii, mean, std_dev, min, max, _area_mm2) =
+            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [2.0, 2.0], &pixels, 3, 3, [1.0, 1.0]);
+        // Inside pixels: (0,1)=1, (1,0)=3, (1,1)=4, (1,2)=5, (2,1)=7
+        // Analytical: mean = (1+3+4+5+7)/5 = 20/5 = 4.0
+        //   variance = ((1−4)²+(3−4)²+(4−4)²+(5−4)²+(7−4)²)/5
+        //            = (9+1+0+1+9)/5 = 20/5 = 4.0
+        //   std_dev = √4.0 = 2.0
+        assert!(
+            (mean - 4.0).abs() < 1e-5,
+            "mean of inside pixels must be 4.0, got {mean}"
+        );
+        assert!(
+            (std_dev - 2.0).abs() < 1e-4,
+            "std_dev of inside pixels must be 2.0, got {std_dev}"
+        );
+        assert_eq!(min, 1.0, "min inside must be 1 (pixel (0,1))");
+        assert_eq!(max, 7.0, "max inside must be 7 (pixel (2,1))");
+    }
+
+    /// Physical area uses π × a × spacing[0] × b × spacing[1].
+    ///
+    /// p1=[0,0], p2=[10,6] → a=5, b=3, spacing=[2.0, 3.0]
+    /// area = π × 5 × 2.0 × 3 × 3.0 = π × 90 ≈ 282.743
+    #[test]
+    fn test_compute_roi_ellipse_area_anisotropic_spacing() {
+        let pixels: Vec<f32> = vec![1.0; 200]; // 20×10 grid, all pixels inside will be 1.0
+        let (_center, _radii, _mean, _std_dev, _min, _max, area_mm2) =
+            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [10.0, 6.0], &pixels, 10, 11, [2.0, 3.0]);
+        let expected = std::f32::consts::PI * 5.0 * 2.0 * 3.0 * 3.0;
+        assert!(
+            (area_mm2 - expected).abs() < 1e-3,
+            "area with anisotropic spacing must be {expected:.3}, got {area_mm2:.3}"
+        );
+    }
+
+    /// A single-pixel ellipse (bounding box is one pixel: p1=p2) is degenerate.
+    ///
+    /// Analytical: p1=[3,3], p2=[3,3] → a=0, b=0. Degenerate: return zeros.
+    #[test]
+    fn test_compute_roi_ellipse_single_point_is_degenerate() {
+        let pixels: Vec<f32> = vec![42.0; 25];
+        let (_center, _radii, mean, std_dev, min, max, area_mm2) =
+            Annotation::compute_roi_ellipse_stats([3.0, 3.0], [3.0, 3.0], &pixels, 5, 5, [1.0, 1.0]);
+        assert_eq!(mean, 0.0, "zero-radius ellipse must have mean=0.0");
+        assert_eq!(std_dev, 0.0);
+        assert_eq!(min, 0.0);
+        assert_eq!(max, 0.0);
+        assert_eq!(area_mm2, 0.0);
     }
 }

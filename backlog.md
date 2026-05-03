@@ -1,3 +1,29 @@
+## Sprint 118 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.33 [patch]
+**Goal**: Replace the ellipse-ROI placeholder (using rect stats as a conservative approximation) with a mathematically correct pixel-mask statistics implementation using the ellipse membership condition.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-118-01 | `RoiKind::Ellipse` branch in `on_drag_end` called `finalise_roi_rect` — explicit placeholder approximation violating zero_tolerance | patch |
+| GAP-118-02 | `Annotation` enum had no `RoiEllipse` variant; ellipse finalization silently produced `RoiRect` annotations | patch |
+| GAP-118-03 | `MeasurementLayer::draw_annotations` did not handle ellipse ROI — ellipse annotations produced no rendering | patch |
+| GAP-118-04 | No value-semantic tests for ellipse mask statistics (constant field, degenerate, corner exclusion, anisotropic area) | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib tools::interaction::tests::test_compute_roi_ellipse_*` | Passed: 5 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 226 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- Pointer HU continuous tracking under cursor movement not yet complete.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+
 ## Sprint 117 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

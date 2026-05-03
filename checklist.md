@@ -1,3 +1,21 @@
+## Sprint 118 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.33 [patch]
+
+- [x] GAP-118-01: add `Annotation::RoiEllipse` variant to `tools/interaction.rs` with center, radii, mean, std_dev, min, max, area_mm2 fields
+- [x] GAP-118-02: add `Annotation::compute_roi_ellipse_stats` to `tools/interaction.rs` with ellipse membership `((r−cy)/a)²+((c−cx)/b)²≤1` and area `π×a×dr×b×dc`
+- [x] GAP-118-03: add 5 value-semantic tests for `compute_roi_ellipse_stats` (constant field, degenerate zero-row-radius, corner exclusion with analytical result, anisotropic area, single-point degeneracy)
+- [x] GAP-118-04: add `finalise_roi_ellipse` to `app.rs` calling `compute_roi_ellipse_stats` and pushing `Annotation::RoiEllipse`
+- [x] GAP-118-05: update `on_drag_end` to call `finalise_roi_ellipse` for `RoiKind::Ellipse` (replacing placeholder `finalise_roi_rect` call)
+- [x] GAP-118-06: update sidebar annotations panel to display `RoiRect` and `RoiEllipse` with distinct labels
+- [x] GAP-118-07: add `draw_roi_ellipse_annotation` to `ui/measurements.rs` (ellipse + cardinal handles + μ/σ label)
+- [x] GAP-118-08: update `MeasurementLayer::draw_annotations` to handle `Annotation::RoiEllipse`
+- [x] GAP-118-09: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 226 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 117 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

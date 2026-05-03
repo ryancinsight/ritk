@@ -95,6 +95,33 @@ impl MeasurementLayer {
                     let spos = img_to_screen(egui::pos2((*pos)[1], (*pos)[0]));
                     draw_hu_point(painter, spos, *value);
                 }
+                Annotation::RoiEllipse {
+                    center,
+                    radii,
+                    mean,
+                    std_dev,
+                    ..
+                } => {
+                    let screen_center =
+                        img_to_screen(egui::pos2((*center)[1], (*center)[0]));
+                    // Map radii to screen space using the image-to-screen transform.
+                    // We derive screen radii by transforming a point offset by each
+                    // radius and subtracting the centre.
+                    let screen_r_pt =
+                        img_to_screen(egui::pos2((*center)[1], (*center)[0] + (*radii)[0]));
+                    let screen_c_pt =
+                        img_to_screen(egui::pos2((*center)[1] + (*radii)[1], (*center)[0]));
+                    let screen_radius_row = (screen_r_pt - screen_center).length();
+                    let screen_radius_col = (screen_c_pt - screen_center).length();
+                    draw_roi_ellipse_annotation(
+                        painter,
+                        screen_center,
+                        screen_radius_row,
+                        screen_radius_col,
+                        *mean,
+                        *std_dev,
+                    );
+                }
             }
         }
     }
@@ -289,6 +316,55 @@ fn draw_hu_point(painter: &Painter, pos: Pos2, value: f32) {
     painter.text(
         Pos2::new(pos.x + arm + 4.0, pos.y),
         egui::Align2::LEFT_CENTER,
+        label,
+        label_font(),
+        COLOR_LABEL,
+    );
+}
+
+/// Draw an ellipse ROI annotation with a statistics label.
+///
+/// The ellipse is drawn with [`COLOR_ROI`].  The label shows `μ ± σ`.
+///
+/// # Parameters
+/// - `center`       — ellipse centre in screen coordinates.
+/// - `radius_x`     — horizontal screen-space radius (col direction).
+/// - `radius_y`     — vertical screen-space radius (row direction).
+/// - `mean`, `std`  — statistics to render in the label.
+///
+/// # Label placement
+/// The label is placed immediately below the bottom of the ellipse.
+fn draw_roi_ellipse_annotation(
+    painter: &Painter,
+    center: Pos2,
+    radius_x: f32,
+    radius_y: f32,
+    mean: f32,
+    std: f32,
+) {
+    painter.add(egui::epaint::EllipseShape {
+        center,
+        radius: Vec2::new(radius_x, radius_y),
+        fill: Color32::TRANSPARENT,
+        stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
+    });
+
+    // Corner handles at cardinal points.
+    for handle in &[
+        Pos2::new(center.x, center.y - radius_y), // top
+        Pos2::new(center.x + radius_x, center.y), // right
+        Pos2::new(center.x, center.y + radius_y), // bottom
+        Pos2::new(center.x - radius_x, center.y), // left
+    ] {
+        painter.circle_filled(*handle, HANDLE_RADIUS, COLOR_ROI);
+    }
+
+    // Label below the bottom of the ellipse.
+    let label = format!("μ={:.1}  σ={:.1}", mean, std);
+    let label_pos = Pos2::new(center.x, center.y + radius_y + 12.0);
+    painter.text(
+        label_pos,
+        egui::Align2::CENTER_TOP,
         label,
         label_font(),
         COLOR_LABEL,

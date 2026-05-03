@@ -864,7 +864,20 @@ impl SnapApp {
                                         ..
                                     } => {
                                         ui.label(format!(
-                                            "#{i} ROI  μ={mean:.1} σ={std_dev:.1} \
+                                            "#{i} ROI Rect  μ={mean:.1} σ={std_dev:.1} \
+                                             [{min:.0},{max:.0}] {area_mm2:.1}mm²"
+                                        ));
+                                    }
+                                    Annotation::RoiEllipse {
+                                        mean,
+                                        std_dev,
+                                        min,
+                                        max,
+                                        area_mm2,
+                                        ..
+                                    } => {
+                                        ui.label(format!(
+                                            "#{i} ROI Ellipse  μ={mean:.1} σ={std_dev:.1} \
                                              [{min:.0},{max:.0}] {area_mm2:.1}mm²"
                                         ));
                                     }
@@ -1900,9 +1913,7 @@ impl SnapApp {
                     current,
                     kind: RoiKind::Ellipse,
                 } => {
-                    // Ellipse mask stats deferred to a [minor] enhancement;
-                    // use rect stats as a conservative approximation.
-                    self.finalise_roi_rect(start, current);
+                    self.finalise_roi_ellipse(start, current);
                 }
                 _ => {}
             }
@@ -1994,6 +2005,27 @@ impl SnapApp {
         });
         self.status_message =
             format!("ROI: μ={mean:.1}  σ={std_dev:.1}  [{min:.0}, {max:.0}]  {area_mm2:.1} mm²");
+    }
+
+    fn finalise_roi_ellipse(&mut self, start: egui::Pos2, end: egui::Pos2) {
+        let Some(vol) = &self.loaded else { return };
+        let p1 = [start.y, start.x];
+        let p2 = [end.y, end.x];
+        let spacing = self.slice_spacing_2d();
+        let (pixels, width, height) = vol.extract_slice(self.axis, self.viewer_state.slice_index);
+        let (center, radii, mean, std_dev, min, max, area_mm2) =
+            Annotation::compute_roi_ellipse_stats(p1, p2, &pixels, width, height, spacing);
+        self.annotations.push(Annotation::RoiEllipse {
+            center,
+            radii,
+            mean,
+            std_dev,
+            min,
+            max,
+            area_mm2,
+        });
+        self.status_message =
+            format!("Ellipse ROI: μ={mean:.1}  σ={std_dev:.1}  [{min:.0}, {max:.0}]  {area_mm2:.1} mm²");
     }
 
     /// Per-axis 2-D pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
