@@ -1,3 +1,21 @@
+## Sprint 116 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.31 [patch]
+
+- [x] GAP-116-01: create `ui/tool_shortcuts.rs` with `tool_kind_for_key` SSOT and 9 tool shortcut constants (L, A, R, E, H, P, Z, W, B)
+- [x] GAP-116-02: add 11 value-semantic unit tests to `ui/tool_shortcuts.rs` (9 tool mappings, unmapped rejection, distinctness)
+- [x] GAP-116-03: export `tool_shortcuts` module and `tool_kind_for_key` from `ui/mod.rs`
+- [x] GAP-116-04: wire `app.rs` `consume_global_shortcuts` to activate tools via `tool_kind_for_key` on single-key press
+- [x] GAP-116-05: add 9 app-level value-semantic tests for each tool shortcut (L/A/R/E/H/P/Z/W/B)
+- [x] GAP-116-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::tool_shortcuts` passed: 11 tests
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::tool_shortcut` passed: 9 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 209 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 115 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

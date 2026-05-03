@@ -8,6 +8,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`ritk-snap` tool keyboard shortcuts SSOT** (`ui/tool_shortcuts.rs`): Added `tool_kind_for_key` as the canonical mapping from single-key press to tool activation (L=length, A=angle, R=rect, E=ellipse, H=HU, P=pan, Z=zoom, W=window/level, B=paint). 11 value-semantic unit tests cover all 9 tool mappings, unmapped-key rejection, and shortcut distinctness. Wired into `consume_global_shortcuts` for keyboard-driven tool access without toolbar interaction. [patch]
 - **`ritk-snap` W/L drag SSOT** (`ui/window_level.rs`): Added `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, and `MIN_WINDOW_WIDTH` as the canonical implementation of ITK-SNAP-convention horizontal-drag-width / vertical-drag-center mapping with analytical monotonicity proofs. 9 value-semantic unit tests cover identity, directional monotonicity, clamping, and diagonal independence. [patch]
 - **`ritk-snap` `advance_slice_for_axis_loop` DRY**: Refactored cine wrap-around loop to delegate per-axis slice writes to `set_slice_for_axis`, eliminating duplicated dirty-flag and linked-cursor sync logic. [patch]
 

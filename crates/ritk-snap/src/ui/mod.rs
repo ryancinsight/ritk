@@ -11,6 +11,7 @@
 //! | [`sidebar`]      | [`SidebarPanel`] — series browser + metadata tab.       |
 //! | [`overlay`]      | [`OverlayRenderer`] — DICOM 4-corner text overlays.     |
 //! | [`measurements`] | [`MeasurementLayer`] — annotation drawing helpers.     |
+//! | [`tool_shortcuts`] | Tool keyboard shortcuts SSOT (L=length, A=angle, etc.). |
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
@@ -30,6 +31,7 @@ pub mod overlay;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod toolbar;
+pub mod tool_shortcuts;
 pub mod viewport;
 pub mod window_level;
 pub mod window_presets;
@@ -45,6 +47,7 @@ pub use overlay::OverlayRenderer;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
+pub use tool_shortcuts::tool_kind_for_key;
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_level::{clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY};
 pub use window_presets::WindowPreset;

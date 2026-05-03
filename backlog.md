@@ -1,3 +1,29 @@
+## Sprint 116 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.31 [patch]
+**Goal**: Add single-key tool shortcuts as a SSOT module to enable keyboard-driven tool activation matching ITK-SNAP patterns.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-116-01 | Tool activation required toolbar clicks; no single-key shortcut access (ITK-SNAP parity gap) | patch |
+| GAP-116-02 | Tool-selection mapping lacked a testable SSOT (each tool used duplicate toolbar buttons) | patch |
+| GAP-116-03 | No value-semantic tests existed for tool shortcut mapping correctness and distinctness | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::tool_shortcuts` | Passed: 11 tests |
+| `cargo test -p ritk-snap --lib app::tests::tool_shortcut` | Passed: 9 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 209 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+
 ## Sprint 115 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

@@ -29,7 +29,7 @@ use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
     plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
-    window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
+    window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
     CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
@@ -509,6 +509,16 @@ impl SnapApp {
             )
         });
         self.apply_slice_navigation_shortcuts(nav.0, nav.1, nav.2, nav.3, nav.4, nav.5);
+
+        // ── Tool selection shortcuts ──────────────────────────────────────────
+        ctx.input(|input| {
+            for key in &input.keys_down {
+                if let Some(tool) = tool_kind_for_key(*key) {
+                    self.active_tool = tool;
+                    break;
+                }
+            }
+        });
     }
 
     fn apply_slice_navigation_shortcuts(
@@ -2457,5 +2467,123 @@ mod tests {
 
         assert_eq!(app.viewer_state.slice_index, 0, "wrap-around failed");
         assert!(app.texture_dirty, "texture dirty not set after advance");
+    }
+
+    /// Tool shortcut 'L' selects MeasureLength tool.
+    #[test]
+    fn tool_shortcut_l_selects_measure_length() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan; // different tool initially
+
+        // Simulate pressing 'L'
+        if let Some(tool) = tool_kind_for_key(egui::Key::L) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::MeasureLength);
+    }
+
+    /// Tool shortcut 'A' selects MeasureAngle tool.
+    #[test]
+    fn tool_shortcut_a_selects_measure_angle() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::A) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::MeasureAngle);
+    }
+
+    /// Tool shortcut 'R' selects RoiRect tool.
+    #[test]
+    fn tool_shortcut_r_selects_roi_rect() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Zoom;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::R) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::RoiRect);
+    }
+
+    /// Tool shortcut 'E' selects RoiEllipse tool.
+    #[test]
+    fn tool_shortcut_e_selects_roi_ellipse() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::MeasureLength;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::E) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::RoiEllipse);
+    }
+
+    /// Tool shortcut 'H' selects PointHu tool.
+    #[test]
+    fn tool_shortcut_h_selects_point_hu() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::WindowLevel;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::H) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::PointHu);
+    }
+
+    /// Tool shortcut 'P' selects Pan tool.
+    #[test]
+    fn tool_shortcut_p_selects_pan() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Zoom;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::P) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::Pan);
+    }
+
+    /// Tool shortcut 'Z' selects Zoom tool.
+    #[test]
+    fn tool_shortcut_z_selects_zoom() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::WindowLevel;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::Z) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::Zoom);
+    }
+
+    /// Tool shortcut 'W' selects WindowLevel tool.
+    #[test]
+    fn tool_shortcut_w_selects_window_level() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::W) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::WindowLevel);
+    }
+
+    /// Tool shortcut 'B' selects LabelPaint tool.
+    #[test]
+    fn tool_shortcut_b_selects_label_paint() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Zoom;
+
+        if let Some(tool) = tool_kind_for_key(egui::Key::B) {
+            app.active_tool = tool;
+        }
+
+        assert_eq!(app.active_tool, ToolKind::LabelPaint);
     }
 }
