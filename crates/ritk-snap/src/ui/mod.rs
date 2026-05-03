@@ -17,6 +17,7 @@
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
+//! | [`window_level`] | W/L drag mapping SSOT and sensitivity constant.          |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
 pub mod layout;
@@ -30,6 +31,7 @@ pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod toolbar;
 pub mod viewport;
+pub mod window_level;
 pub mod window_presets;
 pub mod zoom;
 
@@ -44,8 +46,10 @@ pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtCont
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use viewport::{ViewportPanel, ViewportState};
+pub use window_level::{clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY};
 pub use window_presets::WindowPreset;
 pub use zoom::{
 	fit_view_transform, should_zoom_with_scroll, zoom_from_drag_delta, zoom_from_scroll, FIT_ZOOM,
 	MAX_ZOOM, MIN_ZOOM,
 };
+pub use window_level::MIN_WINDOW_WIDTH;

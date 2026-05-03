@@ -29,6 +29,7 @@ use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
     plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
+    window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
     CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
@@ -1739,6 +1740,10 @@ impl SnapApp {
     }
 
     /// Advance `axis` by `steps` with wrap-around.
+    ///
+    /// Delegates the actual write to [`set_slice_for_axis`] so dirty flags,
+    /// linked-cursor synchronisation, and the no-change guard are all applied
+    /// through the shared SSOT path.
     fn advance_slice_for_axis_loop(&mut self, axis: usize, steps: u32) {
         if steps == 0 {
             return;
@@ -1751,32 +1756,13 @@ impl SnapApp {
         if total == 0 {
             return;
         }
-
-        let next = |current: usize| (current + steps as usize) % total;
-
-        match axis {
-            0 => {
-                self.viewer_state.slice_index = next(self.viewer_state.slice_index);
-                self.texture_dirty = true;
-                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
-                    cursor.set_axis_slice(vol.shape, 0, self.viewer_state.slice_index);
-                }
-            }
-            1 => {
-                self.coronal_slice = next(self.coronal_slice);
-                self.coronal_dirty = true;
-                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
-                    cursor.set_axis_slice(vol.shape, 1, self.coronal_slice);
-                }
-            }
-            _ => {
-                self.sagittal_slice = next(self.sagittal_slice);
-                self.sagittal_dirty = true;
-                if let (Some(vol), Some(cursor)) = (&self.loaded, self.linked_cursor.as_mut()) {
-                    cursor.set_axis_slice(vol.shape, 2, self.sagittal_slice);
-                }
-            }
-        }
+        let current = match axis {
+            0 => self.viewer_state.slice_index,
+            1 => self.coronal_slice,
+            _ => self.sagittal_slice,
+        };
+        let next = (current + steps as usize) % total;
+        self.set_slice_for_axis(axis, next);
     }
 
     /// Advance cine playback for the active axis and schedule repaints.
@@ -1867,11 +1853,13 @@ impl SnapApp {
                 original_center,
                 original_width,
             } => {
-                // Horizontal drag → window width (4 HU per screen pixel).
-                // Vertical drag   → window centre (4 HU per screen pixel, inverted y).
-                let sensitivity = 4.0_f64;
-                let new_width = (original_width + (pos.x - start.x) as f64 * sensitivity).max(1.0);
-                let new_center = original_center - (pos.y - start.y) as f64 * sensitivity;
+                let (new_center, new_width) = window_level_from_drag_delta(
+                    original_center,
+                    original_width,
+                    pos.x - start.x,
+                    pos.y - start.y,
+                    WINDOW_LEVEL_SENSITIVITY,
+                );
                 self.viewer_state.window_center = Some(new_center as f32);
                 self.viewer_state.window_width = Some(new_width as f32);
                 self.texture_dirty = true;
@@ -2423,5 +2411,51 @@ mod tests {
 
         app.apply_slice_navigation_shortcuts(false, false, false, false, true, true);
         assert_eq!(app.viewer_state.slice_index, 0);
+    }
+
+    /// Window/Level drag updates center and width through the SSOT mapping.
+    ///
+    /// Drag (dx=+10, dy=-5) with default sensitivity 4.0:
+    ///   new_width  = 400 + 10*4 = 440
+    ///   new_center = 40  − (−5)*4 = 60
+    #[test]
+    fn window_level_drag_updates_center_and_width_via_ssot() {
+        use crate::tools::interaction::ToolState;
+        use egui::Pos2;
+
+        let mut app = SnapApp::default();
+        app.viewer_state.window_center = Some(40.0);
+        app.viewer_state.window_width = Some(400.0);
+        app.tool_state = ToolState::WindowLevelDrag {
+            start: Pos2::new(100.0, 100.0),
+            original_center: 40.0,
+            original_width: 400.0,
+        };
+
+        app.on_drag(Some(Pos2::new(110.0, 95.0)));
+
+        let new_center = app.viewer_state.window_center.expect("center set");
+        let new_width = app.viewer_state.window_width.expect("width set");
+        // Analytical: center = 40 − (−5)*4 = 60, width = 400 + 10*4 = 440
+        assert_eq!(new_center, 60.0_f32, "center mismatch");
+        assert_eq!(new_width, 440.0_f32, "width mismatch");
+        assert!(app.texture_dirty, "axial dirty not set");
+        assert!(app.coronal_dirty, "coronal dirty not set");
+        assert!(app.sagittal_dirty, "sagittal dirty not set");
+    }
+
+    /// advance_slice_for_axis_loop wraps correctly and routes through set_slice_for_axis.
+    ///
+    /// Axis 0 has 3 slices; advance from index 2 by 1 step wraps to 0.
+    #[test]
+    fn advance_slice_for_axis_loop_wraps_and_marks_dirty() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 5]));
+        app.viewer_state.slice_index = 2; // last slice
+
+        app.advance_slice_for_axis_loop(0, 1);
+
+        assert_eq!(app.viewer_state.slice_index, 0, "wrap-around failed");
+        assert!(app.texture_dirty, "texture dirty not set after advance");
     }
 }

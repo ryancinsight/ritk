@@ -1,3 +1,30 @@
+## Sprint 115 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.30 [patch]
+**Goal**: Extract W/L drag mapping into a testable SSOT module and complete the DRY refactor of all per-axis slice write paths through `set_slice_for_axis`.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-115-01 | W/L drag sensitivity (4.0 HU/pixel) and mapping were hardcoded in `app.rs` without a SSOT unit or tests | patch |
+| GAP-115-02 | `advance_slice_for_axis_loop` duplicated per-axis dirty-flag and linked-cursor sync logic not routed through `set_slice_for_axis` | patch |
+| GAP-115-03 | No value-semantic tests existed for W/L drag direction, monotonicity, clamping, or diagonal independence | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::window_level` | Passed: 9 tests |
+| `cargo test -p ritk-snap --lib app::tests::window_level_drag_updates_center_and_width_via_ssot -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib app::tests::advance_slice_for_axis_loop_wraps_and_marks_dirty -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 189 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+
 ## Sprint 114 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

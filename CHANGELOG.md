@@ -8,6 +8,10 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **`ritk-snap` W/L drag SSOT** (`ui/window_level.rs`): Added `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, and `MIN_WINDOW_WIDTH` as the canonical implementation of ITK-SNAP-convention horizontal-drag-width / vertical-drag-center mapping with analytical monotonicity proofs. 9 value-semantic unit tests cover identity, directional monotonicity, clamping, and diagonal independence. [patch]
+- **`ritk-snap` `advance_slice_for_axis_loop` DRY**: Refactored cine wrap-around loop to delegate per-axis slice writes to `set_slice_for_axis`, eliminating duplicated dirty-flag and linked-cursor sync logic. [patch]
+
+### Added
 - **`ritk-dicom` crate**: Added a Rust-owned DICOM boundary with transfer syntax classification, `PixelLayout`, native pixel byte decoding, PackBits decoding, native RLE Lossless fragment decoding, and a generic `FrameDecodeBackend<O>` trait. [minor]
 - **Native DICOM JPEG decode path** (`ritk-dicom`): Added grayscale JPEG Baseline/Extended fragment decoding with DICOM layout validation and modality LUT application before falling back to `dicom-rs` for unsupported JPEG cases. [patch]
 - **Native JPEG Lossless dispatch** (`ritk-dicom`): JPEG Lossless Non-Hierarchical and First-Order Prediction now route through the RITK-native JPEG decoder before backend fallback. [patch]

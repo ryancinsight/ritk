@@ -1,3 +1,24 @@
+## Sprint 115 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.30 [patch]
+
+- [x] GAP-115-01: create `ui/window_level.rs` with `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, `MIN_WINDOW_WIDTH`
+- [x] GAP-115-02: add 9 value-semantic unit tests to `ui/window_level.rs` (identity, rightward, leftward clamp, downward, upward, monotone width, monotone center, diagonal, clamp)
+- [x] GAP-115-03: export `window_level` module and its public API from `ui/mod.rs`
+- [x] GAP-115-04: wire `app.rs` `on_drag` W/L branch to `window_level_from_drag_delta` via `WINDOW_LEVEL_SENSITIVITY`
+- [x] GAP-115-05: refactor `advance_slice_for_axis_loop` to delegate write to `set_slice_for_axis` (DRY)
+- [x] GAP-115-06: add app-level value-semantic test for W/L drag (analytical: dx=+10, dy=-5 → center=60, width=440)
+- [x] GAP-115-07: add app-level value-semantic test for `advance_slice_for_axis_loop` wrap-around and dirty flag
+- [x] GAP-115-08: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::window_level` passed: 9 tests
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::window_level_drag_updates_center_and_width_via_ssot -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::advance_slice_for_axis_loop_wraps_and_marks_dirty -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 189 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 114 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

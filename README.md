@@ -116,6 +116,7 @@ Arrow Up/Down and Page Up/Down active-axis slice navigation,
 Home/End active-axis first/last slice navigation,
 Zoom tool continuous drag zoom,
 Segmentation keyboard undo/redo shortcuts,
+W/L drag mapping (horizontal width, vertical center) via SSOT `ui/window_level`,
 PNG slice export, full axial/coronal/sagittal MPR PNG export, DICOM overlays,
 RT-STRUCT contour overlay loading and rendering,
 and a
