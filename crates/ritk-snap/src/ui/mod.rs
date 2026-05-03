@@ -45,4 +45,4 @@ pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_presets::WindowPreset;
-pub use zoom::{should_zoom_with_scroll, zoom_from_scroll, MAX_ZOOM, MIN_ZOOM};
+pub use zoom::{fit_view_transform, should_zoom_with_scroll, zoom_from_scroll, FIT_ZOOM, MAX_ZOOM, MIN_ZOOM};

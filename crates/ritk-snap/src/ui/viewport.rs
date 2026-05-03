@@ -43,7 +43,7 @@ use crate::{
         interaction::{Annotation, RoiKind, ToolState},
         kind::ToolKind,
     },
-    ui::{measurements::MeasurementLayer, overlay::OverlayRenderer},
+    ui::{measurements::MeasurementLayer, overlay::OverlayRenderer, zoom::fit_view_transform},
     LoadedVolume,
 };
 
@@ -350,8 +350,9 @@ impl<'a> ViewportPanel<'a> {
             }
             ui.separator();
             if ui.button("Reset zoom & pan").clicked() {
-                self.state.zoom = 1.0;
-                self.state.pan_offset = Vec2::ZERO;
+                let (pan_offset, zoom) = fit_view_transform();
+                self.state.zoom = zoom;
+                self.state.pan_offset = Vec2::new(pan_offset[0], pan_offset[1]);
                 ui.close_menu();
             }
             ui.separator();

@@ -10,6 +10,12 @@ pub const MIN_ZOOM: f32 = 0.05;
 /// Maximum permitted viewport zoom multiplier.
 pub const MAX_ZOOM: f32 = 32.0;
 
+/// Canonical zoom multiplier for fit-to-panel rendering.
+pub const FIT_ZOOM: f32 = 1.0;
+
+/// Canonical pan offset for fit-to-panel rendering.
+pub const FIT_PAN_OFFSET: [f32; 2] = [0.0, 0.0];
+
 /// Scale mapping from wheel-delta units to multiplicative zoom change.
 const SCROLL_SENSITIVITY: f32 = 0.0015;
 
@@ -37,6 +43,11 @@ pub fn zoom_from_scroll(current_zoom: f32, scroll_y: f32) -> f32 {
 
     let step_factor = (1.0 + scroll_y * SCROLL_SENSITIVITY).clamp(MIN_STEP_FACTOR, MAX_STEP_FACTOR);
     (current_zoom * step_factor).clamp(MIN_ZOOM, MAX_ZOOM)
+}
+
+/// Return the canonical fit-to-panel pan/zoom transform.
+pub fn fit_view_transform() -> ([f32; 2], f32) {
+    (FIT_PAN_OFFSET, FIT_ZOOM)
 }
 
 #[cfg(test)]
@@ -73,5 +84,12 @@ mod tests {
     fn zero_scroll_preserves_zoom() {
         let z = zoom_from_scroll(2.75, 0.0);
         assert!((z - 2.75).abs() < 1e-6, "unexpected zoom {z}");
+    }
+
+    #[test]
+    fn fit_view_transform_returns_canonical_fit_state() {
+        let (pan, zoom) = fit_view_transform();
+        assert_eq!(pan, [0.0, 0.0]);
+        assert_eq!(zoom, 1.0);
     }
 }

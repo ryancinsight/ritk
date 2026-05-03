@@ -1,3 +1,22 @@
+## Sprint 110 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.25 [patch]
+
+- [x] GAP-110-01: add canonical fit-state helper to `ui::zoom` for zoom-to-fit pan/zoom reset
+- [x] GAP-110-02: route active app-shell zoom-to-fit through one `reset_view_to_fit` path
+- [x] GAP-110-03: add global `Ctrl/Cmd+0` shortcut for zoom-to-fit in `SnapApp`
+- [x] GAP-110-04: route legacy viewport reset action through the shared fit-state helper
+- [x] GAP-110-05: update menu and interaction hints to surface zoom-to-fit behavior explicitly
+- [x] GAP-110-06: add value-semantic tests for canonical fit-state and app reset behavior
+- [x] GAP-110-07: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` passed: 6 tests
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::reset_view_to_fit_restores_canonical_transform -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 169 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 109 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

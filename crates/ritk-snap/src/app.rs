@@ -26,9 +26,10 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    axis_slice_dimensions, format_lps, map_view_row_col_to_voxel, plan_all_mpr_exports,
-    project_rt_struct_contours_for_slice, viewport_point_to_voxel, should_zoom_with_scroll,
-    voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
+    axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
+    plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
+    should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor,
+    MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -200,6 +201,7 @@ impl eframe::App for SnapApp {
         }
 
         self.tick_cine(ctx);
+        self.consume_global_shortcuts(ctx);
 
         self.show_menu_bar(ctx);
         self.show_left_panel(ctx);
@@ -413,13 +415,9 @@ impl SnapApp {
 
                     ui.separator();
 
-                    if ui.button("Reset view").clicked() {
+                    if ui.button("Zoom to fit (Ctrl/Cmd+0)").clicked() {
                         ui.close_menu();
-                        self.pan_offset = egui::Vec2::ZERO;
-                        self.zoom = 1.0;
-                        self.texture_dirty = true;
-                        self.coronal_dirty = true;
-                        self.sagittal_dirty = true;
+                        self.reset_view_to_fit();
                     }
 
                     if ui.button("Next slice").clicked() {
@@ -472,6 +470,23 @@ impl SnapApp {
                 });
             });
         });
+    }
+
+    fn consume_global_shortcuts(&mut self, ctx: &egui::Context) {
+        let zoom_to_fit = egui::KeyboardShortcut::new(egui::Modifiers::COMMAND, egui::Key::Num0);
+        if ctx.input_mut(|input| input.consume_shortcut(&zoom_to_fit)) {
+            self.reset_view_to_fit();
+        }
+    }
+
+    fn reset_view_to_fit(&mut self) {
+        let (pan_offset, zoom) = fit_view_transform();
+        self.pan_offset = egui::Vec2::new(pan_offset[0], pan_offset[1]);
+        self.zoom = zoom;
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
+        self.status_message = "Zoom reset to fit.".to_owned();
     }
 
     /// Apply a [`WindowPreset`] and mark all textures dirty.
@@ -1171,6 +1186,7 @@ impl SnapApp {
                 ui.separator();
                 ui.label("Scroll wheel: navigate slices.");
                 ui.label("Ctrl/Cmd + scroll: zoom in/out.");
+                ui.label("Ctrl/Cmd + 0: zoom to fit.");
                 ui.label("Click: move the linked MPR cursor.");
                 ui.label("Drag: active tool interaction.");
             } else {
@@ -2198,5 +2214,24 @@ mod tests {
 
         assert!(recovered.cine.enabled);
         assert_eq!(recovered.cine.fps, 18.0);
+    }
+
+    #[test]
+    fn reset_view_to_fit_restores_canonical_transform() {
+        let mut app = SnapApp::default();
+        app.zoom = 3.25;
+        app.pan_offset = egui::vec2(24.0, -8.0);
+        app.texture_dirty = false;
+        app.coronal_dirty = false;
+        app.sagittal_dirty = false;
+
+        app.reset_view_to_fit();
+
+        assert_eq!(app.zoom, 1.0);
+        assert_eq!(app.pan_offset, egui::Vec2::ZERO);
+        assert!(app.texture_dirty);
+        assert!(app.coronal_dirty);
+        assert!(app.sagittal_dirty);
+        assert_eq!(app.status_message, "Zoom reset to fit.");
     }
 }

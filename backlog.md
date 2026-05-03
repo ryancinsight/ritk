@@ -1,3 +1,30 @@
+## Sprint 110 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.25 [patch]
+**Goal**: Close the zoom-to-fit viewer command gap by centralizing the fit-state transform and wiring a canonical Ctrl/Cmd+0 shortcut into the active app shell.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-110-01 | The active `ritk-snap` app shell lacked a canonical zoom-to-fit keyboard shortcut even though fit-state rendering already existed | patch |
+| GAP-110-02 | Fit-state reset values (`zoom`, `pan_offset`) were duplicated instead of flowing through one shared helper | patch |
+| GAP-110-03 | Viewer interaction hints and menu text did not surface the zoom-to-fit workflow clearly | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` | Passed: 6 tests |
+| `cargo test -p ritk-snap --lib app::tests::reset_view_to_fit_restores_canonical_transform -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 169 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 109 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
