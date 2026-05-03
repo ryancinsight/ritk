@@ -1,3 +1,21 @@
+## Sprint 117 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.32 [patch]
+
+- [x] GAP-117-01: create `ui/pan.rs` with `pan_from_drag_delta` SSOT and pure pan offset calculation (additive, directional-independent)
+- [x] GAP-117-02: add 9 value-semantic unit tests to `ui/pan.rs` (identity, rightward, leftward, downward, upward, diagonal, large_positive, large_negative, fractional)
+- [x] GAP-117-03: export `pan` module and `pan_from_drag_delta` from `ui/mod.rs`
+- [x] GAP-117-04: wire `app.rs` `on_drag` Panning branch to call `pan_from_drag_delta` instead of inline calculation
+- [x] GAP-117-05: add 3 app-level value-semantic tests for Pan tool drag (basic drag, nonzero start offset, zero delta identity)
+- [x] GAP-117-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::pan` passed: 9 tests
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::pan_tool_drag` passed: 3 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 221 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 116 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

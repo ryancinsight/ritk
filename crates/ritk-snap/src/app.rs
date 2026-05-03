@@ -27,7 +27,7 @@ use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
-    plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
+    pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
     window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
     CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
@@ -1846,9 +1846,7 @@ impl SnapApp {
                 start,
                 viewport_origin,
             } => {
-                let delta = pos - start;
-                self.pan_offset =
-                    egui::Vec2::new(viewport_origin.x + delta.x, viewport_origin.y + delta.y);
+                self.pan_offset = pan_from_drag_delta(viewport_origin, start, pos);
             }
             ToolState::Zooming {
                 start,
@@ -2341,6 +2339,51 @@ mod tests {
 
         assert!(app.zoom > 1.0, "expected drag-up zoom-in, got {}", app.zoom);
         assert!(app.status_message.starts_with("Zoom:"));
+    }
+
+    #[test]
+    fn pan_tool_drag_updates_offset_via_ssot() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan;
+        app.pan_offset = egui::Vec2::ZERO;
+
+        app.on_drag_start(Some(egui::pos2(100.0, 100.0)));
+        app.on_drag(Some(egui::pos2(130.0, 80.0)));
+
+        // delta = (30.0, -20.0)
+        // new_offset = (0, 0) + (30, -20) = (30, -20)
+        assert_eq!(app.pan_offset.x, 30.0);
+        assert_eq!(app.pan_offset.y, -20.0);
+    }
+
+    #[test]
+    fn pan_tool_drag_with_nonzero_starting_offset() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan;
+        app.pan_offset = egui::Vec2::new(50.0, 75.0);
+
+        app.on_drag_start(Some(egui::pos2(200.0, 150.0)));
+        app.on_drag(Some(egui::pos2(220.0, 130.0)));
+
+        // delta = (20.0, -20.0)
+        // new_offset = (50, 75) + (20, -20) = (70, 55)
+        assert_eq!(app.pan_offset.x, 70.0);
+        assert_eq!(app.pan_offset.y, 55.0);
+    }
+
+    #[test]
+    fn pan_tool_drag_zero_delta_preserves_offset() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Pan;
+        app.pan_offset = egui::Vec2::new(100.0, 100.0);
+
+        app.on_drag_start(Some(egui::pos2(200.0, 150.0)));
+        app.on_drag(Some(egui::pos2(200.0, 150.0)));
+
+        // delta = (0.0, 0.0)
+        // new_offset = (100, 100) + (0, 0) = (100, 100)
+        assert_eq!(app.pan_offset.x, 100.0);
+        assert_eq!(app.pan_offset.y, 100.0);
     }
 
     #[test]

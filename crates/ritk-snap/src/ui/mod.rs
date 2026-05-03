@@ -17,6 +17,7 @@
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
+//! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | [`window_level`] | W/L drag mapping SSOT and sensitivity constant.          |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
@@ -28,6 +29,7 @@ pub mod cursor_info;
 pub mod export_plan;
 pub mod mpr_cursor;
 pub mod overlay;
+pub mod pan;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod toolbar;
@@ -44,6 +46,7 @@ pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor};
 pub use overlay::OverlayRenderer;
+pub use pan::pan_from_drag_delta;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};

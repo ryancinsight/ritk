@@ -1,3 +1,29 @@
+## Sprint 117 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.32 [patch]
+**Goal**: Close the Pan tool drag-behavior gap by extracting pan-offset calculation into a testable SSOT module and wiring it into the app shell's drag-handling path.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-117-01 | Pan tool drag mapping was hardcoded inline in `app.rs` without a testable SSOT unit or pure function | patch |
+| GAP-117-02 | No value-semantic tests existed for pan drag behavior (identity, direction, proportional scaling, independence) | patch |
+| GAP-117-03 | Pan tool lacked app-level integration tests validating end-to-end drag behavior | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::pan` | Passed: 9 tests |
+| `cargo test -p ritk-snap --lib app::tests::pan_tool_drag` | Passed: 3 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 221 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices (pointer HU readout, measurement tool completion, ROI ellipse, DICOM codec replacement).
+
 ## Sprint 116 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
