@@ -74,6 +74,13 @@ pub enum ToolState {
         /// Viewport pan offset at the moment the drag started.
         viewport_origin: Pos2,
     },
+    /// Zoom drag in progress.
+    Zooming {
+        /// Pointer position (screen pixels) where the drag started.
+        start: Pos2,
+        /// Zoom multiplier at the moment the drag started.
+        original_zoom: f32,
+    },
     /// Window/Level drag in progress.
     WindowLevelDrag {
         /// Pointer position (screen pixels) where the drag started.
@@ -124,6 +131,7 @@ impl ToolState {
         match self {
             ToolState::Idle => None,
             ToolState::Panning { .. } => Some(ToolKind::Pan),
+            ToolState::Zooming { .. } => Some(ToolKind::Zoom),
             ToolState::WindowLevelDrag { .. } => Some(ToolKind::WindowLevel),
             ToolState::MeasureLength1 { .. } => Some(ToolKind::MeasureLength),
             ToolState::MeasureAngle2 { .. } => Some(ToolKind::MeasureAngle),
@@ -454,6 +462,13 @@ mod tests {
                     viewport_origin: Pos2::ZERO,
                 },
                 ToolKind::Pan,
+            ),
+            (
+                ToolState::Zooming {
+                    start: Pos2::ZERO,
+                    original_zoom: 1.0,
+                },
+                ToolKind::Zoom,
             ),
             (
                 ToolState::WindowLevelDrag {

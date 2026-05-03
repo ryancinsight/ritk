@@ -28,6 +28,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` full MPR PNG export**: Added `ui::export_plan` SSOT and a File-menu workflow to export all axial/coronal/sagittal slices as PNG files under deterministic per-axis folders. [patch]
 - **`ritk-snap` RT-STRUCT overlay**: Added `ui::rtstruct_overlay` SSOT for patient-mm contour projection into per-axis slice row/column coordinates, plus app-shell `Open RT-STRUCT file` workflow, overlay visibility toggle, viewport contour rendering, and session snapshot persistence for RT overlay visibility. [patch]
 - **`ritk-snap` zoom-to-fit shortcut**: Added canonical fit-state helpers in `ui::zoom`, routed active-shell reset-to-fit through one shared implementation, and added `Ctrl/Cmd+0` zoom-to-fit support with updated menu and interaction hints. [patch]
+- **`ritk-snap` Zoom tool drag behavior**: Added SSOT drag-to-zoom mapping in `ui::zoom`, introduced `ToolState::Zooming`, and wired active viewport drag handling so the Zoom tool supports continuous vertical drag zoom with deterministic clamping. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]

@@ -28,8 +28,8 @@ use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
     plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
-    should_zoom_with_scroll, voxel_to_lps, zoom_from_scroll, CinePlayback, LinkedCursor,
-    MAX_ZOOM, MIN_ZOOM,
+    should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
+    CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
@@ -1727,6 +1727,12 @@ impl SnapApp {
                     viewport_origin: egui::Pos2::new(self.pan_offset.x, self.pan_offset.y),
                 };
             }
+            ToolKind::Zoom => {
+                self.tool_state = ToolState::Zooming {
+                    start: pos,
+                    original_zoom: self.zoom,
+                };
+            }
             ToolKind::WindowLevel => {
                 let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
                 let ww = self.viewer_state.window_width.unwrap_or(256.0) as f64;
@@ -1764,6 +1770,14 @@ impl SnapApp {
                 let delta = pos - start;
                 self.pan_offset =
                     egui::Vec2::new(viewport_origin.x + delta.x, viewport_origin.y + delta.y);
+            }
+            ToolState::Zooming {
+                start,
+                original_zoom,
+            } => {
+                let drag_delta_y = pos.y - start.y;
+                self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
+                self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
             }
             ToolState::WindowLevelDrag {
                 start,
@@ -2233,5 +2247,18 @@ mod tests {
         assert!(app.coronal_dirty);
         assert!(app.sagittal_dirty);
         assert_eq!(app.status_message, "Zoom reset to fit.");
+    }
+
+    #[test]
+    fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
+        let mut app = SnapApp::default();
+        app.active_tool = ToolKind::Zoom;
+        app.zoom = 1.0;
+
+        app.on_drag_start(Some(egui::pos2(100.0, 100.0)));
+        app.on_drag(Some(egui::pos2(100.0, 80.0)));
+
+        assert!(app.zoom > 1.0, "expected drag-up zoom-in, got {}", app.zoom);
+        assert!(app.status_message.starts_with("Zoom:"));
     }
 }

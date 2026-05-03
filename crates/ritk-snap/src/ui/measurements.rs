@@ -163,7 +163,9 @@ impl MeasurementLayer {
             }
 
             // Panning and window-level drag produce no visual annotation.
-            ToolState::Panning { .. } | ToolState::WindowLevelDrag { .. } => {}
+            ToolState::Panning { .. }
+            | ToolState::Zooming { .. }
+            | ToolState::WindowLevelDrag { .. } => {}
         }
     }
 }

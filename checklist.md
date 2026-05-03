@@ -1,3 +1,23 @@
+## Sprint 111 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.26 [patch]
+
+- [x] GAP-111-01: add drag-based zoom mapping (`zoom_from_drag_delta`) to `ui::zoom` SSOT
+- [x] GAP-111-02: add `ToolState::Zooming` and map it to `ToolKind::Zoom`
+- [x] GAP-111-03: wire Zoom tool drag start/drag handling into `SnapApp`
+- [x] GAP-111-04: route measurement in-progress renderer through exhaustive `ToolState` matching including zoom-drag
+- [x] GAP-111-05: align Zoom tooltip wording with implemented drag semantics
+- [x] GAP-111-06: add value-semantic tests for drag mapping and app/tool-state integration
+- [x] GAP-111-07: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` passed: 9 tests
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::zoom_tool_drag_updates_zoom_from_pointer_delta -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib tools::interaction::tests::test_tool_state_non_idle_variants -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 173 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 110 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

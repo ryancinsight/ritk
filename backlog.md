@@ -1,3 +1,31 @@
+## Sprint 111 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.26 [patch]
+**Goal**: Close the Zoom tool behavioral gap by implementing deterministic drag-based zoom in the active app shell and centralizing drag mapping in the zoom SSOT.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-111-01 | `ToolKind::Zoom` advertised drag zoom but the active tool-state path had no zoom-drag branch | patch |
+| GAP-111-02 | Drag-to-zoom mapping had no pure SSOT function or value-semantic tests | patch |
+| GAP-111-03 | Tool-state and measurement overlay matches were not updated for a zoom-drag in-progress state | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::zoom:: -- --nocapture` | Passed: 9 tests |
+| `cargo test -p ritk-snap --lib app::tests::zoom_tool_drag_updates_zoom_from_pointer_delta -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib tools::interaction::tests::test_tool_state_non_idle_variants -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 173 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 110 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

@@ -25,6 +25,15 @@ const MIN_STEP_FACTOR: f32 = 0.25;
 /// Upper bound for one scroll-step multiplicative change.
 const MAX_STEP_FACTOR: f32 = 4.0;
 
+/// Pixel-to-zoom sensitivity for drag-based zoom.
+const DRAG_SENSITIVITY: f32 = 0.01;
+
+/// Lower bound for one drag update multiplicative change.
+const MIN_DRAG_STEP_FACTOR: f32 = 0.25;
+
+/// Upper bound for one drag update multiplicative change.
+const MAX_DRAG_STEP_FACTOR: f32 = 4.0;
+
 /// Return whether wheel input should drive zoom instead of slice stepping.
 ///
 /// On Windows/Linux this is `Ctrl`; on macOS `Command` can be mapped by the
@@ -48,6 +57,19 @@ pub fn zoom_from_scroll(current_zoom: f32, scroll_y: f32) -> f32 {
 /// Return the canonical fit-to-panel pan/zoom transform.
 pub fn fit_view_transform() -> ([f32; 2], f32) {
     (FIT_PAN_OFFSET, FIT_ZOOM)
+}
+
+/// Compute zoom multiplier from a vertical drag delta in screen pixels.
+///
+/// Upward drag (`drag_delta_y < 0`) zooms in. Downward drag zooms out.
+pub fn zoom_from_drag_delta(original_zoom: f32, drag_delta_y: f32) -> f32 {
+    if drag_delta_y == 0.0 {
+        return original_zoom.clamp(MIN_ZOOM, MAX_ZOOM);
+    }
+
+    let step_factor = (1.0 - drag_delta_y * DRAG_SENSITIVITY)
+        .clamp(MIN_DRAG_STEP_FACTOR, MAX_DRAG_STEP_FACTOR);
+    (original_zoom * step_factor).clamp(MIN_ZOOM, MAX_ZOOM)
 }
 
 #[cfg(test)]
@@ -91,5 +113,25 @@ mod tests {
         let (pan, zoom) = fit_view_transform();
         assert_eq!(pan, [0.0, 0.0]);
         assert_eq!(zoom, 1.0);
+    }
+
+    #[test]
+    fn zoom_drag_up_increases_zoom() {
+        let z = zoom_from_drag_delta(1.0, -20.0);
+        assert!(z > 1.0, "expected zoom-in, got {z}");
+    }
+
+    #[test]
+    fn zoom_drag_down_decreases_zoom() {
+        let z = zoom_from_drag_delta(1.0, 20.0);
+        assert!(z < 1.0, "expected zoom-out, got {z}");
+    }
+
+    #[test]
+    fn zoom_drag_clamps_to_supported_range() {
+        let z_min = zoom_from_drag_delta(0.01, 10_000.0);
+        let z_max = zoom_from_drag_delta(99.0, -10_000.0);
+        assert_eq!(z_min, MIN_ZOOM);
+        assert_eq!(z_max, MAX_ZOOM);
     }
 }
