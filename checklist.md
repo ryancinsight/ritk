@@ -1,3 +1,21 @@
+## Sprint 114 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.29 [patch]
+
+- [x] GAP-114-01: add global Home/End active-axis slice boundary shortcuts in app-shell shortcut routing
+- [x] GAP-114-02: centralize per-axis slice assignment in a shared SSOT setter (`set_slice_for_axis`)
+- [x] GAP-114-03: route both step-based and boundary-jump navigation through shared slice assignment logic
+- [x] GAP-114-04: add app-level value-semantic tests for Home/End boundary behavior and shortcut-priority semantics
+- [x] GAP-114-05: update viewer interaction hints to include Home/End navigation discoverability
+- [x] GAP-114-06: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_home_end_jump_to_axis_boundaries -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_home_takes_priority_over_end -- --exact --nocapture` passed: 1 test
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 178 tests
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests + doc tests
+- [x] Verification: `cargo test -p ritk-io --examples` passed
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 113 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

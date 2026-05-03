@@ -1,3 +1,30 @@
+## Sprint 114 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.29 [patch]
+**Goal**: Close active-axis boundary navigation parity by adding global Home/End shortcuts and centralizing per-axis slice assignment in one app-shell SSOT path.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-114-01 | Global shortcuts lacked first/last-slice jump behavior on active axis (Home/End parity gap) | patch |
+| GAP-114-02 | Per-axis slice assignment logic was duplicated across step/jump paths instead of one SSOT setter | patch |
+| GAP-114-03 | Viewer interaction hints did not document Home/End boundary navigation | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_home_end_jump_to_axis_boundaries -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib app::tests::slice_navigation_shortcuts_home_takes_priority_over_end -- --exact --nocapture` | Passed: 1 test |
+| `cargo test -p ritk-snap --lib` | Passed: 178 tests |
+| `cargo test -p ritk-dicom` | Passed: 20 tests + doc tests |
+| `cargo test -p ritk-io --examples` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- The viewer still lacks broader ITK-SNAP workstation coverage beyond the current audited slices.
+- Workspace-level `cargo test --workspace` remains constrained by long-running `ritk-model` SSMMorph paths in this environment.
+
 ## Sprint 113 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

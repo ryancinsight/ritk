@@ -503,9 +503,11 @@ impl SnapApp {
                 input.key_pressed(egui::Key::ArrowDown),
                 input.key_pressed(egui::Key::PageUp),
                 input.key_pressed(egui::Key::PageDown),
+                input.key_pressed(egui::Key::Home),
+                input.key_pressed(egui::Key::End),
             )
         });
-        self.apply_slice_navigation_shortcuts(nav.0, nav.1, nav.2, nav.3);
+        self.apply_slice_navigation_shortcuts(nav.0, nav.1, nav.2, nav.3, nav.4, nav.5);
     }
 
     fn apply_slice_navigation_shortcuts(
@@ -514,12 +516,28 @@ impl SnapApp {
         arrow_down: bool,
         page_up: bool,
         page_down: bool,
+        home: bool,
+        end: bool,
     ) {
         if arrow_up || page_up {
             self.step_slice(-1);
         } else if arrow_down || page_down {
             self.step_slice(1);
+        } else if home {
+            self.jump_active_axis_slice_boundary(false);
+        } else if end {
+            self.jump_active_axis_slice_boundary(true);
         }
+    }
+
+    fn jump_active_axis_slice_boundary(&mut self, end: bool) {
+        let (_, total) = self.axis_slice_info(self.axis);
+        let target = if end {
+            total.saturating_sub(1)
+        } else {
+            0
+        };
+        self.set_slice_for_axis(self.axis, target);
     }
 
     fn reset_view_to_fit(&mut self) {
@@ -1244,6 +1262,7 @@ impl SnapApp {
                 ui.label("Ctrl/Cmd + scroll: zoom in/out.");
                 ui.label("Ctrl/Cmd + 0: zoom to fit.");
                 ui.label("Ctrl/Cmd + Z / Shift+Z / Y: segmentation undo/redo.");
+                ui.label("Arrow/Page: previous/next slice. Home/End: first/last slice.");
                 ui.label("Click: move the linked MPR cursor.");
                 ui.label("Drag: active tool interaction.");
             } else {
@@ -1662,17 +1681,16 @@ impl SnapApp {
     /// Step the slice for `axis` by `delta`, clamped to the valid range.
     ///
     /// Marks the corresponding texture dirty when the index changes.
-    fn step_slice_for_axis(&mut self, axis: usize, delta: i32) {
+    fn set_slice_for_axis(&mut self, axis: usize, index: usize) {
         let total = match axis {
             0 => self.loaded.as_ref().map(|v| v.shape[0]).unwrap_or(1),
             1 => self.loaded.as_ref().map(|v| v.shape[1]).unwrap_or(1),
             _ => self.loaded.as_ref().map(|v| v.shape[2]).unwrap_or(1),
-        } as i32;
-        let max = (total - 1).max(0);
+        };
+        let next = index.min(total.saturating_sub(1));
 
         match axis {
             0 => {
-                let next = ((self.viewer_state.slice_index as i32) + delta).clamp(0, max) as usize;
                 if next != self.viewer_state.slice_index {
                     self.viewer_state.slice_index = next;
                     self.texture_dirty = true;
@@ -1682,7 +1700,6 @@ impl SnapApp {
                 }
             }
             1 => {
-                let next = ((self.coronal_slice as i32) + delta).clamp(0, max) as usize;
                 if next != self.coronal_slice {
                     self.coronal_slice = next;
                     self.coronal_dirty = true;
@@ -1692,7 +1709,6 @@ impl SnapApp {
                 }
             }
             _ => {
-                let next = ((self.sagittal_slice as i32) + delta).clamp(0, max) as usize;
                 if next != self.sagittal_slice {
                     self.sagittal_slice = next;
                     self.sagittal_dirty = true;
@@ -1702,6 +1718,16 @@ impl SnapApp {
                 }
             }
         }
+    }
+
+    /// Step the slice for `axis` by `delta`, clamped to the valid range.
+    ///
+    /// Marks the corresponding texture dirty when the index changes.
+    fn step_slice_for_axis(&mut self, axis: usize, delta: i32) {
+        let (current, total) = self.axis_slice_info(axis);
+        let max = total.saturating_sub(1) as i32;
+        let next = ((current as i32) + delta).clamp(0, max) as usize;
+        self.set_slice_for_axis(axis, next);
     }
 
     /// Step the primary-axis slice by `delta`.  Delegates to
@@ -2356,10 +2382,10 @@ mod tests {
         app.axis = 0;
         app.viewer_state.slice_index = 1;
 
-        app.apply_slice_navigation_shortcuts(true, false, false, false);
+        app.apply_slice_navigation_shortcuts(true, false, false, false, false, false);
         assert_eq!(app.viewer_state.slice_index, 0);
 
-        app.apply_slice_navigation_shortcuts(false, false, false, true);
+        app.apply_slice_navigation_shortcuts(false, false, false, true, false, false);
         assert_eq!(app.viewer_state.slice_index, 1);
     }
 
@@ -2370,7 +2396,32 @@ mod tests {
         app.axis = 0;
         app.viewer_state.slice_index = 1;
 
-        app.apply_slice_navigation_shortcuts(true, true, false, false);
+        app.apply_slice_navigation_shortcuts(true, true, false, false, false, false);
+        assert_eq!(app.viewer_state.slice_index, 0);
+    }
+
+    #[test]
+    fn slice_navigation_shortcuts_home_end_jump_to_axis_boundaries() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 5]));
+        app.axis = 2;
+        app.sagittal_slice = 2;
+
+        app.apply_slice_navigation_shortcuts(false, false, false, false, true, false);
+        assert_eq!(app.sagittal_slice, 0);
+
+        app.apply_slice_navigation_shortcuts(false, false, false, false, false, true);
+        assert_eq!(app.sagittal_slice, 4);
+    }
+
+    #[test]
+    fn slice_navigation_shortcuts_home_takes_priority_over_end() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 4, 5]));
+        app.axis = 0;
+        app.viewer_state.slice_index = 1;
+
+        app.apply_slice_navigation_shortcuts(false, false, false, false, true, true);
         assert_eq!(app.viewer_state.slice_index, 0);
     }
 }

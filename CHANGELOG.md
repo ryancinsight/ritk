@@ -31,6 +31,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` Zoom tool drag behavior**: Added SSOT drag-to-zoom mapping in `ui::zoom`, introduced `ToolState::Zooming`, and wired active viewport drag handling so the Zoom tool supports continuous vertical drag zoom with deterministic clamping. [patch]
 - **`ritk-snap` segmentation keyboard shortcuts**: Added app-shell `Ctrl/Cmd+Z` undo and `Ctrl/Cmd+Shift+Z`/`Ctrl/Cmd+Y` redo routing for label edit history, with updated sidebar/hint discoverability text. [patch]
 - **`ritk-snap` slice-navigation keyboard parity**: Moved slice stepping to global app-shell shortcut routing so Arrow Up/Down and Page Up/Down consistently step slices on the active axis in both single and multi-planar layouts, with value-semantic shortcut tests. [patch]
+- **`ritk-snap` active-axis boundary shortcuts**: Added global Home/End shortcuts to jump to first/last slice on the active axis across single and multi-planar layouts, and refactored per-axis slice assignment through one shared setter for deterministic index/texture/cursor synchronization. [patch]
 
 ### Changed
 - **DICOM codec dispatch** (`ritk-io`): `decode_compressed_frame` now delegates through `ritk_dicom::DicomRsBackend`, making `dicom-rs` a replaceable backend while preserving the existing `ritk-io` public series API. [minor]
