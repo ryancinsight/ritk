@@ -728,7 +728,13 @@ impl SnapApp {
 
                 // ── Histogram ─────────────────────────────────────────────────
                 if let Some(hist) = &self.cached_histogram {
-                    crate::ui::histogram::draw_histogram(hist, wc, ww, ui);
+                    if let Some((new_c, new_w)) =
+                        crate::ui::histogram::draw_histogram(hist, wc, ww, ui)
+                    {
+                        self.viewer_state.window_center = Some(new_c);
+                        self.viewer_state.window_width = Some(new_w.max(1.0));
+                        self.texture_dirty = true;
+                    }
                 }
 
                 ui.separator();

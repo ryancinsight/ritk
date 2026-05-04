@@ -1,3 +1,24 @@
+## Sprint 122 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.37 [patch]
+
+- [x] GAP-122-01: create `ui/histogram_interact.rs` with `x_to_intensity` SSOT — inverse of `wl_to_x`: `t = clamp((x − x_left)/(x_right − x_left), 0, 1); v = hist_min + t × span`
+- [x] GAP-122-02: add `wl_from_histogram_drag` SSOT — horizontal drag shifts center: `Δcenter = (dx/canvas_width) × span`; vertical drag scales width: `scale = 1 − dy/canvas_height; new_width = max(1, current_width × scale)`
+- [x] GAP-122-03: add `wl_center_from_click` SSOT — delegates to `x_to_intensity`, width unchanged
+- [x] GAP-122-04: add 17 value-semantic tests: `x_to_intensity` (7: left edge, right edge, midpoint, below-left clamp, above-right clamp, degenerate canvas, degenerate span), `wl_from_histogram_drag` (7: zero-delta identity, rightward center, leftward center, upward narrows width, extreme-downward clamps to 1, degenerate canvas width, degenerate span), `wl_center_from_click` (3: left→min, right→max, midpoint analytical)
+- [x] GAP-122-05: register `pub mod histogram_interact` in `ui/mod.rs`, update doc table with SSOT description
+- [x] GAP-122-06: change `draw_histogram` return type from `()` to `Option<(f32, f32)>` in `ui/histogram.rs`
+- [x] GAP-122-07: change `Sense::hover()` → `Sense::click_and_drag()` in `draw_histogram`
+- [x] GAP-122-08: add dragged() branch calling `wl_from_histogram_drag(delta.x, delta.y, rect.width(), rect.height(), ...)` returning `Some((new_c, new_w))`
+- [x] GAP-122-09: add clicked() branch calling `wl_center_from_click(pos.x, ...)` returning `Some((new_c, current_width))`
+- [x] GAP-122-10: update `app.rs` W/L panel: handle `Option<(f32, f32)>` from `draw_histogram`, apply to `viewer_state`, set `texture_dirty = true`
+- [x] GAP-122-11: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::histogram_interact` passed: 17 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 274 tests (257 + 17 new)
+- [x] Verification: `cargo build -p ritk-snap` passed: exit 0, 0 errors
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 121 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

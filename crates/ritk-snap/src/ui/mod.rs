@@ -17,6 +17,7 @@
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
 //! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |//! | [`live_preview`]     | [`live_length_mm`] and [`live_angle_deg`] — live measurement labels. |
 //! | [`histogram`]    | [`draw_histogram`] — voxel intensity histogram + W/L range overlay.  |
+//! | [`histogram_interact`] | [`x_to_intensity`], [`wl_from_histogram_drag`], [`wl_center_from_click`] — histogram canvas interaction SSOT. |
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
 //! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
@@ -25,6 +26,7 @@
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 
 pub mod histogram;
+pub mod histogram_interact;
 pub mod layout;
 pub mod measurements;
 pub mod cine;

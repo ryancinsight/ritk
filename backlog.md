@@ -1,3 +1,31 @@
+## Sprint 122 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.37 [patch]
+**Goal**: Close the interactive W/L drag-on-histogram-canvas gap by implementing `ui/histogram_interact.rs` as the SSOT for all histogram pointer interactions, returning `Option<(f32,f32)>` from `draw_histogram`, and wiring the result into `viewer_state` to provide ITK-SNAP-parity W/L adjustment directly on the histogram canvas.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-122-01 | ITK-SNAP parity: histogram canvas was static (hover only); no W/L interaction | patch |
+| GAP-122-02 | No SSOT for mapping canvas-pixel x → intensity value (inverse of `wl_to_x`) | patch |
+| GAP-122-03 | No SSOT for drag-delta → (new_center, new_width) with ITK-SNAP convention | patch |
+| GAP-122-04 | `draw_histogram` returned `()` and used `Sense::hover()`, blocking interaction | patch |
+| GAP-122-05 | `app.rs` W/L panel discarded histogram return value; viewer state not updated | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::histogram_interact` | Passed: 17 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 274 tests (257 + 17 new) |
+| `cargo build -p ritk-snap` | Passed: exit 0, 0 errors |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+- MPR 2×2 cross-viewport label routing not yet implemented.
+- Measurement history panel and window preset quick-select buttons not yet implemented.
+
 ## Sprint 121 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

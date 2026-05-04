@@ -26,6 +26,7 @@
 use egui::{Color32, Painter, Pos2, Rect, Stroke, Ui};
 
 use crate::render::histogram::{histogram_peak_count, Histogram};
+use crate::ui::histogram_interact::{wl_center_from_click, wl_from_histogram_drag};
 
 // ── visual constants ───────────────────────────────────────────────────────────
 
@@ -108,16 +109,27 @@ pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f
 /// 4. Draws `min` and `max` intensity labels below the canvas.
 ///
 /// Does nothing if the histogram is empty (zero bins).
-pub fn draw_histogram(histogram: &Histogram, window_center: f32, window_width: f32, ui: &mut Ui) {
+///
+/// # Return value
+///
+/// Returns `Some((new_center, new_width))` when the user has interacted
+/// with the canvas during this frame (drag or click), and `None` otherwise.
+/// The caller is responsible for clamping and applying the returned values.
+pub fn draw_histogram(
+    histogram: &Histogram,
+    window_center: f32,
+    window_width: f32,
+    ui: &mut Ui,
+) -> Option<(f32, f32)> {
     if histogram.bins == 0 {
         ui.label("(no histogram — load a study first)");
-        return;
+        return None;
     }
 
     let avail_width = ui.available_width().max(1.0);
-    let (rect, _response) = ui.allocate_exact_size(
+    let (rect, response) = ui.allocate_exact_size(
         egui::vec2(avail_width, CANVAS_HEIGHT),
-        egui::Sense::hover(),
+        egui::Sense::click_and_drag(),
     );
 
     let painter: Painter = ui.painter_at(rect);
@@ -188,6 +200,35 @@ pub fn draw_histogram(histogram: &Histogram, window_center: f32, window_width: f
             );
         });
     });
+
+    // ── interaction ───────────────────────────────────────────────────────────
+    if response.dragged() {
+        let delta = response.drag_delta();
+        let (new_c, new_w) = wl_from_histogram_drag(
+            delta.x,
+            delta.y,
+            rect.width(),
+            rect.height(),
+            hist_min,
+            hist_max,
+            window_center,
+            window_width,
+        );
+        return Some((new_c, new_w));
+    }
+    if response.clicked() {
+        if let Some(pos) = response.interact_pointer_pos() {
+            let new_c = wl_center_from_click(
+                pos.x,
+                hist_min,
+                hist_max,
+                rect.left(),
+                rect.right(),
+            );
+            return Some((new_c, window_width));
+        }
+    }
+    None
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────────
