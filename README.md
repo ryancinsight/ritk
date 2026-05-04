@@ -97,7 +97,7 @@ ritk/
 ### Viewer (`ritk-snap`)
 
 `ritk-snap [PATH]` launches the native viewer directly against a DICOM folder,
-a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
+a single DICOM file, a `DICOMDIR` file, or a supported medical image file. The viewer keeps DICOM
 I/O in `ritk-io` and presentation logic in `ritk-snap`, with a vertical module
 split for input path normalization, hanging-protocol selection, series
 discovery, metadata row construction, session snapshot persistence, rendering,

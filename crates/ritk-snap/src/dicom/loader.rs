@@ -85,9 +85,8 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
     let pixels: Vec<f32> = tensor_data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}"))?
-        .to_vec();
+        .into_vec::<f32>()
+        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}"))?;
 
     let modality = meta.modality.clone();
     let patient_name = meta.patient_name.clone();
@@ -157,9 +156,8 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
     let pixels: Vec<f32> = tensor_data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from NIfTI tensor: {e:?}"))?
-        .to_vec();
+        .into_vec::<f32>()
+        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from NIfTI tensor: {e:?}"))?;
 
     Ok(LoadedVolume {
         data: std::sync::Arc::new(pixels),
@@ -260,9 +258,8 @@ fn volume_from_image_no_meta(
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
     let pixels: Vec<f32> = tensor_data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from image tensor: {e:?}"))?
-        .to_vec();
+        .into_vec::<f32>()
+        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from image tensor: {e:?}"))?;
 
     Ok(LoadedVolume {
         data: std::sync::Arc::new(pixels),

@@ -1,3 +1,28 @@
+## Sprint 131 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.46 [patch]
+**Goal**: Advance full DICOM viewer workflow by supporting direct single-file DICOM open, improving deterministic study lifecycle reset, and reducing load-time allocation overhead.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-131-01 | Viewer could not directly open a single DICOM file as a series entry point | patch |
+| GAP-131-02 | DICOM input classifier had no single-file variant; root normalization skipped | patch |
+| GAP-131-03 | Study close path left non-volume state (cursor/histogram/selection/pan/zoom/pointer) stale | patch |
+| GAP-131-04 | Load-time pixel extraction used `as_slice().to_vec()` redundant full-copy path | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib` | Passed: 318 tests |
+| `cargo test -p ritk-codecs -p ritk-dicom -p ritk-io --lib --no-fail-fast` | Passed: 78 + 8 + 413 tests |
+| `cargo test -p ritk-io --examples --no-fail-fast` | Passed |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ parity remains open; this sprint advances viewer workflow and memory behavior but does not claim complete external parity closure.
+- `openjpeg-sys` remains in use through `ritk-codecs` Phase 2 roadmap.
+
 ## Sprint 123 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

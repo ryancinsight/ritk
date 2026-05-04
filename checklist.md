@@ -1,3 +1,24 @@
+## Sprint 131 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.46 [patch]
+
+- [x] Add `DicomInputPath::SingleDicomFile` classification in `crates/ritk-snap/src/dicom/input_path.rs`
+- [x] Add DICOM single-file detection by extension (`.dcm`/`.dicom`) and `DICM` preamble signature (offset 128)
+- [x] Add two new input-path tests in `crates/ritk-snap/src/dicom/input_path_tests.rs`
+- [x] Add `Open DICOM file…` workflow to `ritk-snap` File menu in `crates/ritk-snap/src/app.rs`
+- [x] Normalize `load_from_path` to classifier-resolved DICOM root before calling `load_dicom_series_with_metadata`
+- [x] Add `close_study()` SSOT in `crates/ritk-snap/src/app.rs` and route File->Close study through it
+- [x] Strengthen cleanup semantics: clear linked cursor, histogram cache, selected series, pan/zoom, pointer intensity, textures, and loaded volume
+- [x] Reset pan/zoom/pointer state on successful DICOM/NIfTI load for deterministic new-study behavior
+- [x] Add app regression test `close_study_clears_loaded_and_cached_state`
+- [x] Replace `as_slice::<f32>().to_vec()` with `into_vec::<f32>()` in `crates/ritk-snap/src/dicom/loader.rs` (DICOM/NIfTI/generic paths) to remove redundant copy
+- [x] `cargo test -p ritk-snap --lib`: **318 passed**
+- [x] `cargo test -p ritk-codecs -p ritk-dicom -p ritk-io --lib --no-fail-fast`: **78 + 8 + 413 passed**
+- [x] `cargo test -p ritk-io --examples --no-fail-fast`: **passed**
+- [x] Update CHANGELOG.md, gap_audit.md, backlog.md, and README.md
+- [x] Commit and push Sprint 131
+
 ## Sprint 130 — Completed
 **Status**: Completed
 **Phase**: Closure

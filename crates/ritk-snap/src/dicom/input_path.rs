@@ -6,6 +6,7 @@
 //! directory path before scanning or loading.
 
 use std::path::{Path, PathBuf};
+use std::io::Read;
 
 /// Classified DICOM viewer input path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +20,13 @@ pub enum DicomInputPath {
         /// Parent directory containing the DICOMDIR and referenced files.
         root: PathBuf,
     },
+    /// A selected DICOM slice file; the parent directory is loaded as a series root.
+    SingleDicomFile {
+        /// Path selected by the caller.
+        file: PathBuf,
+        /// Parent directory containing the series.
+        root: PathBuf,
+    },
     /// A file that is not a DICOMDIR index.
     OtherFile(PathBuf),
 }
@@ -29,6 +37,7 @@ impl DicomInputPath {
         match self {
             Self::Directory(path) => Some(path.as_path()),
             Self::DicomDirFile { root, .. } => Some(root.as_path()),
+            Self::SingleDicomFile { root, .. } => Some(root.as_path()),
             Self::OtherFile(_) => None,
         }
     }
@@ -49,6 +58,14 @@ pub fn classify_dicom_input_path(path: impl AsRef<Path>) -> DicomInputPath {
         };
     }
 
+    if is_single_dicom_file(path) {
+        let root = path.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
+        return DicomInputPath::SingleDicomFile {
+            file: path.to_path_buf(),
+            root,
+        };
+    }
+
     DicomInputPath::OtherFile(path.to_path_buf())
 }
 
@@ -57,6 +74,32 @@ fn is_dicomdir_file(path: &Path) -> bool {
         .and_then(|name| name.to_str())
         .map(|name| name.eq_ignore_ascii_case("DICOMDIR"))
         .unwrap_or(false)
+}
+
+fn is_single_dicom_file(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+
+    let has_dicom_ext = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("dcm") || ext.eq_ignore_ascii_case("dicom"))
+        .unwrap_or(false);
+
+    has_dicom_ext || has_dicom_preamble(path)
+}
+
+fn has_dicom_preamble(path: &Path) -> bool {
+    let mut file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut header = [0u8; 132];
+    if file.read_exact(&mut header).is_err() {
+        return false;
+    }
+    &header[128..132] == b"DICM"
 }
 
 #[cfg(test)]

@@ -253,6 +253,17 @@ impl SnapApp {
                         }
                     }
 
+                    if ui.button("Open DICOM file…").clicked() {
+                        ui.close_menu();
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("DICOM", &["dcm", "dicom"])
+                            .pick_file()
+                        {
+                            self.scan_for_series(path.clone());
+                            self.pending_load = Some(path);
+                        }
+                    }
+
                     if ui.button("Open NIfTI / MHA / NRRD file…").clicked() {
                         ui.close_menu();
                         if let Some(path) = rfd::FileDialog::new()
@@ -298,19 +309,7 @@ impl SnapApp {
 
                     if ui.button("Close study").clicked() {
                         ui.close_menu();
-                        self.loaded = None;
-                        self.texture = None;
-                        self.coronal_tex = None;
-                        self.sagittal_tex = None;
-                        self.annotations.clear();
-                        self.label_editor = None;
-                        self.rt_struct = None;
-                        self.viewer_state = ViewerState::new();
-                        self.texture_dirty = false;
-                        self.coronal_dirty = false;
-                        self.sagittal_dirty = false;
-                        self.cine.stop();
-                        self.status_message = "Study closed.".to_owned();
+                        self.close_study();
                     }
 
                     ui.separator();
@@ -1585,11 +1584,19 @@ impl SnapApp {
     /// state and texture handles are reset; on failure `status_message` is
     /// updated and any previously loaded volume is preserved.
     fn load_from_path(&mut self, path: std::path::PathBuf) {
-        info!("loading DICOM series from {}", path.display());
+        let load_root = crate::dicom::classify_dicom_input_path(&path)
+            .dicom_root()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| path.clone());
+        info!(
+            "loading DICOM series from {} (resolved root: {})",
+            path.display(),
+            load_root.display()
+        );
         self.cine.stop();
         let device: <LoadBackend as burn::tensor::backend::Backend>::Device = Default::default();
 
-        match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&path, &device) {
+        match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&load_root, &device) {
             Ok((image, meta)) => {
                 let shape = image.shape();
                 let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
@@ -1609,8 +1616,8 @@ impl SnapApp {
                 ];
 
                 let raw_data = image.data().clone().into_data();
-                let data = match raw_data.as_slice::<f32>() {
-                    Ok(s) => Arc::new(s.to_vec()),
+                let data = match raw_data.into_vec::<f32>() {
+                    Ok(v) => Arc::new(v),
                     Err(e) => {
                         let msg = format!("pixel data extraction failed: {e:?}");
                         error!("{msg}");
@@ -1642,7 +1649,7 @@ impl SnapApp {
                     origin,
                     direction,
                     metadata: Some(Box::new(meta)),
-                    source: Some(path.clone()),
+                    source: Some(load_root.clone()),
                     modality,
                     patient_name,
                     patient_id,
@@ -1664,6 +1671,9 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.tool_state = ToolState::Idle;
+                self.pan_offset = egui::Vec2::ZERO;
+                self.zoom = 1.0;
+                self.pointer_intensity = 0.0;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -1671,8 +1681,9 @@ impl SnapApp {
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
                 self.status_message = format!(
-                    "Loaded {} — shape [{}, {}, {}] — protocol {}",
+                    "Loaded {} (root {}) — shape [{}, {}, {}] — protocol {}",
                     path.display(),
+                    load_root.display(),
                     shape[0],
                     shape[1],
                     shape[2],
@@ -1682,7 +1693,11 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                let msg = format!("DICOM load failed for {}: {e:#}", path.display());
+                let msg = format!(
+                    "DICOM load failed for {} (root {}): {e:#}",
+                    path.display(),
+                    load_root.display()
+                );
                 error!("{msg}");
                 self.status_message = msg;
             }
@@ -1730,6 +1745,9 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.tool_state = ToolState::Idle;
+                self.pan_offset = egui::Vec2::ZERO;
+                self.zoom = 1.0;
+                self.pointer_intensity = 0.0;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -1744,6 +1762,29 @@ impl SnapApp {
                 self.status_message = format!("NIfTI load failed: {e:#}");
             }
         }
+    }
+
+    /// Drop the currently loaded study and reset all study-owned state.
+    fn close_study(&mut self) {
+        self.loaded = None;
+        self.annotations.clear();
+        self.label_editor = None;
+        self.rt_struct = None;
+        self.viewer_state = ViewerState::new();
+        self.linked_cursor = None;
+        self.pointer_intensity = 0.0;
+        self.cached_histogram = None;
+        self.selected_series = None;
+        self.pan_offset = egui::Vec2::ZERO;
+        self.zoom = 1.0;
+        self.texture = None;
+        self.coronal_tex = None;
+        self.sagittal_tex = None;
+        self.texture_dirty = false;
+        self.coronal_dirty = false;
+        self.sagittal_dirty = false;
+        self.cine.stop();
+        self.status_message = "Study closed.".to_owned();
     }
 
     /// Compute and cache a 256-bin histogram for the currently loaded volume.
@@ -2467,6 +2508,34 @@ mod tests {
         assert!(app.coronal_dirty);
         assert!(app.sagittal_dirty);
         assert_eq!(app.status_message, "Zoom reset to fit.");
+    }
+
+    #[test]
+    fn close_study_clears_loaded_and_cached_state() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([2, 2, 2]));
+        app.linked_cursor = Some(LinkedCursor::from_slices([2, 2, 2], 1, 1, 1));
+        app.pointer_intensity = 123.0;
+        app.pan_offset = egui::vec2(8.0, -4.0);
+        app.zoom = 3.0;
+        app.cached_histogram = Some(crate::render::histogram::compute_histogram(
+            &[0.0, 1.0, 1.0, 2.0],
+            0.0,
+            2.0,
+            4,
+        ));
+        app.selected_series = Some(std::path::PathBuf::from("series"));
+
+        app.close_study();
+
+        assert!(app.loaded.is_none(), "loaded volume must be cleared");
+        assert!(app.linked_cursor.is_none(), "linked cursor must be cleared");
+        assert!(app.cached_histogram.is_none(), "histogram cache must be cleared");
+        assert!(app.selected_series.is_none(), "selected series must be cleared");
+        assert_eq!(app.pointer_intensity, 0.0, "pointer intensity must reset");
+        assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
+        assert_eq!(app.zoom, 1.0, "zoom must reset");
+        assert_eq!(app.status_message, "Study closed.");
     }
 
     #[test]
