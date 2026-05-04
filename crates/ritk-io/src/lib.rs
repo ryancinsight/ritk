@@ -7,9 +7,7 @@ pub use domain::{
     AttributeArray, VtkDataObject, VtkFilter, VtkPipeline, VtkPolyData, VtkSink, VtkSource,
     VtkStructuredGrid, VtkUnstructuredGrid,
 };
-pub use format::analyze::reader::AnalyzeReader;
-pub use format::analyze::writer::AnalyzeWriter;
-pub use format::analyze::{read_analyze, write_analyze};
+pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
     is_private_tag, load_dicom_multiframe, load_dicom_series, load_dicom_series_with_metadata,
     model_to_in_mem, read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata,

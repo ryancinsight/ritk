@@ -5822,6 +5822,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-analyze"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-core",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "ritk-cli"
 version = "0.1.0"
 dependencies = [
@@ -5903,10 +5915,12 @@ dependencies = [
  "ndarray 0.16.1",
  "openjpeg-sys",
  "rayon",
+ "ritk-analyze",
  "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
  "ritk-metaimage",
+ "ritk-mgh",
  "ritk-nifti",
  "ritk-nrrd",
  "tempfile",
@@ -5927,6 +5941,20 @@ dependencies = [
  "nalgebra",
  "ritk-core",
  "tempfile",
+]
+
+[[package]]
+name = "ritk-mgh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "flate2",
+ "nalgebra",
+ "ritk-core",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

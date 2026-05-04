@@ -6,6 +6,8 @@ members = [
   "crates/ritk-nifti",
   "crates/ritk-nrrd",
   "crates/ritk-metaimage",
+  "crates/ritk-mgh",
+  "crates/ritk-analyze",
   "crates/ritk-io",
   "crates/ritk-model",
   "crates/ritk-registration",
@@ -23,6 +25,8 @@ ritk-codecs = { path = "crates/ritk-codecs" }
 ritk-nifti = { path = "crates/ritk-nifti" }
 ritk-nrrd = { path = "crates/ritk-nrrd" }
 ritk-metaimage = { path = "crates/ritk-metaimage" }
+ritk-mgh = { path = "crates/ritk-mgh" }
+ritk-analyze = { path = "crates/ritk-analyze" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
