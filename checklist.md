@@ -1,3 +1,25 @@
+## Sprint 127 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.42 [patch]
+
+- [x] Delete `crates/ritk-dicom/src/codec/native/jpeg_ls.rs` (replaced by `jpeg_ls/` directory)
+- [x] Create `jpeg_ls/bitstream.rs`: `BitReader<'a>` with JPEG-LS 0xFF/0x00 stuffing-byte handling; `read_bits(n)`, `read_bit()`, `read_golomb(k, limit, qbpp)` (ISO 14495-1 §A.3 LIMIT-guarded Golomb-Rice); 5 value-semantic tests
+- [x] Create `jpeg_ls/context.rs`: `ContextState` (SSOT, `pub(crate)`), `ContextModel` (365 regular + run_int + run_index); `update_context`, `compute_k`, `quant`, `sign_normalize`, `context_index`, `default_thresholds`, `inverse_map`; 20+ value-semantic tests
+- [x] Create `jpeg_ls/scan.rs`: `J[32]` Golomb run-length table, `Predictor` enum, `predict_adaptive`, `predict` (boundary-aware), `ScanParams`, `decode_scan` (regular + run mode per ISO 14495-1 §A.3/§A.6); 4 value-semantic tests
+- [x] Create `jpeg_ls/mod.rs`: marker constants, `Prediction` enum, `JpegLsDecoder::decode_fragment()` (real ISO decode via scan.rs), `parse_jpeg_ls_headers`, `find_scan_data`, `decode_jpeg_ls_fragment` public API; `pub(crate) use context::ContextState` (SSOT, no duplicate definition)
+- [x] Fix `context.rs` visibility: `pub(super)` → `pub(crate)` for all exported items
+- [x] Remove duplicate `ContextState` from `mod.rs`; re-export from `context.rs` (SSOT/DRY)
+- [x] Remove unused `PixelLayout` import from `mod.rs` tests; annotate `ComponentInfo.id` as `#[allow(dead_code)]`
+- [x] Zero warnings: `cargo test -p ritk-dicom --lib` produces no `warning:` output
+- [x] `cargo test -p ritk-dicom --lib`: **74 passed** (up from 30; 44 new tests across 4 sub-modules)
+- [x] `cargo test -p ritk-io --lib`: **413 passed** (baseline unchanged)
+- [x] `cargo test -p ritk-snap --lib`: **309 passed** (baseline unchanged)
+- [x] Update gap_audit.md with Sprint 127 record
+- [x] Update checklist.md with Sprint 127
+- [x] Update CHANGELOG.md with Sprint 127 entry
+- [x] Commit and push Sprint 127
+
 ## Sprint 126 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
