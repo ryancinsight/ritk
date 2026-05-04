@@ -4,6 +4,86 @@ use nifti::NiftiHeader;
 use ritk_core::image::Image;
 use std::path::Path;
 
+/// Write a label map to a NIfTI-1 file with `DT_UINT32` data type.
+///
+/// # Spatial convention
+///
+/// `shape` is `[nz, ny, nx]` (ZYX).  `spacing` is `[dz, dy, dx]`.
+/// `direction` is the 3×3 direction-cosine matrix in **row-major flat layout**,
+/// matching `LoadedVolume::direction`.  The sform affine follows the same
+/// convention as [`write_nifti`]:
+///
+/// ```text
+/// srow_x[j] = direction_col_j[0] * spacing[j]   (j=0,1,2)
+/// srow_y[j] = direction_col_j[1] * spacing[j]
+/// srow_z[j] = direction_col_j[2] * spacing[j]
+/// srow_?[3]  = origin[?]
+/// ```
+///
+/// # Errors
+///
+/// Returns `Err` when `labels.len() != nz * ny * nx` or when the nifti
+/// writer reports a failure.
+pub fn write_nifti_labels<P: AsRef<Path>>(
+    path: P,
+    labels: &[u32],
+    shape: [usize; 3], // [nz, ny, nx]
+    origin: [f32; 3],
+    spacing: [f32; 3], // [dz, dy, dx]
+    direction: [f32; 9], // row-major 3×3
+) -> Result<()> {
+    use ndarray::Array3;
+    use nifti::writer::WriterOptions;
+
+    let [nz, ny, nx] = shape;
+    let expected = nz * ny * nx;
+    if labels.len() != expected {
+        anyhow::bail!(
+            "write_nifti_labels: labels.len()={} != shape product {}",
+            labels.len(),
+            expected
+        );
+    }
+
+    // Fill the ndarray using logical indexing so the writer is independent of
+    // the in-memory layout chosen by ndarray.  The NIfTI crate treats dim[1]=x,
+    // dim[2]=y, dim[3]=z, so the array shape must be (nx, ny, nz) with
+    // array[[x, y, z]] = label at RITK ZYX position (z, y, x).
+    let mut array = Array3::<u32>::zeros((nx, ny, nz));
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                array[[x, y, z]] = labels[z * ny * nx + y * nx + x];
+            }
+        }
+    }
+
+    let [dz, dy, dx] = spacing;
+    let d = &direction;
+    // column j of row-major direction (d[row*3+col]): col(j) = [d[j], d[3+j], d[6+j]]
+    let srow_x = [d[0] * dz, d[1] * dy, d[2] * dx, origin[0]];
+    let srow_y = [d[3] * dz, d[4] * dy, d[5] * dx, origin[1]];
+    let srow_z = [d[6] * dz, d[7] * dy, d[8] * dx, origin[2]];
+
+    let header = NiftiHeader {
+        sform_code: 1,
+        qform_code: 0,
+        srow_x,
+        srow_y,
+        srow_z,
+        pixdim: [1.0, dz, dy, dx, 1.0, 1.0, 1.0, 1.0],
+        xyzt_units: 2, // NIFTI_UNITS_MM
+        ..NiftiHeader::default()
+    };
+
+    WriterOptions::new(path.as_ref())
+        .reference_header(&header)
+        .write_nifti(&array)
+        .map_err(|e| anyhow::anyhow!("Failed to write NIfTI labels: {e}"))?;
+
+    Ok(())
+}
+
 /// Write an image to a NIfTI file with full sform spatial metadata.
 ///
 /// # Spatial convention

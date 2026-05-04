@@ -1,8 +1,8 @@
 pub mod reader;
 pub mod writer;
 
-pub use reader::read_nifti;
-pub use writer::write_nifti;
+pub use reader::{read_nifti, read_nifti_labels};
+pub use writer::{write_nifti, write_nifti_labels};
 
 use crate::domain::{ImageReader, ImageWriter};
 use burn::tensor::backend::Backend;

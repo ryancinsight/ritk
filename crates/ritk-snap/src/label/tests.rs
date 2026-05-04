@@ -149,3 +149,76 @@ fn repeat_paint_noop_does_not_create_history_entry() {
     assert_eq!(editor.history_depth(), depth_after_first_paint);
     assert_eq!(editor.current_map().label_at([0, 0, 0]), 1);
 }
+
+// ── LabelEditor::from_label_map ───────────────────────────────────────────────
+
+/// from_label_map with a non-trivially-painted map preserves all voxel values.
+///
+/// Analytical basis: 2×2×2 map, label 1 assigned to all-even-flat-index voxels
+/// (0, 2, 4, 6 out of 8), label 0 otherwise.
+#[test]
+fn from_label_map_preserves_voxel_data() {
+    use ritk_core::annotation::{LabelMap, LabelTable};
+
+    let mut table = LabelTable::new();
+    table.add_label(1, "A", [255, 0, 0, 180]).unwrap();
+
+    let data: Vec<u32> = (0..8u32).map(|i| if i % 2 == 0 { 1 } else { 0 }).collect();
+    let map = LabelMap::from_data([2, 2, 2], data.clone(), table).unwrap();
+
+    let editor = LabelEditor::from_label_map(map);
+
+    // Active label must be the first entry in the table (1).
+    assert_eq!(editor.active_label_id(), 1);
+
+    // Every voxel must match the analytical expectation.
+    let [nz, ny, nx] = editor.current_map().shape;
+    assert_eq!([nz, ny, nx], [2, 2, 2]);
+    let mut flat = 0usize;
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                let expected = if flat % 2 == 0 { 1u32 } else { 0u32 };
+                assert_eq!(
+                    editor.current_map().label_at([z, y, x]),
+                    expected,
+                    "voxel ({z},{y},{x}) flat={flat} expected {expected}"
+                );
+                flat += 1;
+            }
+        }
+    }
+}
+
+/// from_label_map with an empty table falls back to DEFAULT_LABEL_ID (1).
+#[test]
+fn from_label_map_empty_table_uses_default_label_id() {
+    use ritk_core::annotation::{LabelMap, LabelTable};
+
+    let map = LabelMap::new([1, 1, 1], LabelTable::new());
+    let editor = LabelEditor::from_label_map(map);
+    assert_eq!(
+        editor.active_label_id(),
+        DEFAULT_LABEL_ID,
+        "empty table falls back to DEFAULT_LABEL_ID"
+    );
+}
+
+/// from_label_map preserves undo history: initial state is depth 0.
+#[test]
+fn from_label_map_starts_with_zero_history_depth() {
+    use ritk_core::annotation::{LabelMap, LabelTable};
+
+    let mut table = LabelTable::new();
+    table.add_label(1, "X", [0, 255, 0, 180]).unwrap();
+    let map = LabelMap::new([3, 3, 3], table);
+    let editor = LabelEditor::from_label_map(map);
+
+    assert_eq!(
+        editor.history_depth(),
+        1,
+        "fresh from_label_map has one initial state (the loaded map)"
+    );
+    assert!(!editor.can_undo());
+    assert!(!editor.can_redo());
+}

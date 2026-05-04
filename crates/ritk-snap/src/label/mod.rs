@@ -57,6 +57,23 @@ impl LabelEditor {
         })
     }
 
+    /// Construct an editor from an existing label map, setting the active label
+    /// to the smallest non-background ID present in the map's table (or the
+    /// default label ID `1` if none exist).
+    pub fn from_label_map(map: LabelMap) -> Self {
+        let active = map
+            .table
+            .entries()
+            .iter()
+            .map(|e| e.id)
+            .next()
+            .unwrap_or(DEFAULT_LABEL_ID);
+        Self {
+            history: UndoRedoStack::new(map),
+            active_label_id: active,
+        }
+    }
+
     /// Current immutable label map snapshot.
     pub fn current_map(&self) -> &LabelMap {
         self.history.current()
@@ -210,7 +227,9 @@ impl LabelEditor {
     }
 }
 
-fn default_label_table() -> LabelTable {
+/// Construct a default single-label table suitable for a freshly loaded
+/// segmentation with no pre-existing labels.
+pub fn default_label_table() -> LabelTable {
     let mut table = LabelTable::new();
     table
         .add_label(DEFAULT_LABEL_ID, DEFAULT_LABEL_NAME, DEFAULT_LABEL_COLOR)

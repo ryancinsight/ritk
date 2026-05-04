@@ -1,3 +1,23 @@
+## Sprint 132 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.47 [minor]
+
+- [x] Add `write_nifti_labels` in `crates/ritk-io/src/format/nifti/writer.rs` (ZYX→XYZ via logical `array[[x,y,z]]` indexing, DT_UINT32, sform affine)
+- [x] Add `read_nifti_labels` in `crates/ritk-io/src/format/nifti/reader.rs` (XYZ→ZYX via logical `arr[[x,y,z]]` indexing, f32→u32 via `max(0.0).round()`)
+- [x] Export `read_nifti_labels`/`write_nifti_labels` via `format/nifti/mod.rs` and `lib.rs`
+- [x] Add `LabelEditor::from_label_map(map: LabelMap) -> Self` in `ritk-snap/src/label/mod.rs`
+- [x] Promote `default_label_table()` to `pub` in `ritk-snap/src/label/mod.rs`
+- [x] Add "Save segmentation as NIfTI…" / "Load segmentation from NIfTI…" File menu entries in `ritk-snap/src/app.rs`
+- [x] Implement `save_segmentation_dialog` and `load_segmentation_dialog` methods in `app.rs`
+- [x] 5 new ritk-io tests: round-trip, all-background, length-mismatch, single-voxel, sform encoding
+- [x] 3 new ritk-snap label tests: from_label_map voxel preservation, empty-table fallback, history depth
+- [x] `cargo test -p ritk-io --lib`: **418 passed** (was 413)
+- [x] `cargo test -p ritk-snap --lib`: **321 passed** (was 318)
+- [x] `cargo test -p ritk-codecs -p ritk-dicom --lib`: **78 + 8 passed**
+- [x] Update CHANGELOG.md, gap_audit.md, backlog.md
+- [x] Commit and push Sprint 132
+
 ## Sprint 131 — Completed
 **Status**: Completed
 **Phase**: Closure

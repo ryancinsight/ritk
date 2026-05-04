@@ -158,3 +158,66 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
 
     Ok(Image::new(tensor, origin, spacing, direction))
 }
+
+/// Read a NIfTI file as an integer label map in ZYX order.
+///
+/// # Label extraction
+///
+/// The file is read as `f32` (consistent with [`read_nifti`]) and each value
+/// is converted to `u32` via `max(0.0).round() as u32`.  This is exact for
+/// integer label values ≤ 2²⁴ (the f32 mantissa width), covering all
+/// practical segmentation label counts.
+///
+/// # Returns
+///
+/// `(labels, [nz, ny, nx])` where `labels` is flat ZYX-order:
+/// `labels[z * ny * nx + y * nx + x]`.
+///
+/// # Errors
+///
+/// Returns `Err` when the file cannot be read or does not contain a 3-D volume.
+pub fn read_nifti_labels<P: AsRef<Path>>(path: P) -> Result<(Vec<u32>, [usize; 3])> {
+    let path = path.as_ref();
+    let obj = ReaderOptions::new().read_file(path).map_err(|e| {
+        tracing::error!("Failed to read NIfTI label file: {}", e);
+        anyhow!("Failed to read NIfTI label file")
+    })?;
+
+    let volume = obj.into_volume();
+    let ndarray_volume = volume
+        .into_ndarray::<f32>()
+        .context("Failed to convert label volume to ndarray")?;
+
+    let shape = ndarray_volume.shape();
+    if shape.len() != 3 {
+        anyhow::bail!(
+            "Expected 3-D NIfTI label file, found {} dimensions",
+            shape.len()
+        );
+    }
+    // NIfTI stores (nx, ny, nz); ZYX shape = [nz, ny, nx].
+    let nx = shape[0];
+    let ny = shape[1];
+    let nz = shape[2];
+
+    // Use logical array indexing so the extraction is independent of
+    // the nifti crate's in-memory layout (which may be F-order / x-fastest).
+    // NIfTI dim convention: dim[1]=nx, dim[2]=ny, dim[3]=nz → shape (nx,ny,nz),
+    // array[[x,y,z]] = voxel at coordinates (x,y,z).
+    use ndarray::Ix3;
+    let arr = ndarray_volume
+        .into_dimensionality::<Ix3>()
+        .map_err(|e| anyhow::anyhow!("read_nifti_labels: dimensionality error: {e}"))?;
+
+    let mut labels = vec![0u32; nz * ny * nx];
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                let src = arr[[x, y, z]];
+                labels[z * ny * nx + y * nx + x] = src.max(0.0).round() as u32;
+            }
+        }
+    }
+
+    Ok((labels, [nz, ny, nx]))
+}

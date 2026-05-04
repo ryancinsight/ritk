@@ -1,3 +1,23 @@
+## Sprint 132 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.47 [minor]
+**Goal**: Close ITK-SNAP segmentation save/load parity gap — enable writing and reading ZYX label maps as NIfTI-1, and expose the workflow in the viewer File menu.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-132-01 | No `write_nifti_labels` for saving ZYX u32 label maps to NIfTI-1 | minor |
+| GAP-132-02 | No `read_nifti_labels` for loading NIfTI label maps back to ZYX Vec<u32> | minor |
+| GAP-132-03 | ritk-snap had no "Save/Load segmentation as NIfTI" File menu actions | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-io --lib` | Passed: 418 tests (was 413) |
+| `cargo test -p ritk-snap --lib` | Passed: 321 tests (was 318) |
+| `cargo test -p ritk-codecs -p ritk-dicom --lib` | Passed: 78 + 8 tests |
+
 ## Sprint 131 — Completed
 **Status**: Completed
 **Phase**: Closure

@@ -297,6 +297,16 @@ impl SnapApp {
                         self.export_all_mpr_slices();
                     }
 
+                    if ui.button("Save segmentation as NIfTI…").clicked() {
+                        ui.close_menu();
+                        self.save_segmentation_dialog();
+                    }
+
+                    if ui.button("Load segmentation from NIfTI…").clicked() {
+                        ui.close_menu();
+                        self.load_segmentation_dialog();
+                    }
+
                     if ui.button("Save session…").clicked() {
                         ui.close_menu();
                         self.save_session_dialog();
@@ -1541,6 +1551,115 @@ impl SnapApp {
             }
             Err(e) => {
                 self.status_message = format!("Session load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    /// Save the current label map to a NIfTI file.
+    ///
+    /// Requires a loaded volume (for geometry) and an initialised label editor.
+    /// The dialog is a no-op when either is absent; a status message explains
+    /// the missing precondition.
+    fn save_segmentation_dialog(&mut self) {
+        let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
+            self.status_message =
+                "Save segmentation: no volume or segmentation loaded.".to_owned();
+            return;
+        };
+        let map = editor.current_map();
+        let origin = [
+            vol.origin[0] as f32,
+            vol.origin[1] as f32,
+            vol.origin[2] as f32,
+        ];
+        let spacing = [
+            vol.spacing[0] as f32,
+            vol.spacing[1] as f32,
+            vol.spacing[2] as f32,
+        ];
+        let direction: [f32; 9] = std::array::from_fn(|i| vol.direction[i] as f32);
+
+        let Some(path) = rfd::FileDialog::new()
+            .set_file_name("segmentation.nii.gz")
+            .add_filter("NIfTI", &["nii", "gz"])
+            .save_file()
+        else {
+            return;
+        };
+
+        match ritk_io::write_nifti_labels(
+            &path,
+            map.as_slice(),
+            map.shape,
+            origin,
+            spacing,
+            direction,
+        ) {
+            Ok(()) => {
+                self.status_message =
+                    format!("Saved segmentation to {}", path.display());
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message =
+                    format!("Segmentation save failed: {e:#}");
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    /// Load a label map from a NIfTI file and replace the current segmentation.
+    ///
+    /// The shape of the loaded label map must match the currently loaded volume.
+    /// A status message is set for all outcomes (success, mismatch, error).
+    fn load_segmentation_dialog(&mut self) {
+        let Some(vol) = self.loaded.as_ref() else {
+            self.status_message =
+                "Load segmentation: no volume loaded.".to_owned();
+            return;
+        };
+        let expected_shape = vol.shape;
+
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("NIfTI", &["nii", "gz"])
+            .pick_file()
+        else {
+            return;
+        };
+
+        match ritk_io::read_nifti_labels(&path) {
+            Ok((labels, shape)) => {
+                if shape != expected_shape {
+                    self.status_message = format!(
+                        "Segmentation shape {:?} does not match volume {:?}",
+                        shape, expected_shape
+                    );
+                    error!("{}", self.status_message);
+                    return;
+                }
+                match ritk_core::annotation::LabelMap::from_data(
+                    shape,
+                    labels,
+                    crate::label::default_label_table(),
+                ) {
+                    Ok(map) => {
+                        self.label_editor =
+                            Some(crate::label::LabelEditor::from_label_map(map));
+                        self.status_message =
+                            format!("Loaded segmentation from {}", path.display());
+                        info!("{}", self.status_message);
+                    }
+                    Err(e) => {
+                        self.status_message =
+                            format!("Segmentation data error: {e}");
+                        error!("{}", self.status_message);
+                    }
+                }
+            }
+            Err(e) => {
+                self.status_message =
+                    format!("Segmentation load failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
