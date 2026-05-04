@@ -40,6 +40,15 @@ use crate::{LoadedVolume, ModalityDisplay, ViewerState};
 /// CPU backend used for DICOM loading.
 type LoadBackend = burn_ndarray::NdArray<f32>;
 
+/// Cached RT-DOSE overlay texture for one axis.
+struct RtDoseOverlayCacheEntry {
+    slice_idx: usize,
+    vol_shape: [usize; 3],
+    dose_dims: [usize; 3],
+    opacity_alpha: u8,
+    texture: egui::TextureHandle,
+}
+
 // ── SnapApp ───────────────────────────────────────────────────────────────────
 
 /// Native DICOM viewer application state.
@@ -81,6 +90,8 @@ pub struct SnapApp {
     show_rt_dose_overlay: bool,
     /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
     rt_dose_opacity: f32,
+    /// Per-axis RT-DOSE overlay texture cache (bounded to three entries).
+    rt_dose_overlay_cache: [Option<RtDoseOverlayCacheEntry>; 3],
     /// Active filter configuration shown in the processing panel.
     active_filter: crate::FilterKind,
     /// Whether the filter processing panel is visible.
@@ -171,6 +182,7 @@ impl Default for SnapApp {
             rt_dose: None,
             show_rt_dose_overlay: false,
             rt_dose_opacity: 0.5,
+            rt_dose_overlay_cache: std::array::from_fn(|_| None),
             active_filter: crate::FilterKind::Gaussian { sigma: 1.0 },
             show_filter_panel: false,
             texture: None,
@@ -1625,6 +1637,7 @@ impl SnapApp {
                 );
                 info!("{}", self.status_message);
                 self.rt_dose = Some(grid);
+                self.clear_rt_dose_overlay_cache();
                 self.show_rt_dose_overlay = true;
             }
             Err(e) => {
@@ -1637,19 +1650,40 @@ impl SnapApp {
 
     /// Draw the RT-DOSE heat-map overlay on the given viewport.
     fn draw_rt_dose_overlay(
-        &self,
+        &mut self,
         painter: &egui::Painter,
         rect: egui::Rect,
         axis: usize,
         slice_idx: usize,
     ) {
-        use crate::ui::rtdose_overlay::{dose_to_rgba, extract_dose_slice_for_volume};
+        use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
+        use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 
         let (Some(rt_dose), Some(vol)) = (&self.rt_dose, &self.loaded) else {
             return;
         };
 
-        let [depth, rows, cols] = vol.shape;
+        let axis_slot = axis.min(2);
+        let vol_shape = vol.shape;
+        let dose_dims = [rt_dose.n_frames, rt_dose.rows, rt_dose.cols];
+        let opacity_alpha = overlay_alpha(self.rt_dose_opacity);
+        if let Some(entry) = self.rt_dose_overlay_cache[axis_slot].as_ref() {
+            if entry.slice_idx == slice_idx
+                && entry.vol_shape == vol_shape
+                && entry.dose_dims == dose_dims
+                && entry.opacity_alpha == opacity_alpha
+            {
+                painter.image(
+                    entry.texture.id(),
+                    rect,
+                    egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+                    egui::Color32::WHITE,
+                );
+                return;
+            }
+        }
+
+        let [depth, rows, cols] = vol_shape;
         let vol_origin = [vol.origin[0] as f64, vol.origin[1] as f64, vol.origin[2] as f64];
         let vol_dir: [f64; 9] = std::array::from_fn(|i| vol.direction[i] as f64);
         let vol_spacing = [vol.spacing[0] as f64, vol.spacing[1] as f64, vol.spacing[2] as f64];
@@ -1666,12 +1700,9 @@ impl SnapApp {
             return;
         };
 
-        // Compute min/max dose for colormap normalisation (ignore NaN and zero).
-        let (min_dose, max_dose) = dose_map.iter().cloned().filter(|v| v.is_finite() && *v > 0.0)
-            .fold((f32::MAX, f32::MIN), |(mn, mx), v| (mn.min(v), mx.max(v)));
-        if min_dose >= max_dose {
+        let Some((min_dose, max_dose)) = positive_finite_dose_range(&dose_map) else {
             return;
-        }
+        };
 
         let (slice_rows, slice_cols) = match axis {
             0 => (rows, cols),
@@ -1682,22 +1713,36 @@ impl SnapApp {
             return;
         }
 
-        let pw = rect.width() / slice_cols as f32;
-        let ph = rect.height() / slice_rows as f32;
+        let Some(color_image) = build_overlay_image(
+            &dose_map,
+            slice_rows,
+            slice_cols,
+            min_dose,
+            max_dose,
+            self.rt_dose_opacity,
+        ) else {
+            return;
+        };
 
-        for sr in 0..slice_rows {
-            for sc in 0..slice_cols {
-                let dose = dose_map[sr * slice_cols + sc];
-                let [r, g, b, a] = dose_to_rgba(dose, min_dose, max_dose, self.rt_dose_opacity);
-                if a == 0 {
-                    continue;
-                }
-                let color = egui::Color32::from_rgba_unmultiplied(r, g, b, a);
-                let min_pt = rect.min + egui::vec2(sc as f32 * pw, sr as f32 * ph);
-                let max_pt = min_pt + egui::vec2(pw, ph);
-                painter.rect_filled(egui::Rect::from_min_max(min_pt, max_pt), 0.0, color);
-            }
-        }
+        let tex_name = format!("rtdose_overlay_axis{}_slice{}", axis_slot, slice_idx);
+        let texture = painter
+            .ctx()
+            .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
+        let texture_id = texture.id();
+        self.rt_dose_overlay_cache[axis_slot] = Some(RtDoseOverlayCacheEntry {
+            slice_idx,
+            vol_shape,
+            dose_dims,
+            opacity_alpha,
+            texture,
+        });
+
+        painter.image(
+            texture_id,
+            rect,
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            egui::Color32::WHITE,
+        );
     }
 
     /// Apply the currently configured `active_filter` to the loaded volume.
@@ -2118,6 +2163,8 @@ impl SnapApp {
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
+                self.rt_dose = None;
+                self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
@@ -2192,6 +2239,8 @@ impl SnapApp {
                 self.annotations.clear();
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
+                self.rt_dose = None;
+                self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
@@ -2219,6 +2268,7 @@ impl SnapApp {
         self.label_editor = None;
         self.rt_struct = None;
         self.rt_dose = None;
+        self.clear_rt_dose_overlay_cache();
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
         self.pointer_intensity = 0.0;
@@ -2262,6 +2312,11 @@ impl SnapApp {
         } else {
             self.cached_histogram = None;
         }
+    }
+
+    /// Clear all cached RT-DOSE overlay textures.
+    fn clear_rt_dose_overlay_cache(&mut self) {
+        self.rt_dose_overlay_cache = std::array::from_fn(|_| None);
     }
 
     // ── Slice navigation ──────────────────────────────────────────────────────

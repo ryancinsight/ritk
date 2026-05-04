@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.19.0] - 2026 - Sprint 138
+
+### Added
+- **`ritk-snap` RT-DOSE overlay texture cache and colorization SSOT** (`ui/rtdose_texture.rs`): Added `positive_finite_dose_range`, `build_overlay_image`, and `overlay_alpha` to convert projected scalar dose maps into row-major `egui::ColorImage` textures with deterministic alpha semantics. 4 value-semantic tests.
+
+### Changed
+- **`ritk-snap` RT-DOSE render path optimized for performance and memory stability** (`app.rs`): `draw_rt_dose_overlay` now uses a bounded per-axis texture cache (`rt_dose_overlay_cache`, max 3 entries) and one texture draw call instead of per-pixel rectangle painting each frame. Cache key includes axis/slice, volume shape, dose grid dimensions, and effective overlay alpha; cache is invalidated on study close, DICOM/NIfTI load, and RT-DOSE load. This removes repeated per-frame projection+colorization work when view state is unchanged and bounds overlay memory growth.
+- **`ritk-snap` module organization updated** (`ui/mod.rs`): registered `rtdose_texture` module under UI SSOT surface.
+
+### Test counts
+| Crate | Before Sprint 138 | After Sprint 138 |
+|---|---|---|
+| ritk-core | 796 | 796 |
+| ritk-io | 288 | 288 |
+| ritk-snap | 358 | **362** |
+
+### Verification
+- `cargo test -p ritk-snap --lib ui::rtdose_texture::` → 4 passed
+- `cargo test -p ritk-core -p ritk-io -p ritk-snap --lib` → 796 + 288 + 362 passed
+- `cargo test -p ritk-io --examples --no-fail-fast` → passed
+
 ## [0.18.0] - 2026 - Sprint 137
 
 ### Added

@@ -24,6 +24,7 @@
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
 //! | [`rtdose_overlay`]   | RT-DOSE grid slice projection and dose-colormap mapping.|
+//! | [`rtdose_texture`]   | RT-DOSE scalar-to-texture colorization helpers.      |
 //! | [`filter_panel`]     | Image processing filter selection panel for viewer.    |
 //! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
@@ -50,6 +51,7 @@ pub mod overlay;
 pub mod pan;
 pub mod pointer_intensity;
 pub mod rtdose_overlay;
+pub mod rtdose_texture;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod toolbar;

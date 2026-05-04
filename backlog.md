@@ -1,3 +1,26 @@
+## Sprint 138 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.19.0 [minor]
+**Goal**: Optimize RT-DOSE overlay rendering for runtime performance and bounded memory while preserving full viewer behavior.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-138-01 | RT-DOSE overlay repainted per voxel/per frame via rectangle draw calls | major |
+| GAP-138-02 | No bounded cache for RT-DOSE overlay textures across viewport redraws | major |
+| GAP-138-03 | RT-DOSE scalar-to-texture conversion logic not isolated as UI SSOT | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::rtdose_texture::` | Passed: 4 tests |
+| `cargo test -p ritk-core -p ritk-io -p ritk-snap --lib` | Passed: 796 + 288 + 362 tests |
+| `cargo test -p ritk-io --examples --no-fail-fast` | Passed |
+
+### Residual risks
+- Existing deprecation/dead-code warnings in `ritk-codecs`, `ritk-dicom`, and `ritk-io` remain; they predate this sprint and are not behavior regressions.
+
 ## Sprint 137 — Completed
 **Status**: Completed
 **Phase**: Closure

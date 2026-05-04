@@ -1,3 +1,29 @@
+## Sprint 138 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.19.0 [minor]
+**Goal**: RT-DOSE overlay render-path optimization with bounded texture caching and SSOT colorization helpers.
+
+### Checklist items
+- [x] Add `ui/rtdose_texture.rs` with `positive_finite_dose_range`, `build_overlay_image`, `overlay_alpha`
+- [x] Add 4 value-semantic tests for RT-DOSE texture helper module
+- [x] Register `rtdose_texture` in `ui/mod.rs`
+- [x] Add `RtDoseOverlayCacheEntry` and bounded `rt_dose_overlay_cache` fields in `SnapApp`
+- [x] Replace per-pixel RT-DOSE rectangle painting with single cached texture draw in `draw_rt_dose_overlay`
+- [x] Add cache invalidation on RT-DOSE load, DICOM/NIfTI load, and close-study paths
+- [x] Verify `cargo test -p ritk-snap --lib ui::rtdose_texture::`: 4 passed
+- [x] Verify `cargo test -p ritk-core -p ritk-io -p ritk-snap --lib`: 796 + 288 + 362 passed
+- [x] Verify `cargo test -p ritk-io --examples --no-fail-fast`: passed
+- [x] Update CHANGELOG.md, gap_audit.md, backlog.md, checklist.md
+- [x] Commit and push
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::rtdose_texture::` | Passed: 4 tests |
+| `cargo test -p ritk-core -p ritk-io -p ritk-snap --lib` | Passed: 796 + 288 + 362 |
+| `cargo test -p ritk-io --examples --no-fail-fast` | Passed |
+
 ## Sprint 137 — Completed
 **Status**: Completed
 **Phase**: Closure
