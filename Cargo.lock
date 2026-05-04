@@ -5841,6 +5841,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-codecs"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "image 0.24.9",
+ "jpeg-decoder",
+ "openjpeg-sys",
+ "proptest",
+]
+
+[[package]]
 name = "ritk-core"
 version = "0.1.0"
 dependencies = [
@@ -5866,9 +5877,8 @@ dependencies = [
  "dicom",
  "dicom-pixeldata",
  "image 0.24.9",
- "jpeg-decoder",
- "openjpeg-sys",
  "proptest",
+ "ritk-codecs",
 ]
 
 [[package]]

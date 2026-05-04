@@ -24,6 +24,20 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` W/L drag SSOT** (`ui/window_level.rs`): Added `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, and `MIN_WINDOW_WIDTH` as the canonical implementation of ITK-SNAP-convention horizontal-drag-width / vertical-drag-center mapping with analytical monotonicity proofs. 9 value-semantic unit tests cover identity, directional monotonicity, clamping, and diagonal independence. [patch]
 - **`ritk-snap` `advance_slice_for_axis_loop` DRY**: Refactored cine wrap-around loop to delegate per-axis slice writes to `set_slice_for_axis`, eliminating duplicated dirty-flag and linked-cursor sync logic. [patch]
 
+## [0.14.45] - 2026 - Sprint 130
+
+### Added
+- **`ritk-codecs` new crate — SSOT for all DICOM codec primitives** (`crates/ritk-codecs/`): Extracted all codec implementations from `ritk-dicom` into a dedicated `ritk-codecs` crate as the single authoritative source of truth for pixel codec primitives. `pixel_layout.rs`: `PixelLayout` struct with full arithmetic helpers and `decode_native_pixel_bytes_checked` / `decode_native_pixel_bytes` (deprecated). `packbits.rs`: pure Rust PackBits RLE decoding. `rle.rs`: DICOM RLE Lossless frame decode. `jpeg/mod.rs`: JPEG Baseline/Extended decode via `jpeg-decoder`. `jpeg_ls/`: ISO 14495-1 JPEG-LS lossless decoder (bitstream, context, scan, mod). `jpeg_2000/`: ISO 15444-1 JPEG 2000 decode via `openjpeg-sys` (stream, image, mod). `ritk-dicom` becomes a thin DICOM-metadata + dispatch crate; `pixel/mod.rs` and `codec/native/mod.rs` re-export from `ritk-codecs`. `jpeg-decoder` and `openjpeg-sys` moved from `ritk-dicom` deps to `ritk-codecs` deps. Baselines preserved: ritk-codecs 78 passed (codec tests), ritk-dicom 8 passed (backend/syntax tests), ritk-io 413 passed, ritk-snap 413 passed. 86 total codec tests (78 + 8) identical to Sprint 129. v0.14.45 [minor] (new public crate)
+
+### C→Rust Migration Plan (incremental)
+| Phase | Target | Status |
+|-------|--------|--------|
+| 1 | Extract codecs to `ritk-codecs` | ✅ Complete (Sprint 130) |
+| 2 | Replace `openjpeg-sys` with pure Rust ISO 15444-1 decoder | 🔲 Planned |
+| 3 | Replace `jpeg-decoder` with pure Rust JPEG decoder | 🔲 Planned |
+| 4 | Remove `charls` and `dicom-transfer-syntax-registry` charls/openjpeg features | 🔲 Planned (after Phase 2) |
+| 5 | Remove `dicom-pixeldata` native feature once RITK codecs cover all needed TS | 🔲 Planned (after Phase 3) |
+
 ## [0.14.44] - 2026 - Sprint 129
 
 ### Added

@@ -2,6 +2,7 @@
 members = [
   "crates/ritk-core",
   "crates/ritk-dicom",
+  "crates/ritk-codecs",
   "crates/ritk-io",
   "crates/ritk-model",
   "crates/ritk-registration",
@@ -15,6 +16,7 @@ resolver = "2"
 [workspace.dependencies]
 ritk-core = { path = "crates/ritk-core" }
 ritk-dicom = { path = "crates/ritk-dicom" }
+ritk-codecs = { path = "crates/ritk-codecs" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }

@@ -1,3 +1,30 @@
+## Sprint 130 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.45 [minor]
+
+- [x] Create `crates/ritk-codecs/Cargo.toml` with `jpeg-decoder` and `openjpeg-sys` deps
+- [x] Create `crates/ritk-codecs/src/lib.rs` with all codec re-exports and C→Rust migration plan
+- [x] Create `crates/ritk-codecs/src/pixel_layout.rs` (moved from `ritk-dicom/src/pixel/mod.rs`)
+- [x] Create `crates/ritk-codecs/src/packbits.rs` (moved from `ritk-dicom/src/codec/native/packbits.rs`)
+- [x] Create `crates/ritk-codecs/src/rle.rs` (moved from `ritk-dicom/src/codec/native/rle.rs`)
+- [x] Create `crates/ritk-codecs/src/jpeg/mod.rs` (moved from `ritk-dicom/src/codec/native/jpeg.rs`)
+- [x] Create `crates/ritk-codecs/src/jpeg_ls/{bitstream,context,scan,mod}.rs` (moved from `ritk-dicom/src/codec/native/jpeg_ls/`)
+- [x] Create `crates/ritk-codecs/src/jpeg_2000/{stream,image,mod}.rs` (moved from `ritk-dicom/src/codec/native/jpeg_2000/`)
+- [x] Update all `use crate::pixel::PixelLayout` / `use crate::codec::native::packbits_decode` imports to `use crate::PixelLayout` / `use crate::packbits_decode`
+- [x] Add `crates/ritk-codecs` to workspace `members` and `[workspace.dependencies]`
+- [x] Update `ritk-dicom/Cargo.toml`: add `ritk-codecs`, remove `jpeg-decoder` and `openjpeg-sys`
+- [x] Replace `ritk-dicom/src/pixel/mod.rs` with thin re-export from `ritk_codecs::pixel_layout`
+- [x] Replace `ritk-dicom/src/codec/native/mod.rs` with thin re-exports from `ritk_codecs`
+- [x] `cargo build -p ritk-codecs -p ritk-dicom`: **0 errors**
+- [x] `cargo test -p ritk-codecs`: **78 passed** (all codec tests)
+- [x] `cargo test -p ritk-dicom`: **8 passed** (backend/syntax tests; 78+8=86 total = Sprint 129 baseline)
+- [x] `cargo test -p ritk-io`: **413 passed** (baseline unchanged)
+- [x] `cargo test -p ritk-snap`: **413 passed** (baseline unchanged)
+- [x] Update CHANGELOG.md with Sprint 130 entry and C→Rust migration table
+- [x] Update gap_audit.md with Sprint 130 record
+- [x] Commit Sprint 130
+
 ## Sprint 129 — Completed
 **Status**: Completed
 **Phase**: Closure

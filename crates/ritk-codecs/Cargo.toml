@@ -1,0 +1,14 @@
+[package]
+name = "ritk-codecs"
+version = "0.1.0"
+edition = "2021"
+description = "RITK-native codec implementations: JPEG, JPEG-LS, JPEG 2000, PackBits, RLE Lossless"
+
+[dependencies]
+anyhow = { workspace = true }
+jpeg-decoder = { workspace = true }
+openjpeg-sys = { workspace = true }
+
+[dev-dependencies]
+image = { workspace = true }
+proptest = { workspace = true }
