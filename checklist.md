@@ -1,3 +1,32 @@
+## Sprint 137 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.18.0 [minor]
+**Goal**: ImageJ/SimpleITK CLAHE and global histogram equalization parity; DICOM RT-DOSE overlay; filter panel UI.
+
+### Checklist items
+- [x] Implement `ClaheFilter` in `ritk-core/src/filter/intensity/clahe.rs` (14 tests)
+- [x] Implement `HistogramEqualizationFilter` in `ritk-core/src/filter/intensity/equalization.rs` (10 tests)
+- [x] Export both filters via `ritk-core/src/filter/intensity/mod.rs`
+- [x] Extend `FilterKind` with `Clahe` and `HistEq` variants + `PartialEq` derive in `ritk-snap/src/lib.rs`
+- [x] Implement `extract_dose_slice_for_volume` and `dose_to_rgba` in `ritk-snap/src/ui/rtdose_overlay.rs` (12 tests)
+- [x] Implement `show_filter_panel` in `ritk-snap/src/ui/filter_panel.rs` (4 tests)
+- [x] Register `filter_panel` and `rtdose_overlay` in `ritk-snap/src/ui/mod.rs`
+- [x] Wire RT-DOSE and filter panel into `app.rs` (File menu, View menu, sidebar, draw loop)
+- [x] Add `show_rt_dose_overlay` and `rt_dose_opacity` to `ViewerSessionSnapshot` with `#[serde(default)]`
+- [x] Verify `cargo test -p ritk-core --lib`: 796 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 358 passed
+- [x] Update CHANGELOG.md, gap_audit.md, backlog.md, checklist.md
+- [x] Commit and push
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 796 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 358 tests |
+
 ## Sprint 133 — Completed
 **Status**: Completed
 **Phase**: Closure

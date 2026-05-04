@@ -15,13 +15,16 @@
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
-//! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |//! | [`live_preview`]     | [`live_length_mm`] and [`live_angle_deg`] — live measurement labels. |
+//! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |
+//! | [`live_preview`]     | [`live_length_mm`] and [`live_angle_deg`] — live measurement labels. |
 //! | [`histogram`]    | [`draw_histogram`] — voxel intensity histogram + W/L range overlay.  |
 //! | [`histogram_interact`] | [`x_to_intensity`], [`wl_from_histogram_drag`], [`wl_center_from_click`] — histogram canvas interaction SSOT. |
 //! | [`preset_panel`] | [`draw_preset_buttons`] — W/L preset quick-select button strip SSOT.  |
 //! | [`annotation_panel`] | [`draw_annotation_panel`] — per-entry delete and CSV export SSOT.    |
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
+//! | [`rtdose_overlay`]   | RT-DOSE grid slice projection and dose-colormap mapping.|
+//! | [`filter_panel`]     | Image processing filter selection panel for viewer.    |
 //! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | [`window_level`] | W/L drag mapping SSOT and sensitivity constant.          |
@@ -42,9 +45,11 @@ pub mod cursor_info;
 pub mod export_plan;
 pub mod live_preview;
 pub mod mpr_cursor;
+pub mod filter_panel;
 pub mod overlay;
 pub mod pan;
 pub mod pointer_intensity;
+pub mod rtdose_overlay;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod toolbar;

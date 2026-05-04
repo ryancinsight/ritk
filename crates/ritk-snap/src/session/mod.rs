@@ -49,6 +49,12 @@ pub struct ViewerSessionSnapshot {
     pub show_crosshair: bool,
     /// RT-STRUCT overlay visibility.
     pub show_rt_struct_overlay: bool,
+    /// RT-DOSE overlay visibility.
+    #[serde(default)]
+    pub show_rt_dose_overlay: bool,
+    /// RT-DOSE overlay opacity.
+    #[serde(default = "default_rt_dose_opacity")]
+    pub rt_dose_opacity: f32,
     /// Series browser visibility.
     pub show_series_browser: bool,
     /// Sidebar tab.
@@ -87,6 +93,8 @@ impl ViewerSessionSnapshot {
             show_overlay: true,
             show_crosshair: false,
             show_rt_struct_overlay: true,
+            show_rt_dose_overlay: false,
+            rt_dose_opacity: 0.5,
             show_series_browser: true,
             sidebar_tab: SidebarTab::Series,
             coronal_slice: 0,
@@ -104,6 +112,10 @@ impl Default for ViewerSessionSnapshot {
     fn default() -> Self {
         Self::empty()
     }
+}
+
+fn default_rt_dose_opacity() -> f32 {
+    0.5
 }
 
 // ─── SSOT file I/O ────────────────────────────────────────────────────────────

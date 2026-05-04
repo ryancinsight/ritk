@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.18.0] - 2026 - Sprint 137
+
+### Added
+- **`ritk-core` CLAHE filter** (`filter/intensity/clahe.rs`): `ClaheFilter` implementing Zuiderveld (1994) Contrast Limited Adaptive Histogram Equalization. Per-tile CDF with clip-limited histogram redistribution; bilinear interpolation between 4 surrounding tile CDFs; Rayon-parallelised over axial Z-slices; default `[8,8]` tile grid, clip limit 40.0, 256 bins. 14 value-semantic tests (tile CDF construction, 2D CLAHE kernel, 3D Image::apply). Closes ImageJ/SimpleITK CLAHE parity gap.
+- **`ritk-core` global histogram equalization filter** (`filter/intensity/equalization.rs`): `HistogramEqualizationFilter` implementing CDF-based voxelwise mapping over all slices. Identity on zero-span volumes; non-finite passthrough. 10 value-semantic tests. Closes ImageJ/ITK `RescaleIntensityImageFilter` parity gap.
+- **`ritk-snap` RT-DOSE overlay** (`ui/rtdose_overlay.rs`): `extract_dose_slice_for_volume` projects an `RtDoseGrid` onto any MPR slice axis via analytic inverse affine (3×3 dose grid affine, nearest-neighbour frame selection within ½ slice spacing tolerance). `dose_to_rgba` isodose colormap (5 spectral bands, semi-transparent). App wired: `load_rt_dose_file`, `draw_rt_dose_overlay` rendering loop, "Open RT Dose…" File menu, "Show RT-DOSE Overlay" View menu checkbox, RT-DOSE panel in sidebar with max-dose display and opacity slider. Session persistence for `show_rt_dose_overlay` and `rt_dose_opacity`. 12 value-semantic tests (matrix inverse, cross product, colormap, identity projection, missing-metadata None path).
+- **`ritk-snap` filter panel UI** (`ui/filter_panel.rs`): `show_filter_panel` egui widget exposing all 5 `FilterKind` variants (Gaussian, Median, CLAHE, HistEq, BedSeparation) with parameter sliders/spinners clamped to analytically valid ranges. Returns `true` on Apply. `apply_filter_to_loaded_volume` reconstructs `Image<LoadBackend,3>` from `LoadedVolume`, applies filter, writes back as `Arc<Vec<f32>>`, marks all textures dirty. "Show Filter Panel" View menu toggle. 4 value-semantic parameter-range tests.
+- **`ritk-snap` `FilterKind` extended**: Added `Clahe { tile_grid_size, clip_limit }` and `HistEq { bins }` variants with `PartialEq` derive; `apply_filter` dispatch updated.
+
+### Test counts
+| Crate | Before Sprint 137 | After Sprint 137 |
+|---|---|---|
+| ritk-core | 772 | **796** |
+| ritk-io | 288 | 288 |
+| ritk-snap | 344 | **358** |
+| ritk-vtk | 129 | 129 |
+| **Total** | 1533 | **1571** |
+
 ## [0.17.0] - 2026 - Sprint 136
 
 ### Added

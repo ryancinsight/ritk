@@ -18,6 +18,8 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
         show_overlay: false,
         show_crosshair: true,
         show_rt_struct_overlay: false,
+        show_rt_dose_overlay: false,
+        rt_dose_opacity: 0.5,
         show_series_browser: false,
         sidebar_tab: SidebarTab::Metadata,
         coronal_slice: 7,

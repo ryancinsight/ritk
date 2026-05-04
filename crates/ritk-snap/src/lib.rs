@@ -18,7 +18,10 @@
 //! - Ultrasound summaries must respect acquisition-specific orientation metadata and may not use CT-only display heuristics.
 
 use anyhow::Result;
-use ritk_core::filter::{BedSeparationConfig, BedSeparationFilter, GaussianFilter, MedianFilter};
+use ritk_core::filter::{
+    BedSeparationConfig, BedSeparationFilter, ClaheFilter, GaussianFilter,
+    HistogramEqualizationFilter, MedianFilter,
+};
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
@@ -243,12 +246,21 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 Ok(GaussianFilter::<B>::new(vec![f64::from(*sigma); 3]).apply(&study.image))
             }
             FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&study.image),
+            FilterKind::Clahe {
+                tile_grid_size,
+                clip_limit,
+            } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply(&study.image),
+            FilterKind::HistEq { bins } => {
+                HistogramEqualizationFilter::new(*bins).apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
             FilterKind::BedSeparation(_) => "BedSeparation",
             FilterKind::Gaussian { .. } => "Gaussian",
             FilterKind::Median { .. } => "Median",
+            FilterKind::Clahe { .. } => "CLAHE",
+            FilterKind::HistEq { .. } => "HistEq",
         };
 
         match filter_result {
@@ -359,7 +371,7 @@ struct BedSeparationConfigSerde {
 /// - `Gaussian`: sigma > 0.0 (zero sigma is a no-op but not an error; the
 ///   underlying filter skips dimensions where sigma ≤ 1e-6).
 /// - `Median`: radius = 0 is identity (each voxel is its own sole neighbour).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FilterKind {
     /// CT bed/table separation mask filter.
     ///
@@ -384,6 +396,39 @@ pub enum FilterKind {
     Median {
         /// Neighbourhood half-width in voxels.
         radius: usize,
+    },
+
+    /// Contrast Limited Adaptive Histogram Equalization (CLAHE).
+    ///
+    /// Applies the Zuiderveld (1994) algorithm independently to each axial
+    /// slice of the volume. Each slice is divided into `tile_grid_size[0] ×
+    /// tile_grid_size[1]` tiles; per-tile CDFs are clip-limited and then
+    /// bilinearly interpolated to compute the per-pixel mapping.
+    ///
+    /// # Invariants
+    /// - `tile_grid_size[i] ≥ 1`; values are clamped to 1 on construction.
+    /// - `clip_limit ≥ 1.0` (1.0 = no clipping; clip threshold equals the
+    ///   uniform-distribution count).
+    /// - Output values lie in `[v_min_slice, v_max_slice]` for each slice.
+    Clahe {
+        /// `[n_tiles_rows, n_tiles_cols]` per axial slice. Default `[8, 8]`.
+        tile_grid_size: [usize; 2],
+        /// Clip limit factor (dimensionless). Default 40.0.
+        clip_limit: f32,
+    },
+
+    /// Global histogram equalization.
+    ///
+    /// Equalizes the intensity histogram across the entire 3-D volume by
+    /// mapping each voxel through the global normalised CDF. Equivalent to
+    /// ImageJ *Enhance Contrast → Equalize Histogram*.
+    ///
+    /// # Invariant
+    /// Output values lie in `[v_min, v_max]` where `v_min/v_max` are the
+    /// global minimum and maximum finite voxel values.
+    HistEq {
+        /// Number of histogram bins. Default 256.
+        bins: usize,
     },
 }
 

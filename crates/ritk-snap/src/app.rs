@@ -75,6 +75,16 @@ pub struct SnapApp {
     show_rt_struct_overlay: bool,
     /// Currently loaded RT Structure Set.
     rt_struct: Option<ritk_io::RtStructureSet>,
+    /// Currently loaded RT Dose grid.
+    rt_dose: Option<ritk_io::RtDoseGrid>,
+    /// Whether to render the RT-DOSE heat-map overlay on viewports.
+    show_rt_dose_overlay: bool,
+    /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
+    rt_dose_opacity: f32,
+    /// Active filter configuration shown in the processing panel.
+    active_filter: crate::FilterKind,
+    /// Whether the filter processing panel is visible.
+    show_filter_panel: bool,
 
     // ── Texture cache — axial ─────────────────────────────────────────────────
     /// Cached egui texture for the axial slice.
@@ -158,6 +168,11 @@ impl Default for SnapApp {
             show_label_overlay: true,
             show_rt_struct_overlay: true,
             rt_struct: None,
+            rt_dose: None,
+            show_rt_dose_overlay: false,
+            rt_dose_opacity: 0.5,
+            active_filter: crate::FilterKind::Gaussian { sigma: 1.0 },
+            show_filter_panel: false,
             texture: None,
             texture_dirty: false,
             coronal_tex: None,
@@ -294,6 +309,16 @@ impl SnapApp {
                         }
                     }
 
+                    if ui.button("Open RT Dose file…").clicked() {
+                        ui.close_menu();
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("DICOM", &["dcm"])
+                            .pick_file()
+                        {
+                            self.load_rt_dose_file(path);
+                        }
+                    }
+
                     if ui.button("Export current slice as PNG…").clicked() {
                         ui.close_menu();
                         self.export_current_slice();
@@ -383,6 +408,26 @@ impl SnapApp {
                     if ui.button(rt_overlay_label).clicked() {
                         ui.close_menu();
                         self.show_rt_struct_overlay = !self.show_rt_struct_overlay;
+                    }
+
+                    let rt_dose_label = if self.show_rt_dose_overlay {
+                        "✔ Show RT-DOSE Overlay"
+                    } else {
+                        "  Show RT-DOSE Overlay"
+                    };
+                    if ui.button(rt_dose_label).clicked() {
+                        ui.close_menu();
+                        self.show_rt_dose_overlay = !self.show_rt_dose_overlay;
+                    }
+
+                    let filter_label = if self.show_filter_panel {
+                        "✔ Show Filter Panel"
+                    } else {
+                        "  Show Filter Panel"
+                    };
+                    if ui.button(filter_label).clicked() {
+                        ui.close_menu();
+                        self.show_filter_panel = !self.show_filter_panel;
                     }
 
                     let xhair_label = if self.show_crosshair {
@@ -690,6 +735,8 @@ impl SnapApp {
             show_overlay: self.show_overlay,
             show_crosshair: self.show_crosshair,
             show_rt_struct_overlay: self.show_rt_struct_overlay,
+            show_rt_dose_overlay: self.show_rt_dose_overlay,
+            rt_dose_opacity: self.rt_dose_opacity,
             show_series_browser: self.show_series_browser,
             sidebar_tab: self.sidebar_tab,
             coronal_slice: self.coronal_slice,
@@ -711,6 +758,8 @@ impl SnapApp {
         self.show_overlay = snapshot.show_overlay;
         self.show_crosshair = snapshot.show_crosshair;
         self.show_rt_struct_overlay = snapshot.show_rt_struct_overlay;
+        self.show_rt_dose_overlay = snapshot.show_rt_dose_overlay;
+        self.rt_dose_opacity = snapshot.rt_dose_opacity;
         self.show_series_browser = snapshot.show_series_browser;
         self.sidebar_tab = snapshot.sidebar_tab;
         self.coronal_slice = snapshot.coronal_slice;
@@ -962,6 +1011,21 @@ impl SnapApp {
                     ui.checkbox(&mut self.show_rt_struct_overlay, "Show RT-STRUCT contours");
                 }
 
+                if let Some(rd) = &self.rt_dose {
+                    ui.separator();
+                    ui.heading("RT-DOSE");
+                    ui.separator();
+                    ui.label(format!("Type: {} / {}", rd.dose_type, rd.dose_summation_type));
+                    ui.label(format!("Grid: {}×{}×{} frames", rd.rows, rd.cols, rd.n_frames));
+                    let max_dose = rd.dose_gy.iter().cloned().fold(0.0_f64, f64::max);
+                    ui.label(format!("Max dose: {:.2} Gy", max_dose));
+                    ui.checkbox(&mut self.show_rt_dose_overlay, "Show RT-DOSE overlay");
+                    ui.horizontal(|ui| {
+                        ui.label("Opacity:");
+                        ui.add(egui::Slider::new(&mut self.rt_dose_opacity, 0.0..=1.0).step_by(0.05));
+                    });
+                }
+
                 // ── Annotations ───────────────────────────────────────────────
                 ui.separator();
                 ui.heading("Annotations");
@@ -988,6 +1052,20 @@ impl SnapApp {
                             format!("CSV copied to clipboard ({} rows).", self.annotations.len());
                     }
                     crate::ui::AnnotationPanelAction::None => {}
+                }
+
+                // ── Image Processing ──────────────────────────────────────────
+                if self.show_filter_panel {
+                    ui.separator();
+                    ui.heading("Processing");
+                    ui.separator();
+                    let applied = crate::ui::filter_panel::show_filter_panel(
+                        ui,
+                        &mut self.active_filter,
+                    );
+                    if applied {
+                        self.apply_filter_to_loaded_volume();
+                    }
                 }
             });
     }
@@ -1212,6 +1290,10 @@ impl SnapApp {
                 tex_h_usize,
                 tex_w_usize,
             );
+        }
+
+        if self.show_rt_dose_overlay {
+            self.draw_rt_dose_overlay(&painter, response.rect, axis, slice_idx);
         }
 
         // Crosshair at the linked study-coordinate cursor.
@@ -1528,6 +1610,168 @@ impl SnapApp {
             Err(e) => {
                 self.status_message = format!("RT-STRUCT load failed for {}: {e:#}", path.display());
                 error!("{}", self.status_message);
+            }
+        }
+    }
+
+    fn load_rt_dose_file(&mut self, path: std::path::PathBuf) {
+        match ritk_io::read_rt_dose(&path) {
+            Ok(grid) => {
+                self.status_message = format!(
+                    "Loaded RT-DOSE ({} type, {}×{}×{} grid) from {}",
+                    grid.dose_type,
+                    grid.rows, grid.cols, grid.n_frames,
+                    path.display()
+                );
+                info!("{}", self.status_message);
+                self.rt_dose = Some(grid);
+                self.show_rt_dose_overlay = true;
+            }
+            Err(e) => {
+                self.status_message =
+                    format!("RT-DOSE load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    /// Draw the RT-DOSE heat-map overlay on the given viewport.
+    fn draw_rt_dose_overlay(
+        &self,
+        painter: &egui::Painter,
+        rect: egui::Rect,
+        axis: usize,
+        slice_idx: usize,
+    ) {
+        use crate::ui::rtdose_overlay::{dose_to_rgba, extract_dose_slice_for_volume};
+
+        let (Some(rt_dose), Some(vol)) = (&self.rt_dose, &self.loaded) else {
+            return;
+        };
+
+        let [depth, rows, cols] = vol.shape;
+        let vol_origin = [vol.origin[0] as f64, vol.origin[1] as f64, vol.origin[2] as f64];
+        let vol_dir: [f64; 9] = std::array::from_fn(|i| vol.direction[i] as f64);
+        let vol_spacing = [vol.spacing[0] as f64, vol.spacing[1] as f64, vol.spacing[2] as f64];
+
+        let Some(dose_map) = extract_dose_slice_for_volume(
+            rt_dose,
+            axis,
+            slice_idx,
+            [depth, rows, cols],
+            vol_origin,
+            vol_dir,
+            vol_spacing,
+        ) else {
+            return;
+        };
+
+        // Compute min/max dose for colormap normalisation (ignore NaN and zero).
+        let (min_dose, max_dose) = dose_map.iter().cloned().filter(|v| v.is_finite() && *v > 0.0)
+            .fold((f32::MAX, f32::MIN), |(mn, mx), v| (mn.min(v), mx.max(v)));
+        if min_dose >= max_dose {
+            return;
+        }
+
+        let (slice_rows, slice_cols) = match axis {
+            0 => (rows, cols),
+            1 => (depth, cols),
+            _ => (depth, rows),
+        };
+        if slice_rows == 0 || slice_cols == 0 {
+            return;
+        }
+
+        let pw = rect.width() / slice_cols as f32;
+        let ph = rect.height() / slice_rows as f32;
+
+        for sr in 0..slice_rows {
+            for sc in 0..slice_cols {
+                let dose = dose_map[sr * slice_cols + sc];
+                let [r, g, b, a] = dose_to_rgba(dose, min_dose, max_dose, self.rt_dose_opacity);
+                if a == 0 {
+                    continue;
+                }
+                let color = egui::Color32::from_rgba_unmultiplied(r, g, b, a);
+                let min_pt = rect.min + egui::vec2(sc as f32 * pw, sr as f32 * ph);
+                let max_pt = min_pt + egui::vec2(pw, ph);
+                painter.rect_filled(egui::Rect::from_min_max(min_pt, max_pt), 0.0, color);
+            }
+        }
+    }
+
+    /// Apply the currently configured `active_filter` to the loaded volume.
+    ///
+    /// Reconstructs an `Image<LoadBackend, 3>` from the flat `LoadedVolume`,
+    /// runs the filter, then writes the result back as a new flat `Arc<Vec<f32>>`.
+    /// Marks all slice textures dirty so the next frame re-renders.
+    fn apply_filter_to_loaded_volume(&mut self) {
+        use burn::tensor::{Shape, TensorData};
+        use ritk_core::image::Image;
+        use ritk_core::spatial::{Direction, Point, Spacing};
+
+        let Some(vol) = self.loaded.as_ref() else {
+            self.status_message = "No volume loaded.".to_owned();
+            return;
+        };
+
+        let [depth, rows, cols] = vol.shape;
+        let device = burn_ndarray::NdArrayDevice::Cpu;
+
+        // Build Image<LoadBackend, 3> from the flat volume data.
+        let td = TensorData::new((*vol.data).clone(), Shape::new([depth, rows, cols]));
+        let tensor = burn::tensor::Tensor::<LoadBackend, 3>::from_data(td, &device);
+        let origin = Point::new(vol.origin);
+        let spacing = Spacing::new(vol.spacing);
+        let mut dir_mat = nalgebra::SMatrix::<f64, 3, 3>::identity();
+        for r in 0..3 {
+            for c in 0..3 {
+                dir_mat[(r, c)] = vol.direction[r * 3 + c];
+            }
+        }
+        let direction = Direction(dir_mat);
+        let image: Image<LoadBackend, 3> = Image::new(tensor, origin, spacing, direction);
+
+        // Apply the selected filter.
+        let filter_kind = self.active_filter.clone();
+        let filter_result = {
+            use ritk_core::filter::{
+                BedSeparationFilter, ClaheFilter, GaussianFilter,
+                HistogramEqualizationFilter, MedianFilter,
+            };
+            match &filter_kind {
+                crate::FilterKind::BedSeparation(config) => {
+                    BedSeparationFilter::new(*config).apply(&image)
+                }
+                crate::FilterKind::Gaussian { sigma } => {
+                    Ok(GaussianFilter::<LoadBackend>::new(vec![f64::from(*sigma); 3]).apply(&image))
+                }
+                crate::FilterKind::Median { radius } => {
+                    MedianFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::Clahe {
+                    tile_grid_size,
+                    clip_limit,
+                } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply(&image),
+                crate::FilterKind::HistEq { bins } => {
+                    HistogramEqualizationFilter::new(*bins).apply(&image)
+                }
+            }
+        };
+
+        match filter_result {
+            Err(e) => {
+                self.status_message = format!("Filter failed: {e:#}");
+            }
+            Ok(out_img) => {
+                let out_td = out_img.into_tensor().into_data();
+                let out_vec: Vec<f32> = out_td.as_slice::<f32>().unwrap_or(&[]).to_vec();
+                let vol = self.loaded.as_mut().unwrap();
+                vol.data = std::sync::Arc::new(out_vec);
+                self.texture_dirty = true;
+                self.coronal_dirty = true;
+                self.sagittal_dirty = true;
+                self.status_message = "Filter applied.".to_owned();
             }
         }
     }
@@ -1974,6 +2218,7 @@ impl SnapApp {
         self.annotations.clear();
         self.label_editor = None;
         self.rt_struct = None;
+        self.rt_dose = None;
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
         self.pointer_intensity = 0.0;

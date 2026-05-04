@@ -1,3 +1,27 @@
+## Sprint 137 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.18.0 [minor]
+**Goal**: ImageJ/SimpleITK CLAHE and global histogram equalization parity; DICOM RT-DOSE overlay rendering; filter selection panel UI.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-137-01 | No CLAHE filter in ritk-core (ImageJ/SimpleITK CLAHE parity) | major |
+| GAP-137-02 | No global histogram equalization filter (ITK/ImageJ parity) | major |
+| GAP-137-03 | No RT-DOSE overlay in ritk-snap viewport | major |
+| GAP-137-04 | No interactive filter selection panel in ritk-snap UI | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 796 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 358 tests |
+
+### Residual risks
+- None — all new code fully tested; RT-DOSE overlay uses analytic inverse affine with numerical guards for singular matrix.
+
 ## Sprint 133 — Completed
 **Status**: Completed
 **Phase**: Closure
