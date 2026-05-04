@@ -1,3 +1,25 @@
+## Sprint 119 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.34 [patch]
+
+- [x] GAP-119-01: create `ui/pointer_intensity.rs` with `intensity_at_voxel` SSOT, row-major linear indexing, boundary clamping (out-of-bounds → 0.0)
+- [x] GAP-119-02: add 5 value-semantic unit tests to `ui/pointer_intensity.rs` (in-bounds center voxel, out-of-bounds depth, out-of-bounds row, out-of-bounds column, boundary corners)
+- [x] GAP-119-03: export `pointer_intensity` module and `intensity_at_voxel` from `ui/mod.rs`
+- [x] GAP-119-04: add `pointer_intensity: f32` field to `SnapApp` struct and initialize to 0.0 in `Default` impl
+- [x] GAP-119-05: add `update_pointer_intensity` method to `SnapApp` to read voxel intensity and update stored value
+- [x] GAP-119-06: wire pointer-motion handler in `render_axis_viewport` to call `update_pointer_intensity` continuously (before tool dispatch)
+- [x] GAP-119-07: update `OverlayRenderer::draw` signature to accept `pointer_intensity: f32` parameter
+- [x] GAP-119-08: update `OverlayRenderer` bottom-right overlay to display "Pointer HU: {value}" alongside linked-cursor HU
+- [x] GAP-119-09: update `ViewportPanel::show` signature to accept `pointer_intensity: f32` parameter and pass to `OverlayRenderer::draw`
+- [x] GAP-119-10: update app.rs call to `OverlayRenderer::draw` to pass `self.pointer_intensity`
+- [x] GAP-119-11: fix LoadedVolume field references (`data` not `pixels`) and correct import paths
+- [x] GAP-119-12: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::pointer_intensity` passed: 5 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 231 tests (226 + 5 new)
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 118 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

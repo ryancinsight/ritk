@@ -26,7 +26,7 @@ use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
-    axis_slice_dimensions, fit_view_transform, format_lps, map_view_row_col_to_voxel,
+    axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
     window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
@@ -115,6 +115,8 @@ pub struct SnapApp {
     cine: CinePlayback,
     /// `true` when the series browser left panel is visible.
     show_series_browser: bool,
+    /// Current voxel intensity value under the pointer (HU or relative).
+    pointer_intensity: f32,
 
     // ── Series browser ────────────────────────────────────────────────────────
     /// Hierarchical DICOM series tree.
@@ -162,6 +164,7 @@ impl Default for SnapApp {
             linked_cursor: None,
             cine: CinePlayback::default(),
             show_series_browser: true,
+            pointer_intensity: 0.0,
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,
@@ -1095,6 +1098,7 @@ impl SnapApp {
                     wl,
                     self.zoom,
                     cursor_value,
+                    self.pointer_intensity,
                 );
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
@@ -1159,6 +1163,11 @@ impl SnapApp {
         }
 
         // ── 8. Pointer events ──────────────────────────────────────────────────
+        // Update pointer intensity whenever pointer is over the viewport
+        if response.hovered() || response.dragged() || response.interact_pointer_pos().is_some() {
+            self.update_pointer_intensity(axis, response.interact_pointer_pos(), response.rect);
+        }
+
         if response.drag_started() {
             if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
             {
@@ -2110,6 +2119,23 @@ impl SnapApp {
             "Linked cursor axis={} voxel=[{},{},{}]",
             axis, voxel[0], voxel[1], voxel[2]
         );
+    }
+
+    fn update_pointer_intensity(&mut self, axis: usize, pos: Option<egui::Pos2>, rect: egui::Rect) {
+        let Some(point) = pos else {
+            self.pointer_intensity = 0.0;
+            return;
+        };
+        let Some(volume) = &self.loaded else {
+            self.pointer_intensity = 0.0;
+            return;
+        };
+        let slice_index = self.axis_slice_info(axis).0;
+        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect) else {
+            self.pointer_intensity = 0.0;
+            return;
+        };
+        self.pointer_intensity = intensity_at_voxel(volume, voxel);
     }
 
     fn current_cursor_value(&self) -> Option<f32> {

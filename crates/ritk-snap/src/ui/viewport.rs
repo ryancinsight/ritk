@@ -225,7 +225,7 @@ impl<'a> ViewportPanel<'a> {
     ///    f. Draw completed annotations and in-progress tool state.
     /// 4. Handle pointer events.
     /// 5. Draw a thin border around the viewport.
-    pub fn show(&mut self, ui: &mut Ui) -> Option<[usize; 3]> {
+    pub fn show(&mut self, ui: &mut Ui, pointer_intensity: f32) -> Option<[usize; 3]> {
         let available = ui.available_rect_before_wrap();
         let (response, painter) = ui.allocate_painter(available.size(), Sense::click_and_drag());
         let rect = response.rect;
@@ -306,6 +306,7 @@ impl<'a> ViewportPanel<'a> {
                     self.state.wl,
                     self.state.zoom,
                     cursor_hu,
+                    pointer_intensity,
                 );
             }
 

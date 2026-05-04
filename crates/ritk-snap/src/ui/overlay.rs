@@ -87,6 +87,7 @@ impl OverlayRenderer {
         wl: WindowLevel,
         zoom: f32,
         cursor_value: Option<f32>,
+        pointer_intensity: f32,
     ) {
         let [depth, rows, cols] = volume.shape;
 
@@ -175,14 +176,24 @@ impl OverlayRenderer {
             OVERLAY_TEXT_COLOR,
         );
 
-        // ── Bottom-right: W/L, zoom, cursor HU ────────────────────────────
+        // ── Bottom-right: W/L, zoom, cursor HU, pointer intensity ─────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
-        let hu_str = match cursor_value {
-            Some(v) => format!("HU: {:.0}", v),
+        let cursor_hu_str = match cursor_value {
+            Some(v) => format!("Cursor HU: {:.0}", v),
             None => String::new(),
         };
-        let br_lines: Vec<&str> = [&wl_str as &str, &zoom_str as &str, &hu_str as &str]
+        let pointer_hu_str = if pointer_intensity != 0.0 {
+            format!("Pointer HU: {:.0}", pointer_intensity)
+        } else {
+            String::new()
+        };
+        let br_lines: Vec<&str> = [
+            &wl_str as &str,
+            &zoom_str as &str,
+            &cursor_hu_str as &str,
+            &pointer_hu_str as &str,
+        ]
             .iter()
             .filter(|s| !s.is_empty())
             .copied()

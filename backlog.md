@@ -1,3 +1,30 @@
+## Sprint 119 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.34 [patch]
+**Goal**: Close the continuous pointer HU intensity tracking gap by implementing a testable SSOT voxel intensity lookup function, wiring SnapApp pointer-motion events to continuously track pointer intensity, and updating OverlayRenderer to display pointer intensity alongside linked-cursor HU.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-119-01 | ITK-SNAP parity: continuous pointer HU intensity not tracked as mouse moves over viewport | patch |
+| GAP-119-02 | No testable SSOT function for voxel intensity lookup; boundary clamping logic was ad-hoc | patch |
+| GAP-119-03 | SnapApp did not track pointer_intensity state; no integration point for pointer-motion events | patch |
+| GAP-119-04 | OverlayRenderer did not display pointer intensity in 4-corner overlay | patch |
+| GAP-119-05 | No value-semantic tests for pointer intensity edge cases (out-of-bounds, boundary corners) | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::pointer_intensity` | Passed: 5 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 231 tests (226 + 5 new) |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- Multi-viewport pointer intensity tracking (MPR layout) follows same continuous-update pattern.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+
 ## Sprint 118 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

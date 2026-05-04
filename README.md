@@ -349,6 +349,18 @@ cd crates/ritk-python && maturin develop --release
 cargo install --path crates/ritk-cli
 ```
 
+## Development
+
+### Recent Sprints (ritk-snap)
+
+- **Sprint 119**: Continuous pointer HU intensity tracking — Added `intensity_at_voxel` SSOT for voxel intensity lookup, wired SnapApp pointer-motion handler to track pointer_intensity continuously, updated OverlayRenderer to display "Pointer HU" alongside linked-cursor HU in the 4-corner overlay. 5 new tests, 231 total ritk-snap lib tests passing.
+
+- **Sprint 118**: ROI Ellipse true pixel-mask statistics — Implemented exact ellipse membership evaluation per-pixel with proper physical area calculation, cardinal-point handles, and μ ± σ statistics. 5 new tests.
+
+- **Sprint 117**: Pan tool drag SSOT — Extracted pan offset calculation as testable pure function with 9 value-semantic unit tests and 3 app-level integration tests.
+
+- **Sprint 116**: Tool keyboard shortcuts SSOT — Added deterministic key-to-tool mapping with 11 comprehensive tests covering all shortcuts and edge cases.
+
 ## Testing
 
 ```bash
