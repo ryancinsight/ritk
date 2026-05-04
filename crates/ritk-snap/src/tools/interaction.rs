@@ -155,7 +155,7 @@ impl ToolState {
 /// values (lengths, angles, statistics) are stored in physical units (mm,
 /// degrees, HU) and are derived quantities — they can be recomputed from the
 /// position data and the volume spacing at any time.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Annotation {
     /// Straight-line distance between two image points.
     Length {

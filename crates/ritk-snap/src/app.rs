@@ -616,6 +616,7 @@ impl SnapApp {
             zoom: self.zoom,
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
+            annotations: self.annotations.clone(),
         }
     }
 
@@ -635,6 +636,7 @@ impl SnapApp {
         self.pan_offset = egui::Vec2::new(snapshot.pan_offset[0], snapshot.pan_offset[1]);
         self.zoom = snapshot.zoom.clamp(MIN_ZOOM, MAX_ZOOM);
         self.cine.restore(snapshot.cine_enabled, snapshot.cine_fps);
+        self.annotations = snapshot.annotations;
         self.tool_state = ToolState::Idle;
         self.texture_dirty = true;
         self.coronal_dirty = true;
@@ -1512,13 +1514,7 @@ impl SnapApp {
         };
 
         let snapshot = self.session_snapshot();
-        match serde_json::to_string_pretty(&snapshot)
-            .map_err(anyhow::Error::from)
-            .and_then(|json| {
-                std::fs::write(&path, json)
-                    .map_err(anyhow::Error::from)
-                    .map(|_| ())
-            }) {
+        match crate::session::save_to_file(&snapshot, &path) {
             Ok(()) => {
                 self.status_message = format!("Saved session to {}", path.display());
                 info!("{}", self.status_message);
@@ -1538,11 +1534,7 @@ impl SnapApp {
             return;
         };
 
-        match std::fs::read_to_string(&path)
-            .map_err(anyhow::Error::from)
-            .and_then(|json| {
-                serde_json::from_str::<ViewerSessionSnapshot>(&json).map_err(anyhow::Error::from)
-            }) {
+        match crate::session::load_from_file(&path) {
             Ok(snapshot) => {
                 self.apply_session_snapshot(snapshot);
                 self.status_message = format!("Loaded session from {}", path.display());

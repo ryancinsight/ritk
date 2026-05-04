@@ -1,3 +1,23 @@
+## Sprint 128 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.43 [patch]
+
+- [x] Add `annotations: Vec<Annotation>` with `#[serde(default)]` to `ViewerSessionSnapshot` in `session/mod.rs`
+- [x] Add `#[derive(PartialEq)]` to `Annotation` enum in `tools/interaction.rs`
+- [x] Add SSOT `save_to_file(snapshot, path) -> Result<()>` in `session/mod.rs`
+- [x] Add SSOT `load_from_file(path) -> Result<ViewerSessionSnapshot>` in `session/mod.rs`
+- [x] Update `session_snapshot()` in `app.rs` to capture `annotations: self.annotations.clone()`
+- [x] Update `apply_session_snapshot()` in `app.rs` to restore `self.annotations = snapshot.annotations`
+- [x] Update `save_session_dialog()` in `app.rs` to delegate to `crate::session::save_to_file()`
+- [x] Update `load_session_dialog()` in `app.rs` to delegate to `crate::session::load_from_file()`
+- [x] Update `session/tests.rs`: 6 new value-semantic tests (annotation round-trip, file I/O SSOT, backward compat, error paths)
+- [x] `cargo test -p ritk-snap --lib`: **315 passed** (309 baseline + 6 new)
+- [x] Update gap_audit.md with Sprint 128 record
+- [x] Update checklist.md with Sprint 128
+- [x] Update CHANGELOG.md with Sprint 128 entry
+- [x] Commit and push Sprint 128
+
 ## Sprint 127 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

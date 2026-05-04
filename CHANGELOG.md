@@ -24,6 +24,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` W/L drag SSOT** (`ui/window_level.rs`): Added `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, and `MIN_WINDOW_WIDTH` as the canonical implementation of ITK-SNAP-convention horizontal-drag-width / vertical-drag-center mapping with analytical monotonicity proofs. 9 value-semantic unit tests cover identity, directional monotonicity, clamping, and diagonal independence. [patch]
 - **`ritk-snap` `advance_slice_for_axis_loop` DRY**: Refactored cine wrap-around loop to delegate per-axis slice writes to `set_slice_for_axis`, eliminating duplicated dirty-flag and linked-cursor sync logic. [patch]
 
+## [0.14.43] - 2026 - Sprint 128
+
+### Added
+- **`ritk-snap` annotation session persistence** (`session/mod.rs`, `tools/interaction.rs`, `app.rs`, `session/tests.rs`): Added `annotations: Vec<Annotation>` field (with `#[serde(default)]` for backward compatibility with old session files) to `ViewerSessionSnapshot`. Added SSOT `save_to_file(snapshot, path) -> Result<()>` and `load_from_file(path) -> Result<ViewerSessionSnapshot>` in `session/mod.rs` (SRP: removes JSON serialization from app.rs). Added `#[derive(PartialEq)]` to the `Annotation` enum. Updated `session_snapshot()` to capture `self.annotations.clone()`. Updated `apply_session_snapshot()` to restore `self.annotations`. Updated `save_session_dialog` and `load_session_dialog` to delegate to SSOT session I/O. Added 6 value-semantic tests: default-matches-defaults with empty annotations assertion, JSON round-trip without annotations, JSON round-trip with all 5 annotation variants (Length/Angle/RoiRect/RoiEllipse/HuPoint with exact analytical values), backward-compat missing-annotations-field deserialization, file round-trip with annotations, file produces valid JSON with annotations key, error on nonexistent path, error on invalid JSON. Baselines: ritk-snap 315 passed (+6), ritk-io 413 passed, ritk-dicom 74 passed. v0.14.43 [patch]
+
 ## [0.14.42] - 2026 - Sprint 127
 
 ### Added

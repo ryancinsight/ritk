@@ -1,16 +1,34 @@
 //! Viewer session snapshot persistence.
 //!
-//! A session snapshot captures presentation state only. Pixel data, DICOM
-//! metadata, annotations, and filesystem caches remain outside this module.
+//! A session snapshot captures complete presentation state including
+//! navigation, window/level, colormap, annotations, and tool selections.
+//! Pixel data, DICOM metadata, and filesystem caches are not persisted.
+//!
+//! # SSOT file I/O
+//!
+//! [`save_to_file`] and [`load_from_file`] are the canonical implementations
+//! for session serialization.  `app.rs` delegates to these functions; no
+//! JSON serialization logic appears outside this module.
 
+use anyhow::{Context, Result};
 use crate::render::colormap::Colormap;
+use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Serializable viewer state used for save/load session workflows.
+///
+/// # Invariants
+///
+/// - `axis ∈ [0, 2]` — clamped to 2 on restore.
+/// - `zoom ∈ [MIN_ZOOM, MAX_ZOOM]` — clamped on restore.
+/// - `cine_fps > 0` — not validated here; validation is the caller's
+///   responsibility on restore.
+/// - `annotations` contains only complete (committed) annotations; in-progress
+///   gesture state is never captured.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ViewerSessionSnapshot {
     /// Optional source path for the loaded study.
@@ -23,7 +41,7 @@ pub struct ViewerSessionSnapshot {
     pub axis: usize,
     /// Active interaction tool.
     pub active_tool: ToolKind,
-    /// Whether 2x2 MPR layout is active.
+    /// Whether 2×2 MPR layout is active.
     pub multi_planar: bool,
     /// Overlay visibility.
     pub show_overlay: bool,
@@ -47,6 +65,13 @@ pub struct ViewerSessionSnapshot {
     pub cine_enabled: bool,
     /// Cine playback target frame rate.
     pub cine_fps: f32,
+    /// Completed measurement and ROI annotations.
+    ///
+    /// Stored in image-pixel coordinates; physical (mm) derived fields
+    /// (length_mm, angle_deg, area_mm2, statistics) are stored verbatim so
+    /// they survive round-trip without requiring the volume to be loaded.
+    #[serde(default)]
+    pub annotations: Vec<Annotation>,
 }
 
 impl ViewerSessionSnapshot {
@@ -70,6 +95,7 @@ impl ViewerSessionSnapshot {
             zoom: 1.0,
             cine_enabled: false,
             cine_fps: 12.0,
+            annotations: Vec::new(),
         }
     }
 }
@@ -78,6 +104,31 @@ impl Default for ViewerSessionSnapshot {
     fn default() -> Self {
         Self::empty()
     }
+}
+
+// ─── SSOT file I/O ────────────────────────────────────────────────────────────
+
+/// Serialize `snapshot` as pretty-printed JSON and write to `path`.
+///
+/// # Errors
+/// Returns an error when JSON serialization fails or `path` cannot be written.
+pub fn save_to_file(snapshot: &ViewerSessionSnapshot, path: &Path) -> Result<()> {
+    let json = serde_json::to_string_pretty(snapshot)
+        .context("JSON serialization of ViewerSessionSnapshot failed")?;
+    std::fs::write(path, json)
+        .with_context(|| format!("writing session file {}", path.display()))
+}
+
+/// Deserialize a [`ViewerSessionSnapshot`] from the JSON file at `path`.
+///
+/// # Errors
+/// Returns an error when `path` cannot be read or its content is not valid
+/// JSON matching the `ViewerSessionSnapshot` schema.
+pub fn load_from_file(path: &Path) -> Result<ViewerSessionSnapshot> {
+    let json = std::fs::read_to_string(path)
+        .with_context(|| format!("reading session file {}", path.display()))?;
+    serde_json::from_str::<ViewerSessionSnapshot>(&json)
+        .with_context(|| format!("deserializing session from {}", path.display()))
 }
 
 #[cfg(test)]
