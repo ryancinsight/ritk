@@ -1,0 +1,17 @@
+[package]
+name = "ritk-vtk"
+version = "0.1.0"
+edition = "2021"
+description = "VTK-native data model and I/O for the RITK toolkit."
+authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+ritk-core = { workspace = true }
+burn = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }

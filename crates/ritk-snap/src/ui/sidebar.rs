@@ -84,6 +84,17 @@ impl<'a> SidebarPanel<'a> {
         }
     }
 
+    /// Construct the panel with an explicit tag search string (backwards-compat alias).
+    pub fn with_tag_search(
+        tree: &'a SeriesTree,
+        selected_path: &'a mut Option<std::path::PathBuf>,
+        active_tab: &'a mut SidebarTab,
+        metadata_volume: Option<&'a LoadedVolume>,
+        _tag_search: Option<&'a mut String>,
+    ) -> Self {
+        Self::new(tree, selected_path, active_tab, metadata_volume)
+    }
+
     /// Render the panel into `ui`.
     ///
     /// Draws the tab bar at the top, then delegates to [`show_series_tab`] or
@@ -222,6 +233,25 @@ impl<'a> SidebarPanel<'a> {
 
     /// Render a scrollable table of DICOM metadata for the loaded volume.
     fn show_metadata_tab(&self, ui: &mut Ui) {
+        // ── Tag search input ──────────────────────────────────────────────────
+        // Uses egui's per-Id persistent storage to maintain the search string
+        // across frames without requiring a field in SidebarPanel or SnapApp.
+        // The Id is stable and unique to this widget.
+        let search_id = egui::Id::new("dicom_tag_search_filter");
+        let mut search: String = ui.data(|d| d.get_temp(search_id).unwrap_or_default());
+        ui.horizontal(|ui| {
+            ui.label("🔍");
+            ui.text_edit_singleline(&mut search).on_hover_text(
+                "Filter tags by keyword or tag hex code (case-insensitive)",
+            );
+            if ui.small_button("✖").clicked() {
+                search.clear();
+            }
+        });
+        ui.data_mut(|d| d.insert_temp(search_id, search.clone()));
+
+        let needle = search.to_lowercase();
+
         ScrollArea::vertical()
             .id_source("metadata_scroll")
             .show(ui, |ui| {
@@ -273,6 +303,28 @@ impl<'a> SidebarPanel<'a> {
                 ui.separator();
                 ui.label("DICOM Tags");
 
+                let all_rows = build_metadata_rows(meta);
+                let total = all_rows.len();
+                let filtered: Vec<_> = if needle.is_empty() {
+                    all_rows
+                } else {
+                    all_rows
+                        .into_iter()
+                        .filter(|r| {
+                            r.keyword.to_lowercase().contains(&needle)
+                                || r.tag.to_lowercase().contains(&needle)
+                                || r.value.to_lowercase().contains(&needle)
+                        })
+                        .collect()
+                };
+
+                let match_label = if needle.is_empty() {
+                    format!("{total} tags")
+                } else {
+                    format!("{} of {total} match", filtered.len())
+                };
+                ui.label(egui::RichText::new(match_label).small().weak());
+
                 egui::Grid::new("dicom_tag_grid")
                     .num_columns(5)
                     .spacing([8.0, 4.0])
@@ -285,7 +337,7 @@ impl<'a> SidebarPanel<'a> {
                         ui.label("Value");
                         ui.end_row();
 
-                        for row in build_metadata_rows(meta) {
+                        for row in filtered {
                             ui.label(row.scope.label());
                             ui.label(row.tag);
                             ui.label(row.keyword);
@@ -329,5 +381,94 @@ mod tests {
             SidebarTab::Metadata,
             "SidebarTab::Series and SidebarTab::Metadata must be distinct variants"
         );
+    }
+
+    // ── Tag filter logic ──────────────────────────────────────────────────────
+
+    fn make_row(tag: &str, keyword: &str, value: &str) -> crate::dicom::metadata_table::MetadataRow {
+        crate::dicom::metadata_table::MetadataRow {
+            scope: crate::dicom::metadata_table::MetadataScope::Series,
+            tag: tag.to_owned(),
+            keyword: keyword.to_owned(),
+            vr: "LO".to_owned(),
+            value: value.to_owned(),
+        }
+    }
+
+    /// Mirrors the exact filter predicate in `show_metadata_tab`.
+    fn filter_rows(
+        rows: &[crate::dicom::metadata_table::MetadataRow],
+        needle: &str,
+    ) -> Vec<crate::dicom::metadata_table::MetadataRow> {
+        let needle_lc = needle.to_lowercase();
+        rows.iter()
+            .filter(|r| {
+                r.keyword.to_lowercase().contains(&needle_lc)
+                    || r.tag.to_lowercase().contains(&needle_lc)
+                    || r.value.to_lowercase().contains(&needle_lc)
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Needle "patient" (case-insensitive) must match PatientName and PatientID.
+    #[test]
+    fn test_tag_filter_keyword_case_insensitive() {
+        let rows = vec![
+            make_row("(0010,0010)", "PatientName", "Doe^John"),
+            make_row("(0010,0020)", "PatientID", "MR12345"),
+            make_row("(0008,0060)", "Modality", "CT"),
+        ];
+        let filtered = filter_rows(&rows, "patient");
+        assert_eq!(filtered.len(), 2, "needle 'patient' must match PatientName and PatientID");
+        assert_eq!(filtered[0].keyword, "PatientName");
+        assert_eq!(filtered[1].keyword, "PatientID");
+    }
+
+    /// Needle matching a tag hex code must return the matching row.
+    #[test]
+    fn test_tag_filter_by_hex_tag() {
+        let rows = vec![
+            make_row("(0010,0010)", "PatientName", "Doe^John"),
+            make_row("(0008,0060)", "Modality", "CT"),
+        ];
+        let filtered = filter_rows(&rows, "0008,0060");
+        assert_eq!(filtered.len(), 1, "tag hex search must match exactly one row");
+        assert_eq!(filtered[0].keyword, "Modality");
+    }
+
+    /// Needle matching a value must return the correct row.
+    #[test]
+    fn test_tag_filter_by_value() {
+        let rows = vec![
+            make_row("(0010,0010)", "PatientName", "Doe^John"),
+            make_row("(0008,0060)", "Modality", "CT"),
+            make_row("(0020,0013)", "InstanceNumber", "42"),
+        ];
+        let filtered = filter_rows(&rows, "doe^john");
+        assert_eq!(filtered.len(), 1, "value search must match exactly one row");
+        assert_eq!(filtered[0].keyword, "PatientName");
+    }
+
+    /// Needle that matches no field must return empty.
+    #[test]
+    fn test_tag_filter_no_match_returns_empty() {
+        let rows = vec![
+            make_row("(0010,0010)", "PatientName", "Doe^John"),
+            make_row("(0008,0060)", "Modality", "CT"),
+        ];
+        let filtered = filter_rows(&rows, "xxxxnonexistent");
+        assert_eq!(filtered.len(), 0, "unmatched needle must return empty");
+    }
+
+    /// Empty string needle: all rows pass through ("" is contained in every string).
+    #[test]
+    fn test_tag_filter_empty_needle_passes_all() {
+        let rows = vec![
+            make_row("(0010,0010)", "PatientName", "Doe^John"),
+            make_row("(0008,0060)", "Modality", "CT"),
+        ];
+        let filtered = filter_rows(&rows, "");
+        assert_eq!(filtered.len(), rows.len(), "empty needle: all rows pass");
     }
 }

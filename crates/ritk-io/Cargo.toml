@@ -12,6 +12,7 @@ ritk-nrrd = { workspace = true }
 ritk-metaimage = { workspace = true }
 ritk-mgh = { workspace = true }
 ritk-analyze = { workspace = true }
+ritk-vtk = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
 anyhow = { workspace = true }

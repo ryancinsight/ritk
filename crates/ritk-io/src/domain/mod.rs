@@ -2,13 +2,17 @@ use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
 use std::path::Path;
 
+// VTK domain types are authoritative in ritk-vtk.
+// Keep module shims so existing `crate::domain::vtk_data_object::*` paths resolve.
 pub mod vtk_data_object;
 pub mod vtk_pipeline;
-
+pub mod vtk_scene;
 pub use vtk_data_object::{
-    AttributeArray, VtkDataObject, VtkPolyData, VtkStructuredGrid, VtkUnstructuredGrid,
+    AttributeArray, VtkCellType, VtkDataObject, VtkImageData, VtkPolyData,
+    VtkStructuredGrid, VtkUnstructuredGrid,
 };
 pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
+pub use vtk_scene::{RenderProperties, VtkActor, VtkScene};
 
 /// High-level trait for abstracting image reading.
 pub trait ImageReader<B: Backend, const D: usize> {
@@ -22,5 +26,3 @@ pub trait ImageWriter<B: Backend, const D: usize> {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, D>) -> std::io::Result<()>;
 }
 
-pub mod vtk_scene;
-pub use vtk_scene::{RenderProperties, VtkActor, VtkScene};

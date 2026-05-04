@@ -7,6 +7,14 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.17.0] - 2026 - Sprint 136
+
+### Added
+- **`ritk-vtk` new crate — VTK data model and I/O as single source of truth** (`crates/ritk-vtk/`): Extracted all VTK data model types and VTK-format I/O free functions from `ritk-io` into a dedicated `ritk-vtk` crate (SRP/SSOT compliance). `src/domain/vtk_data_object.rs`: `AttributeArray`, `VtkPolyData`, `VtkStructuredGrid`, `VtkUnstructuredGrid`, `VtkImageData`, `VtkCellType`, `VtkDataObject` — 18 tests. `src/domain/vtk_pipeline.rs`: `VtkSource`, `VtkFilter`, `VtkSink`, `VtkPipeline` traits — 5 tests. `src/domain/vtk_scene.rs`: `RenderProperties`, `VtkActor`, `VtkScene` — 8 tests. `src/io/`: all VTK I/O free functions migrated. `VtkReader<B>` and `VtkWriter<B>` inherent wrappers (no orphan violation). `ritk-io/src/format/vtk/mod.rs` replaced with thin re-export layer + local DIP wrappers. Domain shims created for backward-compatible `crate::domain::vtk_data_object::*` paths. New crate: 129 tests. Workspace totals: ritk-vtk 129, ritk-io 288, ritk-snap 344, all zero failures.
+- **`ritk-snap` viewport flip/rotate** (`ui/view_transform.rs`): `ViewTransform` SSOT; `flip_h_image`, `flip_v_image`, `rotate_90_cw_image`, `apply_to_image`. View menu + keyboard shortcuts [H/V/R/Shift+R/O]. 14 tests.
+- **`ritk-snap` colorbar widget** (`ui/colorbar.rs`): `draw_colorbar`/`show_colorbar` W/L gradient bar. 7 tests.
+- **`ritk-snap` DICOM tag search** (`ui/sidebar.rs`): Live filter in metadata panel (keyword/hex/value). 5 tests.
+
 ## [0.16.0] - 2026 - Sprint 134
 
 ### Added

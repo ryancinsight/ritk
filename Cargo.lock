@@ -5923,6 +5923,7 @@ dependencies = [
  "ritk-mgh",
  "ritk-nifti",
  "ritk-nrrd",
+ "ritk-vtk",
  "tempfile",
  "thiserror 2.0.18",
  "tiff 0.9.1",
@@ -6056,6 +6057,18 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+]
+
+[[package]]
+name = "ritk-vtk"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-core",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

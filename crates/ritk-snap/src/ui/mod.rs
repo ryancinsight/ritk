@@ -26,8 +26,12 @@
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
 //! | [`window_level`] | W/L drag mapping SSOT and sensitivity constant.          |
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
+//! | [`view_transform`] | [`ViewTransform`] viewport flip/rotate state + pixel transforms. |
+//! | [`colorbar`]     | [`draw_colorbar`] / [`show_colorbar`] — W/L colorbar widget.     |
 
 pub mod annotation_panel;
+pub mod colorbar;
+pub mod view_transform;
 pub mod histogram;
 pub mod histogram_interact;
 pub mod preset_panel;
@@ -60,6 +64,8 @@ pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
 pub use pointer_intensity::intensity_at_voxel;
 pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
+pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
+pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform};
 pub use preset_panel::draw_preset_buttons;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;

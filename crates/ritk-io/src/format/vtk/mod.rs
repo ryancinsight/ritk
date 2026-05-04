@@ -1,27 +1,20 @@
-//! VTK legacy structured points format support.
+//! VTK format I/O dispatch layer for ritk-io.
 //!
-//! Provides `read_vtk` / `write_vtk` free functions and `VtkReader` /
-//! `VtkWriter` types that implement the `ImageReader` / `ImageWriter`
-//! DIP abstractions.
+//! Re-exports all VTK free functions from `ritk-vtk` and provides
+//! `VtkReader<B>` / `VtkWriter<B>` wrapper types that implement the
+//! `ritk_io::ImageReader` / `ritk_io::ImageWriter` DIP traits.
 //!
-//! ## Format Scope
-//!
-//! Only `DATASET STRUCTURED_POINTS` with scalar point data is supported.
-//! The reader handles both `ASCII` and `BINARY` encodings. The writer
-//! always emits `BINARY` with big-endian `float` scalars.
+//! The free functions and DIP-less wrapper types live in `ritk-vtk`.
+//! ritk-io keeps only the trait-implementing wrappers here to avoid
+//! orphan-rule violations.
 
-pub mod polydata;
-pub use polydata::{read_vtk_polydata, write_vtk_polydata};
-pub mod struct_grid;
-pub mod unstruct_grid;
-pub use struct_grid::{read_vtk_structured_grid, write_vtk_structured_grid};
-pub use unstruct_grid::{read_vtk_unstructured_grid, write_vtk_unstructured_grid};
-
-pub mod reader;
-pub mod writer;
-
-pub use reader::read_vtk;
-pub use writer::write_vtk;
+// Re-export all free functions from ritk-vtk.
+pub use ritk_vtk::{
+    read_vtk, write_vtk,
+    read_vtk_polydata, write_vtk_polydata,
+    read_vtk_structured_grid, write_vtk_structured_grid,
+    read_vtk_unstructured_grid, write_vtk_unstructured_grid,
+};
 
 use crate::domain::{ImageReader, ImageWriter};
 use burn::tensor::backend::Backend;

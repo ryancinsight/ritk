@@ -30,6 +30,7 @@ use crate::ui::{
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
     window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
+    apply_to_image, show_colorbar, ViewTransform,
     CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
 };
 use crate::ui::overlay::OverlayRenderer;
@@ -101,6 +102,10 @@ pub struct SnapApp {
     pan_offset: egui::Vec2,
     /// Viewport zoom multiplier (1.0 = fit-to-panel).
     zoom: f32,
+    /// Viewport image orientation transform (flip/rotate).
+    view_transform: ViewTransform,
+    /// Whether to show the colorbar overlay in each viewport.
+    show_colorbar: bool,
 
     // ── UI state ──────────────────────────────────────────────────────────────
     /// `true` when the 2×2 multi-planar layout is active.
@@ -163,6 +168,8 @@ impl Default for SnapApp {
             sagittal_slice: 0,
             pan_offset: egui::Vec2::ZERO,
             zoom: 1.0,
+            view_transform: ViewTransform::default(),
+            show_colorbar: false,
             multi_planar: false,
             show_overlay: true,
             show_crosshair: false,
@@ -415,6 +422,47 @@ impl SnapApp {
                             }
                         }
                     });
+
+                    ui.separator();
+                    ui.label("Orientation");
+
+                    if ui.button("Flip Horizontal  [H]").clicked() {
+                        ui.close_menu();
+                        self.view_transform = self.view_transform.toggle_flip_h();
+                        self.mark_all_textures_dirty();
+                    }
+                    if ui.button("Flip Vertical    [V]").clicked() {
+                        ui.close_menu();
+                        self.view_transform = self.view_transform.toggle_flip_v();
+                        self.mark_all_textures_dirty();
+                    }
+                    if ui.button("Rotate CW 90°    [R]").clicked() {
+                        ui.close_menu();
+                        self.view_transform = self.view_transform.rotate_cw();
+                        self.mark_all_textures_dirty();
+                    }
+                    if ui.button("Rotate CCW 90°   [Shift+R]").clicked() {
+                        ui.close_menu();
+                        self.view_transform = self.view_transform.rotate_ccw();
+                        self.mark_all_textures_dirty();
+                    }
+                    if ui.button("Reset Orientation [O]").clicked() {
+                        ui.close_menu();
+                        self.view_transform = self.view_transform.reset();
+                        self.mark_all_textures_dirty();
+                    }
+
+                    ui.separator();
+
+                    let colorbar_label = if self.show_colorbar {
+                        "✔ Show Colorbar"
+                    } else {
+                        "  Show Colorbar"
+                    };
+                    if ui.button(colorbar_label).clicked() {
+                        ui.close_menu();
+                        self.show_colorbar = !self.show_colorbar;
+                    }
                 });
 
                 // ── Image ────────────────────────────────────────────────────
@@ -537,6 +585,23 @@ impl SnapApp {
                 }
             }
         });
+
+        // ── Viewport orientation shortcuts ────────────────────────────────────
+        let (flip_h, flip_v, rotate_cw, rotate_ccw, reset_orient) = ctx.input(|input| {
+            let shift = input.modifiers.shift;
+            (
+                input.key_pressed(egui::Key::H),
+                input.key_pressed(egui::Key::V),
+                !shift && input.key_pressed(egui::Key::R),
+                shift && input.key_pressed(egui::Key::R),
+                input.key_pressed(egui::Key::O),
+            )
+        });
+        if flip_h { self.view_transform = self.view_transform.toggle_flip_h(); self.mark_all_textures_dirty(); }
+        if flip_v { self.view_transform = self.view_transform.toggle_flip_v(); self.mark_all_textures_dirty(); }
+        if rotate_cw { self.view_transform = self.view_transform.rotate_cw(); self.mark_all_textures_dirty(); }
+        if rotate_ccw { self.view_transform = self.view_transform.rotate_ccw(); self.mark_all_textures_dirty(); }
+        if reset_orient { self.view_transform = self.view_transform.reset(); self.mark_all_textures_dirty(); }
     }
 
     fn apply_slice_navigation_shortcuts(
@@ -577,6 +642,14 @@ impl SnapApp {
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
         self.status_message = "Zoom reset to fit.".to_owned();
+    }
+
+    /// Mark all three MPR texture slots as needing re-render (e.g. after a
+    /// view-transform or colormap change).
+    fn mark_all_textures_dirty(&mut self) {
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
     }
 
     fn undo_label_edit_shortcut(&mut self) {
@@ -760,6 +833,14 @@ impl SnapApp {
                         self.viewer_state.window_width = Some(preset.width as f32);
                         self.texture_dirty = true;
                     }
+                }
+
+                // ── Colorbar ───────────────────────────────────────────────────
+                if self.show_colorbar {
+                    ui.separator();
+                    let wc = self.viewer_state.window_center.unwrap_or(128.0);
+                    let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0);
+                    show_colorbar(ui, self.colormap, wc, ww);
                 }
 
                 ui.separator();
@@ -1291,6 +1372,8 @@ impl SnapApp {
                 _ => "slice_tex_sagittal",
             };
             let img = SliceRenderer::render(vol, axis, slice_index, wl, self.colormap);
+            // Apply viewport orientation transform (flip/rotate) before GPU upload.
+            let img = apply_to_image(&img, self.view_transform);
             (img, name)
         }; // immutable borrow of self.loaded released here
 
@@ -1396,6 +1479,7 @@ impl SnapApp {
             wl,
             self.colormap,
         );
+        let color_image = apply_to_image(&color_image, self.view_transform);
 
         // Convert egui::Color32 pixels → packed RGB bytes.
         let rgb_bytes: Vec<u8> = color_image
@@ -1484,6 +1568,7 @@ impl SnapApp {
                 wl,
                 self.colormap,
             );
+            let color_image = apply_to_image(&color_image, self.view_transform);
             let rgb_bytes: Vec<u8> = color_image
                 .pixels
                 .iter()
