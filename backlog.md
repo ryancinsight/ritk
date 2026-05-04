@@ -1,3 +1,31 @@
+## Sprint 121 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.36 [patch]
+**Goal**: Close the voxel intensity histogram gap by implementing a testable SSOT for histogram computation, a reusable egui histogram widget with W/L overlay, caching the histogram on load, and rendering it in the W/L sidebar panel — matching ITK-SNAP's histogram display.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-121-01 | ITK-SNAP parity: no voxel intensity histogram displayed alongside W/L controls | patch |
+| GAP-121-02 | No testable SSOT for histogram bin computation; bin-index mapping was ad-hoc and untested | patch |
+| GAP-121-03 | No reusable widget for log-scaled histogram rendering with W/L range overlay | patch |
+| GAP-121-04 | No `Histogram` value type; histogram state was not cached on load | patch |
+| GAP-121-05 | W/L sidebar panel displayed only numeric readout; no visual context for range | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib render::histogram` | Passed: 8 tests |
+| `cargo test -p ritk-snap --lib ui::histogram` | Passed: 4 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 257 tests (241 + 16 new) |
+| `cargo build -p ritk-snap` | Passed: exit 0, 0 errors |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+- Interactive W/L drag-on-histogram (click-and-drag to adjust window in histogram canvas) not yet wired.
+
 ## Sprint 120 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

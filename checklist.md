@@ -1,3 +1,28 @@
+## Sprint 121 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.36 [patch]
+
+- [x] GAP-121-01: create `render/histogram.rs` with `compute_histogram` SSOT, O(N) single-pass binning, below-min/above-max clamping, non-finite skip
+- [x] GAP-121-02: add `Histogram` struct with `counts: Vec<u64>`, bit-exact min/max (`u32` bits for `Eq`), and `bins: usize` field
+- [x] GAP-121-03: add `histogram_peak_count` (O(1) max over counts) and `histogram_bin_center` (analytical bin centre: `min + (i+0.5)×w`) helpers
+- [x] GAP-121-04: add 8 value-semantic tests in `render/histogram.rs` (uniform-256, all-at-min, values-at-max, below-min-clamp, above-max-clamp, empty-data, two-bin-half-split, degenerate-max==min, bin-center-analytical)
+- [x] GAP-121-05: register `pub mod histogram` in `render/mod.rs`, re-export `compute_histogram`, `Histogram`, `histogram_peak_count`, `histogram_bin_center`
+- [x] GAP-121-06: create `ui/histogram.rs` with `bar_height_log` (log₁₊₁-scale, f64 internal) and `wl_to_x` (linear intensity-to-pixel map, clamped) pure helpers
+- [x] GAP-121-07: add `draw_histogram` widget rendering log-scaled bars + blue W/L band + orange centre line + axis labels into egui `Ui`
+- [x] GAP-121-08: add 4 value-semantic tests in `ui/histogram.rs` (bar_height_log peak, zero-count, zero-peak, half-peak-analytical; wl_to_x centre, below-range, above-range)
+- [x] GAP-121-09: register `pub mod histogram` in `ui/mod.rs`, update doc table
+- [x] GAP-121-10: add `cached_histogram: Option<Histogram>` field to `SnapApp` struct and `Default` impl
+- [x] GAP-121-11: add `refresh_cached_histogram` method to `SnapApp`: single min/max pass + `compute_histogram`, None when no data
+- [x] GAP-121-12: call `refresh_cached_histogram` at end of `load_from_path` and `load_nifti_file` success paths
+- [x] GAP-121-13: render `draw_histogram` in `show_left_panel` W/L section, after the numeric W/L readout
+- [x] GAP-121-14: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo build -p ritk-snap` passed: exit 0, 0 errors
+- [x] Verification: `cargo test -p ritk-snap --lib render::histogram` passed: 8 tests
+- [x] Verification: `cargo test -p ritk-snap --lib ui::histogram` passed: 4 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 257 tests (241 + 16 new)
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 120 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

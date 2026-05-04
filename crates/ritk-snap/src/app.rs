@@ -117,6 +117,11 @@ pub struct SnapApp {
     show_series_browser: bool,
     /// Current voxel intensity value under the pointer (HU or relative).
     pointer_intensity: f32,
+    /// Cached voxel intensity histogram for the loaded volume.
+    ///
+    /// Computed once when a volume is loaded; `None` when no volume is loaded.
+    /// Used to render the W/L histogram panel in the sidebar.
+    cached_histogram: Option<crate::render::histogram::Histogram>,
 
     // ── Series browser ────────────────────────────────────────────────────────
     /// Hierarchical DICOM series tree.
@@ -165,6 +170,7 @@ impl Default for SnapApp {
             cine: CinePlayback::default(),
             show_series_browser: true,
             pointer_intensity: 0.0,
+            cached_histogram: None,
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,
@@ -719,6 +725,11 @@ impl SnapApp {
                 let ww = self.viewer_state.window_width.unwrap_or(256.0);
                 ui.label(format!("Centre : {wc:.0}"));
                 ui.label(format!("Width  : {ww:.0}"));
+
+                // ── Histogram ─────────────────────────────────────────────────
+                if let Some(hist) = &self.cached_histogram {
+                    crate::ui::histogram::draw_histogram(hist, wc, ww, ui);
+                }
 
                 ui.separator();
                 ui.heading("Cine");
@@ -1625,6 +1636,7 @@ impl SnapApp {
                     shape[2],
                     protocol.protocol_name,
                 );
+                self.refresh_cached_histogram();
                 info!("{}", self.status_message);
             }
             Err(e) => {
@@ -1683,11 +1695,40 @@ impl SnapApp {
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
                 self.status_message = msg;
+                self.refresh_cached_histogram();
                 info!("{}", self.status_message);
             }
             Err(e) => {
                 self.status_message = format!("NIfTI load failed: {e:#}");
             }
+        }
+    }
+
+    /// Compute and cache a 256-bin histogram for the currently loaded volume.
+    ///
+    /// Scans all voxels to determine the true data minimum and maximum, then
+    /// delegates to [`crate::render::histogram::compute_histogram`]. Sets
+    /// `self.cached_histogram` to `None` when no volume is loaded.
+    fn refresh_cached_histogram(&mut self) {
+        use crate::render::histogram::compute_histogram;
+        if let Some(vol) = &self.loaded {
+            let data: &[f32] = &vol.data;
+            // Single pass: compute exact (min, max) over all finite voxels.
+            let (mut mn, mut mx) = (f32::MAX, f32::MIN);
+            for &v in data {
+                if v.is_finite() {
+                    if v < mn { mn = v; }
+                    if v > mx { mx = v; }
+                }
+            }
+            // Guard against pathological all-NaN or empty data.
+            if mn < mx {
+                self.cached_histogram = Some(compute_histogram(data, mn, mx, 256));
+            } else {
+                self.cached_histogram = None;
+            }
+        } else {
+            self.cached_histogram = None;
         }
     }
 
