@@ -353,6 +353,8 @@ cargo install --path crates/ritk-cli
 
 ### Recent Sprints (ritk-snap)
 
+- **Sprint 120**: Live measurement preview labels — Added `live_length_mm` and `live_angle_deg` SSOT functions for real-time distance (mm) and angle (°) feedback during rubber-band gestures. `draw_in_progress` now renders live labels while dragging. Fixed `viewport.rs` ellipse ROI DRY violation (placeholder from Sprint 118). 10 new tests, 241 total ritk-snap lib tests passing.
+
 - **Sprint 119**: Continuous pointer HU intensity tracking — Added `intensity_at_voxel` SSOT for voxel intensity lookup, wired SnapApp pointer-motion handler to track pointer_intensity continuously, updated OverlayRenderer to display "Pointer HU" alongside linked-cursor HU in the 4-corner overlay. 5 new tests, 231 total ritk-snap lib tests passing.
 
 - **Sprint 118**: ROI Ellipse true pixel-mask statistics — Implemented exact ellipse membership evaluation per-pixel with proper physical area calculation, cardinal-point handles, and μ ± σ statistics. 5 new tests.

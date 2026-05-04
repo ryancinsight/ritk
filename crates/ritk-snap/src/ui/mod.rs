@@ -15,8 +15,7 @@
 //! | [`mpr_cursor`]   | [`LinkedCursor`] and viewport/voxel transforms.         |
 //! | [`cine`]         | [`CinePlayback`] — per-frame playback timing state.     |
 //! | [`cursor_info`]  | [`voxel_to_lps`] — ITK affine voxel → LPS mm transform. |
-//! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |
-//! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
+//! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |//! | [`live_preview`]     | [`live_length_mm`] and [`live_angle_deg`] — live measurement labels. |//! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
 //! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
 //! | [`zoom`]         | Scroll-wheel zoom policy and clamped zoom mapping.       |
@@ -28,6 +27,7 @@ pub mod measurements;
 pub mod cine;
 pub mod cursor_info;
 pub mod export_plan;
+pub mod live_preview;
 pub mod mpr_cursor;
 pub mod overlay;
 pub mod pan;

@@ -318,10 +318,23 @@ impl<'a> ViewportPanel<'a> {
 
             // ── measurements ─────────────────────────────────────────────
             MeasurementLayer::draw_annotations(&painter, &self.state.annotations, &img_to_screen);
+            // Compute cursor in image coordinates for live measurement labels.
+            let cursor_img_opt = response
+                .hover_pos()
+                .and_then(|s| screen_to_img_f32(s, offset, scale))
+                .map(|(col, row)| egui::pos2(col, row));
+            let sp = volume.spacing;
+            let spacing_2d: [f32; 2] = match self.state.axis {
+                0 => [sp[1] as f32, sp[2] as f32],
+                1 => [sp[0] as f32, sp[2] as f32],
+                _ => [sp[0] as f32, sp[1] as f32],
+            };
             MeasurementLayer::draw_in_progress(
                 &painter,
                 &self.state.tool_state,
                 response.hover_pos(),
+                cursor_img_opt,
+                spacing_2d,
                 &img_to_screen,
             );
 
@@ -645,7 +658,7 @@ impl<'a> ViewportPanel<'a> {
                     current,
                     kind: RoiKind::Ellipse,
                 } => {
-                    // For ellipse ROI, store as RoiRect (bounding box) for now.
+                    // Use compute_roi_ellipse_stats for correct ellipse pixel-mask statistics.
                     let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
                     let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
                     if (br.x - tl.x) > 0.5 && (br.y - tl.y) > 0.5 {
@@ -659,19 +672,17 @@ impl<'a> ViewportPanel<'a> {
                         };
                         let (pixels, pix_w, pix_h) =
                             volume.extract_slice(self.state.axis, self.state.slice_index);
-                        let rx = (br.x - tl.x).abs() * 0.5 * spacing_2d[1];
-                        let ry = (br.y - tl.y).abs() * 0.5 * spacing_2d[0];
-                        let area_mm2 = std::f32::consts::PI * rx * ry;
-                        let stats = Annotation::compute_roi_rect_stats(
-                            tl_arr, br_arr, &pixels, pix_w, pix_h, spacing_2d,
-                        );
-                        self.state.annotations.push(Annotation::RoiRect {
-                            top_left: tl_arr,
-                            bottom_right: br_arr,
-                            mean: stats.0,
-                            std_dev: stats.1,
-                            min: stats.2,
-                            max: stats.3,
+                        let (center, radii, mean, std_dev, min, max, area_mm2) =
+                            Annotation::compute_roi_ellipse_stats(
+                                tl_arr, br_arr, &pixels, pix_w, pix_h, spacing_2d,
+                            );
+                        self.state.annotations.push(Annotation::RoiEllipse {
+                            center,
+                            radii,
+                            mean,
+                            std_dev,
+                            min,
+                            max,
                             area_mm2,
                         });
                     }

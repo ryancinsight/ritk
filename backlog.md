@@ -1,3 +1,30 @@
+## Sprint 120 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.35 [patch]
+**Goal**: Close the live measurement preview gap by implementing a testable SSOT for real-time distance/angle computation during rubber-band tool gestures, wiring live labels into `MeasurementLayer::draw_in_progress`, and eliminating the Sprint-118 ellipse ROI placeholder DRY violation in `viewport.rs`.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-120-01 | ITK-SNAP parity: no live distance label while dragging length measurement rubber-band line | patch |
+| GAP-120-02 | ITK-SNAP parity: no live angle label while dragging angle measurement rubber-band rays | patch |
+| GAP-120-03 | No testable SSOT for live distance/angle computation; rubber-band rendering had no value output | patch |
+| GAP-120-04 | `viewport.rs` ellipse ROI finalization called `compute_roi_rect_stats` + `Annotation::RoiRect` (Sprint-118 placeholder survived in viewport rendering path — DRY/zero_tolerance violation) | patch |
+| GAP-120-05 | `draw_in_progress` lacked `cursor_img` and `spacing` parameters; live labels architecturally impossible | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::live_preview` | Passed: 10 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 241 tests (231 + 10 new) |
+| `cargo test -p ritk-dicom` | Passed: 20 tests |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+- MPR 2×2 layout live-preview cross-viewport label rendering (requires per-viewport spacing injection).
+
 ## Sprint 119 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

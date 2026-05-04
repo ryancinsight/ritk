@@ -1,3 +1,23 @@
+## Sprint 120 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.35 [patch]
+
+- [x] GAP-120-01: create `ui/live_preview.rs` with `live_length_mm` SSOT, anisotropic Euclidean distance from image pixel coordinates and spacing
+- [x] GAP-120-02: create `live_angle_deg` SSOT in `ui/live_preview.rs`, normalized dot-product angle at vertex with degenerate-ray guard
+- [x] GAP-120-03: add 10 value-semantic unit tests: 5 for `live_length_mm` (horizontal, vertical, anisotropic, zero-delta, 3-4-5 Pythagorean), 5 for `live_angle_deg` (right-angle, straight-180°, 45°, degenerate p1=vertex, 60° equilateral)
+- [x] GAP-120-04: export `live_preview` module from `ui/mod.rs`, update module docstring table
+- [x] GAP-120-05: update `MeasurementLayer::draw_in_progress` signature to accept `cursor_img: Option<Pos2>`, `spacing: [f32; 2]` parameters
+- [x] GAP-120-06: add live distance label at rubber-band midpoint (offset −12 px) in `MeasureLength1` branch
+- [x] GAP-120-07: add live angle label at vertex (offset +8,−12 px) in `MeasureAngle2` branch
+- [x] GAP-120-08: update `viewport.rs` `draw_in_progress` call site to compute `cursor_img_opt` and `spacing_2d` from volume and pass to `MeasurementLayer`
+- [x] GAP-120-09: fix `viewport.rs` `handle_pointer` ellipse ROI finalization from placeholder (`compute_roi_rect_stats` + `RoiRect`) to `compute_roi_ellipse_stats` + `RoiEllipse`
+- [x] GAP-120-10: update CHANGELOG, gap_audit, backlog, checklist, README
+- [x] Verification: `cargo test -p ritk-snap --lib ui::live_preview` passed: 10 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 241 tests (231 + 10 new)
+- [x] Verification: `cargo test -p ritk-dicom` passed: 20 tests
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 119 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
