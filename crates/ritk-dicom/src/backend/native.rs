@@ -8,7 +8,7 @@ use anyhow::{bail, Result};
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
 };
-use crate::codec::{decode_jpeg_fragment, decode_rle_lossless_fragment};
+use crate::codec::{decode_jpeg_fragment, decode_jpeg_ls_fragment, decode_rle_lossless_fragment};
 use crate::syntax::TransferSyntaxKind;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -23,6 +23,10 @@ where
             syntax if syntax.is_native_jpeg_codec() => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_jpeg_fragment(&fragment, request.layout)?
+            }
+            TransferSyntaxKind::JpegLsLossless => {
+                let fragment = object.encapsulated_frame(request.frame_index)?;
+                decode_jpeg_ls_fragment(&fragment, request.layout)?
             }
             TransferSyntaxKind::RleLossless => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
@@ -110,7 +114,7 @@ mod tests {
             &source,
             DecodeFrameRequest {
                 frame_index: 0,
-                transfer_syntax: TransferSyntaxKind::JpegLsLossless,
+                transfer_syntax: TransferSyntaxKind::JpegLsLossy,
                 layout: layout(2, 2),
             },
         )
@@ -120,5 +124,29 @@ mod tests {
             err.to_string().contains("NativeCodecBackend"),
             "expected NativeCodecBackend rejection, got {err:#}"
         );
+    }
+
+    #[test]
+    fn native_backend_accepts_jpeg_ls_lossless() {
+        // JPEG-LS Lossless (1.2.840.10008.1.2.4.80) should now be handled by NativeCodecBackend
+        let source = NoFragmentRead; // We don't have valid JPEG-LS data, but the syntax should be recognized
+        let result = NativeCodecBackend::decode_frame(
+            &source,
+            DecodeFrameRequest {
+                frame_index: 0,
+                transfer_syntax: TransferSyntaxKind::JpegLsLossless,
+                layout: layout(2, 2),
+            },
+        );
+        
+        // Should NOT get "not implemented by NativeCodecBackend" error
+        // It will fail because NoFragmentRead doesn't provide data, but with a different error
+        if let Err(e) = &result {
+            let err_str = e.to_string();
+            assert!(
+                !err_str.contains("not implemented by NativeCodecBackend"),
+                "JPEG-LS Lossless should be handled by NativeCodecBackend, got: {err_str}"
+            );
+        }
     }
 }

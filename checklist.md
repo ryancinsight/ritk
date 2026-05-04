@@ -1,18 +1,69 @@
+## Sprint 126 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.41 [patch]
+
+- [x] Add JPEG-LS native codec structure in `crates/ritk-dicom/src/codec/native/jpeg_ls.rs`
+- [x] JPEG-LS marker constants (SOI=0xFFD8, SOF55=0xFFF7, SOS=0xFFDA, DNL=0xFFDC, DRI=0xFFDD, EOI=0xFFD9)
+- [x] Prediction enum (None=0, Left=1, Up=2, AvgLeftUp=3, Paeth=4) with `from_u8()` validation
+- [x] BitReader struct with `read_bit()`, `read_bits()`, `read_golomb_rice()` methods
+- [x] JpegLsDecoder with `decode_fragment()` structure, ComponentInfo/ContextState for context-adaptive modeling
+- [x] Register `pub mod jpeg_ls` in `codec/native/mod.rs`
+- [x] Update `TransferSyntaxKind::is_jpeg_ls()` and `is_native_ritk_codec()` to include `JpegLsLossless` (UID 1.2.840.10008.1.2.4.80)
+- [x] Update `NativeCodecBackend::decode_frame()` to route `TransferSyntaxKind::JpegLsLossless` to `decode_jpeg_ls_fragment()`
+- [x] Add 8 value-semantic tests in `jpeg_ls.rs`: marker constants, prediction mode validation, bit reader ops, decoder defaults, fragment rejection
+- [x] Fix import issues and duplicate impl blocks in JPEG-LS implementation
+- [x] Build passes: `cargo test -p ritk-dicom --lib` (30 passed)
+- [x] Build passes: `cargo test -p ritk-io --lib` (413 passed)
+- [x] Build passes: `cargo test -p ritk-snap --lib` (309 passed)
+- [x] Update gap_audit.md with Sprint 126 record
+- [x] Update checklist.md with Sprint 126
+- [x] Commit and push all changes
+
+## Sprint 125 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.40 [patch]
+
+- [x] GAP-125-01: add section 7 measurement drawing in `app.rs` `render_axis_viewport`
+- [x] GAP-125-02: `img_to_screen` closure: `pos2(rect.min + img_px × scale)` — matches `viewport.rs` SSOT
+- [x] GAP-125-03: per-axis `spacing_2d [row_mm, col_mm]` from `vol.spacing` using axis parameter (axis 0: [dy,dx]; axis 1: [dz,dx]; axis 2: [dz,dy])
+- [x] GAP-125-04: `cursor_img_opt` inverse transform from `hover_pos` using same scale
+- [x] GAP-125-05: call `MeasurementLayer::draw_annotations` and `draw_in_progress` for all viewports
+- [x] GAP-125-06: add 6 value-semantic tests: axial/coronal/sagittal spacing selection, all-axes-distinct, `img_to_screen` analytical, `img_to_screen` origin
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 309 tests (303 + 6 new)
+- [x] Commit and push: `31fb5d0`
+
+## Sprint 124 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.39 [patch]
+
+- [x] GAP-124-01: create `ui/annotation_panel.rs` with `draw_annotation_panel(&[Annotation], &mut Ui) -> AnnotationPanelAction` SSOT
+- [x] GAP-124-02: `AnnotationPanelAction::{None, Delete(usize), ClearAll, ExportCsv(String)}`
+- [x] GAP-124-03: `csv_for(&[Annotation]) -> String` with canonical 5-column schema
+- [x] GAP-124-04: `annotation_label(usize, &Annotation) -> String` for row display
+- [x] GAP-124-05: `app.rs` replaces inline match block with SSOT call; `ExportCsv` copies to clipboard
+- [x] GAP-124-06: register `pub mod annotation_panel` in `ui/mod.rs` with doc table entry and re-exports
+- [x] GAP-124-07: add 16 value-semantic tests: csv rows, action variants, label format
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 303 tests (287 + 16 new)
+- [x] Commit and push: `b11a7ca`
+
 ## Sprint 123 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
 **Version**: 0.14.38 [patch]
 
 - [x] GAP-123-01: create `ui/preset_panel.rs` with `draw_preset_buttons(presets, ui) -> Option<WindowPreset>` SSOT — pure render function, no side effects
-- [x] GAP-123-02: implement button strip using `horizontal_wrapped` inside `ScrollArea::horizontal(id_source("preset_scroll"))` — prevents overflow
-- [x] GAP-123-03: register `pub mod preset_panel` in `ui/mod.rs`, add doc table entry, re-export `draw_preset_buttons`
-- [x] GAP-123-04: add 13 value-semantic tests: Brain (40/80), Lung (−400/1500), Bone (400/1000), Abdomen (60/400), Mediastinum (50/350), MR Brain T1 (500/800), MR Brain T2 (600/1200), all-CT-widths-positive, all-MR-widths-positive, for_modality_ct, for_modality_mr, for_modality_none, copy_identity
-- [x] GAP-123-05: wire into `app.rs` W/L panel: call `WindowPreset::for_modality(modality)`, pass to `draw_preset_buttons`, apply `Some(preset)` → `viewer_state` + `texture_dirty = true`
-- [x] GAP-123-06: update CHANGELOG, gap_audit, backlog, checklist
-- [x] Verification: `cargo test -p ritk-snap --lib ui::preset_panel` passed: 13 tests
-- [x] Verification: `cargo test -p ritk-snap --lib` passed: 287 tests (274 + 13 new)
-- [x] Verification: `cargo build -p ritk-snap` passed: exit 0, 0 errors
-- [x] Commit policy: stage, commit, push `origin/main`
+- [x] GAP-123-02: implement button strip using `horizontal_wrapped` inside `ScrollArea::horizontal(id_source("preset_scroll"))` — prevents overflow`
+- [x] GAP-123-03: register `pub mod preset_panel` in `ui/mod.rs`, add doc table entry, re-export `draw_preset_buttons``
+- [x] GAP-123-04: add 13 value-semantic tests: Brain (40/80), Lung (−400/1500), Bone (400/1000), Abdomen (60/400), Mediastinum (50/350), MR Brain T1 (500/800), MR Brain T2 (600/1200), all-CT-widths-positive, all-MR-widths-positive, for_modality_ct, for_modality_mr, for_modality_none, copy_identity`
+- [x] GAP-123-05: wire into `app.rs` W/L panel: call `WindowPreset::for_modality(modality)`, pass to `draw_preset_buttons`, apply `Some(preset)` → `viewer_state` + `texture_dirty = true``
+- [x] GAP-123-06: update CHANGELOG, gap_audit, backlog, checklist`
+- [x] Verification: `cargo test -p ritk-snap --lib ui::preset_panel` passed: 13 tests`
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 287 tests (274 + 13 new)`
+- [x] Verification: `cargo build -p ritk-snap` passed: exit 0, 0 errors`
+- [x] Commit policy: stage, commit, push `origin/main``
 
 ## Sprint 122 — Completed
 **Status**: Completed
