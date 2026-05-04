@@ -8,7 +8,10 @@ use anyhow::{bail, Result};
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
 };
-use crate::codec::{decode_jpeg_fragment, decode_jpeg_ls_fragment, decode_rle_lossless_fragment};
+use crate::codec::{
+    decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment,
+    decode_rle_lossless_fragment,
+};
 use crate::syntax::TransferSyntaxKind;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -27,6 +30,10 @@ where
             TransferSyntaxKind::JpegLsLossless => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;
                 decode_jpeg_ls_fragment(&fragment, request.layout)?
+            }
+            TransferSyntaxKind::Jpeg2000Lossless | TransferSyntaxKind::Jpeg2000Lossy => {
+                let fragment = object.encapsulated_frame(request.frame_index)?;
+                decode_jpeg2000_fragment(&fragment, request.layout)?
             }
             TransferSyntaxKind::RleLossless => {
                 let fragment = object.encapsulated_frame(request.frame_index)?;

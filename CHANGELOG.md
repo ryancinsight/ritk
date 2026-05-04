@@ -24,6 +24,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - **`ritk-snap` W/L drag SSOT** (`ui/window_level.rs`): Added `window_level_from_drag_delta`, `clamp_window_width`, `WINDOW_LEVEL_SENSITIVITY`, and `MIN_WINDOW_WIDTH` as the canonical implementation of ITK-SNAP-convention horizontal-drag-width / vertical-drag-center mapping with analytical monotonicity proofs. 9 value-semantic unit tests cover identity, directional monotonicity, clamping, and diagonal independence. [patch]
 - **`ritk-snap` `advance_slice_for_axis_loop` DRY**: Refactored cine wrap-around loop to delegate per-axis slice writes to `set_slice_for_axis`, eliminating duplicated dirty-flag and linked-cursor sync logic. [patch]
 
+## [0.14.44] - 2026 - Sprint 129
+
+### Added
+- **`ritk-dicom` JPEG 2000 native codec via OpenJPEG 2.5.2** (`codec/native/jpeg_2000/stream.rs`, `codec/native/jpeg_2000/image.rs`, `codec/native/jpeg_2000/mod.rs`, `backend/native.rs`, `backend/dicom_rs.rs`, `syntax/mod.rs`): Implemented ISO 15444-1 JPEG 2000 decode as a RITK-native codec, closing the last codec gap against ITK/SimpleITK/GDCM. `stream.rs`: `J2kMemStream` in-memory read stream with three `extern "C"` OpenJPEG callbacks (`read_fn`, `skip_fn`, `seek_fn`) — all unsafe isolated; EOF returned as `OPJ_SIZE_T::MAX` per spec. `image.rs`: `extract_pixels` extracts decoded `opj_image_t` component data into `Vec<f32>`, applying DICOM PS3.3 §C.7.6.3.1 modality LUT semantics: `output = stored_integer × rescale_slope + rescale_intercept` (no [0,1] normalisation). `mod.rs`: `decode_jpeg2000_fragment` public API; `is_jpeg2000_codestream` predicate using SOC constant; `SOC = 0xFF4F`, `SOI = 0xFFD8` marker constants. `syntax/mod.rs`: `is_native_ritk_codec()` includes `Jpeg2000Lossless | Jpeg2000Lossy`. `backend/native.rs`: dispatch arm for `Jpeg2000Lossless | Jpeg2000Lossy` → `decode_jpeg2000_fragment`. `backend/dicom_rs.rs`: explicit routing arm for `Jpeg2000Lossless | Jpeg2000Lossy` → `NativeCodecBackend::decode_frame`. 12 value-semantic tests: SOC/SOI marker constants (3), `is_jpeg2000_codestream` detection (5), error paths (2), lossless round-trips (3) with exact pixel equality. Baselines: ritk-dicom 86 passed (+12), ritk-io 413 passed, ritk-snap 315 passed. v0.14.44 [patch]
+
 ## [0.14.43] - 2026 - Sprint 128
 
 ### Added

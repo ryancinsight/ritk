@@ -145,7 +145,14 @@ impl TransferSyntaxKind {
     }
 
     pub fn is_native_ritk_codec(&self) -> bool {
-        self.is_native_jpeg_codec() || matches!(self, Self::RleLossless | Self::JpegLsLossless)
+        self.is_native_jpeg_codec()
+            || matches!(
+                self,
+                Self::RleLossless
+                    | Self::JpegLsLossless
+                    | Self::Jpeg2000Lossless
+                    | Self::Jpeg2000Lossy
+            )
     }
 
     pub fn is_native_jpeg_codec(&self) -> bool {
@@ -255,23 +262,41 @@ mod tests {
     fn external_backend_predicate_excludes_native_ritk_codecs() {
         for syntax in variants() {
             match syntax {
+                // JpegLsLossy, JpegXl variants remain external-only (no RITK-native decoder).
                 TransferSyntaxKind::JpegLsLossy
-                | TransferSyntaxKind::Jpeg2000Lossless
-                | TransferSyntaxKind::Jpeg2000Lossy
                 | TransferSyntaxKind::JpegXlLossless
                 | TransferSyntaxKind::JpegXlJpegRecompression
                 | TransferSyntaxKind::JpegXl => {
-                    assert!(syntax.is_external_backend_codec_candidate());
-                    assert!(!syntax.is_native_ritk_codec());
+                    assert!(
+                        syntax.is_external_backend_codec_candidate(),
+                        "{:?} must be external candidate",
+                        syntax
+                    );
+                    assert!(
+                        !syntax.is_native_ritk_codec(),
+                        "{:?} must not be native RITK codec",
+                        syntax
+                    );
                 }
+                // JPEG baseline/LS-lossless/RLE/JPEG2000 are RITK-native.
                 TransferSyntaxKind::JpegBaseline
                 | TransferSyntaxKind::JpegExtended
                 | TransferSyntaxKind::JpegLosslessNonHierarchical
                 | TransferSyntaxKind::JpegLosslessFirstOrderPrediction
                 | TransferSyntaxKind::JpegLsLossless
-                | TransferSyntaxKind::RleLossless => {
-                    assert!(syntax.is_native_ritk_codec());
-                    assert!(!syntax.is_external_backend_codec_candidate());
+                | TransferSyntaxKind::RleLossless
+                | TransferSyntaxKind::Jpeg2000Lossless
+                | TransferSyntaxKind::Jpeg2000Lossy => {
+                    assert!(
+                        syntax.is_native_ritk_codec(),
+                        "{:?} must be native RITK codec",
+                        syntax
+                    );
+                    assert!(
+                        !syntax.is_external_backend_codec_candidate(),
+                        "{:?} must not be external candidate when native",
+                        syntax
+                    );
                 }
                 _ => {
                     assert!(!syntax.is_external_backend_codec_candidate());

@@ -1,3 +1,25 @@
+## Sprint 129 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.14.44 [patch]
+
+- [x] Add `openjpeg-sys = { workspace = true }` to `crates/ritk-dicom/Cargo.toml`
+- [x] Create `codec/native/jpeg_2000/stream.rs`: `J2kMemStream` with `create_opj_stream` and three `extern "C"` callbacks (`read_fn`, `skip_fn`, `seek_fn`); all unsafe isolated; EOF = `OPJ_SIZE_T::MAX`
+- [x] Create `codec/native/jpeg_2000/image.rs`: `extract_pixels` — safe `opj_image_t` pixel extraction applying DICOM PS3.3 §C.7.6.3.1: `output = stored_integer × slope + intercept` (no [0,1] normalisation)
+- [x] Create `codec/native/jpeg_2000/mod.rs`: `decode_jpeg2000_fragment` public API; `SOC`/`SOI` marker constants; `is_jpeg2000_codestream`; 12 value-semantic tests; `encode_to_j2k` unsafe test helper
+- [x] Update `codec/native/mod.rs`: add `pub mod jpeg_2000;` and `pub use jpeg_2000::decode_jpeg2000_fragment;`
+- [x] Update `codec/mod.rs`: add `decode_jpeg2000_fragment` to public re-exports
+- [x] Update `syntax/mod.rs`: `is_native_ritk_codec()` includes `Jpeg2000Lossless | Jpeg2000Lossy`; update test predicate to match
+- [x] Update `backend/native.rs`: dispatch `Jpeg2000Lossless | Jpeg2000Lossy` → `decode_jpeg2000_fragment`
+- [x] Update `backend/dicom_rs.rs`: explicit routing arm for `Jpeg2000Lossless | Jpeg2000Lossy` → `NativeCodecBackend::decode_frame`
+- [x] Fix `image.rs` rescale formula: remove `/maxval` normalisation; apply `output = raw × slope + intercept`
+- [x] Update three round-trip tests in `mod.rs` to assert correct DICOM rescale expected values
+- [x] `cargo test -p ritk-dicom --lib`: **86 passed** (74 baseline + 12 new)
+- [x] `cargo test -p ritk-io --lib`: **413 passed** (baseline unchanged, JPEG 2000 round-trip fixed)
+- [x] `cargo test -p ritk-snap --lib`: **315 passed** (baseline unchanged)
+- [x] Update CHANGELOG.md with Sprint 129 entry
+- [x] Commit and push Sprint 129
+
 ## Sprint 128 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure
