@@ -737,6 +737,20 @@ impl SnapApp {
                     }
                 }
 
+                // ── Window / Level preset buttons ──────────────────────────────
+                {
+                    let modality = self.loaded.as_ref().and_then(|v| v.modality.as_deref());
+                    let presets =
+                        crate::ui::window_presets::WindowPreset::for_modality(modality);
+                    if let Some(preset) =
+                        crate::ui::preset_panel::draw_preset_buttons(presets, ui)
+                    {
+                        self.viewer_state.window_center = Some(preset.center as f32);
+                        self.viewer_state.window_width = Some(preset.width as f32);
+                        self.texture_dirty = true;
+                    }
+                }
+
                 ui.separator();
                 ui.heading("Cine");
                 ui.separator();

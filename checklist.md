@@ -1,3 +1,19 @@
+## Sprint 123 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.38 [patch]
+
+- [x] GAP-123-01: create `ui/preset_panel.rs` with `draw_preset_buttons(presets, ui) -> Option<WindowPreset>` SSOT — pure render function, no side effects
+- [x] GAP-123-02: implement button strip using `horizontal_wrapped` inside `ScrollArea::horizontal(id_source("preset_scroll"))` — prevents overflow
+- [x] GAP-123-03: register `pub mod preset_panel` in `ui/mod.rs`, add doc table entry, re-export `draw_preset_buttons`
+- [x] GAP-123-04: add 13 value-semantic tests: Brain (40/80), Lung (−400/1500), Bone (400/1000), Abdomen (60/400), Mediastinum (50/350), MR Brain T1 (500/800), MR Brain T2 (600/1200), all-CT-widths-positive, all-MR-widths-positive, for_modality_ct, for_modality_mr, for_modality_none, copy_identity
+- [x] GAP-123-05: wire into `app.rs` W/L panel: call `WindowPreset::for_modality(modality)`, pass to `draw_preset_buttons`, apply `Some(preset)` → `viewer_state` + `texture_dirty = true`
+- [x] GAP-123-06: update CHANGELOG, gap_audit, backlog, checklist
+- [x] Verification: `cargo test -p ritk-snap --lib ui::preset_panel` passed: 13 tests
+- [x] Verification: `cargo test -p ritk-snap --lib` passed: 287 tests (274 + 13 new)
+- [x] Verification: `cargo build -p ritk-snap` passed: exit 0, 0 errors
+- [x] Commit policy: stage, commit, push `origin/main`
+
 ## Sprint 122 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

@@ -1,3 +1,30 @@
+## Sprint 123 — Completed
+**Status**: Completed
+**Phase**: Execution -> Closure
+**Version**: 0.14.38 [patch]
+**Goal**: Close the window preset quick-select button gap by implementing `ui/preset_panel.rs` as the SSOT for rendering the preset button strip, wiring it into the W/L sidebar panel, and providing ITK-SNAP-parity one-click preset application from the histogram panel.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-123-01 | ITK-SNAP parity: no one-click window preset buttons in the W/L panel | patch |
+| GAP-123-02 | No SSOT for rendering modality-aware preset button strip | patch |
+| GAP-123-03 | Preset button rendering not separated from state mutation (SoC violation) | patch |
+| GAP-123-04 | No modality-dispatch wiring from loaded volume to preset list at render time | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-snap --lib ui::preset_panel` | Passed: 13 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 287 tests (274 + 13 new) |
+| `cargo build -p ritk-snap` | Passed: exit 0, 0 errors |
+
+### Residual risks
+- Full ITK/VTK/SimpleITK/SimpleElastix/ANTs/ImageJ/ITK-SNAP parity remains open.
+- DICOM JPEG-LS and JPEG 2000 native codec paths still deferred.
+- MPR 2×2 cross-viewport label routing not yet implemented.
+- Measurement history panel not yet implemented.
+
 ## Sprint 122 — Completed
 **Status**: Completed
 **Phase**: Execution -> Closure

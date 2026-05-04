@@ -18,6 +18,7 @@
 //! | [`pointer_intensity`] | [`intensity_at_voxel`] — voxel intensity lookup SSOT. |//! | [`live_preview`]     | [`live_length_mm`] and [`live_angle_deg`] — live measurement labels. |
 //! | [`histogram`]    | [`draw_histogram`] — voxel intensity histogram + W/L range overlay.  |
 //! | [`histogram_interact`] | [`x_to_intensity`], [`wl_from_histogram_drag`], [`wl_center_from_click`] — histogram canvas interaction SSOT. |
+//! | [`preset_panel`] | [`draw_preset_buttons`] — W/L preset quick-select button strip SSOT.  |
 //! | [`export_plan`]  | Deterministic all-axis MPR PNG export planning.          |
 //! | [`rtstruct_overlay`] | RT-STRUCT patient-space contour projection.          |
 //! | [`pan`]          | Pan drag mapping SSOT for viewport offset updates.      |
@@ -27,6 +28,7 @@
 
 pub mod histogram;
 pub mod histogram_interact;
+pub mod preset_panel;
 pub mod layout;
 pub mod measurements;
 pub mod cine;
@@ -55,6 +57,7 @@ pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
 pub use pointer_intensity::intensity_at_voxel;
+pub use preset_panel::draw_preset_buttons;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
