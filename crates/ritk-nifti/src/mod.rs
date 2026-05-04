@@ -1,9 +1,8 @@
-//! Re-export NIfTI functionality from ritk-nifti.
-//!
-//! This module provides backward-compatible access to NIfTI readers and writers
-//! that are now implemented in the dedicated ritk-nifti crate.
+pub mod reader;
+pub mod writer;
 
-pub use ritk_nifti::{read_nifti, read_nifti_labels, write_nifti, write_nifti_labels};
+pub use reader::{read_nifti, read_nifti_labels};
+pub use writer::{write_nifti, write_nifti_labels};
 
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;
@@ -44,4 +43,7 @@ impl<B: Backend> NiftiWriter<B> {
             .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
+
+#[cfg(test)]
+mod tests;
 

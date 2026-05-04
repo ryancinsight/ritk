@@ -1,3 +1,46 @@
+## Sprint 133 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.15.0 [minor]
+**Goal**: Extract NIfTI I/O into dedicated `ritk-nifti` crate following SRP/SSOT pattern (canonical architecture: `ritk-dicom` + `ritk-codecs` + `ritk-nifti`), maintain backward compatibility in `ritk-io` via re-export layer, and verify full test suite passes.
+
+### Checklist items
+- [x] Create `crates/ritk-nifti/` directory structure with `src/` subdirectory
+- [x] Create `crates/ritk-nifti/Cargo.toml` with workspace dependency configuration (`ritk-core`, `nifti`, `anyhow`, `burn`, `nalgebra`, `ndarray`)
+- [x] Migrate `read_nifti` and `read_nifti_labels` from `ritk-io/src/format/nifti/reader.rs` to `ritk-nifti/src/reader.rs` (195 lines, unchanged logic)
+- [x] Migrate `write_nifti` and `write_nifti_labels` from `ritk-io/src/format/nifti/writer.rs` to `ritk-nifti/src/writer.rs` (151 lines, unchanged logic)
+- [x] Migrate all 9 tests from `ritk-io/src/format/nifti/tests.rs` to `ritk-nifti/src/tests.rs` (round-trip, error-leak, sform header, length mismatch, single-voxel, all-background, sform encoding)
+- [x] Create `ritk-nifti/src/lib.rs` with comprehensive module docs, `mod reader; mod writer;` declarations, and `pub use` re-exports for all 4 public functions
+- [x] Create `NiftiReader<B: Backend>` and `NiftiWriter<B: Backend>` DIP wrapper types in `ritk-nifti/src/lib.rs` with trait implementations
+- [x] Fix E0252 duplicate import errors by consolidating `pub use` exports in lib.rs (removed redundant duplicate declarations)
+- [x] Update workspace `Cargo.toml`: add `crates/ritk-nifti` to members list
+- [x] Update workspace `Cargo.toml`: add `ritk-nifti = { path = "crates/ritk-nifti" }` to workspace.dependencies
+- [x] Update `ritk-io/Cargo.toml`: add `ritk-nifti` to dependencies
+- [x] Replace `ritk-io/src/format/nifti/mod.rs` with thin re-export layer (`pub use ritk_nifti::{...}`)
+- [x] Verify `cargo build -p ritk-nifti`: **0 errors, Finished**
+- [x] Verify `cargo test -p ritk-nifti --lib`: **9 passed** (all migrated tests)
+- [x] Verify `cargo test -p ritk-io --lib`: **409 passed** (backward compat via re-export layer)
+- [x] Verify `cargo build -p ritk-snap`: **0 errors** (downstream uses of `ritk_io::write_nifti_labels` work via re-export)
+- [x] Verify `cargo test -p ritk-snap --lib`: **321 passed** (full test suite passes)
+- [x] Update CHANGELOG.md with Sprint 133 entry and version bump to 0.15.0 [minor]
+- [x] Update gap_audit.md with Sprint 133 completion record
+- [x] Update backlog.md with Sprint 133 completion block
+- [x] Commit with message: "sprint 133: extract ritk-nifti crate from ritk-io (nifti i/o ssot)"
+- [x] Push to remote: `git push origin main`
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo build -p ritk-nifti` | Passed: 0 errors, Finished |
+| `cargo test -p ritk-nifti --lib` | Passed: 9 tests (all migrated) |
+| `cargo test -p ritk-io --lib` | Passed: 409 tests (backward compat) |
+| `cargo build -p ritk-snap` | Passed: 0 errors (downstream compat) |
+| `cargo test -p ritk-snap --lib` | Passed: 321 tests (full suite) |
+
+### Residual risks
+- None — backward compatibility fully verified through re-export layer; no breaking changes to public API.
+- Architecture now follows canonical multi-crate SRP pattern: `ritk-codecs` (codec primitives), `ritk-dicom` (DICOM metadata/dispatch), `ritk-nifti` (NIfTI I/O), `ritk-io` (polymorphic I/O dispatch).
+
 ## Sprint 132 — Completed
 **Status**: Completed
 **Phase**: Closure

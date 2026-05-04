@@ -5901,11 +5901,12 @@ dependencies = [
  "image 0.24.9",
  "nalgebra",
  "ndarray 0.16.1",
- "nifti",
  "openjpeg-sys",
  "rayon",
+ "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
+ "ritk-nifti",
  "tempfile",
  "thiserror 2.0.18",
  "tiff 0.9.1",
@@ -5926,6 +5927,21 @@ dependencies = [
  "ritk-core",
  "tempfile",
  "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "ritk-nifti"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "nalgebra",
+ "ndarray 0.16.1",
+ "nifti",
+ "ritk-core",
+ "tempfile",
  "tracing",
 ]
 

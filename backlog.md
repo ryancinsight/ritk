@@ -1,3 +1,29 @@
+## Sprint 133 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.15.0 [minor]
+**Goal**: Extract NIfTI I/O into dedicated `ritk-nifti` crate following SRP/SSOT pattern, maintain backward compatibility via re-export layer, verify full test suite passes.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-133-01 | NIfTI I/O logic scattered in `ritk-io/src/format/nifti/` without dedicated crate boundary | minor |
+| GAP-133-02 | No canonical DIP wrapper types (`NiftiReader`/`NiftiWriter`) in dedicated NIfTI crate | minor |
+| GAP-133-03 | Architecture lacked multi-crate SRP pattern for codec/format primitives | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo build -p ritk-nifti` | Passed: 0 errors |
+| `cargo test -p ritk-nifti --lib` | Passed: 9 tests (all migrated) |
+| `cargo test -p ritk-io --lib` | Passed: 409 tests (backward compat) |
+| `cargo build -p ritk-snap` | Passed: 0 errors |
+| `cargo test -p ritk-snap --lib` | Passed: 321 tests |
+
+### Residual risks
+- None — backward compatibility fully verified through re-export layer in `ritk-io`; no breaking changes to public API.
+- Architecture now follows canonical multi-crate SRP: `ritk-codecs` (codec primitives), `ritk-dicom` (DICOM metadata/dispatch), `ritk-nifti` (NIfTI I/O), `ritk-io` (polymorphic I/O dispatch).
+
 ## Sprint 132 — Completed
 **Status**: Completed
 **Phase**: Closure

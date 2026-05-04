@@ -1,0 +1,84 @@
+   Compiling windows-sys v0.61.2
+   Compiling naga v26.0.0
+   Compiling num-complex v0.4.6
+   Compiling either v1.15.0
+   Compiling simd-adler32 v0.3.8
+   Compiling rgb v0.8.52
+   Compiling matrixmultiply v0.3.10
+   Compiling miniz_oxide v0.8.9
+   Compiling rayon v1.11.0
+   Compiling simba v0.9.1
+   Compiling flate2 v1.1.8
+   Compiling dirs-sys v0.5.0
+   Compiling dirs v6.0.0
+   Compiling cubecl-common v0.8.1
+   Compiling ndarray v0.16.1
+   Compiling cubecl-ir v0.8.1
+   Compiling burn-common v0.19.1
+   Compiling nalgebra v0.33.2
+   Compiling nifti v0.17.0
+   Compiling cubecl-runtime v0.8.1
+   Compiling cubecl-core v0.8.1
+   Compiling wgpu-hal v26.0.6
+   Compiling cubecl-std v0.8.1
+   Compiling cubecl-reduce v0.8.1
+   Compiling cubecl-random v0.8.1
+   Compiling cubecl-quant v0.8.1
+   Compiling cubecl-matmul v0.8.1
+   Compiling wgpu-core-deps-windows-linux-android v26.0.0
+   Compiling wgpu-core v26.0.1
+   Compiling cubecl-convolution v0.8.1
+   Compiling wgpu v26.0.1
+   Compiling cubecl-wgpu v0.8.1
+   Compiling cubecl v0.8.1
+   Compiling burn-tensor v0.19.1
+   Compiling burn-ir v0.19.1
+   Compiling burn-core v0.19.1
+   Compiling burn-autodiff v0.19.1
+   Compiling burn-optim v0.19.1
+   Compiling burn-nn v0.19.1
+   Compiling burn-cubecl v0.19.1
+   Compiling burn-wgpu v0.19.1
+   Compiling burn v0.19.1
+   Compiling ritk-core v0.1.0 (D:\ritk\crates\ritk-core)
+   Compiling ritk-nifti v0.1.0 (D:\ritk\crates\ritk-nifti)
+error[E0252]: the name `read_nifti` is defined multiple times
+  --> crates\ritk-nifti\src\lib.rs:37:9
+   |
+33 | pub use reader::{read_nifti, read_nifti_labels};
+   |                  ---------- previous import of the value `read_nifti` here
+...
+37 | pub use reader::read_nifti;
+   |         ^^^^^^^^^^^^^^^^^^ `read_nifti` reimported here
+   |
+   = note: `read_nifti` must be defined only once in the value namespace of this module
+
+error[E0252]: the name `write_nifti` is defined multiple times
+  --> crates\ritk-nifti\src\lib.rs:38:9
+   |
+34 | pub use writer::{write_nifti, write_nifti_labels};
+   |                  ----------- previous import of the value `write_nifti` here
+...
+38 | pub use writer::write_nifti;
+   |         ^^^^^^^^^^^^^^^^^^^ `write_nifti` reimported here
+   |
+   = note: `write_nifti` must be defined only once in the value namespace of this module
+
+warning: unused import: `reader::read_nifti`
+  --> crates\ritk-nifti\src\lib.rs:37:9
+   |
+37 | pub use reader::read_nifti;
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `writer::write_nifti`
+  --> crates\ritk-nifti\src\lib.rs:38:9
+   |
+38 | pub use writer::write_nifti;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0252`.
+warning: `ritk-nifti` (lib) generated 2 warnings
+error: could not compile `ritk-nifti` (lib) due to 2 previous errors; 2 warnings emitted
+warning: build failed, waiting for other jobs to finish...

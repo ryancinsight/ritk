@@ -6,9 +6,10 @@ edition = "2021"
 [dependencies]
 ritk-core = { path = "../ritk-core" }
 ritk-dicom = { workspace = true }
+ritk-codecs = { workspace = true }
+ritk-nifti = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
-nifti = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

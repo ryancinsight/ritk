@@ -3,6 +3,7 @@ members = [
   "crates/ritk-core",
   "crates/ritk-dicom",
   "crates/ritk-codecs",
+  "crates/ritk-nifti",
   "crates/ritk-io",
   "crates/ritk-model",
   "crates/ritk-registration",
@@ -17,6 +18,7 @@ resolver = "2"
 ritk-core = { path = "crates/ritk-core" }
 ritk-dicom = { path = "crates/ritk-dicom" }
 ritk-codecs = { path = "crates/ritk-codecs" }
+ritk-nifti = { path = "crates/ritk-nifti" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
