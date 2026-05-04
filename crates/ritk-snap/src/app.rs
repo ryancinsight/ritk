@@ -875,59 +875,27 @@ impl SnapApp {
                 ui.heading("Annotations");
                 ui.separator();
 
-                if self.annotations.is_empty() {
-                    ui.label("None.");
-                } else {
-                    egui::ScrollArea::vertical()
-                        .max_height(200.0)
-                        .show(ui, |ui| {
-                            for (i, ann) in self.annotations.iter().enumerate() {
-                                match ann {
-                                    Annotation::Length { length_mm, .. } => {
-                                        ui.label(format!("#{i} Length: {length_mm:.1} mm"));
-                                    }
-                                    Annotation::Angle { angle_deg, .. } => {
-                                        ui.label(format!("#{i} Angle: {angle_deg:.2}°"));
-                                    }
-                                    Annotation::RoiRect {
-                                        mean,
-                                        std_dev,
-                                        min,
-                                        max,
-                                        area_mm2,
-                                        ..
-                                    } => {
-                                        ui.label(format!(
-                                            "#{i} ROI Rect  μ={mean:.1} σ={std_dev:.1} \
-                                             [{min:.0},{max:.0}] {area_mm2:.1}mm²"
-                                        ));
-                                    }
-                                    Annotation::RoiEllipse {
-                                        mean,
-                                        std_dev,
-                                        min,
-                                        max,
-                                        area_mm2,
-                                        ..
-                                    } => {
-                                        ui.label(format!(
-                                            "#{i} ROI Ellipse  μ={mean:.1} σ={std_dev:.1} \
-                                             [{min:.0},{max:.0}] {area_mm2:.1}mm²"
-                                        ));
-                                    }
-                                    Annotation::HuPoint { value, pos } => {
-                                        ui.label(format!(
-                                            "#{i} HU ({:.0},{:.0}): {value:.0}",
-                                            pos[1], pos[0]
-                                        ));
-                                    }
-                                }
-                            }
-                        });
-
-                    if ui.button("Clear all").clicked() {
+                // Delegate to SSOT: per-entry delete, Clear All, Export CSV.
+                match crate::ui::annotation_panel::draw_annotation_panel(
+                    &self.annotations,
+                    ui,
+                ) {
+                    crate::ui::AnnotationPanelAction::Delete(i) => {
+                        if i < self.annotations.len() {
+                            self.annotations.remove(i);
+                        }
+                    }
+                    crate::ui::AnnotationPanelAction::ClearAll => {
                         self.annotations.clear();
                     }
+                    crate::ui::AnnotationPanelAction::ExportCsv(csv) => {
+                        // Write to clipboard; fall back to status message if
+                        // clipboard is unavailable.
+                        ctx.output_mut(|o| o.copied_text = csv.clone());
+                        self.status_message =
+                            format!("CSV copied to clipboard ({} rows).", self.annotations.len());
+                    }
+                    crate::ui::AnnotationPanelAction::None => {}
                 }
             });
     }
