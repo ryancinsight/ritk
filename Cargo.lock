@@ -5906,13 +5906,27 @@ dependencies = [
  "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
+ "ritk-metaimage",
  "ritk-nifti",
+ "ritk-nrrd",
  "tempfile",
  "thiserror 2.0.18",
  "tiff 0.9.1",
  "tracing",
  "zune-core 0.4.12",
  "zune-jpegxl",
+]
+
+[[package]]
+name = "ritk-metaimage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "nalgebra",
+ "ritk-core",
+ "tempfile",
 ]
 
 [[package]]
@@ -5943,6 +5957,19 @@ dependencies = [
  "ritk-core",
  "tempfile",
  "tracing",
+]
+
+[[package]]
+name = "ritk-nrrd"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "bytemuck",
+ "nalgebra",
+ "ritk-core",
+ "tempfile",
 ]
 
 [[package]]

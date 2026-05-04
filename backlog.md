@@ -24,7 +24,35 @@
 - None — backward compatibility fully verified through re-export layer in `ritk-io`; no breaking changes to public API.
 - Architecture now follows canonical multi-crate SRP: `ritk-codecs` (codec primitives), `ritk-dicom` (DICOM metadata/dispatch), `ritk-nifti` (NIfTI I/O), `ritk-io` (polymorphic I/O dispatch).
 
-## Sprint 132 — Completed
+## Sprint 134 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.16.0 [minor]
+**Goal**: Extract medical imaging format I/O into dedicated crates following SRP/SSOT pattern. Continue canonical multi-crate architecture with `ritk-nrrd` (NRRD I/O) and `ritk-metaimage` (MetaImage I/O), maintain backward compatibility via re-export layers, verify full test suite passes.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-134-01 | NRRD I/O logic scattered in `ritk-io/src/format/nrrd/` without dedicated crate boundary | minor |
+| GAP-134-02 | MetaImage I/O logic scattered in `ritk-io/src/format/metaimage/` without dedicated crate boundary | minor |
+| GAP-134-03 | No canonical DIP wrapper types for NRRD/MetaImage in dedicated crates | minor |
+| GAP-134-04 | Architecture lacked comprehensive multi-crate SRP pattern for all major formats | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo build -p ritk-nrrd -p ritk-metaimage` | Passed: 0 errors |
+| `cargo test -p ritk-nrrd --lib` | Passed: 19 tests (all migrated) |
+| `cargo test -p ritk-metaimage --lib` | Passed: 14 tests (all migrated) |
+| `cargo test -p ritk-io --lib` | Passed: 376 tests (backward compat) |
+| `cargo test -p ritk-snap --lib` | Passed: 321 tests (downstream compat) |
+
+### Residual risks
+- None — backward compatibility fully verified through re-export layers; no breaking changes to public API.
+- Architecture now supports 5 dedicated format crates: `ritk-dicom`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, plus `ritk-codecs` (primitives).
+- Roadmap: extract `ritk-mgh`, `ritk-minc`, `ritk-analyze`, `ritk-vtk` following same pattern.
+
+## Sprint 133 — Completed
 **Status**: Completed
 **Phase**: Closure
 **Version**: 0.14.47 [minor]

@@ -1,0 +1,16 @@
+[package]
+name = "ritk-metaimage"
+version = "0.1.0"
+edition = "2021"
+description = "MetaImage (MHA/MHD) I/O for RITK"
+repository = "https://github.com/ryancinsight/ritk"
+
+[dependencies]
+ritk-core = { workspace = true }
+burn = { workspace = true }
+anyhow = { workspace = true }
+nalgebra = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = "3.0"

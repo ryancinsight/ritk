@@ -1,5 +1,1 @@
-mod reader;
-mod writer;
-
-pub use reader::{read_metaimage, MetaImageReader};
-pub use writer::{write_metaimage, MetaImageWriter};
+pub use ritk_metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};

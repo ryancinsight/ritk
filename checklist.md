@@ -41,7 +41,56 @@
 - None — backward compatibility fully verified through re-export layer; no breaking changes to public API.
 - Architecture now follows canonical multi-crate SRP pattern: `ritk-codecs` (codec primitives), `ritk-dicom` (DICOM metadata/dispatch), `ritk-nifti` (NIfTI I/O), `ritk-io` (polymorphic I/O dispatch).
 
-## Sprint 132 — Completed
+## Sprint 134 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.16.0 [minor]
+**Goal**: Extract medical imaging format I/O into dedicated crates following SRP/SSOT pattern. Continue canonical multi-crate architecture: `ritk-nrrd` (NRRD I/O SSOT) and `ritk-metaimage` (MetaImage/MHA/MHD I/O SSOT), maintain backward compatibility in `ritk-io` via re-export layers, verify full test suite passes.
+
+### Checklist items
+- [x] Create `crates/ritk-nrrd/` directory structure with `src/` subdirectory
+- [x] Create `crates/ritk-nrrd/Cargo.toml` with workspace dependency configuration
+- [x] Migrate `read_nrrd` from `ritk-io/src/format/nrrd/reader.rs` to `ritk-nrrd/src/reader.rs` (798 lines, unchanged logic)
+- [x] Migrate `write_nrrd` from `ritk-io/src/format/nrrd/writer.rs` to `ritk-nrrd/src/writer.rs` (415 lines, unchanged logic)
+- [x] Migrate all 19 NRRD tests to `ritk-nrrd/src/tests.rs` (inline tests in reader/writer)
+- [x] Create `ritk-nrrd/src/lib.rs` with comprehensive module docs and DIP wrapper types
+- [x] Create `crates/ritk-metaimage/` directory structure with `src/` subdirectory
+- [x] Create `crates/ritk-metaimage/Cargo.toml` with workspace dependency configuration
+- [x] Migrate `read_metaimage` from `ritk-io/src/format/metaimage/reader.rs` to `ritk-metaimage/src/reader.rs` (617 lines, unchanged logic)
+- [x] Migrate `write_metaimage` from `ritk-io/src/format/metaimage/writer.rs` to `ritk-metaimage/src/writer.rs` (314 lines, unchanged logic)
+- [x] Migrate all 14 MetaImage tests to `ritk-metaimage/src/tests.rs` (inline tests in reader/writer)
+- [x] Create `ritk-metaimage/src/lib.rs` with comprehensive module docs and DIP wrapper types
+- [x] Update workspace `Cargo.toml`: add `crates/ritk-nrrd` and `crates/ritk-metaimage` to members list
+- [x] Update workspace `Cargo.toml`: add `ritk-nrrd` and `ritk-metaimage` to workspace.dependencies
+- [x] Update `ritk-io/Cargo.toml`: add `ritk-nrrd` and `ritk-metaimage` to dependencies
+- [x] Replace `ritk-io/src/format/nrrd/mod.rs` with thin re-export layer (`pub use ritk_nrrd::{...}`)
+- [x] Replace `ritk-io/src/format/metaimage/mod.rs` with thin re-export layer (`pub use ritk_metaimage::{...}`)
+- [x] Verify `cargo build -p ritk-nrrd -p ritk-metaimage`: **0 errors, Finished**
+- [x] Verify `cargo test -p ritk-nrrd --lib`: **19 passed** (all migrated tests)
+- [x] Verify `cargo test -p ritk-metaimage --lib`: **14 passed** (all migrated tests)
+- [x] Verify `cargo test -p ritk-io --lib`: **376 passed** (backward compat via re-export layer; 33 fewer than before as NRRD/MetaImage tests moved)
+- [x] Verify `cargo test -p ritk-snap --lib`: **321 passed** (downstream uses of `ritk_io::read_nrrd`, `write_nrrd`, etc. working)
+- [x] Update CHANGELOG.md with Sprint 134 entry and version bump to 0.16.0 [minor]
+- [x] Update gap_audit.md with Sprint 134 completion record
+- [x] Update backlog.md with Sprint 134 completion block
+- [x] Commit with message: "sprint 134: extract ritk-nrrd and ritk-metaimage crates (format i/o ssot)"
+- [x] Push to remote: `git push origin main`
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo build -p ritk-nrrd -p ritk-metaimage` | Passed: 0 errors, Finished |
+| `cargo test -p ritk-nrrd --lib` | Passed: 19 tests (all migrated) |
+| `cargo test -p ritk-metaimage --lib` | Passed: 14 tests (all migrated) |
+| `cargo test -p ritk-io --lib` | Passed: 376 tests (backward compat, 33 tests migrated) |
+| `cargo test -p ritk-snap --lib` | Passed: 321 tests (downstream compat) |
+
+### Residual risks
+- None — backward compatibility fully verified through re-export layers; no breaking changes to public API.
+- Architecture now features dedicated format-specific crates: `ritk-codecs` (codec primitives), `ritk-dicom` (DICOM metadata/dispatch), `ritk-nifti` (NIfTI I/O), `ritk-nrrd` (NRRD I/O), `ritk-metaimage` (MetaImage I/O), `ritk-io` (polymorphic dispatch).
+- Ready for continued format extraction: `ritk-mgh` (FreeSurfer), `ritk-minc` (MINC2/HDF5), `ritk-analyze` (Analyze 7.5), etc.
+
+## Sprint 133 — Completed
 **Status**: Completed
 **Phase**: Closure
 **Version**: 0.14.47 [minor]

@@ -8,6 +8,8 @@ ritk-core = { path = "../ritk-core" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-nifti = { workspace = true }
+ritk-nrrd = { workspace = true }
+ritk-metaimage = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
 anyhow = { workspace = true }
