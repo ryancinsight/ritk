@@ -1,6 +1,6 @@
-## Sprint 152 — In Progress / Phase 2 Step 1 Complete
+## Sprint 152 — In Progress / Phase 2 Step 2 Complete
 **Status**: In Progress
-**Phase**: Phase 2 Execution (Step 1 Complete)
+**Phase**: Phase 2 Execution (Step 2 Complete)
 **Version**: 0.34.0 [minor]
 **Goal**: DICOM-SEG reader/writer implementation for segmentation persistence. Enable: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. LabelMap↔DicomSegmentation converter with spatial metadata preservation.
 
@@ -11,11 +11,14 @@
 - [x] **Public API exports**: mod.rs, lib.rs updated; label_map_to_dicom_seg publicly available
 - [x] **Verify existing functionality**: read_dicom_seg, write_dicom_seg (11 tests) all stable
 - [x] **Wire UI**: Added "Save segmentation as DICOM-SEG..." to File menu in ritk-snap
+- [x] **Implement dicom_seg_to_label_map converter** in ritk-io/src/format/dicom/seg.rs; reconstructs LabelMap from SEG frame stack with strict invariants
+- [x] **Wire UI**: Added "Load segmentation from DICOM-SEG..." to File menu in ritk-snap
+- [x] **Round-trip tests**: 4 value-semantic tests for DICOM-SEG→LabelMap and LabelMap→DICOM-SEG→LabelMap identity paths
 - [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 394 ritk-snap tests pass
-- [x] **Full test suite**: 1751 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 294 + ritk-dicom 8)
-- [ ] **Phase 2 Step 2**: Load integration (read_dicom_seg → DicomSegmentation → LabelMap)
-- [ ] **Phase 2 Step 3**: End-to-end round-trip tests (label preservation, metadata fidelity)
-- [ ] **Phase 2 Step 4**: Update CHANGELOG.md, checklist.md, commit and push
+- [x] **Full test suite**: 1755 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 298 + ritk-dicom 8)
+- [x] **Examples build check**: ritk-io and ritk-registration example targets compile successfully
+- [ ] **Phase 2 Step 3**: Real-data end-to-end DICOM-SEG file workflow validation in viewer session
+- [ ] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary
 - **Function**: `label_map_to_dicom_seg(label_map, origin, spacing, direction, use_binary) → Result<DicomSegmentation>`

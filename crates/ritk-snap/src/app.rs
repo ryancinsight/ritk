@@ -356,6 +356,11 @@ impl SnapApp {
                         self.load_segmentation_dialog();
                     }
 
+                    if ui.button("Load segmentation from DICOM-SEG…").clicked() {
+                        ui.close_menu();
+                        self.load_segmentation_dicom_seg_dialog();
+                    }
+
                     if ui.button("Save session…").clicked() {
                         ui.close_menu();
                         self.save_session_dialog();
@@ -2347,6 +2352,54 @@ impl SnapApp {
             Err(e) => {
                 self.status_message =
                     format!("Segmentation load failed: {e:#}");
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    /// Load a label map from a DICOM-SEG file and replace the current segmentation.
+    ///
+    /// The reconstructed shape must match the currently loaded volume.
+    fn load_segmentation_dicom_seg_dialog(&mut self) {
+        let Some(vol) = self.loaded.as_ref() else {
+            self.status_message =
+                "Load DICOM-SEG: no volume loaded.".to_owned();
+            return;
+        };
+        let expected_shape = vol.shape;
+
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("DICOM SEG", &["dcm", "dicom"])
+            .pick_file()
+        else {
+            return;
+        };
+
+        match ritk_io::read_dicom_seg(&path) {
+            Ok(seg) => match ritk_io::dicom_seg_to_label_map(&seg) {
+                Ok(map) => {
+                    if map.shape != expected_shape {
+                        self.status_message = format!(
+                            "DICOM-SEG shape {:?} does not match volume {:?}",
+                            map.shape, expected_shape
+                        );
+                        error!("{}", self.status_message);
+                        return;
+                    }
+                    self.label_editor = Some(crate::label::LabelEditor::from_label_map(map));
+                    self.status_message =
+                        format!("Loaded DICOM-SEG from {}", path.display());
+                    info!("{}", self.status_message);
+                }
+                Err(e) => {
+                    self.status_message =
+                        format!("DICOM-SEG decode failed: {e:#}");
+                    error!("{}", self.status_message);
+                }
+            },
+            Err(e) => {
+                self.status_message =
+                    format!("DICOM-SEG load failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }

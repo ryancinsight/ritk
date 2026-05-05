@@ -10,15 +10,18 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [0.34.0] - 2026 - Sprint 152
 
 ### Summary
-DICOM-SEG (Segmentation) reader/writer implementation for segmentation persistence and export. Enables end-to-end DICOM-SEG workflows: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. Comprehensive LabelMap↔DicomSegmentation converter with spatial metadata preservation (origin, spacing, direction). All 1751 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 294 + ritk-dicom 8).
+DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence and round-trip workflows in ritk-snap. Added bidirectional LabelMap↔DicomSegmentation conversion with loader UI wiring and value-semantic validation. End-to-end path is now: annotate in ritk-snap → save DICOM-SEG → load DICOM-SEG back into label editor. All 1755 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 298 + ritk-dicom 8).
 
 ### Added
 - **DICOM-SEG converter**: `label_map_to_dicom_seg` function in ritk-io; converts LabelMap → DicomSegmentation with spatial metadata (origin, spacing, direction) and frame-per-Z-per-segment layout
 - **UI integration**: "Save segmentation as DICOM-SEG..." menu action in ritk-snap File menu; integrated with label_editor and save dialog
 - **Test suite**: 6 value-semantic converter tests (single-label, multi-label, background exclusion, spatial metadata, error handling)
+- **DICOM-SEG loader converter**: `dicom_seg_to_label_map` function in ritk-io; reconstructs dense LabelMap from DICOM-SEG frame stacks with strict geometry/frame invariants
+- **UI integration**: "Load segmentation from DICOM-SEG..." menu action in ritk-snap File menu; reads SEG object, converts to LabelMap, validates shape against loaded volume
+- **Test suite**: 4 additional value-semantic converter tests (single-label round-trip, multi-label round-trip, invalid frame length rejection, uneven frame/segment rejection)
 
 ### Changed
-- **ritk-io API**: Added `label_map_to_dicom_seg` public export (SRP: DICOM I/O boundary owns format transformation)
+- **ritk-io API**: Added `dicom_seg_to_label_map` public export; DICOM-SEG conversion is now bidirectional in one SSOT boundary
 
 ### Technical Details
 - **Frame layout**: One 2D frame per Z-slice per foreground segment (n_frames = n_foreground_labels × nz)

@@ -9,18 +9,19 @@ pub use domain::{
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
-    is_private_tag, label_map_to_dicom_seg, load_dicom_multiframe, load_dicom_series,
-    load_dicom_series_with_metadata, model_to_in_mem, read_dicom_seg, read_dicom_series,
-    read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose, read_rt_plan,
-    read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, write_dicom_multiframe,
-    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
-    write_dicom_seg, write_dicom_series, write_dicom_series_with_metadata, write_rt_dose,
-    write_rt_plan, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
-    DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameWriterConfig, RtBeamInfo, RtContour, RtDoseGrid,
-    RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, TransferSyntaxKind,
-    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    dicom_seg_to_label_map, is_private_tag, label_map_to_dicom_seg, load_dicom_multiframe,
+    load_dicom_series, load_dicom_series_with_metadata, model_to_in_mem, read_dicom_seg,
+    read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose,
+    read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory,
+    write_dicom_multiframe, write_dicom_multiframe_with_config,
+    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
+    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, DicomObjectModel,
+    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
+    DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata,
+    DicomTag, DicomValue, DicomWriter, MultiFrameInfo, MultiFrameSpatialMetadata,
+    MultiFrameWriterConfig, RtBeamInfo, RtContour, RtDoseGrid, RtFractionGroup, RtPlanInfo,
+    RtRoiInfo, RtStructureSet, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID,
+    RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};

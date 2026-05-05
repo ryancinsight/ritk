@@ -28,6 +28,7 @@ use dicom::core::value::{DataSetSequence, Value};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::{open_file, InMemDicomObject};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -829,6 +830,160 @@ pub fn label_map_to_dicom_seg(
     })
 }
 
+/// Convert a [`DicomSegmentation`] into a dense `ritk_core` [`LabelMap`].
+///
+/// # Mathematical specification
+///
+/// Let `S` be a segmentation with frame geometry `(rows, cols)`, `n_frames`,
+/// `segments`, and per-frame segment references `frame_segment_numbers`.
+/// This conversion reconstructs a dense tensor `L[z, y, x]` with shape
+/// `[nz, rows, cols]`, where `nz = n_frames / n_segments` and `n_segments = segments.len()`.
+///
+/// For each frame `f`, segment `s = frame_segment_numbers[f]` and in-segment
+/// slice index `z_s`, each foreground pixel (`pixel_data[f][i] != 0`) writes
+/// `label_id(s)` to `L[z_s, y(i), x(i)]`.
+///
+/// Overlap policy: later writes in frame order win.
+///
+/// # Invariants checked
+/// - `rows > 0`, `cols > 0`, `n_frames > 0`, `segments` non-empty.
+/// - `frame_segment_numbers.len() == n_frames`.
+/// - `pixel_data.len() == n_frames` and each frame length is `rows * cols`.
+/// - `n_frames % segments.len() == 0`.
+/// - Every declared segment receives exactly `nz` frames.
+pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::annotation::LabelMap> {
+    if seg.rows == 0 || seg.cols == 0 {
+        bail!("DICOM-SEG has invalid frame geometry: rows={}, cols={}", seg.rows, seg.cols);
+    }
+    if seg.n_frames == 0 {
+        bail!("DICOM-SEG has zero frames");
+    }
+    if seg.segments.is_empty() {
+        bail!("DICOM-SEG has no segments");
+    }
+    if seg.frame_segment_numbers.len() != seg.n_frames {
+        bail!(
+            "frame_segment_numbers length {} != n_frames {}",
+            seg.frame_segment_numbers.len(),
+            seg.n_frames
+        );
+    }
+    if seg.pixel_data.len() != seg.n_frames {
+        bail!(
+            "pixel_data frame count {} != n_frames {}",
+            seg.pixel_data.len(),
+            seg.n_frames
+        );
+    }
+
+    let n_segments = seg.segments.len();
+    if seg.n_frames % n_segments != 0 {
+        bail!(
+            "n_frames {} is not divisible by segment count {}",
+            seg.n_frames,
+            n_segments
+        );
+    }
+
+    let nz = seg.n_frames / n_segments;
+    if nz == 0 {
+        bail!("derived nz is zero");
+    }
+
+    let n_pixels_per_frame = seg.rows * seg.cols;
+    for (idx, frame) in seg.pixel_data.iter().enumerate() {
+        if frame.len() != n_pixels_per_frame {
+            bail!(
+                "pixel_data[{idx}] length {} != rows*cols {}",
+                frame.len(),
+                n_pixels_per_frame
+            );
+        }
+    }
+
+    let mut table = ritk_core::annotation::LabelTable::new();
+    let mut segment_to_label: HashMap<u16, u32> = HashMap::new();
+    for s in &seg.segments {
+        if s.segment_number == 0 {
+            bail!("segment_number 0 is invalid for DICOM-SEG");
+        }
+        let label_id = u32::from(s.segment_number);
+        let color = segment_color(label_id);
+        table
+            .add_label(label_id, s.segment_label.clone(), color)
+            .map_err(|e| anyhow::anyhow!("invalid or duplicate segment label id {}: {}", label_id, e))?;
+        segment_to_label.insert(s.segment_number, label_id);
+    }
+
+    let mut seen_per_segment: HashMap<u16, usize> = seg
+        .segments
+        .iter()
+        .map(|s| (s.segment_number, 0usize))
+        .collect();
+
+    let mut data = vec![0u32; nz * n_pixels_per_frame];
+    for frame_idx in 0..seg.n_frames {
+        let segment_number = seg.frame_segment_numbers[frame_idx];
+        let Some(&label_id) = segment_to_label.get(&segment_number) else {
+            bail!(
+                "frame {} references undefined segment_number {}",
+                frame_idx,
+                segment_number
+            );
+        };
+
+        let Some(z_counter) = seen_per_segment.get_mut(&segment_number) else {
+            bail!(
+                "internal segment tracking missing segment_number {}",
+                segment_number
+            );
+        };
+        if *z_counter >= nz {
+            bail!(
+                "segment {} has more than {} frames",
+                segment_number,
+                nz
+            );
+        }
+        let z = *z_counter;
+        *z_counter += 1;
+
+        let frame = &seg.pixel_data[frame_idx];
+        for (i, &v) in frame.iter().enumerate() {
+            if v != 0 {
+                let flat = z * n_pixels_per_frame + i;
+                data[flat] = label_id;
+            }
+        }
+    }
+
+    for s in &seg.segments {
+        let count = seen_per_segment
+            .get(&s.segment_number)
+            .copied()
+            .unwrap_or(0);
+        if count != nz {
+            bail!(
+                "segment {} has {} frames, expected {}",
+                s.segment_number,
+                count,
+                nz
+            );
+        }
+    }
+
+    ritk_core::annotation::LabelMap::from_data([nz, seg.rows, seg.cols], data, table)
+        .map_err(|e| anyhow::anyhow!("failed to build LabelMap from DICOM-SEG: {e}"))
+}
+
+fn segment_color(label_id: u32) -> [u8; 4] {
+    let seed = label_id.wrapping_mul(0x9E37_79B9);
+    let r = 40 + ((seed & 0x7F) as u8);
+    let g = 40 + (((seed >> 8) & 0x7F) as u8);
+    let b = 40 + (((seed >> 16) & 0x7F) as u8);
+    [r, g, b, 180]
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1499,5 +1654,113 @@ mod tests {
 
         let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
         assert!(result.is_err(), "all-background map should return Err");
+    }
+
+    #[test]
+    fn test_dicom_seg_to_label_map_roundtrip_single_label() {
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "Label 1", [255, 0, 0, 255]).unwrap();
+        let original = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
+
+        let seg = label_map_to_dicom_seg(
+            &original,
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            true,
+        )
+        .expect("label_map_to_dicom_seg");
+
+        let rebuilt = dicom_seg_to_label_map(&seg).expect("dicom_seg_to_label_map");
+        assert_eq!(rebuilt.shape, [2, 2, 2]);
+        assert_eq!(rebuilt.as_slice(), original.as_slice());
+        assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("Label 1"));
+    }
+
+    #[test]
+    fn test_dicom_seg_to_label_map_roundtrip_multi_label() {
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
+        table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
+        let original = LabelMap::from_data([2, 2, 2], vec![1, 1, 0, 2, 2, 0, 1, 2], table).unwrap();
+
+        let seg = label_map_to_dicom_seg(
+            &original,
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            true,
+        )
+        .expect("label_map_to_dicom_seg");
+
+        let rebuilt = dicom_seg_to_label_map(&seg).expect("dicom_seg_to_label_map");
+        assert_eq!(rebuilt.shape, [2, 2, 2]);
+        assert_eq!(rebuilt.as_slice(), original.as_slice());
+        assert!(rebuilt.table.get_label(1).is_some());
+        assert!(rebuilt.table.get_label(2).is_some());
+    }
+
+    #[test]
+    fn test_dicom_seg_to_label_map_error_bad_frame_lengths() {
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 1,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "A".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1],
+            pixel_data: vec![vec![1, 0, 1]],
+            image_position_per_frame: vec![None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        let result = dicom_seg_to_label_map(&seg);
+        assert!(result.is_err(), "invalid frame length must fail");
+    }
+
+    #[test]
+    fn test_dicom_seg_to_label_map_error_uneven_frames_per_segment() {
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 3,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![
+                DicomSegmentInfo {
+                    segment_number: 1,
+                    segment_label: "A".to_owned(),
+                    segment_description: None,
+                    algorithm_type: None,
+                },
+                DicomSegmentInfo {
+                    segment_number: 2,
+                    segment_label: "B".to_owned(),
+                    segment_description: None,
+                    algorithm_type: None,
+                },
+            ],
+            frame_segment_numbers: vec![1, 1, 2],
+            pixel_data: vec![vec![1, 0, 0, 0], vec![0, 1, 0, 0], vec![0, 0, 1, 0]],
+            image_position_per_frame: vec![None, None, None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        let result = dicom_seg_to_label_map(&seg);
+        assert!(result.is_err(), "non-divisible frame/segment layout must fail");
     }
 }
