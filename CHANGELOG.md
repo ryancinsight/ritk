@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.24.0] - 2026 - Sprint 143
+
+### Added
+- **`ritk-core` `BinaryErodeFilter`** (`filter/morphology/binary_erode.rs`): ITK `BinaryErodeImageFilter` parity. Algorithm: output[x]=fg iff ∀b∈SE: input[x+b]=fg; OOB treated as background. Flat cubic SE of half-width `radius`. 7 value-semantic tests covering identity, border stripping (3D volumes), background preservation, custom foreground value, and spatial metadata.
+- **`ritk-core` `BinaryDilateFilter`** (`filter/morphology/binary_dilate.rs`): ITK `BinaryDilateImageFilter` parity. Algorithm: output[x]=fg iff ∃b∈SE: in-bounds and input[x+b]=fg. 8 tests.
+- **`ritk-core` `BinaryMorphologicalClosing`** (`filter/morphology/binary_closing.rs`): ITK `BinaryMorphologicalClosingImageFilter` parity. C_B(f)=E_B(D_B(f)) — dilation then erosion. Fills dark holes smaller than SE. 7 tests including extensivity and idempotence.
+- **`ritk-core` `BinaryMorphologicalOpening`** (`filter/morphology/binary_opening.rs`): ITK `BinaryMorphologicalOpeningImageFilter` parity. O_B(f)=D_B(E_B(f)) — erosion then dilation. Removes bright protrusions smaller than SE. 7 tests including anti-extensivity and idempotence.
+- **`ritk-core` `BinaryFillholeFilter`** (`filter/morphology/binary_fillhole.rs`): ITK `BinaryFillholeImageFilter` parity. 6-connected BFS from all image border voxels through background; unreached background voxels (holes) set to foreground. O(N) algorithm. 7 tests.
+- **`ritk-snap` binary morphology filter variants**: `FilterKind::BinaryErode`, `BinaryDilate`, `BinaryClosing`, `BinaryOpening`, `BinaryFillhole` wired into `apply_filter` (lib.rs), `SnapApp` dispatch (app.rs), and `ui/filter_panel.rs` with ComboBox entries, parameter controls, and 5 default-range tests (372 total snap tests).
+
+### Fixed
+- **`ritk-codecs` deprecation/dead-code warnings** (Sprint 143 [patch]): Added `#[allow(deprecated)]` to `pixel_layout` re-export sites in `lib.rs` and `ritk-dicom/pixel/mod.rs`. Removed unused `from_u8` method from `scan::Predictor`, added `#[allow(dead_code)]` to suppress `UpLeft`/`UpPlusHalfDiff`/`LeftPlusHalfDiff` variant warnings, removed `bail` from unused import in `jpeg_ls/scan.rs`. Zero warnings confirmed.
+
 ## [0.23.0] - 2026 - Sprint 142
 
 ### Added

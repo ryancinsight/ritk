@@ -19,10 +19,11 @@
 
 use anyhow::Result;
 use ritk_core::filter::{
-    BedSeparationConfig, BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter,
-    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold, RelabelComponentFilter,
-    UnsharpMaskFilter,
+    BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
+    BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
+    ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
+    GradientDiffusionConfig, HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
+    RelabelComponentFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -297,6 +298,21 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::MultiOtsuThreshold { num_classes } => Ok(
                 MultiOtsuThreshold::new(*num_classes as usize).apply(&study.image),
             ),
+            FilterKind::BinaryErode { radius, foreground_value } => {
+                BinaryErodeFilter::new(*radius).with_foreground(*foreground_value).apply(&study.image)
+            }
+            FilterKind::BinaryDilate { radius, foreground_value } => {
+                BinaryDilateFilter::new(*radius).with_foreground(*foreground_value).apply(&study.image)
+            }
+            FilterKind::BinaryClosing { radius, foreground_value } => {
+                BinaryMorphologicalClosing::new(*radius).with_foreground(*foreground_value).apply(&study.image)
+            }
+            FilterKind::BinaryOpening { radius, foreground_value } => {
+                BinaryMorphologicalOpening::new(*radius).with_foreground(*foreground_value).apply(&study.image)
+            }
+            FilterKind::BinaryFillhole { foreground_value } => {
+                BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -310,6 +326,11 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::ConnectedComponents { .. } => "ConnectedComponents",
             FilterKind::RelabelComponents { .. } => "RelabelComponents",
             FilterKind::MultiOtsuThreshold { .. } => "MultiOtsuThreshold",
+            FilterKind::BinaryErode { .. } => "BinaryErode",
+            FilterKind::BinaryDilate { .. } => "BinaryDilate",
+            FilterKind::BinaryClosing { .. } => "BinaryClosing",
+            FilterKind::BinaryOpening { .. } => "BinaryOpening",
+            FilterKind::BinaryFillhole { .. } => "BinaryFillhole",
         };
 
         match filter_result {
@@ -572,6 +593,51 @@ pub enum FilterKind {
     MultiOtsuThreshold {
         /// Number of intensity classes to segment into. Must be ≥ 2. ITK default: 3.
         num_classes: u32,
+    },
+    /// ITK `BinaryErodeImageFilter` parity.
+    ///
+    /// Erodes all foreground voxels that are not fully surrounded by foreground
+    /// within the structuring element of the given radius.  Out-of-bounds voxels
+    /// are treated as background.
+    BinaryErode {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+        /// Voxel intensity treated as foreground. Default: 1.0.
+        foreground_value: f32,
+    },
+    /// ITK `BinaryDilateImageFilter` parity.
+    ///
+    /// Expands each foreground voxel into the neighbourhood defined by `radius`.
+    BinaryDilate {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+        /// Voxel intensity treated as foreground. Default: 1.0.
+        foreground_value: f32,
+    },
+    /// ITK `BinaryMorphologicalClosingImageFilter` parity (dilation then erosion).
+    ///
+    /// Fills dark holes smaller than the structuring element.
+    BinaryClosing {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+        /// Voxel intensity treated as foreground. Default: 1.0.
+        foreground_value: f32,
+    },
+    /// ITK `BinaryMorphologicalOpeningImageFilter` parity (erosion then dilation).
+    ///
+    /// Removes bright protrusions / noise blobs smaller than the structuring element.
+    BinaryOpening {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+        /// Voxel intensity treated as foreground. Default: 1.0.
+        foreground_value: f32,
+    },
+    /// ITK `BinaryFillholeImageFilter` parity.
+    ///
+    /// Fills enclosed background cavities not connected to the image border.
+    BinaryFillhole {
+        /// Voxel intensity treated as foreground. Default: 1.0.
+        foreground_value: f32,
     },
 }
 

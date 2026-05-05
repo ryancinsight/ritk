@@ -1,3 +1,38 @@
+## Sprint 143 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.24.0 [minor]
+**Goal**: Binary morphology ITK parity (erode/dilate/closing/opening/fillhole); ritk-codecs warning cleanup.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-143-01 | `BinaryErodeFilter` missing — ITK `BinaryErodeImageFilter` had no parity | minor |
+| GAP-143-02 | `BinaryDilateFilter` missing — ITK `BinaryDilateImageFilter` had no parity | minor |
+| GAP-143-03 | `BinaryMorphologicalClosing` missing — ITK `BinaryMorphologicalClosingImageFilter` parity | minor |
+| GAP-143-04 | `BinaryMorphologicalOpening` missing — ITK `BinaryMorphologicalOpeningImageFilter` parity | minor |
+| GAP-143-05 | `BinaryFillholeFilter` missing — ITK `BinaryFillholeImageFilter` parity | minor |
+| GAP-143-06 | `ritk-codecs` had 3 compiler warnings (deprecated, dead_code, unused import) | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 857 tests (+36 new binary morphology) |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests (unchanged) |
+| `cargo test -p ritk-snap --lib` | Passed: 372 tests (+5 new filter panel defaults) |
+| `cargo build -p ritk-codecs -p ritk-dicom` | Zero warnings |
+
+### Next priorities [Sprint 144]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-144-01 | Pure-Rust JPEG 2000 decoder (remove `openjpeg-sys` FFI) | [minor] |
+| GAP-144-02 | DICOM-SEG reader/writer (ITK `LabelMapToSegmentationFilter` parity) | [minor] |
+| GAP-144-03 | RT-PLAN beam geometry display in ritk-snap (DVH parity) | [minor] |
+| GAP-144-04 | `BinaryBallStructuringElement` — spherical SE for binary morphology | [minor] |
+| GAP-144-05 | `GrayscaleFillholeImageFilter` parity | [minor] |
+
+---
+
 ## Sprint 142 — Completed
 **Status**: Completed
 **Phase**: Closure
@@ -18,6 +53,7 @@
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 821 tests (+8 from relabel) |
 | `cargo test -p ritk-io --lib` | Passed: 288 tests (unchanged) |
+
 | `cargo test -p ritk-snap --lib` | Passed: 367 tests (+2 from filter_panel) |
 
 ### Residual risks

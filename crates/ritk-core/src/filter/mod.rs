@@ -36,9 +36,10 @@ pub use intensity::{
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
 pub use median::MedianFilter;
 pub use morphology::{
-    BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,
-    LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
-    WhiteTopHatFilter,
+    BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
+    BinaryMorphologicalOpening, BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion,
+    HitOrMissTransform, LabelClosing, LabelDilation, LabelErosion, LabelOpening,
+    MorphologicalReconstruction, ReconstructionMode, WhiteTopHatFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;

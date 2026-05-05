@@ -18,6 +18,11 @@
 //!   - ConnectedComponents background_value (any f32); connectivity_26 boolean
 //!   - RelabelComponents minimum_object_size ∈ [0, MAX_u32] voxels
 //!   - MultiOtsuThreshold num_classes ∈ [2, 8]
+//!   - BinaryErode radius ∈ [0, 10]; foreground_value ∈ any f32
+//!   - BinaryDilate radius ∈ [0, 10]; foreground_value ∈ any f32
+//!   - BinaryClosing radius ∈ [0, 10]; foreground_value ∈ any f32
+//!   - BinaryOpening radius ∈ [0, 10]; foreground_value ∈ any f32
+//!   - BinaryFillhole foreground_value ∈ any f32
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -50,6 +55,11 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::ConnectedComponents { .. } => "Connected Components",
             FilterKind::RelabelComponents { .. } => "Relabel Components",
             FilterKind::MultiOtsuThreshold { .. } => "Multi-Otsu Threshold",
+            FilterKind::BinaryErode { .. } => "Binary Erode",
+            FilterKind::BinaryDilate { .. } => "Binary Dilate",
+            FilterKind::BinaryClosing { .. } => "Binary Closing",
+            FilterKind::BinaryOpening { .. } => "Binary Opening",
+            FilterKind::BinaryFillhole { .. } => "Binary Fill Holes",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -177,6 +187,56 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     .clicked()
                 {
                     *active_filter = FilterKind::MultiOtsuThreshold { num_classes: 3 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::BinaryErode { radius: 1, foreground_value: 1.0 },
+                        "Binary Erode",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::BinaryErode { radius: 1, foreground_value: 1.0 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::BinaryDilate { radius: 1, foreground_value: 1.0 },
+                        "Binary Dilate",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::BinaryDilate { radius: 1, foreground_value: 1.0 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::BinaryClosing { radius: 1, foreground_value: 1.0 },
+                        "Binary Closing",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::BinaryClosing { radius: 1, foreground_value: 1.0 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::BinaryOpening { radius: 1, foreground_value: 1.0 },
+                        "Binary Opening",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::BinaryOpening { radius: 1, foreground_value: 1.0 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::BinaryFillhole { foreground_value: 1.0 },
+                        "Binary Fill Holes",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::BinaryFillhole { foreground_value: 1.0 };
                 }
             });
 
@@ -372,6 +432,69 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     )
                     .small(),
                 );
+            }
+            FilterKind::BinaryErode { radius, foreground_value } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryErodeImageFilter parity.").small());
+            }
+            FilterKind::BinaryDilate { radius, foreground_value } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryDilateImageFilter parity.").small());
+            }
+            FilterKind::BinaryClosing { radius, foreground_value } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryMorphologicalClosingImageFilter parity. Fills dark holes.").small());
+            }
+            FilterKind::BinaryOpening { radius, foreground_value } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryMorphologicalOpeningImageFilter parity. Removes small bright blobs.").small());
+            }
+            FilterKind::BinaryFillhole { foreground_value } => {
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryFillholeImageFilter parity. Fills enclosed background cavities.").small());
             }
         }
 
@@ -618,6 +741,65 @@ mod tests {
             );
         } else {
             panic!("expected MultiOtsuThreshold variant");
+        }
+    }
+
+    /// BinaryErode defaults: radius=1, foreground_value=1.0 — ITK defaults.
+    #[test]
+    fn binary_erode_defaults_are_valid() {
+        let fk = FilterKind::BinaryErode { radius: 1, foreground_value: 1.0 };
+        if let FilterKind::BinaryErode { radius, foreground_value } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+        } else {
+            panic!("expected BinaryErode variant");
+        }
+    }
+
+    /// BinaryDilate defaults: radius=1, foreground_value=1.0 — ITK defaults.
+    #[test]
+    fn binary_dilate_defaults_are_valid() {
+        let fk = FilterKind::BinaryDilate { radius: 1, foreground_value: 1.0 };
+        if let FilterKind::BinaryDilate { radius, foreground_value } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+        } else {
+            panic!("expected BinaryDilate variant");
+        }
+    }
+
+    /// BinaryClosing defaults: radius=1, foreground_value=1.0 — ITK defaults.
+    #[test]
+    fn binary_closing_defaults_are_valid() {
+        let fk = FilterKind::BinaryClosing { radius: 1, foreground_value: 1.0 };
+        if let FilterKind::BinaryClosing { radius, foreground_value } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+        } else {
+            panic!("expected BinaryClosing variant");
+        }
+    }
+
+    /// BinaryOpening defaults: radius=1, foreground_value=1.0 — ITK defaults.
+    #[test]
+    fn binary_opening_defaults_are_valid() {
+        let fk = FilterKind::BinaryOpening { radius: 1, foreground_value: 1.0 };
+        if let FilterKind::BinaryOpening { radius, foreground_value } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+        } else {
+            panic!("expected BinaryOpening variant");
+        }
+    }
+
+    /// BinaryFillhole defaults: foreground_value=1.0 — ITK default.
+    #[test]
+    fn binary_fillhole_defaults_are_valid() {
+        let fk = FilterKind::BinaryFillhole { foreground_value: 1.0 };
+        if let FilterKind::BinaryFillhole { foreground_value } = fk {
+            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+        } else {
+            panic!("expected BinaryFillhole variant");
         }
     }
 }

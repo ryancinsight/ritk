@@ -42,3 +42,15 @@ pub use label_morphology::{
     ReconstructionMode,
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
+
+pub mod binary_erode;
+pub mod binary_dilate;
+pub mod binary_closing;
+pub mod binary_opening;
+pub mod binary_fillhole;
+
+pub use binary_erode::BinaryErodeFilter;
+pub use binary_dilate::BinaryDilateFilter;
+pub use binary_closing::BinaryMorphologicalClosing;
+pub use binary_opening::BinaryMorphologicalOpening;
+pub use binary_fillhole::BinaryFillholeFilter;

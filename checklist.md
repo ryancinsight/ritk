@@ -1,3 +1,28 @@
+## Sprint 143 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.24.0 [minor]
+**Goal**: Binary morphology ITK parity (erode/dilate/closing/opening/fillhole); ritk-codecs warning cleanup.
+
+### Checklist items
+- [x] Fix ritk-codecs warnings: `#[allow(deprecated)]` on pixel_layout re-exports in `lib.rs` and `ritk-dicom/pixel/mod.rs`
+- [x] Fix ritk-codecs warnings: remove `from_u8` method, add `#[allow(dead_code)]` to `scan::Predictor`, remove unused `bail` import
+- [x] Create `binary_erode.rs` with `BinaryErodeFilter` and 7 tests (3D volumes)
+- [x] Create `binary_dilate.rs` with `BinaryDilateFilter` and 8 tests
+- [x] Create `binary_closing.rs` with `BinaryMorphologicalClosing` and 7 tests
+- [x] Create `binary_opening.rs` with `BinaryMorphologicalOpening` and 7 tests
+- [x] Create `binary_fillhole.rs` with `BinaryFillholeFilter` and 7 tests (BFS algorithm)
+- [x] Update `morphology/mod.rs` with 5 new pub modules and pub use
+- [x] Update `filter/mod.rs` with 5 new morphology re-exports
+- [x] Add 5 `FilterKind` variants, imports, dispatch arms, and filter_name arms to `ritk-snap/src/lib.rs`
+- [x] Add imports and dispatch arms to `ritk-snap/src/app.rs`
+- [x] Add ComboBox entries, parameter controls, and 5 default-range tests to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib`: 857 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 372 passed
+
+---
+
 ## Sprint 142 — Completed
 **Status**: Completed
 **Phase**: Closure

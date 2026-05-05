@@ -1781,10 +1781,11 @@ impl SnapApp {
         let filter_kind = self.active_filter.clone();
         let filter_result = {
             use ritk_core::filter::{
-                BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter, GaussianFilter,
-                GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-                HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
-                RelabelComponentFilter, UnsharpMaskFilter,
+                BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
+                BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
+                ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
+                GradientDiffusionConfig, HistogramEqualizationFilter, MedianFilter,
+                MultiOtsuThreshold, RelabelComponentFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -1846,6 +1847,21 @@ impl SnapApp {
                 crate::FilterKind::MultiOtsuThreshold { num_classes } => Ok(
                     MultiOtsuThreshold::new(*num_classes as usize).apply(&image),
                 ),
+                crate::FilterKind::BinaryErode { radius, foreground_value } => {
+                    BinaryErodeFilter::new(*radius).with_foreground(*foreground_value).apply(&image)
+                }
+                crate::FilterKind::BinaryDilate { radius, foreground_value } => {
+                    BinaryDilateFilter::new(*radius).with_foreground(*foreground_value).apply(&image)
+                }
+                crate::FilterKind::BinaryClosing { radius, foreground_value } => {
+                    BinaryMorphologicalClosing::new(*radius).with_foreground(*foreground_value).apply(&image)
+                }
+                crate::FilterKind::BinaryOpening { radius, foreground_value } => {
+                    BinaryMorphologicalOpening::new(*radius).with_foreground(*foreground_value).apply(&image)
+                }
+                crate::FilterKind::BinaryFillhole { foreground_value } => {
+                    BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&image)
+                }
             }
         };
 

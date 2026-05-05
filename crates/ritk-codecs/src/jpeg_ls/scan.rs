@@ -5,7 +5,7 @@
 //! implemented because DICOM JPEG-LS lossless is always single-component
 //! or non-interleaved (per DICOM PS 3.5 §8.2.3).
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 use super::bitstream::BitReader;
 use super::context::{
@@ -22,6 +22,12 @@ const J: [u32; 32] = [
 ];
 
 /// JPEG-LS predictor modes specified in the SOS header (ISO 14495-1 §C.2.4).
+///
+/// All 8 modes are defined by the ISO 14495-1 standard and may appear in
+/// valid JPEG-LS bitstreams.  Modes 3, 5, 6 are not dispatched by the
+/// current DICOM `Prediction` → `Predictor` mapping but remain present as
+/// exhaustive match arms in `predict()` for standard compliance.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Predictor {
     /// Predictor 0: no prediction (Px = 0 for first sample, left for others).
@@ -30,32 +36,16 @@ pub(super) enum Predictor {
     Left = 1,
     /// Predictor 2: above neighbor (b).
     Up = 2,
-    /// Predictor 3: above-left diagonal (c).
+    /// Predictor 3: above-left diagonal (c). ISO 14495-1 mode 3.
     UpLeft = 3,
-    /// Predictor 4: a + b − c.
+    /// Predictor 4: a + b − c. ISO 14495-1 mode 4.
     UpPlusLeftMinusUpLeft = 4,
-    /// Predictor 5: b + (c − a)/2.
+    /// Predictor 5: b + (c − a)/2. ISO 14495-1 mode 5.
     UpPlusHalfDiff = 5,
-    /// Predictor 6: a + (c − b)/2.
+    /// Predictor 6: a + (c − b)/2. ISO 14495-1 mode 6.
     LeftPlusHalfDiff = 6,
     /// Predictor 7: ISO edge-detecting adaptive predictor (§6.3.1, default).
     Adaptive = 7,
-}
-
-impl Predictor {
-    pub(super) fn from_u8(v: u8) -> anyhow::Result<Self> {
-        match v {
-            0 => Ok(Self::None),
-            1 => Ok(Self::Left),
-            2 => Ok(Self::Up),
-            3 => Ok(Self::UpLeft),
-            4 => Ok(Self::UpPlusLeftMinusUpLeft),
-            5 => Ok(Self::UpPlusHalfDiff),
-            6 => Ok(Self::LeftPlusHalfDiff),
-            7 => Ok(Self::Adaptive),
-            _ => bail!("Invalid JPEG-LS predictor: {}", v),
-        }
-    }
 }
 
 /// ISO 14495-1 §6.3.1 edge-detecting predictor.
