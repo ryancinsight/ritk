@@ -13,6 +13,7 @@ pub mod morphology;
 pub mod pyramid;
 pub mod recursive_gaussian;
 pub mod resample;
+pub mod smoothing;
 pub mod threshold;
 pub mod transform;
 pub mod vesselness;
@@ -42,13 +43,13 @@ pub use intensity::{
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
 pub use median::MedianFilter;
 pub use morphology::{
-    BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
-    BinaryMorphologicalOpening, BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation,
-    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
-    GrayscaleOpeningFilter, HitOrMissTransform,
-    LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
-    ReconstructionMode, WhiteTopHatFilter,
+    BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
+    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform,
+    LabelClosing, LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
+    MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;
@@ -65,5 +66,6 @@ pub use threshold::{
 };
 pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
 pub use intensity::{ShiftScaleImageFilter, ZeroCrossingImageFilter};
-pub use transform::{FlipImageFilter, PermuteAxesImageFilter, PasteImageFilter, RegionOfInterestImageFilter};
+pub use smoothing::MeanImageFilter;
+pub use transform::{ConstantPadImageFilter, FlipImageFilter, MirrorPadImageFilter, PermuteAxesImageFilter, PasteImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter};
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};

@@ -67,3 +67,11 @@ pub use grayscale_gradient::GrayscaleMorphologicalGradientFilter;
 
 pub mod grayscale_geodesic;
 pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter};
+
+pub mod binary_contour;
+pub mod label_contour;
+pub mod voting_binary;
+
+pub use binary_contour::BinaryContourImageFilter;
+pub use label_contour::LabelContourImageFilter;
+pub use voting_binary::VotingBinaryImageFilter;

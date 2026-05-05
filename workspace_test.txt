@@ -1,0 +1,115 @@
+warning: unused variable: `inz`
+  --> crates\ritk-core\src\filter\transform\permute_axes.rs:78:14
+   |
+78 |         let [inz, iny, inx] = in_shape;
+   |              ^^^ help: if this is intentional, prefix it with an underscore: `_inz`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ritk-core` (lib) generated 1 warning (run `cargo fix --lib -p ritk-core` to apply 1 suggestion)
+   Compiling ritk-io v0.1.0 (D:\ritk\crates\ritk-io)
+   Compiling ritk-registration v0.1.0 (D:\ritk\crates\ritk-registration)
+   Compiling ritk-codecs v0.1.0 (D:\ritk\crates\ritk-codecs)
+warning: `ritk-core` (lib test) generated 1 warning (1 duplicate)
+error[E0599]: no variant or associated item named `from_u8` found for enum `scan::Predictor` in the current scope
+   --> crates\ritk-codecs\src\jpeg_ls\scan.rs:329:32
+    |
+ 32 | pub(super) enum Predictor {
+    | ------------------------- variant or associated item `from_u8` not found for this enum
+...
+329 |             assert!(Predictor::from_u8(v).is_ok(), "predictor {} should be valid", v);
+    |                                ^^^^^^^ variant or associated item not found in `scan::Predictor`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `from_u8`, perhaps you need to implement it:
+            candidate #1: `num_traits::cast::FromPrimitive`
+help: there is an associated function `from` with a similar name
+    |
+329 -             assert!(Predictor::from_u8(v).is_ok(), "predictor {} should be valid", v);
+329 +             assert!(Predictor::from(v).is_ok(), "predictor {} should be valid", v);
+    |
+
+error[E0599]: no variant or associated item named `from_u8` found for enum `scan::Predictor` in the current scope
+   --> crates\ritk-codecs\src\jpeg_ls\scan.rs:335:28
+    |
+ 32 | pub(super) enum Predictor {
+    | ------------------------- variant or associated item `from_u8` not found for this enum
+...
+335 |         assert!(Predictor::from_u8(8).is_err());
+    |                            ^^^^^^^ variant or associated item not found in `scan::Predictor`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `from_u8`, perhaps you need to implement it:
+            candidate #1: `num_traits::cast::FromPrimitive`
+help: there is an associated function `from` with a similar name
+    |
+335 -         assert!(Predictor::from_u8(8).is_err());
+335 +         assert!(Predictor::from(8).is_err());
+    |
+
+error[E0599]: no variant or associated item named `from_u8` found for enum `scan::Predictor` in the current scope
+   --> crates\ritk-codecs\src\jpeg_ls\scan.rs:336:28
+    |
+ 32 | pub(super) enum Predictor {
+    | ------------------------- variant or associated item `from_u8` not found for this enum
+...
+336 |         assert!(Predictor::from_u8(255).is_err());
+    |                            ^^^^^^^ variant or associated item not found in `scan::Predictor`
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `from_u8`, perhaps you need to implement it:
+            candidate #1: `num_traits::cast::FromPrimitive`
+help: there is an associated function `from` with a similar name
+    |
+336 -         assert!(Predictor::from_u8(255).is_err());
+336 +         assert!(Predictor::from(255).is_err());
+    |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `ritk-codecs` (lib test) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+warning: function `read_dicom_series` is never used
+    --> crates\ritk-io\src\format\dicom\reader.rs:1347:8
+     |
+1347 | pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
+     |        ^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `load_dicom_series` is never used
+    --> crates\ritk-io\src\format\dicom\reader.rs:1356:8
+     |
+1356 | pub fn load_dicom_series<B: Backend, P: AsRef<Path>>(
+     |        ^^^^^^^^^^^^^^^^^
+
+warning: struct `DicomReader` is never constructed
+    --> crates\ritk-io\src\format\dicom\reader.rs:1632:12
+     |
+1632 | pub struct DicomReader<B> {
+     |            ^^^^^^^^^^^
+
+warning: associated function `new` is never used
+    --> crates\ritk-io\src\format\dicom\reader.rs:1638:12
+     |
+1636 | impl<B> DicomReader<B> {
+     | ---------------------- associated function in this implementation
+1637 |     /// Create a new reader.
+1638 |     pub fn new() -> Self {
+     |            ^^^
+
+warning: function `is_image_sop_class` is never used
+   --> crates\ritk-io\src\format\dicom\sop_class.rs:252:8
+    |
+252 | pub fn is_image_sop_class(uid: &str) -> bool {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: struct `DicomReader` is never constructed
+    --> crates\ritk-io\src\format\dicom\reader.rs:1632:12
+     |
+1632 | pub struct DicomReader<B> {
+     |            ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `ritk-io` (lib) generated 5 warnings
+warning: `ritk-io` (lib test) generated 2 warnings (1 duplicate)

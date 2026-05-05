@@ -22,15 +22,18 @@ use ritk_core::filter::{
     AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
     BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
     BinaryMorphologicalOpening, ClaheFilter, ConnectedComponentsFilter,
-    DistanceTransformImageFilter, ExpImageFilter,
+    ConstantPadImageFilter, DistanceTransformImageFilter, ExpImageFilter,
     FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
     GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
-    GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter,
-    MaskImageFilter, MedianFilter, MultiOtsuThreshold, NormalizeImageFilter,
+    GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter,
+    LogImageFilter, MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter,
+    MultiOtsuThreshold, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter,
-    RelabelComponentFilter, ShiftScaleImageFilter, SignedDistanceTransformImageFilter,
-    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
+    BinaryContourImageFilter, RelabelComponentFilter, ShiftScaleImageFilter,
+    ShrinkImageFilter, SignedDistanceTransformImageFilter,
+    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
+    WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -413,6 +416,46 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
                     .apply(&study.image)
             }
+            FilterKind::Mean { radius } => MeanImageFilter::new(*radius).apply(&study.image),
+            FilterKind::BinaryContour { fully_connected, foreground_value } => {
+                BinaryContourImageFilter::new(*fully_connected, *foreground_value)
+                    .apply(&study.image)
+            }
+            FilterKind::LabelContour { fully_connected, background_value } => {
+                LabelContourImageFilter::new(*fully_connected, *background_value)
+                    .apply(&study.image)
+            }
+            FilterKind::VotingBinary {
+                radius, birth_threshold, survival_threshold, foreground_value, background_value,
+            } => VotingBinaryImageFilter::new(
+                *radius, *birth_threshold, *survival_threshold,
+                *foreground_value, *background_value,
+            ).apply(&study.image),
+            FilterKind::Shrink { factor_z, factor_y, factor_x } => {
+                ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x]).apply(&study.image)
+            }
+            FilterKind::ConstantPad {
+                pad_lower_z, pad_lower_y, pad_lower_x,
+                pad_upper_z, pad_upper_y, pad_upper_x, constant,
+            } => ConstantPadImageFilter::new(
+                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                *constant,
+            ).apply(&study.image),
+            FilterKind::MirrorPad {
+                pad_lower_z, pad_lower_y, pad_lower_x,
+                pad_upper_z, pad_upper_y, pad_upper_x,
+            } => MirrorPadImageFilter::new(
+                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+            ).apply(&study.image),
+            FilterKind::WrapPad {
+                pad_lower_z, pad_lower_y, pad_lower_x,
+                pad_upper_z, pad_upper_y, pad_upper_x,
+            } => WrapPadImageFilter::new(
+                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+            ).apply(&study.image),
         };
 
         let filter_name = match kind {
@@ -454,6 +497,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::ZeroCrossing { .. } => "ZeroCrossing",
             FilterKind::RegionOfInterest { .. } => "RegionOfInterest",
             FilterKind::PermuteAxes { .. } => "PermuteAxes",
+            FilterKind::Mean { .. } => "Mean",
+            FilterKind::BinaryContour { .. } => "BinaryContour",
+            FilterKind::LabelContour { .. } => "LabelContour",
+            FilterKind::VotingBinary { .. } => "VotingBinary",
+            FilterKind::Shrink { .. } => "Shrink",
+            FilterKind::ConstantPad { .. } => "ConstantPad",
+            FilterKind::MirrorPad { .. } => "MirrorPad",
+            FilterKind::WrapPad { .. } => "WrapPad",
         };
 
         match filter_result {
@@ -919,6 +970,84 @@ pub enum FilterKind {
         order_1: usize,
         /// Source axis for output axis 2 (X).
         order_2: usize,
+    },
+
+    /// Arithmetic mean of (2·radius+1)³ neighbourhood (ITK `MeanImageFilter`).
+    Mean {
+        /// Neighbourhood half-width in voxels. Default: 1.
+        radius: usize,
+    },
+
+    /// Extract border voxels of binary objects (ITK `BinaryContourImageFilter`).
+    BinaryContour {
+        /// Use 26-connectivity; false = 6-connectivity.
+        fully_connected: bool,
+        /// Foreground voxel value. Default: 1.0.
+        foreground_value: f32,
+    },
+
+    /// Extract boundaries between label regions (ITK `LabelContourImageFilter`).
+    LabelContour {
+        /// Use 26-connectivity; false = 6-connectivity.
+        fully_connected: bool,
+        /// Background voxel value. Default: 0.0.
+        background_value: f32,
+    },
+
+    /// Cellular automata voting step (ITK `VotingBinaryImageFilter`).
+    VotingBinary {
+        /// Neighbourhood half-width in voxels.
+        radius: usize,
+        /// Min foreground neighbours needed for birth (background→foreground).
+        birth_threshold: usize,
+        /// Min foreground neighbours needed for survival (foreground→foreground).
+        survival_threshold: usize,
+        /// Foreground voxel value. Default: 1.0.
+        foreground_value: f32,
+        /// Background voxel value. Default: 0.0.
+        background_value: f32,
+    },
+
+    /// Integer downsampling by tile averaging (ITK `ShrinkImageFilter`).
+    Shrink {
+        /// Downsampling factor along Z.
+        factor_z: usize,
+        /// Downsampling factor along Y.
+        factor_y: usize,
+        /// Downsampling factor along X.
+        factor_x: usize,
+    },
+
+    /// Constant-value padding (ITK `ConstantPadImageFilter`).
+    ConstantPad {
+        pad_lower_z: usize,
+        pad_lower_y: usize,
+        pad_lower_x: usize,
+        pad_upper_z: usize,
+        pad_upper_y: usize,
+        pad_upper_x: usize,
+        /// Fill value. Default: 0.0.
+        constant: f32,
+    },
+
+    /// Mirror reflection padding (ITK `MirrorPadImageFilter`).
+    MirrorPad {
+        pad_lower_z: usize,
+        pad_lower_y: usize,
+        pad_lower_x: usize,
+        pad_upper_z: usize,
+        pad_upper_y: usize,
+        pad_upper_x: usize,
+    },
+
+    /// Periodic (wrap) padding (ITK `WrapPadImageFilter`).
+    WrapPad {
+        pad_lower_z: usize,
+        pad_lower_y: usize,
+        pad_lower_x: usize,
+        pad_upper_z: usize,
+        pad_upper_y: usize,
+        pad_upper_x: usize,
     },
 }
 

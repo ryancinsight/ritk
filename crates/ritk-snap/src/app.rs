@@ -1954,6 +1954,49 @@ impl SnapApp {
                     ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
                         .apply(&image)
                 }
+                crate::FilterKind::Mean { radius } => {
+                    ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::BinaryContour { fully_connected, foreground_value } => {
+                    ritk_core::filter::BinaryContourImageFilter::new(*fully_connected, *foreground_value)
+                        .apply(&image)
+                }
+                crate::FilterKind::LabelContour { fully_connected, background_value } => {
+                    ritk_core::filter::LabelContourImageFilter::new(*fully_connected, *background_value)
+                        .apply(&image)
+                }
+                crate::FilterKind::VotingBinary {
+                    radius, birth_threshold, survival_threshold, foreground_value, background_value,
+                } => ritk_core::filter::VotingBinaryImageFilter::new(
+                    *radius, *birth_threshold, *survival_threshold,
+                    *foreground_value, *background_value,
+                ).apply(&image),
+                crate::FilterKind::Shrink { factor_z, factor_y, factor_x } => {
+                    ritk_core::filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
+                        .apply(&image)
+                }
+                crate::FilterKind::ConstantPad {
+                    pad_lower_z, pad_lower_y, pad_lower_x,
+                    pad_upper_z, pad_upper_y, pad_upper_x, constant,
+                } => ritk_core::filter::ConstantPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                    *constant,
+                ).apply(&image),
+                crate::FilterKind::MirrorPad {
+                    pad_lower_z, pad_lower_y, pad_lower_x,
+                    pad_upper_z, pad_upper_y, pad_upper_x,
+                } => ritk_core::filter::MirrorPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                ).apply(&image),
+                crate::FilterKind::WrapPad {
+                    pad_lower_z, pad_lower_y, pad_lower_x,
+                    pad_upper_z, pad_upper_y, pad_upper_x,
+                } => ritk_core::filter::WrapPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                ).apply(&image),
             }
         };
 

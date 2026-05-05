@@ -75,7 +75,7 @@ impl PermuteAxesImageFilter {
             .into_vec::<f32>()
             .map_err(|e| anyhow::anyhow!("PermuteAxesImageFilter: {:?}", e))?;
 
-        let [inz, iny, inx] = in_shape;
+        let [_inz, iny, inx] = in_shape;
         let [oz, oy, ox] = out_shape;
 
         let in_idx = |iz: usize, iy: usize, ix: usize| iz * iny * inx + iy * inx + ix;

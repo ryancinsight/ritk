@@ -1344,6 +1344,7 @@ pub(super) fn resample_frames_linear(
 }
 
 /// Read a DICOM series and return the reconstructed 3-D image.
+#[allow(dead_code)]
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
@@ -1353,6 +1354,7 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
 }
 
 /// Load a DICOM series, preserving metadata.
+#[allow(dead_code)]
 pub fn load_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
@@ -1629,6 +1631,7 @@ fn is_likely_dicom_file(path: &Path) -> bool {
 }
 
 /// Compatibility wrapper for callers expecting a reader type.
+#[allow(dead_code)]
 pub struct DicomReader<B> {
     _phantom: std::marker::PhantomData<B>,
 }

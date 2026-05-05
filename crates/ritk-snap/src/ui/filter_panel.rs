@@ -85,6 +85,14 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::ZeroCrossing { .. } => "Zero Crossing",
             FilterKind::RegionOfInterest { .. } => "Region Of Interest",
             FilterKind::PermuteAxes { .. } => "Permute Axes",
+            FilterKind::Mean { .. } => "Mean",
+            FilterKind::BinaryContour { .. } => "Binary Contour",
+            FilterKind::LabelContour { .. } => "Label Contour",
+            FilterKind::VotingBinary { .. } => "Voting Binary",
+            FilterKind::Shrink { .. } => "Shrink",
+            FilterKind::ConstantPad { .. } => "Constant Pad",
+            FilterKind::MirrorPad { .. } => "Mirror Pad",
+            FilterKind::WrapPad { .. } => "Wrap Pad",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -378,6 +386,46 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     FilterKind::PermuteAxes { order_0: 0, order_1: 1, order_2: 2 },
                     "Permute Axes",
                 ).clicked() { *active_filter = FilterKind::PermuteAxes { order_0: 0, order_1: 1, order_2: 2 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::Mean { radius: 1 },
+                    "Mean",
+                ).clicked() { *active_filter = FilterKind::Mean { radius: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::BinaryContour { fully_connected: false, foreground_value: 1.0 },
+                    "Binary Contour",
+                ).clicked() { *active_filter = FilterKind::BinaryContour { fully_connected: false, foreground_value: 1.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::LabelContour { fully_connected: false, background_value: 0.0 },
+                    "Label Contour",
+                ).clicked() { *active_filter = FilterKind::LabelContour { fully_connected: false, background_value: 0.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::VotingBinary { radius: 1, birth_threshold: 1, survival_threshold: 1, foreground_value: 1.0, background_value: 0.0 },
+                    "Voting Binary",
+                ).clicked() { *active_filter = FilterKind::VotingBinary { radius: 1, birth_threshold: 1, survival_threshold: 1, foreground_value: 1.0, background_value: 0.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::Shrink { factor_z: 2, factor_y: 2, factor_x: 2 },
+                    "Shrink",
+                ).clicked() { *active_filter = FilterKind::Shrink { factor_z: 2, factor_y: 2, factor_x: 2 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::ConstantPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1, constant: 0.0 },
+                    "Constant Pad",
+                ).clicked() { *active_filter = FilterKind::ConstantPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1, constant: 0.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::MirrorPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 },
+                    "Mirror Pad",
+                ).clicked() { *active_filter = FilterKind::MirrorPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::WrapPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 },
+                    "Wrap Pad",
+                ).clicked() { *active_filter = FilterKind::WrapPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 }; }
             });
 
         ui.add_space(4.0);
@@ -805,6 +853,116 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                         });
                     *order_2 = o2.max(0) as usize;
                 });
+            }
+            FilterKind::Mean { radius } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::Slider::new(&mut r, 0..=10).step_by(1.0)).changed() {
+                        *radius = r.max(0) as usize;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK MeanImageFilter: arithmetic mean of (2r+1)³ neighbourhood.").small());
+            }
+            FilterKind::BinaryContour { fully_connected, foreground_value } => {
+                ui.horizontal(|ui| {
+                    ui.label("26-connected:");
+                    ui.checkbox(fully_connected, "");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK BinaryContourImageFilter: border voxels of binary objects.").small());
+            }
+            FilterKind::LabelContour { fully_connected, background_value } => {
+                ui.horizontal(|ui| {
+                    ui.label("26-connected:");
+                    ui.checkbox(fully_connected, "");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Background value:");
+                    ui.add(egui::DragValue::new(background_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK LabelContourImageFilter: boundaries between label regions.").small());
+            }
+            FilterKind::VotingBinary { radius, birth_threshold, survival_threshold, foreground_value, background_value } => {
+                let mut r = *radius as i32;
+                let mut bt = *birth_threshold as i32;
+                let mut st = *survival_threshold as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius:");
+                    if ui.add(egui::Slider::new(&mut r, 0..=5).step_by(1.0)).changed() { *radius = r.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Birth threshold:");
+                    if ui.add(egui::Slider::new(&mut bt, 0..=26).step_by(1.0)).changed() { *birth_threshold = bt.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Survival threshold:");
+                    if ui.add(egui::Slider::new(&mut st, 0..=26).step_by(1.0)).changed() { *survival_threshold = st.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground value:");
+                    ui.add(egui::DragValue::new(foreground_value).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Background value:");
+                    ui.add(egui::DragValue::new(background_value).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK VotingBinaryImageFilter: cellular automata voting step.").small());
+            }
+            FilterKind::Shrink { factor_z, factor_y, factor_x } => {
+                let mut fz = *factor_z as i32;
+                let mut fy = *factor_y as i32;
+                let mut fx = *factor_x as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Factor Z:");
+                    if ui.add(egui::Slider::new(&mut fz, 1..=16).step_by(1.0)).changed() { *factor_z = fz.max(1) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Factor Y:");
+                    if ui.add(egui::Slider::new(&mut fy, 1..=16).step_by(1.0)).changed() { *factor_y = fy.max(1) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Factor X:");
+                    if ui.add(egui::Slider::new(&mut fx, 1..=16).step_by(1.0)).changed() { *factor_x = fx.max(1) as usize; }
+                });
+                ui.label(egui::RichText::new("ITK ShrinkImageFilter: integer downsampling by tile averaging. Spacing is updated.").small());
+            }
+            FilterKind::ConstantPad { pad_lower_z, pad_lower_y, pad_lower_x, pad_upper_z, pad_upper_y, pad_upper_x, constant } => {
+                for (label, val) in [("↓Z", pad_lower_z), ("↓Y", pad_lower_y), ("↓X", pad_lower_x), ("↑Z", pad_upper_z), ("↑Y", pad_upper_y), ("↑X", pad_upper_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Pad {label}:"));
+                        if ui.add(egui::Slider::new(&mut v, 0..=128).step_by(1.0)).changed() { *val = v.max(0) as usize; }
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Constant:");
+                    ui.add(egui::DragValue::new(constant).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK ConstantPadImageFilter.").small());
+            }
+            FilterKind::MirrorPad { pad_lower_z, pad_lower_y, pad_lower_x, pad_upper_z, pad_upper_y, pad_upper_x } => {
+                for (label, val) in [("↓Z", pad_lower_z), ("↓Y", pad_lower_y), ("↓X", pad_lower_x), ("↑Z", pad_upper_z), ("↑Y", pad_upper_y), ("↑X", pad_upper_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Pad {label}:"));
+                        if ui.add(egui::Slider::new(&mut v, 0..=128).step_by(1.0)).changed() { *val = v.max(0) as usize; }
+                    });
+                }
+                ui.label(egui::RichText::new("ITK MirrorPadImageFilter: symmetric reflection.").small());
+            }
+            FilterKind::WrapPad { pad_lower_z, pad_lower_y, pad_lower_x, pad_upper_z, pad_upper_y, pad_upper_x } => {
+                for (label, val) in [("↓Z", pad_lower_z), ("↓Y", pad_lower_y), ("↓X", pad_lower_x), ("↑Z", pad_upper_z), ("↑Y", pad_upper_y), ("↑X", pad_upper_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Pad {label}:"));
+                        if ui.add(egui::Slider::new(&mut v, 0..=128).step_by(1.0)).changed() { *val = v.max(0) as usize; }
+                    });
+                }
+                ui.label(egui::RichText::new("ITK WrapPadImageFilter: periodic extension.").small());
             }
         }
 

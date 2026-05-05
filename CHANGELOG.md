@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.30.0] - 2026 - Sprint 148
+
+### Added
+- **`ritk-core` `MeanImageFilter`** (`filter/smoothing/mean.rs`): Box-mean filter; arithmetic mean over (2r+1)³ neighbourhood. ITK `MeanImageFilter` parity. 6 tests.
+- **`ritk-core` `BinaryContourImageFilter`** (`filter/morphology/binary_contour.rs`): Border voxels of binary objects; configurable 6- or 26-connectivity. ITK `BinaryContourImageFilter` parity. 5 tests.
+- **`ritk-core` `LabelContourImageFilter`** (`filter/morphology/label_contour.rs`): Boundaries between label regions; configurable connectivity. ITK `LabelContourImageFilter` parity. 5 tests.
+- **`ritk-core` `VotingBinaryImageFilter`** (`filter/morphology/voting_binary.rs`): Cellular-automata voting with configurable birth/survival thresholds. ITK `VotingBinaryImageFilter` parity. 5 tests.
+- **`ritk-core` `ShrinkImageFilter`** (`filter/transform/shrink.rs`): Integer downsampling by tile-averaged shrink factors; spacing updated proportionally. ITK `ShrinkImageFilter` parity. 5 tests.
+- **`ritk-core` `ConstantPadImageFilter`** (`filter/transform/pad.rs`): Constant-value boundary padding; updated origin. ITK `ConstantPadImageFilter` parity. 3 tests.
+- **`ritk-core` `MirrorPadImageFilter`** (`filter/transform/pad.rs`): Symmetric reflection padding. ITK `MirrorPadImageFilter` parity. 3 tests.
+- **`ritk-core` `WrapPadImageFilter`** (`filter/transform/pad.rs`): Periodic extension padding. ITK `WrapPadImageFilter` parity. 2 tests.
+- **`ritk-snap`**: New `FilterKind` variants `Mean`, `BinaryContour`, `LabelContour`, `VotingBinary`, `Shrink`, `ConstantPad`, `MirrorPad`, `WrapPad` wired into `lib.rs` dispatch, `app.rs` GUI dispatch, and `filter_panel.rs` ComboBox + parameter controls.
+
+### Changed
+- `ritk-core` test count: 985 → 1019 (+34 new tests).
+- `ritk-snap` test count: unchanged at 383 (all passing).
+
 ## [0.29.0] - 2026 - Sprint 147
 
 ### Added
