@@ -1,3 +1,28 @@
+## Sprint 145 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.26.0 [minor]
+**Goal**: ITK arithmetic intensity filter parity (7 filters) + morphological gradient parity (Beucher gradient).
+
+### Checklist items
+- [x] Create `arithmetic.rs` with `AbsImageFilter`, `InvertIntensityFilter`, `NormalizeImageFilter`, `SquareImageFilter`, `SqrtImageFilter`, `LogImageFilter`, `ExpImageFilter` + 38 value-semantic tests
+- [x] Create `grayscale_gradient.rs` with `GrayscaleMorphologicalGradientFilter` + 6 value-semantic tests
+- [x] Update `intensity/mod.rs`: `pub mod arithmetic` + re-export 7 new types
+- [x] Update `morphology/mod.rs`: `pub mod grayscale_gradient` + re-export `GrayscaleMorphologicalGradientFilter`
+- [x] Update `filter/mod.rs`: add 8 new types to intensity/morphology re-exports
+- [x] Add 8 new imports to `ritk-snap/src/lib.rs` use block
+- [x] Add 8 `FilterKind` variants after `GrayscaleFillhole`
+- [x] Add 8 dispatch arms and 8 filter_name arms to `apply_filter` in `lib.rs`
+- [x] Add 8 imports and 8 dispatch arms to `ritk-snap/src/app.rs`
+- [x] Add kind_label arms, ComboBox entries, parameter controls, and 8 default-range tests to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib`: 921 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 383 passed
+- [x] Update CHANGELOG.md, gap_audit.md, checklist.md, backlog.md
+- [x] git commit and push
+
+---
+
 ## Sprint 144 — Completed
 **Status**: Completed
 **Phase**: Closure

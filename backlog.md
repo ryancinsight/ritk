@@ -1,3 +1,39 @@
+## Sprint 145 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.26.0 [minor]
+**Goal**: ITK arithmetic intensity filter parity (7 filters) + morphological gradient parity.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-145-01 | `AbsImageFilter` missing — ITK `AbsImageFilter` / ImageJ Abs | minor |
+| GAP-145-02 | `InvertIntensityFilter` missing — ITK `InvertIntensityImageFilter` | minor |
+| GAP-145-03 | `NormalizeImageFilter` missing — ITK `NormalizeImageFilter` | minor |
+| GAP-145-04 | `SquareImageFilter` missing — ITK `SquareImageFilter` / ImageJ Square | minor |
+| GAP-145-05 | `SqrtImageFilter` missing — ITK `SqrtImageFilter` / ImageJ Sqrt | minor |
+| GAP-145-06 | `LogImageFilter` missing — ITK `LogImageFilter` / ImageJ Log | minor |
+| GAP-145-07 | `ExpImageFilter` missing — ITK `ExpImageFilter` / ImageJ Exp | minor |
+| GAP-145-08 | `GrayscaleMorphologicalGradientFilter` missing — ITK `GrayscaleMorphologicalGradientImageFilter` | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 921 tests (+40 new arithmetic/gradient) |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests (unchanged) |
+| `cargo test -p ritk-snap --lib` | Passed: 383 tests (+8 new filter panel defaults) |
+
+### Next priorities [Sprint 146]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-146-01 | Pure-Rust JPEG 2000 decoder (remove `openjpeg-sys` FFI) | [minor] |
+| GAP-146-02 | DICOM-SEG reader/writer (ITK `LabelMapToSegmentationFilter` parity) | [minor] |
+| GAP-146-03 | `BinaryBallStructuringElement` (spherical SE) — ITK `BallElement` parity | [minor] |
+| GAP-146-04 | `GrayscaleGeodesicErode`/`Dilate` (morphological reconstruction with two-image API) | [minor] |
+| GAP-146-05 | RT-PLAN beam geometry / DVH display in `ritk-snap` | [minor] |
+
+---
+
 ## Sprint 144 — Completed
 **Status**: Completed
 **Phase**: Closure

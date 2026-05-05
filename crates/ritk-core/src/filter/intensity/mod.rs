@@ -3,9 +3,13 @@
 //! ITK/SimpleITK-style pixel-wise intensity transform filters.
 //! Includes a CT bed separation filter for body masking and foreground extraction,
 //! contrast-limited adaptive histogram equalization (CLAHE), global
-//! histogram equalization (ImageJ/ITK parity), and unsharp masking
-//! (ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity).
+//! histogram equalization (ImageJ/ITK parity), unsharp masking
+//! (ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity), and
+//! pixelwise arithmetic transforms (ITK `AbsImageFilter`, `InvertIntensityImageFilter`,
+//! `NormalizeImageFilter`, `SquareImageFilter`, `SqrtImageFilter`,
+//! `LogImageFilter`, `ExpImageFilter`).
 
+pub mod arithmetic;
 pub mod bed_separation;
 pub mod binary_threshold;
 pub mod clahe;
@@ -16,6 +20,10 @@ pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
 
+pub use arithmetic::{
+    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
+    NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
+};
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter};
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use clahe::ClaheFilter;

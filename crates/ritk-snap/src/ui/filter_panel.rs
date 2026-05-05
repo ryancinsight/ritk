@@ -65,6 +65,14 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::GrayscaleClosing { .. } => "Grayscale Closing",
             FilterKind::GrayscaleOpening { .. } => "Grayscale Opening",
             FilterKind::GrayscaleFillhole => "Grayscale Fill Holes",
+            FilterKind::Abs => "Abs",
+            FilterKind::InvertIntensity { .. } => "Invert Intensity",
+            FilterKind::NormalizeIntensity => "Normalize",
+            FilterKind::Square => "Square",
+            FilterKind::Sqrt => "Sqrt",
+            FilterKind::Log => "Log",
+            FilterKind::Exp => "Exp",
+            FilterKind::MorphologicalGradient { .. } => "Morphological Gradient",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -272,6 +280,51 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     .clicked()
                 {
                     *active_filter = FilterKind::GrayscaleFillhole;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Abs, "Abs").clicked() {
+                    *active_filter = FilterKind::Abs;
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::InvertIntensity { maximum: None },
+                        "Invert Intensity",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::InvertIntensity { maximum: None };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::NormalizeIntensity,
+                        "Normalize",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::NormalizeIntensity;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Square, "Square").clicked() {
+                    *active_filter = FilterKind::Square;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Sqrt, "Sqrt").clicked() {
+                    *active_filter = FilterKind::Sqrt;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Log, "Log").clicked() {
+                    *active_filter = FilterKind::Log;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Exp, "Exp").clicked() {
+                    *active_filter = FilterKind::Exp;
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::MorphologicalGradient { radius: 1 },
+                        "Morphological Gradient",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::MorphologicalGradient { radius: 1 };
                 }
             });
 
@@ -553,6 +606,47 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             }
             FilterKind::GrayscaleFillhole => {
                 ui.label(egui::RichText::new("ITK GrayscaleFillholeImageFilter parity. Fills dark regional minima not connected to the image border.").small());
+            }
+            FilterKind::Abs => {
+                ui.label(egui::RichText::new("ITK AbsImageFilter / ImageJ Abs. out(x) = |in(x)|. No adjustable parameters.").small());
+            }
+            FilterKind::InvertIntensity { maximum } => {
+                ui.label(egui::RichText::new("ITK InvertIntensityImageFilter. out(x) = maximum - in(x). maximum=None → computed from image.").small());
+                let mut use_fixed = maximum.is_some();
+                if ui.checkbox(&mut use_fixed, "Use fixed maximum").changed() {
+                    *maximum = if use_fixed { Some(255.0) } else { None };
+                }
+                if let Some(ref mut m) = maximum {
+                    ui.horizontal(|ui| {
+                        ui.label("Maximum:");
+                        ui.add(egui::DragValue::new(m).speed(1.0).range(0.0..=f32::MAX));
+                    });
+                }
+            }
+            FilterKind::NormalizeIntensity => {
+                ui.label(egui::RichText::new("ITK NormalizeImageFilter. out(x) = (in(x) - mean) / std. Constant image → all zero. No adjustable parameters.").small());
+            }
+            FilterKind::Square => {
+                ui.label(egui::RichText::new("ITK SquareImageFilter / ImageJ Square. out(x) = in(x)². No adjustable parameters.").small());
+            }
+            FilterKind::Sqrt => {
+                ui.label(egui::RichText::new("ITK SqrtImageFilter / ImageJ Square Root. out(x) = √in(x). Negative → NaN. No adjustable parameters.").small());
+            }
+            FilterKind::Log => {
+                ui.label(egui::RichText::new("ITK LogImageFilter / ImageJ Log. out(x) = ln(in(x)). Non-positive → -inf/NaN. No adjustable parameters.").small());
+            }
+            FilterKind::Exp => {
+                ui.label(egui::RichText::new("ITK ExpImageFilter / ImageJ Exp. out(x) = e^in(x). No adjustable parameters.").small());
+            }
+            FilterKind::MorphologicalGradient { radius } => {
+                ui.label(egui::RichText::new("ITK GrayscaleMorphologicalGradientImageFilter (Beucher gradient). out(x) = D_B(f)(x) - E_B(f)(x). Non-negative.").small());
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::Slider::new(&mut r, 0..=10).step_by(1.0)).changed() {
+                        *radius = r.max(0) as usize;
+                    }
+                });
             }
         }
 
@@ -903,5 +997,77 @@ mod tests {
             matches!(fk, FilterKind::GrayscaleFillhole),
             "GrayscaleFillhole variant must match itself"
         );
+    }
+
+    /// Abs: unit struct, always valid.
+    #[test]
+    fn abs_variant_is_valid() {
+        let fk = FilterKind::Abs;
+        assert!(matches!(fk, FilterKind::Abs), "Abs variant must match itself");
+    }
+
+    /// InvertIntensity default: maximum=None (computed from image data, ITK default).
+    #[test]
+    fn invert_intensity_default_maximum_is_none() {
+        let fk = FilterKind::InvertIntensity { maximum: None };
+        if let FilterKind::InvertIntensity { maximum } = fk {
+            assert!(maximum.is_none(), "InvertIntensity default maximum must be None (auto from image)");
+        } else {
+            panic!("expected InvertIntensity variant");
+        }
+    }
+
+    /// NormalizeIntensity: unit struct, always valid.
+    #[test]
+    fn normalize_intensity_variant_is_valid() {
+        let fk = FilterKind::NormalizeIntensity;
+        assert!(
+            matches!(fk, FilterKind::NormalizeIntensity),
+            "NormalizeIntensity variant must match itself"
+        );
+    }
+
+    /// Square: unit struct, always valid.
+    #[test]
+    fn square_variant_is_valid() {
+        let fk = FilterKind::Square;
+        assert!(matches!(fk, FilterKind::Square), "Square variant must match itself");
+    }
+
+    /// Sqrt: unit struct, always valid.
+    #[test]
+    fn sqrt_variant_is_valid() {
+        let fk = FilterKind::Sqrt;
+        assert!(matches!(fk, FilterKind::Sqrt), "Sqrt variant must match itself");
+    }
+
+    /// Log: unit struct, always valid.
+    #[test]
+    fn log_variant_is_valid() {
+        let fk = FilterKind::Log;
+        assert!(matches!(fk, FilterKind::Log), "Log variant must match itself");
+    }
+
+    /// Exp: unit struct, always valid.
+    #[test]
+    fn exp_variant_is_valid() {
+        let fk = FilterKind::Exp;
+        assert!(matches!(fk, FilterKind::Exp), "Exp variant must match itself");
+    }
+
+    /// MorphologicalGradient default: radius=1 — minimal non-trivial cubic SE.
+    ///
+    /// # Analytical basis
+    /// radius=1 → 3×3×3 SE, the smallest non-trivial cubic structuring element.
+    /// ITK `GrayscaleMorphologicalGradientImageFilter` uses radius=1 by default.
+    #[test]
+    fn morphological_gradient_default_radius_is_valid() {
+        let fk = FilterKind::MorphologicalGradient { radius: 1 };
+        if let FilterKind::MorphologicalGradient { radius } = fk {
+            assert_eq!(radius, 1, "default radius must be 1 (smallest non-trivial SE)");
+            assert!(radius <= 10, "default radius {radius} must be within slider range [0, 10]");
+        } else {
+            panic!("expected MorphologicalGradient variant");
+        }
     }
 }

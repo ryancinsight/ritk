@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.26.0] - 2026 - Sprint 145
+
+### Added
+- **`ritk-core` 7 arithmetic intensity filters** (`filter/intensity/arithmetic.rs`): ITK/ImageJ/SimpleITK parity.
+  - `AbsImageFilter`: `out(x) = |in(x)|`. 5 tests.
+  - `InvertIntensityFilter { maximum: Option<f32> }`: `out(x) = max - in(x)`. `None` computes max from image. 5 tests.
+  - `NormalizeImageFilter`: `out(x) = (in(x) − μ) / σ`; f64 accumulation for numerical stability; constant → zero. 5 tests.
+  - `SquareImageFilter`: `out(x) = in(x)²`. 5 tests.
+  - `SqrtImageFilter`: `out(x) = √in(x)`. NaN for negative (ITK semantics). 4 tests.
+  - `LogImageFilter`: `out(x) = ln(in(x))`. Non-positive → `-∞`/NaN. 4 tests.
+  - `ExpImageFilter`: `out(x) = e^{in(x)}`. 5 tests.
+  - Plus `log_exp_roundtrip` roundtrip test (ln(exp(x)) ≈ identity). 1 test.
+  - All 7 filters share the `extract_vec`/`rebuild` private helpers; zero new public symbols beyond the 7 filter structs.
+- **`ritk-core` `GrayscaleMorphologicalGradientFilter`** (`filter/morphology/grayscale_gradient.rs`): ITK `GrayscaleMorphologicalGradientImageFilter` parity. Algorithm: Beucher gradient `grad_B(f)(x) = D_B(f)(x) − E_B(f)(x)`. Non-negative everywhere; zero on constant regions. Reuses `pub(crate) dilate_3d` and `erode_3d`. 6 value-semantic tests: constant→zero, radius-0→zero, non-negativity, step-edge boundary values, spatial metadata preserved, single bright voxel gradient ring.
+- **`ritk-snap` 8 new `FilterKind` variants**: `Abs`, `InvertIntensity { maximum }`, `NormalizeIntensity`, `Square`, `Sqrt`, `Log`, `Exp`, `MorphologicalGradient { radius }` wired into `apply_filter` (lib.rs), `SnapApp` dispatch (app.rs), and `ui/filter_panel.rs` with ComboBox entries, per-filter parameter controls (`InvertIntensity` checkbox+DragValue; `MorphologicalGradient` DragValue radius ∈ [0,10]; others no parameters), and 8 default-range tests.
+
+### Test totals
+- `ritk-core`: 921 passed (+40: 38 arithmetic + 6 gradient − 4 displaced into integration)
+- `ritk-snap`: 383 passed (+8 filter_panel default-range tests)
+- `ritk-io`: 288 passed (unchanged)
+
 ## [0.25.0] - 2026 - Sprint 144
 
 ### Added

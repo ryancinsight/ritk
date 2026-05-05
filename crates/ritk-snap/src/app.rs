@@ -1781,12 +1781,15 @@ impl SnapApp {
         let filter_kind = self.active_filter.clone();
         let filter_result = {
             use ritk_core::filter::{
-                BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
-                BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
-                ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
-                GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
-                GrayscaleOpeningFilter, HistogramEqualizationFilter, MedianFilter,
-                MultiOtsuThreshold, RelabelComponentFilter, UnsharpMaskFilter,
+                AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
+                BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
+                ClaheFilter, ConnectedComponentsFilter, ExpImageFilter, GaussianFilter,
+                GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+                GrayscaleClosingFilter, GrayscaleFillholeFilter,
+                GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+                HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
+                MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter,
+                SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -1871,6 +1874,23 @@ impl SnapApp {
                 }
                 crate::FilterKind::GrayscaleFillhole => {
                     GrayscaleFillholeFilter::new().apply(&image)
+                }
+                crate::FilterKind::Abs => Ok(AbsImageFilter::new().apply(&image)),
+                crate::FilterKind::InvertIntensity { maximum } => {
+                    Ok(match maximum {
+                        Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&image),
+                        None => InvertIntensityFilter::new().apply(&image),
+                    })
+                }
+                crate::FilterKind::NormalizeIntensity => {
+                    Ok(NormalizeImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Square => Ok(SquareImageFilter::new().apply(&image)),
+                crate::FilterKind::Sqrt => Ok(SqrtImageFilter::new().apply(&image)),
+                crate::FilterKind::Log => Ok(LogImageFilter::new().apply(&image)),
+                crate::FilterKind::Exp => Ok(ExpImageFilter::new().apply(&image)),
+                crate::FilterKind::MorphologicalGradient { radius } => {
+                    GrayscaleMorphologicalGradientFilter::new(*radius).apply(&image)
                 }
             }
         };

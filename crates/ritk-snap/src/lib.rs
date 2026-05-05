@@ -19,12 +19,14 @@
 
 use anyhow::Result;
 use ritk_core::filter::{
-    BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
-    BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
-    ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
-    GrayscaleOpeningFilter, HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
-    RelabelComponentFilter, UnsharpMaskFilter,
+    AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
+    BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
+    BinaryMorphologicalOpening, ClaheFilter, ConnectedComponentsFilter, ExpImageFilter,
+    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+    GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter,
+    MedianFilter, MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter,
+    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -323,6 +325,23 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::GrayscaleFillhole => {
                 GrayscaleFillholeFilter::new().apply(&study.image)
             }
+            FilterKind::Abs => Ok(AbsImageFilter::new().apply(&study.image)),
+            FilterKind::InvertIntensity { maximum } => {
+                Ok(match maximum {
+                    Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&study.image),
+                    None => InvertIntensityFilter::new().apply(&study.image),
+                })
+            }
+            FilterKind::NormalizeIntensity => {
+                Ok(NormalizeImageFilter::new().apply(&study.image))
+            }
+            FilterKind::Square => Ok(SquareImageFilter::new().apply(&study.image)),
+            FilterKind::Sqrt => Ok(SqrtImageFilter::new().apply(&study.image)),
+            FilterKind::Log => Ok(LogImageFilter::new().apply(&study.image)),
+            FilterKind::Exp => Ok(ExpImageFilter::new().apply(&study.image)),
+            FilterKind::MorphologicalGradient { radius } => {
+                GrayscaleMorphologicalGradientFilter::new(*radius).apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -344,6 +363,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::GrayscaleClosing { .. } => "GrayscaleClosing",
             FilterKind::GrayscaleOpening { .. } => "GrayscaleOpening",
             FilterKind::GrayscaleFillhole => "GrayscaleFillhole",
+            FilterKind::Abs => "Abs",
+            FilterKind::InvertIntensity { .. } => "InvertIntensity",
+            FilterKind::NormalizeIntensity => "NormalizeIntensity",
+            FilterKind::Square => "Square",
+            FilterKind::Sqrt => "Sqrt",
+            FilterKind::Log => "Log",
+            FilterKind::Exp => "Exp",
+            FilterKind::MorphologicalGradient { .. } => "MorphologicalGradient",
         };
 
         match filter_result {
@@ -672,6 +699,53 @@ pub enum FilterKind {
     /// not connected to the image border.  Each hole is raised to the minimax
     /// path level connecting it to the border.
     GrayscaleFillhole,
+
+    /// Pixelwise absolute value (ITK `AbsImageFilter` / ImageJ Process > Math > Abs).
+    ///
+    /// `out(x) = |in(x)|`
+    Abs,
+
+    /// Intensity inversion (ITK `InvertIntensityImageFilter`).
+    ///
+    /// `out(x) = maximum - in(x)`.  When `maximum` is `None` the image maximum is used.
+    InvertIntensity {
+        /// Fixed inversion maximum.  `None` → computed from image.
+        maximum: Option<f32>,
+    },
+
+    /// Zero-mean unit-variance normalization (ITK `NormalizeImageFilter`).
+    ///
+    /// `out(x) = (in(x) - mean) / std`. Constant image → all zero.
+    NormalizeIntensity,
+
+    /// Pixelwise square (ITK `SquareImageFilter` / ImageJ Process > Math > Square).
+    ///
+    /// `out(x) = in(x)²`
+    Square,
+
+    /// Pixelwise square root (ITK `SqrtImageFilter` / ImageJ Process > Math > Square Root).
+    ///
+    /// `out(x) = √in(x)`. Negative inputs → NaN (ITK semantics).
+    Sqrt,
+
+    /// Pixelwise natural logarithm (ITK `LogImageFilter` / ImageJ Process > Math > Log).
+    ///
+    /// `out(x) = ln(in(x))`. Non-positive inputs → `-∞` or `NaN` (ITK semantics).
+    Log,
+
+    /// Pixelwise natural exponential (ITK `ExpImageFilter` / ImageJ Process > Math > Exp).
+    ///
+    /// `out(x) = e^{in(x)}`
+    Exp,
+
+    /// Grayscale morphological gradient (ITK `GrayscaleMorphologicalGradientImageFilter`).
+    ///
+    /// `out(x) = D_B(f)(x) - E_B(f)(x)`.  Non-negative everywhere.
+    /// Highlights morphological edges.
+    MorphologicalGradient {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+    },
 }
 
 /// Intensity display defaults derived from DICOM modality.

@@ -29,16 +29,19 @@ pub use edge::{
 };
 pub use gaussian::GaussianFilter;
 pub use intensity::{
-    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, ClaheFilter,
-    HistogramEqualizationFilter, IntensityWindowingFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
+    AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter,
+    ClaheFilter, ExpImageFilter, HistogramEqualizationFilter, IntensityWindowingFilter,
+    InvertIntensityFilter, LogImageFilter, NormalizeImageFilter, RescaleIntensityFilter,
+    SigmoidImageFilter, SqrtImageFilter, SquareImageFilter, ThresholdImageFilter, ThresholdMode,
+    UnsharpMaskFilter,
 };
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
 pub use median::MedianFilter;
 pub use morphology::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
     BinaryMorphologicalOpening, BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation,
-    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleOpeningFilter, HitOrMissTransform,
+    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+    GrayscaleOpeningFilter, HitOrMissTransform,
     LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
     ReconstructionMode, WhiteTopHatFilter,
 };

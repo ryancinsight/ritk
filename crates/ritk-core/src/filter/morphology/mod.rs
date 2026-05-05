@@ -58,7 +58,9 @@ pub use binary_fillhole::BinaryFillholeFilter;
 pub mod grayscale_closing;
 pub mod grayscale_opening;
 pub mod grayscale_fillhole;
+pub mod grayscale_gradient;
 
 pub use grayscale_closing::GrayscaleClosingFilter;
 pub use grayscale_opening::GrayscaleOpeningFilter;
 pub use grayscale_fillhole::GrayscaleFillholeFilter;
+pub use grayscale_gradient::GrayscaleMorphologicalGradientFilter;
