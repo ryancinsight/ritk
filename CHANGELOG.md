@@ -7,6 +7,18 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.22.0] - 2026 - Sprint 141
+
+### Added
+- **`ritk-core` `ConnectedComponentsFilter` — ITK `ConnectedComponentImageFilter` parity** (`segmentation/labeling/mod.rs`): Added `background_value: f32` field to `ConnectedComponentsFilter` matching `itk::ConnectedComponentImageFilter::SetBackgroundValue`. Any voxel whose value exactly equals `background_value` (default 0.0) is excluded from labeling. Implemented builder method `with_background(v)` for fluent construction. Updated `hoshen_kopelman` to use exact equality `mask[flat] == background_value` instead of the previous `<= 0.5` threshold — removing the hardcoded binary assumption and enabling labeled images with any background level to be reprocessed. All 10 existing labeling tests continue to pass (all use background=0 binary masks).
+- **`ritk-core` `filter/labeling/mod.rs`** (new file): Thin re-export shim making `ConnectedComponentsFilter`, `connected_components`, and `LabelStatistics` available under the `ritk_core::filter::` path alongside all other filters, maintaining the established filter hierarchy.
+- **`ritk-core` `filter/mod.rs`**: Registered `pub mod labeling`; added `pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics}`.
+- **`ritk-snap` `FilterKind::ConnectedComponents { connectivity_26, background_value }`**: New variant wired into `apply_filter` (lib.rs) and `SnapApp` filter dispatch (app.rs). Dispatches to `ConnectedComponentsFilter::with_connectivity(6 or 26).with_background(background_value)`.
+- **`ritk-snap` `ui/filter_panel.rs`**: Added `ConnectedComponents` ComboBox entry with defaults `{ connectivity_26: false, background_value: 0.0 }`. Parameter controls: 26-connectivity checkbox, background value `DragValue`, and informational label "Output: integer label image (0=background, 1…N=components)". Added 1 value-semantic test `connected_components_defaults_are_valid` verifying ITK defaults.
+
+### Changed
+- **`ritk-core` `ConnectedComponentsFilter`**: `with_connectivity` constructor now initializes `background_value: 0.0` (backward-compatible — all previous call sites used binary 0/1 masks with background=0).
+
 ## [0.21.0] - 2026 - Sprint 140
 
 ### Added

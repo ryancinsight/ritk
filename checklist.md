@@ -1,3 +1,24 @@
+## Sprint 141 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.22.0 [minor]
+**Goal**: Close ITK `ConnectedComponentImageFilter` `background_value` parity; promote `ConnectedComponentsFilter` to `filter::` hierarchy; wire into ritk-snap filter panel.
+
+### Checklist items
+- [x] Add `background_value: f32` field to `ConnectedComponentsFilter` with `with_background(v)` builder
+- [x] Update `hoshen_kopelman` to use `mask[flat] == background_value` (exact equality, ITK parity) instead of hardcoded `<= 0.5`
+- [x] Update `with_connectivity` constructor to initialize `background_value: 0.0`
+- [x] Create `crates/ritk-core/src/filter/labeling/mod.rs` re-export shim
+- [x] Register `pub mod labeling` and `pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics}` in `filter/mod.rs`
+- [x] Add `FilterKind::ConnectedComponents { connectivity_26, background_value }` variant to `ritk-snap/src/lib.rs`
+- [x] Add import (`ConnectedComponentsFilter`) and dispatch arm in `apply_filter` (lib.rs)
+- [x] Add import and dispatch arm in `app.rs` filter block
+- [x] Add `ConnectedComponents` ComboBox entry, connectivity checkbox, background `DragValue`, output description label, and `connected_components_defaults_are_valid` test to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib segmentation::labeling`: 10 passed
+- [x] Verify `cargo test -p ritk-core --lib`: 812 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 365 passed
+
 ## Sprint 140 — Completed
 **Status**: Completed
 **Phase**: Closure

@@ -15,6 +15,7 @@
 //!   - HistEq bins ∈ [2, 1024]
 //!   - UnsharpMask σ ∈ [0.1, 10.0] mm; amount ∈ [0.0, 5.0]; threshold ∈ [0.0, 100.0]
 //!   - GradientAnisotropicDiffusion iterations ∈ [1, 50]; time_step ∈ [0.01, 0.1667]; conductance ∈ [0.1, 100.0]
+//!   - ConnectedComponents background_value (any f32); connectivity_26 boolean
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -44,6 +45,7 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::HistEq { .. } => "Hist Equalize",
             FilterKind::UnsharpMask { .. } => "Unsharp Mask",
             FilterKind::GradientAnisotropicDiffusion { .. } => "Gradient Aniso. Diffusion",
+            FilterKind::ConnectedComponents { .. } => "Connected Components",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -130,6 +132,22 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                         iterations: 5,
                         time_step: 0.125,
                         conductance: 1.0,
+                    };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::ConnectedComponents {
+                            connectivity_26: false,
+                            background_value: 0.0,
+                        },
+                        "Connected Components",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::ConnectedComponents {
+                        connectivity_26: false,
+                        background_value: 0.0,
                     };
                 }
             });
@@ -265,6 +283,29 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                             .logarithmic(true),
                     );
                 });
+            }
+            FilterKind::ConnectedComponents {
+                connectivity_26,
+                background_value,
+            } => {
+                ui.horizontal(|ui| {
+                    ui.label("26-connectivity:");
+                    ui.checkbox(connectivity_26, "");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Background value:");
+                    ui.add(
+                        egui::DragValue::new(background_value)
+                            .speed(1.0)
+                            .prefix("")
+                    );
+                });
+                ui.label(
+                    egui::RichText::new(
+                        "Output: integer label image (0=background, 1…N=components)",
+                    )
+                    .small(),
+                );
             }
         }
 
@@ -426,6 +467,42 @@ mod tests {
             );
         } else {
             panic!("expected GradientAnisotropicDiffusion variant");
+        }
+    }
+
+    /// ConnectedComponents defaults are valid.
+    ///
+    /// - connectivity_26 = false (6-connectivity is the ITK/medical default)
+    /// - background_value = 0.0 (ITK default)
+    ///
+    /// # Postcondition
+    /// These values produce a valid ITK-parity filter dispatch via
+    /// `ConnectedComponentsFilter::with_connectivity(6).with_background(0.0)`.
+    #[test]
+    fn connected_components_defaults_are_valid() {
+        let fk = FilterKind::ConnectedComponents {
+            connectivity_26: false,
+            background_value: 0.0,
+        };
+        if let FilterKind::ConnectedComponents {
+            connectivity_26,
+            background_value,
+        } = fk
+        {
+            assert!(
+                !connectivity_26,
+                "default connectivity must be 6-connected (connectivity_26 = false)"
+            );
+            assert!(
+                background_value.is_finite(),
+                "default background_value {background_value} must be finite"
+            );
+            assert_eq!(
+                background_value, 0.0,
+                "default background_value must be 0.0 (ITK ConnectedComponentImageFilter default)"
+            );
+        } else {
+            panic!("expected ConnectedComponents variant");
         }
     }
 }

@@ -6,6 +6,7 @@ pub mod downsample;
 pub mod edge;
 pub mod gaussian;
 pub mod intensity;
+pub mod labeling;
 pub mod median;
 pub mod morphology;
 pub mod pyramid;
@@ -31,6 +32,7 @@ pub use intensity::{
     HistogramEqualizationFilter, IntensityWindowingFilter, RescaleIntensityFilter,
     SigmoidImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
 };
+pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use median::MedianFilter;
 pub use morphology::{
     BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,

@@ -1781,7 +1781,7 @@ impl SnapApp {
         let filter_kind = self.active_filter.clone();
         let filter_result = {
             use ritk_core::filter::{
-                BedSeparationFilter, ClaheFilter, GaussianFilter,
+                BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter, GaussianFilter,
                 GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
                 HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
             };
@@ -1824,6 +1824,16 @@ impl SnapApp {
                     conductance: *conductance,
                 })
                 .apply(&image),
+                crate::FilterKind::ConnectedComponents {
+                    connectivity_26,
+                    background_value,
+                } => {
+                    let connectivity = if *connectivity_26 { 26 } else { 6 };
+                    let filter = ConnectedComponentsFilter::with_connectivity(connectivity)
+                        .with_background(*background_value);
+                    let (label_image, _stats) = filter.apply(&image);
+                    Ok(label_image)
+                }
             }
         };
 

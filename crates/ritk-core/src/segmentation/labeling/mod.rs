@@ -93,18 +93,26 @@ pub struct LabelStatistics {
 /// - A label image whose voxels carry integer class indices (1…K) cast to f32
 ///   (background voxels remain 0.0).
 /// - Per-component `LabelStatistics`.
+///
+/// # ITK parity
+/// Matches `itk::ConnectedComponentImageFilter` semantics: any pixel whose
+/// value differs from `background_value` is treated as foreground. Default
+/// `background_value = 0.0`.
 pub struct ConnectedComponentsFilter {
     /// Adjacency model: 6 (faces only) or 26 (faces + edges + corners).
     pub connectivity: u32,
+    /// Pixel value that designates background (ITK `SetBackgroundValue`).
+    /// Any voxel with this value is excluded from labeling. Default: 0.0.
+    pub background_value: f32,
 }
 
 impl ConnectedComponentsFilter {
-    /// Create a filter with 6-connectivity (the standard medical-imaging default).
+    /// Create a filter with 6-connectivity and background_value = 0.0 (ITK defaults).
     pub fn new() -> Self {
-        Self { connectivity: 6 }
+        Self { connectivity: 6, background_value: 0.0 }
     }
 
-    /// Create a filter with explicit connectivity (6 or 26).
+    /// Create a filter with explicit connectivity (6 or 26) and background_value = 0.0.
     ///
     /// # Panics
     /// Panics if `connectivity` is neither 6 nor 26.
@@ -113,7 +121,16 @@ impl ConnectedComponentsFilter {
             connectivity == 6 || connectivity == 26,
             "connectivity must be 6 or 26, got {connectivity}"
         );
-        Self { connectivity }
+        Self { connectivity, background_value: 0.0 }
+    }
+
+    /// Set the background pixel value (builder pattern).
+    ///
+    /// Voxels with this exact value are excluded from labeling. Matches
+    /// `itk::ConnectedComponentImageFilter::SetBackgroundValue`.
+    pub fn with_background(mut self, background_value: f32) -> Self {
+        self.background_value = background_value;
+        self
     }
 
     /// Apply labeling to a binary mask.
@@ -128,7 +145,8 @@ impl ConnectedComponentsFilter {
         let mask_data = mask.data().clone().into_data();
         let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
 
-        let (label_vec, stats) = hoshen_kopelman(mask_slice, shape, self.connectivity);
+        let (label_vec, stats) =
+            hoshen_kopelman(mask_slice, shape, self.connectivity, self.background_value);
 
         let td = TensorData::new(label_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
@@ -150,6 +168,9 @@ impl Default for ConnectedComponentsFilter {
 /// Returns `(label_image, num_components)`.
 /// Voxel values in `label_image` are component indices in [1, K] as f32;
 /// background voxels are 0.0.
+///
+/// Uses `background_value = 0.0`. For a custom background value, construct
+/// `ConnectedComponentsFilter` directly with `with_background(v)`.
 pub fn connected_components<B: Backend>(
     mask: &Image<B, 3>,
     connectivity: u32,
@@ -165,10 +186,14 @@ pub fn connected_components<B: Backend>(
 ///
 /// Returns `(label_vec, statistics)` where `label_vec` has the same length as
 /// `mask` (flat Z×Y×X order).
+///
+/// `background_value`: pixel value that designates background (ITK parity).
+/// Any voxel whose value equals `background_value` is excluded from labeling.
 fn hoshen_kopelman(
     mask: &[f32],
     dims: [usize; 3],
     connectivity: u32,
+    background_value: f32,
 ) -> (Vec<f32>, Vec<LabelStatistics>) {
     let (nz, ny, nx) = (dims[0], dims[1], dims[2]);
     let n = nz * ny * nx;
@@ -213,7 +238,7 @@ fn hoshen_kopelman(
         for iy in 0..ny {
             for ix in 0..nx {
                 let flat = idx(iz, iy, ix);
-                if mask[flat] <= 0.5 {
+                if mask[flat] == background_value {
                     continue; // background
                 }
 

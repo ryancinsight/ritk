@@ -19,8 +19,8 @@
 
 use anyhow::Result;
 use ritk_core::filter::{
-    BedSeparationConfig, BedSeparationFilter, ClaheFilter, GaussianFilter,
-    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    BedSeparationConfig, BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter,
+    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
@@ -276,6 +276,16 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 conductance: *conductance,
             })
             .apply(&study.image),
+            FilterKind::ConnectedComponents {
+                connectivity_26,
+                background_value,
+            } => {
+                let connectivity = if *connectivity_26 { 26 } else { 6 };
+                let filter = ConnectedComponentsFilter::with_connectivity(connectivity)
+                    .with_background(*background_value);
+                let (label_image, _stats) = filter.apply(&study.image);
+                Ok(label_image)
+            }
         };
 
         let filter_name = match kind {
@@ -286,6 +296,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::HistEq { .. } => "HistEq",
             FilterKind::UnsharpMask { .. } => "UnsharpMask",
             FilterKind::GradientAnisotropicDiffusion { .. } => "GradientAnisotropicDiffusion",
+            FilterKind::ConnectedComponents { .. } => "ConnectedComponents",
         };
 
         match filter_result {
@@ -495,6 +506,27 @@ pub enum FilterKind {
         time_step: f32,
         /// Conductance K. Larger K → more isotropic smoothing. ITK default: 1.0.
         conductance: f32,
+    },
+
+    /// Connected-component labeling filter (ITK `ConnectedComponentImageFilter` parity).
+    ///
+    /// Labels each connected group of foreground voxels with a unique integer
+    /// index. Output is an f32 label image where:
+    /// - `0.0` = background (pixel value equals `background_value`);
+    /// - `1.0`, `2.0`, ... = component labels in scan order.
+    ///
+    /// # Connectivity
+    /// - 6-connectivity (face adjacency): standard 3-D default, matching ITK.
+    /// - 26-connectivity (face + edge + corner): set `connectivity_26 = true`.
+    ///
+    /// # Invariants
+    /// - All-background input → output is all-zero.
+    /// - N foreground blobs separated by background → N unique non-zero labels.
+    ConnectedComponents {
+        /// Use 26-connectivity instead of the default 6-connectivity.
+        connectivity_26: bool,
+        /// Value designating background pixels. ITK default: 0.0.
+        background_value: f32,
     },
 }
 
