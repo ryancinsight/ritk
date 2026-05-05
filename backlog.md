@@ -1,3 +1,34 @@
+## Sprint 142 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.23.0 [minor]
+**Goal**: Close ITK `RelabelComponentImageFilter` parity gap; create `filter::threshold` re-export module; wire `RelabelComponents` and `MultiOtsuThreshold` into ritk-snap; cleanup scratch files.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-142-01 | `RelabelComponentFilter` missing — ITK `RelabelComponentImageFilter` had no parity implementation | major |
+| GAP-142-02 | `RelabelStatistics` struct missing — no per-component statistics output | minor |
+| GAP-142-03 | Threshold filters (`Otsu`, `Kapur`, `Li`, `Triangle`, `Yen`, `MultiOtsu`, `Binary`) not accessible under `filter::` path | minor |
+| GAP-142-04 | `FilterKind` enum lacked `RelabelComponents` and `MultiOtsuThreshold` variants in ritk-snap | minor |
+| GAP-142-05 | Scratch log files (`io141.log`, `snap141.log`, etc.) committed to repo; no `.gitignore` guard | patch |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 821 tests (+8 from relabel) |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests (unchanged) |
+| `cargo test -p ritk-snap --lib` | Passed: 367 tests (+2 from filter_panel) |
+
+### Residual risks
+- Pure-Rust JPEG 2000 decoder replacement (`openjpeg-sys` removal) remains open.
+- DICOM-SEG reader/writer round-trip not yet implemented.
+- RT-PLAN beam geometry display in ritk-snap not yet implemented.
+- `ritk-codecs` deprecation/dead-code warnings (`decode_native_pixel_bytes`, unused JPEG-LS predictor variants) remain [patch].
+- Binary morphology (`BinaryMorphologicalClosing`, `BinaryFillhole`) ITK parity not yet implemented.
+
+---
+
 ## Sprint 141 — Completed
 **Status**: Completed
 **Phase**: Closure
@@ -23,6 +54,7 @@
 ### Residual risks
 - Existing deprecation/dead-code warnings in `ritk-codecs` (deprecated `decode_native_pixel_bytes`, unused JPEG-LS predictor variants) remain; classified as [patch]-class cleanup for a future sprint.
 - Pure-Rust JPEG 2000 decoder replacement (`openjpeg-sys` removal) remains open.
+
 - DICOM-SEG reader/writer round-trip remains open.
 - RT-PLAN beam geometry display in ritk-snap remains open.
 - `itk::RelabelComponentImageFilter` parity in ritk-core remains open.

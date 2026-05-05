@@ -21,7 +21,8 @@ use anyhow::Result;
 use ritk_core::filter::{
     BedSeparationConfig, BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter,
     GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
+    HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold, RelabelComponentFilter,
+    UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -286,6 +287,16 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 let (label_image, _stats) = filter.apply(&study.image);
                 Ok(label_image)
             }
+            FilterKind::RelabelComponents { minimum_object_size } => {
+                let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
+                    *minimum_object_size as usize,
+                )
+                .apply(&study.image);
+                Ok(relabeled)
+            }
+            FilterKind::MultiOtsuThreshold { num_classes } => Ok(
+                MultiOtsuThreshold::new(*num_classes as usize).apply(&study.image),
+            ),
         };
 
         let filter_name = match kind {
@@ -297,6 +308,8 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::UnsharpMask { .. } => "UnsharpMask",
             FilterKind::GradientAnisotropicDiffusion { .. } => "GradientAnisotropicDiffusion",
             FilterKind::ConnectedComponents { .. } => "ConnectedComponents",
+            FilterKind::RelabelComponents { .. } => "RelabelComponents",
+            FilterKind::MultiOtsuThreshold { .. } => "MultiOtsuThreshold",
         };
 
         match filter_result {
@@ -527,6 +540,38 @@ pub enum FilterKind {
         connectivity_26: bool,
         /// Value designating background pixels. ITK default: 0.0.
         background_value: f32,
+    },
+
+    /// Re-label connected components in order of decreasing size
+    /// (ITK `RelabelComponentImageFilter` parity).
+    ///
+    /// Accepts a label image (output of `ConnectedComponents`) and reassigns
+    /// component indices so that label 1 = largest component, label 2 = second
+    /// largest, and so on.  Components with fewer than `minimum_object_size`
+    /// voxels are removed (set to 0.0 background).
+    ///
+    /// # Invariants
+    /// - `minimum_object_size = 0` (default): retains all components.
+    /// - Background voxels (0.0) remain 0.0.
+    /// - Output label 1 has the most voxels in the input.
+    RelabelComponents {
+        /// Discard components smaller than this voxel count. Default: 0 (retain all).
+        minimum_object_size: u32,
+    },
+
+    /// Multi-class Otsu threshold segmentation
+    /// (ITK `OtsuMultipleThresholdsImageFilter` parity).
+    ///
+    /// Finds K − 1 thresholds that maximise total between-class variance, then
+    /// assigns each voxel a class label in {0, 1, …, K−1} as f32.
+    ///
+    /// # Invariants
+    /// - `num_classes = 2` degenerates to standard single-threshold Otsu.
+    /// - Uniform input → all thresholds equal; output is all-zero.
+    /// - Output values lie in `{0.0, 1.0, …, (num_classes − 1).0}`.
+    MultiOtsuThreshold {
+        /// Number of intensity classes to segment into. Must be ≥ 2. ITK default: 3.
+        num_classes: u32,
     },
 }
 

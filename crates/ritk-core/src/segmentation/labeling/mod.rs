@@ -29,6 +29,9 @@
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
+pub mod relabel;
+pub use relabel::{RelabelComponentFilter, RelabelStatistics};
+
 // ── Union-Find ────────────────────────────────────────────────────────────────
 
 struct UnionFind {

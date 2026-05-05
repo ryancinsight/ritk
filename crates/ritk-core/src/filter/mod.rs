@@ -12,6 +12,7 @@ pub mod morphology;
 pub mod pyramid;
 pub mod recursive_gaussian;
 pub mod resample;
+pub mod threshold;
 pub mod vesselness;
 
 pub use bias::N4BiasFieldCorrectionFilter;
@@ -32,7 +33,7 @@ pub use intensity::{
     HistogramEqualizationFilter, IntensityWindowingFilter, RescaleIntensityFilter,
     SigmoidImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
 };
-pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
+pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
 pub use median::MedianFilter;
 pub use morphology::{
     BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,
@@ -42,4 +43,14 @@ pub use morphology::{
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;
 pub use resample::ResampleImageFilter;
+pub use threshold::{
+    BinaryThreshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
+    TriangleThreshold, YenThreshold,
+    apply_binary_threshold_to_slice, binary_threshold,
+    compute_kapur_threshold_from_slice, compute_li_threshold_from_slice,
+    compute_multi_otsu_thresholds_from_slice, compute_triangle_threshold_from_slice,
+    compute_yen_threshold_from_slice,
+    kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
+    triangle_threshold, yen_threshold,
+};
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};

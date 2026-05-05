@@ -6,5 +6,11 @@
 .DS_Store
 *.err
 /*.py
+# Scratch / diagnostic logs
+*.log
+*_test_*.txt
+test_*_core.txt
+io*.log
+snap*.log
 /checklist.pdf
 /README.pdf

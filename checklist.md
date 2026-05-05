@@ -1,3 +1,28 @@
+## Sprint 142 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.23.0 [minor]
+**Goal**: Close ITK `RelabelComponentImageFilter` parity gap; create `filter::threshold` re-export module; wire `RelabelComponents` and `MultiOtsuThreshold` into ritk-snap.
+
+### Checklist items
+- [x] Create `crates/ritk-core/src/segmentation/labeling/relabel.rs` with `RelabelComponentFilter`, `RelabelStatistics`, `relabel_impl`
+- [x] Register `pub mod relabel; pub use relabel::{RelabelComponentFilter, RelabelStatistics}` in `segmentation/labeling/mod.rs`
+- [x] Update `filter/labeling/mod.rs` to re-export `RelabelComponentFilter`, `RelabelStatistics`
+- [x] Create `crates/ritk-core/src/filter/threshold/mod.rs` re-export shim for all 7 threshold types
+- [x] Register `pub mod threshold` and threshold re-exports in `filter/mod.rs`
+- [x] Add `FilterKind::RelabelComponents { minimum_object_size }` and `FilterKind::MultiOtsuThreshold { num_classes }` to `ritk-snap/src/lib.rs`
+- [x] Add imports and dispatch arms in `ritk-snap/src/lib.rs` `apply_filter`
+- [x] Add imports and dispatch arms in `ritk-snap/src/app.rs` filter block
+- [x] Add ComboBox entries, parameter controls, and 2 default-range tests to `filter_panel.rs`
+- [x] Delete scratch files `io141.log`, `snap141.log`, `snap_test_141.txt`, `test_141_core.txt`, build logs from repo
+- [x] Add `*.log`, `*_test_*.txt`, `test_*_core.txt`, `io*.log`, `snap*.log` to `.gitignore`
+- [x] Fix compile error: `spatial_metadata_preserved` test — change `.0` field comparisons to value equality
+- [x] Verify `cargo test -p ritk-core --lib`: 821 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 367 passed
+
+---
+
 ## Sprint 141 — Completed
 **Status**: Completed
 **Phase**: Closure

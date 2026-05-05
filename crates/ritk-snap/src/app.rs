@@ -1783,7 +1783,8 @@ impl SnapApp {
             use ritk_core::filter::{
                 BedSeparationFilter, ClaheFilter, ConnectedComponentsFilter, GaussianFilter,
                 GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-                HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
+                HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
+                RelabelComponentFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -1834,6 +1835,17 @@ impl SnapApp {
                     let (label_image, _stats) = filter.apply(&image);
                     Ok(label_image)
                 }
+                crate::FilterKind::RelabelComponents { minimum_object_size } => {
+                    let (relabeled, _stats) =
+                        RelabelComponentFilter::with_minimum_object_size(
+                            *minimum_object_size as usize,
+                        )
+                        .apply(&image);
+                    Ok(relabeled)
+                }
+                crate::FilterKind::MultiOtsuThreshold { num_classes } => Ok(
+                    MultiOtsuThreshold::new(*num_classes as usize).apply(&image),
+                ),
             }
         };
 

@@ -7,6 +7,25 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.23.0] - 2026 - Sprint 142
+
+### Added
+- **`ritk-core` `RelabelComponentFilter` — ITK `RelabelComponentImageFilter` parity** (`segmentation/labeling/relabel.rs`): Full implementation of `RelabelComponentFilter { minimum_object_size: usize }` with `apply<B: Backend>(&self, &Image<B,3>) -> (Image<B,3>, Vec<RelabelStatistics>)`. Algorithm: O(n) count pass → O(K log K) sort by (count desc, label asc) for deterministic tie-breaking → O(K) remap table → O(n) remap pass. `RelabelStatistics { original_label, new_label, voxel_count }` returned per surviving component. `minimum_object_size=0` (default) retains all components matching ITK's `SetMinimumObjectSize` default. 8 value-semantic tests covering identity, descending-count ordering, minimum-size removal, all-below-threshold, background preservation, empty input, spatial-metadata preservation, and equal-size tie-breaking.
+- **`ritk-core` `filter::threshold` re-export module** (`filter/threshold/mod.rs`): Thin shim exposing all segmentation threshold types under the `ritk_core::filter::` path: `BinaryThreshold`, `KapurThreshold`, `LiThreshold`, `MultiOtsuThreshold`, `OtsuThreshold`, `TriangleThreshold`, `YenThreshold`, convenience functions, and `apply_binary_threshold_to_slice` / `compute_*_from_slice` functions. Eliminates need to import from `segmentation::threshold::*` directly.
+- **`ritk-core` `filter/labeling/mod.rs`**: Added `RelabelComponentFilter` and `RelabelStatistics` to the labeling re-export surface.
+- **`ritk-core` `filter/mod.rs`**: Registered `pub mod threshold`; added `RelabelComponentFilter`, `RelabelStatistics` to labeling re-exports; added all threshold type re-exports.
+- **`ritk-snap` `FilterKind::RelabelComponents { minimum_object_size: u32 }`**: New variant wired into `apply_filter` (lib.rs) and `SnapApp` filter dispatch (app.rs). Dispatches to `RelabelComponentFilter::with_minimum_object_size(...)`.
+- **`ritk-snap` `FilterKind::MultiOtsuThreshold { num_classes: u32 }`**: New variant wired into `apply_filter` and dispatch. Dispatches to `MultiOtsuThreshold { num_classes: num_classes as usize }.apply(...)`.
+- **`ritk-snap` `ui/filter_panel.rs`**: Added `Relabel Components` and `Multi-Otsu Threshold` ComboBox entries with parameter controls (`DragValue` for `minimum_object_size`; Slider [2,8] for `num_classes`) and informational labels. Added 2 value-semantic tests: `relabel_components_defaults_are_valid`, `multi_otsu_threshold_defaults_are_valid`.
+
+### Changed
+- **`.gitignore`**: Added patterns `*.log`, `*_test_*.txt`, `test_*_core.txt`, `io*.log`, `snap*.log` to prevent accidental commit of diagnostic scratch files.
+
+### Test totals
+- `ritk-core`: 821 passed (8 new from `RelabelComponentFilter` tests)
+- `ritk-snap`: 367 passed (2 new from `filter_panel` tests)
+- `ritk-io`: 288 passed (unchanged)
+
 ## [0.22.0] - 2026 - Sprint 141
 
 ### Added

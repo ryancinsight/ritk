@@ -16,6 +16,8 @@
 //!   - UnsharpMask σ ∈ [0.1, 10.0] mm; amount ∈ [0.0, 5.0]; threshold ∈ [0.0, 100.0]
 //!   - GradientAnisotropicDiffusion iterations ∈ [1, 50]; time_step ∈ [0.01, 0.1667]; conductance ∈ [0.1, 100.0]
 //!   - ConnectedComponents background_value (any f32); connectivity_26 boolean
+//!   - RelabelComponents minimum_object_size ∈ [0, MAX_u32] voxels
+//!   - MultiOtsuThreshold num_classes ∈ [2, 8]
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -46,6 +48,8 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::UnsharpMask { .. } => "Unsharp Mask",
             FilterKind::GradientAnisotropicDiffusion { .. } => "Gradient Aniso. Diffusion",
             FilterKind::ConnectedComponents { .. } => "Connected Components",
+            FilterKind::RelabelComponents { .. } => "Relabel Components",
+            FilterKind::MultiOtsuThreshold { .. } => "Multi-Otsu Threshold",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -149,6 +153,30 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                         connectivity_26: false,
                         background_value: 0.0,
                     };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::RelabelComponents {
+                            minimum_object_size: 0,
+                        },
+                        "Relabel Components",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::RelabelComponents {
+                        minimum_object_size: 0,
+                    };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::MultiOtsuThreshold { num_classes: 3 },
+                        "Multi-Otsu Threshold",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::MultiOtsuThreshold { num_classes: 3 };
                 }
             });
 
@@ -303,6 +331,44 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 ui.label(
                     egui::RichText::new(
                         "Output: integer label image (0=background, 1…N=components)",
+                    )
+                    .small(),
+                );
+            }
+            FilterKind::RelabelComponents { minimum_object_size } => {
+                // minimum_object_size is u32; use i32 proxy for DragValue.
+                let mut mos = *minimum_object_size as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Min object size (voxels):");
+                    if ui
+                        .add(egui::DragValue::new(&mut mos).speed(1.0).range(0..=i32::MAX))
+                        .changed()
+                    {
+                        *minimum_object_size = mos.max(0) as u32;
+                    }
+                });
+                ui.label(
+                    egui::RichText::new(
+                        "Input: label image. Output: relabeled image (label 1 = largest component).",
+                    )
+                    .small(),
+                );
+            }
+            FilterKind::MultiOtsuThreshold { num_classes } => {
+                // num_classes is u32; use i32 proxy for Slider.
+                let mut nc = *num_classes as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Classes K:");
+                    if ui
+                        .add(egui::Slider::new(&mut nc, 2..=8).step_by(1.0))
+                        .changed()
+                    {
+                        *num_classes = nc.max(2) as u32;
+                    }
+                });
+                ui.label(
+                    egui::RichText::new(
+                        "Output: class label image with values 0…K−1. ITK default K=3.",
                     )
                     .small(),
                 );
@@ -503,6 +569,55 @@ mod tests {
             );
         } else {
             panic!("expected ConnectedComponents variant");
+        }
+    }
+
+    /// RelabelComponents defaults match ITK `RelabelComponentImageFilter` defaults.
+    ///
+    /// # Analytical derivation
+    /// - minimum_object_size = 0 (ITK default: retain all components).
+    ///
+    /// # Postcondition
+    /// These values produce a valid ITK-parity dispatch via
+    /// `RelabelComponentFilter::with_minimum_object_size(0)`.
+    #[test]
+    fn relabel_components_defaults_are_valid() {
+        let fk = FilterKind::RelabelComponents {
+            minimum_object_size: 0,
+        };
+        if let FilterKind::RelabelComponents { minimum_object_size } = fk {
+            assert_eq!(
+                minimum_object_size, 0,
+                "default minimum_object_size must be 0 (ITK default: retain all components)"
+            );
+        } else {
+            panic!("expected RelabelComponents variant");
+        }
+    }
+
+    /// MultiOtsuThreshold defaults match ITK `OtsuMultipleThresholdsImageFilter` defaults.
+    ///
+    /// # Analytical derivation
+    /// - num_classes = 3 (ITK default: 3-class segmentation, 2 thresholds).
+    /// - num_classes ≥ 2 is required (enforced by `MultiOtsuThreshold::new` panic guard).
+    ///
+    /// # Postcondition
+    /// These values produce a valid ITK-parity dispatch via
+    /// `MultiOtsuThreshold::new(3).apply(&image)`.
+    #[test]
+    fn multi_otsu_threshold_defaults_are_valid() {
+        let fk = FilterKind::MultiOtsuThreshold { num_classes: 3 };
+        if let FilterKind::MultiOtsuThreshold { num_classes } = fk {
+            assert!(
+                num_classes >= 2,
+                "num_classes must be ≥ 2 (enforced by MultiOtsuThreshold::new); got {num_classes}"
+            );
+            assert_eq!(
+                num_classes, 3,
+                "ITK default num_classes = 3 (two thresholds; three classes)"
+            );
+        } else {
+            panic!("expected MultiOtsuThreshold variant");
         }
     }
 }
