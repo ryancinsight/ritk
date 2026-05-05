@@ -2,6 +2,7 @@ pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
 pub mod discrete_gaussian;
+pub mod distance;
 pub mod downsample;
 pub mod edge;
 pub mod gaussian;
@@ -13,6 +14,7 @@ pub mod pyramid;
 pub mod recursive_gaussian;
 pub mod resample;
 pub mod threshold;
+pub mod transform;
 pub mod vesselness;
 
 pub use bias::N4BiasFieldCorrectionFilter;
@@ -29,10 +31,12 @@ pub use edge::{
 };
 pub use gaussian::GaussianFilter;
 pub use intensity::{
-    AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter,
-    ClaheFilter, ExpImageFilter, HistogramEqualizationFilter, IntensityWindowingFilter,
-    InvertIntensityFilter, LogImageFilter, NormalizeImageFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, SqrtImageFilter, SquareImageFilter, ThresholdImageFilter, ThresholdMode,
+    AbsImageFilter, AddImageFilter, BedSeparationConfig, BedSeparationFilter,
+    BinaryThresholdImageFilter, ClaheFilter, DivideImageFilter, ExpImageFilter,
+    HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
+    InvertIntensityFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
+    MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter,
+    SqrtImageFilter, SquareImageFilter, SubtractImageFilter, ThresholdImageFilter, ThresholdMode,
     UnsharpMaskFilter,
 };
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
@@ -40,7 +44,8 @@ pub use median::MedianFilter;
 pub use morphology::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
     BinaryMorphologicalOpening, BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation,
-    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+    GrayscaleErosion, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
     GrayscaleOpeningFilter, HitOrMissTransform,
     LabelClosing, LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction,
     ReconstructionMode, WhiteTopHatFilter,
@@ -58,4 +63,6 @@ pub use threshold::{
     kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
     triangle_threshold, yen_threshold,
 };
+pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
+pub use transform::FlipImageFilter;
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};

@@ -73,6 +73,14 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::Log => "Log",
             FilterKind::Exp => "Exp",
             FilterKind::MorphologicalGradient { .. } => "Morphological Gradient",
+            FilterKind::DistanceTransform { .. } => "Distance Transform",
+            FilterKind::SignedDistanceTransform { .. } => "Signed Distance Transform",
+            FilterKind::FlipZ => "Flip Z",
+            FilterKind::FlipY => "Flip Y",
+            FilterKind::FlipX => "Flip X",
+            FilterKind::MaskThreshold { .. } => "Mask Threshold",
+            FilterKind::GeodesicDilationSelf => "Geodesic Dilation (self)",
+            FilterKind::GeodesicErosionSelf => "Geodesic Erosion (self)",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -326,6 +334,26 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 {
                     *active_filter = FilterKind::MorphologicalGradient { radius: 1 };
                 }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::DistanceTransform { threshold: 0.5 },
+                    "Distance Transform",
+                ).clicked() { *active_filter = FilterKind::DistanceTransform { threshold: 0.5 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::SignedDistanceTransform { threshold: 0.5 },
+                    "Signed Distance Transform",
+                ).clicked() { *active_filter = FilterKind::SignedDistanceTransform { threshold: 0.5 }; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::FlipZ, "Flip Z").clicked() { *active_filter = FilterKind::FlipZ; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::FlipY, "Flip Y").clicked() { *active_filter = FilterKind::FlipY; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::FlipX, "Flip X").clicked() { *active_filter = FilterKind::FlipX; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::MaskThreshold { threshold: 0.5 },
+                    "Mask Threshold",
+                ).clicked() { *active_filter = FilterKind::MaskThreshold { threshold: 0.5 }; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::GeodesicDilationSelf, "Geodesic Dilation (self)").clicked() { *active_filter = FilterKind::GeodesicDilationSelf; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::GeodesicErosionSelf, "Geodesic Erosion (self)").clicked() { *active_filter = FilterKind::GeodesicErosionSelf; }
             });
 
         ui.add_space(4.0);
@@ -647,6 +675,26 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                         *radius = r.max(0) as usize;
                     }
                 });
+            }
+            FilterKind::DistanceTransform { threshold } | FilterKind::SignedDistanceTransform { threshold } => {
+                ui.label(egui::RichText::new("Euclidean distance transform. Each voxel receives distance (mm) to nearest foreground voxel.").small());
+                ui.horizontal(|ui| {
+                    ui.label("Foreground threshold:");
+                    ui.add(egui::Slider::new(threshold, 0.0_f32..=1000.0).step_by(0.1));
+                });
+            }
+            FilterKind::FlipZ | FilterKind::FlipY | FilterKind::FlipX => {
+                ui.label(egui::RichText::new("Reverses voxel ordering along the selected axis. No adjustable parameters.").small());
+            }
+            FilterKind::MaskThreshold { threshold } => {
+                ui.label(egui::RichText::new("Zero-out voxels at or below the threshold (binary self-mask).").small());
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::Slider::new(threshold, 0.0_f32..=1000.0).step_by(0.1));
+                });
+            }
+            FilterKind::GeodesicDilationSelf | FilterKind::GeodesicErosionSelf => {
+                ui.label(egui::RichText::new("Geodesic morphological reconstruction (marker = mask = current image). Identity on self; for two-image reconstruction use the ritk_core API.").small());
             }
         }
 

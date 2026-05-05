@@ -1,3 +1,42 @@
+## Sprint 146 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.28.0 [minor]
+**Goal**: Distance transform, geodesic morphology, binary image ops, mask filter, flip filter — ITK parity.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-146-01 | `DistanceTransformImageFilter` missing — ITK `DanielssonDistanceMapImageFilter` | minor |
+| GAP-146-02 | `SignedDistanceTransformImageFilter` missing — ITK `SignedMaurerDistanceMapImageFilter` | minor |
+| GAP-146-03 | `GrayscaleGeodesicDilationFilter` missing — ITK `GrayscaleGeodesicDilationImageFilter` | minor |
+| GAP-146-04 | `GrayscaleGeodesicErosionFilter` missing — ITK `GrayscaleGeodesicErosionImageFilter` | minor |
+| GAP-146-05 | `AddImageFilter`, `SubtractImageFilter`, `MultiplyImageFilter`, `DivideImageFilter`, `ImageMinFilter`, `ImageMaxFilter` missing — ITK two-image arithmetic | minor |
+| GAP-146-06 | `MaskImageFilter`, `MaskNegatedImageFilter` missing — ITK mask operations | minor |
+| GAP-146-07 | `FlipImageFilter` missing — ITK `FlipImageFilter` | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 959 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 383 tests |
+| `cargo test -p ritk-registration --lib` | Passed: 3 tests |
+
+### Next priorities [Sprint 147]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-147-01 | `ShiftScaleImageFilter` — `out = (in + shift) * scale` | [minor] |
+| GAP-147-02 | `RegionOfInterestImageFilter` — 3D crop | [minor] |
+| GAP-147-03 | `ZeroCrossingImageFilter` — detect sign changes | [minor] |
+| GAP-147-04 | `PermuteAxesImageFilter` — axis permutation | [minor] |
+| GAP-147-05 | `PasteImageFilter` — paste one image into another | [minor] |
+| GAP-147-06 | `ConfidenceConnectedImageFilter` — region growing | [minor] |
+| GAP-147-07 | Pure-Rust JPEG 2000 decoder (remove `openjpeg-sys` FFI) | [minor] |
+| GAP-147-08 | DICOM-SEG reader/writer | [minor] |
+
+---
+
 ## Sprint 145 — Completed
 **Status**: Completed
 **Phase**: Closure

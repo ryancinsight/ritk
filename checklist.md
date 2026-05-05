@@ -1,3 +1,27 @@
+## Sprint 146 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.28.0 [minor]
+**Goal**: Distance transform, geodesic morphology, binary image ops, mask filter, flip filter — ITK parity.
+
+### Checklist items
+- [x] Create `filter/distance/euclidean.rs`: `DistanceTransformImageFilter`, `SignedDistanceTransformImageFilter`, `edt_3d` (Meijster 2000) + 11 tests
+- [x] Create `filter/distance/mod.rs`: pub module + re-exports
+- [x] Create `filter/morphology/grayscale_geodesic.rs`: `GrayscaleGeodesicDilationFilter`, `GrayscaleGeodesicErosionFilter` + 10 tests
+- [x] Create `filter/intensity/binary_ops.rs`: `AddImageFilter`, `SubtractImageFilter`, `MultiplyImageFilter`, `DivideImageFilter`, `ImageMinFilter`, `ImageMaxFilter` + 19 tests
+- [x] Create `filter/intensity/mask.rs`: `MaskImageFilter`, `MaskNegatedImageFilter` + 8 tests
+- [x] Create `filter/transform/flip.rs`: `FlipImageFilter` + 6 tests
+- [x] Create `filter/transform/mod.rs`: pub module + re-exports
+- [x] Update `filter/intensity/mod.rs`, `filter/morphology/mod.rs`, `filter/mod.rs`
+- [x] Wire 8 new FilterKind variants into ritk-snap lib.rs, app.rs, filter_panel.rs
+- [x] Fix Meijster INF-overflow bug (isize::MAX saturating_add; INF→INF in no-foreground rows)
+- [x] Fix app.rs unclosed delimiter (missing match `}`) + ? operator in non-Result closure
+- [x] Verify: ritk-core 959 passed, ritk-snap 383, ritk-io 288, ritk-registration 3
+- [x] Update CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+- [x] git commit and push
+
+---
+
 ## Sprint 145 — Completed
 **Status**: Completed
 **Phase**: Closure

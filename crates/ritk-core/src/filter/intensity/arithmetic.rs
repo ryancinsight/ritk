@@ -27,7 +27,7 @@ fn extract_vec<B: Backend>(image: &Image<B, 3>) -> (Vec<f32>, [usize; 3]) {
         .data()
         .clone()
         .into_data()
-        .as_slice::<f32>().map(|s| s.to_vec()).map_err(|e| e)
+        .into_vec::<f32>()
         .expect("arithmetic filter requires f32 backend data");
     (vals, image.shape())
 }

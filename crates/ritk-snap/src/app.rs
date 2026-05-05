@@ -1892,6 +1892,45 @@ impl SnapApp {
                 crate::FilterKind::MorphologicalGradient { radius } => {
                     GrayscaleMorphologicalGradientFilter::new(*radius).apply(&image)
                 }
+                crate::FilterKind::DistanceTransform { threshold } => {
+                    ritk_core::filter::DistanceTransformImageFilter::new()
+                        .with_threshold(*threshold)
+                        .apply(&image)
+                }
+                crate::FilterKind::SignedDistanceTransform { threshold } => {
+                    ritk_core::filter::SignedDistanceTransformImageFilter::new()
+                        .with_threshold(*threshold)
+                        .apply(&image)
+                }
+                crate::FilterKind::FlipZ => ritk_core::filter::FlipImageFilter::flip_z().apply(&image),
+                crate::FilterKind::FlipY => ritk_core::filter::FlipImageFilter::flip_y().apply(&image),
+                crate::FilterKind::FlipX => ritk_core::filter::FlipImageFilter::flip_x().apply(&image),
+                crate::FilterKind::MaskThreshold { threshold } => {
+                    let dims = image.shape();
+                    let td = image.data().clone().into_data();
+                    let vals: Vec<f32> = td
+                        .into_vec::<f32>()
+                        .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
+                    let mask_vals: Vec<f32> =
+                        vals.iter().map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 }).collect();
+                    let device = image.data().device();
+                    let mask_td = burn::tensor::TensorData::new(
+                        mask_vals, burn::tensor::Shape::new(dims));
+                    let mask_tensor = burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
+                    let mask_image = ritk_core::image::Image::new(
+                        mask_tensor,
+                        *image.origin(),
+                        *image.spacing(),
+                        *image.direction(),
+                    );
+                    ritk_core::filter::MaskImageFilter::new().apply(&image, &mask_image)
+                }
+                crate::FilterKind::GeodesicDilationSelf => {
+                    ritk_core::filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)
+                }
+                crate::FilterKind::GeodesicErosionSelf => {
+                    ritk_core::filter::GrayscaleGeodesicErosionFilter::new().apply(&image, &image)
+                }
             }
         };
 

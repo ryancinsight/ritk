@@ -11,9 +11,11 @@
 
 pub mod arithmetic;
 pub mod bed_separation;
+pub mod binary_ops;
 pub mod binary_threshold;
 pub mod clahe;
 pub mod equalization;
+pub mod mask;
 pub mod rescale;
 pub mod sigmoid;
 pub mod threshold;
@@ -32,4 +34,7 @@ pub use rescale::RescaleIntensityFilter;
 pub use sigmoid::SigmoidImageFilter;
 pub use threshold::{ThresholdImageFilter, ThresholdMode};
 pub use unsharp_mask::UnsharpMaskFilter;
+pub use binary_ops::{AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMinFilter,
+    MultiplyImageFilter, SubtractImageFilter};
+pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use windowing::IntensityWindowingFilter;

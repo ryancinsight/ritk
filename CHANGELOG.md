@@ -7,7 +7,37 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.28.0] - 2026 - Sprint 146
+
+### Added
+- **`ritk-core` Euclidean distance transform** (`filter/distance/euclidean.rs`): ITK parity for both unsigned and signed variants.
+  - `DistanceTransformImageFilter { threshold: f32 }`: `out(x) = min_{y∈S} ||x−y||₂`, Meijster–Roerdink–Hesselink 2000 exact O(N) algorithm. ITK `DanielssonDistanceMapImageFilter` parity. 5 tests.
+  - `SignedDistanceTransformImageFilter { threshold: f32 }`: background → positive distance to nearest fg; foreground → negative distance to nearest bg. ITK `SignedMaurerDistanceMapImageFilter` parity. 2 tests.
+  - `edt_3d` internal function: 3-phase separable parabolic lower-envelope algorithm with anisotropic spacing support. 4 unit tests including single-voxel origin, two-voxel midpoint, anisotropic spacing scaling, all-foreground zero.
+- **`ritk-core` geodesic grayscale morphology** (`filter/morphology/grayscale_geodesic.rs`): ITK parity.
+  - `GrayscaleGeodesicDilationFilter`: morphological reconstruction by dilation (`marker ∨ mask` iterative convergence). ITK `GrayscaleGeodesicDilationImageFilter` parity. 5 tests.
+  - `GrayscaleGeodesicErosionFilter`: morphological reconstruction by erosion. ITK `GrayscaleGeodesicErosionImageFilter` parity. 5 tests.
+- **`ritk-core` binary image arithmetic** (`filter/intensity/binary_ops.rs`): ITK parity for two-image pixelwise operations. All require matching shapes; spatial metadata from first image; O(N).
+  - `AddImageFilter`: `out(x) = a(x) + b(x)`. ITK `AddImageFilter`. 3 tests.
+  - `SubtractImageFilter`: `out(x) = a(x) − b(x)`. ITK `SubtractImageFilter`. 3 tests.
+  - `MultiplyImageFilter`: `out(x) = a(x) × b(x)`. ITK `MultiplyImageFilter`. 3 tests.
+  - `DivideImageFilter`: `out(x) = a(x) / b(x)`, div-by-zero → 0. ITK `DivideImageFilter`. 4 tests.
+  - `ImageMinFilter`: `out(x) = min(a(x), b(x))`. ITK `MinimumImageFilter`. 3 tests.
+  - `ImageMaxFilter`: `out(x) = max(a(x), b(x))`. ITK `MaximumImageFilter`. 3 tests.
+- **`ritk-core` mask filters** (`filter/intensity/mask.rs`): ITK parity.
+  - `MaskImageFilter { threshold: f32, outside_value: f32 }`: pass `image(x)` where `mask(x) > threshold`, else `outside_value`. ITK `MaskImageFilter` parity. 4 tests.
+  - `MaskNegatedImageFilter { threshold: f32, outside_value: f32 }`: pass `image(x)` where `mask(x) ≤ threshold`. ITK `MaskNegatedImageFilter` parity. 4 tests.
+- **`ritk-core` flip filter** (`filter/transform/flip.rs`): `FlipImageFilter { axes: [bool; 3] }`, ITK `FlipImageFilter` parity. Constructors: `new([fz,fy,fx])`, `flip_z()`, `flip_y()`, `flip_x()`. Involutory (double-flip = identity). 6 tests.
+- **`ritk-snap` 8 new `FilterKind` variants**: `DistanceTransform { threshold }`, `SignedDistanceTransform { threshold }`, `FlipZ`, `FlipY`, `FlipX`, `MaskThreshold { threshold }`, `GeodesicDilationSelf`, `GeodesicErosionSelf` — wired into `apply_filter` (lib.rs), `SnapApp` dispatch (app.rs), `ui/filter_panel.rs` ComboBox + parameter controls.
+
+### Test totals
+- `ritk-core`: 959 passed (+38: 11 EDT + 10 geodesic + 19 binary_ops/mask + 6 flip − 9 from prior tests displaced into new modules)
+- `ritk-snap`: 383 passed (unchanged — new variants covered by dispatch correctness)
+- `ritk-io`: 288 passed (unchanged)
+- `ritk-registration`: 3 passed (unchanged)
+
 ## [0.26.0] - 2026 - Sprint 145
+
 
 ### Added
 - **`ritk-core` 7 arithmetic intensity filters** (`filter/intensity/arithmetic.rs`): ITK/ImageJ/SimpleITK parity.

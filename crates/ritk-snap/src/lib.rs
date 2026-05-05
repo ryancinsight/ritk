@@ -21,11 +21,14 @@ use anyhow::Result;
 use ritk_core::filter::{
     AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
     BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
-    BinaryMorphologicalOpening, ClaheFilter, ConnectedComponentsFilter, ExpImageFilter,
-    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+    BinaryMorphologicalOpening, ClaheFilter, ConnectedComponentsFilter,
+    DistanceTransformImageFilter, ExpImageFilter,
+    FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
+    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
     GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter,
-    MedianFilter, MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter,
+    MaskImageFilter, MedianFilter, MultiOtsuThreshold, NormalizeImageFilter,
+    RelabelComponentFilter, SignedDistanceTransformImageFilter,
     SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
@@ -342,6 +345,50 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::MorphologicalGradient { radius } => {
                 GrayscaleMorphologicalGradientFilter::new(*radius).apply(&study.image)
             }
+            FilterKind::DistanceTransform { threshold } => {
+                DistanceTransformImageFilter::new()
+                    .with_threshold(*threshold)
+                    .apply(&study.image)
+            }
+            FilterKind::SignedDistanceTransform { threshold } => {
+                SignedDistanceTransformImageFilter::new()
+                    .with_threshold(*threshold)
+                    .apply(&study.image)
+            }
+            FilterKind::FlipZ => FlipImageFilter::flip_z().apply(&study.image),
+            FilterKind::FlipY => FlipImageFilter::flip_y().apply(&study.image),
+            FilterKind::FlipX => FlipImageFilter::flip_x().apply(&study.image),
+            FilterKind::MaskThreshold { threshold } => {
+                // Build a binary mask from the current image: voxels > threshold → 1, else 0.
+                // Then apply MaskImageFilter to zero out subthreshold voxels.
+                let dims = study.image.shape();
+                let td = study.image.data().clone().into_data();
+                let vals: Vec<f32> = td
+                    .into_vec::<f32>()
+                    .map_err(|e| anyhow::anyhow!("MaskThreshold: f32 required: {:?}", e))?;
+                let mask_vals: Vec<f32> =
+                    vals.iter().map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 }).collect();
+                let device = study.image.data().device();
+                let mask_td = burn::tensor::TensorData::new(
+                    mask_vals,
+                    burn::tensor::Shape::new(dims),
+                );
+                let mask_tensor = burn::tensor::Tensor::<B, 3>::from_data(mask_td, &device);
+                let mask_image = Image::new(
+                    mask_tensor,
+                    *study.image.origin(),
+                    *study.image.spacing(),
+                    *study.image.direction(),
+                );
+                MaskImageFilter::new().apply(&study.image, &mask_image)
+            }
+            FilterKind::GeodesicDilationSelf => {
+                // Use current image as both marker and mask (no-op reconstruction)
+                GrayscaleGeodesicDilationFilter::new().apply(&study.image, &study.image)
+            }
+            FilterKind::GeodesicErosionSelf => {
+                GrayscaleGeodesicErosionFilter::new().apply(&study.image, &study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -371,6 +418,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::Log => "Log",
             FilterKind::Exp => "Exp",
             FilterKind::MorphologicalGradient { .. } => "MorphologicalGradient",
+            FilterKind::DistanceTransform { .. } => "DistanceTransform",
+            FilterKind::SignedDistanceTransform { .. } => "SignedDistanceTransform",
+            FilterKind::FlipZ => "FlipZ",
+            FilterKind::FlipY => "FlipY",
+            FilterKind::FlipX => "FlipX",
+            FilterKind::MaskThreshold { .. } => "MaskThreshold",
+            FilterKind::GeodesicDilationSelf => "GeodesicDilationSelf",
+            FilterKind::GeodesicErosionSelf => "GeodesicErosionSelf",
         };
 
         match filter_result {
@@ -746,6 +801,52 @@ pub enum FilterKind {
         /// Structuring element half-width in voxels.
         radius: usize,
     },
+
+    /// Unsigned Euclidean distance transform (ITK `DanielssonDistanceMapImageFilter`).
+    ///
+    /// Each voxel receives the Euclidean distance (mm) to the nearest foreground voxel
+    /// (`in(x) > threshold`).
+    DistanceTransform {
+        /// Intensity threshold separating background from foreground. Default: 0.5.
+        threshold: f32,
+    },
+
+    /// Signed Euclidean distance transform (ITK `SignedMaurerDistanceMapImageFilter`).
+    ///
+    /// Positive outside the object, negative inside (distance to nearest background).
+    SignedDistanceTransform {
+        /// Intensity threshold. Default: 0.5.
+        threshold: f32,
+    },
+
+    /// Flip image along the Z axis (ITK `FlipImageFilter` with axis 0).
+    FlipZ,
+
+    /// Flip image along the Y axis (ITK `FlipImageFilter` with axis 1).
+    FlipY,
+
+    /// Flip image along the X axis (ITK `FlipImageFilter` with axis 2).
+    FlipX,
+
+    /// Zero-out voxels below an intensity threshold using a binary self-mask.
+    ///
+    /// Voxels with `in(x) ≤ threshold` are set to 0; others are preserved.
+    /// Equivalent to ITK `MaskImageFilter` with a thresholded binary mask derived
+    /// from the same image.
+    MaskThreshold {
+        /// Intensity threshold; voxels ≤ threshold are zeroed.
+        threshold: f32,
+    },
+
+    /// Geodesic dilation self-reconstruction (marker = mask = current image).
+    ///
+    /// Identity operation used to validate the geodesic reconstruction pipeline.
+    /// For meaningful reconstruction provide marker and mask separately via the
+    /// `ritk_core` API.
+    GeodesicDilationSelf,
+
+    /// Geodesic erosion self-reconstruction (marker = mask = current image).
+    GeodesicErosionSelf,
 }
 
 /// Intensity display defaults derived from DICOM modality.

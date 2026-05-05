@@ -64,3 +64,6 @@ pub use grayscale_closing::GrayscaleClosingFilter;
 pub use grayscale_opening::GrayscaleOpeningFilter;
 pub use grayscale_fillhole::GrayscaleFillholeFilter;
 pub use grayscale_gradient::GrayscaleMorphologicalGradientFilter;
+
+pub mod grayscale_geodesic;
+pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter};
