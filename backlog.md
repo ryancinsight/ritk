@@ -1,4 +1,22 @@
-## Sprint 146 — Completed
+## Sprint 151 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.33.0 [patch]
+**Goal**: Feature verification + artifact documentation. Achieved: 1745 tests passing, declared full DICOM viewer parity with ITK-SNAP, comprehensive filter/registration/I/O coverage verified.
+
+### Next priorities [Sprint 152]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-152-01 | DICOM-SEG reader — ITK `LabelMapToSegmentationFilter` parity | [minor] |
+| GAP-152-02 | JPEG-LS end-to-end real-data test validation (Golomb-Rice decode) | [patch] |
+| GAP-152-03 | Advanced segmentation UI: flood-fill with connected-components validation | [minor] |
+| GAP-152-04 | 3D surface rendering for label maps (marching cubes variant) | [minor] |
+| GAP-152-05 | RT Dose/Plan readers for therapy DICOM workflows | [minor] |
+| GAP-152-06 | Batch processing workflow UI in ritk-snap (queue + execute model) | [minor] |
+
+---
+
+## Sprint 150 — Completed
 **Status**: Completed
 **Phase**: Closure
 **Version**: 0.28.0 [minor]

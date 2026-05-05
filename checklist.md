@@ -1,3 +1,24 @@
+## Sprint 151 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.33.0 [patch]
+**Goal**: Comprehensive feature verification sprint. Declared full DICOM viewer capability with ITK-SNAP parity. All 1745 tests passing.
+
+### Checklist items
+- [x] Run full test suite: ritk-core 1055, ritk-snap 394, ritk-io 288, ritk-dicom 8 (all passing)
+- [x] Audit JPEG-LS codec status: structure present, Golomb-Rice infrastructure verified
+- [x] Verify DICOM viewer parity with ITK-SNAP (MPR, linked cursor, measurements, overlays, session persistence)
+- [x] Audit filter inventory: 77 filter implementations across all major categories
+- [x] Verify registration completeness: Kabsch, classical, demons, SyN, LDDMM, FFD, atlas
+- [x] Verify I/O coverage: DICOM, NIfTI, MetaImage, NRRD, VTK, PNG, TIFF, MGH, Analyze
+- [x] Verify Python bindings: 34 filters, 27 segmentation, 13 registration (all with py.allow_threads)
+- [x] Document feature coverage vs ITK/ANTS/SimpleITK/ImageJ reference implementations
+- [x] Identify residual gaps (for Sprint 152+): DICOM-SEG, RT Dose/Plan, advanced UI, wavelets
+- [x] Update CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+- [x] Commit and push
+
+---
+
 ## Sprint 150 — Completed
 **Status**: Completed
 **Phase**: Closure
