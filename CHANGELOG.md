@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.21.0] - 2026 - Sprint 140
+
+### Added
+- **`ritk-core` Gradient Anisotropic Diffusion filter** (`filter/diffusion/gradient_anisotropic.rs`): Added `GradientAnisotropicDiffusionFilter` implementing the ITK `GradientAnisotropicDiffusionImageFilter` 6-neighbour direct-flux formula `I_new(p) = I(p) + Δt · Σ_{q∈N₆(p)} c(|I(q)−I(p)|) · (I(q)−I(p))` with exponential conductance `c(s) = exp(−(s/K)²)`. Raw intensity differences (not spacing-normalised gradients) are used in conductance evaluation, matching the ITK reference implementation exactly and distinguishing this filter from the spacing-normalised `AnisotropicDiffusionFilter` (Perona-Malik). ITK defaults: iterations=5, Δt=0.125, K=1.0. Stability bound `Δt ≤ 1/6` documented and enforced via slider ceiling in the UI. 9 value-semantic tests: constant-image identity, zero-iterations identity, large-K isotropic smoothing (boundary voxel analytical: out[4]≈12.5), small-K edge preservation (max>99, min<1), single-voxel identity, spatial metadata preservation, conductance analytical values (c(0,K)=1, c(K,K)=exp(-1), c(2K,K)=exp(-4)), symmetric step middle-voxel unchanged by symmetry, diffusion reduces gradient magnitude over 10 iterations.
+- **`ritk-core` `filter/diffusion/mod.rs`**: Registered `pub mod gradient_anisotropic`; added `pub use gradient_anisotropic::{GradientAnisotropicDiffusionFilter, GradientDiffusionConfig}`.
+- **`ritk-core` `filter/mod.rs`**: Added `GradientAnisotropicDiffusionFilter`, `GradientDiffusionConfig` to public re-export surface.
+- **`ritk-snap` `FilterKind::GradientAnisotropicDiffusion` variant**: Added `GradientAnisotropicDiffusion { iterations: u32, time_step: f32, conductance: f32 }` with dispatch in `apply_filter` (lib.rs) and `app.rs` via `GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {...})`.
+- **`ritk-snap` filter panel** (`ui/filter_panel.rs`): Added `GradientAnisotropicDiffusion` ComboBox entry with parameter controls (iterations slider [1,50]; time_step slider [0.01,0.1667] with stability-bound annotation; conductance logarithmic slider [0.1,100.0]) and `gradient_anisotropic_diffusion_defaults_in_range` value-semantic test.
+
+### Test counts
+| Crate | Before Sprint 140 | After Sprint 140 |
+|---|---|---|
+| ritk-core | 803 | **812** |
+| ritk-io | 288 | 288 |
+| ritk-snap | 363 | **364** |
+
+### Verification
+- `cargo test -p ritk-core --lib filter::diffusion::gradient_anisotropic` → 9 passed
+- `cargo test -p ritk-core --lib` → 812 passed
+- `cargo test -p ritk-io --lib` → 288 passed
+- `cargo test -p ritk-snap --lib` → 364 passed
+
 ## [0.20.0] - 2026 - Sprint 139
 
 ### Added

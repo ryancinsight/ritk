@@ -1,3 +1,32 @@
+## Sprint 140 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.21.0 [minor]
+**Goal**: Close ITK `GradientAnisotropicDiffusionImageFilter` parity gap in ritk-core; wire into ritk-snap filter panel.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-140-01 | No `GradientAnisotropicDiffusionImageFilter` ITK-parity in ritk-core | major |
+| GAP-140-02 | `FilterKind` enum lacked `GradientAnisotropicDiffusion` variant in ritk-snap | minor |
+| GAP-140-03 | filter_panel had no Gradient Anisotropic Diffusion entry or parameter controls | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib filter::diffusion::gradient_anisotropic` | Passed: 9 tests |
+| `cargo test -p ritk-core --lib` | Passed: 812 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 364 tests |
+
+### Residual risks
+- Existing deprecation/dead-code warnings in `ritk-codecs` (deprecated `decode_native_pixel_bytes`, unused JPEG-LS predictor variants) remain; classified as [patch]-class cleanup for a future sprint.
+- Pure-Rust JPEG 2000 decoder replacement (`openjpeg-sys` removal) remains open.
+- DICOM-SEG reader/writer round-trip remains open.
+- RT-PLAN beam geometry display in ritk-snap remains open.
+- `itk::ConnectedComponentImageFilter` parity in ritk-core remains open.
+- Binary morphology parity (`BinaryMorphologicalClosing`, `BinaryFillhole`) remains open.
+
 ## Sprint 139 — Completed
 **Status**: Completed
 **Phase**: Closure

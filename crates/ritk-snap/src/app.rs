@@ -1782,6 +1782,7 @@ impl SnapApp {
         let filter_result = {
             use ritk_core::filter::{
                 BedSeparationFilter, ClaheFilter, GaussianFilter,
+                GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
                 HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
@@ -1812,6 +1813,16 @@ impl SnapApp {
                     f64::from(*threshold),
                     *clamp,
                 )
+                .apply(&image),
+                crate::FilterKind::GradientAnisotropicDiffusion {
+                    iterations,
+                    time_step,
+                    conductance,
+                } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
+                    num_iterations: *iterations as usize,
+                    time_step: *time_step,
+                    conductance: *conductance,
+                })
                 .apply(&image),
             }
         };

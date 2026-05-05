@@ -20,6 +20,7 @@
 use anyhow::Result;
 use ritk_core::filter::{
     BedSeparationConfig, BedSeparationFilter, ClaheFilter, GaussianFilter,
+    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
@@ -265,6 +266,16 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 *clamp,
             )
             .apply(&study.image),
+            FilterKind::GradientAnisotropicDiffusion {
+                iterations,
+                time_step,
+                conductance,
+            } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
+                num_iterations: *iterations as usize,
+                time_step: *time_step,
+                conductance: *conductance,
+            })
+            .apply(&study.image),
         };
 
         let filter_name = match kind {
@@ -274,6 +285,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::Clahe { .. } => "CLAHE",
             FilterKind::HistEq { .. } => "HistEq",
             FilterKind::UnsharpMask { .. } => "UnsharpMask",
+            FilterKind::GradientAnisotropicDiffusion { .. } => "GradientAnisotropicDiffusion",
         };
 
         match filter_result {
@@ -463,6 +475,26 @@ pub enum FilterKind {
         threshold: f32,
         /// Whether to clamp output to the input intensity range. Default: true.
         clamp: bool,
+    },
+
+    /// Gradient anisotropic diffusion filter (ITK `GradientAnisotropicDiffusionImageFilter`).
+    ///
+    /// Reduces noise while preserving edges using the 6-neighbour direct-flux form:
+    /// `I_new(p) = I(p) + Δt · Σ_{q ∈ N₆(p)} c(|I(q)−I(p)|) · (I(q)−I(p))`
+    /// with `c(s) = exp(−(s/K)²)`.
+    ///
+    /// Distinct from the Perona-Malik filter: conductance is applied to raw
+    /// intensity differences (not spacing-normalised gradients).
+    ///
+    /// # Stability constraint
+    /// `time_step ≤ 1/6 ≈ 0.1667`. ITK default: 0.125.
+    GradientAnisotropicDiffusion {
+        /// Number of explicit Euler iterations. ITK default: 5.
+        iterations: u32,
+        /// Time step Δt. Must satisfy Δt ≤ 1/6. ITK default: 0.125.
+        time_step: f32,
+        /// Conductance K. Larger K → more isotropic smoothing. ITK default: 1.0.
+        conductance: f32,
     },
 }
 

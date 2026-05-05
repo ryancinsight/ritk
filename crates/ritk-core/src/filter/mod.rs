@@ -17,7 +17,7 @@ pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
 pub use diffusion::{
     AnisotropicDiffusionFilter, ConductanceFunction, CurvatureAnisotropicDiffusionFilter,
-    CurvatureConfig, DiffusionConfig,
+    CurvatureConfig, DiffusionConfig, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
 };
 pub use discrete_gaussian::DiscreteGaussianFilter;
 pub use downsample::DownsampleFilter;

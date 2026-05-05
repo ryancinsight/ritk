@@ -14,6 +14,7 @@
 //!   - CLAHE tile grid ∈ [1, 32] per axis; clip limit ∈ [1.0, 200.0]
 //!   - HistEq bins ∈ [2, 1024]
 //!   - UnsharpMask σ ∈ [0.1, 10.0] mm; amount ∈ [0.0, 5.0]; threshold ∈ [0.0, 100.0]
+//!   - GradientAnisotropicDiffusion iterations ∈ [1, 50]; time_step ∈ [0.01, 0.1667]; conductance ∈ [0.1, 100.0]
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -42,6 +43,7 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::Clahe { .. } => "CLAHE",
             FilterKind::HistEq { .. } => "Hist Equalize",
             FilterKind::UnsharpMask { .. } => "Unsharp Mask",
+            FilterKind::GradientAnisotropicDiffusion { .. } => "Gradient Aniso. Diffusion",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -110,6 +112,24 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                         amount: 0.5,
                         threshold: 0.0,
                         clamp: true,
+                    };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::GradientAnisotropicDiffusion {
+                            iterations: 5,
+                            time_step: 0.125,
+                            conductance: 1.0,
+                        },
+                        "Gradient Aniso. Diffusion",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::GradientAnisotropicDiffusion {
+                        iterations: 5,
+                        time_step: 0.125,
+                        conductance: 1.0,
                     };
                 }
             });
@@ -212,6 +232,38 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 ui.horizontal(|ui| {
                     ui.label("Clamp:");
                     ui.checkbox(clamp, "");
+                });
+            }
+            FilterKind::GradientAnisotropicDiffusion {
+                iterations,
+                time_step,
+                conductance,
+            } => {
+                let mut it = *iterations as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Iterations:");
+                    if ui
+                        .add(egui::Slider::new(&mut it, 1..=50).step_by(1.0))
+                        .changed()
+                    {
+                        *iterations = it.max(1) as u32;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Time step Δt:");
+                    // Stability bound: Δt ≤ 1/6 ≈ 0.1667 in 3-D.
+                    ui.add(
+                        egui::Slider::new(time_step, 0.01_f32..=0.1667)
+                            .step_by(0.005),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Conductance K:");
+                    ui.add(
+                        egui::Slider::new(conductance, 0.1_f32..=100.0)
+                            .step_by(0.1)
+                            .logarithmic(true),
+                    );
                 });
             }
         }
@@ -337,6 +389,43 @@ mod tests {
             assert!(clamp, "default clamp should be true");
         } else {
             panic!("expected UnsharpMask variant");
+        }
+    }
+
+    /// GradientAnisotropicDiffusion defaults lie within the slider ranges.
+    ///
+    /// - iterations ∈ [1, 50]
+    /// - time_step ∈ [0.01, 0.1667]  (stability bound Δt ≤ 1/6)
+    /// - conductance ∈ [0.1, 100.0]
+    ///
+    /// ITK defaults: iterations=5, time_step=0.125, conductance=1.0.
+    #[test]
+    fn gradient_anisotropic_diffusion_defaults_in_range() {
+        let fk = FilterKind::GradientAnisotropicDiffusion {
+            iterations: 5,
+            time_step: 0.125,
+            conductance: 1.0,
+        };
+        if let FilterKind::GradientAnisotropicDiffusion {
+            iterations,
+            time_step,
+            conductance,
+        } = fk
+        {
+            assert!(
+                iterations >= 1 && iterations <= 50,
+                "default iterations {iterations} out of range [1, 50]"
+            );
+            assert!(
+                time_step >= 0.01 && time_step <= 0.1667,
+                "default time_step {time_step} out of range [0.01, 0.1667] (stability bound)"
+            );
+            assert!(
+                conductance >= 0.1 && conductance <= 100.0,
+                "default conductance {conductance} out of range [0.1, 100.0]"
+            );
+        } else {
+            panic!("expected GradientAnisotropicDiffusion variant");
         }
     }
 }

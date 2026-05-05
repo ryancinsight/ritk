@@ -1,3 +1,34 @@
+## Sprint 140 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.21.0 [minor]
+**Goal**: Implement `GradientAnisotropicDiffusionFilter` (ITK `GradientAnisotropicDiffusionImageFilter` parity) in ritk-core and wire into ritk-snap filter panel.
+
+### Checklist items
+- [x] Create `ritk-core/src/filter/diffusion/gradient_anisotropic.rs` with `GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig)` and `apply<B: Backend>`
+- [x] Implement 6-neighbour direct-flux formula with raw intensity differences (no spacing normalisation), matching ITK exactly
+- [x] Add 9 value-semantic tests (constant identity, zero-iterations, large-K boundary analytical, small-K edge preservation, single-voxel, spatial metadata, conductance analytical values, symmetric step symmetry, gradient reduction)
+- [x] Register `pub mod gradient_anisotropic` and `pub use gradient_anisotropic::{...}` in `filter/diffusion/mod.rs`
+- [x] Add `GradientAnisotropicDiffusionFilter`, `GradientDiffusionConfig` to `filter/mod.rs` public re-export
+- [x] Add `FilterKind::GradientAnisotropicDiffusion { iterations, time_step, conductance }` variant to `ritk-snap/src/lib.rs`
+- [x] Add import and dispatch arm in `apply_filter` (lib.rs)
+- [x] Add import and dispatch arm in `app.rs` filter block
+- [x] Add `GradientAnisotropicDiffusion` ComboBox entry, parameter sliders (iterations [1,50], time_step [0.01,0.1667], conductance log [0.1,100.0]), and `gradient_anisotropic_diffusion_defaults_in_range` test to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib filter::diffusion::gradient_anisotropic`: 9 passed
+- [x] Verify `cargo test -p ritk-core --lib`: 812 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 364 passed
+- [x] Update CHANGELOG.md (v0.21.0), gap_audit.md, backlog.md, checklist.md
+- [x] Commit and push
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib filter::diffusion::gradient_anisotropic` | Passed: 9 tests |
+| `cargo test -p ritk-core --lib` | Passed: 812 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 364 tests |
+
 ## Sprint 139 — Completed
 **Status**: Completed
 **Phase**: Closure
