@@ -38,3 +38,8 @@ pub use binary_ops::{AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMin
     MultiplyImageFilter, SubtractImageFilter};
 pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use windowing::IntensityWindowingFilter;
+
+pub mod shift_scale;
+pub mod zero_crossing;
+pub use shift_scale::ShiftScaleImageFilter;
+pub use zero_crossing::ZeroCrossingImageFilter;

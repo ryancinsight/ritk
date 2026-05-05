@@ -64,5 +64,6 @@ pub use threshold::{
     triangle_threshold, yen_threshold,
 };
 pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
-pub use transform::FlipImageFilter;
+pub use intensity::{ShiftScaleImageFilter, ZeroCrossingImageFilter};
+pub use transform::{FlipImageFilter, PermuteAxesImageFilter, PasteImageFilter, RegionOfInterestImageFilter};
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};

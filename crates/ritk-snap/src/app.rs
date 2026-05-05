@@ -1931,6 +1931,29 @@ impl SnapApp {
                 crate::FilterKind::GeodesicErosionSelf => {
                     ritk_core::filter::GrayscaleGeodesicErosionFilter::new().apply(&image, &image)
                 }
+                crate::FilterKind::ShiftScale { shift, scale } => {
+                    ritk_core::filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
+                }
+                crate::FilterKind::ZeroCrossing { foreground_value, background_value } => {
+                    ritk_core::filter::ZeroCrossingImageFilter::new()
+                        .with_foreground(*foreground_value)
+                        .with_background(*background_value)
+                        .apply(&image)
+                }
+                crate::FilterKind::RegionOfInterest {
+                    start_z, start_y, start_x,
+                    size_z, size_y, size_x,
+                } => {
+                    ritk_core::filter::RegionOfInterestImageFilter::new(
+                        [*start_z, *start_y, *start_x],
+                        [*size_z, *size_y, *size_x],
+                    )
+                    .apply(&image)
+                }
+                crate::FilterKind::PermuteAxes { order_0, order_1, order_2 } => {
+                    ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+                        .apply(&image)
+                }
             }
         };
 

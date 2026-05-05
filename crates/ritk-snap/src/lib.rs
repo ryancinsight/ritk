@@ -28,8 +28,9 @@ use ritk_core::filter::{
     GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
     GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter,
     MaskImageFilter, MedianFilter, MultiOtsuThreshold, NormalizeImageFilter,
-    RelabelComponentFilter, SignedDistanceTransformImageFilter,
-    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    RelabelComponentFilter, ShiftScaleImageFilter, SignedDistanceTransformImageFilter,
+    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter, ZeroCrossingImageFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -389,6 +390,29 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::GeodesicErosionSelf => {
                 GrayscaleGeodesicErosionFilter::new().apply(&study.image, &study.image)
             }
+            FilterKind::ShiftScale { shift, scale } => {
+                ShiftScaleImageFilter::new(*shift, *scale).apply(&study.image)
+            }
+            FilterKind::ZeroCrossing { foreground_value, background_value } => {
+                ZeroCrossingImageFilter::new()
+                    .with_foreground(*foreground_value)
+                    .with_background(*background_value)
+                    .apply(&study.image)
+            }
+            FilterKind::RegionOfInterest {
+                start_z, start_y, start_x,
+                size_z, size_y, size_x,
+            } => {
+                RegionOfInterestImageFilter::new(
+                    [*start_z, *start_y, *start_x],
+                    [*size_z, *size_y, *size_x],
+                )
+                .apply(&study.image)
+            }
+            FilterKind::PermuteAxes { order_0, order_1, order_2 } => {
+                PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+                    .apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -426,6 +450,10 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::MaskThreshold { .. } => "MaskThreshold",
             FilterKind::GeodesicDilationSelf => "GeodesicDilationSelf",
             FilterKind::GeodesicErosionSelf => "GeodesicErosionSelf",
+            FilterKind::ShiftScale { .. } => "ShiftScale",
+            FilterKind::ZeroCrossing { .. } => "ZeroCrossing",
+            FilterKind::RegionOfInterest { .. } => "RegionOfInterest",
+            FilterKind::PermuteAxes { .. } => "PermuteAxes",
         };
 
         match filter_result {
@@ -847,6 +875,51 @@ pub enum FilterKind {
 
     /// Geodesic erosion self-reconstruction (marker = mask = current image).
     GeodesicErosionSelf,
+
+    /// Linear shift-then-scale: `out(x) = (in(x) + shift) * scale`
+    /// (ITK `ShiftScaleImageFilter`).
+    ShiftScale {
+        /// Value added to each voxel before multiplication.
+        shift: f32,
+        /// Scale factor applied after the shift.
+        scale: f32,
+    },
+
+    /// Zero-crossing detector: foreground where sign change occurs in 6-connected
+    /// neighbourhood or voxel == 0 (ITK `ZeroCrossingImageFilter`).
+    ZeroCrossing {
+        /// Value assigned to zero-crossing voxels.
+        foreground_value: f32,
+        /// Value assigned to non-crossing voxels.
+        background_value: f32,
+    },
+
+    /// Crop a rectangular sub-volume (ITK `RegionOfInterestImageFilter`).
+    RegionOfInterest {
+        /// Start index in Z (slowest axis).
+        start_z: usize,
+        /// Start index in Y.
+        start_y: usize,
+        /// Start index in X (fastest axis).
+        start_x: usize,
+        /// Number of voxels to extract in Z.
+        size_z: usize,
+        /// Number of voxels to extract in Y.
+        size_y: usize,
+        /// Number of voxels to extract in X.
+        size_x: usize,
+    },
+
+    /// Permute axes: `order[i]` = input axis for output axis i
+    /// (ITK `PermuteAxesImageFilter`).
+    PermuteAxes {
+        /// Source axis for output axis 0 (Z).
+        order_0: usize,
+        /// Source axis for output axis 1 (Y).
+        order_1: usize,
+        /// Source axis for output axis 2 (X).
+        order_2: usize,
+    },
 }
 
 /// Intensity display defaults derived from DICOM modality.

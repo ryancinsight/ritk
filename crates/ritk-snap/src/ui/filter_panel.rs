@@ -81,6 +81,10 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::MaskThreshold { .. } => "Mask Threshold",
             FilterKind::GeodesicDilationSelf => "Geodesic Dilation (self)",
             FilterKind::GeodesicErosionSelf => "Geodesic Erosion (self)",
+            FilterKind::ShiftScale { .. } => "Shift Scale",
+            FilterKind::ZeroCrossing { .. } => "Zero Crossing",
+            FilterKind::RegionOfInterest { .. } => "Region Of Interest",
+            FilterKind::PermuteAxes { .. } => "Permute Axes",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -354,6 +358,26 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 ).clicked() { *active_filter = FilterKind::MaskThreshold { threshold: 0.5 }; }
                 if ui.selectable_value(&mut *active_filter, FilterKind::GeodesicDilationSelf, "Geodesic Dilation (self)").clicked() { *active_filter = FilterKind::GeodesicDilationSelf; }
                 if ui.selectable_value(&mut *active_filter, FilterKind::GeodesicErosionSelf, "Geodesic Erosion (self)").clicked() { *active_filter = FilterKind::GeodesicErosionSelf; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::ShiftScale { shift: 0.0, scale: 1.0 },
+                    "Shift Scale",
+                ).clicked() { *active_filter = FilterKind::ShiftScale { shift: 0.0, scale: 1.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::ZeroCrossing { foreground_value: 1.0, background_value: 0.0 },
+                    "Zero Crossing",
+                ).clicked() { *active_filter = FilterKind::ZeroCrossing { foreground_value: 1.0, background_value: 0.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::RegionOfInterest { start_z: 0, start_y: 0, start_x: 0, size_z: 1, size_y: 1, size_x: 1 },
+                    "Region Of Interest",
+                ).clicked() { *active_filter = FilterKind::RegionOfInterest { start_z: 0, start_y: 0, start_x: 0, size_z: 1, size_y: 1, size_x: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::PermuteAxes { order_0: 0, order_1: 1, order_2: 2 },
+                    "Permute Axes",
+                ).clicked() { *active_filter = FilterKind::PermuteAxes { order_0: 0, order_1: 1, order_2: 2 }; }
             });
 
         ui.add_space(4.0);
@@ -695,6 +719,92 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             }
             FilterKind::GeodesicDilationSelf | FilterKind::GeodesicErosionSelf => {
                 ui.label(egui::RichText::new("Geodesic morphological reconstruction (marker = mask = current image). Identity on self; for two-image reconstruction use the ritk_core API.").small());
+            }
+            FilterKind::ShiftScale { shift, scale } => {
+                ui.label(egui::RichText::new("ITK ShiftScaleImageFilter: out(x) = (in(x) + shift) × scale. Applied in f64 precision.").small());
+                ui.horizontal(|ui| {
+                    ui.label("Shift:");
+                    ui.add(egui::Slider::new(shift, -10000.0_f32..=10000.0).step_by(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Scale:");
+                    ui.add(egui::Slider::new(scale, -100.0_f32..=100.0).step_by(0.001));
+                });
+            }
+            FilterKind::ZeroCrossing { foreground_value, background_value } => {
+                ui.label(egui::RichText::new("ITK ZeroCrossingImageFilter: emits foreground_value where a sign change (or exact zero) exists in the 6-connected neighbourhood.").small());
+                ui.horizontal(|ui| {
+                    ui.label("Foreground:");
+                    ui.add(egui::Slider::new(foreground_value, 0.0_f32..=1000.0).step_by(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Background:");
+                    ui.add(egui::Slider::new(background_value, -1000.0_f32..=1000.0).step_by(1.0));
+                });
+            }
+            FilterKind::RegionOfInterest {
+                start_z, start_y, start_x,
+                size_z, size_y, size_x,
+            } => {
+                ui.label(egui::RichText::new("ITK RegionOfInterestImageFilter: extract a rectangular sub-volume. Origin is updated to the physical start voxel.").small());
+                let mut sz_ = *start_z as i32;
+                let mut sy_ = *start_y as i32;
+                let mut sx_ = *start_x as i32;
+                let mut esz = *size_z as i32;
+                let mut esy = *size_y as i32;
+                let mut esx = *size_x as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Start Z:"); if ui.add(egui::Slider::new(&mut sz_, 0..=4095).step_by(1.0)).changed() { *start_z = sz_.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Start Y:"); if ui.add(egui::Slider::new(&mut sy_, 0..=4095).step_by(1.0)).changed() { *start_y = sy_.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Start X:"); if ui.add(egui::Slider::new(&mut sx_, 0..=4095).step_by(1.0)).changed() { *start_x = sx_.max(0) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Size Z:"); if ui.add(egui::Slider::new(&mut esz, 1..=4096).step_by(1.0)).changed() { *size_z = esz.max(1) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Size Y:"); if ui.add(egui::Slider::new(&mut esy, 1..=4096).step_by(1.0)).changed() { *size_y = esy.max(1) as usize; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Size X:"); if ui.add(egui::Slider::new(&mut esx, 1..=4096).step_by(1.0)).changed() { *size_x = esx.max(1) as usize; }
+                });
+            }
+            FilterKind::PermuteAxes { order_0, order_1, order_2 } => {
+                ui.label(egui::RichText::new("ITK PermuteAxesImageFilter: rearrange axes. order[i] = source axis for output axis i. Must be a permutation of {0, 1, 2}.").small());
+                let axes = [0i32, 1, 2];
+                let mut o0 = *order_0 as i32;
+                let mut o1 = *order_1 as i32;
+                let mut o2 = *order_2 as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Output axis 0 ← input axis:");
+                    egui::ComboBox::from_id_source("perm_ax0")
+                        .selected_text(format!("{o0}"))
+                        .show_ui(ui, |ui| {
+                            for &ax in &axes { ui.selectable_value(&mut o0, ax, format!("{ax}")); }
+                        });
+                    *order_0 = o0.max(0) as usize;
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Output axis 1 ← input axis:");
+                    egui::ComboBox::from_id_source("perm_ax1")
+                        .selected_text(format!("{o1}"))
+                        .show_ui(ui, |ui| {
+                            for &ax in &axes { ui.selectable_value(&mut o1, ax, format!("{ax}")); }
+                        });
+                    *order_1 = o1.max(0) as usize;
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Output axis 2 ← input axis:");
+                    egui::ComboBox::from_id_source("perm_ax2")
+                        .selected_text(format!("{o2}"))
+                        .show_ui(ui, |ui| {
+                            for &ax in &axes { ui.selectable_value(&mut o2, ax, format!("{ax}")); }
+                        });
+                    *order_2 = o2.max(0) as usize;
+                });
             }
         }
 

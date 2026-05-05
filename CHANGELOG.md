@@ -7,6 +7,19 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.29.0] - 2026 - Sprint 147
+
+### Added
+- **`ritk-core` `ShiftScaleImageFilter`** (`filter/intensity/shift_scale.rs`): `out(x) = (in(x) + shift) × scale`. f64-precision arithmetic. ITK `ShiftScaleImageFilter` parity. 6 value-semantic tests.
+- **`ritk-core` `ZeroCrossingImageFilter`** (`filter/intensity/zero_crossing.rs`): Detect sign changes in 6-connected neighbourhood; exact-zero voxels are foreground. ITK `ZeroCrossingImageFilter` parity. 6 tests.
+- **`ritk-core` `RegionOfInterestImageFilter`** (`filter/transform/roi.rs`): Extract a 3-D sub-volume with updated physical origin. ITK `RegionOfInterestImageFilter` parity. 5 tests.
+- **`ritk-core` `PermuteAxesImageFilter`** (`filter/transform/permute_axes.rs`): Rearrange axes by permutation `[a,b,c]`; spacing and direction columns permuted consistently. ITK `PermuteAxesImageFilter` parity. 4 tests.
+- **`ritk-core` `PasteImageFilter`** (`filter/transform/paste.rs`): Copy a source image into a destination image at a given voxel offset; destination spatial metadata preserved. ITK `PasteImageFilter` parity. 5 tests.
+- **`ritk-snap`**: New `FilterKind` variants `ShiftScale`, `ZeroCrossing`, `RegionOfInterest`, `PermuteAxes` wired into `lib.rs` dispatch, `app.rs` GUI dispatch, and `filter_panel.rs` ComboBox + parameter controls.
+
+### Changed
+- `ritk-core` test count: 959 → 985 (+26 new tests).
+
 ## [0.28.0] - 2026 - Sprint 146
 
 ### Added
