@@ -54,3 +54,11 @@ pub use binary_dilate::BinaryDilateFilter;
 pub use binary_closing::BinaryMorphologicalClosing;
 pub use binary_opening::BinaryMorphologicalOpening;
 pub use binary_fillhole::BinaryFillholeFilter;
+
+pub mod grayscale_closing;
+pub mod grayscale_opening;
+pub mod grayscale_fillhole;
+
+pub use grayscale_closing::GrayscaleClosingFilter;
+pub use grayscale_opening::GrayscaleOpeningFilter;
+pub use grayscale_fillhole::GrayscaleFillholeFilter;

@@ -1,3 +1,34 @@
+## Sprint 144 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.25.0 [minor]
+**Goal**: Grayscale morphology ITK parity (GrayscaleClosing, GrayscaleOpening, GrayscaleFillhole).
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-144-01 | `GrayscaleClosingFilter` missing — ITK `GrayscaleMorphologicalClosingImageFilter` had no parity | minor |
+| GAP-144-02 | `GrayscaleOpeningFilter` missing — ITK `GrayscaleMorphologicalOpeningImageFilter` had no parity | minor |
+| GAP-144-03 | `GrayscaleFillholeFilter` missing — ITK `GrayscaleFillholeImageFilter` had no parity | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 881 tests (+24 new grayscale morphology) |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests (unchanged) |
+| `cargo test -p ritk-snap --lib` | Passed: 375 tests (+3 new filter panel defaults) |
+
+### Next priorities [Sprint 145]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-145-01 | Pure-Rust JPEG 2000 decoder (remove `openjpeg-sys` FFI) | [minor] |
+| GAP-145-02 | DICOM-SEG reader/writer (ITK `LabelMapToSegmentationFilter` parity) | [minor] |
+| GAP-145-03 | RT-PLAN beam geometry display in ritk-snap (DVH parity) | [minor] |
+| GAP-145-04 | `BinaryBallStructuringElement` — spherical SE for binary morphology | [minor] |
+| GAP-145-05 | `GrayscaleGeodesicErode`/`GrayscaleGeodesicDilate` (morphological reconstruction) | [minor] |
+
+---
+
 ## Sprint 143 — Completed
 **Status**: Completed
 **Phase**: Closure

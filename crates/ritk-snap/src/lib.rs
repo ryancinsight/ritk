@@ -22,7 +22,8 @@ use ritk_core::filter::{
     BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
     BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
     ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig, HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
+    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
+    GrayscaleOpeningFilter, HistogramEqualizationFilter, MedianFilter, MultiOtsuThreshold,
     RelabelComponentFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
@@ -313,6 +314,15 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::BinaryFillhole { foreground_value } => {
                 BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&study.image)
             }
+            FilterKind::GrayscaleClosing { radius } => {
+                GrayscaleClosingFilter::new(*radius).apply(&study.image)
+            }
+            FilterKind::GrayscaleOpening { radius } => {
+                GrayscaleOpeningFilter::new(*radius).apply(&study.image)
+            }
+            FilterKind::GrayscaleFillhole => {
+                GrayscaleFillholeFilter::new().apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -331,6 +341,9 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::BinaryClosing { .. } => "BinaryClosing",
             FilterKind::BinaryOpening { .. } => "BinaryOpening",
             FilterKind::BinaryFillhole { .. } => "BinaryFillhole",
+            FilterKind::GrayscaleClosing { .. } => "GrayscaleClosing",
+            FilterKind::GrayscaleOpening { .. } => "GrayscaleOpening",
+            FilterKind::GrayscaleFillhole => "GrayscaleFillhole",
         };
 
         match filter_result {
@@ -639,6 +652,26 @@ pub enum FilterKind {
         /// Voxel intensity treated as foreground. Default: 1.0.
         foreground_value: f32,
     },
+    /// ITK `GrayscaleMorphologicalClosingImageFilter` parity (dilation then erosion).
+    ///
+    /// Fills dark voids smaller than the structuring element (C_B(f) = E_B(D_B(f))).
+    GrayscaleClosing {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+    },
+    /// ITK `GrayscaleMorphologicalOpeningImageFilter` parity (erosion then dilation).
+    ///
+    /// Removes bright protrusions smaller than the structuring element (O_B(f) = D_B(E_B(f))).
+    GrayscaleOpening {
+        /// Structuring element half-width in voxels.
+        radius: usize,
+    },
+    /// ITK `GrayscaleFillholeImageFilter` parity.
+    ///
+    /// Removes dark regional minima enclosed by surrounding bright walls and
+    /// not connected to the image border.  Each hole is raised to the minimax
+    /// path level connecting it to the border.
+    GrayscaleFillhole,
 }
 
 /// Intensity display defaults derived from DICOM modality.

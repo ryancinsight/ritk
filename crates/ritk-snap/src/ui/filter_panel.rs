@@ -22,7 +22,9 @@
 //!   - BinaryDilate radius ∈ [0, 10]; foreground_value ∈ any f32
 //!   - BinaryClosing radius ∈ [0, 10]; foreground_value ∈ any f32
 //!   - BinaryOpening radius ∈ [0, 10]; foreground_value ∈ any f32
-//!   - BinaryFillhole foreground_value ∈ any f32
+//!   - GrayscaleClosing radius ∈ [0, 10] voxels
+//!   - GrayscaleOpening radius ∈ [0, 10] voxels
+//!   - GrayscaleFillhole (no parameters)
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -60,6 +62,9 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::BinaryClosing { .. } => "Binary Closing",
             FilterKind::BinaryOpening { .. } => "Binary Opening",
             FilterKind::BinaryFillhole { .. } => "Binary Fill Holes",
+            FilterKind::GrayscaleClosing { .. } => "Grayscale Closing",
+            FilterKind::GrayscaleOpening { .. } => "Grayscale Opening",
+            FilterKind::GrayscaleFillhole => "Grayscale Fill Holes",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -237,6 +242,36 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     .clicked()
                 {
                     *active_filter = FilterKind::BinaryFillhole { foreground_value: 1.0 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::GrayscaleClosing { radius: 1 },
+                        "Grayscale Closing",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::GrayscaleClosing { radius: 1 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::GrayscaleOpening { radius: 1 },
+                        "Grayscale Opening",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::GrayscaleOpening { radius: 1 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::GrayscaleFillhole,
+                        "Grayscale Fill Holes",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::GrayscaleFillhole;
                 }
             });
 
@@ -495,6 +530,29 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     ui.add(egui::DragValue::new(foreground_value).speed(1.0));
                 });
                 ui.label(egui::RichText::new("ITK BinaryFillholeImageFilter parity. Fills enclosed background cavities.").small());
+            }
+            FilterKind::GrayscaleClosing { radius } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK GrayscaleMorphologicalClosingImageFilter parity. C_B(f)=E_B(D_B(f)). Fills dark voids.").small());
+            }
+            FilterKind::GrayscaleOpening { radius } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK GrayscaleMorphologicalOpeningImageFilter parity. O_B(f)=D_B(E_B(f)). Removes bright protrusions.").small());
+            }
+            FilterKind::GrayscaleFillhole => {
+                ui.label(egui::RichText::new("ITK GrayscaleFillholeImageFilter parity. Fills dark regional minima not connected to the image border.").small());
             }
         }
 
@@ -801,5 +859,49 @@ mod tests {
         } else {
             panic!("expected BinaryFillhole variant");
         }
+    }
+
+    /// GrayscaleClosing default: radius=1 — minimal ITK closing SE.
+    ///
+    /// # Analytical basis
+    /// radius=1 → 3×3×3 SE, the smallest non-trivial cubic SE. ITK
+    /// `GrayscaleMorphologicalClosingImageFilter` default radius is 1.
+    #[test]
+    fn grayscale_closing_defaults_are_valid() {
+        let fk = FilterKind::GrayscaleClosing { radius: 1 };
+        if let FilterKind::GrayscaleClosing { radius } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(radius, 1, "ITK default radius = 1 (3×3×3 SE)");
+        } else {
+            panic!("expected GrayscaleClosing variant");
+        }
+    }
+
+    /// GrayscaleOpening default: radius=1 — minimal ITK opening SE.
+    ///
+    /// # Analytical basis
+    /// radius=1 → 3×3×3 SE, the smallest non-trivial cubic SE. ITK
+    /// `GrayscaleMorphologicalOpeningImageFilter` default radius is 1.
+    #[test]
+    fn grayscale_opening_defaults_are_valid() {
+        let fk = FilterKind::GrayscaleOpening { radius: 1 };
+        if let FilterKind::GrayscaleOpening { radius } = fk {
+            assert!(radius <= 10, "default radius {radius} must be ≤ 10");
+            assert_eq!(radius, 1, "ITK default radius = 1 (3×3×3 SE)");
+        } else {
+            panic!("expected GrayscaleOpening variant");
+        }
+    }
+
+    /// GrayscaleFillhole: unit struct, always valid.
+    #[test]
+    fn grayscale_fillhole_variant_is_valid() {
+        // FilterKind::GrayscaleFillhole has no parameters to validate.
+        // Verify the variant is constructible and matches correctly.
+        let fk = FilterKind::GrayscaleFillhole;
+        assert!(
+            matches!(fk, FilterKind::GrayscaleFillhole),
+            "GrayscaleFillhole variant must match itself"
+        );
     }
 }

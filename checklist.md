@@ -1,3 +1,26 @@
+## Sprint 144 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.25.0 [minor]
+**Goal**: Grayscale morphology ITK parity (GrayscaleClosing, GrayscaleOpening, GrayscaleFillhole).
+
+### Checklist items
+- [x] Make `erode_3d` `pub(crate)` in `grayscale_erosion.rs`
+- [x] Make `dilate_3d` `pub(crate)` in `grayscale_dilation.rs`
+- [x] Create `grayscale_closing.rs` with `GrayscaleClosingFilter` and 7 tests (C_B(f)=E_B(D_B(f)))
+- [x] Create `grayscale_opening.rs` with `GrayscaleOpeningFilter` and 8 tests (O_B(f)=D_B(E_B(f)))
+- [x] Create `grayscale_fillhole.rs` with `GrayscaleFillholeFilter` and 7 tests (Dijkstra minimax O(N log N))
+- [x] Update `morphology/mod.rs` with 3 new pub modules and pub use
+- [x] Update `filter/mod.rs` with 3 new morphology re-exports
+- [x] Add 3 `FilterKind` variants, imports, dispatch arms, and filter_name arms to `ritk-snap/src/lib.rs`
+- [x] Add imports and dispatch arms to `ritk-snap/src/app.rs`
+- [x] Add ComboBox entries, parameter controls, and 3 default-range tests to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib`: 881 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 375 passed
+
+---
+
 ## Sprint 143 — Completed
 **Status**: Completed
 **Phase**: Closure

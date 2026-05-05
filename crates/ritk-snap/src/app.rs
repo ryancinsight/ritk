@@ -1784,7 +1784,8 @@ impl SnapApp {
                 BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
                 BinaryMorphologicalClosing, BinaryMorphologicalOpening, ClaheFilter,
                 ConnectedComponentsFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
-                GradientDiffusionConfig, HistogramEqualizationFilter, MedianFilter,
+                GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
+                GrayscaleOpeningFilter, HistogramEqualizationFilter, MedianFilter,
                 MultiOtsuThreshold, RelabelComponentFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
@@ -1861,6 +1862,15 @@ impl SnapApp {
                 }
                 crate::FilterKind::BinaryFillhole { foreground_value } => {
                     BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&image)
+                }
+                crate::FilterKind::GrayscaleClosing { radius } => {
+                    GrayscaleClosingFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleOpening { radius } => {
+                    GrayscaleOpeningFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleFillhole => {
+                    GrayscaleFillholeFilter::new().apply(&image)
                 }
             }
         };

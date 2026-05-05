@@ -116,7 +116,7 @@ impl GrayscaleDilation {
 ///
 /// - Output length equals `nz * ny * nx`.
 /// - Each output voxel equals `max_{b ∈ B} data[clamp(x + b)]`.
-fn dilate_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+pub(crate) fn dilate_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
     let mut output = vec![0.0_f32; nz * ny * nx];

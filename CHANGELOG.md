@@ -7,6 +7,23 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.25.0] - 2026 - Sprint 144
+
+### Added
+- **`ritk-core` `GrayscaleClosingFilter`** (`filter/morphology/grayscale_closing.rs`): ITK `GrayscaleMorphologicalClosingImageFilter` parity. Algorithm: C_B(f) = E_B(D_B(f)) — dilation then erosion on grayscale voxels. Fills dark voids smaller than the cubic SE (radius = half-width). Extensive operator: output ≥ input everywhere. Reuses `pub(crate) dilate_3d` and `erode_3d` inner functions. 7 value-semantic tests: constant image unchanged, radius-0 identity, dark valley filled, extensivity, idempotence, spatial metadata preserved, large dark region unchanged.
+- **`ritk-core` `GrayscaleOpeningFilter`** (`filter/morphology/grayscale_opening.rs`): ITK `GrayscaleMorphologicalOpeningImageFilter` parity. Algorithm: O_B(f) = D_B(E_B(f)) — erosion then dilation. Removes bright protrusions smaller than SE. Anti-extensive operator: output ≤ input everywhere. 8 value-semantic tests: constant unchanged, radius-0 identity, bright spike removed, anti-extensivity, idempotence, spatial metadata preserved, all-foreground unchanged, large bright region unchanged.
+- **`ritk-core` `GrayscaleFillholeFilter`** (`filter/morphology/grayscale_fillhole.rs`): ITK `GrayscaleFillholeImageFilter` parity. Fills dark regional minima not path-connected to the image border. Algorithm: Dijkstra minimax-path O(N log N) via `BinaryHeap<Reverse<(u32, usize)>>` (f32 bits for total order on non-NaN non-negative values). H[x] = min over all paths from x to border of max intensity on path; any voxel where I[x] < H[x] is raised to H[x]. 7 value-semantic tests: constant unchanged, output ≥ input everywhere, border voxels unchanged, enclosed pit filled to border level, pit filled to wall level (not border level), border-connected dark region not filled, spatial metadata preserved.
+- **`ritk-snap` grayscale morphology filter variants**: `FilterKind::GrayscaleClosing { radius }`, `GrayscaleOpening { radius }`, `GrayscaleFillhole` wired into `apply_filter` (lib.rs), `SnapApp` dispatch (app.rs), and `ui/filter_panel.rs` with ComboBox entries, parameter controls (DragValue radius ∈ [0,10] for Closing/Opening; no parameters for Fillhole), and 3 default-range tests.
+
+### Changed
+- **`ritk-core` `erode_3d`** (grayscale_erosion.rs): Changed visibility from `fn` to `pub(crate) fn` to enable reuse by `GrayscaleClosingFilter` and `GrayscaleOpeningFilter` within the same crate.
+- **`ritk-core` `dilate_3d`** (grayscale_dilation.rs): Changed visibility from `fn` to `pub(crate) fn` to enable reuse by `GrayscaleClosingFilter` and `GrayscaleOpeningFilter`.
+
+### Test totals
+- `ritk-core`: 881 passed (+24: 7 GrayscaleClosing + 8 GrayscaleOpening + 7 GrayscaleFillhole + 2 from pub(crate) visibility)
+- `ritk-snap`: 375 passed (+3 filter_panel default-range tests)
+- `ritk-io`: 288 passed (unchanged)
+
 ## [0.24.0] - 2026 - Sprint 143
 
 ### Added
