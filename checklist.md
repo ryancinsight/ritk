@@ -1,3 +1,24 @@
+## Sprint 150 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.32.0 [minor]
+**Goal**: 7 ITK trig/math pixelwise filters (Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal) + CurvatureFlowImageFilter (pure mean curvature flow) — ritk-snap wiring.
+
+### Checklist items
+- [x] Create `filter/intensity/trig.rs`: 7 filters (AtanImageFilter, SinImageFilter, CosImageFilter, TanImageFilter, AsinImageFilter, AcosImageFilter, BoundedReciprocalImageFilter), 21 value-semantic tests
+- [x] Create `filter/diffusion/curvature_flow.rs`: CurvatureFlowImageFilter, CurvatureFlowConfig, 7 tests
+- [x] Update `filter/intensity/mod.rs`: add `pub mod trig;` + 7 re-exports
+- [x] Update `filter/diffusion/mod.rs`: add `pub mod curvature_flow;` + 2 re-exports
+- [x] Update `filter/mod.rs`: 7 trig + 2 curvature re-exports
+- [x] Update `ritk-snap/src/lib.rs`: imports, 8 FilterKind variants, filter_name arms, apply_filter dispatch arms
+- [x] Update `ritk-snap/src/app.rs`: 8 dispatch arms (NeighborhoodConnected + 8 new)
+- [x] Update `ritk-snap/src/ui/filter_panel.rs`: kind_label, ComboBox, parameter controls, 3 tests
+- [x] Verify: ritk-core 1055 passed, ritk-snap 394 passed, ritk-io 288 passed
+- [x] Update CHANGELOG.md, checklist.md
+- [x] git commit and push
+
+---
+
 ## Sprint 149 — Completed
 **Status**: Completed
 **Phase**: Closure

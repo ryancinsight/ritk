@@ -2037,6 +2037,36 @@ impl SnapApp {
                     .with_radius([*radius_z, *radius_y, *radius_x])
                     .apply(&image))
                 }
+                crate::FilterKind::Atan => {
+                    Ok(ritk_core::filter::AtanImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Sin => {
+                    Ok(ritk_core::filter::SinImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Cos => {
+                    Ok(ritk_core::filter::CosImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Tan => {
+                    Ok(ritk_core::filter::TanImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Asin => {
+                    Ok(ritk_core::filter::AsinImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Acos => {
+                    Ok(ritk_core::filter::AcosImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::BoundedReciprocal => {
+                    Ok(ritk_core::filter::BoundedReciprocalImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::CurvatureFlow { iterations, time_step } => {
+                    ritk_core::filter::CurvatureFlowImageFilter::new(
+                        ritk_core::filter::CurvatureFlowConfig {
+                            num_iterations: *iterations as usize,
+                            time_step: *time_step,
+                        },
+                    )
+                    .apply(&image)
+                }
             }
         };
 

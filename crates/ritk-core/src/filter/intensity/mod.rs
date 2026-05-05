@@ -42,6 +42,11 @@ pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use windowing::IntensityWindowingFilter;
 
 pub mod shift_scale;
+pub mod trig;
 pub mod zero_crossing;
 pub use shift_scale::ShiftScaleImageFilter;
+pub use trig::{
+    AcosImageFilter, AsinImageFilter, AtanImageFilter, BoundedReciprocalImageFilter,
+    CosImageFilter, SinImageFilter, TanImageFilter,
+};
 pub use zero_crossing::ZeroCrossingImageFilter;

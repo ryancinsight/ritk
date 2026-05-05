@@ -101,6 +101,14 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::ConnectedThreshold { .. } => "Connected Threshold",
             FilterKind::ConfidenceConnected { .. } => "Confidence Connected",
             FilterKind::NeighborhoodConnected { .. } => "Neighborhood Connected",
+            FilterKind::Atan => "Atan",
+            FilterKind::Sin => "Sin",
+            FilterKind::Cos => "Cos",
+            FilterKind::Tan => "Tan",
+            FilterKind::Asin => "Asin",
+            FilterKind::Acos => "Acos",
+            FilterKind::BoundedReciprocal => "Bounded Reciprocal",
+            FilterKind::CurvatureFlow { .. } => "Curvature Flow",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -474,6 +482,32 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     FilterKind::NeighborhoodConnected { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0, radius_z: 1, radius_y: 1, radius_x: 1 },
                     "Neighborhood Connected",
                 ).clicked() { *active_filter = FilterKind::NeighborhoodConnected { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0, radius_z: 1, radius_y: 1, radius_x: 1 }; }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Atan, "Atan").clicked() {
+                    *active_filter = FilterKind::Atan;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Sin, "Sin").clicked() {
+                    *active_filter = FilterKind::Sin;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Cos, "Cos").clicked() {
+                    *active_filter = FilterKind::Cos;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Tan, "Tan").clicked() {
+                    *active_filter = FilterKind::Tan;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Asin, "Asin").clicked() {
+                    *active_filter = FilterKind::Asin;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::Acos, "Acos").clicked() {
+                    *active_filter = FilterKind::Acos;
+                }
+                if ui.selectable_value(&mut *active_filter, FilterKind::BoundedReciprocal, "Bounded Reciprocal").clicked() {
+                    *active_filter = FilterKind::BoundedReciprocal;
+                }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 },
+                    "Curvature Flow",
+                ).clicked() { *active_filter = FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 }; }
             });
 
         ui.add_space(4.0);
@@ -1157,6 +1191,41 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 }
                 ui.label(egui::RichText::new("ITK NeighborhoodConnectedImageFilter. BFS where all voxels in candidate neighborhood satisfy [lower,upper]. Output: binary mask.").small());
             }
+            FilterKind::Atan => {
+                ui.label(egui::RichText::new("ITK AtanImageFilter. out(x) = atan(in(x)). Range (−π/2, π/2). No parameters.").small());
+            }
+            FilterKind::Sin => {
+                ui.label(egui::RichText::new("ITK SinImageFilter. out(x) = sin(in(x)), input in radians. Range [−1, 1]. No parameters.").small());
+            }
+            FilterKind::Cos => {
+                ui.label(egui::RichText::new("ITK CosImageFilter. out(x) = cos(in(x)), input in radians. Range [−1, 1]. No parameters.").small());
+            }
+            FilterKind::Tan => {
+                ui.label(egui::RichText::new("ITK TanImageFilter. out(x) = tan(in(x)), input in radians. No parameters.").small());
+            }
+            FilterKind::Asin => {
+                ui.label(egui::RichText::new("ITK AsinImageFilter. out(x) = asin(in(x)). Domain [−1,1], range [−π/2, π/2]. No parameters.").small());
+            }
+            FilterKind::Acos => {
+                ui.label(egui::RichText::new("ITK AcosImageFilter. out(x) = acos(in(x)). Domain [−1,1], range [0, π]. No parameters.").small());
+            }
+            FilterKind::BoundedReciprocal => {
+                ui.label(egui::RichText::new("ITK BoundedReciprocalImageFilter. out(x) = 1/(1+|x|). Range (0,1]. No parameters.").small());
+            }
+            FilterKind::CurvatureFlow { iterations, time_step } => {
+                let mut iters_i = *iterations as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Iterations:");
+                    if ui.add(egui::Slider::new(&mut iters_i, 1..=50).step_by(1.0)).changed() {
+                        *iterations = iters_i.max(1) as u32;
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Time Step Δt:");
+                    ui.add(egui::Slider::new(time_step, 0.001_f32..=0.166_f32).step_by(0.001));
+                });
+                ui.label(egui::RichText::new("ITK CurvatureFlowImageFilter. ∂I/∂t = κ (mean curvature, no gradient weighting). Stability: Δt ≤ 1/6.").small());
+            }
         }
 
         ui.add_space(6.0);
@@ -1682,6 +1751,53 @@ mod tests {
             assert!(radius_z >= 1 && radius_y >= 1 && radius_x >= 1, "all radii must be ≥ 1");
         } else {
             panic!("expected NeighborhoodConnected");
+        }
+    }
+
+    /// Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal are unit variants — no parameters.
+    #[test]
+    fn trig_filter_variants_are_unit() {
+        // All 7 unit variants must be constructible and equatable.
+        let _atan = FilterKind::Atan;
+        let _sin = FilterKind::Sin;
+        let _cos = FilterKind::Cos;
+        let _tan = FilterKind::Tan;
+        let _asin = FilterKind::Asin;
+        let _acos = FilterKind::Acos;
+        let _br = FilterKind::BoundedReciprocal;
+        assert_eq!(FilterKind::Atan, FilterKind::Atan);
+        assert_eq!(FilterKind::Sin, FilterKind::Sin);
+        assert_eq!(FilterKind::Cos, FilterKind::Cos);
+        assert_eq!(FilterKind::Tan, FilterKind::Tan);
+        assert_eq!(FilterKind::Asin, FilterKind::Asin);
+        assert_eq!(FilterKind::Acos, FilterKind::Acos);
+        assert_eq!(FilterKind::BoundedReciprocal, FilterKind::BoundedReciprocal);
+    }
+
+    /// CurvatureFlow default time_step satisfies the 3-D stability bound Δt ≤ 1/6.
+    #[test]
+    fn curvature_flow_default_time_step_is_stable() {
+        let fk = FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 };
+        if let FilterKind::CurvatureFlow { iterations, time_step } = fk {
+            assert!(iterations >= 1, "iterations must be ≥ 1: {iterations}");
+            assert!(
+                time_step <= 1.0 / 6.0 + 1e-6,
+                "time_step {time_step} must satisfy Δt ≤ 1/6 ≈ 0.1667"
+            );
+            assert!(time_step > 0.0, "time_step must be positive: {time_step}");
+        } else {
+            panic!("expected CurvatureFlow");
+        }
+    }
+
+    /// CurvatureFlow default iterations is the ITK default (5).
+    #[test]
+    fn curvature_flow_default_iterations_matches_itk() {
+        let fk = FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 };
+        if let FilterKind::CurvatureFlow { iterations, .. } = fk {
+            assert_eq!(iterations, 5, "ITK default iterations = 5");
+        } else {
+            panic!("expected CurvatureFlow");
         }
     }
 }

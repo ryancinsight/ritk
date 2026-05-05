@@ -19,10 +19,14 @@
 
 use anyhow::Result;
 use ritk_core::filter::{
-    AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
+    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
+    BoundedReciprocalImageFilter,
+    BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
     BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
     BinaryMorphologicalOpening, BinaryThresholdImageFilter, ClaheFilter, ClampImageFilter,
-    ConnectedComponentsFilter, ConstantPadImageFilter, DistanceTransformImageFilter, ExpImageFilter,
+    ConnectedComponentsFilter, ConstantPadImageFilter, CosImageFilter,
+    CurvatureFlowConfig, CurvatureFlowImageFilter,
+    DistanceTransformImageFilter, ExpImageFilter,
     FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
@@ -31,8 +35,8 @@ use ritk_core::filter::{
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, MultiOtsuThreshold, NormalizeImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     BinaryContourImageFilter, RelabelComponentFilter, ShiftScaleImageFilter,
-    ShrinkImageFilter, SignedDistanceTransformImageFilter,
-    SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
+    ShrinkImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
+    SqrtImageFilter, SquareImageFilter, TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
     WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_core::segmentation::region_growing::{
@@ -499,6 +503,22 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 .with_radius([*radius_z, *radius_y, *radius_x])
                 .apply(&study.image))
             }
+            FilterKind::Atan => Ok(AtanImageFilter::new().apply(&study.image)),
+            FilterKind::Sin => Ok(SinImageFilter::new().apply(&study.image)),
+            FilterKind::Cos => Ok(CosImageFilter::new().apply(&study.image)),
+            FilterKind::Tan => Ok(TanImageFilter::new().apply(&study.image)),
+            FilterKind::Asin => Ok(AsinImageFilter::new().apply(&study.image)),
+            FilterKind::Acos => Ok(AcosImageFilter::new().apply(&study.image)),
+            FilterKind::BoundedReciprocal => {
+                Ok(BoundedReciprocalImageFilter::new().apply(&study.image))
+            }
+            FilterKind::CurvatureFlow { iterations, time_step } => {
+                CurvatureFlowImageFilter::new(CurvatureFlowConfig {
+                    num_iterations: *iterations as usize,
+                    time_step: *time_step,
+                })
+                .apply(&study.image)
+            }
         };
 
         let filter_name = match kind {
@@ -556,6 +576,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::ConnectedThreshold { .. } => "ConnectedThreshold",
             FilterKind::ConfidenceConnected { .. } => "ConfidenceConnected",
             FilterKind::NeighborhoodConnected { .. } => "NeighborhoodConnected",
+            FilterKind::Atan => "Atan",
+            FilterKind::Sin => "Sin",
+            FilterKind::Cos => "Cos",
+            FilterKind::Tan => "Tan",
+            FilterKind::Asin => "Asin",
+            FilterKind::Acos => "Acos",
+            FilterKind::BoundedReciprocal => "BoundedReciprocal",
+            FilterKind::CurvatureFlow { .. } => "CurvatureFlow",
         };
 
         match filter_result {
@@ -1215,6 +1243,28 @@ pub enum FilterKind {
         radius_y: usize,
         /// Neighborhood half-radius x. Default: 1.
         radius_x: usize,
+    },
+
+    /// Pixelwise arctangent (ITK `AtanImageFilter`). `out(x) = atan(in(x))`.
+    Atan,
+    /// Pixelwise sine (ITK `SinImageFilter`). `out(x) = sin(in(x))`.
+    Sin,
+    /// Pixelwise cosine (ITK `CosImageFilter`). `out(x) = cos(in(x))`.
+    Cos,
+    /// Pixelwise tangent (ITK `TanImageFilter`). `out(x) = tan(in(x))`.
+    Tan,
+    /// Pixelwise arcsine (ITK `AsinImageFilter`). `out(x) = asin(in(x))`.
+    Asin,
+    /// Pixelwise arccosine (ITK `AcosImageFilter`). `out(x) = acos(in(x))`.
+    Acos,
+    /// Pixelwise bounded reciprocal (ITK `BoundedReciprocalImageFilter`). `out(x) = 1/(1+|x|)`.
+    BoundedReciprocal,
+    /// Pure mean curvature flow (ITK `CurvatureFlowImageFilter`). `∂I/∂t = κ`.
+    CurvatureFlow {
+        /// Number of explicit-Euler iterations.
+        iterations: u32,
+        /// Time step Δt ≤ 1/6.
+        time_step: f32,
     },
 }
 

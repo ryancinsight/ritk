@@ -6,6 +6,22 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
+## [0.32.0] - 2026 - Sprint 150
+
+### Added
+- **`ritk-core` `AtanImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `atan(x)`, range (-pi/2, pi/2). ITK AtanImageFilter parity. 5 value-semantic tests.
+- **`ritk-core` `SinImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `sin(x)`, input radians, range [-1,1]. ITK SinImageFilter parity. 3 tests.
+- **`ritk-core` `CosImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `cos(x)`, range [-1,1]. Pythagorean identity test. ITK CosImageFilter parity.
+- **`ritk-core` `TanImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `tan(x)`. ITK TanImageFilter parity. 2 tests.
+- **`ritk-core` `AsinImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `asin(x)`, domain [-1,1]. Complement identity test. ITK AsinImageFilter parity.
+- **`ritk-core` `AcosImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `acos(x)`, range [0,pi]. ITK AcosImageFilter parity.
+- **`ritk-core` `BoundedReciprocalImageFilter`** (`filter/intensity/trig.rs`): Pixelwise `1/(1+|x|)`, range (0,1]. ITK BoundedReciprocalImageFilter parity. 5 tests.
+- **`ritk-core` `CurvatureFlowImageFilter`** (`filter/diffusion/curvature_flow.rs`): Pure mean curvature flow dI/dt=kappa, explicit Euler, 6-neighbour stencil, stability Δt<=1/6. Distinct from CurvatureAnisotropicDiffusionFilter (no |gradI| weighting). ITK CurvatureFlowImageFilter parity. CurvatureFlowConfig with ITK defaults (iterations=5, dt=0.0625). 7 tests.
+- **`ritk-snap`**: 8 new FilterKind variants wired into lib.rs, app.rs, filter_panel.rs: Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal (unit), CurvatureFlow{iterations,time_step} (slider controls).
+
+### Changed
+- `ritk-core` test count: 1027 -> 1055 (+28).
+- `ritk-snap` test count: 391 -> 394 (+3).
 
 ## [0.31.0] - 2026 - Sprint 149
 

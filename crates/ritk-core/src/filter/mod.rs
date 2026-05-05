@@ -22,7 +22,8 @@ pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
 pub use diffusion::{
     AnisotropicDiffusionFilter, ConductanceFunction, CurvatureAnisotropicDiffusionFilter,
-    CurvatureConfig, DiffusionConfig, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    CurvatureConfig, CurvatureFlowConfig, CurvatureFlowImageFilter,
+    DiffusionConfig, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
 };
 pub use discrete_gaussian::DiscreteGaussianFilter;
 pub use downsample::DownsampleFilter;
@@ -32,13 +33,15 @@ pub use edge::{
 };
 pub use gaussian::GaussianFilter;
 pub use intensity::{
-    AbsImageFilter, AddImageFilter, BedSeparationConfig, BedSeparationFilter,
-    BinaryThresholdImageFilter, ClaheFilter, ClampImageFilter, DivideImageFilter, ExpImageFilter,
+    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
+    BedSeparationConfig, BedSeparationFilter,
+    BinaryThresholdImageFilter, BoundedReciprocalImageFilter,
+    ClaheFilter, ClampImageFilter, CosImageFilter, DivideImageFilter, ExpImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
     InvertIntensityFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
     MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter,
-    SqrtImageFilter, SquareImageFilter, SubtractImageFilter, ThresholdImageFilter, ThresholdMode,
-    UnsharpMaskFilter,
+    SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter,
+    TanImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
 };
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter, RelabelStatistics};
 pub use median::MedianFilter;
