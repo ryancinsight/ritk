@@ -1782,7 +1782,7 @@ impl SnapApp {
         let filter_result = {
             use ritk_core::filter::{
                 BedSeparationFilter, ClaheFilter, GaussianFilter,
-                HistogramEqualizationFilter, MedianFilter,
+                HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -1801,6 +1801,18 @@ impl SnapApp {
                 crate::FilterKind::HistEq { bins } => {
                     HistogramEqualizationFilter::new(*bins).apply(&image)
                 }
+                crate::FilterKind::UnsharpMask {
+                    sigma,
+                    amount,
+                    threshold,
+                    clamp,
+                } => UnsharpMaskFilter::new(
+                    vec![f64::from(*sigma)],
+                    f64::from(*amount),
+                    f64::from(*threshold),
+                    *clamp,
+                )
+                .apply(&image),
             }
         };
 

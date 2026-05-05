@@ -1,3 +1,30 @@
+## Sprint 139 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.20.0 [minor]
+**Goal**: Close ITK `UnsharpMaskingImageFilter` / ImageJ "Unsharp Mask" parity gap in ritk-core; wire into ritk-snap filter panel.
+
+### Gaps closed
+| Gap ID | Description | Severity |
+|---|---|---|
+| GAP-139-01 | No unsharp mask / edge sharpening filter in ritk-core (ITK/ImageJ parity) | major |
+| GAP-139-02 | `FilterKind` enum lacked `UnsharpMask` variant in ritk-snap | minor |
+| GAP-139-03 | filter_panel had no Unsharp Mask entry or parameter controls | minor |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib filter::intensity::unsharp_mask` | Passed: 7 tests |
+| `cargo test -p ritk-core --lib` | Passed: 803 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 363 tests |
+
+### Residual risks
+- Existing deprecation/dead-code warnings in `ritk-codecs` (deprecated `decode_native_pixel_bytes`, unused JPEG-LS predictor variants) remain; classified as [patch]-class cleanup for a future sprint.
+- Pure-Rust JPEG 2000 decoder replacement (`openjpeg-sys` removal) remains open.
+- DICOM-SEG reader/writer round-trip remains open.
+- RT-PLAN beam geometry display in ritk-snap remains open.
+
 ## Sprint 138 — Completed
 **Status**: Completed
 **Phase**: Closure

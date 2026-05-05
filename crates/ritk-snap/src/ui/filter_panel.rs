@@ -13,6 +13,7 @@
 //!   - Median radius ∈ [0, 10] voxels
 //!   - CLAHE tile grid ∈ [1, 32] per axis; clip limit ∈ [1.0, 200.0]
 //!   - HistEq bins ∈ [2, 1024]
+//!   - UnsharpMask σ ∈ [0.1, 10.0] mm; amount ∈ [0.0, 5.0]; threshold ∈ [0.0, 100.0]
 //! - The widget does not mutate the image; it only modifies the
 //!   `FilterKind` selector held by the caller.
 
@@ -40,6 +41,7 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::BedSeparation(_) => "Bed Separation",
             FilterKind::Clahe { .. } => "CLAHE",
             FilterKind::HistEq { .. } => "Hist Equalize",
+            FilterKind::UnsharpMask { .. } => "Unsharp Mask",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -89,6 +91,26 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     .clicked()
                 {
                     *active_filter = FilterKind::HistEq { bins: 256 };
+                }
+                if ui
+                    .selectable_value(
+                        &mut *active_filter,
+                        FilterKind::UnsharpMask {
+                            sigma: 1.0,
+                            amount: 0.5,
+                            threshold: 0.0,
+                            clamp: true,
+                        },
+                        "Unsharp Mask",
+                    )
+                    .clicked()
+                {
+                    *active_filter = FilterKind::UnsharpMask {
+                        sigma: 1.0,
+                        amount: 0.5,
+                        threshold: 0.0,
+                        clamp: true,
+                    };
                 }
             });
 
@@ -163,6 +185,33 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     {
                         *bins = b.max(2) as usize;
                     }
+                });
+            }
+            FilterKind::UnsharpMask {
+                sigma,
+                amount,
+                threshold,
+                clamp,
+            } => {
+                ui.horizontal(|ui| {
+                    ui.label("σ (mm):");
+                    ui.add(
+                        egui::Slider::new(sigma, 0.1_f32..=10.0)
+                            .step_by(0.1)
+                            .suffix(" mm"),
+                    );
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Amount:");
+                    ui.add(egui::Slider::new(amount, 0.0_f32..=5.0).step_by(0.05));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::Slider::new(threshold, 0.0_f32..=100.0).step_by(0.5));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Clamp:");
+                    ui.checkbox(clamp, "");
                 });
             }
         }
@@ -250,6 +299,44 @@ mod tests {
             assert!(bins >= 2 && bins <= 1024, "bins={bins} out of range");
         } else {
             panic!("expected HistEq variant");
+        }
+    }
+
+    /// UnsharpMask defaults lie within the slider ranges.
+    ///
+    /// - sigma ∈ [0.1, 10.0] mm
+    /// - amount ∈ [0.0, 5.0]
+    /// - threshold ∈ [0.0, 100.0]
+    #[test]
+    fn unsharp_mask_defaults_in_range() {
+        let fk = FilterKind::UnsharpMask {
+            sigma: 1.0,
+            amount: 0.5,
+            threshold: 0.0,
+            clamp: true,
+        };
+        if let FilterKind::UnsharpMask {
+            sigma,
+            amount,
+            threshold,
+            clamp,
+        } = fk
+        {
+            assert!(
+                sigma >= 0.1 && sigma <= 10.0,
+                "default sigma {sigma} out of range [0.1, 10.0]"
+            );
+            assert!(
+                amount >= 0.0 && amount <= 5.0,
+                "default amount {amount} out of range [0.0, 5.0]"
+            );
+            assert!(
+                threshold >= 0.0 && threshold <= 100.0,
+                "default threshold {threshold} out of range [0.0, 100.0]"
+            );
+            assert!(clamp, "default clamp should be true");
+        } else {
+            panic!("expected UnsharpMask variant");
         }
     }
 }

@@ -20,7 +20,7 @@
 use anyhow::Result;
 use ritk_core::filter::{
     BedSeparationConfig, BedSeparationFilter, ClaheFilter, GaussianFilter,
-    HistogramEqualizationFilter, MedianFilter,
+    HistogramEqualizationFilter, MedianFilter, UnsharpMaskFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -253,6 +253,18 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::HistEq { bins } => {
                 HistogramEqualizationFilter::new(*bins).apply(&study.image)
             }
+            FilterKind::UnsharpMask {
+                sigma,
+                amount,
+                threshold,
+                clamp,
+            } => UnsharpMaskFilter::new(
+                vec![f64::from(*sigma)],
+                f64::from(*amount),
+                f64::from(*threshold),
+                *clamp,
+            )
+            .apply(&study.image),
         };
 
         let filter_name = match kind {
@@ -261,6 +273,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::Median { .. } => "Median",
             FilterKind::Clahe { .. } => "CLAHE",
             FilterKind::HistEq { .. } => "HistEq",
+            FilterKind::UnsharpMask { .. } => "UnsharpMask",
         };
 
         match filter_result {
@@ -429,6 +442,27 @@ pub enum FilterKind {
     HistEq {
         /// Number of histogram bins. Default 256.
         bins: usize,
+    },
+
+    /// Unsharp mask sharpening filter (ITK `UnsharpMaskingImageFilter` parity).
+    ///
+    /// Sharpens edges by adding back a scaled, thresholded version of the
+    /// high-frequency component `I − G_σ∗I` to the original image:
+    /// `output = I + amount · max(0, |I − blur(I)| − threshold) · sign(I − blur(I))`
+    ///
+    /// # Invariants
+    /// - `amount = 0.0` → output equals input.
+    /// - uniform input → output equals input.
+    /// - `clamp = true` → output ∈ `[min(I), max(I)]`.
+    UnsharpMask {
+        /// Gaussian standard deviation in physical units (mm). Broadcast across all dims.
+        sigma: f32,
+        /// Sharpening strength. Typical range [0.0, 5.0]. ITK default: 0.5.
+        amount: f32,
+        /// Minimum absolute mask value to trigger sharpening. Default: 0.0.
+        threshold: f32,
+        /// Whether to clamp output to the input intensity range. Default: true.
+        clamp: bool,
     },
 }
 

@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.20.0] - 2026 - Sprint 139
+
+### Added
+- **`ritk-core` Unsharp Mask filter** (`filter/intensity/unsharp_mask.rs`): Added `UnsharpMaskFilter` implementing the ITK `UnsharpMaskingImageFilter` formula `output = I + amount·max(0,|I−G_σ∗I|−τ)·sign(I−G_σ∗I)` with per-voxel threshold, optional intensity-range clamping, and Gaussian blur via `DiscreteGaussianFilter`. Parameters: `sigmas` (σ per dim, broadcast if single-element), `amount` (sharpening strength, ITK default 0.5), `threshold` (minimum |mask| to trigger sharpening, ITK default 0.0), `clamp` (clamp to input range, ITK default true). 7 value-semantic tests: uniform identity, amount=0 exact identity, threshold suppression, clamp upper/lower bound enforcement, no-clamp overshoot, edge contrast increase, spatial metadata preservation.
+- **`ritk-core` `filter::intensity::mod.rs`**: Added `pub mod unsharp_mask` and `pub use unsharp_mask::UnsharpMaskFilter` export; updated module doc.
+- **`ritk-core` `filter::mod.rs`**: Added `UnsharpMaskFilter` to public re-export surface.
+- **`ritk-snap` `FilterKind::UnsharpMask` variant**: Added `UnsharpMask { sigma, amount, threshold, clamp }` variant to `FilterKind` enum with `[serde]`-compatible derive. Dispatch wired in `apply_filter` (lib.rs) and `app.rs` filter application block via `UnsharpMaskFilter::new`.
+- **`ritk-snap` filter panel** (`ui/filter_panel.rs`): Added `Unsharp Mask` entry to ComboBox, per-parameter sliders (σ ∈ [0.1,10.0] mm; amount ∈ [0.0,5.0]; threshold ∈ [0.0,100.0]; clamp checkbox), and `unsharp_mask_defaults_in_range` value-semantic test.
+
+### Test counts
+| Crate | Before Sprint 139 | After Sprint 139 |
+|---|---|---|
+| ritk-core | 796 | **803** |
+| ritk-io | 288 | 288 |
+| ritk-snap | 362 | **363** |
+
+### Verification
+- `cargo test -p ritk-core --lib filter::intensity::unsharp_mask` → 7 passed
+- `cargo test -p ritk-core --lib` → 803 passed
+- `cargo test -p ritk-io --lib` → 288 passed
+- `cargo test -p ritk-snap --lib` → 363 passed
+
 ## [0.19.0] - 2026 - Sprint 138
 
 ### Added

@@ -1,3 +1,33 @@
+## Sprint 139 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.20.0 [minor]
+**Goal**: Implement `UnsharpMaskFilter` (ITK parity) in ritk-core and wire into ritk-snap filter panel.
+
+### Checklist items
+- [x] Create `ritk-core/src/filter/intensity/unsharp_mask.rs` with `UnsharpMaskFilter::new(sigmas, amount, threshold, clamp)` and `apply<B: Backend>`
+- [x] Add 7 value-semantic tests: uniform identity, amount=0 identity, threshold suppression, clamp bound enforcement, no-clamp overshoot, edge contrast increase, spatial metadata preservation
+- [x] Register `pub mod unsharp_mask` and `pub use unsharp_mask::UnsharpMaskFilter` in `filter/intensity/mod.rs`
+- [x] Add `UnsharpMaskFilter` to `filter/mod.rs` public re-export
+- [x] Add `FilterKind::UnsharpMask { sigma, amount, threshold, clamp }` variant to `ritk-snap/src/lib.rs`
+- [x] Add `UnsharpMaskFilter` import and dispatch arm in `apply_filter` (lib.rs)
+- [x] Add `UnsharpMaskFilter` import and dispatch arm in `app.rs` filter block
+- [x] Add `UnsharpMask` ComboBox entry, parameter sliders (σ, amount, threshold, clamp), and `unsharp_mask_defaults_in_range` test to `filter_panel.rs`
+- [x] Verify `cargo test -p ritk-core --lib filter::intensity::unsharp_mask`: 7 passed
+- [x] Verify `cargo test -p ritk-core --lib`: 803 passed
+- [x] Verify `cargo test -p ritk-io --lib`: 288 passed
+- [x] Verify `cargo test -p ritk-snap --lib`: 363 passed
+- [x] Update CHANGELOG.md (v0.20.0), gap_audit.md, backlog.md, checklist.md
+- [x] Commit and push
+
+### Verification summary
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib filter::intensity::unsharp_mask` | Passed: 7 tests |
+| `cargo test -p ritk-core --lib` | Passed: 803 tests |
+| `cargo test -p ritk-io --lib` | Passed: 288 tests |
+| `cargo test -p ritk-snap --lib` | Passed: 363 tests |
+
 ## Sprint 138 — Completed
 **Status**: Completed
 **Phase**: Closure

@@ -29,7 +29,7 @@ pub use gaussian::GaussianFilter;
 pub use intensity::{
     BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, ClaheFilter,
     HistogramEqualizationFilter, IntensityWindowingFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, ThresholdImageFilter, ThresholdMode,
+    SigmoidImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
 };
 pub use median::MedianFilter;
 pub use morphology::{
