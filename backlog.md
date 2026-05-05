@@ -1,3 +1,48 @@
+## Sprint 152 — In Progress
+**Status**: In Progress (Phase 2 Step 1 Complete)
+**Phase**: Phase 2 Execution
+**Version**: 0.34.0 [minor]
+**Goal**: DICOM-SEG reader/writer implementation for segmentation persistence. Enable: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. LabelMap↔DicomSegmentation converter with spatial metadata preservation.
+
+### Gaps closed (Phase 2 Step 1)
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-152-01 | DICOM-SEG writer — ITK `LabelMapToSegmentationFilter` parity | **In Progress** |
+
+### Implementation complete
+- ✓ `label_map_to_dicom_seg` converter (~150 LOC) in ritk-io/src/format/dicom/seg.rs
+- ✓ 6 value-semantic converter tests (all passing)
+- ✓ Public API exports (mod.rs, lib.rs)
+- ✓ UI integration: "Save segmentation as DICOM-SEG..." menu action in ritk-snap
+
+### Remaining (Phase 2 Step 2–4)
+| Task | Description | Priority |
+|---|---|---|
+| Load integration | Implement "Load segmentation from DICOM-SEG..." menu action (read_dicom_seg → DicomSegmentation → LabelMap) | High |
+| End-to-end tests | Round-trip validation (LabelMap → DICOM-SEG file → LabelMap); metadata fidelity; multi-segment label table | High |
+| Artifact sync | Update CHANGELOG.md, checklist.md, commit and push | High |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-core --lib` | Passed: 1055 tests |
+| `cargo test -p ritk-io --lib` | Passed: 294 tests (+6 new converter tests) |
+| `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
+| `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
+| **Total** | **1751 tests** |
+
+### Next priorities [Sprint 153]
+| Gap | Description | Change class |
+|---|---|---|
+| GAP-153-01 | DICOM-SEG load integration — complete round-trip cycle | [minor] |
+| GAP-153-02 | JPEG-LS end-to-end real-data validation (Golomb-Rice decode) | [patch] |
+| GAP-153-03 | Advanced segmentation UI: flood-fill with connected-components | [minor] |
+| GAP-153-04 | 3D surface rendering for label maps (marching cubes) | [minor] |
+| GAP-153-05 | RT Dose/Plan readers for therapy workflows | [minor] |
+| GAP-153-06 | Batch processing workflow UI (queue + execute model) | [minor] |
+
+---
+
 ## Sprint 151 — Completed
 **Status**: Completed
 **Phase**: Closure

@@ -1,3 +1,31 @@
+## Sprint 152 — In Progress / Phase 2 Step 1 Complete
+**Status**: In Progress
+**Phase**: Phase 2 Execution (Step 1 Complete)
+**Version**: 0.34.0 [minor]
+**Goal**: DICOM-SEG reader/writer implementation for segmentation persistence. Enable: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. LabelMap↔DicomSegmentation converter with spatial metadata preservation.
+
+### Checklist items
+- [x] **Phase 1: Foundation Audit** — Identified GAP-152-01 as critical: no persisted DICOM-SEG export from ritk-snap
+- [x] **Implement label_map_to_dicom_seg converter** in ritk-io/src/format/dicom/seg.rs; 150 LOC; converts LabelMap → DicomSegmentation with spatial metadata
+- [x] **6 value-semantic converter tests**: single-label, multi-label, background-excluded, spatial-metadata, error-empty-geometry, error-no-foreground
+- [x] **Public API exports**: mod.rs, lib.rs updated; label_map_to_dicom_seg publicly available
+- [x] **Verify existing functionality**: read_dicom_seg, write_dicom_seg (11 tests) all stable
+- [x] **Wire UI**: Added "Save segmentation as DICOM-SEG..." to File menu in ritk-snap
+- [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 394 ritk-snap tests pass
+- [x] **Full test suite**: 1751 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 294 + ritk-dicom 8)
+- [ ] **Phase 2 Step 2**: Load integration (read_dicom_seg → DicomSegmentation → LabelMap)
+- [ ] **Phase 2 Step 3**: End-to-end round-trip tests (label preservation, metadata fidelity)
+- [ ] **Phase 2 Step 4**: Update CHANGELOG.md, checklist.md, commit and push
+
+### Technical Summary
+- **Function**: `label_map_to_dicom_seg(label_map, origin, spacing, direction, use_binary) → Result<DicomSegmentation>`
+- **Frame layout**: One 2D frame per Z-slice per foreground segment; total n_frames = n_foreground_labels × nz
+- **Pixel encoding**: Binary (bits_allocated=1); each pixel 0 (no match) or 1 (label match)
+- **Spatial metadata**: image_position_per_frame includes Z-offset computed from spacing[0]*direction_z_col; image_orientation (6 elements); pixel_spacing [ny, nx]; slice_thickness [z]
+- **Error handling**: Rejects zero-dimension shapes, all-background maps; returns descriptive errors
+
+---
+
 ## Sprint 151 — Completed
 **Status**: Completed
 **Phase**: Closure

@@ -346,6 +346,11 @@ impl SnapApp {
                         self.save_segmentation_dialog();
                     }
 
+                    if ui.button("Save segmentation as DICOM-SEG…").clicked() {
+                        ui.close_menu();
+                        self.save_segmentation_dicom_seg_dialog();
+                    }
+
                     if ui.button("Load segmentation from NIfTI…").clicked() {
                         ui.close_menu();
                         self.load_segmentation_dialog();
@@ -2244,6 +2249,48 @@ impl SnapApp {
             Err(e) => {
                 self.status_message =
                     format!("Segmentation save failed: {e:#}");
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    fn save_segmentation_dicom_seg_dialog(&mut self) {
+        let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
+            self.status_message =
+                "Save DICOM-SEG: no volume or segmentation loaded.".to_owned();
+            return;
+        };
+        let map = editor.current_map();
+        let origin = vol.origin;
+        let spacing = vol.spacing;
+        let direction = vol.direction;
+
+        let Some(path) = rfd::FileDialog::new()
+            .set_file_name("segmentation.dcm")
+            .add_filter("DICOM SEG", &["dcm"])
+            .save_file()
+        else {
+            return;
+        };
+
+        match ritk_io::label_map_to_dicom_seg(map, origin, spacing, direction, true) {
+            Ok(seg) => {
+                match ritk_io::write_dicom_seg(&path, &seg) {
+                    Ok(()) => {
+                        self.status_message =
+                            format!("Saved DICOM-SEG to {}", path.display());
+                        info!("{}", self.status_message);
+                    }
+                    Err(e) => {
+                        self.status_message =
+                            format!("DICOM-SEG write failed: {e:#}");
+                        error!("{}", self.status_message);
+                    }
+                }
+            }
+            Err(e) => {
+                self.status_message =
+                    format!("DICOM-SEG conversion failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }

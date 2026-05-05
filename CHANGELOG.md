@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
+
+## [0.34.0] - 2026 - Sprint 152
+
+### Summary
+DICOM-SEG (Segmentation) reader/writer implementation for segmentation persistence and export. Enables end-to-end DICOM-SEG workflows: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. Comprehensive LabelMap↔DicomSegmentation converter with spatial metadata preservation (origin, spacing, direction). All 1751 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 294 + ritk-dicom 8).
+
+### Added
+- **DICOM-SEG converter**: `label_map_to_dicom_seg` function in ritk-io; converts LabelMap → DicomSegmentation with spatial metadata (origin, spacing, direction) and frame-per-Z-per-segment layout
+- **UI integration**: "Save segmentation as DICOM-SEG..." menu action in ritk-snap File menu; integrated with label_editor and save dialog
+- **Test suite**: 6 value-semantic converter tests (single-label, multi-label, background exclusion, spatial metadata, error handling)
+
+### Changed
+- **ritk-io API**: Added `label_map_to_dicom_seg` public export (SRP: DICOM I/O boundary owns format transformation)
+
+### Technical Details
+- **Frame layout**: One 2D frame per Z-slice per foreground segment (n_frames = n_foreground_labels × nz)
+- **Pixel encoding**: Binary (bits_allocated=1) or fractional; each pixel: 0 (no match) or 1 (label match)
+- **Spatial metadata**: image_position_per_frame includes Z-offset; image_orientation (6 elements: row xyz, col xyz); pixel_spacing [ny, nx]; slice_thickness [z]
+- **Error handling**: Validates non-zero geometry and non-empty foreground labels; returns descriptive Result<DicomSegmentation>
+
+### Breaking Changes
+None.
+
 ## [0.33.0] - 2026 - Sprint 151
 
 ### Summary

@@ -44,7 +44,9 @@ pub use rt_plan::{
     read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
 };
 pub use rt_struct::{read_rt_struct, rt_roi_to_polydata, RtContour, RtRoiInfo, RtStructureSet};
-pub use seg::{read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation};
+pub use seg::{
+    label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation,
+};
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};

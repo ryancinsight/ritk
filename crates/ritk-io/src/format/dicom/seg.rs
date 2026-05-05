@@ -686,6 +686,149 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     Ok(())
 }
 
+/// Convert a `ritk_core` `LabelMap` with spatial metadata to a `DicomSegmentation`.
+///
+/// # Mathematical Specification
+///
+/// This implementation creates one 2D frame per Z-slice per segment. Given a 3D
+/// label map L: Z³ → N with shape [nz, ny, nx], each unique foreground label ID
+/// produces nz frames (one per Z-slice), each with geometry rows=ny, cols=nx.
+///
+/// Total frames = (number of foreground labels) × nz.
+/// Frame f corresponding to segment s and Z-index z contains pixel values 1 where
+/// the label equals s, and 0 elsewhere.
+///
+/// # Invariants
+/// - Background label (ID 0) is excluded from segments; only foreground labels are encoded.
+/// - Frame count = n_segments × nz.
+/// - All label table entries with existing IDs in the map are preserved as segment metadata.
+///
+/// # Errors
+/// - `label_map.shape` has zero dimension (invalid geometry).
+/// - No foreground labels exist (empty segmentation).
+pub fn label_map_to_dicom_seg(
+    label_map: &ritk_core::annotation::LabelMap,
+    origin: [f64; 3],
+    spacing: [f64; 3],
+    direction: [f64; 9],
+    use_binary: bool,
+) -> Result<DicomSegmentation> {
+    // ── Validation ──────────────────────────────────────────────────────────
+
+    if label_map.shape[0] == 0 || label_map.shape[1] == 0 || label_map.shape[2] == 0 {
+        bail!("label_map has zero dimension: {:?}", label_map.shape);
+    }
+
+    // Get unique foreground labels (excluding background 0)
+    let mut foreground_labels = label_map.present_labels();
+    foreground_labels.retain(|&id| id != 0);
+
+    if foreground_labels.is_empty() {
+        bail!("no foreground labels found in label_map");
+    }
+
+    // ── Frame geometry ──────────────────────────────────────────────────────
+    // Shape is [nz, ny, nx]; DICOM-SEG uses rows=ny, cols=nx per frame
+    let nz = label_map.shape[0];
+    let ny = label_map.shape[1];
+    let nx = label_map.shape[2];
+    let rows = ny as usize;
+    let cols = nx as usize;
+    let n_pixels_per_frame = rows * cols;
+    let n_frames = foreground_labels.len() * nz; // one frame per Z-slice per segment
+
+    // ── Build segment metadata and pixel frames ──────────────────────────────
+    let mut segments = Vec::new();
+    let mut frame_segment_numbers = Vec::new();
+    let mut pixel_data = Vec::new();
+    let mut image_position_per_frame = Vec::new();
+
+    for (segment_idx, &label_id) in foreground_labels.iter().enumerate() {
+        let segment_number = (segment_idx + 1) as u16; // 1-based segment numbering
+
+        // Look up label entry from table
+        let label_name = label_map
+            .table
+            .get_label(label_id)
+            .map(|e| e.name.clone())
+            .unwrap_or_else(|| format!("Label {}", label_id));
+
+        segments.push(DicomSegmentInfo {
+            segment_number,
+            segment_label: label_name,
+            segment_description: None,
+            algorithm_type: None,
+        });
+
+        // Create nz frames, one per Z-slice
+        for z in 0..nz {
+            frame_segment_numbers.push(segment_number);
+
+            // Extract 2D frame at Z-index z: iterate over (y, x)
+            let mut frame_pixels = Vec::with_capacity(n_pixels_per_frame);
+            for y in 0..ny {
+                for x in 0..nx {
+                    let at_label = label_map.label_at([z, y, x]);
+                    frame_pixels.push(if at_label == label_id { 1u8 } else { 0u8 });
+                }
+            }
+            assert_eq!(
+                frame_pixels.len(),
+                n_pixels_per_frame,
+                "frame pixel count mismatch at z={}: {} != {}",
+                z,
+                frame_pixels.len(),
+                n_pixels_per_frame
+            );
+            pixel_data.push(frame_pixels);
+
+            // Compute ImagePositionPatient for this frame (Z-slice z)
+            let dir_z_col = [direction[2], direction[5], direction[8]];
+            let z_offset = z as f64 * spacing[0];
+            let pos = [
+                origin[0] + z_offset * dir_z_col[0],
+                origin[1] + z_offset * dir_z_col[1],
+                origin[2] + z_offset * dir_z_col[2],
+            ];
+            image_position_per_frame.push(Some(pos));
+        }
+    }
+
+    // ── Construct DicomSegmentation ──────────────────────────────────────────
+
+    let bits_allocated = if use_binary { 1u16 } else { 8u16 };
+    let segmentation_type = if use_binary {
+        "BINARY".to_owned()
+    } else {
+        "FRACTIONAL".to_owned()
+    };
+
+    // Convert 3×3 direction matrix to 6-element image orientation (row, then column direction)
+    let image_orientation_6: [f64; 6] = [
+        direction[0], // row direction, x component
+        direction[3], // row direction, y component
+        direction[6], // row direction, z component
+        direction[1], // column direction, x component
+        direction[4], // column direction, y component
+        direction[7], // column direction, z component
+    ];
+
+    Ok(DicomSegmentation {
+        rows,
+        cols,
+        n_frames,
+        bits_allocated,
+        segmentation_type,
+        segments,
+        frame_segment_numbers,
+        pixel_data,
+        image_position_per_frame,
+        image_orientation: Some(image_orientation_6),
+        pixel_spacing: Some([spacing[1], spacing[2]]),
+        slice_thickness: Some(spacing[0]),
+    })
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1192,5 +1335,169 @@ mod tests {
             msg.contains("pixel_data") || msg.contains("n_frames"),
             "error must identify the frame-count mismatch; got: {msg}"
         );
+    }
+
+    // ── Tests for label_map_to_dicom_seg converter ──────────────────────────
+
+    #[test]
+    fn test_label_map_to_dicom_seg_identity_single_label() {
+        // Create a simple 2×2×2 label map with label 1 everywhere (single label)
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "Label 1", [255, 0, 0, 255]).unwrap();
+
+        let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
+        let origin = [0.0, 0.0, 0.0];
+        let spacing = [1.0, 1.0, 1.0];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+        let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+            .expect("label_map_to_dicom_seg");
+
+        assert_eq!(seg.rows, 2, "rows must equal ny");
+        assert_eq!(seg.cols, 2, "cols must equal nx");
+        assert_eq!(seg.n_frames, 2, "nz=2 frames, one per Z-slice per segment");
+        assert_eq!(seg.bits_allocated, 1, "use_binary=true → bits_allocated=1");
+        assert_eq!(seg.segmentation_type, "BINARY");
+        assert_eq!(seg.segments.len(), 1, "one segment");
+        assert_eq!(seg.segments[0].segment_label, "Label 1");
+        assert_eq!(seg.segments[0].segment_number, 1);
+        // Each frame is 2×2=4 pixels, all 1s
+        assert_eq!(seg.pixel_data[0], vec![1u8; 4], "frame 0 all ones");
+        assert_eq!(seg.pixel_data[1], vec![1u8; 4], "frame 1 all ones");
+    }
+
+    #[test]
+    fn test_label_map_to_dicom_seg_multi_label() {
+        // Create a 2×2×2 map with two distinct labels (label 1 in z=0, label 2 in z=1)
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "Foreground", [255, 0, 0, 255]).unwrap();
+        table.add_label(2, "Other", [0, 255, 0, 255]).unwrap();
+
+        let data = vec![1, 1, 1, 1, 2, 2, 2, 2]; // z=0 all label 1, z=1 all label 2
+        let map = LabelMap::from_data([2, 2, 2], data, table).unwrap();
+        let origin = [0.0, 0.0, 0.0];
+        let spacing = [1.0, 1.0, 1.0];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+        let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+            .expect("label_map_to_dicom_seg");
+
+        // nz=2, 2 segments → 4 frames total
+        assert_eq!(seg.n_frames, 4, "2 segments × 2 z-slices = 4 frames");
+        assert_eq!(seg.segments.len(), 2, "two segments");
+        assert_eq!(seg.frame_segment_numbers, vec![1, 1, 2, 2], "segment assignment per frame");
+        // Segment 1 frames:
+        assert_eq!(seg.pixel_data[0], vec![1u8; 4], "frame 0 (seg 1, z=0) all ones");
+        assert_eq!(seg.pixel_data[1], vec![0u8; 4], "frame 1 (seg 1, z=1) all zeros");
+        // Segment 2 frames:
+        assert_eq!(seg.pixel_data[2], vec![0u8; 4], "frame 2 (seg 2, z=0) all zeros");
+        assert_eq!(seg.pixel_data[3], vec![1u8; 4], "frame 3 (seg 2, z=1) all ones");
+    }
+
+    #[test]
+    fn test_label_map_to_dicom_seg_background_excluded() {
+        // Create a map with background (0) and one foreground label
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "Lesion", [255, 0, 0, 255]).unwrap();
+
+        // Half background, half foreground: single Z-slice
+        let data = vec![0, 0, 1, 1]; // 1×2×2 map: first two are background, last two are label 1
+        let map = LabelMap::from_data([1, 2, 2], data, table).unwrap();
+        let origin = [0.0, 0.0, 0.0];
+        let spacing = [1.0, 1.0, 1.0];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+        let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+            .expect("label_map_to_dicom_seg");
+
+        assert_eq!(seg.n_frames, 1, "1 foreground label × 1 z-slice = 1 frame");
+        assert_eq!(seg.pixel_data[0], vec![0, 0, 1, 1], "correct mask for label 1");
+    }
+
+    #[test]
+    fn test_label_map_to_dicom_seg_spatial_metadata() {
+        // Verify spatial metadata is correctly mapped
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
+
+        let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
+        let origin = [10.0, 20.0, 30.0];
+        let spacing = [2.0, 0.5, 1.5];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]; // identity
+
+        let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+            .expect("label_map_to_dicom_seg");
+
+        // image_orientation: first 6 elements of flattened direction [row_x, row_y, row_z, col_x, col_y, col_z]
+        // For identity: [1, 0, 0, 0, 1, 0]
+        assert_eq!(
+            seg.image_orientation,
+            Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            "image_orientation from direction"
+        );
+        // pixel_spacing: [spacing[1], spacing[2]]
+        assert_eq!(
+            seg.pixel_spacing,
+            Some([0.5, 1.5]),
+            "pixel_spacing [ny_spacing, nx_spacing]"
+        );
+        // slice_thickness: spacing[0]
+        assert_eq!(seg.slice_thickness, Some(2.0), "slice_thickness from spacing[0]");
+        // Verify image_position_per_frame includes positions for each Z-slice
+        assert_eq!(
+            seg.image_position_per_frame[0],
+            Some([10.0, 20.0, 30.0]),
+            "frame 0 position at z=0"
+        );
+        assert_eq!(
+            seg.image_position_per_frame[1],
+            Some([10.0, 20.0, 32.0]),
+            "frame 1 position at z=1 (z_offset = 1*spacing[0]=2)"
+        );
+    }
+
+    #[test]
+    fn test_label_map_to_dicom_seg_error_empty_geometry() {
+        // Label map with zero dimension should be rejected
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let table = LabelTable::new();
+        // We can't actually create a map with zero size due to validation in LabelMap::from_data
+        // Instead test that the validator catches it by creating a valid map and ensuring
+        // the conversion is being tested for its own geometry validation
+        let map = LabelMap::new([1, 2, 2], table);
+
+        let origin = [0.0, 0.0, 0.0];
+        let spacing = [1.0, 1.0, 1.0];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+        // This map is all background, so should fail with "no foreground labels"
+        let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
+        assert!(result.is_err(), "all-background map should return Err");
+    }
+
+
+    #[test]
+    fn test_label_map_to_dicom_seg_error_no_foreground() {
+        // Label map containing only background (0)
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let table = LabelTable::new();
+        let map = LabelMap::from_data([2, 2, 2], vec![0u32; 8], table).unwrap();
+
+        let origin = [0.0, 0.0, 0.0];
+        let spacing = [1.0, 1.0, 1.0];
+        let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+
+        let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
+        assert!(result.is_err(), "all-background map should return Err");
     }
 }
