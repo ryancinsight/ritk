@@ -1997,6 +1997,46 @@ impl SnapApp {
                     [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                     [*pad_upper_z, *pad_upper_y, *pad_upper_x],
                 ).apply(&image),
+                crate::FilterKind::GrayscaleErode { radius } => {
+                    ritk_core::filter::GrayscaleErosion::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleDilate { radius } => {
+                    ritk_core::filter::GrayscaleDilation::new(*radius).apply(&image)
+                }
+                crate::FilterKind::BinaryThreshold { lower, upper, foreground, background } => {
+                    ritk_core::filter::BinaryThresholdImageFilter::new(*lower, *upper, *foreground, *background)
+                        .apply(&image)
+                }
+                crate::FilterKind::RescaleIntensity { out_min, out_max } => {
+                    ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
+                }
+                crate::FilterKind::Clamp { lower, upper } => {
+                    ritk_core::filter::ClampImageFilter::new(*lower, *upper).apply(&image)
+                }
+                crate::FilterKind::ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper } => {
+                    Ok(ritk_core::segmentation::region_growing::ConnectedThresholdFilter::new(
+                        [*seed_z, *seed_y, *seed_x], *lower, *upper,
+                    ).apply(&image))
+                }
+                crate::FilterKind::ConfidenceConnected {
+                    seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations,
+                } => {
+                    Ok(ritk_core::segmentation::region_growing::ConfidenceConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x], *initial_lower, *initial_upper,
+                    )
+                    .with_multiplier(*multiplier)
+                    .with_max_iterations(*max_iterations as usize)
+                    .apply(&image))
+                }
+                crate::FilterKind::NeighborhoodConnected {
+                    seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x,
+                } => {
+                    Ok(ritk_core::segmentation::region_growing::NeighborhoodConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x], *lower, *upper,
+                    )
+                    .with_radius([*radius_z, *radius_y, *radius_x])
+                    .apply(&image))
+                }
             }
         };
 

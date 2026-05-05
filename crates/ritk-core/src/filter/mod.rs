@@ -33,7 +33,7 @@ pub use edge::{
 pub use gaussian::GaussianFilter;
 pub use intensity::{
     AbsImageFilter, AddImageFilter, BedSeparationConfig, BedSeparationFilter,
-    BinaryThresholdImageFilter, ClaheFilter, DivideImageFilter, ExpImageFilter,
+    BinaryThresholdImageFilter, ClaheFilter, ClampImageFilter, DivideImageFilter, ExpImageFilter,
     HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
     InvertIntensityFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
     MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, SigmoidImageFilter,

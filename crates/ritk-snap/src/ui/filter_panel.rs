@@ -93,6 +93,14 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
             FilterKind::ConstantPad { .. } => "Constant Pad",
             FilterKind::MirrorPad { .. } => "Mirror Pad",
             FilterKind::WrapPad { .. } => "Wrap Pad",
+            FilterKind::GrayscaleErode { .. } => "Grayscale Erode",
+            FilterKind::GrayscaleDilate { .. } => "Grayscale Dilate",
+            FilterKind::BinaryThreshold { .. } => "Binary Threshold",
+            FilterKind::RescaleIntensity { .. } => "Rescale Intensity",
+            FilterKind::Clamp { .. } => "Clamp",
+            FilterKind::ConnectedThreshold { .. } => "Connected Threshold",
+            FilterKind::ConfidenceConnected { .. } => "Confidence Connected",
+            FilterKind::NeighborhoodConnected { .. } => "Neighborhood Connected",
         };
         egui::ComboBox::from_label("Filter")
             .selected_text(kind_label)
@@ -426,6 +434,46 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                     FilterKind::WrapPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 },
                     "Wrap Pad",
                 ).clicked() { *active_filter = FilterKind::WrapPad { pad_lower_z: 1, pad_lower_y: 1, pad_lower_x: 1, pad_upper_z: 1, pad_upper_y: 1, pad_upper_x: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::GrayscaleErode { radius: 1 },
+                    "Grayscale Erode",
+                ).clicked() { *active_filter = FilterKind::GrayscaleErode { radius: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::GrayscaleDilate { radius: 1 },
+                    "Grayscale Dilate",
+                ).clicked() { *active_filter = FilterKind::GrayscaleDilate { radius: 1 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::BinaryThreshold { lower: 100.0, upper: 500.0, foreground: 1.0, background: 0.0 },
+                    "Binary Threshold",
+                ).clicked() { *active_filter = FilterKind::BinaryThreshold { lower: 100.0, upper: 500.0, foreground: 1.0, background: 0.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::RescaleIntensity { out_min: 0.0, out_max: 1.0 },
+                    "Rescale Intensity",
+                ).clicked() { *active_filter = FilterKind::RescaleIntensity { out_min: 0.0, out_max: 1.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::Clamp { lower: 0.0, upper: 255.0 },
+                    "Clamp",
+                ).clicked() { *active_filter = FilterKind::Clamp { lower: 0.0, upper: 255.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::ConnectedThreshold { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0 },
+                    "Connected Threshold",
+                ).clicked() { *active_filter = FilterKind::ConnectedThreshold { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::ConfidenceConnected { seed_z: 0, seed_y: 0, seed_x: 0, initial_lower: 0.0, initial_upper: 100.0, multiplier: 2.5, max_iterations: 15 },
+                    "Confidence Connected",
+                ).clicked() { *active_filter = FilterKind::ConfidenceConnected { seed_z: 0, seed_y: 0, seed_x: 0, initial_lower: 0.0, initial_upper: 100.0, multiplier: 2.5, max_iterations: 15 }; }
+                if ui.selectable_value(
+                    &mut *active_filter,
+                    FilterKind::NeighborhoodConnected { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0, radius_z: 1, radius_y: 1, radius_x: 1 },
+                    "Neighborhood Connected",
+                ).clicked() { *active_filter = FilterKind::NeighborhoodConnected { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0, radius_z: 1, radius_y: 1, radius_x: 1 }; }
             });
 
         ui.add_space(4.0);
@@ -964,6 +1012,151 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
                 }
                 ui.label(egui::RichText::new("ITK WrapPadImageFilter: periodic extension.").small());
             }
+            FilterKind::GrayscaleErode { radius } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK GrayscaleErodeImageFilter (flat SE). E_B(f)(x) = min_{b∈B} f(x+b). Anti-extensive.").small());
+            }
+            FilterKind::GrayscaleDilate { radius } => {
+                let mut r = *radius as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Radius (voxels):");
+                    if ui.add(egui::DragValue::new(&mut r).speed(1.0).range(0..=10)).changed() {
+                        *radius = r.clamp(0, 10) as usize;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK GrayscaleDilateImageFilter (flat SE). D_B(f)(x) = max_{b∈B} f(x+b). Extensive.").small());
+            }
+            FilterKind::BinaryThreshold { lower, upper, foreground, background } => {
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(lower).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(upper).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Foreground:");
+                    ui.add(egui::DragValue::new(foreground).speed(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Background:");
+                    ui.add(egui::DragValue::new(background).speed(0.1));
+                });
+                ui.label(egui::RichText::new("ITK BinaryThresholdImageFilter. out = fg if lower≤I≤upper, else bg.").small());
+            }
+            FilterKind::RescaleIntensity { out_min, out_max } => {
+                ui.horizontal(|ui| {
+                    ui.label("Out min:");
+                    ui.add(egui::DragValue::new(out_min).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Out max:");
+                    ui.add(egui::DragValue::new(out_max).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK RescaleIntensityImageFilter. Maps [I_min, I_max] linearly to [out_min, out_max].").small());
+            }
+            FilterKind::Clamp { lower, upper } => {
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(lower).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(upper).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK ClampImageFilter. out = clamp(I, lower, upper).").small());
+            }
+            FilterKind::ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper } => {
+                for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{label}:"));
+                        if ui.add(egui::DragValue::new(&mut v).speed(1.0).range(0..=i32::MAX)).changed() {
+                            *val = v.max(0) as usize;
+                        }
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(lower).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(upper).speed(1.0));
+                });
+                ui.label(egui::RichText::new("ITK ConnectedThresholdImageFilter. BFS flood-fill where I(v) ∈ [lower, upper]. Output: binary mask.").small());
+            }
+            FilterKind::ConfidenceConnected {
+                seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations,
+            } => {
+                for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{label}:"));
+                        if ui.add(egui::DragValue::new(&mut v).speed(1.0).range(0..=i32::MAX)).changed() {
+                            *val = v.max(0) as usize;
+                        }
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Initial lower:");
+                    ui.add(egui::DragValue::new(initial_lower).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Initial upper:");
+                    ui.add(egui::DragValue::new(initial_upper).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Multiplier k:");
+                    ui.add(egui::Slider::new(multiplier, 0.5_f32..=10.0).step_by(0.1));
+                });
+                let mut mi = *max_iterations as i32;
+                ui.horizontal(|ui| {
+                    ui.label("Max iterations:");
+                    if ui.add(egui::Slider::new(&mut mi, 1..=100).step_by(1.0)).changed() {
+                        *max_iterations = mi.max(1) as u32;
+                    }
+                });
+                ui.label(egui::RichText::new("ITK ConfidenceConnectedImageFilter. Adaptive BFS: expands region using mean±k·σ statistics. Output: binary mask.").small());
+            }
+            FilterKind::NeighborhoodConnected {
+                seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x,
+            } => {
+                for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{label}:"));
+                        if ui.add(egui::DragValue::new(&mut v).speed(1.0).range(0..=i32::MAX)).changed() {
+                            *val = v.max(0) as usize;
+                        }
+                    });
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Lower:");
+                    ui.add(egui::DragValue::new(lower).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Upper:");
+                    ui.add(egui::DragValue::new(upper).speed(1.0));
+                });
+                for (label, val) in [("Radius Z", radius_z), ("Radius Y", radius_y), ("Radius X", radius_x)] {
+                    let mut v = *val as i32;
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{label}:"));
+                        if ui.add(egui::DragValue::new(&mut v).speed(1.0).range(0..=5)).changed() {
+                            *val = v.clamp(0, 5) as usize;
+                        }
+                    });
+                }
+                ui.label(egui::RichText::new("ITK NeighborhoodConnectedImageFilter. BFS where all voxels in candidate neighborhood satisfy [lower,upper]. Output: binary mask.").small());
+            }
         }
 
         ui.add_space(6.0);
@@ -1384,6 +1577,111 @@ mod tests {
             assert!(radius <= 10, "default radius {radius} must be within slider range [0, 10]");
         } else {
             panic!("expected MorphologicalGradient variant");
+        }
+    }
+
+    /// Grayscale erosion: default radius=1 is the smallest non-trivial SE.
+    #[test]
+    fn grayscale_erode_default_radius_valid() {
+        let fk = FilterKind::GrayscaleErode { radius: 1 };
+        if let FilterKind::GrayscaleErode { radius } = fk {
+            assert_eq!(radius, 1, "default radius must be 1");
+            assert!(radius <= 10, "default radius within slider range");
+        } else {
+            panic!("expected GrayscaleErode");
+        }
+    }
+
+    /// Grayscale dilation: default radius=1 is the smallest non-trivial SE.
+    #[test]
+    fn grayscale_dilate_default_radius_valid() {
+        let fk = FilterKind::GrayscaleDilate { radius: 1 };
+        if let FilterKind::GrayscaleDilate { radius } = fk {
+            assert_eq!(radius, 1, "default radius must be 1");
+            assert!(radius <= 10, "default radius within slider range");
+        } else {
+            panic!("expected GrayscaleDilate");
+        }
+    }
+
+    /// Binary threshold: foreground=1.0 and background=0.0 are the canonical
+    /// binary label values. lower ≤ upper required for valid threshold.
+    #[test]
+    fn binary_threshold_defaults_ordered() {
+        let fk = FilterKind::BinaryThreshold { lower: 100.0, upper: 500.0, foreground: 1.0, background: 0.0 };
+        if let FilterKind::BinaryThreshold { lower, upper, foreground, background } = fk {
+            assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+            assert_ne!(foreground, background, "foreground and background must differ");
+            assert_eq!(foreground, 1.0f32);
+            assert_eq!(background, 0.0f32);
+        } else {
+            panic!("expected BinaryThreshold");
+        }
+    }
+
+    /// Rescale intensity: out_min < out_max required for a non-degenerate mapping.
+    #[test]
+    fn rescale_intensity_defaults_ordered() {
+        let fk = FilterKind::RescaleIntensity { out_min: 0.0, out_max: 1.0 };
+        if let FilterKind::RescaleIntensity { out_min, out_max } = fk {
+            assert!(out_min < out_max, "out_min={out_min} must be < out_max={out_max}");
+        } else {
+            panic!("expected RescaleIntensity");
+        }
+    }
+
+    /// Clamp: lower ≤ upper required for non-degenerate clamping.
+    #[test]
+    fn clamp_defaults_ordered() {
+        let fk = FilterKind::Clamp { lower: 0.0, upper: 255.0 };
+        if let FilterKind::Clamp { lower, upper } = fk {
+            assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        } else {
+            panic!("expected Clamp");
+        }
+    }
+
+    /// Connected threshold: lower ≤ upper for a valid acceptance interval.
+    #[test]
+    fn connected_threshold_defaults_ordered() {
+        let fk = FilterKind::ConnectedThreshold { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0 };
+        if let FilterKind::ConnectedThreshold { lower, upper, .. } = fk {
+            assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        } else {
+            panic!("expected ConnectedThreshold");
+        }
+    }
+
+    /// Confidence connected: multiplier > 0 and max_iterations ≥ 1.
+    #[test]
+    fn confidence_connected_defaults_valid() {
+        let fk = FilterKind::ConfidenceConnected {
+            seed_z: 0, seed_y: 0, seed_x: 0,
+            initial_lower: 0.0, initial_upper: 100.0,
+            multiplier: 2.5, max_iterations: 15,
+        };
+        if let FilterKind::ConfidenceConnected { multiplier, max_iterations, initial_lower, initial_upper, .. } = fk {
+            assert!(multiplier > 0.0, "multiplier must be positive, got {multiplier}");
+            assert!(max_iterations >= 1, "max_iterations must be ≥ 1");
+            assert!(initial_lower <= initial_upper, "initial_lower must be ≤ initial_upper");
+        } else {
+            panic!("expected ConfidenceConnected");
+        }
+    }
+
+    /// Neighborhood connected: lower ≤ upper and all radii ≥ 1.
+    #[test]
+    fn neighborhood_connected_defaults_valid() {
+        let fk = FilterKind::NeighborhoodConnected {
+            seed_z: 0, seed_y: 0, seed_x: 0,
+            lower: 100.0, upper: 500.0,
+            radius_z: 1, radius_y: 1, radius_x: 1,
+        };
+        if let FilterKind::NeighborhoodConnected { lower, upper, radius_z, radius_y, radius_x, .. } = fk {
+            assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+            assert!(radius_z >= 1 && radius_y >= 1 && radius_x >= 1, "all radii must be ≥ 1");
+        } else {
+            panic!("expected NeighborhoodConnected");
         }
     }
 }

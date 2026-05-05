@@ -21,19 +21,22 @@ use anyhow::Result;
 use ritk_core::filter::{
     AbsImageFilter, BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
     BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
-    BinaryMorphologicalOpening, ClaheFilter, ConnectedComponentsFilter,
-    ConstantPadImageFilter, DistanceTransformImageFilter, ExpImageFilter,
+    BinaryMorphologicalOpening, BinaryThresholdImageFilter, ClaheFilter, ClampImageFilter,
+    ConnectedComponentsFilter, ConstantPadImageFilter, DistanceTransformImageFilter, ExpImageFilter,
     FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter,
-    GrayscaleGeodesicErosionFilter, GrayscaleMorphologicalGradientFilter,
-    GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter, LabelContourImageFilter,
-    LogImageFilter, MaskImageFilter, MeanImageFilter, MedianFilter, MirrorPadImageFilter,
-    MultiOtsuThreshold, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, MultiOtsuThreshold, NormalizeImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
     BinaryContourImageFilter, RelabelComponentFilter, ShiftScaleImageFilter,
     ShrinkImageFilter, SignedDistanceTransformImageFilter,
     SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
     WrapPadImageFilter, ZeroCrossingImageFilter,
+};
+use ritk_core::segmentation::region_growing::{
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
 use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
@@ -456,6 +459,46 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                 [*pad_upper_z, *pad_upper_y, *pad_upper_x],
             ).apply(&study.image),
+            FilterKind::GrayscaleErode { radius } => {
+                GrayscaleErosion::new(*radius).apply(&study.image)
+            }
+            FilterKind::GrayscaleDilate { radius } => {
+                GrayscaleDilation::new(*radius).apply(&study.image)
+            }
+            FilterKind::BinaryThreshold { lower, upper, foreground, background } => {
+                BinaryThresholdImageFilter::new(*lower, *upper, *foreground, *background)
+                    .apply(&study.image)
+            }
+            FilterKind::RescaleIntensity { out_min, out_max } => {
+                RescaleIntensityFilter::new(*out_min, *out_max).apply(&study.image)
+            }
+            FilterKind::Clamp { lower, upper } => {
+                ClampImageFilter::new(*lower, *upper).apply(&study.image)
+            }
+            FilterKind::ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper } => {
+                Ok(ConnectedThresholdFilter::new(
+                    [*seed_z, *seed_y, *seed_x], *lower, *upper,
+                ).apply(&study.image))
+            }
+            FilterKind::ConfidenceConnected {
+                seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations,
+            } => {
+                Ok(ConfidenceConnectedFilter::new(
+                    [*seed_z, *seed_y, *seed_x], *initial_lower, *initial_upper,
+                )
+                .with_multiplier(*multiplier)
+                .with_max_iterations(*max_iterations as usize)
+                .apply(&study.image))
+            }
+            FilterKind::NeighborhoodConnected {
+                seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x,
+            } => {
+                Ok(NeighborhoodConnectedFilter::new(
+                    [*seed_z, *seed_y, *seed_x], *lower, *upper,
+                )
+                .with_radius([*radius_z, *radius_y, *radius_x])
+                .apply(&study.image))
+            }
         };
 
         let filter_name = match kind {
@@ -505,6 +548,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::ConstantPad { .. } => "ConstantPad",
             FilterKind::MirrorPad { .. } => "MirrorPad",
             FilterKind::WrapPad { .. } => "WrapPad",
+            FilterKind::GrayscaleErode { .. } => "GrayscaleErode",
+            FilterKind::GrayscaleDilate { .. } => "GrayscaleDilate",
+            FilterKind::BinaryThreshold { .. } => "BinaryThreshold",
+            FilterKind::RescaleIntensity { .. } => "RescaleIntensity",
+            FilterKind::Clamp { .. } => "Clamp",
+            FilterKind::ConnectedThreshold { .. } => "ConnectedThreshold",
+            FilterKind::ConfidenceConnected { .. } => "ConfidenceConnected",
+            FilterKind::NeighborhoodConnected { .. } => "NeighborhoodConnected",
         };
 
         match filter_result {
@@ -1048,6 +1099,122 @@ pub enum FilterKind {
         pad_upper_z: usize,
         pad_upper_y: usize,
         pad_upper_x: usize,
+    },
+
+    /// Grayscale erosion (ITK `GrayscaleErodeImageFilter` / flat SE variant).
+    ///
+    /// Replaces each voxel with the minimum in its `(2r+1)³` neighbourhood.
+    /// E_B(f)(x) = min_{b ∈ B} f(x + b).  Anti-extensive.
+    GrayscaleErode {
+        /// Structuring element half-width in voxels. Default: 1.
+        radius: usize,
+    },
+
+    /// Grayscale dilation (ITK `GrayscaleDilateImageFilter` / flat SE variant).
+    ///
+    /// Replaces each voxel with the maximum in its `(2r+1)³` neighbourhood.
+    /// D_B(f)(x) = max_{b ∈ B} f(x + b).  Extensive.
+    GrayscaleDilate {
+        /// Structuring element half-width in voxels. Default: 1.
+        radius: usize,
+    },
+
+    /// Binary threshold indicator filter (ITK `BinaryThresholdImageFilter` parity).
+    ///
+    /// output(x) = foreground if lower ≤ I(x) ≤ upper, else background.
+    BinaryThreshold {
+        /// Inclusive lower bound.
+        lower: f32,
+        /// Inclusive upper bound.
+        upper: f32,
+        /// Output value for voxels inside the interval. Default: 1.0.
+        foreground: f32,
+        /// Output value for voxels outside the interval. Default: 0.0.
+        background: f32,
+    },
+
+    /// Linear intensity rescaling to a target range (ITK `RescaleIntensityImageFilter` parity).
+    ///
+    /// Maps [I_min, I_max] linearly to [out_min, out_max].  Constant images
+    /// map to out_min.
+    RescaleIntensity {
+        /// Minimum output intensity. Default: 0.0.
+        out_min: f32,
+        /// Maximum output intensity. Default: 1.0.
+        out_max: f32,
+    },
+
+    /// Intensity clamp filter (ITK `ClampImageFilter` parity).
+    ///
+    /// output(x) = clamp(I(x), lower, upper).  All voxels outside [lower, upper]
+    /// are hard-clamped; interior voxels are unchanged.
+    Clamp {
+        /// Inclusive lower bound for output. Default: 0.0.
+        lower: f32,
+        /// Inclusive upper bound for output. Default: 255.0.
+        upper: f32,
+    },
+
+    /// Connected-threshold region growing (ITK `ConnectedThresholdImageFilter` parity).
+    ///
+    /// BFS flood-fill from `seed` including all voxels reachable with
+    /// I(v) ∈ [lower, upper].  Output: binary mask (0/1 float).
+    ConnectedThreshold {
+        /// Seed voxel depth index (z).
+        seed_z: usize,
+        /// Seed voxel row index (y).
+        seed_y: usize,
+        /// Seed voxel column index (x).
+        seed_x: usize,
+        /// Inclusive lower intensity bound.
+        lower: f32,
+        /// Inclusive upper intensity bound.
+        upper: f32,
+    },
+
+    /// Confidence-connected region growing (ITK `ConfidenceConnectedImageFilter` parity).
+    ///
+    /// Adaptive BFS flood-fill: iteratively expands the region based on
+    /// running mean ± k·σ statistics.  Output: binary mask (0/1 float).
+    ConfidenceConnected {
+        /// Seed voxel depth index (z).
+        seed_z: usize,
+        /// Seed voxel row index (y).
+        seed_y: usize,
+        /// Seed voxel column index (x).
+        seed_x: usize,
+        /// Initial lower bound (first iteration when σ=0). Default: 0.0.
+        initial_lower: f32,
+        /// Initial upper bound (first iteration when σ=0). Default: 100.0.
+        initial_upper: f32,
+        /// k multiplier for k·σ interval. Default: 2.5.
+        multiplier: f32,
+        /// Maximum iterations. Default: 15.
+        max_iterations: u32,
+    },
+
+    /// Neighborhood-connected region growing (ITK `NeighborhoodConnectedImageFilter` parity).
+    ///
+    /// BFS flood-fill where the inclusion predicate requires all voxels in the
+    /// candidate's rectangular neighborhood to lie in [lower, upper].
+    /// Output: binary mask (0/1 float).
+    NeighborhoodConnected {
+        /// Seed voxel depth index (z).
+        seed_z: usize,
+        /// Seed voxel row index (y).
+        seed_y: usize,
+        /// Seed voxel column index (x).
+        seed_x: usize,
+        /// Inclusive lower intensity bound.
+        lower: f32,
+        /// Inclusive upper intensity bound.
+        upper: f32,
+        /// Neighborhood half-radius z. Default: 1.
+        radius_z: usize,
+        /// Neighborhood half-radius y. Default: 1.
+        radius_y: usize,
+        /// Neighborhood half-radius x. Default: 1.
+        radius_x: usize,
     },
 }
 

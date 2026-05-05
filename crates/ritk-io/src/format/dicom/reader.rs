@@ -1638,6 +1638,7 @@ pub struct DicomReader<B> {
 
 impl<B> DicomReader<B> {
     /// Create a new reader.
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             _phantom: std::marker::PhantomData,

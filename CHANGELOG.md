@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.31.0] - 2026 - Sprint 149
+
+### Added
+- **`ritk-core` `ClampImageFilter`** (`filter/intensity/clamp.rs`): Voxel-wise clamping to [lower, upper]. `assert!(lower ≤ upper)` in constructor. ITK `ClampImageFilter` parity. 7 value-semantic tests covering constant-in-bounds, all-below, all-above, mixed, lower==upper, metadata preservation, and output-always-in-bounds.
+- **`ritk-snap`**: New `FilterKind` variants wired into `lib.rs` dispatch (`filter_name` + `apply_filter`), `app.rs` GUI dispatch, and `filter_panel.rs` ComboBox + parameter controls + 8 tests:
+  - `GrayscaleErode { radius }` — `GrayscaleErosion` (ITK `GrayscaleErodeImageFilter` parity)
+  - `GrayscaleDilate { radius }` — `GrayscaleDilation` (ITK `GrayscaleDilateImageFilter` parity)
+  - `BinaryThreshold { lower, upper, foreground, background }` — `BinaryThresholdImageFilter` (ITK `BinaryThresholdImageFilter` parity)
+  - `RescaleIntensity { out_min, out_max }` — `RescaleIntensityFilter` (ITK `RescaleIntensityImageFilter` parity)
+  - `Clamp { lower, upper }` — `ClampImageFilter` (ITK `ClampImageFilter` parity)
+  - `ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper }` — `ConnectedThresholdFilter` (ITK `ConnectedThresholdImageFilter` parity)
+  - `ConfidenceConnected { seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations }` — `ConfidenceConnectedFilter` (ITK `ConfidenceConnectedImageFilter` parity)
+  - `NeighborhoodConnected { seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x }` — `NeighborhoodConnectedFilter` (ITK `NeighborhoodConnectedImageFilter` parity)
+
+### Fixed
+- `ritk-io`: Suppressed `dead_code` warnings for `DicomReader::new` and `is_image_sop_class` (both are public API; `#[allow(dead_code)]` applied).
+
+### Changed
+- `ritk-core` test count: 1019 → 1027 (+8 new ClampImageFilter tests).
+- `ritk-snap` test count: 383 → 391 (+8 new filter_panel default-validity tests).
+
 ## [0.30.0] - 2026 - Sprint 148
 
 ### Added

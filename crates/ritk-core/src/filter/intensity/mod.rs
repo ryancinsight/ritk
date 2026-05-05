@@ -14,6 +14,7 @@ pub mod bed_separation;
 pub mod binary_ops;
 pub mod binary_threshold;
 pub mod clahe;
+pub mod clamp;
 pub mod equalization;
 pub mod mask;
 pub mod rescale;
@@ -22,6 +23,7 @@ pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
 
+pub use clamp::ClampImageFilter;
 pub use arithmetic::{
     AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
     NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,

@@ -1,3 +1,23 @@
+## Sprint 149 — Completed
+**Status**: Completed
+**Phase**: Closure
+**Version**: 0.31.0 [minor]
+**Goal**: GrayscaleErode/Dilate, BinaryThreshold, RescaleIntensity, Clamp, ConnectedThreshold, ConfidenceConnected, NeighborhoodConnected — ritk-snap wiring + ClampImageFilter in ritk-core.
+
+### Checklist items
+- [x] Create `filter/intensity/clamp.rs`: `ClampImageFilter`, 7 value-semantic tests
+- [x] Update `filter/intensity/mod.rs`: add `pub mod clamp; pub use clamp::ClampImageFilter`
+- [x] Update `filter/mod.rs`: re-export `ClampImageFilter` from intensity block
+- [x] Update `ritk-snap/src/lib.rs`: imports, 8 new `FilterKind` variants, `filter_name` arms, `apply_filter` dispatch arms
+- [x] Update `ritk-snap/src/app.rs`: 8 new dispatch arms after WrapPad
+- [x] Update `ritk-snap/src/ui/filter_panel.rs`: `kind_label` arms, ComboBox selectable_value entries, parameter controls, 8 default-validity tests
+- [x] Fix `ritk-io` `dead_code` warnings: `DicomReader::new`, `is_image_sop_class`
+- [x] Verify: ritk-core 1027 passed, ritk-snap 391 passed, ritk-io 288 passed
+- [x] Update CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+- [x] git commit and push
+
+---
+
 ## Sprint 146 — Completed
 **Status**: Completed
 **Phase**: Closure

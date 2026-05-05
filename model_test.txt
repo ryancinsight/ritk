@@ -1,0 +1,63 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.89s
+     Running unittests src\lib.rs (target\debug\deps\ritk_model-2243b01a2eac8d80.exe)
+
+running 56 tests
+test onnx::error::tests::test_error_display ... ok
+test onnx::error::tests::test_error_helpers ... ok
+test onnx::error::tests::test_io_error_creation ... ok
+test onnx::graph::tests::test_element_type_properties ... ok
+test onnx::graph::tests::test_graph_creation ... ok
+test onnx::graph::tests::test_graph_validation ... ok
+test onnx::graph::tests::test_node_attribute_extraction ... ok
+test onnx::graph::tests::test_optional_attribute ... ok
+test onnx::graph::tests::test_tensor_creation ... ok
+test onnx::graph::tests::test_value_info ... ok
+test onnx::importer::tests::test_import_config_default ... ok
+test onnx::importer::tests::test_importer_creation ... ok
+test onnx::importer::tests::test_opset_version_bounded ... ok
+test onnx::importer::tests::test_parse_basic_model_onnx ... ok
+test onnx::importer::tests::test_parse_nonexistent_file ... ok
+test onnx::ops::tests::test_conv_validation ... ok
+test onnx::ops::tests::test_maxpool_validation ... ok
+test onnx::ops::tests::test_operator_categories ... ok
+test onnx::ops::tests::test_operator_registry ... ok
+test onnx::ops::tests::test_relu_validation ... ok
+test onnx::tensor::tests::test_broadcast_shapes ... ok
+test onnx::tensor::tests::test_is_static ... ok
+test onnx::tensor::tests::test_num_elements ... ok
+test onnx::tensor::tests::test_permute_shape ... ok
+test onnx::tensor::tests::test_row_major_strides ... ok
+test onnx::tensor::tests::test_squeeze_shape ... ok
+test onnx::tensor::tests::test_tensor_layout_display ... ok
+test onnx::tensor::tests::test_transpose_shape ... ok
+test onnx::tensor::tests::test_unsqueeze_shape ... ok
+test onnx::tests::test_metadata_custom ... ok
+test onnx::tests::test_metadata_default ... ok
+test ssmmorph::cross_scan::tests::test_cross_scan_3d ... ok
+test ssmmorph::cross_scan::tests::test_scan_2d ... ok
+test ssmmorph::cross_scan::tests::test_scan_3d ... ok
+test ssmmorph::decoder::tests::test_decoder_creation ... ok
+test ssmmorph::decoder::tests::test_decoder_forward ... ok
+test ssmmorph::decoder::tests::test_decoder_stage ... ok
+test ssmmorph::encoder::tests::test_encoder_config ... ok
+test ssmmorph::encoder::tests::test_encoder_creation ... ok
+test ssmmorph::encoder::tests::test_encoder_forward ... ok
+test ssmmorph::encoder::tests::test_encoder_presets ... ok
+test ssmmorph::encoder::tests::test_encoder_stage_creation ... ok
+test ssmmorph::encoder::tests::test_encoder_stage_forward ... ok
+test ssmmorph::network::architecture::tests::test_nondiffeomorphic_mode ... ok
+test ssmmorph::network::architecture::tests::test_ssmmorph_creation ... ok
+test ssmmorph::network::architecture::tests::test_ssmmorph_forward ... ok
+test ssmmorph::network::architecture::tests::test_ssmmorph_forward_combined ... ok
+test ssmmorph::network::architecture::tests::test_ssmmorph_presets ... ok
+test ssmmorph::network::integration::tests::test_velocity_integrator ... ok
+test ssmmorph::state_space::tests::test_forward_3d_discretization_bounds ... ok
+test ssmmorph::state_space::tests::test_forward_pass_values ... ok
+test ssmmorph::state_space::tests::test_state_space_creation_dimensions ... ok
+test ssmmorph::vmamba_block::tests::test_vmamba_block_creation ... ok
+test ssmmorph::vmamba_block::tests::test_vmamba_block_forward ... ok
+test ssmmorph::vmamba_block::tests::test_vmamba_stage ... ok
+test transmorph::tests::test_transmorph_forward ... ok
+
+test result: ok. 56 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1439.13s
+
