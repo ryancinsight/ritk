@@ -2170,4 +2170,45 @@ mod tests {
         assert!(rebuilt.present_labels().contains(&1));
         assert!(rebuilt.as_slice().iter().any(|&v| v == 1));
     }
+
+    #[test]
+    fn test_read_external_highdicom_overlap_seg_real_file() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("highdicom")
+            .join("seg_image_ct_binary_overlap.dcm");
+
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        let seg = read_dicom_seg(&path).expect("read external highdicom overlap SEG");
+        assert_eq!(seg.rows, 16);
+        assert_eq!(seg.cols, 16);
+        assert_eq!(seg.n_frames, 8);
+        assert_eq!(seg.bits_allocated, 1);
+        assert_eq!(seg.segmentation_type, "BINARY");
+        assert_eq!(seg.segments.len(), 2);
+        assert_eq!(seg.segments[0].segment_label, "first segment");
+        assert_eq!(seg.segments[1].segment_label, "second segment");
+        assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
+        assert_eq!(seg.segments[1].algorithm_type.as_deref(), Some("AUTOMATIC"));
+        assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1, 1, 2, 2, 2, 2]);
+
+        let pixel_spacing = seg.pixel_spacing.expect("pixel spacing from shared FG");
+        assert!((pixel_spacing[0] - 0.488281).abs() < 1e-6);
+        assert!((pixel_spacing[1] - 0.488281).abs() < 1e-6);
+        let slice_thickness = seg.slice_thickness.expect("slice thickness from shared FG");
+        assert!((slice_thickness - 1.25).abs() < 1e-9);
+
+        let rebuilt =
+            dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom SEG");
+        assert_eq!(rebuilt.shape, [4, 16, 16]);
+        let present = rebuilt.present_labels();
+        assert!(present.contains(&1), "segment 1 must be present");
+        assert!(present.contains(&2), "segment 2 must be present");
+        assert!(rebuilt.count_label(1) > 0, "segment 1 voxels must survive reconstruction");
+        assert!(rebuilt.count_label(2) > 0, "segment 2 voxels must survive reconstruction");
+    }
 }

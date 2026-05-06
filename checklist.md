@@ -14,8 +14,8 @@
 - [x] **Implement dicom_seg_to_label_map converter** in ritk-io/src/format/dicom/seg.rs; reconstructs LabelMap from SEG frame stack with strict invariants
 - [x] **Wire UI**: Added "Load segmentation from DICOM-SEG..." to File menu in ritk-snap
 - [x] **Round-trip tests**: 4 value-semantic tests for DICOM-SEG→LabelMap and LabelMap→DICOM-SEG→LabelMap identity paths
-- [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 395 ritk-snap tests pass
-- [x] **Full test suite**: 1761 tests passing (ritk-core 1055 + ritk-snap 395 + ritk-io 303 + ritk-dicom 8)
+- [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 396 ritk-snap tests pass
+- [x] **Full test suite**: 1763 tests passing (ritk-core 1055 + ritk-snap 396 + ritk-io 304 + ritk-dicom 8)
 - [x] **Examples build check**: ritk-io and ritk-registration example targets compile successfully
 - [x] **Phase 2 Step 3**: End-to-end DICOM-SEG file workflow validation (LabelMap → SEG file → LabelMap identity)
 - [x] **Interoperability metadata**: DICOM-SEG writer emits Shared FG spatial fields (orientation, pixel spacing, slice thickness)
@@ -25,6 +25,8 @@
 - [x] **Real-data validation**: added public dcmqi liver SEG fixture and value-semantic external-file regression test
 - [x] **Example correction**: `dump_dicom` now handles SEG files through the SEG reader path
 - [x] **Viewer-boundary validation**: `ritk-snap` loads the external dcmqi liver SEG into a shape-compatible app state through a non-dialog helper
+- [x] **Corpus expansion**: added public highdicom overlap SEG fixture and value-semantic external-file regression test
+- [x] **Viewer overlap validation**: `ritk-snap` loads the external highdicom overlap SEG into a shape-compatible app state and preserves both segment labels
 - [x] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary
