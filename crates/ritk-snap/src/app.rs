@@ -3477,6 +3477,34 @@ mod tests {
     }
 
     #[test]
+    fn load_external_rsna_dido_liver_dicom_seg_into_snap_app() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([34, 512, 512]));
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("rsna_dido")
+            .join("xTtzBC6F6p_rpexuszCnb_01_liver.dcm");
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        app.load_segmentation_dicom_seg_file(&path);
+
+        let editor = app
+            .label_editor
+            .as_ref()
+            .expect("label editor loaded from external rsna dido SEG");
+        let map = editor.current_map();
+        assert_eq!(map.shape, [34, 512, 512]);
+        assert!(map.present_labels().contains(&1));
+        assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
+        assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("liver"));
+        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+    }
+
+    #[test]
     fn zoom_tool_drag_updates_zoom_from_pointer_delta() {
         let mut app = SnapApp::default();
         app.active_tool = ToolKind::Zoom;

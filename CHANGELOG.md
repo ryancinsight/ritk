@@ -14,6 +14,8 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - `ritk-snap` app-level regression test which loads the external dcmqi liver SEG through the viewer boundary.
 - Real-data DICOM-SEG regressions using the public highdicom `seg_image_ct_binary_overlap.dcm` sample fixture at both the `ritk-io` and `ritk-snap` boundaries.
 - External fixture under `test_data/dicom_seg/highdicom/seg_image_ct_binary_overlap.dcm` for non-dcmqi overlap SEG validation.
+- Real-data DICOM-SEG regressions using the public RSNA DIDO `xTtzBC6F6p_rpexuszCnb_01_liver.dcm` sample fixture at both the `ritk-io` and `ritk-snap` boundaries.
+- External fixture under `test_data/dicom_seg/rsna_dido/xTtzBC6F6p_rpexuszCnb_01_liver.dcm` for additional third-party SEG validation.
 
 ### Changed
 - `dicom_seg_to_label_map` now reconstructs z-indices from sorted physical frame positions (orientation-aware projection) when per-frame positions are present, removing dependence on incoming frame order.

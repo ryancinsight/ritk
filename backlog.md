@@ -26,12 +26,13 @@
 - ✓ `dump_dicom` SEG-aware inspection path via `read_dicom_seg`
 - ✓ `ritk-snap` external SEG import regression through file-based app helper
 - ✓ Additional third-party overlap SEG fixture from highdicom with `ritk-io` and `ritk-snap` regressions
+- ✓ Additional third-party RSNA DIDO liver SEG fixture with `ritk-io` and `ritk-snap` regressions
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
 |---|---|---|
-| Broader third-party corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi and highdicom | High |
-| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` app boundary beyond dcmqi and highdicom | High |
+| Broader third-party corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi, highdicom, and RSNA DIDO | High |
+| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` app boundary beyond dcmqi, highdicom, and RSNA DIDO | High |
 
 ### Verification
 | Check | Result |
