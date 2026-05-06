@@ -1,6 +1,7 @@
 pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
+pub mod surface;
 pub mod discrete_gaussian;
 pub mod distance;
 pub mod downsample;
@@ -72,3 +73,4 @@ pub use intensity::{ShiftScaleImageFilter, ZeroCrossingImageFilter};
 pub use smoothing::MeanImageFilter;
 pub use transform::{ConstantPadImageFilter, FlipImageFilter, MirrorPadImageFilter, PermuteAxesImageFilter, PasteImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter};
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};
+pub use surface::{MarchingCubesFilter, Mesh};

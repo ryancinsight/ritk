@@ -8,6 +8,13 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Marching Cubes isosurface extraction (`ritk_core::filter::surface::MarchingCubesFilter`) — full Lorensen & Cline 1987 algorithm with Bourke public-domain EDGE_TABLE[256] and TRI_TABLE[256][16]. Extracts triangle-soup meshes from binary label volumes (isovalue 0.5) with configurable physical spacing and origin.
+- `ritk_core::filter::surface::Mesh` geometry type — unwelded triangle soup with physical mm vertices `[x,y,z]` and `u32` triangle indices; `validate()` checks index-bound invariant; re-exported as `ritk_core::filter::{MarchingCubesFilter, Mesh}`.
+- VTK legacy POLYDATA writer (`ritk_io::write_mesh_as_vtk`, `ritk_io::mesh_to_vtk_string`) — writes ASCII DATASET POLYDATA header, POINTS, and POLYGONS sections compatible with Paraview, ITK-SNAP, and VTK readers.
+- `ritk-snap` File menu action "Export label surface as VTK…" — converts active label map (all foreground labels) to a binary float volume, runs `MarchingCubesFilter` with loaded volume spacing and origin, and saves the resulting mesh to a VTK file.
+- 3 value-semantic tests for `Mesh` type, 10 value-semantic tests for `MarchingCubesFilter`, 3 tests for VTK mesh writer, 3 tests for snap surface export boundary.
+
+### Changed
 - DICOM-SEG interoperability regression test for shuffled per-frame physical positions to verify deterministic slice reconstruction order.
 - Real-data DICOM-SEG regression test using the public dcmqi `liver.dcm` sample fixture.
 - External fixture under `test_data/dicom_seg/dcmqi/liver.dcm` for third-party SEG validation.
@@ -17,12 +24,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Real-data DICOM-SEG regressions using the public RSNA DIDO `xTtzBC6F6p_rpexuszCnb_01_liver.dcm` sample fixture at both the `ritk-io` and `ritk-snap` boundaries.
 - External fixture under `test_data/dicom_seg/rsna_dido/xTtzBC6F6p_rpexuszCnb_01_liver.dcm` for additional third-party SEG validation.
 
-### Changed
-- `dicom_seg_to_label_map` now reconstructs z-indices from sorted physical frame positions (orientation-aware projection) when per-frame positions are present, removing dependence on incoming frame order.
-- Position-derived depth inference now uses deterministic tolerance-based grouping with linearithmic ordering, improving external SEG compatibility for third-party emitters.
-- `dump_dicom` now detects SEG modality and uses `read_dicom_seg` instead of generic pixel decoding, so valid DICOM-SEG files no longer fail in the example path.
-- `ritk-snap` SEG import path now exposes a file-based helper beneath the dialog action, enabling deterministic external-file app regression coverage.
-- `dicom_seg_to_label_map` frame-position depth derivation now avoids redundant temporary `positions` and `scalars` vectors and preallocates sorting/binning buffers, reducing peak transient memory and allocation churn on large SEG inputs.
+
 
 ## [0.34.0] - 2026 - Sprint 152
 

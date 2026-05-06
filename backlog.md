@@ -1,7 +1,24 @@
-## Sprint 153 — In Progress
-**Status**: In Progress (Phase 2 Interoperability Hardening)
-**Phase**: Phase 2 Execution
-**Version**: 0.35.0 [minor]
+## Sprint 154 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.36.0 [minor]
+**Goal**: Marching Cubes 3D surface extraction (ITK/VTK parity) + VTK POLYDATA mesh writer + ritk-snap surface export.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-153-04 | 3D surface rendering / marching cubes — ITK `BinaryMask3DMeshSource` / VTK `vtkMarchingCubes` parity | **Closed** |
+
+### Delivered
+- ✓ `ritk_core::filter::surface::MarchingCubesFilter` — Lorensen & Cline 1987; EDGE_TABLE[256] + TRI_TABLE[256][16]; isovalue, spacing, origin configurable; 10 tests
+- ✓ `ritk_core::filter::surface::Mesh` — triangle-soup geometry type; validate(); 3 tests
+- ✓ `ritk_io::write_mesh_as_vtk` + `mesh_to_vtk_string` — VTK POLYDATA ASCII; 3 tests
+- ✓ ritk-snap "Export label surface as VTK…" File menu action + `export_surface_dialog()`; 3 tests
+- ✓ Total: 1787 tests (1071 + 308 + 400 + 8)
+
+## Sprint 153 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Interoperability Hardening
 **Goal**: DICOM-SEG external interoperability hardening. Ensure reconstruction is robust to third-party frame ordering while preserving existing viewer behavior.
 
 ### Gaps closed (Phase 2 Step 1-2)

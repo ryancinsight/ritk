@@ -1,5 +1,25 @@
-## Sprint 153 — In Progress / Phase 3 Closure
-**Status**: In Progress
+## Sprint 154 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.36.0 [minor]
+**Goal**: Marching Cubes 3D surface extraction and VTK POLYDATA mesh writer — ITK `BinaryMask3DMeshSource` / VTK `vtkMarchingCubes` parity. Export label map surface from ritk-snap viewer.
+
+### Checklist items
+- [x] `ritk_core::filter::surface::Mesh` geometry type — unwelded triangle soup; `validate()`, `n_triangles()`, `n_vertices()`; 3 value-semantic tests
+- [x] `ritk_core::filter::surface::MarchingCubesFilter` — full Lorensen & Cline 1987 algorithm; EDGE_TABLE[256] + TRI_TABLE[256][16]; 10 value-semantic tests
+- [x] `crates/ritk-core/src/filter/surface/mod.rs` — surface module re-exports
+- [x] `crates/ritk-core/src/filter/mod.rs` — `pub mod surface; pub use surface::{MarchingCubesFilter, Mesh};`
+- [x] `ritk_io::write_mesh_as_vtk` + `mesh_to_vtk_string` — VTK legacy POLYDATA ASCII writer; 3 tests
+- [x] `crates/ritk-io/src/format/vtk/mod.rs` — mesh_writer module wired
+- [x] `crates/ritk-io/src/lib.rs` — public API exports for write_mesh_as_vtk, mesh_to_vtk_string
+- [x] `ritk-snap` File menu "Export label surface as VTK…" → `export_surface_dialog()`
+- [x] `export_surface_dialog`: foreground binary conversion → MarchingCubesFilter → rfd dialog → write_mesh_as_vtk
+- [x] 3 value-semantic tests for surface export in ritk-snap
+- [x] Full test suite: 1787 tests passing (ritk-core 1071 + ritk-snap 400 + ritk-io 308 + ritk-dicom 8)
+- [x] Artifacts synced: gap_audit.md, backlog.md, CHANGELOG.md, checklist.md
+
+## Sprint 153 — Complete
+**Status**: Complete
 **Phase**: Phase 3 Closure
 **Version**: 0.35.0 [minor]
 **Goal**: DICOM-SEG external interoperability hardening. Ensure robust reconstruction for third-party SEG frame ordering while preserving full ritk-snap viewer workflow stability.

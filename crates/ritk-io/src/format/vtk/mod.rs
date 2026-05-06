@@ -16,6 +16,9 @@ pub use ritk_vtk::{
     read_vtk_unstructured_grid, write_vtk_unstructured_grid,
 };
 
+pub mod mesh_writer;
+pub use mesh_writer::{write_mesh_as_vtk, mesh_to_vtk_string};
+
 use crate::domain::{ImageReader, ImageWriter};
 use burn::tensor::backend::Backend;
 use ritk_core::image::Image;

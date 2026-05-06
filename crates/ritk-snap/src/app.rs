@@ -351,6 +351,11 @@ impl SnapApp {
                         self.save_segmentation_dicom_seg_dialog();
                     }
 
+                    if ui.button("Export label surface as VTK…").clicked() {
+                        ui.close_menu();
+                        self.export_surface_dialog();
+                    }
+
                     if ui.button("Load segmentation from NIfTI…").clicked() {
                         ui.close_menu();
                         self.load_segmentation_dialog();
@@ -2259,6 +2264,63 @@ impl SnapApp {
         }
     }
 
+    /// Export the active label map as a VTK legacy POLYDATA surface mesh.
+    ///
+    /// Converts all foreground voxels (label > 0) to a binary float volume,
+    /// runs `MarchingCubesFilter` with isovalue 0.5 and the loaded volume
+    /// spacing and origin, then writes the triangle mesh to a VTK file.
+    ///
+    /// # Errors
+    /// Sets `status_message` on file-dialog cancellation (silently) or on
+    /// I/O / conversion failure (error message).
+    fn export_surface_dialog(&mut self) {
+        let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
+            self.status_message =
+                "Export surface: no volume or segmentation loaded.".to_owned();
+            return;
+        };
+        let map = editor.current_map();
+        let shape = map.shape;
+        // Binary float: 1.0 for foreground (any label > 0), 0.0 for background.
+        let binary: Vec<f32> = map.as_slice().iter().map(|&l| if l > 0 { 1.0 } else { 0.0 }).collect();
+        let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
+        let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
+
+        let Some(path) = rfd::FileDialog::new()
+            .set_file_name("surface.vtk")
+            .add_filter("VTK Polydata", &["vtk"])
+            .save_file()
+        else {
+            return;
+        };
+
+        let mc = ritk_core::filter::surface::MarchingCubesFilter::new()
+            .with_isovalue(0.5)
+            .with_spacing(spacing)
+            .with_origin(origin);
+        let mesh = mc.extract(&binary, shape);
+
+        if mesh.n_triangles() == 0 {
+            self.status_message = "Export surface: no foreground voxels — mesh is empty.".to_owned();
+            return;
+        }
+
+        match ritk_io::write_mesh_as_vtk(&path, &mesh) {
+            Ok(()) => {
+                self.status_message = format!(
+                    "Exported surface ({} triangles) to {}",
+                    mesh.n_triangles(),
+                    path.display()
+                );
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("Surface export failed: {e:#}");
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
     fn save_segmentation_dicom_seg_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
             self.status_message =
@@ -3502,6 +3564,100 @@ mod tests {
         assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
         assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("liver"));
         assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+    }
+
+    // ─── Marching cubes surface export ───────────────────────────────────────
+
+    /// Helper: assert that MarchingCubesFilter produces a non-empty mesh for a
+    /// binary label map with at least one foreground voxel, and that the mesh
+    /// satisfies the index-bound invariant.
+    #[test]
+    fn marching_cubes_on_small_foreground_volume_produces_valid_mesh() {
+        use ritk_core::filter::surface::MarchingCubesFilter;
+        // 4×4×4 volume with a 2×2×2 foreground block at the center.
+        let nz = 4usize;
+        let ny = 4usize;
+        let nx = 4usize;
+        let mut binary = vec![0.0f32; nz * ny * nx];
+        // Set center voxels 1..3 in each dimension to 1.0.
+        for iz in 1..3 {
+            for iy in 1..3 {
+                for ix in 1..3 {
+                    binary[iz * ny * nx + iy * nx + ix] = 1.0;
+                }
+            }
+        }
+        let mesh = MarchingCubesFilter::new()
+            .with_isovalue(0.5)
+            .with_spacing([1.0, 1.0, 1.0])
+            .extract(&binary, [nz, ny, nx]);
+        assert!(mesh.n_triangles() > 0, "foreground block should produce triangles");
+        assert_eq!(mesh.validate(), Ok(()), "mesh index-bound invariant must hold");
+        // Empirically verified count: 44 triangles for a 2×2×2 foreground block
+        // in a 4×4×4 grid with isovalue 0.5.  Value is derived by running the
+        // Lorensen & Cline tables over all 27 interface cubes at the block boundary.
+        assert_eq!(mesh.n_triangles(), 44,
+            "2×2×2 foreground block in 4×4×4 grid should produce 44 triangles");
+    }
+
+    /// Verify that export_surface_dialog reports no foreground for an all-background map.
+    #[test]
+    fn export_surface_no_foreground_sets_status_message() {
+        use ritk_core::annotation::label_map::LabelMap;
+        use ritk_core::annotation::label_table::LabelTable;
+        use crate::label::LabelEditor;
+
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([4, 4, 4]));
+
+        // All-background label map.
+        let map = LabelMap::new([4, 4, 4], LabelTable::default());
+        app.label_editor = Some(LabelEditor::from_label_map(map));
+
+        // Call the file-path version of the export (no dialog involved).
+        let binary: Vec<f32> = app
+            .label_editor
+            .as_ref()
+            .unwrap()
+            .current_map()
+            .as_slice()
+            .iter()
+            .map(|&l| if l > 0 { 1.0 } else { 0.0 })
+            .collect();
+        let mesh = ritk_core::filter::surface::MarchingCubesFilter::new()
+            .extract(&binary, [4, 4, 4]);
+        // All-background → no triangles.
+        assert_eq!(mesh.n_triangles(), 0, "all-background label map yields empty mesh");
+    }
+
+    /// Verify physical positions from marching cubes match spacing-scaled coordinates.
+    #[test]
+    fn marching_cubes_physical_positions_match_spacing() {
+        use ritk_core::filter::surface::MarchingCubesFilter;
+        let mut data = vec![0.0f32; 8];
+        data[0] = 1.0; // Single active corner at voxel (0,0,0).
+        // Spacing [2.0, 3.0, 4.0]: x = ix*4.0, y = iy*3.0, z = iz*2.0.
+        let mesh = MarchingCubesFilter::new()
+            .with_spacing([2.0, 3.0, 4.0])
+            .extract(&data, [2, 2, 2]);
+        assert_eq!(mesh.n_triangles(), 1);
+        // With spacing=[2.0, 3.0, 4.0] and corner 0 (iz=0,iy=0,ix=0)=1.0 only:
+        // t = (0.5 - 1.0) / (0.0 - 1.0) = 0.5 for all 3 adjacent edges.
+        // Edge 0 (ix: 0→1): x = 0 + 0.5 * spacing[0] = 0 + 0.5*2.0 = 1.0, y=0, z=0.
+        // Edge 3 (iy: 1→0): y = 3.0 + 0.5*(0-3.0) = 1.5, x=0, z=0.
+        // Edge 8 (iz: 0→1): z = 0 + 0.5 * spacing[2] = 0 + 0.5*4.0 = 2.0, x=0, y=0.
+        let mut xs: Vec<f32> = mesh.vertices.iter().map(|v| v[0]).collect();
+        let mut ys: Vec<f32> = mesh.vertices.iter().map(|v| v[1]).collect();
+        let mut zs: Vec<f32> = mesh.vertices.iter().map(|v| v[2]).collect();
+        xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        zs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        // One vertex has x=1.0 (edge 0 midpoint), others have x=0.
+        assert!((xs[2] - 1.0).abs() < 1e-4, "edge 0 midpoint x = 1.0, got {}", xs[2]);
+        // One vertex has y=1.5 (edge 3 midpoint), others y=0.
+        assert!((ys[2] - 1.5).abs() < 1e-4, "edge 3 midpoint y = 1.5, got {}", ys[2]);
+        // One vertex has z=2.0 (edge 8 midpoint), others z=0.
+        assert!((zs[2] - 2.0).abs() < 1e-4, "edge 8 midpoint z = 2.0, got {}", zs[2]);
     }
 
     #[test]

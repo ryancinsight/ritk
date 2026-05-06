@@ -39,3 +39,4 @@ pub use format::vtk::{read_vtk, write_vtk, VtkReader, VtkWriter};
 pub use format::vtk::{
     read_vtk_polydata, read_vtp_polydata, write_vtk_polydata, write_vtp_polydata,
 };
+pub use format::vtk::{write_mesh_as_vtk, mesh_to_vtk_string};
