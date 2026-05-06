@@ -955,7 +955,11 @@ pub fn label_map_to_dicom_seg(
 /// Let `S` be a segmentation with frame geometry `(rows, cols)`, `n_frames`,
 /// `segments`, and per-frame segment references `frame_segment_numbers`.
 /// This conversion reconstructs a dense tensor `L[z, y, x]` with shape
-/// `[nz, rows, cols]`, where `nz = n_frames / n_segments` and `n_segments = segments.len()`.
+/// `[nz, rows, cols]`.
+///
+/// Depth `nz` is inferred as:
+/// - count of unique per-frame physical slice positions when all frame positions are present;
+/// - otherwise maximal frame count across segments (sparse fallback).
 ///
 /// For each frame `f`, segment `s = frame_segment_numbers[f]` and in-segment
 /// slice index `z_s`, each foreground pixel (`pixel_data[f][i] != 0`) writes
@@ -967,8 +971,7 @@ pub fn label_map_to_dicom_seg(
 /// - `rows > 0`, `cols > 0`, `n_frames > 0`, `segments` non-empty.
 /// - `frame_segment_numbers.len() == n_frames`.
 /// - `pixel_data.len() == n_frames` and each frame length is `rows * cols`.
-/// - `n_frames % segments.len() == 0`.
-/// - Every declared segment receives exactly `nz` frames.
+/// - Every frame must reference a defined segment.
 pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::annotation::LabelMap> {
     if seg.rows == 0 || seg.cols == 0 {
         bail!("DICOM-SEG has invalid frame geometry: rows={}, cols={}", seg.rows, seg.cols);
@@ -1025,6 +1028,27 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
 
     let mut seen_per_segment = vec![0usize; seg.segments.len()];
 
+    // Position grouping tolerance in patient-space projection units (typically mm).
+    const POSITION_EPS: f64 = 1e-4;
+
+    let dot3 = |a: [f64; 3], b: [f64; 3]| -> f64 { a[0] * b[0] + a[1] * b[1] + a[2] * b[2] };
+    let cross3 = |a: [f64; 3], b: [f64; 3]| -> [f64; 3] {
+        [
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ]
+    };
+    let normalize3 = |v: [f64; 3]| -> Option<[f64; 3]> {
+        let n2 = dot3(v, v);
+        if n2 <= 0.0 {
+            None
+        } else {
+            let inv = n2.sqrt().recip();
+            Some([v[0] * inv, v[1] * inv, v[2] * inv])
+        }
+    };
+
     // Determine Z-depth for reconstruction.
     // Preferred path: derive slice indices from per-frame image positions when available.
     // Fallback: derive depth from max frame count among segments (sparse frame stacks).
@@ -1038,29 +1062,65 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     let nz: usize;
 
     if all_positions_present {
-        let mut unique_positions: Vec<[f64; 3]> = Vec::new();
-        for (frame_idx, p) in seg.image_position_per_frame.iter().enumerate() {
-            let pos = p.expect("checked Some above");
-            let mut found = None;
-            for (zi, up) in unique_positions.iter().enumerate() {
-                let dx = (pos[0] - up[0]).abs();
-                let dy = (pos[1] - up[1]).abs();
-                let dz = (pos[2] - up[2]).abs();
-                if dx <= 1e-6 && dy <= 1e-6 && dz <= 1e-6 {
-                    found = Some(zi);
-                    break;
-                }
+        let positions: Vec<[f64; 3]> = seg
+            .image_position_per_frame
+            .iter()
+            .map(|p| p.expect("checked Some above"))
+            .collect();
+
+        // Use slice-normal projection when orientation is available.
+        // Fallback chooses the patient axis with the largest position span.
+        let projection_axis = seg.image_orientation.and_then(|iop| {
+            let row = [iop[0], iop[1], iop[2]];
+            let col = [iop[3], iop[4], iop[5]];
+            normalize3(cross3(row, col))
+        });
+
+        let scalars: Vec<f64> = if let Some(nhat) = projection_axis {
+            positions.iter().map(|&p| dot3(p, nhat)).collect()
+        } else {
+            let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
+            let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
+            let (mut min_z, mut max_z) = (f64::INFINITY, f64::NEG_INFINITY);
+            for p in &positions {
+                min_x = min_x.min(p[0]);
+                max_x = max_x.max(p[0]);
+                min_y = min_y.min(p[1]);
+                max_y = max_y.max(p[1]);
+                min_z = min_z.min(p[2]);
+                max_z = max_z.max(p[2]);
             }
-            let z = match found {
-                Some(zi) => zi,
-                None => {
-                    unique_positions.push(pos);
-                    unique_positions.len() - 1
-                }
+            let span_x = max_x - min_x;
+            let span_y = max_y - min_y;
+            let span_z = max_z - min_z;
+            let axis = if span_x >= span_y && span_x >= span_z {
+                0usize
+            } else if span_y >= span_z {
+                1usize
+            } else {
+                2usize
             };
-            frame_to_z[frame_idx] = z;
+            positions.iter().map(|p| p[axis]).collect()
+        };
+
+        let mut ordered: Vec<(usize, f64)> = scalars.iter().copied().enumerate().collect();
+        ordered.sort_by(|a, b| a.1.total_cmp(&b.1));
+
+        let mut z_bins: Vec<f64> = Vec::new();
+        for (frame_idx, scalar) in ordered {
+            if z_bins
+                .last()
+                .map(|last| (scalar - *last).abs() > POSITION_EPS)
+                .unwrap_or(true)
+            {
+                z_bins.push(scalar);
+            }
+            frame_to_z[frame_idx] = z_bins.len() - 1;
         }
-        nz = unique_positions.len();
+        nz = z_bins.len();
+        if nz == 0 {
+            bail!("unable to derive non-zero depth from frame positions");
+        }
     } else {
         // Sparse fallback: estimate depth as the maximal per-segment frame count.
         let mut frames_per_segment = vec![0usize; seg.segments.len()];
@@ -1990,6 +2050,43 @@ mod tests {
         let present = result.present_labels();
         assert!(present.contains(&1), "label 1 must be reconstructed");
         assert!(present.contains(&2), "label 2 must be reconstructed");
+    }
+
+    #[test]
+    fn test_dicom_seg_to_label_map_sorts_frames_by_physical_position() {
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 2,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "A".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1, 1],
+            // Frame 0 marks pixel (0,0), frame 1 marks pixel (1,1).
+            pixel_data: vec![vec![1, 0, 0, 0], vec![0, 0, 0, 1]],
+            // Intentionally out-of-order in z: first frame is z=5, second frame is z=0.
+            image_position_per_frame: vec![Some([0.0, 0.0, 5.0]), Some([0.0, 0.0, 0.0])],
+            image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        let rebuilt =
+            dicom_seg_to_label_map(&seg).expect("position-sorted frame reconstruction must succeed");
+        assert_eq!(rebuilt.shape, [2, 2, 2]);
+
+        // z=0 slice must come from second frame: pixel (1,1) = label 1.
+        assert_eq!(rebuilt.label_at([0, 1, 1]), 1);
+        assert_eq!(rebuilt.label_at([0, 0, 0]), 0);
+
+        // z=1 slice must come from first frame: pixel (0,0) = label 1.
+        assert_eq!(rebuilt.label_at([1, 0, 0]), 1);
+        assert_eq!(rebuilt.label_at([1, 1, 1]), 0);
     }
 
     #[test]

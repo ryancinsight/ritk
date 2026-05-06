@@ -1,8 +1,8 @@
-## Sprint 152 — In Progress
-**Status**: In Progress (Phase 2 Step 2 Complete)
+## Sprint 153 — In Progress
+**Status**: In Progress (Phase 2 Interoperability Hardening)
 **Phase**: Phase 2 Execution
-**Version**: 0.34.0 [minor]
-**Goal**: DICOM-SEG reader/writer implementation for segmentation persistence. Enable: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. LabelMap↔DicomSegmentation converter with spatial metadata preservation.
+**Version**: 0.35.0 [minor]
+**Goal**: DICOM-SEG external interoperability hardening. Ensure reconstruction is robust to third-party frame ordering while preserving existing viewer behavior.
 
 ### Gaps closed (Phase 2 Step 1-2)
 | Gap ID | Description | Status |
@@ -21,6 +21,7 @@
 - ✓ `write_dicom_seg` shared FG spatial metadata serialization (5200,9229 + 0020,9116 + 0028,9110)
 - ✓ Writer invariant check for `frame_segment_numbers.len() == n_frames`
 - ✓ `dicom_seg_to_label_map` sparse/non-uniform frame support (no `n_frames % n_segments` constraint)
+- ✓ `dicom_seg_to_label_map` deterministic physical z-order reconstruction from sorted frame positions (orientation-aware)
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
@@ -32,12 +33,12 @@
 | Check | Result |
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 1055 tests |
-| `cargo test -p ritk-io --lib` | Passed: 301 tests (+13 DICOM-SEG converter/E2E tests total) |
+| `cargo test -p ritk-io --lib` | Passed: 302 tests (+14 DICOM-SEG converter/E2E/interoperability tests total) |
 | `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
 | `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
 | `cargo test -p ritk-io --examples --no-run` | Passed (2 example binaries build) |
 | `cargo test -p ritk-registration --examples --no-run` | Passed (6 example binaries build) |
-| **Total** | **1758 tests** |
+| **Total** | **1759 tests** |
 
 ### Next priorities [Sprint 153]
 | Gap | Description | Change class |

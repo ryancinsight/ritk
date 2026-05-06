@@ -7,6 +7,13 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+### Added
+- DICOM-SEG interoperability regression test for shuffled per-frame physical positions to verify deterministic slice reconstruction order.
+
+### Changed
+- `dicom_seg_to_label_map` now reconstructs z-indices from sorted physical frame positions (orientation-aware projection) when per-frame positions are present, removing dependence on incoming frame order.
+- Position-derived depth inference now uses deterministic tolerance-based grouping with linearithmic ordering, improving external SEG compatibility for third-party emitters.
+
 ## [0.34.0] - 2026 - Sprint 152
 
 ### Summary
