@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.2] - Sprint 157 — RT Plan viewer workflow
+
+### Added
+- `ritk-snap` RT Plan viewer integration: `rt_plan: Option<ritk_io::RtPlanInfo>` field on `SnapApp`; File menu action "Open RT Plan file…"; `load_rt_plan_file()` method that calls `ritk_io::read_rt_plan` and updates status bar.
+- Left-panel RT-PLAN summary section in `ritk-snap` showing plan label, plan intent, beam count, fraction group count, and total planned fractions.
+- Lifecycle resets for `rt_plan` in `load_from_path`, `load_nifti_file`, and `close_study()` to keep state coherent when a new study is opened or the viewer is reset.
+- 1 value-semantic test (`load_rt_plan_file_sets_plan_summary_state`) exercising the full round-trip via `write_rt_plan` / `load_rt_plan_file`.
+
+### Verification
+- `cargo test -p ritk-snap --lib`: 401 passed
+- `cargo test -p ritk-io --lib`: 308 passed
+
+<!-- ──────────────────────────────────────────── -->
+## [Unreleased]
+
 ### Added
 - Marching Cubes isosurface extraction (`ritk_core::filter::surface::MarchingCubesFilter`) — full Lorensen & Cline 1987 algorithm with Bourke public-domain EDGE_TABLE[256] and TRI_TABLE[256][16]. Extracts triangle-soup meshes from binary label volumes (isovalue 0.5) with configurable physical spacing and origin.
 - `ritk_core::filter::surface::Mesh` geometry type — unwelded triangle soup with physical mm vertices `[x,y,z]` and `u32` triangle indices; `validate()` checks index-bound invariant; re-exported as `ritk_core::filter::{MarchingCubesFilter, Mesh}`.

@@ -1,3 +1,29 @@
+## Sprint 157 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.2 [patch]
+**Goal**: Close the RT Plan viewer workflow gap — add RT Plan file loading and summary display to `ritk-snap`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-157-01 | RT Plan viewer workflow — `ritk-snap` had no RT Plan loading/display despite complete `ritk-io` backend | **Closed** |
+
+### Delivered
+- ✓ `rt_plan: Option<ritk_io::RtPlanInfo>` field on `SnapApp`
+- ✓ File menu "Open RT Plan file…" action
+- ✓ `load_rt_plan_file()` method with status-bar feedback
+- ✓ Left-panel RT-PLAN summary (label, intent, beam count, fractions)
+- ✓ Lifecycle resets in load_from_path / load_nifti_file / close_study
+- ✓ 1 value-semantic test; 401 ritk-snap tests passing, 308 ritk-io tests passing
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Broader third-party SEG corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi/highdicom/RSNA DIDO | High |
+| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` boundary | High |
+| RT Dose/Plan workflows (residual) | Deeper therapy workflows: DVH calculation, dose-volume histogram display, plan structure linkage | Medium |
+
 ## Sprint 156 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

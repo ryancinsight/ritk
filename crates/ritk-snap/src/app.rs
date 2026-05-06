@@ -86,6 +86,8 @@ pub struct SnapApp {
     rt_struct: Option<ritk_io::RtStructureSet>,
     /// Currently loaded RT Dose grid.
     rt_dose: Option<ritk_io::RtDoseGrid>,
+    /// Currently loaded RT Plan metadata.
+    rt_plan: Option<ritk_io::RtPlanInfo>,
     /// Whether to render the RT-DOSE heat-map overlay on viewports.
     show_rt_dose_overlay: bool,
     /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
@@ -180,6 +182,7 @@ impl Default for SnapApp {
             show_rt_struct_overlay: true,
             rt_struct: None,
             rt_dose: None,
+            rt_plan: None,
             show_rt_dose_overlay: false,
             rt_dose_opacity: 0.5,
             rt_dose_overlay_cache: std::array::from_fn(|_| None),
@@ -328,6 +331,16 @@ impl SnapApp {
                             .pick_file()
                         {
                             self.load_rt_dose_file(path);
+                        }
+                    }
+
+                    if ui.button("Open RT Plan file…").clicked() {
+                        ui.close_menu();
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("DICOM", &["dcm"])
+                            .pick_file()
+                        {
+                            self.load_rt_plan_file(path);
                         }
                     }
 
@@ -1053,6 +1066,24 @@ impl SnapApp {
                     });
                 }
 
+                if let Some(plan) = &self.rt_plan {
+                    ui.separator();
+                    ui.heading("RT-PLAN");
+                    ui.separator();
+                    let total_fractions: u32 = plan
+                        .fraction_groups
+                        .iter()
+                        .map(|fg| fg.n_fractions_planned)
+                        .sum();
+                    ui.label(format!("Label: {}", plan.rt_plan_label));
+                    if !plan.plan_intent.is_empty() {
+                        ui.label(format!("Intent: {}", plan.plan_intent));
+                    }
+                    ui.label(format!("Beams: {}", plan.beams.len()));
+                    ui.label(format!("Fraction groups: {}", plan.fraction_groups.len()));
+                    ui.label(format!("Total planned fractions: {}", total_fractions));
+                }
+
                 // ── Annotations ───────────────────────────────────────────────
                 ui.separator();
                 ui.heading("Annotations");
@@ -1658,6 +1689,29 @@ impl SnapApp {
             Err(e) => {
                 self.status_message =
                     format!("RT-DOSE load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    fn load_rt_plan_file(&mut self, path: std::path::PathBuf) {
+        match ritk_io::read_rt_plan(&path) {
+            Ok(plan) => {
+                let beam_count = plan.beams.len();
+                let fg_count = plan.fraction_groups.len();
+                let label = plan.rt_plan_label.clone();
+                self.rt_plan = Some(plan);
+                self.status_message = format!(
+                    "Loaded RT-PLAN {} ({} beams, {} fraction groups) from {}",
+                    label,
+                    beam_count,
+                    fg_count,
+                    path.display()
+                );
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!("RT-PLAN load failed for {}: {e:#}", path.display());
                 error!("{}", self.status_message);
             }
         }
@@ -2597,6 +2651,7 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.rt_dose = None;
+                self.rt_plan = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
@@ -2673,6 +2728,7 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.rt_dose = None;
+                self.rt_plan = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
@@ -2701,6 +2757,7 @@ impl SnapApp {
         self.label_editor = None;
         self.rt_struct = None;
         self.rt_dose = None;
+        self.rt_plan = None;
         self.clear_rt_dose_overlay_cache();
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
@@ -3564,6 +3621,46 @@ mod tests {
         assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
         assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("liver"));
         assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+    }
+
+    #[test]
+    fn load_rt_plan_file_sets_plan_summary_state() {
+        let mut app = SnapApp::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("plan.dcm");
+
+        let plan = ritk_io::RtPlanInfo {
+            rt_plan_label: "PLAN_A".to_owned(),
+            rt_plan_name: "Plan A".to_owned(),
+            rt_plan_description: "Synthetic plan".to_owned(),
+            plan_intent: "CURATIVE".to_owned(),
+            beams: vec![ritk_io::RtBeamInfo {
+                beam_number: 1,
+                beam_name: "BEAM_1".to_owned(),
+                beam_description: "Beam one".to_owned(),
+                radiation_type: "PHOTON".to_owned(),
+                treatment_delivery_type: "TREATMENT".to_owned(),
+                n_control_points: 2,
+            }],
+            fraction_groups: vec![ritk_io::RtFractionGroup {
+                fraction_group_number: 1,
+                n_fractions_planned: 30,
+                referenced_beam_numbers: vec![1],
+            }],
+        };
+        ritk_io::write_rt_plan(&path, &plan).expect("write rt plan");
+
+        app.load_rt_plan_file(path.clone());
+
+        let loaded = app.rt_plan.as_ref().expect("rt plan loaded");
+        assert_eq!(loaded.rt_plan_label, "PLAN_A");
+        assert_eq!(loaded.beams.len(), 1);
+        assert_eq!(loaded.fraction_groups.len(), 1);
+        assert!(
+            app.status_message.contains("Loaded RT-PLAN PLAN_A"),
+            "status: {}",
+            app.status_message
+        );
     }
 
     // ─── Marching cubes surface export ───────────────────────────────────────

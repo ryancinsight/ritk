@@ -1,3 +1,21 @@
+## Sprint 157 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.2 [patch]
+**Goal**: Add RT Plan loading and summary display to `ritk-snap` viewer (close GAP-157-01).
+
+### Checklist items
+- [x] Add `rt_plan: Option<ritk_io::RtPlanInfo>` field to `SnapApp` struct and `Default::default()`
+- [x] Add File menu "Open RT Plan file…" button calling `load_rt_plan_file(path)`
+- [x] Implement `load_rt_plan_file(&mut self, path: PathBuf)` using `ritk_io::read_rt_plan`
+- [x] Add RT-PLAN left-panel summary section (plan label, intent, beam count, fraction groups, total planned fractions)
+- [x] Add `self.rt_plan = None` resets to `load_from_path`, `load_nifti_file`, `close_study()`
+- [x] Add `load_rt_plan_file_sets_plan_summary_state` value-semantic test
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-snap --lib` (401 passed)
+- [x] `cargo test -p ritk-io --lib` (308 passed)
+- [x] Update CHANGELOG.md, checklist.md, backlog.md
+
 ## Sprint 156 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
