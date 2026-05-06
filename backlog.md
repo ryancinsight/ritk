@@ -24,23 +24,24 @@
 - ✓ `dicom_seg_to_label_map` deterministic physical z-order reconstruction from sorted frame positions (orientation-aware)
 - ✓ External dcmqi liver SEG fixture and real-data interoperability regression test
 - ✓ `dump_dicom` SEG-aware inspection path via `read_dicom_seg`
+- ✓ `ritk-snap` external SEG import regression through file-based app helper
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
 |---|---|---|
-| Viewer-side external import exercise | Validate the same third-party SEG samples through ritk-snap UI workflows | High |
 | Broader third-party corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi | High |
+| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` app boundary | High |
 
 ### Verification
 | Check | Result |
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 1055 tests |
 | `cargo test -p ritk-io --lib` | Passed: 303 tests (+15 DICOM-SEG converter/E2E/interoperability tests total) |
-| `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
+| `cargo test -p ritk-snap --lib` | Passed: 395 tests (no regressions) |
 | `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
 | `cargo test -p ritk-io --examples --no-run` | Passed (2 example binaries build) |
 | `cargo test -p ritk-registration --examples --no-run` | Passed (6 example binaries build) |
-| **Total** | **1760 tests** |
+| **Total** | **1761 tests** |
 
 ### Next priorities [Sprint 153]
 | Gap | Description | Change class |

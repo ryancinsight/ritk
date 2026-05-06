@@ -11,11 +11,13 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - DICOM-SEG interoperability regression test for shuffled per-frame physical positions to verify deterministic slice reconstruction order.
 - Real-data DICOM-SEG regression test using the public dcmqi `liver.dcm` sample fixture.
 - External fixture under `test_data/dicom_seg/dcmqi/liver.dcm` for third-party SEG validation.
+- `ritk-snap` app-level regression test which loads the external dcmqi liver SEG through the viewer boundary.
 
 ### Changed
 - `dicom_seg_to_label_map` now reconstructs z-indices from sorted physical frame positions (orientation-aware projection) when per-frame positions are present, removing dependence on incoming frame order.
 - Position-derived depth inference now uses deterministic tolerance-based grouping with linearithmic ordering, improving external SEG compatibility for third-party emitters.
 - `dump_dicom` now detects SEG modality and uses `read_dicom_seg` instead of generic pixel decoding, so valid DICOM-SEG files no longer fail in the example path.
+- `ritk-snap` SEG import path now exposes a file-based helper beneath the dialog action, enabling deterministic external-file app regression coverage.
 
 ## [0.34.0] - 2026 - Sprint 152
 

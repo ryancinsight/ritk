@@ -2360,7 +2360,7 @@ impl SnapApp {
     /// Load a label map from a DICOM-SEG file and replace the current segmentation.
     ///
     /// The reconstructed shape must match the currently loaded volume.
-    fn load_segmentation_dicom_seg_dialog(&mut self) {
+    fn load_segmentation_dicom_seg_file(&mut self, path: &std::path::Path) {
         let Some(vol) = self.loaded.as_ref() else {
             self.status_message =
                 "Load DICOM-SEG: no volume loaded.".to_owned();
@@ -2368,14 +2368,7 @@ impl SnapApp {
         };
         let expected_shape = vol.shape;
 
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("DICOM SEG", &["dcm", "dicom"])
-            .pick_file()
-        else {
-            return;
-        };
-
-        match ritk_io::read_dicom_seg(&path) {
+        match ritk_io::read_dicom_seg(path) {
             Ok(seg) => match ritk_io::dicom_seg_to_label_map(&seg) {
                 Ok(map) => {
                     if map.shape != expected_shape {
@@ -2392,17 +2385,29 @@ impl SnapApp {
                     info!("{}", self.status_message);
                 }
                 Err(e) => {
-                    self.status_message =
-                        format!("DICOM-SEG decode failed: {e:#}");
+                    self.status_message = format!("DICOM-SEG decode failed: {e:#}");
                     error!("{}", self.status_message);
                 }
             },
             Err(e) => {
-                self.status_message =
-                    format!("DICOM-SEG load failed: {e:#}");
+                self.status_message = format!("DICOM-SEG load failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
+    }
+
+    /// Load a label map from a DICOM-SEG file and replace the current segmentation.
+    ///
+    /// The reconstructed shape must match the currently loaded volume.
+    fn load_segmentation_dicom_seg_dialog(&mut self) {
+        let Some(path) = rfd::FileDialog::new()
+            .add_filter("DICOM SEG", &["dcm", "dicom"])
+            .pick_file()
+        else {
+            return;
+        };
+
+        self.load_segmentation_dicom_seg_file(&path);
     }
 
     // ── Series browser helpers ────────────────────────────────────────────────
@@ -3264,6 +3269,7 @@ fn palette_color(label_id: u32) -> [u8; 4] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn test_volume(shape: [usize; 3]) -> LoadedVolume {
         let voxel_count = shape[0] * shape[1] * shape[2];
@@ -3406,6 +3412,31 @@ mod tests {
         assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
         assert_eq!(app.zoom, 1.0, "zoom must reset");
         assert_eq!(app.status_message, "Study closed.");
+    }
+
+    #[test]
+    fn load_external_dcmqi_dicom_seg_into_snap_app() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 512, 512]));
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("dcmqi")
+            .join("liver.dcm");
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        app.load_segmentation_dicom_seg_file(&path);
+
+        let editor = app.label_editor.as_ref().expect("label editor loaded from external SEG");
+        let map = editor.current_map();
+        assert_eq!(map.shape, [3, 512, 512]);
+        assert!(map.present_labels().contains(&1));
+        assert!(map.count_label(1) > 0, "external SEG must populate label 1 voxels");
+        assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("Liver"));
+        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
     }
 
     #[test]
