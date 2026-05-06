@@ -20,6 +20,7 @@
 - ✓ `write_dicom_seg` per-frame segment identification serialization fix (5200,9230 + 0062,000A/000B)
 - ✓ `write_dicom_seg` shared FG spatial metadata serialization (5200,9229 + 0020,9116 + 0028,9110)
 - ✓ Writer invariant check for `frame_segment_numbers.len() == n_frames`
+- ✓ `dicom_seg_to_label_map` sparse/non-uniform frame support (no `n_frames % n_segments` constraint)
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |

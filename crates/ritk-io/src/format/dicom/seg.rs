@@ -994,20 +994,6 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         );
     }
 
-    let n_segments = seg.segments.len();
-    if seg.n_frames % n_segments != 0 {
-        bail!(
-            "n_frames {} is not divisible by segment count {}",
-            seg.n_frames,
-            n_segments
-        );
-    }
-
-    let nz = seg.n_frames / n_segments;
-    if nz == 0 {
-        bail!("derived nz is zero");
-    }
-
     let n_pixels_per_frame = seg.rows * seg.cols;
     for (idx, frame) in seg.pixel_data.iter().enumerate() {
         if frame.len() != n_pixels_per_frame {
@@ -1039,6 +1025,57 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
 
     let mut seen_per_segment = vec![0usize; seg.segments.len()];
 
+    // Determine Z-depth for reconstruction.
+    // Preferred path: derive slice indices from per-frame image positions when available.
+    // Fallback: derive depth from max frame count among segments (sparse frame stacks).
+    let all_positions_present = seg
+        .image_position_per_frame
+        .len()
+        == seg.n_frames
+        && seg.image_position_per_frame.iter().all(|p| p.is_some());
+
+    let mut frame_to_z: Vec<usize> = vec![0usize; seg.n_frames];
+    let nz: usize;
+
+    if all_positions_present {
+        let mut unique_positions: Vec<[f64; 3]> = Vec::new();
+        for (frame_idx, p) in seg.image_position_per_frame.iter().enumerate() {
+            let pos = p.expect("checked Some above");
+            let mut found = None;
+            for (zi, up) in unique_positions.iter().enumerate() {
+                let dx = (pos[0] - up[0]).abs();
+                let dy = (pos[1] - up[1]).abs();
+                let dz = (pos[2] - up[2]).abs();
+                if dx <= 1e-6 && dy <= 1e-6 && dz <= 1e-6 {
+                    found = Some(zi);
+                    break;
+                }
+            }
+            let z = match found {
+                Some(zi) => zi,
+                None => {
+                    unique_positions.push(pos);
+                    unique_positions.len() - 1
+                }
+            };
+            frame_to_z[frame_idx] = z;
+        }
+        nz = unique_positions.len();
+    } else {
+        // Sparse fallback: estimate depth as the maximal per-segment frame count.
+        let mut frames_per_segment = vec![0usize; seg.segments.len()];
+        for &segment_number in &seg.frame_segment_numbers {
+            let Some(&segment_idx) = segment_to_index.get(&segment_number) else {
+                bail!("frame references undefined segment_number {}", segment_number);
+            };
+            frames_per_segment[segment_idx] += 1;
+        }
+        nz = frames_per_segment.into_iter().max().unwrap_or(0);
+        if nz == 0 {
+            bail!("unable to derive non-zero depth from frame layout");
+        }
+    }
+
     let mut data = vec![0u32; nz * n_pixels_per_frame];
     for frame_idx in 0..seg.n_frames {
         let segment_number = seg.frame_segment_numbers[frame_idx];
@@ -1051,15 +1088,20 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         };
         let label_id = labels_by_index[segment_idx];
 
-        if seen_per_segment[segment_idx] >= nz {
-            bail!(
-                "segment {} has more than {} frames",
-                segment_number,
-                nz
-            );
-        }
-        let z = seen_per_segment[segment_idx];
-        seen_per_segment[segment_idx] += 1;
+        let z = if all_positions_present {
+            frame_to_z[frame_idx]
+        } else {
+            if seen_per_segment[segment_idx] >= nz {
+                bail!(
+                    "segment {} has more than {} inferred slices",
+                    segment_number,
+                    nz
+                );
+            }
+            let z = seen_per_segment[segment_idx];
+            seen_per_segment[segment_idx] += 1;
+            z
+        };
 
         let frame = &seg.pixel_data[frame_idx];
         for (i, &v) in frame.iter().enumerate() {
@@ -1067,18 +1109,6 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
                 let flat = z * n_pixels_per_frame + i;
                 data[flat] = label_id;
             }
-        }
-    }
-
-    for (segment_idx, s) in seg.segments.iter().enumerate() {
-        let count = seen_per_segment[segment_idx];
-        if count != nz {
-            bail!(
-                "segment {} has {} frames, expected {}",
-                s.segment_number,
-                count,
-                nz
-            );
         }
     }
 
@@ -1926,7 +1956,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dicom_seg_to_label_map_error_uneven_frames_per_segment() {
+    fn test_dicom_seg_to_label_map_sparse_uneven_frames_supported() {
         let seg = DicomSegmentation {
             rows: 2,
             cols: 2,
@@ -1955,8 +1985,11 @@ mod tests {
             slice_thickness: None,
         };
 
-        let result = dicom_seg_to_label_map(&seg);
-        assert!(result.is_err(), "non-divisible frame/segment layout must fail");
+        let result = dicom_seg_to_label_map(&seg).expect("sparse uneven frame layout must be supported");
+        assert_eq!(result.shape, [2, 2, 2], "nz inferred from max per-segment frame count");
+        let present = result.present_labels();
+        assert!(present.contains(&1), "label 1 must be reconstructed");
+        assert!(present.contains(&2), "label 2 must be reconstructed");
     }
 
     #[test]

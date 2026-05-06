@@ -1,6 +1,6 @@
-## Sprint 152 — In Progress / Phase 2 Step 2 Complete
+## Sprint 152 — In Progress / Phase 3 Closure
 **Status**: In Progress
-**Phase**: Phase 2 Execution (Step 2 Complete)
+**Phase**: Phase 3 Closure
 **Version**: 0.34.0 [minor]
 **Goal**: DICOM-SEG reader/writer implementation for segmentation persistence. Enable: annotate in ritk-snap → save as DICOM-SEG → load in PACS/ITK-SNAP. LabelMap↔DicomSegmentation converter with spatial metadata preservation.
 
@@ -19,6 +19,7 @@
 - [x] **Examples build check**: ritk-io and ritk-registration example targets compile successfully
 - [x] **Phase 2 Step 3**: End-to-end DICOM-SEG file workflow validation (LabelMap → SEG file → LabelMap identity)
 - [x] **Interoperability metadata**: DICOM-SEG writer emits Shared FG spatial fields (orientation, pixel spacing, slice thickness)
+- [x] **Sparse SEG interoperability**: DICOM-SEG loader supports sparse/non-uniform frame layouts (no divisibility requirement)
 - [ ] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary

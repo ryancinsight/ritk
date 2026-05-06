@@ -23,6 +23,7 @@ DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence 
 - **Writer extension**: `write_dicom_seg` now emits Shared Functional Groups (5200,9229) for Plane Orientation (0020,9116/0020,0037) and Pixel Measures (0028,9110/0028,0030 + 0018,0050)
 - **E2E file validation**: Added identity test covering LabelMap → DicomSegmentation → DICOM-SEG file → DicomSegmentation → LabelMap
 - **Validation hardening**: writer now enforces `frame_segment_numbers.len() == n_frames`
+- **Interoperability extension**: `dicom_seg_to_label_map` now supports sparse/non-uniform frame layouts (including non-divisible frame counts) by deriving depth from per-frame positions when present, with deterministic fallback for missing positions
 
 ### Changed
 - **ritk-io API**: Added `dicom_seg_to_label_map` public export; DICOM-SEG conversion is now bidirectional in one SSOT boundary
@@ -31,6 +32,7 @@ DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence 
 - **Frame layout**: One 2D frame per Z-slice per foreground segment (n_frames = n_foreground_labels × nz)
 - **Pixel encoding**: Binary (bits_allocated=1) or fractional; each pixel: 0 (no match) or 1 (label match)
 - **Spatial metadata**: image_position_per_frame includes Z-offset; image_orientation (6 elements: row xyz, col xyz); pixel_spacing [ny, nx]; slice_thickness [z]
+- **Sparse SEG handling**: reconstruction no longer requires `n_frames % n_segments == 0`; sparse third-party SEG objects are accepted when frame-level metadata is sufficient
 - **Error handling**: Validates non-zero geometry and non-empty foreground labels; returns descriptive Result<DicomSegmentation>
 
 ### Breaking Changes
