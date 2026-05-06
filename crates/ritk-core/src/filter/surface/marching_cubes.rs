@@ -21,13 +21,15 @@
 //! Triangle winding follows the Lorensen convention: outward normals face away from
 //! the interior (above-isovalue) region.
 //!
-//! # Performance
-//! Vertices are emitted as an unwelded triangle soup (each triangle owns its three
-//! vertices). Vertex welding can be applied as a post-process if a shared-vertex mesh
-//! is required. The current implementation is single-threaded O(N) where N is the
-//! number of voxel cubes.
+//! # Output
+//! Triangle vertices are fed into [`gaia::MeshBuilder`] which performs spatial-hash
+//! vertex welding (1e-4 mm tolerance) and returns a deduplicated [`gaia::IndexedMesh`].
+//! Welding converts the raw triangle soup from marching cubes into a shared-vertex
+//! indexed mesh — a prerequisite for watertight checking and CSG operations.
 
-use super::mesh::Mesh;
+use nalgebra::Point3;
+
+use super::mesh::{Mesh, MeshBuilder};
 
 /// Marching Cubes isosurface extractor.
 ///
@@ -98,13 +100,18 @@ impl MarchingCubesFilter {
     /// - `shape`: `[nz, ny, nx]`.
     ///
     /// # Returns
-    /// An unwelded triangle-soup `Mesh` in physical mm coordinates.
-    /// Returns an empty mesh if `shape` contains zero in any dimension,
+    /// A welded, deduplicated [`Mesh`] (`gaia::IndexedMesh<f64>`) in physical mm
+    /// coordinates. Returns an empty mesh if `shape` is degenerate (any dimension < 2)
     /// or if no cube contains a surface crossing.
+    ///
+    /// Triangle vertices from marching cubes are collected as a raw triangle soup,
+    /// then fed through [`MeshBuilder::add_triangle_soup`] which performs
+    /// spatial-hash vertex welding (1e-4 mm tolerance). The resulting indexed mesh
+    /// is a shared-vertex representation suitable for watertight checking and CSG.
     pub fn extract(&self, data: &[f32], shape: [usize; 3]) -> Mesh {
         let [nz, ny, nx] = shape;
         if nz < 2 || ny < 2 || nx < 2 {
-            return Mesh::new();
+            return MeshBuilder::new().build();
         }
         debug_assert_eq!(
             data.len(),
@@ -144,31 +151,27 @@ impl MarchingCubesFilter {
             [3, 7],  // edge 11
         ];
 
-        let mut vertices: Vec<[f32; 3]> = Vec::new();
-        let mut triangles: Vec<[u32; 3]> = Vec::new();
+        // Collect raw triangle soup: each tuple is (p0, p1, p2) in physical mm.
+        let mut soup: Vec<(Point3<f64>, Point3<f64>, Point3<f64>)> = Vec::new();
 
-        // Physical position of corner (iz + dz, iy + dy, ix + dx)
-        let phys = |iz: usize, iy: usize, ix: usize| -> [f64; 3] {
-            [
+        // Physical position of a voxel corner (iz, iy, ix) in mm.
+        let phys = |iz: usize, iy: usize, ix: usize| -> Point3<f64> {
+            Point3::new(
                 self.origin[0] + ix as f64 * self.spacing[0],
                 self.origin[1] + iy as f64 * self.spacing[1],
                 self.origin[2] + iz as f64 * self.spacing[2],
-            ]
+            )
         };
 
         // Linear interpolation between physical positions pa and pb
         // at the isovalue crossing between scalar values va and vb.
-        let interp = |pa: [f64; 3], va: f32, pb: [f64; 3], vb: f32| -> [f32; 3] {
-            let dv = vb - va;
-            if dv.abs() < f32::EPSILON {
-                return [pa[0] as f32, pa[1] as f32, pa[2] as f32];
+        let interp = |pa: Point3<f64>, va: f32, pb: Point3<f64>, vb: f32| -> Point3<f64> {
+            let dv = (vb - va) as f64;
+            if dv.abs() < f64::EPSILON {
+                return pa;
             }
-            let t = (iso - va) / dv;
-            [
-                (pa[0] + t as f64 * (pb[0] - pa[0])) as f32,
-                (pa[1] + t as f64 * (pb[1] - pa[1])) as f32,
-                (pa[2] + t as f64 * (pb[2] - pa[2])) as f32,
-            ]
+            let t = (iso as f64 - va as f64) / dv;
+            pa + (pb - pa) * t
         };
 
         for iz in 0..nz - 1 {
@@ -195,13 +198,13 @@ impl MarchingCubesFilter {
                     }
 
                     // Compute the 3D physical positions of the 8 corners.
-                    let mut cpos = [[0.0f64; 3]; 8];
+                    let mut cpos = [Point3::<f64>::origin(); 8];
                     for (ci, &[dz, dy, dx]) in CORNERS.iter().enumerate() {
                         cpos[ci] = phys(iz + dz, iy + dy, ix + dx);
                     }
 
                     // Compute the at most 12 edge-crossing vertex positions.
-                    let mut edge_verts = [[0.0f32; 3]; 12];
+                    let mut edge_verts = [Point3::<f64>::origin(); 12];
                     for edge in 0..12usize {
                         if edge_mask & (1 << edge) != 0 {
                             let [a, b] = EDGES[edge];
@@ -216,20 +219,19 @@ impl MarchingCubesFilter {
                         let i0 = tris[ti] as usize;
                         let i1 = tris[ti + 1] as usize;
                         let i2 = tris[ti + 2] as usize;
-
-                        let base = vertices.len() as u32;
-                        vertices.push(edge_verts[i0]);
-                        vertices.push(edge_verts[i1]);
-                        vertices.push(edge_verts[i2]);
-                        triangles.push([base, base + 1, base + 2]);
-
+                        soup.push((edge_verts[i0], edge_verts[i1], edge_verts[i2]));
                         ti += 3;
                     }
                 }
             }
         }
 
-        Mesh { vertices, triangles }
+        // Build a welded, deduplicated IndexedMesh via gaia's MeshBuilder.
+        // add_triangle_soup performs spatial-hash vertex welding (1e-4 mm tolerance),
+        // converting the raw triangle soup into a shared-vertex indexed mesh.
+        let mut builder = MeshBuilder::new();
+        builder.add_triangle_soup(&soup);
+        builder.build()
     }
 }
 
@@ -541,6 +543,17 @@ static TRI_TABLE: [[i8; 16]; 256] = [
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gaia::domain::core::index::VertexId;
+
+    /// Collect all vertex positions as `Vec<[f64;3]>` via sequential VertexId.
+    fn collect_vertices(mesh: &crate::filter::surface::Mesh) -> Vec<[f64; 3]> {
+        (0..mesh.vertex_count())
+            .map(|i| {
+                let p = mesh.vertices.position(VertexId::new(i as u32));
+                [p.x, p.y, p.z]
+            })
+            .collect()
+    }
 
     fn mc_default() -> MarchingCubesFilter {
         MarchingCubesFilter::new()
@@ -580,22 +593,22 @@ mod tests {
     fn all_zero_volume_produces_empty_mesh() {
         let data = vec![0.0f32; 3 * 3 * 3];
         let mesh = mc_default().extract(&data, [3, 3, 3]);
-        assert_eq!(mesh.n_triangles(), 0);
-        assert_eq!(mesh.n_vertices(), 0);
+        assert_eq!(mesh.face_count(), 0);
+        assert_eq!(mesh.vertex_count(), 0);
     }
 
     #[test]
     fn all_one_volume_produces_empty_mesh() {
         let data = vec![1.0f32; 3 * 3 * 3];
         let mesh = mc_default().extract(&data, [3, 3, 3]);
-        assert_eq!(mesh.n_triangles(), 0);
+        assert_eq!(mesh.face_count(), 0);
     }
 
     #[test]
     fn volume_smaller_than_two_voxels_produces_empty_mesh() {
         let data = vec![1.0f32; 1 * 3 * 3];
         let mesh = mc_default().extract(&data, [1, 3, 3]);
-        assert_eq!(mesh.n_triangles(), 0);
+        assert_eq!(mesh.face_count(), 0);
     }
 
     // ─── Single-corner case: exactly one triangle ─────────────────────────────
@@ -606,9 +619,9 @@ mod tests {
         let mut data = vec![0.0f32; 8];
         data[0] = 1.0; // index 0 = iz=0, iy=0, ix=0
         let mesh = mc_default().extract(&data, [2, 2, 2]);
-        assert_eq!(mesh.n_triangles(), 1, "expected exactly 1 triangle for single active corner");
-        assert_eq!(mesh.n_vertices(), 3);
-        assert_eq!(mesh.validate(), Ok(()));
+        assert_eq!(mesh.face_count(), 1, "expected exactly 1 triangle for single active corner");
+        assert_eq!(mesh.vertex_count(), 3);
+        // gaia::IndexedMesh structural guarantees replace the old validate() check.
     }
 
     // ─── Analytical vertex positions ─────────────────────────────────────────
@@ -631,18 +644,17 @@ mod tests {
         let mut data = vec![0.0f32; 8];
         data[0] = 1.0;
         let mesh = mc_default().extract(&data, [2, 2, 2]);
-        assert_eq!(mesh.n_triangles(), 1);
-        // Collect all vertex positions
-        let verts: Vec<[f32; 3]> = mesh.vertices.clone();
-        let mut xs: Vec<f32> = verts.iter().map(|v| v[0]).collect();
-        let mut ys: Vec<f32> = verts.iter().map(|v| v[1]).collect();
-        let mut zs: Vec<f32> = verts.iter().map(|v| v[2]).collect();
+        assert_eq!(mesh.face_count(), 1);
+        // Collect all vertex positions via gaia VertexId.
+        let verts = collect_vertices(&mesh);
+        let mut xs: Vec<f64> = verts.iter().map(|v| v[0]).collect();
+        let mut ys: Vec<f64> = verts.iter().map(|v| v[1]).collect();
+        let mut zs: Vec<f64> = verts.iter().map(|v| v[2]).collect();
         xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
         zs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         // The 3 vertices are permutations of the 3 midpoints:
         // one vertex at x=0.5 (edge 0), one at y=0.5 (edge 3), one at z=0.5 (edge 8).
-        // Check that the multiset {x,y,z} for each vertex covers all three midpoints.
         let unique_nonzero_x = xs.iter().filter(|&&v| v > 0.01).count();
         let unique_nonzero_y = ys.iter().filter(|&&v| v > 0.01).count();
         let unique_nonzero_z = zs.iter().filter(|&&v| v > 0.01).count();
@@ -650,7 +662,7 @@ mod tests {
         assert_eq!(unique_nonzero_y, 1, "exactly one vertex has non-zero y");
         assert_eq!(unique_nonzero_z, 1, "exactly one vertex has non-zero z");
         // All non-zero components are 0.5 (midpoint interpolation).
-        for v in &mesh.vertices {
+        for v in &verts {
             for &comp in v {
                 assert!(comp == 0.0 || (comp - 0.5).abs() < 1e-5,
                     "each component is either 0.0 or 0.5, got {comp}");
@@ -670,10 +682,12 @@ mod tests {
         let mesh_double = MarchingCubesFilter::new()
             .with_spacing([2.0, 2.0, 2.0])
             .extract(&data, [2, 2, 2]);
-        assert_eq!(mesh_unit.n_triangles(), 1);
-        assert_eq!(mesh_double.n_triangles(), 1);
+        assert_eq!(mesh_unit.face_count(), 1);
+        assert_eq!(mesh_double.face_count(), 1);
+        let verts_unit = collect_vertices(&mesh_unit);
+        let verts_double = collect_vertices(&mesh_double);
         // All vertex positions should be exactly doubled.
-        for (u, d) in mesh_unit.vertices.iter().zip(mesh_double.vertices.iter()) {
+        for (u, d) in verts_unit.iter().zip(verts_double.iter()) {
             for k in 0..3 {
                 assert!((d[k] - 2.0 * u[k]).abs() < 1e-5,
                     "doubled spacing → doubled position: unit={} double={}", u[k], d[k]);
@@ -692,10 +706,12 @@ mod tests {
         let mesh_shift = MarchingCubesFilter::new()
             .with_origin(origin)
             .extract(&data, [2, 2, 2]);
-        for (u, s) in mesh_orig.vertices.iter().zip(mesh_shift.vertices.iter()) {
-            assert!((s[0] - u[0] - origin[0] as f32).abs() < 1e-4);
-            assert!((s[1] - u[1] - origin[1] as f32).abs() < 1e-4);
-            assert!((s[2] - u[2] - origin[2] as f32).abs() < 1e-4);
+        let verts_orig = collect_vertices(&mesh_orig);
+        let verts_shift = collect_vertices(&mesh_shift);
+        for (u, s) in verts_orig.iter().zip(verts_shift.iter()) {
+            assert!((s[0] - u[0] - origin[0] as f64).abs() < 1e-4);
+            assert!((s[1] - u[1] - origin[1] as f64).abs() < 1e-4);
+            assert!((s[2] - u[2] - origin[2] as f64).abs() < 1e-4);
         }
     }
 
@@ -717,9 +733,10 @@ mod tests {
         let mesh = mc_default().extract(&data, [nz, ny, nx]);
         // The (ny-1)*(nx-1) = 9 cubes at z-level 0 each intersect the surface.
         // Each such cube has configuration 0b00001111 = 15 → 2 triangles → 9*2=18 triangles.
-        assert_eq!(mesh.n_triangles(), 18,
+        // face_count() is invariant under vertex welding.
+        assert_eq!(mesh.face_count(), 18,
             "3×3 grid of cubes at z=0/1 interface should yield 18 triangles");
-        assert_eq!(mesh.validate(), Ok(()));
+        // gaia::IndexedMesh structural guarantees replace the old validate() check.
     }
 
     // ─── All vertex z-coordinates on planar interface ────────────────────────
@@ -738,8 +755,8 @@ mod tests {
             }
         }
         let mesh = mc_default().extract(&data, [nz, ny, nx]);
-        assert!(mesh.n_triangles() > 0);
-        for v in &mesh.vertices {
+        assert!(mesh.face_count() > 0);
+        for v in collect_vertices(&mesh) {
             assert!(
                 (v[2] - 0.5).abs() < 1e-5,
                 "z-coordinate of surface vertex must be 0.5 (midpoint), got {}",

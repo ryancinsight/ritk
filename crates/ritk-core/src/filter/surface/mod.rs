@@ -21,4 +21,4 @@ pub mod marching_cubes;
 pub mod mesh;
 
 pub use marching_cubes::MarchingCubesFilter;
-pub use mesh::Mesh;
+pub use mesh::{Mesh, MeshBuilder};

@@ -1,3 +1,23 @@
+## Sprint 155 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.0 [minor]
+**Goal**: Replace internal `Mesh` triangle-soup type with `gaia::IndexedMesh<f64>` — welded, deduplicated, watertight-capable meshing backend.
+
+### Checklist items
+- [x] Clone `gaia` to `d:\gaia` from https://github.com/ryancinsight/gaia.git
+- [x] Add `gaia = { path = "../gaia", default-features = false }` to workspace `[workspace.dependencies]`
+- [x] Add `gaia = { workspace = true }` to `ritk-core/Cargo.toml`
+- [x] Add `gaia = { workspace = true }` to `ritk-io/Cargo.toml`
+- [x] Add `gaia = { workspace = true }` to `ritk-snap/Cargo.toml`
+- [x] Rewrite `ritk_core::filter::surface::mesh` as `pub type Mesh = gaia::IndexedMesh<f64>; pub use gaia::MeshBuilder;`
+- [x] Rewrite `MarchingCubesFilter::extract()` — uses `MeshBuilder::add_triangle_soup()`, vertex positions are `Point3<f64>`
+- [x] Re-export `MeshBuilder` from `surface/mod.rs` and `filter/mod.rs`
+- [x] Rewrite `mesh_writer.rs` — uses `vertex_count()`, `face_count()`, `VertexId::new(i)`, `POINTS n double`
+- [x] Migrate all `n_triangles()` / `n_vertices()` / `validate()` / `vertices.iter()` call sites in `marching_cubes.rs` tests and `ritk-snap/src/app.rs`
+- [x] Full test suite: 1784 tests passing (ritk-core 1068 + ritk-io 308 + ritk-snap 400 + ritk-dicom 8)
+- [x] Artifacts synced: CHANGELOG.md, checklist.md
+
 ## Sprint 154 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

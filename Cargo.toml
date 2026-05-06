@@ -32,6 +32,7 @@ ritk-vtk = { path = "crates/ritk-vtk" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
+gaia = { path = "../gaia", default-features = false }
 
 burn = { version = "0.19", default-features = false, features = ["wgpu", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing

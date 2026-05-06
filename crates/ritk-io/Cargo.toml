@@ -28,6 +28,7 @@ dicom-transfer-syntax-registry = { workspace = true }
 tiff = { workspace = true }
 flate2 = { workspace = true }
 charls = { workspace = true }
+gaia = { workspace = true }
 consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-compression = { workspace = true }

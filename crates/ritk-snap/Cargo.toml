@@ -25,6 +25,7 @@ egui = "0.28"
 rfd = "0.14"
 image = { workspace = true }
 nalgebra = { workspace = true }
+gaia = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 walkdir = { workspace = true }
 

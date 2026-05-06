@@ -13,6 +13,7 @@ bytemuck = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
+gaia = { workspace = true }
 
 
 [dev-dependencies]

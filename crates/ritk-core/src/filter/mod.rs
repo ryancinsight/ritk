@@ -73,4 +73,4 @@ pub use intensity::{ShiftScaleImageFilter, ZeroCrossingImageFilter};
 pub use smoothing::MeanImageFilter;
 pub use transform::{ConstantPadImageFilter, FlipImageFilter, MirrorPadImageFilter, PermuteAxesImageFilter, PasteImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter};
 pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};
-pub use surface::{MarchingCubesFilter, Mesh};
+pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};

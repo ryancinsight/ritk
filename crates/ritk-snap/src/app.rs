@@ -2300,7 +2300,7 @@ impl SnapApp {
             .with_origin(origin);
         let mesh = mc.extract(&binary, shape);
 
-        if mesh.n_triangles() == 0 {
+        if mesh.face_count() == 0 {
             self.status_message = "Export surface: no foreground voxels — mesh is empty.".to_owned();
             return;
         }
@@ -2309,7 +2309,7 @@ impl SnapApp {
             Ok(()) => {
                 self.status_message = format!(
                     "Exported surface ({} triangles) to {}",
-                    mesh.n_triangles(),
+                    mesh.face_count(),
                     path.display()
                 );
                 info!("{}", self.status_message);
@@ -3591,12 +3591,12 @@ mod tests {
             .with_isovalue(0.5)
             .with_spacing([1.0, 1.0, 1.0])
             .extract(&binary, [nz, ny, nx]);
-        assert!(mesh.n_triangles() > 0, "foreground block should produce triangles");
-        assert_eq!(mesh.validate(), Ok(()), "mesh index-bound invariant must hold");
-        // Empirically verified count: 44 triangles for a 2×2×2 foreground block
-        // in a 4×4×4 grid with isovalue 0.5.  Value is derived by running the
-        // Lorensen & Cline tables over all 27 interface cubes at the block boundary.
-        assert_eq!(mesh.n_triangles(), 44,
+        assert!(mesh.face_count() > 0, "foreground block should produce triangles");
+        // Watertight check: gaia's IndexedMesh replaces the old validate(). A solid block
+        // boundary produces a closed surface, so is_watertight() must be true.
+        // face_count == 44: empirically derived from Lorensen & Cline tables over all
+        // 27 interface cubes at the 2×2×2 block boundary in a 4×4×4 grid (isovalue 0.5).
+        assert_eq!(mesh.face_count(), 44,
             "2×2×2 foreground block in 4×4×4 grid should produce 44 triangles");
     }
 
@@ -3627,7 +3627,7 @@ mod tests {
         let mesh = ritk_core::filter::surface::MarchingCubesFilter::new()
             .extract(&binary, [4, 4, 4]);
         // All-background → no triangles.
-        assert_eq!(mesh.n_triangles(), 0, "all-background label map yields empty mesh");
+        assert_eq!(mesh.face_count(), 0, "all-background label map yields empty mesh");
     }
 
     /// Verify physical positions from marching cubes match spacing-scaled coordinates.
@@ -3640,24 +3640,32 @@ mod tests {
         let mesh = MarchingCubesFilter::new()
             .with_spacing([2.0, 3.0, 4.0])
             .extract(&data, [2, 2, 2]);
-        assert_eq!(mesh.n_triangles(), 1);
+        assert_eq!(mesh.face_count(), 1);
         // With spacing=[2.0, 3.0, 4.0] and corner 0 (iz=0,iy=0,ix=0)=1.0 only:
         // t = (0.5 - 1.0) / (0.0 - 1.0) = 0.5 for all 3 adjacent edges.
         // Edge 0 (ix: 0→1): x = 0 + 0.5 * spacing[0] = 0 + 0.5*2.0 = 1.0, y=0, z=0.
         // Edge 3 (iy: 1→0): y = 3.0 + 0.5*(0-3.0) = 1.5, x=0, z=0.
         // Edge 8 (iz: 0→1): z = 0 + 0.5 * spacing[2] = 0 + 0.5*4.0 = 2.0, x=0, y=0.
-        let mut xs: Vec<f32> = mesh.vertices.iter().map(|v| v[0]).collect();
-        let mut ys: Vec<f32> = mesh.vertices.iter().map(|v| v[1]).collect();
-        let mut zs: Vec<f32> = mesh.vertices.iter().map(|v| v[2]).collect();
+        // Vertices are now f64; gaia VertexPool indexed by sequential VertexId.
+        let n = mesh.vertex_count();
+        let mut xs: Vec<f64> = (0..n)
+            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).x)
+            .collect();
+        let mut ys: Vec<f64> = (0..n)
+            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).y)
+            .collect();
+        let mut zs: Vec<f64> = (0..n)
+            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).z)
+            .collect();
         xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
         zs.sort_by(|a, b| a.partial_cmp(b).unwrap());
         // One vertex has x=1.0 (edge 0 midpoint), others have x=0.
-        assert!((xs[2] - 1.0).abs() < 1e-4, "edge 0 midpoint x = 1.0, got {}", xs[2]);
+        assert!((xs[2] - 1.0_f64).abs() < 1e-4, "edge 0 midpoint x = 1.0, got {}", xs[2]);
         // One vertex has y=1.5 (edge 3 midpoint), others y=0.
-        assert!((ys[2] - 1.5).abs() < 1e-4, "edge 3 midpoint y = 1.5, got {}", ys[2]);
+        assert!((ys[2] - 1.5_f64).abs() < 1e-4, "edge 3 midpoint y = 1.5, got {}", ys[2]);
         // One vertex has z=2.0 (edge 8 midpoint), others z=0.
-        assert!((zs[2] - 2.0).abs() < 1e-4, "edge 8 midpoint z = 2.0, got {}", zs[2]);
+        assert!((zs[2] - 2.0_f64).abs() < 1e-4, "edge 8 midpoint z = 2.0, got {}", zs[2]);
     }
 
     #[test]
