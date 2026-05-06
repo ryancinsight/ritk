@@ -29,6 +29,7 @@
 - [x] **Viewer overlap validation**: `ritk-snap` loads the external highdicom overlap SEG into a shape-compatible app state and preserves both segment labels
 - [x] **Corpus expansion**: added public RSNA DIDO liver SEG fixture and value-semantic external-file regression test
 - [x] **Viewer corpus validation**: `ritk-snap` loads the external RSNA DIDO liver SEG into a shape-compatible app state
+- [x] **Memory/perf optimization**: removed redundant per-frame temporary vectors in `dicom_seg_to_label_map` position-derived depth reconstruction path and preallocated sort/bin buffers
 - [x] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary

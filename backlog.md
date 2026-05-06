@@ -27,6 +27,7 @@
 - ✓ `ritk-snap` external SEG import regression through file-based app helper
 - ✓ Additional third-party overlap SEG fixture from highdicom with `ritk-io` and `ritk-snap` regressions
 - ✓ Additional third-party RSNA DIDO liver SEG fixture with `ritk-io` and `ritk-snap` regressions
+- ✓ `dicom_seg_to_label_map` allocation reduction in frame-position depth derivation (no behavior change)
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |

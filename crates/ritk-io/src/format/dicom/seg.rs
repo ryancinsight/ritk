@@ -1009,7 +1009,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     }
 
     let mut table = ritk_core::annotation::LabelTable::new();
-    let mut segment_to_index: HashMap<u16, usize> = HashMap::new();
+    let mut segment_to_index: HashMap<u16, usize> = HashMap::with_capacity(seg.segments.len());
     let mut labels_by_index = Vec::with_capacity(seg.segments.len());
     for (segment_idx, s) in seg.segments.iter().enumerate() {
         if s.segment_number == 0 {
@@ -1062,12 +1062,6 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     let nz: usize;
 
     if all_positions_present {
-        let positions: Vec<[f64; 3]> = seg
-            .image_position_per_frame
-            .iter()
-            .map(|p| p.expect("checked Some above"))
-            .collect();
-
         // Use slice-normal projection when orientation is available.
         // Fallback chooses the patient axis with the largest position span.
         let projection_axis = seg.image_orientation.and_then(|iop| {
@@ -1076,13 +1070,18 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
             normalize3(cross3(row, col))
         });
 
-        let scalars: Vec<f64> = if let Some(nhat) = projection_axis {
-            positions.iter().map(|&p| dot3(p, nhat)).collect()
+        let mut ordered: Vec<(usize, f64)> = Vec::with_capacity(seg.n_frames);
+        if let Some(nhat) = projection_axis {
+            for (frame_idx, pos) in seg.image_position_per_frame.iter().enumerate() {
+                let p = pos.expect("checked Some above");
+                ordered.push((frame_idx, dot3(p, nhat)));
+            }
         } else {
             let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
             let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
             let (mut min_z, mut max_z) = (f64::INFINITY, f64::NEG_INFINITY);
-            for p in &positions {
+            for pos in &seg.image_position_per_frame {
+                let p = pos.expect("checked Some above");
                 min_x = min_x.min(p[0]);
                 max_x = max_x.max(p[0]);
                 min_y = min_y.min(p[1]);
@@ -1100,13 +1099,14 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
             } else {
                 2usize
             };
-            positions.iter().map(|p| p[axis]).collect()
-        };
-
-        let mut ordered: Vec<(usize, f64)> = scalars.iter().copied().enumerate().collect();
+            for (frame_idx, pos) in seg.image_position_per_frame.iter().enumerate() {
+                let p = pos.expect("checked Some above");
+                ordered.push((frame_idx, p[axis]));
+            }
+        }
         ordered.sort_by(|a, b| a.1.total_cmp(&b.1));
 
-        let mut z_bins: Vec<f64> = Vec::new();
+        let mut z_bins: Vec<f64> = Vec::with_capacity(seg.n_frames);
         for (frame_idx, scalar) in ordered {
             if z_bins
                 .last()

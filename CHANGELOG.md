@@ -22,6 +22,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Position-derived depth inference now uses deterministic tolerance-based grouping with linearithmic ordering, improving external SEG compatibility for third-party emitters.
 - `dump_dicom` now detects SEG modality and uses `read_dicom_seg` instead of generic pixel decoding, so valid DICOM-SEG files no longer fail in the example path.
 - `ritk-snap` SEG import path now exposes a file-based helper beneath the dialog action, enabling deterministic external-file app regression coverage.
+- `dicom_seg_to_label_map` frame-position depth derivation now avoids redundant temporary `positions` and `scalars` vectors and preallocates sorting/binning buffers, reducing peak transient memory and allocation churn on large SEG inputs.
 
 ## [0.34.0] - 2026 - Sprint 152
 
