@@ -1,3 +1,27 @@
+## Sprint 156 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.1 [patch]
+**Goal**: Marching-cubes memory/performance optimization with gaia-backed meshing preserved as SSOT.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-156-01 | Marching-cubes temporary global triangle-soup allocation increases peak memory O(T) | **Closed** |
+
+### Delivered
+- ✓ `MarchingCubesFilter::extract` now streams per-triangle vertices/faces directly into `gaia::MeshBuilder`
+- ✓ Removed intermediate `Vec<(Point3<f64>, Point3<f64>, Point3<f64>)>` soup allocation
+- ✓ No behavior regressions in interpolation, face-table traversal, or mesh output type (`gaia::IndexedMesh<f64>`)
+- ✓ Validation: core/io/snap/dicom tests all passing; `ritk-io` and `ritk-registration` examples compile
+
+### Remaining high-priority gaps (unchanged)
+| Task | Description | Priority |
+|---|---|---|
+| Broader third-party SEG corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi/highdicom/RSNA DIDO | High |
+| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` boundary | High |
+| RT Dose/Plan workflows | Expand therapy DICOM viewer workflows in `ritk-snap` | High |
+
 ## Sprint 154 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

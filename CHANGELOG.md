@@ -18,6 +18,21 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - DICOM-SEG interoperability regression test for shuffled per-frame physical positions to verify deterministic slice reconstruction order.
 - External fixture under `test_data/dicom_seg/rsna_dido/xTtzBC6F6p_rpexuszCnb_01_liver.dcm` for additional third-party SEG validation.
 
+## [0.37.1] - Sprint 156 — marching cubes memory/perf optimization
+
+### Changed
+- `MarchingCubesFilter::extract` now streams triangle emission directly into `gaia::MeshBuilder` via `vertex()` + `triangle()` instead of first materializing a global triangle-soup `Vec`.
+- Peak auxiliary memory for meshing is reduced from O(T) triangle tuples to O(1) per active cube, where T is total emitted triangles.
+- Mesh output semantics remain unchanged: welded indexed mesh (`gaia::IndexedMesh<f64>`), identical interpolation math, identical face generation from EDGE_TABLE/TRI_TABLE.
+
+### Verification
+- `cargo test -p ritk-core --lib`: 1068 passed
+- `cargo test -p ritk-io --lib`: 308 passed
+- `cargo test -p ritk-snap --lib`: 400 passed
+- `cargo test -p ritk-dicom --lib`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.0] - Sprint 155 — gaia meshing backend
 DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence and round-trip workflows in ritk-snap. Added bidirectional LabelMap↔DicomSegmentation conversion, fixed per-frame segment reference serialization in writer, and extended writer to emit shared functional-groups spatial metadata (orientation, spacing, thickness). End-to-end path is verified: annotate state → write DICOM-SEG file → read DICOM-SEG file → reconstruct LabelMap. All 1758 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 301 + ritk-dicom 8).
 

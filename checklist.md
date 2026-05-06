@@ -1,3 +1,21 @@
+## Sprint 156 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.1 [patch]
+**Goal**: Optimize marching-cubes memory/performance without changing geometry output semantics; keep gaia as the canonical meshing backend.
+
+### Checklist items
+- [x] Replace temporary global triangle-soup buffer in `MarchingCubesFilter::extract` with streaming emission into `gaia::MeshBuilder`
+- [x] Preserve Lorensen table traversal and interpolation invariants (no algorithmic simplification)
+- [x] Preserve mesh output representation (`gaia::IndexedMesh<f64>`) and welding behavior
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-core --lib` (1068 passed)
+- [x] `cargo test -p ritk-io --lib` (308 passed)
+- [x] `cargo test -p ritk-snap --lib` (400 passed)
+- [x] `cargo test -p ritk-dicom --lib` (8 passed)
+- [x] Example build verification: `ritk-io` and `ritk-registration` examples compile (`--examples --no-run`)
+- [x] Artifacts synced: CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+
 ## Sprint 155 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

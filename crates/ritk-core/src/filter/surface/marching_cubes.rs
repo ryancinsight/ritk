@@ -24,8 +24,8 @@
 //! # Output
 //! Triangle vertices are fed into [`gaia::MeshBuilder`] which performs spatial-hash
 //! vertex welding (1e-4 mm tolerance) and returns a deduplicated [`gaia::IndexedMesh`].
-//! Welding converts the raw triangle soup from marching cubes into a shared-vertex
-//! indexed mesh — a prerequisite for watertight checking and CSG operations.
+//! Emission is streamed directly into the builder (no temporary global soup buffer),
+//! reducing peak memory to O(1) additional storage per active cube.
 
 use nalgebra::Point3;
 
@@ -104,10 +104,10 @@ impl MarchingCubesFilter {
     /// coordinates. Returns an empty mesh if `shape` is degenerate (any dimension < 2)
     /// or if no cube contains a surface crossing.
     ///
-    /// Triangle vertices from marching cubes are collected as a raw triangle soup,
-    /// then fed through [`MeshBuilder::add_triangle_soup`] which performs
-    /// spatial-hash vertex welding (1e-4 mm tolerance). The resulting indexed mesh
-    /// is a shared-vertex representation suitable for watertight checking and CSG.
+    /// Triangle vertices from marching cubes are streamed directly into
+    /// [`MeshBuilder`] via per-triangle `vertex()`/`triangle()` insertion.
+    /// `MeshBuilder` performs spatial-hash vertex welding (1e-4 mm tolerance),
+    /// yielding a shared-vertex representation suitable for watertight checking and CSG.
     pub fn extract(&self, data: &[f32], shape: [usize; 3]) -> Mesh {
         let [nz, ny, nx] = shape;
         if nz < 2 || ny < 2 || nx < 2 {
@@ -151,8 +151,8 @@ impl MarchingCubesFilter {
             [3, 7],  // edge 11
         ];
 
-        // Collect raw triangle soup: each tuple is (p0, p1, p2) in physical mm.
-        let mut soup: Vec<(Point3<f64>, Point3<f64>, Point3<f64>)> = Vec::new();
+        // Stream triangle emission directly into gaia MeshBuilder.
+        let mut builder = MeshBuilder::new();
 
         // Physical position of a voxel corner (iz, iy, ix) in mm.
         let phys = |iz: usize, iy: usize, ix: usize| -> Point3<f64> {
@@ -219,18 +219,17 @@ impl MarchingCubesFilter {
                         let i0 = tris[ti] as usize;
                         let i1 = tris[ti + 1] as usize;
                         let i2 = tris[ti + 2] as usize;
-                        soup.push((edge_verts[i0], edge_verts[i1], edge_verts[i2]));
+                        let v0 = builder.vertex(edge_verts[i0]);
+                        let v1 = builder.vertex(edge_verts[i1]);
+                        let v2 = builder.vertex(edge_verts[i2]);
+                        builder.triangle(v0, v1, v2);
                         ti += 3;
                     }
                 }
             }
         }
 
-        // Build a welded, deduplicated IndexedMesh via gaia's MeshBuilder.
-        // add_triangle_soup performs spatial-hash vertex welding (1e-4 mm tolerance),
-        // converting the raw triangle soup into a shared-vertex indexed mesh.
-        let mut builder = MeshBuilder::new();
-        builder.add_triangle_soup(&soup);
+        // Build welded, deduplicated IndexedMesh via gaia's MeshBuilder.
         builder.build()
     }
 }
