@@ -1,6 +1,6 @@
-## Sprint 153 — In Progress / Phase 2 Execution
+## Sprint 153 — In Progress / Phase 3 Closure
 **Status**: In Progress
-**Phase**: Phase 2 Execution
+**Phase**: Phase 3 Closure
 **Version**: 0.35.0 [minor]
 **Goal**: DICOM-SEG external interoperability hardening. Ensure robust reconstruction for third-party SEG frame ordering while preserving full ritk-snap viewer workflow stability.
 
@@ -15,13 +15,15 @@
 - [x] **Wire UI**: Added "Load segmentation from DICOM-SEG..." to File menu in ritk-snap
 - [x] **Round-trip tests**: 4 value-semantic tests for DICOM-SEG→LabelMap and LabelMap→DICOM-SEG→LabelMap identity paths
 - [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 394 ritk-snap tests pass
-- [x] **Full test suite**: 1759 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 302 + ritk-dicom 8)
+- [x] **Full test suite**: 1760 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 303 + ritk-dicom 8)
 - [x] **Examples build check**: ritk-io and ritk-registration example targets compile successfully
 - [x] **Phase 2 Step 3**: End-to-end DICOM-SEG file workflow validation (LabelMap → SEG file → LabelMap identity)
 - [x] **Interoperability metadata**: DICOM-SEG writer emits Shared FG spatial fields (orientation, pixel spacing, slice thickness)
 - [x] **Sparse SEG interoperability**: DICOM-SEG loader supports sparse/non-uniform frame layouts (no divisibility requirement)
 - [x] **Physical-position ordering**: loader maps frame slices by sorted physical position (orientation-aware projection) instead of incoming frame order
 - [x] **Regression coverage**: added shuffled-frame physical z-order reconstruction test
+- [x] **Real-data validation**: added public dcmqi liver SEG fixture and value-semantic external-file regression test
+- [x] **Example correction**: `dump_dicom` now handles SEG files through the SEG reader path
 - [x] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary
@@ -30,6 +32,7 @@
 - **Pixel encoding**: Binary (bits_allocated=1); each pixel 0 (no match) or 1 (label match)
 - **Spatial metadata**: image_position_per_frame includes Z-offset computed from spacing[0]*direction_z_col; image_orientation (6 elements); pixel_spacing [ny, nx]; slice_thickness [z]
 - **Interoperability ordering**: when per-frame positions are present, reconstruction derives deterministic z-indices from sorted physical slice position
+- **Real-data coverage**: third-party dcmqi SEG sample validates segment metadata, frame positions, spacing, and dense label-map reconstruction
 - **Error handling**: Rejects zero-dimension shapes, all-background maps; returns descriptive errors
 
 ---

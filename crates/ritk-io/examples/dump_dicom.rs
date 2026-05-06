@@ -1,6 +1,7 @@
 use dicom::dictionary_std::tags;
 use dicom::object::open_file;
 use dicom::pixeldata::PixelDecoder;
+use ritk_io::read_dicom_seg;
 use std::env;
 
 fn main() -> anyhow::Result<()> {
@@ -39,6 +40,45 @@ fn main() -> anyhow::Result<()> {
         } else {
             println!("{}: <missing>", name);
         }
+    }
+
+    let modality = obj
+        .element(tags::MODALITY)
+        .ok()
+        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()));
+
+    if modality.as_deref() == Some("SEG") {
+        let seg = read_dicom_seg(&args[1])?;
+        println!(
+            "SEG: {} segment(s), {} frame(s), {}x{} pixels/frame, {} bits",
+            seg.segments.len(),
+            seg.n_frames,
+            seg.rows,
+            seg.cols,
+            seg.bits_allocated
+        );
+        for segment in &seg.segments {
+            println!(
+                "Segment {}: {} ({})",
+                segment.segment_number,
+                segment.segment_label,
+                segment
+                    .algorithm_type
+                    .as_deref()
+                    .unwrap_or("algorithm unspecified")
+            );
+        }
+        if let Some(spacing) = seg.pixel_spacing {
+            println!("SEG PixelSpacing: {}\\{}", spacing[0], spacing[1]);
+        }
+        if let Some(thickness) = seg.slice_thickness {
+            println!("SEG SliceThickness: {}", thickness);
+        }
+        println!(
+            "SEG FramePositionsPresent: {}",
+            seg.image_position_per_frame.iter().filter(|p| p.is_some()).count()
+        );
+        return Ok(());
     }
 
     // Pixel data info

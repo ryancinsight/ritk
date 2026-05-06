@@ -1193,6 +1193,7 @@ mod tests {
     use dicom::core::value::DataSetSequence;
     use dicom::core::{DataElement, PrimitiveValue, VR};
     use dicom::object::meta::FileMetaTableBuilder;
+    use std::path::PathBuf;
 
     /// Build a minimal DICOM-SEG InMemDicomObject with the given geometry and raw pixel bytes.
     ///
@@ -2119,5 +2120,54 @@ mod tests {
         assert_eq!(rebuilt.as_slice(), original.as_slice(), "voxel labels must round-trip");
         assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("A"));
         assert_eq!(rebuilt.table.get_label(2).map(|e| e.name.as_str()), Some("B"));
+    }
+
+    #[test]
+    fn test_read_external_dcmqi_liver_seg_real_file() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("dcmqi")
+            .join("liver.dcm");
+
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        let seg = read_dicom_seg(&path).expect("read external dcmqi liver SEG");
+        assert_eq!(seg.rows, 512);
+        assert_eq!(seg.cols, 512);
+        assert_eq!(seg.n_frames, 3);
+        assert_eq!(seg.bits_allocated, 1);
+        assert_eq!(seg.segmentation_type, "BINARY");
+        assert_eq!(seg.segments.len(), 1);
+        assert_eq!(seg.segments[0].segment_number, 1);
+        assert_eq!(seg.segments[0].segment_label, "Liver");
+        assert_eq!(
+            seg.segments[0].algorithm_type.as_deref(),
+            Some("SEMIAUTOMATIC")
+        );
+        assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
+
+        let pixel_spacing = seg.pixel_spacing.expect("pixel spacing from shared FG");
+        assert!((pixel_spacing[0] - 0.810547).abs() < 1e-6);
+        assert!((pixel_spacing[1] - 0.810547).abs() < 1e-6);
+        let slice_thickness = seg.slice_thickness.expect("slice thickness from shared FG");
+        assert!((slice_thickness - 1.0).abs() < 1e-9);
+
+        let positions: Vec<[f64; 3]> = seg
+            .image_position_per_frame
+            .iter()
+            .map(|p| p.expect("all frame positions must be present"))
+            .collect();
+        assert_eq!(positions.len(), 3);
+        assert!((positions[0][2] + 128.69).abs() < 1e-6);
+        assert!((positions[1][2] + 127.69).abs() < 1e-6);
+        assert!((positions[2][2] + 126.69).abs() < 1e-6);
+
+        let rebuilt = dicom_seg_to_label_map(&seg).expect("rebuild label map from external SEG");
+        assert_eq!(rebuilt.shape, [3, 512, 512]);
+        assert!(rebuilt.present_labels().contains(&1));
+        assert!(rebuilt.as_slice().iter().any(|&v| v == 1));
     }
 }

@@ -22,23 +22,25 @@
 - ✓ Writer invariant check for `frame_segment_numbers.len() == n_frames`
 - ✓ `dicom_seg_to_label_map` sparse/non-uniform frame support (no `n_frames % n_segments` constraint)
 - ✓ `dicom_seg_to_label_map` deterministic physical z-order reconstruction from sorted frame positions (orientation-aware)
+- ✓ External dcmqi liver SEG fixture and real-data interoperability regression test
+- ✓ `dump_dicom` SEG-aware inspection path via `read_dicom_seg`
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
 |---|---|---|
-| External interoperability | Validate against third-party SEG datasets/viewers (ITK-SNAP/Slicer/PACS imports) | High |
-| Artifact sync | Update remaining artifacts, commit and push | High |
+| Viewer-side external import exercise | Validate the same third-party SEG samples through ritk-snap UI workflows | High |
+| Broader third-party corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi | High |
 
 ### Verification
 | Check | Result |
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 1055 tests |
-| `cargo test -p ritk-io --lib` | Passed: 302 tests (+14 DICOM-SEG converter/E2E/interoperability tests total) |
+| `cargo test -p ritk-io --lib` | Passed: 303 tests (+15 DICOM-SEG converter/E2E/interoperability tests total) |
 | `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
 | `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
 | `cargo test -p ritk-io --examples --no-run` | Passed (2 example binaries build) |
 | `cargo test -p ritk-registration --examples --no-run` | Passed (6 example binaries build) |
-| **Total** | **1759 tests** |
+| **Total** | **1760 tests** |
 
 ### Next priorities [Sprint 153]
 | Gap | Description | Change class |
