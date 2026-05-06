@@ -665,6 +665,55 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
         ));
     }
 
+    // Per-Frame Functional Groups Sequence (5200,9230)
+    // Each frame item includes:
+    // - Segment Identification Sequence (0062,000A) -> ReferencedSegmentNumber (0062,000B)
+    // - Optional Plane Position Sequence (0020,9113) -> ImagePositionPatient (0020,0032)
+    let mut per_frame_items: Vec<InMemDicomObject> = Vec::with_capacity(seg.n_frames);
+    for frame_idx in 0..seg.n_frames {
+        let mut frame_item = InMemDicomObject::new_empty();
+
+        let referenced_segment_number = seg.frame_segment_numbers[frame_idx];
+        let mut seg_id_item = InMemDicomObject::new_empty();
+        seg_id_item.put(DataElement::new(
+            Tag(0x0062, 0x000B),
+            VR::US,
+            PrimitiveValue::from(referenced_segment_number),
+        ));
+        let seg_id_seq = DataSetSequence::new(vec![seg_id_item], Length::UNDEFINED);
+        frame_item.put(DataElement::new(
+            Tag(0x0062, 0x000A),
+            VR::SQ,
+            Value::from(seg_id_seq),
+        ));
+
+        if let Some(Some(pos)) = seg.image_position_per_frame.get(frame_idx) {
+            let mut pos_item = InMemDicomObject::new_empty();
+            let pos_ds = format!("{}\\{}\\{}", pos[0], pos[1], pos[2]);
+            pos_item.put(DataElement::new(
+                Tag(0x0020, 0x0032),
+                VR::DS,
+                PrimitiveValue::from(pos_ds.as_str()),
+            ));
+            let pos_seq = DataSetSequence::new(vec![pos_item], Length::UNDEFINED);
+            frame_item.put(DataElement::new(
+                Tag(0x0020, 0x9113),
+                VR::SQ,
+                Value::from(pos_seq),
+            ));
+        }
+
+        per_frame_items.push(frame_item);
+    }
+    if !per_frame_items.is_empty() {
+        let seq = DataSetSequence::new(per_frame_items, Length::UNDEFINED);
+        obj.put(DataElement::new(
+            Tag(0x5200, 0x9230),
+            VR::SQ,
+            Value::from(seq),
+        ));
+    }
+
     // Pixel Data (7FE0,0010) OW
     obj.put(DataElement::new(
         Tag(0x7FE0, 0x0010),
@@ -902,8 +951,9 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     }
 
     let mut table = ritk_core::annotation::LabelTable::new();
-    let mut segment_to_label: HashMap<u16, u32> = HashMap::new();
-    for s in &seg.segments {
+    let mut segment_to_index: HashMap<u16, usize> = HashMap::new();
+    let mut labels_by_index = Vec::with_capacity(seg.segments.len());
+    for (segment_idx, s) in seg.segments.iter().enumerate() {
         if s.segment_number == 0 {
             bail!("segment_number 0 is invalid for DICOM-SEG");
         }
@@ -912,41 +962,35 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         table
             .add_label(label_id, s.segment_label.clone(), color)
             .map_err(|e| anyhow::anyhow!("invalid or duplicate segment label id {}: {}", label_id, e))?;
-        segment_to_label.insert(s.segment_number, label_id);
+        if segment_to_index.insert(s.segment_number, segment_idx).is_some() {
+            bail!("duplicate segment_number {} in segments", s.segment_number);
+        }
+        labels_by_index.push(label_id);
     }
 
-    let mut seen_per_segment: HashMap<u16, usize> = seg
-        .segments
-        .iter()
-        .map(|s| (s.segment_number, 0usize))
-        .collect();
+    let mut seen_per_segment = vec![0usize; seg.segments.len()];
 
     let mut data = vec![0u32; nz * n_pixels_per_frame];
     for frame_idx in 0..seg.n_frames {
         let segment_number = seg.frame_segment_numbers[frame_idx];
-        let Some(&label_id) = segment_to_label.get(&segment_number) else {
+        let Some(&segment_idx) = segment_to_index.get(&segment_number) else {
             bail!(
                 "frame {} references undefined segment_number {}",
                 frame_idx,
                 segment_number
             );
         };
+        let label_id = labels_by_index[segment_idx];
 
-        let Some(z_counter) = seen_per_segment.get_mut(&segment_number) else {
-            bail!(
-                "internal segment tracking missing segment_number {}",
-                segment_number
-            );
-        };
-        if *z_counter >= nz {
+        if seen_per_segment[segment_idx] >= nz {
             bail!(
                 "segment {} has more than {} frames",
                 segment_number,
                 nz
             );
         }
-        let z = *z_counter;
-        *z_counter += 1;
+        let z = seen_per_segment[segment_idx];
+        seen_per_segment[segment_idx] += 1;
 
         let frame = &seg.pixel_data[frame_idx];
         for (i, &v) in frame.iter().enumerate() {
@@ -957,11 +1001,8 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         }
     }
 
-    for s in &seg.segments {
-        let count = seen_per_segment
-            .get(&s.segment_number)
-            .copied()
-            .unwrap_or(0);
+    for (segment_idx, s) in seg.segments.iter().enumerate() {
+        let count = seen_per_segment[segment_idx];
         if count != nz {
             bail!(
                 "segment {} has {} frames, expected {}",
@@ -1762,5 +1803,37 @@ mod tests {
 
         let result = dicom_seg_to_label_map(&seg);
         assert!(result.is_err(), "non-divisible frame/segment layout must fail");
+    }
+
+    #[test]
+    fn test_label_map_dicom_seg_file_roundtrip_identity() {
+        use ritk_core::annotation::{LabelMap, LabelTable};
+
+        let mut table = LabelTable::new();
+        table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
+        table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
+        let original = LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table)
+            .unwrap();
+
+        let seg = label_map_to_dicom_seg(
+            &original,
+            [2.0, 3.0, 4.0],
+            [1.5, 0.75, 0.5],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            true,
+        )
+        .expect("label_map_to_dicom_seg");
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("roundtrip_seg.dcm");
+
+        write_dicom_seg(&path, &seg).expect("write_dicom_seg");
+        let read_back = read_dicom_seg(&path).expect("read_dicom_seg");
+        let rebuilt = dicom_seg_to_label_map(&read_back).expect("dicom_seg_to_label_map");
+
+        assert_eq!(rebuilt.shape, original.shape, "shape must round-trip");
+        assert_eq!(rebuilt.as_slice(), original.as_slice(), "voxel labels must round-trip");
+        assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("A"));
+        assert_eq!(rebuilt.table.get_label(2).map(|e| e.name.as_str()), Some("B"));
     }
 }

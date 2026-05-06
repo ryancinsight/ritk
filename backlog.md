@@ -13,27 +13,28 @@
 - ✓ `label_map_to_dicom_seg` converter (~150 LOC) in ritk-io/src/format/dicom/seg.rs
 - ✓ `dicom_seg_to_label_map` converter with frame/segment invariants in ritk-io/src/format/dicom/seg.rs
 - ✓ 6 value-semantic converter tests (all passing)
-- ✓ 4 value-semantic loader/round-trip tests (all passing)
+- ✓ 5 value-semantic loader/round-trip tests (all passing, includes file-based identity E2E)
 - ✓ Public API exports (mod.rs, lib.rs)
 - ✓ UI integration: "Save segmentation as DICOM-SEG..." menu action in ritk-snap
 - ✓ UI integration: "Load segmentation from DICOM-SEG..." menu action in ritk-snap
+- ✓ `write_dicom_seg` per-frame segment identification serialization fix (5200,9230 + 0062,000A/000B)
 
-### Remaining (Phase 2 Step 2–4)
+### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
 |---|---|---|
-| Real-data E2E | Validate round-trip against external DICOM-SEG datasets and viewer workflows | High |
+| External interoperability | Validate against third-party SEG datasets/viewers (ITK-SNAP/Slicer/PACS imports) | High |
 | Artifact sync | Update remaining artifacts, commit and push | High |
 
 ### Verification
 | Check | Result |
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 1055 tests |
-| `cargo test -p ritk-io --lib` | Passed: 298 tests (+10 DICOM-SEG converter tests total) |
+| `cargo test -p ritk-io --lib` | Passed: 299 tests (+11 DICOM-SEG converter/E2E tests total) |
 | `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
 | `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
 | `cargo test -p ritk-io --examples --no-run` | Passed (2 example binaries build) |
 | `cargo test -p ritk-registration --examples --no-run` | Passed (6 example binaries build) |
-| **Total** | **1755 tests** |
+| **Total** | **1756 tests** |
 
 ### Next priorities [Sprint 153]
 | Gap | Description | Change class |
