@@ -18,6 +18,8 @@
 - ✓ UI integration: "Save segmentation as DICOM-SEG..." menu action in ritk-snap
 - ✓ UI integration: "Load segmentation from DICOM-SEG..." menu action in ritk-snap
 - ✓ `write_dicom_seg` per-frame segment identification serialization fix (5200,9230 + 0062,000A/000B)
+- ✓ `write_dicom_seg` shared FG spatial metadata serialization (5200,9229 + 0020,9116 + 0028,9110)
+- ✓ Writer invariant check for `frame_segment_numbers.len() == n_frames`
 
 ### Remaining (Phase 2 Step 4)
 | Task | Description | Priority |
@@ -29,12 +31,12 @@
 | Check | Result |
 |---|---|
 | `cargo test -p ritk-core --lib` | Passed: 1055 tests |
-| `cargo test -p ritk-io --lib` | Passed: 299 tests (+11 DICOM-SEG converter/E2E tests total) |
+| `cargo test -p ritk-io --lib` | Passed: 301 tests (+13 DICOM-SEG converter/E2E tests total) |
 | `cargo test -p ritk-snap --lib` | Passed: 394 tests (no regressions) |
 | `cargo test -p ritk-dicom --lib` | Passed: 8 tests |
 | `cargo test -p ritk-io --examples --no-run` | Passed (2 example binaries build) |
 | `cargo test -p ritk-registration --examples --no-run` | Passed (6 example binaries build) |
-| **Total** | **1756 tests** |
+| **Total** | **1758 tests** |
 
 ### Next priorities [Sprint 153]
 | Gap | Description | Change class |

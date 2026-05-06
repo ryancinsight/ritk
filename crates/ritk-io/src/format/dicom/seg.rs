@@ -486,6 +486,13 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
             seg.n_frames
         );
     }
+    if seg.frame_segment_numbers.len() != seg.n_frames {
+        bail!(
+            "frame_segment_numbers.len()={} != n_frames={}",
+            seg.frame_segment_numbers.len(),
+            seg.n_frames
+        );
+    }
     let n_pixels = seg.rows * seg.cols;
     for (f, frame) in seg.pixel_data.iter().enumerate() {
         if frame.len() != n_pixels {
@@ -662,6 +669,68 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
             Tag(0x0062, 0x0002),
             VR::SQ,
             Value::from(seq),
+        ));
+    }
+
+    // Shared Functional Groups Sequence (5200,9229)
+    // - Plane Orientation Sequence (0020,9116) -> ImageOrientationPatient (0020,0037)
+    // - Pixel Measures Sequence (0028,9110) -> PixelSpacing (0028,0030), SliceThickness (0018,0050)
+    let mut shared_item = InMemDicomObject::new_empty();
+    let mut has_shared_fg = false;
+
+    if let Some(iop) = seg.image_orientation {
+        let mut ori_item = InMemDicomObject::new_empty();
+        let iop_ds = format!(
+            "{}\\{}\\{}\\{}\\{}\\{}",
+            iop[0], iop[1], iop[2], iop[3], iop[4], iop[5]
+        );
+        ori_item.put(DataElement::new(
+            Tag(0x0020, 0x0037),
+            VR::DS,
+            PrimitiveValue::from(iop_ds.as_str()),
+        ));
+        let ori_seq = DataSetSequence::new(vec![ori_item], Length::UNDEFINED);
+        shared_item.put(DataElement::new(
+            Tag(0x0020, 0x9116),
+            VR::SQ,
+            Value::from(ori_seq),
+        ));
+        has_shared_fg = true;
+    }
+
+    if seg.pixel_spacing.is_some() || seg.slice_thickness.is_some() {
+        let mut px_item = InMemDicomObject::new_empty();
+        if let Some(ps) = seg.pixel_spacing {
+            let ps_ds = format!("{}\\{}", ps[0], ps[1]);
+            px_item.put(DataElement::new(
+                Tag(0x0028, 0x0030),
+                VR::DS,
+                PrimitiveValue::from(ps_ds.as_str()),
+            ));
+        }
+        if let Some(st) = seg.slice_thickness {
+            let st_ds = st.to_string();
+            px_item.put(DataElement::new(
+                Tag(0x0018, 0x0050),
+                VR::DS,
+                PrimitiveValue::from(st_ds.as_str()),
+            ));
+        }
+        let px_seq = DataSetSequence::new(vec![px_item], Length::UNDEFINED);
+        shared_item.put(DataElement::new(
+            Tag(0x0028, 0x9110),
+            VR::SQ,
+            Value::from(px_seq),
+        ));
+        has_shared_fg = true;
+    }
+
+    if has_shared_fg {
+        let shared_seq = DataSetSequence::new(vec![shared_item], Length::UNDEFINED);
+        obj.put(DataElement::new(
+            Tag(0x5200, 0x9229),
+            VR::SQ,
+            Value::from(shared_seq),
         ));
     }
 
@@ -1449,8 +1518,59 @@ mod tests {
             vec![0u8, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
             "frame 1 pixel values"
         );
+        assert_eq!(result.frame_segment_numbers, vec![1, 1], "frame segment numbers");
         assert_eq!(result.segments.len(), 1, "segment count");
         assert_eq!(result.segments[0].segment_label, "body", "segment label");
+    }
+
+    #[test]
+    fn test_write_dicom_seg_preserves_shared_spatial_metadata() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("seg_write_shared_fg.dcm");
+
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 1,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "roi".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1],
+            pixel_data: vec![vec![1, 0, 0, 1]],
+            image_position_per_frame: vec![Some([10.0, 20.0, 30.0])],
+            image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            pixel_spacing: Some([0.8, 0.9]),
+            slice_thickness: Some(2.2),
+        };
+
+        write_dicom_seg(&path, &seg).expect("write_dicom_seg shared fg");
+        let result = read_dicom_seg(&path).expect("read_dicom_seg shared fg");
+
+        assert_eq!(
+            result.image_orientation,
+            Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            "image orientation must round-trip via shared FG"
+        );
+        assert_eq!(
+            result.pixel_spacing,
+            Some([0.8, 0.9]),
+            "pixel spacing must round-trip via shared FG"
+        );
+        assert_eq!(
+            result.slice_thickness,
+            Some(2.2),
+            "slice thickness must round-trip via shared FG"
+        );
+        assert_eq!(
+            result.image_position_per_frame,
+            vec![Some([10.0, 20.0, 30.0])],
+            "per-frame image position must round-trip"
+        );
     }
 
     // ── Test 8: write_dicom_seg FRACTIONAL roundtrip ─────────────────────────
@@ -1530,6 +1650,40 @@ mod tests {
         assert!(
             msg.contains("pixel_data") || msg.contains("n_frames"),
             "error must identify the frame-count mismatch; got: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_write_dicom_seg_rejects_mismatched_frame_segment_numbers() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("seg_bad_frame_segment_count.dcm");
+
+        let seg = DicomSegmentation {
+            rows: 2,
+            cols: 2,
+            n_frames: 2,
+            bits_allocated: 1,
+            segmentation_type: "BINARY".to_owned(),
+            segments: vec![DicomSegmentInfo {
+                segment_number: 1,
+                segment_label: "x".to_owned(),
+                segment_description: None,
+                algorithm_type: None,
+            }],
+            frame_segment_numbers: vec![1],
+            pixel_data: vec![vec![1, 0, 0, 1], vec![0, 1, 1, 0]],
+            image_position_per_frame: vec![None, None],
+            image_orientation: None,
+            pixel_spacing: None,
+            slice_thickness: None,
+        };
+
+        let result = write_dicom_seg(&path, &seg);
+        assert!(result.is_err(), "expected frame segment count mismatch error");
+        let msg = result.unwrap_err().to_string();
+        assert!(
+            msg.contains("frame_segment_numbers") || msg.contains("n_frames"),
+            "error must identify frame_segment_numbers/n_frames mismatch; got: {msg}"
         );
     }
 

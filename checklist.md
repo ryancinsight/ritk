@@ -15,9 +15,10 @@
 - [x] **Wire UI**: Added "Load segmentation from DICOM-SEG..." to File menu in ritk-snap
 - [x] **Round-trip tests**: 4 value-semantic tests for DICOM-SEG→LabelMap and LabelMap→DICOM-SEG→LabelMap identity paths
 - [x] **Compile and test**: ritk-snap app.rs compiles cleanly; all 394 ritk-snap tests pass
-- [x] **Full test suite**: 1756 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 299 + ritk-dicom 8)
+- [x] **Full test suite**: 1758 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 301 + ritk-dicom 8)
 - [x] **Examples build check**: ritk-io and ritk-registration example targets compile successfully
 - [x] **Phase 2 Step 3**: End-to-end DICOM-SEG file workflow validation (LabelMap → SEG file → LabelMap identity)
+- [x] **Interoperability metadata**: DICOM-SEG writer emits Shared FG spatial fields (orientation, pixel spacing, slice thickness)
 - [ ] **Phase 2 Step 4**: Update remaining artifacts, commit and push
 
 ### Technical Summary

@@ -10,7 +10,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [0.34.0] - 2026 - Sprint 152
 
 ### Summary
-DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence and round-trip workflows in ritk-snap. Added bidirectional LabelMap↔DicomSegmentation conversion, fixed per-frame segment reference serialization in writer, and added file-based round-trip validation. End-to-end path is now verified: annotate state → write DICOM-SEG file → read DICOM-SEG file → reconstruct LabelMap. All 1756 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 299 + ritk-dicom 8).
+DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence and round-trip workflows in ritk-snap. Added bidirectional LabelMap↔DicomSegmentation conversion, fixed per-frame segment reference serialization in writer, and extended writer to emit shared functional-groups spatial metadata (orientation, spacing, thickness). End-to-end path is verified: annotate state → write DICOM-SEG file → read DICOM-SEG file → reconstruct LabelMap. All 1758 tests passing (ritk-core 1055 + ritk-snap 394 + ritk-io 301 + ritk-dicom 8).
 
 ### Added
 - **DICOM-SEG converter**: `label_map_to_dicom_seg` function in ritk-io; converts LabelMap → DicomSegmentation with spatial metadata (origin, spacing, direction) and frame-per-Z-per-segment layout
@@ -20,7 +20,9 @@ DICOM-SEG (Segmentation) reader/writer integration for segmentation persistence 
 - **UI integration**: "Load segmentation from DICOM-SEG..." menu action in ritk-snap File menu; reads SEG object, converts to LabelMap, validates shape against loaded volume
 - **Test suite**: 4 additional value-semantic converter tests (single-label round-trip, multi-label round-trip, invalid frame length rejection, uneven frame/segment rejection)
 - **Writer correction**: `write_dicom_seg` now emits Per-Frame Functional Groups (5200,9230) with Segment Identification Sequence (0062,000A)/(0062,000B), preserving frame-to-segment mapping across file round-trips
+- **Writer extension**: `write_dicom_seg` now emits Shared Functional Groups (5200,9229) for Plane Orientation (0020,9116/0020,0037) and Pixel Measures (0028,9110/0028,0030 + 0018,0050)
 - **E2E file validation**: Added identity test covering LabelMap → DicomSegmentation → DICOM-SEG file → DicomSegmentation → LabelMap
+- **Validation hardening**: writer now enforces `frame_segment_numbers.len() == n_frames`
 
 ### Changed
 - **ritk-io API**: Added `dicom_seg_to_label_map` public export; DICOM-SEG conversion is now bidirectional in one SSOT boundary
