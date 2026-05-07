@@ -80,6 +80,8 @@ pub struct RtFractionGroup {
 /// 3. `fraction_groups` order follows encounter order in FractionGroupSequence (300A,0070).
 #[derive(Debug, Clone)]
 pub struct RtPlanInfo {
+    /// SOPInstanceUID (0008,0018).
+    pub sop_instance_uid: String,
     /// RTPlanLabel (300A,0002).
     pub rt_plan_label: String,
     /// RTPlanName (300A,0003).
@@ -117,6 +119,12 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
     }
 
     // ── Plan-level string fields ─────────────────────────────────────────────
+
+    let sop_instance_uid = obj
+        .element(Tag(0x0008, 0x0018))
+        .ok()
+        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
+        .unwrap_or_default();
 
     let rt_plan_label = obj
         .element(Tag(0x300A, 0x0002))
@@ -258,6 +266,7 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
     );
 
     Ok(RtPlanInfo {
+        sop_instance_uid,
         rt_plan_label,
         rt_plan_name,
         rt_plan_description,
@@ -289,7 +298,12 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
         .unwrap_or_default()
         .as_nanos() as u64;
     let n = RT_PLAN_UID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let sop_instance_uid = format!("2.25.{}.{}", t, n);
+    let generated_uid = format!("2.25.{}.{}", t, n);
+    let sop_instance_uid = if plan.sop_instance_uid.trim().is_empty() {
+        generated_uid.as_str()
+    } else {
+        plan.sop_instance_uid.trim()
+    };
 
     // ── Beam items ────────────────────────────────────────────────────────────
     let beam_items: Vec<InMemDicomObject> = plan
@@ -381,7 +395,7 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
     obj.put(DataElement::new(
         Tag(0x0008, 0x0018),
         VR::UI,
-        PrimitiveValue::from(sop_instance_uid.as_str()),
+        PrimitiveValue::from(sop_instance_uid),
     ));
     obj.put(DataElement::new(
         Tag(0x0008, 0x0060),
@@ -428,7 +442,7 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
     obj.with_meta(
         FileMetaTableBuilder::new()
             .media_storage_sop_class_uid(RT_PLAN_SOP_CLASS_UID)
-            .media_storage_sop_instance_uid(sop_instance_uid.as_str())
+            .media_storage_sop_instance_uid(sop_instance_uid)
             .transfer_syntax("1.2.840.10008.1.2.1"),
     )
     .with_context(|| "build RT Plan file meta")?
@@ -706,6 +720,7 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let path = tmp.path().join("plan_empty.dcm");
         let plan = RtPlanInfo {
+            sop_instance_uid: String::new(),
             rt_plan_label: "EMPTY_PLAN".to_owned(),
             rt_plan_name: "".to_owned(),
             rt_plan_description: "".to_owned(),
@@ -738,6 +753,7 @@ mod tests {
         let path = tmp.path().join("plan_rt.dcm");
 
         let plan = RtPlanInfo {
+            sop_instance_uid: String::new(),
             rt_plan_label: "PLAN_B".to_owned(),
             rt_plan_name: "Full Plan".to_owned(),
             rt_plan_description: "Test description".to_owned(),
@@ -770,6 +786,10 @@ mod tests {
         write_rt_plan(&path, &plan).expect("write_rt_plan round-trip");
         let back = read_rt_plan(&path).expect("read_rt_plan round-trip");
 
+        assert!(
+            !back.sop_instance_uid.is_empty(),
+            "sop_instance_uid must be present"
+        );
         assert_eq!(back.rt_plan_label, "PLAN_B", "rt_plan_label");
         assert_eq!(back.rt_plan_name, "Full Plan", "rt_plan_name");
         assert_eq!(back.plan_intent, "CURATIVE", "plan_intent");

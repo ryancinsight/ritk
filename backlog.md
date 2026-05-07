@@ -1,3 +1,28 @@
+## Sprint 158 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.3 [patch]
+**Goal**: Close the RT Dose/Plan linkage visibility gap in `ritk-snap` and remove repeated RT-DOSE max-scan overhead.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-158-01 | RT Dose/Plan linkage visibility — no plan-reference identity check surfaced in viewer | **Closed** |
+
+### Delivered
+- ✓ `RtPlanInfo.sop_instance_uid` is now read/written in `ritk-io`
+- ✓ `RtDoseGrid.referenced_rt_plan_sop_instance_uid` is now read/written in `ritk-io`
+- ✓ `ritk-snap` RT-DOSE panel now displays dose→plan linkage status (linked/mismatch/missing/no-plan)
+- ✓ `ritk-snap` caches RT-DOSE max Gy at load time (`rt_dose_max_gy`) for O(1) UI rendering
+- ✓ Verification: ritk-snap 402 tests, ritk-core 1068 tests, ritk-dicom 8 tests, `ritk-io`/`ritk-registration` examples build
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Broader third-party SEG corpus | Add additional SEG fixtures from Slicer/ITK-SNAP/PACS emitters beyond dcmqi/highdicom/RSNA DIDO | High |
+| Viewer-side corpus expansion | Exercise additional third-party SEG emitters through the `ritk-snap` boundary | High |
+| RT Dose/Plan workflows (residual) | DVH computation and structure-linked dose analytics/visualization in `ritk-snap` | Medium |
+
 ## Sprint 157 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

@@ -297,6 +297,7 @@ mod tests {
             image_position: Some(origin),
             image_orientation: Some(orient),
             pixel_spacing: Some(spacing),
+            referenced_rt_plan_sop_instance_uid: None,
         }
     }
 
@@ -438,6 +439,7 @@ mod tests {
             image_position: None, // missing
             image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
             pixel_spacing: Some([1.0, 1.0]),
+            referenced_rt_plan_sop_instance_uid: None,
         };
         let result = extract_dose_slice_for_volume(
             &dose,

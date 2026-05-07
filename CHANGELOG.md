@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.3] - Sprint 158 — RT Dose/Plan linkage in viewer
+
+### Added
+- `ritk_io::RtPlanInfo` now includes `sop_instance_uid` (0008,0018), preserved through read/write for stable plan identity.
+- `ritk_io::RtDoseGrid` now includes `referenced_rt_plan_sop_instance_uid` parsed from ReferencedRTPlanSequence (300C,0002) item (0008,1155), and written back when present.
+- `ritk-snap` sidebar now displays RT-DOSE to RT-PLAN linkage status using SOP Instance UID comparison (linked, mismatch, missing reference, or plan not loaded).
+- `ritk-snap` RT-DOSE panel now uses cached `rt_dose_max_gy` computed at load time, removing repeated O(N) max-dose scans during UI rendering.
+- New value-semantic test `app::tests::rt_dose_plan_link_status_reports_linked_uid` plus extended RT-PLAN/RT-DOSE round-trip assertions in `ritk-io`.
+
+### Verification
+- `cargo test -p ritk-io --lib rt_plan`: 6 passed
+- `cargo test -p ritk-io --lib rt_dose`: 5 passed
+- `cargo test -p ritk-snap --lib`: 402 passed
+- `cargo test -p ritk-core --lib`: 1068 passed
+- `cargo test -p ritk-dicom --lib`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.2] - Sprint 157 — RT Plan viewer workflow
 
 ### Added

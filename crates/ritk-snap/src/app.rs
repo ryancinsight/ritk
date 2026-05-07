@@ -86,6 +86,8 @@ pub struct SnapApp {
     rt_struct: Option<ritk_io::RtStructureSet>,
     /// Currently loaded RT Dose grid.
     rt_dose: Option<ritk_io::RtDoseGrid>,
+    /// Cached RT-DOSE maximum Gy value (computed once at load time).
+    rt_dose_max_gy: Option<f64>,
     /// Currently loaded RT Plan metadata.
     rt_plan: Option<ritk_io::RtPlanInfo>,
     /// Whether to render the RT-DOSE heat-map overlay on viewports.
@@ -182,6 +184,7 @@ impl Default for SnapApp {
             show_rt_struct_overlay: true,
             rt_struct: None,
             rt_dose: None,
+            rt_dose_max_gy: None,
             rt_plan: None,
             show_rt_dose_overlay: false,
             rt_dose_opacity: 0.5,
@@ -729,6 +732,36 @@ impl SnapApp {
         self.status_message = "Zoom reset to fit.".to_owned();
     }
 
+    fn rt_dose_plan_link_status(&self) -> Option<String> {
+        let dose = self.rt_dose.as_ref()?;
+        let Some(ref_uid) = dose
+            .referenced_rt_plan_sop_instance_uid
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        else {
+            return Some("Plan linkage: no ReferencedRTPlanSequence UID".to_owned());
+        };
+
+        match self.rt_plan.as_ref() {
+            None => Some(format!("Plan linkage: references UID {ref_uid} (no RT-PLAN loaded)")),
+            Some(plan) => {
+                let loaded_uid = plan.sop_instance_uid.trim();
+                if loaded_uid.is_empty() {
+                    Some(format!(
+                        "Plan linkage: references UID {ref_uid} (loaded RT-PLAN has empty SOP UID)"
+                    ))
+                } else if loaded_uid == ref_uid {
+                    Some(format!("Plan linkage: linked to loaded RT-PLAN UID {ref_uid}"))
+                } else {
+                    Some(format!(
+                        "Plan linkage: mismatch (dose references {ref_uid}, loaded plan is {loaded_uid})"
+                    ))
+                }
+            }
+        }
+    }
+
     /// Mark all three MPR texture slots as needing re-render (e.g. after a
     /// view-transform or colormap change).
     fn mark_all_textures_dirty(&mut self) {
@@ -1057,8 +1090,11 @@ impl SnapApp {
                     ui.separator();
                     ui.label(format!("Type: {} / {}", rd.dose_type, rd.dose_summation_type));
                     ui.label(format!("Grid: {}×{}×{} frames", rd.rows, rd.cols, rd.n_frames));
-                    let max_dose = rd.dose_gy.iter().cloned().fold(0.0_f64, f64::max);
+                    let max_dose = self.rt_dose_max_gy.unwrap_or(0.0);
                     ui.label(format!("Max dose: {:.2} Gy", max_dose));
+                    if let Some(msg) = self.rt_dose_plan_link_status() {
+                        ui.label(msg);
+                    }
                     ui.checkbox(&mut self.show_rt_dose_overlay, "Show RT-DOSE overlay");
                     ui.horizontal(|ui| {
                         ui.label("Opacity:");
@@ -1076,6 +1112,9 @@ impl SnapApp {
                         .map(|fg| fg.n_fractions_planned)
                         .sum();
                     ui.label(format!("Label: {}", plan.rt_plan_label));
+                    if !plan.sop_instance_uid.is_empty() {
+                        ui.label(format!("SOP UID: {}", plan.sop_instance_uid));
+                    }
                     if !plan.plan_intent.is_empty() {
                         ui.label(format!("Intent: {}", plan.plan_intent));
                     }
@@ -1675,6 +1714,7 @@ impl SnapApp {
     fn load_rt_dose_file(&mut self, path: std::path::PathBuf) {
         match ritk_io::read_rt_dose(&path) {
             Ok(grid) => {
+                let max_dose_gy = grid.dose_gy.iter().copied().fold(0.0_f64, f64::max);
                 self.status_message = format!(
                     "Loaded RT-DOSE ({} type, {}×{}×{} grid) from {}",
                     grid.dose_type,
@@ -1683,6 +1723,7 @@ impl SnapApp {
                 );
                 info!("{}", self.status_message);
                 self.rt_dose = Some(grid);
+                self.rt_dose_max_gy = Some(max_dose_gy);
                 self.clear_rt_dose_overlay_cache();
                 self.show_rt_dose_overlay = true;
             }
@@ -2651,6 +2692,7 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.rt_dose = None;
+                self.rt_dose_max_gy = None;
                 self.rt_plan = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
@@ -2728,6 +2770,7 @@ impl SnapApp {
                 self.label_editor = Some(LabelEditor::new(shape));
                 self.rt_struct = None;
                 self.rt_dose = None;
+                self.rt_dose_max_gy = None;
                 self.rt_plan = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
@@ -2757,6 +2800,7 @@ impl SnapApp {
         self.label_editor = None;
         self.rt_struct = None;
         self.rt_dose = None;
+        self.rt_dose_max_gy = None;
         self.rt_plan = None;
         self.clear_rt_dose_overlay_cache();
         self.viewer_state = ViewerState::new();
@@ -3630,6 +3674,7 @@ mod tests {
         let path = tmp.path().join("plan.dcm");
 
         let plan = ritk_io::RtPlanInfo {
+            sop_instance_uid: String::new(),
             rt_plan_label: "PLAN_A".to_owned(),
             rt_plan_name: "Plan A".to_owned(),
             rt_plan_description: "Synthetic plan".to_owned(),
@@ -3661,6 +3706,37 @@ mod tests {
             "status: {}",
             app.status_message
         );
+    }
+
+    #[test]
+    fn rt_dose_plan_link_status_reports_linked_uid() {
+        let mut app = SnapApp::default();
+        app.rt_plan = Some(ritk_io::RtPlanInfo {
+            sop_instance_uid: "2.25.9001".to_owned(),
+            rt_plan_label: "PLAN_LINK".to_owned(),
+            rt_plan_name: String::new(),
+            rt_plan_description: String::new(),
+            plan_intent: String::new(),
+            beams: vec![],
+            fraction_groups: vec![],
+        });
+        app.rt_dose = Some(ritk_io::RtDoseGrid {
+            rows: 1,
+            cols: 1,
+            n_frames: 1,
+            dose_type: "PHYSICAL".to_owned(),
+            dose_summation_type: "PLAN".to_owned(),
+            dose_grid_scaling: 1.0,
+            frame_offsets: vec![0.0],
+            dose_gy: vec![1.0],
+            image_position: None,
+            image_orientation: None,
+            pixel_spacing: None,
+            referenced_rt_plan_sop_instance_uid: Some("2.25.9001".to_owned()),
+        });
+
+        let msg = app.rt_dose_plan_link_status().expect("link status present");
+        assert!(msg.contains("linked to loaded RT-PLAN UID 2.25.9001"), "{msg}");
     }
 
     // ─── Marching cubes surface export ───────────────────────────────────────

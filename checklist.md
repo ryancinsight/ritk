@@ -1,3 +1,27 @@
+## Sprint 158 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.3 [patch]
+**Goal**: Implement RT Dose/Plan linkage visibility + RT-DOSE panel max-dose caching in `ritk-snap`.
+
+### Checklist items
+- [x] Add `sop_instance_uid` to `ritk_io::RtPlanInfo` and preserve through read/write
+- [x] Add `referenced_rt_plan_sop_instance_uid` to `ritk_io::RtDoseGrid` and preserve through read/write
+- [x] Add `SnapApp::rt_dose_plan_link_status()` and render linkage status in RT-DOSE panel
+- [x] Add cached `rt_dose_max_gy` state in `SnapApp` and compute once in `load_rt_dose_file`
+- [x] Reset RT-DOSE cached max in study lifecycle reset paths
+- [x] Add value-semantic snap test for linked RT Dose/Plan UID status
+- [x] Extend `ritk-io` RT Plan / RT Dose round-trip tests for new UID fields
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-io --lib rt_plan` (6 passed)
+- [x] `cargo test -p ritk-io --lib rt_dose` (5 passed)
+- [x] `cargo test -p ritk-snap --lib` (402 passed)
+- [x] `cargo test -p ritk-core --lib` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Artifacts synced: CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+
 ## Sprint 157 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

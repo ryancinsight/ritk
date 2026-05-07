@@ -19,6 +19,8 @@
 
 use anyhow::{bail, Context, Result};
 use dicom::core::smallvec::SmallVec;
+use dicom::core::value::DataSetSequence;
+use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -26,6 +28,8 @@ use dicom::object::open_file;
 use dicom::object::InMemDicomObject;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::format::dicom::rt_plan::RT_PLAN_SOP_CLASS_UID;
 
 /// SOP Class UID for RT Dose Storage.
 pub const RT_DOSE_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.2";
@@ -65,6 +69,8 @@ pub struct RtDoseGrid {
     pub image_orientation: Option<[f64; 6]>,
     /// PixelSpacing (0028,0030) — [row_spacing, col_spacing] in mm.
     pub pixel_spacing: Option<[f64; 2]>,
+    /// Referenced RT Plan SOPInstanceUID from ReferencedRTPlanSequence (300C,0002).
+    pub referenced_rt_plan_sop_instance_uid: Option<String>,
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -197,6 +203,19 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .and_then(|e| e.to_str().ok())
         .and_then(|s| parse_ds_backslash::<2>(&s));
 
+    let referenced_rt_plan_sop_instance_uid: Option<String> = obj
+        .element(Tag(0x300C, 0x0002))
+        .ok()
+        .and_then(|e| match e.value() {
+            Value::Sequence(seq) => seq.items().first().and_then(|item| {
+                item.element(Tag(0x0008, 0x1155))
+                    .ok()
+                    .and_then(|el| el.to_str().ok().map(|s| s.trim().to_owned()))
+                    .filter(|s| !s.is_empty())
+            }),
+            _ => None,
+        });
+
     tracing::debug!(
         "read_rt_dose: rows={} cols={} n_frames={} scaling={} n_voxels={}",
         rows,
@@ -218,6 +237,7 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         image_position,
         image_orientation,
         pixel_spacing,
+        referenced_rt_plan_sop_instance_uid,
     })
 }
 
@@ -403,6 +423,30 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
             Tag(0x0028, 0x0030),
             VR::DS,
             PrimitiveValue::from(s.as_str()),
+        ));
+    }
+
+    if let Some(plan_uid) = grid
+        .referenced_rt_plan_sop_instance_uid
+        .as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+    {
+        let mut item = InMemDicomObject::new_empty();
+        item.put(DataElement::new(
+            Tag(0x0008, 0x1150),
+            VR::UI,
+            PrimitiveValue::from(RT_PLAN_SOP_CLASS_UID),
+        ));
+        item.put(DataElement::new(
+            Tag(0x0008, 0x1155),
+            VR::UI,
+            PrimitiveValue::from(plan_uid),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x300C, 0x0002),
+            VR::SQ,
+            Value::from(DataSetSequence::new(vec![item], dicom::core::header::Length::UNDEFINED)),
         ));
     }
 
@@ -671,6 +715,7 @@ mod tests {
             image_position: None,
             image_orientation: None,
             pixel_spacing: None,
+            referenced_rt_plan_sop_instance_uid: None,
         };
         let result = write_rt_dose(&path, &grid);
         assert!(result.is_err(), "mismatched voxel count must return Err");
@@ -714,6 +759,7 @@ mod tests {
             image_position: Some([10.0, 20.0, 30.0]),
             image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
             pixel_spacing: Some([2.5, 2.5]),
+            referenced_rt_plan_sop_instance_uid: Some("2.25.12345".to_owned()),
         };
 
         write_rt_dose(&path, &grid).expect("write_rt_dose round-trip");
@@ -774,6 +820,12 @@ mod tests {
             (ps[1] - 2.5).abs() < 1e-6,
             "pixel_spacing[1] = {}, expected 2.5",
             ps[1]
+        );
+
+        assert_eq!(
+            back.referenced_rt_plan_sop_instance_uid.as_deref(),
+            Some("2.25.12345"),
+            "referenced RT plan SOP Instance UID"
         );
     }
 }
