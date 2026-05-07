@@ -27,6 +27,7 @@ use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
+    compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics,
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
     window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
@@ -90,6 +91,10 @@ pub struct SnapApp {
     rt_dose_max_gy: Option<f64>,
     /// Currently loaded RT Plan metadata.
     rt_plan: Option<ritk_io::RtPlanInfo>,
+    /// Selected ROI number for RT dose analytics.
+    rt_dvh_selected_roi: Option<u32>,
+    /// Cached ROI dose analytics for selected ROI.
+    rt_dvh_cache: Option<RoiDoseAnalytics>,
     /// Whether to render the RT-DOSE heat-map overlay on viewports.
     show_rt_dose_overlay: bool,
     /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
@@ -186,6 +191,8 @@ impl Default for SnapApp {
             rt_dose: None,
             rt_dose_max_gy: None,
             rt_plan: None,
+            rt_dvh_selected_roi: None,
+            rt_dvh_cache: None,
             show_rt_dose_overlay: false,
             rt_dose_opacity: 0.5,
             rt_dose_overlay_cache: std::array::from_fn(|_| None),
@@ -762,6 +769,29 @@ impl SnapApp {
         }
     }
 
+    fn refresh_rt_dvh_cache(&mut self) {
+        let (Some(vol), Some(rt_struct), Some(rt_dose), Some(roi_number)) = (
+            self.loaded.as_ref(),
+            self.rt_struct.as_ref(),
+            self.rt_dose.as_ref(),
+            self.rt_dvh_selected_roi,
+        ) else {
+            self.rt_dvh_cache = None;
+            return;
+        };
+
+        self.rt_dvh_cache = compute_roi_dose_analytics(
+            rt_struct,
+            rt_dose,
+            roi_number,
+            vol.shape,
+            vol.origin,
+            vol.direction,
+            vol.spacing,
+            128,
+        );
+    }
+
     /// Mark all three MPR texture slots as needing re-render (e.g. after a
     /// view-transform or colormap change).
     fn mark_all_textures_dirty(&mut self) {
@@ -1121,6 +1151,68 @@ impl SnapApp {
                     ui.label(format!("Beams: {}", plan.beams.len()));
                     ui.label(format!("Fraction groups: {}", plan.fraction_groups.len()));
                     ui.label(format!("Total planned fractions: {}", total_fractions));
+                }
+
+                if self.loaded.is_some() && self.rt_struct.is_some() && self.rt_dose.is_some() {
+                    ui.separator();
+                    ui.heading("RT Dose Analytics");
+                    ui.separator();
+
+                    let roi_choices: Vec<(u32, String)> = self
+                        .rt_struct
+                        .as_ref()
+                        .map(|rt| {
+                            rt.rois
+                                .iter()
+                                .map(|roi| (roi.roi_number, roi.roi_name.clone()))
+                                .collect()
+                        })
+                        .unwrap_or_default();
+
+                    if !roi_choices.is_empty() {
+                        let mut selected = self
+                            .rt_dvh_selected_roi
+                            .or_else(|| roi_choices.first().map(|(n, _)| *n))
+                            .unwrap_or(roi_choices[0].0);
+
+                        egui::ComboBox::from_label("ROI")
+                            .selected_text(
+                                roi_choices
+                                    .iter()
+                                    .find(|(n, _)| *n == selected)
+                                    .map(|(_, name)| name.clone())
+                                    .unwrap_or_else(|| format!("ROI #{selected}")),
+                            )
+                            .show_ui(ui, |ui| {
+                                for (number, name) in &roi_choices {
+                                    ui.selectable_value(
+                                        &mut selected,
+                                        *number,
+                                        format!("{} (# {})", name, number),
+                                    );
+                                }
+                            });
+
+                        if self.rt_dvh_selected_roi != Some(selected) {
+                            self.rt_dvh_selected_roi = Some(selected);
+                            self.refresh_rt_dvh_cache();
+                        } else if self.rt_dvh_cache.is_none() {
+                            self.refresh_rt_dvh_cache();
+                        }
+
+                        if let Some(analytics) = &self.rt_dvh_cache {
+                            ui.label(format!("Voxels: {}", analytics.voxel_count));
+                            ui.label(format!("Dose min/mean/max: {:.2}/{:.2}/{:.2} Gy",
+                                analytics.min_dose_gy,
+                                analytics.mean_dose_gy,
+                                analytics.max_dose_gy,
+                            ));
+                            ui.label(format!("D95: {:.2} Gy", analytics.d95_gy));
+                            draw_dvh_curve(ui, &analytics.curve);
+                        } else {
+                            ui.label("DVH unavailable for selected ROI with current RT-STRUCT/RT-DOSE geometry.");
+                        }
+                    }
                 }
 
                 // ── Annotations ───────────────────────────────────────────────
@@ -1694,8 +1786,10 @@ impl SnapApp {
             Ok(rt) => {
                 let roi_count = rt.rois.len();
                 let label = rt.structure_set_label.clone();
+                self.rt_dvh_selected_roi = rt.rois.first().map(|roi| roi.roi_number);
                 self.rt_struct = Some(rt);
                 self.show_rt_struct_overlay = true;
+                self.refresh_rt_dvh_cache();
                 self.status_message = format!(
                     "Loaded RT-STRUCT {} ({} ROIs) from {}",
                     label,
@@ -1726,6 +1820,7 @@ impl SnapApp {
                 self.rt_dose_max_gy = Some(max_dose_gy);
                 self.clear_rt_dose_overlay_cache();
                 self.show_rt_dose_overlay = true;
+                self.refresh_rt_dvh_cache();
             }
             Err(e) => {
                 self.status_message =
@@ -1742,6 +1837,7 @@ impl SnapApp {
                 let fg_count = plan.fraction_groups.len();
                 let label = plan.rt_plan_label.clone();
                 self.rt_plan = Some(plan);
+                self.refresh_rt_dvh_cache();
                 self.status_message = format!(
                     "Loaded RT-PLAN {} ({} beams, {} fraction groups) from {}",
                     label,
@@ -2694,6 +2790,8 @@ impl SnapApp {
                 self.rt_dose = None;
                 self.rt_dose_max_gy = None;
                 self.rt_plan = None;
+                self.rt_dvh_selected_roi = None;
+                self.rt_dvh_cache = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
@@ -2772,6 +2870,8 @@ impl SnapApp {
                 self.rt_dose = None;
                 self.rt_dose_max_gy = None;
                 self.rt_plan = None;
+                self.rt_dvh_selected_roi = None;
+                self.rt_dvh_cache = None;
                 self.clear_rt_dose_overlay_cache();
                 self.tool_state = ToolState::Idle;
                 self.pan_offset = egui::Vec2::ZERO;
@@ -2802,6 +2902,8 @@ impl SnapApp {
         self.rt_dose = None;
         self.rt_dose_max_gy = None;
         self.rt_plan = None;
+        self.rt_dvh_selected_roi = None;
+        self.rt_dvh_cache = None;
         self.clear_rt_dose_overlay_cache();
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
@@ -3603,6 +3705,36 @@ mod tests {
     }
 
     #[test]
+    fn load_external_dcmqi_partial_overlap_dicom_seg_into_snap_app() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 512, 512]));
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("dcmqi")
+            .join("partial_overlaps.dcm");
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        app.load_segmentation_dicom_seg_file(&path);
+
+        let editor = app
+            .label_editor
+            .as_ref()
+            .expect("label editor loaded from external dcmqi partial-overlap SEG");
+        let map = editor.current_map();
+        assert_eq!(map.shape, [3, 512, 512]);
+        let present = map.present_labels();
+        for label in [1u32, 2, 3, 4, 5] {
+            assert!(present.contains(&label), "label {label} must be present");
+            assert!(map.count_label(label) > 0, "label {label} must have voxels");
+        }
+        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+    }
+
+    #[test]
     fn load_external_highdicom_overlap_dicom_seg_into_snap_app() {
         let mut app = SnapApp::default();
         app.loaded = Some(test_volume([4, 16, 16]));
@@ -3635,6 +3767,37 @@ mod tests {
         assert_eq!(
             map.table.get_label(2).map(|e| e.name.as_str()),
             Some("second segment")
+        );
+        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+    }
+
+    #[test]
+    fn load_external_highdicom_binary_dicom_seg_into_snap_app() {
+        let mut app = SnapApp::default();
+        app.loaded = Some(test_volume([3, 16, 16]));
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("highdicom")
+            .join("seg_image_ct_binary.dcm");
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        app.load_segmentation_dicom_seg_file(&path);
+
+        let editor = app
+            .label_editor
+            .as_ref()
+            .expect("label editor loaded from external highdicom binary SEG");
+        let map = editor.current_map();
+        assert_eq!(map.shape, [3, 16, 16]);
+        assert!(map.present_labels().contains(&1));
+        assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
+        assert_eq!(
+            map.table.get_label(1).map(|e| e.name.as_str()),
+            Some("first segment")
         );
         assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
     }

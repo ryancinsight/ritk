@@ -2172,6 +2172,41 @@ mod tests {
     }
 
     #[test]
+    fn test_read_external_dcmqi_partial_overlaps_seg_real_file() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("dcmqi")
+            .join("partial_overlaps.dcm");
+
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        let seg = read_dicom_seg(&path).expect("read external dcmqi partial-overlap SEG");
+        assert_eq!(seg.rows, 512);
+        assert_eq!(seg.cols, 512);
+        assert_eq!(seg.n_frames, 7);
+        assert_eq!(seg.bits_allocated, 1);
+        assert_eq!(seg.segmentation_type, "BINARY");
+        assert_eq!(seg.segments.len(), 5);
+        assert_eq!(seg.frame_segment_numbers.len(), 7);
+        assert!(seg
+            .segments
+            .iter()
+            .all(|s| s.algorithm_type.as_deref() == Some("MANUAL")));
+
+        let rebuilt =
+            dicom_seg_to_label_map(&seg).expect("rebuild label map from external dcmqi partial-overlap SEG");
+        assert_eq!(rebuilt.shape, [3, 512, 512]);
+        let present = rebuilt.present_labels();
+        for label in [1u32, 2, 3, 4, 5] {
+            assert!(present.contains(&label), "label {label} must be present");
+            assert!(rebuilt.count_label(label) > 0, "label {label} voxels must survive reconstruction");
+        }
+    }
+
+    #[test]
     fn test_read_external_highdicom_overlap_seg_real_file() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -2210,6 +2245,36 @@ mod tests {
         assert!(present.contains(&2), "segment 2 must be present");
         assert!(rebuilt.count_label(1) > 0, "segment 1 voxels must survive reconstruction");
         assert!(rebuilt.count_label(2) > 0, "segment 2 voxels must survive reconstruction");
+    }
+
+    #[test]
+    fn test_read_external_highdicom_binary_seg_real_file() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("test_data")
+            .join("dicom_seg")
+            .join("highdicom")
+            .join("seg_image_ct_binary.dcm");
+
+        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+
+        let seg = read_dicom_seg(&path).expect("read external highdicom binary SEG");
+        assert_eq!(seg.rows, 16);
+        assert_eq!(seg.cols, 16);
+        assert_eq!(seg.n_frames, 3);
+        assert_eq!(seg.bits_allocated, 1);
+        assert_eq!(seg.segmentation_type, "BINARY");
+        assert_eq!(seg.segments.len(), 1);
+        assert_eq!(seg.segments[0].segment_label, "first segment");
+        assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
+        assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
+
+        let rebuilt =
+            dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom binary SEG");
+        assert_eq!(rebuilt.shape, [3, 16, 16]);
+        assert!(rebuilt.present_labels().contains(&1));
+        assert!(rebuilt.count_label(1) > 0, "segment voxels must survive reconstruction");
     }
 
     #[test]

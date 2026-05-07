@@ -208,7 +208,6 @@ mod tests {
     /// Clamp is a pointwise filter — origin, spacing, direction invariant.
     #[test]
     fn spatial_metadata_preserved() {
-        use crate::spatial::Vector;
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![1.0_f32; 8], Shape::new([2, 2, 2]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);

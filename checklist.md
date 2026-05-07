@@ -1,3 +1,30 @@
+## Sprint 159 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.4 [patch]
+**Goal**: Close the remaining major residual gaps by expanding third-party DICOM-SEG corpus coverage and shipping RT DVH analytics in `ritk-snap`.
+
+### Checklist items
+- [x] Add external SEG fixture `test_data/dicom_seg/dcmqi/partial_overlaps.dcm`
+- [x] Add external SEG fixture `test_data/dicom_seg/highdicom/seg_image_ct_binary.dcm`
+- [x] Add `ritk-io` regression `test_read_external_dcmqi_partial_overlaps_seg_real_file`
+- [x] Add `ritk-io` regression `test_read_external_highdicom_binary_seg_real_file`
+- [x] Add `ritk-snap` regression `load_external_dcmqi_partial_overlap_dicom_seg_into_snap_app`
+- [x] Add `ritk-snap` regression `load_external_highdicom_binary_dicom_seg_into_snap_app`
+- [x] Add `crates/ritk-snap/src/ui/rt_dose_analytics.rs` with ROI-linked dose analytics and DVH curve rendering
+- [x] Register `rt_dose_analytics` module in `crates/ritk-snap/src/ui/mod.rs`
+- [x] Integrate RT DVH state in `SnapApp` (`rt_dvh_selected_roi`, `rt_dvh_cache`) and lifecycle resets
+- [x] Trigger DVH refresh on RT-STRUCT/RT-DOSE/RT-PLAN load and ROI selection changes
+- [x] Add RT Dose Analytics panel to viewer sidebar (ROI selector + stats + DVH plot)
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-snap --lib -q` (407 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Artifacts synced: CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+
 ## Sprint 158 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

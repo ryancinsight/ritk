@@ -7,6 +7,32 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.4] - Sprint 159 — SEG corpus expansion + RT DVH analytics
+
+### Added
+- New external DICOM-SEG fixtures for broader third-party corpus coverage:
+  - `test_data/dicom_seg/dcmqi/partial_overlaps.dcm`
+  - `test_data/dicom_seg/highdicom/seg_image_ct_binary.dcm`
+- New `ritk-io` external SEG regressions:
+  - `test_read_external_dcmqi_partial_overlaps_seg_real_file`
+  - `test_read_external_highdicom_binary_seg_real_file`
+- New `ritk-snap` external SEG boundary regressions:
+  - `load_external_dcmqi_partial_overlap_dicom_seg_into_snap_app`
+  - `load_external_highdicom_binary_dicom_seg_into_snap_app`
+- New RT dose analytics module in `ritk-snap`: `crates/ritk-snap/src/ui/rt_dose_analytics.rs` with ROI-linked dose metrics and DVH computation/rendering.
+- RT viewer integration for DVH workflow:
+  - `SnapApp` state for selected ROI and cached analytics (`rt_dvh_selected_roi`, `rt_dvh_cache`)
+  - load/reset lifecycle wiring for DVH state refresh
+  - RT sidebar analytics panel with ROI selector, voxel count, min/mean/max dose, D95, and DVH curve plot.
+
+### Verification
+- `cargo test -p ritk-snap --lib -q`: 407 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib`: 1068 passed
+- `cargo test -p ritk-dicom --lib`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.3] - Sprint 158 — RT Dose/Plan linkage in viewer
 
 ### Added

@@ -51,6 +51,7 @@ pub mod overlay;
 pub mod pan;
 pub mod pointer_intensity;
 pub mod rtdose_overlay;
+pub mod rt_dose_analytics;
 pub mod rtdose_texture;
 pub mod rtstruct_overlay;
 pub mod sidebar;
@@ -75,6 +76,7 @@ pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_
 pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform};
 pub use preset_panel::draw_preset_buttons;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
+pub use rt_dose_analytics::{compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics};
 pub use sidebar::SidebarPanel;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use tool_shortcuts::tool_kind_for_key;

@@ -1,3 +1,28 @@
+## Sprint 159 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.4 [patch]
+**Goal**: Close remaining major residual gaps: broaden third-party DICOM-SEG corpus and deliver RT DVH structure-linked dose analytics in `ritk-snap`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-159-01 | Broader third-party SEG corpus expansion beyond initial dcmqi/highdicom/RSNA set | **Closed** |
+| GAP-159-02 | Structure-linked RT dose analytics and DVH visualization in viewer workflow | **Closed** |
+
+### Delivered
+- ✓ Added external SEG fixtures: `test_data/dicom_seg/dcmqi/partial_overlaps.dcm` and `test_data/dicom_seg/highdicom/seg_image_ct_binary.dcm`
+- ✓ Added `ritk-io` external fixture regressions for both new SEG files with value-semantic metadata and label-map assertions
+- ✓ Added `ritk-snap` boundary regressions loading both new SEG fixtures into app state and validating label presence/shape semantics
+- ✓ Added `crates/ritk-snap/src/ui/rt_dose_analytics.rs` for ROI-linked dose analytics (`min/mean/max`, `D95`) and DVH curve generation/rendering
+- ✓ Integrated RT DVH state lifecycle into `SnapApp` (`rt_dvh_selected_roi`, `rt_dvh_cache`) with reset/load refresh hooks and RT sidebar analytics panel
+- ✓ Verification: `ritk-snap` 407 tests, `ritk-io` 310 tests, `ritk-core` 1068 tests, `ritk-dicom` 8 tests, `ritk-io`/`ritk-registration` examples build
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| None | Previously tracked major gaps for SEG corpus expansion and RT DVH analytics are now closed | N/A |
+
 ## Sprint 158 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
