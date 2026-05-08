@@ -1,3 +1,28 @@
+## Sprint 160 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.5 [patch]
+**Goal**: Optimize RT DVH analytics in `ritk-snap` for lower compute and memory cost while preserving value semantics.
+
+### Checklist items
+- [x] Replace full-slice polygon inclusion scans with per-polygon bounded-box rasterization in `rt_dose_analytics`
+- [x] Add per-slice occupancy mask and unique index collection to avoid duplicate sample checks
+- [x] Remove full-sort DVH path (`O(N log N)`) from analytics
+- [x] Add exact rank selection helper for D95 via `select_nth_unstable`
+- [x] Build DVH curve from histogram cumulative counts with deterministic monotonicity
+- [x] Add value-semantic tests:
+- [x] `select_nth_smallest_returns_expected_rank_value`
+- [x] `build_dvh_curve_histogram_monotonic_volume_fraction`
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-snap --lib ui::rt_dose_analytics::` (5 passed)
+- [x] `cargo test -p ritk-snap --lib -q` (407 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Artifacts synced: CHANGELOG.md, checklist.md, backlog.md, gap_audit.md
+
 ## Sprint 159 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

@@ -10,6 +10,15 @@ use ritk_io::{RtDoseGrid, RtStructureSet};
 
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 
+#[derive(Debug, Clone)]
+struct RasterPolygon {
+    vertices_rc: Vec<[f32; 2]>,
+    row_min: usize,
+    row_max: usize,
+    col_min: usize,
+    col_max: usize,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct DvhPoint {
     pub dose_gy: f32,
@@ -46,7 +55,7 @@ pub fn compute_roi_dose_analytics(
         return None;
     }
 
-    let mut polygons_by_slice: BTreeMap<usize, Vec<Vec<[f32; 2]>>> = BTreeMap::new();
+    let mut polygons_by_slice: BTreeMap<usize, Vec<RasterPolygon>> = BTreeMap::new();
     for contour in &roi.contours {
         if contour.geometric_type.trim() != "CLOSED_PLANAR" || contour.points.len() < 3 {
             continue;
@@ -77,11 +86,13 @@ pub fn compute_roi_dose_analytics(
         }
         let z_idx = z_idx_i64 as usize;
 
-        let polygon: Vec<[f32; 2]> = voxels
+        let vertices_rc: Vec<[f32; 2]> = voxels
             .into_iter()
             .map(|v| [v[1] as f32, v[2] as f32])
             .collect();
-        polygons_by_slice.entry(z_idx).or_default().push(polygon);
+        if let Some(polygon) = build_raster_polygon(vertices_rc, rows, cols) {
+            polygons_by_slice.entry(z_idx).or_default().push(polygon);
+        }
     }
 
     if polygons_by_slice.is_empty() {
@@ -100,20 +111,29 @@ pub fn compute_roi_dose_analytics(
             vol_spacing,
         )?;
 
-        for r in 0..rows {
-            for c in 0..cols {
+        let mut mask = vec![0u8; rows * cols];
+        let mut selected_indices: Vec<usize> = Vec::new();
+        for polygon in &polygons {
+            for r in polygon.row_min..=polygon.row_max {
                 let row = r as f32 + 0.5;
-                let col = c as f32 + 0.5;
-                let inside = polygons
-                    .iter()
-                    .any(|poly| point_in_polygon(row, col, poly));
-                if !inside {
-                    continue;
+                for c in polygon.col_min..=polygon.col_max {
+                    let col = c as f32 + 0.5;
+                    if !point_in_polygon(row, col, &polygon.vertices_rc) {
+                        continue;
+                    }
+                    let idx = r * cols + c;
+                    if mask[idx] == 0 {
+                        mask[idx] = 1;
+                        selected_indices.push(idx);
+                    }
                 }
-                let dose = dose_map[r * cols + c];
-                if dose.is_finite() && dose >= 0.0 {
-                    dose_samples.push(dose);
-                }
+            }
+        }
+
+        for idx in selected_indices {
+            let dose = dose_map[idx];
+            if dose.is_finite() && dose >= 0.0 {
+                dose_samples.push(dose);
             }
         }
     }
@@ -122,26 +142,24 @@ pub fn compute_roi_dose_analytics(
         return None;
     }
 
-    dose_samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-
     let n = dose_samples.len();
-    let min_dose = dose_samples[0];
-    let max_dose = *dose_samples.last().unwrap_or(&min_dose);
-    let mean_dose = dose_samples.iter().copied().sum::<f32>() / n as f32;
-    let d95_idx = (((n - 1) as f32) * 0.05).floor() as usize;
-    let d95 = dose_samples[d95_idx.min(n - 1)];
-
-    let mut curve: Vec<DvhPoint> = Vec::with_capacity(bins + 1);
-    for i in 0..=bins {
-        let t = i as f32 / bins as f32;
-        let threshold = max_dose * t;
-        let first_ge = dose_samples.partition_point(|v| *v < threshold);
-        let ge_count = n.saturating_sub(first_ge);
-        curve.push(DvhPoint {
-            dose_gy: threshold,
-            volume_fraction_ge: ge_count as f32 / n as f32,
-        });
+    let mut min_dose = f32::INFINITY;
+    let mut max_dose = f32::NEG_INFINITY;
+    let mut sum_dose = 0.0_f32;
+    for &dose in &dose_samples {
+        min_dose = min_dose.min(dose);
+        max_dose = max_dose.max(dose);
+        sum_dose += dose;
     }
+    if !min_dose.is_finite() || !max_dose.is_finite() {
+        return None;
+    }
+    let mean_dose = sum_dose / n as f32;
+
+    let d95_rank = (((n - 1) as f32) * 0.05).floor() as usize;
+    let d95 = select_nth_smallest(&mut dose_samples, d95_rank)?;
+
+    let curve = build_dvh_curve_histogram(&dose_samples, max_dose, bins);
 
     Some(RoiDoseAnalytics {
         roi_number,
@@ -153,6 +171,86 @@ pub fn compute_roi_dose_analytics(
         d95_gy: d95,
         curve,
     })
+}
+
+fn build_raster_polygon(vertices_rc: Vec<[f32; 2]>, rows: usize, cols: usize) -> Option<RasterPolygon> {
+    if vertices_rc.len() < 3 {
+        return None;
+    }
+    let mut row_min_f = f32::INFINITY;
+    let mut row_max_f = f32::NEG_INFINITY;
+    let mut col_min_f = f32::INFINITY;
+    let mut col_max_f = f32::NEG_INFINITY;
+    for vertex in &vertices_rc {
+        row_min_f = row_min_f.min(vertex[0]);
+        row_max_f = row_max_f.max(vertex[0]);
+        col_min_f = col_min_f.min(vertex[1]);
+        col_max_f = col_max_f.max(vertex[1]);
+    }
+    if !row_min_f.is_finite() || !row_max_f.is_finite() || !col_min_f.is_finite() || !col_max_f.is_finite() {
+        return None;
+    }
+
+    let row_min = row_min_f.floor().max(0.0) as usize;
+    let row_max = row_max_f.ceil().max(0.0) as usize;
+    let col_min = col_min_f.floor().max(0.0) as usize;
+    let col_max = col_max_f.ceil().max(0.0) as usize;
+
+    if row_min >= rows || col_min >= cols {
+        return None;
+    }
+
+    Some(RasterPolygon {
+        vertices_rc,
+        row_min,
+        row_max: row_max.min(rows.saturating_sub(1)),
+        col_min,
+        col_max: col_max.min(cols.saturating_sub(1)),
+    })
+}
+
+fn select_nth_smallest(values: &mut [f32], rank: usize) -> Option<f32> {
+    if values.is_empty() || rank >= values.len() {
+        return None;
+    }
+    let (_, value, _) = values.select_nth_unstable_by(rank, |a, b| {
+        a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    Some(*value)
+}
+
+fn build_dvh_curve_histogram(dose_samples: &[f32], max_dose: f32, bins: usize) -> Vec<DvhPoint> {
+    if dose_samples.is_empty() || bins == 0 {
+        return Vec::new();
+    }
+
+    let n = dose_samples.len();
+    let max_dose_safe = max_dose.max(1e-6);
+    let mut hist = vec![0usize; bins + 1];
+    for &dose in dose_samples {
+        let mut idx = ((dose / max_dose_safe) * bins as f32).floor() as usize;
+        if idx > bins {
+            idx = bins;
+        }
+        hist[idx] += 1;
+    }
+
+    let mut ge_counts = vec![0usize; bins + 1];
+    let mut running = 0usize;
+    for i in (0..=bins).rev() {
+        running += hist[i];
+        ge_counts[i] = running;
+    }
+
+    let mut curve: Vec<DvhPoint> = Vec::with_capacity(bins + 1);
+    for i in 0..=bins {
+        let t = i as f32 / bins as f32;
+        curve.push(DvhPoint {
+            dose_gy: max_dose_safe * t,
+            volume_fraction_ge: ge_counts[i] as f32 / n as f32,
+        });
+    }
+    curve
 }
 
 pub fn draw_dvh_curve(ui: &mut Ui, points: &[DvhPoint]) {
@@ -351,5 +449,23 @@ mod tests {
             10,
         );
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn select_nth_smallest_returns_expected_rank_value() {
+        let mut data = vec![9.0_f32, 1.0, 5.0, 7.0, 3.0];
+        let value = select_nth_smallest(&mut data, 1).expect("rank value");
+        assert_eq!(value, 3.0);
+    }
+
+    #[test]
+    fn build_dvh_curve_histogram_monotonic_volume_fraction() {
+        let samples = vec![1.0_f32, 2.0, 2.0, 4.0];
+        let curve = build_dvh_curve_histogram(&samples, 4.0, 4);
+        assert_eq!(curve.len(), 5);
+        for pair in curve.windows(2) {
+            assert!(pair[0].volume_fraction_ge >= pair[1].volume_fraction_ge);
+        }
+        assert_eq!(curve[0].volume_fraction_ge, 1.0);
     }
 }

@@ -1,3 +1,26 @@
+## Sprint 160 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.5 [patch]
+**Goal**: Optimize RT DVH analytics runtime and memory behavior in `ritk-snap` without changing user-visible workflow semantics.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-160-01 | RT DVH rasterization scanned full slices per polygon and performed full dose sort for every analytics refresh | **Closed** |
+
+### Delivered
+- ✓ Refactored `crates/ritk-snap/src/ui/rt_dose_analytics.rs` to use bounded rasterization by contour bounding boxes instead of full-slice polygon checks
+- ✓ Added slice mask + index collection path to avoid repeated point-in-polygon checks on already-covered pixels
+- ✓ Removed full `O(N log N)` sample sorting from DVH path; now uses one-pass stats (`min/max/mean`), exact `D95` via `select_nth_unstable`, and histogram-based DVH cumulative curve construction
+- ✓ Added value-semantic tests for rank selection and DVH monotonicity invariants
+- ✓ Verification chain re-run across modified and adjacent crates and examples
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| None in this slice | This increment is a performance/memory optimization pass over an already shipped DVH feature surface | N/A |
+
 ## Sprint 159 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

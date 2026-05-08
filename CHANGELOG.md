@@ -7,6 +7,26 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.5] - Sprint 160 — RT DVH performance and memory optimization
+
+### Changed
+- Optimized `crates/ritk-snap/src/ui/rt_dose_analytics.rs` rasterization path to scan polygon bounding boxes instead of full slices.
+- Added per-slice occupancy mask and unique index collection to reduce duplicate inclusion checks for overlapping contours.
+- Replaced full dose-sample sorting in analytics with:
+  - one-pass min/max/mean accumulation,
+  - exact D95 rank extraction via `select_nth_unstable`,
+  - histogram cumulative DVH curve construction.
+- Added value-semantic tests for rank-selection correctness and DVH monotonicity invariants.
+
+### Verification
+- `cargo test -p ritk-snap --lib ui::rt_dose_analytics::`: 5 passed
+- `cargo test -p ritk-snap --lib -q`: 407 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.4] - Sprint 159 — SEG corpus expansion + RT DVH analytics
 
 ### Added
