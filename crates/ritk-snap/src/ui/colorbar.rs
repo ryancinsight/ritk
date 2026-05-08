@@ -84,7 +84,7 @@ pub fn draw_colorbar(
 
     // Border around the colorbar.
     let bar_rect = Rect::from_min_max(pos2(bar_left, bar_top), pos2(bar_right, bar_bottom));
-    painter.rect_stroke(bar_rect, Rounding::ZERO, Stroke::new(1.0, Color32::GRAY));
+    painter.rect_stroke(bar_rect, Rounding::ZERO, Stroke::new(1.0_f32, Color32::GRAY));
 
     // Intensity labels.
     let half_width = width * 0.5;

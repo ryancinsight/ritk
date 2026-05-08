@@ -1,3 +1,24 @@
+## Sprint 163 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.8 [patch]
+**Goal**: Remove future-incompatible compile warnings from `ritk-snap` while preserving full viewer behavior and wasm/browser build capability.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-163-01 | `ritk-snap` emitted 12 `float_literal_f32_fallback` warnings that will become hard errors in future Rust versions | **Closed** |
+
+### Delivered
+- ✓ Replaced ambiguous float stroke literals with explicit `f32` literals across `ritk-snap` app/UI rendering modules
+- ✓ Preserved gaia-backed meshing path and existing viewer behavior (no algorithmic changes)
+- ✓ Re-ran native + wasm compile verification and full requested test/example matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM I/O parity | Full browser-native DICOM file/folder acquisition and decode workflow parity with desktop viewer remains follow-up work | Medium |
+
 ## Sprint 162 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

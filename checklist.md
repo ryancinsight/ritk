@@ -1,3 +1,22 @@
+## Sprint 163 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.8 [patch]
+**Goal**: Remove future-incompatible `ritk-snap` compile warnings without changing viewer semantics.
+
+### Checklist items
+- [x] Replace all warned `Stroke::new` float literals with explicit `f32` literals in `ritk-snap` app/UI modules
+- [x] Keep runtime behavior and APIs unchanged (type-annotation-only fix)
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (409 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+
 ## Sprint 162 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

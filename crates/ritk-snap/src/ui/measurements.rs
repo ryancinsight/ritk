@@ -278,7 +278,7 @@ fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_
     painter.circle_filled(p3, HANDLE_RADIUS, COLOR_MEASURE);
 
     // Small arc at the vertex (approximated by a circle outline).
-    painter.circle_stroke(p2, 8.0, Stroke::new(1.0, COLOR_MEASURE));
+    painter.circle_stroke(p2, 8.0, Stroke::new(1.0_f32, COLOR_MEASURE));
 
     // Label along the angle bisector.
     let d1 = (p1 - p2).normalized();

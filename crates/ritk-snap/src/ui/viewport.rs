@@ -353,7 +353,7 @@ impl<'a> ViewportPanel<'a> {
         }
 
         // ── viewport border ───────────────────────────────────────────────
-        painter.rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(60, 60, 60)));
+        painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::from_rgb(60, 60, 60)));
 
         // ── context menu ──────────────────────────────────────────────────
         response.context_menu(|ui| {
@@ -795,7 +795,7 @@ fn img_to_volume(img_col: usize, img_row: usize, slice: usize, axis: usize) -> [
 fn draw_crosshair(painter: &egui::Painter, rect: Rect, color: Color32) {
     let cx = rect.center().x;
     let cy = rect.center().y;
-    let stroke = Stroke::new(0.75, color);
+    let stroke = Stroke::new(0.75_f32, color);
     // Horizontal line
     painter.line_segment([pos2(rect.min.x, cy), pos2(rect.max.x, cy)], stroke);
     // Vertical line

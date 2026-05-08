@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.8] - Sprint 163 — ritk-snap warning cleanup and forward-compatibility hardening
+
+### Changed
+- Eliminated `float_literal_f32_fallback` future-incompatible warnings in `ritk-snap` by making stroke width literals explicit `f32` values across viewer/UI rendering paths:
+  - `crates/ritk-snap/src/app.rs`
+  - `crates/ritk-snap/src/ui/colorbar.rs`
+  - `crates/ritk-snap/src/ui/histogram.rs`
+  - `crates/ritk-snap/src/ui/measurements.rs`
+  - `crates/ritk-snap/src/ui/rt_dose_analytics.rs`
+  - `crates/ritk-snap/src/ui/viewport.rs`
+- Preserved all viewer behavior and public API surfaces; changes are type-annotation corrections only.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (explicit rustup rustc/rustdoc path, isolated target dir): passed
+- `cargo test -p ritk-snap --lib -q`: 409 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.7] - Sprint 162 — wasm viewer UX correction and mesh-export precheck
 
 ### Changed

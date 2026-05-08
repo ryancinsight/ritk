@@ -258,7 +258,7 @@ pub fn draw_dvh_curve(ui: &mut Ui, points: &[DvhPoint]) {
     let (rect, _) = ui.allocate_exact_size(desired, egui::Sense::hover());
     let painter = ui.painter_at(rect);
 
-    painter.rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::GRAY));
+    painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::GRAY));
     if points.len() < 2 {
         return;
     }
@@ -283,7 +283,7 @@ pub fn draw_dvh_curve(ui: &mut Ui, points: &[DvhPoint]) {
                 to_screen(a.dose_gy, a.volume_fraction_ge, rect),
                 to_screen(b.dose_gy, b.volume_fraction_ge, rect),
             ],
-            Stroke::new(1.5, Color32::from_rgb(255, 128, 0)),
+            Stroke::new(1.5_f32, Color32::from_rgb(255, 128, 0)),
         );
     }
 }

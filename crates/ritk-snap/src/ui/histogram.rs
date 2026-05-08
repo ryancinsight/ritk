@@ -175,13 +175,13 @@ pub fn draw_histogram(
                 Pos2::new(x_r, rect.bottom()),
             );
             painter.rect_filled(band, 0.0, WL_BAND_COLOR);
-            painter.rect_stroke(band, 0.0, Stroke::new(1.0, WL_BORDER_COLOR));
+            painter.rect_stroke(band, 0.0, Stroke::new(1.0_f32, WL_BORDER_COLOR));
         }
 
         // Centre line
         painter.line_segment(
             [Pos2::new(x_c, rect.top()), Pos2::new(x_c, rect.bottom())],
-            Stroke::new(1.0, WL_CENTER_COLOR),
+            Stroke::new(1.0_f32, WL_CENTER_COLOR),
         );
     }
 

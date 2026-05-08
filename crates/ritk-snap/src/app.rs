@@ -1538,14 +1538,14 @@ impl SnapApp {
                             egui::pos2(response.rect.min.x, crosshair.y),
                             egui::pos2(response.rect.max.x, crosshair.y),
                         ],
-                        egui::Stroke::new(1.0, color),
+                        egui::Stroke::new(1.0_f32, color),
                     );
                     painter.line_segment(
                         [
                             egui::pos2(crosshair.x, response.rect.min.y),
                             egui::pos2(crosshair.x, response.rect.max.y),
                         ],
-                        egui::Stroke::new(1.0, color),
+                        egui::Stroke::new(1.0_f32, color),
                     );
                 }
             }
@@ -3554,7 +3554,7 @@ impl SnapApp {
                 let b = pair[1];
                 painter.line_segment(
                     [to_screen(a[0], a[1]), to_screen(b[0], b[1])],
-                    egui::Stroke::new(1.5, color),
+                    egui::Stroke::new(1.5_f32, color),
                 );
             }
 
@@ -3565,7 +3565,7 @@ impl SnapApp {
                 ) {
                     painter.line_segment(
                         [to_screen(last[0], last[1]), to_screen(first[0], first[1])],
-                        egui::Stroke::new(1.5, color),
+                        egui::Stroke::new(1.5_f32, color),
                     );
                 }
             }
