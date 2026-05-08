@@ -47,6 +47,9 @@ use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppLaunchOptions {
@@ -1436,6 +1439,7 @@ impl LoadedVolume {
 /// # Errors
 /// Returns an error if `eframe` cannot create a window or encounters a fatal
 /// platform error during the event loop.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_app() -> anyhow::Result<()> {
     run_app_with_options(AppLaunchOptions::default())
 }
@@ -1445,6 +1449,7 @@ pub fn run_app() -> anyhow::Result<()> {
 /// When `initial_path` is present, the app queues that path for loading on the
 /// first UI update. Directory paths are also scanned for the DICOM series
 /// browser before the first frame.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -1464,6 +1469,42 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         }),
     )
     .map_err(|e| anyhow::anyhow!("eframe error: {e}"))
+}
+
+/// Stub launcher for non-native targets.
+///
+/// On wasm targets, use [`start_web`] to launch `ritk-snap` in a browser.
+#[cfg(target_arch = "wasm32")]
+pub fn run_app_with_options(_options: AppLaunchOptions) -> anyhow::Result<()> {
+    anyhow::bail!("run_app_with_options is native-only; use start_web() on wasm32")
+}
+
+/// Start the `ritk-snap` egui viewer in a browser canvas.
+///
+/// This entrypoint is exported only for `wasm32` and is intended to be called
+/// from JavaScript after loading the generated wasm module.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub async fn start_web(canvas_id: String) -> Result<(), JsValue> {
+    use wasm_bindgen_futures::JsFuture;
+
+    let web_options = eframe::WebOptions::default();
+    let runner = eframe::WebRunner::new();
+    runner
+        .start(
+            &canvas_id,
+            web_options,
+            Box::new(|_cc| Ok(Box::new(app::SnapApp::default()))),
+        )
+        .await
+        .map_err(|e| JsValue::from_str(&format!("failed to start web runner: {e:?}")))?;
+
+    // Yield once so startup errors surface as rejected promises to JS callers.
+    JsFuture::from(js_sys::Promise::resolve(&JsValue::UNDEFINED))
+        .await
+        .map_err(|e| JsValue::from_str(&format!("web startup promise failed: {e:?}")))?;
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -21,7 +21,19 @@
 //!          needed transfer syntaxes.
 
 pub mod jpeg;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod jpeg_2000;
+#[cfg(target_arch = "wasm32")]
+pub mod jpeg_2000 {
+    use anyhow::{bail, Result};
+
+    use crate::PixelLayout;
+
+    /// WebAssembly builds do not link OpenJPEG C libraries.
+    pub fn decode_jpeg2000_fragment(_fragment: &[u8], _layout: PixelLayout) -> Result<Vec<f32>> {
+        bail!("JPEG 2000 decoding is unavailable on wasm32 targets")
+    }
+}
 pub mod jpeg_ls;
 pub mod packbits;
 pub mod pixel_layout;

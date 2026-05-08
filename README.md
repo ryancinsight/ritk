@@ -129,6 +129,25 @@ element byte counts. Viewer session save/load stores presentation state as
 JSON, including source path, slice indices, window/level, colormap, active
 tool, layout flags, overlay flags, sidebar tab, pan, and zoom.
 
+### Browser / WASM (egui)
+
+`ritk-snap` now exposes a wasm entrypoint for browser hosting:
+
+- `ritk_snap::start_web(canvas_id: String)` (wasm-only, exported via `wasm-bindgen`)
+
+The native binary (`ritk-snap`) remains desktop-only. For browser execution,
+build `crates/ritk-snap` for `wasm32-unknown-unknown`, load the generated JS/WASM
+bundle in a page with a `<canvas>` element, and invoke `start_web("<canvas-id>")`.
+
+Minimal JS bootstrap pattern:
+
+```javascript
+import init, { start_web } from "./pkg/ritk_snap.js";
+
+await init();
+await start_web("ritk-snap-canvas");
+```
+
 ## Features
 
 ### Core Types (`ritk-core`)

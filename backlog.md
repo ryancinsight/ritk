@@ -1,3 +1,27 @@
+## Sprint 161 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.6 [patch]
+**Goal**: Add browser-capable wasm launch path for `ritk-snap` egui viewer while preserving native desktop workflow.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-161-01 | No wasm/browser launch entrypoint for `ritk-snap` egui viewer | **Closed** |
+
+### Delivered
+- ✓ Added wasm-only web launcher export `start_web(canvas_id)` in `crates/ritk-snap/src/lib.rs`
+- ✓ Separated native and wasm launch paths in `run_app_with_options` with explicit wasm guidance
+- ✓ Gated `crates/ritk-snap/src/main.rs` native CLI path from wasm target with deterministic error message
+- ✓ Added wasm target dependencies (`wasm-bindgen`, `wasm-bindgen-futures`, `js-sys`) in `crates/ritk-snap/Cargo.toml`
+- ✓ Removed unused `tokio` dependency from `ritk-snap` crate
+- ✓ Documented browser bootstrap workflow in `README.md`
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM I/O parity | Full in-browser DICOM folder/file acquisition and validation workflow parity with native desktop path remains follow-up work | Medium |
+
 ## Sprint 160 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

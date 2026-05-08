@@ -26,8 +26,14 @@ rfd = "0.14"
 image = { workspace = true }
 nalgebra = { workspace = true }
 gaia = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
 walkdir = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -7,6 +7,21 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.6] - Sprint 161 — wasm/browser launcher path for ritk-snap
+
+### Changed
+- Added wasm-only browser launch export `start_web(canvas_id: String)` in `crates/ritk-snap/src/lib.rs` using `eframe::WebRunner` + `wasm-bindgen`.
+- Split launch surfaces by target architecture:
+  - native targets retain `run_app()` / `run_app_with_options()` desktop startup.
+  - wasm target `run_app_with_options()` returns deterministic guidance to use `start_web`.
+- Gated `crates/ritk-snap/src/main.rs` native CLI path from wasm target and added explicit wasm runtime guidance.
+- Added wasm target dependencies in `crates/ritk-snap/Cargo.toml`: `wasm-bindgen`, `wasm-bindgen-futures`, `js-sys`.
+- Removed unused `tokio` dependency from `ritk-snap` crate.
+- Added browser bootstrap instructions in `README.md` for calling `start_web` from JavaScript.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+
 ## [0.37.5] - Sprint 160 — RT DVH performance and memory optimization
 
 ### Changed

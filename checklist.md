@@ -1,3 +1,18 @@
+## Sprint 161 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.6 [patch]
+**Goal**: Add browser-capable wasm launch path for `ritk-snap` egui viewer without regressing native desktop launch behavior.
+
+### Checklist items
+- [x] Add wasm-only browser launcher API `start_web(canvas_id)` in `crates/ritk-snap/src/lib.rs`
+- [x] Preserve native desktop launcher behavior using target-specific launch separation
+- [x] Gate CLI binary startup for wasm target in `crates/ritk-snap/src/main.rs`
+- [x] Add wasm target dependencies (`wasm-bindgen`, `wasm-bindgen-futures`, `js-sys`) to `crates/ritk-snap/Cargo.toml`
+- [x] Remove unused `tokio` dependency from `ritk-snap`
+- [x] Update `README.md` with browser bootstrap instructions for wasm entrypoint
+- [x] Run native compile verification for `ritk-snap` launcher refactor
+
 ## Sprint 160 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

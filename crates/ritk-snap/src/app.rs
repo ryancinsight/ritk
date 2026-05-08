@@ -38,6 +38,39 @@ use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
 use crate::{LoadedVolume, ModalityDisplay, ViewerState};
 
+#[cfg(not(target_arch = "wasm32"))]
+use rfd::FileDialog;
+
+#[cfg(target_arch = "wasm32")]
+struct FileDialog;
+
+#[cfg(target_arch = "wasm32")]
+impl FileDialog {
+    fn new() -> Self {
+        Self
+    }
+
+    fn set_file_name(self, _name: &str) -> Self {
+        self
+    }
+
+    fn add_filter(self, _name: &str, _extensions: &[&str]) -> Self {
+        self
+    }
+
+    fn pick_file(self) -> Option<std::path::PathBuf> {
+        None
+    }
+
+    fn pick_folder(self) -> Option<std::path::PathBuf> {
+        None
+    }
+
+    fn save_file(self) -> Option<std::path::PathBuf> {
+        None
+    }
+}
+
 /// CPU backend used for DICOM loading.
 type LoadBackend = burn_ndarray::NdArray<f32>;
 
@@ -233,6 +266,7 @@ impl SnapApp {
     /// Directory paths are scanned immediately so the series browser is
     /// populated before the deferred volume load runs. File paths are queued
     /// directly because they do not contain a DICOM series tree.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn with_initial_path(path: std::path::PathBuf) -> Self {
         let mut app = Self::default();
         if crate::dicom::classify_dicom_input_path(&path)
@@ -284,7 +318,7 @@ impl SnapApp {
                 ui.menu_button("File", |ui| {
                     if ui.button("Open DICOM folder…").clicked() {
                         ui.close_menu();
-                        if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+                        if let Some(folder) = FileDialog::new().pick_folder() {
                             self.scan_for_series(folder.clone());
                             self.pending_load = Some(folder);
                         }
@@ -293,7 +327,7 @@ impl SnapApp {
                     if ui.button("Open DICOMDIR…").clicked() {
                         ui.close_menu();
                         if let Some(path) =
-                            rfd::FileDialog::new().set_file_name("DICOMDIR").pick_file()
+                            FileDialog::new().set_file_name("DICOMDIR").pick_file()
                         {
                             self.scan_for_series(path.clone());
                             self.pending_load = Some(path);
@@ -302,7 +336,7 @@ impl SnapApp {
 
                     if ui.button("Open DICOM file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = rfd::FileDialog::new()
+                        if let Some(path) = FileDialog::new()
                             .add_filter("DICOM", &["dcm", "dicom"])
                             .pick_file()
                         {
@@ -313,7 +347,7 @@ impl SnapApp {
 
                     if ui.button("Open NIfTI / MHA / NRRD file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = rfd::FileDialog::new()
+                        if let Some(path) = FileDialog::new()
                             .add_filter(
                                 "Medical images",
                                 &["nii", "gz", "mha", "mhd", "nrrd", "nhdr", "mgh", "mgz"],
@@ -326,7 +360,7 @@ impl SnapApp {
 
                     if ui.button("Open RT-STRUCT file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = rfd::FileDialog::new()
+                        if let Some(path) = FileDialog::new()
                             .add_filter("DICOM", &["dcm"])
                             .pick_file()
                         {
@@ -336,7 +370,7 @@ impl SnapApp {
 
                     if ui.button("Open RT Dose file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = rfd::FileDialog::new()
+                        if let Some(path) = FileDialog::new()
                             .add_filter("DICOM", &["dcm"])
                             .pick_file()
                         {
@@ -346,7 +380,7 @@ impl SnapApp {
 
                     if ui.button("Open RT Plan file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = rfd::FileDialog::new()
+                        if let Some(path) = FileDialog::new()
                             .add_filter("DICOM", &["dcm"])
                             .pick_file()
                         {
@@ -1760,7 +1794,7 @@ impl SnapApp {
             .collect();
         let [w, h] = color_image.size;
 
-        if let Some(path) = rfd::FileDialog::new()
+        if let Some(path) = FileDialog::new()
             .set_file_name("slice.png")
             .add_filter("PNG", &["png"])
             .save_file()
@@ -2301,7 +2335,7 @@ impl SnapApp {
             return;
         };
 
-        let Some(root) = rfd::FileDialog::new().pick_folder() else {
+        let Some(root) = FileDialog::new().pick_folder() else {
             return;
         };
 
@@ -2360,7 +2394,7 @@ impl SnapApp {
     }
 
     fn save_session_dialog(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .set_file_name("ritk-snap-session.json")
             .add_filter("JSON", &["json"])
             .save_file()
@@ -2382,7 +2416,7 @@ impl SnapApp {
     }
 
     fn load_session_dialog(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .add_filter("JSON", &["json"])
             .pick_file()
         else {
@@ -2426,7 +2460,7 @@ impl SnapApp {
         ];
         let direction: [f32; 9] = std::array::from_fn(|i| vol.direction[i] as f32);
 
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .set_file_name("segmentation.nii.gz")
             .add_filter("NIfTI", &["nii", "gz"])
             .save_file()
@@ -2477,7 +2511,7 @@ impl SnapApp {
         let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
         let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
 
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .set_file_name("surface.vtk")
             .add_filter("VTK Polydata", &["vtk"])
             .save_file()
@@ -2523,7 +2557,7 @@ impl SnapApp {
         let spacing = vol.spacing;
         let direction = vol.direction;
 
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .set_file_name("segmentation.dcm")
             .add_filter("DICOM SEG", &["dcm"])
             .save_file()
@@ -2566,7 +2600,7 @@ impl SnapApp {
         };
         let expected_shape = vol.shape;
 
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .add_filter("NIfTI", &["nii", "gz"])
             .pick_file()
         else {
@@ -2653,7 +2687,7 @@ impl SnapApp {
     ///
     /// The reconstructed shape must match the currently loaded volume.
     fn load_segmentation_dicom_seg_dialog(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
+        let Some(path) = FileDialog::new()
             .add_filter("DICOM SEG", &["dcm", "dicom"])
             .pick_file()
         else {
