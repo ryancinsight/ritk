@@ -7,6 +7,24 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.7] - Sprint 162 — wasm viewer UX correction and mesh-export precheck
+
+### Changed
+- Updated `crates/ritk-snap/src/app.rs` File menu behavior on `wasm32` targets to show an explicit in-app warning that local file/folder dialogs are not yet available in browser builds, replacing previous silent no-op behavior.
+- Updated `export_surface_dialog` in `crates/ritk-snap/src/app.rs` to:
+  - document that the export path produces a gaia-backed indexed mesh (`gaia::IndexedMesh<f64>`), and
+  - reject empty label maps before meshing by prechecking foreground occupancy during binary field construction.
+
+### Verification
+- `cargo test -p ritk-snap --lib -q`: 409 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `cargo check -p ritk-snap`: passed
+- `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (with explicit rustup rustc/rustdoc path and isolated target dir): passed
+
 ## [0.37.6] - Sprint 161 — wasm/browser launcher path for ritk-snap
 
 ### Changed

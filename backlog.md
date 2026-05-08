@@ -1,3 +1,26 @@
+## Sprint 162 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.7 [patch]
+**Goal**: Close the browser-build viewer UX gap for file actions and tighten surface-export behavior/performance for empty segmentations.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-162-01 | Browser build file menu actions were silent no-ops with no user guidance | **Closed** |
+| GAP-162-02 | Surface export invoked meshing even when segmentation had no foreground labels | **Closed** |
+
+### Delivered
+- ✓ Added explicit wasm-only File menu warning in `crates/ritk-snap/src/app.rs` for unavailable local file/folder dialogs
+- ✓ Updated surface export path to detect empty foreground maps before meshing in `crates/ritk-snap/src/app.rs`
+- ✓ Clarified gaia-backed mesh semantics in surface-export documentation comments
+- ✓ Re-ran core test/example verification matrix and native+wasm compile checks
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM I/O parity | Full browser-native DICOM file/folder acquisition and decode workflow parity with desktop viewer remains follow-up work | Medium |
+
 ## Sprint 161 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

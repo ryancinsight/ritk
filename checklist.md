@@ -1,3 +1,24 @@
+## Sprint 162 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.7 [patch]
+**Goal**: Correct wasm viewer file-action UX and tighten surface export behavior for empty segmentations.
+
+### Checklist items
+- [x] Add explicit wasm browser warning in `File` menu for unavailable local file/folder dialogs
+- [x] Keep native viewer file dialog flow unchanged
+- [x] Add early empty-foreground precheck before meshing in `export_surface_dialog`
+- [x] Keep gaia-backed mesh export path (`ritk_io::write_mesh_as_vtk`) authoritative
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-snap --lib -q` (409 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (passed)
+
 ## Sprint 161 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

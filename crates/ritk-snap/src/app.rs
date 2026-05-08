@@ -316,6 +316,15 @@ impl SnapApp {
             egui::menu::bar(ui, |ui| {
                 // ── File ─────────────────────────────────────────────────────
                 ui.menu_button("File", |ui| {
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        ui.colored_label(
+                            egui::Color32::YELLOW,
+                            "Browser build: local file/folder dialogs are not available yet.",
+                        );
+                        ui.separator();
+                    }
+
                     if ui.button("Open DICOM folder…").clicked() {
                         ui.close_menu();
                         if let Some(folder) = FileDialog::new().pick_folder() {
@@ -2491,9 +2500,9 @@ impl SnapApp {
 
     /// Export the active label map as a VTK legacy POLYDATA surface mesh.
     ///
-    /// Converts all foreground voxels (label > 0) to a binary float volume,
-    /// runs `MarchingCubesFilter` with isovalue 0.5 and the loaded volume
-    /// spacing and origin, then writes the triangle mesh to a VTK file.
+    /// Converts the label map to a binary scalar field and runs
+    /// `MarchingCubesFilter`, which returns a canonical gaia-backed indexed
+    /// mesh (`gaia::IndexedMesh<f64>`), then writes the mesh to a VTK file.
     ///
     /// # Errors
     /// Sets `status_message` on file-dialog cancellation (silently) or on
@@ -2506,8 +2515,26 @@ impl SnapApp {
         };
         let map = editor.current_map();
         let shape = map.shape;
-        // Binary float: 1.0 for foreground (any label > 0), 0.0 for background.
-        let binary: Vec<f32> = map.as_slice().iter().map(|&l| if l > 0 { 1.0 } else { 0.0 }).collect();
+
+        // Build binary scalar field once and reject empty label maps before meshing.
+        let mut has_foreground = false;
+        let binary: Vec<f32> = map
+            .as_slice()
+            .iter()
+            .map(|&l| {
+                if l > 0 {
+                    has_foreground = true;
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+            .collect();
+        if !has_foreground {
+            self.status_message = "Export surface: no foreground voxels — mesh is empty.".to_owned();
+            return;
+        }
+
         let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
         let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
 
@@ -2524,11 +2551,6 @@ impl SnapApp {
             .with_spacing(spacing)
             .with_origin(origin);
         let mesh = mc.extract(&binary, shape);
-
-        if mesh.face_count() == 0 {
-            self.status_message = "Export surface: no foreground voxels — mesh is empty.".to_owned();
-            return;
-        }
 
         match ritk_io::write_mesh_as_vtk(&path, &mesh) {
             Ok(()) => {
