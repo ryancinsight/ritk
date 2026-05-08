@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.9] - Sprint 164 — dropped-input routing and generic volume loading in ritk-snap
+
+### Changed
+- Added dropped-input ingestion in `crates/ritk-snap/src/app.rs` by calling `handle_dropped_inputs` at frame start, routing shell/browser dropped files through the same viewer load pipeline used by File-menu actions.
+- Added `SnapApp::handle_dropped_inputs` in `crates/ritk-snap/src/app.rs`:
+  - dropped DICOM inputs are classified with `classify_dicom_input_path`, scanned for series, and queued via `pending_load`.
+  - dropped non-DICOM inputs with filesystem paths load immediately through generic volume loading.
+  - pathless browser drop handles now emit deterministic user guidance in the status bar.
+- Replaced the File-menu medical-image open path from `load_nifti_file` to `load_volume_file` in `crates/ritk-snap/src/app.rs`.
+- Renamed/expanded `load_nifti_file` to `load_volume_file` in `crates/ritk-snap/src/app.rs` and switched loader backend from `load_nifti_volume` to `load_volume_from_path` so NIfTI/MetaImage/NRRD/MGH/DICOM-compatible paths share one SSOT loader route.
+- Improved generic loader failure reporting with the input path included in the error status message.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (explicit rustup rustc/rustdoc path, isolated target dir): passed
+- `cargo test -p ritk-snap --lib -q`: 409 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.8] - Sprint 163 — ritk-snap warning cleanup and forward-compatibility hardening
 
 ### Changed

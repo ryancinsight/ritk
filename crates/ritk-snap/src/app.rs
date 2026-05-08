@@ -285,6 +285,10 @@ impl SnapApp {
 
 impl eframe::App for SnapApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Accept dropped files from the OS/browser shell and route them through
+        // the same loader path as explicit File-menu actions.
+        self.handle_dropped_inputs(ctx);
+
         // Process any pending file load queued in the previous frame so that
         // the file-dialog result is always acted on with a full UI repaint.
         if let Some(path) = self.pending_load.take() {
@@ -363,7 +367,7 @@ impl SnapApp {
                             )
                             .pick_file()
                         {
-                            self.load_nifti_file(path);
+                            self.load_volume_file(path);
                         }
                     }
 
@@ -928,6 +932,45 @@ impl SnapApp {
         });
         if let Some(source) = snapshot.source {
             self.pending_load = Some(source);
+        }
+    }
+
+    /// Ingest shell-dropped inputs (desktop) or browser-dropped file handles.
+    ///
+    /// Files with filesystem paths are routed to the same code paths as File-menu
+    /// actions. Browser-provided handles without paths are acknowledged with a
+    /// deterministic status message.
+    fn handle_dropped_inputs(&mut self, ctx: &egui::Context) {
+        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+        if dropped.is_empty() {
+            return;
+        }
+
+        for file in dropped {
+            if let Some(path) = file.path {
+                if crate::dicom::classify_dicom_input_path(&path)
+                    .dicom_root()
+                    .is_some()
+                {
+                    self.scan_for_series(path.clone());
+                    self.pending_load = Some(path.clone());
+                    self.status_message = format!("Queued dropped DICOM input: {}", path.display());
+                } else {
+                    self.load_volume_file(path);
+                }
+                return;
+            }
+
+            if !file.name.is_empty() {
+                self.status_message = format!(
+                    "Dropped '{}' has no filesystem path in this build; use File -> Open for now.",
+                    file.name
+                );
+            } else {
+                self.status_message =
+                    "Dropped file has no filesystem path in this build; use File -> Open for now."
+                        .to_owned();
+            }
         }
     }
 
@@ -2883,14 +2926,14 @@ impl SnapApp {
         }
     }
 
-    /// Load a NIfTI (`.nii` / `.nii.gz`) volume from `path`.
+    /// Load a medical image volume from `path`.
     ///
-    /// Calls [`crate::dicom::loader::load_nifti_volume`].  On success all
-    /// viewer state and textures are reset exactly as in [`load_from_path`].
-    /// NIfTI files carry no patient metadata; DICOM-specific fields are `None`.
-    fn load_nifti_file(&mut self, path: std::path::PathBuf) {
+    /// Calls [`crate::dicom::loader::load_volume_from_path`], which supports
+    /// NIfTI, MetaImage, NRRD, MGH, and DICOM fallbacks. On success, all
+    /// viewer state and textures are reset.
+    fn load_volume_file(&mut self, path: std::path::PathBuf) {
         self.cine.stop();
-        match crate::dicom::loader::load_nifti_volume(&path) {
+        match crate::dicom::loader::load_volume_from_path(&path) {
             Ok(vol) => {
                 let shape = vol.shape;
                 let protocol = select_hanging_protocol(
@@ -2944,7 +2987,8 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message = format!("NIfTI load failed: {e:#}");
+                self.status_message = format!("Volume load failed for {}: {e:#}", path.display());
+                error!("{}", self.status_message);
             }
         }
     }

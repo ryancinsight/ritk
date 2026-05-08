@@ -1,3 +1,27 @@
+## Sprint 164 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.9 [patch]
+**Goal**: Add dropped-input ingestion and route non-DICOM file loading through the generic multi-format volume loader in `ritk-snap`.
+
+### Checklist items
+- [x] Add dropped-input ingestion at app update boundary (`handle_dropped_inputs(ctx)` in `eframe::App::update`)
+- [x] Implement dropped-input routing in `crates/ritk-snap/src/app.rs`:
+- [x] DICOM-detected paths: classify + scan series + queue `pending_load`
+- [x] Non-DICOM paths: load through `load_volume_file`
+- [x] Pathless drop handles: emit deterministic status guidance
+- [x] Replace File-menu non-DICOM load call from `load_nifti_file` to `load_volume_file`
+- [x] Rename and generalize loader method to `load_volume_file` and route through `load_volume_from_path`
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (409 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+
 ## Sprint 163 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

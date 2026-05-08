@@ -1,3 +1,28 @@
+## Sprint 164 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.9 [patch]
+**Goal**: Close the dropped-input routing gap and unify non-DICOM file loading through the generic volume loader in `ritk-snap`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-164-01 | Dropped files were not ingested by the viewer app shell, forcing File-menu-only load workflows | **Closed** |
+| GAP-164-02 | File-menu non-DICOM volume load path was NIfTI-specific instead of using generic multi-format loader routing | **Closed** |
+
+### Delivered
+- ✓ Added app-shell dropped input handling in `crates/ritk-snap/src/app.rs` via `handle_dropped_inputs(ctx)` in `eframe::App::update`
+- ✓ Added deterministic dropped-input routing: DICOM drops queue `pending_load` after series scan; non-DICOM drops load through generic volume loader
+- ✓ Added deterministic pathless-browser-drop guidance status message
+- ✓ Replaced File-menu medical-image load call from `load_nifti_file` to `load_volume_file`
+- ✓ Renamed loader method to `load_volume_file` and switched backend to `crate::dicom::loader::load_volume_from_path`
+- ✓ Re-ran native + wasm compile checks and full requested test/example matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM I/O parity | Full browser-native DICOM file/folder acquisition and decode workflow parity with desktop viewer remains follow-up work | Medium |
+
 ## Sprint 163 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
