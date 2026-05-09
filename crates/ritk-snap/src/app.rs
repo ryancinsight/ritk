@@ -28,6 +28,7 @@ use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
     compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics,
+    decide_dropped_input_action, DroppedInputAction,
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
     window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
@@ -941,36 +942,20 @@ impl SnapApp {
     /// actions. Browser-provided handles without paths are acknowledged with a
     /// deterministic status message.
     fn handle_dropped_inputs(&mut self, ctx: &egui::Context) {
-        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
-        if dropped.is_empty() {
-            return;
-        }
-
-        for file in dropped {
-            if let Some(path) = file.path {
-                if crate::dicom::classify_dicom_input_path(&path)
-                    .dicom_root()
-                    .is_some()
-                {
-                    self.scan_for_series(path.clone());
-                    self.pending_load = Some(path.clone());
-                    self.status_message = format!("Queued dropped DICOM input: {}", path.display());
-                } else {
-                    self.load_volume_file(path);
-                }
-                return;
+        let dropped = ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files));
+        match decide_dropped_input_action(&dropped) {
+            DroppedInputAction::QueueDicom(path) => {
+                self.scan_for_series(path.clone());
+                self.pending_load = Some(path.clone());
+                self.status_message = format!("Queued dropped DICOM input: {}", path.display());
             }
-
-            if !file.name.is_empty() {
-                self.status_message = format!(
-                    "Dropped '{}' has no filesystem path in this build; use File -> Open for now.",
-                    file.name
-                );
-            } else {
-                self.status_message =
-                    "Dropped file has no filesystem path in this build; use File -> Open for now."
-                        .to_owned();
+            DroppedInputAction::LoadVolume(path) => {
+                self.load_volume_file(path);
             }
+            DroppedInputAction::Message(msg) => {
+                self.status_message = msg;
+            }
+            DroppedInputAction::None => {}
         }
     }
 

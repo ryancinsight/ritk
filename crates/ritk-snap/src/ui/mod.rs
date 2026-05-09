@@ -32,9 +32,11 @@
 //! | [`window_presets`] | [`WindowPreset`] with standard CT/MR presets.         |
 //! | [`view_transform`] | [`ViewTransform`] viewport flip/rotate state + pixel transforms. |
 //! | [`colorbar`]     | [`draw_colorbar`] / [`show_colorbar`] — W/L colorbar widget.     |
+//! | [`dropped_input`] | Dropped-file routing SSOT for app-shell ingestion decisions. |
 
 pub mod annotation_panel;
 pub mod colorbar;
+pub mod dropped_input;
 pub mod view_transform;
 pub mod histogram;
 pub mod histogram_interact;
@@ -73,6 +75,7 @@ pub use pan::pan_from_drag_delta;
 pub use pointer_intensity::intensity_at_voxel;
 pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
 pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
+pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
 pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform};
 pub use preset_panel::draw_preset_buttons;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};

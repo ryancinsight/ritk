@@ -1,3 +1,27 @@
+## Sprint 165 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.10 [patch]
+**Goal**: Improve dropped-input architecture and memory behavior by extracting routing policy into an SSOT module and consuming drop events without per-frame cloning.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-165-01 | Dropped-input routing logic was embedded in `SnapApp` and mixed policy with side effects | **Closed** |
+| GAP-165-02 | Dropped-file ingestion cloned `raw.dropped_files` each frame, increasing transient allocations | **Closed** |
+
+### Delivered
+- ✓ Added `crates/ritk-snap/src/ui/dropped_input.rs` with `DroppedInputAction` + `decide_dropped_input_action` SSOT policy function
+- ✓ Added value-semantic tests for dropped-input policy routing invariants
+- ✓ Updated `SnapApp::handle_dropped_inputs` in `crates/ritk-snap/src/app.rs` to consume dropped events with `std::mem::take` via `ctx.input_mut`
+- ✓ Delegated dropped routing decisions from `SnapApp` to the new UI SSOT module
+- ✓ Re-ran native + wasm compile checks and full requested test/example matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM I/O parity | Full browser-native DICOM file/folder acquisition and decode workflow parity with desktop viewer remains follow-up work | Medium |
+
 ## Sprint 164 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

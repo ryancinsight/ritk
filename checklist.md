@@ -1,3 +1,27 @@
+## Sprint 165 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.10 [patch]
+**Goal**: Extract dropped-input routing into an SRP SSOT module and reduce dropped-event memory overhead in `ritk-snap` app-shell ingestion.
+
+### Checklist items
+- [x] Add dropped-input policy module `crates/ritk-snap/src/ui/dropped_input.rs`
+- [x] Define `DroppedInputAction` and `decide_dropped_input_action(&[egui::DroppedFile])`
+- [x] Encode deterministic routing priority (DICOM > supported volume > pathless guidance)
+- [x] Add value-semantic tests for dropped-input policy
+- [x] Update `crates/ritk-snap/src/app.rs` to consume dropped files with `ctx.input_mut` + `std::mem::take`
+- [x] Delegate app-shell dropped routing to SSOT policy function
+- [x] Register and re-export dropped-input module in `crates/ritk-snap/src/ui/mod.rs`
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (413 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+
 ## Sprint 164 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

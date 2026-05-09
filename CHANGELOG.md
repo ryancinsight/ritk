@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.10] - Sprint 165 — dropped-input SRP extraction and event-consumption optimization
+
+### Changed
+- Extracted dropped-file routing policy into a new SSOT module `crates/ritk-snap/src/ui/dropped_input.rs`:
+  - added `DroppedInputAction` and `decide_dropped_input_action(&[egui::DroppedFile])`.
+  - added deterministic action priority: DICOM path queue > supported non-DICOM volume path load > pathless guidance message.
+  - added value-semantic tests for empty input, DICOM priority, supported volume routing, and pathless guidance messaging.
+- Updated `crates/ritk-snap/src/app.rs` dropped-input handling to consume dropped events via `ctx.input_mut(|i| std::mem::take(&mut i.raw.dropped_files))` instead of cloning each frame.
+- Updated `crates/ritk-snap/src/app.rs` to delegate dropped routing decisions to `decide_dropped_input_action`, reducing app-shell branching and preserving deterministic status behavior.
+- Updated `crates/ritk-snap/src/ui/mod.rs` to register and re-export the new dropped-input module.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (explicit rustup rustc/rustdoc path, isolated target dir): passed
+- `cargo test -p ritk-snap --lib -q`: 413 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.9] - Sprint 164 — dropped-input routing and generic volume loading in ritk-snap
 
 ### Changed
