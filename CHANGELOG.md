@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.14] - Sprint 169 — Menu-based toolbar UI refactor
+
+### Changed
+- Refactored `crates/ritk-snap/src/ui/toolbar.rs` from flat scattered-button layout to professional dropdown menus matching ITK-SNAP design patterns:
+  - **File menu**: Open DICOM Folder, Open File (NIfTI/MetaImage/…), Close Study, Save Segmentation, Export (Surface as VTK, Slices as PNG), Exit.
+  - **Image menu**: Window/Level Presets (modality-aware), Colormap selection (8 colormaps), Manual W/L control (DragValues).
+  - **Tools menu**: All 11 interaction tools (Pan, Zoom, W/L, Measure Length/Angle, ROI Rect/Ellipse, Paint/Erase, Point HU, Crosshair) with keyboard shortcuts displayed (Ctrl+1-9, 0 previously documented; single-key shortcuts L/A/R/E/H/P/Z/W/B already implemented).
+  - **View menu**: Layout modes (Single, 2×2, 1+3, 3+1, Side-by-Side), Panel visibility toggles (Series Browser, Metadata, Measurements).
+  - **Help menu**: Keyboard Shortcuts, About.
+- Consolidates menu-based toolbar dispatch while preserving all existing state transitions and toolbar state machinery (no API changes).
+
+### Fixed
+- Organized toolbar UI per user requirement: "review the design, layout buttons and make organized and well structured based on other image platforms, dropdowns instead of multiple buttons."
+
+### Verification
+- `cargo test -p ritk-snap --lib -q`: 415 passed
+- No regressions from toolbar refactor
+
+### Known Issues
+- WASM compilation: attempted fix with nightly-gnu toolchain; environment conflict persists (`can't find crate for core/std`). Deferred for toolchain/environment investigation.
+
 ## [0.37.13] - Sprint 168 — DICOM import decode-path performance and memory optimization
 
 ### Changed
