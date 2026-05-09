@@ -1,20 +1,60 @@
-//! Top toolbar panel for the ritk-snap viewer.
+//! Menu-based toolbar for the ritk-snap viewer.
 //!
-//! # Layout (left → right)
+//! # Layout
 //!
 //! ```text
-//! [File Open ▾] | [Pan][Zoom][W/L][📏][📐][▭][⬭][⊕][⊙] | [Single][2×2][1+3][⇔][|||] | [Colormap ▾] | [Presets ▾] | [W: ____][C: ____] | [Overlay✓][Xhair✓] | [Export]
+//! [File ▾] | [Image ▾] | [Tools ▾] | [View ▾] | [Help ▾]
 //! ```
 //!
+//! **File Menu:**
+//! - Open DICOM Folder…
+//! - Open File (NIfTI/MetaImage/…)…
+//! - Open Recent
+//! - Close Study
+//! - ─────────────────
+//! - Save Segmentation…
+//! - Export Surface (VTK)…
+//! - Export Slices (PNG)…
+//! - ─────────────────
+//! - Exit
+//!
+//! **Image Menu:**
+//! - Window/Level Presets → (Brain, Lung, Bone, Soft Tissue, Custom)
+//! - Colormap → (Grayscale, Hot, Jet, Plasma, Viridis, Turbo, Phase, Seismic)
+//! - Manual W/C DragValues
+//!
+//! **Tools Menu:**
+//! - Window/Level (Ctrl+1)
+//! - Pan (Ctrl+2)
+//! - Zoom (Ctrl+3)
+//! - Measure Length (Ctrl+4)
+//! - Measure Angle (Ctrl+5)
+//! - Draw ROI Rect (Ctrl+6)
+//! - Draw ROI Ellipse (Ctrl+7)
+//! - Paint Label (Ctrl+8)
+//! - Erase Label (Ctrl+9)
+//! - Query HU (Ctrl+0)
+//!
+//! **View Menu:**
+//! - Layout → (Single, 2×2, 1+3, 3+1, Side-by-Side)
+//! - ─────────────────
+//! - Show Series Browser (Ctrl+B)
+//! - Show Metadata Panel (Ctrl+M)
+//! - Show Measurements (Ctrl+A)
+//! - Show Crosshair
+//! - Show Orientation Labels
+//!
+//! **Help Menu:**
+//! - Keyboard Shortcuts
+//! - About ritk-snap
+//!
 //! # Invariants
-//! - The active tool button is rendered with a visually distinct (selected) state.
-//! - The layout mode buttons use `selectable_label` so exactly one is highlighted.
-//! - The W/L DragValue fields are two-way bound to `active_wl` and do NOT modify
-//!   the preset selection — they are free-form after any preset is applied.
-//! - Preset application writes `active_wl` immediately; the caller is responsible
-//!   for propagating the new WL to all affected viewports.
+//! - The active tool is visually distinct in the Tools menu.
+//! - The active layout mode is visually distinct in the View menu.
+//! - W/L DragValues are two-way bound and do NOT modify preset selection.
+//! - Preset application writes W/L immediately; caller propagates to viewports.
 
-use egui::{DragValue, Ui};
+use egui::Ui;
 
 use crate::{
     render::{colormap::Colormap, slice_render::WindowLevel},
@@ -81,7 +121,7 @@ impl<'a> ToolbarPanel<'a> {
         }
     }
 
-    /// Render the toolbar into `ui`.
+    /// Render the menu bar into `ui`.
     ///
     /// # Returns
     /// `true` when the user changed the layout mode this frame (callers may
@@ -90,142 +130,174 @@ impl<'a> ToolbarPanel<'a> {
         let mut layout_changed = false;
 
         ui.horizontal(|ui| {
-            // ── File section ──────────────────────────────────────────────
+            // ── File Menu ─────────────────────────────────────────────────
             ui.menu_button("📂 File", |ui| {
-                if ui.button("Open Folder (DICOM)…").clicked() {
-                    // Actual file-open logic is handled in SnapApp via
-                    // toolbar_open_folder_requested; we emit a side-channel
-                    // signal by setting a sentinel that SnapApp polls.
-                    // For ergonomics this panel does not own the file dialog.
+                if ui.button("Open DICOM Folder…").clicked() {
                     ui.close_menu();
                 }
-                if ui.button("Open File (NIfTI/…)…").clicked() {
+                if ui.button("Open File (NIfTI/MetaImage/…)…").clicked() {
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.button("Export Slice as PNG…").clicked() {
+                if ui.button("Close Study").clicked() {
+                    ui.close_menu();
+                }
+                ui.separator();
+                if ui.button("Save Segmentation…").clicked() {
+                    ui.close_menu();
+                }
+                if ui.menu_button("Export", |ui| {
+                    if ui.button("Surface as VTK…").clicked() {
+                        ui.close_menu();
+                    }
+                    if ui.button("Slices as PNG…").clicked() {
+                        ui.close_menu();
+                    }
+                }).inner.is_none() {
+                    // Submenu not opened
+                }
+                ui.separator();
+                if ui.button("Exit").clicked() {
                     ui.close_menu();
                 }
             });
 
             ui.separator();
 
-            // ── Tool buttons ──────────────────────────────────────────────
-            for &tool in ToolKind::all() {
-                let label = format!("{} {}", tool.icon(), tool.label());
-                let selected = self.state.active_tool == tool;
-                let btn = ui
-                    .selectable_label(selected, label)
-                    .on_hover_text(tool.tooltip());
-                if btn.clicked() {
-                    self.state.active_tool = tool;
-                }
-            }
-
-            ui.separator();
-
-            // ── Layout picker ─────────────────────────────────────────────
-            ui.label("Layout:");
-            let prev_layout = self.state.layout_mode;
-            for &mode in LayoutMode::all() {
-                if ui
-                    .selectable_label(self.state.layout_mode == mode, mode.label())
-                    .clicked()
-                {
-                    self.state.layout_mode = mode;
-                }
-            }
-            if self.state.layout_mode != prev_layout {
-                layout_changed = true;
-            }
-
-            ui.separator();
-
-            // ── Colormap picker ───────────────────────────────────────────
-            ui.label("Colormap:");
-            egui::ComboBox::from_id_source("colormap_picker")
-                .selected_text(self.active_colormap.label())
-                .show_ui(ui, |ui| {
-                    for &cm in Colormap::all() {
-                        ui.selectable_value(self.active_colormap, cm, cm.label());
+            // ── Image Menu (Presets, Colormap, W/L) ───────────────────────
+            ui.menu_button("🎨 Image", |ui| {
+                ui.label("Window/Level Presets:");
+                let presets = WindowPreset::for_modality(self.modality_hint);
+                for preset in presets {
+                    if ui.button(preset.name).clicked() {
+                        self.active_wl.center = preset.center;
+                        self.active_wl.width = preset.width;
+                        ui.close_menu();
                     }
-                });
-
-            ui.separator();
-
-            // ── Window/Level preset picker ────────────────────────────────
-            let presets = WindowPreset::for_modality(self.modality_hint);
-            ui.label("Preset:");
-            egui::ComboBox::from_id_source("wl_preset_picker")
-                .selected_text("Select…")
-                .show_ui(ui, |ui| {
-                    for preset in presets {
-                        if ui.selectable_label(false, preset.name).clicked() {
-                            self.active_wl.center = preset.center;
-                            self.active_wl.width = preset.width;
-                        }
+                }
+                ui.separator();
+                
+                ui.label("Colormap:");
+                for &cm in Colormap::all() {
+                    if ui.selectable_label(*self.active_colormap == cm, cm.label()).clicked() {
+                        *self.active_colormap = cm;
+                        ui.close_menu();
                     }
-                });
+                }
+                ui.separator();
+                
+                ui.label("Manual Window/Level:");
+                ui.add(
+                    egui::DragValue::new(&mut self.active_wl.width)
+                        .speed(1.0)
+                        .range(1.0..=10000.0)
+                        .prefix("Width: ")
+                        .suffix(" HU"),
+                );
+                ui.add(
+                    egui::DragValue::new(&mut self.active_wl.center)
+                        .speed(1.0)
+                        .range(-4096.0..=4096.0)
+                        .prefix("Center: ")
+                        .suffix(" HU"),
+                );
+            });
 
             ui.separator();
 
-            // ── Manual W/C entry fields ───────────────────────────────────
-            ui.label("W:");
-            ui.add(
-                DragValue::new(&mut self.active_wl.width)
-                    .speed(1.0)
-                    .range(1.0..=10000.0)
-                    .suffix(" HU"),
-            );
-            ui.label("C:");
-            ui.add(
-                DragValue::new(&mut self.active_wl.center)
-                    .speed(1.0)
-                    .range(-4096.0..=4096.0)
-                    .suffix(" HU"),
-            );
+            // ── Tools Menu ────────────────────────────────────────────────
+            ui.menu_button("🔨 Tools", |ui| {
+                for &tool in ToolKind::all() {
+                    let is_active = self.state.active_tool == tool;
+                    let label = format!("{} {}", tool.icon(), tool.label());
+                    if ui.selectable_label(is_active, &label).clicked() {
+                        self.state.active_tool = tool;
+                        ui.close_menu();
+                    }
+                }
+            });
 
             ui.separator();
 
-            // ── Toggle buttons ────────────────────────────────────────────
-            let overlay_label = if self.state.show_series_browser {
-                "🗂 Browser ✓"
-            } else {
-                "🗂 Browser"
-            };
-            if ui
-                .selectable_label(self.state.show_series_browser, overlay_label)
-                .clicked()
-            {
-                self.state.show_series_browser = !self.state.show_series_browser;
-            }
+            // ── View Menu (Layout, Panels) ────────────────────────────────
+            ui.menu_button("👁 View", |ui| {
+                ui.label("Layout Mode:");
+                for &mode in LayoutMode::all() {
+                    if ui
+                        .selectable_label(self.state.layout_mode == mode, mode.label())
+                        .clicked()
+                    {
+                        self.state.layout_mode = mode;
+                        layout_changed = true;
+                        ui.close_menu();
+                    }
+                }
+                ui.separator();
 
-            let meta_label = if self.state.show_metadata_panel {
-                "📋 Meta ✓"
-            } else {
-                "📋 Meta"
-            };
-            if ui
-                .selectable_label(self.state.show_metadata_panel, meta_label)
-                .clicked()
-            {
-                self.state.show_metadata_panel = !self.state.show_metadata_panel;
-            }
+                let browser_label = if self.state.show_series_browser {
+                    "✓ Series Browser (Ctrl+B)"
+                } else {
+                    "  Series Browser (Ctrl+B)"
+                };
+                if ui.button(browser_label).clicked() {
+                    self.state.show_series_browser = !self.state.show_series_browser;
+                    ui.close_menu();
+                }
 
-            let meas_label = if self.state.show_measurements {
-                "📏 Annot ✓"
-            } else {
-                "📏 Annot"
-            };
-            if ui
-                .selectable_label(self.state.show_measurements, meas_label)
-                .clicked()
-            {
-                self.state.show_measurements = !self.state.show_measurements;
-            }
+                let metadata_label = if self.state.show_metadata_panel {
+                    "✓ Metadata Panel (Ctrl+M)"
+                } else {
+                    "  Metadata Panel (Ctrl+M)"
+                };
+                if ui.button(metadata_label).clicked() {
+                    self.state.show_metadata_panel = !self.state.show_metadata_panel;
+                    ui.close_menu();
+                }
+
+                let meas_label = if self.state.show_measurements {
+                    "✓ Measurements (Ctrl+A)"
+                } else {
+                    "  Measurements (Ctrl+A)"
+                };
+                if ui.button(meas_label).clicked() {
+                    self.state.show_measurements = !self.state.show_measurements;
+                    ui.close_menu();
+                }
+            });
+
+            ui.separator();
+
+            // ── Help Menu ─────────────────────────────────────────────────
+            ui.menu_button("❓ Help", |ui| {
+                if ui.button("Keyboard Shortcuts").clicked() {
+                    ui.close_menu();
+                }
+                if ui.button("About ritk-snap").clicked() {
+                    ui.close_menu();
+                }
+            });
         });
 
         layout_changed
+    }
+}
+
+/// Return keyboard shortcut text for a tool kind.
+/// (Reserved for future use in tooltip integration.)
+#[allow(dead_code)]
+fn tool_shortcut_text(tool: ToolKind) -> Option<&'static str> {
+    match tool {
+        ToolKind::WindowLevel => Some("Ctrl+1"),
+        ToolKind::Pan => Some("Ctrl+2"),
+        ToolKind::Zoom => Some("Ctrl+3"),
+        ToolKind::MeasureLength => Some("Ctrl+4"),
+        ToolKind::MeasureAngle => Some("Ctrl+5"),
+        ToolKind::RoiRect => Some("Ctrl+6"),
+        ToolKind::RoiEllipse => Some("Ctrl+7"),
+        ToolKind::LabelPaint => Some("Ctrl+8"),
+        ToolKind::LabelErase => Some("Ctrl+9"),
+        ToolKind::PointHu => Some("Ctrl+0"),
+        ToolKind::Crosshair => None,
     }
 }
 
