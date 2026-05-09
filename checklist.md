@@ -1,3 +1,30 @@
+## Sprint 169 — In Progress
+**Status**: In Progress  
+**Phase**: Phase 2 Execution
+**Version**: 0.37.14 [patch]
+**Goal**: Refactor toolbar UI from scattered buttons into professional menu-based interface (File/Image/Tools/View/Help) matching ITK-SNAP design patterns.
+
+### Checklist items
+- [x] Refactor `crates/ritk-snap/src/ui/toolbar.rs` to replace flat button layout with dropdown menus
+- [x] Consolidate File menu: Open DICOM, Open File, Close Study, Save Segmentation, Export (Surface/Slices), Exit
+- [x] Consolidate Image menu: W/L Presets, Colormap selection, Manual W/L DragValues
+- [x] Consolidate Tools menu: All interaction tools (Pan, Zoom, W/L, Measure Length/Angle, ROI Rect/Ellipse, Paint/Erase, Point HU, Crosshair)
+- [x] Consolidate View menu: Layout modes (Single/2×2/1+3/3+1/Side-by-Side), Panel visibility toggles (Browser, Metadata, Measurements)
+- [x] Add Help menu: Keyboard Shortcuts, About
+- [x] Update documentation comments to reflect menu structure
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (415 passed)
+- [ ] Full workspace test verification
+
+### Gaps remaining
+| Task | Priority | Blocker |
+|---|---|---|
+| WASM compilation fix (toolchain environment) | High | Yes - prevents browser build verification |
+| Feature parity audit vs ITK-SNAP | Medium | No |
+| Keyboard shortcut implementation | Medium | No |
+| Browser-dropped DICOM byte decode | Medium | No |
+
 ## Sprint 168 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
