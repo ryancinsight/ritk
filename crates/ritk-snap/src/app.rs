@@ -11,7 +11,7 @@
 //! | `multi_planar` | Layout                                      |
 //! |----------------|---------------------------------------------|
 //! | `false`        | Single viewport — current axis fills panel. |
-//! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / Info.|
+//! | `true`         | Side-by-side: Axial / Coronal / Sagittal, with Info below.|
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -1385,44 +1385,34 @@ impl SnapApp {
         });
     }
 
-    // ── Multi-planar 2×2 viewport ─────────────────────────────────────────────
+    // ── Multi-planar side-by-side viewport ───────────────────────────────────
 
-    /// Render the 2×2 MPR grid (Axial / Coronal / Sagittal / Info panel).
-    ///
-    /// Layout:
-    /// ```text
-    /// ┌──────────────┬──────────────┐
-    /// │  Axial  (0)  │ Coronal  (1) │
-    /// ├──────────────┼──────────────┤
-    /// │ Sagittal (2) │  Info panel  │
-    /// └──────────────┴──────────────┘
-    /// ```
+    /// Render side-by-side MPR viewports (Axial / Coronal / Sagittal) with
+    /// a shared Info panel row below.
     fn show_central_panel_multi(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let avail = ui.available_size();
-            let half_w = avail.x / 2.0;
-            let half_h = avail.y / 2.0;
+            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let view_h = (avail.y - info_h - 6.0).max(120.0);
+            let view_w = avail.x / 3.0;
 
-            ui.horizontal(|ui| {
-                // ── Left column: Axial (top), Sagittal (bottom) ───────────────
-                ui.vertical(|ui| {
-                    ui.allocate_ui(egui::vec2(half_w, half_h), |ui| {
+            ui.allocate_ui(egui::vec2(avail.x, view_h), |ui| {
+                ui.horizontal(|ui| {
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
                         self.render_axis_viewport(ui, ctx, 0); // Axial
                     });
-                    ui.allocate_ui(egui::vec2(half_w, half_h), |ui| {
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, 1); // Coronal
+                    });
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
                         self.render_axis_viewport(ui, ctx, 2); // Sagittal
                     });
                 });
+            });
 
-                // ── Right column: Coronal (top), Info panel (bottom) ──────────
-                ui.vertical(|ui| {
-                    ui.allocate_ui(egui::vec2(half_w, half_h), |ui| {
-                        self.render_axis_viewport(ui, ctx, 1); // Coronal
-                    });
-                    ui.allocate_ui(egui::vec2(half_w, half_h), |ui| {
-                        self.show_right_info_panel(ui);
-                    });
-                });
+            ui.separator();
+            ui.allocate_ui(egui::vec2(avail.x, info_h), |ui| {
+                self.show_right_info_panel(ui);
             });
         });
     }
@@ -1475,16 +1465,31 @@ impl SnapApp {
             }
         };
 
-        // ── 3. Compute fit scale and render image ──────────────────────────────
+        // ── 3. Compute spacing-aware fit and render image ─────────────────────
         let tex_w = tex_w_usize as f32;
         let tex_h = tex_h_usize as f32;
         let available = ui.available_size();
-        let fit_scale = if tex_w > 0.0 && tex_h > 0.0 {
-            (available.x / tex_w).min(available.y / tex_h)
+        let (row_mm, col_mm) = if let Some(vol) = &self.loaded {
+            let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
+            match axis {
+                0 => (dy.max(1e-6), dx.max(1e-6)),
+                1 => (dz.max(1e-6), dx.max(1e-6)),
+                _ => (dz.max(1e-6), dy.max(1e-6)),
+            }
+        } else {
+            (1.0, 1.0)
+        };
+
+        let phys_w = tex_w * col_mm;
+        let phys_h = tex_h * row_mm;
+        let fit_scale = if phys_w > 0.0 && phys_h > 0.0 {
+            (available.x / phys_w).min(available.y / phys_h)
         } else {
             1.0
         };
-        let display_size = egui::vec2(tex_w * fit_scale * self.zoom, tex_h * fit_scale * self.zoom);
+        let scale_x = fit_scale * self.zoom * col_mm;
+        let scale_y = fit_scale * self.zoom * row_mm;
+        let display_size = egui::vec2(tex_w * scale_x, tex_h * scale_y);
 
         let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size))
             .sense(egui::Sense::click_and_drag());
@@ -1591,8 +1596,13 @@ impl SnapApp {
         // `scale = fit_scale × zoom` where fit_scale = min(avail_w/tex_w, avail_h/tex_h).
         // The image widget occupies exactly response.rect (egui places it top-left).
         {
-            let scale = if tex_w > 0.0 && tex_h > 0.0 {
-                (available.x / tex_w).min(available.y / tex_h) * self.zoom
+            let scale_x = if tex_w > 0.0 {
+                fit_scale * self.zoom * col_mm
+            } else {
+                1.0
+            };
+            let scale_y = if tex_h > 0.0 {
+                fit_scale * self.zoom * row_mm
             } else {
                 1.0
             };
@@ -1600,7 +1610,7 @@ impl SnapApp {
             // img_to_screen: image-pixel Pos2 { x: col, y: row } → screen Pos2
             let origin = response.rect.min;
             let img_to_screen =
-                |p: egui::Pos2| egui::pos2(origin.x + p.x * scale, origin.y + p.y * scale);
+                |p: egui::Pos2| egui::pos2(origin.x + p.x * scale_x, origin.y + p.y * scale_y);
 
             // Per-axis 2-D spacing: [row_mm_per_px, col_mm_per_px]
             // axis 0 axial    → dy, dx
@@ -1618,9 +1628,9 @@ impl SnapApp {
             };
 
             // Cursor in image-pixel coords for live preview labels.
-            let cursor_img_opt = if scale > 0.0 {
+            let cursor_img_opt = if scale_x > 0.0 && scale_y > 0.0 {
                 response.hover_pos().map(|s| {
-                    egui::pos2((s.x - origin.x) / scale, (s.y - origin.y) / scale)
+                    egui::pos2((s.x - origin.x) / scale_x, (s.y - origin.y) / scale_y)
                 })
             } else {
                 None

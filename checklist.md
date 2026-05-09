@@ -1,3 +1,19 @@
+## Sprint 167 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.12 [patch]
+**Goal**: Replace L-shaped multi-planar composition with side-by-side image panels and correct spacing-aware viewport scaling.
+
+### Checklist items
+- [x] Replace 2x2/L-shape MPR layout in `crates/ritk-snap/src/app.rs` with side-by-side Axial/Coronal/Sagittal viewport row
+- [x] Keep info panel available in multi-planar mode via a dedicated row below image viewports
+- [x] Update `render_axis_viewport` fit logic to use physical dimensions derived from spacing per axis
+- [x] Update annotation/pointer image-to-screen and screen-to-image transforms to use axis-specific anisotropic scales
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (415 passed)
+- [x] `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` (environment-reported missing `core/std` despite target listed installed)
+
 ## Sprint 166 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

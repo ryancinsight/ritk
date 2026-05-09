@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.12] - Sprint 167 — MPR side-by-side layout and spacing-aware viewport scaling
+
+### Changed
+- Updated multi-planar central layout in `crates/ritk-snap/src/app.rs` from the prior 2x2 L-shape arrangement to a side-by-side three-viewport row (Axial, Coronal, Sagittal) with the info panel rendered below the viewports.
+- Updated `render_axis_viewport` in `crates/ritk-snap/src/app.rs` to use spacing-aware display scaling:
+  - computes per-axis row/column physical spacing from volume spacing,
+  - fits by physical dimensions instead of raw pixel dimensions,
+  - applies anisotropic screen mapping for annotations and cursor conversion so overlays remain geometrically aligned.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo test -p ritk-snap --lib -q`: 415 passed
+- wasm check status: attempted with nightly toolchain and `wasm32-unknown-unknown`; environment reported `can't find crate for core/std` despite target installed
+
 ## [0.37.11] - Sprint 166 — browser in-memory NIfTI dropped-file ingestion
 
 ### Added

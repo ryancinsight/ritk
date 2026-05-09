@@ -1,3 +1,26 @@
+## Sprint 167 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.12 [patch]
+**Goal**: Correct `ritk-snap` MPR viewport arrangement and physical scale behavior to match side-by-side panel expectations and spacing-consistent rendering.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-167-01 | Multi-planar viewer layout used an L-shaped 2x2 composition instead of side-by-side viewport panels | **Closed** |
+| GAP-167-02 | Viewport fit/mapping used raw pixel aspect, causing scale distortion for anisotropic spacing | **Closed** |
+
+### Delivered
+- ✓ Updated `crates/ritk-snap/src/app.rs` `show_central_panel_multi` to render Axial/Coronal/Sagittal viewports side-by-side with info panel below
+- ✓ Updated `crates/ritk-snap/src/app.rs` `render_axis_viewport` to use spacing-aware fit and anisotropic screen/image coordinate mapping
+- ✓ Preserved overlay/annotation interaction alignment by using the same scale factors for draw and pointer inversion
+- ✓ Re-ran `ritk-snap` compile and test verification
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM byte ingestion parity | Pathless dropped DICOM browser payloads still require byte-native DICOM series decode path (single/multi-file assembly) | Medium |
+
 ## Sprint 166 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
