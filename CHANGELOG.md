@@ -7,6 +7,20 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.13] - Sprint 168 — DICOM import decode-path performance and memory optimization
+
+### Changed
+- Refactored DICOM series decode in `crates/ritk-io/src/format/dicom/reader.rs` `load_from_series` into two execution paths:
+  - uniform-spacing path decodes each slice directly into one preallocated contiguous volume buffer,
+  - irregular-spacing path retains per-frame decode followed by linear resampling to a uniform z-grid.
+- Added native-target (`cfg(not(target_arch = "wasm32"))`) parallel slice decode using `rayon` in both direct-volume and resample-required decode paths.
+- Added explicit wasm-target (`cfg(target_arch = "wasm32")`) serial decode fallback to preserve browser compatibility.
+- Removed unwrap-based normal usage in the resample branch by threading validated projected positions from geometry analysis into resampling.
+
+### Verification
+- `cargo check -p ritk-io`: passed
+- `cargo test -p ritk-io test_resample_frames_linear -- --nocapture`: 3 passed
+
 ## [0.37.12] - Sprint 167 — MPR side-by-side layout and spacing-aware viewport scaling
 
 ### Changed

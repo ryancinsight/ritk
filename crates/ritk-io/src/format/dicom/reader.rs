@@ -1424,27 +1424,12 @@ fn load_from_series<B: Backend>(
         bail!("DICOM series has invalid zero dimensions");
     }
 
-    // Decode each slice into a per-frame buffer for geometry analysis and optional resampling.
-    let mut decoded: Vec<Vec<f32>> = Vec::with_capacity(depth);
-    for slice in slices.iter() {
-        let data = read_slice_pixels(slice)
-            .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
-        if data.len() != rows * cols {
-            bail!(
-                "DICOM slice size mismatch: expected {} pixels, got {}",
-                rows * cols,
-                data.len()
-            );
-        }
-        decoded.push(data);
-    }
-
-    // Geometry analysis: detect nonuniform or missing slices and resample to correct.
+    // Geometry analysis: detect nonuniform or missing slices and resample when required.
     // Projects each IPP onto the slice normal N̂ = normalize(row × col) from IOP.
     let iop = slices.first().and_then(|s| s.image_orientation_patient);
     let maybe_normal = iop.and_then(slice_normal_from_iop);
 
-    let (final_frames, final_depth, final_spacing_z) = if let Some(normal) = maybe_normal {
+    let (needs_resample, final_spacing_z, resample_positions) = if let Some(normal) = maybe_normal {
         let proj: Vec<Option<f64>> = slices
             .iter()
             .map(|s| s.image_position_patient.map(|ipp| dot_3d(ipp, normal)))
@@ -1486,27 +1471,116 @@ fn load_from_series<B: Backend>(
                     report.nominal_spacing,
                 );
             }
-            if report.is_nonuniform || report.has_missing_slices {
-                let resampled =
-                    resample_frames_linear(&decoded, &positions, report.nominal_spacing);
-                let new_depth = resampled.len();
-                (resampled, new_depth, report.nominal_spacing)
-            } else {
-                (decoded, depth, report.nominal_spacing)
-            }
+            (
+                report.is_nonuniform || report.has_missing_slices,
+                report.nominal_spacing,
+                Some(positions),
+            )
         } else {
-            (decoded, depth, metadata.spacing[0])
+            (false, metadata.spacing[0], None)
         }
     } else {
-        (decoded, depth, metadata.spacing[0])
+        (false, metadata.spacing[0], None)
     };
 
-    // Flatten frames into volume and update metadata to reflect actual geometry.
-    let mut volume = vec![0f32; rows * cols * final_depth];
-    for (z, frame) in final_frames.iter().enumerate() {
-        let offset = z * rows * cols;
-        volume[offset..offset + rows * cols].copy_from_slice(frame);
-    }
+    let frame_len = rows * cols;
+    let (volume, final_depth) = if needs_resample {
+        // Irregular z-spacing path: decode to frame vectors and resample to a uniform grid.
+        #[cfg(not(target_arch = "wasm32"))]
+        let decoded: Vec<Vec<f32>> = {
+            use rayon::prelude::*;
+            let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
+                .par_iter()
+                .map(|slice| {
+                    let data = read_slice_pixels(slice)
+                        .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                    if data.len() != frame_len {
+                        bail!(
+                            "DICOM slice size mismatch: expected {} pixels, got {}",
+                            frame_len,
+                            data.len()
+                        );
+                    }
+                    Ok(data)
+                })
+                .collect();
+            decoded?
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        let decoded: Vec<Vec<f32>> = {
+            let mut decoded = Vec::with_capacity(depth);
+            for slice in slices.iter() {
+                let data = read_slice_pixels(slice)
+                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                if data.len() != frame_len {
+                    bail!(
+                        "DICOM slice size mismatch: expected {} pixels, got {}",
+                        frame_len,
+                        data.len()
+                    );
+                }
+                decoded.push(data);
+            }
+            decoded
+        };
+
+        let positions = resample_positions
+            .as_ref()
+            .ok_or_else(|| anyhow!("resample positions missing despite resample-required series"))?;
+        let resampled = resample_frames_linear(&decoded, &positions, final_spacing_z);
+        let new_depth = resampled.len();
+        let mut volume = vec![0f32; frame_len * new_depth];
+        for (z, frame) in resampled.iter().enumerate() {
+            let offset = z * frame_len;
+            volume[offset..offset + frame_len].copy_from_slice(frame);
+        }
+        (volume, new_depth)
+    } else {
+        // Uniform z-spacing path: decode directly into a preallocated contiguous volume.
+        let mut volume = vec![0f32; frame_len * depth];
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use rayon::prelude::*;
+            volume
+                .par_chunks_mut(frame_len)
+                .zip(slices.par_iter())
+                .try_for_each(|(dst, slice)| -> Result<()> {
+                    let data = read_slice_pixels(slice)
+                        .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                    if data.len() != frame_len {
+                        bail!(
+                            "DICOM slice size mismatch: expected {} pixels, got {}",
+                            frame_len,
+                            data.len()
+                        );
+                    }
+                    dst.copy_from_slice(&data);
+                    Ok(())
+                })?;
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            for (z, slice) in slices.iter().enumerate() {
+                let data = read_slice_pixels(slice)
+                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                if data.len() != frame_len {
+                    bail!(
+                        "DICOM slice size mismatch: expected {} pixels, got {}",
+                        frame_len,
+                        data.len()
+                    );
+                }
+                let offset = z * frame_len;
+                volume[offset..offset + frame_len].copy_from_slice(&data);
+            }
+        }
+
+        (volume, depth)
+    };
+
     metadata.dimensions[2] = final_depth;
     metadata.spacing[0] = final_spacing_z.abs().max(1e-6);
 

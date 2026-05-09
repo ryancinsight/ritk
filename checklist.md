@@ -1,3 +1,20 @@
+## Sprint 168 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.13 [patch]
+**Goal**: Reduce DICOM import latency and peak memory by parallelizing slice decode and avoiding unnecessary intermediate frame buffers.
+
+### Checklist items
+- [x] Refactor `load_from_series` in `crates/ritk-io/src/format/dicom/reader.rs` to separate uniform and resample-required decode paths
+- [x] Decode uniform-spacing series directly into preallocated contiguous volume storage
+- [x] Retain resampling path for nonuniform/missing-slice geometry using decoded frame vectors
+- [x] Add `rayon` parallel decode for native targets in both decode paths
+- [x] Add wasm serial fallback for decode loops to preserve browser build behavior
+- [x] Remove unwrap-based normal usage by threading validated resample positions through geometry analysis result
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-io` (passed)
+- [x] `cargo test -p ritk-io test_resample_frames_linear -- --nocapture` (3 passed)
+
 ## Sprint 167 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

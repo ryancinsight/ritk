@@ -1,3 +1,28 @@
+## Sprint 168 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.13 [patch]
+**Goal**: Reduce DICOM import latency and peak memory by parallelizing slice decode and avoiding frame-vector buffering for uniform series.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-168-01 | DICOM import decoded slices serially and always buffered per-slice vectors before flattening | **Closed** |
+
+### Delivered
+- ✓ Refactored `crates/ritk-io/src/format/dicom/reader.rs` `load_from_series` to split decode path by geometry requirement:
+- ✓ Uniform-spacing path decodes directly into one preallocated contiguous volume buffer
+- ✓ Irregular-spacing path keeps per-frame decode + resampling path authoritative
+- ✓ Added native-target parallel decode (`rayon`) for both direct-volume and resample decode paths
+- ✓ Added wasm-target serial fallback to preserve browser compatibility
+- ✓ Removed unsafe unwrap-based normal usage in resample position derivation
+- ✓ Re-ran compile and targeted DICOM resampling test verification
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM byte ingestion parity | Pathless dropped DICOM browser payloads still require byte-native DICOM series decode path (single/multi-file assembly) | Medium |
+
 ## Sprint 167 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
