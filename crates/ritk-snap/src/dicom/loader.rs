@@ -5,6 +5,7 @@
 //! - [`load_dicom_volume`]      — load a DICOM series folder into a [`LoadedVolume`].
 //! - [`load_nifti_volume`]      — load a NIfTI `.nii` / `.nii.gz` file.
 //! - [`load_volume_from_path`]  — auto-detect format and dispatch to the above.
+//! - [`load_volume_from_bytes`] — load a pathless in-memory medical file payload.
 //! - [`scan_folder_for_series`] — walk a directory tree and return a [`SeriesTree`].
 //!
 //! # Backend
@@ -229,6 +230,25 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     load_dicom_volume(path)
 }
 
+/// Load a pathless in-memory medical payload.
+///
+/// Currently supports NIfTI byte payloads identified by `name_hint`
+/// (`.nii` / `.nii.gz`).
+pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVolume> {
+    let name = name_hint.to_ascii_lowercase();
+    if name.ends_with(".nii") || name.ends_with(".nii.gz") {
+        let device = <B as burn::tensor::backend::Backend>::Device::default();
+        let image = ritk_io::read_nifti_from_bytes::<B>(bytes, &device)
+            .with_context(|| format!("failed to read dropped NIfTI bytes '{}'", name_hint))?;
+        return volume_from_image_no_meta(image, PathBuf::from(name_hint));
+    }
+
+    anyhow::bail!(
+        "unsupported dropped in-memory file '{}' (supported: .nii, .nii.gz)",
+        name_hint
+    )
+}
+
 /// Convert a generic `Image<B, 3>` (with no DICOM metadata) into a
 /// [`LoadedVolume`], recording `source_path` as the origin.
 fn volume_from_image_no_meta(
@@ -358,6 +378,10 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use ritk_core::image::Image;
+    use ritk_core::spatial::{Direction, Point, Spacing};
+    use tempfile::tempdir;
 
     /// Load the OpenNeuro T1w NIfTI file when it is present on disk and verify
     /// that shape, spacing, and pixel data satisfy basic sanity invariants.
@@ -409,6 +433,32 @@ mod tests {
             Some(path),
             "source path must be recorded in LoadedVolume"
         );
+    }
+
+    #[test]
+    fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
+        let dir = tempdir().expect("create temp dir");
+        let path = dir.path().join("drop_test.nii");
+        let device = <B as burn::tensor::backend::Backend>::Device::default();
+
+        let shape = Shape::new([3, 2, 4]);
+        let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
+        let tensor = Tensor::<B, 3>::from_data(data, &device);
+        let image = Image::new(
+            tensor,
+            Point::new([1.0, 2.0, 3.0]),
+            Spacing::new([0.8, 0.9, 1.7]),
+            Direction(nalgebra::SMatrix::identity()),
+        );
+        ritk_io::write_nifti(&path, &image).expect("write synthetic nifti");
+
+        let bytes = std::fs::read(&path).expect("read written nifti bytes");
+        let vol = load_volume_from_bytes("dropped.nii", &bytes)
+            .expect("load_volume_from_bytes should load valid nifti bytes");
+
+        assert_eq!(vol.shape, [3, 2, 4]);
+        assert_eq!(vol.data.len(), 24);
+        assert!(vol.spacing[0] > 0.0 && vol.spacing[1] > 0.0 && vol.spacing[2] > 0.0);
     }
 
     /// Load the skull CT DICOM series when it is present and verify basic

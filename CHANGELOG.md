@@ -7,6 +7,39 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+## [0.37.11] - Sprint 166 — browser in-memory NIfTI dropped-file ingestion
+
+### Added
+- Added in-memory NIfTI read API in `ritk-nifti`:
+  - `read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device)` in `crates/ritk-nifti/src/reader.rs`.
+  - exported via `crates/ritk-nifti/src/lib.rs`.
+- Re-exported in-memory NIfTI API through `ritk-io`:
+  - `crates/ritk-io/src/format/nifti/mod.rs`
+  - `crates/ritk-io/src/lib.rs`
+
+### Changed
+- Added pathless in-memory volume loading in `ritk-snap` DICOM loader boundary:
+  - `load_volume_from_bytes(name_hint, bytes)` in `crates/ritk-snap/src/dicom/loader.rs`.
+  - currently supports dropped `.nii` / `.nii.gz` payloads and preserves canonical viewer state resets.
+- Extended dropped-input routing SSOT in `crates/ritk-snap/src/ui/dropped_input.rs`:
+  - new `DroppedInputAction::LoadVolumeBytes { name, bytes }`.
+  - pathless dropped NIfTI payloads with bytes are now routed to in-memory load instead of generic guidance.
+- Updated `SnapApp` dropped-input handling in `crates/ritk-snap/src/app.rs`:
+  - handles `LoadVolumeBytes` action.
+  - added `load_volume_bytes` for in-memory volume ingestion with the same reset invariants as file-path volume loading.
+- Updated `crates/ritk-snap/src/dicom/mod.rs` to re-export `load_volume_from_bytes`.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (explicit rustup rustc/rustdoc path, isolated target dir): passed
+- `cargo test -p ritk-snap --lib -q`: 415 passed
+- `cargo test -p ritk-nifti --lib -q`: 10 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+
 ## [0.37.10] - Sprint 165 — dropped-input SRP extraction and event-consumption optimization
 
 ### Changed

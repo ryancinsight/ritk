@@ -54,6 +54,37 @@ fn test_read_write_nifti_cycle() -> Result<()> {
 }
 
 #[test]
+fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
+    let dir = tempdir()?;
+    let file_path = dir.path().join("test_bytes_roundtrip.nii");
+    let device = Default::default();
+
+    let shape = Shape::new([4, 3, 2]); // Z, Y, X
+    let data = TensorData::new((0..24).map(|v| v as f32).collect::<Vec<_>>(), shape);
+    let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
+    let image = Image::new(
+        tensor,
+        Point::new([4.0, 5.0, 6.0]),
+        Spacing::new([1.0, 0.7, 2.3]),
+        Direction(SMatrix::identity()),
+    );
+
+    write_nifti(&file_path, &image)?;
+    let bytes = std::fs::read(&file_path)?;
+    let loaded = read_nifti_from_bytes::<TestBackend>(&bytes, &device)?;
+
+    assert_eq!(loaded.shape(), [4, 3, 2]);
+    assert!((loaded.origin()[0] - 4.0).abs() < 1e-5);
+    assert!((loaded.origin()[1] - 5.0).abs() < 1e-5);
+    assert!((loaded.origin()[2] - 6.0).abs() < 1e-5);
+    assert!((loaded.spacing()[0] - 1.0).abs() < 1e-5);
+    assert!((loaded.spacing()[1] - 0.7).abs() < 1e-5);
+    assert!((loaded.spacing()[2] - 2.3).abs() < 1e-5);
+
+    Ok(())
+}
+
+#[test]
 fn test_read_nifti_error_leak() {
     let path = "/sensitive/path/that/should/not/be/in/error/message.nii";
     let device = Default::default();

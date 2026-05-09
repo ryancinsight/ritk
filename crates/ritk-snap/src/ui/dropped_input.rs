@@ -14,6 +14,11 @@ pub enum DroppedInputAction {
     QueueDicom(PathBuf),
     /// Load a non-DICOM medical volume path immediately.
     LoadVolume(PathBuf),
+    /// Load a pathless dropped medical payload from in-memory bytes.
+    LoadVolumeBytes {
+        name: String,
+        bytes: std::sync::Arc<[u8]>,
+    },
     /// Show deterministic user guidance in the status line.
     Message(String),
 }
@@ -31,6 +36,7 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
     }
 
     let mut first_supported_volume_path: Option<PathBuf> = None;
+    let mut first_supported_volume_bytes: Option<(String, std::sync::Arc<[u8]>)> = None;
     let mut first_pathless_name: Option<String> = None;
     let mut saw_pathless = false;
 
@@ -54,10 +60,27 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
         if first_pathless_name.is_none() && !file.name.is_empty() {
             first_pathless_name = Some(file.name.clone());
         }
+
+        if first_supported_volume_bytes.is_none()
+            && is_supported_volume_name_for_bytes(&file.name)
+            && file.bytes.is_some()
+        {
+            first_supported_volume_bytes = Some((
+                file.name.clone(),
+                file.bytes
+                    .as_ref()
+                    .expect("checked is_some above")
+                    .clone(),
+            ));
+        }
     }
 
     if let Some(path) = first_supported_volume_path {
         return DroppedInputAction::LoadVolume(path);
+    }
+
+    if let Some((name, bytes)) = first_supported_volume_bytes {
+        return DroppedInputAction::LoadVolumeBytes { name, bytes };
     }
 
     if saw_pathless {
@@ -75,6 +98,11 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
     }
 
     DroppedInputAction::None
+}
+
+fn is_supported_volume_name_for_bytes(name: &str) -> bool {
+    let s = name.to_ascii_lowercase();
+    s.ends_with(".nii") || s.ends_with(".nii.gz")
 }
 
 fn is_supported_volume_path(path: &Path) -> bool {
@@ -107,6 +135,14 @@ mod tests {
     fn dropped_pathless_named(name: &str) -> egui::DroppedFile {
         egui::DroppedFile {
             name: name.to_owned(),
+            ..Default::default()
+        }
+    }
+
+    fn dropped_pathless_named_with_bytes(name: &str, bytes: Vec<u8>) -> egui::DroppedFile {
+        egui::DroppedFile {
+            name: name.to_owned(),
+            bytes: Some(std::sync::Arc::<[u8]>::from(bytes)),
             ..Default::default()
         }
     }
@@ -167,6 +203,20 @@ mod tests {
                 assert!(msg.contains("no filesystem path"));
             }
             other => panic!("expected Message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pathless_nifti_with_bytes_routes_to_in_memory_load() {
+        let files = vec![dropped_pathless_named_with_bytes("dropped.nii", vec![1, 2, 3])];
+        let action = decide_dropped_input_action(&files);
+
+        match action {
+            DroppedInputAction::LoadVolumeBytes { name, bytes } => {
+                assert_eq!(name, "dropped.nii");
+                assert_eq!(bytes.as_ref(), [1, 2, 3]);
+            }
+            other => panic!("expected LoadVolumeBytes, got {other:?}"),
         }
     }
 }

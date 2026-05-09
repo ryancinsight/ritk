@@ -1,3 +1,32 @@
+## Sprint 166 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.11 [patch]
+**Goal**: Add browser pathless dropped-file in-memory NIfTI ingestion and route it through the existing viewer load/reset lifecycle.
+
+### Checklist items
+- [x] Add `read_nifti_from_bytes` in `crates/ritk-nifti/src/reader.rs`
+- [x] Export `read_nifti_from_bytes` in `crates/ritk-nifti/src/lib.rs`
+- [x] Re-export API through `crates/ritk-io/src/format/nifti/mod.rs` and `crates/ritk-io/src/lib.rs`
+- [x] Add `load_volume_from_bytes` in `crates/ritk-snap/src/dicom/loader.rs` for `.nii` / `.nii.gz`
+- [x] Re-export `load_volume_from_bytes` in `crates/ritk-snap/src/dicom/mod.rs`
+- [x] Extend dropped-input routing with `DroppedInputAction::LoadVolumeBytes`
+- [x] Handle `LoadVolumeBytes` in `SnapApp::handle_dropped_inputs`
+- [x] Implement `SnapApp::load_volume_bytes` with full viewer reset invariants
+- [x] Add/extend value-semantic tests:
+- [x] `ritk-nifti`: bytes round-trip read test
+- [x] `ritk-snap`: pathless NIfTI bytes routed to in-memory load action
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo +nightly-x86_64-pc-windows-msvc check -p ritk-snap --target wasm32-unknown-unknown` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (415 passed)
+- [x] `cargo test -p ritk-nifti --lib -q` (10 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+
 ## Sprint 165 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

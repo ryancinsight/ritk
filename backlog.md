@@ -1,3 +1,27 @@
+## Sprint 166 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.11 [patch]
+**Goal**: Close the browser pathless dropped-file NIfTI ingestion gap by adding in-memory byte loading and wiring it through `ritk-snap` dropped-input routing.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-166-01 | Browser/pathless dropped NIfTI files with available bytes could not be loaded due to path-only loader boundary | **Closed** |
+
+### Delivered
+- ✓ Added `read_nifti_from_bytes` SSOT API in `ritk-nifti` and re-exported through `ritk-io`
+- ✓ Added `load_volume_from_bytes` in `crates/ritk-snap/src/dicom/loader.rs` (NIfTI bytes path)
+- ✓ Extended dropped-input policy with `LoadVolumeBytes` for pathless `.nii/.nii.gz` payloads
+- ✓ Updated app-shell dropped-input handling to call `load_volume_bytes`
+- ✓ Added value-semantic tests for dropped-byte routing and NIfTI byte round-trip
+- ✓ Re-ran native + wasm compile checks and full requested test/example matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM byte ingestion parity | Pathless dropped DICOM browser payloads still require byte-native DICOM series decode path (single/multi-file assembly) | Medium |
+
 ## Sprint 165 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

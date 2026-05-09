@@ -30,7 +30,7 @@
 mod reader;
 mod writer;
 
-pub use reader::{read_nifti, read_nifti_labels};
+pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
 pub use writer::{write_nifti, write_nifti_labels};
 
 use burn::tensor::backend::Backend;

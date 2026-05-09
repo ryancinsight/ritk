@@ -2,9 +2,10 @@ use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use nalgebra::SMatrix;
-use nifti::{IntoNdArray, NiftiObject, ReaderOptions};
+use nifti::{InMemNiftiObject, IntoNdArray, NiftiObject, ReaderOptions};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing, Vector};
+use std::io::Cursor;
 use std::path::Path;
 
 pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
@@ -13,6 +14,25 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Re
         tracing::error!("Failed to read NIfTI file {:?}: {}", path, e);
         anyhow!("Failed to read NIfTI file")
     })?;
+
+    image_from_nifti_object::<B>(obj, device)
+}
+
+/// Read a NIfTI payload from in-memory bytes.
+///
+/// Accepts either `.nii` or `.nii.gz` encoded bytes and produces a 3-D image
+/// in RITK ZYX tensor order.
+pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Result<Image<B, 3>> {
+    let cursor = Cursor::new(bytes);
+    let obj = InMemNiftiObject::from_reader(cursor).map_err(|e| {
+        tracing::error!("Failed to read NIfTI bytes: {}", e);
+        anyhow!("Failed to read NIfTI bytes")
+    })?;
+
+    image_from_nifti_object::<B>(obj, device)
+}
+
+fn image_from_nifti_object<B: Backend>(obj: InMemNiftiObject, device: &B::Device) -> Result<Image<B, 3>> {
     let header = obj.header();
 
     // Sform
