@@ -39,6 +39,8 @@ use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
 use crate::{LoadedVolume, ModalityDisplay, ViewerState};
 
+mod surface_export;
+
 #[cfg(not(target_arch = "wasm32"))]
 use rfd::FileDialog;
 
@@ -1068,6 +1070,7 @@ impl SnapApp {
         self.status_message = "Zoom reset to fit.".to_owned();
     }
 
+    #[allow(dead_code)]
     fn rt_dose_plan_link_status(&self) -> Option<String> {
         let dose = self.rt_dose.as_ref()?;
         let Some(ref_uid) = dose
@@ -2703,76 +2706,6 @@ impl SnapApp {
         }
     }
 
-    /// Export the active label map as a VTK legacy POLYDATA surface mesh.
-    ///
-    /// Converts the label map to a binary scalar field and runs
-    /// `MarchingCubesFilter`, which returns a canonical gaia-backed indexed
-    /// mesh (`gaia::IndexedMesh<f64>`), then writes the mesh to a VTK file.
-    ///
-    /// # Errors
-    /// Sets `status_message` on file-dialog cancellation (silently) or on
-    /// I/O / conversion failure (error message).
-    fn export_surface_dialog(&mut self) {
-        let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
-            self.status_message =
-                "Export surface: no volume or segmentation loaded.".to_owned();
-            return;
-        };
-        let map = editor.current_map();
-        let shape = map.shape;
-
-        // Build binary scalar field once and reject empty label maps before meshing.
-        let mut has_foreground = false;
-        let binary: Vec<f32> = map
-            .as_slice()
-            .iter()
-            .map(|&l| {
-                if l > 0 {
-                    has_foreground = true;
-                    1.0
-                } else {
-                    0.0
-                }
-            })
-            .collect();
-        if !has_foreground {
-            self.status_message = "Export surface: no foreground voxels — mesh is empty.".to_owned();
-            return;
-        }
-
-        let spacing = [vol.spacing[0], vol.spacing[1], vol.spacing[2]];
-        let origin = [vol.origin[0], vol.origin[1], vol.origin[2]];
-
-        let Some(path) = FileDialog::new()
-            .set_file_name("surface.vtk")
-            .add_filter("VTK Polydata", &["vtk"])
-            .save_file()
-        else {
-            return;
-        };
-
-        let mc = ritk_core::filter::surface::MarchingCubesFilter::new()
-            .with_isovalue(0.5)
-            .with_spacing(spacing)
-            .with_origin(origin);
-        let mesh = mc.extract(&binary, shape);
-
-        match ritk_io::write_mesh_as_vtk(&path, &mesh) {
-            Ok(()) => {
-                self.status_message = format!(
-                    "Exported surface ({} triangles) to {}",
-                    mesh.face_count(),
-                    path.display()
-                );
-                info!("{}", self.status_message);
-            }
-            Err(e) => {
-                self.status_message = format!("Surface export failed: {e:#}");
-                error!("{}", self.status_message);
-            }
-        }
-    }
-
     fn save_segmentation_dicom_seg_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
             self.status_message =
@@ -4334,108 +4267,6 @@ mod tests {
 
         let msg = app.rt_dose_plan_link_status().expect("link status present");
         assert!(msg.contains("linked to loaded RT-PLAN UID 2.25.9001"), "{msg}");
-    }
-
-    // ─── Marching cubes surface export ───────────────────────────────────────
-
-    /// Helper: assert that MarchingCubesFilter produces a non-empty mesh for a
-    /// binary label map with at least one foreground voxel, and that the mesh
-    /// satisfies the index-bound invariant.
-    #[test]
-    fn marching_cubes_on_small_foreground_volume_produces_valid_mesh() {
-        use ritk_core::filter::surface::MarchingCubesFilter;
-        // 4×4×4 volume with a 2×2×2 foreground block at the center.
-        let nz = 4usize;
-        let ny = 4usize;
-        let nx = 4usize;
-        let mut binary = vec![0.0f32; nz * ny * nx];
-        // Set center voxels 1..3 in each dimension to 1.0.
-        for iz in 1..3 {
-            for iy in 1..3 {
-                for ix in 1..3 {
-                    binary[iz * ny * nx + iy * nx + ix] = 1.0;
-                }
-            }
-        }
-        let mesh = MarchingCubesFilter::new()
-            .with_isovalue(0.5)
-            .with_spacing([1.0, 1.0, 1.0])
-            .extract(&binary, [nz, ny, nx]);
-        assert!(mesh.face_count() > 0, "foreground block should produce triangles");
-        // Watertight check: gaia's IndexedMesh replaces the old validate(). A solid block
-        // boundary produces a closed surface, so is_watertight() must be true.
-        // face_count == 44: empirically derived from Lorensen & Cline tables over all
-        // 27 interface cubes at the 2×2×2 block boundary in a 4×4×4 grid (isovalue 0.5).
-        assert_eq!(mesh.face_count(), 44,
-            "2×2×2 foreground block in 4×4×4 grid should produce 44 triangles");
-    }
-
-    /// Verify that export_surface_dialog reports no foreground for an all-background map.
-    #[test]
-    fn export_surface_no_foreground_sets_status_message() {
-        use ritk_core::annotation::label_map::LabelMap;
-        use ritk_core::annotation::label_table::LabelTable;
-        use crate::label::LabelEditor;
-
-        let mut app = SnapApp::default();
-        app.loaded = Some(test_volume([4, 4, 4]));
-
-        // All-background label map.
-        let map = LabelMap::new([4, 4, 4], LabelTable::default());
-        app.label_editor = Some(LabelEditor::from_label_map(map));
-
-        // Call the file-path version of the export (no dialog involved).
-        let binary: Vec<f32> = app
-            .label_editor
-            .as_ref()
-            .unwrap()
-            .current_map()
-            .as_slice()
-            .iter()
-            .map(|&l| if l > 0 { 1.0 } else { 0.0 })
-            .collect();
-        let mesh = ritk_core::filter::surface::MarchingCubesFilter::new()
-            .extract(&binary, [4, 4, 4]);
-        // All-background → no triangles.
-        assert_eq!(mesh.face_count(), 0, "all-background label map yields empty mesh");
-    }
-
-    /// Verify physical positions from marching cubes match spacing-scaled coordinates.
-    #[test]
-    fn marching_cubes_physical_positions_match_spacing() {
-        use ritk_core::filter::surface::MarchingCubesFilter;
-        let mut data = vec![0.0f32; 8];
-        data[0] = 1.0; // Single active corner at voxel (0,0,0).
-        // Spacing [2.0, 3.0, 4.0]: x = ix*4.0, y = iy*3.0, z = iz*2.0.
-        let mesh = MarchingCubesFilter::new()
-            .with_spacing([2.0, 3.0, 4.0])
-            .extract(&data, [2, 2, 2]);
-        assert_eq!(mesh.face_count(), 1);
-        // With spacing=[2.0, 3.0, 4.0] and corner 0 (iz=0,iy=0,ix=0)=1.0 only:
-        // t = (0.5 - 1.0) / (0.0 - 1.0) = 0.5 for all 3 adjacent edges.
-        // Edge 0 (ix: 0→1): x = 0 + 0.5 * spacing[0] = 0 + 0.5*2.0 = 1.0, y=0, z=0.
-        // Edge 3 (iy: 1→0): y = 3.0 + 0.5*(0-3.0) = 1.5, x=0, z=0.
-        // Edge 8 (iz: 0→1): z = 0 + 0.5 * spacing[2] = 0 + 0.5*4.0 = 2.0, x=0, y=0.
-        // Vertices are now f64; gaia VertexPool indexed by sequential VertexId.
-        let n = mesh.vertex_count();
-        let mut xs: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).x)
-            .collect();
-        let mut ys: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).y)
-            .collect();
-        let mut zs: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).z)
-            .collect();
-        xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        ys.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        zs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        // One vertex has x=1.0 (edge 0 midpoint), others have x=0.
-        assert!((xs[2] - 1.0_f64).abs() < 1e-4, "edge 0 midpoint x = 1.0, got {}", xs[2]);
-        // One vertex has y=1.5 (edge 3 midpoint), others y=0.
-        assert!((ys[2] - 1.5_f64).abs() < 1e-4, "edge 3 midpoint y = 1.5, got {}", ys[2]);
-        // One vertex has z=2.0 (edge 8 midpoint), others z=0.
-        assert!((zs[2] - 2.0_f64).abs() < 1e-4, "edge 8 midpoint z = 2.0, got {}", zs[2]);
     }
 
     #[test]

@@ -1,3 +1,30 @@
+## Sprint 171 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.16 [patch]
+**Goal**: Refactor Gaia surface-export workflow into dedicated SRP module, preserve full viewer behavior, and revalidate test/example matrix.
+
+### Checklist items
+- [x] Extract surface-export workflow from [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) into dedicated module [crates/ritk-snap/src/app/surface_export.rs](crates/ritk-snap/src/app/surface_export.rs)
+- [x] Keep Gaia-backed marching-cubes export path as canonical implementation (`gaia::IndexedMesh<f64>`)
+- [x] Keep File-menu surface export behavior unchanged (UI/UX parity preserved)
+- [x] Move and expand value-semantic surface-export tests into module-local tests
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (417 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` (environment-reported missing `core/std` target crates)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Browser DICOM byte decode/assembly path | Medium | Deferred |
+| WASM toolchain environment fix (`core/std` unavailable in nightly target) | Medium | Deferred - environment issue |
+
 ## Sprint 170 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

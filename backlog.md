@@ -1,3 +1,26 @@
+## Sprint 171 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.16 [patch]
+**Goal**: Improve app-shell modularity (SRP/SoC) by extracting Gaia surface export into a dedicated vertical leaf module without functional regression.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-171-01 | Surface export logic and related tests were embedded in monolithic app shell, increasing coupling | **Closed** |
+
+### Delivered
+- ✓ Added [crates/ritk-snap/src/app/surface_export.rs](crates/ritk-snap/src/app/surface_export.rs) as dedicated SRP module for binary-label conversion, Gaia marching-cubes mesh construction, and VTK export dispatch
+- ✓ Preserved existing File-menu action path in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) (`Export label surface as VTK…`)
+- ✓ Added module-local value-semantic tests for foreground detection, mesh topology expectation, and spacing-to-physical coordinate mapping
+- ✓ Revalidated `ritk-snap`, `ritk-core`, `ritk-io`, `ritk-dicom`, and example compile matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM byte ingestion parity | Pathless browser DICOM payloads still need byte-native series assembly/decode path | Medium |
+| WASM environment/toolchain parity | `wasm32-unknown-unknown` core/std artifacts unavailable in current nightly environment | Medium |
+
 ## Sprint 170 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

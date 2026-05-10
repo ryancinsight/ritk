@@ -8,6 +8,25 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Extracted Gaia-based surface export workflow from [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) into dedicated SRP module [crates/ritk-snap/src/app/surface_export.rs](crates/ritk-snap/src/app/surface_export.rs).
+- Preserved canonical surface mesh extraction path (`gaia::IndexedMesh<f64>`) and existing File-menu export behavior.
+- Moved surface-export value-semantic tests into module-local coverage for better cohesion.
+
+### Fixed
+- Added explicit binary foreground precheck helper in the extracted module to reject empty label maps before meshing.
+- Reduced app-shell coupling by isolating surface export concerns from the central UI/state orchestration module.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo test -p ritk-snap --lib -q`: 417 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown`: environment failure (`can't find crate for core/std`)
+
+### Changed
 - Refactored [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) ribbon toolbar from compact button strip to organized dropdown command groups:
   - **File**: open primary/secondary series, swap primary-secondary.
   - **Layout**: single, dual-plane, 3-plane, compare layout selection.
