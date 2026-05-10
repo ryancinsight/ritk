@@ -236,6 +236,10 @@ pub fn load_volume_from_path<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
 /// (`.nii` / `.nii.gz`).
 pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVolume> {
     let name = name_hint.to_ascii_lowercase();
+    if is_likely_dicom_bytes(name_hint, bytes) {
+        return load_dicom_series_from_named_bytes(&[(name_hint.to_owned(), bytes)]);
+    }
+
     if name.ends_with(".nii") || name.ends_with(".nii.gz") {
         let device = <B as burn::tensor::backend::Backend>::Device::default();
         let image = ritk_io::read_nifti_from_bytes::<B>(bytes, &device)
@@ -244,9 +248,99 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
     }
 
     anyhow::bail!(
-        "unsupported dropped in-memory file '{}' (supported: .nii, .nii.gz)",
+        "unsupported dropped in-memory file '{}' (supported: DICOM, .nii, .nii.gz)",
         name_hint
     )
+}
+
+/// Load a DICOM series from a pathless dropped in-memory byte batch.
+///
+/// The batch is materialized into a unique temporary directory and then loaded
+/// through the canonical DICOM series loader.
+pub fn load_dicom_series_from_named_bytes(
+    files: &[(String, &[u8])],
+) -> Result<LoadedVolume> {
+    if files.is_empty() {
+        anyhow::bail!("empty DICOM byte batch")
+    }
+
+    let temp_root = create_unique_temp_subdir("ritk_snap_dropped_dicom")?;
+    for (idx, (name, bytes)) in files.iter().enumerate() {
+        if !is_likely_dicom_bytes(name, bytes) {
+            continue;
+        }
+        let file_name = sanitize_temp_filename(name, idx);
+        let file_path = temp_root.join(file_name);
+        std::fs::write(&file_path, bytes)
+            .with_context(|| format!("failed writing dropped DICOM temp file '{}'", file_path.display()))?;
+    }
+
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        load_dicom_volume(&temp_root)
+            .with_context(|| {
+                format!(
+                    "failed to load dropped DICOM byte batch from '{}'",
+                    temp_root.display()
+                )
+            })
+    }))
+    .unwrap_or_else(|_| {
+        anyhow::bail!(
+            "dropped DICOM byte batch does not form a loadable series (insufficient slice geometry or invalid frame set)"
+        )
+    });
+
+    let _ = std::fs::remove_dir_all(&temp_root);
+    result
+}
+
+fn create_unique_temp_subdir(prefix: &str) -> Result<PathBuf> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("clock must be after UNIX_EPOCH")
+        .as_nanos();
+    let pid = std::process::id();
+    let path = std::env::temp_dir().join(format!("{prefix}_{pid}_{now}"));
+    std::fs::create_dir_all(&path)
+        .with_context(|| format!("failed to create temp directory '{}'", path.display()))?;
+    Ok(path)
+}
+
+fn sanitize_temp_filename(name: &str, index: usize) -> String {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return format!("slice_{index:04}.dcm");
+    }
+
+    let mut cleaned: String = trimmed
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    if cleaned.len() > 120 {
+        cleaned.truncate(120);
+    }
+    if cleaned.is_empty() {
+        cleaned = format!("slice_{index:04}.dcm");
+    }
+    if !cleaned.contains('.') {
+        cleaned.push_str(".dcm");
+    }
+    cleaned
+}
+
+fn is_likely_dicom_bytes(name_hint: &str, bytes: &[u8]) -> bool {
+    let n = name_hint.to_ascii_lowercase();
+    if n.ends_with(".dcm") || n.ends_with(".dicom") || n.ends_with(".ima") || n == "dicomdir" {
+        return true;
+    }
+    bytes.len() >= 132 && &bytes[128..132] == b"DICM"
 }
 
 /// Convert a generic `Image<B, 3>` (with no DICOM metadata) into a
@@ -459,6 +553,46 @@ mod tests {
         assert_eq!(vol.shape, [3, 2, 4]);
         assert_eq!(vol.data.len(), 24);
         assert!(vol.spacing[0] > 0.0 && vol.spacing[1] > 0.0 && vol.spacing[2] > 0.0);
+    }
+
+    #[test]
+    fn test_load_dicom_series_from_named_bytes_batch() {
+        let dir = std::path::Path::new(r"D:\ritk\test_data\2_head_mri_t2\DICOM");
+        if !dir.exists() {
+            eprintln!(
+                "SKIP test_load_dicom_series_from_named_bytes_batch: fixture absent at {:?}",
+                dir
+            );
+            return;
+        }
+
+        let mut owned_files: Vec<(String, Vec<u8>)> = std::fs::read_dir(dir)
+            .expect("read DICOM fixture directory")
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file())
+            .map(|path| {
+                let name = path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("slice.dcm")
+                    .to_owned();
+                let bytes = std::fs::read(&path).expect("read DICOM fixture file bytes");
+                (name, bytes)
+            })
+            .collect();
+
+        owned_files.sort_by(|a, b| a.0.cmp(&b.0));
+        let borrowed: Vec<(String, &[u8])> = owned_files
+            .iter()
+            .map(|(name, bytes)| (name.clone(), bytes.as_slice()))
+            .collect();
+        let vol = load_dicom_series_from_named_bytes(&borrowed)
+            .expect("load_dicom_series_from_named_bytes should load valid DICOM batch");
+
+        let [d, r, c] = vol.shape;
+        assert!(d > 0 && r > 0 && c > 0, "loaded DICOM shape must be non-zero");
+        assert_eq!(vol.data.len(), d * r * c);
     }
 
     /// Load the skull CT DICOM series when it is present and verify basic

@@ -8,6 +8,25 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Extended dropped-input policy in [crates/ritk-snap/src/ui/dropped_input.rs](crates/ritk-snap/src/ui/dropped_input.rs) with pathless DICOM byte-batch routing (`LoadDicomSeriesBytes`).
+- Added in-memory dropped DICOM byte-batch loading in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs) via temporary series materialization and canonical DICOM loader dispatch.
+- Wired new dropped-byte DICOM action into [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs).
+
+### Fixed
+- Hardened dropped DICOM byte-batch loading boundary against upstream loader panics by converting panic cases into deterministic load errors.
+- Added value-semantic regression tests for dropped DICOM byte routing precedence and DICOM byte-batch loader behavior.
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo test -p ritk-snap --lib -q`: 420 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown`: environment failure (`can't find crate for core/std`)
+
+### Changed
 - Extracted Gaia-based surface export workflow from [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) into dedicated SRP module [crates/ritk-snap/src/app/surface_export.rs](crates/ritk-snap/src/app/surface_export.rs).
 - Preserved canonical surface mesh extraction path (`gaia::IndexedMesh<f64>`) and existing File-menu export behavior.
 - Moved surface-export value-semantic tests into module-local coverage for better cohesion.

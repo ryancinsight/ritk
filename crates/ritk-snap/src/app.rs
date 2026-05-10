@@ -1240,6 +1240,9 @@ impl SnapApp {
             DroppedInputAction::LoadVolumeBytes { name, bytes } => {
                 self.load_volume_bytes(name, bytes.as_ref());
             }
+            DroppedInputAction::LoadDicomSeriesBytes { files } => {
+                self.load_dicom_series_bytes(files);
+            }
             DroppedInputAction::Message(msg) => {
                 self.status_message = msg;
             }
@@ -3213,6 +3216,77 @@ impl SnapApp {
             Err(e) => {
                 self.status_message =
                     format!("Volume load failed for dropped '{}': {e:#}", name_hint);
+                error!("{}", self.status_message);
+            }
+        }
+    }
+
+    /// Load a DICOM series from pathless dropped named byte payloads.
+    fn load_dicom_series_bytes(&mut self, files: Vec<(String, std::sync::Arc<[u8]>)>) {
+        self.cine.stop();
+        let borrowed: Vec<(String, &[u8])> = files
+            .iter()
+            .map(|(name, bytes)| (name.clone(), bytes.as_ref()))
+            .collect();
+
+        match crate::dicom::loader::load_dicom_series_from_named_bytes(&borrowed) {
+            Ok(vol) => {
+                let shape = vol.shape;
+                let protocol = select_hanging_protocol(
+                    vol.modality.as_deref(),
+                    vol.series_description.as_deref(),
+                    shape,
+                );
+                let mut state = ViewerState::new();
+                state.window_center = Some(protocol.window_center);
+                state.window_width = Some(protocol.window_width);
+                state.slice_index = shape[0] / 2;
+                let msg = format!(
+                    "Loaded dropped in-memory DICOM series ({} files) — shape {:?} — protocol {}",
+                    files.len(), shape, protocol.protocol_name
+                );
+                self.loaded = Some(vol);
+                self.viewer_state = state;
+                self.axis = protocol.preferred_axis.min(2);
+                self.coronal_slice = shape[1] / 2;
+                self.sagittal_slice = shape[2] / 2;
+                self.multi_planar = protocol.multi_planar;
+                self.dual_plane = false;
+                self.compare_side_by_side = false;
+                self.linked_cursor = Some(LinkedCursor::from_slices(
+                    shape,
+                    self.viewer_state.slice_index,
+                    self.coronal_slice,
+                    self.sagittal_slice,
+                ));
+                self.annotations.clear();
+                self.label_editor = Some(LabelEditor::new(shape));
+                self.rt_struct = None;
+                self.rt_dose = None;
+                self.rt_dose_max_gy = None;
+                self.rt_plan = None;
+                self.rt_dvh_selected_roi = None;
+                self.rt_dvh_cache = None;
+                self.clear_rt_dose_overlay_cache();
+                self.tool_state = ToolState::Idle;
+                self.pan_offset = egui::Vec2::ZERO;
+                self.zoom = 1.0;
+                self.pointer_intensity = 0.0;
+                self.texture = None;
+                self.texture_dirty = true;
+                self.coronal_tex = None;
+                self.coronal_dirty = true;
+                self.sagittal_tex = None;
+                self.sagittal_dirty = true;
+                self.status_message = msg;
+
+                self.refresh_cached_histogram();
+                info!("{}", self.status_message);
+            }
+            Err(e) => {
+                self.status_message = format!(
+                    "Volume load failed for dropped in-memory DICOM series: {e:#}"
+                );
                 error!("{}", self.status_message);
             }
         }

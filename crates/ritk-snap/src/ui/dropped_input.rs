@@ -19,6 +19,10 @@ pub enum DroppedInputAction {
         name: String,
         bytes: std::sync::Arc<[u8]>,
     },
+    /// Load a pathless dropped DICOM byte batch as one assembled series.
+    LoadDicomSeriesBytes {
+        files: Vec<(String, std::sync::Arc<[u8]>)>,
+    },
     /// Show deterministic user guidance in the status line.
     Message(String),
 }
@@ -37,6 +41,7 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
 
     let mut first_supported_volume_path: Option<PathBuf> = None;
     let mut first_supported_volume_bytes: Option<(String, std::sync::Arc<[u8]>)> = None;
+    let mut dicom_bytes_batch: Vec<(String, std::sync::Arc<[u8]>)> = Vec::new();
     let mut first_pathless_name: Option<String> = None;
     let mut saw_pathless = false;
 
@@ -61,22 +66,33 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
             first_pathless_name = Some(file.name.clone());
         }
 
-        if first_supported_volume_bytes.is_none()
-            && is_supported_volume_name_for_bytes(&file.name)
-            && file.bytes.is_some()
-        {
-            first_supported_volume_bytes = Some((
-                file.name.clone(),
-                file.bytes
-                    .as_ref()
-                    .expect("checked is_some above")
-                    .clone(),
-            ));
+        if let Some(bytes) = file.bytes.as_ref() {
+            if is_likely_dicom_payload(&file.name, bytes) {
+                let name = if file.name.is_empty() {
+                    format!("dropped_{:04}.dcm", dicom_bytes_batch.len())
+                } else {
+                    file.name.clone()
+                };
+                dicom_bytes_batch.push((name, bytes.clone()));
+                continue;
+            }
+
+            if first_supported_volume_bytes.is_none()
+                && is_supported_volume_name_for_bytes(&file.name)
+            {
+                first_supported_volume_bytes = Some((file.name.clone(), bytes.clone()));
+            }
         }
     }
 
     if let Some(path) = first_supported_volume_path {
         return DroppedInputAction::LoadVolume(path);
+    }
+
+    if !dicom_bytes_batch.is_empty() {
+        return DroppedInputAction::LoadDicomSeriesBytes {
+            files: dicom_bytes_batch,
+        };
     }
 
     if let Some((name, bytes)) = first_supported_volume_bytes {
@@ -103,6 +119,14 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
 fn is_supported_volume_name_for_bytes(name: &str) -> bool {
     let s = name.to_ascii_lowercase();
     s.ends_with(".nii") || s.ends_with(".nii.gz")
+}
+
+fn is_likely_dicom_payload(name: &str, bytes: &[u8]) -> bool {
+    let n = name.to_ascii_lowercase();
+    if n.ends_with(".dcm") || n.ends_with(".dicom") || n.ends_with(".ima") || n == "dicomdir" {
+        return true;
+    }
+    bytes.len() >= 132 && &bytes[128..132] == b"DICM"
 }
 
 fn is_supported_volume_path(path: &Path) -> bool {
@@ -218,5 +242,37 @@ mod tests {
             }
             other => panic!("expected LoadVolumeBytes, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn pathless_dicom_with_bytes_routes_to_dicom_batch_load() {
+        let mut bytes = vec![0_u8; 140];
+        bytes[128..132].copy_from_slice(b"DICM");
+        let files = vec![dropped_pathless_named_with_bytes("slice_001", bytes)];
+        let action = decide_dropped_input_action(&files);
+
+        match action {
+            DroppedInputAction::LoadDicomSeriesBytes { files } => {
+                assert_eq!(files.len(), 1);
+                assert_eq!(files[0].0, "slice_001");
+            }
+            other => panic!("expected LoadDicomSeriesBytes, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn pathless_dicom_bytes_prefer_dicom_over_nifti_bytes() {
+        let mut dicom_bytes = vec![0_u8; 140];
+        dicom_bytes[128..132].copy_from_slice(b"DICM");
+        let files = vec![
+            dropped_pathless_named_with_bytes("dropped.nii", vec![1, 2, 3]),
+            dropped_pathless_named_with_bytes("slice_001", dicom_bytes),
+        ];
+        let action = decide_dropped_input_action(&files);
+
+        assert!(
+            matches!(action, DroppedInputAction::LoadDicomSeriesBytes { .. }),
+            "expected DICOM byte batch to take precedence when present"
+        );
     }
 }

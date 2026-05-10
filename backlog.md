@@ -1,3 +1,29 @@
+## Sprint 172 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.17 [patch]
+**Goal**: Add browser pathless dropped DICOM byte ingestion so ritk-snap can load dropped DICOM payloads without filesystem paths.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-172-01 | Pathless dropped DICOM bytes in browser/handle-based contexts could not be loaded | **Closed** |
+
+### Delivered
+- ✓ Extended dropped-input routing SSOT in [crates/ritk-snap/src/ui/dropped_input.rs](crates/ritk-snap/src/ui/dropped_input.rs) with `LoadDicomSeriesBytes`
+- ✓ Added DICOM payload recognition for dropped in-memory bytes by extension and PS3.10 preamble magic (`DICM` at byte offset 128)
+- ✓ Added byte-batch DICOM series loader in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- ✓ Added panic-hardening wrapper to convert upstream loader panic conditions into bounded errors
+- ✓ Wired app-shell drop ingestion path in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs)
+- ✓ Added value-semantic tests for DICOM byte routing precedence and DICOM byte-batch load behavior
+- ✓ Revalidated requested crate and example matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOMDIR and deterministic series grouping refinement | Improve multi-series disambiguation and deterministic ordering for mixed dropped byte sets | Medium |
+| WASM environment/toolchain parity | `wasm32-unknown-unknown` core/std artifacts unavailable in current nightly environment | Medium |
+
 ## Sprint 171 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

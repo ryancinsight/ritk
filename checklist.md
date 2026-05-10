@@ -1,3 +1,33 @@
+## Sprint 172 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.17 [patch]
+**Goal**: Close browser pathless DICOM dropped-byte ingestion gap, harden batch-loader failure mode, and revalidate full viewer matrix.
+
+### Checklist items
+- [x] Extend dropped-input SSOT policy in [crates/ritk-snap/src/ui/dropped_input.rs](crates/ritk-snap/src/ui/dropped_input.rs) with `LoadDicomSeriesBytes`
+- [x] Add DICOM payload detection for pathless dropped bytes (extension + DICM preamble)
+- [x] Add DICOM byte-batch loader in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- [x] Materialize dropped byte batch into unique temp directory and load through canonical DICOM loader path
+- [x] Add panic-hardening boundary around DICOM series loading to prevent app crash on invalid/insufficient dropped slice sets
+- [x] Wire app-shell ingestion path in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs)
+- [x] Add value-semantic tests for dropped-input DICOM routing and DICOM byte-batch loader
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (420 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` (environment-reported missing `core/std` target crates)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Browser DICOMDIR + multi-file ordering policy refinements | Medium | Deferred |
+| WASM toolchain environment fix (`core/std` unavailable in nightly target) | Medium | Deferred - environment issue |
+
 ## Sprint 171 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
