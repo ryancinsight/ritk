@@ -80,6 +80,7 @@ impl DatasetManager {
             } else if filename.ends_with(".zip") {
                 extract_zip(&data, &dataset_dir)?;
             } else if filename.ends_with(".nii.gz") || filename.ends_with(".nii") {
+                validate_nifti_payload(filename, &data)?;
                 // Direct NIfTI file - save as-is
                 std::fs::write(&download_path, &data)?;
             } else {
@@ -98,6 +99,7 @@ impl DatasetManager {
 
     pub fn verify(&self) -> Result<()> {
         info!("Verifying datasets in {}", self.data_dir.display());
+        let mut invalid_nifti_files = Vec::new();
 
         for entry in std::fs::read_dir(&self.data_dir)? {
             let entry = entry?;
@@ -110,11 +112,92 @@ impl DatasetManager {
                 // Count NIfTI files
                 let nifti_count = count_nifti_files(&path)?;
                 info!("  Found {} NIfTI files", nifti_count);
+
+                for nifti_path in list_nifti_files(&path)? {
+                    let data = std::fs::read(&nifti_path)?;
+                    let filename = nifti_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("<unknown>");
+                    if let Err(err) = validate_nifti_payload(filename, &data) {
+                        invalid_nifti_files.push(format!(
+                            "{} ({})",
+                            nifti_path.display(),
+                            err
+                        ));
+                    }
+                }
             }
+        }
+
+        if !invalid_nifti_files.is_empty() {
+            anyhow::bail!(
+                "Found invalid NIfTI payload(s):\n{}",
+                invalid_nifti_files.join("\n")
+            );
         }
 
         Ok(())
     }
+}
+
+fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
+    if is_html_payload(data) {
+        anyhow::bail!(
+            "{} appears to be HTML, not NIfTI data (possible bad download URL or auth page)",
+            filename
+        );
+    }
+
+    if filename.ends_with(".nii.gz") {
+        if data.len() < 2 || data[0] != 0x1f || data[1] != 0x8b {
+            anyhow::bail!("{} is not a gzip stream", filename);
+        }
+        let mut decoder = GzDecoder::new(data);
+        let mut header = [0u8; 4];
+        decoder
+            .read_exact(&mut header)
+            .map_err(|e| anyhow::anyhow!("{} has invalid gzip/NIfTI header: {}", filename, e))?;
+        if !looks_like_nifti_header(&header) {
+            anyhow::bail!("{} does not contain a valid NIfTI header", filename);
+        }
+    } else if filename.ends_with(".nii") {
+        if data.len() < 4 || !looks_like_nifti_header(&data[..4]) {
+            anyhow::bail!("{} does not contain a valid NIfTI header", filename);
+        }
+    }
+
+    Ok(())
+}
+
+fn is_html_payload(data: &[u8]) -> bool {
+    let prefix_len = data.len().min(1024);
+    let prefix = &data[..prefix_len];
+    let text = String::from_utf8_lossy(prefix).to_ascii_lowercase();
+    text.contains("<!doctype html") || text.contains("<html")
+}
+
+fn looks_like_nifti_header(header4: &[u8]) -> bool {
+    if header4.len() < 4 {
+        return false;
+    }
+    let little = i32::from_le_bytes([header4[0], header4[1], header4[2], header4[3]]);
+    let big = i32::from_be_bytes([header4[0], header4[1], header4[2], header4[3]]);
+    little == 348 || big == 348 || little == 540 || big == 540
+}
+
+fn list_nifti_files(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+    for entry in walkdir::WalkDir::new(dir) {
+        let entry = entry?;
+        let path = entry.path();
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if ext == "nii" || ext == "gz" {
+                files.push(path.to_path_buf());
+            }
+        }
+    }
+    Ok(files)
 }
 
 /// Download data with progress bar
@@ -201,6 +284,41 @@ fn count_nifti_files(dir: &Path) -> Result<usize> {
     }
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_html_payload, looks_like_nifti_header, validate_nifti_payload};
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    #[test]
+    fn nifti_header_detection_accepts_nifti1_little_endian() {
+        let h = 348_i32.to_le_bytes();
+        assert!(looks_like_nifti_header(&h));
+    }
+
+    #[test]
+    fn html_payload_detection_flags_doctype() {
+        let html = b"<!doctype html><html><head></head><body>not nii</body></html>";
+        assert!(is_html_payload(html));
+    }
+
+    #[test]
+    fn validate_nifti_payload_rejects_html_masquerade() {
+        let html = b"<!doctype html><html><head></head><body>404</body></html>";
+        let err = validate_nifti_payload("bad.nii.gz", html).unwrap_err().to_string();
+        assert!(err.contains("appears to be HTML"));
+    }
+
+    #[test]
+    fn validate_nifti_payload_accepts_valid_gzip_nifti_header() {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&348_i32.to_le_bytes()).unwrap();
+        let gz = encoder.finish().unwrap();
+        validate_nifti_payload("ok.nii.gz", &gz).unwrap();
+    }
 }
 
 // ============================================================================

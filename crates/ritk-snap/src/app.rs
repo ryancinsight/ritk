@@ -125,6 +125,8 @@ pub struct SnapApp {
     tool_state: ToolState,
     /// Completed measurement annotations.
     annotations: Vec<Annotation>,
+    /// Last hovered or interacted axis for status/info display.
+    status_axis: usize,
     /// Segmentation label editor for the currently loaded volume.
     label_editor: Option<LabelEditor>,
     /// Brush radius in voxels for paint/erase tools.
@@ -307,6 +309,7 @@ impl Default for SnapApp {
             status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
             pending_load: None,
             pending_secondary_load: None,
+            status_axis: 0,
         }
     }
 }
@@ -1308,12 +1311,12 @@ impl SnapApp {
             ui.horizontal(|ui| {
                 ui.label(&self.status_message);
                 if let Some(vol) = &self.loaded {
-                    let (slice_idx, total) = self.axis_slice_info(self.axis);
+                    let (slice_idx, total) = self.axis_slice_info(self.status_axis);
                     let _ = vol; // vol borrow used implicitly via axis_slice_info
                     ui.separator();
                     ui.label(format!("Slice {}/{}", slice_idx + 1, total));
                     ui.separator();
-                    let axis_name = ["Axial", "Coronal", "Sagittal"][self.axis.min(2)];
+                    let axis_name = ["Axial", "Coronal", "Sagittal"][self.status_axis.min(2)];
                     ui.label(axis_name);
 
                     // Voxel I/J/K index and physical LPS position from linked cursor.
@@ -1595,6 +1598,11 @@ impl SnapApp {
             .sense(egui::Sense::click_and_drag());
         let response = ui.add(image_widget);
 
+        // Track which axis is currently hovered for status/info display
+        if response.hovered() || response.has_focus() || response.clicked() {
+            self.status_axis = axis;
+        }
+
         // ── 4–6. Overlay text, DICOM overlay, crosshair ────────────────────────
         // Painter::new clones the Arc<Context>; it does not hold a borrow on ui.
         let painter = ui.painter_at(response.rect);
@@ -1766,29 +1774,39 @@ impl SnapApp {
         }
 
         if response.drag_started() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
-            self.on_drag_start(response.interact_pointer_pos());
+            // Map screen to image-pixel coordinates for tool event
+            let img_pos = response.interact_pointer_pos().map(|s| {
+                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+            });
+            self.on_drag_start(img_pos);
         }
         if response.dragged() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
-            self.on_drag(response.interact_pointer_pos());
+            let img_pos = response.interact_pointer_pos().map(|s| {
+                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+            });
+            self.on_drag(img_pos);
         }
         if response.drag_stopped() {
-            self.on_drag_end(response.interact_pointer_pos());
+            let img_pos = response.interact_pointer_pos().map(|s| {
+                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+            });
+            self.on_drag_end(img_pos);
         }
         if response.clicked() {
             self.update_linked_cursor_from_pointer(axis, response.interact_pointer_pos(), response.rect);
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
-            {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
-            self.on_click(response.interact_pointer_pos());
+            let img_pos = response.interact_pointer_pos().map(|s| {
+                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+            });
+            self.on_click(img_pos);
         }
     }
 
@@ -1919,6 +1937,7 @@ impl SnapApp {
             ui.heading("MPR Info");
             ui.separator();
 
+
             if let Some(vol) = &self.loaded {
                 let [depth, rows, cols] = vol.shape;
                 let [dz, dy, dx] = vol.spacing;
@@ -1937,33 +1956,14 @@ impl SnapApp {
                         };
 
                         row(ui, "W / L:", &format!("{ww:.0} / {wc:.0}"));
-                        row(
-                            ui,
-                            "Axial:",
-                            &format!("{}/{}", self.viewer_state.slice_index + 1, depth),
-                        );
-                        row(
-                            ui,
-                            "Coronal:",
-                            &format!("{}/{}", self.coronal_slice + 1, rows),
-                        );
-                        row(
-                            ui,
-                            "Sagittal:",
-                            &format!("{}/{}", self.sagittal_slice + 1, cols),
-                        );
-                        let cursor = self
-                            .linked_cursor
-                            .map(|cursor| cursor.voxel())
-                            .unwrap_or([self.viewer_state.slice_index, self.coronal_slice, self.sagittal_slice]);
-                        row(
-                            ui,
-                            "Cursor:",
-                            &format!("z={} y={} x={}", cursor[0] + 1, cursor[1] + 1, cursor[2] + 1),
-                        );
-                        // Physical LPS position derived from voxel cursor via ITK affine.
-                        let lps = voxel_to_lps(cursor, vol.origin, vol.direction, vol.spacing);
-                        row(ui, "LPS:", &format_lps(lps));
+                        let (slice_idx, total) = match self.status_axis {
+                            0 => (self.viewer_state.slice_index, depth),
+                            1 => (self.coronal_slice, rows),
+                            2 => (self.sagittal_slice, cols),
+                            _ => (self.viewer_state.slice_index, depth),
+                        };
+                        let axis_name = ["Axial", "Coronal", "Sagittal"][self.status_axis.min(2)];
+                        row(ui, axis_name, &format!("{}/{}", slice_idx + 1, total));
                         row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
                         row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
                         row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));

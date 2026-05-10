@@ -1,3 +1,70 @@
+## Sprint 175 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.20 [patch]
+**Goal**: Execute full verification matrix for current workspace delta and document WASM parity blocker.
+
+### Checklist items
+- [x] Run `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] Run `cargo test -p ritk-io --lib -q` (311 passed)
+- [x] Run `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] Run `cargo test -p ritk-snap --lib -- --nocapture` (421 passed)
+- [x] Run `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] Run `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Run `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` (fails with `E0463` missing `core/std` in current environment)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| WASM toolchain environment remediation | Medium | Deferred - environment issue |
+| Documentation/commit/push closure | Medium | Deferred to next increment |
+
+## Sprint 174 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.19 [patch]
+**Goal**: Enforce deterministic ordering for multi-series DICOM discovery and viewer scan ingestion.
+
+### Checklist items
+- [x] Add deterministic discovered-series sorting in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs)
+- [x] Add deterministic subdirectory scan ordering in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- [x] Add deterministic `SeriesEntry` sort before `SeriesTree::from_entries` in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- [x] Add unit tests for deterministic ordering in both crates
+- [x] Run verification chain:
+- [x] `cargo test -p ritk-io --lib discovered_series_sort_is_deterministic -- --nocapture` (passed)
+- [x] `cargo test -p ritk-snap --lib sort_series_entries_is_deterministic -- --nocapture` (passed)
+- [x] `cargo test -p ritk-snap --lib -- --nocapture` (421 passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| WASM toolchain environment fix (`core/std` unavailable in nightly target) | Medium | Deferred - environment issue |
+| Full matrix verification and examples for current delta | Medium | Deferred to next increment |
+
+## Sprint 173 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.18 [patch]
+**Goal**: Add deterministic dataset integrity validation and remove corrupted pseudo-NIfTI fixtures.
+
+### Checklist items
+- [x] Add NIfTI payload validator in [xtask/src/datasets.rs](xtask/src/datasets.rs)
+- [x] Reject HTML/auth error pages masquerading as `.nii`/`.nii.gz`
+- [x] Validate gzip header and NIfTI header marker (`sizeof_hdr` = 348/540) for `.nii.gz`
+- [x] Validate NIfTI header marker for `.nii`
+- [x] Enforce validation in both dataset download and dataset verify flows
+- [x] Add unit tests for validator accept/reject behavior
+- [x] Remove corrupted fixtures from `test_data/` (`IXI-CT.nii.gz`, `IXI-T1.nii.gz`, `IXI-T2.nii.gz`)
+- [x] Run verification chain:
+- [x] `cargo test -p xtask -- --nocapture` (4 passed)
+- [x] `cargo run -p xtask -- verify-datasets --data-dir test_data` (passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Browser DICOMDIR + multi-file ordering policy refinements | Medium | Deferred |
+| WASM toolchain environment fix (`core/std` unavailable in nightly target) | Medium | Deferred - environment issue |
+
 ## Sprint 172 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

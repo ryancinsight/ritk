@@ -62,6 +62,29 @@ pub struct DicomSeriesInfo {
     pub file_paths: Vec<PathBuf>,
 }
 
+fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
+    series_list.sort_by(|a, b| {
+        a.patient_id
+            .cmp(&b.patient_id)
+            .then_with(|| a.modality.cmp(&b.modality))
+            .then_with(|| a.series_description.cmp(&b.series_description))
+            .then_with(|| a.series_instance_uid.cmp(&b.series_instance_uid))
+            .then_with(|| {
+                let a_first = a
+                    .file_paths
+                    .first()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                let b_first = b
+                    .file_paths
+                    .first()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default();
+                a_first.cmp(&b_first)
+            })
+    });
+}
+
 /// Scan a directory for DICOM series, grouping them by SeriesInstanceUID.
 ///
 /// This function scans the directory in parallel to parse DICOM headers.
@@ -114,6 +137,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     for series in &mut series_list {
         series.file_paths.sort();
     }
+    sort_discovered_series(&mut series_list);
 
     Ok(series_list)
 }
@@ -365,11 +389,44 @@ impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn test_scan_empty_dir() {
         let temp = tempfile::tempdir().unwrap();
         let series = scan_dicom_directory(temp.path()).unwrap();
         assert!(series.is_empty());
+    }
+
+    #[test]
+    fn discovered_series_sort_is_deterministic() {
+        let mut v = vec![
+            DicomSeriesInfo {
+                series_instance_uid: "2".to_owned(),
+                series_description: "B".to_owned(),
+                modality: "MR".to_owned(),
+                patient_id: "P2".to_owned(),
+                file_paths: vec![PathBuf::from("z/2.dcm")],
+            },
+            DicomSeriesInfo {
+                series_instance_uid: "1".to_owned(),
+                series_description: "A".to_owned(),
+                modality: "CT".to_owned(),
+                patient_id: "P1".to_owned(),
+                file_paths: vec![PathBuf::from("a/1.dcm")],
+            },
+            DicomSeriesInfo {
+                series_instance_uid: "3".to_owned(),
+                series_description: "A".to_owned(),
+                modality: "CT".to_owned(),
+                patient_id: "P1".to_owned(),
+                file_paths: vec![PathBuf::from("b/1.dcm")],
+            },
+        ];
+
+        sort_discovered_series(&mut v);
+
+        let uids: Vec<&str> = v.iter().map(|s| s.series_instance_uid.as_str()).collect();
+        assert_eq!(uids, vec!["1", "3", "2"]);
     }
 }

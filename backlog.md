@@ -1,3 +1,77 @@
+## Sprint 175 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.20 [patch]
+**Goal**: Close verification/documentation gap by running full matrix for current workspace delta and documenting WASM environment blocker with reproducible evidence.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-175-01 | Full cross-crate regression matrix and example compile verification not yet recorded after recent changes | **Closed** |
+| GAP-175-02 | WASM parity status not freshly validated against current workspace delta | **Closed (environment blocker documented)** |
+
+### Delivered
+- ✓ Revalidated `ritk-core` library tests
+- ✓ Revalidated `ritk-io` library tests
+- ✓ Revalidated `ritk-dicom` library tests
+- ✓ Revalidated `ritk-snap` library tests
+- ✓ Revalidated `ritk-io` examples build (`--no-run`)
+- ✓ Revalidated `ritk-registration` examples build (`--no-run`)
+- ✓ Re-ran WASM check for `ritk-snap` and captured blocker output (`E0463` missing `core/std` for `wasm32-unknown-unknown` in current nightly environment)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| WASM environment/toolchain parity remediation | Resolve `wasm32-unknown-unknown` target std/core availability in nightly toolchain environment | Medium |
+| Documentation/commit closure | Final artifact sync (CHANGELOG), commit, and push for current accumulated workspace delta | Medium |
+
+## Sprint 174 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.19 [patch]
+**Goal**: Close deterministic multi-series DICOM grouping/order gap in discovery and viewer scan flows.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-174-01 | Discovered DICOM series ordering could vary due hash-map and filesystem iteration order | **Closed** |
+
+### Delivered
+- ✓ Added deterministic sort policy for discovered series in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs)
+- ✓ Added deterministic lexical ordering for subdirectory traversal in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- ✓ Added deterministic ordering of flattened `SeriesEntry` records before tree construction in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- ✓ Added value-semantic tests for deterministic ordering in both boundaries
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| WASM environment/toolchain parity | `wasm32-unknown-unknown` core/std artifacts unavailable in current nightly environment | Medium |
+| Full matrix verification + examples | Run and record full cross-crate verification chain for current workspace delta | Medium |
+
+## Sprint 173 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.18 [patch]
+**Goal**: Close dataset-integrity gap by rejecting non-NIfTI payloads masquerading as .nii/.nii.gz and cleaning invalid fixtures.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-173-01 | Downloaded test fixtures could silently contain HTML/auth pages saved as `.nii.gz` | **Closed** |
+
+### Delivered
+- ✓ Added NIfTI payload validation in [xtask/src/datasets.rs](xtask/src/datasets.rs) during download and verify flows
+- ✓ Added deterministic HTML masquerade detection and NIfTI header checks for `.nii` and `.nii.gz`
+- ✓ Added verification failure aggregation for invalid NIfTI payloads under `test_data/`
+- ✓ Added value-semantic unit tests for dataset validator behavior
+- ✓ Removed invalid pseudo-NIfTI artifacts: [test_data/IXI-CT.nii.gz](test_data/IXI-CT.nii.gz), [test_data/IXI-T1.nii.gz](test_data/IXI-T1.nii.gz), [test_data/IXI-T2.nii.gz](test_data/IXI-T2.nii.gz)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOMDIR and deterministic series grouping refinement | Improve multi-series disambiguation and deterministic ordering for mixed dropped byte sets | Medium |
+| WASM environment/toolchain parity | `wasm32-unknown-unknown` core/std artifacts unavailable in current nightly environment | Medium |
+
 ## Sprint 172 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

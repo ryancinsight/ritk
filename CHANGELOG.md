@@ -7,6 +7,39 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+### Added
+- Added deterministic series-ordering helpers for DICOM discovery and viewer scan ingestion:
+  - `sort_discovered_series` in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs)
+  - `sort_series_entries_deterministically` in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
+- Added dataset integrity guardrails in [xtask/src/datasets.rs](xtask/src/datasets.rs):
+  - HTML/auth-page masquerade detection for `.nii` / `.nii.gz`
+  - gzip signature + NIfTI header validation on dropped/downloaded payloads
+  - verification-time invalid payload aggregation
+
+### Changed
+- Enforced deterministic lexical subdirectory traversal in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs) before DICOM series scan.
+- Enforced deterministic discovered-series ordering in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs) after per-series file-path normalization.
+
+### Fixed
+- Removed corrupted pseudo-NIfTI fixtures that contained HTML responses:
+  - `test_data/IXI-CT.nii.gz`
+  - `test_data/IXI-T1.nii.gz`
+  - `test_data/IXI-T2.nii.gz`
+- Closed verification drift by re-running the full active matrix and recording WASM environment blocker evidence.
+
+### Verification
+- `cargo test -p xtask -- --nocapture`: 4 passed
+- `cargo run -p xtask -- verify-datasets --data-dir test_data`: passed
+- `cargo test -p ritk-io --lib discovered_series_sort_is_deterministic -- --nocapture`: passed
+- `cargo test -p ritk-snap --lib sort_series_entries_is_deterministic -- --nocapture`: passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-io --lib -q`: 311 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-snap --lib -- --nocapture`: 421 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown`: environment failure (`E0463`, missing `core/std` for target)
+
 ### Changed
 - Extended dropped-input policy in [crates/ritk-snap/src/ui/dropped_input.rs](crates/ritk-snap/src/ui/dropped_input.rs) with pathless DICOM byte-batch routing (`LoadDicomSeriesBytes`).
 - Added in-memory dropped DICOM byte-batch loading in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs) via temporary series materialization and canonical DICOM loader dispatch.

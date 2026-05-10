@@ -446,17 +446,23 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
     // Scan the root folder itself.
     try_add(&folder, &mut entries, &mut seen_folders);
 
-    // Walk subdirectories up to depth 5.
-    for entry in WalkDir::new(&folder)
+    // Walk subdirectories up to depth 5 with deterministic lexical ordering.
+    let mut subdirs: Vec<PathBuf> = WalkDir::new(&folder)
         .min_depth(1)
         .max_depth(5)
         .follow_links(false)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| e.file_type().is_dir())
-    {
-        try_add(entry.path(), &mut entries, &mut seen_folders);
+        .map(|e| e.path().to_path_buf())
+        .collect();
+    subdirs.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+
+    for dir in subdirs {
+        try_add(&dir, &mut entries, &mut seen_folders);
     }
+
+    sort_series_entries_deterministically(&mut entries);
 
     info!(
         root = %folder.display(),
@@ -465,6 +471,33 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
     );
 
     Ok(SeriesTree::from_entries(entries))
+}
+
+fn sort_series_entries_deterministically(entries: &mut [SeriesEntry]) {
+    entries.sort_by(|a, b| {
+        a.patient_id
+            .cmp(&b.patient_id)
+            .then_with(|| {
+                a.study_uid
+                    .as_deref()
+                    .unwrap_or("")
+                    .cmp(b.study_uid.as_deref().unwrap_or(""))
+            })
+            .then_with(|| {
+                a.study_date
+                    .as_deref()
+                    .unwrap_or("")
+                    .cmp(b.study_date.as_deref().unwrap_or(""))
+            })
+            .then_with(|| a.modality.cmp(&b.modality))
+            .then_with(|| a.series_description.cmp(&b.series_description))
+            .then_with(|| a.series_uid.cmp(&b.series_uid))
+            .then_with(|| {
+                a.folder
+                    .to_string_lossy()
+                    .cmp(&b.folder.to_string_lossy())
+            })
+    });
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -476,6 +509,50 @@ mod tests {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
+
+    #[test]
+    fn sort_series_entries_is_deterministic() {
+        let mut entries = vec![
+            SeriesEntry {
+                series_uid: "UID-B".to_owned(),
+                folder: PathBuf::from("z/path"),
+                patient_name: "B".to_owned(),
+                patient_id: "P2".to_owned(),
+                modality: "MR".to_owned(),
+                series_description: "S2".to_owned(),
+                num_slices: 1,
+                study_date: Some("20260102".to_owned()),
+                study_uid: Some("ST2".to_owned()),
+            },
+            SeriesEntry {
+                series_uid: "UID-A2".to_owned(),
+                folder: PathBuf::from("b/path"),
+                patient_name: "A".to_owned(),
+                patient_id: "P1".to_owned(),
+                modality: "CT".to_owned(),
+                series_description: "S1".to_owned(),
+                num_slices: 1,
+                study_date: Some("20260101".to_owned()),
+                study_uid: Some("ST1".to_owned()),
+            },
+            SeriesEntry {
+                series_uid: "UID-A1".to_owned(),
+                folder: PathBuf::from("a/path"),
+                patient_name: "A".to_owned(),
+                patient_id: "P1".to_owned(),
+                modality: "CT".to_owned(),
+                series_description: "S1".to_owned(),
+                num_slices: 1,
+                study_date: Some("20260101".to_owned()),
+                study_uid: Some("ST1".to_owned()),
+            },
+        ];
+
+        sort_series_entries_deterministically(&mut entries);
+
+        let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_str()).collect();
+        assert_eq!(ordered_uids, vec!["UID-A1", "UID-A2", "UID-B"]);
+    }
 
     /// Load the OpenNeuro T1w NIfTI file when it is present on disk and verify
     /// that shape, spacing, and pixel data satisfy basic sanity invariants.
