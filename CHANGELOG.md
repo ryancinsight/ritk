@@ -7,6 +7,29 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
+### Changed
+- Refactored [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) ribbon toolbar from compact button strip to organized dropdown command groups:
+  - **File**: open primary/secondary series, swap primary-secondary.
+  - **Layout**: single, dual-plane, 3-plane, compare layout selection.
+  - **Target**: series load target selection (Primary/Secondary).
+  - **Axes**: dual-plane and compare axis assignment.
+  - **Compare**: quick axis presets and secondary W/L controls.
+  - **Tools**: direct tool activation (Pan, Zoom, W/L, Length, Angle, Paint).
+
+### Fixed
+- Hardened [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) `close_study` lifecycle reset to clear compare/dual/multi layout state and secondary compare defaults, preventing stale post-close UI state.
+- Added value-semantic test coverage for cross-volume slice-index mapping bounds and close-reset invariants in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs).
+
+### Verification
+- `cargo check -p ritk-snap`: passed
+- `cargo test -p ritk-snap --lib -q`: 416 passed
+- `cargo test -p ritk-core --lib -q`: 1068 passed
+- `cargo test -p ritk-io --lib -q`: 310 passed
+- `cargo test -p ritk-dicom --lib -q`: 8 passed
+- `cargo test -p ritk-io --examples --no-run`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown`: environment failure (`can't find crate for core/std`)
+
 ## [0.37.14] - Sprint 169 — Menu-based toolbar UI refactor
 
 ### Changed

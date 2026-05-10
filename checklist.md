@@ -1,3 +1,33 @@
+## Sprint 170 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.15 [patch]
+**Goal**: Convert compare-era ribbon controls to organized dropdown menus, close state-reset gaps, and revalidate test/example matrix for ritk-snap DICOM viewer workflows.
+
+### Checklist items
+- [x] Replace compact ribbon button strip in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) with grouped dropdown menus (`File`, `Layout`, `Target`, `Axes`, `Compare`, `Tools`)
+- [x] Preserve all layout workflows (single, dual-plane, 3-plane, primary/secondary compare)
+- [x] Preserve independent axis control for dual-plane and compare modes
+- [x] Add compare quick presets (`Ax|Ax`, `Co|Co`, `Sa|Sa`)
+- [x] Ensure series target selection remains explicit in ribbon and sidebar
+- [x] Fix close-study lifecycle reset for compare/dual/multi layout flags and secondary compare state
+- [x] Add value-semantic tests for close-state reset invariants and cross-volume slice mapping bounds
+- [x] Run verification chain:
+- [x] `cargo check -p ritk-snap` (passed)
+- [x] `cargo test -p ritk-snap --lib -q` (416 passed)
+- [x] `cargo test -p ritk-core --lib -q` (1068 passed)
+- [x] `cargo test -p ritk-io --lib -q` (310 passed)
+- [x] `cargo test -p ritk-dicom --lib -q` (8 passed)
+- [x] `cargo test -p ritk-io --examples --no-run` (passed)
+- [x] `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` (environment-reported missing `core/std` target crates)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Browser DICOM byte decode/assembly path | Medium | Deferred |
+| WASM toolchain environment fix (`core/std` unavailable in nightly target) | Medium | Deferred - environment issue |
+
 ## Sprint 169 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

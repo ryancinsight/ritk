@@ -27,7 +27,7 @@ use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
-    compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics,
+    compute_roi_dose_analytics, RoiDoseAnalytics,
     decide_dropped_input_action, DroppedInputAction,
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
     should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
@@ -84,6 +84,12 @@ struct RtDoseOverlayCacheEntry {
     texture: egui::TextureHandle,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SeriesLoadTarget {
+    Primary,
+    Secondary,
+}
+
 // ── SnapApp ───────────────────────────────────────────────────────────────────
 
 /// Native DICOM viewer application state.
@@ -94,10 +100,18 @@ pub struct SnapApp {
     // ── Volume ────────────────────────────────────────────────────────────────
     /// Currently loaded volume, if any.
     loaded: Option<LoadedVolume>,
+    /// Secondary loaded volume for cross-study compare.
+    loaded_secondary: Option<LoadedVolume>,
     /// Viewer navigation state (slice index, W/L).
     viewer_state: ViewerState,
+    /// Secondary compare viewport W/L center.
+    secondary_window_center: Option<f32>,
+    /// Secondary compare viewport W/L width.
+    secondary_window_width: Option<f32>,
     /// Active colormap for intensity mapping.
     colormap: Colormap,
+    /// Secondary colormap for compare panel.
+    secondary_colormap: Colormap,
     /// Primary MPR axis for single-viewport and tool operations:
     /// 0 = axial, 1 = coronal, 2 = sagittal.
     axis: usize,
@@ -143,8 +157,16 @@ pub struct SnapApp {
     // ── Texture cache — axial ─────────────────────────────────────────────────
     /// Cached egui texture for the axial slice.
     texture: Option<egui::TextureHandle>,
+    /// Cached egui texture for secondary compare panel.
+    secondary_texture: Option<egui::TextureHandle>,
     /// `true` when the axial texture must be rebuilt before the next frame.
     texture_dirty: bool,
+    /// `true` when secondary texture must be rebuilt.
+    secondary_texture_dirty: bool,
+    /// Axis used by current secondary texture.
+    secondary_texture_axis: usize,
+    /// Slice index used by current secondary texture.
+    secondary_texture_slice: usize,
 
     // ── Texture cache — coronal / sagittal ────────────────────────────────────
     /// Cached egui texture for the coronal slice (MPR mode).
@@ -174,6 +196,14 @@ pub struct SnapApp {
     // ── UI state ──────────────────────────────────────────────────────────────
     /// `true` when the 2×2 multi-planar layout is active.
     multi_planar: bool,
+    /// `true` when 2-panel same-volume layout is active.
+    dual_plane: bool,
+    /// `true` when primary/secondary compare layout is active.
+    compare_side_by_side: bool,
+    /// Axis assignment for dual-plane same-volume layout.
+    dual_axes: [usize; 2],
+    /// Axis assignment for compare layout: [primary_axis, secondary_axis].
+    compare_axes: [usize; 2],
     /// `true` when the DICOM 4-corner overlay is drawn on viewports.
     show_overlay: bool,
     /// `true` when crosshair lines are drawn on viewports.
@@ -199,20 +229,28 @@ pub struct SnapApp {
     selected_series: Option<std::path::PathBuf>,
     /// Which tab is active in the series browser sidebar.
     sidebar_tab: crate::ui::sidebar::SidebarTab,
+    /// Active load target for series selection.
+    series_load_target: SeriesLoadTarget,
 
     // ── Status ────────────────────────────────────────────────────────────────
     /// Message shown in the bottom status bar.
     status_message: String,
     /// Path queued for loading on the next [`eframe::App::update`] cycle.
     pending_load: Option<std::path::PathBuf>,
+    /// Secondary path queued for load on next update cycle.
+    pending_secondary_load: Option<std::path::PathBuf>,
 }
 
 impl Default for SnapApp {
     fn default() -> Self {
         Self {
             loaded: None,
+            loaded_secondary: None,
             viewer_state: ViewerState::new(),
+            secondary_window_center: None,
+            secondary_window_width: None,
             colormap: Colormap::Grayscale,
+            secondary_colormap: Colormap::Grayscale,
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,
@@ -233,7 +271,11 @@ impl Default for SnapApp {
             active_filter: crate::FilterKind::Gaussian { sigma: 1.0 },
             show_filter_panel: false,
             texture: None,
+            secondary_texture: None,
             texture_dirty: false,
+            secondary_texture_dirty: false,
+            secondary_texture_axis: 0,
+            secondary_texture_slice: 0,
             coronal_tex: None,
             coronal_dirty: false,
             coronal_slice: 0,
@@ -245,6 +287,10 @@ impl Default for SnapApp {
             view_transform: ViewTransform::default(),
             show_colorbar: false,
             multi_planar: false,
+            dual_plane: false,
+            compare_side_by_side: false,
+            dual_axes: [0, 1],
+            compare_axes: [0, 0],
             show_overlay: true,
             show_crosshair: false,
             linked_cursor: None,
@@ -255,8 +301,10 @@ impl Default for SnapApp {
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,
+            series_load_target: SeriesLoadTarget::Primary,
             status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
             pending_load: None,
+            pending_secondary_load: None,
         }
     }
 }
@@ -295,16 +343,25 @@ impl eframe::App for SnapApp {
         if let Some(path) = self.pending_load.take() {
             self.load_from_path(path);
         }
+        if let Some(path) = self.pending_secondary_load.take() {
+            self.load_secondary_from_path(path);
+        }
 
         self.tick_cine(ctx);
         self.consume_global_shortcuts(ctx);
 
         self.show_menu_bar(ctx);
+        self.show_ribbon_toolbar(ctx);
         self.show_left_panel(ctx);
         self.show_bottom_bar(ctx);
+        self.show_aux_windows(ctx);
 
-        if self.multi_planar {
+        if self.compare_side_by_side {
+            self.show_central_panel_compare(ctx);
+        } else if self.multi_planar {
             self.show_central_panel_multi(ctx);
+        } else if self.dual_plane {
+            self.show_central_panel_dual(ctx);
         } else {
             self.show_central_panel_single(ctx);
         }
@@ -315,6 +372,230 @@ impl eframe::App for SnapApp {
 
 impl SnapApp {
     // ── Menu bar ─────────────────────────────────────────────────────────────
+
+    fn show_ribbon_toolbar(&mut self, ctx: &egui::Context) {
+        egui::TopBottomPanel::top("ribbon_toolbar")
+            .frame(
+                egui::Frame::none()
+                    .fill(egui::Color32::from_rgb(45, 45, 45))
+                    .inner_margin(egui::Margin::symmetric(4.0, 2.0))
+            )
+            .show(ctx, |ui| {
+                ui.set_min_height(36.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing = egui::vec2(4.0, 2.0);
+                    ui.spacing_mut().button_padding = egui::vec2(2.0, 2.0);
+
+                    ui.menu_button("File", |ui| {
+                        if ui.button("Open Primary Series").clicked() {
+                            ui.close_menu();
+                            if let Some(folder) = FileDialog::new().pick_folder() {
+                                self.scan_for_series(folder.clone());
+                                self.pending_load = Some(folder);
+                            }
+                        }
+                        if ui.button("Open Secondary Series").clicked() {
+                            ui.close_menu();
+                            if let Some(folder) = FileDialog::new().pick_folder() {
+                                self.scan_for_series(folder.clone());
+                                self.pending_secondary_load = Some(folder);
+                            }
+                        }
+                        ui.separator();
+                        if ui.button("Swap Primary/Secondary").clicked() {
+                            ui.close_menu();
+                            std::mem::swap(&mut self.loaded, &mut self.loaded_secondary);
+                            std::mem::swap(&mut self.colormap, &mut self.secondary_colormap);
+                            self.texture = None;
+                            self.secondary_texture = None;
+                            self.mark_all_textures_dirty();
+                            self.refresh_cached_histogram();
+                        }
+                    });
+
+                    ui.menu_button("Layout", |ui| {
+                        let single_active =
+                            !self.multi_planar && !self.dual_plane && !self.compare_side_by_side;
+                        if ui.selectable_label(single_active, "Single (1-Up)").clicked() {
+                            self.multi_planar = false;
+                            self.dual_plane = false;
+                            self.compare_side_by_side = false;
+                            self.mark_all_textures_dirty();
+                            ui.close_menu();
+                        }
+                        if ui.selectable_label(self.dual_plane, "Dual Plane (2-Up)").clicked() {
+                            self.dual_plane = true;
+                            self.multi_planar = false;
+                            self.compare_side_by_side = false;
+                            self.mark_all_textures_dirty();
+                            ui.close_menu();
+                        }
+                        if ui
+                            .selectable_label(self.multi_planar, "MPR Grid (3-Up)")
+                            .clicked()
+                        {
+                            self.multi_planar = true;
+                            self.dual_plane = false;
+                            self.compare_side_by_side = false;
+                            self.mark_all_textures_dirty();
+                            ui.close_menu();
+                        }
+                        if ui
+                            .selectable_label(self.compare_side_by_side, "Compare (Primary/Secondary)")
+                            .clicked()
+                        {
+                            self.compare_side_by_side = true;
+                            self.multi_planar = false;
+                            self.dual_plane = false;
+                            self.mark_all_textures_dirty();
+                            ui.close_menu();
+                        }
+                    });
+
+                    ui.menu_button("Target", |ui| {
+                        ui.selectable_value(
+                            &mut self.series_load_target,
+                            SeriesLoadTarget::Primary,
+                            "Primary",
+                        );
+                        ui.selectable_value(
+                            &mut self.series_load_target,
+                            SeriesLoadTarget::Secondary,
+                            "Secondary",
+                        );
+                    });
+
+                    ui.menu_button("Axes", |ui| {
+                        if self.dual_plane {
+                            ui.label("Dual-Plane (Left/Right)");
+                            for (axis_side, side_label) in [(0, "Left"), (1, "Right")] {
+                                ui.horizontal(|ui| {
+                                    ui.label(side_label);
+                                    for (name, idx) in [("Ax", 0), ("Co", 1), ("Sa", 2)] {
+                                        let is_active = if axis_side == 0 {
+                                            self.dual_axes[0] == idx
+                                        } else {
+                                            self.dual_axes[1] == idx
+                                        };
+                                        if ui.selectable_label(is_active, name).clicked() {
+                                            if axis_side == 0 {
+                                                self.dual_axes[0] = idx;
+                                            } else {
+                                                self.dual_axes[1] = idx;
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                            ui.separator();
+                        }
+
+                        if self.compare_side_by_side {
+                            ui.label("Compare (Primary/Secondary)");
+                            for (side_num, side_label) in [(0, "Primary"), (1, "Secondary")] {
+                                ui.horizontal(|ui| {
+                                    ui.label(side_label);
+                                    for (name, idx) in [("Ax", 0), ("Co", 1), ("Sa", 2)] {
+                                        let is_active = if side_num == 0 {
+                                            self.compare_axes[0] == idx
+                                        } else {
+                                            self.compare_axes[1] == idx
+                                        };
+                                        if ui.selectable_label(is_active, name).clicked() {
+                                            if side_num == 0 {
+                                                self.compare_axes[0] = idx;
+                                                self.texture_dirty = true;
+                                            } else {
+                                                self.compare_axes[1] = idx;
+                                                self.secondary_texture_dirty = true;
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        }
+
+                        if !self.dual_plane && !self.compare_side_by_side {
+                            ui.label("Axis controls appear in Dual Plane and Compare layouts.");
+                        }
+                    });
+
+                    ui.menu_button("Compare", |ui| {
+                        if self.compare_side_by_side {
+                            if ui.button("Preset Ax | Ax").clicked() {
+                                self.compare_axes = [0, 0];
+                                self.texture_dirty = true;
+                                self.secondary_texture_dirty = true;
+                            }
+                            if ui.button("Preset Co | Co").clicked() {
+                                self.compare_axes = [1, 1];
+                                self.texture_dirty = true;
+                                self.secondary_texture_dirty = true;
+                            }
+                            if ui.button("Preset Sa | Sa").clicked() {
+                                self.compare_axes = [2, 2];
+                                self.texture_dirty = true;
+                                self.secondary_texture_dirty = true;
+                            }
+
+                            ui.separator();
+                            ui.label("Secondary W/L");
+                            let mut c = self.secondary_window_center.unwrap_or(128.0);
+                            let mut w = self.secondary_window_width.unwrap_or(256.0).max(1.0);
+                            let c_changed = ui
+                                .add(
+                                    egui::DragValue::new(&mut c)
+                                        .speed(1.0)
+                                        .fixed_decimals(0)
+                                        .prefix("C:"),
+                                )
+                                .changed();
+                            let w_changed = ui
+                                .add(
+                                    egui::DragValue::new(&mut w)
+                                        .speed(1.0)
+                                        .fixed_decimals(0)
+                                        .prefix("W:"),
+                                )
+                                .changed();
+                            if c_changed || w_changed {
+                                self.secondary_window_center = Some(c);
+                                self.secondary_window_width = Some(w.max(1.0));
+                                self.secondary_texture_dirty = true;
+                            }
+                        } else {
+                            ui.label("Enable Compare layout to configure compare options.");
+                        }
+                    });
+
+                    ui.menu_button("Tools", |ui| {
+                        for (label, tool) in [
+                            ("Pan", ToolKind::Pan),
+                            ("Zoom", ToolKind::Zoom),
+                            ("W/L", ToolKind::WindowLevel),
+                            ("Length", ToolKind::MeasureLength),
+                            ("Angle", ToolKind::MeasureAngle),
+                            ("Paint", ToolKind::LabelPaint),
+                        ] {
+                            if ui
+                                .selectable_label(self.active_tool == tool, label)
+                                .on_hover_text(label)
+                                .clicked()
+                            {
+                                self.active_tool = tool;
+                                self.tool_state = ToolState::Idle;
+                                ui.close_menu();
+                            }
+                        }
+                    });
+
+                    // Right-align status
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.small(format!("v{}", env!("CARGO_PKG_VERSION")));
+                    });
+                });
+            });
+    }
 
     fn show_menu_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -846,6 +1127,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.secondary_texture_dirty = true;
     }
 
     fn undo_label_edit_shortcut(&mut self) {
@@ -969,365 +1251,45 @@ impl SnapApp {
             .min_width(220.0)
             .max_width(360.0)
             .show(ctx, |ui| {
-                // ── Series browser or inline metadata ─────────────────────────
-                if self.show_series_browser {
-                    ui.heading("Series Browser");
-                    ui.separator();
-
-                    // Construct SidebarPanel using split field borrows, contained
-                    // in a block so all borrows are released before accessing
-                    // self.pending_load below.
-                    let sidebar_result = {
-                        let tree_ref = &self.series_tree;
-                        let sel_ref = &mut self.selected_series;
-                        let tab_ref = &mut self.sidebar_tab;
-                        let vol_ref = self.loaded.as_ref();
-                        let mut panel = crate::ui::sidebar::SidebarPanel::new(
-                            tree_ref, sel_ref, tab_ref, vol_ref,
-                        );
-                        panel.show(ui)
-                    };
-
-                    if let Some(folder) = sidebar_result {
-                        self.pending_load = Some(folder);
-                    }
-                } else {
-                    // Inline metadata section (original layout).
-                    ui.heading("Study Info");
-                    ui.separator();
-
-                    if let Some(vol) = &self.loaded {
-                        let [depth, rows, cols] = vol.shape;
-                        let [dz, dy, dx] = vol.spacing;
-
-                        egui::Grid::new("study_grid")
-                            .num_columns(2)
-                            .spacing([8.0, 4.0])
-                            .show(ui, |ui| {
-                                let row = |ui: &mut egui::Ui, key: &str, val: &str| {
-                                    ui.label(key);
-                                    ui.label(val);
-                                    ui.end_row();
-                                };
-                                row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("—"));
-                                row(ui, "ID:", vol.patient_id.as_deref().unwrap_or("—"));
-                                row(ui, "Date:", vol.study_date.as_deref().unwrap_or("—"));
-                                row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));
-                                row(
-                                    ui,
-                                    "Series:",
-                                    vol.series_description.as_deref().unwrap_or("—"),
-                                );
-                                row(ui, "Shape:", &format!("{depth} × {rows} × {cols}"));
-                                row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
-                            });
-                    } else {
-                        ui.label("No study loaded.");
-                    }
+                if !self.show_series_browser {
+                    ui.heading("Series Browser Hidden");
+                    ui.label("Enable 'Show Series Browser' from the View menu or ribbon.");
+                    return;
                 }
 
-                // ── Window / Level (always shown) ─────────────────────────────
-                ui.separator();
-                ui.heading("Window / Level");
-                ui.separator();
-
-                let wc = self.viewer_state.window_center.unwrap_or(128.0);
-                let ww = self.viewer_state.window_width.unwrap_or(256.0);
-                ui.label(format!("Centre : {wc:.0}"));
-                ui.label(format!("Width  : {ww:.0}"));
-
-                // ── Histogram ─────────────────────────────────────────────────
-                if let Some(hist) = &self.cached_histogram {
-                    if let Some((new_c, new_w)) =
-                        crate::ui::histogram::draw_histogram(hist, wc, ww, ui)
-                    {
-                        self.viewer_state.window_center = Some(new_c);
-                        self.viewer_state.window_width = Some(new_w.max(1.0));
-                        self.texture_dirty = true;
-                    }
-                }
-
-                // ── Window / Level preset buttons ──────────────────────────────
-                {
-                    let modality = self.loaded.as_ref().and_then(|v| v.modality.as_deref());
-                    let presets =
-                        crate::ui::window_presets::WindowPreset::for_modality(modality);
-                    if let Some(preset) =
-                        crate::ui::preset_panel::draw_preset_buttons(presets, ui)
-                    {
-                        self.viewer_state.window_center = Some(preset.center as f32);
-                        self.viewer_state.window_width = Some(preset.width as f32);
-                        self.texture_dirty = true;
-                    }
-                }
-
-                // ── Colorbar ───────────────────────────────────────────────────
-                if self.show_colorbar {
-                    ui.separator();
-                    let wc = self.viewer_state.window_center.unwrap_or(128.0);
-                    let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0);
-                    show_colorbar(ui, self.colormap, wc, ww);
-                }
-
-                ui.separator();
-                ui.heading("Cine");
-                ui.separator();
-
-                let now = ctx.input(|i| i.time);
-                let play_label = if self.cine.enabled { "Pause" } else { "Play" };
-                if ui.button(play_label).clicked() {
-                    if self.cine.enabled {
-                        self.cine.stop();
-                    } else {
-                        self.cine.set_enabled(true, now);
-                    }
-                }
-                let mut fps = self.cine.fps;
-                if ui
-                    .add(egui::Slider::new(&mut fps, 1.0..=60.0).text("FPS"))
-                    .changed()
-                {
-                    self.cine.set_fps(fps);
-                }
-                let cine_axis = ["Axial", "Coronal", "Sagittal"][self.axis.min(2)];
-                ui.label(format!("Axis: {cine_axis}"));
-
-                // ── Tool palette ──────────────────────────────────────────────
-                ui.separator();
-                ui.heading("Tools");
-                ui.separator();
-
-                for &tool in ToolKind::all() {
-                    let icon_label = format!("{} {}", tool.icon(), tool.label());
-                    let resp = ui
-                        .selectable_label(self.active_tool == tool, icon_label)
-                        .on_hover_text(tool.tooltip());
-                    if resp.clicked() {
-                        self.active_tool = tool;
-                        self.tool_state = ToolState::Idle;
-                    }
-                }
-
-                if let Some(editor) = self.label_editor.as_mut() {
-                    ui.separator();
-                    ui.heading("Segmentation");
-                    ui.separator();
-
-                    ui.checkbox(&mut self.show_label_overlay, "Show labels");
-                    ui.horizontal(|ui| {
-                        if ui
-                            .add_enabled(editor.can_undo(), egui::Button::new("Undo (Ctrl/Cmd+Z)"))
-                            .clicked()
-                        {
-                            let _ = editor.undo();
-                        }
-                        if ui
-                            .add_enabled(
-                                editor.can_redo(),
-                                egui::Button::new("Redo (Ctrl/Cmd+Shift+Z / Ctrl/Cmd+Y)"),
-                            )
-                            .clicked()
-                        {
-                            let _ = editor.redo();
-                        }
-                    });
-
-                    ui.add(
-                        egui::Slider::new(&mut self.label_brush_radius, 0..=6)
-                            .text("Brush radius (vox)"),
+                ui.heading("Series Browser");
+                ui.horizontal(|ui| {
+                    ui.label("Target:");
+                    ui.selectable_value(
+                        &mut self.series_load_target,
+                        SeriesLoadTarget::Primary,
+                        "Primary",
                     );
-
-                    if ui.button("Add label").clicked() {
-                        let next_id = editor.current_map().table.next_free_id();
-                        let color = palette_color(next_id);
-                        if let Err(e) = editor.add_label(format!("Label {next_id}"), color) {
-                            self.status_message = format!("Add label failed: {e}");
-                        }
-                    }
-
-                    let mut pending_active: Option<u32> = None;
-                    let mut pending_visibility: Vec<(u32, bool)> = Vec::new();
-                    for entry in editor.current_map().table.entries() {
-                        ui.horizontal(|ui| {
-                            let selected = editor.active_label_id() == entry.id;
-                            if ui
-                                .selectable_label(selected, format!("{} {}", entry.id, entry.name))
-                                .clicked()
-                            {
-                                pending_active = Some(entry.id);
-                            }
-
-                            let mut visible = entry.visible;
-                            if ui.checkbox(&mut visible, "visible").changed() {
-                                pending_visibility.push((entry.id, visible));
-                            }
-
-                            let count = editor.current_map().count_label(entry.id);
-                            ui.label(format!("voxels: {count}"));
-                        });
-                    }
-
-                    if let Some(id) = pending_active {
-                        if let Err(e) = editor.set_active_label(id) {
-                            self.status_message = format!("Set active label failed: {e}");
-                        }
-                    }
-                    for (id, visible) in pending_visibility {
-                        if let Err(e) = editor.set_label_visibility(id, visible) {
-                            self.status_message = format!("Set label visibility failed: {e}");
-                        }
-                    }
-                }
-
-                if let Some(rt) = &self.rt_struct {
-                    ui.separator();
-                    ui.heading("RT-STRUCT");
-                    ui.separator();
-                    ui.label(format!("Label: {}", rt.structure_set_label));
-                    ui.label(format!("ROIs: {}", rt.rois.len()));
-                    ui.checkbox(&mut self.show_rt_struct_overlay, "Show RT-STRUCT contours");
-                }
-
-                if let Some(rd) = &self.rt_dose {
-                    ui.separator();
-                    ui.heading("RT-DOSE");
-                    ui.separator();
-                    ui.label(format!("Type: {} / {}", rd.dose_type, rd.dose_summation_type));
-                    ui.label(format!("Grid: {}×{}×{} frames", rd.rows, rd.cols, rd.n_frames));
-                    let max_dose = self.rt_dose_max_gy.unwrap_or(0.0);
-                    ui.label(format!("Max dose: {:.2} Gy", max_dose));
-                    if let Some(msg) = self.rt_dose_plan_link_status() {
-                        ui.label(msg);
-                    }
-                    ui.checkbox(&mut self.show_rt_dose_overlay, "Show RT-DOSE overlay");
-                    ui.horizontal(|ui| {
-                        ui.label("Opacity:");
-                        ui.add(egui::Slider::new(&mut self.rt_dose_opacity, 0.0..=1.0).step_by(0.05));
-                    });
-                }
-
-                if let Some(plan) = &self.rt_plan {
-                    ui.separator();
-                    ui.heading("RT-PLAN");
-                    ui.separator();
-                    let total_fractions: u32 = plan
-                        .fraction_groups
-                        .iter()
-                        .map(|fg| fg.n_fractions_planned)
-                        .sum();
-                    ui.label(format!("Label: {}", plan.rt_plan_label));
-                    if !plan.sop_instance_uid.is_empty() {
-                        ui.label(format!("SOP UID: {}", plan.sop_instance_uid));
-                    }
-                    if !plan.plan_intent.is_empty() {
-                        ui.label(format!("Intent: {}", plan.plan_intent));
-                    }
-                    ui.label(format!("Beams: {}", plan.beams.len()));
-                    ui.label(format!("Fraction groups: {}", plan.fraction_groups.len()));
-                    ui.label(format!("Total planned fractions: {}", total_fractions));
-                }
-
-                if self.loaded.is_some() && self.rt_struct.is_some() && self.rt_dose.is_some() {
-                    ui.separator();
-                    ui.heading("RT Dose Analytics");
-                    ui.separator();
-
-                    let roi_choices: Vec<(u32, String)> = self
-                        .rt_struct
-                        .as_ref()
-                        .map(|rt| {
-                            rt.rois
-                                .iter()
-                                .map(|roi| (roi.roi_number, roi.roi_name.clone()))
-                                .collect()
-                        })
-                        .unwrap_or_default();
-
-                    if !roi_choices.is_empty() {
-                        let mut selected = self
-                            .rt_dvh_selected_roi
-                            .or_else(|| roi_choices.first().map(|(n, _)| *n))
-                            .unwrap_or(roi_choices[0].0);
-
-                        egui::ComboBox::from_label("ROI")
-                            .selected_text(
-                                roi_choices
-                                    .iter()
-                                    .find(|(n, _)| *n == selected)
-                                    .map(|(_, name)| name.clone())
-                                    .unwrap_or_else(|| format!("ROI #{selected}")),
-                            )
-                            .show_ui(ui, |ui| {
-                                for (number, name) in &roi_choices {
-                                    ui.selectable_value(
-                                        &mut selected,
-                                        *number,
-                                        format!("{} (# {})", name, number),
-                                    );
-                                }
-                            });
-
-                        if self.rt_dvh_selected_roi != Some(selected) {
-                            self.rt_dvh_selected_roi = Some(selected);
-                            self.refresh_rt_dvh_cache();
-                        } else if self.rt_dvh_cache.is_none() {
-                            self.refresh_rt_dvh_cache();
-                        }
-
-                        if let Some(analytics) = &self.rt_dvh_cache {
-                            ui.label(format!("Voxels: {}", analytics.voxel_count));
-                            ui.label(format!("Dose min/mean/max: {:.2}/{:.2}/{:.2} Gy",
-                                analytics.min_dose_gy,
-                                analytics.mean_dose_gy,
-                                analytics.max_dose_gy,
-                            ));
-                            ui.label(format!("D95: {:.2} Gy", analytics.d95_gy));
-                            draw_dvh_curve(ui, &analytics.curve);
-                        } else {
-                            ui.label("DVH unavailable for selected ROI with current RT-STRUCT/RT-DOSE geometry.");
-                        }
-                    }
-                }
-
-                // ── Annotations ───────────────────────────────────────────────
-                ui.separator();
-                ui.heading("Annotations");
-                ui.separator();
-
-                // Delegate to SSOT: per-entry delete, Clear All, Export CSV.
-                match crate::ui::annotation_panel::draw_annotation_panel(
-                    &self.annotations,
-                    ui,
-                ) {
-                    crate::ui::AnnotationPanelAction::Delete(i) => {
-                        if i < self.annotations.len() {
-                            self.annotations.remove(i);
-                        }
-                    }
-                    crate::ui::AnnotationPanelAction::ClearAll => {
-                        self.annotations.clear();
-                    }
-                    crate::ui::AnnotationPanelAction::ExportCsv(csv) => {
-                        // Write to clipboard; fall back to status message if
-                        // clipboard is unavailable.
-                        ctx.output_mut(|o| o.copied_text = csv.clone());
-                        self.status_message =
-                            format!("CSV copied to clipboard ({} rows).", self.annotations.len());
-                    }
-                    crate::ui::AnnotationPanelAction::None => {}
-                }
-
-                // ── Image Processing ──────────────────────────────────────────
-                if self.show_filter_panel {
-                    ui.separator();
-                    ui.heading("Processing");
-                    ui.separator();
-                    let applied = crate::ui::filter_panel::show_filter_panel(
-                        ui,
-                        &mut self.active_filter,
+                    ui.selectable_value(
+                        &mut self.series_load_target,
+                        SeriesLoadTarget::Secondary,
+                        "Secondary",
                     );
-                    if applied {
-                        self.apply_filter_to_loaded_volume();
+                });
+                ui.separator();
+
+                let sidebar_result = {
+                    let tree_ref = &self.series_tree;
+                    let sel_ref = &mut self.selected_series;
+                    let tab_ref = &mut self.sidebar_tab;
+                    let vol_ref = self.loaded.as_ref();
+                    let mut panel = crate::ui::sidebar::SidebarPanel::new(
+                        tree_ref, sel_ref, tab_ref, vol_ref,
+                    );
+                    panel.show(ui)
+                };
+
+                if let Some(folder) = sidebar_result {
+                    match self.series_load_target {
+                        SeriesLoadTarget::Primary => self.pending_load = Some(folder),
+                        SeriesLoadTarget::Secondary => {
+                            self.pending_secondary_load = Some(folder)
+                        }
                     }
                 }
             });
@@ -1367,6 +1329,38 @@ impl SnapApp {
                 }
             });
         });
+    }
+
+    fn show_aux_windows(&mut self, ctx: &egui::Context) {
+        let mut show_filter = self.show_filter_panel;
+        if show_filter {
+            egui::Window::new("Processing")
+                .open(&mut show_filter)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    let applied = crate::ui::filter_panel::show_filter_panel(
+                        ui,
+                        &mut self.active_filter,
+                    );
+                    if applied {
+                        self.apply_filter_to_loaded_volume();
+                    }
+                });
+        }
+        self.show_filter_panel = show_filter;
+
+        let mut show_cb = self.show_colorbar;
+        if show_cb {
+            egui::Window::new("Colorbar")
+                .open(&mut show_cb)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    let wc = self.viewer_state.window_center.unwrap_or(128.0);
+                    let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0);
+                    show_colorbar(ui, self.colormap, wc, ww);
+                });
+        }
+        self.show_colorbar = show_cb;
     }
 
     // ── Single viewport ───────────────────────────────────────────────────────
@@ -1413,6 +1407,95 @@ impl SnapApp {
             ui.separator();
             ui.allocate_ui(egui::vec2(avail.x, info_h), |ui| {
                 self.show_right_info_panel(ui);
+            });
+        });
+    }
+
+    fn show_central_panel_dual(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.loaded.is_none() {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Open a volume to use 2-plane layout.");
+                });
+                return;
+            }
+
+            let avail = ui.available_size();
+            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let view_h = (avail.y - info_h - 6.0).max(120.0);
+            let view_w = avail.x / 2.0;
+
+            ui.allocate_ui(egui::vec2(avail.x, view_h), |ui| {
+                ui.horizontal(|ui| {
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, self.dual_axes[0]);
+                    });
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, self.dual_axes[1]);
+                    });
+                });
+            });
+
+            ui.separator();
+            ui.allocate_ui(egui::vec2(avail.x, info_h), |ui| {
+                self.show_right_info_panel(ui);
+            });
+        });
+    }
+
+    fn show_central_panel_compare(&mut self, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            if self.loaded.is_none() {
+                ui.centered_and_justified(|ui| {
+                    ui.label("Open a primary volume to use compare layout.");
+                });
+                return;
+            }
+
+            let avail = ui.available_size();
+            let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
+            let view_h = (avail.y - info_h - 6.0).max(120.0);
+            let view_w = avail.x / 2.0;
+
+            ui.allocate_ui(egui::vec2(avail.x, view_h), |ui| {
+                ui.horizontal(|ui| {
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, self.compare_axes[0]);
+                    });
+                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
+                        self.render_secondary_compare_viewport(
+                            ui,
+                            ctx,
+                            self.compare_axes[0],
+                            self.compare_axes[1],
+                        );
+                    });
+                });
+            });
+
+            ui.separator();
+            ui.allocate_ui(egui::vec2(avail.x, info_h), |ui| {
+                ui.columns(2, |cols| {
+                    cols[0].heading("Primary");
+                    self.show_right_info_panel(&mut cols[0]);
+                    cols[1].heading("Secondary");
+                    if let Some(vol) = &self.loaded_secondary {
+                        let [d, r, c] = vol.shape;
+                        let [dz, dy, dx] = vol.spacing;
+                        cols[1].label(format!("Dims: {d}x{r}x{c}"));
+                        cols[1].label(format!("Spacing: {dz:.2}x{dy:.2}x{dx:.2} mm"));
+                        cols[1].label(format!(
+                            "Modality: {}",
+                            vol.modality.as_deref().unwrap_or("—")
+                        ));
+                        cols[1].label(format!(
+                            "Series: {}",
+                            vol.series_description.as_deref().unwrap_or("—")
+                        ));
+                    } else {
+                        cols[1].label("No secondary volume loaded.");
+                    }
+                });
             });
         });
     }
@@ -1482,13 +1565,24 @@ impl SnapApp {
 
         let phys_w = tex_w * col_mm;
         let phys_h = tex_h * row_mm;
-        let fit_scale = if phys_w > 0.0 && phys_h > 0.0 {
+        let use_uniform_fit = self.multi_planar || self.dual_plane || self.compare_side_by_side;
+        let fit_scale = if use_uniform_fit {
+            if tex_w > 0.0 && tex_h > 0.0 {
+                (available.x / tex_w).min(available.y / tex_h)
+            } else {
+                1.0
+            }
+        } else if phys_w > 0.0 && phys_h > 0.0 {
             (available.x / phys_w).min(available.y / phys_h)
         } else {
             1.0
         };
-        let scale_x = fit_scale * self.zoom * col_mm;
-        let scale_y = fit_scale * self.zoom * row_mm;
+        let (scale_x, scale_y) = if use_uniform_fit {
+            let s = fit_scale * self.zoom;
+            (s, s)
+        } else {
+            (fit_scale * self.zoom * col_mm, fit_scale * self.zoom * row_mm)
+        };
         let display_size = egui::vec2(tex_w * scale_x, tex_h * scale_y);
 
         let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size))
@@ -1596,17 +1690,6 @@ impl SnapApp {
         // `scale = fit_scale × zoom` where fit_scale = min(avail_w/tex_w, avail_h/tex_h).
         // The image widget occupies exactly response.rect (egui places it top-left).
         {
-            let scale_x = if tex_w > 0.0 {
-                fit_scale * self.zoom * col_mm
-            } else {
-                1.0
-            };
-            let scale_y = if tex_h > 0.0 {
-                fit_scale * self.zoom * row_mm
-            } else {
-                1.0
-            };
-
             // img_to_screen: image-pixel Pos2 { x: col, y: row } → screen Pos2
             let origin = response.rect.min;
             let img_to_screen =
@@ -1703,6 +1786,65 @@ impl SnapApp {
         }
     }
 
+    fn render_secondary_compare_viewport(
+        &mut self,
+        ui: &mut egui::Ui,
+        ctx: &egui::Context,
+        primary_axis: usize,
+        secondary_axis: usize,
+    ) {
+        let Some(secondary) = self.loaded_secondary.as_ref() else {
+            ui.centered_and_justified(|ui| {
+                ui.label("Select a series for Secondary to compare.");
+            });
+            return;
+        };
+
+        let primary_total = self.axis_slice_info(primary_axis).1.max(1);
+        let primary_idx = self.axis_slice_info(primary_axis).0;
+        let secondary_total = Self::axis_extent_for_volume(secondary, secondary_axis).max(1);
+        let secondary_idx = Self::map_slice_index_between_volumes(
+            primary_idx,
+            primary_total,
+            secondary_total,
+        );
+
+        let needs_rebuild = self.secondary_texture_dirty
+            || self.secondary_texture.is_none()
+            || self.secondary_texture_axis != secondary_axis
+            || self.secondary_texture_slice != secondary_idx;
+        if needs_rebuild {
+            self.rebuild_secondary_texture(ctx, secondary_axis, secondary_idx);
+        }
+
+        let Some(tex) = self.secondary_texture.as_ref() else {
+            return;
+        };
+
+        let [w, h] = tex.size();
+        let tex_w = w as f32;
+        let tex_h = h as f32;
+        let avail = ui.available_size();
+        let fit = if tex_w > 0.0 && tex_h > 0.0 {
+            (avail.x / tex_w).min(avail.y / tex_h)
+        } else {
+            1.0
+        };
+        let size = egui::vec2(tex_w * fit * self.zoom, tex_h * fit * self.zoom);
+        let response = ui.add(
+            egui::Image::new(egui::load::SizedTexture::new(tex.id(), size))
+                .sense(egui::Sense::hover()),
+        );
+        let painter = ui.painter_at(response.rect);
+        painter.text(
+            response.rect.min + egui::vec2(6.0, 6.0),
+            egui::Align2::LEFT_TOP,
+            "Secondary",
+            egui::FontId::proportional(12.0),
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210),
+        );
+    }
+
     // ── Texture management ────────────────────────────────────────────────────
 
     /// Render the slice for `axis` through the WL LUT and upload to the GPU.
@@ -1738,6 +1880,28 @@ impl SnapApp {
             1 => self.coronal_tex = Some(tex),
             _ => self.sagittal_tex = Some(tex),
         }
+    }
+
+    fn rebuild_secondary_texture(&mut self, ctx: &egui::Context, axis: usize, slice_index: usize) {
+        let (color_image, tex_name) = {
+            let Some(vol) = &self.loaded_secondary else { return };
+            let wc = self.secondary_window_center.unwrap_or(128.0) as f64;
+            let ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
+            let wl = WindowLevel::new(wc, ww);
+            let name = format!("slice_tex_secondary_axis{}_slice{}", axis.min(2), slice_index);
+            let img = SliceRenderer::render(vol, axis, slice_index, wl, self.secondary_colormap);
+            let img = apply_to_image(&img, self.view_transform);
+            (img, name)
+        };
+
+        self.secondary_texture = Some(ctx.load_texture(
+            tex_name,
+            color_image,
+            egui::TextureOptions::LINEAR,
+        ));
+        self.secondary_texture_axis = axis;
+        self.secondary_texture_slice = slice_index;
+        self.secondary_texture_dirty = false;
     }
 
     // ── Info panel (4th quadrant) ─────────────────────────────────────────────
@@ -2875,6 +3039,8 @@ impl SnapApp {
                 self.coronal_slice = shape[1] / 2;
                 self.sagittal_slice = shape[2] / 2;
                 self.multi_planar = protocol.multi_planar;
+                self.dual_plane = false;
+                self.compare_side_by_side = false;
                 self.linked_cursor = Some(LinkedCursor::from_slices(
                     shape,
                     self.viewer_state.slice_index,
@@ -2924,6 +3090,69 @@ impl SnapApp {
         }
     }
 
+    fn load_secondary_from_path(&mut self, path: std::path::PathBuf) {
+        let load_root = crate::dicom::classify_dicom_input_path(&path)
+            .dicom_root()
+            .map(std::path::Path::to_path_buf)
+            .unwrap_or_else(|| path.clone());
+        let device: <LoadBackend as burn::tensor::backend::Backend>::Device = Default::default();
+        match ritk_io::load_dicom_series_with_metadata::<LoadBackend, _>(&load_root, &device) {
+            Ok((image, meta)) => {
+                let shape = image.shape();
+                let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+                let origin = [image.origin()[0], image.origin()[1], image.origin()[2]];
+                let dir = image.direction().inner();
+                let direction = [
+                    dir[(0, 0)], dir[(0, 1)], dir[(0, 2)],
+                    dir[(1, 0)], dir[(1, 1)], dir[(1, 2)],
+                    dir[(2, 0)], dir[(2, 1)], dir[(2, 2)],
+                ];
+                let raw = image.data().clone().into_data();
+                let data = match raw.into_vec::<f32>() {
+                    Ok(v) => Arc::new(v),
+                    Err(e) => {
+                        self.status_message = format!("Secondary pixel extraction failed: {e:?}");
+                        return;
+                    }
+                };
+
+                self.loaded_secondary = Some(LoadedVolume {
+                    data,
+                    shape,
+                    spacing,
+                    origin,
+                    direction,
+                    metadata: Some(Box::new(meta.clone())),
+                    source: Some(load_root.clone()),
+                    modality: meta.modality.clone(),
+                    patient_name: meta.patient_name.clone(),
+                    patient_id: meta.patient_id.clone(),
+                    study_date: meta.study_date.clone(),
+                    series_description: meta.series_description.clone(),
+                });
+                let protocol = select_hanging_protocol(
+                    meta.modality.as_deref(),
+                    meta.series_description.as_deref(),
+                    shape,
+                );
+                self.secondary_window_center = Some(protocol.window_center);
+                self.secondary_window_width = Some(protocol.window_width);
+                self.secondary_texture = None;
+                self.secondary_texture_dirty = true;
+                self.compare_side_by_side = true;
+                self.multi_planar = false;
+                self.dual_plane = false;
+                self.status_message = format!("Loaded secondary series: {}", load_root.display());
+            }
+            Err(e) => {
+                self.status_message = format!(
+                    "Secondary DICOM load failed for {}: {e:#}",
+                    load_root.display()
+                );
+            }
+        }
+    }
+
     /// Load a medical image volume from `path`.
     ///
     /// Calls [`crate::dicom::loader::load_volume_from_path`], which supports
@@ -2955,6 +3184,8 @@ impl SnapApp {
                 self.coronal_slice = shape[1] / 2;
                 self.sagittal_slice = shape[2] / 2;
                 self.multi_planar = protocol.multi_planar;
+                self.dual_plane = false;
+                self.compare_side_by_side = false;
                 self.linked_cursor = Some(LinkedCursor::from_slices(
                     shape,
                     self.viewer_state.slice_index,
@@ -3057,6 +3288,16 @@ impl SnapApp {
     /// Drop the currently loaded study and reset all study-owned state.
     fn close_study(&mut self) {
         self.loaded = None;
+        self.loaded_secondary = None;
+        self.series_load_target = SeriesLoadTarget::Primary;
+        self.secondary_window_center = None;
+        self.secondary_window_width = None;
+        self.secondary_colormap = Colormap::Grayscale;
+        self.multi_planar = false;
+        self.dual_plane = false;
+        self.compare_side_by_side = false;
+        self.compare_axes = [0, 0];
+        self.dual_axes = [0, 1];
         self.annotations.clear();
         self.label_editor = None;
         self.rt_struct = None;
@@ -3074,9 +3315,13 @@ impl SnapApp {
         self.pan_offset = egui::Vec2::ZERO;
         self.zoom = 1.0;
         self.texture = None;
+        self.secondary_texture = None;
         self.coronal_tex = None;
         self.sagittal_tex = None;
         self.texture_dirty = false;
+        self.secondary_texture_dirty = false;
+        self.secondary_texture_axis = 0;
+        self.secondary_texture_slice = 0;
         self.coronal_dirty = false;
         self.sagittal_dirty = false;
         self.cine.stop();
@@ -3109,6 +3354,29 @@ impl SnapApp {
         } else {
             self.cached_histogram = None;
         }
+    }
+
+    fn axis_extent_for_volume(volume: &LoadedVolume, axis: usize) -> usize {
+        match axis {
+            0 => volume.shape[0],
+            1 => volume.shape[1],
+            _ => volume.shape[2],
+        }
+    }
+
+    fn map_slice_index_between_volumes(
+        primary_index: usize,
+        primary_total: usize,
+        secondary_total: usize,
+    ) -> usize {
+        if primary_total <= 1 || secondary_total <= 1 {
+            return 0;
+        }
+        let pmax = primary_total.saturating_sub(1) as f64;
+        let smax = secondary_total.saturating_sub(1) as f64;
+        ((primary_index as f64 / pmax) * smax)
+            .round()
+            .clamp(0.0, smax) as usize
     }
 
     /// Clear all cached RT-DOSE overlay textures.
@@ -3678,20 +3946,6 @@ impl SnapApp {
     }
 }
 
-fn palette_color(label_id: u32) -> [u8; 4] {
-    const PALETTE: [[u8; 4]; 8] = [
-        [255, 0, 0, 180],
-        [0, 255, 0, 180],
-        [0, 128, 255, 180],
-        [255, 196, 0, 180],
-        [255, 0, 255, 180],
-        [0, 255, 255, 180],
-        [255, 128, 0, 180],
-        [180, 0, 255, 180],
-    ];
-    PALETTE[(label_id as usize) % PALETTE.len()]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3816,6 +4070,11 @@ mod tests {
     fn close_study_clears_loaded_and_cached_state() {
         let mut app = SnapApp::default();
         app.loaded = Some(test_volume([2, 2, 2]));
+        app.loaded_secondary = Some(test_volume([2, 2, 2]));
+        app.multi_planar = true;
+        app.dual_plane = true;
+        app.compare_side_by_side = true;
+        app.series_load_target = SeriesLoadTarget::Secondary;
         app.linked_cursor = Some(LinkedCursor::from_slices([2, 2, 2], 1, 1, 1));
         app.pointer_intensity = 123.0;
         app.pan_offset = egui::vec2(8.0, -4.0);
@@ -3831,6 +4090,11 @@ mod tests {
         app.close_study();
 
         assert!(app.loaded.is_none(), "loaded volume must be cleared");
+        assert!(app.loaded_secondary.is_none(), "secondary volume must be cleared");
+        assert!(!app.multi_planar, "multi-planar mode must reset to false");
+        assert!(!app.dual_plane, "dual-plane mode must reset to false");
+        assert!(!app.compare_side_by_side, "compare mode must reset to false");
+        assert_eq!(app.series_load_target, SeriesLoadTarget::Primary, "series target must reset to primary");
         assert!(app.linked_cursor.is_none(), "linked cursor must be cleared");
         assert!(app.cached_histogram.is_none(), "histogram cache must be cleared");
         assert!(app.selected_series.is_none(), "selected series must be cleared");
@@ -3838,6 +4102,15 @@ mod tests {
         assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
         assert_eq!(app.zoom, 1.0, "zoom must reset");
         assert_eq!(app.status_message, "Study closed.");
+    }
+
+    #[test]
+    fn map_slice_index_between_volumes_maps_bounds_and_midpoint() {
+        assert_eq!(SnapApp::map_slice_index_between_volumes(0, 300, 90), 0);
+        assert_eq!(SnapApp::map_slice_index_between_volumes(299, 300, 90), 89);
+
+        let mapped = SnapApp::map_slice_index_between_volumes(150, 300, 90);
+        assert!(mapped >= 44 && mapped <= 45, "midpoint mapping should stay near the secondary midpoint");
     }
 
     #[test]

@@ -165,7 +165,7 @@ impl<'a> SidebarPanel<'a> {
                     return;
                 }
 
-                for patient in &tree.patients {
+                for (patient_idx, patient) in tree.patients.iter().enumerate() {
                     // ── Patient node ──────────────────────────────────────────
                     let patient_label = if patient.patient_name.is_empty() {
                         format!("👤 (anonymous) [{}]", patient.patient_id)
@@ -176,9 +176,10 @@ impl<'a> SidebarPanel<'a> {
                     };
 
                     CollapsingHeader::new(patient_label)
+                        .id_source(("patient", patient_idx, patient.patient_id.as_str()))
                         .default_open(true)
                         .show(ui, |ui| {
-                            for study in &patient.studies {
+                            for (study_idx, study) in patient.studies.iter().enumerate() {
                                 // ── Study node ────────────────────────────────
                                 let study_label = match (&study.study_date, &study.study_uid) {
                                     (Some(date), _) => format!("📅 {date}"),
@@ -186,10 +187,19 @@ impl<'a> SidebarPanel<'a> {
                                     (None, None) => "📅 (unknown date)".to_string(),
                                 };
 
-                                CollapsingHeader::new(study_label).default_open(true).show(
+                                CollapsingHeader::new(study_label)
+                                    .id_source((
+                                        "study",
+                                        patient_idx,
+                                        study_idx,
+                                        study.study_uid.as_deref().unwrap_or(""),
+                                        study.study_date.as_deref().unwrap_or(""),
+                                    ))
+                                    .default_open(true)
+                                    .show(
                                     ui,
                                     |ui| {
-                                        for series in &study.series {
+                                        for (series_idx, series) in study.series.iter().enumerate() {
                                             // ── Series entry ──────────────────
                                             let is_selected = current_path
                                                 .as_ref()
@@ -203,11 +213,20 @@ impl<'a> SidebarPanel<'a> {
                                                 series.num_slices,
                                             );
 
+                                            let series_label = series.display_label();
                                             let resp = ui
-                                                .selectable_label(
-                                                    is_selected,
-                                                    series.display_label(),
+                                                .push_id(
+                                                    (
+                                                        "series",
+                                                        patient_idx,
+                                                        study_idx,
+                                                        series_idx,
+                                                        series.series_uid.as_str(),
+                                                        series.folder.to_string_lossy(),
+                                                    ),
+                                                    |ui| ui.selectable_label(is_selected, series_label),
                                                 )
+                                                .inner
                                                 .on_hover_text(hover_text);
 
                                             if resp.clicked() {

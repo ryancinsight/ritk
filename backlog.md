@@ -1,3 +1,29 @@
+## Sprint 170 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.37.15 [patch]
+**Goal**: Convert ribbon compare controls into organized dropdown menus and close viewer state-reset correctness gaps.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-170-01 | Compact button ribbon regressed menu-driven discoverability and workflow organization | **Closed** |
+| GAP-170-02 | `close_study` did not reset compare/dual/multi layout and secondary-view state completely | **Closed** |
+
+### Delivered
+- ✓ Replaced ribbon button strip with grouped dropdown menus in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs): `File`, `Layout`, `Target`, `Axes`, `Compare`, `Tools`
+- ✓ Preserved dual-plane and compare axis selection with explicit menu-driven controls
+- ✓ Added compare axis presets (`Ax|Ax`, `Co|Co`, `Sa|Sa`)
+- ✓ Hardened `close_study` lifecycle reset for compare/secondary state flags and defaults
+- ✓ Added/updated app-level value-semantic tests for state reset and mapped-slice bounds
+- ✓ Revalidated `ritk-snap`, `ritk-core`, `ritk-io`, `ritk-dicom`, and example compile matrix
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Browser DICOM byte ingestion parity | Pathless browser DICOM payloads still need byte-native series assembly/decode path | Medium |
+| WASM environment/toolchain parity | `wasm32-unknown-unknown` core/std artifacts unavailable in current nightly environment | Medium |
+
 ## Sprint 168 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
