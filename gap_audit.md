@@ -1,5 +1,46 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Sprint 176 (2026):** Deep competitive audit against RadiAnt DICOM Viewer is now codified at the viewer boundary (`ritk-snap`) with source-backed parity classification.
+
+### RadiAnt parity matrix (deep audit)
+
+| Capability cluster | RadiAnt baseline (reference expectation) | `ritk-snap` status | Evidence |
+|---|---|---|---|
+| Core 2D diagnostic workflow | Series browser, MPR, W/L, measurement, overlays | **Present** | [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L439), [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L931), [crates/ritk-snap/src/ui/measurements.rs](crates/ritk-snap/src/ui/measurements.rs) |
+| DICOM launch ergonomics | Folder/single-file/DICOMDIR ingestion | **Present** | [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L627), [crates/ritk-snap/src/dicom/input_path.rs](crates/ritk-snap/src/dicom/input_path.rs) |
+| RT workflow (planning-adjacent viewing) | RT-STRUCT overlay, RT-DOSE + DVH style analytics | **Present** | [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L661), [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L1107), [crates/ritk-snap/src/ui/rt_dose_analytics.rs](crates/ritk-snap/src/ui/rt_dose_analytics.rs) |
+| Segmentation workflow | Paint/erase + NIfTI/DICOM-SEG IO + mesh export | **Present** | [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L706), [crates/ritk-snap/src/app/surface_export.rs](crates/ritk-snap/src/app/surface_export.rs) |
+| Cine and workstation shortcuts | Axis cine, keyboard tool/slice navigation | **Present** | [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs#L355), [crates/ritk-snap/src/ui/tool_shortcuts.rs](crates/ritk-snap/src/ui/tool_shortcuts.rs) |
+| 3D MIP/VR diagnostic rendering | True MIP/VR renderer with dedicated volume-projection pipeline | **Partial / placeholder** | [crates/ritk-snap/src/ui/viewport.rs](crates/ritk-snap/src/ui/viewport.rs#L118) |
+| PET/CT fused workflow and SUV-centric review | PET-aware loading, fusion controls, SUV tools | **Not implemented in viewer** | No PET/SUV/fusion viewer paths in [crates/ritk-snap/src](crates/ritk-snap/src) |
+| Curved planar reconstruction (CPR) / vessel-oriented reformat | CPR path and dedicated geometry tools | **Not implemented** | No CPR/curved-MPR surfaces in [crates/ritk-snap/src](crates/ritk-snap/src) |
+| Clinical distribution utilities | DICOM anonymization + media package/export/print/report pipeline | **Not implemented in viewer shell** | No anonymize/print/media-export/report workflow in [crates/ritk-snap/src](crates/ritk-snap/src) |
+
+### Highest-priority RadiAnt parity gaps
+
+1. `GAP-176-RAD-01` — **True 3D rendering path (MIP/VR) remains placeholder-boundary only**
+  - Evidence: viewport contract explicitly states MIP slot is axial-convention placeholder pending full renderer.
+  - Source: [crates/ritk-snap/src/ui/viewport.rs](crates/ritk-snap/src/ui/viewport.rs#L118)
+
+2. `GAP-176-RAD-02` — **PET/CT fusion and SUV review surface absent in viewer**
+  - Impact: high for oncology workflow parity versus RadiAnt.
+  - Source audit scope: [crates/ritk-snap/src](crates/ritk-snap/src)
+
+3. `GAP-176-RAD-03` — **CPR / curved-MPR workflow absent**
+  - Impact: high for vascular/cardiac navigation parity.
+  - Source audit scope: [crates/ritk-snap/src](crates/ritk-snap/src)
+
+4. `GAP-176-RAD-04` — **Clinical distribution shell (anonymize + print/media/report) absent**
+  - Impact: medium-high for workstation replacement completeness.
+  - Source audit scope: [crates/ritk-snap/src](crates/ritk-snap/src)
+
+### Recommended next increment order
+
+1. Implement a canonical 3D projection/render path for the existing MIP viewport slot (`GAP-176-RAD-01`).
+2. Add PET-aware data model + CT/PET fusion viewport and SUV toolchain (`GAP-176-RAD-02`).
+3. Add CPR geometry path as dedicated module and UI surface (`GAP-176-RAD-03`).
+4. Add anonymization/report/export workflow boundary in app shell (`GAP-176-RAD-04`).
+
 **Sprint 175 (2026):** Verification-chain closure for the active workspace delta is complete. Full matrix revalidation passed: `cargo test -p ritk-core --lib -q` (1068), `cargo test -p ritk-io --lib -q` (311), `cargo test -p ritk-dicom --lib -q` (8), `cargo test -p ritk-snap --lib -- --nocapture` (421), `cargo test -p ritk-io --examples --no-run` (pass), `cargo test -p ritk-registration --examples --no-run` (pass). WASM parity remains environment-blocked in current nightly toolchain context: `rustup run nightly-x86_64-pc-windows-msvc cargo check -p ritk-snap --target wasm32-unknown-unknown` fails with `E0463` (`can't find crate for core/std`), so the blocker remains non-code and reproducible.
 
 **Sprint 174 (2026):** Deterministic multi-series DICOM ordering closes a loader/browser stability gap across discovery boundaries. [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs) now applies deterministic sorting to discovered `DicomSeriesInfo` after per-series file-path sorting, eliminating hash-map iteration order effects. [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs) now scans subdirectories in deterministic lexical order and sorts flattened `SeriesEntry` records before tree construction, eliminating filesystem traversal order variance in series-browser grouping. Added value-semantic ordering tests in both crates. Verification: `cargo test -p ritk-io --lib discovered_series_sort_is_deterministic -- --nocapture` pass; `cargo test -p ritk-snap --lib sort_series_entries_is_deterministic -- --nocapture` pass; `cargo test -p ritk-snap --lib -- --nocapture` pass (421).

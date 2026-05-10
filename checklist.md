@@ -1,3 +1,23 @@
+## Sprint 176 — Complete
+**Status**: Complete
+**Phase**: Phase 1 Foundation
+**Version**: 0.37.21 [patch]
+**Goal**: Execute deep RadiAnt-vs-ritk-snap audit and derive prioritized parity backlog.
+
+### Checklist items
+- [x] Audit viewer capability clusters against RadiAnt baseline expectations
+- [x] Validate implemented surfaces using `ritk-snap` source evidence
+- [x] Classify parity into Present / Partial / Not Implemented
+- [x] Record explicit gap IDs and implementation priority order in [gap_audit.md](gap_audit.md)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-01: true 3D MIP/VR pipeline | High | Deferred |
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
 ## Sprint 175 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

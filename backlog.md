@@ -1,3 +1,27 @@
+## Sprint 176 — Complete
+**Status**: Complete
+**Phase**: Phase 1 Foundation
+**Version**: 0.37.21 [patch]
+**Goal**: Produce a deeper competitive gap audit against RadiAnt DICOM Viewer and define prioritized parity work packages.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-AUD-01 | Competitive parity map vs RadiAnt lacked source-backed capability classification | **Closed** |
+
+### Delivered
+- ✓ Added source-backed parity matrix in [gap_audit.md](gap_audit.md)
+- ✓ Classified capability clusters as Present / Partial / Not Implemented against current `ritk-snap` boundary
+- ✓ Identified four prioritized parity gaps: `GAP-176-RAD-01..04`
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-01 | Replace MIP placeholder with canonical 3D projection/render pipeline | High |
+| GAP-176-RAD-02 | Add PET/CT fusion workflow and SUV-centric tooling | High |
+| GAP-176-RAD-03 | Add curved-MPR (CPR) workflow | High |
+| GAP-176-RAD-04 | Add anonymization + print/media/report clinical distribution shell | Medium |
+
 ## Sprint 175 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
