@@ -147,6 +147,42 @@ impl WindowPreset {
         ]
     }
 
+    // ── PT (PET) presets ──────────────────────────────────────────────────────
+
+    /// Standard PET window/level presets expressed in SUVbw units [g/mL].
+    ///
+    /// At tissue density ≈ 1 g/mL, SUVbw is effectively dimensionless.
+    /// SUVbw = 1.0 ⟺ voxel uptake equals the whole-body average.
+    ///
+    /// | Name              | Centre (SUV) | Width (SUV) | Visible range (SUV) |
+    /// |-------------------|-------------|------------|---------------------|
+    /// | SUV whole body    |   3.0        |   6.0      | [0.0, 6.0]          |
+    /// | SUV brain (FDG)   |   6.0        |  12.0      | [0.0, 12.0]         |
+    /// | SUV tumour        |   5.0        |  10.0      | [0.0, 10.0]         |
+    ///
+    /// References:
+    /// - SNMMI Procedure Guideline for ¹⁸F-FDG PET/CT, v4.0 (2022)
+    /// - EANM FDG PET/CT: EANM Procedure Guidelines for Tumour Imaging (2015)
+    pub fn pt_presets() -> &'static [WindowPreset] {
+        &[
+            WindowPreset {
+                name: "SUV whole body",
+                center: 3.0,
+                width: 6.0,
+            },
+            WindowPreset {
+                name: "SUV brain (FDG)",
+                center: 6.0,
+                width: 12.0,
+            },
+            WindowPreset {
+                name: "SUV tumour",
+                center: 5.0,
+                width: 10.0,
+            },
+        ]
+    }
+
     // ── MR presets ────────────────────────────────────────────────────────────
 
     /// Standard MR window/level presets for common brain and spine sequences.
@@ -193,6 +229,7 @@ impl WindowPreset {
     /// |-----------------|--------------------|
     /// | `"CT"`          | [`ct_presets()`]   |
     /// | `"MR"`          | [`mr_presets()`]   |
+    /// | `"PT"`          | [`pt_presets()`]   |
     /// | `None` / other  | [`ct_presets()`] (safe default; widest applicable set) |
     ///
     /// The match is case-insensitive and checks the first two characters to
@@ -200,14 +237,17 @@ impl WindowPreset {
     ///
     /// [`ct_presets()`]: WindowPreset::ct_presets
     /// [`mr_presets()`]: WindowPreset::mr_presets
+    /// [`pt_presets()`]: WindowPreset::pt_presets
     pub fn for_modality(modality: Option<&str>) -> &'static [WindowPreset] {
         match modality {
             Some(m) => {
                 let upper = m.to_uppercase();
                 if upper.starts_with("MR") {
                     Self::mr_presets()
+                } else if upper.starts_with("PT") {
+                    Self::pt_presets()
                 } else {
-                    // CT, PT, NM, US, XA, CR, DR, DX, MG, RF, and unknown all
+                    // CT, NM, US, XA, CR, DR, DX, MG, RF, and unknown all
                     // default to the CT preset list which is the most complete
                     // and provides a safe initial view.
                     Self::ct_presets()
@@ -400,7 +440,7 @@ mod tests {
     /// Unknown modality strings must fall back to CT presets.
     #[test]
     fn test_for_modality_unknown_falls_back_to_ct() {
-        for m in &["PT", "NM", "US", "XA", "CR", "DX", "OT", "UNKNOWN"] {
+        for m in &["NM", "US", "XA", "CR", "DX", "OT", "UNKNOWN"] {
             let presets = WindowPreset::for_modality(Some(m));
             assert_eq!(
                 presets.len(),
@@ -408,5 +448,60 @@ mod tests {
                 "for_modality('{m}') must fall back to CT presets"
             );
         }
+    }
+
+    // ── pt_presets ────────────────────────────────────────────────────────────
+
+    /// `pt_presets()` must return exactly 3 entries.
+    #[test]
+    fn test_pt_presets_count() {
+        assert_eq!(
+            WindowPreset::pt_presets().len(),
+            3,
+            "pt_presets() must return 3 entries"
+        );
+    }
+
+    /// All PT preset widths must be strictly positive.
+    #[test]
+    fn test_pt_presets_widths_positive() {
+        for p in WindowPreset::pt_presets() {
+            assert!(
+                p.width > 0.0,
+                "PT preset '{}' has non-positive width {}",
+                p.name,
+                p.width
+            );
+        }
+    }
+
+    /// "SUV whole body" preset must have centre = 3.0 and width = 6.0.
+    ///
+    /// Basis: covers [0.0, 6.0] SUVbw, the typical whole-body FDG distribution
+    /// range per SNMMI Procedure Guideline v4.0 (2022).
+    #[test]
+    fn test_pt_suv_whole_body_values() {
+        let wb = WindowPreset::pt_presets()
+            .iter()
+            .find(|p| p.name == "SUV whole body")
+            .expect("pt_presets() must include 'SUV whole body'");
+        assert_eq!(wb.center, 3.0, "SUV whole body centre must be 3.0");
+        assert_eq!(wb.width, 6.0, "SUV whole body width must be 6.0");
+    }
+
+    /// `for_modality(Some("PT"))` must return the PT preset list.
+    #[test]
+    fn test_for_modality_pt() {
+        let presets = WindowPreset::for_modality(Some("PT"));
+        assert_eq!(
+            presets.len(),
+            WindowPreset::pt_presets().len(),
+            "for_modality('PT') must return the PT preset list"
+        );
+        assert_eq!(
+            presets[0].center,
+            WindowPreset::pt_presets()[0].center,
+            "for_modality('PT') first preset centre must match pt_presets()[0]"
+        );
     }
 }

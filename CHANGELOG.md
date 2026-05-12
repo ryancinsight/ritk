@@ -8,6 +8,9 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added SUVbw SSOT module `crates/ritk-snap/src/dicom/suv.rs` with `SuvParams` and `compute_suvbw`, backed by SNMMI/IAEA formal proof docs; unit-checked at tissue density ≈ 1 g/mL. Exports re-wired through `crates/ritk-snap/src/dicom/mod.rs`.
+- Added PET-specific window presets via `WindowPreset::pt_presets()` in `crates/ritk-snap/src/ui/window_presets.rs`: three SUVbw presets ("SUV whole body" centre=3.0/width=6.0, "SUV brain (FDG)" centre=6.0/width=12.0, "SUV tumour" centre=5.0/width=10.0) per SNMMI Procedure Guideline v4.0 (2022).
+- Added PT dispatch to `WindowPreset::for_modality` and `ModalityDisplay::for_modality` in `crates/ritk-snap/src/lib.rs`; "PT" now resolves to SUVbw whole-body defaults (centre=3.0, width=6.0) rather than the 8-bit fallback.
 - Added three positive JPEG-LS lossless conformance fixtures to `crates/ritk-codecs/src/jpeg_ls/mod.rs` exercising the full `decode_jpeg_ls_fragment` pipeline with ISO 14495-1 §A.3/§A.6 analytically derived bitstreams:
   - `jpeg_ls_fragment_2x2_all_zero_decodes_correctly` — run-mode 2×2 all-zero frame with rescale identity.
   - `jpeg_ls_fragment_1x3_constant_value10_decodes_correctly` — run interrupt + regular-mode context updating for a 1×3 constant-value frame; scan bytes analytically derived from Golomb-Rice(k=2,k=1) coding.

@@ -1,3 +1,29 @@
+## Sprint 189 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.12 [patch]
+**Goal**: Partially close GAP-176-RAD-02 by delivering the SUVbw SSOT, PET window presets, and PT modality display defaults as the first viewer-layer PET/CT increment.
+
+### Checklist items
+- [x] Create `crates/ritk-snap/src/dicom/suv.rs` — `SuvParams` + `compute_suvbw` with SNMMI/IAEA formal proof docs
+- [x] Add `SuvParams::without_decay_correction` (decay_factor = 1.0 for DICOM Decay Correction = "START")
+- [x] Add `SuvParams::with_decay_correction` (F(t) = exp(−ln 2 · Δt / T½) for raw pixel data)
+- [x] Add value-semantic SUV tests: unit-dose identity (SUV = 1.0), double-concentration (SUV = 2.0), zero pixel, negative pixel, half-life decay factor, zero-time decay factor, decay-correction doubles SUV, realistic ¹⁸F-FDG case (370 MBq, 70 kg, 1 h PI)
+- [x] Wire `pub mod suv` and `pub use suv::{compute_suvbw, SuvParams}` in `crates/ritk-snap/src/dicom/mod.rs`
+- [x] Add `WindowPreset::pt_presets()` with 3 SUVbw presets to `crates/ritk-snap/src/ui/window_presets.rs`
+- [x] Update `WindowPreset::for_modality` to dispatch "PT" to `pt_presets()`
+- [x] Add PT-specific window preset tests: count = 3, positive widths, "SUV whole body" values, `for_modality("PT")` dispatch
+- [x] Add `Some("PT")` arm to `ModalityDisplay::for_modality` in `crates/ritk-snap/src/lib.rs`
+- [x] Add PT assertion to `test_modality_display_ct_window_parameters`
+- [x] Verify `cargo test -p ritk-snap -- dicom::suv window_presets modality_display` (28 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| GAP-176-RAD-02 (partial) | PET radiopharmaceutical DICOM tag extraction, SUV display overlay in viewer, PET/CT fusion pixel-level composition | High | Open |
+| Remaining non-dedicated image ownership audit | PNG, TIFF, JPEG, MINC | Medium | Open |
+
 ## Sprint 188 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

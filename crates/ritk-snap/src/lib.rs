@@ -1322,6 +1322,13 @@ impl ModalityDisplay {
                 window_width: 256.0,
                 modality: "US".to_string(),
             },
+            // PET modality: defaults to SUVbw whole-body window [0.0, 6.0].
+            // Centre = 3.0, width = 6.0 per SNMMI Procedure Guideline v4.0 (2022).
+            Some("PT") => Self {
+                window_center: 3.0,
+                window_width: 6.0,
+                modality: "PT".to_string(),
+            },
             other => Self {
                 window_center: 128.0,
                 window_width: 256.0,
@@ -1769,5 +1776,18 @@ mod tests {
             "None modality must fall back to default width 256.0"
         );
         assert_eq!(unknown.modality, "");
+
+        // PT: SUVbw whole-body window, centre = 3.0, width = 6.0
+        // Basis: [0.0, 6.0] SUVbw covers typical FDG distribution range.
+        let pt = ModalityDisplay::for_modality(Some("PT"));
+        assert_eq!(
+            pt.window_center, 3.0,
+            "PT window_center must be 3.0 (SUVbw whole-body centre)"
+        );
+        assert_eq!(
+            pt.window_width, 6.0,
+            "PT window_width must be 6.0 (SUVbw whole-body width)"
+        );
+        assert_eq!(pt.modality, "PT");
     }
 }

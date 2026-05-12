@@ -1,3 +1,32 @@
+## Sprint 189 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.12 [patch]
+**Goal**: Deliver the SUVbw SSOT, PET window presets, and PT modality display defaults as the first viewer-layer PET/CT increment (partial closure of GAP-176-RAD-02).
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-02 (partial) | SUVbw SSOT, PET window presets, and PT modality display defaults | **Partially closed** |
+
+### Delivered
+- ✓ Created `crates/ritk-snap/src/dicom/suv.rs` — `SuvParams { injected_dose_bq, patient_weight_g, decay_factor }` and `compute_suvbw` SSOT backed by SNMMI Procedure Guideline v4.0 (2022) and IAEA Human Health Series No. 9 formal proof
+- ✓ `SuvParams::without_decay_correction` sets `decay_factor = 1.0` for pre-corrected DICOM pixels (Decay Correction = "START")
+- ✓ `SuvParams::with_decay_correction` computes `F(t) = exp(−ln 2 · Δt / T½)` for raw pixels (Decay Correction = "NONE")
+- ✓ 9 value-semantic SUV tests: unit-dose identity, double-concentration, zero pixel, negative pixel, Δt=T½ decay, Δt=0 decay, decay doubles SUV, without-decay-correction factor, realistic ¹⁸F-FDG 370 MBq/70 kg/1 h PI case
+- ✓ Added `WindowPreset::pt_presets()` with SUVbw presets: "SUV whole body" (3.0/6.0), "SUV brain (FDG)" (6.0/12.0), "SUV tumour" (5.0/10.0)
+- ✓ Updated `WindowPreset::for_modality` to dispatch "PT" to `pt_presets()` (previously CT fallback)
+- ✓ Added `Some("PT")` arm to `ModalityDisplay::for_modality` returning centre=3.0, width=6.0
+- ✓ Wired `pub mod suv` and `pub use suv::{compute_suvbw, SuvParams}` in `crates/ritk-snap/src/dicom/mod.rs`
+- ✓ 28 tests pass (`cargo test -p ritk-snap -- dicom::suv window_presets modality_display`)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` with a pure Rust JPEG 2000 decoder while preserving the `ritk-codecs` API | High |
+| GAP-176-RAD-02 (remainder) | PET radiopharmaceutical DICOM tag extraction (0018,1074 injected dose, 0010,1030 patient weight, (0018,1072) injection time), SUV display overlay in viewer slices, PET/CT pixel-level fusion composition | High |
+| Remaining non-dedicated image ownership audit | Decide whether PNG, TIFF, JPEG, and MINC stay in `ritk-io` or get dedicated crates | Medium |
+
 ## Sprint 188 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
