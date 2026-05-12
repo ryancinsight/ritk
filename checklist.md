@@ -1,3 +1,67 @@
+## Sprint 205 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.5 [patch]
+**Goal**: Close 27-function ritk-python public API coverage gap with value-semantic tests across 9 functional groups.
+
+### Checklist items
+- [x] Audit ritk-python public API surface for functions with zero prior test coverage
+- [x] Write Group A: intensity filter tests (intensity_windowing analytical + SimpleITK parity, threshold_below/above/outside)
+- [x] Write Group B: demons variant tests (diffeomorphic, symmetric, inverse-consistent, multires) with NCC improvement validation
+- [x] Write Group C: BSpline SyN and LDDMM tests with NCC improvement validation
+- [x] Write Group D: label fusion tests (majority_vote_fusion, joint_label_fusion_py) on unanimous atlas inputs
+- [x] Write Group E: statistics tests (masked_statistics, mean_surface_distance, estimate_noise)
+- [x] Write Group F: normalization tests (minmax_normalize_range, zscore_normalize, white_stripe_normalize, nyul_udupa_normalize)
+- [x] Write Group G: morphology tests (morphological_gradient, skeletonization, marker_watershed_segment)
+- [x] Write Group H: segmentation tests (multi_otsu_threshold bimodal image)
+- [x] Write Group I: I/O roundtrip tests (NRRD, NIfTI, transform JSON)
+- [x] Fix lddmm_register test: displacement_field shape is (3*nz,ny,nx) — use warped_moving (index 0) not displacement_field (index 1) for NCC comparison
+- [x] Register slow mark in pytest.ini or conftest so `@pytest.mark.slow` does not produce Unknown mark warning
+- [x] Verify all 23 fast tests pass: `python -m pytest crates/ritk-python/tests/test_coverage_gaps.py -m "not slow" -q`
+- [x] Verify all 6 slow tests pass: `python -m pytest crates/ritk-python/tests/test_coverage_gaps.py -m "slow" -q`
+- [x] Update gap_audit.md, checklist.md, CHANGELOG.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| RITK lacks global metric optimizer (MI, NGF) for inter-subject deformable registration | High | Open |
+| RITK-owned JPEG decoder implementation | High | Open |
+| Full color-volume representation above scalar `Image<B,3>` loaders | Medium | Open |
+| Multi-row JPEG-LS native conformance fixtures | High | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
+## Sprint 204 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.4 [patch]
+**Goal**: Replace the JPEG-LS Lossless negative fixture with native positive conformance coverage and close dispatch bypasses.
+
+### Checklist items
+- [x] Audit JPEG-LS Lossless fixture path and identify negative CharLS-produced assertion
+- [x] Correct JPEG-LS LSE marker from `0xFFF0` to `0xFFF8`
+- [x] Correct JPEG-LS SOS parsing to `NEAR`, `ILV`, and point transform
+- [x] Route JPEG-LS Lossless through `NativeCodecBackend` from `DicomRsBackend`
+- [x] Normalize DICOM UI transfer-syntax padding in `TransferSyntaxKind::from_uid`
+- [x] Add separate run-interruption contexts for `RItype=0` and `RItype=1`
+- [x] Correct limited Golomb decode to consume the terminating bit and return stored mapped value
+- [x] Stop JPEG-LS scan bit reads at marker boundaries while preserving stuffed `0xFF 0x00`
+- [x] Use lossless modular reconstruction instead of clamping reconstructed samples
+- [x] Convert JPEG-LS Lossless negative fixture to a CharLS-generated positive single-row fixture
+- [x] Verify CharLS self-decodes the generated fixture before native decode assertion
+- [x] Verify formatting: `cargo fmt --check -p ritk-codecs -p ritk-dicom -p ritk-io`
+- [x] Verify full codec tests: `cargo test -p ritk-codecs --lib` (88 passed)
+- [x] Verify full DICOM backend tests: `cargo test -p ritk-dicom --lib` (14 passed)
+- [x] Verify focused IO JPEG-LS tests: `cargo test -p ritk-io --lib jpegls -- --nocapture` (2 passed)
+- [x] Verify full IO tests: `cargo test -p ritk-io --lib` (192 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| RITK-owned JPEG decoder implementation | High | Open |
+| Add full color-volume representation above scalar `Image<B,3>` loaders | Medium | Open |
+| Extend native JPEG-LS to multi-row CharLS conformance fixtures | High | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
 ## Sprint 203 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -5,6 +5,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.40.5] - 2026-05-12
+
+### Added [patch]
+- `crates/ritk-python/tests/test_coverage_gaps.py`: 29 value-semantic tests (23 fast, 6 slow) covering 27 previously untested public ritk-python functions across 9 groups: intensity filters, demons registration variants, BSpline SyN, LDDMM, label fusion, masked statistics, normalization, morphology, segmentation, and I/O roundtrip.
+- All assertions inspect computed values (not just Result/Option variants): analytical boundary conditions, NCC improvement over pre-registration baseline, unanimous-atlas confidence=1.0, masked mean/std/min/max, surface distance bounds, noise estimation range, normalization range mapping, morphological gradient zero-at-interior invariant, skeleton sparsity, watershed label presence, Otsu threshold in (0.2, 0.8) for bimodal inputs, shape-exact I/O roundtrip with atol=1e-5/1e-4/1e-6 tolerances.
+
+### Fixed [patch]
+- `test_lddmm_register_improves_ncc`: `lddmm_register` returns `(warped_moving, displacement_field)` where displacement field has shape `(3*nz, ny, nx)`. Test now validates `warped_moving` (index 0, shape `(nz, ny, nx)`) for NCC improvement instead of the displacement field (index 1).
+
+<!-- ──────────────────────────────────────────── -->
+## [0.40.4] - 2026-05-12
+
+### Fixed [patch]
+- JPEG-LS Lossless DICOM dispatch now routes through `NativeCodecBackend` from `DicomRsBackend`; padded DICOM UI transfer-syntax values are normalized before classification.
+- JPEG-LS header parsing now treats SOS fields as `NEAR`, `ILV`, and point transform, and uses the ISO adaptive predictor for lossless scan decode.
+- JPEG-LS run-interruption contexts, limited Golomb code decode, scan marker termination, and lossless modular sample reconstruction were corrected against ISO 14495-1 semantics.
+
+### Added [patch]
+- Replaced the JPEG-LS Lossless negative fixture with a CharLS-generated positive single-row conformance fixture that self-verifies through CharLS and then decodes exactly through the RITK-native path.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.40.3] - 2026-05-12
 
 ### Fixed [patch]
