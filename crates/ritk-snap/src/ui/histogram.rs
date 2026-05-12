@@ -170,10 +170,8 @@ pub fn draw_histogram(
 
         // Semi-transparent band
         if (x_r - x_l).abs() > 0.5 {
-            let band = Rect::from_min_max(
-                Pos2::new(x_l, rect.top()),
-                Pos2::new(x_r, rect.bottom()),
-            );
+            let band =
+                Rect::from_min_max(Pos2::new(x_l, rect.top()), Pos2::new(x_r, rect.bottom()));
             painter.rect_filled(band, 0.0, WL_BAND_COLOR);
             painter.rect_stroke(band, 0.0, Stroke::new(1.0_f32, WL_BORDER_COLOR));
         }
@@ -218,13 +216,7 @@ pub fn draw_histogram(
     }
     if response.clicked() {
         if let Some(pos) = response.interact_pointer_pos() {
-            let new_c = wl_center_from_click(
-                pos.x,
-                hist_min,
-                hist_max,
-                rect.left(),
-                rect.right(),
-            );
+            let new_c = wl_center_from_click(pos.x, hist_min, hist_max, rect.left(), rect.right());
             return Some((new_c, window_width));
         }
     }
@@ -245,10 +237,7 @@ mod tests {
     #[test]
     fn bar_height_log_at_peak_returns_available_height() {
         let h = bar_height_log(100, 100, 80.0);
-        assert!(
-            (h - 80.0).abs() < 1e-4,
-            "expected 80.0, got {h}"
-        );
+        assert!((h - 80.0).abs() < 1e-4, "expected 80.0, got {h}");
     }
 
     /// Zero count returns 0.0 regardless of peak.
@@ -273,7 +262,10 @@ mod tests {
     #[test]
     fn bar_height_log_half_peak_is_strictly_between_zero_and_max() {
         let h = bar_height_log(50, 100, 80.0);
-        assert!(h > 0.0 && h < 80.0, "half-peak height {h} must be in (0, 80)");
+        assert!(
+            h > 0.0 && h < 80.0,
+            "half-peak height {h} must be in (0, 80)"
+        );
         // Analytical: ln(51)/ln(101) × 80.0
         let expected = (51f64.ln() / 101f64.ln() * 80.0) as f32;
         assert!(
@@ -290,10 +282,7 @@ mod tests {
     #[test]
     fn wl_to_x_centre_value_maps_to_midpoint() {
         let x = wl_to_x(50.0, 0.0, 100.0, 0.0, 200.0);
-        assert!(
-            (x - 100.0).abs() < 1e-4,
-            "expected x=100.0, got {x}"
-        );
+        assert!((x - 100.0).abs() < 1e-4, "expected x=100.0, got {x}");
     }
 
     /// Value below hist_min clamps to x_left.

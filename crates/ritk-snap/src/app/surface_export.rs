@@ -42,7 +42,8 @@ impl SnapApp {
 
         let map = editor.current_map();
         let Some(binary) = binary_mask_from_labels(map.as_slice()) else {
-            self.status_message = "Export surface: no foreground voxels - mesh is empty.".to_owned();
+            self.status_message =
+                "Export surface: no foreground voxels - mesh is empty.".to_owned();
             return;
         };
 
@@ -106,7 +107,8 @@ mod tests {
             }
         }
 
-        let mesh = build_label_surface_mesh(&binary, [nz, ny, nx], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+        let mesh =
+            build_label_surface_mesh(&binary, [nz, ny, nx], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
         assert_eq!(mesh.face_count(), 44);
     }
 
@@ -119,20 +121,44 @@ mod tests {
         assert_eq!(mesh.face_count(), 1);
         let n = mesh.vertex_count();
         let mut xs: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).x)
+            .map(|i| {
+                mesh.vertices
+                    .position(gaia::domain::core::index::VertexId::new(i as u32))
+                    .x
+            })
             .collect();
         let mut ys: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).y)
+            .map(|i| {
+                mesh.vertices
+                    .position(gaia::domain::core::index::VertexId::new(i as u32))
+                    .y
+            })
             .collect();
         let mut zs: Vec<f64> = (0..n)
-            .map(|i| mesh.vertices.position(gaia::domain::core::index::VertexId::new(i as u32)).z)
+            .map(|i| {
+                mesh.vertices
+                    .position(gaia::domain::core::index::VertexId::new(i as u32))
+                    .z
+            })
             .collect();
         xs.sort_by(|a, b| a.partial_cmp(b).expect("x finite"));
         ys.sort_by(|a, b| a.partial_cmp(b).expect("y finite"));
         zs.sort_by(|a, b| a.partial_cmp(b).expect("z finite"));
 
-        assert!((xs[2] - 1.0_f64).abs() < 1e-4, "edge 0 midpoint x = 1.0, got {}", xs[2]);
-        assert!((ys[2] - 1.5_f64).abs() < 1e-4, "edge 3 midpoint y = 1.5, got {}", ys[2]);
-        assert!((zs[2] - 2.0_f64).abs() < 1e-4, "edge 8 midpoint z = 2.0, got {}", zs[2]);
+        assert!(
+            (xs[2] - 1.0_f64).abs() < 1e-4,
+            "edge 0 midpoint x = 1.0, got {}",
+            xs[2]
+        );
+        assert!(
+            (ys[2] - 1.5_f64).abs() < 1e-4,
+            "edge 3 midpoint y = 1.5, got {}",
+            ys[2]
+        );
+        assert!(
+            (zs[2] - 2.0_f64).abs() < 1e-4,
+            "edge 8 midpoint z = 2.0, got {}",
+            zs[2]
+        );
     }
 }

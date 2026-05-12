@@ -85,15 +85,20 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     // Extract pixel data from the tensor.
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}"))?;
+    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
+        anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}")
+    })?;
 
     let modality = meta.modality.clone();
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date.clone();
     let series_description = meta.series_description.clone();
+    let patient_weight_kg = meta.patient_weight_kg;
+    let injected_dose_bq = meta.radionuclide_total_dose_bq;
+    let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+    let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time.clone();
+    let decay_correction = meta.decay_correction.clone();
 
     Ok(LoadedVolume {
         data: std::sync::Arc::new(pixels),
@@ -108,6 +113,11 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
         patient_id,
         study_date,
         series_description,
+        patient_weight_kg,
+        injected_dose_bq,
+        radionuclide_half_life_s,
+        radiopharmaceutical_start_time,
+        decay_correction,
     })
 }
 
@@ -156,9 +166,9 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
 
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from NIfTI tensor: {e:?}"))?;
+    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
+        anyhow::anyhow!("failed to extract f32 pixel data from NIfTI tensor: {e:?}")
+    })?;
 
     Ok(LoadedVolume {
         data: std::sync::Arc::new(pixels),
@@ -173,6 +183,11 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
         patient_id: None,
         study_date: None,
         series_description: None,
+        patient_weight_kg: None,
+        injected_dose_bq: None,
+        radionuclide_half_life_s: None,
+        radiopharmaceutical_start_time: None,
+        decay_correction: None,
     })
 }
 
@@ -257,9 +272,7 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
 ///
 /// The batch is materialized into a unique temporary directory and then loaded
 /// through the canonical DICOM series loader.
-pub fn load_dicom_series_from_named_bytes(
-    files: &[(String, &[u8])],
-) -> Result<LoadedVolume> {
+pub fn load_dicom_series_from_named_bytes(files: &[(String, &[u8])]) -> Result<LoadedVolume> {
     if files.is_empty() {
         anyhow::bail!("empty DICOM byte batch")
     }
@@ -271,8 +284,12 @@ pub fn load_dicom_series_from_named_bytes(
         }
         let file_name = sanitize_temp_filename(name, idx);
         let file_path = temp_root.join(file_name);
-        std::fs::write(&file_path, bytes)
-            .with_context(|| format!("failed writing dropped DICOM temp file '{}'", file_path.display()))?;
+        std::fs::write(&file_path, bytes).with_context(|| {
+            format!(
+                "failed writing dropped DICOM temp file '{}'",
+                file_path.display()
+            )
+        })?;
     }
 
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -371,9 +388,9 @@ fn volume_from_image_no_meta(
 
     let tensor = image.into_tensor();
     let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 pixel data from image tensor: {e:?}"))?;
+    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
+        anyhow::anyhow!("failed to extract f32 pixel data from image tensor: {e:?}")
+    })?;
 
     Ok(LoadedVolume {
         data: std::sync::Arc::new(pixels),
@@ -388,6 +405,11 @@ fn volume_from_image_no_meta(
         patient_id: None,
         study_date: None,
         series_description: None,
+        patient_weight_kg: None,
+        injected_dose_bq: None,
+        radionuclide_half_life_s: None,
+        radiopharmaceutical_start_time: None,
+        decay_correction: None,
     })
 }
 
@@ -492,11 +514,7 @@ fn sort_series_entries_deterministically(entries: &mut [SeriesEntry]) {
             .then_with(|| a.modality.cmp(&b.modality))
             .then_with(|| a.series_description.cmp(&b.series_description))
             .then_with(|| a.series_uid.cmp(&b.series_uid))
-            .then_with(|| {
-                a.folder
-                    .to_string_lossy()
-                    .cmp(&b.folder.to_string_lossy())
-            })
+            .then_with(|| a.folder.to_string_lossy().cmp(&b.folder.to_string_lossy()))
     });
 }
 
@@ -668,7 +686,10 @@ mod tests {
             .expect("load_dicom_series_from_named_bytes should load valid DICOM batch");
 
         let [d, r, c] = vol.shape;
-        assert!(d > 0 && r > 0 && c > 0, "loaded DICOM shape must be non-zero");
+        assert!(
+            d > 0 && r > 0 && c > 0,
+            "loaded DICOM shape must be non-zero"
+        );
         assert_eq!(vol.data.len(), d * r * c);
     }
 

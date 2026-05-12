@@ -146,14 +146,18 @@ impl<'a> ToolbarPanel<'a> {
                 if ui.button("Save Segmentation…").clicked() {
                     ui.close_menu();
                 }
-                if ui.menu_button("Export", |ui| {
-                    if ui.button("Surface as VTK…").clicked() {
-                        ui.close_menu();
-                    }
-                    if ui.button("Slices as PNG…").clicked() {
-                        ui.close_menu();
-                    }
-                }).inner.is_none() {
+                if ui
+                    .menu_button("Export", |ui| {
+                        if ui.button("Surface as VTK…").clicked() {
+                            ui.close_menu();
+                        }
+                        if ui.button("Slices as PNG…").clicked() {
+                            ui.close_menu();
+                        }
+                    })
+                    .inner
+                    .is_none()
+                {
                     // Submenu not opened
                 }
                 ui.separator();
@@ -176,16 +180,19 @@ impl<'a> ToolbarPanel<'a> {
                     }
                 }
                 ui.separator();
-                
+
                 ui.label("Colormap:");
                 for &cm in Colormap::all() {
-                    if ui.selectable_label(*self.active_colormap == cm, cm.label()).clicked() {
+                    if ui
+                        .selectable_label(*self.active_colormap == cm, cm.label())
+                        .clicked()
+                    {
                         *self.active_colormap = cm;
                         ui.close_menu();
                     }
                 }
                 ui.separator();
-                
+
                 ui.label("Manual Window/Level:");
                 ui.add(
                     egui::DragValue::new(&mut self.active_wl.width)

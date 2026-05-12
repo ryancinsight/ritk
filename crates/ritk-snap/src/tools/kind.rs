@@ -62,7 +62,9 @@ impl ToolKind {
     pub fn tooltip(&self) -> &'static str {
         match self {
             ToolKind::Pan => "Pan: drag to scroll the viewport without changing zoom or W/L.",
-            ToolKind::Zoom => "Zoom: scroll wheel to zoom in/out; drag vertically for continuous zoom.",
+            ToolKind::Zoom => {
+                "Zoom: scroll wheel to zoom in/out; drag vertically for continuous zoom."
+            }
             ToolKind::WindowLevel => {
                 "Window/Level: drag horizontally to change window width, \
                  vertically to change window centre."

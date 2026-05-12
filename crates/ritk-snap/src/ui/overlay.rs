@@ -30,9 +30,9 @@
 
 use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 
+use super::anatomical_label_for_axis;
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
-use super::anatomical_label_for_axis;
 
 // ── constants ──────────────────────────────────────────────────────────────────
 
@@ -191,10 +191,10 @@ impl OverlayRenderer {
             &cursor_hu_str as &str,
             &pointer_hu_str as &str,
         ]
-            .iter()
-            .filter(|s| !s.is_empty())
-            .copied()
-            .collect();
+        .iter()
+        .filter(|s| !s.is_empty())
+        .copied()
+        .collect();
         Self::draw_text_anchored(
             painter,
             rect,

@@ -219,8 +219,14 @@ mod tests {
     fn suvbw_negative_pixel_yields_negative_finite() {
         let params = SuvParams::without_decay_correction(370_000_000.0, 70_000.0);
         let suv = compute_suvbw(-100.0, &params);
-        assert!(suv < 0.0, "negative pixel must yield negative SUVbw; got {suv}");
-        assert!(suv.is_finite(), "SUVbw for negative pixel must be finite; got {suv}");
+        assert!(
+            suv < 0.0,
+            "negative pixel must yield negative SUVbw; got {suv}"
+        );
+        assert!(
+            suv.is_finite(),
+            "SUVbw for negative pixel must be finite; got {suv}"
+        );
     }
 
     // ── SuvParams::without_decay_correction ───────────────────────────────────

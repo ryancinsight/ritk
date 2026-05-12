@@ -9,11 +9,13 @@
 //! - [`input_path`] — DICOM folder and DICOMDIR file normalization.
 //! - [`hanging_protocol`] — deterministic load-time protocol selection.
 //! - [`suv`] — SUVbw normalisation for PET modality.
+//! - [`pet`] — `PetAcquisitionParams` SSOT bridging `LoadedVolume` and `SuvParams`.
 
 pub mod hanging_protocol;
 pub mod input_path;
 pub mod loader;
 pub mod metadata_table;
+pub mod pet;
 pub mod series_tree;
 pub mod suv;
 
@@ -24,5 +26,6 @@ pub use loader::{
     scan_folder_for_series,
 };
 pub use metadata_table::{build_metadata_rows, MetadataRow, MetadataScope};
+pub use pet::{DecayCorrectionKind, PetAcquisitionParams};
 pub use series_tree::{PatientNode, SeriesEntry, SeriesTree, StudyNode};
 pub use suv::{compute_suvbw, SuvParams};

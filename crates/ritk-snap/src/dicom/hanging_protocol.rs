@@ -69,7 +69,9 @@ pub fn select_hanging_protocol(
 }
 
 fn contains_any(haystack_upper: &str, needles_upper: &[&str]) -> bool {
-    needles_upper.iter().any(|needle| haystack_upper.contains(needle))
+    needles_upper
+        .iter()
+        .any(|needle| haystack_upper.contains(needle))
 }
 
 fn first_non_empty_axis(shape: [usize; 3]) -> usize {
@@ -188,7 +190,8 @@ mod tests {
 
     #[test]
     fn ct_lung_series_selects_lung_protocol() {
-        let decision = select_hanging_protocol(Some("CT"), Some("Chest Lung HRCT"), [128, 512, 512]);
+        let decision =
+            select_hanging_protocol(Some("CT"), Some("Chest Lung HRCT"), [128, 512, 512]);
         assert_eq!(decision.protocol_name, "CT Lung");
         assert_eq!(decision.window_center, -400.0);
         assert_eq!(decision.window_width, 1500.0);

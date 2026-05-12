@@ -10,12 +10,12 @@
 //! for session serialization.  `app.rs` delegates to these functions; no
 //! JSON serialization logic appears outside this module.
 
-use anyhow::{Context, Result};
 use crate::render::colormap::Colormap;
 use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
 use crate::ViewerState;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -127,8 +127,7 @@ fn default_rt_dose_opacity() -> f32 {
 pub fn save_to_file(snapshot: &ViewerSessionSnapshot, path: &Path) -> Result<()> {
     let json = serde_json::to_string_pretty(snapshot)
         .context("JSON serialization of ViewerSessionSnapshot failed")?;
-    std::fs::write(path, json)
-        .with_context(|| format!("writing session file {}", path.display()))
+    std::fs::write(path, json).with_context(|| format!("writing session file {}", path.display()))
 }
 
 /// Deserialize a [`ViewerSessionSnapshot`] from the JSON file at `path`.

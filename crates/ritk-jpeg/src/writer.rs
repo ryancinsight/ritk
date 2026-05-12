@@ -1,28 +1,16 @@
-//! JPEG grayscale image writer.
-//!
-//! Encodes a 3-D `Image<B, 3>` with shape `[nz=1, ny, nx]` as an 8-bit
-//! grayscale JPEG file.  The f32 tensor values are clamped to [0, 255],
-//! rounded, and cast to `u8`.
-//!
-//! # Invariants
-//! - `nz` must equal 1; JPEG is a 2-D format.
-//! - Output format is inferred from the file extension (`.jpg` or `.jpeg`).
-
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use image::{GrayImage, Luma};
 use ritk_core::image::Image;
+use std::marker::PhantomData;
 use std::path::Path;
 
 /// Write a grayscale `Image<B, 3>` with shape `[1, height, width]` to a JPEG file.
 ///
-/// # Errors
-/// - Returns an error if `nz != 1`.
-/// - Returns an error if tensor data cannot be read as `f32`.
-/// - Returns an error if the file cannot be written.
+/// Tensor values are rounded, clamped to `[0, 255]`, and encoded as Luma8.
 pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let path = path.as_ref();
-    let shape = image.shape(); // [nz, ny, nx]
+    let shape = image.shape();
     let nz = shape[0];
     let ny = shape[1];
     let nx = shape[2];
@@ -47,7 +35,7 @@ pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
 
     for y in 0..ny {
         for x in 0..nx {
-            let idx = y * nx + x; // nz=1, so z-stride term is zero
+            let idx = y * nx + x;
             let val = slice[idx].round().clamp(0.0, 255.0) as u8;
             gray_img.put_pixel(x as u32, y as u32, Luma([val]));
         }
@@ -58,4 +46,23 @@ pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
         .with_context(|| format!("failed to save JPEG: {}", path.display()))?;
 
     Ok(())
+}
+
+/// Stateless JPEG writer.
+pub struct JpegWriter<B: Backend> {
+    _marker: PhantomData<B>,
+}
+
+impl<B: Backend> Default for JpegWriter<B> {
+    fn default() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<B: Backend> JpegWriter<B> {
+    pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
+        write_jpeg(path, image)
+    }
 }

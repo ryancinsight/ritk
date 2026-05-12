@@ -9,6 +9,8 @@ members = [
   "crates/ritk-metaimage",
   "crates/ritk-mgh",
   "crates/ritk-analyze",
+  "crates/ritk-png",
+  "crates/ritk-jpeg",
   "crates/ritk-io",
   "crates/ritk-model",
   "crates/ritk-registration",
@@ -28,6 +30,8 @@ ritk-nrrd = { path = "crates/ritk-nrrd" }
 ritk-metaimage = { path = "crates/ritk-metaimage" }
 ritk-mgh = { path = "crates/ritk-mgh" }
 ritk-analyze = { path = "crates/ritk-analyze" }
+ritk-png = { path = "crates/ritk-png" }
+ritk-jpeg = { path = "crates/ritk-jpeg" }
 ritk-vtk = { path = "crates/ritk-vtk" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }

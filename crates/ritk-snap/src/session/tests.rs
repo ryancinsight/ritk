@@ -102,7 +102,10 @@ fn session_snapshot_default_matches_viewer_defaults() {
     assert_eq!(snapshot.zoom, 1.0);
     assert!(!snapshot.cine_enabled);
     assert_eq!(snapshot.cine_fps, 12.0);
-    assert!(snapshot.annotations.is_empty(), "default annotations must be empty");
+    assert!(
+        snapshot.annotations.is_empty(),
+        "default annotations must be empty"
+    );
 }
 
 // ─── JSON in-memory round-trips ───────────────────────────────────────────────
@@ -120,7 +123,11 @@ fn session_snapshot_json_round_trip_preserves_values_no_annotations() {
 fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
     let mut snapshot = canonical_snapshot_no_annotations();
     snapshot.annotations = all_annotation_variants();
-    assert_eq!(snapshot.annotations.len(), 5, "expected 5 annotation variants");
+    assert_eq!(
+        snapshot.annotations.len(),
+        5,
+        "expected 5 annotation variants"
+    );
 
     let json = serde_json::to_string_pretty(&snapshot).expect("serialize snapshot");
     let recovered: ViewerSessionSnapshot =
@@ -140,7 +147,12 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
 
     // Verify Angle annotation values round-trip exactly.
     match &recovered.annotations[1] {
-        Annotation::Angle { p1, p2, p3, angle_deg } => {
+        Annotation::Angle {
+            p1,
+            p2,
+            p3,
+            angle_deg,
+        } => {
             assert_eq!(*p1, [0.0f32, 1.0f32]);
             assert_eq!(*p2, [0.0f32, 0.0f32]);
             assert_eq!(*p3, [1.0f32, 0.0f32]);
@@ -183,9 +195,8 @@ fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
         "cine_fps": 12.0
     }"#;
 
-    let recovered: ViewerSessionSnapshot =
-        serde_json::from_str(json_without_annotations)
-            .expect("must deserialize legacy JSON without annotations field");
+    let recovered: ViewerSessionSnapshot = serde_json::from_str(json_without_annotations)
+        .expect("must deserialize legacy JSON without annotations field");
 
     assert!(
         recovered.annotations.is_empty(),
@@ -256,7 +267,10 @@ fn save_to_file_produces_valid_json_with_annotations_key() {
 fn load_from_file_returns_error_for_nonexistent_path() {
     let path = PathBuf::from("/nonexistent/path/session.json");
     let result = load_from_file(&path);
-    assert!(result.is_err(), "load_from_file must fail for nonexistent path");
+    assert!(
+        result.is_err(),
+        "load_from_file must fail for nonexistent path"
+    );
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
         msg.contains("session") || msg.contains("nonexistent") || msg.contains("No such"),
@@ -276,4 +290,3 @@ fn load_from_file_returns_error_for_invalid_json() {
 
     let _ = std::fs::remove_file(&path);
 }
-

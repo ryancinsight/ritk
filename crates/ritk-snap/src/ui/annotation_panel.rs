@@ -215,8 +215,7 @@ mod tests {
     fn csv_empty_annotations_returns_header_only() {
         let csv = csv_for(&[]);
         assert_eq!(
-            csv,
-            "index,type,primary_value,unit,extra\n",
+            csv, "index,type,primary_value,unit,extra\n",
             "empty annotation list must produce only the header row"
         );
     }
@@ -369,9 +368,18 @@ mod tests {
         let csv = csv_for(&annotations);
         let rows: Vec<&str> = csv.lines().skip(1).collect();
         assert_eq!(rows.len(), 3, "expected 3 data rows");
-        assert!(rows[0].starts_with("0,"), "first data row must have index 0");
-        assert!(rows[1].starts_with("1,"), "second data row must have index 1");
-        assert!(rows[2].starts_with("2,"), "third data row must have index 2");
+        assert!(
+            rows[0].starts_with("0,"),
+            "first data row must have index 0"
+        );
+        assert!(
+            rows[1].starts_with("1,"),
+            "second data row must have index 1"
+        );
+        assert!(
+            rows[2].starts_with("2,"),
+            "third data row must have index 2"
+        );
     }
 
     // ── AnnotationPanelAction equality ────────────────────────────────────────
@@ -385,7 +393,9 @@ mod tests {
     fn action_delete_carries_index() {
         let action = AnnotationPanelAction::Delete(3);
         match action {
-            AnnotationPanelAction::Delete(i) => assert_eq!(i, 3, "Delete must carry the exact index"),
+            AnnotationPanelAction::Delete(i) => {
+                assert_eq!(i, 3, "Delete must carry the exact index")
+            }
             _ => panic!("expected Delete variant"),
         }
     }

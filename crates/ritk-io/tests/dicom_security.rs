@@ -57,6 +57,11 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         slices: Vec::new(),
         private_tags,
         preservation: ritk_io::DicomPreservationSet::new(),
+        patient_weight_kg: None,
+        decay_correction: None,
+        radionuclide_total_dose_bq: None,
+        radiopharmaceutical_start_time: None,
+        radionuclide_half_life_s: None,
     }
 }
 

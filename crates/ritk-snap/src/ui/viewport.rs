@@ -279,8 +279,8 @@ impl<'a> ViewportPanel<'a> {
                 // Volume projections do not vary with slice index.
                 ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0),
             };
-            let needs_render = self.state.texture_slice_key != Some(render_key)
-                || self.state.texture.is_none();
+            let needs_render =
+                self.state.texture_slice_key != Some(render_key) || self.state.texture.is_none();
 
             if needs_render {
                 let img = match self.state.render_mode {
@@ -405,7 +405,11 @@ impl<'a> ViewportPanel<'a> {
         }
 
         // ── viewport border ───────────────────────────────────────────────
-        painter.rect_stroke(rect, 0.0, Stroke::new(1.0_f32, Color32::from_rgb(60, 60, 60)));
+        painter.rect_stroke(
+            rect,
+            0.0,
+            Stroke::new(1.0_f32, Color32::from_rgb(60, 60, 60)),
+        );
 
         // ── context menu ──────────────────────────────────────────────────
         response.context_menu(|ui| {
@@ -883,6 +887,11 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            patient_weight_kg: None,
+            injected_dose_bq: None,
+            radionuclide_half_life_s: None,
+            radiopharmaceutical_start_time: None,
+            decay_correction: None,
         }
     }
 
@@ -1077,7 +1086,10 @@ mod tests {
     fn test_screen_to_img_f32_rejects_non_positive_scale() {
         let p = pos2(1.0, 2.0);
         let o = Vec2::new(0.0, 0.0);
-        assert!(screen_to_img_f32(p, o, 0.0).is_none(), "scale=0 must reject");
+        assert!(
+            screen_to_img_f32(p, o, 0.0).is_none(),
+            "scale=0 must reject"
+        );
         assert!(
             screen_to_img_f32(p, o, -1.0).is_none(),
             "negative scale must reject"

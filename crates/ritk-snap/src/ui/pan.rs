@@ -71,10 +71,7 @@ use egui::{Pos2, Vec2};
 /// When `current == start`, the result is `viewport_origin` converted to `Vec2` (zero delta).
 pub fn pan_from_drag_delta(viewport_origin: Pos2, start: Pos2, current: Pos2) -> Vec2 {
     let delta = current - start;
-    Vec2::new(
-        viewport_origin.x + delta.x,
-        viewport_origin.y + delta.y,
-    )
+    Vec2::new(viewport_origin.x + delta.x, viewport_origin.y + delta.y)
 }
 
 #[cfg(test)]

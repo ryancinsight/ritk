@@ -767,7 +767,14 @@ mod tests {
     fn test_compute_roi_ellipse_constant_field_mean_and_stddev() {
         let pixels: Vec<f32> = vec![2.0; 25]; // 5×5 grid
         let (center, radii, mean, std_dev, min, max, area_mm2) =
-            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [4.0, 4.0], &pixels, 5, 5, [1.0, 1.0]);
+            Annotation::compute_roi_ellipse_stats(
+                [0.0, 0.0],
+                [4.0, 4.0],
+                &pixels,
+                5,
+                5,
+                [1.0, 1.0],
+            );
         assert_eq!(center, [2.0, 2.0], "center must be midpoint [2,2]");
         assert_eq!(radii, [2.0, 2.0], "radii must be half bounding box [2,2]");
         assert!(
@@ -796,7 +803,14 @@ mod tests {
     fn test_compute_roi_ellipse_degenerate_zero_row_radius() {
         let pixels: Vec<f32> = vec![5.0; 25];
         let (center, radii, mean, std_dev, min, max, area_mm2) =
-            Annotation::compute_roi_ellipse_stats([2.0, 0.0], [2.0, 4.0], &pixels, 5, 5, [1.0, 1.0]);
+            Annotation::compute_roi_ellipse_stats(
+                [2.0, 0.0],
+                [2.0, 4.0],
+                &pixels,
+                5,
+                5,
+                [1.0, 1.0],
+            );
         assert_eq!(center, [2.0, 2.0]);
         assert_eq!(radii[0], 0.0, "row radius must be 0 for degenerate input");
         assert_eq!(mean, 0.0, "degenerate ellipse must have mean=0.0");
@@ -830,7 +844,14 @@ mod tests {
         // (0,0)=0, (0,1)=1, (0,2)=2, (1,0)=3, (1,1)=4, (1,2)=5, (2,0)=6, (2,1)=7, (2,2)=8
         let pixels: Vec<f32> = (0..9).map(|v| v as f32).collect();
         let (_center, _radii, mean, std_dev, min, max, _area_mm2) =
-            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [2.0, 2.0], &pixels, 3, 3, [1.0, 1.0]);
+            Annotation::compute_roi_ellipse_stats(
+                [0.0, 0.0],
+                [2.0, 2.0],
+                &pixels,
+                3,
+                3,
+                [1.0, 1.0],
+            );
         // Inside pixels: (0,1)=1, (1,0)=3, (1,1)=4, (1,2)=5, (2,1)=7
         // Analytical: mean = (1+3+4+5+7)/5 = 20/5 = 4.0
         //   variance = ((1−4)²+(3−4)²+(4−4)²+(5−4)²+(7−4)²)/5
@@ -856,7 +877,14 @@ mod tests {
     fn test_compute_roi_ellipse_area_anisotropic_spacing() {
         let pixels: Vec<f32> = vec![1.0; 200]; // 20×10 grid, all pixels inside will be 1.0
         let (_center, _radii, _mean, _std_dev, _min, _max, area_mm2) =
-            Annotation::compute_roi_ellipse_stats([0.0, 0.0], [10.0, 6.0], &pixels, 10, 11, [2.0, 3.0]);
+            Annotation::compute_roi_ellipse_stats(
+                [0.0, 0.0],
+                [10.0, 6.0],
+                &pixels,
+                10,
+                11,
+                [2.0, 3.0],
+            );
         let expected = std::f32::consts::PI * 5.0 * 2.0 * 3.0 * 3.0;
         assert!(
             (area_mm2 - expected).abs() < 1e-3,
@@ -871,7 +899,14 @@ mod tests {
     fn test_compute_roi_ellipse_single_point_is_degenerate() {
         let pixels: Vec<f32> = vec![42.0; 25];
         let (_center, _radii, mean, std_dev, min, max, area_mm2) =
-            Annotation::compute_roi_ellipse_stats([3.0, 3.0], [3.0, 3.0], &pixels, 5, 5, [1.0, 1.0]);
+            Annotation::compute_roi_ellipse_stats(
+                [3.0, 3.0],
+                [3.0, 3.0],
+                &pixels,
+                5,
+                5,
+                [1.0, 1.0],
+            );
         assert_eq!(mean, 0.0, "zero-radius ellipse must have mean=0.0");
         assert_eq!(std_dev, 0.0);
         assert_eq!(min, 0.0);

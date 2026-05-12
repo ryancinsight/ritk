@@ -128,12 +128,34 @@ NRRD parser/writer dependency changes stay behind `ritk-nrrd`; callers in `ritk-
 **Replacement invariant**:
 MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers in `ritk-io`, CLI, and viewer code consume the same authoritative API.
 
-### 10. Format Facade Monomorphization Boundary
+### 10. PNG Format Boundary
 
-> **Theorem 10.1 (Single Implementation Ownership)**: A format with a dedicated crate has exactly one parser/writer implementation body; `ritk-io` may expose only static re-exports and trait adapters.
+> **Theorem 10.1 (PNG Series Ownership)**: PNG single-slice and directory-series parsing have exactly one implementation body owned by `ritk-png`.
 
 **Boundary surface**:
-- `ritk-analyze`, `ritk-metaimage`, `ritk-mgh`, `ritk-nifti`, `ritk-nrrd`, and `ritk-vtk` own their format parsers and writers.
+- `ritk-png` owns `read_png_to_image`, `read_png_series`, `PngReader<B>`, and `PngSeriesReader<B>`.
+- Reader invariant: grayscale pixels decode into `Image<B, 3>` with tensor shape `[1, height, width]` for a single PNG and `[slice_count, height, width]` for a series.
+- Metadata invariant: PNG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
+- Series invariant: directory slices are ordered by deterministic natural filename order and dimension mismatches are rejected.
+- `ritk-io::format::png` is a facade re-export plus local `ImageReader` adapters only.
+
+### 11. JPEG Format Boundary
+
+> **Theorem 11.1 (JPEG 2D Ownership)**: JPEG grayscale file parsing and writing have exactly one implementation body owned by `ritk-jpeg`.
+
+**Boundary surface**:
+- `ritk-jpeg` owns `read_jpeg`, `write_jpeg`, `JpegReader<B>`, and `JpegWriter<B>`.
+- Reader invariant: decoded JPEG Luma8 pixels become `Image<B, 3>` with tensor shape `[1, height, width]`.
+- Writer invariant: input `Image<B, 3>` must have `nz == 1`; values are rounded, clamped to `[0,255]`, and encoded as 8-bit grayscale.
+- Metadata invariant: JPEG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
+- `ritk-io::format::jpeg` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
+
+### 12. Format Facade Monomorphization Boundary
+
+> **Theorem 12.1 (Single Implementation Ownership)**: A format with a dedicated crate has exactly one parser/writer implementation body; `ritk-io` may expose only static re-exports and trait adapters.
+
+**Boundary surface**:
+- `ritk-analyze`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`, `ritk-nifti`, `ritk-nrrd`, `ritk-png`, and `ritk-vtk` own their format parsers and writers.
 - `ritk-io::format::*` modules for those crates are facade boundaries. They re-export the authoritative functions and define only local `ImageReader` / `ImageWriter` adapters when orphan rules require those impls to live in `ritk-io`.
 - Adapter types remain generic over `B: Backend`; calls monomorphize per backend and do not use dynamic dispatch in throughput paths.
 - Copied reader/writer files under `ritk-io` for dedicated-crate formats are prohibited.

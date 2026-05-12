@@ -67,8 +67,8 @@ pub fn zoom_from_drag_delta(original_zoom: f32, drag_delta_y: f32) -> f32 {
         return original_zoom.clamp(MIN_ZOOM, MAX_ZOOM);
     }
 
-    let step_factor = (1.0 - drag_delta_y * DRAG_SENSITIVITY)
-        .clamp(MIN_DRAG_STEP_FACTOR, MAX_DRAG_STEP_FACTOR);
+    let step_factor =
+        (1.0 - drag_delta_y * DRAG_SENSITIVITY).clamp(MIN_DRAG_STEP_FACTOR, MAX_DRAG_STEP_FACTOR);
     (original_zoom * step_factor).clamp(MIN_ZOOM, MAX_ZOOM)
 }
 

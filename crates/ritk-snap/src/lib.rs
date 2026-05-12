@@ -19,30 +19,28 @@
 
 use anyhow::Result;
 use ritk_core::filter::{
-    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter,
-    BoundedReciprocalImageFilter,
-    BedSeparationConfig, BedSeparationFilter, BinaryDilateFilter,
-    BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
-    BinaryMorphologicalOpening, BinaryThresholdImageFilter, ClaheFilter, ClampImageFilter,
-    ConnectedComponentsFilter, ConstantPadImageFilter, CosImageFilter,
-    CurvatureFlowConfig, CurvatureFlowImageFilter,
-    DistanceTransformImageFilter, ExpImageFilter,
-    FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationConfig,
+    BedSeparationFilter, BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter,
+    BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
+    BinaryThresholdImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
+    ConnectedComponentsFilter, ConstantPadImageFilter, CosImageFilter, CurvatureFlowConfig,
+    CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter, FlipImageFilter,
+    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, MultiOtsuThreshold, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    BinaryContourImageFilter, RelabelComponentFilter, ShiftScaleImageFilter,
-    ShrinkImageFilter, SignedDistanceTransformImageFilter, SinImageFilter,
-    SqrtImageFilter, SquareImageFilter, TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter,
-    WrapPadImageFilter, ZeroCrossingImageFilter,
+    PermuteAxesImageFilter, RegionOfInterestImageFilter, RelabelComponentFilter,
+    RescaleIntensityFilter, ShiftScaleImageFilter, ShrinkImageFilter,
+    SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
+    ZeroCrossingImageFilter,
 };
+use ritk_core::image::Image;
 use ritk_core::segmentation::region_growing::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
-use ritk_core::image::Image;
 use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -308,50 +306,57 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 let (label_image, _stats) = filter.apply(&study.image);
                 Ok(label_image)
             }
-            FilterKind::RelabelComponents { minimum_object_size } => {
-                let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
-                    *minimum_object_size as usize,
-                )
-                .apply(&study.image);
+            FilterKind::RelabelComponents {
+                minimum_object_size,
+            } => {
+                let (relabeled, _stats) =
+                    RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
+                        .apply(&study.image);
                 Ok(relabeled)
             }
-            FilterKind::MultiOtsuThreshold { num_classes } => Ok(
-                MultiOtsuThreshold::new(*num_classes as usize).apply(&study.image),
-            ),
-            FilterKind::BinaryErode { radius, foreground_value } => {
-                BinaryErodeFilter::new(*radius).with_foreground(*foreground_value).apply(&study.image)
+            FilterKind::MultiOtsuThreshold { num_classes } => {
+                Ok(MultiOtsuThreshold::new(*num_classes as usize).apply(&study.image))
             }
-            FilterKind::BinaryDilate { radius, foreground_value } => {
-                BinaryDilateFilter::new(*radius).with_foreground(*foreground_value).apply(&study.image)
-            }
-            FilterKind::BinaryClosing { radius, foreground_value } => {
-                BinaryMorphologicalClosing::new(*radius).with_foreground(*foreground_value).apply(&study.image)
-            }
-            FilterKind::BinaryOpening { radius, foreground_value } => {
-                BinaryMorphologicalOpening::new(*radius).with_foreground(*foreground_value).apply(&study.image)
-            }
-            FilterKind::BinaryFillhole { foreground_value } => {
-                BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&study.image)
-            }
+            FilterKind::BinaryErode {
+                radius,
+                foreground_value,
+            } => BinaryErodeFilter::new(*radius)
+                .with_foreground(*foreground_value)
+                .apply(&study.image),
+            FilterKind::BinaryDilate {
+                radius,
+                foreground_value,
+            } => BinaryDilateFilter::new(*radius)
+                .with_foreground(*foreground_value)
+                .apply(&study.image),
+            FilterKind::BinaryClosing {
+                radius,
+                foreground_value,
+            } => BinaryMorphologicalClosing::new(*radius)
+                .with_foreground(*foreground_value)
+                .apply(&study.image),
+            FilterKind::BinaryOpening {
+                radius,
+                foreground_value,
+            } => BinaryMorphologicalOpening::new(*radius)
+                .with_foreground(*foreground_value)
+                .apply(&study.image),
+            FilterKind::BinaryFillhole { foreground_value } => BinaryFillholeFilter::new()
+                .with_foreground(*foreground_value)
+                .apply(&study.image),
             FilterKind::GrayscaleClosing { radius } => {
                 GrayscaleClosingFilter::new(*radius).apply(&study.image)
             }
             FilterKind::GrayscaleOpening { radius } => {
                 GrayscaleOpeningFilter::new(*radius).apply(&study.image)
             }
-            FilterKind::GrayscaleFillhole => {
-                GrayscaleFillholeFilter::new().apply(&study.image)
-            }
+            FilterKind::GrayscaleFillhole => GrayscaleFillholeFilter::new().apply(&study.image),
             FilterKind::Abs => Ok(AbsImageFilter::new().apply(&study.image)),
-            FilterKind::InvertIntensity { maximum } => {
-                Ok(match maximum {
-                    Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&study.image),
-                    None => InvertIntensityFilter::new().apply(&study.image),
-                })
-            }
-            FilterKind::NormalizeIntensity => {
-                Ok(NormalizeImageFilter::new().apply(&study.image))
-            }
+            FilterKind::InvertIntensity { maximum } => Ok(match maximum {
+                Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&study.image),
+                None => InvertIntensityFilter::new().apply(&study.image),
+            }),
+            FilterKind::NormalizeIntensity => Ok(NormalizeImageFilter::new().apply(&study.image)),
             FilterKind::Square => Ok(SquareImageFilter::new().apply(&study.image)),
             FilterKind::Sqrt => Ok(SqrtImageFilter::new().apply(&study.image)),
             FilterKind::Log => Ok(LogImageFilter::new().apply(&study.image)),
@@ -359,11 +364,9 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::MorphologicalGradient { radius } => {
                 GrayscaleMorphologicalGradientFilter::new(*radius).apply(&study.image)
             }
-            FilterKind::DistanceTransform { threshold } => {
-                DistanceTransformImageFilter::new()
-                    .with_threshold(*threshold)
-                    .apply(&study.image)
-            }
+            FilterKind::DistanceTransform { threshold } => DistanceTransformImageFilter::new()
+                .with_threshold(*threshold)
+                .apply(&study.image),
             FilterKind::SignedDistanceTransform { threshold } => {
                 SignedDistanceTransformImageFilter::new()
                     .with_threshold(*threshold)
@@ -380,13 +383,13 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 let vals: Vec<f32> = td
                     .into_vec::<f32>()
                     .map_err(|e| anyhow::anyhow!("MaskThreshold: f32 required: {:?}", e))?;
-                let mask_vals: Vec<f32> =
-                    vals.iter().map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 }).collect();
+                let mask_vals: Vec<f32> = vals
+                    .iter()
+                    .map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 })
+                    .collect();
                 let device = study.image.data().device();
-                let mask_td = burn::tensor::TensorData::new(
-                    mask_vals,
-                    burn::tensor::Shape::new(dims),
-                );
+                let mask_td =
+                    burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
                 let mask_tensor = burn::tensor::Tensor::<B, 3>::from_data(mask_td, &device);
                 let mask_image = Image::new(
                     mask_tensor,
@@ -406,106 +409,157 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::ShiftScale { shift, scale } => {
                 ShiftScaleImageFilter::new(*shift, *scale).apply(&study.image)
             }
-            FilterKind::ZeroCrossing { foreground_value, background_value } => {
-                ZeroCrossingImageFilter::new()
-                    .with_foreground(*foreground_value)
-                    .with_background(*background_value)
-                    .apply(&study.image)
-            }
+            FilterKind::ZeroCrossing {
+                foreground_value,
+                background_value,
+            } => ZeroCrossingImageFilter::new()
+                .with_foreground(*foreground_value)
+                .with_background(*background_value)
+                .apply(&study.image),
             FilterKind::RegionOfInterest {
-                start_z, start_y, start_x,
-                size_z, size_y, size_x,
-            } => {
-                RegionOfInterestImageFilter::new(
-                    [*start_z, *start_y, *start_x],
-                    [*size_z, *size_y, *size_x],
-                )
-                .apply(&study.image)
-            }
-            FilterKind::PermuteAxes { order_0, order_1, order_2 } => {
-                PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
-                    .apply(&study.image)
-            }
+                start_z,
+                start_y,
+                start_x,
+                size_z,
+                size_y,
+                size_x,
+            } => RegionOfInterestImageFilter::new(
+                [*start_z, *start_y, *start_x],
+                [*size_z, *size_y, *size_x],
+            )
+            .apply(&study.image),
+            FilterKind::PermuteAxes {
+                order_0,
+                order_1,
+                order_2,
+            } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2]).apply(&study.image),
             FilterKind::Mean { radius } => MeanImageFilter::new(*radius).apply(&study.image),
-            FilterKind::BinaryContour { fully_connected, foreground_value } => {
-                BinaryContourImageFilter::new(*fully_connected, *foreground_value)
-                    .apply(&study.image)
-            }
-            FilterKind::LabelContour { fully_connected, background_value } => {
-                LabelContourImageFilter::new(*fully_connected, *background_value)
-                    .apply(&study.image)
-            }
+            FilterKind::BinaryContour {
+                fully_connected,
+                foreground_value,
+            } => BinaryContourImageFilter::new(*fully_connected, *foreground_value)
+                .apply(&study.image),
+            FilterKind::LabelContour {
+                fully_connected,
+                background_value,
+            } => LabelContourImageFilter::new(*fully_connected, *background_value)
+                .apply(&study.image),
             FilterKind::VotingBinary {
-                radius, birth_threshold, survival_threshold, foreground_value, background_value,
+                radius,
+                birth_threshold,
+                survival_threshold,
+                foreground_value,
+                background_value,
             } => VotingBinaryImageFilter::new(
-                *radius, *birth_threshold, *survival_threshold,
-                *foreground_value, *background_value,
-            ).apply(&study.image),
-            FilterKind::Shrink { factor_z, factor_y, factor_x } => {
-                ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x]).apply(&study.image)
-            }
+                *radius,
+                *birth_threshold,
+                *survival_threshold,
+                *foreground_value,
+                *background_value,
+            )
+            .apply(&study.image),
+            FilterKind::Shrink {
+                factor_z,
+                factor_y,
+                factor_x,
+            } => ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x]).apply(&study.image),
             FilterKind::ConstantPad {
-                pad_lower_z, pad_lower_y, pad_lower_x,
-                pad_upper_z, pad_upper_y, pad_upper_x, constant,
+                pad_lower_z,
+                pad_lower_y,
+                pad_lower_x,
+                pad_upper_z,
+                pad_upper_y,
+                pad_upper_x,
+                constant,
             } => ConstantPadImageFilter::new(
                 [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                 [*pad_upper_z, *pad_upper_y, *pad_upper_x],
                 *constant,
-            ).apply(&study.image),
+            )
+            .apply(&study.image),
             FilterKind::MirrorPad {
-                pad_lower_z, pad_lower_y, pad_lower_x,
-                pad_upper_z, pad_upper_y, pad_upper_x,
+                pad_lower_z,
+                pad_lower_y,
+                pad_lower_x,
+                pad_upper_z,
+                pad_upper_y,
+                pad_upper_x,
             } => MirrorPadImageFilter::new(
                 [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                 [*pad_upper_z, *pad_upper_y, *pad_upper_x],
-            ).apply(&study.image),
+            )
+            .apply(&study.image),
             FilterKind::WrapPad {
-                pad_lower_z, pad_lower_y, pad_lower_x,
-                pad_upper_z, pad_upper_y, pad_upper_x,
+                pad_lower_z,
+                pad_lower_y,
+                pad_lower_x,
+                pad_upper_z,
+                pad_upper_y,
+                pad_upper_x,
             } => WrapPadImageFilter::new(
                 [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                 [*pad_upper_z, *pad_upper_y, *pad_upper_x],
-            ).apply(&study.image),
+            )
+            .apply(&study.image),
             FilterKind::GrayscaleErode { radius } => {
                 GrayscaleErosion::new(*radius).apply(&study.image)
             }
             FilterKind::GrayscaleDilate { radius } => {
                 GrayscaleDilation::new(*radius).apply(&study.image)
             }
-            FilterKind::BinaryThreshold { lower, upper, foreground, background } => {
-                BinaryThresholdImageFilter::new(*lower, *upper, *foreground, *background)
-                    .apply(&study.image)
-            }
+            FilterKind::BinaryThreshold {
+                lower,
+                upper,
+                foreground,
+                background,
+            } => BinaryThresholdImageFilter::new(*lower, *upper, *foreground, *background)
+                .apply(&study.image),
             FilterKind::RescaleIntensity { out_min, out_max } => {
                 RescaleIntensityFilter::new(*out_min, *out_max).apply(&study.image)
             }
             FilterKind::Clamp { lower, upper } => {
                 ClampImageFilter::new(*lower, *upper).apply(&study.image)
             }
-            FilterKind::ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper } => {
-                Ok(ConnectedThresholdFilter::new(
-                    [*seed_z, *seed_y, *seed_x], *lower, *upper,
-                ).apply(&study.image))
-            }
+            FilterKind::ConnectedThreshold {
+                seed_z,
+                seed_y,
+                seed_x,
+                lower,
+                upper,
+            } => Ok(
+                ConnectedThresholdFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+                    .apply(&study.image),
+            ),
             FilterKind::ConfidenceConnected {
-                seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations,
-            } => {
-                Ok(ConfidenceConnectedFilter::new(
-                    [*seed_z, *seed_y, *seed_x], *initial_lower, *initial_upper,
-                )
-                .with_multiplier(*multiplier)
-                .with_max_iterations(*max_iterations as usize)
-                .apply(&study.image))
-            }
+                seed_z,
+                seed_y,
+                seed_x,
+                initial_lower,
+                initial_upper,
+                multiplier,
+                max_iterations,
+            } => Ok(ConfidenceConnectedFilter::new(
+                [*seed_z, *seed_y, *seed_x],
+                *initial_lower,
+                *initial_upper,
+            )
+            .with_multiplier(*multiplier)
+            .with_max_iterations(*max_iterations as usize)
+            .apply(&study.image)),
             FilterKind::NeighborhoodConnected {
-                seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x,
-            } => {
-                Ok(NeighborhoodConnectedFilter::new(
-                    [*seed_z, *seed_y, *seed_x], *lower, *upper,
-                )
-                .with_radius([*radius_z, *radius_y, *radius_x])
-                .apply(&study.image))
-            }
+                seed_z,
+                seed_y,
+                seed_x,
+                lower,
+                upper,
+                radius_z,
+                radius_y,
+                radius_x,
+            } => Ok(
+                NeighborhoodConnectedFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+                    .with_radius([*radius_z, *radius_y, *radius_x])
+                    .apply(&study.image),
+            ),
             FilterKind::Atan => Ok(AtanImageFilter::new().apply(&study.image)),
             FilterKind::Sin => Ok(SinImageFilter::new().apply(&study.image)),
             FilterKind::Cos => Ok(CosImageFilter::new().apply(&study.image)),
@@ -515,13 +569,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::BoundedReciprocal => {
                 Ok(BoundedReciprocalImageFilter::new().apply(&study.image))
             }
-            FilterKind::CurvatureFlow { iterations, time_step } => {
-                CurvatureFlowImageFilter::new(CurvatureFlowConfig {
-                    num_iterations: *iterations as usize,
-                    time_step: *time_step,
-                })
-                .apply(&study.image)
-            }
+            FilterKind::CurvatureFlow {
+                iterations,
+                time_step,
+            } => CurvatureFlowImageFilter::new(CurvatureFlowConfig {
+                num_iterations: *iterations as usize,
+                time_step: *time_step,
+            })
+            .apply(&study.image),
         };
 
         let filter_name = match kind {
@@ -1376,6 +1431,16 @@ pub struct LoadedVolume {
     pub study_date: Option<String>,
     /// Series description from metadata.
     pub series_description: Option<String>,
+    /// Patient body weight in kg from DICOM (0010,1030). None for non-DICOM volumes.
+    pub patient_weight_kg: Option<f64>,
+    /// Radionuclide total dose in Bq from DICOM (0018,1074). None when absent or non-PET.
+    pub injected_dose_bq: Option<f64>,
+    /// Radionuclide physical half-life in seconds from DICOM (0018,1075).
+    pub radionuclide_half_life_s: Option<f64>,
+    /// Radiopharmaceutical start time TM string from DICOM (0018,1072).
+    pub radiopharmaceutical_start_time: Option<String>,
+    /// Decay correction type from DICOM (0054,1102): "START", "ADMIN", or "NONE".
+    pub decay_correction: Option<String>,
 }
 
 impl LoadedVolume {
@@ -1582,6 +1647,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: std::collections::HashMap::new(),
             preservation: Default::default(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         let summary = GeometrySummary::from_dicom(&meta);

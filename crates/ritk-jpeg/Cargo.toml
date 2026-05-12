@@ -1,0 +1,17 @@
+[package]
+name = "ritk-jpeg"
+version = "0.1.0"
+edition = "2021"
+description = "JPEG grayscale image I/O for RITK"
+repository = "https://github.com/ryancinsight/ritk"
+
+[dependencies]
+ritk-core = { workspace = true }
+burn = { workspace = true }
+anyhow = { workspace = true }
+image = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }

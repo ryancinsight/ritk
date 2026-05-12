@@ -1,3 +1,59 @@
+## Sprint 191 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.1 [minor]
+**Goal**: Close the PET DICOM tag extraction gap: extract patient weight, decay correction, injected dose, injection time, and radionuclide half-life from DICOM files into `DicomReadMetadata`, propagate them through the loader into `LoadedVolume`, and deliver `PetAcquisitionParams` as the authoritative SSOT bridging `LoadedVolume` to `SuvParams` / `compute_suvbw`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-02 (partial) | PET radiopharmaceutical DICOM tag extraction and `PetAcquisitionParams` SSOT bridge | **Partially closed** |
+
+### Delivered
+- ✓ Added 5 PET fields to `DicomReadMetadata`: `patient_weight_kg` (0010,1030), `decay_correction` (0054,1102), `radionuclide_total_dose_bq` (0054,0016)[0]/(0018,1074), `radiopharmaceutical_start_time` (0054,0016)[0]/(0018,1072), `radionuclide_half_life_s` (0054,0016)[0]/(0018,1076). `DicomReadMetadata` now derives `Default`.
+- ✓ Extraction wired in per-file DICOM reader loop with nested `RadiopharmaceuticalInformationSequence` item access via `rps_elem.value().items().first()`
+- ✓ New PET tags added to `known_handled_tags()` preventing double-capture into private_tags
+- ✓ PET fields propagated from `DicomReadMetadata` into `LoadedVolume` in `loader.rs` (`radionuclide_total_dose_bq` → `injected_dose_bq`)
+- ✓ Created `crates/ritk-snap/src/dicom/pet.rs` — `DecayCorrectionKind` (Start/Admin/None) and `PetAcquisitionParams` SSOT with `from_loaded_volume`, `to_suv_params` (kg→g), `pixel_to_suvbw`
+- ✓ 20 value-semantic tests covering all field-validation guards and the full ¹⁸F-FDG realistic case (370 MBq/70 kg, 10000 Bq/mL → SUV ≈ 1.89)
+- ✓ 470 `cargo test -p ritk-snap --lib` pass
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving the `ritk-codecs` / `ritk-dicom` backend boundary | High |
+| GAP-176-RAD-02 remainder | SUV display overlay in viewer slices, PET/CT pixel-level fusion composition, DICOM time-field parsing for delta_t_s | High |
+| Remaining non-dedicated image ownership audit | Decide whether TIFF and MINC should move behind dedicated crates or remain `ritk-io`-owned | Medium |
+
+## Sprint 190 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.0 [minor]
+**Goal**: Continue image-gap cleanup by extracting PNG and JPEG file-format ownership into dedicated crates and leaving `ritk-io` as a monomorphized facade layer.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-190-PNG-01 | PNG single-slice and series parsing still lived in `ritk-io` instead of an owning format crate | **Closed** |
+| GAP-190-JPEG-01 | JPEG read/write implementation still lived in `ritk-io` instead of an owning format crate | **Closed** |
+| GAP-190-FMT-01 | Workspace manifest did not include the extracted PNG/JPEG crates as authoritative format boundaries | **Closed** |
+| GAP-190-PET-01 | Direct `ritk-snap` DICOM volume loaders and test fixtures did not initialize the PET metadata fields already present on `LoadedVolume` | **Closed** |
+
+### Delivered
+- ✓ Added `crates/ritk-png` as the authoritative PNG single-slice and deterministic natural-sorted series reader crate
+- ✓ Added `crates/ritk-jpeg` as the authoritative grayscale JPEG read/write crate
+- ✓ Reduced `ritk-io::format::png` and `ritk-io::format::jpeg` to static re-exports plus generic `ImageReader` / `ImageWriter` adapters
+- ✓ Removed copied JPEG reader/writer implementation files from `ritk-io`
+- ✓ Wired `ritk-png` and `ritk-jpeg` into the workspace and `ritk-io` dependencies
+- ✓ Completed PET metadata propagation for direct `ritk-snap` DICOM volume loads and synthetic non-DICOM fixtures
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving the `ritk-codecs` / `ritk-dicom` backend boundary | High |
+| Remaining non-dedicated image ownership audit | Decide whether TIFF and MINC should move behind dedicated crates or remain `ritk-io`-owned | Medium |
+| GAP-176-RAD-02 remainder | SUV display overlay and PET/CT workflow completion after metadata + fusion foundations | High |
+
 ## Sprint 189 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

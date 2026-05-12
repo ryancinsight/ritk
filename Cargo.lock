@@ -6018,10 +6018,12 @@ dependencies = [
  "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
+ "ritk-jpeg",
  "ritk-metaimage",
  "ritk-mgh",
  "ritk-nifti",
  "ritk-nrrd",
+ "ritk-png",
  "ritk-vtk",
  "tempfile",
  "thiserror 2.0.18",
@@ -6029,6 +6031,19 @@ dependencies = [
  "tracing",
  "zune-core 0.4.12",
  "zune-jpegxl",
+]
+
+[[package]]
+name = "ritk-jpeg"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "image 0.24.9",
+ "ritk-core",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]
@@ -6095,6 +6110,19 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "bytemuck",
+ "nalgebra",
+ "ritk-core",
+ "tempfile",
+]
+
+[[package]]
+name = "ritk-png"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "image 0.24.9",
  "nalgebra",
  "ritk-core",
  "tempfile",

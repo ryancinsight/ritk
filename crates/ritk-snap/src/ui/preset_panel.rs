@@ -203,7 +203,10 @@ mod tests {
     #[test]
     fn for_modality_ct_returns_ct_presets() {
         let presets = WindowPreset::for_modality(Some("CT"));
-        assert!(!presets.is_empty(), "CT modality must return non-empty preset list");
+        assert!(
+            !presets.is_empty(),
+            "CT modality must return non-empty preset list"
+        );
         assert_eq!(
             presets[0].name, "Brain",
             "first CT preset must be Brain (canonical ordering)"
@@ -214,7 +217,10 @@ mod tests {
     #[test]
     fn for_modality_mr_returns_mr_presets() {
         let presets = WindowPreset::for_modality(Some("MR"));
-        assert!(!presets.is_empty(), "MR modality must return non-empty preset list");
+        assert!(
+            !presets.is_empty(),
+            "MR modality must return non-empty preset list"
+        );
         assert_eq!(
             presets[0].name, "Brain T1",
             "first MR preset must be Brain T1"
@@ -240,8 +246,16 @@ mod tests {
     fn preset_copy_identity() {
         for &p in WindowPreset::ct_presets() {
             let q = p; // copy
-            assert_eq!(p.center, q.center, "copy must preserve center for '{}'", p.name);
-            assert_eq!(p.width, q.width, "copy must preserve width for '{}'", p.name);
+            assert_eq!(
+                p.center, q.center,
+                "copy must preserve center for '{}'",
+                p.name
+            );
+            assert_eq!(
+                p.width, q.width,
+                "copy must preserve width for '{}'",
+                p.name
+            );
             assert_eq!(p.name, q.name, "copy must preserve name for '{}'", p.name);
         }
     }

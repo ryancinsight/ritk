@@ -82,22 +82,34 @@ impl ViewTransform {
 
     /// Toggle horizontal flip.
     pub fn toggle_flip_h(self) -> Self {
-        Self { flip_h: !self.flip_h, ..self }
+        Self {
+            flip_h: !self.flip_h,
+            ..self
+        }
     }
 
     /// Toggle vertical flip.
     pub fn toggle_flip_v(self) -> Self {
-        Self { flip_v: !self.flip_v, ..self }
+        Self {
+            flip_v: !self.flip_v,
+            ..self
+        }
     }
 
     /// Advance rotation by one 90° clockwise step.
     pub fn rotate_cw(self) -> Self {
-        Self { rotation: self.rotation.rotate_cw(), ..self }
+        Self {
+            rotation: self.rotation.rotate_cw(),
+            ..self
+        }
     }
 
     /// Advance rotation by one 90° counter-clockwise step.
     pub fn rotate_ccw(self) -> Self {
-        Self { rotation: self.rotation.rotate_ccw(), ..self }
+        Self {
+            rotation: self.rotation.rotate_ccw(),
+            ..self
+        }
     }
 
     /// Reset to identity.
@@ -120,7 +132,10 @@ pub fn flip_h_image(img: &ColorImage) -> ColorImage {
             out[row * w + (w - 1 - col)] = img.pixels[row * w + col];
         }
     }
-    ColorImage { size: [w, h], pixels: out }
+    ColorImage {
+        size: [w, h],
+        pixels: out,
+    }
 }
 
 /// Apply a vertical flip (up↔down) to a `ColorImage`.
@@ -135,7 +150,10 @@ pub fn flip_v_image(img: &ColorImage) -> ColorImage {
             out[(h - 1 - row) * w + col] = img.pixels[row * w + col];
         }
     }
-    ColorImage { size: [w, h], pixels: out }
+    ColorImage {
+        size: [w, h],
+        pixels: out,
+    }
 }
 
 /// Rotate a `ColorImage` 90° clockwise.
@@ -158,7 +176,10 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
             out[orow * ow + ocol] = img.pixels[row * w + col];
         }
     }
-    ColorImage { size: [ow, oh], pixels: out }
+    ColorImage {
+        size: [ow, oh],
+        pixels: out,
+    }
 }
 
 /// Apply a `ViewTransform` to a `ColorImage`.
@@ -217,7 +238,10 @@ mod tests {
                 pixels.push(Color32::from_rgb(row as u8, col as u8, 0));
             }
         }
-        ColorImage { size: [w, h], pixels }
+        ColorImage {
+            size: [w, h],
+            pixels,
+        }
     }
 
     fn px(img: &ColorImage, row: usize, col: usize) -> Color32 {
@@ -231,7 +255,10 @@ mod tests {
         let img = make_test_image();
         let result = apply_to_image(&img, ViewTransform::default());
         assert_eq!(result.size, img.size, "identity must preserve dimensions");
-        assert_eq!(result.pixels, img.pixels, "identity must preserve pixel values");
+        assert_eq!(
+            result.pixels, img.pixels,
+            "identity must preserve pixel values"
+        );
     }
 
     // ── Flip horizontal ───────────────────────────────────────────────────────
@@ -319,7 +346,11 @@ mod tests {
         // Original (0,0) → output (0, 1)
         assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)→(0,H-1)");
         // Original (0,2) → output (2, 1)
-        assert_eq!(px(&r, 2, 1), px(&img, 0, 2), "rotate_90_cw: (0,W-1)→(W-1,H-1)");
+        assert_eq!(
+            px(&r, 2, 1),
+            px(&img, 0, 2),
+            "rotate_90_cw: (0,W-1)→(W-1,H-1)"
+        );
         // Original (1,0) → output (0, 0)
         assert_eq!(px(&r, 0, 0), px(&img, 1, 0), "rotate_90_cw: (H-1,0)→(0,0)");
     }
@@ -332,8 +363,14 @@ mod tests {
         for _ in 0..4 {
             r = rotate_90_cw_image(&r);
         }
-        assert_eq!(r.size, img.size, "4×90° rotation: dimensions must be restored");
-        assert_eq!(r.pixels, img.pixels, "4×90° rotation: pixels must be restored");
+        assert_eq!(
+            r.size, img.size,
+            "4×90° rotation: dimensions must be restored"
+        );
+        assert_eq!(
+            r.pixels, img.pixels,
+            "4×90° rotation: pixels must be restored"
+        );
     }
 
     // ── ViewTransform helpers ─────────────────────────────────────────────────

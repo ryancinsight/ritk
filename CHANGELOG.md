@@ -8,6 +8,12 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added 5 PET radiopharmaceutical fields to `DicomReadMetadata` in `crates/ritk-io/src/format/dicom/reader.rs`: `patient_weight_kg` (0010,1030), `decay_correction` (0054,1102), `radionuclide_total_dose_bq` (0054,0016)[0]/(0018,1074), `radiopharmaceutical_start_time` (0054,0016)[0]/(0018,1072), `radionuclide_half_life_s` (0054,0016)[0]/(0018,1076). `DicomReadMetadata` now derives `Default`. Extraction wired through series scan second-pass loop. New tags added to `known_handled_tags` to prevent private-tag double-capture.
+- Added `PetAcquisitionParams` SSOT in `crates/ritk-snap/src/dicom/pet.rs` with `DecayCorrectionKind` (Start/Admin/None), `from_loaded_volume` (validates all required fields), `to_suv_params` (kg→g conversion, decay-correction dispatch), and `pixel_to_suvbw`. 20 value-semantic tests cover missing-field guards, decay-correction parsing, kg→g conversion, Start/Admin/None SUVbw computation, and a realistic ¹⁸F-FDG case.
+- Added PET field wiring in `LoadedVolume` loader: `patient_weight_kg`, `injected_dose_bq`, `radionuclide_half_life_s`, `radiopharmaceutical_start_time`, `decay_correction` propagated from `DicomReadMetadata` through `scan_dicom_directory` → `LoadedVolume`.
+- Added `crates/ritk-png` as the authoritative PNG format crate with `read_png_to_image`, `read_png_series`, `PngReader<B>`, and `PngSeriesReader<B>` for single-slice and deterministic natural-sorted series loading.
+- Added `crates/ritk-jpeg` as the authoritative grayscale JPEG format crate with `read_jpeg`, `write_jpeg`, `JpegReader<B>`, and `JpegWriter<B>`.
+- Added `ritk-io` JPEG and PNG adapter tests proving the facade modules delegate to the authoritative crates through generic `ImageReader` / `ImageWriter` boundaries.
 - Added SUVbw SSOT module `crates/ritk-snap/src/dicom/suv.rs` with `SuvParams` and `compute_suvbw`, backed by SNMMI/IAEA formal proof docs; unit-checked at tissue density ≈ 1 g/mL. Exports re-wired through `crates/ritk-snap/src/dicom/mod.rs`.
 - Added PET-specific window presets via `WindowPreset::pt_presets()` in `crates/ritk-snap/src/ui/window_presets.rs`: three SUVbw presets ("SUV whole body" centre=3.0/width=6.0, "SUV brain (FDG)" centre=6.0/width=12.0, "SUV tumour" centre=5.0/width=10.0) per SNMMI Procedure Guideline v4.0 (2022).
 - Added PT dispatch to `WindowPreset::for_modality` and `ModalityDisplay::for_modality` in `crates/ritk-snap/src/lib.rs`; "PT" now resolves to SUVbw whole-body defaults (centre=3.0, width=6.0) rather than the 8-bit fallback.
@@ -53,6 +59,8 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
   - verification-time invalid payload aggregation
 
 ### Changed
+- Reduced `ritk-io::format::png` and `ritk-io::format::jpeg` to static re-exports plus local generic trait adapters; parser/writer implementation bodies now live only in `ritk-png` and `ritk-jpeg`.
+- Wired `ritk-png` and `ritk-jpeg` into the workspace manifest and `ritk-io` dependency graph.
 - Changed `DicomRsBackend` native-owned JPEG routing so `TransferSyntaxKind::is_native_jpeg_codec()` dispatches exclusively to `NativeCodecBackend`; fallback through `dicom-rs` remains limited to `is_external_backend_codec_candidate()`.
 - Updated DICOM JPEG-LS regression comments to describe current negative-fixture boundary behavior instead of stale placeholder/TODO status.
 - Updated compare viewport behavior in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) to support fused primary/secondary overlay rendering with `Fused Overlay` toggle and `Secondary Alpha` control.
@@ -78,6 +86,10 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Enforced deterministic discovered-series ordering in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs) after per-series file-path normalization.
 
 ### Fixed
+- Fixed PET metadata propagation drift in direct `ritk-snap` DICOM volume load paths by carrying patient weight, injected dose, half-life, radiopharmaceutical start time, and decay correction into `LoadedVolume`; synthetic non-DICOM fixtures now initialize those fields explicitly as absent.
+- Removed stale `ritk-io` JPEG implementation copies:
+  - `crates/ritk-io/src/format/jpeg/reader.rs`
+  - `crates/ritk-io/src/format/jpeg/writer.rs`
 - Removed stale native codec implementation copies from `crates/ritk-dicom/src/codec/native`; `ritk-dicom` now keeps codec primitives as re-exports from authoritative `ritk-codecs`.
 - Fixed `ritk-metaimage` raw voxel coordinate drift where MetaImage X-fastest payload data was first shaped as a Burn `[x,y,z]` row-major tensor and then permuted.
 - Fixed `ritk-metaimage` spatial metadata drift where MetaImage `ElementSpacing` and `TransformMatrix` were treated as internal `[depth,row,col]` metadata instead of file `[x,y,z]` vectors.
@@ -111,6 +123,26 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Closed verification drift by re-running the full active matrix and recording WASM environment blocker evidence.
 
 ### Verification
+- `cargo test -p ritk-jpeg --lib`: 6 passed
+- `cargo test -p ritk-png --lib`: 4 passed
+- `cargo test -p ritk-io --lib format::jpeg`: 1 passed
+- `cargo test -p ritk-io --lib format::png`: 2 passed
+- `cargo test -p ritk-io --lib`: 227 passed
+- `cargo check -p ritk-cli`: passed
+- `cargo check -p ritk-python`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `cargo test -p ritk-snap --lib`: 452 passed
+- `cargo test -p ritk-snap --lib dicom::pet`: 18 passed
+- `cargo test -p ritk-analyze --lib`: 2 passed
+- `cargo test -p ritk-metaimage --lib`: 19 passed
+- `cargo test -p ritk-mgh --lib`: 30 passed
+- `cargo test -p ritk-nifti --lib`: 13 passed
+- `cargo test -p ritk-nrrd --lib`: 23 passed
+- `cargo test -p ritk-vtk --lib`: 129 passed
+- `cargo test -p ritk-dicom --lib`: 12 passed
+- `cargo test -p ritk-codecs --lib`: 81 passed
+- `cargo fmt --check -p ritk-png -p ritk-jpeg -p ritk-io -p ritk-snap`: passed
+- `git diff --check`: passed with line-ending warnings only
 - `cargo test -p ritk-dicom --lib`: 12 passed
 - `cargo test -p ritk-codecs --lib`: 78 passed
 - `cargo test -p ritk-io --lib`: 234 passed

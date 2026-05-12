@@ -59,13 +59,7 @@
 ///
 /// Returns `hist_min` when `x_right − x_left < ε` or `hist_max − hist_min < ε`.
 #[inline]
-pub fn x_to_intensity(
-    x: f32,
-    hist_min: f32,
-    hist_max: f32,
-    x_left: f32,
-    x_right: f32,
-) -> f32 {
+pub fn x_to_intensity(x: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f32) -> f32 {
     let canvas_span = x_right - x_left;
     let intensity_span = hist_max - hist_min;
     if canvas_span.abs() < f32::EPSILON || intensity_span.abs() < f32::EPSILON {
@@ -210,8 +204,7 @@ mod tests {
     /// Analytical: Δcenter = (100/200) × 4000 = 2000; new center = 40 + 2000 = 2040.
     #[test]
     fn wl_from_drag_rightward_shifts_center() {
-        let (c, _) =
-            wl_from_histogram_drag(100.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, _) = wl_from_histogram_drag(100.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
         let expected = 40.0_f32 + 0.5 * 4000.0_f32;
         assert!((c - expected).abs() < 1e-3, "got {c}, expected {expected}");
     }
@@ -219,8 +212,7 @@ mod tests {
     /// Leftward drag shifts center toward lower intensity.
     #[test]
     fn wl_from_drag_leftward_shifts_center_negative() {
-        let (c, _) =
-            wl_from_histogram_drag(-200.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, _) = wl_from_histogram_drag(-200.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
         // Δcenter = (-200/200) × 4000 = -4000; new center = 40 - 4000 = -3960
         let expected = 40.0_f32 - 4000.0_f32;
         assert!((c - expected).abs() < 1e-3, "got {c}, expected {expected}");
@@ -231,8 +223,7 @@ mod tests {
     /// Analytical: scale = 1 - (-40/80) = 1.5; new_width = 400 × 1.5 = 600.
     #[test]
     fn wl_from_drag_upward_narrows_width() {
-        let (_, w) =
-            wl_from_histogram_drag(0.0, -40.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (_, w) = wl_from_histogram_drag(0.0, -40.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
         let expected = 400.0_f32 * 1.5_f32;
         assert!((w - expected).abs() < 1e-3, "got {w}, expected {expected}");
     }
@@ -242,8 +233,7 @@ mod tests {
     /// Analytical: scale = 1 - (80/80) = 0.0; new_width = max(1, 400 × 0.0) = 1.
     #[test]
     fn wl_from_drag_extreme_downward_clamps_to_min_width() {
-        let (_, w) =
-            wl_from_histogram_drag(0.0, 80.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (_, w) = wl_from_histogram_drag(0.0, 80.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
         assert!(w >= 1.0, "width {w} below minimum");
         assert!((w - 1.0).abs() < 1e-3, "got {w}, expected 1.0");
     }
@@ -259,8 +249,7 @@ mod tests {
     /// Degenerate intensity span (hist_min == hist_max) returns input unchanged.
     #[test]
     fn wl_from_drag_degenerate_span_identity() {
-        let (c, w) =
-            wl_from_histogram_drag(50.0, 20.0, 200.0, 80.0, 1000.0, 1000.0, 40.0, 400.0);
+        let (c, w) = wl_from_histogram_drag(50.0, 20.0, 200.0, 80.0, 1000.0, 1000.0, 40.0, 400.0);
         assert_eq!(c, 40.0);
         assert_eq!(w, 400.0);
     }

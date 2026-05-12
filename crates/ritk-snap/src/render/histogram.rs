@@ -252,7 +252,10 @@ mod tests {
     fn degenerate_max_equals_min_returns_empty() {
         let h = compute_histogram(&[1.0, 2.0, 3.0], 5.0, 5.0, 10);
         assert_eq!(h.bins, 0, "degenerate range must produce 0 bins");
-        assert!(h.counts.is_empty(), "counts must be empty for degenerate range");
+        assert!(
+            h.counts.is_empty(),
+            "counts must be empty for degenerate range"
+        );
     }
 
     /// `histogram_bin_center` returns analytically correct center for each bin.

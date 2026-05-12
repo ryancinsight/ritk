@@ -210,7 +210,7 @@ fn parse_patient_position(code: &str) -> Option<PatientPosition> {
 }
 
 /// Series-level DICOM metadata.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DicomReadMetadata {
     /// Series instance UID if available.
     pub series_instance_uid: Option<String>,
@@ -254,6 +254,16 @@ pub struct DicomReadMetadata {
     pub private_tags: HashMap<String, String>,
     /// Recursive preservation data for the series.
     pub preservation: DicomPreservationSet,
+    /// (0010,1030) Patient Weight [kg]. Required for SUVbw normalisation.
+    pub patient_weight_kg: Option<f64>,
+    /// (0054,1102) Decay Correction: "NONE", "START", or "ADMIN".
+    pub decay_correction: Option<String>,
+    /// (0054,0016)[0]/(0018,1074) Radionuclide Total Dose [Bq].
+    pub radionuclide_total_dose_bq: Option<f64>,
+    /// (0054,0016)[0]/(0018,1072) Radiopharmaceutical Start Time.
+    pub radiopharmaceutical_start_time: Option<String>,
+    /// (0054,0016)[0]/(0018,1076) Radionuclide Half Life [s].
+    pub radionuclide_half_life_s: Option<f64>,
 }
 
 /// A simplified DICOM series descriptor.
@@ -314,6 +324,10 @@ fn known_handled_tags() -> HashSet<u32> {
     s.insert(tag_key(0x0028, 0x1051)); // WindowWidth
                                        // Always skip pixel data
     s.insert(tag_key(0x7FE0, 0x0010));
+    // PET radiopharmaceutical tags
+    s.insert(tag_key(0x0010, 0x1030)); // PatientWeight
+    s.insert(tag_key(0x0054, 0x1102)); // DecayCorrection
+    s.insert(tag_key(0x0054, 0x0016)); // RadiopharmaceuticalInformationSequence
     s
 }
 
@@ -489,6 +503,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     let mut first_high_bit: Option<u16> = None;
     let mut first_photometric_interpretation: Option<String> = None;
     let mut first_transfer_syntax_uid: Option<String> = None;
+    let mut first_patient_weight_kg: Option<f64> = None;
+    let mut first_decay_correction: Option<String> = None;
+    let mut first_radionuclide_total_dose_bq: Option<f64> = None;
+    let mut first_radiopharmaceutical_start_time: Option<String> = None;
+    let mut first_radionuclide_half_life_s: Option<f64> = None;
 
     let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(raw_paths.len());
     // Per-file SeriesInstanceUID in lockstep with per_file_dims (GAP-R63-04).
@@ -742,6 +761,52 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             }
             if first_transfer_syntax_uid.is_none() {
                 first_transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
+            }
+            // PatientWeight (0010,1030) [DS, kg] — required for SUVbw normalisation.
+            if first_patient_weight_kg.is_none() {
+                if let Ok(elem) = obj.element(Tag(0x0010, 0x1030)) {
+                    first_patient_weight_kg =
+                        elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+                }
+            }
+            // DecayCorrection (0054,1102) [CS]: "NONE", "START", or "ADMIN".
+            if first_decay_correction.is_none() {
+                if let Ok(elem) = obj.element(Tag(0x0054, 0x1102)) {
+                    first_decay_correction = elem.to_str().ok().map(|s| s.trim().to_string());
+                }
+            }
+            // RadiopharmaceuticalInformationSequence (0054,0016) → first item.
+            if first_radionuclide_total_dose_bq.is_none()
+                || first_radionuclide_half_life_s.is_none()
+                || first_radiopharmaceutical_start_time.is_none()
+            {
+                if let Ok(seq_elem) = obj.element(Tag(0x0054, 0x0016)) {
+                    if let Some(items) = seq_elem.value().items() {
+                        if let Some(first_item) = items.first() {
+                            // RadionuclideTotalDose (0018,1074) [DS, Bq].
+                            if first_radionuclide_total_dose_bq.is_none() {
+                                if let Ok(e) = first_item.element(Tag(0x0018, 0x1074)) {
+                                    first_radionuclide_total_dose_bq =
+                                        e.to_str().ok().and_then(|s| s.trim().parse().ok());
+                                }
+                            }
+                            // RadionuclideHalfLife (0018,1075) [DS, s].
+                            if first_radionuclide_half_life_s.is_none() {
+                                if let Ok(e) = first_item.element(Tag(0x0018, 0x1075)) {
+                                    first_radionuclide_half_life_s =
+                                        e.to_str().ok().and_then(|s| s.trim().parse().ok());
+                                }
+                            }
+                            // RadiopharmaceuticalStartTime (0018,1072) [TM].
+                            if first_radiopharmaceutical_start_time.is_none() {
+                                if let Ok(e) = first_item.element(Tag(0x0018, 0x1072)) {
+                                    first_radiopharmaceutical_start_time =
+                                        e.to_str().ok().map(|s| s.trim().to_string());
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Full element preservation: capture all non-handled elements.
@@ -1230,6 +1295,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             object: series_object,
             preserved: Vec::new(),
         },
+        patient_weight_kg: first_patient_weight_kg,
+        decay_correction: first_decay_correction,
+        radionuclide_total_dose_bq: first_radionuclide_total_dose_bq,
+        radiopharmaceutical_start_time: first_radiopharmaceutical_start_time,
+        radionuclide_half_life_s: first_radionuclide_half_life_s,
     };
 
     Ok(DicomSeriesInfo {
@@ -2208,6 +2278,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(
@@ -2418,6 +2493,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(
@@ -2512,6 +2592,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(
@@ -2604,6 +2689,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation,
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(&dir, &image, Some(&meta))
@@ -3077,6 +3167,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(
@@ -3633,6 +3728,11 @@ mod tests {
             slices: Vec::new(),
             private_tags: HashMap::new(),
             preservation: crate::format::dicom::DicomPreservationSet::new(),
+            patient_weight_kg: None,
+            decay_correction: None,
+            radionuclide_total_dose_bq: None,
+            radiopharmaceutical_start_time: None,
+            radionuclide_half_life_s: None,
         };
 
         crate::format::dicom::writer::write_dicom_series_with_metadata(
@@ -3767,6 +3867,11 @@ mod tests {
                 slices: Vec::new(),
                 private_tags: HashMap::new(),
                 preservation: crate::format::dicom::DicomPreservationSet::new(),
+                patient_weight_kg: None,
+                decay_correction: None,
+                radionuclide_total_dose_bq: None,
+                radiopharmaceutical_start_time: None,
+                radionuclide_half_life_s: None,
             };
             crate::format::dicom::writer::write_dicom_series_with_metadata(
                 &dir_a,
@@ -3812,6 +3917,11 @@ mod tests {
                 slices: Vec::new(),
                 private_tags: HashMap::new(),
                 preservation: crate::format::dicom::DicomPreservationSet::new(),
+                patient_weight_kg: None,
+                decay_correction: None,
+                radionuclide_total_dose_bq: None,
+                radiopharmaceutical_start_time: None,
+                radionuclide_half_life_s: None,
             };
             crate::format::dicom::writer::write_dicom_series_with_metadata(
                 &dir_b,
@@ -3919,6 +4029,11 @@ mod tests {
                 slices: Vec::new(),
                 private_tags: HashMap::new(),
                 preservation: crate::format::dicom::DicomPreservationSet::new(),
+                patient_weight_kg: None,
+                decay_correction: None,
+                radionuclide_total_dose_bq: None,
+                radiopharmaceutical_start_time: None,
+                radionuclide_half_life_s: None,
             };
             crate::format::dicom::writer::write_dicom_series_with_metadata(
                 &dir_a,
@@ -3963,6 +4078,11 @@ mod tests {
                 slices: Vec::new(),
                 private_tags: HashMap::new(),
                 preservation: crate::format::dicom::DicomPreservationSet::new(),
+                patient_weight_kg: None,
+                decay_correction: None,
+                radionuclide_total_dose_bq: None,
+                radiopharmaceutical_start_time: None,
+                radionuclide_half_life_s: None,
             };
             crate::format::dicom::writer::write_dicom_series_with_metadata(
                 &dir_b,

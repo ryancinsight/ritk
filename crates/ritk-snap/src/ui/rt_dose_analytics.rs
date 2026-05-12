@@ -173,7 +173,11 @@ pub fn compute_roi_dose_analytics(
     })
 }
 
-fn build_raster_polygon(vertices_rc: Vec<[f32; 2]>, rows: usize, cols: usize) -> Option<RasterPolygon> {
+fn build_raster_polygon(
+    vertices_rc: Vec<[f32; 2]>,
+    rows: usize,
+    cols: usize,
+) -> Option<RasterPolygon> {
     if vertices_rc.len() < 3 {
         return None;
     }
@@ -187,7 +191,11 @@ fn build_raster_polygon(vertices_rc: Vec<[f32; 2]>, rows: usize, cols: usize) ->
         col_min_f = col_min_f.min(vertex[1]);
         col_max_f = col_max_f.max(vertex[1]);
     }
-    if !row_min_f.is_finite() || !row_max_f.is_finite() || !col_min_f.is_finite() || !col_max_f.is_finite() {
+    if !row_min_f.is_finite()
+        || !row_max_f.is_finite()
+        || !col_min_f.is_finite()
+        || !col_max_f.is_finite()
+    {
         return None;
     }
 
@@ -341,8 +349,7 @@ fn inverse_phys_to_voxel(direction: [f64; 9], spacing: [f64; 3]) -> Option<[f64;
 }
 
 fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
-    let det = m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
         + m[2] * (m[3] * m[7] - m[4] * m[6]);
     if det.abs() < 1e-12 {
         return None;
@@ -432,8 +439,14 @@ mod tests {
         assert!((analytics.mean_dose_gy - 2.0).abs() < 1e-6);
         assert!((analytics.max_dose_gy - 2.0).abs() < 1e-6);
         assert!((analytics.min_dose_gy - 2.0).abs() < 1e-6);
-        assert_eq!(analytics.curve.first().map(|p| p.volume_fraction_ge), Some(1.0));
-        assert_eq!(analytics.curve.last().map(|p| p.volume_fraction_ge), Some(1.0));
+        assert_eq!(
+            analytics.curve.first().map(|p| p.volume_fraction_ge),
+            Some(1.0)
+        );
+        assert_eq!(
+            analytics.curve.last().map(|p| p.volume_fraction_ge),
+            Some(1.0)
+        );
     }
 
     #[test]

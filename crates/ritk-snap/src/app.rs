@@ -27,21 +27,18 @@ use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
-use crate::ui::{
-    AnatomicalPlane,
-    advance_wrapped, axis_total, clamp_index, step_clamped,
-    axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
-    axis_for_plane_in_volume, anatomical_label_for_axis,
-    compute_roi_dose_analytics, RoiDoseAnalytics,
-    decide_dropped_input_action, DroppedInputAction,
-    pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
-    should_zoom_with_scroll, voxel_to_lps, zoom_from_drag_delta, zoom_from_scroll,
-    window_level_from_drag_delta, tool_kind_for_key, WINDOW_LEVEL_SENSITIVITY,
-    apply_to_image, show_colorbar, ViewTransform,
-    CinePlayback, LinkedCursor, MAX_ZOOM, MIN_ZOOM,
-};
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::window_presets::WindowPreset;
+use crate::ui::{
+    advance_wrapped, anatomical_label_for_axis, apply_to_image, axis_for_plane_in_volume,
+    axis_slice_dimensions, axis_total, clamp_index, compute_roi_dose_analytics,
+    decide_dropped_input_action, fit_view_transform, format_lps, intensity_at_voxel,
+    map_view_row_col_to_voxel, pan_from_drag_delta, plan_all_mpr_exports,
+    project_rt_struct_contours_for_slice, should_zoom_with_scroll, show_colorbar, step_clamped,
+    tool_kind_for_key, viewport_point_to_voxel, voxel_to_lps, window_level_from_drag_delta,
+    zoom_from_drag_delta, zoom_from_scroll, AnatomicalPlane, CinePlayback, DroppedInputAction,
+    LinkedCursor, RoiDoseAnalytics, ViewTransform, MAX_ZOOM, MIN_ZOOM, WINDOW_LEVEL_SENSITIVITY,
+};
 use crate::{LoadedVolume, ModalityDisplay, ViewerState};
 
 mod surface_export;
@@ -410,7 +407,7 @@ impl SnapApp {
             .frame(
                 egui::Frame::none()
                     .fill(egui::Color32::from_rgb(45, 45, 45))
-                    .inner_margin(egui::Margin::symmetric(4.0, 2.0))
+                    .inner_margin(egui::Margin::symmetric(4.0, 2.0)),
             )
             .show(ctx, |ui| {
                 ui.set_min_height(36.0);
@@ -448,7 +445,10 @@ impl SnapApp {
                     ui.menu_button("Layout", |ui| {
                         let single_active =
                             !self.multi_planar && !self.dual_plane && !self.compare_side_by_side;
-                        if ui.selectable_label(single_active, "Single (1-Up)").clicked() {
+                        if ui
+                            .selectable_label(single_active, "Single (1-Up)")
+                            .clicked()
+                        {
                             self.multi_planar = false;
                             self.dual_plane = false;
                             self.compare_side_by_side = false;
@@ -456,7 +456,10 @@ impl SnapApp {
                             self.mark_all_textures_dirty();
                             ui.close_menu();
                         }
-                        if ui.selectable_label(self.dual_plane, "Dual Plane (2-Up)").clicked() {
+                        if ui
+                            .selectable_label(self.dual_plane, "Dual Plane (2-Up)")
+                            .clicked()
+                        {
                             self.dual_plane = true;
                             self.multi_planar = false;
                             self.compare_side_by_side = false;
@@ -476,7 +479,10 @@ impl SnapApp {
                             ui.close_menu();
                         }
                         if ui
-                            .selectable_label(self.compare_side_by_side, "Compare (Primary/Secondary)")
+                            .selectable_label(
+                                self.compare_side_by_side,
+                                "Compare (Primary/Secondary)",
+                            )
                             .clicked()
                         {
                             self.compare_side_by_side = true;
@@ -609,8 +615,11 @@ impl SnapApp {
                             if self.compare_fused_overlay {
                                 let alpha_changed = ui
                                     .add(
-                                        egui::Slider::new(&mut self.compare_fusion_alpha, 0.0..=1.0)
-                                            .text("Secondary Alpha"),
+                                        egui::Slider::new(
+                                            &mut self.compare_fusion_alpha,
+                                            0.0..=1.0,
+                                        )
+                                        .text("Secondary Alpha"),
                                     )
                                     .changed();
                                 if alpha_changed {
@@ -675,8 +684,7 @@ impl SnapApp {
 
                     if ui.button("Open DICOMDIR…").clicked() {
                         ui.close_menu();
-                        if let Some(path) =
-                            FileDialog::new().set_file_name("DICOMDIR").pick_file()
+                        if let Some(path) = FileDialog::new().set_file_name("DICOMDIR").pick_file()
                         {
                             self.scan_for_series(path.clone());
                             self.pending_load = Some(path);
@@ -709,9 +717,8 @@ impl SnapApp {
 
                     if ui.button("Open RT-STRUCT file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = FileDialog::new()
-                            .add_filter("DICOM", &["dcm"])
-                            .pick_file()
+                        if let Some(path) =
+                            FileDialog::new().add_filter("DICOM", &["dcm"]).pick_file()
                         {
                             self.load_rt_struct_file(path);
                         }
@@ -719,9 +726,8 @@ impl SnapApp {
 
                     if ui.button("Open RT Dose file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = FileDialog::new()
-                            .add_filter("DICOM", &["dcm"])
-                            .pick_file()
+                        if let Some(path) =
+                            FileDialog::new().add_filter("DICOM", &["dcm"]).pick_file()
                         {
                             self.load_rt_dose_file(path);
                         }
@@ -729,9 +735,8 @@ impl SnapApp {
 
                     if ui.button("Open RT Plan file…").clicked() {
                         ui.close_menu();
-                        if let Some(path) = FileDialog::new()
-                            .add_filter("DICOM", &["dcm"])
-                            .pick_file()
+                        if let Some(path) =
+                            FileDialog::new().add_filter("DICOM", &["dcm"]).pick_file()
                         {
                             self.load_rt_plan_file(path);
                         }
@@ -954,7 +959,9 @@ impl SnapApp {
                             AnatomicalPlane::Sagittal,
                         ] {
                             let idx = self.axis_for_plane(plane);
-                            if ui.selectable_label(self.axis == idx, plane.label()).clicked()
+                            if ui
+                                .selectable_label(self.axis == idx, plane.label())
+                                .clicked()
                                 && self.axis != idx
                             {
                                 ui.close_menu();
@@ -1082,11 +1089,26 @@ impl SnapApp {
                 input.key_pressed(egui::Key::O),
             )
         });
-        if flip_h { self.view_transform = self.view_transform.toggle_flip_h(); self.mark_all_textures_dirty(); }
-        if flip_v { self.view_transform = self.view_transform.toggle_flip_v(); self.mark_all_textures_dirty(); }
-        if rotate_cw { self.view_transform = self.view_transform.rotate_cw(); self.mark_all_textures_dirty(); }
-        if rotate_ccw { self.view_transform = self.view_transform.rotate_ccw(); self.mark_all_textures_dirty(); }
-        if reset_orient { self.view_transform = self.view_transform.reset(); self.mark_all_textures_dirty(); }
+        if flip_h {
+            self.view_transform = self.view_transform.toggle_flip_h();
+            self.mark_all_textures_dirty();
+        }
+        if flip_v {
+            self.view_transform = self.view_transform.toggle_flip_v();
+            self.mark_all_textures_dirty();
+        }
+        if rotate_cw {
+            self.view_transform = self.view_transform.rotate_cw();
+            self.mark_all_textures_dirty();
+        }
+        if rotate_ccw {
+            self.view_transform = self.view_transform.rotate_ccw();
+            self.mark_all_textures_dirty();
+        }
+        if reset_orient {
+            self.view_transform = self.view_transform.reset();
+            self.mark_all_textures_dirty();
+        }
     }
 
     fn apply_slice_navigation_shortcuts(
@@ -1111,11 +1133,7 @@ impl SnapApp {
 
     fn jump_active_axis_slice_boundary(&mut self, end: bool) {
         let (_, total) = self.axis_slice_info(self.axis);
-        let target = if end {
-            total.saturating_sub(1)
-        } else {
-            0
-        };
+        let target = if end { total.saturating_sub(1) } else { 0 };
         self.set_slice_for_axis(self.axis, target);
     }
 
@@ -1143,7 +1161,9 @@ impl SnapApp {
         };
 
         match self.rt_plan.as_ref() {
-            None => Some(format!("Plan linkage: references UID {ref_uid} (no RT-PLAN loaded)")),
+            None => Some(format!(
+                "Plan linkage: references UID {ref_uid} (no RT-PLAN loaded)"
+            )),
             Some(plan) => {
                 let loaded_uid = plan.sop_instance_uid.trim();
                 if loaded_uid.is_empty() {
@@ -1151,7 +1171,9 @@ impl SnapApp {
                         "Plan linkage: references UID {ref_uid} (loaded RT-PLAN has empty SOP UID)"
                     ))
                 } else if loaded_uid == ref_uid {
-                    Some(format!("Plan linkage: linked to loaded RT-PLAN UID {ref_uid}"))
+                    Some(format!(
+                        "Plan linkage: linked to loaded RT-PLAN UID {ref_uid}"
+                    ))
                 } else {
                     Some(format!(
                         "Plan linkage: mismatch (dose references {ref_uid}, loaded plan is {loaded_uid})"
@@ -1347,18 +1369,15 @@ impl SnapApp {
                     let sel_ref = &mut self.selected_series;
                     let tab_ref = &mut self.sidebar_tab;
                     let vol_ref = self.loaded.as_ref();
-                    let mut panel = crate::ui::sidebar::SidebarPanel::new(
-                        tree_ref, sel_ref, tab_ref, vol_ref,
-                    );
+                    let mut panel =
+                        crate::ui::sidebar::SidebarPanel::new(tree_ref, sel_ref, tab_ref, vol_ref);
                     panel.show(ui)
                 };
 
                 if let Some(folder) = sidebar_result {
                     match self.series_load_target {
                         SeriesLoadTarget::Primary => self.pending_load = Some(folder),
-                        SeriesLoadTarget::Secondary => {
-                            self.pending_secondary_load = Some(folder)
-                        }
+                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder),
                     }
                 }
             });
@@ -1380,18 +1399,11 @@ impl SnapApp {
                     ui.label(axis_name);
 
                     // Voxel I/J/K index and physical LPS position from linked cursor.
-                    if let (Some(cursor), Some(vol)) =
-                        (self.linked_cursor, self.loaded.as_ref())
-                    {
+                    if let (Some(cursor), Some(vol)) = (self.linked_cursor, self.loaded.as_ref()) {
                         let [d, r, c] = cursor.voxel();
                         ui.separator();
                         ui.label(format!("I={d} J={r} K={c}"));
-                        let lps = voxel_to_lps(
-                            [d, r, c],
-                            vol.origin,
-                            vol.direction,
-                            vol.spacing,
-                        );
+                        let lps = voxel_to_lps([d, r, c], vol.origin, vol.direction, vol.spacing);
                         ui.separator();
                         ui.label(format_lps(lps));
                     }
@@ -1407,10 +1419,8 @@ impl SnapApp {
                 .open(&mut show_filter)
                 .resizable(true)
                 .show(ctx, |ui| {
-                    let applied = crate::ui::filter_panel::show_filter_panel(
-                        ui,
-                        &mut self.active_filter,
-                    );
+                    let applied =
+                        crate::ui::filter_panel::show_filter_panel(ui, &mut self.active_filter);
                     if applied {
                         self.apply_filter_to_loaded_volume();
                     }
@@ -1667,7 +1677,10 @@ impl SnapApp {
             let s = fit_scale * self.zoom;
             (s, s)
         } else {
-            (fit_scale * self.zoom * col_mm, fit_scale * self.zoom * row_mm)
+            (
+                fit_scale * self.zoom * col_mm,
+                fit_scale * self.zoom * row_mm,
+            )
         };
         let display_size = egui::vec2(tex_w * scale_x, tex_h * scale_y);
 
@@ -1736,13 +1749,7 @@ impl SnapApp {
         }
 
         if self.show_rt_struct_overlay {
-            self.draw_rt_struct_overlay(
-                &painter,
-                response.rect,
-                axis,
-                tex_h_usize,
-                tex_w_usize,
-            );
+            self.draw_rt_struct_overlay(&painter, response.rect, axis, tex_h_usize, tex_w_usize);
         }
 
         if self.show_rt_dose_overlay {
@@ -1803,9 +1810,9 @@ impl SnapApp {
 
             // Cursor in image-pixel coords for live preview labels.
             let cursor_img_opt = if scale_x > 0.0 && scale_y > 0.0 {
-                response.hover_pos().map(|s| {
-                    egui::pos2((s.x - origin.x) / scale_x, (s.y - origin.y) / scale_y)
-                })
+                response
+                    .hover_pos()
+                    .map(|s| egui::pos2((s.x - origin.x) / scale_x, (s.y - origin.y) / scale_y))
             } else {
                 None
             };
@@ -1832,8 +1839,12 @@ impl SnapApp {
         drop(painter);
 
         // ── 7. Wheel input: zoom or slice navigation ───────────────────────────
-        let (scroll_y, ctrl_or_cmd) =
-            ctx.input(|i| (i.smooth_scroll_delta.y, i.modifiers.ctrl || i.modifiers.command));
+        let (scroll_y, ctrl_or_cmd) = ctx.input(|i| {
+            (
+                i.smooth_scroll_delta.y,
+                i.modifiers.ctrl || i.modifiers.command,
+            )
+        });
         if response.hovered() && scroll_y != 0.0 {
             if should_zoom_with_scroll(ctrl_or_cmd) {
                 self.zoom = zoom_from_scroll(self.zoom, scroll_y);
@@ -1851,37 +1862,56 @@ impl SnapApp {
         }
 
         if response.drag_started() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
             // Map screen to image-pixel coordinates for tool event
             let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+                egui::pos2(
+                    (s.x - response.rect.min.x) / scale_x,
+                    (s.y - response.rect.min.y) / scale_y,
+                )
             });
             self.on_drag_start(img_pos);
         }
         if response.dragged() {
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
             let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+                egui::pos2(
+                    (s.x - response.rect.min.x) / scale_x,
+                    (s.y - response.rect.min.y) / scale_y,
+                )
             });
             self.on_drag(img_pos);
         }
         if response.drag_stopped() {
             let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+                egui::pos2(
+                    (s.x - response.rect.min.x) / scale_x,
+                    (s.y - response.rect.min.y) / scale_y,
+                )
             });
             self.on_drag_end(img_pos);
         }
         if response.clicked() {
-            self.update_linked_cursor_from_pointer(axis, response.interact_pointer_pos(), response.rect);
-            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase {
+            self.update_linked_cursor_from_pointer(
+                axis,
+                response.interact_pointer_pos(),
+                response.rect,
+            );
+            if self.active_tool == ToolKind::LabelPaint || self.active_tool == ToolKind::LabelErase
+            {
                 self.apply_label_at_pointer(axis, response.interact_pointer_pos(), response.rect);
             }
             let img_pos = response.interact_pointer_pos().map(|s| {
-                egui::pos2((s.x - response.rect.min.x) / scale_x, (s.y - response.rect.min.y) / scale_y)
+                egui::pos2(
+                    (s.x - response.rect.min.x) / scale_x,
+                    (s.y - response.rect.min.y) / scale_y,
+                )
             });
             self.on_click(img_pos);
         }
@@ -1904,11 +1934,8 @@ impl SnapApp {
         let primary_total = self.axis_slice_info(primary_axis).1.max(1);
         let primary_idx = self.axis_slice_info(primary_axis).0;
         let secondary_total = Self::axis_extent_for_volume(secondary, secondary_axis).max(1);
-        let secondary_idx = Self::map_slice_index_between_volumes(
-            primary_idx,
-            primary_total,
-            secondary_total,
-        );
+        let secondary_idx =
+            Self::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total);
 
         let needs_rebuild = if self.compare_fused_overlay {
             true
@@ -1921,9 +1948,12 @@ impl SnapApp {
         if needs_rebuild {
             if self.compare_fused_overlay {
                 let (color_image, tex_name) = {
-                    let Some(primary) = self.loaded.as_ref() else { return };
+                    let Some(primary) = self.loaded.as_ref() else {
+                        return;
+                    };
                     let primary_wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-                    let primary_ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+                    let primary_ww =
+                        self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
                     let secondary_wc = self.secondary_window_center.unwrap_or(128.0) as f64;
                     let secondary_ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
                     let color_image = render_fused_slice(
@@ -1950,11 +1980,8 @@ impl SnapApp {
                     );
                     (color_image, tex_name)
                 };
-                self.secondary_texture = Some(ctx.load_texture(
-                    tex_name,
-                    color_image,
-                    egui::TextureOptions::LINEAR,
-                ));
+                self.secondary_texture =
+                    Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
                 self.secondary_texture_axis = secondary_axis;
                 self.secondary_texture_slice = secondary_idx;
                 self.secondary_texture_dirty = false;
@@ -2120,21 +2147,24 @@ impl SnapApp {
 
     fn rebuild_secondary_texture(&mut self, ctx: &egui::Context, axis: usize, slice_index: usize) {
         let (color_image, tex_name) = {
-            let Some(vol) = &self.loaded_secondary else { return };
+            let Some(vol) = &self.loaded_secondary else {
+                return;
+            };
             let wc = self.secondary_window_center.unwrap_or(128.0) as f64;
             let ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
-            let name = format!("slice_tex_secondary_axis{}_slice{}", axis.min(2), slice_index);
+            let name = format!(
+                "slice_tex_secondary_axis{}_slice{}",
+                axis.min(2),
+                slice_index
+            );
             let img = SliceRenderer::render(vol, axis, slice_index, wl, self.secondary_colormap);
             let img = apply_to_image(&img, self.view_transform);
             (img, name)
         };
 
-        self.secondary_texture = Some(ctx.load_texture(
-            tex_name,
-            color_image,
-            egui::TextureOptions::LINEAR,
-        ));
+        self.secondary_texture =
+            Some(ctx.load_texture(tex_name, color_image, egui::TextureOptions::LINEAR));
         self.secondary_texture_axis = axis;
         self.secondary_texture_slice = slice_index;
         self.secondary_texture_dirty = false;
@@ -2148,7 +2178,6 @@ impl SnapApp {
         ui.vertical(|ui| {
             ui.heading("MPR Info");
             ui.separator();
-
 
             if let Some(vol) = &self.loaded {
                 let [depth, rows, cols] = vol.shape;
@@ -2240,7 +2269,8 @@ impl SnapApp {
                     info!("{}", self.status_message);
                 }
                 Err(e) => {
-                    self.status_message = format!("PNG export failed for {}: {e:#}", path.display());
+                    self.status_message =
+                        format!("PNG export failed for {}: {e:#}", path.display());
                     error!("{}", self.status_message);
                 }
             }
@@ -2265,7 +2295,8 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message = format!("RT-STRUCT load failed for {}: {e:#}", path.display());
+                self.status_message =
+                    format!("RT-STRUCT load failed for {}: {e:#}", path.display());
                 error!("{}", self.status_message);
             }
         }
@@ -2278,7 +2309,9 @@ impl SnapApp {
                 self.status_message = format!(
                     "Loaded RT-DOSE ({} type, {}×{}×{} grid) from {}",
                     grid.dose_type,
-                    grid.rows, grid.cols, grid.n_frames,
+                    grid.rows,
+                    grid.cols,
+                    grid.n_frames,
                     path.display()
                 );
                 info!("{}", self.status_message);
@@ -2289,8 +2322,7 @@ impl SnapApp {
                 self.refresh_rt_dvh_cache();
             }
             Err(e) => {
-                self.status_message =
-                    format!("RT-DOSE load failed for {}: {e:#}", path.display());
+                self.status_message = format!("RT-DOSE load failed for {}: {e:#}", path.display());
                 error!("{}", self.status_message);
             }
         }
@@ -2329,7 +2361,9 @@ impl SnapApp {
         slice_idx: usize,
     ) {
         use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
-        use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
+        use crate::ui::rtdose_texture::{
+            build_overlay_image, overlay_alpha, positive_finite_dose_range,
+        };
 
         let (Some(rt_dose), Some(vol)) = (&self.rt_dose, &self.loaded) else {
             return;
@@ -2356,9 +2390,17 @@ impl SnapApp {
         }
 
         let [depth, rows, cols] = vol_shape;
-        let vol_origin = [vol.origin[0] as f64, vol.origin[1] as f64, vol.origin[2] as f64];
+        let vol_origin = [
+            vol.origin[0] as f64,
+            vol.origin[1] as f64,
+            vol.origin[2] as f64,
+        ];
         let vol_dir: [f64; 9] = std::array::from_fn(|i| vol.direction[i] as f64);
-        let vol_spacing = [vol.spacing[0] as f64, vol.spacing[1] as f64, vol.spacing[2] as f64];
+        let vol_spacing = [
+            vol.spacing[0] as f64,
+            vol.spacing[1] as f64,
+            vol.spacing[2] as f64,
+        ];
 
         let Some(dose_map) = extract_dose_slice_for_volume(
             rt_dose,
@@ -2397,9 +2439,10 @@ impl SnapApp {
         };
 
         let tex_name = format!("rtdose_overlay_axis{}_slice{}", axis_slot, slice_idx);
-        let texture = painter
-            .ctx()
-            .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
+        let texture =
+            painter
+                .ctx()
+                .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
         let texture_id = texture.id();
         self.rt_dose_overlay_cache[axis_slot] = Some(RtDoseOverlayCacheEntry {
             slice_idx,
@@ -2460,19 +2503,18 @@ impl SnapApp {
                 GrayscaleClosingFilter, GrayscaleFillholeFilter,
                 GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
                 HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
-                MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter,
-                SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
+                MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter, SqrtImageFilter,
+                SquareImageFilter, UnsharpMaskFilter,
             };
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
                     BedSeparationFilter::new(*config).apply(&image)
                 }
-                crate::FilterKind::Gaussian { sigma } => {
-                    Ok(GaussianFilter::<LoadBackend>::new(vec![f64::from(*sigma); 3]).apply(&image))
-                }
-                crate::FilterKind::Median { radius } => {
-                    MedianFilter::new(*radius).apply(&image)
-                }
+                crate::FilterKind::Gaussian { sigma } => Ok(GaussianFilter::<LoadBackend>::new(
+                    vec![f64::from(*sigma); 3],
+                )
+                .apply(&image)),
+                crate::FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&image),
                 crate::FilterKind::Clahe {
                     tile_grid_size,
                     clip_limit,
@@ -2512,31 +2554,46 @@ impl SnapApp {
                     let (label_image, _stats) = filter.apply(&image);
                     Ok(label_image)
                 }
-                crate::FilterKind::RelabelComponents { minimum_object_size } => {
-                    let (relabeled, _stats) =
-                        RelabelComponentFilter::with_minimum_object_size(
-                            *minimum_object_size as usize,
-                        )
-                        .apply(&image);
+                crate::FilterKind::RelabelComponents {
+                    minimum_object_size,
+                } => {
+                    let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
+                        *minimum_object_size as usize,
+                    )
+                    .apply(&image);
                     Ok(relabeled)
                 }
-                crate::FilterKind::MultiOtsuThreshold { num_classes } => Ok(
-                    MultiOtsuThreshold::new(*num_classes as usize).apply(&image),
-                ),
-                crate::FilterKind::BinaryErode { radius, foreground_value } => {
-                    BinaryErodeFilter::new(*radius).with_foreground(*foreground_value).apply(&image)
+                crate::FilterKind::MultiOtsuThreshold { num_classes } => {
+                    Ok(MultiOtsuThreshold::new(*num_classes as usize).apply(&image))
                 }
-                crate::FilterKind::BinaryDilate { radius, foreground_value } => {
-                    BinaryDilateFilter::new(*radius).with_foreground(*foreground_value).apply(&image)
-                }
-                crate::FilterKind::BinaryClosing { radius, foreground_value } => {
-                    BinaryMorphologicalClosing::new(*radius).with_foreground(*foreground_value).apply(&image)
-                }
-                crate::FilterKind::BinaryOpening { radius, foreground_value } => {
-                    BinaryMorphologicalOpening::new(*radius).with_foreground(*foreground_value).apply(&image)
-                }
+                crate::FilterKind::BinaryErode {
+                    radius,
+                    foreground_value,
+                } => BinaryErodeFilter::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryDilate {
+                    radius,
+                    foreground_value,
+                } => BinaryDilateFilter::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryClosing {
+                    radius,
+                    foreground_value,
+                } => BinaryMorphologicalClosing::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryOpening {
+                    radius,
+                    foreground_value,
+                } => BinaryMorphologicalOpening::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
                 crate::FilterKind::BinaryFillhole { foreground_value } => {
-                    BinaryFillholeFilter::new().with_foreground(*foreground_value).apply(&image)
+                    BinaryFillholeFilter::new()
+                        .with_foreground(*foreground_value)
+                        .apply(&image)
                 }
                 crate::FilterKind::GrayscaleClosing { radius } => {
                     GrayscaleClosingFilter::new(*radius).apply(&image)
@@ -2548,12 +2605,10 @@ impl SnapApp {
                     GrayscaleFillholeFilter::new().apply(&image)
                 }
                 crate::FilterKind::Abs => Ok(AbsImageFilter::new().apply(&image)),
-                crate::FilterKind::InvertIntensity { maximum } => {
-                    Ok(match maximum {
-                        Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&image),
-                        None => InvertIntensityFilter::new().apply(&image),
-                    })
-                }
+                crate::FilterKind::InvertIntensity { maximum } => Ok(match maximum {
+                    Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&image),
+                    None => InvertIntensityFilter::new().apply(&image),
+                }),
                 crate::FilterKind::NormalizeIntensity => {
                     Ok(NormalizeImageFilter::new().apply(&image))
                 }
@@ -2574,21 +2629,30 @@ impl SnapApp {
                         .with_threshold(*threshold)
                         .apply(&image)
                 }
-                crate::FilterKind::FlipZ => ritk_core::filter::FlipImageFilter::flip_z().apply(&image),
-                crate::FilterKind::FlipY => ritk_core::filter::FlipImageFilter::flip_y().apply(&image),
-                crate::FilterKind::FlipX => ritk_core::filter::FlipImageFilter::flip_x().apply(&image),
+                crate::FilterKind::FlipZ => {
+                    ritk_core::filter::FlipImageFilter::flip_z().apply(&image)
+                }
+                crate::FilterKind::FlipY => {
+                    ritk_core::filter::FlipImageFilter::flip_y().apply(&image)
+                }
+                crate::FilterKind::FlipX => {
+                    ritk_core::filter::FlipImageFilter::flip_x().apply(&image)
+                }
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
                     let td = image.data().clone().into_data();
                     let vals: Vec<f32> = td
                         .into_vec::<f32>()
                         .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
-                    let mask_vals: Vec<f32> =
-                        vals.iter().map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 }).collect();
+                    let mask_vals: Vec<f32> = vals
+                        .iter()
+                        .map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 })
+                        .collect();
                     let device = image.data().device();
-                    let mask_td = burn::tensor::TensorData::new(
-                        mask_vals, burn::tensor::Shape::new(dims));
-                    let mask_tensor = burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
+                    let mask_td =
+                        burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
+                    let mask_tensor =
+                        burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
                     let mask_image = ritk_core::image::Image::new(
                         mask_tensor,
                         *image.origin(),
@@ -2606,109 +2670,182 @@ impl SnapApp {
                 crate::FilterKind::ShiftScale { shift, scale } => {
                     ritk_core::filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
                 }
-                crate::FilterKind::ZeroCrossing { foreground_value, background_value } => {
-                    ritk_core::filter::ZeroCrossingImageFilter::new()
-                        .with_foreground(*foreground_value)
-                        .with_background(*background_value)
-                        .apply(&image)
-                }
+                crate::FilterKind::ZeroCrossing {
+                    foreground_value,
+                    background_value,
+                } => ritk_core::filter::ZeroCrossingImageFilter::new()
+                    .with_foreground(*foreground_value)
+                    .with_background(*background_value)
+                    .apply(&image),
                 crate::FilterKind::RegionOfInterest {
-                    start_z, start_y, start_x,
-                    size_z, size_y, size_x,
-                } => {
-                    ritk_core::filter::RegionOfInterestImageFilter::new(
-                        [*start_z, *start_y, *start_x],
-                        [*size_z, *size_y, *size_x],
-                    )
-                    .apply(&image)
-                }
-                crate::FilterKind::PermuteAxes { order_0, order_1, order_2 } => {
-                    ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
-                        .apply(&image)
-                }
+                    start_z,
+                    start_y,
+                    start_x,
+                    size_z,
+                    size_y,
+                    size_x,
+                } => ritk_core::filter::RegionOfInterestImageFilter::new(
+                    [*start_z, *start_y, *start_x],
+                    [*size_z, *size_y, *size_x],
+                )
+                .apply(&image),
+                crate::FilterKind::PermuteAxes {
+                    order_0,
+                    order_1,
+                    order_2,
+                } => ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+                    .apply(&image),
                 crate::FilterKind::Mean { radius } => {
                     ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
                 }
-                crate::FilterKind::BinaryContour { fully_connected, foreground_value } => {
-                    ritk_core::filter::BinaryContourImageFilter::new(*fully_connected, *foreground_value)
-                        .apply(&image)
-                }
-                crate::FilterKind::LabelContour { fully_connected, background_value } => {
-                    ritk_core::filter::LabelContourImageFilter::new(*fully_connected, *background_value)
-                        .apply(&image)
-                }
+                crate::FilterKind::BinaryContour {
+                    fully_connected,
+                    foreground_value,
+                } => ritk_core::filter::BinaryContourImageFilter::new(
+                    *fully_connected,
+                    *foreground_value,
+                )
+                .apply(&image),
+                crate::FilterKind::LabelContour {
+                    fully_connected,
+                    background_value,
+                } => ritk_core::filter::LabelContourImageFilter::new(
+                    *fully_connected,
+                    *background_value,
+                )
+                .apply(&image),
                 crate::FilterKind::VotingBinary {
-                    radius, birth_threshold, survival_threshold, foreground_value, background_value,
+                    radius,
+                    birth_threshold,
+                    survival_threshold,
+                    foreground_value,
+                    background_value,
                 } => ritk_core::filter::VotingBinaryImageFilter::new(
-                    *radius, *birth_threshold, *survival_threshold,
-                    *foreground_value, *background_value,
-                ).apply(&image),
-                crate::FilterKind::Shrink { factor_z, factor_y, factor_x } => {
-                    ritk_core::filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
-                        .apply(&image)
-                }
+                    *radius,
+                    *birth_threshold,
+                    *survival_threshold,
+                    *foreground_value,
+                    *background_value,
+                )
+                .apply(&image),
+                crate::FilterKind::Shrink {
+                    factor_z,
+                    factor_y,
+                    factor_x,
+                } => ritk_core::filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
+                    .apply(&image),
                 crate::FilterKind::ConstantPad {
-                    pad_lower_z, pad_lower_y, pad_lower_x,
-                    pad_upper_z, pad_upper_y, pad_upper_x, constant,
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
+                    constant,
                 } => ritk_core::filter::ConstantPadImageFilter::new(
                     [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                     [*pad_upper_z, *pad_upper_y, *pad_upper_x],
                     *constant,
-                ).apply(&image),
+                )
+                .apply(&image),
                 crate::FilterKind::MirrorPad {
-                    pad_lower_z, pad_lower_y, pad_lower_x,
-                    pad_upper_z, pad_upper_y, pad_upper_x,
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
                 } => ritk_core::filter::MirrorPadImageFilter::new(
                     [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                     [*pad_upper_z, *pad_upper_y, *pad_upper_x],
-                ).apply(&image),
+                )
+                .apply(&image),
                 crate::FilterKind::WrapPad {
-                    pad_lower_z, pad_lower_y, pad_lower_x,
-                    pad_upper_z, pad_upper_y, pad_upper_x,
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
                 } => ritk_core::filter::WrapPadImageFilter::new(
                     [*pad_lower_z, *pad_lower_y, *pad_lower_x],
                     [*pad_upper_z, *pad_upper_y, *pad_upper_x],
-                ).apply(&image),
+                )
+                .apply(&image),
                 crate::FilterKind::GrayscaleErode { radius } => {
                     ritk_core::filter::GrayscaleErosion::new(*radius).apply(&image)
                 }
                 crate::FilterKind::GrayscaleDilate { radius } => {
                     ritk_core::filter::GrayscaleDilation::new(*radius).apply(&image)
                 }
-                crate::FilterKind::BinaryThreshold { lower, upper, foreground, background } => {
-                    ritk_core::filter::BinaryThresholdImageFilter::new(*lower, *upper, *foreground, *background)
-                        .apply(&image)
-                }
+                crate::FilterKind::BinaryThreshold {
+                    lower,
+                    upper,
+                    foreground,
+                    background,
+                } => ritk_core::filter::BinaryThresholdImageFilter::new(
+                    *lower,
+                    *upper,
+                    *foreground,
+                    *background,
+                )
+                .apply(&image),
                 crate::FilterKind::RescaleIntensity { out_min, out_max } => {
                     ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
                 }
                 crate::FilterKind::Clamp { lower, upper } => {
                     ritk_core::filter::ClampImageFilter::new(*lower, *upper).apply(&image)
                 }
-                crate::FilterKind::ConnectedThreshold { seed_z, seed_y, seed_x, lower, upper } => {
-                    Ok(ritk_core::segmentation::region_growing::ConnectedThresholdFilter::new(
-                        [*seed_z, *seed_y, *seed_x], *lower, *upper,
-                    ).apply(&image))
-                }
+                crate::FilterKind::ConnectedThreshold {
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    lower,
+                    upper,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::ConnectedThresholdFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *lower,
+                        *upper,
+                    )
+                    .apply(&image),
+                ),
                 crate::FilterKind::ConfidenceConnected {
-                    seed_z, seed_y, seed_x, initial_lower, initial_upper, multiplier, max_iterations,
-                } => {
-                    Ok(ritk_core::segmentation::region_growing::ConfidenceConnectedFilter::new(
-                        [*seed_z, *seed_y, *seed_x], *initial_lower, *initial_upper,
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    initial_lower,
+                    initial_upper,
+                    multiplier,
+                    max_iterations,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::ConfidenceConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *initial_lower,
+                        *initial_upper,
                     )
                     .with_multiplier(*multiplier)
                     .with_max_iterations(*max_iterations as usize)
-                    .apply(&image))
-                }
+                    .apply(&image),
+                ),
                 crate::FilterKind::NeighborhoodConnected {
-                    seed_z, seed_y, seed_x, lower, upper, radius_z, radius_y, radius_x,
-                } => {
-                    Ok(ritk_core::segmentation::region_growing::NeighborhoodConnectedFilter::new(
-                        [*seed_z, *seed_y, *seed_x], *lower, *upper,
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    lower,
+                    upper,
+                    radius_z,
+                    radius_y,
+                    radius_x,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::NeighborhoodConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *lower,
+                        *upper,
                     )
                     .with_radius([*radius_z, *radius_y, *radius_x])
-                    .apply(&image))
-                }
+                    .apply(&image),
+                ),
                 crate::FilterKind::Atan => {
                     Ok(ritk_core::filter::AtanImageFilter::new().apply(&image))
                 }
@@ -2730,15 +2867,16 @@ impl SnapApp {
                 crate::FilterKind::BoundedReciprocal => {
                     Ok(ritk_core::filter::BoundedReciprocalImageFilter::new().apply(&image))
                 }
-                crate::FilterKind::CurvatureFlow { iterations, time_step } => {
-                    ritk_core::filter::CurvatureFlowImageFilter::new(
-                        ritk_core::filter::CurvatureFlowConfig {
-                            num_iterations: *iterations as usize,
-                            time_step: *time_step,
-                        },
-                    )
-                    .apply(&image)
-                }
+                crate::FilterKind::CurvatureFlow {
+                    iterations,
+                    time_step,
+                } => ritk_core::filter::CurvatureFlowImageFilter::new(
+                    ritk_core::filter::CurvatureFlowConfig {
+                        num_iterations: *iterations as usize,
+                        time_step: *time_step,
+                    },
+                )
+                .apply(&image),
             }
         };
 
@@ -2789,13 +2927,8 @@ impl SnapApp {
             }
 
             let path = axis_dir.join(export.file_name);
-            let color_image = SliceRenderer::render(
-                vol,
-                export.axis,
-                export.slice_index,
-                wl,
-                self.colormap,
-            );
+            let color_image =
+                SliceRenderer::render(vol, export.axis, export.slice_index, wl, self.colormap);
             let color_image = apply_to_image(&color_image, self.view_transform);
             let rgb_bytes: Vec<u8> = color_image
                 .pixels
@@ -2849,10 +2982,7 @@ impl SnapApp {
     }
 
     fn load_session_dialog(&mut self) {
-        let Some(path) = FileDialog::new()
-            .add_filter("JSON", &["json"])
-            .pick_file()
-        else {
+        let Some(path) = FileDialog::new().add_filter("JSON", &["json"]).pick_file() else {
             return;
         };
 
@@ -2876,8 +3006,7 @@ impl SnapApp {
     /// the missing precondition.
     fn save_segmentation_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
-            self.status_message =
-                "Save segmentation: no volume or segmentation loaded.".to_owned();
+            self.status_message = "Save segmentation: no volume or segmentation loaded.".to_owned();
             return;
         };
         let map = editor.current_map();
@@ -2910,13 +3039,11 @@ impl SnapApp {
             direction,
         ) {
             Ok(()) => {
-                self.status_message =
-                    format!("Saved segmentation to {}", path.display());
+                self.status_message = format!("Saved segmentation to {}", path.display());
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message =
-                    format!("Segmentation save failed: {e:#}");
+                self.status_message = format!("Segmentation save failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
@@ -2924,8 +3051,7 @@ impl SnapApp {
 
     fn save_segmentation_dicom_seg_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
-            self.status_message =
-                "Save DICOM-SEG: no volume or segmentation loaded.".to_owned();
+            self.status_message = "Save DICOM-SEG: no volume or segmentation loaded.".to_owned();
             return;
         };
         let map = editor.current_map();
@@ -2942,23 +3068,18 @@ impl SnapApp {
         };
 
         match ritk_io::label_map_to_dicom_seg(map, origin, spacing, direction, true) {
-            Ok(seg) => {
-                match ritk_io::write_dicom_seg(&path, &seg) {
-                    Ok(()) => {
-                        self.status_message =
-                            format!("Saved DICOM-SEG to {}", path.display());
-                        info!("{}", self.status_message);
-                    }
-                    Err(e) => {
-                        self.status_message =
-                            format!("DICOM-SEG write failed: {e:#}");
-                        error!("{}", self.status_message);
-                    }
+            Ok(seg) => match ritk_io::write_dicom_seg(&path, &seg) {
+                Ok(()) => {
+                    self.status_message = format!("Saved DICOM-SEG to {}", path.display());
+                    info!("{}", self.status_message);
                 }
-            }
+                Err(e) => {
+                    self.status_message = format!("DICOM-SEG write failed: {e:#}");
+                    error!("{}", self.status_message);
+                }
+            },
             Err(e) => {
-                self.status_message =
-                    format!("DICOM-SEG conversion failed: {e:#}");
+                self.status_message = format!("DICOM-SEG conversion failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
@@ -2970,8 +3091,7 @@ impl SnapApp {
     /// A status message is set for all outcomes (success, mismatch, error).
     fn load_segmentation_dialog(&mut self) {
         let Some(vol) = self.loaded.as_ref() else {
-            self.status_message =
-                "Load segmentation: no volume loaded.".to_owned();
+            self.status_message = "Load segmentation: no volume loaded.".to_owned();
             return;
         };
         let expected_shape = vol.shape;
@@ -2999,22 +3119,19 @@ impl SnapApp {
                     crate::label::default_label_table(),
                 ) {
                     Ok(map) => {
-                        self.label_editor =
-                            Some(crate::label::LabelEditor::from_label_map(map));
+                        self.label_editor = Some(crate::label::LabelEditor::from_label_map(map));
                         self.status_message =
                             format!("Loaded segmentation from {}", path.display());
                         info!("{}", self.status_message);
                     }
                     Err(e) => {
-                        self.status_message =
-                            format!("Segmentation data error: {e}");
+                        self.status_message = format!("Segmentation data error: {e}");
                         error!("{}", self.status_message);
                     }
                 }
             }
             Err(e) => {
-                self.status_message =
-                    format!("Segmentation load failed: {e:#}");
+                self.status_message = format!("Segmentation load failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
@@ -3025,8 +3142,7 @@ impl SnapApp {
     /// The reconstructed shape must match the currently loaded volume.
     fn load_segmentation_dicom_seg_file(&mut self, path: &std::path::Path) {
         let Some(vol) = self.loaded.as_ref() else {
-            self.status_message =
-                "Load DICOM-SEG: no volume loaded.".to_owned();
+            self.status_message = "Load DICOM-SEG: no volume loaded.".to_owned();
             return;
         };
         let expected_shape = vol.shape;
@@ -3043,8 +3159,7 @@ impl SnapApp {
                         return;
                     }
                     self.label_editor = Some(crate::label::LabelEditor::from_label_map(map));
-                    self.status_message =
-                        format!("Loaded DICOM-SEG from {}", path.display());
+                    self.status_message = format!("Loaded DICOM-SEG from {}", path.display());
                     info!("{}", self.status_message);
                 }
                 Err(e) => {
@@ -3168,6 +3283,11 @@ impl SnapApp {
                 let patient_id = meta.patient_id.clone();
                 let study_date = meta.study_date.clone();
                 let series_description = meta.series_description.clone();
+                let patient_weight_kg = meta.patient_weight_kg;
+                let injected_dose_bq = meta.radionuclide_total_dose_bq;
+                let radionuclide_half_life_s = meta.radionuclide_half_life_s;
+                let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time.clone();
+                let decay_correction = meta.decay_correction.clone();
 
                 self.loaded = Some(LoadedVolume {
                     data,
@@ -3182,6 +3302,11 @@ impl SnapApp {
                     patient_id,
                     study_date,
                     series_description,
+                    patient_weight_kg,
+                    injected_dose_bq,
+                    radionuclide_half_life_s,
+                    radiopharmaceutical_start_time,
+                    decay_correction,
                 });
                 self.viewer_state = state;
                 self.axis = protocol.preferred_axis.min(2);
@@ -3255,9 +3380,15 @@ impl SnapApp {
                 let origin = [image.origin()[0], image.origin()[1], image.origin()[2]];
                 let dir = image.direction().inner();
                 let direction = [
-                    dir[(0, 0)], dir[(0, 1)], dir[(0, 2)],
-                    dir[(1, 0)], dir[(1, 1)], dir[(1, 2)],
-                    dir[(2, 0)], dir[(2, 1)], dir[(2, 2)],
+                    dir[(0, 0)],
+                    dir[(0, 1)],
+                    dir[(0, 2)],
+                    dir[(1, 0)],
+                    dir[(1, 1)],
+                    dir[(1, 2)],
+                    dir[(2, 0)],
+                    dir[(2, 1)],
+                    dir[(2, 2)],
                 ];
                 let raw = image.data().clone().into_data();
                 let data = match raw.into_vec::<f32>() {
@@ -3281,6 +3412,11 @@ impl SnapApp {
                     patient_id: meta.patient_id.clone(),
                     study_date: meta.study_date.clone(),
                     series_description: meta.series_description.clone(),
+                    patient_weight_kg: meta.patient_weight_kg,
+                    injected_dose_bq: meta.radionuclide_total_dose_bq,
+                    radionuclide_half_life_s: meta.radionuclide_half_life_s,
+                    radiopharmaceutical_start_time: meta.radiopharmaceutical_start_time.clone(),
+                    decay_correction: meta.decay_correction.clone(),
                 });
                 let protocol = select_hanging_protocol(
                     meta.modality.as_deref(),
@@ -3462,7 +3598,8 @@ impl SnapApp {
                 state.window_center = Some(protocol.window_center);
                 state.window_width = Some(protocol.window_width);
                 state.slice_index = shape[0] / 2;
-                let msg = format!(
+                let msg =
+                    format!(
                     "Loaded dropped in-memory DICOM series ({} files) — shape {:?} — protocol {}",
                     files.len(), shape, protocol.protocol_name
                 );
@@ -3506,9 +3643,8 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message = format!(
-                    "Volume load failed for dropped in-memory DICOM series: {e:#}"
-                );
+                self.status_message =
+                    format!("Volume load failed for dropped in-memory DICOM series: {e:#}");
                 error!("{}", self.status_message);
             }
         }
@@ -3575,8 +3711,12 @@ impl SnapApp {
             let (mut mn, mut mx) = (f32::MAX, f32::MIN);
             for &v in data {
                 if v.is_finite() {
-                    if v < mn { mn = v; }
-                    if v > mx { mx = v; }
+                    if v < mn {
+                        mn = v;
+                    }
+                    if v > mx {
+                        mx = v;
+                    }
                 }
             }
             // Guard against pathological all-NaN or empty data.
@@ -3964,8 +4104,9 @@ impl SnapApp {
             max,
             area_mm2,
         });
-        self.status_message =
-            format!("Ellipse ROI: μ={mean:.1}  σ={std_dev:.1}  [{min:.0}, {max:.0}]  {area_mm2:.1} mm²");
+        self.status_message = format!(
+            "Ellipse ROI: μ={mean:.1}  σ={std_dev:.1}  [{min:.0}, {max:.0}]  {area_mm2:.1} mm²"
+        );
     }
 
     /// Per-axis 2-D pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
@@ -3990,7 +4131,13 @@ impl SnapApp {
     fn apply_label_at_pointer(&mut self, axis: usize, pos: Option<egui::Pos2>, rect: egui::Rect) {
         let Some(point) = pos else { return };
         let Some(volume) = &self.loaded else { return };
-        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, self.axis_slice_info(axis).0, point, rect) else {
+        let Some(voxel) = viewport_point_to_voxel(
+            volume.shape,
+            axis,
+            self.axis_slice_info(axis).0,
+            point,
+            rect,
+        ) else {
             return;
         };
         let Some(editor) = self.label_editor.as_mut() else {
@@ -4029,13 +4176,9 @@ impl SnapApp {
         let Some(cursor) = self.linked_cursor.as_mut() else {
             return;
         };
-        let Some(voxel) = cursor.update_from_viewport_point(
-            volume.shape,
-            axis,
-            slice_index,
-            point,
-            rect,
-        ) else {
+        let Some(voxel) =
+            cursor.update_from_viewport_point(volume.shape, axis, slice_index, point, rect)
+        else {
             return;
         };
 
@@ -4063,7 +4206,8 @@ impl SnapApp {
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
-        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect) else {
+        let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect)
+        else {
             self.pointer_intensity = 0.0;
             return;
         };
@@ -4078,7 +4222,9 @@ impl SnapApp {
     }
 
     fn draw_label_overlay(&self, painter: &egui::Painter, rect: egui::Rect, axis: usize) {
-        let Some(editor) = &self.label_editor else { return };
+        let Some(editor) = &self.label_editor else {
+            return;
+        };
         let Some(volume) = &self.loaded else { return };
         let Some((width, height)) = axis_slice_dimensions(volume.shape, axis) else {
             return;
@@ -4154,7 +4300,8 @@ impl SnapApp {
         };
 
         for contour in projected {
-            let color = egui::Color32::from_rgb(contour.color[0], contour.color[1], contour.color[2]);
+            let color =
+                egui::Color32::from_rgb(contour.color[0], contour.color[1], contour.color[2]);
             if contour.points_row_col.len() == 1 {
                 let [row, col] = contour.points_row_col[0];
                 painter.circle_filled(to_screen(row, col), 2.0, color);
@@ -4205,6 +4352,11 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: Some("Test".to_string()),
+            patient_weight_kg: None,
+            injected_dose_bq: None,
+            radionuclide_half_life_s: None,
+            radiopharmaceutical_start_time: None,
+            decay_correction: None,
         }
     }
 
@@ -4332,18 +4484,38 @@ mod tests {
         app.close_study();
 
         assert!(app.loaded.is_none(), "loaded volume must be cleared");
-        assert!(app.loaded_secondary.is_none(), "secondary volume must be cleared");
+        assert!(
+            app.loaded_secondary.is_none(),
+            "secondary volume must be cleared"
+        );
         assert!(!app.multi_planar, "multi-planar mode must reset to false");
         assert!(!app.dual_plane, "dual-plane mode must reset to false");
-        assert!(!app.compare_side_by_side, "compare mode must reset to false");
-        assert_eq!(app.series_load_target, SeriesLoadTarget::Primary, "series target must reset to primary");
+        assert!(
+            !app.compare_side_by_side,
+            "compare mode must reset to false"
+        );
+        assert_eq!(
+            app.series_load_target,
+            SeriesLoadTarget::Primary,
+            "series target must reset to primary"
+        );
         assert!(app.linked_cursor.is_none(), "linked cursor must be cleared");
-        assert!(app.cached_histogram.is_none(), "histogram cache must be cleared");
-        assert!(app.selected_series.is_none(), "selected series must be cleared");
+        assert!(
+            app.cached_histogram.is_none(),
+            "histogram cache must be cleared"
+        );
+        assert!(
+            app.selected_series.is_none(),
+            "selected series must be cleared"
+        );
         assert_eq!(app.pointer_intensity, 0.0, "pointer intensity must reset");
         assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
         assert_eq!(app.zoom, 1.0, "zoom must reset");
-        assert_eq!(app.projection_mode, ProjectionMode::Mip, "projection mode must reset to MIP");
+        assert_eq!(
+            app.projection_mode,
+            ProjectionMode::Mip,
+            "projection mode must reset to MIP"
+        );
         assert_eq!(app.status_message, "Study closed.");
     }
 
@@ -4353,7 +4525,10 @@ mod tests {
         assert_eq!(SnapApp::map_slice_index_between_volumes(299, 300, 90), 89);
 
         let mapped = SnapApp::map_slice_index_between_volumes(150, 300, 90);
-        assert!(mapped >= 44 && mapped <= 45, "midpoint mapping should stay near the secondary midpoint");
+        assert!(
+            mapped >= 44 && mapped <= 45,
+            "midpoint mapping should stay near the secondary midpoint"
+        );
     }
 
     #[test]
@@ -4368,17 +4543,33 @@ mod tests {
             .join("dicom_seg")
             .join("dcmqi")
             .join("liver.dcm");
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         app.load_segmentation_dicom_seg_file(&path);
 
-        let editor = app.label_editor.as_ref().expect("label editor loaded from external SEG");
+        let editor = app
+            .label_editor
+            .as_ref()
+            .expect("label editor loaded from external SEG");
         let map = editor.current_map();
         assert_eq!(map.shape, [3, 512, 512]);
         assert!(map.present_labels().contains(&1));
-        assert!(map.count_label(1) > 0, "external SEG must populate label 1 voxels");
-        assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("Liver"));
-        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+        assert!(
+            map.count_label(1) > 0,
+            "external SEG must populate label 1 voxels"
+        );
+        assert_eq!(
+            map.table.get_label(1).map(|e| e.name.as_str()),
+            Some("Liver")
+        );
+        assert_eq!(
+            app.status_message,
+            format!("Loaded DICOM-SEG from {}", path.display())
+        );
     }
 
     #[test]
@@ -4393,7 +4584,11 @@ mod tests {
             .join("dicom_seg")
             .join("dcmqi")
             .join("partial_overlaps.dcm");
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         app.load_segmentation_dicom_seg_file(&path);
 
@@ -4408,7 +4603,10 @@ mod tests {
             assert!(present.contains(&label), "label {label} must be present");
             assert!(map.count_label(label) > 0, "label {label} must have voxels");
         }
-        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+        assert_eq!(
+            app.status_message,
+            format!("Loaded DICOM-SEG from {}", path.display())
+        );
     }
 
     #[test]
@@ -4423,7 +4621,11 @@ mod tests {
             .join("dicom_seg")
             .join("highdicom")
             .join("seg_image_ct_binary_overlap.dcm");
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         app.load_segmentation_dicom_seg_file(&path);
 
@@ -4435,8 +4637,14 @@ mod tests {
         assert_eq!(map.shape, [4, 16, 16]);
         assert!(map.present_labels().contains(&1));
         assert!(map.present_labels().contains(&2));
-        assert!(map.count_label(1) > 0, "segment 1 voxels must populate the viewer state");
-        assert!(map.count_label(2) > 0, "segment 2 voxels must populate the viewer state");
+        assert!(
+            map.count_label(1) > 0,
+            "segment 1 voxels must populate the viewer state"
+        );
+        assert!(
+            map.count_label(2) > 0,
+            "segment 2 voxels must populate the viewer state"
+        );
         assert_eq!(
             map.table.get_label(1).map(|e| e.name.as_str()),
             Some("first segment")
@@ -4445,7 +4653,10 @@ mod tests {
             map.table.get_label(2).map(|e| e.name.as_str()),
             Some("second segment")
         );
-        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+        assert_eq!(
+            app.status_message,
+            format!("Loaded DICOM-SEG from {}", path.display())
+        );
     }
 
     #[test]
@@ -4460,7 +4671,11 @@ mod tests {
             .join("dicom_seg")
             .join("highdicom")
             .join("seg_image_ct_binary.dcm");
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         app.load_segmentation_dicom_seg_file(&path);
 
@@ -4471,12 +4686,18 @@ mod tests {
         let map = editor.current_map();
         assert_eq!(map.shape, [3, 16, 16]);
         assert!(map.present_labels().contains(&1));
-        assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
+        assert!(
+            map.count_label(1) > 0,
+            "segment voxels must populate the viewer state"
+        );
         assert_eq!(
             map.table.get_label(1).map(|e| e.name.as_str()),
             Some("first segment")
         );
-        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+        assert_eq!(
+            app.status_message,
+            format!("Loaded DICOM-SEG from {}", path.display())
+        );
     }
 
     #[test]
@@ -4491,7 +4712,11 @@ mod tests {
             .join("dicom_seg")
             .join("rsna_dido")
             .join("xTtzBC6F6p_rpexuszCnb_01_liver.dcm");
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         app.load_segmentation_dicom_seg_file(&path);
 
@@ -4502,9 +4727,18 @@ mod tests {
         let map = editor.current_map();
         assert_eq!(map.shape, [34, 512, 512]);
         assert!(map.present_labels().contains(&1));
-        assert!(map.count_label(1) > 0, "segment voxels must populate the viewer state");
-        assert_eq!(map.table.get_label(1).map(|e| e.name.as_str()), Some("liver"));
-        assert_eq!(app.status_message, format!("Loaded DICOM-SEG from {}", path.display()));
+        assert!(
+            map.count_label(1) > 0,
+            "segment voxels must populate the viewer state"
+        );
+        assert_eq!(
+            map.table.get_label(1).map(|e| e.name.as_str()),
+            Some("liver")
+        );
+        assert_eq!(
+            app.status_message,
+            format!("Loaded DICOM-SEG from {}", path.display())
+        );
     }
 
     #[test]
@@ -4576,7 +4810,10 @@ mod tests {
         });
 
         let msg = app.rt_dose_plan_link_status().expect("link status present");
-        assert!(msg.contains("linked to loaded RT-PLAN UID 2.25.9001"), "{msg}");
+        assert!(
+            msg.contains("linked to loaded RT-PLAN UID 2.25.9001"),
+            "{msg}"
+        );
     }
 
     #[test]
@@ -4911,6 +5148,11 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            patient_weight_kg: None,
+            injected_dose_bq: None,
+            radionuclide_half_life_s: None,
+            radiopharmaceutical_start_time: None,
+            decay_correction: None,
         }
     }
 
@@ -4975,7 +5217,10 @@ mod tests {
         let sagittal: [f32; 2] = [dz, dy];
         assert_ne!(axial, coronal, "axial and coronal spacing must differ");
         assert_ne!(axial, sagittal, "axial and sagittal spacing must differ");
-        assert_ne!(coronal, sagittal, "coronal and sagittal spacing must differ");
+        assert_ne!(
+            coronal, sagittal,
+            "coronal and sagittal spacing must differ"
+        );
     }
 
     /// `img_to_screen` mapping: image-pixel (col=c, row=r) maps to

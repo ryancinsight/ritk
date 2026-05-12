@@ -80,6 +80,11 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            patient_weight_kg: None,
+            injected_dose_bq: None,
+            radionuclide_half_life_s: None,
+            radiopharmaceutical_start_time: None,
+            decay_correction: None,
         }
     }
 
@@ -102,10 +107,7 @@ mod tests {
     fn test_intensity_at_voxel_out_of_bounds_depth() {
         let vol = test_volume([2, 2, 2], vec![42.0; 8]);
         let intensity = intensity_at_voxel(&vol, [2, 0, 0]);
-        assert_eq!(
-            intensity, 0.0,
-            "out-of-bounds depth must return 0.0"
-        );
+        assert_eq!(intensity, 0.0, "out-of-bounds depth must return 0.0");
     }
 
     /// Out-of-bounds row coordinate must return 0.0.
@@ -113,10 +115,7 @@ mod tests {
     fn test_intensity_at_voxel_out_of_bounds_row() {
         let vol = test_volume([2, 2, 2], vec![42.0; 8]);
         let intensity = intensity_at_voxel(&vol, [0, 3, 0]);
-        assert_eq!(
-            intensity, 0.0,
-            "out-of-bounds row must return 0.0"
-        );
+        assert_eq!(intensity, 0.0, "out-of-bounds row must return 0.0");
     }
 
     /// Out-of-bounds column coordinate must return 0.0.
@@ -124,10 +123,7 @@ mod tests {
     fn test_intensity_at_voxel_out_of_bounds_column() {
         let vol = test_volume([2, 2, 2], vec![42.0; 8]);
         let intensity = intensity_at_voxel(&vol, [0, 0, 5]);
-        assert_eq!(
-            intensity, 0.0,
-            "out-of-bounds column must return 0.0"
-        );
+        assert_eq!(intensity, 0.0, "out-of-bounds column must return 0.0");
     }
 
     /// Boundary voxels (at edges) must return correct values.

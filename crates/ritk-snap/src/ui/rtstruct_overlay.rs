@@ -135,8 +135,7 @@ fn inverse_phys_to_voxel(direction: [f64; 9], spacing: [f64; 3]) -> Option<[f64;
 }
 
 fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
-    let det = m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
         + m[2] * (m[3] * m[7] - m[4] * m[6]);
     if det.abs() < 1e-12 {
         return None;

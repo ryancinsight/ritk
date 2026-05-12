@@ -196,10 +196,9 @@ impl<'a> SidebarPanel<'a> {
                                         study.study_date.as_deref().unwrap_or(""),
                                     ))
                                     .default_open(true)
-                                    .show(
-                                    ui,
-                                    |ui| {
-                                        for (series_idx, series) in study.series.iter().enumerate() {
+                                    .show(ui, |ui| {
+                                        for (series_idx, series) in study.series.iter().enumerate()
+                                        {
                                             // ── Series entry ──────────────────
                                             let is_selected = current_path
                                                 .as_ref()
@@ -224,7 +223,12 @@ impl<'a> SidebarPanel<'a> {
                                                         series.series_uid.as_str(),
                                                         series.folder.to_string_lossy(),
                                                     ),
-                                                    |ui| ui.selectable_label(is_selected, series_label),
+                                                    |ui| {
+                                                        ui.selectable_label(
+                                                            is_selected,
+                                                            series_label,
+                                                        )
+                                                    },
                                                 )
                                                 .inner
                                                 .on_hover_text(hover_text);
@@ -233,8 +237,7 @@ impl<'a> SidebarPanel<'a> {
                                                 new_selection = Some(series.folder.clone());
                                             }
                                         }
-                                    },
-                                );
+                                    });
                             }
                         });
                 }
@@ -260,9 +263,8 @@ impl<'a> SidebarPanel<'a> {
         let mut search: String = ui.data(|d| d.get_temp(search_id).unwrap_or_default());
         ui.horizontal(|ui| {
             ui.label("🔍");
-            ui.text_edit_singleline(&mut search).on_hover_text(
-                "Filter tags by keyword or tag hex code (case-insensitive)",
-            );
+            ui.text_edit_singleline(&mut search)
+                .on_hover_text("Filter tags by keyword or tag hex code (case-insensitive)");
             if ui.small_button("✖").clicked() {
                 search.clear();
             }
@@ -404,7 +406,11 @@ mod tests {
 
     // ── Tag filter logic ──────────────────────────────────────────────────────
 
-    fn make_row(tag: &str, keyword: &str, value: &str) -> crate::dicom::metadata_table::MetadataRow {
+    fn make_row(
+        tag: &str,
+        keyword: &str,
+        value: &str,
+    ) -> crate::dicom::metadata_table::MetadataRow {
         crate::dicom::metadata_table::MetadataRow {
             scope: crate::dicom::metadata_table::MetadataScope::Series,
             tag: tag.to_owned(),
@@ -439,7 +445,11 @@ mod tests {
             make_row("(0008,0060)", "Modality", "CT"),
         ];
         let filtered = filter_rows(&rows, "patient");
-        assert_eq!(filtered.len(), 2, "needle 'patient' must match PatientName and PatientID");
+        assert_eq!(
+            filtered.len(),
+            2,
+            "needle 'patient' must match PatientName and PatientID"
+        );
         assert_eq!(filtered[0].keyword, "PatientName");
         assert_eq!(filtered[1].keyword, "PatientID");
     }
@@ -452,7 +462,11 @@ mod tests {
             make_row("(0008,0060)", "Modality", "CT"),
         ];
         let filtered = filter_rows(&rows, "0008,0060");
-        assert_eq!(filtered.len(), 1, "tag hex search must match exactly one row");
+        assert_eq!(
+            filtered.len(),
+            1,
+            "tag hex search must match exactly one row"
+        );
         assert_eq!(filtered[0].keyword, "Modality");
     }
 

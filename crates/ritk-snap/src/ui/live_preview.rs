@@ -155,7 +155,10 @@ mod tests {
     fn live_angle_degenerate_p1_equals_vertex_returns_zero() {
         // p1 == vertex → zero-length ray → returns 0
         let deg = live_angle_deg([0.0, 0.0], [0.0, 0.0], [1.0, 0.0]);
-        assert!(deg.abs() < 1e-6, "expected 0.0° for degenerate input, got {deg}");
+        assert!(
+            deg.abs() < 1e-6,
+            "expected 0.0° for degenerate input, got {deg}"
+        );
     }
 
     #[test]

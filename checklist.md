@@ -1,3 +1,72 @@
+## Sprint 191 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.1 [minor]
+**Goal**: Close the PET DICOM tag extraction gap (GAP-176-RAD-02 partial): extract patient weight, decay correction, injected dose, injection time, and radionuclide half-life from DICOM into `DicomReadMetadata`, wire them through the loader into `LoadedVolume`, and expose `PetAcquisitionParams` as the authoritative bridge to SUVbw computation.
+
+### Checklist items
+- [x] Add 5 PET fields to `DicomReadMetadata` in `crates/ritk-io/src/format/dicom/reader.rs`: `patient_weight_kg`, `decay_correction`, `radionuclide_total_dose_bq`, `radiopharmaceutical_start_time`, `radionuclide_half_life_s`
+- [x] Derive `Default` on `DicomReadMetadata` to support `..Default::default()` in test struct literals
+- [x] Extract (0010,1030) PatientWeight, (0054,1102) DecayCorrection in per-file DICOM reader loop
+- [x] Extract (0054,0016)[0]/(0018,1074) RadionuclideTotalDose, (0054,0016)[0]/(0018,1072) RadiopharmaceuticalStartTime, (0054,0016)[0]/(0018,1076) RadionuclideHalfLife via nested sequence item access
+- [x] Add new PET tags to `known_handled_tags()` to prevent private-tag double-capture
+- [x] Wire 5 PET fields in the `DicomReadMetadata` struct literal (production path)
+- [x] Fix pre-existing broken test struct literals in `reader.rs` with `..DicomReadMetadata::default()`
+- [x] Wire PET fields from `DicomReadMetadata` into `LoadedVolume` in `crates/ritk-snap/src/dicom/loader.rs`
+- [x] Create `crates/ritk-snap/src/dicom/pet.rs` — `DecayCorrectionKind` enum (`Start`/`Admin`/`None`) and `PetAcquisitionParams` SSOT
+- [x] Implement `DecayCorrectionKind::from_dicom_str` — "START"→Start, "ADMIN"→Admin, else→None with whitespace trimming
+- [x] Implement `PetAcquisitionParams::from_loaded_volume` — validates weight/dose/half-life > 0, defaults absent decay_correction to None
+- [x] Implement `PetAcquisitionParams::to_suv_params` — kg→g conversion, Start/Admin → `without_decay_correction`, None → `with_decay_correction`
+- [x] Implement `PetAcquisitionParams::pixel_to_suvbw` — delegates to `compute_suvbw`
+- [x] Wire `pub mod pet` and exports in `crates/ritk-snap/src/dicom/mod.rs`
+- [x] Add 20 value-semantic tests: missing-field guards (weight/dose/half-life absent/zero/negative), decay-correction string parsing, kg→g conversion, Start/Admin unit decay factor, None at T½ gives 0.5, realistic ¹⁸F-FDG case (370 MBq/70 kg, 10000 Bq/mL → SUV ≈ 1.89), None-corrected exceeds Start-corrected at Δt>0
+- [x] Verify `cargo test -p ritk-snap --lib` (470 passed)
+- [x] Verify `cargo check -p ritk-io --tests` (passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| GAP-176-RAD-02 remainder | SUV display overlay in viewer slices, PET/CT pixel-level fusion composition, DICOM time parsing for delta_t_s | High | Open |
+| Remaining non-dedicated image ownership audit | TIFF and MINC | Medium | Open |
+
+## Sprint 190 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.0 [minor]
+**Goal**: Extract PNG and JPEG file-format implementation ownership into dedicated crates and keep `ritk-io` as a zero-cost facade boundary.
+
+### Checklist items
+- [x] Add `crates/ritk-png` to the workspace and expose `read_png_to_image`, `read_png_series`, `PngReader<B>`, and `PngSeriesReader<B>`
+- [x] Add `crates/ritk-jpeg` to the workspace and expose `read_jpeg`, `write_jpeg`, `JpegReader<B>`, and `JpegWriter<B>`
+- [x] Wire `ritk-png` and `ritk-jpeg` as workspace dependencies of `ritk-io`
+- [x] Replace `ritk-io::format::png` with re-exports plus local `ImageReader` adapters
+- [x] Replace `ritk-io::format::jpeg` with re-exports plus local `ImageReader` / `ImageWriter` adapters
+- [x] Remove `ritk-io/src/format/jpeg/reader.rs` and `ritk-io/src/format/jpeg/writer.rs`
+- [x] Add crate-local PNG value tests and `ritk-io` adapter tests
+- [x] Add crate-local JPEG value tests and `ritk-io` adapter tests
+- [x] Propagate PET metadata fields into direct `ritk-snap` DICOM volume loads and initialize non-DICOM test fixtures explicitly
+- [x] Verify `cargo test -p ritk-jpeg --lib` (6 passed)
+- [x] Verify `cargo test -p ritk-png --lib` (4 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::jpeg` (1 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::png` (2 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (227 passed)
+- [x] Verify `cargo check -p ritk-cli` (passed)
+- [x] Verify `cargo check -p ritk-python` (passed)
+- [x] Verify `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Verify `cargo test -p ritk-snap --lib` (452 passed)
+- [x] Verify `cargo test -p ritk-snap --lib dicom::pet` after formatting (18 passed)
+- [x] Verify existing dedicated image-format crates: Analyze (2), MetaImage (19), MGH (30), NIfTI (13), NRRD (23), VTK (129), DICOM (12), Codecs (81)
+- [x] Verify `cargo fmt --check -p ritk-png -p ritk-jpeg -p ritk-io -p ritk-snap` (passed)
+- [x] Verify `git diff --check` (passed; line-ending warnings only)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| Dedicated-crate ownership decision for TIFF and MINC | Medium | Open |
+| GAP-176-RAD-02 SUV overlay and PET/CT workflow completion | High | Open |
+
 ## Sprint 189 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -5,8 +5,8 @@
 //! `DICOMDIR` file itself; this module maps both forms to the canonical
 //! directory path before scanning or loading.
 
-use std::path::{Path, PathBuf};
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 /// Classified DICOM viewer input path.
 #[derive(Debug, Clone, PartialEq, Eq)]

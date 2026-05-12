@@ -101,8 +101,7 @@ mod tests {
     /// Positive horizontal drag (right) increases window width proportionally.
     #[test]
     fn rightward_drag_increases_width() {
-        let (c, w) =
-            window_level_from_drag_delta(40.0, 400.0, 10.0, 0.0, WINDOW_LEVEL_SENSITIVITY);
+        let (c, w) = window_level_from_drag_delta(40.0, 400.0, 10.0, 0.0, WINDOW_LEVEL_SENSITIVITY);
         // new_width = 400.0 + 10.0 * 4.0 = 440.0
         assert_eq!(w, 440.0);
         assert_eq!(c, 40.0);
@@ -120,8 +119,7 @@ mod tests {
     /// Positive vertical drag (down) decreases window center (y-axis inverted).
     #[test]
     fn downward_drag_decreases_center() {
-        let (c, w) =
-            window_level_from_drag_delta(40.0, 400.0, 0.0, 10.0, WINDOW_LEVEL_SENSITIVITY);
+        let (c, w) = window_level_from_drag_delta(40.0, 400.0, 0.0, 10.0, WINDOW_LEVEL_SENSITIVITY);
         // new_center = 40.0 − 10.0 * 4.0 = 0.0
         assert_eq!(c, 0.0);
         assert_eq!(w, 400.0);

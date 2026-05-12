@@ -103,8 +103,7 @@ impl MeasurementLayer {
                     std_dev,
                     ..
                 } => {
-                    let screen_center =
-                        img_to_screen(egui::pos2((*center)[1], (*center)[0]));
+                    let screen_center = img_to_screen(egui::pos2((*center)[1], (*center)[0]));
                     // Map radii to screen space using the image-to-screen transform.
                     // We derive screen radii by transforming a point offset by each
                     // radius and subtracting the centre.
@@ -180,11 +179,7 @@ impl MeasurementLayer {
                     painter.line_segment([sp2, cursor], Stroke::new(LINE_WIDTH, COLOR_MEASURE));
                     // Live angle label at the vertex (p2), offset 12 px up-right.
                     if let Some(cimg) = cursor_img {
-                        let deg = live_angle_deg(
-                            [p1.y, p1.x],
-                            [p2.y, p2.x],
-                            [cimg.y, cimg.x],
-                        );
+                        let deg = live_angle_deg([p1.y, p1.x], [p2.y, p2.x], [cimg.y, cimg.x]);
                         let label = format!("{:.1}°", deg);
                         painter.text(
                             sp2 + Vec2::new(8.0, -12.0),

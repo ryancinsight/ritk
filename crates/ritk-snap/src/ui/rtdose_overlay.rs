@@ -72,15 +72,35 @@ pub fn extract_dose_slice_for_volume(
     let dn = cross3(dc, dr);
 
     // Dose affine columns (physical mm per unit dose-grid step).
-    let step_col = [dc[0] * dose_spacing[1], dc[1] * dose_spacing[1], dc[2] * dose_spacing[1]];
-    let step_row = [dr[0] * dose_spacing[0], dr[1] * dose_spacing[0], dr[2] * dose_spacing[0]];
+    let step_col = [
+        dc[0] * dose_spacing[1],
+        dc[1] * dose_spacing[1],
+        dc[2] * dose_spacing[1],
+    ];
+    let step_row = [
+        dr[0] * dose_spacing[0],
+        dr[1] * dose_spacing[0],
+        dr[2] * dose_spacing[0],
+    ];
 
     // Slice output dimensions based on axis.
     let [vol_depth, vol_rows, vol_cols] = vol_shape;
     let (slice_rows, slice_cols, fixed_idx) = match axis {
-        0 => (vol_rows, vol_cols, slice_index.min(vol_depth.saturating_sub(1))),
-        1 => (vol_depth, vol_cols, slice_index.min(vol_rows.saturating_sub(1))),
-        _ => (vol_depth, vol_rows, slice_index.min(vol_cols.saturating_sub(1))),
+        0 => (
+            vol_rows,
+            vol_cols,
+            slice_index.min(vol_depth.saturating_sub(1)),
+        ),
+        1 => (
+            vol_depth,
+            vol_cols,
+            slice_index.min(vol_rows.saturating_sub(1)),
+        ),
+        _ => (
+            vol_depth,
+            vol_rows,
+            slice_index.min(vol_cols.saturating_sub(1)),
+        ),
     };
 
     let dose_depth = rt_dose.n_frames;
@@ -96,9 +116,15 @@ pub fn extract_dose_slice_for_volume(
     // Build 3×3 inverse of [step_col | step_row | dn*1mm] using analytic 3×3 inverse.
     // Columns of A: [step_col, step_row, dn].
     let a = [
-        step_col[0], step_row[0], dn[0],
-        step_col[1], step_row[1], dn[1],
-        step_col[2], step_row[2], dn[2],
+        step_col[0],
+        step_row[0],
+        dn[0],
+        step_col[1],
+        step_row[1],
+        dn[1],
+        step_col[2],
+        step_row[2],
+        dn[2],
     ];
     let inv_a = invert3x3(a)?;
 
@@ -135,7 +161,11 @@ pub fn extract_dose_slice_for_volume(
                 + vd_f * vol_direction[8] * dz;
 
             // Patient space → dose grid coordinates.
-            let dp = [px - dose_origin[0], py - dose_origin[1], pz - dose_origin[2]];
+            let dp = [
+                px - dose_origin[0],
+                py - dose_origin[1],
+                pz - dose_origin[2],
+            ];
             let dose_col_f = inv_a[0] * dp[0] + inv_a[1] * dp[1] + inv_a[2] * dp[2];
             let dose_row_f = inv_a[3] * dp[0] + inv_a[4] * dp[1] + inv_a[5] * dp[2];
             let dose_z_mm = inv_a[6] * dp[0] + inv_a[7] * dp[1] + inv_a[8] * dp[2];
@@ -159,7 +189,10 @@ pub fn extract_dose_slice_for_volume(
                 .iter()
                 .enumerate()
                 .min_by(|(_, a), (_, b)| {
-                    (*a - dose_z_mm).abs().partial_cmp(&(*b - dose_z_mm).abs()).unwrap()
+                    (*a - dose_z_mm)
+                        .abs()
+                        .partial_cmp(&(*b - dose_z_mm).abs())
+                        .unwrap()
                 })
                 .map(|(i, _)| i)?;
 
@@ -248,8 +281,7 @@ fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 ///
 /// Returns `None` when the determinant is < 1e-12 (singular matrix).
 fn invert3x3(m: [f64; 9]) -> Option<[f64; 9]> {
-    let det = m[0] * (m[4] * m[8] - m[5] * m[7])
-        - m[1] * (m[3] * m[8] - m[5] * m[6])
+    let det = m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6])
         + m[2] * (m[3] * m[7] - m[4] * m[6]);
     if det.abs() < 1e-12 {
         return None;
@@ -379,11 +411,21 @@ mod tests {
         let y = [0.0, 1.0, 0.0];
         let z = [0.0, 0.0, 1.0];
         let xy = cross3(x, y);
-        assert!((xy[0] - z[0]).abs() < 1e-12 && (xy[1] - z[1]).abs() < 1e-12 && (xy[2] - z[2]).abs() < 1e-12,
-            "x×y != z: {:?}", xy);
+        assert!(
+            (xy[0] - z[0]).abs() < 1e-12
+                && (xy[1] - z[1]).abs() < 1e-12
+                && (xy[2] - z[2]).abs() < 1e-12,
+            "x×y != z: {:?}",
+            xy
+        );
         let yz = cross3(y, z);
-        assert!((yz[0] - x[0]).abs() < 1e-12 && (yz[1] - x[1]).abs() < 1e-12 && (yz[2] - x[2]).abs() < 1e-12,
-            "y×z != x: {:?}", yz);
+        assert!(
+            (yz[0] - x[0]).abs() < 1e-12
+                && (yz[1] - x[1]).abs() < 1e-12
+                && (yz[2] - x[2]).abs() < 1e-12,
+            "y×z != x: {:?}",
+            yz
+        );
     }
 
     #[test]
@@ -392,12 +434,14 @@ mod tests {
         // Dose grid: 4×4×4 axial, all voxels = 2.0 Gy.
         let n = 4;
         let dose = make_dose_grid(
-            n, n, n,
+            n,
+            n,
+            n,
             vec![2.0_f64; n * n * n],
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0, 0.0, 1.0, 0.0], // identity IOP
-            [1.0, 1.0],                        // 1mm spacing
-            vec![0.0, 1.0, 2.0, 3.0],          // frame offsets
+            [1.0, 1.0],                     // 1mm spacing
+            vec![0.0, 1.0, 2.0, 3.0],       // frame offsets
         );
 
         // Volume: 4×4×4, identity direction, 1mm spacing, same origin.
@@ -417,10 +461,7 @@ mod tests {
         let valid: Vec<f32> = map.iter().cloned().filter(|v| v.is_finite()).collect();
         assert!(!valid.is_empty(), "expected some finite dose values");
         for &d in &valid {
-            assert!(
-                (d - 2.0).abs() < 1e-4,
-                "expected 2.0 Gy, got {d}"
-            );
+            assert!((d - 2.0).abs() < 1e-4, "expected 2.0 Gy, got {d}");
         }
     }
 
@@ -443,7 +484,9 @@ mod tests {
         };
         let result = extract_dose_slice_for_volume(
             &dose,
-            0, 0, [4, 4, 4],
+            0,
+            0,
+            [4, 4, 4],
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
             [1.0, 1.0, 1.0],

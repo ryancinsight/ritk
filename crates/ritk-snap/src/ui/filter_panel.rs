@@ -1438,7 +1438,10 @@ mod tests {
         let fk = FilterKind::RelabelComponents {
             minimum_object_size: 0,
         };
-        if let FilterKind::RelabelComponents { minimum_object_size } = fk {
+        if let FilterKind::RelabelComponents {
+            minimum_object_size,
+        } = fk
+        {
             assert_eq!(
                 minimum_object_size, 0,
                 "default minimum_object_size must be 0 (ITK default: retain all components)"
@@ -1477,10 +1480,20 @@ mod tests {
     /// BinaryErode defaults: radius=1, foreground_value=1.0 — ITK defaults.
     #[test]
     fn binary_erode_defaults_are_valid() {
-        let fk = FilterKind::BinaryErode { radius: 1, foreground_value: 1.0 };
-        if let FilterKind::BinaryErode { radius, foreground_value } = fk {
+        let fk = FilterKind::BinaryErode {
+            radius: 1,
+            foreground_value: 1.0,
+        };
+        if let FilterKind::BinaryErode {
+            radius,
+            foreground_value,
+        } = fk
+        {
             assert!(radius <= 10, "default radius {radius} must be ≤ 10");
-            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+            assert_eq!(
+                foreground_value, 1.0,
+                "default fg value must be 1.0 (ITK default)"
+            );
         } else {
             panic!("expected BinaryErode variant");
         }
@@ -1489,10 +1502,20 @@ mod tests {
     /// BinaryDilate defaults: radius=1, foreground_value=1.0 — ITK defaults.
     #[test]
     fn binary_dilate_defaults_are_valid() {
-        let fk = FilterKind::BinaryDilate { radius: 1, foreground_value: 1.0 };
-        if let FilterKind::BinaryDilate { radius, foreground_value } = fk {
+        let fk = FilterKind::BinaryDilate {
+            radius: 1,
+            foreground_value: 1.0,
+        };
+        if let FilterKind::BinaryDilate {
+            radius,
+            foreground_value,
+        } = fk
+        {
             assert!(radius <= 10, "default radius {radius} must be ≤ 10");
-            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+            assert_eq!(
+                foreground_value, 1.0,
+                "default fg value must be 1.0 (ITK default)"
+            );
         } else {
             panic!("expected BinaryDilate variant");
         }
@@ -1501,10 +1524,20 @@ mod tests {
     /// BinaryClosing defaults: radius=1, foreground_value=1.0 — ITK defaults.
     #[test]
     fn binary_closing_defaults_are_valid() {
-        let fk = FilterKind::BinaryClosing { radius: 1, foreground_value: 1.0 };
-        if let FilterKind::BinaryClosing { radius, foreground_value } = fk {
+        let fk = FilterKind::BinaryClosing {
+            radius: 1,
+            foreground_value: 1.0,
+        };
+        if let FilterKind::BinaryClosing {
+            radius,
+            foreground_value,
+        } = fk
+        {
             assert!(radius <= 10, "default radius {radius} must be ≤ 10");
-            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+            assert_eq!(
+                foreground_value, 1.0,
+                "default fg value must be 1.0 (ITK default)"
+            );
         } else {
             panic!("expected BinaryClosing variant");
         }
@@ -1513,10 +1546,20 @@ mod tests {
     /// BinaryOpening defaults: radius=1, foreground_value=1.0 — ITK defaults.
     #[test]
     fn binary_opening_defaults_are_valid() {
-        let fk = FilterKind::BinaryOpening { radius: 1, foreground_value: 1.0 };
-        if let FilterKind::BinaryOpening { radius, foreground_value } = fk {
+        let fk = FilterKind::BinaryOpening {
+            radius: 1,
+            foreground_value: 1.0,
+        };
+        if let FilterKind::BinaryOpening {
+            radius,
+            foreground_value,
+        } = fk
+        {
             assert!(radius <= 10, "default radius {radius} must be ≤ 10");
-            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+            assert_eq!(
+                foreground_value, 1.0,
+                "default fg value must be 1.0 (ITK default)"
+            );
         } else {
             panic!("expected BinaryOpening variant");
         }
@@ -1525,9 +1568,14 @@ mod tests {
     /// BinaryFillhole defaults: foreground_value=1.0 — ITK default.
     #[test]
     fn binary_fillhole_defaults_are_valid() {
-        let fk = FilterKind::BinaryFillhole { foreground_value: 1.0 };
+        let fk = FilterKind::BinaryFillhole {
+            foreground_value: 1.0,
+        };
         if let FilterKind::BinaryFillhole { foreground_value } = fk {
-            assert_eq!(foreground_value, 1.0, "default fg value must be 1.0 (ITK default)");
+            assert_eq!(
+                foreground_value, 1.0,
+                "default fg value must be 1.0 (ITK default)"
+            );
         } else {
             panic!("expected BinaryFillhole variant");
         }
@@ -1581,7 +1629,10 @@ mod tests {
     #[test]
     fn abs_variant_is_valid() {
         let fk = FilterKind::Abs;
-        assert!(matches!(fk, FilterKind::Abs), "Abs variant must match itself");
+        assert!(
+            matches!(fk, FilterKind::Abs),
+            "Abs variant must match itself"
+        );
     }
 
     /// InvertIntensity default: maximum=None (computed from image data, ITK default).
@@ -1589,7 +1640,10 @@ mod tests {
     fn invert_intensity_default_maximum_is_none() {
         let fk = FilterKind::InvertIntensity { maximum: None };
         if let FilterKind::InvertIntensity { maximum } = fk {
-            assert!(maximum.is_none(), "InvertIntensity default maximum must be None (auto from image)");
+            assert!(
+                maximum.is_none(),
+                "InvertIntensity default maximum must be None (auto from image)"
+            );
         } else {
             panic!("expected InvertIntensity variant");
         }
@@ -1609,28 +1663,40 @@ mod tests {
     #[test]
     fn square_variant_is_valid() {
         let fk = FilterKind::Square;
-        assert!(matches!(fk, FilterKind::Square), "Square variant must match itself");
+        assert!(
+            matches!(fk, FilterKind::Square),
+            "Square variant must match itself"
+        );
     }
 
     /// Sqrt: unit struct, always valid.
     #[test]
     fn sqrt_variant_is_valid() {
         let fk = FilterKind::Sqrt;
-        assert!(matches!(fk, FilterKind::Sqrt), "Sqrt variant must match itself");
+        assert!(
+            matches!(fk, FilterKind::Sqrt),
+            "Sqrt variant must match itself"
+        );
     }
 
     /// Log: unit struct, always valid.
     #[test]
     fn log_variant_is_valid() {
         let fk = FilterKind::Log;
-        assert!(matches!(fk, FilterKind::Log), "Log variant must match itself");
+        assert!(
+            matches!(fk, FilterKind::Log),
+            "Log variant must match itself"
+        );
     }
 
     /// Exp: unit struct, always valid.
     #[test]
     fn exp_variant_is_valid() {
         let fk = FilterKind::Exp;
-        assert!(matches!(fk, FilterKind::Exp), "Exp variant must match itself");
+        assert!(
+            matches!(fk, FilterKind::Exp),
+            "Exp variant must match itself"
+        );
     }
 
     /// MorphologicalGradient default: radius=1 — minimal non-trivial cubic SE.
@@ -1642,8 +1708,14 @@ mod tests {
     fn morphological_gradient_default_radius_is_valid() {
         let fk = FilterKind::MorphologicalGradient { radius: 1 };
         if let FilterKind::MorphologicalGradient { radius } = fk {
-            assert_eq!(radius, 1, "default radius must be 1 (smallest non-trivial SE)");
-            assert!(radius <= 10, "default radius {radius} must be within slider range [0, 10]");
+            assert_eq!(
+                radius, 1,
+                "default radius must be 1 (smallest non-trivial SE)"
+            );
+            assert!(
+                radius <= 10,
+                "default radius {radius} must be within slider range [0, 10]"
+            );
         } else {
             panic!("expected MorphologicalGradient variant");
         }
@@ -1677,10 +1749,24 @@ mod tests {
     /// binary label values. lower ≤ upper required for valid threshold.
     #[test]
     fn binary_threshold_defaults_ordered() {
-        let fk = FilterKind::BinaryThreshold { lower: 100.0, upper: 500.0, foreground: 1.0, background: 0.0 };
-        if let FilterKind::BinaryThreshold { lower, upper, foreground, background } = fk {
+        let fk = FilterKind::BinaryThreshold {
+            lower: 100.0,
+            upper: 500.0,
+            foreground: 1.0,
+            background: 0.0,
+        };
+        if let FilterKind::BinaryThreshold {
+            lower,
+            upper,
+            foreground,
+            background,
+        } = fk
+        {
             assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
-            assert_ne!(foreground, background, "foreground and background must differ");
+            assert_ne!(
+                foreground, background,
+                "foreground and background must differ"
+            );
             assert_eq!(foreground, 1.0f32);
             assert_eq!(background, 0.0f32);
         } else {
@@ -1691,9 +1777,15 @@ mod tests {
     /// Rescale intensity: out_min < out_max required for a non-degenerate mapping.
     #[test]
     fn rescale_intensity_defaults_ordered() {
-        let fk = FilterKind::RescaleIntensity { out_min: 0.0, out_max: 1.0 };
+        let fk = FilterKind::RescaleIntensity {
+            out_min: 0.0,
+            out_max: 1.0,
+        };
         if let FilterKind::RescaleIntensity { out_min, out_max } = fk {
-            assert!(out_min < out_max, "out_min={out_min} must be < out_max={out_max}");
+            assert!(
+                out_min < out_max,
+                "out_min={out_min} must be < out_max={out_max}"
+            );
         } else {
             panic!("expected RescaleIntensity");
         }
@@ -1702,7 +1794,10 @@ mod tests {
     /// Clamp: lower ≤ upper required for non-degenerate clamping.
     #[test]
     fn clamp_defaults_ordered() {
-        let fk = FilterKind::Clamp { lower: 0.0, upper: 255.0 };
+        let fk = FilterKind::Clamp {
+            lower: 0.0,
+            upper: 255.0,
+        };
         if let FilterKind::Clamp { lower, upper } = fk {
             assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
         } else {
@@ -1713,7 +1808,13 @@ mod tests {
     /// Connected threshold: lower ≤ upper for a valid acceptance interval.
     #[test]
     fn connected_threshold_defaults_ordered() {
-        let fk = FilterKind::ConnectedThreshold { seed_z: 0, seed_y: 0, seed_x: 0, lower: 100.0, upper: 500.0 };
+        let fk = FilterKind::ConnectedThreshold {
+            seed_z: 0,
+            seed_y: 0,
+            seed_x: 0,
+            lower: 100.0,
+            upper: 500.0,
+        };
         if let FilterKind::ConnectedThreshold { lower, upper, .. } = fk {
             assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
         } else {
@@ -1725,14 +1826,31 @@ mod tests {
     #[test]
     fn confidence_connected_defaults_valid() {
         let fk = FilterKind::ConfidenceConnected {
-            seed_z: 0, seed_y: 0, seed_x: 0,
-            initial_lower: 0.0, initial_upper: 100.0,
-            multiplier: 2.5, max_iterations: 15,
+            seed_z: 0,
+            seed_y: 0,
+            seed_x: 0,
+            initial_lower: 0.0,
+            initial_upper: 100.0,
+            multiplier: 2.5,
+            max_iterations: 15,
         };
-        if let FilterKind::ConfidenceConnected { multiplier, max_iterations, initial_lower, initial_upper, .. } = fk {
-            assert!(multiplier > 0.0, "multiplier must be positive, got {multiplier}");
+        if let FilterKind::ConfidenceConnected {
+            multiplier,
+            max_iterations,
+            initial_lower,
+            initial_upper,
+            ..
+        } = fk
+        {
+            assert!(
+                multiplier > 0.0,
+                "multiplier must be positive, got {multiplier}"
+            );
             assert!(max_iterations >= 1, "max_iterations must be ≥ 1");
-            assert!(initial_lower <= initial_upper, "initial_lower must be ≤ initial_upper");
+            assert!(
+                initial_lower <= initial_upper,
+                "initial_lower must be ≤ initial_upper"
+            );
         } else {
             panic!("expected ConfidenceConnected");
         }
@@ -1742,13 +1860,29 @@ mod tests {
     #[test]
     fn neighborhood_connected_defaults_valid() {
         let fk = FilterKind::NeighborhoodConnected {
-            seed_z: 0, seed_y: 0, seed_x: 0,
-            lower: 100.0, upper: 500.0,
-            radius_z: 1, radius_y: 1, radius_x: 1,
+            seed_z: 0,
+            seed_y: 0,
+            seed_x: 0,
+            lower: 100.0,
+            upper: 500.0,
+            radius_z: 1,
+            radius_y: 1,
+            radius_x: 1,
         };
-        if let FilterKind::NeighborhoodConnected { lower, upper, radius_z, radius_y, radius_x, .. } = fk {
+        if let FilterKind::NeighborhoodConnected {
+            lower,
+            upper,
+            radius_z,
+            radius_y,
+            radius_x,
+            ..
+        } = fk
+        {
             assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
-            assert!(radius_z >= 1 && radius_y >= 1 && radius_x >= 1, "all radii must be ≥ 1");
+            assert!(
+                radius_z >= 1 && radius_y >= 1 && radius_x >= 1,
+                "all radii must be ≥ 1"
+            );
         } else {
             panic!("expected NeighborhoodConnected");
         }
@@ -1777,8 +1911,15 @@ mod tests {
     /// CurvatureFlow default time_step satisfies the 3-D stability bound Δt ≤ 1/6.
     #[test]
     fn curvature_flow_default_time_step_is_stable() {
-        let fk = FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 };
-        if let FilterKind::CurvatureFlow { iterations, time_step } = fk {
+        let fk = FilterKind::CurvatureFlow {
+            iterations: 5,
+            time_step: 0.0625,
+        };
+        if let FilterKind::CurvatureFlow {
+            iterations,
+            time_step,
+        } = fk
+        {
             assert!(iterations >= 1, "iterations must be ≥ 1: {iterations}");
             assert!(
                 time_step <= 1.0 / 6.0 + 1e-6,
@@ -1793,7 +1934,10 @@ mod tests {
     /// CurvatureFlow default iterations is the ITK default (5).
     #[test]
     fn curvature_flow_default_iterations_matches_itk() {
-        let fk = FilterKind::CurvatureFlow { iterations: 5, time_step: 0.0625 };
+        let fk = FilterKind::CurvatureFlow {
+            iterations: 5,
+            time_step: 0.0625,
+        };
         if let FilterKind::CurvatureFlow { iterations, .. } = fk {
             assert_eq!(iterations, 5, "ITK default iterations = 5");
         } else {
