@@ -124,9 +124,9 @@ impl InvertIntensityFilter {
     /// Apply intensity inversion to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         let (vals, dims) = extract_vec(image);
-        let max_val = self.maximum.unwrap_or_else(|| {
-            vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max)
-        });
+        let max_val = self
+            .maximum
+            .unwrap_or_else(|| vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max));
         let out: Vec<f32> = vals.into_iter().map(|v| max_val - v).collect();
         rebuild(out, dims, image)
     }
@@ -171,10 +171,14 @@ impl NormalizeImageFilter {
         let (vals, dims) = extract_vec(image);
         let n = vals.len() as f64;
         let mean = vals.iter().map(|&v| v as f64).sum::<f64>() / n;
-        let variance = vals.iter().map(|&v| {
-            let d = v as f64 - mean;
-            d * d
-        }).sum::<f64>() / n;
+        let variance = vals
+            .iter()
+            .map(|&v| {
+                let d = v as f64 - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / n;
         let std = variance.sqrt() as f32;
         let mean_f = mean as f32;
         let out: Vec<f32> = if std < f32::EPSILON {
@@ -323,8 +327,8 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
     use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -352,8 +356,11 @@ mod tests {
         let img = make_image(vec![0.0, 1.0, 2.5, 10.0], [1, 2, 2]);
         let out = AbsImageFilter::new().apply(&img);
         let v = vals(&out);
-        assert_eq!(v, vec![0.0_f32, 1.0, 2.5, 10.0],
-            "non-negative input must be unchanged by abs");
+        assert_eq!(
+            v,
+            vec![0.0_f32, 1.0, 2.5, 10.0],
+            "non-negative input must be unchanged by abs"
+        );
     }
 
     /// Negative values become positive.
@@ -362,8 +369,11 @@ mod tests {
         let img = make_image(vec![-3.0, -1.0, 0.0, 2.0], [1, 2, 2]);
         let out = AbsImageFilter::new().apply(&img);
         let v = vals(&out);
-        assert_eq!(v, vec![3.0_f32, 1.0, 0.0, 2.0],
-            "abs must negate each negative voxel: [-3,-1,0,2] → [3,1,0,2]");
+        assert_eq!(
+            v,
+            vec![3.0_f32, 1.0, 0.0, 2.0],
+            "abs must negate each negative voxel: [-3,-1,0,2] → [3,1,0,2]"
+        );
     }
 
     /// All-negative image: every output is the negation of input.
@@ -383,7 +393,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![1.0_f32, -1.0], Shape::new([1usize, 1, 2]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = AbsImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -406,8 +421,11 @@ mod tests {
         let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
         let out = InvertIntensityFilter::new().apply(&img);
         let v = vals(&out);
-        assert_eq!(v, vec![2.0_f32, 1.0, 0.0],
-            "[1,2,3] with auto max=3 must invert to [2,1,0]");
+        assert_eq!(
+            v,
+            vec![2.0_f32, 1.0, 0.0],
+            "[1,2,3] with auto max=3 must invert to [2,1,0]"
+        );
     }
 
     /// Fixed maximum: [1,4,7] with max=10 → [9,6,3].
@@ -416,8 +434,11 @@ mod tests {
         let img = make_image(vec![1.0, 4.0, 7.0], [1, 1, 3]);
         let out = InvertIntensityFilter::with_maximum(10.0).apply(&img);
         let v = vals(&out);
-        assert_eq!(v, vec![9.0_f32, 6.0, 3.0],
-            "[1,4,7] inverted with max=10 must yield [9,6,3]");
+        assert_eq!(
+            v,
+            vec![9.0_f32, 6.0, 3.0],
+            "[1,4,7] inverted with max=10 must yield [9,6,3]"
+        );
     }
 
     /// Minimum maps to (max - min), maximum maps to 0.
@@ -448,7 +469,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![1.0_f32, 3.0], Shape::new([1usize, 1, 2]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = InvertIntensityFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -468,7 +494,10 @@ mod tests {
         let v = vals(&out);
         let expected = vec![-1.0_f32, -1.0, 1.0, 1.0];
         for (a, b) in v.iter().zip(expected.iter()) {
-            assert!((a - b).abs() < 1e-5, "normalize [1,1,3,3]: got {a}, expected {b}");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "normalize [1,1,3,3]: got {a}, expected {b}"
+            );
         }
     }
 
@@ -495,9 +524,19 @@ mod tests {
         let v = vals(&out);
         let n = v.len() as f64;
         let mean: f64 = v.iter().map(|&x| x as f64).sum::<f64>() / n;
-        let variance: f64 = v.iter().map(|&x| { let d = x as f64 - mean; d*d }).sum::<f64>() / n;
+        let variance: f64 = v
+            .iter()
+            .map(|&x| {
+                let d = x as f64 - mean;
+                d * d
+            })
+            .sum::<f64>()
+            / n;
         assert!(mean.abs() < 1e-5, "output mean must be ≈ 0; got {mean}");
-        assert!((variance - 1.0).abs() < 1e-4, "output variance must be ≈ 1; got {variance}");
+        assert!(
+            (variance - 1.0).abs() < 1e-4,
+            "output variance must be ≈ 1; got {variance}"
+        );
     }
 
     /// Two-element [0,2]: mean=1, std=1 → [-1,1].
@@ -506,8 +545,16 @@ mod tests {
         let img = make_image(vec![0.0, 2.0], [1, 1, 2]);
         let out = NormalizeImageFilter::new().apply(&img);
         let v = vals(&out);
-        assert!((v[0] + 1.0).abs() < 1e-5, "normalize([0,2])[0] must be -1; got {}", v[0]);
-        assert!((v[1] - 1.0).abs() < 1e-5, "normalize([0,2])[1] must be +1; got {}", v[1]);
+        assert!(
+            (v[0] + 1.0).abs() < 1e-5,
+            "normalize([0,2])[0] must be -1; got {}",
+            v[0]
+        );
+        assert!(
+            (v[1] - 1.0).abs() < 1e-5,
+            "normalize([0,2])[1] must be +1; got {}",
+            v[1]
+        );
     }
 
     /// Spatial metadata is preserved.
@@ -517,7 +564,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![1.0_f32, 3.0], Shape::new([1usize, 1, 2]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = NormalizeImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -559,7 +611,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![2.0_f32], Shape::new([1usize, 1, 1]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = SquareImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -612,7 +669,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![9.0_f32], Shape::new([1usize, 1, 1]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = SqrtImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -660,7 +722,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![1.0_f32], Shape::new([1usize, 1, 1]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = LogImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -694,7 +761,10 @@ mod tests {
         let img = make_image(vec![2.0], [1, 1, 1]);
         let out = ExpImageFilter::new().apply(&img);
         let v = vals(&out)[0];
-        assert!((v - e2).abs() < 1e-3, "exp(2) must be ≈ e² ≈ {e2:.4}; got {v}");
+        assert!(
+            (v - e2).abs() < 1e-3,
+            "exp(2) must be ≈ e² ≈ {e2:.4}; got {v}"
+        );
     }
 
     /// Output is always positive for finite inputs.
@@ -714,7 +784,12 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![0.0_f32], Shape::new([1usize, 1, 1]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp.clone(), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
         let out = ExpImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
@@ -728,8 +803,10 @@ mod tests {
         let log_out = LogImageFilter::new().apply(&exp_out);
         let v = vals(&log_out);
         for (a, b) in v.iter().zip(vals_in.iter()) {
-            assert!((a - b).abs() < 1e-5, "ln(exp(x)) round-trip: got {a}, expected {b}");
+            assert!(
+                (a - b).abs() < 1e-5,
+                "ln(exp(x)) round-trip: got {a}, expected {b}"
+            );
         }
     }
 }
-

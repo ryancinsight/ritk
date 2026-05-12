@@ -74,7 +74,11 @@ pub struct ConstantPadImageFilter {
 impl ConstantPadImageFilter {
     /// Construct with explicit parameters.
     pub fn new(pad_lower: [usize; 3], pad_upper: [usize; 3], constant: f32) -> Self {
-        Self { pad_lower, pad_upper, constant }
+        Self {
+            pad_lower,
+            pad_upper,
+            constant,
+        }
     }
 }
 
@@ -105,7 +109,13 @@ impl ConstantPadImageFilter {
         for iz in 0..oz {
             for iy in 0..oy {
                 for ix in 0..ox {
-                    if iz >= lz && iz < lz + nz && iy >= ly && iy < ly + ny && ix >= lx && ix < lx + nx {
+                    if iz >= lz
+                        && iz < lz + nz
+                        && iy >= ly
+                        && iy < ly + ny
+                        && ix >= lx
+                        && ix < lx + nx
+                    {
                         let sz = iz - lz;
                         let sy = iy - ly;
                         let sx = ix - lx;
@@ -119,7 +129,12 @@ impl ConstantPadImageFilter {
         let shape = Shape::new([oz, oy, ox]);
         let data = TensorData::new(out, shape);
         let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(tensor, new_origin, *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            tensor,
+            new_origin,
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -139,7 +154,10 @@ pub struct MirrorPadImageFilter {
 impl MirrorPadImageFilter {
     /// Construct with explicit parameters.
     pub fn new(pad_lower: [usize; 3], pad_upper: [usize; 3]) -> Self {
-        Self { pad_lower, pad_upper }
+        Self {
+            pad_lower,
+            pad_upper,
+        }
     }
 }
 
@@ -199,7 +217,12 @@ impl MirrorPadImageFilter {
         let shape = Shape::new([oz, oy, ox]);
         let data = TensorData::new(out, shape);
         let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(tensor, new_origin, *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            tensor,
+            new_origin,
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -219,7 +242,10 @@ pub struct WrapPadImageFilter {
 impl WrapPadImageFilter {
     /// Construct with explicit parameters.
     pub fn new(pad_lower: [usize; 3], pad_upper: [usize; 3]) -> Self {
-        Self { pad_lower, pad_upper }
+        Self {
+            pad_lower,
+            pad_upper,
+        }
     }
 }
 
@@ -269,7 +295,12 @@ impl WrapPadImageFilter {
         let shape = Shape::new([oz, oy, ox]);
         let data = TensorData::new(out, shape);
         let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(tensor, new_origin, *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            tensor,
+            new_origin,
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -278,9 +309,9 @@ impl WrapPadImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use burn::tensor::TensorData;
     use crate::spatial::Direction;
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -307,7 +338,9 @@ mod tests {
     fn constant_pad_zero() {
         // 1×1×2 image [3,7], pad by 1 on each side → 1×1×4 [0,3,7,0].
         let img = make_image(vec![3.0, 7.0], [1, 1, 2]);
-        let out = ConstantPadImageFilter::new([0, 0, 1], [0, 0, 1], 0.0).apply(&img).unwrap();
+        let out = ConstantPadImageFilter::new([0, 0, 1], [0, 0, 1], 0.0)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), [1, 1, 4]);
         let v = voxels(&out);
         assert_eq!(v, vec![0.0, 3.0, 7.0, 0.0]);
@@ -317,7 +350,9 @@ mod tests {
     #[test]
     fn constant_pad_custom_value() {
         let img = make_image(vec![5.0], [1, 1, 1]);
-        let out = ConstantPadImageFilter::new([0, 0, 2], [0, 0, 2], -1.0).apply(&img).unwrap();
+        let out = ConstantPadImageFilter::new([0, 0, 2], [0, 0, 2], -1.0)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), [1, 1, 5]);
         let v = voxels(&out);
         assert_eq!(v, vec![-1.0, -1.0, 5.0, -1.0, -1.0]);
@@ -330,8 +365,15 @@ mod tests {
         let td = TensorData::new(vec![1.0f32], Shape::new([1, 1, 1]));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
         // Origin at [0, 0, 10], spacing [1, 1, 2] — pad 1 voxel on lower X.
-        let img2 = Image::new(tensor, Point::new([0.0_f64, 0.0, 10.0]), Spacing::new([1.0_f64, 1.0, 2.0]), Direction::identity());
-        let out = ConstantPadImageFilter::new([0, 0, 1], [0, 0, 0], 0.0).apply(&img2).unwrap();
+        let img2 = Image::new(
+            tensor,
+            Point::new([0.0_f64, 0.0, 10.0]),
+            Spacing::new([1.0_f64, 1.0, 2.0]),
+            Direction::identity(),
+        );
+        let out = ConstantPadImageFilter::new([0, 0, 1], [0, 0, 0], 0.0)
+            .apply(&img2)
+            .unwrap();
         // Origin x (axis 2) shifts by -1 * spacing[2] = -1 * 2.0 = -2.0 → new origin[2] = 10 - 2 = 8.
         let ox = out.origin()[2];
         assert!((ox - 8.0).abs() < 1e-10, "origin[2]={ox}");
@@ -345,7 +387,9 @@ mod tests {
     #[test]
     fn mirror_pad_1d() {
         let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let out = MirrorPadImageFilter::new([0, 0, 2], [0, 0, 2]).apply(&img).unwrap();
+        let out = MirrorPadImageFilter::new([0, 0, 2], [0, 0, 2])
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), [1, 1, 7]);
         let v = voxels(&out);
         // Expected: period=4, mirror extension:
@@ -377,7 +421,9 @@ mod tests {
     #[test]
     fn wrap_pad_1d() {
         let img = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
-        let out = WrapPadImageFilter::new([0, 0, 2], [0, 0, 2]).apply(&img).unwrap();
+        let out = WrapPadImageFilter::new([0, 0, 2], [0, 0, 2])
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), [1, 1, 7]);
         let v = voxels(&out);
         // index shifts: output i → input wrap(i-2, 3)
@@ -397,7 +443,9 @@ mod tests {
     #[test]
     fn wrap_pad_shape() {
         let img = make_image(vec![0.0f32; 24], [2, 3, 4]);
-        let out = WrapPadImageFilter::new([1, 2, 3], [1, 2, 3]).apply(&img).unwrap();
+        let out = WrapPadImageFilter::new([1, 2, 3], [1, 2, 3])
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), [4, 7, 10]);
     }
 }

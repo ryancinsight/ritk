@@ -290,10 +290,7 @@ mod tests {
         let td = out.data().clone().into_data();
         let result = td.as_slice::<f32>().unwrap();
         for (i, (&r, &v)) in result.iter().zip(vals.iter()).enumerate() {
-            assert!(
-                (r - v).abs() < 1e-6,
-                "voxel {i}: expected {v}, got {r}"
-            );
+            assert!((r - v).abs() < 1e-6, "voxel {i}: expected {v}, got {r}");
         }
     }
 
@@ -369,14 +366,8 @@ mod tests {
         let result = td.as_slice::<f32>().unwrap();
         let max_out = result.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let min_out = result.iter().cloned().fold(f32::INFINITY, f32::min);
-        assert!(
-            max_out > 99.0,
-            "small K should preserve max; got {max_out}"
-        );
-        assert!(
-            min_out < 1.0,
-            "small K should preserve min; got {min_out}"
-        );
+        assert!(max_out > 99.0, "small K should preserve max; got {max_out}");
+        assert!(min_out < 1.0, "small K should preserve min; got {min_out}");
     }
 
     // T5 — Single-voxel image (1×1×1): no neighbours → update = 0.

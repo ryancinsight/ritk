@@ -1,3 +1,29 @@
+## Sprint 199 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.9 [patch]
+**Goal**: Constrain the native DICOM JPEG decoder dependency behind a static backend boundary and add missing 16-bit sample-contract verification.
+
+### Checklist items
+- [x] Audit remaining image gaps after JPEG 2000 replacement
+- [x] Confirm `jpeg-decoder` calls are localized to `ritk-codecs::jpeg`
+- [x] Add sealed `ritk-codecs::jpeg::backend::JpegDecodeBackend` boundary
+- [x] Add `JpegDecoderCrate` ZST implementation for the current dependency
+- [x] Route `decode_jpeg_fragment` through `decode_jpeg_fragment_with::<JpegDecoderCrate>`
+- [x] Preserve DICOM layout validation, grayscale-only rejection, and modality LUT behavior
+- [x] Add 16-bit SOF3 lossless JPEG fixture for stored sample `0x1234`
+- [x] Verify L16 backend byte order contract with `0x1234u16.to_ne_bytes()`
+- [x] Verify DICOM L16 modality LUT output `0x1234 * 2 - 4 = 9316`
+- [x] Verify focused codec tests: `cargo test -p ritk-codecs --lib jpeg -- --nocapture` (74 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Replace `JpegDecoderCrate` with a RITK-owned JPEG decoder implementation | High | Open |
+| Extend native JPEG beyond grayscale L8/L16 single-sample layouts | Medium | Open |
+| Replace JPEG-LS CharLS negative fixture with third-party positive conformance coverage | Medium | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
 ## Sprint 198 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

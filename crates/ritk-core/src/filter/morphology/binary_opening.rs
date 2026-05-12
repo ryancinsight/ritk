@@ -74,9 +74,9 @@ impl BinaryMorphologicalOpening {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("BinaryMorphologicalOpening requires f32 data: {:?}", e))?;
+        let vals: &[f32] = td.as_slice::<f32>().map_err(|e| {
+            anyhow::anyhow!("BinaryMorphologicalOpening requires f32 data: {:?}", e)
+        })?;
 
         // Opening = dilate(erode(f))
         let eroded = erode_binary_3d(vals, dims, self.radius, self.foreground_value);
@@ -123,7 +123,12 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        img.data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     /// T1: Radius-0 opening is identity.
@@ -192,9 +197,21 @@ mod tests {
         let out = BinaryMorphologicalOpening::new(1).apply(&img).unwrap();
         let result = flat(&out);
         // Centre voxels (1,1,{3,4,5}) must survive.
-        assert_eq!(result[1 * 27 + 1 * 9 + 3], 1.0, "(1,1,3) must survive opening");
-        assert_eq!(result[1 * 27 + 1 * 9 + 4], 1.0, "(1,1,4) must survive opening");
-        assert_eq!(result[1 * 27 + 1 * 9 + 5], 1.0, "(1,1,5) must survive opening");
+        assert_eq!(
+            result[1 * 27 + 1 * 9 + 3],
+            1.0,
+            "(1,1,3) must survive opening"
+        );
+        assert_eq!(
+            result[1 * 27 + 1 * 9 + 4],
+            1.0,
+            "(1,1,4) must survive opening"
+        );
+        assert_eq!(
+            result[1 * 27 + 1 * 9 + 5],
+            1.0,
+            "(1,1,5) must survive opening"
+        );
     }
 
     /// T5: All-background stays background after opening.

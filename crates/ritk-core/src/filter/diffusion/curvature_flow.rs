@@ -123,7 +123,8 @@ impl CurvatureFlowImageFilter {
     /// Returns `anyhow::Error` if the voxel data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let td = image.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>()
+        let vals: &[f32] = td
+            .as_slice::<f32>()
             .map_err(|e| anyhow::anyhow!("CurvatureFlowImageFilter: {:?}", e))?;
         let [nz, ny, nx] = image.shape();
         let mut cur: Vec<f32> = vals.to_vec();
@@ -162,12 +163,18 @@ impl CurvatureFlowImageFilter {
                         let izz = get(z + 1, y, x) - 2.0 * c + get(z - 1, y, x);
 
                         // Mixed second derivatives (cross terms)
-                        let ixy = (get(z, y + 1, x + 1) - get(z, y + 1, x - 1)
-                            - get(z, y - 1, x + 1) + get(z, y - 1, x - 1)) * 0.25;
-                        let ixz = (get(z + 1, y, x + 1) - get(z + 1, y, x - 1)
-                            - get(z - 1, y, x + 1) + get(z - 1, y, x - 1)) * 0.25;
-                        let iyz = (get(z + 1, y + 1, x) - get(z + 1, y - 1, x)
-                            - get(z - 1, y + 1, x) + get(z - 1, y - 1, x)) * 0.25;
+                        let ixy =
+                            (get(z, y + 1, x + 1) - get(z, y + 1, x - 1) - get(z, y - 1, x + 1)
+                                + get(z, y - 1, x - 1))
+                                * 0.25;
+                        let ixz =
+                            (get(z + 1, y, x + 1) - get(z + 1, y, x - 1) - get(z - 1, y, x + 1)
+                                + get(z - 1, y, x - 1))
+                                * 0.25;
+                        let iyz =
+                            (get(z + 1, y + 1, x) - get(z + 1, y - 1, x) - get(z - 1, y + 1, x)
+                                + get(z - 1, y - 1, x))
+                                * 0.25;
 
                         // Mean curvature numerator N
                         let num = ixx * (iy_ * iy_ + iz_ * iz_)
@@ -181,7 +188,11 @@ impl CurvatureFlowImageFilter {
                         let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
                         let denom = grad_sq.sqrt().powi(3); // = grad_sq^(3/2)
 
-                        let kappa = if denom > GRAD_MAG_EPSILON { num / denom } else { 0.0 };
+                        let kappa = if denom > GRAD_MAG_EPSILON {
+                            num / denom
+                        } else {
+                            0.0
+                        };
 
                         next[idx] = c + dt * kappa;
                     }
@@ -210,8 +221,8 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
     use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -228,7 +239,10 @@ mod tests {
     }
 
     fn cfg(iters: usize, dt: f32) -> CurvatureFlowConfig {
-        CurvatureFlowConfig { num_iterations: iters, time_step: dt }
+        CurvatureFlowConfig {
+            num_iterations: iters,
+            time_step: dt,
+        }
     }
 
     // ── Analytical tests ──────────────────────────────────────────────────────
@@ -244,7 +258,10 @@ mod tests {
         let td = out.data().clone().into_data();
         let v: &[f32] = td.as_slice::<f32>().unwrap();
         for &x in v {
-            assert!((x - 42.0f32).abs() < 1e-4, "constant image not preserved: {x}");
+            assert!(
+                (x - 42.0f32).abs() < 1e-4,
+                "constant image not preserved: {x}"
+            );
         }
     }
 
@@ -273,7 +290,11 @@ mod tests {
             .unwrap();
         let td = out.data().clone().into_data();
         let v: &[f32] = td.as_slice::<f32>().unwrap();
-        assert!((v[0] - 100.0f32).abs() < 1e-4, "single voxel must be unchanged: {}", v[0]);
+        assert!(
+            (v[0] - 100.0f32).abs() < 1e-4,
+            "single voxel must be unchanged: {}",
+            v[0]
+        );
     }
 
     /// Spatial metadata is preserved exactly.
@@ -309,7 +330,9 @@ mod tests {
         for iz in 0..3 {
             for iy in 0..3 {
                 for ix in 0..3 {
-                    if ix >= 2 { vals[iz * 9 + iy * 3 + ix] = 100.0; }
+                    if ix >= 2 {
+                        vals[iz * 9 + iy * 3 + ix] = 100.0;
+                    }
                 }
             }
         }
@@ -323,8 +346,14 @@ mod tests {
         let out_min = v.iter().cloned().fold(f32::INFINITY, f32::min);
         let in_max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let in_min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
-        assert!(out_max <= in_max, "max should not increase: out={out_max}, in={in_max}");
-        assert!(out_min >= in_min, "min should not decrease: out={out_min}, in={in_min}");
+        assert!(
+            out_max <= in_max,
+            "max should not increase: out={out_max}, in={in_max}"
+        );
+        assert!(
+            out_min >= in_min,
+            "min should not decrease: out={out_min}, in={in_min}"
+        );
     }
 
     /// ITK default configuration values match documented standard.
@@ -332,8 +361,14 @@ mod tests {
     fn default_config_matches_itk() {
         let cfg = CurvatureFlowConfig::default();
         assert_eq!(cfg.num_iterations, 5, "ITK default iterations = 5");
-        assert!((cfg.time_step - 0.0625f32).abs() < 1e-7, "ITK default dt = 0.0625");
+        assert!(
+            (cfg.time_step - 0.0625f32).abs() < 1e-7,
+            "ITK default dt = 0.0625"
+        );
         // Stability: dt ≤ 1/6 ≈ 0.1667
-        assert!(cfg.time_step <= 1.0 / 6.0 + 1e-6, "default dt must be within stability bound");
+        assert!(
+            cfg.time_step <= 1.0 / 6.0 + 1e-6,
+            "default dt must be within stability bound"
+        );
     }
 }

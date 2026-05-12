@@ -99,7 +99,12 @@ impl GrayscaleMorphologicalGradientFilter {
             .clone()
             .into_data()
             .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("GrayscaleMorphologicalGradientFilter requires f32 data: {:?}", e))?;
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "GrayscaleMorphologicalGradientFilter requires f32 data: {:?}",
+                    e
+                )
+            })?;
 
         let dilated = dilate_3d(&vals, dims, self.radius);
         let eroded = erode_3d(&vals, dims, self.radius);
@@ -130,8 +135,8 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
     use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -160,9 +165,14 @@ mod tests {
     #[test]
     fn constant_image_zero_gradient() {
         let img = make_image(vec![5.0; 27], [3, 3, 3]);
-        let out = GrayscaleMorphologicalGradientFilter::new(1).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply(&img)
+            .unwrap();
         for &v in vals(&out).iter() {
-            assert_eq!(v, 0.0_f32, "constant image must yield zero gradient; got {v}");
+            assert_eq!(
+                v, 0.0_f32,
+                "constant image must yield zero gradient; got {v}"
+            );
         }
     }
 
@@ -173,7 +183,9 @@ mod tests {
     #[test]
     fn radius_zero_always_zero() {
         let img = make_image(vec![0.0, 5.0, 10.0, 3.0, 8.0, 1.0], [1, 2, 3]);
-        let out = GrayscaleMorphologicalGradientFilter::new(0).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(0)
+            .apply(&img)
+            .unwrap();
         for &v in vals(&out).iter() {
             assert_eq!(v, 0.0_f32, "radius=0 must yield zero gradient; got {v}");
         }
@@ -189,7 +201,9 @@ mod tests {
         // Arbitrary non-constant volume.
         let data: Vec<f32> = (0..27).map(|i| (i as f32) * 3.7 - 20.0).collect();
         let img = make_image(data, [3, 3, 3]);
-        let out = GrayscaleMorphologicalGradientFilter::new(1).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply(&img)
+            .unwrap();
         for &v in vals(&out).iter() {
             assert!(v >= 0.0, "gradient must be non-negative; got {v}");
         }
@@ -213,14 +227,25 @@ mod tests {
     fn step_edge_gradient_at_boundary() {
         let data = vec![0.0, 0.0, 0.0, 10.0, 10.0, 10.0, 10.0];
         let img = make_image(data, [1, 1, 7]);
-        let out = GrayscaleMorphologicalGradientFilter::new(1).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply(&img)
+            .unwrap();
         let v = vals(&out);
         // Interior voxels far from the edge: gradient = 0
         assert_eq!(v[0], 0.0_f32, "voxel at x=0 (far left): gradient must be 0");
-        assert_eq!(v[6], 0.0_f32, "voxel at x=6 (far right): gradient must be 0");
+        assert_eq!(
+            v[6], 0.0_f32,
+            "voxel at x=6 (far right): gradient must be 0"
+        );
         // Boundary voxels at x=2 and x=3
-        assert_eq!(v[2], 10.0_f32, "boundary voxel x=2: dilation=10, erosion=0 → gradient=10");
-        assert_eq!(v[3], 10.0_f32, "boundary voxel x=3: dilation=10, erosion=0 → gradient=10");
+        assert_eq!(
+            v[2], 10.0_f32,
+            "boundary voxel x=2: dilation=10, erosion=0 → gradient=10"
+        );
+        assert_eq!(
+            v[3], 10.0_f32,
+            "boundary voxel x=3: dilation=10, erosion=0 → gradient=10"
+        );
     }
 
     /// Spatial metadata is preserved.
@@ -236,7 +261,9 @@ mod tests {
             sp.clone(),
             Direction::identity(),
         );
-        let out = GrayscaleMorphologicalGradientFilter::new(1).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }
 
@@ -256,15 +283,32 @@ mod tests {
         let mut data = vec![0.0_f32; 25]; // 1×5×5
         data[12] = 100.0; // center voxel at (0, 2, 2)
         let img = make_image(data, [1, 5, 5]);
-        let out = GrayscaleMorphologicalGradientFilter::new(1).apply(&img).unwrap();
+        let out = GrayscaleMorphologicalGradientFilter::new(1)
+            .apply(&img)
+            .unwrap();
         let v = vals(&out);
         // Corners of the 5×5 image (flat z=0): indices 0, 4, 20, 24 are ≥ 2 away
         // from center (2,2) in the x dimension — no contact with the bright voxel.
-        assert_eq!(v[0], 0.0_f32, "corner (0,0): far from bright voxel, gradient must be 0");
-        assert_eq!(v[4], 0.0_f32, "corner (0,4): far from bright voxel, gradient must be 0");
-        assert_eq!(v[20], 0.0_f32, "corner (4,0): far from bright voxel, gradient must be 0");
-        assert_eq!(v[24], 0.0_f32, "corner (4,4): far from bright voxel, gradient must be 0");
+        assert_eq!(
+            v[0], 0.0_f32,
+            "corner (0,0): far from bright voxel, gradient must be 0"
+        );
+        assert_eq!(
+            v[4], 0.0_f32,
+            "corner (0,4): far from bright voxel, gradient must be 0"
+        );
+        assert_eq!(
+            v[20], 0.0_f32,
+            "corner (4,0): far from bright voxel, gradient must be 0"
+        );
+        assert_eq!(
+            v[24], 0.0_f32,
+            "corner (4,4): far from bright voxel, gradient must be 0"
+        );
         // Center voxel itself: in its own neighbourhood → dilation=100, erosion=0; grad=100.
-        assert_eq!(v[12], 100.0_f32, "center bright voxel: gradient must be 100");
+        assert_eq!(
+            v[12], 100.0_f32,
+            "center bright voxel: gradient must be 100"
+        );
     }
 }

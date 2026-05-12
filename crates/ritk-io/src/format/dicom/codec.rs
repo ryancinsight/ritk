@@ -27,8 +27,8 @@
 //! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   | native        |
 //! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | charls         | charls        |
 //! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | charls         | charls        |
-//! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | openjpeg-sys   | openjpeg-sys  |
-//! | JPEG 2000 Lossy                        | 1.2.840.10008.1.2.4.91   | openjpeg-sys   | openjpeg-sys  |
+//! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | openjp2        | openjp2       |
+//! | JPEG 2000 Lossy                        | 1.2.840.10008.1.2.4.91   | openjp2        | openjp2       |
 //! | RLE Lossless                           | 1.2.840.10008.1.2.5      | dicom-rle      | native        |
 //! | JPEG XL Lossless                       | 1.2.840.10008.1.2.4.110  | jxl-oxide      | jpegxl        |
 //! | JPEG XL JPEG Recompression             | 1.2.840.10008.1.2.4.111  | jxl-oxide      | jpegxl        |
@@ -1447,7 +1447,8 @@ mod tests {
     /// Build and write a minimal JPEG 2000 Lossless DICOM Part 10 file.
     ///
     /// Pixel data is encoded as a bare J2K codestream (`OPJ_CODEC_J2K`) using the
-    /// 5/3 reversible integer wavelet transform (`irreversible = 0`) via openjpeg-sys FFI.
+    /// 5/3 reversible integer wavelet transform (`irreversible = 0`) via the Rust
+    /// `openjp2` port.
     /// One resolution level is used to satisfy tile-size constraints for small images.
     ///
     /// # Parameters
@@ -1477,15 +1478,16 @@ mod tests {
             .expect("temp file path is not valid UTF-8");
         let tmp_cstr = CString::new(tmp_path_str).expect("CString::new failed");
 
-        // Encode pixels to a J2K bare codestream using OpenJPEG.
+        // Encode pixels to a J2K bare codestream using the Rust OpenJPEG port.
         let j2k_bytes = unsafe {
-            use openjpeg_sys::{
+            use openjp2::openjpeg::{
                 opj_cparameters_t, opj_create_compress, opj_destroy_codec, opj_encode,
-                opj_end_compress, opj_image_cmptparm_t, opj_image_create, opj_image_destroy,
+                opj_end_compress, opj_image_create, opj_image_destroy,
                 opj_set_default_encoder_parameters, opj_setup_encoder, opj_start_compress,
                 opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT,
                 COLOR_SPACE, OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
             };
+            use openjp2::opj_image_comptparm as opj_image_cmptparm_t;
 
             // Initialize encoder parameters with defaults, then override for lossless.
             let mut params: opj_cparameters_t = std::mem::zeroed();

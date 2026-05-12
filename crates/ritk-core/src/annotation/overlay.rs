@@ -11,8 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 /// Display colormap for image overlays.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum Colormap {
     #[default]
     Grayscale,
@@ -21,7 +20,6 @@ pub enum Colormap {
     Jet,
     Custom(Vec<[f32; 4]>),
 }
-
 
 /// Secondary image overlay.  Invariant: data.len() == dims product.
 #[derive(Debug, Clone, Serialize, Deserialize)]

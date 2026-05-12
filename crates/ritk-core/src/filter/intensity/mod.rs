@@ -22,23 +22,26 @@ pub mod sigmoid;
 pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
+pub mod suv;
 
-pub use clamp::ClampImageFilter;
 pub use arithmetic::{
-    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter,
-    NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
+    AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, NormalizeImageFilter,
+    SqrtImageFilter, SquareImageFilter,
 };
 pub use bed_separation::{BedSeparationConfig, BedSeparationFilter};
+pub use binary_ops::{
+    AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMinFilter, MultiplyImageFilter,
+    SubtractImageFilter,
+};
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use clahe::ClaheFilter;
+pub use clamp::ClampImageFilter;
 pub use equalization::HistogramEqualizationFilter;
+pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use rescale::RescaleIntensityFilter;
 pub use sigmoid::SigmoidImageFilter;
 pub use threshold::{ThresholdImageFilter, ThresholdMode};
 pub use unsharp_mask::UnsharpMaskFilter;
-pub use binary_ops::{AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMinFilter,
-    MultiplyImageFilter, SubtractImageFilter};
-pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use windowing::IntensityWindowingFilter;
 
 pub mod shift_scale;
@@ -50,3 +53,4 @@ pub use trig::{
     CosImageFilter, SinImageFilter, TanImageFilter,
 };
 pub use zero_crossing::ZeroCrossingImageFilter;
+pub use suv::SuvBodyWeightImageFilter;

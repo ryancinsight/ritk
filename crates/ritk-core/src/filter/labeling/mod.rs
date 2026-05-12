@@ -21,6 +21,6 @@
 //! ```
 
 pub use crate::segmentation::labeling::{
-    connected_components, ConnectedComponentsFilter, LabelStatistics,
-    RelabelComponentFilter, RelabelStatistics,
+    connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter,
+    RelabelStatistics,
 };

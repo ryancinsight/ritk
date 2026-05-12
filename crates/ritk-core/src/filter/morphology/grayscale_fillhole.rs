@@ -136,9 +136,8 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
-                let on_border = iz == 0 || iz == nz - 1
-                    || iy == 0 || iy == ny - 1
-                    || ix == 0 || ix == nx - 1;
+                let on_border =
+                    iz == 0 || iz == nz - 1 || iy == 0 || iy == ny - 1 || ix == 0 || ix == nx - 1;
                 if on_border {
                     let flat = iz * ny * nx + iy * nx + ix;
                     let v = data[flat];
@@ -153,12 +152,30 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let neighbours = |iz: usize, iy: usize, ix: usize| {
         let mut nbrs: [Option<usize>; 6] = [None; 6];
         let mut k = 0;
-        if iz > 0       { nbrs[k] = Some((iz - 1) * ny * nx + iy * nx + ix); k += 1; }
-        if iz + 1 < nz  { nbrs[k] = Some((iz + 1) * ny * nx + iy * nx + ix); k += 1; }
-        if iy > 0       { nbrs[k] = Some(iz * ny * nx + (iy - 1) * nx + ix); k += 1; }
-        if iy + 1 < ny  { nbrs[k] = Some(iz * ny * nx + (iy + 1) * nx + ix); k += 1; }
-        if ix > 0       { nbrs[k] = Some(iz * ny * nx + iy * nx + (ix - 1)); k += 1; }
-        if ix + 1 < nx  { nbrs[k] = Some(iz * ny * nx + iy * nx + (ix + 1)); k += 1; }
+        if iz > 0 {
+            nbrs[k] = Some((iz - 1) * ny * nx + iy * nx + ix);
+            k += 1;
+        }
+        if iz + 1 < nz {
+            nbrs[k] = Some((iz + 1) * ny * nx + iy * nx + ix);
+            k += 1;
+        }
+        if iy > 0 {
+            nbrs[k] = Some(iz * ny * nx + (iy - 1) * nx + ix);
+            k += 1;
+        }
+        if iy + 1 < ny {
+            nbrs[k] = Some(iz * ny * nx + (iy + 1) * nx + ix);
+            k += 1;
+        }
+        if ix > 0 {
+            nbrs[k] = Some(iz * ny * nx + iy * nx + (ix - 1));
+            k += 1;
+        }
+        if ix + 1 < nx {
+            nbrs[k] = Some(iz * ny * nx + iy * nx + (ix + 1));
+            k += 1;
+        }
         let _ = k;
         nbrs
     };
@@ -271,9 +288,12 @@ mod tests {
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
-                    let on_border = iz == 0 || iz == nz - 1
-                        || iy == 0 || iy == ny - 1
-                        || ix == 0 || ix == nx - 1;
+                    let on_border = iz == 0
+                        || iz == nz - 1
+                        || iy == 0
+                        || iy == ny - 1
+                        || ix == 0
+                        || ix == nx - 1;
                     if on_border {
                         let f = flat(iz, iy, ix, ny, nx);
                         assert!(
@@ -327,13 +347,16 @@ mod tests {
         let [nz, ny, nx] = [5usize, 5, 5];
         let n = nz * ny * nx;
         let mut vals = vec![0.0_f32; n]; // all outer = 0 (overwritten below)
-        // Outer shell: value 1
+                                         // Outer shell: value 1
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
-                    let on_border = iz == 0 || iz == nz - 1
-                        || iy == 0 || iy == ny - 1
-                        || ix == 0 || ix == nx - 1;
+                    let on_border = iz == 0
+                        || iz == nz - 1
+                        || iy == 0
+                        || iy == ny - 1
+                        || ix == 0
+                        || ix == nx - 1;
                     if on_border {
                         vals[flat(iz, iy, ix, ny, nx)] = 1.0;
                     }

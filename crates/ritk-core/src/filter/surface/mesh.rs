@@ -19,4 +19,3 @@ pub type Mesh = gaia::IndexedMesh<f64>;
 
 /// Re-export `MeshBuilder` for consumers that need low-level triangle construction.
 pub use gaia::MeshBuilder;
-

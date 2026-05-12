@@ -247,8 +247,7 @@ fn clahe_2d(
             let f11 = cdfs[ty1 * n_tx + tx1][bin];
 
             // Bilinear interpolation: (1-u)*lerp_row0 + u*lerp_row1
-            let mapped = (1.0 - u) * ((1.0 - t) * f00 + t * f01)
-                + u * ((1.0 - t) * f10 + t * f11);
+            let mapped = (1.0 - u) * ((1.0 - t) * f00 + t * f01) + u * ((1.0 - t) * f10 + t * f11);
 
             output[y * cols + x] = v_min + mapped.clamp(0.0, 1.0) * span;
         }
@@ -444,7 +443,9 @@ mod tests {
         let mut x = 12345u64;
         let pixels: Vec<f32> = (0..32 * 32)
             .map(|_| {
-                x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                x = x
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 ((x >> 33) as f32 / u32::MAX as f32) * 2000.0 - 1000.0
             })
             .collect();
@@ -556,7 +557,9 @@ mod tests {
         // linear ramp from 0 to 255 (identity) because the ramp already has
         // uniform histogram. The midpoint pixel value should change less than 20%.
         let n = 16usize;
-        let data: Vec<f32> = (0..(1 * n * n)).map(|i| i as f32 / (n * n - 1) as f32 * 255.0).collect();
+        let data: Vec<f32> = (0..(1 * n * n))
+            .map(|i| i as f32 / (n * n - 1) as f32 * 255.0)
+            .collect();
         let img = make_image(data.clone(), [1, n, n]);
         let filter = ClaheFilter::new([1, 1], 1000.0, 256);
         let out = filter.apply(&img).expect("CLAHE apply failed");
@@ -564,7 +567,11 @@ mod tests {
         let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
 
         // Last pixel should map close to 255.0
-        assert!(out_vals[n * n - 1] > 200.0, "last pixel = {}", out_vals[n * n - 1]);
+        assert!(
+            out_vals[n * n - 1] > 200.0,
+            "last pixel = {}",
+            out_vals[n * n - 1]
+        );
         // First pixel should map close to 0.0
         assert!(out_vals[0] < 50.0, "first pixel = {}", out_vals[0]);
     }

@@ -131,7 +131,9 @@ mod tests {
     fn flip_none_is_identity() {
         let vals = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let img = make_image(vals.clone(), [2, 2, 2]);
-        let out = FlipImageFilter::new([false, false, false]).apply(&img).unwrap();
+        let out = FlipImageFilter::new([false, false, false])
+            .apply(&img)
+            .unwrap();
         let v = voxels(&out);
         for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
             assert!((a - b).abs() < 1e-5, "[{}] expected {}, got {}", i, b, a);
@@ -146,7 +148,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [4.0f32, 3.0, 2.0, 1.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -158,7 +166,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [40.0f32, 30.0, 20.0, 10.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -172,7 +186,13 @@ mod tests {
         let out2 = flip.apply(&out1).unwrap();
         let v = voxels(&out2);
         for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
-            assert!((a - b).abs() < 1e-5, "[{}] double-flip expected {}, got {}", i, b, a);
+            assert!(
+                (a - b).abs() < 1e-5,
+                "[{}] double-flip expected {}, got {}",
+                i,
+                b,
+                a
+            );
         }
     }
 
@@ -200,7 +220,9 @@ mod tests {
             }
         }
         let img = make_image(vals, dims);
-        let out = FlipImageFilter::new([true, true, true]).apply(&img).unwrap();
+        let out = FlipImageFilter::new([true, true, true])
+            .apply(&img)
+            .unwrap();
         let v = voxels(&out);
         // After flipping all axes: out(iz,iy,ix) = in(nz-1-iz, ny-1-iy, nx-1-ix)
         for iz in 0..2usize {
@@ -213,7 +235,12 @@ mod tests {
                     let exp = (iz_s * 100 + iy_s * 10 + ix_s) as f32;
                     assert!(
                         (got - exp).abs() < 1e-4,
-                        "({},{},{}): expected {}, got {}", iz, iy, ix, exp, got
+                        "({},{},{}): expected {}, got {}",
+                        iz,
+                        iy,
+                        ix,
+                        exp,
+                        got
                     );
                 }
             }

@@ -43,7 +43,10 @@ pub struct ZeroCrossingImageFilter {
 
 impl Default for ZeroCrossingImageFilter {
     fn default() -> Self {
-        Self { foreground_value: 1.0, background_value: 0.0 }
+        Self {
+            foreground_value: 1.0,
+            background_value: 0.0,
+        }
     }
 }
 
@@ -88,15 +91,20 @@ impl ZeroCrossingImageFilter {
                     }
                     // Case 2: opposite-sign 6-connected neighbour
                     let neighbours: &[(isize, isize, isize)] = &[
-                        (-1, 0, 0), (1, 0, 0),
-                        (0, -1, 0), (0, 1, 0),
-                        (0, 0, -1), (0, 0, 1),
+                        (-1, 0, 0),
+                        (1, 0, 0),
+                        (0, -1, 0),
+                        (0, 1, 0),
+                        (0, 0, -1),
+                        (0, 0, 1),
                     ];
                     let crosses = neighbours.iter().any(|&(dz, dy, dx)| {
                         let nz_ = iz as isize + dz;
                         let ny_ = iy as isize + dy;
                         let nx_ = ix as isize + dx;
-                        if nz_ < 0 || ny_ < 0 || nx_ < 0
+                        if nz_ < 0
+                            || ny_ < 0
+                            || nx_ < 0
                             || nz_ >= nz as isize
                             || ny_ >= ny as isize
                             || nx_ >= nx as isize
@@ -172,8 +180,14 @@ mod tests {
         let out = ZeroCrossingImageFilter::new().apply(&img).unwrap();
         let v = voxels(&out);
         assert_eq!(v[1], 1.0, "exact-zero voxel must be foreground");
-        assert_eq!(v[0], 0.0, "positive voxel with only positive neighbours is background");
-        assert_eq!(v[2], 0.0, "positive voxel with only positive neighbours is background");
+        assert_eq!(
+            v[0], 0.0,
+            "positive voxel with only positive neighbours is background"
+        );
+        assert_eq!(
+            v[2], 0.0,
+            "positive voxel with only positive neighbours is background"
+        );
     }
 
     #[test]
@@ -216,7 +230,13 @@ mod tests {
         let img = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let out = ZeroCrossingImageFilter::new().apply(&img).unwrap();
         let v = voxels(&out);
-        assert_eq!(v[0], 0.0, "boundary voxel with no sign-change neighbour is background");
-        assert_eq!(v[1], 0.0, "boundary voxel with no sign-change neighbour is background");
+        assert_eq!(
+            v[0], 0.0,
+            "boundary voxel with no sign-change neighbour is background"
+        );
+        assert_eq!(
+            v[1], 0.0,
+            "boundary voxel with no sign-change neighbour is background"
+        );
     }
 }

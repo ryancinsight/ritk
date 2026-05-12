@@ -300,9 +300,7 @@ mod tests {
 
     #[test]
     fn apply_output_in_global_range() {
-        let data: Vec<f32> = (0..2 * 16 * 16)
-            .map(|i| (i % 200) as f32 - 50.0)
-            .collect();
+        let data: Vec<f32> = (0..2 * 16 * 16).map(|i| (i % 200) as f32 - 50.0).collect();
         let v_min = data.iter().cloned().fold(f32::INFINITY, f32::min);
         let v_max = data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let img = make_image(data, [2, 16, 16]);

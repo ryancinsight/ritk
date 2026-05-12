@@ -79,8 +79,7 @@ pub fn burn_tensor_to_onnx<B: Backend, const D: usize>(
 }
 
 /// Tensor data layout enumeration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TensorLayout {
     /// Row-major (C-contiguous) layout
     #[default]
@@ -90,7 +89,6 @@ pub enum TensorLayout {
     /// Strided layout with custom strides
     Strided,
 }
-
 
 /// Tensor shape utilities.
 pub mod shape_utils {

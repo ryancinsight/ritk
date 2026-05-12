@@ -59,7 +59,10 @@ impl PermuteAxesImageFilter {
         let mut seen = [false; 3];
         for &ax in &order {
             if ax > 2 {
-                anyhow::bail!("PermuteAxesImageFilter: axis index {} out of range [0,2]", ax);
+                anyhow::bail!(
+                    "PermuteAxesImageFilter: axis index {} out of range [0,2]",
+                    ax
+                );
             }
             if seen[ax] {
                 anyhow::bail!("PermuteAxesImageFilter: duplicate axis {} in order", ax);
@@ -118,7 +121,12 @@ impl PermuteAxesImageFilter {
         let device = image.data().device();
         let out_td = TensorData::new(out, Shape::new(out_shape));
         let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(out_tensor, *image.origin(), new_spacing, new_dir))
+        Ok(Image::new(
+            out_tensor,
+            *image.origin(),
+            new_spacing,
+            new_dir,
+        ))
     }
 }
 
@@ -185,9 +193,21 @@ mod tests {
         let img = make_image(vec![0.0; 6], [1, 2, 3]);
         let out = PermuteAxesImageFilter::new([2, 0, 1]).apply(&img).unwrap();
         let s = out.spacing();
-        assert!((s[0] - 3.0).abs() < 1e-9, "spacing[0] expected 3, got {}", s[0]);
-        assert!((s[1] - 1.0).abs() < 1e-9, "spacing[1] expected 1, got {}", s[1]);
-        assert!((s[2] - 2.0).abs() < 1e-9, "spacing[2] expected 2, got {}", s[2]);
+        assert!(
+            (s[0] - 3.0).abs() < 1e-9,
+            "spacing[0] expected 3, got {}",
+            s[0]
+        );
+        assert!(
+            (s[1] - 1.0).abs() < 1e-9,
+            "spacing[1] expected 1, got {}",
+            s[1]
+        );
+        assert!(
+            (s[2] - 2.0).abs() < 1e-9,
+            "spacing[2] expected 2, got {}",
+            s[2]
+        );
     }
 
     #[test]

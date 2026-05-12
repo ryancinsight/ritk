@@ -9,8 +9,9 @@ anyhow = { workspace = true }
 jpeg-decoder = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-openjpeg-sys = { workspace = true }
+jpeg2k = { workspace = true }
 
 [dev-dependencies]
 image = { workspace = true }
+openjp2 = { workspace = true, features = ["file-io"] }
 proptest = { workspace = true }

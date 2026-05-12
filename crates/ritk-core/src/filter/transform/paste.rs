@@ -57,19 +57,25 @@ impl PasteImageFilter {
         if sdz + sz > dz {
             anyhow::bail!(
                 "PasteImageFilter: source Z extent [{}..{}) exceeds dest depth {}",
-                sdz, sdz + sz, dz
+                sdz,
+                sdz + sz,
+                dz
             );
         }
         if sdy + sy > dy {
             anyhow::bail!(
                 "PasteImageFilter: source Y extent [{}..{}) exceeds dest height {}",
-                sdy, sdy + sy, dy
+                sdy,
+                sdy + sy,
+                dy
             );
         }
         if sdx + sx > dx {
             anyhow::bail!(
                 "PasteImageFilter: source X extent [{}..{}) exceeds dest width {}",
-                sdx, sdx + sx, dx
+                sdx,
+                sdx + sx,
+                dx
             );
         }
 

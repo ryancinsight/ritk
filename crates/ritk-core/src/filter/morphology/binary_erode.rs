@@ -110,12 +110,7 @@ impl Default for BinaryErodeFilter {
 /// - Output length = `nz × ny × nx`.
 /// - Output[i] ∈ {foreground_value, 0.0}.
 /// - Output[i] = foreground_value iff all (2r+1)³ neighbours (clamped-background) = fg.
-pub(crate) fn erode_binary_3d(
-    data: &[f32],
-    dims: [usize; 3],
-    radius: usize,
-    fg: f32,
-) -> Vec<f32> {
+pub(crate) fn erode_binary_3d(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
     let n = nz * ny * nx;
@@ -142,9 +137,7 @@ pub(crate) fn erode_binary_3d(
                                 all_fg = false;
                                 break 'outer;
                             }
-                            let idx = zz as usize * ny * nx
-                                + yy as usize * nx
-                                + xx as usize;
+                            let idx = zz as usize * ny * nx + yy as usize * nx + xx as usize;
                             if data[idx] != fg {
                                 all_fg = false;
                                 break 'outer;
@@ -185,7 +178,12 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        img.data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     /// T1: Radius-0 erosion is identity (single-voxel SE).
@@ -267,7 +265,10 @@ mod tests {
     #[test]
     fn custom_foreground_value() {
         let img = make_image(vec![255.0; 45], [3, 3, 5]);
-        let out = BinaryErodeFilter::new(1).with_foreground(255.0).apply(&img).unwrap();
+        let out = BinaryErodeFilter::new(1)
+            .with_foreground(255.0)
+            .apply(&img)
+            .unwrap();
         let result = flat(&out);
         let mut expected = vec![0.0_f32; 45];
         expected[21] = 255.0;

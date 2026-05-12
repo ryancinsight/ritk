@@ -90,19 +90,25 @@ impl RegionOfInterestImageFilter {
         if self.start_z + self.size_z > nz {
             anyhow::bail!(
                 "ROI Z range [{}..{}) exceeds image depth {}",
-                self.start_z, self.start_z + self.size_z, nz
+                self.start_z,
+                self.start_z + self.size_z,
+                nz
             );
         }
         if self.start_y + self.size_y > ny {
             anyhow::bail!(
                 "ROI Y range [{}..{}) exceeds image height {}",
-                self.start_y, self.start_y + self.size_y, ny
+                self.start_y,
+                self.start_y + self.size_y,
+                ny
             );
         }
         if self.start_x + self.size_x > nx {
             anyhow::bail!(
                 "ROI X range [{}..{}) exceeds image width {}",
-                self.start_x, self.start_x + self.size_x, nx
+                self.start_x,
+                self.start_x + self.size_x,
+                nx
             );
         }
 
@@ -249,9 +255,21 @@ mod tests {
             .apply(&img)
             .unwrap();
         let o = out.origin();
-        assert!((o.0.coords[0] - 2.0).abs() < 1e-9, "origin[0] expected 2.0 got {}", o.0.coords[0]);
-        assert!((o.0.coords[1] - 3.0).abs() < 1e-9, "origin[1] expected 3.0 got {}", o.0.coords[1]);
-        assert!((o.0.coords[2] - 4.0).abs() < 1e-9, "origin[2] expected 4.0 got {}", o.0.coords[2]);
+        assert!(
+            (o.0.coords[0] - 2.0).abs() < 1e-9,
+            "origin[0] expected 2.0 got {}",
+            o.0.coords[0]
+        );
+        assert!(
+            (o.0.coords[1] - 3.0).abs() < 1e-9,
+            "origin[1] expected 3.0 got {}",
+            o.0.coords[1]
+        );
+        assert!(
+            (o.0.coords[2] - 4.0).abs() < 1e-9,
+            "origin[2] expected 4.0 got {}",
+            o.0.coords[2]
+        );
     }
 
     #[test]

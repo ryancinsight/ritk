@@ -122,22 +122,19 @@ pub fn compute_label_intensity_statistics_from_slices(
                 acc
             },
         )
-        .reduce(
-            HashMap::<u32, Acc>::new,
-            |mut a, b| {
-                for (k, (bmin, bmax, bsum, bsumsq, bcnt)) in b {
-                    let e = a
-                        .entry(k)
-                        .or_insert((f32::INFINITY, f32::NEG_INFINITY, 0.0, 0.0, 0));
-                    e.0 = e.0.min(bmin);
-                    e.1 = e.1.max(bmax);
-                    e.2 += bsum;
-                    e.3 += bsumsq;
-                    e.4 += bcnt;
-                }
-                a
-            },
-        );
+        .reduce(HashMap::<u32, Acc>::new, |mut a, b| {
+            for (k, (bmin, bmax, bsum, bsumsq, bcnt)) in b {
+                let e = a
+                    .entry(k)
+                    .or_insert((f32::INFINITY, f32::NEG_INFINITY, 0.0, 0.0, 0));
+                e.0 = e.0.min(bmin);
+                e.1 = e.1.max(bmax);
+                e.2 += bsum;
+                e.3 += bsumsq;
+                e.4 += bcnt;
+            }
+            a
+        });
 
     let mut result: Vec<LabelIntensityStatistics> = combined
         .into_iter()

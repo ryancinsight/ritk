@@ -166,7 +166,10 @@ mod tests {
         let out = GrayscaleOpeningFilter::new(0).apply(&img).unwrap();
         let out_vals = extract_vals(&out);
         for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
-            assert!((a - b).abs() < 1e-6, "radius-0 identity: voxel {i} {a} ≠ {b}");
+            assert!(
+                (a - b).abs() < 1e-6,
+                "radius-0 identity: voxel {i} {a} ≠ {b}"
+            );
         }
     }
 
@@ -194,7 +197,10 @@ mod tests {
         let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
         let out_vals = extract_vals(&out);
         for (i, &v) in out_vals.iter().enumerate() {
-            assert!(v.abs() < 1e-6, "bright_spike_removed: voxel {i} = {v}, expected 0");
+            assert!(
+                v.abs() < 1e-6,
+                "bright_spike_removed: voxel {i} = {v}, expected 0"
+            );
         }
     }
 
@@ -287,7 +293,10 @@ mod tests {
             for iy in 3..6 {
                 for ix in 3..6 {
                     let v = out_vals[iz * 9 * 9 + iy * 9 + ix];
-                    assert!(v > 254.0, "large bright region: flat[{iz},{iy},{ix}] = {v}, expected ~255");
+                    assert!(
+                        v > 254.0,
+                        "large bright region: flat[{iz},{iy},{ix}] = {v}, expected ~255"
+                    );
                 }
             }
         }

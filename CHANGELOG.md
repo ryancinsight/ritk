@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.39.9] - 2026-05-12
+
+### Changed [patch]
+- Constrained native DICOM JPEG decode behind a sealed static backend boundary in `ritk-codecs::jpeg::backend`. `decode_jpeg_fragment` now routes through `JpegDecodeBackend` with the current `JpegDecoderCrate` ZST implementation, leaving one implementation point for a RITK-owned JPEG decoder.
+
+### Added [patch]
+- Added value-semantic JPEG SOF3 16-bit lossless fixture coverage that verifies the `jpeg-decoder` L16 native-endian output contract and exact unsigned DICOM modality LUT decode for stored sample `0x1234`.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.39.8] - 2026-05-12
 
 ### Changed [arch]

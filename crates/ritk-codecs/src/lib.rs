@@ -7,18 +7,19 @@
 //! # C/C++ dependency migration plan
 //! | Codec       | Current C/C++ dep  | Target pure Rust        | Phase |
 //! |-------------|-------------------|-------------------------|-------|
-//! | JPEG 2000   | `openjpeg-sys`    | ISO 15444-1 Rust impl   | 2     |
-//! | JPEG        | `jpeg-decoder`    | Pure Rust JPEG decoder  | 3     |
+//! | JPEG 2000   | none              | `jpeg2k` + `openjp2`    | done  |
+//! | JPEG        | none (`jpeg-decoder` is pure Rust) | RITK-owned decoder behind `jpeg::backend` | constrained |
 //! | JPEG-LS     | (none — RITK-native since Sprint 127) | complete | done |
 //! | PackBits    | (none — pure Rust) |                        | done  |
 //! | RLE         | (none — pure Rust) |                        | done  |
 //!
 //! Phase 1 (this sprint): extract all codecs from `ritk-dicom` into this crate.
-//! Phase 2: replace `openjpeg-sys` with a pure Rust JPEG 2000 decoder.
-//! Phase 3: replace `jpeg-decoder` with a pure Rust JPEG decoder.
-//! Phase 4: remove `charls` / `dicom-transfer-syntax-registry` charls+openjpeg
-//!          features from the workspace once RITK-native codecs cover all
-//!          needed transfer syntaxes.
+//! Phase 2: replace `openjpeg-sys` with the Rust `openjp2` backend.
+//! Phase 3: replace `JpegDecoderCrate` with a RITK-owned JPEG decoder
+//!          implementation behind the sealed `jpeg::backend` boundary.
+//! Phase 4: remove `charls` / `dicom-transfer-syntax-registry` external
+//!          codec features once RITK-native codecs cover all needed transfer
+//!          syntaxes.
 
 pub mod jpeg;
 #[cfg(not(target_arch = "wasm32"))]

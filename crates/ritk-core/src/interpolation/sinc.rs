@@ -359,12 +359,14 @@ impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
             let value = match D {
                 3 => {
                     // SAFETY: We checked D == 3 above, so this transmute is safe
-                    let data_3d: &Tensor<B, 3> = unsafe { &*(data as *const _ as *const burn::Tensor<B, 3>) };
+                    let data_3d: &Tensor<B, 3> =
+                        unsafe { &*(data as *const _ as *const burn::Tensor<B, 3>) };
                     interpolate_point_3d::<B, A>(data_3d, &coords, &dims, &device)
                 }
                 2 => {
                     // SAFETY: We checked D == 2 above, so this transmute is safe
-                    let data_2d: &Tensor<B, 2> = unsafe { &*(data as *const _ as *const burn::Tensor<B, 2>) };
+                    let data_2d: &Tensor<B, 2> =
+                        unsafe { &*(data as *const _ as *const burn::Tensor<B, 2>) };
                     interpolate_point_2d::<B, A>(data_2d, &coords, &dims, &device)
                 }
                 _ => unreachable!("Already asserted D == 2 || D == 3"),

@@ -43,27 +43,27 @@ pub use label_morphology::{
 };
 pub use top_hat::{BlackTopHatFilter, WhiteTopHatFilter};
 
-pub mod binary_erode;
-pub mod binary_dilate;
 pub mod binary_closing;
-pub mod binary_opening;
+pub mod binary_dilate;
+pub mod binary_erode;
 pub mod binary_fillhole;
+pub mod binary_opening;
 
-pub use binary_erode::BinaryErodeFilter;
-pub use binary_dilate::BinaryDilateFilter;
 pub use binary_closing::BinaryMorphologicalClosing;
-pub use binary_opening::BinaryMorphologicalOpening;
+pub use binary_dilate::BinaryDilateFilter;
+pub use binary_erode::BinaryErodeFilter;
 pub use binary_fillhole::BinaryFillholeFilter;
+pub use binary_opening::BinaryMorphologicalOpening;
 
 pub mod grayscale_closing;
-pub mod grayscale_opening;
 pub mod grayscale_fillhole;
 pub mod grayscale_gradient;
+pub mod grayscale_opening;
 
 pub use grayscale_closing::GrayscaleClosingFilter;
-pub use grayscale_opening::GrayscaleOpeningFilter;
 pub use grayscale_fillhole::GrayscaleFillholeFilter;
 pub use grayscale_gradient::GrayscaleMorphologicalGradientFilter;
+pub use grayscale_opening::GrayscaleOpeningFilter;
 
 pub mod grayscale_geodesic;
 pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter};

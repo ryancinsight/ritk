@@ -89,7 +89,12 @@ impl ClampImageFilter {
         let out_td = TensorData::new(out, Shape::new(dims));
         let device = image.data().device();
         let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(tensor, *image.origin(), *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            tensor,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 

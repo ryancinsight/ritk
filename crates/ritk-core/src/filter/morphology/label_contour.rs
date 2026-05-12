@@ -40,7 +40,10 @@ pub struct LabelContourImageFilter {
 impl LabelContourImageFilter {
     /// Construct with explicit parameters.
     pub fn new(fully_connected: bool, background_value: f32) -> Self {
-        Self { fully_connected, background_value }
+        Self {
+            fully_connected,
+            background_value,
+        }
     }
 }
 
@@ -52,9 +55,12 @@ impl Default for LabelContourImageFilter {
 
 /// 6-connected face neighbours.
 const N6: [(i32, i32, i32); 6] = [
-    (-1, 0, 0), (1, 0, 0),
-    (0, -1, 0), (0, 1, 0),
-    (0, 0, -1), (0, 0, 1),
+    (-1, 0, 0),
+    (1, 0, 0),
+    (0, -1, 0),
+    (0, 1, 0),
+    (0, 0, -1),
+    (0, 0, 1),
 ];
 
 fn n26() -> Vec<(i32, i32, i32)> {
@@ -100,7 +106,9 @@ impl LabelContourImageFilter {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
-                            if qz < 0 || qy < 0 || qx < 0
+                            if qz < 0
+                                || qy < 0
+                                || qx < 0
                                 || qz >= nz as i32
                                 || qy >= ny as i32
                                 || qx >= nx as i32
@@ -115,7 +123,9 @@ impl LabelContourImageFilter {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
-                            if qz < 0 || qy < 0 || qx < 0
+                            if qz < 0
+                                || qy < 0
+                                || qx < 0
                                 || qz >= nz as i32
                                 || qy >= ny as i32
                                 || qx >= nx as i32
@@ -148,9 +158,9 @@ impl LabelContourImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use burn::tensor::TensorData;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -188,7 +198,8 @@ mod tests {
         assert_eq!(v[13], 0.0, "center of 3×3×3 single-label is interior");
         // All other 26 voxels border out-of-bounds (treated as different label) → contour.
         assert!(
-            v.iter().enumerate()
+            v.iter()
+                .enumerate()
                 .filter(|&(i, _)| i != 13)
                 .all(|(_, &x)| (x - 2.0).abs() < 1e-5),
             "outer shell of 3×3×3 single-label must be contour"
@@ -204,9 +215,17 @@ mod tests {
         let out = LabelContourImageFilter::default().apply(&img).unwrap();
         let v = voxels(&out);
         // voxel 2 (label 1, right edge of label-1): neighbour voxel 3 = label 2 → contour
-        assert!((v[2] - 1.0).abs() < 1e-5, "v[2] should be 1 (contour), got {}", v[2]);
+        assert!(
+            (v[2] - 1.0).abs() < 1e-5,
+            "v[2] should be 1 (contour), got {}",
+            v[2]
+        );
         // voxel 3 (label 2, left edge of label-2): neighbour voxel 2 = label 1 → contour
-        assert!((v[3] - 2.0).abs() < 1e-5, "v[3] should be 2 (contour), got {}", v[3]);
+        assert!(
+            (v[3] - 2.0).abs() < 1e-5,
+            "v[3] should be 2 (contour), got {}",
+            v[3]
+        );
         // voxels 0 and 1 are at left image boundary → also border
         // voxels 4 and 5 are at right image boundary → also border
         // voxel 1 borders voxel 0 (same label) and voxel 2 (same label) but image left boundary treated as bg → border

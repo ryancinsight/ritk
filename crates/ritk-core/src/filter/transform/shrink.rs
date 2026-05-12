@@ -137,9 +137,9 @@ impl ShrinkImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use burn::tensor::TensorData;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

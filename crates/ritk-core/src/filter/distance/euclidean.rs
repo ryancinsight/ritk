@@ -276,9 +276,9 @@ impl DistanceTransformImageFilter {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("DistanceTransformImageFilter requires f32 data: {:?}", e))?;
+        let vals: Vec<f32> = td.into_vec::<f32>().map_err(|e| {
+            anyhow::anyhow!("DistanceTransformImageFilter requires f32 data: {:?}", e)
+        })?;
 
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let sp = image.spacing();
@@ -342,9 +342,12 @@ impl SignedDistanceTransformImageFilter {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("SignedDistanceTransformImageFilter requires f32 data: {:?}", e))?;
+        let vals: Vec<f32> = td.into_vec::<f32>().map_err(|e| {
+            anyhow::anyhow!(
+                "SignedDistanceTransformImageFilter requires f32 data: {:?}",
+                e
+            )
+        })?;
 
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let bg: Vec<bool> = fg.iter().map(|&b| !b).collect();
@@ -417,14 +420,25 @@ mod tests {
         assert!((dt[0] - 0.0).abs() < 1e-5);
         // Voxel (0,0,1): distance 1
         let idx = 0 * 25 + 0 * 5 + 1;
-        assert!((dt[idx] - 1.0).abs() < 1e-4, "expected 1.0, got {}", dt[idx]);
+        assert!(
+            (dt[idx] - 1.0).abs() < 1e-4,
+            "expected 1.0, got {}",
+            dt[idx]
+        );
         // Voxel (0,1,0): distance 1
         let idx = 0 * 25 + 1 * 5 + 0;
-        assert!((dt[idx] - 1.0).abs() < 1e-4, "expected 1.0, got {}", dt[idx]);
+        assert!(
+            (dt[idx] - 1.0).abs() < 1e-4,
+            "expected 1.0, got {}",
+            dt[idx]
+        );
         // Voxel (1,1,1): distance sqrt(3) ≈ 1.732
         let idx = 1 * 25 + 1 * 5 + 1;
-        assert!((dt[idx] - 3.0_f64.sqrt() as f32).abs() < 1e-4,
-            "expected sqrt(3), got {}", dt[idx]);
+        assert!(
+            (dt[idx] - 3.0_f64.sqrt() as f32).abs() < 1e-4,
+            "expected sqrt(3), got {}",
+            dt[idx]
+        );
     }
 
     #[test]
@@ -475,14 +489,15 @@ mod tests {
 
     #[test]
     fn unsigned_edt_filter_foreground_voxel_receives_zero() {
-        let img = make_image(
-            vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [2, 2, 2],
-        );
+        let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
         let out = DistanceTransformImageFilter::new().apply(&img).unwrap();
         let v = voxels(&out);
         // iz=0,iy=0,ix=0 is foreground → distance 0
-        assert!((v[0] - 0.0).abs() < 1e-4, "foreground voxel expected 0, got {}", v[0]);
+        assert!(
+            (v[0] - 0.0).abs() < 1e-4,
+            "foreground voxel expected 0, got {}",
+            v[0]
+        );
     }
 
     #[test]
@@ -510,16 +525,26 @@ mod tests {
         // 1×1×5: foreground is ix=[1,2,3], background is ix=[0,4]
         let vals = vec![0.0f32, 1.0, 1.0, 1.0, 0.0];
         let img = make_image(vals, [1, 1, 5]);
-        let out = SignedDistanceTransformImageFilter::new().apply(&img).unwrap();
+        let out = SignedDistanceTransformImageFilter::new()
+            .apply(&img)
+            .unwrap();
         let v = voxels(&out);
         // ix=0 (background): positive distance to nearest fg (ix=1) = 1
         assert!(v[0] > 0.0, "background expected positive, got {}", v[0]);
         assert!((v[0] - 1.0).abs() < 1e-4, "expected +1, got {}", v[0]);
         // ix=1 (foreground): negative distance to nearest bg (ix=0) = −1
-        assert!(v[1] < 0.0, "foreground edge expected negative, got {}", v[1]);
+        assert!(
+            v[1] < 0.0,
+            "foreground edge expected negative, got {}",
+            v[1]
+        );
         assert!((v[1] - (-1.0)).abs() < 1e-4, "expected -1, got {}", v[1]);
         // ix=2 (foreground center): distance to nearest bg is 2
-        assert!(v[2] < 0.0, "foreground center expected negative, got {}", v[2]);
+        assert!(
+            v[2] < 0.0,
+            "foreground center expected negative, got {}",
+            v[2]
+        );
         assert!((v[2] - (-2.0)).abs() < 1e-4, "expected -2, got {}", v[2]);
         // ix=4 (background): positive 1
         assert!(v[4] > 0.0, "background expected positive, got {}", v[4]);
@@ -528,7 +553,9 @@ mod tests {
     #[test]
     fn signed_edt_filter_preserves_spatial_metadata() {
         let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
-        let out = SignedDistanceTransformImageFilter::new().apply(&img).unwrap();
+        let out = SignedDistanceTransformImageFilter::new()
+            .apply(&img)
+            .unwrap();
         assert_eq!(out.shape(), img.shape());
         assert_eq!(out.spacing(), img.spacing());
     }

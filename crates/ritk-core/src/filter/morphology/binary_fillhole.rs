@@ -126,7 +126,12 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: f32) -> Vec<f32> {
     let mut queue: VecDeque<usize> = VecDeque::new();
 
     // ── Seed: all border background voxels ─────────────────────────────────
-    let seed = |iz: usize, iy: usize, ix: usize, data: &[f32], reached: &mut Vec<bool>, queue: &mut VecDeque<usize>| {
+    let seed = |iz: usize,
+                iy: usize,
+                ix: usize,
+                data: &[f32],
+                reached: &mut Vec<bool>,
+                queue: &mut VecDeque<usize>| {
         let idx = iz * ny * nx + iy * nx + ix;
         if data[idx] != fg && !reached[idx] {
             reached[idx] = true;
@@ -179,12 +184,24 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: f32) -> Vec<f32> {
             };
         }
 
-        if iz > 0         { try_neighbor!(iz - 1, iy, ix); }
-        if iz + 1 < nz    { try_neighbor!(iz + 1, iy, ix); }
-        if iy > 0         { try_neighbor!(iz, iy - 1, ix); }
-        if iy + 1 < ny    { try_neighbor!(iz, iy + 1, ix); }
-        if ix > 0         { try_neighbor!(iz, iy, ix - 1); }
-        if ix + 1 < nx    { try_neighbor!(iz, iy, ix + 1); }
+        if iz > 0 {
+            try_neighbor!(iz - 1, iy, ix);
+        }
+        if iz + 1 < nz {
+            try_neighbor!(iz + 1, iy, ix);
+        }
+        if iy > 0 {
+            try_neighbor!(iz, iy - 1, ix);
+        }
+        if iy + 1 < ny {
+            try_neighbor!(iz, iy + 1, ix);
+        }
+        if ix > 0 {
+            try_neighbor!(iz, iy, ix - 1);
+        }
+        if ix + 1 < nx {
+            try_neighbor!(iz, iy, ix + 1);
+        }
     }
 
     // ── Build output ───────────────────────────────────────────────────────
@@ -225,7 +242,12 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        img.data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     /// T1: All-foreground image stays all-foreground.
@@ -261,7 +283,11 @@ mod tests {
         vals[13] = 0.0; // centre of 3×3×3 = (1,1,1), index = 1*9+1*3+1 = 13
         let img = make_image(vals, [3, 3, 3]);
         let out = BinaryFillholeFilter::new().apply(&img).unwrap();
-        assert_eq!(flat(&out)[13], 1.0, "enclosed hole at centre must be filled");
+        assert_eq!(
+            flat(&out)[13],
+            1.0,
+            "enclosed hole at centre must be filled"
+        );
     }
 
     /// T4: Interior background region in 5×5×5 volume is filled.
@@ -287,7 +313,10 @@ mod tests {
             for iy in 1..=3usize {
                 for ix in 1..=3usize {
                     let idx = iz * 25 + iy * 5 + ix;
-                    assert_eq!(result[idx], 1.0, "inner voxel ({iz},{iy},{ix}) must be filled");
+                    assert_eq!(
+                        result[idx], 1.0,
+                        "inner voxel ({iz},{iy},{ix}) must be filled"
+                    );
                 }
             }
         }
@@ -296,11 +325,7 @@ mod tests {
     /// T5: Extensivity — no foreground voxel is removed.
     #[test]
     fn extensivity_no_foreground_removed() {
-        let vals: Vec<f32> = vec![
-            1.0, 1.0, 1.0,
-            1.0, 0.0, 1.0,
-            1.0, 1.0, 1.0,
-        ];
+        let vals: Vec<f32> = vec![1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0];
         // 1×3×3 flat slice, centre bg at index 4.
         let img = make_image(vals.clone(), [1, 3, 3]);
         let out = BinaryFillholeFilter::new().apply(&img).unwrap();
@@ -321,8 +346,15 @@ mod tests {
         let mut vals = vec![255.0_f32; 27];
         vals[13] = 0.0; // centre (1,1,1) = bg
         let img = make_image(vals, [3, 3, 3]);
-        let out = BinaryFillholeFilter::new().with_foreground(255.0).apply(&img).unwrap();
-        assert_eq!(flat(&out)[13], 255.0, "enclosed bg centre must be filled to 255");
+        let out = BinaryFillholeFilter::new()
+            .with_foreground(255.0)
+            .apply(&img)
+            .unwrap();
+        assert_eq!(
+            flat(&out)[13],
+            255.0,
+            "enclosed bg centre must be filled to 255"
+        );
     }
 
     /// T7: Spatial metadata preserved.

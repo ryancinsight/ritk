@@ -29,7 +29,9 @@
 //! - Vincent, L. (1993). Morphological grayscale reconstruction in image analysis.
 //!   *IEEE Trans. Image Process.* 2(2):176–201.
 
-use crate::filter::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
+use crate::filter::morphology::label_morphology::{
+    MorphologicalReconstruction, ReconstructionMode,
+};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -162,7 +164,13 @@ mod tests {
             .unwrap();
         let v = voxels(&out);
         for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
-            assert!((a - b).abs() < 1e-4, "voxel {}: expected {}, got {}", i, b, a);
+            assert!(
+                (a - b).abs() < 1e-4,
+                "voxel {}: expected {}, got {}",
+                i,
+                b,
+                a
+            );
         }
     }
 
@@ -178,7 +186,13 @@ mod tests {
         let v = voxels(&out);
         let mv = vec![3.0f32, 3.0, 5.0, 3.0, 3.0];
         for (i, (&a, &b)) in v.iter().zip(mv.iter()).enumerate() {
-            assert!((a - b).abs() < 1e-4, "voxel {}: expected {}, got {}", i, b, a);
+            assert!(
+                (a - b).abs() < 1e-4,
+                "voxel {}: expected {}, got {}",
+                i,
+                b,
+                a
+            );
         }
     }
 
@@ -207,7 +221,13 @@ mod tests {
             .unwrap();
         let v = voxels(&out);
         for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
-            assert!((a - b).abs() < 1e-4, "voxel {}: expected {}, got {}", i, b, a);
+            assert!(
+                (a - b).abs() < 1e-4,
+                "voxel {}: expected {}, got {}",
+                i,
+                b,
+                a
+            );
         }
     }
 

@@ -8,15 +8,15 @@
 //! - [`ConstantPadImageFilter`], [`MirrorPadImageFilter`], [`WrapPadImageFilter`] — padding
 
 pub mod flip;
-pub mod permute_axes;
+pub mod pad;
 pub mod paste;
+pub mod permute_axes;
 pub mod roi;
 pub mod shrink;
-pub mod pad;
 
 pub use flip::FlipImageFilter;
-pub use permute_axes::PermuteAxesImageFilter;
+pub use pad::{ConstantPadImageFilter, MirrorPadImageFilter, WrapPadImageFilter};
 pub use paste::PasteImageFilter;
+pub use permute_axes::PermuteAxesImageFilter;
 pub use roi::RegionOfInterestImageFilter;
 pub use shrink::ShrinkImageFilter;
-pub use pad::{ConstantPadImageFilter, MirrorPadImageFilter, WrapPadImageFilter};

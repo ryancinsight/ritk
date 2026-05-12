@@ -57,9 +57,9 @@ fn main() {
             println!("cargo:rustc-link-search=native={}", dir);
         }
 
-        // charls-sys (C++) and openjpeg-sys (C) both pull in this crate's link
-        // directives. Linking libstdc++ for a C-only consumer is harmless;
-        // --gc-sections eliminates unreferenced symbols from the final binary.
+        // charls-sys compiles CharLS as C++; ritk-io still links libstdc++
+        // explicitly for GNU targets because Rust's linker invocation passes
+        // -nodefaultlibs.
         println!("cargo:rustc-link-lib=stdc++");
     } else if target_os == "macos" {
         // On macOS with AppleClang / LLVM, the C++ runtime is `libc++`.

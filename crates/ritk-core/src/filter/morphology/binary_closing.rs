@@ -73,9 +73,9 @@ impl BinaryMorphologicalClosing {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("BinaryMorphologicalClosing requires f32 data: {:?}", e))?;
+        let vals: &[f32] = td.as_slice::<f32>().map_err(|e| {
+            anyhow::anyhow!("BinaryMorphologicalClosing requires f32 data: {:?}", e)
+        })?;
 
         // Closing = erode(dilate(f))
         let dilated = dilate_binary_3d(vals, dims, self.radius, self.foreground_value);
@@ -122,7 +122,12 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().as_slice::<f32>().unwrap().to_vec()
+        img.data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     /// T1: Radius-0 closing is identity.
@@ -155,7 +160,10 @@ mod tests {
         let result = flat(&out);
         for (i, &v) in vals.iter().enumerate() {
             if v == 1.0 {
-                assert_eq!(result[i], 1.0, "fg voxel {i} was removed by closing (extensivity violated)");
+                assert_eq!(
+                    result[i], 1.0,
+                    "fg voxel {i} was removed by closing (extensivity violated)"
+                );
             }
         }
     }

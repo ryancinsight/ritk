@@ -123,9 +123,17 @@ impl VotingBinaryImageFilter {
                     }
 
                     out[iz * ny * nx + iy * nx + ix] = if !is_fg {
-                        if fg_count >= birth { fg } else { bg }
+                        if fg_count >= birth {
+                            fg
+                        } else {
+                            bg
+                        }
                     } else {
-                        if fg_count >= survival { fg } else { bg }
+                        if fg_count >= survival {
+                            fg
+                        } else {
+                            bg
+                        }
                     };
                 }
             }
@@ -146,9 +154,9 @@ impl VotingBinaryImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use burn::tensor::TensorData;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -211,7 +219,11 @@ mod tests {
         let filter = VotingBinaryImageFilter::new(1, 1, 1, 1.0, 0.0);
         let out = filter.apply(&img).unwrap();
         let v = voxels(&out);
-        assert!((v[2] - 1.0).abs() < 1e-5, "voxel 2 should be born, got {}", v[2]);
+        assert!(
+            (v[2] - 1.0).abs() < 1e-5,
+            "voxel 2 should be born, got {}",
+            v[2]
+        );
     }
 
     /// Spatial metadata preserved.

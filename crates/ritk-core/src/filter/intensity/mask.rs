@@ -28,7 +28,8 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
         a == b,
         "mask filter: shape mismatch image {:?} vs mask {:?}",
-        a, b
+        a,
+        b
     );
     Ok(())
 }
@@ -45,12 +46,7 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let device = src.data().device();
     let td = TensorData::new(vals, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    )
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 // ── MaskImageFilter ───────────────────────────────────────────────────────────
@@ -205,10 +201,26 @@ mod tests {
         let mask = make_image(vec![1.0, 0.0, 1.0, 0.0], [1, 2, 2]);
         let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
         let v = voxels(&out);
-        assert!((v[0] - 10.0).abs() < 1e-5, "mask-active: expected 10, got {}", v[0]);
-        assert!((v[1] - 0.0).abs() < 1e-5, "mask-inactive: expected 0, got {}", v[1]);
-        assert!((v[2] - 30.0).abs() < 1e-5, "mask-active: expected 30, got {}", v[2]);
-        assert!((v[3] - 0.0).abs() < 1e-5, "mask-inactive: expected 0, got {}", v[3]);
+        assert!(
+            (v[0] - 10.0).abs() < 1e-5,
+            "mask-active: expected 10, got {}",
+            v[0]
+        );
+        assert!(
+            (v[1] - 0.0).abs() < 1e-5,
+            "mask-inactive: expected 0, got {}",
+            v[1]
+        );
+        assert!(
+            (v[2] - 30.0).abs() < 1e-5,
+            "mask-active: expected 30, got {}",
+            v[2]
+        );
+        assert!(
+            (v[3] - 0.0).abs() < 1e-5,
+            "mask-inactive: expected 0, got {}",
+            v[3]
+        );
     }
 
     #[test]
@@ -232,8 +244,16 @@ mod tests {
             .apply(&img, &mask)
             .unwrap();
         let v = voxels(&out);
-        assert!((v[0] - (-1.0)).abs() < 1e-5, "outside: expected -1, got {}", v[0]);
-        assert!((v[1] - 20.0).abs() < 1e-5, "inside: expected 20, got {}", v[1]);
+        assert!(
+            (v[0] - (-1.0)).abs() < 1e-5,
+            "outside: expected -1, got {}",
+            v[0]
+        );
+        assert!(
+            (v[1] - 20.0).abs() < 1e-5,
+            "inside: expected 20, got {}",
+            v[1]
+        );
     }
 
     #[test]
@@ -259,10 +279,26 @@ mod tests {
         let out = MaskNegatedImageFilter::new().apply(&img, &mask).unwrap();
         let v = voxels(&out);
         // mask active → outside (0); mask inactive → pass through
-        assert!((v[0] - 0.0).abs() < 1e-5, "mask-active zeroed: got {}", v[0]);
-        assert!((v[1] - 20.0).abs() < 1e-5, "mask-inactive pass: got {}", v[1]);
-        assert!((v[2] - 0.0).abs() < 1e-5, "mask-active zeroed: got {}", v[2]);
-        assert!((v[3] - 40.0).abs() < 1e-5, "mask-inactive pass: got {}", v[3]);
+        assert!(
+            (v[0] - 0.0).abs() < 1e-5,
+            "mask-active zeroed: got {}",
+            v[0]
+        );
+        assert!(
+            (v[1] - 20.0).abs() < 1e-5,
+            "mask-inactive pass: got {}",
+            v[1]
+        );
+        assert!(
+            (v[2] - 0.0).abs() < 1e-5,
+            "mask-active zeroed: got {}",
+            v[2]
+        );
+        assert!(
+            (v[3] - 40.0).abs() < 1e-5,
+            "mask-inactive pass: got {}",
+            v[3]
+        );
     }
 
     #[test]

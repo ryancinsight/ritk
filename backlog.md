@@ -1,3 +1,58 @@
+## Sprint 199 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.9 [patch]
+**Goal**: Constrain the native DICOM JPEG dependency behind a monomorphized backend boundary and verify 16-bit lossless JPEG sample semantics.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| Native JPEG dependency boundary | Move direct `jpeg-decoder` calls behind `ritk-codecs::jpeg::backend::JpegDecodeBackend` | **Closed** |
+| JPEG L16 sample contract | Add value-semantic SOF3 16-bit fixture proving backend byte order and modality LUT output | **Closed** |
+
+### Delivered
+- ✓ `ritk-codecs::jpeg::backend` sealed ZST backend boundary with `JpegDecodeBackend`, `JpegDecoded`, `JpegPixelFormat`, and `JpegDecoderCrate`
+- ✓ `decode_jpeg_fragment` preserves the public DICOM codec surface while routing through static dispatch
+- ✓ Added 16-bit lossless JPEG fixture for stored sample `0x1234`
+- ✓ Verified L16 backend byte output equals `0x1234u16.to_ne_bytes()`
+- ✓ Verified DICOM modality LUT output equals `0x1234 * 2 - 4 = 9316`
+- ✓ Verification: focused `cargo test -p ritk-codecs --lib jpeg -- --nocapture` pass (74 selected/related tests)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| RITK-owned JPEG decoder implementation | Replace `JpegDecoderCrate` implementation behind `ritk-codecs::jpeg::backend` | High |
+| JPEG color DICOM decode | Extend native JPEG coverage beyond single-sample grayscale layouts | Medium |
+| JPEG-LS third-party conformance | Replace negative CharLS-produced fixture with positive native conformance coverage | Medium |
+| GAP-176-RAD-02 | PET/CT fusion pixel-level pipeline | High |
+
+## Sprint 197 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.7 [patch]
+**Goal**: Replace the JPEG 2000 `openjpeg-sys` C-FFI dependency behind the existing `ritk-codecs` / `ritk-dicom` backend boundary.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving `decode_jpeg2000_fragment` and `NativeCodecBackend` dispatch | **Closed** |
+| DICOM JPEG 2000 test FFI drift | Replace OpenJPEG C-FFI test fixture encoding with `openjp2` Rust-port encoding | **Closed** |
+
+### Delivered
+- ✓ `ritk-codecs::jpeg_2000` now decodes through `jpeg2k` compiled with the `openjp2` Rust backend
+- ✓ Removed local OpenJPEG stream-callback and raw `opj_image_t` production lifecycle code from `ritk-codecs`
+- ✓ Pixel extraction now consumes safe `jpeg2k::ImageComponent::data()` component planes and validates DICOM layout metadata before modality LUT application
+- ✓ `dicom-transfer-syntax-registry` now uses its `openjp2` feature instead of `openjpeg-sys`
+- ✓ `Cargo.lock` contains no `openjpeg-sys` package
+- ✓ Verification: `cargo test -p ritk-codecs --lib` pass (82), `cargo test -p ritk-dicom --lib` pass (12), `cargo test -p ritk-io --lib` pass (190)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG dependency replacement | Replace or further constrain `jpeg-decoder` behind `ritk-codecs::jpeg` while preserving native DICOM JPEG dispatch | High |
+| GAP-176-RAD-02 | PET/CT fusion pixel-level pipeline | High |
+| GAP-176-RAD-03 | CPR / curved-MPR workflow | High |
+
 ## Sprint 195 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

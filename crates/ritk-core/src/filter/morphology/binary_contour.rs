@@ -41,7 +41,10 @@ pub struct BinaryContourImageFilter {
 impl BinaryContourImageFilter {
     /// Construct with explicit parameters.
     pub fn new(fully_connected: bool, foreground_value: f32) -> Self {
-        Self { fully_connected, foreground_value }
+        Self {
+            fully_connected,
+            foreground_value,
+        }
     }
 }
 
@@ -53,9 +56,12 @@ impl Default for BinaryContourImageFilter {
 
 /// 6-connected face neighbours (±z, ±y, ±x).
 const N6: [(i32, i32, i32); 6] = [
-    (-1, 0, 0), (1, 0, 0),
-    (0, -1, 0), (0, 1, 0),
-    (0, 0, -1), (0, 0, 1),
+    (-1, 0, 0),
+    (1, 0, 0),
+    (0, -1, 0),
+    (0, 1, 0),
+    (0, 0, -1),
+    (0, 0, 1),
 ];
 
 /// 26-connected neighbours (all offsets in {-1,0,1}³ except (0,0,0)).
@@ -102,16 +108,16 @@ impl BinaryContourImageFilter {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
-                            if qz < 0 || qy < 0 || qx < 0
+                            if qz < 0
+                                || qy < 0
+                                || qx < 0
                                 || qz >= nz as i32
                                 || qy >= ny as i32
                                 || qx >= nx as i32
                             {
                                 return true;
                             }
-                            let nv = vals[qz as usize * ny * nx
-                                + qy as usize * nx
-                                + qx as usize];
+                            let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nv - fg).abs() > 1e-5
                         })
                     } else {
@@ -119,16 +125,16 @@ impl BinaryContourImageFilter {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
-                            if qz < 0 || qy < 0 || qx < 0
+                            if qz < 0
+                                || qy < 0
+                                || qx < 0
                                 || qz >= nz as i32
                                 || qy >= ny as i32
                                 || qx >= nx as i32
                             {
                                 return true;
                             }
-                            let nv = vals[qz as usize * ny * nx
-                                + qy as usize * nx
-                                + qx as usize];
+                            let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nv - fg).abs() > 1e-5
                         })
                     };
@@ -154,9 +160,9 @@ impl BinaryContourImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use burn::tensor::TensorData;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -195,7 +201,8 @@ mod tests {
         assert_eq!(v[13], 0.0, "center of 3×3×3 is interior in 6-conn");
         // All other 26 voxels are on the outer shell and neighbor out-of-bounds → borders.
         assert!(
-            v.iter().enumerate()
+            v.iter()
+                .enumerate()
                 .filter(|&(i, _)| i != 13)
                 .all(|(_, &x)| (x - 1.0).abs() < 1e-5),
             "all non-center voxels of 3×3×3 must be borders"
@@ -206,7 +213,9 @@ mod tests {
     #[test]
     fn five_cube_center_is_interior_6conn() {
         let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
-        let out = BinaryContourImageFilter::new(false, 1.0).apply(&img).unwrap();
+        let out = BinaryContourImageFilter::new(false, 1.0)
+            .apply(&img)
+            .unwrap();
         let v = voxels(&out);
         // Center voxel index = 2*25+2*5+2 = 62
         assert_eq!(v[62], 0.0, "center of 5×5×5 should be interior (6-conn)");
@@ -221,7 +230,12 @@ mod tests {
         let out = BinaryContourImageFilter::default().apply(&img).unwrap();
         let v = voxels(&out);
         assert!((v[13] - 1.0).abs() < 1e-5, "single fg voxel must be border");
-        let others: f32 = v.iter().enumerate().filter(|&(i, _)| i != 13).map(|(_, &x)| x).sum();
+        let others: f32 = v
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != 13)
+            .map(|(_, &x)| x)
+            .sum();
         assert_eq!(others, 0.0);
     }
 
@@ -239,7 +253,9 @@ mod tests {
     #[test]
     fn five_cube_center_interior_26conn() {
         let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
-        let out = BinaryContourImageFilter::new(true, 1.0).apply(&img).unwrap();
+        let out = BinaryContourImageFilter::new(true, 1.0)
+            .apply(&img)
+            .unwrap();
         let v = voxels(&out);
         assert_eq!(v[62], 0.0, "center of 5×5×5 should be interior (26-conn)");
     }

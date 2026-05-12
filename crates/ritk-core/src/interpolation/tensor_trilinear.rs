@@ -13,11 +13,12 @@ pub fn trilinear_interpolation<B: Backend>(
     grid: Tensor<B, 5>,
 ) -> Tensor<B, 5> {
     let [b, c, d, h, w] = image.dims();
+    let [_, _, out_d, out_h, out_w] = grid.dims();
 
     // Split grid into z, y, x
-    let z = grid.clone().slice([0..b, 0..1, 0..d, 0..h, 0..w]);
-    let y = grid.clone().slice([0..b, 1..2, 0..d, 0..h, 0..w]);
-    let x = grid.slice([0..b, 2..3, 0..d, 0..h, 0..w]);
+    let z = grid.clone().slice([0..b, 0..1, 0..out_d, 0..out_h, 0..out_w]);
+    let y = grid.clone().slice([0..b, 1..2, 0..out_d, 0..out_h, 0..out_w]);
+    let x = grid.slice([0..b, 2..3, 0..out_d, 0..out_h, 0..out_w]);
 
     // Floor and Ceil
     let z0 = z.clone().floor();
@@ -62,14 +63,15 @@ pub fn trilinear_interpolation<B: Backend>(
     let idx_10 = z1_off.clone() + y0_off.clone();
     let idx_11 = z1_off.clone() + y1_off.clone();
 
-    let idx_000 = (idx_00.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_001 = (idx_00 + x1_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_010 = (idx_01.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_011 = (idx_01 + x1_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_100 = (idx_10.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_101 = (idx_10 + x1_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_110 = (idx_11.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
-    let idx_111 = (idx_11 + x1_idx.clone()).reshape([b, 1, d * h * w]);
+    let out_elements = out_d * out_h * out_w;
+    let idx_000 = (idx_00.clone() + x0_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_001 = (idx_00 + x1_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_010 = (idx_01.clone() + x0_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_011 = (idx_01 + x1_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_100 = (idx_10.clone() + x0_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_101 = (idx_10 + x1_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_110 = (idx_11.clone() + x0_idx.clone()).reshape([b, 1, out_elements]);
+    let idx_111 = (idx_11 + x1_idx.clone()).reshape([b, 1, out_elements]);
 
     let mut out_channels = Vec::with_capacity(c);
 
@@ -82,7 +84,7 @@ pub fn trilinear_interpolation<B: Backend>(
             channel_img
                 .clone()
                 .gather(2, idx.clone())
-                .reshape([b, 1, d, h, w])
+                .reshape([b, 1, out_d, out_h, out_w])
         };
 
         let v000 = gather_val(&idx_000);
@@ -110,6 +112,74 @@ pub fn trilinear_interpolation<B: Backend>(
     }
 
     Tensor::cat(out_channels, 1)
+}
+
+#[cfg(test)]
+mod trilinear_tests {
+    use super::*;
+    use burn::tensor::{Shape, TensorData};
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    #[test]
+    fn test_trilinear_interpolation_basic() {
+        let device = Default::default();
+        
+        // Create a 1x1x2x2x2 image (B=1, C=1, D=2, H=2, W=2)
+        // Values: 
+        // z=0: [1.0, 2.0; 3.0, 4.0]
+        // z=1: [5.0, 6.0; 7.0, 8.0]
+        let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let image = Tensor::<B, 5>::from_data(
+            TensorData::new(data, Shape::new([1, 1, 2, 2, 2])),
+            &device,
+        );
+
+        // Create a sampling grid [B=1, 3, D=1, H=1, W=1]
+        // We want to sample at (z=0.5, y=0.5, x=0.5)
+        let grid_data: Vec<f32> = vec![0.5, 0.5, 0.5];
+        let grid = Tensor::<B, 5>::from_data(
+            TensorData::new(grid_data, Shape::new([1, 3, 1, 1, 1])),
+            &device,
+        );
+
+        let result = trilinear_interpolation(image, grid);
+        let result_val = result.into_data().as_slice::<f32>().unwrap()[0];
+
+        // The expected value is the average of all 8 corners: 4.5
+        assert!((result_val - 4.5).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_trilinear_interpolation_channels() {
+        let device = Default::default();
+        
+        // Create a 1x2x2x2x2 image (B=1, C=2, D=2, H=2, W=2)
+        // Channel 0: all 10.0
+        // Channel 1: all 20.0
+        let mut data: Vec<f32> = vec![10.0; 8];
+        data.extend(vec![20.0; 8]);
+        
+        let image = Tensor::<B, 5>::from_data(
+            TensorData::new(data, Shape::new([1, 2, 2, 2, 2])),
+            &device,
+        );
+
+        // Grid at (0.0, 0.0, 0.0)
+        let grid_data: Vec<f32> = vec![0.0, 0.0, 0.0];
+        let grid = Tensor::<B, 5>::from_data(
+            TensorData::new(grid_data, Shape::new([1, 3, 1, 1, 1])),
+            &device,
+        );
+
+        let result = trilinear_interpolation(image, grid);
+        let result_slice = result.into_data();
+        let result_vals = result_slice.as_slice::<f32>().unwrap();
+
+        assert!((result_vals[0] - 10.0).abs() < 1e-5);
+        assert!((result_vals[1] - 20.0).abs() < 1e-5);
+    }
 }
 
 #[cfg(test)]

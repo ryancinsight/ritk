@@ -287,7 +287,10 @@ impl BoundedReciprocalImageFilter {
     /// Apply the bounded-reciprocal transform `1 / (1 + |x|)` to every voxel.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         let (vals, dims) = extract_vec(image);
-        let out: Vec<f32> = vals.into_iter().map(|x| 1.0_f32 / (1.0 + x.abs())).collect();
+        let out: Vec<f32> = vals
+            .into_iter()
+            .map(|x| 1.0_f32 / (1.0 + x.abs()))
+            .collect();
         rebuild(out, dims, image)
     }
 }
@@ -299,8 +302,8 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
     use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -339,7 +342,10 @@ mod tests {
         let v: &[f32] = td.as_slice::<f32>().unwrap();
         let expected = (1.0f32).atan();
         for &x in v {
-            assert!((x - expected).abs() < 1e-6, "atan(1) = {x}, expected {expected}");
+            assert!(
+                (x - expected).abs() < 1e-6,
+                "atan(1) = {x}, expected {expected}"
+            );
         }
     }
 
@@ -422,7 +428,10 @@ mod tests {
         let td = out.data().clone().into_data();
         let v: &[f32] = td.as_slice::<f32>().unwrap();
         for &x in v {
-            assert!(x >= -1.0 - 1e-6 && x <= 1.0 + 1e-6, "sin out of [−1,1]: {x}");
+            assert!(
+                x >= -1.0 - 1e-6 && x <= 1.0 + 1e-6,
+                "sin out of [−1,1]: {x}"
+            );
         }
     }
 
@@ -456,7 +465,9 @@ mod tests {
     /// sin²(x) + cos²(x) = 1 (Pythagorean identity).
     #[test]
     fn sin_cos_pythagorean_identity() {
-        let vals: Vec<f32> = (0..8).map(|i| i as f32 * std::f32::consts::PI / 8.0).collect();
+        let vals: Vec<f32> = (0..8)
+            .map(|i| i as f32 * std::f32::consts::PI / 8.0)
+            .collect();
         let img = make_image(vals.clone(), [2, 2, 2]);
         let img2 = make_image(vals, [2, 2, 2]);
         let sins = SinImageFilter::new().apply(&img);
@@ -504,7 +515,10 @@ mod tests {
     #[test]
     fn asin_boundary_values() {
         let pi_half = std::f32::consts::FRAC_PI_2;
-        let img = make_image(vec![0.0f32, 1.0, -1.0, 0.5, -0.5, 0.0, 1.0, -1.0], [2, 2, 2]);
+        let img = make_image(
+            vec![0.0f32, 1.0, -1.0, 0.5, -0.5, 0.0, 1.0, -1.0],
+            [2, 2, 2],
+        );
         let out = AsinImageFilter::new().apply(&img);
         let td = out.data().clone().into_data();
         let v: &[f32] = td.as_slice::<f32>().unwrap();
@@ -564,7 +578,10 @@ mod tests {
     /// At x=1: out = 0.5. At x=−1: out = 0.5 (symmetric in |x|).
     #[test]
     fn bounded_reciprocal_at_one_is_half() {
-        let img = make_image(vec![1.0f32, -1.0f32, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0], [2, 2, 2]);
+        let img = make_image(
+            vec![1.0f32, -1.0f32, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0],
+            [2, 2, 2],
+        );
         let out = BoundedReciprocalImageFilter::new().apply(&img);
         let td = out.data().clone().into_data();
         let v: &[f32] = td.as_slice::<f32>().unwrap();

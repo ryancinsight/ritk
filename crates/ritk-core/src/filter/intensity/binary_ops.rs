@@ -36,7 +36,8 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
         a == b,
         "binary image filter: shape mismatch {:?} vs {:?}",
-        a, b
+        a,
+        b
     );
     Ok(())
 }
@@ -56,12 +57,7 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let device = src.data().device();
     let td = TensorData::new(vals, Shape::new(dims));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    )
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 // ── AddImageFilter ────────────────────────────────────────────────────────────
@@ -274,7 +270,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [11.0f32, 22.0, 33.0, 44.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -304,7 +306,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [9.0f32, 18.0, 27.0, 36.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -328,7 +336,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [6.0f32, 12.0, 20.0, 30.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -353,7 +367,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [5.0f32, 5.0, 6.0, 5.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-4, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-4,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -363,9 +383,17 @@ mod tests {
         let b = make_image(vec![0.0, 1.0, 0.0, 2.0], [1, 2, 2]);
         let out = DivideImageFilter::new().apply(&a, &b).unwrap();
         let v = voxels(&out);
-        assert!((v[0] - 0.0).abs() < 1e-5, "div-by-zero at [0]: got {}", v[0]);
+        assert!(
+            (v[0] - 0.0).abs() < 1e-5,
+            "div-by-zero at [0]: got {}",
+            v[0]
+        );
         assert!((v[1] - 2.0).abs() < 1e-5, "[1]: expected 2, got {}", v[1]);
-        assert!((v[2] - 0.0).abs() < 1e-5, "div-by-zero at [2]: got {}", v[2]);
+        assert!(
+            (v[2] - 0.0).abs() < 1e-5,
+            "div-by-zero at [2]: got {}",
+            v[2]
+        );
         assert!((v[3] - 2.0).abs() < 1e-5, "[3]: expected 2, got {}", v[3]);
     }
 
@@ -379,7 +407,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [1.0f32, 2.0, 3.0, 1.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 
@@ -391,7 +425,13 @@ mod tests {
         let v = voxels(&out);
         let expected = [4.0f32, 5.0, 6.0, 7.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!((got - exp).abs() < 1e-5, "[{}] expected {}, got {}", i, exp, got);
+            assert!(
+                (got - exp).abs() < 1e-5,
+                "[{}] expected {}, got {}",
+                i,
+                exp,
+                got
+            );
         }
     }
 }

@@ -82,10 +82,32 @@ Concrete Transforms (Translation, Rigid, Affine, BSpline)
 - `DicomRsBackend`: current temporary implementation backed by `dicom-rs`.
 
 **Replacement invariant**:
-Native JPEG replacement changes codec internals behind `ritk-codecs` / `NativeCodecBackend`; DICOM readers continue to call `decode_frame_with::<DicomRsBackend>` until the parser backend is replaced.
+Native codec replacement changes codec internals behind `ritk-codecs` / `NativeCodecBackend`; DICOM readers continue to call `decode_frame_with::<DicomRsBackend>` until the parser backend is replaced.
 
 **Codec ownership invariant**:
 `ritk-codecs` owns JPEG, JPEG-LS, JPEG 2000, RLE, PackBits, and native pixel primitive implementations. `ritk-dicom::codec` may re-export those primitives and dispatch by transfer syntax, but must not retain copied codec bodies. Native-owned JPEG syntaxes selected by `TransferSyntaxKind::is_native_jpeg_codec()` route exclusively through `NativeCodecBackend`; external backend fallback is limited to `TransferSyntaxKind::is_external_backend_codec_candidate()`.
+
+> **Theorem 6.2 (JPEG 2000 Backend Substitution)**: JPEG 2000 dependency replacement preserves the DICOM frame-decode contract when the decoded component stream is the same ordered integer sample sequence consumed by the DICOM modality LUT.
+
+**Boundary surface**:
+- `ritk-codecs::jpeg_2000` owns `decode_jpeg2000_fragment(fragment, PixelLayout) -> Vec<f32>`.
+- Production decode uses `jpeg2k::Image` with the `openjp2` Rust backend, not `openjpeg-sys`.
+- `image::extract_pixels` consumes `ImageComponent::data()` as raw `i32` component samples; it validates component count, dimensions, precision, and signedness before applying `output = stored_integer × slope + intercept`.
+- `ritk-dicom::NativeCodecBackend` remains the only DICOM transfer-syntax dispatch point for JPEG 2000 Lossless/Lossy, so parser ownership and codec implementation ownership stay separated.
+
+**Proof obligation**:
+For any DICOM JPEG 2000 frame `C`, layout `L`, and backend `B`, if `B(C)` yields component planes `S₀..Sₙ` whose concatenated ordered samples equal the ISO 15444-1 decoded sample sequence for `C`, then `decode_jpeg2000_fragment(C,L)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Backend replacement is therefore behavior-preserving at the DICOM boundary when component metadata validation passes.
+
+> **Theorem 6.3 (JPEG Backend Static Boundary)**: DICOM JPEG dependency replacement preserves frame-decode behavior when each backend yields the same validated raster metadata and integer sample stream.
+
+**Boundary surface**:
+- `ritk-codecs::jpeg` owns `decode_jpeg_fragment(fragment, PixelLayout) -> Vec<f32>`.
+- `ritk-codecs::jpeg::backend::JpegDecodeBackend` is sealed and uses static dispatch; there is no `dyn` codec dispatch in the DICOM JPEG path.
+- `JpegDecoderCrate` is the current ZST implementation backed by `jpeg-decoder`.
+- `JpegPixelFormat::L16` samples use the backend's native-endian byte contract; conversion to signed or unsigned DICOM stored integers happens only after `PixelLayout` validation.
+
+**Proof obligation**:
+For any DICOM JPEG frame `C`, layout `L`, and backend `B`, if `B(C)` yields dimensions `W,H`, pixel format `F`, and ordered sample bytes `S` equal to the decoded JPEG raster under the backend byte contract, then `decode_jpeg_fragment(C,L)` either rejects `(W,H,F,S)` when it conflicts with `L`, or returns `stored_integer(S[i]) × L.rescale_slope + L.rescale_intercept`. Backend replacement is behavior-preserving when the replacement satisfies the same raster and byte-order contract.
 
 ### 7. NIfTI Spatial Boundary
 
