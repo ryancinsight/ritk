@@ -124,12 +124,20 @@ pub fn threshold_outside(
     Ok(into_py_image(result))
 }
 
-/// Sigmoid intensity transform: output = (max-min)/(1+exp(-(I-alpha)/beta)) + min.
+/// Sigmoid intensity transform.
+///
+/// f(I; alpha, beta) = (max - min) / (1 + exp(-(I - beta) / alpha)) + min
+///
+/// Parameter convention matches SimpleITK `SigmoidImageFilter`:
+/// - alpha controls the slope (transition width): positive → increasing, negative → decreasing.
+/// - beta is the shift (inflection point): output = (max + min) / 2 when I = beta.
+///
+/// At I = beta: exp(0) = 1, so output = (max - min) / 2 + min = (max + min) / 2.
 ///
 /// Args:
 ///     image:      Input PyImage.
-///     alpha:      Inflection point (input value where output = (max+min)/2).
-///     beta:       Transition width (larger = more gradual sigmoid).
+///     alpha:      Transition width / slope. Larger |alpha| = more gradual transition.
+///     beta:       Inflection point (input value where output = (max+min)/2).
 ///     min_output: Minimum output value (default 0.0).
 ///     max_output: Maximum output value (default 1.0).
 #[pyfunction]
@@ -144,7 +152,10 @@ pub fn sigmoid_filter(
 ) -> PyResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
-        let filter = SigmoidImageFilter::new(alpha, beta, min_output, max_output);
+        // Rust SigmoidImageFilter uses (inflection=alpha_rust, width=beta_rust).
+        // Python/SimpleITK convention: alpha=width, beta=inflection.
+        // Map: inflection=beta (Python), width=alpha (Python).
+        let filter = SigmoidImageFilter::new(beta, alpha, min_output, max_output);
         filter
             .apply(image.as_ref())
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))

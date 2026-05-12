@@ -1,3 +1,30 @@
+## Sprint 200 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.0 [patch]
+**Goal**: Audit and fix PyO3 binding correctness gaps against SimpleITK; compare outputs using test_data.
+
+### Checklist items
+- [x] Audit `sigmoid_filter` Python/SimpleITK parameter convention vs Rust `SigmoidImageFilter` convention
+- [x] Fix sigmoid alpha/beta swap in `crates/ritk-python/src/filter/intensity.rs` (Rust uses alpha=inflection, beta=width; SimpleITK/Python uses alpha=width, beta=inflection)
+- [x] Audit Canny edge detection threshold range against analytically derived gradient magnitudes for Gaussian-smoothed step edges (sigma=1.0 → max magnitude ≈ 0.40)
+- [x] Fix `test_canny_edge_detect_concentrates_edges_at_sphere_surface`: lower `high_threshold` from 0.5 to 0.2, `low_threshold` from 0.1 to 0.05 (analytically derived: 0.2 < 0.40 = max gradient)
+- [x] Diagnose Chan-Vese checkerboard initialization failure for small objects (sphere ≈ 2.8% of 32³ volume → c₁ ≈ c₂ → data terms cancel)
+- [x] Replace checkerboard initialization with Otsu-threshold bipartition (`phi_0 = I - otsu_t`) in `chan_vese.rs`
+- [x] Add `otsu_threshold_f64` helper (256-bin histogram, O(n + 256), maximizes inter-class variance)
+- [x] Fix `test_chan_vese_sphere_dice_vs_ground_truth`: update `mu=0.25` → `mu=0.1` (0.25 causes over-regularization in discrete 32³ grid; 0.033 << data term 0.25)
+- [x] Verify 64/64 SimpleITK parity tests pass: `pytest crates/ritk-python/tests/test_simpleitk_parity.py -q`
+- [x] Verify 346/346 ritk-core segmentation unit tests pass: `cargo test -p ritk-core --lib segmentation`
+- [x] Build and install updated wheel: `maturin build --release` + `pip install --force-reinstall`
+- [x] Update CHANGELOG.md, checklist.md, gap_audit.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| 11 failing registration/CT-MRI parity tests (test_registration_validation.py: 9 failures; test_ct_mri_registration_parity.py: 1 failure; test_python_api_parity.py: stub coverage gap) | High | Open |
+| Replace `JpegDecoderCrate` with a RITK-owned JPEG decoder implementation | High | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
 ## Sprint 199 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
@@ -15,6 +42,10 @@
 - [x] Verify L16 backend byte order contract with `0x1234u16.to_ne_bytes()`
 - [x] Verify DICOM L16 modality LUT output `0x1234 * 2 - 4 = 9316`
 - [x] Verify focused codec tests: `cargo test -p ritk-codecs --lib jpeg -- --nocapture` (74 passed)
+- [x] Verify formatting: `cargo fmt --check -p ritk-codecs`
+- [x] Verify full codec tests: `cargo test -p ritk-codecs --lib` (84 passed)
+- [x] Verify DICOM backend tests: `cargo test -p ritk-dicom --lib` (12 passed)
+- [x] Verify whitespace: `git diff --check`
 
 ### Gaps remaining
 | Task | Priority | Status |

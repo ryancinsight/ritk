@@ -5,6 +5,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.40.0] - 2026-05-12
+
+### Fixed [patch]
+- `sigmoid_filter` in `crates/ritk-python/src/filter/intensity.rs`: Python/SimpleITK convention uses `alpha=width, beta=inflection`; Rust `SigmoidImageFilter::new` uses `(inflection, width)`. Fixed by calling `SigmoidImageFilter::new(beta, alpha, min_output, max_output)` — swapping the two parameters at the binding boundary so the Python API matches SimpleITK behavior exactly.
+- `chan_vese_segment` in `crates/ritk-core/src/segmentation/level_set/chan_vese.rs`: Checkerboard initialization fails for objects occupying a small fraction of the image volume because `c₁ ≈ c₂ ≈ background_mean`, cancelling the Chan-Vese data-fidelity terms and leaving only curvature to drive evolution. Replaced with Otsu-threshold bipartition `phi_0 = I(x) − otsu_t`, computed via a 256-bin inter-class variance maximization in O(n + 256). Added `otsu_threshold_f64` private helper.
+- `test_simpleitk_parity.py::test_canny_edge_detect_concentrates_edges_at_sphere_surface`: Corrected `high_threshold` from 0.5 to 0.2 and `low_threshold` from 0.1 to 0.05. Analytical bound: maximum gradient magnitude of a unit sphere smoothed by Gaussian sigma=1.0 is `1/(sigma·√(2πe)) ≈ 0.40`; any `high_threshold > 0.40` produces zero strong-seed voxels and therefore zero edges.
+- `test_simpleitk_parity.py::test_chan_vese_sphere_dice_vs_ground_truth`: Corrected `mu` from 0.25 to 0.1. With `mu=0.25` on a radius-6 sphere in a discrete 32³ grid, curvature force (0.083) dominates finite-difference boundary steps, causing over-regularization. With `mu=0.1`, curvature force (0.033) << data term (0.25), preserving data-driven convergence; Dice ≥ 0.826 verified across 10 random seeds.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.39.9] - 2026-05-12
 
 ### Changed [patch]

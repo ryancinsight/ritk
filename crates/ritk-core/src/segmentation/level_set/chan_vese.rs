@@ -136,6 +136,12 @@ impl ChanVeseSegmentation {
     /// convergence) and 0.0 (outside). Spatial metadata (origin, spacing,
     /// direction) is preserved from `image`.
     ///
+    /// Initialisation: the level set φ₀ is set to `I(x) − t*` where t* is the
+    /// Otsu between-class-variance-maximising threshold of the image histogram.
+    /// This immediately separates the bright and dark classes so c₁ ≈ mean_bright
+    /// and c₂ ≈ mean_dark from iteration 1, enabling fast convergence on bimodal
+    /// images.
+    ///
     /// # Errors
     ///
     /// Returns `Err` if the tensor data cannot be read as `f32`.
@@ -182,21 +188,22 @@ impl ChanVeseSegmentation {
             return Vec::new();
         }
 
-        // Initialise φ with checkerboard signed distance function.
-        let mut phi = vec![0.0_f64; n];
-        for iz in 0..nz {
-            for iy in 0..ny {
-                for ix in 0..nx {
-                    let idx = iz * ny * nx + iy * nx + ix;
-                    let cz = (std::f64::consts::PI * iz as f64 / 5.0).cos();
-                    let cy = (std::f64::consts::PI * iy as f64 / 5.0).cos();
-                    let cx = (std::f64::consts::PI * ix as f64 / 5.0).cos();
-                    phi[idx] = -(cz * cy * cx);
-                }
-            }
-        }
-
         let img_f64: Vec<f64> = img.iter().map(|&v| v as f64).collect();
+
+        // Initialise φ via Otsu-threshold bipartition.
+        //
+        // The checkerboard heuristic (φ = -cos(πx/5)·cos(πy/5)·cos(πz/5)) fails for
+        // objects that occupy a small fraction of the image: c₁ ≈ c₂ ≈ background_mean
+        // initially, so the data-fidelity terms cancel and only curvature drives the
+        // evolution, which typically converges to the wrong partition.
+        //
+        // Otsu-based initialisation: compute the between-class-variance-maximising
+        // threshold t* in O(n + 256) time; set φ(x) = I(x) − t*. This ensures
+        // c₁ ≈ mean of bright class and c₂ ≈ mean of dark class from iteration 1,
+        // so the data-fidelity terms immediately drive the contour toward the correct
+        // bimodal boundary.
+        let otsu_t = otsu_threshold_f64(&img_f64);
+        let mut phi: Vec<f64> = img_f64.iter().map(|&v| v - otsu_t).collect();
         let eps = self.epsilon;
 
         // Scratch buffers (reused across iterations).
@@ -284,6 +291,67 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
 #[cfg(test)]
 fn compute_curvature(phi: &[f64], dims: [usize; 3], kappa: &mut [f64]) {
     compute_curvature_into(phi, dims, kappa);
+}
+
+// ── Otsu threshold (f64 slice) ─────────────────────────────────────────────────
+
+/// Compute the Otsu between-class-variance-maximising threshold on a `f64` slice.
+///
+/// Uses a 256-bin histogram. Returns the intensity value t* that maximises
+/// between-class variance:
+///   σ²_B(t) = P₁(t)·P₂(t)·(μ₁(t) − μ₂(t))²
+///
+/// For a constant image, returns the uniform intensity (degenerate case).
+/// Complexity: O(n + 256).
+fn otsu_threshold_f64(img: &[f64]) -> f64 {
+    const NUM_BINS: usize = 256;
+    let n = img.len();
+    if n == 0 {
+        return 0.0;
+    }
+
+    let (x_min, x_max) = img.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(mn, mx), &v| {
+        (mn.min(v), mx.max(v))
+    });
+
+    if (x_max - x_min).abs() < f64::EPSILON {
+        return x_min;
+    }
+
+    let range = x_max - x_min;
+    let num_bins_f = (NUM_BINS - 1) as f64;
+
+    let mut counts = [0u64; NUM_BINS];
+    for &v in img {
+        let bin = ((v - x_min) / range * num_bins_f).floor() as usize;
+        counts[bin.min(NUM_BINS - 1)] += 1;
+    }
+
+    let h: Vec<f64> = counts.iter().map(|&c| c as f64 / n as f64).collect();
+    let total_mu: f64 = (0..NUM_BINS).map(|i| i as f64 * h[i]).sum();
+
+    let mut best_sigma2 = 0.0_f64;
+    let mut best_t = 0_usize;
+    let mut w1 = 0.0_f64;
+    let mut mu1_partial = 0.0_f64;
+
+    for t in 1..NUM_BINS {
+        w1 += h[t - 1];
+        mu1_partial += (t - 1) as f64 * h[t - 1];
+        let w2 = 1.0 - w1;
+        if w1 < 1e-12 || w2 < 1e-12 {
+            continue;
+        }
+        let mu1 = mu1_partial / w1;
+        let mu2 = (total_mu - mu1_partial) / w2;
+        let sigma2 = w1 * w2 * (mu1 - mu2) * (mu1 - mu2);
+        if sigma2 > best_sigma2 {
+            best_sigma2 = sigma2;
+            best_t = t;
+        }
+    }
+
+    x_min + best_t as f64 * range / num_bins_f
 }
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
