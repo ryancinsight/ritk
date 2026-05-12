@@ -1,0 +1,79 @@
+//! Python-exposed segmentation functions delegating to `ritk_core::segmentation`.
+//!
+//! All algorithmic work is performed by the authoritative implementations in
+//! `ritk_core::segmentation`.  No algorithm logic is duplicated here; SSOT is
+//! maintained in `ritk-core`.
+//!
+//! # Submodules
+//! - `threshold`:  Otsu, Li, Yen, Kapur, Triangle, Multi-Otsu, binary threshold.
+//! - `labeling`:   Connected components, label statistics, K-Means, watershed.
+//! - `morphology`: Binary erosion/dilation/opening/closing, fill holes, gradient, skeletonization.
+//! - `levelset`:   Chan-Vese, Geodesic Active Contour, Shape Detection, Threshold, Laplacian.
+//! - `growing`:    Connected-threshold, confidence-connected, neighbourhood-connected.
+
+mod growing;
+mod labeling;
+mod levelset;
+mod morphology;
+mod threshold;
+
+pub use growing::*;
+pub use labeling::*;
+pub use levelset::*;
+pub use morphology::*;
+pub use threshold::*;
+
+use pyo3::prelude::*;
+
+/// Register the `segmentation` submodule with all exposed functions.
+pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+    let m = PyModule::new_bound(parent.py(), "segmentation")?;
+
+    // Thresholding
+    m.add_function(wrap_pyfunction!(otsu_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(li_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(yen_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(kapur_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(triangle_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(multi_otsu_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_threshold_segment, &m)?)?;
+
+    // Labeling
+    m.add_function(wrap_pyfunction!(connected_components, &m)?)?;
+    m.add_function(wrap_pyfunction!(label_shape_statistics, &m)?)?;
+
+    // Region growing
+    m.add_function(wrap_pyfunction!(connected_threshold_segment, &m)?)?;
+
+    // Clustering
+    m.add_function(wrap_pyfunction!(kmeans_segment, &m)?)?;
+
+    // Watershed
+    m.add_function(wrap_pyfunction!(watershed_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(marker_watershed_segment, &m)?)?;
+
+    // Morphology
+    m.add_function(wrap_pyfunction!(binary_erosion, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_dilation, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_opening, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_closing, &m)?)?;
+    m.add_function(wrap_pyfunction!(binary_fill_holes, &m)?)?;
+    m.add_function(wrap_pyfunction!(morphological_gradient, &m)?)?;
+
+    // Level set
+    m.add_function(wrap_pyfunction!(chan_vese_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(shape_detection_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(threshold_level_set_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(laplacian_level_set_segment, &m)?)?;
+
+    // Region growing (confidence / neighbourhood)
+    m.add_function(wrap_pyfunction!(confidence_connected_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(neighborhood_connected_segment, &m)?)?;
+
+    // Skeletonization
+    m.add_function(wrap_pyfunction!(skeletonization, &m)?)?;
+
+    parent.add_submodule(&m)?;
+    Ok(())
+}

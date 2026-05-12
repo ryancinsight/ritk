@@ -5,6 +5,34 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.39.8] - 2026-05-12
+
+### Changed [arch]
+- `crates/ritk-python/src/filter.rs` (1168 lines) split into `filter/mod.rs` + `filter/smooth.rs`, `filter/edge.rs`, `filter/vessel.rs`, `filter/intensity.rs`, `filter/morphology.rs`, `filter/spatial.rs`. All files are under the 500-line structural limit.
+- `crates/ritk-python/src/registration.rs` (1255 lines) split into `registration/mod.rs` + `registration/demons.rs`, `registration/syn.rs`, `registration/atlas.rs`.
+- `crates/ritk-python/src/segmentation.rs` (1136 lines) split into `segmentation/mod.rs` + `segmentation/threshold.rs`, `segmentation/labeling.rs`, `segmentation/morphology.rs`, `segmentation/levelset.rs`, `segmentation/growing.rs`.
+- `crates/ritk-python/src/statistics.rs` (799 lines) split into `statistics/mod.rs` + `statistics/descriptive.rs`, `statistics/normalization.rs`.
+
+### Fixed [patch]
+- Frangi vesselness default `sigma_scales` corrected from `[1.0, 2.0, 3.0]` to `[0.5, 1.0, 2.0]` in `filter/vessel.rs` (docstring specified `[0.5,1.0,2.0]` — docstring is the specification).
+- Duplicate docstring blocks removed from `statistics.rs` `psnr` and `ssim` (each had two Args/Returns sections; the first block was incomplete).
+- Orphaned section comment `// ── skeletonization ──...` removed from misplaced position before `binary_threshold_segment` in `segmentation.rs`.
+- `white_top_hat`, `black_top_hat`, `hit_or_miss`, and `label_dilation` extracted from inline item definitions inside `filter::register()` to proper module-level `#[pyfunction]` items in `filter/morphology.rs` — inline pyfunctions are not valid PyO3 pattern.
+
+<!-- ──────────────────────────────────────────── -->
+## [0.39.7] - 2026-05-12
+
+### Changed
+- JPEG 2000 DICOM decode in `ritk-codecs::jpeg_2000` now uses `jpeg2k` with the `openjp2` Rust backend instead of direct `openjpeg-sys` C FFI.
+- `dicom-transfer-syntax-registry` now uses its `openjp2` feature instead of `openjpeg-sys`.
+
+### Removed
+- Removed the workspace `openjpeg-sys` dependency and obsolete `ritk-codecs` OpenJPEG memory-stream production module.
+
+### Added
+- Added value-semantic JPEG 2000 tests for unsigned lossless, signed lossless, rescale, malformed prefix, and truncated codestream behavior through the new backend.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.39.6] - 2026-05-12
 
 ### Fixed

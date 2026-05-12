@@ -1,0 +1,40 @@
+//! Python-exposed deformable image registration algorithms.
+//!
+//! All registration functions delegate to `ritk-registration` crate
+//! implementations.  This module handles PyO3 boundary conversion
+//! (PyImage ↔ flat `Vec<f32>`) and result packing only.
+//!
+//! # Submodules
+//! - `demons`:  Thirion, Diffeomorphic, Symmetric, Multi-resolution, and Inverse-consistent Demons.
+//! - `syn`:     Greedy SyN, BSpline FFD, Multi-resolution SyN, BSpline SyN, LDDMM.
+//! - `atlas`:   Population atlas building, majority vote fusion, Joint Label Fusion.
+
+mod atlas;
+mod demons;
+mod syn;
+
+pub use atlas::*;
+pub use demons::*;
+pub use syn::*;
+
+use pyo3::prelude::*;
+
+/// Register the `registration` submodule and all exposed functions.
+pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
+    let m = PyModule::new_bound(parent.py(), "registration")?;
+    m.add_function(wrap_pyfunction!(demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(diffeomorphic_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(symmetric_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(inverse_consistent_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(multires_demons_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(syn_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(bspline_ffd_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(multires_syn_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(bspline_syn_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(lddmm_register, &m)?)?;
+    m.add_function(wrap_pyfunction!(build_atlas, &m)?)?;
+    m.add_function(wrap_pyfunction!(majority_vote_fusion, &m)?)?;
+    m.add_function(wrap_pyfunction!(joint_label_fusion_py, &m)?)?;
+    parent.add_submodule(&m)?;
+    Ok(())
+}

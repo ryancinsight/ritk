@@ -1,3 +1,62 @@
+## Sprint 198 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.8 [arch]
+**Goal**: Enforce the 500-line structural limit across all ritk-python source files; fix PyO3 binding correctness gaps; audit ritk-python pyfunctions against SimpleITK API surface.
+
+### Checklist items
+- [x] Fix Frangi vesselness default sigma_scales: code used `[1.0, 2.0, 3.0]`, docstring specifies `[0.5, 1.0, 2.0]` — corrected to docstring
+- [x] Remove duplicate docstring blocks from `statistics.rs` `psnr` and `ssim` (each had two conflicting Args/Returns sections)
+- [x] Remove orphaned section comment `// ── skeletonization` placed before `binary_threshold_segment`
+- [x] Split `filter.rs` (1168 lines → 6 files): `filter/mod.rs`, `smooth.rs`, `edge.rs`, `vessel.rs`, `intensity.rs`, `morphology.rs`, `spatial.rs`
+- [x] Extract `white_top_hat`, `black_top_hat`, `hit_or_miss`, `label_dilation` from inline-in-register() to module-level `#[pyfunction]` items
+- [x] Split `registration.rs` (1255 lines → 4 files): `registration/mod.rs`, `demons.rs`, `syn.rs`, `atlas.rs`
+- [x] Split `segmentation.rs` (1136 lines → 6 files): `segmentation/mod.rs`, `threshold.rs`, `labeling.rs`, `morphology.rs`, `levelset.rs`, `growing.rs`
+- [x] Split `statistics.rs` (799 lines → 3 files): `statistics/mod.rs`, `descriptive.rs`, `normalization.rs`
+- [x] Verify `cargo check -p ritk-python` (passed; 0 errors)
+- [x] Update CHANGELOG.md, checklist.md, gap_audit.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Full SimpleITK comparison tests using test_data | High | Open |
+| Native Rust JPEG dependency replacement (`jpeg-decoder`) | High | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution (anonymize/print/report) | Medium | Open |
+
+## Sprint 197 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.7 [patch]
+**Goal**: Remove the `openjpeg-sys` dependency from the JPEG 2000 image path without changing the DICOM backend contract.
+
+### Checklist items
+- [x] Audit JPEG 2000 ownership across `ritk-codecs`, `ritk-dicom`, `ritk-io`, and workspace dependencies
+- [x] Add `jpeg2k` with `openjp2` backend to workspace dependencies
+- [x] Remove workspace `openjpeg-sys` dependency and switch `dicom-transfer-syntax-registry` from `openjpeg-sys` to `openjp2`
+- [x] Replace `crates/ritk-codecs/src/jpeg_2000` production decode with `jpeg2k::Image::from_bytes_with`
+- [x] Delete obsolete OpenJPEG memory-stream production module
+- [x] Rework pixel extraction to consume safe component planes and validate component count, dimensions, precision, signedness, and sample count
+- [x] Replace codec test fixture encoding with `openjp2` Rust-port encoding
+- [x] Replace DICOM JPEG 2000 integration fixture encoding with `openjp2` Rust-port encoding
+- [x] Verify `cargo test -p ritk-codecs --lib jpeg_2000` (13 passed)
+- [x] Verify `cargo test -p ritk-codecs --lib` (82 passed)
+- [x] Verify `cargo test -p ritk-dicom --lib` (12 passed)
+- [x] Verify `cargo test -p ritk-io --lib test_decode_compressed_frame_jpeg2000_lossless_round_trip` (1 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (190 passed)
+- [x] Verify `cargo tree -p ritk-codecs --invert openjpeg-sys` reports no matching package
+- [x] Verify `rg 'openjpeg-sys' Cargo.lock` reports no matches
+- [x] Verify `cargo fmt --check -p ritk-codecs` (passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG dependency replacement (`jpeg-decoder`) | High | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution (anonymize/print/report) | Medium | Open |
+
 ## Sprint 196 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
