@@ -1,3 +1,35 @@
+## Sprint 192 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.2 [minor]
+**Goal**: Close the DICOM TM time-field parsing gap and wire SUV display in the viewer overlay: parse `RadiopharmaceuticalStartTime` + `SeriesTime`, compute `delta_t_s` with midnight-rollover handling, and show "Pointer SUV" / "Cursor SUV" for PET modality in place of the HU label.
+
+### Checklist items
+- [x] Add `series_time: Option<String>` to `LoadedVolume` in `crates/ritk-snap/src/lib.rs`
+- [x] Wire `meta.series_time` in DICOM loader path in `crates/ritk-snap/src/dicom/loader.rs`
+- [x] Add `series_time: None` to all NIfTI, bytes, and test-fixture `LoadedVolume` struct literals (loader.rs, app.rs ×2, fusion.rs, slice_render.rs, pointer_intensity.rs, viewport.rs, pet.rs)
+- [x] Add `parse_dicom_tm(s: &str) -> Option<f64>` in `crates/ritk-snap/src/dicom/pet.rs` — HHMMSS/HHMM/HH with optional .FFFFFF fractional seconds
+- [x] Add `compute_delta_t_s(rph_start_s, series_time_s) -> f64` with midnight-rollover handling (result ∈ [0, 86 400))
+- [x] Add `PetAcquisitionParams::delta_t_s_from_vol(vol)` — parses both time fields; returns 0.0 as fallback
+- [x] Add 9 value-semantic tests: HHMMSS parse, HHMM parse, HH parse, fractional seconds, invalid→None, HH≥24→None, same-day delta, midnight rollover, two-field vol round-trip, missing series_time→0.0
+- [x] Extract `format_pointer_str` and `format_cursor_str` pure helpers in `crates/ritk-snap/src/ui/overlay.rs`
+- [x] Update `OverlayRenderer::draw` signature: add `pointer_suv: Option<f32>` and `cursor_suv: Option<f32>`
+- [x] Update bottom-right overlay block to use helpers (SUV label for PT, HU for others)
+- [x] Add 7 value-semantic tests for `format_pointer_str` and `format_cursor_str`
+- [x] Update `OverlayRenderer::draw` call in `app.rs` and `viewport.rs`
+- [x] Add `pointer_suv: Option<f32>` field to `SnapApp` struct + initialization + all reset sites
+- [x] Add `compute_suv_from_volume(vol, pixel_bqml) -> Option<f32>` static helper
+- [x] Add `current_cursor_suv() -> Option<f32>` method
+- [x] Update `update_pointer_intensity` to also compute `pointer_suv`
+- [x] Verify `cargo test -p ritk-snap --lib` (486 passed; +16 new tests)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| GAP-176-RAD-02 remainder | PET/CT pixel-level fusion composition with SUV-aware colormap | High | Open |
+| Remaining non-dedicated image ownership audit | TIFF and MINC | Medium | Open |
+
 ## Sprint 191 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

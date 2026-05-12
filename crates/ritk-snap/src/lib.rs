@@ -1437,6 +1437,8 @@ pub struct LoadedVolume {
     pub injected_dose_bq: Option<f64>,
     /// Radionuclide physical half-life in seconds from DICOM (0018,1075).
     pub radionuclide_half_life_s: Option<f64>,
+    /// Series acquisition time TM string from DICOM (0008,0031).
+    pub series_time: Option<String>,
     /// Radiopharmaceutical start time TM string from DICOM (0018,1072).
     pub radiopharmaceutical_start_time: Option<String>,
     /// Decay correction type from DICOM (0054,1102): "START", "ADMIN", or "NONE".

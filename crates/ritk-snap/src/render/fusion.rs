@@ -109,6 +109,7 @@ mod tests {
             patient_weight_kg: None,
             injected_dose_bq: None,
             radionuclide_half_life_s: None,
+            series_time: None,
             radiopharmaceutical_start_time: None,
             decay_correction: None,
         }

@@ -80,6 +80,7 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            series_time: None,
             patient_weight_kg: None,
             injected_dose_bq: None,
             radionuclide_half_life_s: None,

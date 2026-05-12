@@ -239,6 +239,8 @@ pub struct SnapApp {
     show_series_browser: bool,
     /// Current voxel intensity value under the pointer (HU or relative).
     pointer_intensity: f32,
+    /// SUVbw value under the pointer for PET volumes; `None` for non-PET or unavailable params.
+    pointer_suv: Option<f32>,
     /// Cached voxel intensity histogram for the loaded volume.
     ///
     /// Computed once when a volume is loaded; `None` when no volume is loaded.
@@ -325,6 +327,7 @@ impl Default for SnapApp {
             cine: CinePlayback::default(),
             show_series_browser: true,
             pointer_intensity: 0.0,
+            pointer_suv: None,
             cached_histogram: None,
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
@@ -1734,6 +1737,8 @@ impl SnapApp {
                     self.zoom,
                     cursor_value,
                     self.pointer_intensity,
+                    self.pointer_suv,
+                    self.current_cursor_suv(),
                 );
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
@@ -3283,6 +3288,7 @@ impl SnapApp {
                 let patient_id = meta.patient_id.clone();
                 let study_date = meta.study_date.clone();
                 let series_description = meta.series_description.clone();
+                let series_time = meta.series_time.clone();
                 let patient_weight_kg = meta.patient_weight_kg;
                 let injected_dose_bq = meta.radionuclide_total_dose_bq;
                 let radionuclide_half_life_s = meta.radionuclide_half_life_s;
@@ -3302,6 +3308,7 @@ impl SnapApp {
                     patient_id,
                     study_date,
                     series_description,
+                    series_time,
                     patient_weight_kg,
                     injected_dose_bq,
                     radionuclide_half_life_s,
@@ -3335,6 +3342,7 @@ impl SnapApp {
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
                 self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -3412,6 +3420,7 @@ impl SnapApp {
                     patient_id: meta.patient_id.clone(),
                     study_date: meta.study_date.clone(),
                     series_description: meta.series_description.clone(),
+                    series_time: meta.series_time.clone(),
                     patient_weight_kg: meta.patient_weight_kg,
                     injected_dose_bq: meta.radionuclide_total_dose_bq,
                     radionuclide_half_life_s: meta.radionuclide_half_life_s,
@@ -3494,6 +3503,7 @@ impl SnapApp {
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
                 self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -3557,6 +3567,7 @@ impl SnapApp {
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
                 self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -3631,6 +3642,7 @@ impl SnapApp {
                 self.pan_offset = egui::Vec2::ZERO;
                 self.zoom = 1.0;
                 self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
                 self.texture = None;
                 self.texture_dirty = true;
                 self.coronal_tex = None;
@@ -3677,6 +3689,7 @@ impl SnapApp {
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
         self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
         self.cached_histogram = None;
         self.selected_series = None;
         self.pan_offset = egui::Vec2::ZERO;
@@ -4199,19 +4212,47 @@ impl SnapApp {
     fn update_pointer_intensity(&mut self, axis: usize, pos: Option<egui::Pos2>, rect: egui::Rect) {
         let Some(point) = pos else {
             self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
             return;
         };
         let Some(volume) = &self.loaded else {
             self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
         let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect)
         else {
             self.pointer_intensity = 0.0;
+                self.pointer_suv = None;
             return;
         };
         self.pointer_intensity = intensity_at_voxel(volume, voxel);
+        self.pointer_suv = Self::compute_suv_from_volume(volume, self.pointer_intensity as f64);
+    }
+
+    /// Compute SUVbw for a PET voxel value [Bq/mL].
+    ///
+    /// Returns `None` when `PetAcquisitionParams::from_loaded_volume` fails,
+    /// `pixel_bqml` is non-finite, or the result is non-finite.
+    fn compute_suv_from_volume(vol: &crate::LoadedVolume, pixel_bqml: f64) -> Option<f32> {
+        use crate::dicom::pet::PetAcquisitionParams;
+        if !pixel_bqml.is_finite() {
+            return None;
+        }
+        let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
+        let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);
+        let suv = pet.pixel_to_suvbw(pixel_bqml, delta_t);
+        if suv.is_finite() { Some(suv as f32) } else { None }
+    }
+
+    /// Compute SUVbw at the linked-cursor voxel position, if available.
+    fn current_cursor_suv(&self) -> Option<f32> {
+        let volume = self.loaded.as_ref()?;
+        let cursor = self.linked_cursor?;
+        let [z, y, x] = cursor.voxel();
+        let pixel = volume.pixel_at(z, y, x) as f64;
+        Self::compute_suv_from_volume(volume, pixel)
     }
 
     fn current_cursor_value(&self) -> Option<f32> {
@@ -4352,6 +4393,7 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: Some("Test".to_string()),
+            series_time: None,
             patient_weight_kg: None,
             injected_dose_bq: None,
             radionuclide_half_life_s: None,
@@ -5148,6 +5190,7 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            series_time: None,
             patient_weight_kg: None,
             injected_dose_bq: None,
             radionuclide_half_life_s: None,

@@ -94,6 +94,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     let patient_id = meta.patient_id.clone();
     let study_date = meta.study_date.clone();
     let series_description = meta.series_description.clone();
+    let series_time = meta.series_time.clone();
     let patient_weight_kg = meta.patient_weight_kg;
     let injected_dose_bq = meta.radionuclide_total_dose_bq;
     let radionuclide_half_life_s = meta.radionuclide_half_life_s;
@@ -113,6 +114,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
         patient_id,
         study_date,
         series_description,
+        series_time,
         patient_weight_kg,
         injected_dose_bq,
         radionuclide_half_life_s,
@@ -183,6 +185,7 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
         patient_id: None,
         study_date: None,
         series_description: None,
+        series_time: None,
         patient_weight_kg: None,
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
@@ -405,6 +408,7 @@ fn volume_from_image_no_meta(
         patient_id: None,
         study_date: None,
         series_description: None,
+        series_time: None,
         patient_weight_kg: None,
         injected_dose_bq: None,
         radionuclide_half_life_s: None,

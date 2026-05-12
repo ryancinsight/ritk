@@ -79,6 +79,8 @@ impl OverlayRenderer {
     /// - `wl`           — current window/level settings.
     /// - `zoom`         — current zoom factor (1.0 = fit-to-viewport).
     /// - `cursor_value` — pixel value (HU) at the cursor position, or `None`.
+    /// - `pointer_suv`  — SUVbw value under the pointer (PT only), or `None`.
+    /// - `cursor_suv`   — SUVbw value at the linked-cursor voxel (PT only), or `None`.
     pub fn draw(
         painter: &Painter,
         rect: Rect,
@@ -89,6 +91,8 @@ impl OverlayRenderer {
         zoom: f32,
         cursor_value: Option<f32>,
         pointer_intensity: f32,
+        pointer_suv: Option<f32>,
+        cursor_suv: Option<f32>,
     ) {
         let [depth, rows, cols] = volume.shape;
 
@@ -173,23 +177,16 @@ impl OverlayRenderer {
             OVERLAY_TEXT_COLOR,
         );
 
-        // ── Bottom-right: W/L, zoom, cursor HU, pointer intensity ─────────
+        // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
-        let cursor_hu_str = match cursor_value {
-            Some(v) => format!("Cursor HU: {:.0}", v),
-            None => String::new(),
-        };
-        let pointer_hu_str = if pointer_intensity != 0.0 {
-            format!("Pointer HU: {:.0}", pointer_intensity)
-        } else {
-            String::new()
-        };
+        let cursor_val_str = format_cursor_str(cursor_value, cursor_suv);
+        let pointer_val_str = format_pointer_str(pointer_intensity, pointer_suv);
         let br_lines: Vec<&str> = [
             &wl_str as &str,
             &zoom_str as &str,
-            &cursor_hu_str as &str,
-            &pointer_hu_str as &str,
+            &cursor_val_str as &str,
+            &pointer_val_str as &str,
         ]
         .iter()
         .filter(|s| !s.is_empty())
@@ -369,6 +366,32 @@ fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
     }
 }
 
+// ── Pure display-string helpers (testable) ────────────────────────────────────
+
+/// Format the pointer-position intensity label.
+///
+/// Returns `"Pointer SUV: {:.2}"` when `pointer_suv` is `Some`,
+/// `"Pointer HU: {:.0}"` when `pointer_intensity != 0.0`, or `""` otherwise.
+pub(crate) fn format_pointer_str(pointer_intensity: f32, pointer_suv: Option<f32>) -> String {
+    match pointer_suv {
+        Some(s) => format!("Pointer SUV: {:.2}", s),
+        None if pointer_intensity != 0.0 => format!("Pointer HU: {:.0}", pointer_intensity),
+        _ => String::new(),
+    }
+}
+
+/// Format the cursor-position intensity label.
+///
+/// Returns `"Cursor SUV: {:.2}"` when `cursor_suv` is `Some`,
+/// `"Cursor HU: {:.0}"` when `cursor_value` is `Some`, or `""` otherwise.
+pub(crate) fn format_cursor_str(cursor_value: Option<f32>, cursor_suv: Option<f32>) -> String {
+    match (cursor_suv, cursor_value) {
+        (Some(s), _) => format!("Cursor SUV: {:.2}", s),
+        (None, Some(v)) => format!("Cursor HU: {:.0}", v),
+        _ => String::new(),
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -458,5 +481,44 @@ mod tests {
         assert_eq!(labels.right, "P");
         assert_eq!(labels.top, "I");
         assert_eq!(labels.bottom, "S");
+    }
+
+    // ── format_pointer_str ────────────────────────────────────────────────────
+
+    #[test]
+    fn format_pointer_str_zero_intensity_no_suv_returns_empty() {
+        assert!(format_pointer_str(0.0, None).is_empty());
+    }
+
+    #[test]
+    fn format_pointer_str_nonzero_intensity_no_suv_shows_hu() {
+        assert_eq!(format_pointer_str(512.0, None), "Pointer HU: 512");
+    }
+
+    #[test]
+    fn format_pointer_str_with_suv_shows_suv_label() {
+        assert_eq!(format_pointer_str(5000.0, Some(1.89_f32)), "Pointer SUV: 1.89");
+    }
+
+    #[test]
+    fn format_pointer_str_zero_intensity_with_suv_still_shows_suv() {
+        assert_eq!(format_pointer_str(0.0, Some(2.5_f32)), "Pointer SUV: 2.50");
+    }
+
+    // ── format_cursor_str ─────────────────────────────────────────────────────
+
+    #[test]
+    fn format_cursor_str_none_cursor_none_suv_returns_empty() {
+        assert!(format_cursor_str(None, None).is_empty());
+    }
+
+    #[test]
+    fn format_cursor_str_cursor_only_shows_hu() {
+        assert_eq!(format_cursor_str(Some(100.0), None), "Cursor HU: 100");
+    }
+
+    #[test]
+    fn format_cursor_str_suv_takes_priority_over_cursor_hu() {
+        assert_eq!(format_cursor_str(Some(5000.0), Some(1.89_f32)), "Cursor SUV: 1.89");
     }
 }

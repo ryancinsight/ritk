@@ -1,3 +1,31 @@
+## Sprint 192 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.2 [minor]
+**Goal**: Close the DICOM time-field gap and deliver end-to-end SUV display in the viewer overlay for PET modality.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-02 (partial) | DICOM TM parsing, delta_t_s SSOT, SUV pointer/cursor overlay | **Partially closed** |
+
+### Delivered
+- ✓ `series_time: Option<String>` added to `LoadedVolume`; wired through DICOM loader; 7 test fixtures updated
+- ✓ `parse_dicom_tm` — DICOM PS3.5 §6.2 TM → seconds since midnight, fractional seconds, midnight-aware
+- ✓ `compute_delta_t_s` — elapsed seconds with midnight-rollover invariant (result ∈ [0, 86 400))
+- ✓ `PetAcquisitionParams::delta_t_s_from_vol` — safe 0.0 fallback when time fields absent
+- ✓ `format_pointer_str` / `format_cursor_str` extracted from `overlay.rs` with 7 value-semantic tests
+- ✓ `OverlayRenderer::draw` shows "Pointer SUV: {:.2}" / "Cursor SUV: {:.2}" for PT modality
+- ✓ `pointer_suv: Option<f32>` in `SnapApp`; `compute_suv_from_volume` + `current_cursor_suv` compute SUV live on every pointer/cursor event
+- ✓ `cargo test -p ritk-snap --lib` pass (486; +16)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving `ritk-codecs` / `ritk-dicom` boundary | High |
+| GAP-176-RAD-02 remainder | PET/CT pixel-level fusion composition with SUV-aware colormap | High |
+| Remaining non-dedicated image ownership audit | TIFF and MINC | Medium |
+
 ## Sprint 191 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
