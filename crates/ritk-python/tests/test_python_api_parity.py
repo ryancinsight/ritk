@@ -15,7 +15,7 @@ SMOKE_TEST = PYTHON_CRATE / "tests" / "test_smoke.py"
 
 MODULES = {
     "filter": {
-        "rust": SRC_DIR / "filter.rs",
+        "rust": SRC_DIR / "filter" / "mod.rs",
         "stub": STUB_DIR / "filter.pyi",
         "smoke_test": "test_filter_public_functions_exist",
     },
@@ -25,17 +25,17 @@ MODULES = {
         "smoke_test": "test_io_public_functions_exist",
     },
     "registration": {
-        "rust": SRC_DIR / "registration.rs",
+        "rust": SRC_DIR / "registration" / "mod.rs",
         "stub": STUB_DIR / "registration.pyi",
         "smoke_test": "test_registration_public_functions_exist",
     },
     "segmentation": {
-        "rust": SRC_DIR / "segmentation.rs",
+        "rust": SRC_DIR / "segmentation" / "mod.rs",
         "stub": STUB_DIR / "segmentation.pyi",
         "smoke_test": "test_segmentation_public_functions_exist",
     },
     "statistics": {
-        "rust": SRC_DIR / "statistics.rs",
+        "rust": SRC_DIR / "statistics" / "mod.rs",
         "stub": STUB_DIR / "statistics.pyi",
         "smoke_test": "test_statistics_public_functions_exist",
     },

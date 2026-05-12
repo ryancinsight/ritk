@@ -18,14 +18,18 @@ use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 /// cross-correlation gradient.
 ///
 /// Args:
-///     fixed:          Fixed (reference) image.
-///     moving:         Moving image.
-///     max_iterations: Maximum iterations (default 100).
-///     sigma_smooth:   Velocity field Gaussian smoothing sigma in voxels
-///                     (default 3.0).
-///     cc_radius:      Local CC window radius in voxels (default 2).
-///     gradient_step:  Max per-step voxel displacement for force normalization
-///                     (default 0.25, matches ANTs gradientStep).
+///     fixed:                   Fixed (reference) image.
+///     moving:                  Moving image.
+///     max_iterations:          Maximum iterations (default 100).
+///     sigma_smooth:            Velocity field Gaussian smoothing sigma in voxels
+///                              (default 3.0).
+///     cc_radius:               Local CC window radius in voxels (default 2).
+///     gradient_step:           Max per-step voxel displacement for force normalization
+///                              (default 0.25, matches ANTs gradientStep).
+///     convergence_threshold:   Stop when CC variance over the last
+///                              ``convergence_window`` iterations falls below this
+///                              value.  Default 1e-8; set smaller to allow more
+///                              iterations before declaring convergence.
 ///
 /// Returns:
 ///     (warped_fixed, warped_moving):
@@ -36,7 +40,7 @@ use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, max_iterations=100, sigma_smooth=3.0, cc_radius=2, gradient_step=0.25))]
+#[pyo3(signature = (fixed, moving, max_iterations=100, sigma_smooth=3.0, cc_radius=2, gradient_step=0.25, convergence_threshold=1e-8))]
 pub fn syn_register(
     py: Python<'_>,
     fixed: &PyImage,
@@ -45,6 +49,7 @@ pub fn syn_register(
     sigma_smooth: f64,
     cc_radius: usize,
     gradient_step: f64,
+    convergence_threshold: f64,
 ) -> PyResult<(PyImage, PyImage)> {
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
@@ -70,6 +75,7 @@ pub fn syn_register(
                 sigma_smooth,
                 cc_window_radius: cc_radius,
                 gradient_step,
+                convergence_threshold,
                 ..Default::default()
             };
             let reg = SyNRegistration::new(config);
@@ -187,16 +193,20 @@ pub fn bspline_ffd_register(
 /// multi-resolution pyramid for improved capture range and robustness.
 ///
 /// Args:
-///     fixed:          Fixed (reference) image.
-///     moving:         Moving image.
-///     num_levels:     Number of resolution levels (default 3).
-///     iterations:     Comma-separated or list of max iterations per level,
-///                     coarsest first (default [100, 70, 20]).
-///     sigma_smooth:   Velocity field Gaussian smoothing sigma (default 3.0).
-///     cc_radius:      Local CC window radius in voxels (default 2).
-///     inverse_consistency: Enforce inverse consistency (default true).
-///     gradient_step:  Max per-step voxel displacement for force normalization
-///                     (default 0.25, matches ANTs gradientStep).
+///     fixed:                   Fixed (reference) image.
+///     moving:                  Moving image.
+///     num_levels:              Number of resolution levels (default 3).
+///     iterations:              Max iterations per level, coarsest first
+///                              (default [100, 70, 20] for num_levels=3).
+///     sigma_smooth:            Velocity field Gaussian smoothing sigma (default 3.0).
+///     cc_radius:               Local CC window radius in voxels (default 2).
+///     inverse_consistency:     Enforce inverse consistency (default true).
+///     gradient_step:           Max per-step voxel displacement for force normalization
+///                              (default 0.25, matches ANTs gradientStep).
+///     convergence_threshold:   Stop a level when CC variance over the last
+///                              ``convergence_window`` iterations falls below this.
+///                              Default 1e-8; set smaller for stricter per-level
+///                              convergence checking.
 ///
 /// Returns:
 ///     (warped_fixed, warped_moving):
@@ -206,7 +216,7 @@ pub fn bspline_ffd_register(
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, num_levels=3, iterations=None, sigma_smooth=3.0, cc_radius=2, inverse_consistency=true, gradient_step=0.25))]
+#[pyo3(signature = (fixed, moving, num_levels=3, iterations=None, sigma_smooth=3.0, cc_radius=2, inverse_consistency=true, gradient_step=0.25, convergence_threshold=1e-8))]
 pub fn multires_syn_register(
     py: Python<'_>,
     fixed: &PyImage,
@@ -217,6 +227,7 @@ pub fn multires_syn_register(
     cc_radius: usize,
     inverse_consistency: bool,
     gradient_step: f64,
+    convergence_threshold: f64,
 ) -> PyResult<(PyImage, PyImage)> {
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
@@ -242,7 +253,7 @@ pub fn multires_syn_register(
                 num_levels,
                 iterations_per_level: iters,
                 sigma_smooth,
-                convergence_threshold: 1e-6,
+                convergence_threshold,
                 convergence_window: 10,
                 n_squarings: 6,
                 cc_window_radius: cc_radius,

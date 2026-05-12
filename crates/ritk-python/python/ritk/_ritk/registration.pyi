@@ -50,6 +50,7 @@ def syn_register(
     sigma_smooth: float = 3.0,
     cc_radius: int = 2,
     gradient_step: float = 0.25,
+    convergence_threshold: float = 1e-8,
 ) -> tuple[Image, Image]: ...
 def bspline_ffd_register(
     fixed: Image,
@@ -69,6 +70,7 @@ def multires_syn_register(
     cc_radius: int = 2,
     inverse_consistency: bool = True,
     gradient_step: float = 0.25,
+    convergence_threshold: float = 1e-8,
 ) -> tuple[Image, Image]: ...
 def bspline_syn_register(
     fixed: Image,

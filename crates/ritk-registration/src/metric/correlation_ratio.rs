@@ -287,4 +287,38 @@ mod tests {
             "Correlation Ratio"
         );
     }
+
+    #[test]
+    fn test_cr_identical_images() {
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use burn::tensor::{Shape, TensorData};
+        use ritk_core::transform::TranslationTransform;
+
+        let size = 5;
+        let count = size * size * size;
+        let data: Vec<f32> = (0..count).map(|x| (x as f32 * 255.0) / count as f32).collect(); // Gradient 0-255
+
+        let device = Default::default();
+        let tensor = Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new([size, size, size])), &device);
+        let spacing = Spacing::new([1.0, 1.0, 1.0]);
+        let origin = Point::new([0.0, 0.0, 0.0]);
+        let direction = Direction::identity();
+        
+        let fixed = Image::new(tensor.clone(), origin, spacing, direction);
+        let moving = Image::new(tensor, origin, spacing, direction);
+
+        let transform = TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
+
+        let cr_metric = CorrelationRatio::<TestBackend>::default_params();
+        let loss = cr_metric.forward(&fixed, &moving, &transform);
+
+        let loss_val = loss.into_scalar();
+        
+        // Identical images should have CR near 1.0 (loss near -1.0)
+        assert!(
+            (loss_val + 1.0).abs() < 0.1,
+            "CR for identical images should be approx 1.0 (loss -1.0), got {}",
+            loss_val
+        );
+    }
 }
