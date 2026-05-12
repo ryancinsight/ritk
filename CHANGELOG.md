@@ -8,6 +8,39 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added three positive JPEG-LS lossless conformance fixtures to `crates/ritk-codecs/src/jpeg_ls/mod.rs` exercising the full `decode_jpeg_ls_fragment` pipeline with ISO 14495-1 §A.3/§A.6 analytically derived bitstreams:
+  - `jpeg_ls_fragment_2x2_all_zero_decodes_correctly` — run-mode 2×2 all-zero frame with rescale identity.
+  - `jpeg_ls_fragment_1x3_constant_value10_decodes_correctly` — run interrupt + regular-mode context updating for a 1×3 constant-value frame; scan bytes analytically derived from Golomb-Rice(k=2,k=1) coding.
+  - `jpeg_ls_fragment_1x1_run_interrupt_with_modality_lut` — single-pixel run-interrupt frame with modality LUT (slope=2.0, intercept=−5.0) applied.
+- Added DICOM native JPEG boundary tests:
+  - `native_backend_decodes_jpeg_baseline_without_dicom_rs_object` verifies `NativeCodecBackend` decodes JPEG Baseline through the native encapsulated-frame boundary without a `dicom-rs` object.
+  - `native_owned_jpeg_errors_do_not_fallback_to_dicom_rs` verifies malformed native-owned JPEG errors stay native-contextual and do not fall back through `dicom-rs`.
+- Added theorem/proof-backed fused compare renderer in [crates/ritk-snap/src/render/fusion.rs](crates/ritk-snap/src/render/fusion.rs) for primary/secondary slice blending with bounded convex channel composition.
+- Added fusion value-semantic tests for alpha-zero primary identity and primary-geometry output sizing.
+- Added theorem/proof-backed slice-navigation SSOT in [crates/ritk-snap/src/ui/slice_navigation.rs](crates/ritk-snap/src/ui/slice_navigation.rs) for clamped and wrapped slice-index updates.
+- Added slice-navigation value-semantic tests for bounded clamp behavior, wrapped modular equivalence, and zero-total edge cases.
+- Added `ritk-metaimage` spatial SSOT module [crates/ritk-metaimage/src/spatial.rs](crates/ritk-metaimage/src/spatial.rs) for MetaImage `[x,y,z]` file-axis ↔ RITK `[depth,row,col]` metadata conversion.
+- Added MetaImage value-semantic tests for X-fastest payload preservation, file-axis spacing reorder, file-axis direction reorder, writer payload order, and writer header emission under [crates/ritk-metaimage/src/tests](crates/ritk-metaimage/src/tests).
+- Added PNG value-semantic tests in [crates/ritk-io/src/format/png/mod.rs](crates/ritk-io/src/format/png/mod.rs) for single-slice reads, natural-sorted series stacking, dimension mismatch rejection, and embedded-number ordering.
+- Added active Analyze value-semantic tests in [crates/ritk-analyze/src/tests.rs](crates/ritk-analyze/src/tests.rs) for round-trip shape/spacing/origin/value preservation, `.img` path loading, and invalid-header rejection.
+- Added `ritk-nrrd` spatial SSOT module [crates/ritk-nrrd/src/spatial.rs](crates/ritk-nrrd/src/spatial.rs) for NRRD `[x,y,z]` file-axis ↔ RITK `[depth,row,col]` metadata conversion.
+- Added NRRD value-semantic tests for X-fastest raw payload coordinate preservation, `space directions` reordering, `spacings` fallback reordering, and writer file-axis emission.
+- Added theorem/proof-backed anatomical-plane SSOT module in [crates/ritk-snap/src/ui/anatomical_plane.rs](crates/ritk-snap/src/ui/anatomical_plane.rs) for deterministic internal-axis → anatomical-plane classification.
+- Added anatomical-plane value-semantic tests for permutation guarantee, canonical-basis mapping, axis-permutation stability, and no-volume defaults.
+- Added `ritk-nifti` spatial SSOT module [crates/ritk-nifti/src/spatial.rs](crates/ritk-nifti/src/spatial.rs) for NIfTI RAS↔RITK LPS conversion and NIfTI `[x,y,z]`↔RITK `[depth,row,col]` affine-column mapping.
+- Added fixed-slice linked-cursor plane bijection theorem/proof documentation in [crates/ritk-snap/src/ui/mpr_cursor.rs](crates/ritk-snap/src/ui/mpr_cursor.rs).
+- Added formal affine transform theorem/proof documentation for viewport image↔screen mapping in [crates/ritk-snap/src/ui/viewport.rs](crates/ritk-snap/src/ui/viewport.rs).
+- Added linked-cursor transform value-semantic tests for:
+  - per-axis row/col↔voxel inverse consistency,
+  - viewport projection→inverse round-trip on fixed slices.
+- Added viewport transform value-semantic tests for:
+  - image→screen→image round-trip identity,
+  - integer mapping consistency with floating inverse mapping,
+  - non-positive-scale inverse rejection.
+- Added the first executable `ritk-dicom` backend boundary:
+  - `DicomParseBackend`, `PixelDecodeBackend`, and `DicomBackend` in [crates/ritk-dicom/src/backend/mod.rs](crates/ritk-dicom/src/backend/mod.rs)
+  - `parse_file_with` and `decode_frame_with` static-dispatch helpers
+  - `DicomRsBackend` parse/decode tests for uncompressed single-frame and native multiframe pixel data
 - Added deterministic series-ordering helpers for DICOM discovery and viewer scan ingestion:
   - `sort_discovered_series` in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs)
   - `sort_series_entries_deterministically` in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs)
@@ -17,10 +50,57 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
   - verification-time invalid payload aggregation
 
 ### Changed
+- Changed `DicomRsBackend` native-owned JPEG routing so `TransferSyntaxKind::is_native_jpeg_codec()` dispatches exclusively to `NativeCodecBackend`; fallback through `dicom-rs` remains limited to `is_external_backend_codec_candidate()`.
+- Updated DICOM JPEG-LS regression comments to describe current negative-fixture boundary behavior instead of stale placeholder/TODO status.
+- Updated compare viewport behavior in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) to support fused primary/secondary overlay rendering with `Fused Overlay` toggle and `Secondary Alpha` control.
+- Refactored slice navigation in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) to consume shared helpers from [crates/ritk-snap/src/ui/slice_navigation.rs](crates/ritk-snap/src/ui/slice_navigation.rs).
+- Updated `ritk-metaimage` raw payload handling so readers shape X-fastest MetaImage bytes directly as `[nz,ny,nx]` and writers emit RITK ZYX flat data directly, without a Burn tensor permutation.
+- Updated `ritk-metaimage` reader/writer spatial metadata handling so `ElementSpacing` and `TransformMatrix` use the same file-axis ↔ internal-axis column mapping as the payload.
+- Moved `ritk-metaimage` reader/writer tests into [crates/ritk-metaimage/src/tests](crates/ritk-metaimage/src/tests) so active implementation files stay under the 500-line structural limit.
+- Removed unconditional PNG series stdout logging and made equal embedded-number natural-sort handling deterministic by consuming whole digit runs.
+- Reduced [crates/ritk-io/src/format/vtk/mod.rs](crates/ritk-io/src/format/vtk/mod.rs) to authoritative `ritk-vtk` static re-exports plus generic `VtkReader<B>` / `VtkWriter<B>` `ImageReader`/`ImageWriter` adapters.
+- Updated `ritk-nrrd` raw payload handling so readers shape X-fastest NRRD bytes directly as `[nz,ny,nx]` and writers emit RITK ZYX flat data directly, without a Burn tensor permutation.
+- Moved `ritk-nrrd` reader/writer tests into [crates/ritk-nrrd/src/tests](crates/ritk-nrrd/src/tests) so active implementation files stay under the 500-line structural limit.
+- Refactored anatomical plane labeling in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) and [crates/ritk-snap/src/ui/overlay.rs](crates/ritk-snap/src/ui/overlay.rs) to consume shared helpers from [crates/ritk-snap/src/ui/anatomical_plane.rs](crates/ritk-snap/src/ui/anatomical_plane.rs).
+- Updated `ritk-nifti` reader/writer affine handling so voxel payload conversion XYZ↔ZYX and spatial metadata conversion use the same axis permutation:
+  - reader derives internal direction/spacing columns from NIfTI file columns `[z,y,x]`;
+  - image and label writers emit sform columns `[internal_col, internal_row, internal_depth]`;
+  - writer `pixdim` is emitted in NIfTI file-axis order `[dx,dy,dz]`.
+- Simplified `ritk-io/src/format/nifti/mod.rs` to re-export authoritative `ritk-nifti` reader/writer types directly.
+- Refactored linked-cursor projection in [crates/ritk-snap/src/ui/mpr_cursor.rs](crates/ritk-snap/src/ui/mpr_cursor.rs) to route row/col extraction through shared inverse helper `map_voxel_to_view_row_col`.
+- Refactored viewport forward-mapping call sites in [crates/ritk-snap/src/ui/viewport.rs](crates/ritk-snap/src/ui/viewport.rs) to use shared `img_to_screen` SSOT helper for annotation and live-preview rendering paths.
+- Routed DICOM read-side Part 10 parsing through `parse_file_with::<DicomRsBackend, _>` in series, multiframe, SEG, RT-DOSE, RT-PLAN, and RT-STRUCT paths.
+- Routed series and multiframe pixel-frame decode through `decode_frame_with::<DicomRsBackend>`, leaving native JPEG replacement isolated behind `ritk-codecs` / `NativeCodecBackend`.
 - Enforced deterministic lexical subdirectory traversal in [crates/ritk-snap/src/dicom/loader.rs](crates/ritk-snap/src/dicom/loader.rs) before DICOM series scan.
 - Enforced deterministic discovered-series ordering in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs) after per-series file-path normalization.
 
 ### Fixed
+- Removed stale native codec implementation copies from `crates/ritk-dicom/src/codec/native`; `ritk-dicom` now keeps codec primitives as re-exports from authoritative `ritk-codecs`.
+- Fixed `ritk-metaimage` raw voxel coordinate drift where MetaImage X-fastest payload data was first shaped as a Burn `[x,y,z]` row-major tensor and then permuted.
+- Fixed `ritk-metaimage` spatial metadata drift where MetaImage `ElementSpacing` and `TransformMatrix` were treated as internal `[depth,row,col]` metadata instead of file `[x,y,z]` vectors.
+- Removed stale unreferenced Analyze implementation copies:
+  - `crates/ritk-io/src/format/analyze/reader.rs`
+  - `crates/ritk-io/src/format/analyze/writer.rs`
+- Removed stale unreferenced MetaImage implementation copies:
+  - `crates/ritk-io/src/format/metaimage/reader.rs`
+  - `crates/ritk-io/src/format/metaimage/writer.rs`
+- Removed stale unreferenced MGH/MGZ implementation copies:
+  - `crates/ritk-io/src/format/mgh/reader.rs`
+  - `crates/ritk-io/src/format/mgh/writer.rs`
+- Removed stale unreferenced VTK implementation copies from `crates/ritk-io/src/format/vtk`, including legacy image, XML image, polydata, structured-grid, and unstructured-grid readers/writers.
+- Fixed `ritk-nrrd` raw voxel coordinate drift where NRRD X-fastest payload data was first shaped as a Burn `[x,y,z]` row-major tensor and then permuted.
+- Fixed `ritk-nrrd` spatial metadata drift where NRRD `space directions` and `spacings` were treated as internal `[depth,row,col]` metadata instead of file `[x,y,z]` vectors.
+- Removed stale unreferenced NRRD implementation copies:
+  - `crates/ritk-io/src/format/nrrd/reader.rs`
+  - `crates/ritk-io/src/format/nrrd/writer.rs`
+- Fixed `ritk-nifti` spatial metadata drift where voxel data was converted from NIfTI XYZ into RITK ZYX but affine columns and `pixdim` still followed file-axis order as if no tensor-axis permutation occurred.
+- Removed stale unreferenced NIfTI implementation copies:
+  - `crates/ritk-nifti/src/mod.rs`
+  - `crates/ritk-io/src/format/nifti/reader.rs`
+  - `crates/ritk-io/src/format/nifti/writer.rs`
+  - `crates/ritk-io/src/format/nifti/tests.rs`
+- Native uncompressed multiframe decode now slices the requested frame before sample conversion instead of decoding the full PixelData payload for every frame request.
+- Fixed a `Cow<str>` test-build type mismatch in DICOM PatientPosition parsing by converting to `&str` before typed position parsing.
 - Removed corrupted pseudo-NIfTI fixtures that contained HTML responses:
   - `test_data/IXI-CT.nii.gz`
   - `test_data/IXI-T1.nii.gz`
@@ -28,6 +108,39 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Closed verification drift by re-running the full active matrix and recording WASM environment blocker evidence.
 
 ### Verification
+- `cargo test -p ritk-dicom --lib`: 12 passed
+- `cargo test -p ritk-codecs --lib`: 78 passed
+- `cargo test -p ritk-io --lib`: 234 passed
+- `cargo test -p ritk-io --lib format::dicom::codec::tests::test_decode_compressed_frame_jpegls_lossless_round_trip`: 1 passed
+- `cargo fmt --check -p ritk-dicom -p ritk-codecs -p ritk-io`: passed
+- `git diff --check`: passed with line-ending warnings only
+- `cargo test -p ritk-snap --lib -- --nocapture`: 439 passed
+- `cargo test -p ritk-snap --lib ui::slice_navigation::tests:: -- --nocapture`: 5 passed
+- `cargo test -p ritk-snap --lib app::tests::advance_slice_for_axis_loop_wraps_and_marks_dirty -- --nocapture`: 1 passed
+- `cargo test -p ritk-snap --lib -- --nocapture`: 437 passed
+- `cargo test -p ritk-analyze --lib -q`: 2 passed
+- `cargo test -p ritk-metaimage --lib`: 19 passed
+- `cargo test -p ritk-mgh --lib -q`: 30 passed
+- `cargo test -p ritk-vtk --lib -q`: 129 passed
+- `cargo test -p ritk-io --lib format::png`: 4 passed
+- `cargo test -p ritk-io --lib`: 234 passed
+- `cargo fmt --check -p ritk-metaimage -p ritk-io`: passed
+- `git diff --check`: passed with line-ending warnings only
+- `cargo check -p ritk-python`: passed
+- `cargo test -p ritk-nrrd --lib -q`: 23 passed
+- `cargo fmt --check -p ritk-nrrd`: passed
+- `cargo test -p ritk-snap --lib ui::anatomical_plane::tests:: -- --nocapture`: 4 passed
+- `cargo test -p ritk-snap --lib -- --nocapture`: 432 passed
+- `cargo test -p ritk-nifti --lib -q`: 13 passed
+- `cargo test -p ritk-io --lib -q`: 313 passed
+- `cargo test -p ritk-snap --lib ui::mpr_cursor::tests:: -- --nocapture`: 9 passed
+- `cargo check -p ritk-snap --lib`: passed
+- `cargo check -p ritk-cli`: passed
+- `cargo test -p ritk-snap --lib ui::viewport::tests:: -- --nocapture`: 19 passed
+- `cargo test -p ritk-dicom --lib -q`: 10 passed
+- `cargo check -p ritk-io`: passed
+- `cargo test -p ritk-io --lib -q`: 313 passed
+- `cargo check -p ritk-snap --lib`: passed
 - `cargo test -p xtask -- --nocapture`: 4 passed
 - `cargo run -p xtask -- verify-datasets --data-dir test_data`: passed
 - `cargo test -p ritk-io --lib discovered_series_sort_is_deterministic -- --nocapture`: passed
@@ -730,9 +843,9 @@ Verification and completion sprint. Comprehensive feature coverage achieved acro
 ## [0.16.0] - 2026 - Sprint 134
 
 ### Added
-- **`ritk-nrrd` new crate — NRRD I/O as single source of truth** (`crates/ritk-nrrd/`): Extracted all NRRD reading and writing logic from `ritk-io` into a dedicated `ritk-nrrd` crate. `src/reader.rs`: `read_nrrd<B: Backend>` reads NRRD files into Burn tensor-backed Images with automatic space directions/spacings affine extraction and [2,1,0] permutation (ZYX↔XYZ convention); handles inline (INTERNAL) and detached data file references; supports all standard NRRD element types (uchar, short, int, float, double, signed/unsigned variants); validates dimension==3, handles MSB/LSB byte order. `src/writer.rs`: `write_nrrd` serializes Images with full space directions encoding (direction-cosine × spacing convention matching ITK NrrdIO); writes NRRD0004 format with raw encoding. `src/lib.rs`: comprehensive module documentation covering RITK ZYX↔NRRD XYZ convention, space directions semantics. `NrrdDipReader<B>` and `NrrdDipWriter<B>` DIP boundaries. `src/tests.rs`: 19 value-semantic tests (all migrated from `ritk-io` tests) covering shape permutation, spacing extraction, space directions parsing (identity and rotated), round-trip cycles, error paths (invalid magic, gzip encoding, missing fields), and detached data file handling. `ritk-io/src/format/nrrd/mod.rs` replaced with thin re-export shim (`pub use ritk_nrrd::{...}`), preserving all existing call sites. Backward compatibility verified: ritk-io 376 tests pass unchanged (33 NRRD/MetaImage tests migrated to new crates), ritk-snap 321 tests pass unchanged. v0.16.0 [minor] (new public crate, backward-compatible refactoring)
+- **`ritk-nrrd` new crate — NRRD I/O as single source of truth** (`crates/ritk-nrrd/`): Extracted all NRRD reading and writing logic from `ritk-io` into a dedicated `ritk-nrrd` crate. `src/reader.rs`: `read_nrrd<B: Backend>` reads NRRD files into Burn tensor-backed Images with space directions/spacings affine extraction; handles inline (INTERNAL) and detached data file references; supports all standard NRRD element types (uchar, short, int, float, double, signed/unsigned variants); validates dimension==3, handles MSB/LSB byte order. `src/writer.rs`: `write_nrrd` serializes Images with full space directions encoding (direction-cosine × spacing convention matching ITK NrrdIO); writes NRRD0004 format with raw encoding. `src/lib.rs`: comprehensive module documentation covering RITK ZYX↔NRRD XYZ convention, space directions semantics. `NrrdDipReader<B>` and `NrrdDipWriter<B>` DIP boundaries. `src/tests.rs`: 19 value-semantic tests (all migrated from `ritk-io` tests) covering shape, spacing extraction, space directions parsing (identity and rotated), round-trip cycles, error paths (invalid magic, gzip encoding, missing fields), and detached data file handling. `ritk-io/src/format/nrrd/mod.rs` replaced with thin re-export shim (`pub use ritk_nrrd::{...}`), preserving all existing call sites. Backward compatibility verified: ritk-io 376 tests pass unchanged (33 NRRD/MetaImage tests migrated to new crates), ritk-snap 321 tests pass unchanged. v0.16.0 [minor] (new public crate, backward-compatible refactoring)
 
-- **`ritk-metaimage` new crate — MetaImage/MHA/MHD I/O as single source of truth** (`crates/ritk-metaimage/`): Extracted all MetaImage reading and writing logic from `ritk-io` into a dedicated `ritk-metaimage` crate. `src/reader.rs`: `read_metaimage<B: Backend>` reads .mha (single-file with inline data) and .mhd (header + separate .raw file) into Burn tensor-backed Images with automatic NDims/DimSize/TransformMatrix/ElementSpacing/Offset extraction and [2,1,0] permutation (ZYX↔XYZ convention); supports inline (LOCAL) and external element data files; supports all standard MetaImage element types (MET_UCHAR/SHORT/INT/FLOAT/DOUBLE and unsigned variants); validates 3D, handles MSB/LSB byte order. `src/writer.rs`: `write_metaimage` serializes Images to .mha format with full TransformMatrix/Offset/ElementSpacing header encoding (ITK physical space convention); writes MET_FLOAT with LOCAL binary data. `src/lib.rs`: comprehensive module documentation covering RITK ZYX↔MetaImage XYZ convention, TransformMatrix semantics, file format variants. `MetaImageDipReader<B>` and `MetaImageDipWriter<B>` DIP boundaries. `src/tests.rs`: 14 value-semantic tests (all migrated from `ritk-io` tests) covering shape permutation, spacing/origin metadata preservation, identity/non-identity direction matrices, round-trip cycles, error paths (missing required fields, unsupported element types, external raw file reference). `ritk-io/src/format/metaimage/mod.rs` replaced with thin re-export shim, preserving all existing call sites. Backward compatibility verified: ritk-io 376 tests pass unchanged, ritk-snap 321 tests pass unchanged. v0.16.0 [minor] (new public crate, backward-compatible refactoring)
+- **`ritk-metaimage` new crate — MetaImage/MHA/MHD I/O as single source of truth** (`crates/ritk-metaimage/`): Extracted all MetaImage reading and writing logic from `ritk-io` into a dedicated `ritk-metaimage` crate. `src/reader.rs`: `read_metaimage<B: Backend>` reads .mha (single-file with inline data) and .mhd (header + separate .raw file) into Burn tensor-backed Images with NDims/DimSize/TransformMatrix/ElementSpacing/Offset extraction; supports inline (LOCAL) and external element data files; supports all standard MetaImage element types (MET_UCHAR/SHORT/INT/FLOAT/DOUBLE and unsigned variants); validates 3D, handles MSB/LSB byte order. `src/writer.rs`: `write_metaimage` serializes Images to .mha format with full TransformMatrix/Offset/ElementSpacing header encoding (ITK physical space convention); writes MET_FLOAT with LOCAL binary data. `src/lib.rs`: comprehensive module documentation covering RITK ZYX↔MetaImage XYZ convention, TransformMatrix semantics, file format variants. `MetaImageDipReader<B>` and `MetaImageDipWriter<B>` DIP boundaries. `src/tests.rs`: 14 value-semantic tests (all migrated from `ritk-io` tests) covering shape, spacing/origin metadata, direction matrices, round-trip cycles, error paths (missing required fields, unsupported element types, external raw file reference). `ritk-io/src/format/metaimage/mod.rs` replaced with thin re-export shim, preserving all existing call sites. Backward compatibility verified: ritk-io 376 tests pass unchanged, ritk-snap 321 tests pass unchanged. v0.16.0 [minor] (new public crate, backward-compatible refactoring)
 
 ## [0.15.0] - Prior
 

@@ -4,20 +4,24 @@ use nifti::NiftiHeader;
 use ritk_core::image::Image;
 use std::path::Path;
 
+use crate::spatial::sform_from_internal_lps_metadata;
+
 /// Write a label map to a NIfTI-1 file with `DT_UINT32` data type.
 ///
 /// # Spatial convention
 ///
-/// `shape` is `[nz, ny, nx]` (ZYX).  `spacing` is `[dz, dy, dx]`.
-/// `direction` is the 3×3 direction-cosine matrix in **row-major flat layout**,
+/// `shape` is `[nz, ny, nx]` (ZYX). `spacing` is `[dz, dy, dx]`.
+/// `direction` is the 3x3 direction-cosine matrix in **row-major flat layout**,
 /// matching `LoadedVolume::direction`.  The sform affine follows the same
-/// convention as [`write_nifti`]:
+/// convention as [`write_nifti`]: it maps NIfTI file axes `[x,y,z]` to RAS by
+/// reordering internal `[depth,row,col]` columns to `[col,row,depth]` and
+/// flipping the first two physical rows from LPS to RAS.
 ///
 /// ```text
-/// srow_x[j] = direction_col_j[0] * spacing[j]   (j=0,1,2)
-/// srow_y[j] = direction_col_j[1] * spacing[j]
-/// srow_z[j] = direction_col_j[2] * spacing[j]
-/// srow_?[3]  = origin[?]
+/// A_lps_internal = [D[:,0]*dz, D[:,1]*dy, D[:,2]*dx, origin]
+/// A_ras_nifti[:,0] = lps_to_ras(A_lps_internal[:,2])
+/// A_ras_nifti[:,1] = lps_to_ras(A_lps_internal[:,1])
+/// A_ras_nifti[:,2] = lps_to_ras(A_lps_internal[:,0])
 /// ```
 ///
 /// # Errors
@@ -29,7 +33,7 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
     labels: &[u32],
     shape: [usize; 3], // [nz, ny, nx]
     origin: [f32; 3],
-    spacing: [f32; 3], // [dz, dy, dx]
+    spacing: [f32; 3],   // [dz, dy, dx]
     direction: [f32; 9], // row-major 3×3
 ) -> Result<()> {
     use ndarray::Array3;
@@ -58,20 +62,28 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
         }
     }
 
-    let [dz, dy, dx] = spacing;
-    let d = &direction;
-    // column j of row-major direction (d[row*3+col]): col(j) = [d[j], d[3+j], d[6+j]]
-    let srow_x = [d[0] * dz, d[1] * dy, d[2] * dx, origin[0]];
-    let srow_y = [d[3] * dz, d[4] * dy, d[5] * dx, origin[1]];
-    let srow_z = [d[6] * dz, d[7] * dy, d[8] * dx, origin[2]];
+    let origin64 = [origin[0] as f64, origin[1] as f64, origin[2] as f64];
+    let spacing64 = [spacing[0] as f64, spacing[1] as f64, spacing[2] as f64];
+    let direction64 = [
+        direction[0] as f64,
+        direction[1] as f64,
+        direction[2] as f64,
+        direction[3] as f64,
+        direction[4] as f64,
+        direction[5] as f64,
+        direction[6] as f64,
+        direction[7] as f64,
+        direction[8] as f64,
+    ];
+    let sform = sform_from_internal_lps_metadata(origin64, spacing64, direction64);
 
     let header = NiftiHeader {
         sform_code: 1,
         qform_code: 0,
-        srow_x,
-        srow_y,
-        srow_z,
-        pixdim: [1.0, dz, dy, dx, 1.0, 1.0, 1.0, 1.0],
+        srow_x: sform.x,
+        srow_y: sform.y,
+        srow_z: sform.z,
+        pixdim: [1.0, spacing[2], spacing[1], spacing[0], 1.0, 1.0, 1.0, 1.0],
         xyzt_units: 2, // NIFTI_UNITS_MM
         ..NiftiHeader::default()
     };
@@ -87,29 +99,33 @@ pub fn write_nifti_labels<P: AsRef<Path>>(
 /// Write an image to a NIfTI file with full sform spatial metadata.
 ///
 /// # Spatial convention
-/// RITK tensors are ordered [Z, Y, X]. The sform affine maps voxel [i,j,k] to physical [x,y,z]:
-///   srow_x = [M_col0[0], M_col1[0], M_col2[0], origin[0]]
-///   srow_y = [M_col0[1], M_col1[1], M_col2[1], origin[1]]
-///   srow_z = [M_col0[2], M_col1[2], M_col2[2], origin[2]]
-/// where M_colJ = direction.column(J) * spacing[J].
+/// RITK tensors are ordered `[Z, Y, X]`; NIfTI file axes are `[X, Y, Z]`.
+/// The writer emits file columns `[internal X, internal Y, internal Z]`, i.e.
+/// `[direction.col(2)*spacing[2], direction.col(1)*spacing[1],
+/// direction.col(0)*spacing[0]]`, then converts LPS rows to RAS rows.
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     use ndarray::Array3;
     use nifti::writer::WriterOptions;
 
-    let tensor = image.data().clone().permute([2, 1, 0]);
-    let data = tensor.to_data();
-    let slice = match data.as_slice::<f32>() {
+    let shape = image.shape();
+    let nz = shape[0];
+    let ny = shape[1];
+    let nx = shape[2];
+
+    let tensor_data = image.data().clone().into_data();
+    let slice = match tensor_data.as_slice::<f32>() {
         Ok(s) => s,
         Err(e) => return Err(anyhow::anyhow!("Failed to get tensor data: {:?}", e)),
     };
 
-    let shape = image.shape();
-    let nx = shape[2];
-    let ny = shape[1];
-    let nz = shape[0];
-
-    let array = Array3::from_shape_vec((nx, ny, nz), slice.to_vec())
-        .map_err(|e| anyhow::anyhow!("Failed to create ndarray: {}", e))?;
+    let mut array = Array3::<f32>::zeros((nx, ny, nz));
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                array[[x, y, z]] = slice[z * ny * nx + y * nx + x];
+            }
+        }
+    }
 
     let path_ref = path.as_ref();
 
@@ -117,40 +133,34 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     let origin = image.origin();
     let spacing = image.spacing();
 
-    let m_col0 = direction.column(0) * spacing[0];
-    let m_col1 = direction.column(1) * spacing[1];
-    let m_col2 = direction.column(2) * spacing[2];
-
-    let srow_x = [
-        m_col0[0] as f32,
-        m_col1[0] as f32,
-        m_col2[0] as f32,
-        origin[0] as f32,
+    let direction_row_major = [
+        direction[(0, 0)],
+        direction[(0, 1)],
+        direction[(0, 2)],
+        direction[(1, 0)],
+        direction[(1, 1)],
+        direction[(1, 2)],
+        direction[(2, 0)],
+        direction[(2, 1)],
+        direction[(2, 2)],
     ];
-    let srow_y = [
-        m_col0[1] as f32,
-        m_col1[1] as f32,
-        m_col2[1] as f32,
-        origin[1] as f32,
-    ];
-    let srow_z = [
-        m_col0[2] as f32,
-        m_col1[2] as f32,
-        m_col2[2] as f32,
-        origin[2] as f32,
-    ];
+    let sform = sform_from_internal_lps_metadata(
+        [origin[0], origin[1], origin[2]],
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major,
+    );
 
     let header = NiftiHeader {
         sform_code: 1,
         qform_code: 0,
-        srow_x,
-        srow_y,
-        srow_z,
+        srow_x: sform.x,
+        srow_y: sform.y,
+        srow_z: sform.z,
         pixdim: [
             1.0,
-            spacing[0] as f32,
-            spacing[1] as f32,
             spacing[2] as f32,
+            spacing[1] as f32,
+            spacing[0] as f32,
             1.0,
             1.0,
             1.0,

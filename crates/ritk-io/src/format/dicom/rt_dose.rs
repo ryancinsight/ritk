@@ -24,8 +24,8 @@ use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::open_file;
 use dicom::object::InMemDicomObject;
+use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -84,7 +84,8 @@ pub struct RtDoseGrid {
 /// - `PixelData` length < `n_frames * rows * cols * 4` bytes.
 pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
     let path = path.as_ref();
-    let obj = open_file(path).with_context(|| format!("open DICOM file: {}", path.display()))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     // Validate SOP Class UID.
     let sop = obj.meta().media_storage_sop_class_uid();
@@ -446,7 +447,10 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
         obj.put(DataElement::new(
             Tag(0x300C, 0x0002),
             VR::SQ,
-            Value::from(DataSetSequence::new(vec![item], dicom::core::header::Length::UNDEFINED)),
+            Value::from(DataSetSequence::new(
+                vec![item],
+                dicom::core::header::Length::UNDEFINED,
+            )),
         ));
     }
 

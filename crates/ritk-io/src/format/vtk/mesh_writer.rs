@@ -98,7 +98,11 @@ mod tests {
     #[test]
     fn single_triangle_vtk_contains_three_points_one_polygon() {
         let mesh = single_triangle_mesh();
-        assert_eq!(mesh.vertex_count(), 3, "three unique vertices after welding");
+        assert_eq!(
+            mesh.vertex_count(),
+            3,
+            "three unique vertices after welding"
+        );
         assert_eq!(mesh.face_count(), 1, "one triangle");
         let s = mesh_to_vtk_string(&mesh);
         assert!(s.contains("POINTS 3 double"));
@@ -116,7 +120,11 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(content.contains("DATASET POLYDATA"));
         // All three vertex positions must appear somewhere in the POINTS section.
-        assert!(content.contains("1 2 3") || content.contains("1.0 2.0 3.0") || content.contains("1 2 3\n"));
+        assert!(
+            content.contains("1 2 3")
+                || content.contains("1.0 2.0 3.0")
+                || content.contains("1 2 3\n")
+        );
         assert_eq!(mesh.face_count(), 1);
     }
 }

@@ -21,7 +21,12 @@ pub(super) struct BitReader<'a> {
 impl<'a> BitReader<'a> {
     /// Construct and prime the buffer.
     pub(super) fn new(data: &'a [u8]) -> Self {
-        let mut r = Self { data, pos: 0, buf: 0, bits: 0 };
+        let mut r = Self {
+            data,
+            pos: 0,
+            buf: 0,
+            bits: 0,
+        };
         r.refill();
         r
     }

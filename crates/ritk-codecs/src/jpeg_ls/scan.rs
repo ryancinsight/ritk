@@ -9,16 +9,15 @@ use anyhow::Result;
 
 use super::bitstream::BitReader;
 use super::context::{
-    ContextModel, compute_k, context_index, inverse_map,
-    quant, sign_normalize, update_context,
+    compute_k, context_index, inverse_map, quant, sign_normalize, update_context, ContextModel,
 };
 
 /// Golomb run-length table J[0..32] — ISO 14495-1 Table C.1.
 ///
 /// J[i] is the Golomb order: at run index i, a hit extends the run by 2^J[i].
 const J: [u32; 32] = [
-    0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3,
-    4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+    0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 9, 10, 11, 12, 13,
+    14, 15,
 ];
 
 /// JPEG-LS predictor modes specified in the SOS header (ISO 14495-1 §C.2.4).
@@ -96,9 +95,13 @@ fn predict_adaptive(a: i32, b: i32, c: i32) -> i32 {
 /// - (0, c): Px = left = a.
 #[inline(always)]
 pub(super) fn predict(
-    a: i32, b: i32, c: i32, _d: i32,
+    a: i32,
+    b: i32,
+    c: i32,
+    _d: i32,
     predictor: Predictor,
-    row: usize, col: usize,
+    row: usize,
+    col: usize,
 ) -> i32 {
     if col == 0 && row == 0 {
         return 0;
@@ -173,15 +176,27 @@ pub(super) fn decode_scan(
         let mut c = 0usize;
         while c < cols {
             // Causal neighborhood
-            let a = if c > 0 { buf[row_off + c - 1] } else { buf[prev_off] }; // left or top-left at col 0
+            let a = if c > 0 {
+                buf[row_off + c - 1]
+            } else {
+                buf[prev_off]
+            }; // left or top-left at col 0
             let b = buf[prev_off + c]; // above
-            let cc = if c > 0 { buf[prev_off + c - 1] } else { buf[prev_off + c] }; // above-left
-            let d = if c + 1 < cols { buf[prev_off + c + 1] } else { buf[prev_off + c] }; // above-right
+            let cc = if c > 0 {
+                buf[prev_off + c - 1]
+            } else {
+                buf[prev_off + c]
+            }; // above-left
+            let d = if c + 1 < cols {
+                buf[prev_off + c + 1]
+            } else {
+                buf[prev_off + c]
+            }; // above-right
 
             // Local gradients (ISO 14495-1 §A.2)
-            let d1 = d - b;   // vertical gradient (above-right − above)
-            let d2 = b - cc;  // horizontal gradient (above − above-left)
-            let d3 = cc - a;  // diagonal gradient (above-left − left)
+            let d1 = d - b; // vertical gradient (above-right − above)
+            let d2 = b - cc; // horizontal gradient (above − above-left)
+            let d3 = cc - a; // diagonal gradient (above-left − left)
 
             // Quantize gradients
             let q1 = quant(d1, t1, t2, t3);
@@ -213,7 +228,11 @@ pub(super) fn decode_scan(
                         }
                     } else {
                         // Run miss: read J[idx] remainder bits
-                        let rem = if J[idx] > 0 { reader.read_bits(J[idx]) as usize } else { 0 };
+                        let rem = if J[idx] > 0 {
+                            reader.read_bits(J[idx]) as usize
+                        } else {
+                            0
+                        };
                         run_len += rem;
                         run_len = run_len.min(remaining);
                         break;
@@ -347,7 +366,11 @@ mod tests {
     #[test]
     fn predictor_from_u8_all_valid() {
         for v in 0u8..=7 {
-            assert!(Predictor::from_u8(v).is_ok(), "predictor {} should be valid", v);
+            assert!(
+                Predictor::from_u8(v).is_ok(),
+                "predictor {} should be valid",
+                v
+            );
         }
     }
 
@@ -416,7 +439,9 @@ mod tests {
             bpp: 8,
             near: 0,
             predictor: Predictor::Left,
-            t1: 0, t2: 0, t3: 0, // use defaults
+            t1: 0,
+            t2: 0,
+            t3: 0, // use defaults
         };
         let mut samples = Vec::new();
         decode_scan(&mut reader, &params, &mut samples).expect("decode_scan should succeed");
@@ -434,7 +459,9 @@ mod tests {
             bpp: 8,
             near: 1, // non-zero NEAR: should fail
             predictor: Predictor::Left,
-            t1: 0, t2: 0, t3: 0,
+            t1: 0,
+            t2: 0,
+            t3: 0,
         };
         // Actually NEAR is used in update_context; the scan itself doesn't bail on NEAR≠0 at scan level.
         // The bail happens in decode_jpeg_ls_fragment. decode_scan itself runs.

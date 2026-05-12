@@ -1,7 +1,7 @@
 use super::*;
 use ritk_io::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
-    DicomSliceMetadata, DicomTag,
+    DicomSliceMetadata, DicomTag, PatientPosition,
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -48,6 +48,7 @@ fn metadata_fixture() -> DicomReadMetadata {
             slice_location: Some(42.25),
             image_position_patient: Some([1.0, 2.0, 3.0]),
             image_orientation_patient: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+            patient_position: Some(PatientPosition::HeadFirstSupine),
             pixel_spacing: Some([0.7, 0.8]),
             slice_thickness: Some(1.5),
             rescale_slope: 2.0,
@@ -87,6 +88,15 @@ fn metadata_rows_include_series_slice_private_and_preserved_values() {
                 && row.value == "1.000000 x 2.000000 x 3.000000"
         }),
         "first-slice image position row must be present"
+    );
+    assert!(
+        rows.iter().any(|row| {
+            row.scope == MetadataScope::FirstSlice
+                && row.tag == "0018,5100"
+                && row.keyword == "PatientPosition"
+                && row.value == "HFS (Head First Supine)"
+        }),
+        "first-slice patient-position row must be present"
     );
     assert!(
         rows.iter().any(|row| {

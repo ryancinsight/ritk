@@ -32,13 +32,13 @@ use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::{Tag, VR};
-use dicom::object::open_file;
 use dicom_core::header::Header;
 use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::collections::{HashMap, HashSet};
 use std::ffi::OsStr;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use super::object_model::{
@@ -46,7 +46,10 @@ use super::object_model::{
     DicomSequenceItem, DicomTag, DicomValue,
 };
 use super::sop_class::{classify_sop_class, SopClassKind};
-use ritk_dicom::TransferSyntaxKind;
+use ritk_dicom::{
+    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    TransferSyntaxKind,
+};
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
@@ -91,6 +94,11 @@ pub struct DicomSliceMetadata {
     /// GantryDetectorTilt (0018,1120) in degrees. Positive = toward patient's feet.
     /// Used to synthesize oblique IOP when IOP is absent or effectively axial.
     pub gantry_tilt: Option<f64>,
+    /// Patient position (0018,5100) as a setup code.
+    ///
+    /// This is preserved as a typed semantic label, not as a geometric transform.
+    /// Physical voxel orientation still comes from IOP/IPP and spacing.
+    pub patient_position: Option<PatientPosition>,
 }
 
 impl Default for DicomSliceMetadata {
@@ -115,7 +123,89 @@ impl Default for DicomSliceMetadata {
             window_center: None,
             window_width: None,
             gantry_tilt: None,
+            patient_position: None,
         }
+    }
+}
+
+/// Patient setup code from DICOM tag (0018,5100).
+///
+/// The code classifies acquisition setup only. It does not change image-space
+/// geometry, which is still derived from IOP/IPP and spacing.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum PatientPosition {
+    HeadFirstSupine,
+    HeadFirstProne,
+    FeetFirstSupine,
+    FeetFirstProne,
+    HeadFirstDecubitusRight,
+    HeadFirstDecubitusLeft,
+    FeetFirstDecubitusRight,
+    FeetFirstDecubitusLeft,
+    Unknown(String),
+}
+
+impl PatientPosition {
+    /// Parse a DICOM CS code into a typed patient position.
+    pub fn from_code(code: &str) -> Self {
+        let normalized = code.trim().to_uppercase();
+        match normalized.as_str() {
+            "HFS" => Self::HeadFirstSupine,
+            "HFP" => Self::HeadFirstProne,
+            "FFS" => Self::FeetFirstSupine,
+            "FFP" => Self::FeetFirstProne,
+            "HFDR" => Self::HeadFirstDecubitusRight,
+            "HFDL" => Self::HeadFirstDecubitusLeft,
+            "FFDR" => Self::FeetFirstDecubitusRight,
+            "FFDL" => Self::FeetFirstDecubitusLeft,
+            _ if normalized.is_empty() => Self::Unknown(String::new()),
+            _ => Self::Unknown(normalized),
+        }
+    }
+
+    /// Return the canonical DICOM code for display and serialization.
+    pub fn code(&self) -> &str {
+        match self {
+            Self::HeadFirstSupine => "HFS",
+            Self::HeadFirstProne => "HFP",
+            Self::FeetFirstSupine => "FFS",
+            Self::FeetFirstProne => "FFP",
+            Self::HeadFirstDecubitusRight => "HFDR",
+            Self::HeadFirstDecubitusLeft => "HFDL",
+            Self::FeetFirstDecubitusRight => "FFDR",
+            Self::FeetFirstDecubitusLeft => "FFDL",
+            Self::Unknown(code) => code.as_str(),
+        }
+    }
+
+    /// Human-readable label for metadata tables and diagnostics.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::HeadFirstSupine => "Head First Supine",
+            Self::HeadFirstProne => "Head First Prone",
+            Self::FeetFirstSupine => "Feet First Supine",
+            Self::FeetFirstProne => "Feet First Prone",
+            Self::HeadFirstDecubitusRight => "Head First Decubitus Right",
+            Self::HeadFirstDecubitusLeft => "Head First Decubitus Left",
+            Self::FeetFirstDecubitusRight => "Feet First Decubitus Right",
+            Self::FeetFirstDecubitusLeft => "Feet First Decubitus Left",
+            Self::Unknown(_) => "Unknown",
+        }
+    }
+}
+
+impl fmt::Display for PatientPosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.code())
+    }
+}
+
+fn parse_patient_position(code: &str) -> Option<PatientPosition> {
+    let trimmed = code.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(PatientPosition::from_code(trimmed))
     }
 }
 
@@ -196,6 +286,7 @@ fn known_handled_tags() -> HashSet<u32> {
     s.insert(tag_key(0x0020, 0x0037)); // ImageOrientationPatient
     s.insert(tag_key(0x0028, 0x0030)); // PixelSpacing
     s.insert(tag_key(0x0018, 0x0050)); // SliceThickness
+    s.insert(tag_key(0x0018, 0x5100)); // PatientPosition
     s.insert(tag_key(0x0028, 0x1053)); // RescaleSlope
     s.insert(tag_key(0x0028, 0x1052)); // RescaleIntercept
     s.insert(tag_key(0x0008, 0x0016)); // SOP Class UID
@@ -300,7 +391,7 @@ fn try_read_dicomdir(dir: &Path) -> Result<Vec<PathBuf>> {
     if !dicomdir_path.is_file() {
         bail!("no DICOMDIR found");
     }
-    let obj = open_file(&dicomdir_path)
+    let obj = parse_file_with::<DicomRsBackend, _>(&dicomdir_path)
         .with_context(|| format!("failed to open DICOMDIR {:?}", dicomdir_path))?;
     // DirectoryRecordSequence (0004,1220) contains all records as a flat SQ.
     let drs = obj
@@ -424,13 +515,14 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             window_center: None,
             window_width: None,
             gantry_tilt: None,
+            patient_position: None,
         };
 
         let mut file_dim = (0u32, 0u32);
         // SeriesInstanceUID read per-file for series-UID grouping (GAP-R63-04).
         let mut file_series_uid: Option<String> = None;
 
-        if let Ok(obj) = open_file(file_path) {
+        if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
             // Per-slice tags
             if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
                 slice_meta.sop_instance_uid = elem.to_str().ok().map(String::from);
@@ -532,6 +624,16 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             // GantryDetectorTilt (0018,1120) in degrees.
             if let Ok(elem) = obj.element(Tag(0x0018, 0x1120)) {
                 slice_meta.gantry_tilt = elem.to_str().ok().and_then(|s| s.trim().parse().ok());
+            }
+            // PatientPosition (0018,5100) is a patient-setup label, not a spatial transform.
+            // Preserve it as a typed semantic field so viewers can display setup state without
+            // conflating it with IOP/IPP-derived orientation.
+            if let Ok(elem) = obj.element(Tag(0x0018, 0x5100)) {
+                slice_meta.patient_position = elem
+                    .to_str()
+                    .ok()
+                    .as_deref()
+                    .and_then(parse_patient_position);
             }
 
             // Per-file dimension tracking: read rows/cols from every file (not just first)
@@ -1492,8 +1594,9 @@ fn load_from_series<B: Backend>(
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
                 .par_iter()
                 .map(|slice| {
-                    let data = read_slice_pixels(slice)
-                        .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                    let data = read_slice_pixels(slice).with_context(|| {
+                        format!("failed to decode DICOM slice {:?}", slice.path)
+                    })?;
                     if data.len() != frame_len {
                         bail!(
                             "DICOM slice size mismatch: expected {} pixels, got {}",
@@ -1525,9 +1628,9 @@ fn load_from_series<B: Backend>(
             decoded
         };
 
-        let positions = resample_positions
-            .as_ref()
-            .ok_or_else(|| anyhow!("resample positions missing despite resample-required series"))?;
+        let positions = resample_positions.as_ref().ok_or_else(|| {
+            anyhow!("resample positions missing despite resample-required series")
+        })?;
         let resampled = resample_frames_linear(&decoded, &positions, final_spacing_z);
         let new_depth = resampled.len();
         let mut volume = vec![0f32; frame_len * new_depth];
@@ -1547,8 +1650,9 @@ fn load_from_series<B: Backend>(
                 .par_chunks_mut(frame_len)
                 .zip(slices.par_iter())
                 .try_for_each(|(dst, slice)| -> Result<()> {
-                    let data = read_slice_pixels(slice)
-                        .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                    let data = read_slice_pixels(slice).with_context(|| {
+                        format!("failed to decode DICOM slice {:?}", slice.path)
+                    })?;
                     if data.len() != frame_len {
                         bail!(
                             "DICOM slice size mismatch: expected {} pixels, got {}",
@@ -1609,6 +1713,7 @@ fn load_from_series<B: Backend>(
 ///
 /// Mathematical derivation: the linear modality LUT is F(x) = x × RescaleSlope + RescaleIntercept
 /// per DICOM PS3.3 C.7.6.3.1.4.
+#[cfg(test)]
 pub(super) fn decode_pixel_bytes(
     bytes: &[u8],
     bits_allocated: u16,
@@ -1633,7 +1738,7 @@ pub(super) fn decode_pixel_bytes(
 }
 
 fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
-    let obj = open_file(&slice.path)
+    let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
 
     let ts = slice
@@ -1642,34 +1747,47 @@ fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
         .map(TransferSyntaxKind::from_uid)
         .unwrap_or(TransferSyntaxKind::ImplicitVrLittleEndian);
 
-    let data = if ts.is_codec_supported() {
-        // Compressed TS with registered pure-Rust codec: delegate to codec module.
-        super::codec::decode_compressed_frame(
-            &obj,
-            0, // single-frame slice
-            slice.bits_allocated,
-            slice.pixel_representation,
-            slice.rescale_slope,
-            slice.rescale_intercept,
-        )
-        .with_context(|| format!("codec decode failed for slice {:?}", slice.path))?
-    } else {
-        // Native (uncompressed) TS: read raw pixel bytes and apply modality LUT.
-        let pixel_elem = obj
-            .element(Tag(0x7FE0, 0x0010))
-            .with_context(|| format!("PixelData (7FE0,0010) absent in {:?}", slice.path))?;
-        let bytes = pixel_elem
-            .value()
-            .to_bytes()
-            .map_err(|e| anyhow::anyhow!("pixel bytes unreadable in {:?}: {:?}", slice.path, e))?;
-        decode_pixel_bytes(
-            &bytes,
-            slice.bits_allocated,
-            slice.pixel_representation,
-            slice.rescale_slope,
-            slice.rescale_intercept,
-        )
-    };
+    let rows = obj
+        .element(Tag(0x0028, 0x0010))
+        .with_context(|| format!("Rows (0028,0010) absent in {:?}", slice.path))?
+        .to_str()
+        .with_context(|| format!("Rows (0028,0010) unreadable in {:?}", slice.path))?
+        .trim()
+        .parse::<usize>()
+        .with_context(|| format!("Rows (0028,0010) invalid in {:?}", slice.path))?;
+    let cols = obj
+        .element(Tag(0x0028, 0x0011))
+        .with_context(|| format!("Columns (0028,0011) absent in {:?}", slice.path))?
+        .to_str()
+        .with_context(|| format!("Columns (0028,0011) unreadable in {:?}", slice.path))?
+        .trim()
+        .parse::<usize>()
+        .with_context(|| format!("Columns (0028,0011) invalid in {:?}", slice.path))?;
+    let samples_per_pixel = obj
+        .element(Tag(0x0028, 0x0002))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse::<usize>().ok())
+        .unwrap_or(1);
+
+    let data = decode_frame_with::<DicomRsBackend>(
+        &obj,
+        DecodeFrameRequest {
+            frame_index: 0,
+            transfer_syntax: ts,
+            layout: PixelLayout {
+                rows,
+                cols,
+                samples_per_pixel,
+                bits_allocated: slice.bits_allocated,
+                pixel_representation: slice.pixel_representation,
+                rescale_slope: slice.rescale_slope,
+                rescale_intercept: slice.rescale_intercept,
+            },
+        },
+    )
+    .with_context(|| format!("DICOM backend decode failed for slice {:?}", slice.path))?
+    .pixels;
 
     if data.is_empty() {
         bail!(
@@ -2637,9 +2755,9 @@ mod tests {
 
             let device = <B as burn::tensor::backend::Backend>::Device::default();
             let load_result = load_dicom_series::<B, _>(&series_dir, &device);
-            // JPEG-LS is now handled by RITK native codec (Sprint 124).
-            // The load may succeed (placeholder) or fail (TODO: Golomb-rice).
-            // We accept either outcome during development.
+            // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
+            // payload is intentionally minimal, so either a valid load or a JPEG-contextual
+            // decode error preserves the boundary contract.
             match load_result {
                 Ok(tensor) => {
                     // If it succeeds, verify tensor shape is correct
@@ -2650,7 +2768,9 @@ mod tests {
                     // If it fails, error should reference JPEG-LS
                     let msg = format!("{:?}", e);
                     assert!(
-                        msg.contains("1.2.840.10008.1.2.4.80") || msg.to_lowercase().contains("compress") || msg.contains("JPEG"),
+                        msg.contains("1.2.840.10008.1.2.4.80")
+                            || msg.to_lowercase().contains("compress")
+                            || msg.contains("JPEG"),
                         "error must reference JPEG-LS TS UID or 'compress'; got: {msg}"
                     );
                 }
@@ -2665,7 +2785,7 @@ mod tests {
     ///
     /// # Specification
     /// The guard `is_compressed() && !is_codec_supported()` allows JPEG Baseline through.
-    /// `read_slice_pixels` dispatches to `codec::decode_compressed_frame`.
+    /// `read_slice_pixels` dispatches to the `ritk-dicom` backend boundary.
     /// Output tensor shape must be `[1, H, W]` for a single-slice series.
     /// Pixel values must satisfy: `|decoded[i] - original[i]| ≤ 8` (JPEG Q75 tolerance).
     #[test]
@@ -4164,6 +4284,177 @@ mod tests {
             "N̂[2] must be cos(15°)={:.10}; got {}",
             expected_cos,
             dir[2]
+        );
+    }
+
+    #[test]
+    fn test_patient_position_parser_covers_known_codes() {
+        assert_eq!(
+            PatientPosition::from_code("HFS"),
+            PatientPosition::HeadFirstSupine
+        );
+        assert_eq!(
+            PatientPosition::from_code("HFP"),
+            PatientPosition::HeadFirstProne
+        );
+        assert_eq!(
+            PatientPosition::from_code("FFS"),
+            PatientPosition::FeetFirstSupine
+        );
+        assert_eq!(
+            PatientPosition::from_code("FFP"),
+            PatientPosition::FeetFirstProne
+        );
+        assert_eq!(
+            PatientPosition::from_code("HFDR"),
+            PatientPosition::HeadFirstDecubitusRight
+        );
+        assert_eq!(
+            PatientPosition::from_code("HFDL"),
+            PatientPosition::HeadFirstDecubitusLeft
+        );
+        assert_eq!(
+            PatientPosition::from_code("FFDR"),
+            PatientPosition::FeetFirstDecubitusRight
+        );
+        assert_eq!(
+            PatientPosition::from_code("FFDL"),
+            PatientPosition::FeetFirstDecubitusLeft
+        );
+        assert_eq!(PatientPosition::from_code("hfs").to_string(), "HFS");
+
+        match PatientPosition::from_code("mystery") {
+            PatientPosition::Unknown(code) => assert_eq!(code, "MYSTERY"),
+            other => panic!("unexpected patient position variant: {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_patient_position_is_captured_from_dicom_tag() {
+        use dicom::core::{Tag, VR};
+        use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+        use dicom_core::smallvec::SmallVec;
+        use dicom_core::PrimitiveValue;
+
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("position_series");
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let slice_path = dir.join("slice_0000.dcm");
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.999002"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("CT"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[1u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[1u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0101),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[16u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0102),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[15u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[0u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::U16(SmallVec::from_slice(&[1u16])),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("MONOCHROME2"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0020, 0x0037),
+            VR::DS,
+            PrimitiveValue::from("1.000000\\0.000000\\0.000000\\0.000000\\1.000000\\0.000000"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0020, 0x0032),
+            VR::DS,
+            PrimitiveValue::from("0.000000\\0.000000\\0.000000"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0028, 0x0030),
+            VR::DS,
+            PrimitiveValue::from("1.000000\\1.000000"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0018, 0x0050),
+            VR::DS,
+            PrimitiveValue::from("1.000000"),
+        ));
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x0018, 0x5100),
+            VR::CS,
+            PrimitiveValue::from("HFP"),
+        ));
+        let pixel_u16: Vec<u16> = vec![1234];
+        obj.put(dicom::core::DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U16(SmallVec::from_vec(pixel_u16)),
+        ));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                    .media_storage_sop_instance_uid("2.25.999002")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build failed");
+        file_obj
+            .write_to_file(&slice_path)
+            .expect("write slice failed");
+
+        let info = scan_dicom_directory(&dir).expect("scan must succeed");
+        assert_eq!(info.num_slices, 1, "must find one slice");
+
+        let slice = &info.metadata.slices[0];
+        assert_eq!(
+            slice.patient_position,
+            Some(PatientPosition::HeadFirstProne)
+        );
+        assert_eq!(
+            slice
+                .patient_position
+                .as_ref()
+                .map(|value| value.to_string()),
+            Some("HFP".to_string())
         );
     }
 

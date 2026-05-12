@@ -23,7 +23,7 @@ use std::ffi::c_void;
 /// `*mut opj_stream_t` created by [`J2kMemStream::create_opj_stream`].
 pub(super) struct J2kMemStream {
     data: Vec<u8>,
-    pos:  usize,
+    pos: usize,
 }
 
 impl J2kMemStream {
@@ -73,7 +73,7 @@ impl J2kMemStream {
 /// - `p_buffer` points to a writeable region of exactly `p_nb_bytes` bytes.
 /// Both invariants are maintained by the OpenJPEG library itself.
 unsafe extern "C" fn read_fn(
-    p_buffer:   *mut c_void,
+    p_buffer: *mut c_void,
     p_nb_bytes: opj::OPJ_SIZE_T,
     p_user_data: *mut c_void,
 ) -> opj::OPJ_SIZE_T {
@@ -131,7 +131,11 @@ unsafe extern "C" fn seek_fn(
     p_user_data: *mut c_void,
 ) -> opj::OPJ_BOOL {
     let stream = &mut *(p_user_data as *mut J2kMemStream);
-    let pos = if p_nb_bytes < 0 { return opj::OPJ_FALSE as opj::OPJ_BOOL; } else { p_nb_bytes as usize };
+    let pos = if p_nb_bytes < 0 {
+        return opj::OPJ_FALSE as opj::OPJ_BOOL;
+    } else {
+        p_nb_bytes as usize
+    };
     if pos <= stream.data.len() {
         stream.pos = pos;
         opj::OPJ_TRUE as opj::OPJ_BOOL

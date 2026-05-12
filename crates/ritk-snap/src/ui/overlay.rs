@@ -32,6 +32,7 @@ use egui::{Align2, Color32, FontId, Painter, Pos2, Rect};
 
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
+use super::anatomical_label_for_axis;
 
 // ── constants ──────────────────────────────────────────────────────────────────
 
@@ -147,11 +148,7 @@ impl OverlayRenderer {
             1 => (rows, cols, depth),
             _ => (cols, rows, depth),
         };
-        let axis_name = match axis {
-            0 => "Axial",
-            1 => "Coronal",
-            _ => "Sagittal",
-        };
+        let axis_name = anatomical_label_for_axis(Some(volume), axis);
 
         let [dz, dy, dx] = volume.spacing;
         let spacing_str = format!("{:.2} × {:.2} × {:.2} mm", dx, dy, dz);

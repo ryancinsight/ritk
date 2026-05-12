@@ -14,6 +14,27 @@
 //! screen = offset + scale × img_pos
 //! ```
 //!
+//! ## Transform theorem (invertibility)
+//!
+//! Let $T: \mathbb{R}^2 \to \mathbb{R}^2$ be
+//! $$
+//! T(p) = o + s p
+//! $$
+//! where $o \in \mathbb{R}^2$ is `offset` and $s \in \mathbb{R}$ is `scale`.
+//! For `scale > 0`, $T$ is bijective with inverse
+//! $$
+//! T^{-1}(q) = \frac{q - o}{s}
+//! $$
+//! implemented by [`screen_to_img_f32`].
+//!
+//! Proof sketch:
+//! - Injective: if $T(p_1)=T(p_2)$ then $o+s p_1=o+s p_2$, so $s(p_1-p_2)=0$;
+//!   since $s>0$, $p_1=p_2$.
+//! - Surjective: for any $q$, choose $p=(q-o)/s$ and then $T(p)=q$.
+//!
+//! Therefore, pointer interactions expressed through this transform are
+//! mathematically well-posed whenever `scale > 0`.
+//!
 //! where
 //! - `img_pos` is in image-pixel coordinates `(col, row)`,
 //! - `scale`   is derived from `zoom` and the fit-to-viewport base scale,
@@ -37,6 +58,7 @@ use egui::{
 use crate::{
     render::{
         colormap::Colormap,
+        mip_vr::{render_mip_axial, render_vr_axial},
         slice_render::{SliceRenderer, WindowLevel},
     },
     tools::{
@@ -46,6 +68,17 @@ use crate::{
     ui::{measurements::MeasurementLayer, overlay::OverlayRenderer, zoom::fit_view_transform},
     LoadedVolume,
 };
+
+/// Rendering mode for a viewport slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewportRenderMode {
+    /// Conventional per-slice multi-planar reconstruction rendering.
+    Slice,
+    /// Axial maximum-intensity projection across full depth.
+    Mip,
+    /// Axial front-to-back alpha composited volume rendering.
+    Vr,
+}
 
 // ── ViewportState ─────────────────────────────────────────────────────────────
 
@@ -79,6 +112,8 @@ pub struct ViewportState {
     /// Key identifying the currently cached texture `(axis, slice_index)`.
     /// `None` means the texture must be (re-)rendered.
     pub texture_slice_key: Option<(usize, usize)>,
+    /// Rendering mode for this viewport slot.
+    pub render_mode: ViewportRenderMode,
 }
 
 impl ViewportState {
@@ -97,6 +132,7 @@ impl ViewportState {
             show_crosshair: true,
             texture: None,
             texture_slice_key: None,
+            render_mode: ViewportRenderMode::Slice,
         }
     }
 
@@ -115,10 +151,11 @@ impl ViewportState {
         Self::new(2, wl)
     }
 
-    /// 3-D / MIP viewport — uses axial data by convention; rendering
-    /// may differ in future when a full MIP renderer is available.
+    /// 3-D / MIP viewport — uses axial data and enables MIP mode.
     pub fn for_mip(wl: WindowLevel) -> Self {
-        Self::new(0, wl)
+        let mut state = Self::new(0, wl);
+        state.render_mode = ViewportRenderMode::Mip;
+        state
     }
 
     /// Clamp `slice_index` to the valid range `[0, dim − 1]` for the
@@ -237,33 +274,44 @@ impl<'a> ViewportPanel<'a> {
 
         if let Some(volume) = self.volume {
             // ── ensure slice texture is current ───────────────────────────
-            let needs_render = self.state.texture_slice_key
-                != Some((self.state.axis, self.state.slice_index))
+            let render_key = match self.state.render_mode {
+                ViewportRenderMode::Slice => (self.state.axis, self.state.slice_index),
+                // Volume projections do not vary with slice index.
+                ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0),
+            };
+            let needs_render = self.state.texture_slice_key != Some(render_key)
                 || self.state.texture.is_none();
 
             if needs_render {
-                let img = SliceRenderer::render(
-                    volume,
-                    self.state.axis,
-                    self.state.slice_index,
-                    self.state.wl,
-                    self.state.colormap,
-                );
+                let img = match self.state.render_mode {
+                    ViewportRenderMode::Slice => SliceRenderer::render(
+                        volume,
+                        self.state.axis,
+                        self.state.slice_index,
+                        self.state.wl,
+                        self.state.colormap,
+                    ),
+                    ViewportRenderMode::Mip => {
+                        render_mip_axial(volume, self.state.wl, self.state.colormap)
+                    }
+                    ViewportRenderMode::Vr => {
+                        render_vr_axial(volume, self.state.wl, self.state.colormap, 0.06)
+                    }
+                };
                 let handle = ui.ctx().load_texture(
                     format!("vp_{:?}", self.id),
                     img,
                     TextureOptions::default(),
                 );
                 self.state.texture = Some(handle);
-                self.state.texture_slice_key = Some((self.state.axis, self.state.slice_index));
+                self.state.texture_slice_key = Some(render_key);
             }
 
             // ── derive image dimensions from slice ────────────────────────
             let (img_w, img_h) = slice_dims(volume, self.state.axis);
             let (offset, scale) = self.state.image_transform(rect, img_w, img_h);
 
-            let img_to_screen =
-                |p: Pos2| -> Pos2 { pos2(offset.x + p.x * scale, offset.y + p.y * scale) };
+            let map_img_to_screen = |p: Pos2| -> Pos2 { img_to_screen(p, offset, scale) };
 
             // ── paint texture ─────────────────────────────────────────────
             if let Some(texture) = &self.state.texture {
@@ -317,7 +365,11 @@ impl<'a> ViewportPanel<'a> {
             }
 
             // ── measurements ─────────────────────────────────────────────
-            MeasurementLayer::draw_annotations(&painter, &self.state.annotations, &img_to_screen);
+            MeasurementLayer::draw_annotations(
+                &painter,
+                &self.state.annotations,
+                &map_img_to_screen,
+            );
             // Compute cursor in image coordinates for live measurement labels.
             let cursor_img_opt = response
                 .hover_pos()
@@ -335,7 +387,7 @@ impl<'a> ViewportPanel<'a> {
                 response.hover_pos(),
                 cursor_img_opt,
                 spacing_2d,
-                &img_to_screen,
+                &map_img_to_screen,
             );
 
             // ── pointer event handling ────────────────────────────────────
@@ -764,6 +816,14 @@ fn screen_to_img(
     Some((col, row))
 }
 
+/// Convert image coordinates `(col,row)` to screen coordinates.
+///
+/// This is the forward affine map `screen = offset + scale * image`.
+#[inline]
+fn img_to_screen(img: Pos2, offset: Vec2, scale: f32) -> Pos2 {
+    pos2(offset.x + img.x * scale, offset.y + img.y * scale)
+}
+
 /// Convert a screen position to floating-point image coordinates `(col, row)`.
 ///
 /// No bounds check; returns `None` only when `scale <= 0`.
@@ -967,6 +1027,63 @@ mod tests {
         assert_eq!(row, 2, "row must be floor(5.0 / 2.0) = 2");
     }
 
+    /// Forward + inverse affine transforms must compose to identity when
+    /// `scale > 0`.
+    #[test]
+    fn test_img_screen_transform_round_trip_identity() {
+        let offset = Vec2::new(13.0, -7.5);
+        let scale = 2.75;
+        let img = pos2(19.25, 4.5);
+        let screen = img_to_screen(img, offset, scale);
+        let restored = screen_to_img_f32(screen, offset, scale)
+            .expect("inverse mapping must exist for scale > 0");
+        assert!(
+            (restored.0 - img.x).abs() < 1e-6,
+            "round-trip col mismatch: expected {}, got {}",
+            img.x,
+            restored.0
+        );
+        assert!(
+            (restored.1 - img.y).abs() < 1e-6,
+            "round-trip row mismatch: expected {}, got {}",
+            img.y,
+            restored.1
+        );
+    }
+
+    /// Integer `screen_to_img` must agree with `floor(screen_to_img_f32)` for
+    /// in-bounds points.
+    #[test]
+    fn test_screen_to_img_matches_f32_floor_for_in_bounds_points() {
+        let offset = Vec2::new(5.0, 9.0);
+        let scale = 1.25;
+        let img_w = 32;
+        let img_h = 18;
+
+        // Choose a point that maps inside bounds with non-integer image coords.
+        let screen = pos2(17.2, 23.6);
+        let int_coord = screen_to_img(screen, offset, scale, img_w, img_h)
+            .expect("chosen point must be in bounds");
+        let float_coord = screen_to_img_f32(screen, offset, scale)
+            .expect("scale > 0 must produce f32 coordinate");
+
+        assert_eq!(int_coord.0, float_coord.0 as usize, "col floor mismatch");
+        assert_eq!(int_coord.1, float_coord.1 as usize, "row floor mismatch");
+    }
+
+    /// `screen_to_img_f32` must reject non-positive scales to preserve the
+    /// affine inverse precondition.
+    #[test]
+    fn test_screen_to_img_f32_rejects_non_positive_scale() {
+        let p = pos2(1.0, 2.0);
+        let o = Vec2::new(0.0, 0.0);
+        assert!(screen_to_img_f32(p, o, 0.0).is_none(), "scale=0 must reject");
+        assert!(
+            screen_to_img_f32(p, o, -1.0).is_none(),
+            "negative scale must reject"
+        );
+    }
+
     // ── clamp_slice_index ─────────────────────────────────────────────────────
 
     /// `clamp_slice_index` must reduce an out-of-range index to `dim − 1`.
@@ -979,6 +1096,29 @@ mod tests {
         assert_eq!(
             state.slice_index, 9,
             "clamp must reduce 999 to depth-1=9 for axial axis"
+        );
+    }
+
+    /// `for_mip` must initialize the viewport with axial axis and MIP mode.
+    #[test]
+    fn test_for_mip_initializes_mip_mode() {
+        let state = ViewportState::for_mip(WindowLevel::new(0.0, 1.0));
+        assert_eq!(state.axis, 0, "MIP viewport must use axial axis=0");
+        assert_eq!(
+            state.render_mode,
+            ViewportRenderMode::Mip,
+            "MIP viewport must default to Mip render mode"
+        );
+    }
+
+    /// Generic constructor must default to slice rendering mode.
+    #[test]
+    fn test_new_defaults_to_slice_mode() {
+        let state = ViewportState::new(1, WindowLevel::new(0.0, 1.0));
+        assert_eq!(
+            state.render_mode,
+            ViewportRenderMode::Slice,
+            "standard viewport must default to slice mode"
         );
     }
 

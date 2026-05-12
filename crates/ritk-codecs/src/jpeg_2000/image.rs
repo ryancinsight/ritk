@@ -44,7 +44,7 @@ use crate::PixelLayout;
 /// `opj_read_header` + `opj_decode` with `opj_end_decompress` called.
 /// The caller retains ownership of `image` and must call `opj_image_destroy`.
 pub(super) unsafe fn extract_pixels(
-    image:  *mut opj::opj_image_t,
+    image: *mut opj::opj_image_t,
     layout: &PixelLayout,
 ) -> Result<Vec<f32>> {
     if image.is_null() {
@@ -83,7 +83,13 @@ pub(super) unsafe fn extract_pixels(
         if w * h != expected_pixels {
             bail!(
                 "JPEG 2000 component {} decoded size {}×{}={} does not match layout {}×{}={}",
-                ci, w, h, w * h, layout.cols, layout.rows, expected_pixels
+                ci,
+                w,
+                h,
+                w * h,
+                layout.cols,
+                layout.rows,
+                expected_pixels
             );
         }
 
@@ -96,8 +102,8 @@ pub(super) unsafe fn extract_pixels(
             // (PS3.3 §C.7.6.3.1).  No [0,1] normalisation — slope and intercept
             // operate on the raw integer sample value, identical to the semantics
             // of decode_native_pixel_bytes_unchecked for uncompressed frames.
-            let hu = (raw as f64 * layout.rescale_slope as f64
-                     + layout.rescale_intercept as f64) as f32;
+            let hu =
+                (raw as f64 * layout.rescale_slope as f64 + layout.rescale_intercept as f64) as f32;
             out.push(hu);
         }
     }

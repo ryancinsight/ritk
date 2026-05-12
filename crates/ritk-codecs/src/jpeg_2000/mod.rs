@@ -93,7 +93,7 @@ pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<
         // cp_reduce = 0: decode at full resolution.
         // cp_layer  = 0: decode all quality layers.
         params.cp_reduce = 0;
-        params.cp_layer  = 0;
+        params.cp_layer = 0;
 
         if opj::opj_setup_decoder(codec, &mut params) != opj::OPJ_TRUE as opj::OPJ_BOOL {
             opj::opj_destroy_codec(codec);
@@ -117,7 +117,9 @@ pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<
         let decode_ok = opj::opj_decode(codec, stream, image);
 
         if decode_ok != opj::OPJ_TRUE as opj::OPJ_BOOL {
-            if !image.is_null() { opj::opj_image_destroy(image); }
+            if !image.is_null() {
+                opj::opj_image_destroy(image);
+            }
             opj::opj_stream_destroy(stream);
             opj::opj_destroy_codec(codec);
             bail!("opj_decode failed for JPEG 2000 fragment");
@@ -130,7 +132,9 @@ pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<
         opj::opj_destroy_codec(codec);
 
         if end_ok != opj::OPJ_TRUE as opj::OPJ_BOOL {
-            if !image.is_null() { opj::opj_image_destroy(image); }
+            if !image.is_null() {
+                opj::opj_image_destroy(image);
+            }
             bail!("opj_end_decompress failed for JPEG 2000 fragment");
         }
 
@@ -149,9 +153,7 @@ pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<
 /// in DICOM transfer syntaxes 1.2.840.10008.1.2.4.90/91.
 #[inline]
 pub(crate) fn is_jpeg2000_codestream(fragment: &[u8]) -> bool {
-    fragment.len() >= 2
-        && fragment[0] == (SOC >> 8) as u8
-        && fragment[1] == (SOC & 0xFF) as u8
+    fragment.len() >= 2 && fragment[0] == (SOC >> 8) as u8 && fragment[1] == (SOC & 0xFF) as u8
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -208,7 +210,10 @@ mod tests {
 
     #[test]
     fn is_jpeg2000_codestream_rejects_empty_and_single_byte() {
-        assert!(!is_jpeg2000_codestream(&[]), "empty slice must return false");
+        assert!(
+            !is_jpeg2000_codestream(&[]),
+            "empty slice must return false"
+        );
         assert!(
             !is_jpeg2000_codestream(&[0xFF]),
             "single byte must return false (SOC requires 2 bytes)"
@@ -221,9 +226,13 @@ mod tests {
     fn decode_returns_error_for_non_soc_prefix() {
         use crate::PixelLayout;
         let layout = PixelLayout {
-            rows: 2, cols: 2, samples_per_pixel: 1,
-            bits_allocated: 8, pixel_representation: 0,
-            rescale_slope: 1.0, rescale_intercept: 0.0,
+            rows: 2,
+            cols: 2,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
         };
         // Feed a JPEG-LS SOI prefix — decode must reject it, not panic.
         let fragment = [0xFF_u8, 0xD8, 0xFF, 0xF7, 0x00, 0x0B];
@@ -241,9 +250,13 @@ mod tests {
     fn decode_returns_error_for_truncated_codestream() {
         use crate::PixelLayout;
         let layout = PixelLayout {
-            rows: 4, cols: 4, samples_per_pixel: 1,
-            bits_allocated: 8, pixel_representation: 0,
-            rescale_slope: 1.0, rescale_intercept: 0.0,
+            rows: 4,
+            cols: 4,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
         };
         // SOC prefix present but codestream is truncated — OpenJPEG must reject it.
         let truncated = [0xFF_u8, 0x4F, 0x00];
@@ -292,8 +305,11 @@ mod tests {
         ) -> opj::OPJ_BOOL {
             // For a growing output stream, seek is called at the very end to
             // record the total written size.  We accept any non-negative position.
-            if nb_bytes >= 0 { opj::OPJ_TRUE as opj::OPJ_BOOL }
-            else { opj::OPJ_FALSE as opj::OPJ_BOOL }
+            if nb_bytes >= 0 {
+                opj::OPJ_TRUE as opj::OPJ_BOOL
+            } else {
+                opj::OPJ_FALSE as opj::OPJ_BOOL
+            }
         }
 
         // skip_fn for output: advance write position (not used in practice).
@@ -305,30 +321,25 @@ mod tests {
         }
 
         let write_stream = opj::opj_stream_default_create(opj::OPJ_FALSE as opj::OPJ_BOOL);
-        assert!(!write_stream.is_null(), "opj_stream_default_create (write) returned null");
+        assert!(
+            !write_stream.is_null(),
+            "opj_stream_default_create (write) returned null"
+        );
         opj::opj_stream_set_write_function(write_stream, Some(write_fn));
         opj::opj_stream_set_skip_function(write_stream, Some(skip_out_fn));
         opj::opj_stream_set_seek_function(write_stream, Some(seek_out_fn));
-        opj::opj_stream_set_user_data(
-            write_stream,
-            &mut out as *mut Vec<u8> as *mut c_void,
-            None,
-        );
+        opj::opj_stream_set_user_data(write_stream, &mut out as *mut Vec<u8> as *mut c_void, None);
 
         // ── Create image ──────────────────────────────────────────────────
         let mut cmptparm: opj::opj_image_cmptparm_t = std::mem::zeroed();
-        cmptparm.dx   = 1;
-        cmptparm.dy   = 1;
-        cmptparm.w    = cols;
-        cmptparm.h    = rows;
+        cmptparm.dx = 1;
+        cmptparm.dy = 1;
+        cmptparm.w = cols;
+        cmptparm.h = rows;
         cmptparm.prec = 8;
         cmptparm.sgnd = 0;
 
-        let image = opj::opj_image_create(
-            1,
-            &mut cmptparm,
-            opj::COLOR_SPACE::OPJ_CLRSPC_GRAY,
-        );
+        let image = opj::opj_image_create(1, &mut cmptparm, opj::COLOR_SPACE::OPJ_CLRSPC_GRAY);
         assert!(!image.is_null(), "opj_image_create returned null");
 
         (*image).x0 = 0;
@@ -346,8 +357,8 @@ mod tests {
         // ── Encoder parameters ────────────────────────────────────────────
         let mut cparams: opj::opj_cparameters_t = std::mem::zeroed();
         opj::opj_set_default_encoder_parameters(&mut cparams);
-        cparams.numresolution = 1;   // 1 resolution = 0 DWT levels (no spatial transform)
-        cparams.irreversible   = 0;  // 0 = reversible (5/3 wavelet, lossless)
+        cparams.numresolution = 1; // 1 resolution = 0 DWT levels (no spatial transform)
+        cparams.irreversible = 0; // 0 = reversible (5/3 wavelet, lossless)
 
         let codec = opj::opj_create_compress(opj::CODEC_FORMAT::OPJ_CODEC_J2K);
         assert!(!codec.is_null(), "opj_create_compress returned null");
@@ -357,16 +368,32 @@ mod tests {
         opj::opj_set_error_handler(codec, None, std::ptr::null_mut());
 
         let setup_ok = opj::opj_setup_encoder(codec, &mut cparams, image);
-        assert_eq!(setup_ok, opj::OPJ_TRUE as opj::OPJ_BOOL, "opj_setup_encoder failed");
+        assert_eq!(
+            setup_ok,
+            opj::OPJ_TRUE as opj::OPJ_BOOL,
+            "opj_setup_encoder failed"
+        );
 
         let start_ok = opj::opj_start_compress(codec, image, write_stream);
-        assert_eq!(start_ok, opj::OPJ_TRUE as opj::OPJ_BOOL, "opj_start_compress failed");
+        assert_eq!(
+            start_ok,
+            opj::OPJ_TRUE as opj::OPJ_BOOL,
+            "opj_start_compress failed"
+        );
 
         let encode_ok = opj::opj_encode(codec, write_stream);
-        assert_eq!(encode_ok, opj::OPJ_TRUE as opj::OPJ_BOOL, "opj_encode failed");
+        assert_eq!(
+            encode_ok,
+            opj::OPJ_TRUE as opj::OPJ_BOOL,
+            "opj_encode failed"
+        );
 
         let end_ok = opj::opj_end_compress(codec, write_stream);
-        assert_eq!(end_ok, opj::OPJ_TRUE as opj::OPJ_BOOL, "opj_end_compress failed");
+        assert_eq!(
+            end_ok,
+            opj::OPJ_TRUE as opj::OPJ_BOOL,
+            "opj_end_compress failed"
+        );
 
         opj::opj_stream_destroy(write_stream);
         opj::opj_destroy_codec(codec);
@@ -396,13 +423,13 @@ mod tests {
         );
 
         let layout = PixelLayout {
-            rows:               rows as usize,
-            cols:               cols as usize,
-            samples_per_pixel:  1,
-            bits_allocated:     8,
+            rows: rows as usize,
+            cols: cols as usize,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
             pixel_representation: 0,
-            rescale_slope:      1.0,
-            rescale_intercept:  0.0,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
         };
 
         let decoded = decode_jpeg2000_fragment(&j2k, layout)
@@ -440,13 +467,17 @@ mod tests {
         let j2k = unsafe { encode_to_j2k(&pixels, rows, cols) };
 
         let layout = PixelLayout {
-            rows: rows as usize, cols: cols as usize,
-            samples_per_pixel: 1, bits_allocated: 8, pixel_representation: 0,
-            rescale_slope: 1.0, rescale_intercept: 0.0,
+            rows: rows as usize,
+            cols: cols as usize,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
         };
 
-        let decoded = decode_jpeg2000_fragment(&j2k, layout)
-            .expect("gradient round-trip must succeed");
+        let decoded =
+            decode_jpeg2000_fragment(&j2k, layout).expect("gradient round-trip must succeed");
 
         assert_eq!(decoded.len(), 8);
 
@@ -472,15 +503,23 @@ mod tests {
         let j2k = unsafe { encode_to_j2k(&pixels, 1, 1) };
 
         let layout = PixelLayout {
-            rows: 1, cols: 1, samples_per_pixel: 1,
-            bits_allocated: 8, pixel_representation: 0,
-            rescale_slope: 2.0, rescale_intercept: -1024.0,
+            rows: 1,
+            cols: 1,
+            samples_per_pixel: 1,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            rescale_slope: 2.0,
+            rescale_intercept: -1024.0,
         };
 
-        let decoded = decode_jpeg2000_fragment(&j2k, layout)
-            .expect("1×1 rescale test must succeed");
+        let decoded =
+            decode_jpeg2000_fragment(&j2k, layout).expect("1×1 rescale test must succeed");
 
-        assert_eq!(decoded.len(), 1, "single-pixel image must yield 1 decoded value");
+        assert_eq!(
+            decoded.len(),
+            1,
+            "single-pixel image must yield 1 decoded value"
+        );
 
         // 100 × 2.0 + (−1024.0) = −824.0 exactly (f32 representable).
         assert_eq!(

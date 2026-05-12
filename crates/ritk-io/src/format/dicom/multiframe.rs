@@ -58,11 +58,14 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::value::Value;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::{open_file, InMemDicomObject};
+use dicom::object::InMemDicomObject;
 use nalgebra::SMatrix;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_dicom::TransferSyntaxKind;
+use ritk_dicom::{
+    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+    TransferSyntaxKind,
+};
 use std::path::{Path, PathBuf};
 
 /// SOP Class UID for Multi-Frame Grayscale Word Secondary Capture Image Storage.
@@ -435,7 +438,8 @@ fn extract_functional_groups(obj: &InMemDicomObject, n_frames: usize) -> Vec<Per
 /// Read summary information from a multi-frame DICOM file without pixel data.
 pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
     let path = path.as_ref();
-    let obj = open_file(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("failed to open DICOM file {:?}", path))?;
     let mut info = extract_multiframe_header(path, &obj);
     info.per_frame = extract_functional_groups(&obj, info.n_frames);
     Ok(info)
@@ -457,7 +461,8 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let path = path.as_ref();
-    let obj = open_file(path).with_context(|| format!("failed to open DICOM file {:?}", path))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("failed to open DICOM file {:?}", path))?;
 
     // Guard: compressed transfer syntaxes are not natively decodable by ritk-io.
     // Pixel data from compressed objects cannot be interpreted as raw u16/u8 samples.
@@ -498,84 +503,47 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         "load_dicom_multiframe: functional groups extracted"
     );
 
-    let rescale_slope = info.rescale_slope as f32;
-    let rescale_intercept = info.rescale_intercept as f32;
-
-    let (floats, actual_n) = if ts.is_codec_supported() {
-        // Compressed TS with registered codec: decode each frame individually.
-        let mut all_floats = Vec::with_capacity(info.n_frames * info.rows * info.cols);
-        for frame_idx in 0..info.n_frames {
-            let frame = super::codec::decode_compressed_frame(
-                &obj,
-                frame_idx as u32,
-                info.bits_allocated,
-                info.pixel_representation,
-                rescale_slope,
-                rescale_intercept,
-            )
-            .with_context(|| format!("codec failed for frame {frame_idx} in {:?}", path))?;
-            if frame.is_empty() {
-                bail!(
-                    "DICOM multiframe: codec produced empty frame {frame_idx} in {:?}",
-                    path
-                );
-            }
-            all_floats.extend_from_slice(&frame);
-        }
-        let n = info.n_frames;
-        (all_floats, n)
-    } else {
-        // Native (uncompressed) TS: read all pixel bytes at once.
-        let pixel_bytes = if let Ok(elem) = obj.element(Tag(0x7FE0, 0x0010)) {
-            elem.value()
-                .to_bytes()
-                .ok()
-                .map(|b| b.to_vec())
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-
-        if !per_frame.is_empty() {
-            // Per-frame rescale path: Enhanced CT/MR/PET with functional groups.
-            // Each frame slice is decoded independently with its own slope/intercept.
-            let bytes_per_pixel = (info.bits_allocated as usize).div_ceil(8);
-            let frame_bytes = info.rows * info.cols * bytes_per_pixel;
-            let mut all_floats = Vec::with_capacity(info.n_frames * info.rows * info.cols);
-            for (frame_idx, pfi) in per_frame.iter().enumerate().take(info.n_frames) {
-                let slope = pfi.rescale_slope.unwrap_or(info.rescale_slope) as f32;
-                let intercept = pfi.rescale_intercept.unwrap_or(info.rescale_intercept) as f32;
-                let start = frame_idx * frame_bytes;
-                let end = start + frame_bytes;
-                let frame_slice = pixel_bytes.get(start..end).unwrap_or(&[]);
-                let decoded = super::reader::decode_pixel_bytes(
-                    frame_slice,
-                    info.bits_allocated,
-                    info.pixel_representation,
-                    slope,
-                    intercept,
-                );
-                all_floats.extend_from_slice(&decoded);
-            }
-            let n = info.n_frames;
-            (all_floats, n)
-        } else {
-            // Global rescale path: basic multiframe without functional groups.
-            let all_floats = super::reader::decode_pixel_bytes(
-                &pixel_bytes,
-                info.bits_allocated,
-                info.pixel_representation,
-                rescale_slope,
-                rescale_intercept,
+    let frame_pixels = info.rows * info.cols;
+    let mut floats = Vec::with_capacity(info.n_frames * frame_pixels);
+    for frame_idx in 0..info.n_frames {
+        let frame_info = per_frame.get(frame_idx);
+        let slope = frame_info
+            .and_then(|pfi| pfi.rescale_slope)
+            .unwrap_or(info.rescale_slope) as f32;
+        let intercept = frame_info
+            .and_then(|pfi| pfi.rescale_intercept)
+            .unwrap_or(info.rescale_intercept) as f32;
+        let frame = decode_frame_with::<DicomRsBackend>(
+            &obj,
+            DecodeFrameRequest {
+                frame_index: u32::try_from(frame_idx)
+                    .context("DICOM multiframe frame index exceeds u32")?,
+                transfer_syntax: ts.clone(),
+                layout: PixelLayout {
+                    rows: info.rows,
+                    cols: info.cols,
+                    samples_per_pixel: 1,
+                    bits_allocated: info.bits_allocated,
+                    pixel_representation: info.pixel_representation,
+                    rescale_slope: slope,
+                    rescale_intercept: intercept,
+                },
+            },
+        )
+        .with_context(|| format!("DICOM backend failed for frame {frame_idx} in {:?}", path))?
+        .pixels;
+        if frame.len() != frame_pixels {
+            bail!(
+                "DICOM multiframe: frame {} in {:?} decoded {} pixels; expected {}",
+                frame_idx,
+                path,
+                frame.len(),
+                frame_pixels
             );
-            let n = if info.rows * info.cols > 0 && !all_floats.is_empty() {
-                all_floats.len() / (info.rows * info.cols)
-            } else {
-                info.n_frames
-            };
-            (all_floats, n)
         }
-    };
+        floats.extend_from_slice(&frame);
+    }
+    let actual_n = info.n_frames;
 
     if actual_n == 0 {
         bail!("DICOM multiframe: no pixel data decoded from {:?}", path);
@@ -1563,9 +1531,9 @@ mod tests {
             .expect("write compressed stub");
 
         let result = load_dicom_multiframe::<B, _>(&path, &device);
-        // JPEG-LS is now handled by RITK native codec (Sprint 124).
-        // The load may succeed (placeholder) or fail (TODO: Golomb-rice).
-        // We accept either outcome during development.
+        // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
+        // payload is intentionally minimal, so either a valid load or a JPEG-contextual
+        // decode error preserves the boundary contract.
         match result {
             Ok(tensor) => {
                 // If it succeeds, verify tensor shape is correct
@@ -1576,7 +1544,9 @@ mod tests {
                 // If it fails, error should reference JPEG-LS
                 let msg = format!("{:?}", e);
                 assert!(
-                    msg.contains("1.2.840.10008.1.2.4.80") || msg.to_lowercase().contains("compress") || msg.contains("JPEG"),
+                    msg.contains("1.2.840.10008.1.2.4.80")
+                        || msg.to_lowercase().contains("compress")
+                        || msg.contains("JPEG"),
                     "error must reference JPEG-LS TS UID or 'compress'; got: {msg}"
                 );
             }
@@ -1588,7 +1558,7 @@ mod tests {
     ///
     /// # Specification
     /// Guard condition `is_compressed() && !is_codec_supported()` allows JPEG Baseline.
-    /// `load_dicom_multiframe` calls `codec::decode_compressed_frame` for each frame.
+    /// `load_dicom_multiframe` calls the `ritk-dicom` backend for each frame.
     /// Shape must be `[N_frames, H, W]`.
     /// Per-pixel error must satisfy `|decoded - original| ≤ 8` (JPEG Q75 tolerance).
     #[test]
@@ -1829,7 +1799,7 @@ mod tests {
         );
         write_dicom_multiframe(&out_path, &image).expect("write");
 
-        let obj = open_file(&out_path).expect("open");
+        let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
         let conv_type = obj
             .element(Tag(0x0008, 0x0064))
             .expect("ConversionType (0008,0064) must be present")
@@ -1863,7 +1833,7 @@ mod tests {
             Direction::identity(),
         );
         write_dicom_multiframe(&out_path, &image).expect("write");
-        let obj = open_file(&out_path).expect("open");
+        let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
         let study_uid = obj
             .element(Tag(0x0020, 0x000D))
             .expect("StudyInstanceUID (0020,000D) must be present")
@@ -1913,7 +1883,7 @@ mod tests {
             Direction::identity(),
         );
         write_dicom_multiframe(&out_path, &image).expect("write");
-        let obj = open_file(&out_path).expect("open");
+        let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
         // Assert presence (value may be empty per Type 2 semantics).
         obj.element(Tag(0x0010, 0x0010))
             .expect("PatientName (0010,0010) must be present");

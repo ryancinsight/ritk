@@ -4,13 +4,19 @@
 //! pixels ready for GPU upload:
 //!
 //! - [`colormap`]  — named intensity-to-RGB mappings.
+//! - [`fusion`] — primary/secondary fused compare rendering.
 //! - [`slice_render`] — DICOM window/level LUT and 2-D slice extraction.
 //! - [`histogram`] — voxel intensity histogram computation SSOT.
+//! - [`mip_vr`] — multi-resolution image rendering.
 
 pub mod colormap;
+pub mod fusion;
 pub mod histogram;
+pub mod mip_vr;
 pub mod slice_render;
 
 pub use colormap::Colormap;
+pub use fusion::render_fused_slice;
 pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_count, Histogram};
+pub use mip_vr::{render_mip_axial, render_vr_axial};
 pub use slice_render::{SliceRenderer, WindowLevel};

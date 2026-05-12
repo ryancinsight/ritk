@@ -30,7 +30,12 @@ pub(crate) struct ContextState {
 impl Default for ContextState {
     /// Returns the ISO 14495-1 initial state: n=1 (avoids zero-division in k computation).
     fn default() -> Self {
-        Self { a: 0, b: 0, c: 0, n: 1 }
+        Self {
+            a: 0,
+            b: 0,
+            c: 0,
+            n: 1,
+        }
     }
 }
 
@@ -62,7 +67,12 @@ impl ContextModel {
     /// `a_init = max(2, (RANGE + 32) / 64)` where `RANGE = MAXVAL + 1`.
     /// From ISO 14495-1 §A.4: initial A[q] = a_init for all q.
     pub(crate) fn new(a_init: u32) -> Self {
-        let s = ContextState { a: a_init, b: 0, c: 0, n: 1 };
+        let s = ContextState {
+            a: a_init,
+            b: 0,
+            c: 0,
+            n: 1,
+        };
         Self {
             regular: [s; CONTEXTS],
             run_int: s,
@@ -212,18 +222,18 @@ mod tests {
         assert_eq!(quant(-30, t1, t2, t3), -4); // d <= -T3
         assert_eq!(quant(-21, t1, t2, t3), -4); // d == -T3 → ≤ -T3
         assert_eq!(quant(-10, t1, t2, t3), -3); // -T3 < d ≤ -T2
-        assert_eq!(quant(-7, t1, t2, t3), -3);  // d == -T2 → ≤ -T2
+        assert_eq!(quant(-7, t1, t2, t3), -3); // d == -T2 → ≤ -T2
         assert_eq!(quant(-5, t1, t2, t3), -2);
-        assert_eq!(quant(-3, t1, t2, t3), -2);  // d == -T1 → ≤ -T1
+        assert_eq!(quant(-3, t1, t2, t3), -2); // d == -T1 → ≤ -T1
         assert_eq!(quant(-1, t1, t2, t3), -1);
         assert_eq!(quant(0, t1, t2, t3), 0);
         assert_eq!(quant(1, t1, t2, t3), 1);
-        assert_eq!(quant(2, t1, t2, t3), 1);    // d < T1
-        assert_eq!(quant(3, t1, t2, t3), 2);    // d == T1 → ≥ T1
+        assert_eq!(quant(2, t1, t2, t3), 1); // d < T1
+        assert_eq!(quant(3, t1, t2, t3), 2); // d == T1 → ≥ T1
         assert_eq!(quant(6, t1, t2, t3), 2);
         assert_eq!(quant(7, t1, t2, t3), 3);
         assert_eq!(quant(20, t1, t2, t3), 3);
-        assert_eq!(quant(21, t1, t2, t3), 4);   // d ≥ T3
+        assert_eq!(quant(21, t1, t2, t3), 4); // d ≥ T3
         assert_eq!(quant(100, t1, t2, t3), 4);
     }
 
@@ -351,7 +361,12 @@ mod tests {
             } else {
                 (-2 * errval - 1) as u32
             };
-            assert_eq!(inverse_map(me), errval, "round-trip failed for errval={}", errval);
+            assert_eq!(
+                inverse_map(me),
+                errval,
+                "round-trip failed for errval={}",
+                errval
+            );
         }
     }
 
@@ -383,8 +398,13 @@ mod tests {
 
     #[test]
     fn update_context_bias_positive_decrements_b() {
-        let mut ctx = ContextState { a: 0, b: 5, c: 0, n: 4 };
-        // b > 0 → b -= n → b = 5 - 4 = 1 → clamp to min(1, 0) = 0 in the code? 
+        let mut ctx = ContextState {
+            a: 0,
+            b: 5,
+            c: 0,
+            n: 4,
+        };
+        // b > 0 → b -= n → b = 5 - 4 = 1 → clamp to min(1, 0) = 0 in the code?
         // Actually: b = (b - n).min(0) = (1).min(0) = 0. Wait let me re-check the code.
         // After errval=0: ctx.b += 0*(2*0+1) = 0, so b stays 5.
         // Then: b > 0 → b -= n (=4) → b = 1 → b.min(0) = 0? No: `b -= n` then `b = b.min(0)`.

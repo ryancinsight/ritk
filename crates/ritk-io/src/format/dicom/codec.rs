@@ -1,9 +1,11 @@
-//! DICOM pixel data codec integration via `dicom-pixeldata` and native decoders.
+//! DICOM pixel data codec regression helpers.
 //!
 //! # Architecture
 //!
-//! Provides `decode_compressed_frame`, the single dispatch point for all
-//! codec-supported compressed transfer syntaxes.
+//! Production frame decode is owned by `ritk-dicom` through
+//! `decode_frame_with::<DicomRsBackend>`. This module keeps the historical
+//! compressed-frame regression helper under `cfg(test)` so codec fixtures still
+//! validate the backend contract.
 //!
 //! - **RLE Lossless**: dispatched to `decode_rle_lossless_frame`, a native
 //!   implementation of DICOM PS3.5 Annex G (PackBits per byte-plane + correct
@@ -49,10 +51,13 @@
 //! - Output length equals `rows × cols` for a single-frame decode.
 //! - Rescale is always applied; identity rescale (slope=1, intercept=0) is valid.
 
+#[cfg(test)]
 use anyhow::{Context, Result};
+#[cfg(test)]
 use dicom::object::DefaultDicomObject;
+#[cfg(test)]
 use ritk_dicom::{
-    DecodeFrameRequest, DicomRsBackend, FrameDecodeBackend, PixelLayout, TransferSyntaxKind,
+    decode_frame_with, DecodeFrameRequest, DicomRsBackend, PixelLayout, TransferSyntaxKind,
 };
 
 /// Decode one frame from a compressed DICOM object using the registered codec.
@@ -74,6 +79,7 @@ use ritk_dicom::{
 ///
 /// Returns `Err` when the codec fails: unsupported TS, malformed compressed data,
 /// or missing codec (feature not enabled).
+#[cfg(test)]
 pub(super) fn decode_compressed_frame(
     obj: &DefaultDicomObject,
     frame_idx: u32,
@@ -117,7 +123,7 @@ pub(super) fn decode_compressed_frame(
             rescale_intercept: intercept,
         },
     };
-    Ok(DicomRsBackend::decode_frame(obj, request)
+    Ok(decode_frame_with::<DicomRsBackend>(obj, request)
         .with_context(|| format!("codec decode failed for frame {frame_idx}"))?
         .pixels)
 }
@@ -1258,11 +1264,8 @@ mod tests {
         file_obj.write_to_file(path).expect("write_to_file failed");
     }
 
-    /// JPEG-LS Lossless round-trip: encode known pixel values, decode via native codec.
-    ///
-    /// Note: RITK's native JPEG-LS decoder (Sprint 124) is a structural placeholder.
-    /// The decoder validates headers and dimensions but cannot decode the actual bitstream.
-    /// This test verifies the codec routing works and the API contract is satisfied.
+    /// JPEG-LS Lossless negative fixture: a CharLS-produced bitstream which the current
+    /// native lossless decoder rejects must return a JPEG-contextual error.
     #[test]
     fn test_decode_compressed_frame_jpegls_lossless_round_trip() {
         let width = 4u32;
@@ -1276,18 +1279,17 @@ mod tests {
 
         let obj = dicom::object::open_file(&path).expect("open_file failed");
         let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0);
-        
-        // The native JPEG-LS codec is a placeholder (Sprint 124).
-        // It will fail because the placeholder can't decode the actual JPEG-LS bitstream.
-        // This is expected during development - the test verifies the error is appropriate.
+
         assert!(
             decoded.is_err(),
-            "JPEG-LS decode must fail with placeholder (cannot decode actual bitstream)"
+            "this JPEG-LS lossless fixture must fail until covered by a native decoder conformance case"
         );
         let err_str = format!("{:?}", decoded.unwrap_err());
-        // The error should reference pixel data or JPEG-LS since that's what failed
         assert!(
-            err_str.contains("Pixel Data") || err_str.contains("JPEG") || err_str.contains("bytes") || err_str.contains("Sequence"),
+            err_str.contains("Pixel Data")
+                || err_str.contains("JPEG")
+                || err_str.contains("bytes")
+                || err_str.contains("Sequence"),
             "Error should reference pixel data issue: {}",
             err_str
         );

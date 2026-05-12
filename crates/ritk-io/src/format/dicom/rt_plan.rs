@@ -33,8 +33,8 @@ use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::open_file;
 use dicom::object::InMemDicomObject;
+use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -105,7 +105,8 @@ pub struct RtPlanInfo {
 /// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.5`.
 pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
     let path = path.as_ref();
-    let obj = open_file(path).with_context(|| format!("open DICOM file: {}", path.display()))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     // Validate SOP Class UID.
     let sop = obj.meta().media_storage_sop_class_uid();

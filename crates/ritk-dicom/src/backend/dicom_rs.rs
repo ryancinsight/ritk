@@ -8,10 +8,11 @@ use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use dicom_pixeldata::PixelDecoder;
+use std::path::Path;
 
 use crate::backend::{
-    DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
-    NativeCodecBackend,
+    DecodeFrameRequest, DecodedFrame, DicomParseBackend, EncapsulatedFrameSource,
+    NativeCodecBackend, PixelDecodeBackend,
 };
 use crate::pixel::decode_native_pixel_bytes_checked;
 use crate::syntax::TransferSyntaxKind;
@@ -41,14 +42,23 @@ impl EncapsulatedFrameSource for DefaultDicomObject {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DicomRsBackend;
 
-impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
+impl DicomParseBackend for DicomRsBackend {
+    type Object = DefaultDicomObject;
+
+    fn parse_file(path: &Path) -> Result<Self::Object> {
+        dicom::object::open_file(path)
+            .with_context(|| format!("dicom-rs backend failed to parse {:?}", path))
+    }
+}
+
+impl PixelDecodeBackend<DefaultDicomObject> for DicomRsBackend {
     fn decode_frame(
         object: &DefaultDicomObject,
         request: DecodeFrameRequest,
     ) -> Result<DecodedFrame> {
         let pixels = match &request.transfer_syntax {
             syntax if syntax.is_native_jpeg_codec() => {
-                decode_jpeg_with_backend_fallback(object, &request)?
+                NativeCodecBackend::decode_frame(object, request.clone())?.pixels
             }
             TransferSyntaxKind::RleLossless => {
                 NativeCodecBackend::decode_frame(object, request.clone())?.pixels
@@ -59,6 +69,12 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
             syntax if syntax.is_external_backend_codec_candidate() => {
                 decode_via_dicom_rs(object, &request)?
             }
+            syntax if syntax.is_big_endian() => {
+                bail!(
+                    "native Pixel Data decode requires little-endian transfer syntax; got {}",
+                    syntax.uid()
+                )
+            }
             _ => {
                 let bytes = object
                     .element(Tag(0x7FE0, 0x0010))
@@ -66,22 +82,27 @@ impl FrameDecodeBackend<DefaultDicomObject> for DicomRsBackend {
                     .value()
                     .to_bytes()
                     .map_err(|e| anyhow::anyhow!("Pixel Data bytes unreadable: {:?}", e))?;
-                decode_native_pixel_bytes_checked(&bytes, request.layout)?
+                let frame_bytes = request.layout.bytes_per_frame()?;
+                let frame_index = usize::try_from(request.frame_index)
+                    .context("native Pixel Data frame index does not fit usize")?;
+                let start = frame_index
+                    .checked_mul(frame_bytes)
+                    .context("native Pixel Data frame offset overflow")?;
+                let end = start
+                    .checked_add(frame_bytes)
+                    .context("native Pixel Data frame end overflow")?;
+                let frame = bytes.get(start..end).ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "frame {} out of range for native Pixel Data byte length {} and frame byte length {}",
+                        request.frame_index,
+                        bytes.len(),
+                        frame_bytes
+                    )
+                })?;
+                decode_native_pixel_bytes_checked(frame, request.layout)?
             }
         };
         Ok(DecodedFrame { pixels })
-    }
-}
-
-fn decode_jpeg_with_backend_fallback(
-    object: &DefaultDicomObject,
-    request: &DecodeFrameRequest,
-) -> Result<Vec<f32>> {
-    match NativeCodecBackend::decode_frame(object, request.clone()) {
-        Ok(decoded) => Ok(decoded.pixels),
-        Err(native_error) => decode_via_dicom_rs(object, request).with_context(|| {
-            format!("native JPEG decode failed ({native_error:#}); dicom-rs fallback failed")
-        }),
     }
 }
 
@@ -99,4 +120,269 @@ fn decode_via_dicom_rs(
             )
         })?;
     decode_native_pixel_bytes_checked(decoded.data(), request.layout)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backend::{decode_frame_with, parse_file_with};
+    use crate::pixel::PixelLayout;
+    use dicom::core::smallvec::SmallVec;
+    use dicom::core::value::PixelFragmentSequence;
+    use dicom::core::{DataElement, PrimitiveValue, VR};
+    use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
+
+    #[test]
+    fn dicom_rs_backend_parses_file_and_decodes_uncompressed_frame() {
+        let dir = tempfile::tempdir().expect("tempdir must be created");
+        let path = dir.path().join("slice.dcm");
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.1001"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U16(SmallVec::from_vec(vec![10_u16, 20, 30, 40])),
+        ));
+
+        obj.with_meta(
+            FileMetaTableBuilder::new()
+                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                .media_storage_sop_instance_uid("2.25.1001")
+                .transfer_syntax("1.2.840.10008.1.2.1"),
+        )
+        .expect("file meta must be valid")
+        .write_to_file(&path)
+        .expect("DICOM file must be written");
+
+        let parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
+        let decoded = decode_frame_with::<DicomRsBackend>(
+            &parsed,
+            DecodeFrameRequest {
+                frame_index: 0,
+                transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
+                layout: PixelLayout {
+                    rows: 2,
+                    cols: 2,
+                    samples_per_pixel: 1,
+                    bits_allocated: 16,
+                    pixel_representation: 0,
+                    rescale_slope: 2.0,
+                    rescale_intercept: -10.0,
+                },
+            },
+        )
+        .expect("decode must succeed");
+
+        assert_eq!(decoded.pixels, vec![10.0, 30.0, 50.0, 70.0]);
+    }
+
+    #[test]
+    fn dicom_rs_backend_decodes_requested_native_multiframe_only() {
+        let dir = tempfile::tempdir().expect("tempdir must be created");
+        let path = dir.path().join("multiframe.dcm");
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.1002"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(16_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OW,
+            PrimitiveValue::U16(SmallVec::from_vec(vec![1_u16, 2, 100, 200])),
+        ));
+
+        obj.with_meta(
+            FileMetaTableBuilder::new()
+                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                .media_storage_sop_instance_uid("2.25.1002")
+                .transfer_syntax("1.2.840.10008.1.2.1"),
+        )
+        .expect("file meta must be valid")
+        .write_to_file(&path)
+        .expect("DICOM file must be written");
+
+        let parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
+        let decoded = decode_frame_with::<DicomRsBackend>(
+            &parsed,
+            DecodeFrameRequest {
+                frame_index: 1,
+                transfer_syntax: TransferSyntaxKind::ExplicitVrLittleEndian,
+                layout: PixelLayout {
+                    rows: 1,
+                    cols: 2,
+                    samples_per_pixel: 1,
+                    bits_allocated: 16,
+                    pixel_representation: 0,
+                    rescale_slope: 1.0,
+                    rescale_intercept: 0.0,
+                },
+            },
+        )
+        .expect("second native frame decode must succeed");
+
+        assert_eq!(decoded.pixels, vec![100.0, 200.0]);
+    }
+
+    #[test]
+    fn native_owned_jpeg_errors_do_not_fallback_to_dicom_rs() {
+        let dir = tempfile::tempdir().expect("tempdir must be created");
+        let path = dir.path().join("bad_native_jpeg.dcm");
+
+        let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![vec![0xFF, 0xD8, 0xFF]]);
+        let pixel_sequence: PixelFragmentSequence<Vec<u8>> =
+            PixelFragmentSequence::new_fragments(fragments);
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.1003"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OB,
+            pixel_sequence,
+        ));
+
+        obj.with_meta(
+            FileMetaTableBuilder::new()
+                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7.3")
+                .media_storage_sop_instance_uid("2.25.1003")
+                .transfer_syntax("1.2.840.10008.1.2.4.50"),
+        )
+        .expect("file meta must be valid")
+        .write_to_file(&path)
+        .expect("DICOM file must be written");
+
+        let parsed = parse_file_with::<DicomRsBackend, _>(&path).expect("parse must succeed");
+        let err = decode_frame_with::<DicomRsBackend>(
+            &parsed,
+            DecodeFrameRequest {
+                frame_index: 0,
+                transfer_syntax: TransferSyntaxKind::JpegBaseline,
+                layout: PixelLayout {
+                    rows: 1,
+                    cols: 1,
+                    samples_per_pixel: 1,
+                    bits_allocated: 8,
+                    pixel_representation: 0,
+                    rescale_slope: 1.0,
+                    rescale_intercept: 0.0,
+                },
+            },
+        )
+        .expect_err("malformed native-owned JPEG fragment must fail");
+
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("native JPEG decoder"),
+            "error must come from the RITK-native JPEG decoder, got: {msg}"
+        );
+        assert!(
+            !msg.contains("fallback"),
+            "native-owned JPEG syntaxes must not fall back through dicom-rs, got: {msg}"
+        );
+    }
 }

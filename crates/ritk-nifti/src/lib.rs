@@ -13,21 +13,23 @@
 //!
 //! # Spatial Convention
 //!
-//! - RITK tensors: `[Z, Y, X]` (ZYX ordering)
-//! - NIfTI storage: `[X, Y, Z]` (XYZ ordering as per NIfTI standard)
+//! - RITK tensors: `[Z, Y, X]` (depth, row, column)
+//! - NIfTI storage: `[X, Y, Z]` (file axes)
 //! - All read/write functions handle the permutation automatically
+//! - RITK physical metadata is LPS; NIfTI affines are encoded/read as RAS
 //!
 //! # Affine Metadata
 //!
-//! Sform affine is encoded with the NIfTI convention:
+//! RITK's internal affine maps `[depth,row,col]` to LPS:
 //! ```ignore
-//! srow_x = [M_col0[0], M_col1[0], M_col2[0], origin[0]]
-//! srow_y = [M_col0[1], M_col1[1], M_col2[1], origin[1]]
-//! srow_z = [M_col0[2], M_col1[2], M_col2[2], origin[2]]
+//! A_lps = [D[:,0] * spacing[0], D[:,1] * spacing[1], D[:,2] * spacing[2], origin]
 //! ```
-//! where `M_colJ = direction.column(J) * spacing[J]`.
+//! NIfTI sform rows map file `[x,y,z]` to RAS, so columns are emitted as
+//! `[internal_col, internal_row, internal_depth]` and the first two physical
+//! rows are sign-flipped between LPS and RAS.
 
 mod reader;
+mod spatial;
 mod writer;
 
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
@@ -46,10 +48,9 @@ impl<B: Backend> NiftiReader<B> {
     pub fn new(device: B::Device) -> Self {
         Self { device }
     }
-    
+
     pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_nifti(path, &self.device)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        read_nifti(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -68,11 +69,9 @@ impl<B: Backend> Default for NiftiWriter<B> {
 
 impl<B: Backend> NiftiWriter<B> {
     pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_nifti(path, image)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        write_nifti(path, image).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests;
-

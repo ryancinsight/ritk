@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use nalgebra::SMatrix;
 use nifti::{InMemNiftiObject, IntoNdArray, NiftiObject, ReaderOptions};
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing, Vector};
 use std::io::Cursor;
 use std::path::Path;
+
+use crate::spatial::metadata_from_nifti_ras_affine;
 
 pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
     let path = path.as_ref();
@@ -32,7 +32,10 @@ pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Re
     image_from_nifti_object::<B>(obj, device)
 }
 
-fn image_from_nifti_object<B: Backend>(obj: InMemNiftiObject, device: &B::Device) -> Result<Image<B, 3>> {
+fn image_from_nifti_object<B: Backend>(
+    obj: InMemNiftiObject,
+    device: &B::Device,
+) -> Result<Image<B, 3>> {
     let header = obj.header();
 
     // Sform
@@ -95,53 +98,7 @@ fn image_from_nifti_object<B: Backend>(obj: InMemNiftiObject, device: &B::Device
         ]
     };
 
-    // affine is [[f32; 4]; 4], accessed as affine[row][col]
-    let m00 = affine[0][0] as f64;
-    let m01 = affine[0][1] as f64;
-    let m02 = affine[0][2] as f64;
-    let tx = affine[0][3] as f64;
-    let m10 = affine[1][0] as f64;
-    let m11 = affine[1][1] as f64;
-    let m12 = affine[1][2] as f64;
-    let ty = affine[1][3] as f64;
-    let m20 = affine[2][0] as f64;
-    let m21 = affine[2][1] as f64;
-    let m22 = affine[2][2] as f64;
-    let tz = affine[2][3] as f64;
-
-    let origin = Point::new([tx, ty, tz]);
-
-    // Columns of the rotation matrix (scaled by spacing)
-    let col0 = Vector::new([m00, m10, m20]);
-    let col1 = Vector::new([m01, m11, m21]);
-    let col2 = Vector::new([m02, m12, m22]);
-
-    let sp0 = col0.0.norm();
-    let sp1 = col1.0.norm();
-    let sp2 = col2.0.norm();
-
-    let spacing = Spacing::new([sp0, sp1, sp2]);
-
-    // Normalize to get direction cosine matrix
-    let d0 = if sp0 > 1e-9 {
-        col0.0 / sp0
-    } else {
-        nalgebra::Vector3::x_axis().into_inner()
-    };
-    let d1 = if sp1 > 1e-9 {
-        col1.0 / sp1
-    } else {
-        nalgebra::Vector3::y_axis().into_inner()
-    };
-    let d2 = if sp2 > 1e-9 {
-        col2.0 / sp2
-    } else {
-        nalgebra::Vector3::z_axis().into_inner()
-    };
-
-    // Build direction matrix from normalized columns
-    let dir_matrix = SMatrix::<f64, 3, 3>::from_columns(&[d0, d1, d2]);
-    let direction = Direction(dir_matrix);
+    let spatial = metadata_from_nifti_ras_affine(affine);
 
     // Load voxel data
     let volume = obj.into_volume();
@@ -161,22 +118,32 @@ fn image_from_nifti_object<B: Backend>(obj: InMemNiftiObject, device: &B::Device
     let dim1 = shape[1];
     let dim2 = shape[2];
 
-    // Convert to Burn Data
-    // ndarray stores data in standard layout (last dimension contiguous) by default if created that way.
-    // nifti-rs documentation says `into_ndarray` returns `ArrayD`.
-    // We assume standard layout for now.
-    // Note: Burn Data expects a flattened vector.
-    let (data_vec, _offset) = ndarray_volume.into_raw_vec_and_offset();
-    let shape_burn = Shape::new([dim0, dim1, dim2]);
+    // Rebuild the internal ZYX buffer by logical coordinates. The nifti crate
+    // exposes the volume as [x, y, z]; RITK stores tensors as [z, y, x].
+    use ndarray::Ix3;
+    let arr = ndarray_volume
+        .into_dimensionality::<Ix3>()
+        .context("Failed to convert NIfTI ndarray to Ix3")?;
 
+    let mut data_vec = vec![0.0_f32; dim0 * dim1 * dim2];
+    for z in 0..dim2 {
+        for y in 0..dim1 {
+            for x in 0..dim0 {
+                data_vec[z * dim1 * dim0 + y * dim0 + x] = arr[[x, y, z]];
+            }
+        }
+    }
+
+    let shape_burn = Shape::new([dim2, dim1, dim0]);
     let data = TensorData::new(data_vec, shape_burn);
     let tensor = Tensor::<B, 3>::from_data(data, device);
 
-    // NIfTI is usually [X, Y, Z]. We want [Z, Y, X] for ritk-core conventions.
-    // Permute axes: 0->2, 1->1, 2->0.
-    let tensor = tensor.permute([2, 1, 0]);
-
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Ok(Image::new(
+        tensor,
+        spatial.origin,
+        spatial.spacing,
+        spatial.direction,
+    ))
 }
 
 /// Read a NIfTI file as an integer label map in ZYX order.

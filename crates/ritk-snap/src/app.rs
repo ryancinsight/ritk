@@ -11,7 +11,7 @@
 //! | `multi_planar` | Layout                                      |
 //! |----------------|---------------------------------------------|
 //! | `false`        | Single viewport — current axis fills panel. |
-//! | `true`         | Side-by-side: Axial / Coronal / Sagittal, with Info below.|
+//! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,12 +21,17 @@ use tracing::{error, info};
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
+use crate::render::fusion::render_fused_slice;
+use crate::render::mip_vr::{render_mip_axial, render_vr_axial};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
+    AnatomicalPlane,
+    advance_wrapped, axis_total, clamp_index, step_clamped,
     axis_slice_dimensions, fit_view_transform, format_lps, intensity_at_voxel, map_view_row_col_to_voxel,
+    axis_for_plane_in_volume, anatomical_label_for_axis,
     compute_roi_dose_analytics, RoiDoseAnalytics,
     decide_dropped_input_action, DroppedInputAction,
     pan_from_drag_delta, plan_all_mpr_exports, project_rt_struct_contours_for_slice, viewport_point_to_voxel,
@@ -90,6 +95,12 @@ struct RtDoseOverlayCacheEntry {
 enum SeriesLoadTarget {
     Primary,
     Secondary,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionMode {
+    Mip,
+    Vr,
 }
 
 // ── SnapApp ───────────────────────────────────────────────────────────────────
@@ -187,6 +198,13 @@ pub struct SnapApp {
     /// Current sagittal slice index (fixed column `c`).
     sagittal_slice: usize,
 
+    /// Cached egui texture for the 3D-MIP viewport (axial projection).
+    mip_tex: Option<egui::TextureHandle>,
+    /// `true` when the MIP projection texture must be rebuilt.
+    mip_dirty: bool,
+    /// Active projection mode for the bottom-right 3D viewport.
+    projection_mode: ProjectionMode,
+
     // ── Viewport ──────────────────────────────────────────────────────────────
     /// Viewport pan offset in screen pixels.
     pan_offset: egui::Vec2,
@@ -204,6 +222,10 @@ pub struct SnapApp {
     dual_plane: bool,
     /// `true` when primary/secondary compare layout is active.
     compare_side_by_side: bool,
+    /// `true` when compare panel renders fused primary/secondary overlay.
+    compare_fused_overlay: bool,
+    /// Secondary contribution weight in fused compare mode.
+    compare_fusion_alpha: f32,
     /// Axis assignment for dual-plane same-volume layout.
     dual_axes: [usize; 2],
     /// Axis assignment for compare layout: [primary_axis, secondary_axis].
@@ -286,6 +308,9 @@ impl Default for SnapApp {
             sagittal_tex: None,
             sagittal_dirty: false,
             sagittal_slice: 0,
+            mip_tex: None,
+            mip_dirty: false,
+            projection_mode: ProjectionMode::Mip,
             pan_offset: egui::Vec2::ZERO,
             zoom: 1.0,
             view_transform: ViewTransform::default(),
@@ -293,6 +318,8 @@ impl Default for SnapApp {
             multi_planar: false,
             dual_plane: false,
             compare_side_by_side: false,
+            compare_fused_overlay: false,
+            compare_fusion_alpha: 0.35,
             dual_axes: [0, 1],
             compare_axes: [0, 0],
             show_overlay: true,
@@ -425,6 +452,7 @@ impl SnapApp {
                             self.multi_planar = false;
                             self.dual_plane = false;
                             self.compare_side_by_side = false;
+                            self.compare_fused_overlay = false;
                             self.mark_all_textures_dirty();
                             ui.close_menu();
                         }
@@ -432,6 +460,7 @@ impl SnapApp {
                             self.dual_plane = true;
                             self.multi_planar = false;
                             self.compare_side_by_side = false;
+                            self.compare_fused_overlay = false;
                             self.mark_all_textures_dirty();
                             ui.close_menu();
                         }
@@ -442,6 +471,7 @@ impl SnapApp {
                             self.multi_planar = true;
                             self.dual_plane = false;
                             self.compare_side_by_side = false;
+                            self.compare_fused_overlay = false;
                             self.mark_all_textures_dirty();
                             ui.close_menu();
                         }
@@ -567,6 +597,25 @@ impl SnapApp {
                                 self.secondary_window_center = Some(c);
                                 self.secondary_window_width = Some(w.max(1.0));
                                 self.secondary_texture_dirty = true;
+                            }
+
+                            ui.separator();
+                            if ui
+                                .checkbox(&mut self.compare_fused_overlay, "Fused Overlay")
+                                .changed()
+                            {
+                                self.secondary_texture_dirty = true;
+                            }
+                            if self.compare_fused_overlay {
+                                let alpha_changed = ui
+                                    .add(
+                                        egui::Slider::new(&mut self.compare_fusion_alpha, 0.0..=1.0)
+                                            .text("Secondary Alpha"),
+                                    )
+                                    .changed();
+                                if alpha_changed {
+                                    self.secondary_texture_dirty = true;
+                                }
                             }
                         } else {
                             ui.label("Enable Compare layout to configure compare options.");
@@ -760,6 +809,7 @@ impl SnapApp {
                         self.texture_dirty = true;
                         self.coronal_dirty = true;
                         self.sagittal_dirty = true;
+                        self.mip_dirty = true;
                     }
 
                     ui.separator();
@@ -848,6 +898,7 @@ impl SnapApp {
                                 self.texture_dirty = true;
                                 self.coronal_dirty = true;
                                 self.sagittal_dirty = true;
+                                self.mip_dirty = true;
                             }
                         }
                     });
@@ -897,13 +948,17 @@ impl SnapApp {
                 // ── Image ────────────────────────────────────────────────────
                 ui.menu_button("Image", |ui| {
                     ui.menu_button("Axis", |ui| {
-                        for (name, idx) in [("Axial", 0usize), ("Coronal", 1), ("Sagittal", 2)] {
-                            if ui.selectable_label(self.axis == idx, name).clicked()
+                        for plane in [
+                            AnatomicalPlane::Axial,
+                            AnatomicalPlane::Coronal,
+                            AnatomicalPlane::Sagittal,
+                        ] {
+                            let idx = self.axis_for_plane(plane);
+                            if ui.selectable_label(self.axis == idx, plane.label()).clicked()
                                 && self.axis != idx
                             {
                                 ui.close_menu();
                                 self.axis = idx;
-                                self.viewer_state.slice_index = 0;
                                 self.texture_dirty = true;
                             }
                         }
@@ -962,6 +1017,7 @@ impl SnapApp {
                         self.texture_dirty = true;
                         self.coronal_dirty = true;
                         self.sagittal_dirty = true;
+                        self.mip_dirty = true;
                     }
                 });
             });
@@ -1070,6 +1126,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.mip_dirty = true;
         self.status_message = "Zoom reset to fit.".to_owned();
     }
 
@@ -1133,6 +1190,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.mip_dirty = true;
         self.secondary_texture_dirty = true;
     }
 
@@ -1161,6 +1219,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.mip_dirty = true;
     }
 
     fn session_snapshot(&self) -> ViewerSessionSnapshot {
@@ -1211,6 +1270,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.mip_dirty = true;
         self.linked_cursor = self.loaded.as_ref().map(|vol| {
             LinkedCursor::from_slices(
                 vol.shape,
@@ -1316,7 +1376,7 @@ impl SnapApp {
                     ui.separator();
                     ui.label(format!("Slice {}/{}", slice_idx + 1, total));
                     ui.separator();
-                    let axis_name = ["Axial", "Coronal", "Sagittal"][self.status_axis.min(2)];
+                    let axis_name = self.axis_label(self.status_axis);
                     ui.label(axis_name);
 
                     // Voxel I/J/K index and physical LPS position from linked cursor.
@@ -1390,25 +1450,35 @@ impl SnapApp {
 
     // ── Multi-planar side-by-side viewport ───────────────────────────────────
 
-    /// Render side-by-side MPR viewports (Axial / Coronal / Sagittal) with
+    /// Render 2×2 MPR viewports (Coronal / Axial / Sagittal / 3D-MIP) with
     /// a shared Info panel row below.
     fn show_central_panel_multi(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
             let avail = ui.available_size();
             let info_h = (avail.y * 0.24).clamp(110.0, 210.0);
-            let view_h = (avail.y - info_h - 6.0).max(120.0);
-            let view_w = avail.x / 3.0;
+            let grid_h = (avail.y - info_h - 6.0).max(160.0);
+            let row_h = grid_h / 2.0;
+            let col_w = avail.x / 2.0;
 
-            ui.allocate_ui(egui::vec2(avail.x, view_h), |ui| {
+            let axial_axis = self.axis_for_plane(AnatomicalPlane::Axial);
+            let coronal_axis = self.axis_for_plane(AnatomicalPlane::Coronal);
+            let sagittal_axis = self.axis_for_plane(AnatomicalPlane::Sagittal);
+
+            ui.allocate_ui(egui::vec2(avail.x, grid_h), |ui| {
                 ui.horizontal(|ui| {
-                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
-                        self.render_axis_viewport(ui, ctx, 0); // Axial
+                    ui.allocate_ui(egui::vec2(col_w, row_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, coronal_axis);
                     });
-                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
-                        self.render_axis_viewport(ui, ctx, 1); // Coronal
+                    ui.allocate_ui(egui::vec2(col_w, row_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, axial_axis);
                     });
-                    ui.allocate_ui(egui::vec2(view_w, view_h), |ui| {
-                        self.render_axis_viewport(ui, ctx, 2); // Sagittal
+                });
+                ui.horizontal(|ui| {
+                    ui.allocate_ui(egui::vec2(col_w, row_h), |ui| {
+                        self.render_axis_viewport(ui, ctx, sagittal_axis);
+                    });
+                    ui.allocate_ui(egui::vec2(col_w, row_h), |ui| {
+                        self.render_mip_viewport(ui, ctx); // 3D-MIP
                     });
                 });
             });
@@ -1487,7 +1557,11 @@ impl SnapApp {
                 ui.columns(2, |cols| {
                     cols[0].heading("Primary");
                     self.show_right_info_panel(&mut cols[0]);
-                    cols[1].heading("Secondary");
+                    cols[1].heading(if self.compare_fused_overlay {
+                        "Fused"
+                    } else {
+                        "Secondary"
+                    });
                     if let Some(vol) = &self.loaded_secondary {
                         let [d, r, c] = vol.shape;
                         let [dz, dy, dx] = vol.spacing;
@@ -1501,6 +1575,9 @@ impl SnapApp {
                             "Series: {}",
                             vol.series_description.as_deref().unwrap_or("—")
                         ));
+                        if self.compare_fused_overlay {
+                            cols[1].label(format!("Alpha: {:.2}", self.compare_fusion_alpha));
+                        }
                     } else {
                         cols[1].label("No secondary volume loaded.");
                     }
@@ -1550,7 +1627,7 @@ impl SnapApp {
             Some(info) => info,
             None => {
                 ui.centered_and_justified(|ui| {
-                    let label = ["Axial", "Coronal", "Sagittal"][axis.min(2)];
+                    let label = self.axis_label(axis);
                     ui.label(format!("{label} — open a volume to begin"));
                 });
                 return;
@@ -1607,7 +1684,7 @@ impl SnapApp {
         // Painter::new clones the Arc<Context>; it does not hold a borrow on ui.
         let painter = ui.painter_at(response.rect);
 
-        let axis_name = ["Axial", "Coronal", "Sagittal"][axis.min(2)];
+        let axis_name = self.axis_label(axis);
         let label_color = egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210);
 
         painter.text(
@@ -1833,12 +1910,57 @@ impl SnapApp {
             secondary_total,
         );
 
-        let needs_rebuild = self.secondary_texture_dirty
-            || self.secondary_texture.is_none()
-            || self.secondary_texture_axis != secondary_axis
-            || self.secondary_texture_slice != secondary_idx;
+        let needs_rebuild = if self.compare_fused_overlay {
+            true
+        } else {
+            self.secondary_texture_dirty
+                || self.secondary_texture.is_none()
+                || self.secondary_texture_axis != secondary_axis
+                || self.secondary_texture_slice != secondary_idx
+        };
         if needs_rebuild {
-            self.rebuild_secondary_texture(ctx, secondary_axis, secondary_idx);
+            if self.compare_fused_overlay {
+                let (color_image, tex_name) = {
+                    let Some(primary) = self.loaded.as_ref() else { return };
+                    let primary_wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
+                    let primary_ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+                    let secondary_wc = self.secondary_window_center.unwrap_or(128.0) as f64;
+                    let secondary_ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
+                    let color_image = render_fused_slice(
+                        primary,
+                        primary_axis,
+                        primary_idx,
+                        WindowLevel::new(primary_wc, primary_ww),
+                        self.colormap,
+                        secondary,
+                        secondary_axis,
+                        secondary_idx,
+                        WindowLevel::new(secondary_wc, secondary_ww),
+                        self.secondary_colormap,
+                        self.compare_fusion_alpha,
+                    );
+                    let color_image = apply_to_image(&color_image, self.view_transform);
+                    let tex_name = format!(
+                        "slice_tex_fused_axis{}_{}_slice{}_{}_a{}",
+                        primary_axis.min(2),
+                        secondary_axis.min(2),
+                        primary_idx,
+                        secondary_idx,
+                        (self.compare_fusion_alpha.clamp(0.0, 1.0) * 100.0).round() as i32,
+                    );
+                    (color_image, tex_name)
+                };
+                self.secondary_texture = Some(ctx.load_texture(
+                    tex_name,
+                    color_image,
+                    egui::TextureOptions::LINEAR,
+                ));
+                self.secondary_texture_axis = secondary_axis;
+                self.secondary_texture_slice = secondary_idx;
+                self.secondary_texture_dirty = false;
+            } else {
+                self.rebuild_secondary_texture(ctx, secondary_axis, secondary_idx);
+            }
         }
 
         let Some(tex) = self.secondary_texture.as_ref() else {
@@ -1863,7 +1985,11 @@ impl SnapApp {
         painter.text(
             response.rect.min + egui::vec2(6.0, 6.0),
             egui::Align2::LEFT_TOP,
-            "Secondary",
+            if self.compare_fused_overlay {
+                "Fused"
+            } else {
+                "Secondary"
+            },
             egui::FontId::proportional(12.0),
             egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210),
         );
@@ -1904,6 +2030,92 @@ impl SnapApp {
             1 => self.coronal_tex = Some(tex),
             _ => self.sagittal_tex = Some(tex),
         }
+    }
+
+    /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
+    fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) {
+        let color_image = {
+            let Some(vol) = &self.loaded else { return };
+            let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
+            let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+            let wl = WindowLevel::new(wc, ww);
+            match self.projection_mode {
+                ProjectionMode::Mip => render_mip_axial(vol, wl, self.colormap),
+                ProjectionMode::Vr => render_vr_axial(vol, wl, self.colormap, 0.06),
+            }
+        };
+
+        self.mip_tex = Some(ctx.load_texture(
+            "slice_tex_mip_axial",
+            color_image,
+            egui::TextureOptions::LINEAR,
+        ));
+    }
+
+    /// Render one 3D-MIP viewport into `ui`.
+    fn render_mip_viewport(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let needs_rebuild = self.mip_dirty || self.mip_tex.is_none();
+        if needs_rebuild && self.loaded.is_some() {
+            self.rebuild_texture_for_mip(ctx);
+            self.mip_dirty = false;
+        }
+
+        let Some((tex_id, [tex_w_usize, tex_h_usize])) =
+            self.mip_tex.as_ref().map(|t| (t.id(), t.size()))
+        else {
+            ui.centered_and_justified(|ui| {
+                ui.label("3D MIP — open a volume to begin");
+            });
+            return;
+        };
+
+        let tex_w = tex_w_usize as f32;
+        let tex_h = tex_h_usize as f32;
+        let available = ui.available_size();
+        let fit_scale = if tex_w > 0.0 && tex_h > 0.0 {
+            (available.x / tex_w).min(available.y / tex_h)
+        } else {
+            1.0
+        };
+        let s = fit_scale * self.zoom;
+        let display_size = egui::vec2(tex_w * s, tex_h * s);
+
+        let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size));
+        let response = ui.add(image_widget);
+
+        let painter = ui.painter_at(response.rect);
+        let label = match self.projection_mode {
+            ProjectionMode::Mip => "3D MIP",
+            ProjectionMode::Vr => "3D VR",
+        };
+        painter.text(
+            response.rect.min + egui::vec2(6.0, 6.0),
+            egui::Align2::LEFT_TOP,
+            label,
+            egui::FontId::proportional(12.0),
+            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210),
+        );
+
+        response.context_menu(|ui| {
+            ui.label("3D Projection");
+            ui.separator();
+            if ui
+                .selectable_label(self.projection_mode == ProjectionMode::Mip, "MIP")
+                .clicked()
+            {
+                self.projection_mode = ProjectionMode::Mip;
+                self.mip_dirty = true;
+                ui.close_menu();
+            }
+            if ui
+                .selectable_label(self.projection_mode == ProjectionMode::Vr, "VR")
+                .clicked()
+            {
+                self.projection_mode = ProjectionMode::Vr;
+                self.mip_dirty = true;
+                ui.close_menu();
+            }
+        });
     }
 
     fn rebuild_secondary_texture(&mut self, ctx: &egui::Context, axis: usize, slice_index: usize) {
@@ -1962,7 +2174,7 @@ impl SnapApp {
                             2 => (self.sagittal_slice, cols),
                             _ => (self.viewer_state.slice_index, depth),
                         };
-                        let axis_name = ["Axial", "Coronal", "Sagittal"][self.status_axis.min(2)];
+                        let axis_name = self.axis_label(self.status_axis);
                         row(ui, axis_name, &format!("{}/{}", slice_idx + 1, total));
                         row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
                         row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
@@ -2542,6 +2754,7 @@ impl SnapApp {
                 self.texture_dirty = true;
                 self.coronal_dirty = true;
                 self.sagittal_dirty = true;
+                self.mip_dirty = true;
                 self.status_message = "Filter applied.".to_owned();
             }
         }
@@ -2977,6 +3190,7 @@ impl SnapApp {
                 self.multi_planar = protocol.multi_planar;
                 self.dual_plane = false;
                 self.compare_side_by_side = false;
+                self.compare_fused_overlay = false;
                 self.linked_cursor = Some(LinkedCursor::from_slices(
                     shape,
                     self.viewer_state.slice_index,
@@ -3002,6 +3216,8 @@ impl SnapApp {
                 self.coronal_dirty = true;
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
+                self.mip_tex = None;
+                self.mip_dirty = true;
                 self.status_message = format!(
                     "Loaded {} (root {}) — shape [{}, {}, {}] — protocol {}",
                     path.display(),
@@ -3122,6 +3338,7 @@ impl SnapApp {
                 self.multi_planar = protocol.multi_planar;
                 self.dual_plane = false;
                 self.compare_side_by_side = false;
+                self.compare_fused_overlay = false;
                 self.linked_cursor = Some(LinkedCursor::from_slices(
                     shape,
                     self.viewer_state.slice_index,
@@ -3147,6 +3364,8 @@ impl SnapApp {
                 self.coronal_dirty = true;
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
+                self.mip_tex = None;
+                self.mip_dirty = true;
                 self.status_message = msg;
                 self.refresh_cached_histogram();
                 info!("{}", self.status_message);
@@ -3208,6 +3427,8 @@ impl SnapApp {
                 self.coronal_dirty = true;
                 self.sagittal_tex = None;
                 self.sagittal_dirty = true;
+                self.mip_tex = None;
+                self.mip_dirty = true;
                 self.status_message = msg;
 
                 self.refresh_cached_histogram();
@@ -3253,6 +3474,7 @@ impl SnapApp {
                 self.multi_planar = protocol.multi_planar;
                 self.dual_plane = false;
                 self.compare_side_by_side = false;
+                self.compare_fused_overlay = false;
                 self.linked_cursor = Some(LinkedCursor::from_slices(
                     shape,
                     self.viewer_state.slice_index,
@@ -3303,6 +3525,8 @@ impl SnapApp {
         self.multi_planar = false;
         self.dual_plane = false;
         self.compare_side_by_side = false;
+        self.compare_fused_overlay = false;
+        self.compare_fusion_alpha = 0.35;
         self.compare_axes = [0, 0];
         self.dual_axes = [0, 1];
         self.annotations.clear();
@@ -3325,12 +3549,15 @@ impl SnapApp {
         self.secondary_texture = None;
         self.coronal_tex = None;
         self.sagittal_tex = None;
+        self.mip_tex = None;
+        self.projection_mode = ProjectionMode::Mip;
         self.texture_dirty = false;
         self.secondary_texture_dirty = false;
         self.secondary_texture_axis = 0;
         self.secondary_texture_slice = 0;
         self.coronal_dirty = false;
         self.sagittal_dirty = false;
+        self.mip_dirty = false;
         self.cine.stop();
         self.status_message = "Study closed.".to_owned();
     }
@@ -3391,23 +3618,27 @@ impl SnapApp {
         self.rt_dose_overlay_cache = std::array::from_fn(|_| None);
     }
 
+    fn axis_for_plane(&self, plane: AnatomicalPlane) -> usize {
+        axis_for_plane_in_volume(self.loaded.as_ref(), plane)
+    }
+
+    fn axis_label(&self, axis: usize) -> &'static str {
+        anatomical_label_for_axis(self.loaded.as_ref(), axis)
+    }
+
     // ── Slice navigation ──────────────────────────────────────────────────────
 
     /// Return `(current_slice_index, total_slices)` for `axis`.
     fn axis_slice_info(&self, axis: usize) -> (usize, usize) {
+        let total = self
+            .loaded
+            .as_ref()
+            .map(|v| axis_total(v.shape, axis))
+            .unwrap_or(1);
         match axis {
-            0 => (
-                self.viewer_state.slice_index,
-                self.loaded.as_ref().map(|v| v.shape[0]).unwrap_or(1),
-            ),
-            1 => (
-                self.coronal_slice,
-                self.loaded.as_ref().map(|v| v.shape[1]).unwrap_or(1),
-            ),
-            _ => (
-                self.sagittal_slice,
-                self.loaded.as_ref().map(|v| v.shape[2]).unwrap_or(1),
-            ),
+            0 => (self.viewer_state.slice_index, total),
+            1 => (self.coronal_slice, total),
+            _ => (self.sagittal_slice, total),
         }
     }
 
@@ -3415,12 +3646,12 @@ impl SnapApp {
     ///
     /// Marks the corresponding texture dirty when the index changes.
     fn set_slice_for_axis(&mut self, axis: usize, index: usize) {
-        let total = match axis {
-            0 => self.loaded.as_ref().map(|v| v.shape[0]).unwrap_or(1),
-            1 => self.loaded.as_ref().map(|v| v.shape[1]).unwrap_or(1),
-            _ => self.loaded.as_ref().map(|v| v.shape[2]).unwrap_or(1),
-        };
-        let next = index.min(total.saturating_sub(1));
+        let total = self
+            .loaded
+            .as_ref()
+            .map(|v| axis_total(v.shape, axis))
+            .unwrap_or(1);
+        let next = clamp_index(index, total);
 
         match axis {
             0 => {
@@ -3458,8 +3689,7 @@ impl SnapApp {
     /// Marks the corresponding texture dirty when the index changes.
     fn step_slice_for_axis(&mut self, axis: usize, delta: i32) {
         let (current, total) = self.axis_slice_info(axis);
-        let max = total.saturating_sub(1) as i32;
-        let next = ((current as i32) + delta).clamp(0, max) as usize;
+        let next = step_clamped(current, total, delta);
         self.set_slice_for_axis(axis, next);
     }
 
@@ -3480,11 +3710,11 @@ impl SnapApp {
         if steps == 0 {
             return;
         }
-        let total = match axis {
-            0 => self.loaded.as_ref().map(|v| v.shape[0]).unwrap_or(1),
-            1 => self.loaded.as_ref().map(|v| v.shape[1]).unwrap_or(1),
-            _ => self.loaded.as_ref().map(|v| v.shape[2]).unwrap_or(1),
-        };
+        let total = self
+            .loaded
+            .as_ref()
+            .map(|v| axis_total(v.shape, axis))
+            .unwrap_or(1);
         if total == 0 {
             return;
         }
@@ -3493,7 +3723,7 @@ impl SnapApp {
             1 => self.coronal_slice,
             _ => self.sagittal_slice,
         };
-        let next = (current + steps as usize) % total;
+        let next = advance_wrapped(current, total, steps);
         self.set_slice_for_axis(axis, next);
     }
 
@@ -3595,6 +3825,7 @@ impl SnapApp {
                 self.texture_dirty = true;
                 self.coronal_dirty = true;
                 self.sagittal_dirty = true;
+                self.mip_dirty = true;
             }
             ToolState::RoiDrag { start, kind, .. } => {
                 self.tool_state = ToolState::RoiDrag {
@@ -3815,6 +4046,7 @@ impl SnapApp {
         self.texture_dirty = true;
         self.coronal_dirty = true;
         self.sagittal_dirty = true;
+        self.mip_dirty = true;
         self.status_message = format!(
             "Linked cursor axis={} voxel=[{},{},{}]",
             axis, voxel[0], voxel[1], voxel[2]
@@ -4062,6 +4294,7 @@ mod tests {
         app.texture_dirty = false;
         app.coronal_dirty = false;
         app.sagittal_dirty = false;
+        app.mip_dirty = false;
 
         app.reset_view_to_fit();
 
@@ -4070,6 +4303,7 @@ mod tests {
         assert!(app.texture_dirty);
         assert!(app.coronal_dirty);
         assert!(app.sagittal_dirty);
+        assert!(app.mip_dirty);
         assert_eq!(app.status_message, "Zoom reset to fit.");
     }
 
@@ -4093,6 +4327,7 @@ mod tests {
             4,
         ));
         app.selected_series = Some(std::path::PathBuf::from("series"));
+        app.projection_mode = ProjectionMode::Vr;
 
         app.close_study();
 
@@ -4108,6 +4343,7 @@ mod tests {
         assert_eq!(app.pointer_intensity, 0.0, "pointer intensity must reset");
         assert_eq!(app.pan_offset, egui::Vec2::ZERO, "pan must reset");
         assert_eq!(app.zoom, 1.0, "zoom must reset");
+        assert_eq!(app.projection_mode, ProjectionMode::Mip, "projection mode must reset to MIP");
         assert_eq!(app.status_message, "Study closed.");
     }
 
@@ -4510,6 +4746,7 @@ mod tests {
         assert!(app.texture_dirty, "axial dirty not set");
         assert!(app.coronal_dirty, "coronal dirty not set");
         assert!(app.sagittal_dirty, "sagittal dirty not set");
+        assert!(app.mip_dirty, "mip dirty not set");
     }
 
     /// advance_slice_for_axis_loop wraps correctly and routes through set_slice_for_axis.

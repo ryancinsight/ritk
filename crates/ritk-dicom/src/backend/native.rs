@@ -6,7 +6,7 @@
 use anyhow::{bail, Result};
 
 use crate::backend::{
-    DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, FrameDecodeBackend,
+    DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, PixelDecodeBackend,
 };
 use crate::codec::{
     decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment,
@@ -17,7 +17,7 @@ use crate::syntax::TransferSyntaxKind;
 #[derive(Debug, Clone, Copy, Default)]
 pub struct NativeCodecBackend;
 
-impl<O> FrameDecodeBackend<O> for NativeCodecBackend
+impl<O> PixelDecodeBackend<O> for NativeCodecBackend
 where
     O: EncapsulatedFrameSource,
 {
@@ -98,6 +98,21 @@ mod tests {
         }
     }
 
+    fn encode_grayscale_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
+        use image::{DynamicImage, GrayImage};
+
+        let image = GrayImage::from_raw(width, height, pixels.to_vec())
+            .expect("test image dimensions must match pixel count");
+        let mut jpeg = Vec::new();
+        DynamicImage::ImageLuma8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpeg),
+                image::ImageFormat::Jpeg,
+            )
+            .expect("test JPEG encode must succeed");
+        jpeg
+    }
+
     #[test]
     fn native_backend_decodes_rle_without_dicom_rs_object() {
         let source = SingleFragment(rle_fragment_8bit(&[1, 2, 3, 4]));
@@ -112,6 +127,32 @@ mod tests {
         .unwrap();
 
         assert_eq!(decoded.pixels, vec![1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn native_backend_decodes_jpeg_baseline_without_dicom_rs_object() {
+        let source = SingleFragment(encode_grayscale_jpeg(2, 2, &[32, 32, 32, 32]));
+        let decoded = NativeCodecBackend::decode_frame(
+            &source,
+            DecodeFrameRequest {
+                frame_index: 0,
+                transfer_syntax: TransferSyntaxKind::JpegBaseline,
+                layout: PixelLayout {
+                    rescale_slope: 2.0,
+                    rescale_intercept: -10.0,
+                    ..layout(2, 2)
+                },
+            },
+        )
+        .unwrap();
+
+        assert_eq!(decoded.pixels.len(), 4);
+        for value in decoded.pixels {
+            assert!(
+                (value - 54.0).abs() <= 2.0,
+                "expected JPEG decoded sample near 32 with modality LUT result near 54, got {value}"
+            );
+        }
     }
 
     #[test]
@@ -145,7 +186,7 @@ mod tests {
                 layout: layout(2, 2),
             },
         );
-        
+
         // Should NOT get "not implemented by NativeCodecBackend" error
         // It will fail because NoFragmentRead doesn't provide data, but with a different error
         if let Err(e) = &result {

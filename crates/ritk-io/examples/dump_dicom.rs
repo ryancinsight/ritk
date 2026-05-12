@@ -76,7 +76,10 @@ fn main() -> anyhow::Result<()> {
         }
         println!(
             "SEG FramePositionsPresent: {}",
-            seg.image_position_per_frame.iter().filter(|p| p.is_some()).count()
+            seg.image_position_per_frame
+                .iter()
+                .filter(|p| p.is_some())
+                .count()
         );
         return Ok(());
     }

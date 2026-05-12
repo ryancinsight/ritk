@@ -45,8 +45,7 @@ fn test_read_write_nifti_cycle() -> Result<()> {
 
     // Note: if pixdim is not set, read_nifti might fallback to pixdim if sform_code=0, but we set sform_code=1.
     // So read_nifti should use sform to derive spacing.
-    // Columns of sform are [0.5, 0, 0], [0, 0.5, 0], [0, 0, 2.0].
-    // Norms are 0.5, 0.5, 2.0. Correct.
+    // Read and write both use sform as the metadata source of truth.
     assert!((l_spacing[0] - 0.5).abs() < 1e-5);
     assert!((l_spacing[2] - 2.0).abs() < 1e-5);
 
@@ -80,6 +79,88 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
     assert!((loaded.spacing()[0] - 1.0).abs() < 1e-5);
     assert!((loaded.spacing()[1] - 0.7).abs() < 1e-5);
     assert!((loaded.spacing()[2] - 2.3).abs() < 1e-5);
+
+    Ok(())
+}
+
+#[test]
+fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
+    use std::f64::consts::FRAC_PI_6;
+
+    let dir = tempdir()?;
+    let file_path = dir.path().join("oblique_roundtrip.nii");
+    let device = Default::default();
+
+    let shape = Shape::new([2, 3, 4]); // Z, Y, X
+    let values = (0..24).map(|v| v as f32).collect::<Vec<_>>();
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(values.clone(), shape), &device);
+
+    let origin = Point::new([11.0, -7.5, 3.25]);
+    let spacing = Spacing::new([2.0, 1.5, 0.75]);
+    let cosine = FRAC_PI_6.cos();
+    let sine = FRAC_PI_6.sin();
+    let direction = Direction(SMatrix::from_row_slice(&[
+        cosine, -sine, 0.0, sine, cosine, 0.0, 0.0, 0.0, 1.0,
+    ]));
+
+    let image = Image::new(tensor, origin, spacing, direction);
+
+    write_nifti(&file_path, &image)?;
+    let loaded = read_nifti::<TestBackend, _>(&file_path, &device)?;
+
+    assert_eq!(
+        loaded.shape(),
+        [2, 3, 4],
+        "oblique round-trip must preserve shape"
+    );
+    for axis in 0..3 {
+        assert!(
+            (loaded.origin()[axis] - image.origin()[axis]).abs() < 1e-6,
+            "oblique round-trip must preserve origin axis {axis}"
+        );
+        assert!(
+            (loaded.spacing()[axis] - image.spacing()[axis]).abs() < 1e-6,
+            "oblique round-trip must preserve spacing axis {axis}"
+        );
+    }
+    for row in 0..3 {
+        for col in 0..3 {
+            assert!(
+                (loaded.direction().0[(row, col)] - image.direction().0[(row, col)]).abs() < 1e-6,
+                "oblique round-trip must preserve direction entry ({row},{col})"
+            );
+        }
+    }
+
+    let sample = |z: usize, y: usize, x: usize| -> f32 {
+        loaded
+            .data()
+            .clone()
+            .slice([z..z + 1, y..y + 1, x..x + 1])
+            .into_data()
+            .as_slice::<f32>()
+            .expect("sampled tensor must be contiguous")[0]
+    };
+    assert_eq!(sample(0, 0, 0), 0.0, "logical voxel [0,0,0] must survive");
+    assert_eq!(sample(0, 1, 2), 6.0, "logical voxel [0,1,2] must survive");
+    assert_eq!(sample(1, 2, 3), 23.0, "logical voxel [1,2,3] must survive");
+
+    let index = Point::new([1.0, 2.0, 3.0]);
+    let physical = loaded.transform_continuous_index_to_physical_point(&index);
+    let expected = image.transform_continuous_index_to_physical_point(&index);
+    assert!(
+        (physical[0] - expected[0]).abs() < 1e-6,
+        "physical x must follow oblique affine"
+    );
+    assert!(
+        (physical[1] - expected[1]).abs() < 1e-6,
+        "physical y must follow oblique affine"
+    );
+    assert!(
+        (physical[2] - expected[2]).abs() < 1e-6,
+        "physical z must follow oblique affine"
+    );
 
     Ok(())
 }
@@ -162,7 +243,9 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
 
     let origin = Point::new([11.5, -7.25, 3.0]);
     let spacing = Spacing::new([0.8, 1.2, 2.5]);
-    let direction = Direction(SMatrix::identity());
+    let direction = Direction(SMatrix::from_row_slice(&[
+        0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0,
+    ]));
 
     let image = Image::new(tensor, origin, spacing, direction);
 
@@ -177,16 +260,16 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
         "writer must disable qform when emitting sform SSOT"
     );
     assert!(
-        (header.pixdim[1] - 0.8).abs() < 1e-6,
-        "pixdim[1] must store x-spacing"
+        (header.pixdim[1] - 2.5).abs() < 1e-6,
+        "pixdim[1] must store NIfTI x-spacing from internal col spacing"
     );
     assert!(
         (header.pixdim[2] - 1.2).abs() < 1e-6,
         "pixdim[2] must store y-spacing"
     );
     assert!(
-        (header.pixdim[3] - 2.5).abs() < 1e-6,
-        "pixdim[3] must store z-spacing"
+        (header.pixdim[3] - 0.8).abs() < 1e-6,
+        "pixdim[3] must store NIfTI z-spacing from internal depth spacing"
     );
     assert_eq!(
         header.xyzt_units, 2,
@@ -194,50 +277,50 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
     );
 
     assert!(
-        (header.srow_x[0] - 0.8).abs() < 1e-6,
-        "srow_x[0] must encode x spacing"
+        (header.srow_x[0] + 2.5).abs() < 1e-6,
+        "srow_x[0] must encode RAS x spacing from internal column axis"
     );
     assert!(
         (header.srow_x[1] - 0.0).abs() < 1e-6,
-        "srow_x[1] must remain zero for identity direction"
+        "srow_x[1] must remain zero for axial direction"
     );
     assert!(
         (header.srow_x[2] - 0.0).abs() < 1e-6,
-        "srow_x[2] must remain zero for identity direction"
+        "srow_x[2] must remain zero for axial direction"
     );
     assert!(
-        (header.srow_x[3] - 11.5).abs() < 1e-6,
-        "srow_x[3] must encode x origin"
+        (header.srow_x[3] + 11.5).abs() < 1e-6,
+        "srow_x[3] must encode RAS x origin from internal LPS"
     );
 
     assert!(
         (header.srow_y[0] - 0.0).abs() < 1e-6,
-        "srow_y[0] must remain zero for identity direction"
+        "srow_y[0] must remain zero for axial direction"
     );
     assert!(
-        (header.srow_y[1] - 1.2).abs() < 1e-6,
-        "srow_y[1] must encode y spacing"
+        (header.srow_y[1] + 1.2).abs() < 1e-6,
+        "srow_y[1] must encode RAS y spacing from internal LPS"
     );
     assert!(
         (header.srow_y[2] - 0.0).abs() < 1e-6,
-        "srow_y[2] must remain zero for identity direction"
+        "srow_y[2] must remain zero for axial direction"
     );
     assert!(
-        (header.srow_y[3] + 7.25).abs() < 1e-6,
-        "srow_y[3] must encode y origin"
+        (header.srow_y[3] - 7.25).abs() < 1e-6,
+        "srow_y[3] must encode RAS y origin from internal LPS"
     );
 
     assert!(
         (header.srow_z[0] - 0.0).abs() < 1e-6,
-        "srow_z[0] must remain zero for identity direction"
+        "srow_z[0] must remain zero for axial direction"
     );
     assert!(
         (header.srow_z[1] - 0.0).abs() < 1e-6,
-        "srow_z[1] must remain zero for identity direction"
+        "srow_z[1] must remain zero for axial direction"
     );
     assert!(
-        (header.srow_z[2] - 2.5).abs() < 1e-6,
-        "srow_z[2] must encode z spacing"
+        (header.srow_z[2] - 0.8).abs() < 1e-6,
+        "srow_z[2] must encode RAS z spacing from internal depth axis"
     );
     assert!(
         (header.srow_z[3] - 3.0).abs() < 1e-6,
@@ -265,22 +348,25 @@ fn write_nifti_labels_round_trip_preserves_all_voxels() -> Result<()> {
     let labels: Vec<u32> = (1..=n as u32).collect();
     let origin = [10.0_f32, 20.0, 30.0];
     let spacing = [1.5_f32, 1.0, 0.8];
-    // Identity direction.
-    let direction: [f32; 9] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    // Axial LPS direction: columns are depth, row, column.
+    let direction: [f32; 9] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
 
     write_nifti_labels(&path, &labels, [nz, ny, nx], origin, spacing, direction)?;
 
     let (read_labels, read_shape) = read_nifti_labels(&path)?;
 
     assert_eq!(read_shape, [nz, ny, nx], "shape must survive round-trip");
-    assert_eq!(read_labels.len(), n, "label vector length must equal nz*ny*nx");
+    assert_eq!(
+        read_labels.len(),
+        n,
+        "label vector length must equal nz*ny*nx"
+    );
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
                 let flat = z * ny * nx + y * nx + x;
                 assert_eq!(
-                    read_labels[flat],
-                    labels[flat],
+                    read_labels[flat], labels[flat],
                     "label at ({z},{y},{x}) must survive round-trip"
                 );
             }
@@ -297,7 +383,7 @@ fn write_nifti_labels_all_background_round_trips() -> Result<()> {
 
     let [nz, ny, nx]: [usize; 3] = [3, 3, 3];
     let labels = vec![0u32; nz * ny * nx];
-    let direction: [f32; 9] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    let direction: [f32; 9] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
 
     write_nifti_labels(&path, &labels, [nz, ny, nx], [0.0; 3], [1.0; 3], direction)?;
     let (read_labels, read_shape) = read_nifti_labels(&path)?;
@@ -341,38 +427,59 @@ fn write_nifti_labels_single_voxel_label_7_round_trips() -> Result<()> {
     Ok(())
 }
 
-/// Sform affine written by write_nifti_labels encodes origin and spacing
-/// identically to the write_nifti convention.  We verify by reading the raw
-/// NIfTI header after writing.
+/// Sform affine written by write_nifti_labels encodes internal LPS metadata
+/// as RAS rows in the NIfTI header. We verify by reading the raw header.
 #[test]
 fn write_nifti_labels_sform_encodes_origin_and_spacing() -> Result<()> {
     use nifti::{NiftiObject, ReaderOptions};
     let dir = tempdir()?;
     let path = dir.path().join("spatial.nii");
-    let direction: [f32; 9] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
+    let direction: [f32; 9] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
 
     write_nifti_labels(
         &path,
         &[0u32],
         [1, 1, 1],
-        [5.0, 6.0, 7.0],  // origin [dz_origin, dy_origin, dx_origin]
-        [2.0, 3.0, 4.0],  // spacing [dz, dy, dx]
+        [5.0, 6.0, 7.0], // origin [x, y, z] in internal LPS frame
+        [2.0, 3.0, 4.0], // spacing [dz, dy, dx]
         direction,
     )?;
 
     let obj = ReaderOptions::new().read_file(&path)?;
     let header = obj.header();
 
-    // srow_x encodes dx (spacing[2]=4.0) along x (column 2 of direction=1).
-    // With identity direction: srow_x = [dz*1, dy*0, dx*0, origin_x] = [2.0, 0.0, 0.0, 5.0]
-    assert!((header.srow_x[0] - 2.0).abs() < 1e-5, "srow_x[0]={}", header.srow_x[0]);
-    assert!((header.srow_x[3] - 5.0).abs() < 1e-5, "srow_x[3]={}", header.srow_x[3]);
-    // srow_y: [0.0, 3.0, 0.0, 6.0]
-    assert!((header.srow_y[1] - 3.0).abs() < 1e-5, "srow_y[1]={}", header.srow_y[1]);
-    assert!((header.srow_y[3] - 6.0).abs() < 1e-5, "srow_y[3]={}", header.srow_y[3]);
-    // srow_z: [0.0, 0.0, 4.0, 7.0]
-    assert!((header.srow_z[2] - 4.0).abs() < 1e-5, "srow_z[2]={}", header.srow_z[2]);
-    assert!((header.srow_z[3] - 7.0).abs() < 1e-5, "srow_z[3]={}", header.srow_z[3]);
+    // With axial LPS direction and spacing [dz, dy, dx] = [2,3,4],
+    // NIfTI file columns [x,y,z] receive internal [col,row,depth].
+    assert!(
+        (header.srow_x[0] + 4.0).abs() < 1e-5,
+        "srow_x[0]={}",
+        header.srow_x[0]
+    );
+    assert!(
+        (header.srow_x[3] + 5.0).abs() < 1e-5,
+        "srow_x[3]={}",
+        header.srow_x[3]
+    );
+    assert!(
+        (header.srow_y[1] + 3.0).abs() < 1e-5,
+        "srow_y[1]={}",
+        header.srow_y[1]
+    );
+    assert!(
+        (header.srow_y[3] + 6.0).abs() < 1e-5,
+        "srow_y[3]={}",
+        header.srow_y[3]
+    );
+    assert!(
+        (header.srow_z[2] - 2.0).abs() < 1e-5,
+        "srow_z[2]={}",
+        header.srow_z[2]
+    );
+    assert!(
+        (header.srow_z[3] - 7.0).abs() < 1e-5,
+        "srow_z[3]={}",
+        header.srow_z[3]
+    );
 
     Ok(())
 }

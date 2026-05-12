@@ -35,6 +35,7 @@
 //! | [`dropped_input`] | Dropped-file routing SSOT for app-shell ingestion decisions. |
 
 pub mod annotation_panel;
+pub mod anatomical_plane;
 pub mod colorbar;
 pub mod dropped_input;
 pub mod view_transform;
@@ -57,6 +58,7 @@ pub mod rt_dose_analytics;
 pub mod rtdose_texture;
 pub mod rtstruct_overlay;
 pub mod sidebar;
+pub mod slice_navigation;
 pub mod toolbar;
 pub mod tool_shortcuts;
 pub mod viewport;
@@ -65,11 +67,17 @@ pub mod window_presets;
 pub mod zoom;
 
 pub use cine::CinePlayback;
+pub use anatomical_plane::{
+	axis_for_plane_in_volume, anatomical_label_for_axis, AnatomicalPlane,
+};
 pub use cursor_info::{format_lps, voxel_to_lps};
 pub use export_plan::{axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport};
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
-pub use mpr_cursor::{axis_slice_dimensions, map_view_row_col_to_voxel, viewport_point_to_voxel, LinkedCursor};
+pub use mpr_cursor::{
+	axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
+	viewport_point_to_voxel, LinkedCursor,
+};
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
 pub use pointer_intensity::intensity_at_voxel;
@@ -81,6 +89,7 @@ pub use preset_panel::draw_preset_buttons;
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use rt_dose_analytics::{compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics};
 pub use sidebar::SidebarPanel;
+pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use tool_shortcuts::tool_kind_for_key;
 pub use viewport::{ViewportPanel, ViewportState};

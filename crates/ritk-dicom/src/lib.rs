@@ -10,8 +10,9 @@ pub mod pixel;
 pub mod syntax;
 
 pub use backend::{
-    DecodeFrameRequest, DecodedFrame, DicomRsBackend, EncapsulatedFrameSource, FrameDecodeBackend,
-    NativeCodecBackend,
+    decode_frame_with, parse_file_with, DecodeFrameRequest, DecodedFrame, DicomBackend,
+    DicomParseBackend, DicomRsBackend, EncapsulatedFrameSource, NativeCodecBackend,
+    PixelDecodeBackend,
 };
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
 #[allow(deprecated)]

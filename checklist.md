@@ -1,3 +1,291 @@
+## Sprint 188 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.11 [patch]
+**Goal**: Close the positive JPEG-LS conformance coverage gap by adding ISO 14495-1 §A.3/§A.6 analytically derived full-frame fixtures to `decode_jpeg_ls_fragment`.
+
+### Checklist items
+- [x] Derive scan bitstreams analytically from ISO 14495-1: run-mode 2×2 all-zero, 1×3 constant run-interrupt + regular mode (Golomb-Rice k=2/k=1), 1×1 run-interrupt with modality LUT
+- [x] Add `build_jpeg_ls_frame` test helper constructing canonical SOI/SOF55/SOS/scan/EOI frames
+- [x] Add `jpeg_ls_fragment_2x2_all_zero_decodes_correctly` positive fixture
+- [x] Add `jpeg_ls_fragment_1x3_constant_value10_decodes_correctly` positive fixture
+- [x] Add `jpeg_ls_fragment_1x1_run_interrupt_with_modality_lut` positive fixture
+- [x] Verify `cargo test -p ritk-codecs --lib` (81 passed; +3 new positive fixtures)
+- [x] Verify `cargo test -p ritk-dicom --lib -q` (12 passed)
+- [x] Verify `cargo test -p ritk-io --lib -q` (234 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| Dedicated-crate ownership decision for PNG, TIFF, JPEG, and MINC | Medium | Open |
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow completion | High | Open |
+
+## Sprint 187 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.10 [patch]
+**Goal**: Make `ritk-codecs` the single implementation source for native DICOM codecs and enforce exclusive native JPEG routing at the `ritk-dicom` backend boundary.
+
+### Checklist items
+- [x] Audit DICOM/JPEG ownership across `ritk-codecs`, `ritk-dicom`, and `ritk-io`
+- [x] Delete stale implementation copies under `crates/ritk-dicom/src/codec/native`
+- [x] Keep `ritk-dicom` codec modules as re-export boundaries to `ritk-codecs`
+- [x] Remove `dicom-rs` fallback after `NativeCodecBackend` errors for native-owned JPEG transfer syntaxes
+- [x] Add native-backend JPEG Baseline decode coverage independent of a `dicom-rs` object
+- [x] Add malformed native-owned JPEG regression coverage proving errors do not route through fallback
+- [x] Rewrite stale JPEG-LS placeholder/TODO comments as negative-fixture boundary assertions
+- [x] Verify `cargo test -p ritk-dicom --lib` (12 passed)
+- [x] Verify `cargo test -p ritk-codecs --lib` (78 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (234 passed)
+- [x] Verify focused JPEG-LS DICOM regression test (1 passed)
+- [x] Verify `cargo fmt --check -p ritk-dicom -p ritk-codecs -p ritk-io` (passed)
+- [x] Verify `git diff --check` (passed; line-ending warnings only)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG dependency replacement inside `ritk-codecs` | High | Open |
+| Positive JPEG-LS conformance fixture for supported lossless bitstreams | High | Open |
+| Dedicated-crate ownership decision for PNG, TIFF, JPEG, and MINC | Medium | Open |
+
+## Sprint 186 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.9 [patch]
+**Goal**: Introduce fused primary/secondary compare rendering with one theorem-backed render SSOT and app-shell controls.
+
+### Checklist items
+- [x] Add formal theorem/proof documentation for bounded convex channel blending in [crates/ritk-snap/src/render/fusion.rs](crates/ritk-snap/src/render/fusion.rs)
+- [x] Add value-semantic fusion tests for alpha-zero primary identity and primary-geometry output sizing
+- [x] Export fused renderer from [crates/ritk-snap/src/render/mod.rs](crates/ritk-snap/src/render/mod.rs)
+- [x] Wire compare fused overlay toggle and alpha control in [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs)
+- [x] Route compare viewport rendering through `render_fused_slice` when fused mode is enabled
+- [x] Verify `cargo test -p ritk-snap --lib -- --nocapture` (439 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow completion | High | In progress (fusion overlay delivered) |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
+## Sprint 185 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.8 [patch]
+**Goal**: Introduce a theorem-backed SSOT for slice clamp/wrap updates and route app navigation through it.
+
+### Checklist items
+- [x] Add formal theorem/proof documentation for clamped and wrapped slice stepping in [crates/ritk-snap/src/ui/slice_navigation.rs](crates/ritk-snap/src/ui/slice_navigation.rs)
+- [x] Add value-semantic tests for clamp bounds, modular equivalence, and zero-total behavior
+- [x] Refactor [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) to use `axis_total`, `clamp_index`, `step_clamped`, and `advance_wrapped`
+- [x] Verify `cargo test -p ritk-snap --lib ui::slice_navigation::tests:: -- --nocapture` (5 passed)
+- [x] Verify `cargo test -p ritk-snap --lib app::tests::advance_slice_for_axis_loop_wraps_and_marks_dirty -- --nocapture` (1 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- --nocapture` (437 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native JPEG replacement behind `ritk-codecs` / `ritk-dicom` boundaries | High | Next image increment |
+| Decide dedicated-crate ownership for PNG, TIFF, JPEG, and MINC | Medium | Open |
+
+## Sprint 184 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.7 [patch]
+**Goal**: Resolve MetaImage payload/spatial-axis drift and close the active PNG coverage gap.
+
+### Checklist items
+- [x] Audit `ritk-metaimage` reader/writer/tests for payload and file-axis metadata contracts
+- [x] Add MetaImage spatial SSOT module for `[x,y,z]` file-axis ↔ `[depth,row,col]` internal metadata conversion
+- [x] Remove MetaImage read/write tensor permutation and preserve X-fastest flat payload order directly
+- [x] Move MetaImage reader/writer tests into dedicated test modules under `crates/ritk-metaimage/src/tests`
+- [x] Add MetaImage value-semantic tests for raw payload order, spacing reorder, direction reorder, writer payload order, and writer header fields
+- [x] Remove PNG series stdout logging
+- [x] Add PNG value-semantic tests for single-slice read, series stacking, dimension mismatch, and natural-sort ordering
+- [x] Verify `cargo test -p ritk-metaimage --lib` (19 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::png` (4 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (234 passed)
+- [x] Verify standalone image crates: Analyze (2), MGH (30), NIfTI (13), NRRD (23), VTK (129), DICOM (10)
+- [x] Verify `cargo fmt --check -p ritk-metaimage -p ritk-io` (passed)
+- [x] Verify `git diff --check` (passed; line-ending warnings only)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native JPEG replacement behind `ritk-codecs` / `ritk-dicom` boundaries | High | Next image increment |
+| Decide dedicated-crate ownership for PNG, TIFF, JPEG, and MINC | Medium | Open |
+
+## Sprint 183 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.6 [patch]
+**Goal**: Re-check all image types and reduce redundant format code by keeping one authoritative implementation per dedicated crate.
+
+### Checklist items
+- [x] Re-enumerate active image formats: Analyze, DICOM, JPEG, MetaImage, MGH/MGZ, MINC, NIfTI, NRRD, PNG, TIFF, VTK
+- [x] Remove stale `ritk-io/src/format/analyze/{reader,writer}.rs`
+- [x] Remove stale `ritk-io/src/format/metaimage/{reader,writer}.rs`
+- [x] Remove stale `ritk-io/src/format/mgh/{reader,writer}.rs`
+- [x] Remove stale VTK legacy/XML implementation copies from `ritk-io/src/format/vtk`
+- [x] Keep `ritk-io::format::vtk` as static `ritk-vtk` re-exports plus generic monomorphized DIP adapters
+- [x] Add Analyze value-semantic tests to `ritk-analyze`
+- [x] Verify all dedicated image-format crates and aggregate `ritk-io`
+- [x] Verify downstream `ritk-snap`, `ritk-cli`, and `ritk-python` compile
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Add PNG value-semantic tests | Medium | Closed in Sprint 184 |
+| Audit MetaImage affine-column conventions against RITK ZYX metadata | Medium | Closed in Sprint 184 |
+
+## Sprint 182 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.5 [patch]
+**Goal**: Correct NRRD payload and spatial-axis conversion while preserving the `ritk-nrrd` crate as the only implementation boundary.
+
+### Checklist items
+- [x] Audit `ritk-nrrd` reader/writer/tests and `ritk-io` NRRD facade
+- [x] Add private spatial SSOT module for NRRD `[x,y,z]` file-axis ↔ RITK `[depth,row,col]` metadata conversion
+- [x] Remove Burn tensor permutation from raw NRRD read/write payload paths and preserve X-fastest flat order directly
+- [x] Add value-semantic payload-order and spatial-axis tests
+- [x] Move NRRD tests out of reader/writer files so each active source/test file remains under 500 lines
+- [x] Remove stale unreferenced NRRD implementation copies from `ritk-io`
+- [x] Verify `cargo test -p ritk-nrrd --lib -q` (23 passed)
+- [x] Verify `cargo fmt --check -p ritk-nrrd` (passed)
+- [x] Verify `cargo test -p ritk-io --lib -q` (313 passed)
+- [x] Verify `cargo check -p ritk-snap --lib` (passed)
+- [x] Verify `cargo check -p ritk-cli` (passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Audit MetaImage affine-column conventions against RITK ZYX metadata | Medium | Deferred |
+
+## Sprint 182 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.5 [patch]
+**Goal**: Add a theorem-backed SSOT for slice index clamp/wrap navigation and wire app call sites to it.
+
+### Checklist items
+- [x] Add formal theorem/proof documentation for clamped and wrapped slice stepping in [crates/ritk-snap/src/ui/slice_navigation.rs](crates/ritk-snap/src/ui/slice_navigation.rs)
+- [x] Add value-semantic slice-navigation tests for clamp bounds, modular equivalence, and zero-total behavior
+- [x] Refactor [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) slice navigation paths to use shared helpers
+- [x] Verify `cargo test -p ritk-snap --lib ui::slice_navigation::tests:: -- --nocapture` (5 passed)
+- [x] Verify `cargo test -p ritk-snap --lib app::tests::advance_slice_for_axis_loop_wraps_and_marks_dirty -- --nocapture` (1 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- --nocapture` (437 passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
+## Sprint 181 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.4 [patch]
+**Goal**: Introduce one theorem-backed SSOT for anatomical-plane axis classification and route viewer call sites through it.
+
+### Checklist items
+- [x] Add theorem/proof documentation for deterministic axis classification in [crates/ritk-snap/src/ui/anatomical_plane.rs](crates/ritk-snap/src/ui/anatomical_plane.rs)
+- [x] Add value-semantic tests for permutation, canonical basis mapping, stability under permutation, and no-volume defaults
+- [x] Refactor [crates/ritk-snap/src/app.rs](crates/ritk-snap/src/app.rs) and [crates/ritk-snap/src/ui/overlay.rs](crates/ritk-snap/src/ui/overlay.rs) to call shared helpers
+- [x] Verify `cargo test -p ritk-snap --lib ui::anatomical_plane::tests:: -- --nocapture` (4 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- --nocapture` (432 passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
+## Sprint 179 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.2 [patch]
+**Goal**: Correct `ritk-nifti` affine semantics for NIfTI file axes, RITK tensor axes, and RAS/LPS conversion.
+
+### Checklist items
+- [x] Audit `ritk-nifti` reader/writer/label paths and `ritk-io` NIfTI facade
+- [x] Add private spatial SSOT module for NIfTI RAS↔LPS and `[x,y,z]`↔`[depth,row,col]` affine conversion
+- [x] Route reader affine extraction and writer sform/pixdim generation through the SSOT module
+- [x] Remove stale unreferenced NIfTI implementation copies from `ritk-io`
+- [x] Verify `cargo test -p ritk-nifti --lib -q` (13 passed)
+- [x] Verify `cargo test -p ritk-io --lib -q` (313 passed)
+- [x] Verify `cargo check -p ritk-snap --lib` (passed)
+- [x] Verify `cargo check -p ritk-cli` (passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Audit MetaImage affine-column conventions against RITK ZYX metadata | Medium | Deferred |
+
+## Sprint 180 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.3 [patch]
+**Goal**: Formalize linked-cursor plane mappings with theorem-style docs and strengthen cross-viewport transform tests.
+
+### Checklist items
+- [x] Add plane bijection theorem/proof sketch to [crates/ritk-snap/src/ui/mpr_cursor.rs](crates/ritk-snap/src/ui/mpr_cursor.rs)
+- [x] Add inverse mapping helper and route projection code through SSOT helper
+- [x] Add value-semantic tests for inverse consistency and viewport projection round-trip
+- [x] Verify `cargo test -p ritk-snap --lib ui::mpr_cursor::tests:: -- --nocapture` (9 passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
+## Sprint 178 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.1 [patch]
+**Goal**: Formalize viewport affine transform contracts with theorem-style docs and strengthen transform correctness tests.
+
+### Checklist items
+- [x] Add affine invertibility theorem/proof sketch to [crates/ritk-snap/src/ui/viewport.rs](crates/ritk-snap/src/ui/viewport.rs)
+- [x] Add shared forward transform helper and route viewport annotation/live-preview mapping through SSOT helper
+- [x] Add value-semantic tests for transform round-trip identity and integer/floating mapping consistency
+- [x] Verify `cargo test -p ritk-snap --lib ui::viewport::tests:: -- --nocapture` (19 passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+
+## Sprint 177 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.0 [minor]
+**Goal**: Add a real `ritk-dicom` backend boundary for DICOM parsing and pixel decode.
+
+### Checklist items
+- [x] Audit current DICOM/JPEG call chain in `ritk-dicom`, `ritk-codecs`, `ritk-io`, and `ritk-snap`
+- [x] Add backend traits for parse and pixel decode in [crates/ritk-dicom/src/backend/mod.rs](crates/ritk-dicom/src/backend/mod.rs)
+- [x] Implement `DicomRsBackend` parse/decode backend with value-semantic tests
+- [x] Route `ritk-io` series, multiframe, SEG, RT, and codec helper paths through the backend boundary
+- [x] Verify `cargo test -p ritk-dicom --lib -q` (10 passed)
+- [x] Verify `cargo test -p ritk-io --lib -q` (313 passed)
+- [x] Verify `cargo check -p ritk-io` (passed)
+- [x] Verify `cargo check -p ritk-snap --lib` (passed)
+
+### Gaps remaining (deferred to future sprints)
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG replacement under `ritk-codecs` | High | Deferred |
+| Typed dataset access facade in `ritk-dicom` | Medium | Deferred |
+
 ## Sprint 176 — Complete
 **Status**: Complete
 **Phase**: Phase 1 Foundation
@@ -13,7 +301,7 @@
 ### Gaps remaining (deferred to future sprints)
 | Task | Priority | Status |
 |---|---|---|
-| GAP-176-RAD-01: true 3D MIP/VR pipeline | High | Deferred |
+| GAP-176-RAD-01: true 3D MIP/VR pipeline | High | Closed (app-shell and viewport renderer integrated) |
 | GAP-176-RAD-02: PET/CT fusion + SUV workflow | High | Deferred |
 | GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
 | GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |

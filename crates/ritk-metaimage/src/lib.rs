@@ -12,8 +12,8 @@
 //! # Spatial Convention
 //!
 //! - RITK tensors: `[Z, Y, X]` (ZYX ordering)
-//! - MetaImage storage: `[X, Y, Z]` (XYZ ordering per ITK convention)
-//! - All read/write functions handle the permutation automatically
+//! - MetaImage storage: `[X, Y, Z]` with X-fastest contiguous payload order
+//! - All read/write functions shape flat payloads directly as `[Z, Y, X]`
 //!
 //! # File Formats
 //!
@@ -22,10 +22,12 @@
 //!
 //! # Spatial Metadata
 //!
-//! TransformMatrix encodes the 3×3 direction matrix (row-major);
-//! offset/spacing are standard ITK physical-space parameters.
+//! TransformMatrix encodes the 3×3 direction matrix (row-major) in MetaImage
+//! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
+//! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 
 pub mod reader;
+mod spatial;
 pub mod writer;
 
 pub use reader::{read_metaimage, MetaImageReader};
@@ -44,7 +46,7 @@ impl<B: Backend> MetaImageDipReader<B> {
     pub fn new(device: B::Device) -> Self {
         Self { device }
     }
-    
+
     pub fn read<P: AsRef<Path>>(&self, path: P) -> anyhow::Result<Image<B, 3>> {
         read_metaimage(path, &self.device)
     }

@@ -2,6 +2,25 @@
 //!
 //! This module is the SSOT for the study-coordinate cursor shared by the axial,
 //! coronal, and sagittal viewports.
+//!
+//! # Mapping theorem (fixed-slice plane bijection)
+//!
+//! For a fixed axis `a` and fixed slice index `s`, define
+//! `f_a,s(row,col) = map_view_row_col_to_voxel(a, s, row, col)`.
+//!
+//! On each axis plane domain:
+//! - axial (`a=0`): $(row,col) \in [0,R) \times [0,C)$ maps to $(z=s,y=row,x=col)$
+//! - coronal (`a=1`): $(row,col) \in [0,D) \times [0,C)$ maps to $(z=row,y=s,x=col)$
+//! - sagittal (`a=2`): $(row,col) \in [0,D) \times [0,R)$ maps to $(z=row,y=col,x=s)$
+//!
+//! each `f_a,s` is bijective onto the corresponding slice plane in voxel space.
+//! The inverse is implemented by [`map_voxel_to_view_row_col`].
+//!
+//! Proof sketch:
+//! - Injective: each axis formula is component-wise assignment, so equal outputs
+//!   imply equal `(row,col)`.
+//! - Surjective: every voxel on the fixed slice has uniquely recoverable
+//!   `(row,col)` from the two non-slice coordinates.
 
 /// Linked crosshair cursor stored in voxel coordinates `[z, y, x]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -102,6 +121,19 @@ pub fn map_view_row_col_to_voxel(
     }
 }
 
+/// Map a voxel coordinate `[z,y,x]` to viewport `(row,col)` for `axis`.
+///
+/// This is the inverse of [`map_view_row_col_to_voxel`] on a fixed-axis plane.
+pub fn map_voxel_to_view_row_col(axis: usize, voxel: [usize; 3]) -> Option<(usize, usize)> {
+    let (row, col) = match axis {
+        0 => (voxel[1], voxel[2]),
+        1 => (voxel[0], voxel[2]),
+        2 => (voxel[0], voxel[1]),
+        _ => return None,
+    };
+    Some((row, col))
+}
+
 /// Map a viewport point into a voxel on the currently displayed slice.
 pub fn viewport_point_to_voxel(
     shape: [usize; 3],
@@ -137,12 +169,7 @@ pub fn voxel_to_viewport_point(
         return None;
     }
 
-    let (row, col) = match axis {
-        0 => (voxel[1], voxel[2]),
-        1 => (voxel[0], voxel[2]),
-        2 => (voxel[0], voxel[1]),
-        _ => return None,
-    };
+    let (row, col) = map_voxel_to_view_row_col(axis, voxel)?;
     if row >= height || col >= width {
         return None;
     }
@@ -224,5 +251,44 @@ mod tests {
         let mut cursor = LinkedCursor::centered([8, 10, 20]);
         cursor.set_axis_slice([8, 10, 20], 1, 999);
         assert_eq!(cursor.voxel(), [4, 9, 10]);
+    }
+
+    #[test]
+    fn row_col_voxel_mapping_is_invertible_per_axis_plane() {
+        let sample = [
+            (0usize, 4usize, 7usize, 3usize),
+            (1usize, 5usize, 2usize, 9usize),
+            (2usize, 6usize, 1usize, 8usize),
+        ];
+        for (axis, slice, row, col) in sample {
+            let voxel = map_view_row_col_to_voxel(axis, slice, row, col);
+            let (inv_row, inv_col) = map_voxel_to_view_row_col(axis, voxel)
+                .expect("valid axis must produce inverse coordinates");
+            assert_eq!(inv_row, row, "row inverse mismatch for axis {axis}");
+            assert_eq!(inv_col, col, "col inverse mismatch for axis {axis}");
+        }
+    }
+
+    #[test]
+    fn viewport_projection_then_inverse_returns_same_voxel_on_fixed_slice() {
+        let shape = [8, 10, 20];
+        let rect = egui::Rect::from_min_size(egui::pos2(25.0, 40.0), egui::vec2(300.0, 180.0));
+        let samples = [
+            (0usize, [3usize, 4usize, 15usize]),
+            (1usize, [6usize, 2usize, 11usize]),
+            (2usize, [5usize, 7usize, 1usize]),
+        ];
+
+        for (axis, voxel) in samples {
+            let point = voxel_to_viewport_point(shape, axis, voxel, rect)
+                .expect("in-range voxel must project to viewport point");
+            let slice = voxel[axis];
+            let round_trip = viewport_point_to_voxel(shape, axis, slice, point, rect)
+                .expect("projected point must map back to a voxel");
+            assert_eq!(
+                round_trip, voxel,
+                "voxel projection/inverse mismatch on axis {axis}"
+            );
+        }
     }
 }

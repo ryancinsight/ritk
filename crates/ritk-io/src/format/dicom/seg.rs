@@ -27,7 +27,8 @@ use dicom::core::smallvec::SmallVec;
 use dicom::core::value::{DataSetSequence, Value};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
-use dicom::object::{open_file, InMemDicomObject};
+use dicom::object::InMemDicomObject;
+use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -99,7 +100,8 @@ pub struct DicomSegmentation {
 pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
     let path = path.as_ref();
 
-    let obj = open_file(path).with_context(|| format!("open DICOM file: {}", path.display()))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     // Validate SOP Class UID.
     let sop = obj.meta().media_storage_sop_class_uid();
@@ -974,7 +976,11 @@ pub fn label_map_to_dicom_seg(
 /// - Every frame must reference a defined segment.
 pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::annotation::LabelMap> {
     if seg.rows == 0 || seg.cols == 0 {
-        bail!("DICOM-SEG has invalid frame geometry: rows={}, cols={}", seg.rows, seg.cols);
+        bail!(
+            "DICOM-SEG has invalid frame geometry: rows={}, cols={}",
+            seg.rows,
+            seg.cols
+        );
     }
     if seg.n_frames == 0 {
         bail!("DICOM-SEG has zero frames");
@@ -1019,8 +1025,13 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         let color = segment_color(label_id);
         table
             .add_label(label_id, s.segment_label.clone(), color)
-            .map_err(|e| anyhow::anyhow!("invalid or duplicate segment label id {}: {}", label_id, e))?;
-        if segment_to_index.insert(s.segment_number, segment_idx).is_some() {
+            .map_err(|e| {
+                anyhow::anyhow!("invalid or duplicate segment label id {}: {}", label_id, e)
+            })?;
+        if segment_to_index
+            .insert(s.segment_number, segment_idx)
+            .is_some()
+        {
             bail!("duplicate segment_number {} in segments", s.segment_number);
         }
         labels_by_index.push(label_id);
@@ -1052,10 +1063,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     // Determine Z-depth for reconstruction.
     // Preferred path: derive slice indices from per-frame image positions when available.
     // Fallback: derive depth from max frame count among segments (sparse frame stacks).
-    let all_positions_present = seg
-        .image_position_per_frame
-        .len()
-        == seg.n_frames
+    let all_positions_present = seg.image_position_per_frame.len() == seg.n_frames
         && seg.image_position_per_frame.iter().all(|p| p.is_some());
 
     let mut frame_to_z: Vec<usize> = vec![0usize; seg.n_frames];
@@ -1126,7 +1134,10 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         let mut frames_per_segment = vec![0usize; seg.segments.len()];
         for &segment_number in &seg.frame_segment_numbers {
             let Some(&segment_idx) = segment_to_index.get(&segment_number) else {
-                bail!("frame references undefined segment_number {}", segment_number);
+                bail!(
+                    "frame references undefined segment_number {}",
+                    segment_number
+                );
             };
             frames_per_segment[segment_idx] += 1;
         }
@@ -1609,7 +1620,11 @@ mod tests {
             vec![0u8, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
             "frame 1 pixel values"
         );
-        assert_eq!(result.frame_segment_numbers, vec![1, 1], "frame segment numbers");
+        assert_eq!(
+            result.frame_segment_numbers,
+            vec![1, 1],
+            "frame segment numbers"
+        );
         assert_eq!(result.segments.len(), 1, "segment count");
         assert_eq!(result.segments[0].segment_label, "body", "segment label");
     }
@@ -1770,7 +1785,10 @@ mod tests {
         };
 
         let result = write_dicom_seg(&path, &seg);
-        assert!(result.is_err(), "expected frame segment count mismatch error");
+        assert!(
+            result.is_err(),
+            "expected frame segment count mismatch error"
+        );
         let msg = result.unwrap_err().to_string();
         assert!(
             msg.contains("frame_segment_numbers") || msg.contains("n_frames"),
@@ -1830,13 +1848,33 @@ mod tests {
         // nz=2, 2 segments → 4 frames total
         assert_eq!(seg.n_frames, 4, "2 segments × 2 z-slices = 4 frames");
         assert_eq!(seg.segments.len(), 2, "two segments");
-        assert_eq!(seg.frame_segment_numbers, vec![1, 1, 2, 2], "segment assignment per frame");
+        assert_eq!(
+            seg.frame_segment_numbers,
+            vec![1, 1, 2, 2],
+            "segment assignment per frame"
+        );
         // Segment 1 frames:
-        assert_eq!(seg.pixel_data[0], vec![1u8; 4], "frame 0 (seg 1, z=0) all ones");
-        assert_eq!(seg.pixel_data[1], vec![0u8; 4], "frame 1 (seg 1, z=1) all zeros");
+        assert_eq!(
+            seg.pixel_data[0],
+            vec![1u8; 4],
+            "frame 0 (seg 1, z=0) all ones"
+        );
+        assert_eq!(
+            seg.pixel_data[1],
+            vec![0u8; 4],
+            "frame 1 (seg 1, z=1) all zeros"
+        );
         // Segment 2 frames:
-        assert_eq!(seg.pixel_data[2], vec![0u8; 4], "frame 2 (seg 2, z=0) all zeros");
-        assert_eq!(seg.pixel_data[3], vec![1u8; 4], "frame 3 (seg 2, z=1) all ones");
+        assert_eq!(
+            seg.pixel_data[2],
+            vec![0u8; 4],
+            "frame 2 (seg 2, z=0) all zeros"
+        );
+        assert_eq!(
+            seg.pixel_data[3],
+            vec![1u8; 4],
+            "frame 3 (seg 2, z=1) all ones"
+        );
     }
 
     #[test]
@@ -1858,7 +1896,11 @@ mod tests {
             .expect("label_map_to_dicom_seg");
 
         assert_eq!(seg.n_frames, 1, "1 foreground label × 1 z-slice = 1 frame");
-        assert_eq!(seg.pixel_data[0], vec![0, 0, 1, 1], "correct mask for label 1");
+        assert_eq!(
+            seg.pixel_data[0],
+            vec![0, 0, 1, 1],
+            "correct mask for label 1"
+        );
     }
 
     #[test]
@@ -1891,7 +1933,11 @@ mod tests {
             "pixel_spacing [ny_spacing, nx_spacing]"
         );
         // slice_thickness: spacing[0]
-        assert_eq!(seg.slice_thickness, Some(2.0), "slice_thickness from spacing[0]");
+        assert_eq!(
+            seg.slice_thickness,
+            Some(2.0),
+            "slice_thickness from spacing[0]"
+        );
         // Verify image_position_per_frame includes positions for each Z-slice
         assert_eq!(
             seg.image_position_per_frame[0],
@@ -1924,7 +1970,6 @@ mod tests {
         let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
         assert!(result.is_err(), "all-background map should return Err");
     }
-
 
     #[test]
     fn test_label_map_to_dicom_seg_error_no_foreground() {
@@ -1962,7 +2007,10 @@ mod tests {
         let rebuilt = dicom_seg_to_label_map(&seg).expect("dicom_seg_to_label_map");
         assert_eq!(rebuilt.shape, [2, 2, 2]);
         assert_eq!(rebuilt.as_slice(), original.as_slice());
-        assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("Label 1"));
+        assert_eq!(
+            rebuilt.table.get_label(1).map(|e| e.name.as_str()),
+            Some("Label 1")
+        );
     }
 
     #[test]
@@ -2046,8 +2094,13 @@ mod tests {
             slice_thickness: None,
         };
 
-        let result = dicom_seg_to_label_map(&seg).expect("sparse uneven frame layout must be supported");
-        assert_eq!(result.shape, [2, 2, 2], "nz inferred from max per-segment frame count");
+        let result =
+            dicom_seg_to_label_map(&seg).expect("sparse uneven frame layout must be supported");
+        assert_eq!(
+            result.shape,
+            [2, 2, 2],
+            "nz inferred from max per-segment frame count"
+        );
         let present = result.present_labels();
         assert!(present.contains(&1), "label 1 must be reconstructed");
         assert!(present.contains(&2), "label 2 must be reconstructed");
@@ -2077,8 +2130,8 @@ mod tests {
             slice_thickness: None,
         };
 
-        let rebuilt =
-            dicom_seg_to_label_map(&seg).expect("position-sorted frame reconstruction must succeed");
+        let rebuilt = dicom_seg_to_label_map(&seg)
+            .expect("position-sorted frame reconstruction must succeed");
         assert_eq!(rebuilt.shape, [2, 2, 2]);
 
         // z=0 slice must come from second frame: pixel (1,1) = label 1.
@@ -2097,8 +2150,9 @@ mod tests {
         let mut table = LabelTable::new();
         table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
         table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
-        let original = LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table)
-            .unwrap();
+        let original =
+            LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table)
+                .unwrap();
 
         let seg = label_map_to_dicom_seg(
             &original,
@@ -2117,9 +2171,19 @@ mod tests {
         let rebuilt = dicom_seg_to_label_map(&read_back).expect("dicom_seg_to_label_map");
 
         assert_eq!(rebuilt.shape, original.shape, "shape must round-trip");
-        assert_eq!(rebuilt.as_slice(), original.as_slice(), "voxel labels must round-trip");
-        assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("A"));
-        assert_eq!(rebuilt.table.get_label(2).map(|e| e.name.as_str()), Some("B"));
+        assert_eq!(
+            rebuilt.as_slice(),
+            original.as_slice(),
+            "voxel labels must round-trip"
+        );
+        assert_eq!(
+            rebuilt.table.get_label(1).map(|e| e.name.as_str()),
+            Some("A")
+        );
+        assert_eq!(
+            rebuilt.table.get_label(2).map(|e| e.name.as_str()),
+            Some("B")
+        );
     }
 
     #[test]
@@ -2132,7 +2196,11 @@ mod tests {
             .join("dcmqi")
             .join("liver.dcm");
 
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         let seg = read_dicom_seg(&path).expect("read external dcmqi liver SEG");
         assert_eq!(seg.rows, 512);
@@ -2181,7 +2249,11 @@ mod tests {
             .join("dcmqi")
             .join("partial_overlaps.dcm");
 
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         let seg = read_dicom_seg(&path).expect("read external dcmqi partial-overlap SEG");
         assert_eq!(seg.rows, 512);
@@ -2196,13 +2268,16 @@ mod tests {
             .iter()
             .all(|s| s.algorithm_type.as_deref() == Some("MANUAL")));
 
-        let rebuilt =
-            dicom_seg_to_label_map(&seg).expect("rebuild label map from external dcmqi partial-overlap SEG");
+        let rebuilt = dicom_seg_to_label_map(&seg)
+            .expect("rebuild label map from external dcmqi partial-overlap SEG");
         assert_eq!(rebuilt.shape, [3, 512, 512]);
         let present = rebuilt.present_labels();
         for label in [1u32, 2, 3, 4, 5] {
             assert!(present.contains(&label), "label {label} must be present");
-            assert!(rebuilt.count_label(label) > 0, "label {label} voxels must survive reconstruction");
+            assert!(
+                rebuilt.count_label(label) > 0,
+                "label {label} voxels must survive reconstruction"
+            );
         }
     }
 
@@ -2216,7 +2291,11 @@ mod tests {
             .join("highdicom")
             .join("seg_image_ct_binary_overlap.dcm");
 
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         let seg = read_dicom_seg(&path).expect("read external highdicom overlap SEG");
         assert_eq!(seg.rows, 16);
@@ -2243,8 +2322,14 @@ mod tests {
         let present = rebuilt.present_labels();
         assert!(present.contains(&1), "segment 1 must be present");
         assert!(present.contains(&2), "segment 2 must be present");
-        assert!(rebuilt.count_label(1) > 0, "segment 1 voxels must survive reconstruction");
-        assert!(rebuilt.count_label(2) > 0, "segment 2 voxels must survive reconstruction");
+        assert!(
+            rebuilt.count_label(1) > 0,
+            "segment 1 voxels must survive reconstruction"
+        );
+        assert!(
+            rebuilt.count_label(2) > 0,
+            "segment 2 voxels must survive reconstruction"
+        );
     }
 
     #[test]
@@ -2257,7 +2342,11 @@ mod tests {
             .join("highdicom")
             .join("seg_image_ct_binary.dcm");
 
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         let seg = read_dicom_seg(&path).expect("read external highdicom binary SEG");
         assert_eq!(seg.rows, 16);
@@ -2270,11 +2359,14 @@ mod tests {
         assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
         assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
 
-        let rebuilt =
-            dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom binary SEG");
+        let rebuilt = dicom_seg_to_label_map(&seg)
+            .expect("rebuild label map from external highdicom binary SEG");
         assert_eq!(rebuilt.shape, [3, 16, 16]);
         assert!(rebuilt.present_labels().contains(&1));
-        assert!(rebuilt.count_label(1) > 0, "segment voxels must survive reconstruction");
+        assert!(
+            rebuilt.count_label(1) > 0,
+            "segment voxels must survive reconstruction"
+        );
     }
 
     #[test]
@@ -2287,7 +2379,11 @@ mod tests {
             .join("rsna_dido")
             .join("xTtzBC6F6p_rpexuszCnb_01_liver.dcm");
 
-        assert!(path.is_file(), "external SEG fixture missing: {}", path.display());
+        assert!(
+            path.is_file(),
+            "external SEG fixture missing: {}",
+            path.display()
+        );
 
         let seg = read_dicom_seg(&path).expect("read external rsna dido liver SEG");
         assert_eq!(seg.rows, 512);
@@ -2307,16 +2403,20 @@ mod tests {
         let slice_thickness = seg.slice_thickness.expect("slice thickness from shared FG");
         assert!((slice_thickness - 5.0).abs() < 1e-9);
         assert!(
-            seg.image_position_per_frame
-                .iter()
-                .all(|p| p.is_some()),
+            seg.image_position_per_frame.iter().all(|p| p.is_some()),
             "all frame positions must be present"
         );
 
         let rebuilt = dicom_seg_to_label_map(&seg).expect("rebuild label map from rsna dido SEG");
         assert_eq!(rebuilt.shape, [34, 512, 512]);
         assert!(rebuilt.present_labels().contains(&1));
-        assert!(rebuilt.count_label(1) > 0, "segment voxels must survive reconstruction");
-        assert_eq!(rebuilt.table.get_label(1).map(|e| e.name.as_str()), Some("liver"));
+        assert!(
+            rebuilt.count_label(1) > 0,
+            "segment voxels must survive reconstruction"
+        );
+        assert_eq!(
+            rebuilt.table.get_label(1).map(|e| e.name.as_str()),
+            Some("liver")
+        );
     }
 }

@@ -22,3 +22,6 @@ pub use writer::{write_analyze, AnalyzeWriter};
 
 // Re-export datatype codes for documentation and test helpers.
 pub use reader::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
+
+#[cfg(test)]
+mod tests;

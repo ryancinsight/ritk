@@ -2,12 +2,14 @@ use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
-use dicom::object::{open_file, FileDicomObject, InMemDicomObject};
-use dicom::pixeldata::PixelDecoder;
+use dicom::object::{FileDicomObject, InMemDicomObject};
 use nalgebra::{Matrix3, Point3 as NaPoint3, Vector3 as NaVector3};
 use rayon::prelude::*;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_dicom::{
+    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
+};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -37,7 +39,7 @@ pub use object_model::{
 };
 pub use reader::{
     load_dicom_series_with_metadata, read_dicom_series_with_metadata, DicomReadMetadata,
-    DicomSliceMetadata,
+    DicomSliceMetadata, PatientPosition,
 };
 pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 pub use rt_plan::{
@@ -108,7 +110,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
 
     entries.par_iter().for_each(|file_path| {
         // Try to open as DICOM
-        if let Ok(obj) = open_file(file_path) {
+        if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
             let uid = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
                 Some(u) => u,
                 None => return, // Skip files without SeriesUID
@@ -159,7 +161,8 @@ pub fn load_dicom_series<B: Backend>(
         .file_paths
         .par_iter()
         .map(|p| {
-            let obj = open_file(p).context("Failed to open DICOM file")?;
+            let obj =
+                parse_file_with::<DicomRsBackend, _>(p).context("Failed to open DICOM file")?;
             Ok((p.clone(), obj))
         })
         .collect::<Result<Vec<_>>>()?;
@@ -272,22 +275,31 @@ pub fn load_dicom_series<B: Backend>(
     let slice_pixels: Vec<Vec<f32>> = slices
         .par_iter()
         .map(|(_p, obj)| {
-            let pixel_data = obj
-                .decode_pixel_data()
-                .context("Failed to decode pixel data")?;
             let slope = get_f64(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
+            let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
+            let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
+            let pixel_representation = get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16;
+            let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
 
-            // Convert to f32
-            let data = pixel_data
-                .to_vec::<f32>()
-                .map_err(|e| anyhow!("Pixel data conversion error: {}", e))?;
-
-            // Apply rescaling
-            let rescaled: Vec<f32> = data
-                .into_iter()
-                .map(|v| v * slope as f32 + intercept as f32)
-                .collect();
+            let rescaled = decode_frame_with::<DicomRsBackend>(
+                obj,
+                DecodeFrameRequest {
+                    frame_index: 0,
+                    transfer_syntax,
+                    layout: PixelLayout {
+                        rows: rows as usize,
+                        cols: cols as usize,
+                        samples_per_pixel,
+                        bits_allocated,
+                        pixel_representation,
+                        rescale_slope: slope as f32,
+                        rescale_intercept: intercept as f32,
+                    },
+                },
+            )
+            .context("Failed to decode pixel data")?
+            .pixels;
 
             if rescaled.len() != (rows * cols) as usize {
                 return Err(anyhow!(

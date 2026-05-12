@@ -32,7 +32,7 @@
 use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
 use dicom::core::Tag;
-use dicom::object::open_file;
+use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -135,7 +135,8 @@ fn parse_color(s: &str) -> Option<[u8; 3]> {
 /// 3. `structure_set_name` is `None` when the tag is absent or empty.
 pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
     let path = path.as_ref();
-    let obj = open_file(path).with_context(|| format!("open DICOM file: {}", path.display()))?;
+    let obj = parse_file_with::<DicomRsBackend, _>(path)
+        .with_context(|| format!("open DICOM file: {}", path.display()))?;
 
     // Verify SOP Class UID (trim NUL padding and whitespace).
     let sop = obj.meta().media_storage_sop_class_uid();

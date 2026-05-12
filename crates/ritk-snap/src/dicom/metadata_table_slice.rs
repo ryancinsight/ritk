@@ -44,6 +44,14 @@ pub(super) fn push_first_slice_rows(slice: &DicomSliceMetadata, rows: &mut Vec<M
             format_f64_6(value),
         ));
     }
+    if let Some(value) = slice.patient_position.as_ref() {
+        rows.push(MetadataRow::first_slice(
+            "0018,5100",
+            "PatientPosition",
+            "CS",
+            format!("{} ({})", value, value.label()),
+        ));
+    }
     if let Some(value) = slice.pixel_spacing {
         rows.push(MetadataRow::first_slice(
             "0028,0030",
