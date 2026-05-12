@@ -1,3 +1,25 @@
+## Sprint 193 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.3 [patch]
+**Goal**: Close the PET/CT fusion colormap auto-selection gap: auto-select `Colormap::Hot` for PT modality at all volume load sites so fused PET/CT overlays use the standard clinical PET colormap without manual intervention.
+
+### Checklist items
+- [x] Add `colormap_for_modality(modality: Option<&str>) -> Colormap` SSOT helper in `SnapApp` — `Some("PT")` → `Colormap::Hot`, else → `Colormap::Grayscale`
+- [x] Apply auto-selection at primary DICOM load site (reads `self.loaded` after struct construction)
+- [x] Apply auto-selection at secondary DICOM load site (reads `meta.modality.as_deref()`)
+- [x] Apply auto-selection at `load_volume_file` load site (reads `self.loaded.as_ref()`)
+- [x] Apply auto-selection at `load_volume_bytes` load site (reads `self.loaded.as_ref()`)
+- [x] Apply auto-selection at `load_dicom_series_bytes` load site (reads `self.loaded.as_ref()`)
+- [x] Add 6 value-semantic tests: `colormap_for_modality` PT/CT/None, secondary PT→Hot, secondary CT→Grayscale, primary PT→Hot
+- [x] Verify `cargo test -p ritk-snap --lib` (492 passed; +6 new tests)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open |
+| Remaining non-dedicated image ownership audit | TIFF and MINC | Medium | Open |
+
 ## Sprint 192 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

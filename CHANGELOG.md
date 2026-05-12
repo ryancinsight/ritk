@@ -8,6 +8,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added `SnapApp::colormap_for_modality(modality: Option<&str>) -> Colormap` SSOT in `crates/ritk-snap/src/app.rs`: `Some("PT")` → `Colormap::Hot`, all other values → `Colormap::Grayscale`. Applied at all 5 volume load sites (primary DICOM, secondary DICOM, `load_volume_file`, `load_volume_bytes`, `load_dicom_series_bytes`). PT primary and secondary volumes now auto-select the standard clinical PET colormap on load; `close_study` continues to reset `secondary_colormap` to `Grayscale`. 6 new value-semantic tests.
 - Added `series_time: Option<String>` (0008,0031) to `LoadedVolume` in `crates/ritk-snap/src/lib.rs` and wired through the DICOM loader in `crates/ritk-snap/src/dicom/loader.rs`. Both inline load paths in `app.rs` and all 7 test-fixture `LoadedVolume` literals updated.
 - Added `parse_dicom_tm(s: &str) -> Option<f64>` in `crates/ritk-snap/src/dicom/pet.rs`: parses DICOM PS3.5 §6.2 TM strings (HH[MM[SS[.FFFFFF]]]) to seconds since midnight; returns `None` for malformed input or HH ≥ 24.
 - Added `compute_delta_t_s(rph_start_s, series_time_s) -> f64` in `crates/ritk-snap/src/dicom/pet.rs`: elapsed seconds with midnight-rollover handling (result ∈ [0, 86 400)).

@@ -1,3 +1,26 @@
+## Sprint 193 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.3 [patch]
+**Goal**: Close the PET/CT fusion colormap auto-selection gap: auto-select `Colormap::Hot` for PT modality at all volume load sites.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-02 (partial) | PET/CT colormap auto-selection at all load sites | **Partially closed** |
+
+### Delivered
+- ✓ `SnapApp::colormap_for_modality` SSOT: `PT` → `Hot`, else → `Grayscale`
+- ✓ Applied at 5 load sites: primary DICOM, secondary DICOM, file, bytes, DICOM-bytes
+- ✓ 6 value-semantic tests (PT/CT/None helper + secondary/primary integration paths)
+- ✓ `cargo test -p ritk-snap --lib` pass (492; +6)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving `ritk-codecs` / `ritk-dicom` boundary | High |
+| Remaining non-dedicated image ownership audit | TIFF and MINC | Medium |
+
 ## Sprint 192 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
