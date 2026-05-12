@@ -5,23 +5,17 @@
 //! (`Gray32Float`).
 //!
 //! # Axis convention
-//! The input tensor has shape `[nz, ny, nx]`.  Each Z-slice is a contiguous
-//! `[ny, nx]` sub-array in row-major order, which maps directly to a TIFF
-//! page with `width = nx` and `height = ny`.  No axis permutation is applied.
+//! Input tensor shape `[nz, ny, nx]`.  Each Z-slice is a contiguous
+//! `[ny, nx]` sub-array in row-major order, mapping to a TIFF page with
+//! `width = nx` and `height = ny`.
 //!
 //! # Spatial metadata
 //! TIFF has no standardized physical-space metadata fields.  The image's
 //! `origin`, `spacing`, and `direction` are **not** written to the file.
-//! Users must preserve this information through an external sidecar or
-//! convention.
-//!
-//! # Multi-page structure
-//! Each call to `TiffEncoder::write_image` appends a new IFD to the file.
-//! The resulting TIFF contains `nz` pages linked via the standard IFD chain.
 //!
 //! # BigTIFF
-//! The current implementation writes classic TIFF.  For volumes exceeding
-//! the 4 GiB classic-TIFF limit, switch to `TiffEncoder::new_big`.
+//! Current implementation writes classic TIFF.  For volumes exceeding 4 GiB,
+//! switch to `TiffEncoder::new_big`.
 
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
@@ -36,8 +30,8 @@ use tiff::encoder::TiffEncoder;
 /// # Algorithm
 /// 1. Extract tensor data as a flat `&[f32]` slice.
 /// 2. Read `[nz, ny, nx]` from the tensor shape.
-/// 3. For each Z-slice (`z` in `0..nz`), write one TIFF page with
-///    `width = nx`, `height = ny`, and `Gray32Float` sample type.
+/// 3. For each Z-slice, write one TIFF page with `width = nx`, `height = ny`,
+///    and `Gray32Float` sample type.
 ///
 /// # Errors
 /// - File cannot be created.
@@ -54,14 +48,11 @@ pub fn write_tiff<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> R
 }
 
 /// Core writer operating on any `Write + Seek` stream.
-///
-/// `display_path` is used only for error messages.
 fn write_tiff_to_writer<B: Backend, W: Write + Seek>(
     image: &Image<B, 3>,
     writer: W,
     display_path: &Path,
 ) -> Result<()> {
-    // ── Voxel data ────────────────────────────────────────────────────────
     let tensor_data = image.data().clone().to_data();
     let f32_slice = match tensor_data.as_slice::<f32>() {
         Ok(s) => s,
@@ -98,7 +89,6 @@ fn write_tiff_to_writer<B: Backend, W: Write + Seek>(
         ));
     }
 
-    // ── Encode pages ──────────────────────────────────────────────────────
     let mut encoder = TiffEncoder::new(writer).map_err(|e| {
         anyhow!(
             "Failed to create TIFF encoder for {:?}: {}",
@@ -126,7 +116,7 @@ fn write_tiff_to_writer<B: Backend, W: Write + Seek>(
     Ok(())
 }
 
-// ── Public writer struct ──────────────────────────────────────────────────────
+// ── Writer struct ─────────────────────────────────────────────────────────────
 
 /// Stateless writer for TIFF files.
 ///
@@ -146,7 +136,7 @@ impl TiffWriter {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::tiff::read_tiff;
+    use crate::read_tiff;
     use burn::tensor::backend::Backend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
@@ -158,7 +148,6 @@ mod tests {
 
     type TestBackend = NdArray<f32>;
 
-    /// Helper: build a 3-D Image from a flat f32 vec and shape [nz, ny, nx].
     fn make_image(data: Vec<f32>, nz: usize, ny: usize, nx: usize) -> Image<TestBackend, 3> {
         let device: <TestBackend as Backend>::Device = Default::default();
         let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
@@ -171,11 +160,8 @@ mod tests {
         )
     }
 
-    // ── Basic file creation ───────────────────────────────────────────────
-
-    /// Verify that `write_tiff` creates a non-empty file.
     #[test]
-    fn test_write_creates_nonempty_file() -> anyhow::Result<()> {
+    fn write_creates_nonempty_file() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("basic.tiff");
 
@@ -189,10 +175,8 @@ mod tests {
         Ok(())
     }
 
-    // ── TiffWriter struct delegates correctly ─────────────────────────────
-
     #[test]
-    fn test_writer_struct_delegates() -> anyhow::Result<()> {
+    fn tiff_writer_struct_delegates_to_write_tiff() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("struct_write.tiff");
 
@@ -208,11 +192,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Round-trip: f32 values ────────────────────────────────────────────
-
-    /// Write f32 data and read back; verify every voxel is bit-identical.
     #[test]
-    fn test_round_trip_f32_values() -> anyhow::Result<()> {
+    fn round_trip_f32_values_are_bitwise_identical() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("roundtrip_f32.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -220,7 +201,6 @@ mod tests {
         let nz = 2usize;
         let ny = 3usize;
         let nx = 5usize;
-        // Analytically derived: each voxel = index * pi / 7.
         let data_vec: Vec<f32> = (0..(nz * ny * nx) as u32)
             .map(|i| i as f32 * std::f32::consts::PI / 7.0)
             .collect();
@@ -233,11 +213,6 @@ mod tests {
 
         let loaded_td = loaded.data().clone().to_data();
         let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        assert_eq!(
-            loaded_vals.len(),
-            data_vec.len(),
-            "total voxel count mismatch"
-        );
 
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
@@ -252,12 +227,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Multi-page file size sanity check ─────────────────────────────────
-
-    /// A file with nz=3 pages must be larger than a file with nz=1 page
-    /// (same ny, nx), confirming multiple pages are written.
     #[test]
-    fn test_multi_page_file_size() -> anyhow::Result<()> {
+    fn multi_page_file_is_larger_than_single_page() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path_1 = dir.path().join("one_page.tiff");
         let path_3 = dir.path().join("three_pages.tiff");
@@ -265,7 +236,7 @@ mod tests {
         let ny = 4usize;
         let nx = 5usize;
 
-        let image_1 = make_image(vec![0.0f32; 1 * ny * nx], 1, ny, nx);
+        let image_1 = make_image(vec![0.0f32; ny * nx], 1, ny, nx);
         write_tiff(&image_1, &path_1)?;
 
         let image_3 = make_image(vec![0.0f32; 3 * ny * nx], 3, ny, nx);
@@ -274,13 +245,10 @@ mod tests {
         let size_1 = std::fs::metadata(&path_1)?.len();
         let size_3 = std::fs::metadata(&path_3)?.len();
 
-        // 3-page file must contain at least 2 additional pages worth of
-        // f32 payload (2 * ny * nx * 4 bytes) more than the 1-page file.
         let min_extra = (2 * ny * nx * 4) as u64;
         assert!(
             size_3 >= size_1 + min_extra,
-            "3-page file ({} bytes) must be at least {} bytes larger than \
-             1-page file ({} bytes)",
+            "3-page file ({} bytes) must be at least {} bytes larger than 1-page file ({} bytes)",
             size_3,
             min_extra,
             size_1,
@@ -289,12 +257,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Payload byte count ────────────────────────────────────────────────
-
-    /// The TIFF file must contain at least nz * ny * nx * 4 bytes of f32
-    /// payload (the header adds overhead on top of this minimum).
     #[test]
-    fn test_file_contains_full_payload() -> anyhow::Result<()> {
+    fn file_contains_full_f32_payload() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("payload.tiff");
 
@@ -310,7 +274,7 @@ mod tests {
         let min_payload = (n_voxels * 4) as u64;
         assert!(
             file_size >= min_payload,
-            "file size {} must be >= minimum payload {} ({} voxels * 4 bytes)",
+            "file size {} must be >= minimum payload {} ({} voxels × 4 bytes)",
             file_size,
             min_payload,
             n_voxels,
@@ -319,12 +283,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Round-trip: large values and edge cases ───────────────────────────
-
-    /// Verify that subnormal, zero, and large-magnitude f32 values survive
-    /// the write-read round-trip.
     #[test]
-    fn test_edge_case_values_round_trip() -> anyhow::Result<()> {
+    fn edge_case_values_survive_round_trip() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("edge_values.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -334,21 +294,16 @@ mod tests {
             -0.0,
             1.0,
             -1.0,
-            f32::MIN_POSITIVE, // smallest positive normal
+            f32::MIN_POSITIVE,
             f32::MAX,
             f32::MIN,
-            1.0e-38, // subnormal-adjacent
+            1.0e-38,
             std::f32::consts::PI,
             std::f32::consts::E,
             123456.789,
             -987654.321,
         ];
-        // Pad to fill a [1, 3, 4] image (12 voxels).
-        assert_eq!(
-            values.len(),
-            12,
-            "test vector must have exactly 12 elements"
-        );
+        assert_eq!(values.len(), 12);
 
         let image = make_image(values.clone(), 1, 3, 4);
         write_tiff(&image, &path)?;
@@ -360,7 +315,6 @@ mod tests {
         let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
 
         for (i, (&got, &expected)) in loaded_vals.iter().zip(values.iter()).enumerate() {
-            // Use bitwise equality for exact f32 preservation (including -0.0).
             assert_eq!(
                 got.to_bits(),
                 expected.to_bits(),

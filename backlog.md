@@ -1,3 +1,28 @@
+## Sprint 194 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.4 [minor]
+**Goal**: Extract TIFF / BigTIFF dedicated ownership to `crates/ritk-tiff`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| TIFF dedicated ownership | Move TIFF implementation from `ritk-io` to authoritative `ritk-tiff` crate | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-tiff` — authoritative TIFF/BigTIFF crate with `read_tiff`, `write_tiff`, `TiffReader<B>`, `TiffWriter`
+- ✓ `TiffReader<B>` carries `B::Device`, exposes `read_image`, implements `ImageReader<B, 3>` via `ritk-io` facade
+- ✓ 13 value-semantic tests in `ritk-tiff`: round-trip, slice-ordering, struct-delegate, error paths, edge-case bit-identity
+- ✓ `ritk-io::format::tiff` reduced to 72-line pure facade + 1 adapter test
+- ✓ `reader.rs` and `writer.rs` deleted from `ritk-io`
+- ✓ `cargo test -p ritk-tiff --lib` pass (13), `cargo test -p ritk-io --lib` pass (215)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys`; blocked by absence of pure-Rust JPEG2000 decoder in ecosystem | High (blocked) |
+| MINC dedicated-ownership decision | Move MINC implementation to dedicated `ritk-minc` crate | Medium |
+
 ## Sprint 193 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

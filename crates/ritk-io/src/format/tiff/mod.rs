@@ -1,33 +1,84 @@
-// NOTE: `tiff = "0.9"` must be added to `[dependencies]` in
-// `crates/ritk-io/Cargo.toml` for this module to compile.
+pub use ritk_tiff::{read_tiff, write_tiff, TiffReader, TiffWriter};
 
-//! TIFF / BigTIFF reader and writer for 3-D medical images.
-//!
-//! # Format
-//! TIFF (Tagged Image File Format) stores raster images as a sequence of
-//! IFD (Image File Directory) pages.  This module interprets each page as
-//! one Z-slice of a volumetric image, stacking them into an
-//! `Image<B, 3>` with tensor shape `[nz, ny, nx]`.
-//!
-//! BigTIFF is the 64-bit offset extension and is handled transparently by
-//! the underlying `tiff` crate decoder/encoder.
-//!
-//! # Spatial metadata
-//! TIFF has no standardized physical-space metadata fields.  All images
-//! returned by [`read_tiff`] use default spatial values:
-//! - `origin  = [0, 0, 0]`
-//! - `spacing = [1, 1, 1]`
-//! - `direction = identity`
-//!
-//! Users must set these externally when physical coordinates are known.
-//!
-//! # Pixel types
-//! Reading supports u8, u16, u32, u64, i8, i16, i32, i64, f32, and f64
-//! sample formats — all converted to f32 in the tensor.
-//! Writing emits 32-bit IEEE 754 float samples (Gray32Float).
+use crate::domain::{ImageReader, ImageWriter};
+use burn::tensor::backend::Backend;
+use ritk_core::image::Image;
+use std::path::Path;
 
-mod reader;
-mod writer;
+impl<B: Backend> ImageReader<B, 3> for TiffReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        self.read_image(path)
+            .map_err(|e| std::io::Error::other(e.to_string()))
+    }
+}
 
-pub use reader::{read_tiff, TiffReader};
-pub use writer::{write_tiff, TiffWriter};
+impl<B: Backend> ImageWriter<B, 3> for TiffWriter {
+    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        write_tiff(image, path)
+            .map_err(|e| std::io::Error::other(e.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TiffReader, TiffWriter};
+    use crate::domain::{ImageReader, ImageWriter};
+    use burn::tensor::backend::Backend;
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
+    use ritk_core::image::Image;
+    use ritk_core::spatial::{Direction, Point, Spacing};
+    use tempfile::tempdir;
+
+    type TestBackend = NdArray<f32>;
+
+    fn image_from_values(
+        device: &<TestBackend as Backend>::Device,
+        shape: [usize; 3],
+        values: Vec<f32>,
+    ) -> Image<TestBackend, 3> {
+        let tensor_data = TensorData::new(values, Shape::new(shape));
+        let tensor = Tensor::<TestBackend, 3>::from_data(tensor_data, device);
+        Image::new(
+            tensor,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+    }
+
+    #[test]
+    fn tiff_reader_writer_adapters_delegate_to_authoritative_crate() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("adapter.tiff");
+        let device: <TestBackend as Backend>::Device = Default::default();
+
+        // Write via ImageWriter adapter.
+        let image = image_from_values(&device, [2, 3, 4], vec![1.5f32; 2 * 3 * 4]);
+        let writer = TiffWriter;
+        ImageWriter::<TestBackend, 3>::write(&writer, &path, &image)?;
+
+        // Read via ImageReader adapter.
+        let reader = TiffReader::<TestBackend>::new(device.clone());
+        let loaded = ImageReader::<TestBackend, 3>::read(&reader, &path)?;
+
+        assert_eq!(
+            loaded.shape(),
+            [2, 3, 4],
+            "shape must be preserved through adapter round-trip"
+        );
+
+        let loaded_td = loaded.data().clone().to_data();
+        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
+        for (i, &v) in loaded_vals.iter().enumerate() {
+            assert!(
+                (v - 1.5).abs() < 1e-6,
+                "voxel[{}]: expected 1.5, got {}",
+                i,
+                v,
+            );
+        }
+
+        Ok(())
+    }
+}

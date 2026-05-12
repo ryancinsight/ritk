@@ -1,3 +1,29 @@
+## Sprint 194 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.4 [minor]
+**Goal**: Extract TIFF / BigTIFF implementation from `ritk-io` into dedicated `crates/ritk-tiff`, making `ritk-io::format::tiff` a pure facade re-export following the PNG/JPEG/Analyze/MetaImage/MGH pattern.
+
+### Checklist items
+- [x] Create `crates/ritk-tiff/Cargo.toml` with `tiff`, `burn`, `ritk-core`, `anyhow` dependencies
+- [x] Write `crates/ritk-tiff/src/lib.rs` — re-exports `read_tiff`, `write_tiff`, `TiffReader<B>`, `TiffWriter`
+- [x] Write `crates/ritk-tiff/src/reader.rs` — authoritative decoder; `TiffReader<B>` carries `B::Device` and exposes `read_image`; 7 value-semantic tests
+- [x] Write `crates/ritk-tiff/src/writer.rs` — authoritative encoder; `TiffWriter` unit struct; 6 value-semantic tests
+- [x] Add `crates/ritk-tiff` to workspace `members` in root `Cargo.toml`
+- [x] Add `ritk-tiff = { path = "crates/ritk-tiff" }` to `[workspace.dependencies]`
+- [x] Replace `crates/ritk-io/src/format/tiff/mod.rs` with facade (re-exports + `ImageReader`/`ImageWriter` impls + 1 adapter test)
+- [x] Delete `crates/ritk-io/src/format/tiff/reader.rs` and `writer.rs`
+- [x] Add `ritk-tiff = { workspace = true }` and remove `tiff = { workspace = true }` from `ritk-io/Cargo.toml`
+- [x] Verify `cargo test -p ritk-tiff --lib` (13 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (215 passed)
+- [x] Verify `cargo check -p ritk-snap --lib` and `cargo check -p ritk-cli` pass
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` → pure Rust) | High | Open (blocked: no pure-Rust JPEG2000 decoder in Rust ecosystem) |
+| MINC dedicated-ownership decision | Medium | Open |
+
 ## Sprint 193 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

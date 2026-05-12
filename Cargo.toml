@@ -11,6 +11,7 @@ members = [
   "crates/ritk-analyze",
   "crates/ritk-png",
   "crates/ritk-jpeg",
+  "crates/ritk-tiff",
   "crates/ritk-io",
   "crates/ritk-model",
   "crates/ritk-registration",
@@ -32,6 +33,7 @@ ritk-mgh = { path = "crates/ritk-mgh" }
 ritk-analyze = { path = "crates/ritk-analyze" }
 ritk-png = { path = "crates/ritk-png" }
 ritk-jpeg = { path = "crates/ritk-jpeg" }
+ritk-tiff = { path = "crates/ritk-tiff" }
 ritk-vtk = { path = "crates/ritk-vtk" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }

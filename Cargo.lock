@@ -6024,10 +6024,10 @@ dependencies = [
  "ritk-nifti",
  "ritk-nrrd",
  "ritk-png",
+ "ritk-tiff",
  "ritk-vtk",
  "tempfile",
  "thiserror 2.0.18",
- "tiff 0.9.1",
  "tracing",
  "zune-core 0.4.12",
  "zune-jpegxl",
@@ -6189,6 +6189,18 @@ dependencies = [
  "walkdir",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+]
+
+[[package]]
+name = "ritk-tiff"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-core",
+ "tempfile",
+ "tiff 0.9.1",
 ]
 
 [[package]]

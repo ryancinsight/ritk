@@ -1,22 +1,17 @@
 //! TIFF / BigTIFF reader for 3-D volumetric images.
 //!
-//! Each IFD (Image File Directory) page in the TIFF file represents one
-//! Z-slice.  Pages are stacked in IFD order to form the Z dimension of the
-//! returned `Image<B, 3>` tensor with shape `[nz, ny, nx]`.
+//! Each IFD (Image File Directory) page represents one Z-slice.  Pages are
+//! stacked in IFD order to form the Z dimension of the returned
+//! `Image<B, 3>` tensor with shape `[nz, ny, nx]`.
 //!
 //! # Axis convention
 //! No axis permutation is applied.  TIFF page data is stored in row-major
-//! order (Y outer, X inner), which maps directly to the `[ny, nx]` layout
-//! of each Z-slice in the RITK tensor.
+//! order (Y outer, X inner), mapping directly to `[ny, nx]` per Z-slice.
 //!
 //! # Spatial metadata
 //! TIFF has no standardized physical-space metadata fields.  The returned
-//! image uses default values:
-//! - `origin  = [0, 0, 0]`
-//! - `spacing = [1, 1, 1]`
-//! - `direction = identity`
-//!
-//! Users must set these externally when physical coordinates are known.
+//! image uses default values: origin `[0,0,0]`, spacing `[1,1,1]`,
+//! direction identity.
 //!
 //! # Supported pixel types
 //! u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 — all converted to f32.
@@ -74,7 +69,6 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
         )
     })?;
 
-    // First-page dimensions define the expected (width, height) for all pages.
     let (width, height) = decoder
         .dimensions()
         .map_err(|e| anyhow!("Failed to read TIFF dimensions: {}", e))?;
@@ -123,7 +117,6 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
             .next_image()
             .map_err(|e| anyhow!("Failed to advance to TIFF page {}: {}", slices.len(), e))?;
 
-        // Verify subsequent pages have consistent dimensions.
         let (w, h) = decoder.dimensions().map_err(|e| {
             anyhow!(
                 "Failed to read TIFF page {} dimensions: {}",
@@ -155,7 +148,6 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
     let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
     let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
 
-    // TIFF has no standard physical-space metadata — use defaults.
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
@@ -166,9 +158,8 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
 /// Convert a [`DecodingResult`] variant to `Vec<f32>`.
 ///
 /// Every integer and float variant is converted losslessly where the source
-/// fits in f32.  For u32, i32, u64, i64 sources, large magnitudes may lose
-/// precision due to the 24-bit f32 significand — this is acceptable for the
-/// medical-imaging use case where intensities rarely exceed 2^24.
+/// fits in f32.  For u32/i32/u64/i64, large magnitudes may lose precision
+/// due to the 24-bit f32 significand.
 fn decoding_result_to_f32(result: DecodingResult, page_index: usize) -> Result<Vec<f32>> {
     match result {
         DecodingResult::U8(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
@@ -189,19 +180,27 @@ fn decoding_result_to_f32(result: DecodingResult, page_index: usize) -> Result<V
     }
 }
 
-// ── Public reader struct ──────────────────────────────────────────────────────
+// ── Reader struct ─────────────────────────────────────────────────────────────
 
-/// Stateless reader for TIFF / BigTIFF files.
+/// Backend-bound reader for TIFF / BigTIFF files.
 ///
-/// Provides a struct-based API that delegates to [`read_tiff`].
-pub struct TiffReader;
+/// Carries the compute device so it can implement the `ImageReader<B, 3>`
+/// trait from `ritk-io`.
+pub struct TiffReader<B: Backend> {
+    device: B::Device,
+}
 
-impl TiffReader {
+impl<B: Backend> TiffReader<B> {
+    /// Create a reader bound to `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
     /// Read the TIFF file at `path` into a 3-D `Image`.
     ///
     /// See [`read_tiff`] for full documentation.
-    pub fn read<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
-        read_tiff(path, device)
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
+        read_tiff(path, &self.device)
     }
 }
 
@@ -209,7 +208,7 @@ impl TiffReader {
 
 #[cfg(test)]
 mod tests {
-    use crate::format::tiff::write_tiff;
+    use crate::write_tiff;
     use burn::tensor::backend::Backend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
@@ -221,7 +220,6 @@ mod tests {
 
     type TestBackend = NdArray<f32>;
 
-    /// Helper: build a 3-D Image from a flat f32 vec and shape [nz, ny, nx].
     fn make_image(data: Vec<f32>, nz: usize, ny: usize, nx: usize) -> Image<TestBackend, 3> {
         let device: <TestBackend as Backend>::Device = Default::default();
         let tensor_data = TensorData::new(data, Shape::new([nz, ny, nx]));
@@ -234,12 +232,8 @@ mod tests {
         )
     }
 
-    // ── Round-trip: single slice ──────────────────────────────────────────
-
-    /// Write a single-slice (nz=1) f32 image and read it back.
-    /// Verify shape and every voxel value.
     #[test]
-    fn test_round_trip_single_slice() -> anyhow::Result<()> {
+    fn round_trip_single_slice_preserves_shape_and_values() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("single_slice.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -256,22 +250,13 @@ mod tests {
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
 
-        // Shape
         assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
-
-        // Spatial defaults
         assert_eq!(loaded.origin(), &Point::new([0.0, 0.0, 0.0]));
         assert_eq!(loaded.spacing(), &Spacing::new([1.0, 1.0, 1.0]));
         assert_eq!(loaded.direction(), &Direction::identity());
 
-        // Voxel values
         let loaded_td = loaded.data().clone().to_data();
         let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        assert_eq!(
-            loaded_vals.len(),
-            data_vec.len(),
-            "total voxel count mismatch"
-        );
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-6,
@@ -285,12 +270,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Round-trip: multi-slice ───────────────────────────────────────────
-
-    /// Write a multi-slice (nz=3) image with analytically-known values and
-    /// read it back.  Verify shape and per-voxel correctness.
     #[test]
-    fn test_round_trip_multi_slice() -> anyhow::Result<()> {
+    fn round_trip_multi_slice_preserves_shape_and_values() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("multi_slice.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -298,20 +279,16 @@ mod tests {
         let nz = 3usize;
         let ny = 4usize;
         let nx = 5usize;
-        // Each voxel's value encodes its linear index: 0.0, 1.0, 2.0, ...
         let data_vec: Vec<f32> = (0u32..(nz * ny * nx) as u32).map(|i| i as f32).collect();
 
         let image = make_image(data_vec.clone(), nz, ny, nx);
         write_tiff(&image, &path)?;
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
-
         assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
 
         let loaded_td = loaded.data().clone().to_data();
         let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        assert_eq!(loaded_vals.len(), data_vec.len());
-
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-6,
@@ -325,12 +302,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Verify distinct per-slice values survive round-trip ───────────────
-
-    /// Each Z-slice is filled with a distinct constant so we can verify
-    /// slice ordering is preserved through write → read.
     #[test]
-    fn test_slice_ordering_preserved() -> anyhow::Result<()> {
+    fn slice_ordering_preserved_through_write_read() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("slice_order.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -341,7 +314,7 @@ mod tests {
         let pixels_per_slice = ny * nx;
         let mut data_vec = Vec::with_capacity(nz * pixels_per_slice);
         for z in 0..nz {
-            let fill_value = (z + 1) as f32 * 100.0; // 100, 200, 300, 400
+            let fill_value = (z + 1) as f32 * 100.0;
             data_vec.extend(std::iter::repeat(fill_value).take(pixels_per_slice));
         }
 
@@ -373,10 +346,8 @@ mod tests {
         Ok(())
     }
 
-    // ── TiffReader struct delegates correctly ─────────────────────────────
-
     #[test]
-    fn test_reader_struct_delegates() -> anyhow::Result<()> {
+    fn tiff_reader_struct_delegates_to_read_tiff() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("struct_read.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -385,7 +356,8 @@ mod tests {
         let image = make_image(data_vec, 2, 3, 4);
         write_tiff(&image, &path)?;
 
-        let loaded = TiffReader::read::<TestBackend, _>(&path, &device)?;
+        let reader = TiffReader::<TestBackend>::new(device);
+        let loaded = reader.read_image(&path)?;
         assert_eq!(loaded.shape(), [2, 3, 4]);
 
         let loaded_td = loaded.data().clone().to_data();
@@ -402,10 +374,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Missing file produces error ──────────────────────────────────────
-
     #[test]
-    fn test_missing_file_returns_error() {
+    fn missing_file_returns_error_with_open_message() {
         let device: <TestBackend as Backend>::Device = Default::default();
         let result = read_tiff::<TestBackend, _>("/nonexistent/path.tiff", &device);
         assert!(result.is_err(), "missing file must produce an error");
@@ -417,10 +387,8 @@ mod tests {
         );
     }
 
-    // ── Invalid (non-TIFF) file produces error ───────────────────────────
-
     #[test]
-    fn test_invalid_file_returns_error() -> anyhow::Result<()> {
+    fn invalid_file_returns_error() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("not_a_tiff.tiff");
         std::fs::write(&path, b"this is not a tiff file")?;
@@ -432,10 +400,8 @@ mod tests {
         Ok(())
     }
 
-    // ── Negative f32 values survive round-trip ───────────────────────────
-
     #[test]
-    fn test_negative_values_round_trip() -> anyhow::Result<()> {
+    fn negative_values_survive_round_trip() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("negative.tiff");
         let device: <TestBackend as Backend>::Device = Default::default();
@@ -444,7 +410,7 @@ mod tests {
         let ny = 3usize;
         let nx = 4usize;
         let data_vec: Vec<f32> = (0..(nz * ny * nx) as i32)
-            .map(|i| (i as f32) - 12.0) // range: -12.0 .. +11.0
+            .map(|i| (i as f32) - 12.0)
             .collect();
 
         let image = make_image(data_vec.clone(), nz, ny, nx);

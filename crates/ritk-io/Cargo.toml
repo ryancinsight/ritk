@@ -14,6 +14,7 @@ ritk-mgh = { workspace = true }
 ritk-analyze = { workspace = true }
 ritk-png = { workspace = true }
 ritk-jpeg = { workspace = true }
+ritk-tiff = { workspace = true }
 ritk-vtk = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
@@ -25,7 +26,6 @@ nalgebra = { workspace = true }
 rayon = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }
-tiff = { workspace = true }
 flate2 = { workspace = true }
 gaia = { workspace = true }
 consus-hdf5 = { workspace = true }
