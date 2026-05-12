@@ -56,47 +56,53 @@ pub fn trilinear_interpolation<B: Backend>(
     let y0_off = y0_idx.mul_scalar(stride_h);
     let y1_off = y1_idx.mul_scalar(stride_h);
 
-    // Helper to gather values: I(idx)
-    let gather_val = |idx: Tensor<B, 5, Int>| -> Tensor<B, 5> {
-        // Flatten indices: [B, 1, D*H*W]
-        let flat_idx_view = idx.reshape([b, 1, d * h * w]);
-
-        // Expand indices to match channels: [B, C, D*H*W]
-        // Note: gather requires index dims to match input dims or be broadcastable.
-        // Explicit repeat is safer for now.
-        let flat_idx_expanded = flat_idx_view.repeat(&[1, c, 1]);
-
-        let gathered = flat_img.clone().gather(2, flat_idx_expanded);
-
-        // Reshape back
-        gathered.reshape([b, c, d, h, w])
-    };
-
-    // Calculate combined indices
+    // Calculate combined indices once
     let idx_00 = z0_off.clone() + y0_off.clone();
     let idx_01 = z0_off.clone() + y1_off.clone();
     let idx_10 = z1_off.clone() + y0_off.clone();
     let idx_11 = z1_off.clone() + y1_off.clone();
 
-    let v000 = gather_val(idx_00.clone() + x0_idx.clone());
-    let v001 = gather_val(idx_00.clone() + x1_idx.clone());
-    let v010 = gather_val(idx_01.clone() + x0_idx.clone());
-    let v011 = gather_val(idx_01.clone() + x1_idx.clone());
-    let v100 = gather_val(idx_10.clone() + x0_idx.clone());
-    let v101 = gather_val(idx_10.clone() + x1_idx.clone());
-    let v110 = gather_val(idx_11.clone() + x0_idx.clone());
-    let v111 = gather_val(idx_11.clone() + x1_idx.clone());
+    let idx_000 = (idx_00.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_001 = (idx_00 + x1_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_010 = (idx_01.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_011 = (idx_01 + x1_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_100 = (idx_10.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_101 = (idx_10 + x1_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_110 = (idx_11.clone() + x0_idx.clone()).reshape([b, 1, d * h * w]);
+    let idx_111 = (idx_11 + x1_idx.clone()).reshape([b, 1, d * h * w]);
 
-    // Interpolate X first
-    let w00 = v000 * wx0.clone() + v001 * wx1.clone();
-    let w01 = v010 * wx0.clone() + v011 * wx1.clone();
-    let w10 = v100 * wx0.clone() + v101 * wx1.clone();
-    let w11 = v110 * wx0.clone() + v111 * wx1.clone();
+    let mut out_channels = Vec::with_capacity(c);
 
-    // Interpolate Y
-    let w0 = w00 * wy0.clone() + w01 * wy1.clone();
-    let w1 = w10 * wy0.clone() + w11 * wy1.clone();
+    for c_idx in 0..c {
+        let channel_img = flat_img.clone().slice([0..b, c_idx..c_idx + 1, 0..d * h * w]);
 
-    // Interpolate Z
-    w0 * wz0 + w1 * wz1
+        let gather_val = |idx: &Tensor<B, 3, Int>| -> Tensor<B, 5> {
+            channel_img.clone().gather(2, idx.clone()).reshape([b, 1, d, h, w])
+        };
+
+        let v000 = gather_val(&idx_000);
+        let v001 = gather_val(&idx_001);
+        let v010 = gather_val(&idx_010);
+        let v011 = gather_val(&idx_011);
+        let v100 = gather_val(&idx_100);
+        let v101 = gather_val(&idx_101);
+        let v110 = gather_val(&idx_110);
+        let v111 = gather_val(&idx_111);
+
+        // Interpolate X first
+        let w00 = v000 * wx0.clone() + v001 * wx1.clone();
+        let w01 = v010 * wx0.clone() + v011 * wx1.clone();
+        let w10 = v100 * wx0.clone() + v101 * wx1.clone();
+        let w11 = v110 * wx0.clone() + v111 * wx1.clone();
+
+        // Interpolate Y
+        let w0 = w00 * wy0.clone() + w01 * wy1.clone();
+        let w1 = w10 * wy0.clone() + w11 * wy1.clone();
+
+        // Interpolate Z
+        let c_out = w0 * wz0.clone() + w1 * wz1.clone();
+        out_channels.push(c_out);
+    }
+
+    Tensor::cat(out_channels, 1)
 }

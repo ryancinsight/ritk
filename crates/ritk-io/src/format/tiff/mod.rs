@@ -14,8 +14,7 @@ impl<B: Backend> ImageReader<B, 3> for TiffReader<B> {
 
 impl<B: Backend> ImageWriter<B, 3> for TiffWriter {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_tiff(image, path)
-            .map_err(|e| std::io::Error::other(e.to_string()))
+        write_tiff(image, path).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     nn::{
         conv::{Conv3d, Conv3dConfig},
-        BatchNorm, BatchNormConfig, Linear, LinearConfig, PaddingConfig3d, Relu,
+        InstanceNorm, InstanceNormConfig, Linear, LinearConfig, PaddingConfig3d, Relu,
     },
     tensor::{backend::Backend, Tensor},
 };
@@ -10,15 +10,15 @@ use burn::{
 #[derive(Module, Debug)]
 pub struct AffineNetwork<B: Backend> {
     conv1: Conv3d<B>,
-    bn1: BatchNorm<B>,
+    bn1: InstanceNorm<B>,
     conv2: Conv3d<B>,
-    bn2: BatchNorm<B>,
+    bn2: InstanceNorm<B>,
     conv3: Conv3d<B>,
-    bn3: BatchNorm<B>,
+    bn3: InstanceNorm<B>,
     conv4: Conv3d<B>,
-    bn4: BatchNorm<B>,
+    bn4: InstanceNorm<B>,
     conv5: Conv3d<B>,
-    bn5: BatchNorm<B>,
+    bn5: InstanceNorm<B>,
     fc: Linear<B>,
     activation: Relu,
 }
@@ -44,31 +44,31 @@ impl AffineNetworkConfig {
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
-        let bn1 = BatchNormConfig::new(self.channels[0]).init(device);
+        let bn1 = InstanceNormConfig::new(self.channels[0]).init(device);
 
         let conv2 = Conv3dConfig::new([self.channels[0], self.channels[1]], [3, 3, 3])
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
-        let bn2 = BatchNormConfig::new(self.channels[1]).init(device);
+        let bn2 = InstanceNormConfig::new(self.channels[1]).init(device);
 
         let conv3 = Conv3dConfig::new([self.channels[1], self.channels[2]], [3, 3, 3])
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
-        let bn3 = BatchNormConfig::new(self.channels[2]).init(device);
+        let bn3 = InstanceNormConfig::new(self.channels[2]).init(device);
 
         let conv4 = Conv3dConfig::new([self.channels[2], self.channels[3]], [3, 3, 3])
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
-        let bn4 = BatchNormConfig::new(self.channels[3]).init(device);
+        let bn4 = InstanceNormConfig::new(self.channels[3]).init(device);
 
         let conv5 = Conv3dConfig::new([self.channels[3], self.channels[4]], [3, 3, 3])
             .with_stride([2, 2, 2])
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
-        let bn5 = BatchNormConfig::new(self.channels[4]).init(device);
+        let bn5 = InstanceNormConfig::new(self.channels[4]).init(device);
 
         // Initialize final linear layer to identity transform
         // The output is 12 parameters for a 3x4 affine matrix

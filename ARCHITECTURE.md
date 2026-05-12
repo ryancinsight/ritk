@@ -150,12 +150,32 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 - Metadata invariant: JPEG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
 - `ritk-io::format::jpeg` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
 
-### 12. Format Facade Monomorphization Boundary
+### 12. TIFF Format Boundary
 
-> **Theorem 12.1 (Single Implementation Ownership)**: A format with a dedicated crate has exactly one parser/writer implementation body; `ritk-io` may expose only static re-exports and trait adapters.
+> **Theorem 12.1 (TIFF Stack Ownership)**: TIFF / BigTIFF image-stack parsing and writing have exactly one implementation body owned by `ritk-tiff`.
 
 **Boundary surface**:
-- `ritk-analyze`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`, `ritk-nifti`, `ritk-nrrd`, `ritk-png`, and `ritk-vtk` own their format parsers and writers.
+- `ritk-tiff` owns `read_tiff`, `write_tiff`, `TiffReader<B>`, and `TiffWriter`.
+- Reader invariant: TIFF pages decode into `Image<B, 3>` with tensor shape `[page_count, height, width]`; a single-page TIFF has depth 1.
+- Writer invariant: `Image<B, 3>` is emitted as a page stack with one page per depth slice.
+- `ritk-io::format::tiff` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
+
+### 13. MINC Format Boundary
+
+> **Theorem 13.1 (MINC2 HDF5 Ownership)**: MINC2 HDF5 parsing and writing have exactly one implementation body owned by `ritk-minc`.
+
+**Boundary surface**:
+- `ritk-minc` owns `read_minc`, `write_minc`, `MincReader<B>`, and `MincWriter`.
+- Reader invariant: MINC2 dimension metadata, `dimorder`, voxel datatype conversion, and spatial metadata derivation are isolated in `ritk-minc`.
+- Writer invariant: RITK tensor data is emitted as contiguous little-endian `f32` voxel bytes in the MINC2 HDF5 layout.
+- `ritk-io::format::minc` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
+
+### 14. Format Facade Monomorphization Boundary
+
+> **Theorem 14.1 (Single Implementation Ownership)**: A format with a dedicated crate has exactly one parser/writer implementation body; `ritk-io` may expose only static re-exports and trait adapters.
+
+**Boundary surface**:
+- `ritk-analyze`, `ritk-jpeg`, `ritk-metaimage`, `ritk-mgh`, `ritk-minc`, `ritk-nifti`, `ritk-nrrd`, `ritk-png`, `ritk-tiff`, and `ritk-vtk` own their format parsers and writers.
 - `ritk-io::format::*` modules for those crates are facade boundaries. They re-export the authoritative functions and define only local `ImageReader` / `ImageWriter` adapters when orphan rules require those impls to live in `ritk-io`.
 - Adapter types remain generic over `B: Backend`; calls monomorphize per backend and do not use dynamic dispatch in throughput paths.
 - Copied reader/writer files under `ritk-io` for dedicated-crate formats are prohibited.

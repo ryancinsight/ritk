@@ -1464,7 +1464,6 @@ source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f46
 dependencies = [
  "byteorder",
  "consus-core",
- "flate2",
 ]
 
 [[package]]
@@ -5999,10 +5998,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "charls",
- "consus-compression",
- "consus-core",
- "consus-hdf5",
- "consus-io",
  "dicom",
  "dicom-core",
  "dicom-pixeldata",
@@ -6021,6 +6016,7 @@ dependencies = [
  "ritk-jpeg",
  "ritk-metaimage",
  "ritk-mgh",
+ "ritk-minc",
  "ritk-nifti",
  "ritk-nrrd",
  "ritk-png",
@@ -6070,6 +6066,21 @@ dependencies = [
  "ritk-core",
  "tempfile",
  "tracing",
+]
+
+[[package]]
+name = "ritk-minc"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "consus-core",
+ "consus-hdf5",
+ "consus-io",
+ "nalgebra",
+ "ritk-core",
+ "tempfile",
 ]
 
 [[package]]
