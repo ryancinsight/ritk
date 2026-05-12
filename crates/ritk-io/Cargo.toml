@@ -15,6 +15,7 @@ ritk-analyze = { workspace = true }
 ritk-png = { workspace = true }
 ritk-jpeg = { workspace = true }
 ritk-tiff = { workspace = true }
+ritk-minc = { workspace = true }
 ritk-vtk = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
@@ -28,10 +29,6 @@ ndarray = { workspace = true }
 image = { workspace = true }
 flate2 = { workspace = true }
 gaia = { workspace = true }
-consus-hdf5 = { workspace = true }
-consus-core = { workspace = true }
-consus-compression = { workspace = true }
-consus-io = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dicom-pixeldata = { workspace = true }

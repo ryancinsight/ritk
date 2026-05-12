@@ -8,6 +8,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added `crates/ritk-minc` as the authoritative MINC2 HDF5 format crate with `read_minc`, `write_minc`, `MincReader<B>`, and `MincWriter`. The implementation is partitioned into `attrs`, `convert`, `hdf5_binary`, `reader`, `spatial`, and `writer`, with 40 value-semantic tests.
 - Added `crates/ritk-tiff` as the authoritative TIFF / BigTIFF format crate with `read_tiff`, `write_tiff`, `TiffReader<B>` (device-carrying, implements `ImageReader<B, 3>`), and `TiffWriter` (implements `ImageWriter<B, 3>`). 13 value-semantic tests cover single/multi-slice round-trip, slice-ordering, struct-delegate, missing/invalid-file errors, negative values, bitwise-identical f32, multi-page file-size bound, payload byte-count, and edge-case float bit-identity. `ritk-io::format::tiff` is now a pure facade re-export; reader.rs and writer.rs removed from ritk-io.
 - Added `SnapApp::colormap_for_modality(modality: Option<&str>) -> Colormap` SSOT in `crates/ritk-snap/src/app.rs`: `Some("PT")` → `Colormap::Hot`, all other values → `Colormap::Grayscale`. Applied at all 5 volume load sites (primary DICOM, secondary DICOM, `load_volume_file`, `load_volume_bytes`, `load_dicom_series_bytes`). PT primary and secondary volumes now auto-select the standard clinical PET colormap on load; `close_study` continues to reset `secondary_colormap` to `Grayscale`. 6 new value-semantic tests.
 - Added `series_time: Option<String>` (0008,0031) to `LoadedVolume` in `crates/ritk-snap/src/lib.rs` and wired through the DICOM loader in `crates/ritk-snap/src/dicom/loader.rs`. Both inline load paths in `app.rs` and all 7 test-fixture `LoadedVolume` literals updated.
@@ -67,6 +68,7 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
   - verification-time invalid payload aggregation
 
 ### Changed
+- Reduced `ritk-io::format::minc` to static `ritk-minc` re-exports plus local generic `ImageReader` / `ImageWriter` adapters; parser/writer implementation bodies now live only in `ritk-minc`.
 - Reduced `ritk-io::format::png` and `ritk-io::format::jpeg` to static re-exports plus local generic trait adapters; parser/writer implementation bodies now live only in `ritk-png` and `ritk-jpeg`.
 - Wired `ritk-png` and `ritk-jpeg` into the workspace manifest and `ritk-io` dependency graph.
 - Changed `DicomRsBackend` native-owned JPEG routing so `TransferSyntaxKind::is_native_jpeg_codec()` dispatches exclusively to `NativeCodecBackend`; fallback through `dicom-rs` remains limited to `is_external_backend_codec_candidate()`.
@@ -94,7 +96,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Enforced deterministic discovered-series ordering in [crates/ritk-io/src/format/dicom/mod.rs](crates/ritk-io/src/format/dicom/mod.rs) after per-series file-path normalization.
 
 ### Fixed
+- Fixed `ritk-minc` crate-local test build drift by replacing the removed `burn_ndarray::NdArrayBackend` alias with `burn_ndarray::NdArray<f32>`.
 - Fixed PET metadata propagation drift in direct `ritk-snap` DICOM volume load paths by carrying patient weight, injected dose, half-life, radiopharmaceutical start time, and decay correction into `LoadedVolume`; synthetic non-DICOM fixtures now initialize those fields explicitly as absent.
+- Removed stale `ritk-io` MINC implementation copies:
+  - `crates/ritk-io/src/format/minc/reader.rs`
+  - `crates/ritk-io/src/format/minc/writer.rs`
 - Removed stale `ritk-io` JPEG implementation copies:
   - `crates/ritk-io/src/format/jpeg/reader.rs`
   - `crates/ritk-io/src/format/jpeg/writer.rs`
@@ -131,6 +137,15 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 - Closed verification drift by re-running the full active matrix and recording WASM environment blocker evidence.
 
 ### Verification
+- `cargo test -p ritk-minc --lib`: 40 passed
+- `cargo test -p ritk-io --lib format::minc`: 2 passed
+- `cargo test -p ritk-io --lib`: 190 passed
+- `cargo check -p ritk-cli`: passed
+- `cargo check -p ritk-python`: passed
+- `cargo test -p ritk-registration --examples --no-run`: passed
+- `cargo check -p ritk-snap --lib`: passed
+- `cargo fmt --check -p ritk-minc -p ritk-io`: passed
+- `git diff --check`: passed with line-ending warnings only
 - `cargo test -p ritk-jpeg --lib`: 6 passed
 - `cargo test -p ritk-png --lib`: 4 passed
 - `cargo test -p ritk-io --lib format::jpeg`: 1 passed

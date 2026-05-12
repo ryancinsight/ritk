@@ -1,0 +1,19 @@
+[package]
+name = "ritk-minc"
+version = "0.1.0"
+edition = "2021"
+description = "MINC2 (.mnc / .mnc2) image I/O for RITK"
+repository = "https://github.com/ryancinsight/ritk"
+
+[dependencies]
+ritk-core = { workspace = true }
+burn = { workspace = true }
+anyhow = { workspace = true }
+nalgebra = { workspace = true }
+consus-hdf5 = { workspace = true }
+consus-core = { workspace = true }
+consus-io = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }

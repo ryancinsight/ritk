@@ -1,3 +1,28 @@
+## Sprint 195 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.5 [minor]
+**Goal**: Extract MINC2 dedicated ownership to `crates/ritk-minc` and leave `ritk-io::format::minc` as a monomorphized facade.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| MINC dedicated ownership | Move MINC implementation from `ritk-io` to authoritative `ritk-minc` crate | **Closed** |
+| MINC crate verification drift | Replace stale `NdArrayBackend` test alias with current `NdArray<f32>` backend | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-minc` — authoritative MINC2 HDF5 crate with `read_minc`, `write_minc`, `MincReader<B>`, `MincWriter`
+- ✓ MINC implementation partitioned into `attrs`, `convert`, `hdf5_binary`, `reader`, `spatial`, and `writer`, with all active files under 500 lines
+- ✓ `ritk-io::format::minc` reduced to a facade re-export plus local `ImageReader` / `ImageWriter` adapters and 2 adapter tests
+- ✓ `reader.rs` and `writer.rs` deleted from `ritk-io/src/format/minc`
+- ✓ Workspace and `ritk-io` dependency wiring point at `ritk-minc`
+- ✓ `cargo test -p ritk-minc --lib` pass (40), `cargo test -p ritk-io --lib` pass (190)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Native Rust JPEG 2000 replacement | Replace `openjpeg-sys` while preserving `ritk-codecs` / `ritk-dicom` boundary | High |
+
 ## Sprint 194 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

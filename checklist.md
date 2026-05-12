@@ -1,3 +1,32 @@
+## Sprint 195 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.5 [minor]
+**Goal**: Extract MINC2 implementation from `ritk-io` into dedicated `crates/ritk-minc`, making `ritk-io::format::minc` a pure facade re-export.
+
+### Checklist items
+- [x] Confirm `crates/ritk-minc` is a workspace member and dependency in root `Cargo.toml`
+- [x] Confirm `ritk-io` depends on `ritk-minc`
+- [x] Keep `crates/ritk-minc/src/lib.rs` as the authoritative public surface for `read_minc`, `write_minc`, `MincReader<B>`, `MincWriter`
+- [x] Keep MINC implementation partitioned across `attrs`, `convert`, `hdf5_binary`, `reader`, `spatial`, and `writer`
+- [x] Replace `crates/ritk-io/src/format/minc/mod.rs` with facade re-exports plus `ImageReader` / `ImageWriter` impls and adapter tests
+- [x] Delete `crates/ritk-io/src/format/minc/reader.rs` and `writer.rs`
+- [x] Fix `ritk-minc` crate-local test backend alias from removed `NdArrayBackend` to `NdArray<f32>`
+- [x] Verify `cargo test -p ritk-minc --lib` (40 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::minc` (2 passed)
+- [x] Verify `cargo test -p ritk-io --lib` (190 passed)
+- [x] Verify `cargo check -p ritk-cli` (passed)
+- [x] Verify `cargo check -p ritk-python` (passed)
+- [x] Verify `cargo test -p ritk-registration --examples --no-run` (passed)
+- [x] Verify `cargo check -p ritk-snap --lib` (passed)
+- [x] Verify `cargo fmt --check -p ritk-minc -p ritk-io` (passed)
+- [x] Verify `git diff --check` (passed; line-ending warnings only)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` replacement) | High | Open |
+
 ## Sprint 194 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
