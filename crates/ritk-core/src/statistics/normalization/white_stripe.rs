@@ -247,9 +247,9 @@ impl WhiteStripeNormalizer {
 
         let normalized = Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         );
 
         WhiteStripeResult {
@@ -297,10 +297,7 @@ fn empirical_cdf_rank(sorted: &[f64], value: f64) -> f64 {
         return 0.5;
     }
     // Count values ≤ value using binary search.
-    let count = match sorted.partition_point(|&v| v <= value) {
-        0 => 0,
-        c => c,
-    };
+    let count = sorted.partition_point(|&v| v <= value);
     // Map to [0, 1] range with continuity correction.
     (count as f64 - 0.5) / n as f64
 }

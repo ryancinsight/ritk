@@ -27,7 +27,7 @@ impl<B: Backend> JpegReader<B> {
 impl<B: Backend> ImageReader<B, 3> for JpegReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
         read_jpeg(path, &self.device)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -51,7 +51,7 @@ impl<B: Backend> Default for JpegWriter<B> {
 impl<B: Backend> ImageWriter<B, 3> for JpegWriter<B> {
     fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_jpeg(path, image)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

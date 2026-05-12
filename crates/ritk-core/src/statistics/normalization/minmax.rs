@@ -62,7 +62,7 @@ impl MinMaxNormalizer {
         let stats = compute_statistics(image);
         let min = stats.min;
         let max = stats.max;
-        let range = (max - min) as f32 + 1e-8_f32;
+        let range = (max - min) + 1e-8_f32;
 
         // N(x) = (x − min) / (max − min + ε)
         let normalized = image.data().clone().sub_scalar(min).div_scalar(range);

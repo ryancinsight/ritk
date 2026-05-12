@@ -73,9 +73,9 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let smoothed = self.apply_inner(image.data().clone(), image.spacing());
         Image::new(
             smoothed,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         )
     }
 

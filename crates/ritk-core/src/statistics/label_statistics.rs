@@ -100,7 +100,7 @@ pub fn compute_label_intensity_statistics_from_slices(
         .par_iter()
         .zip(intensity_slice.par_iter())
         .fold(
-            || HashMap::<u32, Acc>::new(),
+            HashMap::<u32, Acc>::new,
             |mut acc, (&label_f, &intensity)| {
                 let label = label_f as u32;
                 if label == 0 {
@@ -123,7 +123,7 @@ pub fn compute_label_intensity_statistics_from_slices(
             },
         )
         .reduce(
-            || HashMap::<u32, Acc>::new(),
+            HashMap::<u32, Acc>::new,
             |mut a, b| {
                 for (k, (bmin, bmax, bsum, bsumsq, bcnt)) in b {
                     let e = a

@@ -192,9 +192,9 @@ fn rebuild_image_3d<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Ima
     let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
     Ok(Image::new(
         tensor,
-        src.origin().clone(),
-        src.spacing().clone(),
-        src.direction().clone(),
+        *src.origin(),
+        *src.spacing(),
+        *src.direction(),
     ))
 }
 

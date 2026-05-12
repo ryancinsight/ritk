@@ -38,8 +38,8 @@ pub use region_growing::{
     NeighborhoodConnectedFilter,
 };
 pub use threshold::{
-    kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold, triangle_threshold,
-    yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
-    TriangleThreshold, YenThreshold,
+    binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
+    triangle_threshold, yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
+    MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 pub use watershed::{MarkerControlledWatershed, WatershedSegmentation};

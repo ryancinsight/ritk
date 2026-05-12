@@ -12,7 +12,9 @@ use std::collections::HashSet;
 
 /// Display colormap for image overlays.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum Colormap {
+    #[default]
     Grayscale,
     Hot,
     Cool,
@@ -20,11 +22,6 @@ pub enum Colormap {
     Custom(Vec<[f32; 4]>),
 }
 
-impl Default for Colormap {
-    fn default() -> Self {
-        Self::Grayscale
-    }
-}
 
 /// Secondary image overlay.  Invariant: data.len() == dims product.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -845,7 +845,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                 );
                 let (new_slices, new_uids): (Vec<_>, Vec<_>) = slices
                     .into_iter()
-                    .zip(per_file_series_uids.into_iter())
+                    .zip(per_file_series_uids)
                     .zip(per_file_dims.iter().copied())
                     .filter(|((_, _), (r, c))| (*r == cr && *c == cc) || *r == 0)
                     .map(|((s, u), _)| (s, u))
@@ -912,7 +912,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     );
                     let retained: Vec<DicomSliceMetadata> = slices
                         .into_iter()
-                        .zip(per_file_series_uids.into_iter())
+                        .zip(per_file_series_uids)
                         .filter(|(_, u)| u.as_deref() == Some(uid_str) || u.is_none())
                         .map(|(s, _)| s)
                         .collect();
@@ -998,7 +998,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     const GANTRY_TILT_MIN_DEGREES: f64 = 0.01;
     {
         let ref_iop = slices.first().and_then(|s| s.image_orientation_patient);
-        let is_effectively_axial = ref_iop.map_or(true, |iop| {
+        let is_effectively_axial = ref_iop.is_none_or(|iop| {
             let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
             iop.iter()
                 .zip(axial.iter())
@@ -1020,7 +1020,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     );
                     for slice in &mut slices {
                         if slice.image_orientation_patient.is_none()
-                            || slice.image_orientation_patient.map_or(false, |iop| {
+                            || slice.image_orientation_patient.is_some_and(|iop| {
                                 let axial = [1.0_f64, 0.0, 0.0, 0.0, 1.0, 0.0];
                                 iop.iter()
                                     .zip(axial.iter())
@@ -1332,7 +1332,7 @@ pub(super) fn analyze_slice_spacing(positions: &[f64]) -> SliceGeometryReport {
     // Median of gaps via sorted copy.
     let mut sorted_gaps = gaps.clone();
     sorted_gaps.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let nominal = if sorted_gaps.len() % 2 == 0 {
+    let nominal = if sorted_gaps.len().is_multiple_of(2) {
         let mid = sorted_gaps.len() / 2;
         (sorted_gaps[mid - 1] + sorted_gaps[mid]) / 2.0
     } else {

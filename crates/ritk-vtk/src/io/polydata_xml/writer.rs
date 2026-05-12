@@ -34,7 +34,7 @@ pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
             ("NumberOfPolys", np2),
             ("NumberOfStrips", ns),
         ] {
-            piece.push_str(" ");
+            piece.push(' ');
             piece.push_str(k);
             piece.push(char::from(61u8));
             piece.push(q);

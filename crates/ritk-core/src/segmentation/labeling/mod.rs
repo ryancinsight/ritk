@@ -112,7 +112,10 @@ pub struct ConnectedComponentsFilter {
 impl ConnectedComponentsFilter {
     /// Create a filter with 6-connectivity and background_value = 0.0 (ITK defaults).
     pub fn new() -> Self {
-        Self { connectivity: 6, background_value: 0.0 }
+        Self {
+            connectivity: 6,
+            background_value: 0.0,
+        }
     }
 
     /// Create a filter with explicit connectivity (6 or 26) and background_value = 0.0.
@@ -124,7 +127,10 @@ impl ConnectedComponentsFilter {
             connectivity == 6 || connectivity == 26,
             "connectivity must be 6 or 26, got {connectivity}"
         );
-        Self { connectivity, background_value: 0.0 }
+        Self {
+            connectivity,
+            background_value: 0.0,
+        }
     }
 
     /// Set the background pixel value (builder pattern).

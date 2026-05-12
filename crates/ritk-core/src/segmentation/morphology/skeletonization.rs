@@ -132,12 +132,7 @@ impl Skeletonization {
 
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
 
-        Image::new(
-            tensor,
-            mask.origin().clone(),
-            mask.spacing().clone(),
-            mask.direction().clone(),
-        )
+        Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
 }
 
@@ -237,7 +232,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, step1: bool) -> usiz
             ];
 
             let b: u8 = nb.iter().sum();
-            if b < 2 || b > 6 {
+            if !(2..=6).contains(&b) {
                 continue;
             }
 
@@ -376,7 +371,10 @@ fn fg_components_26(local: &[bool; 27]) -> usize {
                         let nz_l = cz as isize + dz;
                         let ny_l = cy as isize + dy;
                         let nx_l = cx as isize + dx;
-                        if nz_l < 0 || nz_l >= 3 || ny_l < 0 || ny_l >= 3 || nx_l < 0 || nx_l >= 3 {
+                        if !(0..3).contains(&nz_l)
+                            || !(0..3).contains(&ny_l)
+                            || !(0..3).contains(&nx_l)
+                        {
                             continue;
                         }
                         let ni = nz_l as usize * 9 + ny_l as usize * 3 + nx_l as usize;

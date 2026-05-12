@@ -138,8 +138,8 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 
     // ── Parse vox_offset (offset 108) ────────────────────────────────────────
     let vox_offset = {
-        let v = read_f32(&hdr, 108) as u64;
-        v
+        
+        read_f32(&hdr, 108) as u64
     };
 
     // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────

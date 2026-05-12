@@ -20,6 +20,34 @@ Quick start
 >>> ritk.io.write_image(smoothed, "brain_smooth.nii.gz")
 """
 
+from pathlib import Path as _Path
+import os as _os
+
+_DLL_DIRECTORY_HANDLES: list[object] = []
+
+
+def _add_windows_dll_directories() -> None:
+    if _os.name != "nt" or not hasattr(_os, "add_dll_directory"):
+        return
+
+    package_dir = _Path(__file__).resolve().parent
+    candidate_dirs: list[_Path] = [package_dir]
+
+    for parent in package_dir.parents:
+        if (parent / "api-ms-win-core-winrt-error-l1-1-0.dll").exists():
+            candidate_dirs.append(parent)
+            break
+
+    msys_root = _Path(_os.environ.get("MSYS2_ROOT", r"D:\msys64"))
+    candidate_dirs.extend((msys_root / "mingw64" / "bin", msys_root / "ucrt64" / "bin"))
+
+    for directory in candidate_dirs:
+        if directory.is_dir():
+            _DLL_DIRECTORY_HANDLES.append(_os.add_dll_directory(str(directory)))
+
+
+_add_windows_dll_directories()
+
 from ritk._ritk import (
     filter,  # noqa: F401
     io,  # noqa: F401

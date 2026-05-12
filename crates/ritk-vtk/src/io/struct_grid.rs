@@ -140,7 +140,7 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
             let n: usize = tokens[1].parse().with_context(|| "bad POINTS count")?;
             let is_double = tokens
                 .get(2)
-                .map(|s| s.to_ascii_lowercase() == "double")
+                .map(|s| s.eq_ignore_ascii_case("double"))
                 .unwrap_or(false);
             grid.points = if binary {
                 if is_double {

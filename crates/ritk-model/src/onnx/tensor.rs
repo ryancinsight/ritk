@@ -80,8 +80,10 @@ pub fn burn_tensor_to_onnx<B: Backend, const D: usize>(
 
 /// Tensor data layout enumeration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum TensorLayout {
     /// Row-major (C-contiguous) layout
+    #[default]
     RowMajor,
     /// Column-major (Fortran-contiguous) layout
     ColumnMajor,
@@ -89,11 +91,6 @@ pub enum TensorLayout {
     Strided,
 }
 
-impl Default for TensorLayout {
-    fn default() -> Self {
-        TensorLayout::RowMajor
-    }
-}
 
 /// Tensor shape utilities.
 pub mod shape_utils {

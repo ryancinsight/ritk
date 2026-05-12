@@ -113,9 +113,9 @@ impl MarkerControlledWatershed {
 
         Ok(Image::new(
             tensor,
-            gradient.origin().clone(),
-            gradient.spacing().clone(),
-            gradient.direction().clone(),
+            *gradient.origin(),
+            *gradient.spacing(),
+            *gradient.direction(),
         ))
     }
 }

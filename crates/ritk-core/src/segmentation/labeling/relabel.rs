@@ -66,14 +66,18 @@ pub struct RelabelComponentFilter {
 impl RelabelComponentFilter {
     /// Create a filter that retains all components (ITK default: no size threshold).
     pub fn new() -> Self {
-        Self { minimum_object_size: 0 }
+        Self {
+            minimum_object_size: 0,
+        }
     }
 
     /// Create a filter that discards components smaller than `minimum_object_size` voxels.
     ///
     /// Matches `itk::RelabelComponentImageFilter::SetMinimumObjectSize`.
     pub fn with_minimum_object_size(minimum_object_size: usize) -> Self {
-        Self { minimum_object_size }
+        Self {
+            minimum_object_size,
+        }
     }
 
     /// Apply relabeling to an integer label image (output of `ConnectedComponentsFilter`).
@@ -90,7 +94,10 @@ impl RelabelComponentFilter {
     ///
     /// Returns `(output_image, statistics)` where `statistics` has one entry per
     /// surviving component in ascending new-label order.
-    pub fn apply<B: Backend>(&self, label_image: &Image<B, 3>) -> (Image<B, 3>, Vec<RelabelStatistics>) {
+    pub fn apply<B: Backend>(
+        &self,
+        label_image: &Image<B, 3>,
+    ) -> (Image<B, 3>, Vec<RelabelStatistics>) {
         let shape = label_image.shape();
         let device = label_image.data().device();
 
@@ -200,8 +207,7 @@ mod tests {
 
     fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
@@ -263,7 +269,12 @@ mod tests {
         // Voxels that were 2 should now be 1, 1→2, 3→3.
         let expected: Vec<f32> = vals
             .iter()
-            .map(|&v| match v as u32 { 2 => 1.0, 1 => 2.0, 3 => 3.0, _ => 0.0 })
+            .map(|&v| match v as u32 {
+                2 => 1.0,
+                1 => 2.0,
+                3 => 3.0,
+                _ => 0.0,
+            })
             .collect();
         assert_eq!(out_flat, expected);
     }
@@ -279,8 +290,7 @@ mod tests {
         let n = vals.len();
         let img = make_label_image(vals, [1, 1, n]);
 
-        let (out, stats) =
-            RelabelComponentFilter::with_minimum_object_size(5).apply(&img);
+        let (out, stats) = RelabelComponentFilter::with_minimum_object_size(5).apply(&img);
         let out_flat = flat(&out);
 
         // Only the large component survives as label 1.
@@ -301,8 +311,7 @@ mod tests {
         let vals: Vec<f32> = (1..=4).map(|v| v as f32).collect(); // labels 1,2,3,4 each with 1 voxel
         let img = make_label_image(vals, [1, 1, 4]);
 
-        let (out, stats) =
-            RelabelComponentFilter::with_minimum_object_size(2).apply(&img);
+        let (out, stats) = RelabelComponentFilter::with_minimum_object_size(2).apply(&img);
 
         assert!(stats.is_empty());
         assert!(flat(&out).iter().all(|&v| v == 0.0));
@@ -340,8 +349,10 @@ mod tests {
         let spacing = Spacing::new([0.5, 0.75, 1.25]);
         let direction = Direction::identity();
 
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(vec![1.0_f32; 8], Shape::new([2, 2, 2])), &device);
+        let tensor = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 8], Shape::new([2, 2, 2])),
+            &device,
+        );
         let img = Image::new(tensor, origin, spacing, direction);
 
         let (out, _) = RelabelComponentFilter::new().apply(&img);

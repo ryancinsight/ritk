@@ -131,7 +131,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
             let n: usize = toks[1].parse().with_context(|| "bad POINTS count")?;
             let dbl = toks
                 .get(2)
-                .map(|s| s.to_ascii_lowercase() == "double")
+                .map(|s| s.eq_ignore_ascii_case("double"))
                 .unwrap_or(false);
             grid.points = if binary {
                 if dbl {

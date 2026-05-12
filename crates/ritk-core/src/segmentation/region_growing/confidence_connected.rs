@@ -177,9 +177,9 @@ pub fn confidence_connected<B: Backend>(
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,
-        image.origin().clone(),
-        image.spacing().clone(),
-        image.direction().clone(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
     )
 }
 

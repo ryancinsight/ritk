@@ -74,9 +74,9 @@ fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> I
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     Image::new(
         tensor,
-        src.origin().clone(),
-        src.spacing().clone(),
-        src.direction().clone(),
+        *src.origin(),
+        *src.spacing(),
+        *src.direction(),
     )
 }
 

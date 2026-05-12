@@ -451,7 +451,7 @@ fn build_minc2_hdf5_binary(
         msg_data.extend_from_slice(name_bytes);
         msg_data.push(0);
         let name_pad = pad8(name_size) - name_size;
-        msg_data.extend(std::iter::repeat(0u8).take(name_pad));
+        msg_data.extend(std::iter::repeat_n(0u8, name_pad));
 
         // Datatype: 64-bit LE float
         // class(4 bits)=1(float) | version(4 bits)=1, bit_field_0,1,2 + size(4)
@@ -508,7 +508,7 @@ fn build_minc2_hdf5_binary(
         msg_data.extend_from_slice(name_bytes);
         msg_data.push(0);
         let name_pad = pad8(name_size) - name_size;
-        msg_data.extend(std::iter::repeat(0u8).take(name_pad));
+        msg_data.extend(std::iter::repeat_n(0u8, name_pad));
 
         // Datatype: 32-bit LE signed integer
         let mut dt = vec![0u8; 8];

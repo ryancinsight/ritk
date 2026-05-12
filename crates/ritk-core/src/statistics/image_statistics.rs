@@ -87,7 +87,9 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 /// - `values` is non-empty (caller enforced).
 /// - Sorts `values` in-place; NaN propagates arithmetic and is ordered last by
 ///   the `partial_cmp` fallback.
-fn compute_from_values(values: &mut [f32]) -> ImageStatistics {
+pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
+    let mut sorted_values = values.to_vec();
+    let values = sorted_values.as_mut_slice();
     let n = values.len();
     debug_assert!(n > 0, "compute_from_values requires non-empty input");
 

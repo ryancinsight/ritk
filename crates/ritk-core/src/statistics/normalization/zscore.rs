@@ -94,9 +94,9 @@ impl ZScoreNormalizer {
 
         Image::new(
             normalized,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         )
     }
 }

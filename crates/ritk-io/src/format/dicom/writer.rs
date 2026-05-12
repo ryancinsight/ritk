@@ -736,14 +736,14 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
                     PrimitiveValue::from(bits),
                 ));
             }
-            if let Some(ref private_value) = m.private_tags.get("0019,10AA") {
+            if let Some(private_value) = m.private_tags.get("0019,10AA") {
                 obj.put(DataElement::new(
                     Tag(0x0019, 0x10AA),
                     VR::LO,
                     PrimitiveValue::from(private_value.as_str()),
                 ));
             }
-            if let Some(ref private_value) = m.private_tags.get("0029,10BB") {
+            if let Some(private_value) = m.private_tags.get("0029,10BB") {
                 obj.put(DataElement::new(
                     Tag(0x0029, 0x10BB),
                     VR::LO,

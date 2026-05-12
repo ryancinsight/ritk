@@ -79,23 +79,23 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     // always ASCII regardless of the BINARY/ASCII declaration (which only
     // governs the data section).
 
-    write!(writer, "# vtk DataFile Version 3.0\n")
+    writeln!(writer, "# vtk DataFile Version 3.0")
         .with_context(|| "failed to write VTK version line")?;
-    write!(writer, "RITK exported image\n")
+    writeln!(writer, "RITK exported image")
         .with_context(|| "failed to write VTK description line")?;
-    write!(writer, "BINARY\n").with_context(|| "failed to write VTK encoding line")?;
-    write!(writer, "DATASET STRUCTURED_POINTS\n")
+    writeln!(writer, "BINARY").with_context(|| "failed to write VTK encoding line")?;
+    writeln!(writer, "DATASET STRUCTURED_POINTS")
         .with_context(|| "failed to write VTK dataset line")?;
-    write!(writer, "DIMENSIONS {} {} {}\n", nx, ny, nz)
+    writeln!(writer, "DIMENSIONS {} {} {}", nx, ny, nz)
         .with_context(|| "failed to write VTK DIMENSIONS")?;
-    write!(writer, "ORIGIN {} {} {}\n", ox, oy, oz)
+    writeln!(writer, "ORIGIN {} {} {}", ox, oy, oz)
         .with_context(|| "failed to write VTK ORIGIN")?;
-    write!(writer, "SPACING {} {} {}\n", sx, sy, sz)
+    writeln!(writer, "SPACING {} {} {}", sx, sy, sz)
         .with_context(|| "failed to write VTK SPACING")?;
-    write!(writer, "POINT_DATA {}\n", total_voxels)
+    writeln!(writer, "POINT_DATA {}", total_voxels)
         .with_context(|| "failed to write VTK POINT_DATA")?;
-    write!(writer, "SCALARS scalars float 1\n").with_context(|| "failed to write VTK SCALARS")?;
-    write!(writer, "LOOKUP_TABLE default\n").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
+    writeln!(writer, "SCALARS scalars float 1").with_context(|| "failed to write VTK SCALARS")?;
+    writeln!(writer, "LOOKUP_TABLE default").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
 

@@ -63,12 +63,7 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
 
         let tensor =
             Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
-        Image::new(
-            tensor,
-            mask.origin().clone(),
-            mask.spacing().clone(),
-            mask.direction().clone(),
-        )
+        Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
 }
 

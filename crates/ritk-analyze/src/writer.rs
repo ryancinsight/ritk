@@ -125,7 +125,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     write_i16(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
     // Write .hdr
-    std::fs::write(&hdr_path, &hdr).context("Failed to write Analyze header")?;
+    std::fs::write(&hdr_path, hdr).context("Failed to write Analyze header")?;
 
     // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
     // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
