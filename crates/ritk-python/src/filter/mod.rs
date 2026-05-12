@@ -3,13 +3,15 @@
 //! All filters delegate to `ritk-core::filter` implementations (SSOT).
 //!
 //! # Submodules
+//! - `arithmetic`: Pixelwise binary image operations (add, subtract, multiply, divide, min, max).
 //! - `smooth`:    Gaussian, discrete Gaussian, median, bilateral, N4, anisotropic/curvature diffusion, recursive Gaussian.
 //! - `edge`:      Gradient magnitude, Laplacian, Canny, LoG, Sobel.
 //! - `vessel`:    Frangi vesselness, Sato line filter.
-//! - `intensity`: Rescale, windowing, threshold variants, sigmoid, binary threshold.
+//! - `intensity`: Rescale, windowing, threshold variants, sigmoid, binary threshold, blend.
 //! - `morphology`: Grayscale erosion/dilation, label morphology, top-hat, hit-or-miss, reconstruction.
 //! - `spatial`:   Resample image, distance transform.
 
+mod arithmetic;
 mod edge;
 mod intensity;
 mod morphology;
@@ -19,6 +21,7 @@ mod vessel;
 
 use pyo3::prelude::*;
 
+pub use arithmetic::*;
 pub use edge::*;
 pub use intensity::*;
 pub use morphology::*;
@@ -51,6 +54,13 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(threshold_outside, &m)?)?;
     m.add_function(wrap_pyfunction!(sigmoid_filter, &m)?)?;
     m.add_function(wrap_pyfunction!(binary_threshold, &m)?)?;
+    m.add_function(wrap_pyfunction!(blend_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(add_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(subtract_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(multiply_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(divide_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(minimum_images, &m)?)?;
+    m.add_function(wrap_pyfunction!(maximum_images, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_erosion, &m)?)?;
     m.add_function(wrap_pyfunction!(grayscale_dilation, &m)?)?;
     m.add_function(wrap_pyfunction!(label_erosion, &m)?)?;

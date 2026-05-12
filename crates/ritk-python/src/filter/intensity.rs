@@ -1,9 +1,9 @@
-//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold.
+//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend.
 
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
-    BinaryThresholdImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
+    BinaryThresholdImageFilter, BlendImageFilter, IntensityWindowingFilter, RescaleIntensityFilter,
     SigmoidImageFilter, ThresholdImageFilter,
 };
 
@@ -191,6 +191,32 @@ pub fn binary_threshold(
         );
         filter
             .apply(image.as_ref())
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    })?;
+    Ok(into_py_image(result))
+}
+
+/// Linearly blend two co-registered images.
+///
+/// out(x) = (1 - alpha) * a(x) + alpha * b(x)
+///
+/// alpha=0 returns a; alpha=1 returns b. Spatial metadata is taken from a.
+/// Both images must have identical shapes.
+///
+/// ITK Parity: BlendImageFilter
+#[pyfunction]
+#[pyo3(signature = (a, b, alpha=0.5_f32))]
+pub fn blend_images(
+    py: Python<'_>,
+    a: &PyImage,
+    b: &PyImage,
+    alpha: f32,
+) -> PyResult<PyImage> {
+    let a_arc = std::sync::Arc::clone(&a.inner);
+    let b_arc = std::sync::Arc::clone(&b.inner);
+    let result = py.allow_threads(|| {
+        BlendImageFilter::new(alpha)
+            .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     })?;
     Ok(into_py_image(result))

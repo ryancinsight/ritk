@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.40.7] - 2026-05-12
+
+### Added [patch]
+- `ritk-python/src/filter/arithmetic.rs` (new module, SoC/SRP): PyO3 bindings for six binary image arithmetic filters — `add_images` (A+B), `subtract_images` (A−B), `multiply_images` (A×B), `divide_images` (A/B, div-by-zero→0), `minimum_images` (min(A,B)), `maximum_images` (max(A,B)). All backed by implemented ritk-core `AddImageFilter`, `SubtractImageFilter`, `MultiplyImageFilter`, `DivideImageFilter`, `ImageMinFilter`, `ImageMaxFilter`.
+- `blend_images(a, b, alpha=0.5)` added to `ritk.filter`: implements `out(x) = (1−α)·A(x) + α·B(x)`, backed by `BlendImageFilter`. ITK Parity: `BlendImageFilter`.
+- `crates/ritk-python/tests/test_arithmetic_parity.py`: 32 value-semantic tests validating analytical contracts (identity, commutativity, roundtrip), SimpleITK numerical parity (atol=1e-5), and error contracts (shape mismatch raises RuntimeError, div-by-zero yields 0).
+- `filter.pyi` updated with stubs for all 7 new functions; `test_smoke.py` updated to enforce presence of all 7 new functions in the public API surface.
+
+<!-- ──────────────────────────────────────────── -->
+## [0.40.6] - 2026-05-12
+
+### Fixed [patch]
+- JPEG-LS native entropy reading now implements ISO 14495-1 bit stuffing after `0xFF` data bytes: it discards exactly one stuffed zero bit and preserves the following seven entropy bits. Multi-row CharLS streams no longer drift after stuffed `0xFF` bytes.
+- JPEG-LS native scan decode now maintains the per-line left guard equivalent to `current_line[-1]`; column-0 context gradients use the previous line guard for `Rc` instead of incorrectly substituting `Rb`.
+
+### Added [patch]
+- Added a CharLS-generated 4x4 JPEG-LS Lossless DICOM conformance fixture that self-verifies through CharLS and decodes exactly through the RITK-native DICOM path.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.40.5] - 2026-05-12
 
 ### Added [patch]

@@ -102,6 +102,40 @@ def binary_threshold(
     foreground: float = 1.0,
     background: float = 0.0,
 ) -> Image: ...
+def blend_images(a: Image, b: Image, alpha: float = 0.5) -> Image:
+    """Linearly blend two co-registered images.
+
+    out(x) = (1 - alpha) * a(x) + alpha * b(x)
+
+    alpha=0 returns a; alpha=1 returns b. Both images must have identical shapes.
+    Spatial metadata is preserved from a. ITK Parity: BlendImageFilter.
+    """
+    ...
+
+def add_images(a: Image, b: Image) -> Image:
+    """Pixelwise addition: out(x) = a(x) + b(x). ITK Parity: AddImageFilter."""
+    ...
+
+def subtract_images(a: Image, b: Image) -> Image:
+    """Pixelwise subtraction: out(x) = a(x) - b(x). ITK Parity: SubtractImageFilter."""
+    ...
+
+def multiply_images(a: Image, b: Image) -> Image:
+    """Pixelwise multiplication: out(x) = a(x) * b(x). ITK Parity: MultiplyImageFilter."""
+    ...
+
+def divide_images(a: Image, b: Image) -> Image:
+    """Pixelwise division: out(x) = a(x) / b(x); division by zero yields 0. ITK Parity: DivideImageFilter."""
+    ...
+
+def minimum_images(a: Image, b: Image) -> Image:
+    """Pixelwise minimum: out(x) = min(a(x), b(x)). ITK Parity: MinimumImageFilter."""
+    ...
+
+def maximum_images(a: Image, b: Image) -> Image:
+    """Pixelwise maximum: out(x) = max(a(x), b(x)). ITK Parity: MaximumImageFilter."""
+    ...
+
 def white_top_hat(image: Image, radius: int) -> Image: ...
 def black_top_hat(image: Image, radius: int) -> Image: ...
 def hit_or_miss(image: Image, fg_radius: int, bg_radius: int) -> Image: ...

@@ -1,3 +1,57 @@
+## Sprint 207 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.7 [patch]
+**Goal**: Close binary image arithmetic PyO3 API gap (blend, add, subtract, multiply, divide, min, max).
+
+### Checklist items
+- [x] Audit ritk-core binary_ops.rs and blend.rs for unexposed Python bindings
+- [x] Add `blend_images` to `ritk-python/src/filter/intensity.rs` (BlendImageFilter, α∈[0,1])
+- [x] Create `ritk-python/src/filter/arithmetic.rs` (SoC: binary ops isolated from unary intensity.rs)
+- [x] Add `add_images`, `subtract_images`, `multiply_images`, `divide_images`, `minimum_images`, `maximum_images`
+- [x] Add `mod arithmetic; pub use arithmetic::*;` to `filter/mod.rs`; register 7 new functions
+- [x] Update `filter.pyi` with 7 new function stubs and docstrings
+- [x] Update `test_smoke.py::test_filter_public_functions_exist` with 7 new required entries
+- [x] Write `test_arithmetic_parity.py`: 32 tests across 5 groups (blend, add, subtract, multiply, divide, min/max)
+- [x] Validate analytical contracts: identity, commutativity, roundtrip, div-by-zero→0, min+max=add
+- [x] Validate SimpleITK numerical parity: atol=1e-5 for all 7 operations
+- [x] Validate error contracts: shape mismatch raises RuntimeError
+- [x] Rebuild maturin wheel: `VIRTUAL_ENV=D:/miniforge3 maturin develop --release`
+- [x] Verify `test_arithmetic_parity.py` (32 passed), `test_python_api_parity.py` + `test_smoke.py` (18 passed)
+- [x] Confirm no regressions in coverage_gaps (29), simpleitk_parity, statistics_bindings, segmentation_bindings, registration_validation
+- [x] Document 11 pre-existing `test_registration_side_by_side` failures as residual capability gaps
+- [x] Update gap_audit.md, checklist.md, CHANGELOG.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| 11 pre-existing `test_registration_side_by_side` failures (BSpline FFD quality, brain NIfTI data, global MI gap) | High | Open |
+| RITK-owned JPEG decoder implementation | High | Open |
+| Full color-volume representation above scalar `Image<B,3>` loaders | Medium | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
+## Sprint 206 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.6 [patch]
+**Goal**: Close the native JPEG-LS multi-row CharLS conformance gap.
+
+### Checklist items
+- [x] Audit JPEG-LS multi-row residual after Sprint 204 single-row conformance closure
+- [x] Add CharLS-generated 4x4 JPEG-LS Lossless DICOM fixture with CharLS self-decode validation
+- [x] Correct JPEG-LS entropy bit-stuffing after `0xFF` data bytes
+- [x] Correct column-0 causal context by preserving the previous line-left guard
+- [x] Verify formatting: `cargo fmt --check -p ritk-codecs -p ritk-io`
+- [x] Verify full codec tests: `cargo test -p ritk-codecs --lib` (88 passed)
+- [x] Verify focused IO JPEG-LS tests: `cargo test -p ritk-io --lib jpegls -- --nocapture` (3 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| RITK-owned JPEG decoder implementation | High | Open |
+| Full color-volume representation above scalar `Image<B,3>` loaders | Medium | Open |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial |
+
 ## Sprint 205 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution
