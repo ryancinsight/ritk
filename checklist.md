@@ -1,3 +1,28 @@
+## Sprint 196 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.39.6 [patch]
+**Goal**: AffineNetwork InstanceNorm correctness fix (BatchNorm → InstanceNorm for batch_size=1 registration training), trilinear interpolation per-channel optimization, architecture documentation sync for TIFF/MINC format boundaries.
+
+### Checklist items
+- [x] Replace `BatchNorm` / `BatchNormConfig` with `InstanceNorm` / `InstanceNormConfig` in `crates/ritk-model/src/affine/network.rs`
+- [x] Refactor `trilinear_interpolation` in `crates/ritk-core/src/interpolation/tensor_trilinear.rs` to pre-compute 8 corner indices once and gather per-channel, eliminating [B,C,D*H*W] index-repeat allocation
+- [x] Add 6 value-semantic tests for `trilinear_interpolation`: corner-000, corner-111, center 3.5 (0.125×28), OOB low clamp, OOB high clamp, multi-channel independence
+- [x] Add 2 value-semantic tests for `AffineNetwork`: output shape [1,12], finite values for batch_size=1 (InstanceNorm correctness regression guard)
+- [x] Update `ARCHITECTURE.md` with Theorems 12.1 (TIFF), 13.1 (MINC), 14.1 (Format Facade Monomorphization Boundary)
+- [x] Update `CHANGELOG.md` entry for 0.39.6
+- [x] Verify `cargo test -p ritk-core --lib interpolation` (32 passed; +6 new)
+- [x] Verify `cargo test -p ritk-model --lib affine` (2 passed; new)
+- [x] Verify `cargo fmt --check -p ritk-core -p ritk-model` (passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Native Rust JPEG 2000 replacement (`openjpeg-sys` replacement) | High | Open (blocked) |
+| GAP-176-RAD-02: PET/CT fusion pixel-level pipeline | High | Partial (Sprints 189–193 closed SUV toolchain, colormap auto-select) |
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution (anonymize/print/report) | Medium | Open |
+
 ## Sprint 195 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

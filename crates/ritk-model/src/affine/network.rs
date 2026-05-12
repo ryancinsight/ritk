@@ -149,3 +149,41 @@ impl<B: Backend> AffineNetwork<B> {
         x + identity.repeat(&[batch_size, 1])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use burn::tensor::Tensor;
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    #[test]
+    fn forward_output_shape_is_batch_by_12() {
+        let device = Default::default();
+        let net = AffineNetworkConfig::default().init::<B>(&device);
+        let input = Tensor::<B, 5>::ones([1, 2, 4, 4, 4], &device);
+        let out = net.forward(input);
+        assert_eq!(out.dims(), [1, 12]);
+    }
+
+    #[test]
+    fn forward_single_batch_produces_finite_12_parameters() {
+        // InstanceNorm normalises per-instance, so batch_size=1 is valid.
+        // BatchNorm with batch_size=1 computes zero variance → NaN in normalisation.
+        // This test verifies InstanceNorm produces finite values for the degenerate batch.
+        let device = Default::default();
+        let net = AffineNetworkConfig::default().init::<B>(&device);
+        let input = Tensor::<B, 5>::ones([1, 2, 4, 4, 4], &device);
+        let out = net.forward(input);
+        let data = out.into_data();
+        let vals = data.as_slice::<f32>().unwrap();
+        assert_eq!(vals.len(), 12, "output must carry 12 affine parameters");
+        for (i, &v) in vals.iter().enumerate() {
+            assert!(
+                v.is_finite(),
+                "param[{i}] is not finite — InstanceNorm must not produce NaN for B=1: {v}"
+            );
+        }
+    }
+}

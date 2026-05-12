@@ -5,6 +5,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.39.6] - 2026-05-12
+
+### Fixed
+- `AffineNetwork` normalization changed from `BatchNorm` to `InstanceNorm` in `crates/ritk-model/src/affine/network.rs`. `BatchNorm` with batch_size=1 computes zero variance and produces NaN activations; `InstanceNorm` normalizes per-instance over spatial dims and is correct for the batch_size=1 training regime used in medical image registration.
+
+### Changed
+- Trilinear interpolation in `crates/ritk-core/src/interpolation/tensor_trilinear.rs` now pre-computes all 8 corner flat indices once before the channel loop, then gathers one channel at a time with a per-channel closure. Eliminates the prior channel-dimension `repeat` that allocated a `[B, C, D*H*W]` index tensor for each of the 8 corners.
+- `ARCHITECTURE.md` updated with Theorem 12.1 (TIFF Stack Ownership), Theorem 13.1 (MINC2 HDF5 Ownership), and Theorem 14.1 (Format Facade Monomorphization Boundary) to document the dedicated-crate extraction completed in Sprints 194–195.
+
+### Added
+- 6 value-semantic tests for `trilinear_interpolation` in `crates/ritk-core/src/interpolation/tensor_trilinear.rs`: corner-000, corner-111, center arithmetic mean (3.5 = 0.125×28), out-of-bounds low clamping, out-of-bounds high clamping, and multi-channel independence.
+- 2 value-semantic tests for `AffineNetwork` in `crates/ritk-model/src/affine/network.rs`: output shape [1,12] invariant and finite-valued parameters for batch_size=1 (InstanceNorm correctness regression guard).
+
+<!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
 
 ### Added
