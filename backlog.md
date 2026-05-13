@@ -1,3 +1,36 @@
+## Sprint 219 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.46.1 [patch]
+**Goal**: Close `bspline_syn.rs` (1072 lines) and `multires_syn.rs` (741 lines) 500-line structural violations via deep-vertical subdirectory split; add `global_mi_register` parity test vs SimpleITK.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| — | `bspline_syn.rs` 500-line structural violation (1072 lines) | **Closed** |
+| — | `multires_syn.rs` 500-line structural violation (741 lines) | **Closed** |
+| — | `global_mi_register` Python parity test vs SimpleITK Mattes MI | **Closed** |
+
+### Delivered
+- `crates/ritk-registration/src/diffeomorphic/bspline_syn/mod.rs`: `BSplineSyNConfig`, `BSplineSyNResult`, `BSplineSyNRegistration`, complete `register()` implementation (~280 lines)
+- `crates/ritk-registration/src/diffeomorphic/bspline_syn/primitives.rs`: `bspline_basis`, `cp_count`, `evaluate_dense`, `accumulate_to_cp`, `cp_laplacian` (~215 lines)
+- `crates/ritk-registration/src/diffeomorphic/bspline_syn/cc.rs`: `cc_forces`, `mean_local_cc` (~145 lines)
+- `crates/ritk-registration/src/diffeomorphic/bspline_syn/tests.rs`: 12 tests (partition of unity, boundary values, CP lattice, registration, error cases, CC primitives) with updated imports (~295 lines)
+- `crates/ritk-registration/src/diffeomorphic/multires_syn/mod.rs`: `MultiResSyNConfig`, `MultiResSyNRegistration`, complete `register()` with coarse-to-fine hierarchy (~255 lines)
+- `crates/ritk-registration/src/diffeomorphic/multires_syn/pyramid.rs`: `downsample` (average pooling) and `upsample_field` (trilinear + scale) (~80 lines)
+- `crates/ritk-registration/src/diffeomorphic/multires_syn/cc.rs`: `window_cc_stats`, `cc_forces`, `mean_local_cc` (~120 lines)
+- `crates/ritk-registration/src/diffeomorphic/multires_syn/tests.rs`: 13 tests (pyramid, registration, IC, error cases, CC primitives) with updated imports (~235 lines)
+- Deleted: `diffeomorphic/bspline_syn.rs` (1072-line flat file)
+- Deleted: `diffeomorphic/multires_syn.rs` (741-line flat file)
+- `crates/ritk-python/tests/test_simpleitk_parity.py`: Section 6 `test_global_mi_register_translation_parity_vs_sitk` — deterministic (sampling=1.0) Mattes MI + RSGD parity test vs SimpleITK; validates `final_mi > 0.01`, 4×4 identity rotation block, info keys
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| JPEG/TIFF color-volume loaders | Non-DICOM color formats | Medium |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
 ## Sprint 218 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

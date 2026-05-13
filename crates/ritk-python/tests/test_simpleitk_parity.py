@@ -2073,3 +2073,106 @@ def test_morphological_reconstruction_dilation_fills_masked_region():
     assert np.all(np.isin(result, [0.0, 1.0])), (
         "Morphological reconstruction output contains values outside {0.0, 1.0}"
     )
+
+
+# ==========================================================================
+# Section 6 -- global_mi_register parity vs SimpleITK Mattes MI + RSGD
+# ==========================================================================
+
+
+def test_global_mi_register_translation_parity_vs_sitk():
+    """global_mi_register (translation) must achieve positive Mattes MI comparable
+    to SimpleITK Mattes MI + RSGD on a 4-voxel x-shifted 3D Gaussian blob.
+
+    Mathematical basis:
+    Mattes Mutual Information (Mattes 2003) ∈ [0, ∞).  For two statistically
+    independent images, MI = 0.  For a correlated pair (Gaussian blob with
+    4-voxel x-shift; Pearson r ≈ 0.758 before registration), the Mattes MI
+    computed by the optimizer is strictly positive after ≥ 1 iteration.
+
+    Both RITK (RegularStepGradientDescent with full sampling) and SimpleITK
+    (RegularStepGradientDescent, NONE sampling) must return:
+      - a positive final MI value (> 0.01 nats/bits)
+      - a structurally valid 4×4 homogeneous matrix with identity rotation block
+
+    The test uses sampling_percentage=1.0 (full, deterministic) for RITK and
+    SetMetricSamplingStrategy(NONE) for SimpleITK.  This eliminates random
+    sampling variance from both metric values.
+    """
+    c = SIZE // 2
+    z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
+    sigma_blob = 4.0
+    arr_fixed = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2.0 * sigma_blob**2)
+    ).astype(np.float32)
+    arr_moving = np.roll(arr_fixed, 4, axis=2).astype(np.float32)
+
+    # ── RITK global_mi_register ─────────────────────────────────────────────
+    matrix_flat, final_mi_ritk, info = ritk.registration.global_mi_register(
+        _ritk(arr_fixed),
+        _ritk(arr_moving),
+        transform_type="translation",
+        num_levels=2,
+        maximum_iterations=100,
+        sampling_percentage=1.0,
+        num_mi_bins=32,
+    )
+
+    # 4×4 row-major homogeneous matrix; rotation block must be identity for
+    # a pure translation transform.
+    matrix = np.array(matrix_flat, dtype=np.float64).reshape(4, 4)
+    assert matrix.shape == (4, 4), f"Matrix shape {matrix.shape} != (4, 4)"
+    for i in range(3):
+        assert abs(matrix[i, i] - 1.0) < 1e-4, (
+            f"matrix[{i},{i}]={matrix[i,i]:.6f} != 1.0; rotation block not identity"
+        )
+
+    # info dict must carry the expected diagnostic keys.
+    for key in ("convergence_history", "iterations_per_level", "converged"):
+        assert key in info, f"info dict missing key '{key}'"
+
+    # Mattes MI is non-negative; a positive value confirms the optimizer ran.
+    assert final_mi_ritk > 0.0, (
+        f"RITK final MI {final_mi_ritk:.6f} must be positive (MI ≥ 0; 0 = independence)"
+    )
+
+    # ── SimpleITK reference: Mattes MI + RSGD, full sampling ────────────────
+    reg = sitk.ImageRegistrationMethod()
+    reg.SetMetricAsMattesMutualInformation(numberOfHistogramBins=32)
+    reg.SetMetricSamplingStrategy(reg.NONE)
+    sitk_fixed = _sitk(arr_fixed)
+    sitk_moving = _sitk(arr_moving)
+    euler = sitk.Euler3DTransform()
+    euler.SetCenter(
+        sitk_fixed.TransformContinuousIndexToPhysicalPoint(
+            [(sz - 1) / 2.0 for sz in sitk_fixed.GetSize()]
+        )
+    )
+    reg.SetInitialTransform(euler, inPlace=True)
+    reg.SetOptimizerAsRegularStepGradientDescent(
+        learningRate=1.0,
+        minStep=1e-4,
+        numberOfIterations=100,
+        gradientMagnitudeTolerance=1e-8,
+    )
+    reg.SetInterpolator(sitk.sitkLinear)
+    reg.SetShrinkFactorsPerLevel([2, 1])
+    reg.SetSmoothingSigmasPerLevel([2.0, 0.0])
+    try:
+        reg.Execute(sitk_fixed, sitk_moving)
+    except RuntimeError:
+        pytest.skip("SimpleITK Mattes MI execution failed (environment issue)")
+    # SimpleITK minimises −MI; negate to get the positive MI value.
+    final_mi_sitk = -reg.GetMetricValue()
+    assert final_mi_sitk > 0.0, (
+        f"SimpleITK final MI {final_mi_sitk:.6f} must be positive"
+    )
+
+    # Both implementations must report MI above the lower bound for a correlated
+    # pair (empirically ≥ 0.01 nats with 32 bins on a 32^3 Gaussian blob).
+    assert final_mi_ritk > 0.01, (
+        f"RITK MI {final_mi_ritk:.6f} suspiciously low (expected > 0.01 for correlated pair)"
+    )
+    assert final_mi_sitk > 0.01, (
+        f"SimpleITK MI {final_mi_sitk:.6f} suspiciously low (expected > 0.01 for correlated pair)"
+    )

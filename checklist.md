@@ -1,3 +1,32 @@
+## Sprint 219 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.46.1 [patch]
+**Goal**: Close `bspline_syn.rs` (1072 lines) and `multires_syn.rs` (741 lines) 500-line structural violations via deep-vertical subdirectory split; add `global_mi_register` parity test vs SimpleITK.
+
+### Checklist items
+- [x] Create `diffeomorphic/bspline_syn/mod.rs` (~280 lines): module doc, `BSplineSyNConfig`, `BSplineSyNResult`, `BSplineSyNRegistration`, `register()` impl
+- [x] Create `diffeomorphic/bspline_syn/primitives.rs` (~215 lines): `bspline_basis`, `cp_count`, `evaluate_dense`, `accumulate_to_cp`, `cp_laplacian`
+- [x] Create `diffeomorphic/bspline_syn/cc.rs` (~145 lines): `cc_forces`, `mean_local_cc`
+- [x] Create `diffeomorphic/bspline_syn/tests.rs` (~295 lines): all 12 tests with updated imports from `super::cc` and `super::primitives`
+- [x] Create `diffeomorphic/multires_syn/mod.rs` (~255 lines): module doc, types, `register()` impl
+- [x] Create `diffeomorphic/multires_syn/pyramid.rs` (~80 lines): `downsample`, `upsample_field`
+- [x] Create `diffeomorphic/multires_syn/cc.rs` (~120 lines): `window_cc_stats`, `cc_forces`, `mean_local_cc`
+- [x] Create `diffeomorphic/multires_syn/tests.rs` (~235 lines): all 13 tests with updated imports
+- [x] Delete `diffeomorphic/bspline_syn.rs` (1072-line flat file)
+- [x] Delete `diffeomorphic/multires_syn.rs` (741-line flat file)
+- [x] Verify `cargo test -p ritk-registration --lib` (267 passed, 0 failed)
+- [x] Add `test_global_mi_register_translation_parity_vs_sitk` to `test_simpleitk_parity.py` (Section 6): full-sampling deterministic Mattes MI + RSGD vs SimpleITK; asserts both `final_mi > 0.01`, 4×4 matrix rotation block is identity, info keys present
+- [x] Verify `python -m pytest test_simpleitk_parity.py::test_global_mi_register_translation_parity_vs_sitk -v` (1 passed)
+- [x] Update project artifacts (gap_audit.md, backlog.md, CHANGELOG.md)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| JPEG/TIFF color-volume loaders | Medium | Open |
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
 ## Sprint 218 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

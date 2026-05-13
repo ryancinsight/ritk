@@ -3,6 +3,19 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.46.1] - 2026-05-13
+### Changed [patch]
+- Split `diffeomorphic/bspline_syn.rs` (1072 lines) into deep-vertical subdirectory: `bspline_syn/mod.rs` (types + register), `bspline_syn/primitives.rs` (B-spline basis, CP layout, dense field, force accumulation, Laplacian), `bspline_syn/cc.rs` (local CC forces + mean CC), `bspline_syn/tests.rs` (12 tests). No public API change.
+- Split `diffeomorphic/multires_syn.rs` (741 lines) into deep-vertical subdirectory: `multires_syn/mod.rs` (types + coarse-to-fine register loop), `multires_syn/pyramid.rs` (average-pool downsample + trilinear upsample-field), `multires_syn/cc.rs` (window_cc_stats + CC forces + mean CC), `multires_syn/tests.rs` (13 tests). No public API change.
+
+### Added [patch]
+- `test_global_mi_register_translation_parity_vs_sitk` in `test_simpleitk_parity.py` (Section 6): parity test comparing RITK `global_mi_register` vs SimpleITK Mattes MI + RSGD on a 4-voxel x-shifted 3D Gaussian blob; deterministic full sampling; validates `final_mi > 0.01`, 4×4 identity rotation block, and info dict keys.
+
+### Verification
+- `cargo test -p ritk-registration --lib`: 267 passed, 0 failed in 13.35s
+- `python -m pytest test_simpleitk_parity.py::test_global_mi_register_translation_parity_vs_sitk -v`: 1 passed
+
+<!-- ──────────────────────────────────────── -->
 ## [0.46.0] - 2026-05-14
 ### Fixed [patch]
 - GAP-R08g: Fixed double-rescale in decode_via_dicom_rs (dicom-pixeldata applies modality LUT internally, then RITK re-applied via decode_native_pixel_bytes_checked). For CT with RescaleIntercept=-1024, stored value -1024 now correctly produces -2048 HU instead of -1024 HU.
