@@ -37,9 +37,9 @@
 //!
 //! The final output is the **maximum** response over all scales σ.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 use super::frangi::gaussian_blur_vec;
 use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
@@ -103,26 +103,14 @@ impl SatoLineFilter {
     /// # Errors
     /// Returns an error if the image tensor cannot be converted to `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("SatoLineFilter requires f32 image data: {:?}", e))?
-            .to_vec();
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals = &vals_vec;
 
-        let dims = image.shape();
         let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
 
-        let response = compute_sato_multiscale(&vals, dims, spacing, &self.config);
+        let response = compute_sato_multiscale(vals, dims, spacing, &self.config);
 
-        let device = image.data().device();
-        let td2 = TensorData::new(response, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td2, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(response, dims, image))
     }
 }
 

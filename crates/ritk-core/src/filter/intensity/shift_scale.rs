@@ -20,9 +20,9 @@
 //! `itk::ShiftScaleImageFilter` with `SetShift(s)` and `SetScale(k)`.
 //! Output type defaults to f32 (matching ITK behaviour when input is float).
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Apply a linear shift-then-scale to every voxel.
 ///
@@ -75,11 +75,8 @@ impl ShiftScaleImageFilter {
     /// Returns a new `Image` with identical spatial metadata and
     /// voxel values transformed by `(v + shift) * scale`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("ShiftScaleImageFilter: {:?}", e))?;
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let shift = self.shift as f64;
         let scale = self.scale as f64;
@@ -89,15 +86,7 @@ impl ShiftScaleImageFilter {
             .map(|&v| ((v as f64 + shift) * scale) as f32)
             .collect();
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out_vals, Shape::new(dims));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out_vals, dims, image))
     }
 }
 

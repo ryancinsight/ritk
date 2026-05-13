@@ -251,10 +251,11 @@ For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`,
 - `ritk-core::image::ColorVolume<B, C>` is the SSOT for channel-explicit 3-D volumes, backed by tensor shape `[depth, rows, cols, C]`.
 - `ritk-core::image::RgbVolume<B>` is the `C = 3` specialization for interleaved RGB volume data.
 - `ritk-io::format::dicom::read_dicom_color_series` loads validated interleaved RGB DICOM series into `RgbVolume<B>` while preserving spatial metadata from the scalar DICOM series scanner.
+- `ritk-io::format::dicom::read_dicom_color_multiframe` loads validated interleaved RGB DICOM multiframe objects into `RgbVolume<B>` while preserving multiframe origin, spacing, and direction metadata.
 - Scalar DICOM series and multiframe loaders remain constrained to `SamplesPerPixel = 1`.
 
 **Proof obligation**:
-For any RGB DICOM series with depth `d`, rows `r`, columns `c`, and interleaved samples `S`, `read_dicom_color_series` constructs exactly one tensor with shape `[d,r,c,3]` and element order `S[(((z*r + y)*c + x)*3 + k)]`. If declared metadata is not `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, or consistent spatial dimensions, the loader rejects before constructing `RgbVolume<B>`.
+For any RGB DICOM frame stack with depth `d`, rows `r`, columns `c`, and interleaved samples `S`, the DICOM color loaders construct exactly one tensor with shape `[d,r,c,3]` and element order `S[(((z*r + y)*c + x)*3 + k)]`. If declared metadata is not `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, or consistent spatial dimensions, the loader rejects before constructing `RgbVolume<B>`.
 
 ---
 

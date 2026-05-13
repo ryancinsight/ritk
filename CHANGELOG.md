@@ -5,6 +5,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.43.0] - 2026-05-12
+
+### Added [minor]
+- `ritk.metrics` Python submodule with `compute_mse`, `compute_ncc`, and `compute_mutual_information` exposing MSE, normalized cross-correlation (Pearson r), and histogram-based mutual information (Mattes bilinear soft-binning, standard hard-bin, and normalized NMI variants) as standalone Python functions.
+- 9 Rust unit tests for metrics slice helpers: MSE analytical contract, NCC identical/anti-correlated bounds, MI self-entropy/constant monotonicity, NMI unit-interval bound, and shape-mismatch/variant-validation guards.
+- 20 Python parity tests in `test_metric_parity.py`: MSE/NCC/MI numerical parity against NumPy references, shape-mismatch error propagation, unknown variant rejection, and real-world brain MRI self-consistency/cross-subject monotonicity tests.
+
+<!-- ──────────────────────────────────────────── -->
+## [0.42.0] - 2026-05-13
+
+### Added [minor]
+- `ritk-io::format::dicom::read_dicom_color_multiframe` and `load_dicom_color_multiframe` for validated interleaved RGB DICOM multiframe loading into `RgbVolume<B>`.
+- Value-semantic DICOM RGB multiframe tests for sample preservation, scalar rejection, and planar RGB rejection.
+
+### Changed [patch]
+- Factored shared DICOM RGB tag parsing into `color_common.rs` so series and multiframe color loaders use one validation helper surface.
+
+### Fixed [patch]
+- Corrected dirty generic filter refactor compile blockers in `MeanImageFilter`, `CannyEdgeDetector`, and `SatoLineFilter`.
+- Removed native JPEG decoder warnings by deleting dead CMYK/Huffman storage and validating parsed JPEG DCT/lossless scan parameters.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.41.0] - 2026-05-12
 
 ### Added [minor]

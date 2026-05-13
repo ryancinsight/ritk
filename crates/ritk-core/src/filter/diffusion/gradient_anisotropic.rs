@@ -52,9 +52,9 @@
 //!   doi:10.1109/42.141646
 //! - Ibanez, L. et al. (2005). *The ITK Software Guide*, 2nd ed. §6.4.1.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -113,29 +113,12 @@ impl GradientAnisotropicDiffusionFilter {
     /// # Errors
     /// Returns an error if the image tensor cannot be interpreted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "GradientAnisotropicDiffusionFilter requires f32 image data: {:?}",
-                    e
-                )
-            })?
-            .to_vec();
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals = &vals_vec;
 
-        let dims = image.shape();
-        let result = diffuse(&vals, dims, &self.config);
+        let result = diffuse(vals, dims, &self.config);
 
-        let device = image.data().device();
-        let td2 = TensorData::new(result, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td2, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 }
 

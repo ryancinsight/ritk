@@ -12,7 +12,6 @@ pub(crate) enum JpegPixelFormat {
     L8,
     L16,
     Rgb24,
-    Cmyk32,
 }
 
 impl JpegPixelFormat {
@@ -21,7 +20,6 @@ impl JpegPixelFormat {
             Self::L8 => 1,
             Self::L16 => 2,
             Self::Rgb24 => 3,
-            Self::Cmyk32 => 4,
         }
     }
 
@@ -29,13 +27,12 @@ impl JpegPixelFormat {
         match self {
             Self::L8 | Self::L16 => 1,
             Self::Rgb24 => 3,
-            Self::Cmyk32 => 4,
         }
     }
 
     pub(crate) const fn bits_allocated(self) -> u16 {
         match self {
-            Self::L8 | Self::Rgb24 | Self::Cmyk32 => 8,
+            Self::L8 | Self::Rgb24 => 8,
             Self::L16 => 16,
         }
     }

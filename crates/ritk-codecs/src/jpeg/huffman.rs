@@ -25,7 +25,6 @@ pub(crate) struct HuffmanTable {
     valptr: [usize; 16],
     /// Decoded symbols in canonical order (by ascending length, then by code).
     huffval: [u8; 256],
-    pub(crate) num_symbols: usize,
 }
 
 impl HuffmanTable {
@@ -70,7 +69,6 @@ impl HuffmanTable {
             mincode,
             valptr,
             huffval: hv,
-            num_symbols,
         })
     }
 

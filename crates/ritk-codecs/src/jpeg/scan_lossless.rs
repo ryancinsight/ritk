@@ -57,8 +57,22 @@ pub(crate) fn decode_lossless_scan(
     if precision < 2 || precision > 16 {
         bail!("JPEG Lossless: unsupported precision {precision}");
     }
+    if frame.sos.se != 0 || frame.sos.ah != 0 {
+        bail!(
+            "JPEG Lossless scan parameters unsupported: Se={} Ah={}",
+            frame.sos.se,
+            frame.sos.ah
+        );
+    }
     let maxval: i32 = (1 << precision) - 1;
     let point_transform = frame.sos.al as i32;
+    if point_transform as u8 >= precision {
+        bail!(
+            "JPEG Lossless point transform {} must be less than precision {}",
+            point_transform,
+            precision
+        );
+    }
     let initial_pred: i32 = 1 << (precision - point_transform as u8 - 1);
 
     let width = frame.sof.width as usize;

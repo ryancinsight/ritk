@@ -35,9 +35,9 @@
 //! anisotropic diffusion. *IEEE Trans. Pattern Anal. Mach. Intell.*
 //! 12(7):629–639. doi:10.1109/34.56205
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -101,18 +101,9 @@ impl AnisotropicDiffusionFilter {
     /// # Errors
     /// Returns an error if the image tensor cannot be converted to `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "AnisotropicDiffusionFilter requires f32 image data: {:?}",
-                    e
-                )
-            })?
-            .to_vec();
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals = &vals_vec;
 
-        let dims = image.shape();
         // Spacing from the image metadata (physical units); used to normalise
         // gradient differences so that conductance responds to physical gradient
         // magnitude regardless of voxel size.
@@ -122,17 +113,9 @@ impl AnisotropicDiffusionFilter {
             image.spacing()[2] as f32,
         ];
 
-        let result = diffuse(&vals, dims, spacing, &self.config);
+        let result = diffuse(vals, dims, spacing, &self.config);
 
-        let device = image.data().device();
-        let td2 = TensorData::new(result, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td2, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 }
 

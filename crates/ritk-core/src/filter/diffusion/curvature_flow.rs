@@ -53,9 +53,9 @@
 //! - Caselles, V., Kimmel, R., Sapiro, G. (1997). "Geodesic active contours."
 //!   Int. J. Comput. Vis. 22(1):61-79.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Stability constant ────────────────────────────────────────────────────────
 
@@ -122,11 +122,9 @@ impl CurvatureFlowImageFilter {
     ///
     /// Returns `anyhow::Error` if the voxel data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("CurvatureFlowImageFilter: {:?}", e))?;
-        let [nz, ny, nx] = image.shape();
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals: &[f32] = &vals_vec;
+        let [nz, ny, nx] = dims;
         let mut cur: Vec<f32> = vals.to_vec();
 
         let dt = self.config.time_step;
@@ -202,15 +200,7 @@ impl CurvatureFlowImageFilter {
             cur = next;
         }
 
-        let device = image.data().device();
-        let td_out = TensorData::new(cur, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(cur, dims, image))
     }
 }
 

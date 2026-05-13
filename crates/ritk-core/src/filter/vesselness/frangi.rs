@@ -28,9 +28,9 @@
 //! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130–137.
 
 use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, TensorData};
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -104,15 +104,8 @@ impl FrangiVesselnessFilter {
     /// degenerate (fewer than 1 voxel per dimension).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         // ── Extract voxel data ────────────────────────────────────────────────
-        let vals: Vec<f32> = image
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?;
-
-        let shape = image.shape(); // [nz, ny, nx]
-        let dims = [shape[0], shape[1], shape[2]];
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals = &vals_vec;
         let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
 
         let n = dims[0] * dims[1] * dims[2];
@@ -121,7 +114,7 @@ impl FrangiVesselnessFilter {
         // ── Max over scales ───────────────────────────────────────────────────
         for &sigma in &self.config.scales {
             // 1. Gaussian-blur the image at the current scale.
-            let blurred = gaussian_blur_vec(&vals, dims, sigma, spacing);
+            let blurred = gaussian_blur_vec(vals, dims, sigma, spacing);
 
             // 2. Compute Hessian at every voxel.
             let hessians = compute_hessian_3d(&blurred, dims, spacing);
@@ -137,14 +130,7 @@ impl FrangiVesselnessFilter {
         }
 
         // ── Rebuild image ─────────────────────────────────────────────────────
-        let td2 = TensorData::new(vesselness_max, Shape::new(shape));
-        let tensor = burn::tensor::Tensor::<B, 3>::from_data(td2, &image.data().device());
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(vesselness_max, dims, image))
     }
 
     /// Evaluate the Frangi vesselness measure for a single voxel.
@@ -321,7 +307,7 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn::tensor::Tensor;
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

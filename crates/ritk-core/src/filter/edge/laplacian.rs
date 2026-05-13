@@ -20,9 +20,9 @@
 //! # Reference
 //! Press et al., *Numerical Recipes*, 3rd ed., §18.1.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Filter that computes the discrete Laplacian ∇²I of a 3-D image.
 ///
@@ -53,24 +53,10 @@ impl LaplacianFilter {
     /// Returns an `Image` whose voxel values are ∇²I(x) at each position x.
     /// The output has the same shape and physical metadata as `image`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("LaplacianFilter requires f32 image data: {:?}", e))?
-            .to_vec();
-
-        let dims = image.shape();
+        let (vals, dims) = extract_vec(image)?;
         let result = laplacian_vec(&vals, dims, self.spacing);
 
-        let device = image.data().device();
-        let td2 = TensorData::new(result, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td2, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 }
 

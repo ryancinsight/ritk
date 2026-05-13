@@ -31,9 +31,9 @@
 //!   Transactions on Pattern Analysis and Machine Intelligence*, 8(6),
 //!   pp. 679–698.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use std::collections::VecDeque;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
@@ -129,14 +129,18 @@ impl CannyEdgeDetector {
             gauss.apply(image)
         };
 
-        let td = smoothed.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("CannyEdgeDetector requires f32 data: {:?}", e))?
-            .to_vec();
+        let (vals_vec, dims_smoothed) = extract_vec(&smoothed)?;
+        if dims_smoothed != dims {
+            anyhow::bail!(
+                "CannyEdgeDetector smoothing changed image shape from {:?} to {:?}",
+                dims,
+                dims_smoothed
+            );
+        }
+        let vals = &vals_vec;
 
         // ── Stage 2: Gradient magnitude and direction ─────────────────────
-        let (mag, dir_z, dir_y, dir_x) = gradient_3d(&vals, dims, sp);
+        let (mag, dir_z, dir_y, dir_x) = gradient_3d(vals, dims, sp);
 
         // ── Stage 3: Non-maximum suppression ──────────────────────────────
         let nms = non_maximum_suppression(&mag, &dir_z, &dir_y, &dir_x, dims);
@@ -153,15 +157,7 @@ impl CannyEdgeDetector {
         let n = nz * ny * nx;
         let out_vals: Vec<f32> = (0..n).map(|i| if edges[i] { 1.0 } else { 0.0 }).collect();
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out_vals, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out_vals, dims, image))
     }
 }
 

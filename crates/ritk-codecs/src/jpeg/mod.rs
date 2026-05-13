@@ -50,10 +50,6 @@ fn decode_jpeg_fragment_with<B: JpegDecodeBackend>(
             decode_native_pixel_bytes_checked(&decoded.pixels, layout)
         }
         JpegPixelFormat::L16 => decode_l16_native_endian(&decoded.pixels, layout),
-        JpegPixelFormat::Cmyk32 => bail!(
-            "JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
-            decoded.pixel_format
-        ),
     }
 }
 
@@ -73,13 +69,6 @@ fn validate_jpeg_layout(
             layout.rows
         );
     }
-    if matches!(pixel_format, JpegPixelFormat::Cmyk32) {
-        bail!(
-            "JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
-            pixel_format
-        );
-    }
-
     let expected_samples_per_pixel = pixel_format.samples_per_pixel();
     if layout.samples_per_pixel != expected_samples_per_pixel {
         bail!(

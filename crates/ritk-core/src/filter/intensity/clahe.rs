@@ -48,10 +48,10 @@
 //!   In *Graphics Gems IV* (pp. 474-485). Academic Press.
 //! - FIJI/ImageJ CLAHE plugin: Stephan Saalfeld et al.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use rayon::prelude::*;
 
 /// Contrast Limited Adaptive Histogram Equalization (CLAHE) filter.
@@ -111,11 +111,8 @@ impl ClaheFilter {
         let shape = image.shape();
         let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
 
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("failed to extract f32 slice: {e:?}"))?
-            .to_vec();
+        let (vals_vec, dims) = extract_vec(image)?;
+        let vals = &vals_vec;
 
         // Process each axial slice in parallel via Rayon.
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
@@ -137,16 +134,7 @@ impl ClaheFilter {
             out.extend_from_slice(&s);
         }
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new([depth, rows, cols]));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 

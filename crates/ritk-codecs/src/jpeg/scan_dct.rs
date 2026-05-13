@@ -43,6 +43,11 @@ fn decode_block(
     let quant = frame.quant[quant_id]
         .as_ref()
         .with_context(|| format!("Quantization table {quant_id} not loaded"))?;
+    if quant.precision != 0 {
+        bail!(
+            "JPEG DCT quantization table {quant_id} uses 16-bit precision; only 8-bit DQT is supported"
+        );
+    }
 
     // Decode DC coefficient (T.81 §F.2.2.1)
     let dc_cat = dc_table.decode(reader)?;
@@ -121,6 +126,15 @@ pub(crate) fn decode_baseline_scan(
     let precision = frame.sof.precision;
     if precision != 8 {
         bail!("JPEG Baseline: only 8-bit precision supported (got {precision})");
+    }
+    if frame.sos.ss != 0 || frame.sos.se != 63 || frame.sos.ah != 0 || frame.sos.al != 0 {
+        bail!(
+            "JPEG sequential DCT scan parameters unsupported: Ss={} Se={} Ah={} Al={}",
+            frame.sos.ss,
+            frame.sos.se,
+            frame.sos.ah,
+            frame.sos.al
+        );
     }
     let width = frame.sof.width as usize;
     let height = frame.sof.height as usize;
@@ -208,12 +222,7 @@ fn decode_baseline_ycbcr(
     let mut max_h = 1u8;
     let mut max_v = 1u8;
     for sc in &frame.sos.components {
-        let fc_idx = frame
-            .sof
-            .components
-            .iter()
-            .position(|c| c.id == sc.id)
-            .with_context(|| format!("component id {} not in SOF", sc.id))?;
+        let fc_idx = comp_by_id(sc.id)?;
         let fc = &frame.sof.components[fc_idx];
         if fc.h_samp > max_h {
             max_h = fc.h_samp;
@@ -242,12 +251,7 @@ fn decode_baseline_ycbcr(
     for mcu_y in 0..mcus_y {
         for mcu_x in 0..mcus_x {
             for (ci, sc) in frame.sos.components.iter().enumerate() {
-                let fc_idx = frame
-                    .sof
-                    .components
-                    .iter()
-                    .position(|c| c.id == sc.id)
-                    .unwrap();
+                let fc_idx = comp_by_id(sc.id)?;
                 let fc = &frame.sof.components[fc_idx];
 
                 // Decode h_samp × v_samp blocks for this component per MCU

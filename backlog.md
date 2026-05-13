@@ -1,3 +1,50 @@
+## Sprint 213 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.43.0 [minor]
+**Goal**: Close the `ritk.metrics` Python API gap by exposing MSE, NCC, and MI as standalone metric evaluation functions callable from Python.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| Python metrics API | `compute_mse`, `compute_ncc`, `compute_mutual_information` expose image similarity metrics via the `ritk.metrics` submodule | **Closed** |
+
+### Delivered
+- `crates/ritk-python/src/metrics.rs`: MSE, NCC (Pearson r), and histogram MI (Mattes/standard/normalized) with 9 Rust unit tests.
+- `crates/ritk-python/tests/test_metric_parity.py`: 20 Python parity tests against NumPy references and brain MRI real-world monotonicity tests.
+- `ritk.metrics` registered as a `_ritk` submodule and re-exported from `ritk/__init__.py`.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| Non-DICOM color-volume loaders | Extend `ColorVolume` to PNG/JPEG/TIFF or other color-capable formats | Medium |
+
+## Sprint 212 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.42.0 [minor]
+**Goal**: Close the DICOM RGB multiframe color-volume gap and keep RGB validation shared across DICOM color loaders.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| DICOM RGB multiframe loader | `read_dicom_color_multiframe` validates interleaved unsigned 8-bit RGB multiframe objects and preserves samples in `RgbVolume<B>` | **Closed** |
+| DICOM RGB validation redundancy | Shared color tag helpers are factored into `color_common.rs` for series and multiframe paths | **Closed** |
+
+### Delivered
+- `crates/ritk-io/src/format/dicom/color_multiframe.rs`: DICOM RGB multiframe loader with shape `[frames, rows, cols, 3]`.
+- `crates/ritk-io/src/format/dicom/color_common.rs`: shared RGB DICOM tag readers and channel-count constant.
+- Public exports from `ritk-io::format::dicom` and `ritk-io`.
+- Compile-blocker fixes in existing generic filter refactor sites required by focused `ritk-io` verification.
+- Native JPEG decoder warning cleanup with explicit DCT/lossless scan-parameter validation.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| Non-DICOM color-volume loaders | Extend `ColorVolume` to PNG/JPEG/TIFF or other color-capable formats where metadata supports channel-explicit volume semantics | Medium |
+
 ## Sprint 211 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

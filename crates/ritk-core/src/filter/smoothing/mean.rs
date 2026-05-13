@@ -37,9 +37,9 @@
 //! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed.
 //!   §3.5.1 Smoothing Linear Filters.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use rayon::prelude::*;
 use std::sync::Arc;
 
@@ -72,29 +72,17 @@ impl MeanImageFilter {
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
-        let device = image.data().device();
-
-        let vals: Arc<Vec<f32>> = Arc::new(
-            image
-                .data()
-                .clone()
-                .into_data()
-                .into_vec::<f32>()
-                .map_err(|e| anyhow::anyhow!("MeanImageFilter: {:?}", e))?,
-        );
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let [nz, ny, nx] = dims;
 
         let r = self.radius;
 
         // identity shortcut
         if r == 0 || nz == 0 || ny == 0 || nx == 0 {
-            return Ok(Image::new(
-                image.data().clone(),
-                *image.origin(),
-                *image.spacing(),
-                *image.direction(),
-            ));
+            return Ok(image.clone());
         }
+
+        let vals: Arc<Vec<f32>> = Arc::new(vals_vec);
 
         let out: Vec<f32> = (0..nz)
             .into_par_iter()
@@ -127,15 +115,7 @@ impl MeanImageFilter {
             })
             .collect();
 
-        let shape = Shape::new([nz, ny, nx]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 
@@ -143,7 +123,7 @@ impl MeanImageFilter {
 mod tests {
     use super::*;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn::tensor::TensorData;
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

@@ -1,3 +1,52 @@
+## Sprint 213 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.43.0 [minor]
+**Goal**: Close the `ritk.metrics` Python API gap by exposing MSE, NCC, and mutual information as standalone metric evaluation functions.
+
+### Checklist items
+- [x] Implement `crates/ritk-python/src/metrics.rs` with `compute_mse`, `compute_ncc`, `compute_mutual_information` and private slice helpers
+- [x] Add 9 Rust unit tests: MSE analytical/identity, NCC identical/anti-correlated, MI self/constant monotonicity, NMI bound, shape-mismatch guards, variant-validation guard
+- [x] Add `pub mod metrics;` and `metrics::register(m)?` to `crates/ritk-python/src/lib.rs`
+- [x] Add `from ritk._ritk import metrics as metrics` to `__init__.pyi` and `__init__.py`
+- [x] Build Python wheel: `VIRTUAL_ENV=D:/miniforge3 maturin develop --release`
+- [x] Write `crates/ritk-python/tests/test_metric_parity.py` with 20 NumPy parity and brain MRI tests
+- [x] Verify Rust unit tests: `cargo test -p ritk-python --lib metrics` (9 passed)
+- [x] Verify Python parity tests: `python -m pytest crates/ritk-python/tests/test_metric_parity.py -q` (20 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Global MI/NGF optimizer for inter-subject deformable registration | High | Open |
+| Non-DICOM color-volume loaders | Medium | Open |
+
+## Sprint 212 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.42.0 [minor]
+**Goal**: Add DICOM RGB multiframe loading through the channel-explicit `RgbVolume<B>` boundary.
+
+### Checklist items
+- [x] Audit residual color-volume gaps after Sprint 211
+- [x] Factor shared RGB DICOM tag helpers into `color_common.rs`
+- [x] Add `read_dicom_color_multiframe` and `load_dicom_color_multiframe`
+- [x] Validate multiframe RGB metadata before tensor construction: `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, consistent frame dimensions
+- [x] Preserve multiframe origin, spacing, and direction metadata
+- [x] Add value-semantic tests for RGB sample order, scalar rejection, and planar rejection
+- [x] Fix compile-blocking dirty generic filter refactor sites used by the verification build
+- [x] Remove native JPEG decoder warnings through dead-field removal and scan-parameter validation
+- [x] Verify DICOM RGB multiframe tests: `cargo test -p ritk-io --lib format::dicom::color_multiframe -- --nocapture` (3 passed)
+- [x] Verify DICOM color module tests after helper extraction: `cargo test -p ritk-io --lib format::dicom::color -- --nocapture` (6 passed)
+- [x] Verify JPEG codec warning cleanup: `cargo test -p ritk-codecs --lib jpeg -- --nocapture` (93 passed)
+- [x] Verify touched generic filter tests: mean (6), canny (3), sato (5), frangi (7)
+- [x] Verify scoped formatting and whitespace checks on touched files
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Global metric optimizer (MI/NGF) for inter-subject deformable registration | High | Open |
+| Non-DICOM color-volume loaders | Medium | Open |
+
 ## Sprint 211 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

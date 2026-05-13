@@ -18,9 +18,10 @@ use ritk_dicom::{
     TransferSyntaxKind,
 };
 
+use super::color_common::{
+    optional_u16, optional_usize, required_string, required_usize, RGB_CHANNELS,
+};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
-
-const RGB_CHANNELS: usize = 3;
 
 /// Read a DICOM RGB series into a rank-4 color volume.
 ///
@@ -205,43 +206,6 @@ fn read_rgb_slice_samples(
     .with_context(|| format!("DICOM backend decode failed for RGB slice {:?}", slice.path))?;
 
     Ok(decoded.pixels)
-}
-
-fn required_usize(obj: &dicom::object::DefaultDicomObject, tag: Tag, name: &str) -> Result<usize> {
-    obj.element(tag)
-        .with_context(|| format!("{name} absent"))?
-        .to_str()
-        .with_context(|| format!("{name} unreadable"))?
-        .trim()
-        .parse::<usize>()
-        .with_context(|| format!("{name} invalid"))
-}
-
-fn optional_usize(obj: &dicom::object::DefaultDicomObject, tag: Tag) -> Option<usize> {
-    obj.element(tag)
-        .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-}
-
-fn optional_u16(obj: &dicom::object::DefaultDicomObject, tag: Tag) -> Option<u16> {
-    obj.element(tag)
-        .ok()
-        .and_then(|e| e.to_str().ok())
-        .and_then(|s| s.trim().parse().ok())
-}
-
-fn required_string(
-    obj: &dicom::object::DefaultDicomObject,
-    tag: Tag,
-    name: &str,
-) -> Result<String> {
-    Ok(obj
-        .element(tag)
-        .with_context(|| format!("{name} absent"))?
-        .to_str()
-        .with_context(|| format!("{name} unreadable"))?
-        .to_string())
 }
 
 #[cfg(test)]

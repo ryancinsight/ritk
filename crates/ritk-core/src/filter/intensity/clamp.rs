@@ -30,9 +30,9 @@
 //!
 //! O(N) time, O(N) space (output allocation), O(1) auxiliary.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -76,25 +76,14 @@ impl ClampImageFilter {
     ///
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ClampImageFilter: f32 required: {:?}", e))?;
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let lo = self.lower;
         let hi = self.upper;
         let out: Vec<f32> = vals.iter().map(|&v| v.clamp(lo, hi)).collect();
 
-        let out_td = TensorData::new(out, Shape::new(dims));
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 

@@ -14,9 +14,9 @@
 //!
 //! `itk::BlendImageFilter`
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Linearly blend two co-registered images.
 ///
@@ -61,19 +61,10 @@ impl BlendImageFilter {
             b.shape()
         );
 
-        let dims = a.shape();
-        let av = a
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("BlendImageFilter requires f32 data: {:?}", e))?;
-        let bv = b
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("BlendImageFilter requires f32 data: {:?}", e))?;
+        let (av_vec, dims) = extract_vec_infallible(a);
+        let av = &av_vec;
+        let (bv_vec, _) = extract_vec_infallible(b);
+        let bv = &bv_vec;
 
         let alpha = self.alpha.clamp(0.0, 1.0);
         let one_minus_alpha = 1.0 - alpha;
@@ -84,15 +75,7 @@ impl BlendImageFilter {
             .map(|(&x, &y)| one_minus_alpha * x + alpha * y)
             .collect();
 
-        let device = a.data().device();
-        let td = TensorData::new(out, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Ok(Image::new(
-            tensor,
-            *a.origin(),
-            *a.spacing(),
-            *a.direction(),
-        ))
+        Ok(rebuild(out, dims, a))
     }
 }
 
@@ -101,6 +84,7 @@ mod tests {
     use super::*;
     use crate::spatial::{Direction, Point, Spacing};
     use burn_ndarray::NdArray;
+    use burn::tensor::{Shape, Tensor, TensorData};
 
     type B = NdArray<f32>;
 
