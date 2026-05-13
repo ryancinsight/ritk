@@ -52,10 +52,9 @@ use crate::deformable_field_ops::{
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
 
-use self::cc::{cc_forces, mean_local_cc};
 use self::pyramid::{downsample, upsample_field};
+use super::local_cc::{cc_forces, mean_local_cc};
 
-pub(crate) mod cc;
 pub(crate) mod pyramid;
 #[cfg(test)]
 mod tests;
@@ -251,10 +250,8 @@ impl MultiResSyNRegistration {
                     gaussian_smooth_inplace(&mut v2x, ld, self.config.sigma_smooth);
                 }
                 if self.config.enforce_inverse_consistency {
-                    let (c1z, c1y, c1x) =
-                        compose_fields(&v1z, &v1y, &v1x, &v2z, &v2y, &v2x, ld);
-                    let (c2z, c2y, c2x) =
-                        compose_fields(&v2z, &v2y, &v2x, &v1z, &v1y, &v1x, ld);
+                    let (c1z, c1y, c1x) = compose_fields(&v1z, &v1y, &v1x, &v2z, &v2y, &v2x, ld);
+                    let (c2z, c2y, c2x) = compose_fields(&v2z, &v2y, &v2x, &v1z, &v1y, &v1x, ld);
                     for i in 0..ln {
                         v1z[i] = (v1z[i] - c1z[i]) * 0.5;
                         v1y[i] = (v1y[i] - c1y[i]) * 0.5;
@@ -282,10 +279,8 @@ impl MultiResSyNRegistration {
         }
 
         let (v1z, v1y, v1x, v2z, v2y, v2x, _) = prev.unwrap();
-        let (p1z, p1y, p1x) =
-            scaling_and_squaring(&v1z, &v1y, &v1x, dims, self.config.n_squarings);
-        let (p2z, p2y, p2x) =
-            scaling_and_squaring(&v2z, &v2y, &v2x, dims, self.config.n_squarings);
+        let (p1z, p1y, p1x) = scaling_and_squaring(&v1z, &v1y, &v1x, dims, self.config.n_squarings);
+        let (p2z, p2y, p2x) = scaling_and_squaring(&v2z, &v2y, &v2x, dims, self.config.n_squarings);
         Ok(SyNResult {
             forward_field: (v1z, v1y, v1x),
             inverse_field: (v2z, v2y, v2x),

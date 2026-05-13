@@ -1,4 +1,4 @@
-use super::cc::mean_local_cc;
+use super::super::local_cc::mean_local_cc;
 use super::primitives::{accumulate_to_cp, bspline_basis, cp_count, cp_laplacian, evaluate_dense};
 use super::{BSplineSyNConfig, BSplineSyNRegistration};
 use crate::deformable_field_ops::flat;

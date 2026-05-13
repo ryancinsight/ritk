@@ -36,10 +36,9 @@ use crate::deformable_field_ops::{
 };
 use crate::error::RegistrationError;
 
-use self::cc::{cc_forces, mean_local_cc};
 use self::primitives::{accumulate_to_cp, cp_count, cp_laplacian, evaluate_dense};
+use super::local_cc::{cc_forces, mean_local_cc};
 
-pub(crate) mod cc;
 pub(crate) mod primitives;
 #[cfg(test)]
 mod tests;

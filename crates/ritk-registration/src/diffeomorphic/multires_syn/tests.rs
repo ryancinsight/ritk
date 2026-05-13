@@ -1,4 +1,4 @@
-use super::cc::{cc_forces, mean_local_cc};
+use super::super::local_cc::{cc_forces, mean_local_cc};
 use super::pyramid::{downsample, upsample_field};
 use super::{MultiResSyNConfig, MultiResSyNRegistration};
 
@@ -243,8 +243,7 @@ fn cc_forces_identical_images_bounded() {
     let dims = [6, 6, 6];
     let n = 216;
     let image = make_test_image(dims);
-    let (gz, gy, gx) =
-        crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
+    let (gz, gy, gx) = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
     let (fz, fy, fx) = cc_forces(&image, &image, &gz, &gy, &gx, dims, 1);
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()

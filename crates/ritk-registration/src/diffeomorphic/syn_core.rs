@@ -23,7 +23,7 @@ use crate::deformable_field_ops::{
 };
 use crate::error::RegistrationError;
 
-use super::local_cc::{cc_forces, field_rms, mean_local_cc};
+use super::local_cc::{cc_forces, mean_local_cc};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -210,6 +210,7 @@ impl SyNRegistration {
 
 #[cfg(test)]
 mod tests {
+    use super::super::local_cc::field_rms;
     use super::*;
     use crate::deformable_field_ops::scaling_and_squaring;
 
