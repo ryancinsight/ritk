@@ -9,7 +9,8 @@ use anyhow::Result;
 
 use super::bitstream::BitReader;
 use super::context::{
-    compute_k, context_index, inverse_map, quant, sign_normalize, update_context, ContextModel,
+    compute_k, context_index, error_correction, inverse_map, quant, sign_normalize, update_context,
+    ContextModel,
 };
 
 /// Golomb run-length table J[0..32] — ISO 14495-1 Table C.1.
@@ -22,10 +23,9 @@ const J: [u32; 32] = [
 
 /// JPEG-LS predictor modes specified in the SOS header (ISO 14495-1 §C.2.4).
 ///
-/// All 8 modes are defined by the ISO 14495-1 standard and may appear in
-/// valid JPEG-LS bitstreams.  Modes 3, 5, 6 are not dispatched by the
-/// current DICOM `Prediction` → `Predictor` mapping but remain present as
-/// exhaustive match arms in `predict()` for standard compliance.
+/// All 8 modes are defined by the ISO 14495-1 standard and remain present as
+/// exhaustive match arms in `predict()` for standard compliance. DICOM JPEG-LS
+/// lossless production decode uses the adaptive predictor.
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum Predictor {
@@ -85,6 +85,11 @@ fn predict_adaptive(a: i32, b: i32, c: i32) -> i32 {
     } else {
         a + b - c
     }
+}
+
+#[inline(always)]
+fn reconstruct_lossless(predicted: i32, error: i32, maxval: i32) -> i32 {
+    (predicted + error).rem_euclid(maxval + 1)
 }
 
 /// Compute the predictor for sample at (row, col) given causal neighborhood.
@@ -168,10 +173,12 @@ pub(super) fn decode_scan(
     // Row −1 (index 0) is already zeroed.
     // Actual rows start at buf[cols..].
 
+    let mut previous_line_left_guard = 0i32;
     for r in 0..rows {
         // Buf index for row r: (r+1)*cols, row r−1: r*cols.
         let row_off = (r + 1) * cols;
         let prev_off = r * cols; // row r−1 (or sentinel row if r=0)
+        let current_line_left_guard = buf[prev_off];
 
         let mut c = 0usize;
         while c < cols {
@@ -179,13 +186,13 @@ pub(super) fn decode_scan(
             let a = if c > 0 {
                 buf[row_off + c - 1]
             } else {
-                buf[prev_off]
+                current_line_left_guard
             }; // left or top-left at col 0
             let b = buf[prev_off + c]; // above
             let cc = if c > 0 {
                 buf[prev_off + c - 1]
             } else {
-                buf[prev_off + c]
+                previous_line_left_guard
             }; // above-left
             let d = if c + 1 < cols {
                 buf[prev_off + c + 1]
@@ -249,28 +256,21 @@ pub(super) fn decode_scan(
                     // Run interrupt: decode interruption sample
                     let rb = buf[prev_off + c.min(cols - 1)]; // above (b)
                     let ra = if c > 0 { buf[row_off + c - 1] } else { rb }; // left (a)
-
-                    let ri_ctx = &mut ctx.run_int;
-                    let k = compute_k(ri_ctx.a, ri_ctx.n, qbpp);
-                    let me = reader.read_golomb(k, limit, qbpp);
-                    let errval_raw = inverse_map(me);
-
-                    // Run-interrupt reconstruction (ISO 14495-1 §A.6.6)
-                    let rx = if (rb - ra).abs() <= params.near as i32 {
-                        let px = rb;
-                        let rx = (px + errval_raw).clamp(0, maxval);
-                        update_context(ri_ctx, errval_raw, params.near);
-                        rx
-                    } else if rb >= ra {
-                        let px = ra;
-                        let rx = (px + errval_raw).clamp(0, maxval);
-                        update_context(ri_ctx, errval_raw, params.near);
-                        rx
+                    let run_index = ctx.run_index.min(31);
+                    let ri_ctx = if (rb - ra).abs() <= params.near as i32 {
+                        &mut ctx.run_int_same
                     } else {
-                        let px = ra;
-                        let rx = (px - errval_raw).clamp(0, maxval);
-                        update_context(ri_ctx, -errval_raw, params.near);
-                        rx
+                        &mut ctx.run_int_diff
+                    };
+                    let k = ri_ctx.compute_k(qbpp);
+                    let me = reader.read_golomb(k, limit - J[run_index] - 1, qbpp);
+                    let errval = ri_ctx.compute_error_value(me + ri_ctx.run_interruption_type(), k);
+                    ri_ctx.update(errval, me);
+
+                    let rx = if ri_ctx.run_interruption_type() == 1 {
+                        reconstruct_lossless(ra, errval, maxval)
+                    } else {
+                        reconstruct_lossless(rb, errval * (rb - ra).signum(), maxval)
                     };
 
                     // Decrement run index on interrupt
@@ -293,23 +293,28 @@ pub(super) fn decode_scan(
             // Golomb-Rice parameter k
             let k = compute_k(ctx_reg.a, ctx_reg.n, qbpp);
 
-            // Edge-detecting predictor with bias correction
+            // Edge-detecting predictor with sign-normalized bias correction.
             let px_raw = predict(a, b, cc, d, params.predictor, r, c);
-            let px = (px_raw + ctx_reg.c).clamp(0, maxval);
+            let signed_c = if sign < 0 { -ctx_reg.c } else { ctx_reg.c };
+            let px = (px_raw + signed_c).clamp(0, maxval);
 
             // Decode MErrval from bitstream
             let me = reader.read_golomb(k, limit, qbpp);
-            let errval_canon = inverse_map(me);
+            let mut errval_canon = inverse_map(me);
+            if k == 0 {
+                errval_canon ^= error_correction(ctx_reg, params.near);
+            }
             let errval = sign * errval_canon;
 
             // Reconstruct sample
-            let rx = (px + errval).clamp(0, maxval);
+            let rx = reconstruct_lossless(px, errval, maxval);
             buf[row_off + c] = rx;
 
             // Update context (errval relative to context sign)
-            update_context(ctx_reg, errval * sign, params.near);
+            update_context(ctx_reg, errval_canon, params.near);
             c += 1;
         }
+        previous_line_left_guard = current_line_left_guard;
     }
 
     // Extract decoded rows (skip sentinel row 0)
@@ -382,55 +387,8 @@ mod tests {
 
     #[test]
     fn decode_scan_constant_zero_left_predictor_2x2() {
-        // For a 2×2 all-zero image with LEFT predictor:
-        // All errvals are 0 → all MErrval=0 → each Golomb k=0 code is a single '1' bit.
-        // Row 0: sample(0,0): predictor=0, errval=0 → MErrval=0 → code='1'
-        //        sample(0,1): predictor=left=0, errval=0 → code='1'
-        // Row 1: sample(1,0): predictor=above=0, errval=0 → code='1'
-        //        sample(1,1): predictor=left=0 ... BUT D1=D2=D3=0 so RUN MODE.
-        //        Actually let me reconsider: at (1,1), a=0,b=0,c=0,d=0 → all gradients=0 → run mode.
-        //        At (0,1): y=0, so only LEFT gradient applies → not full run check.
-        //        Actually at row=0 col=1: D1=D2=D3 all involve prev_line which is all 0,
-        //        and curr_line[0]=0. D1=above_right(0)-above(0)=0, D2=above(0)-above_left(0)=0,
-        //        D3=above_left(0)-left(0)=0 → run mode.
-        //
-        // The run mode for a 2×2 all-zero image:
-        // (0,0): Regular mode (no full gradient info), predictor=0, errval=0, code='1'
-        // (0,1): All gradients 0 → run mode. Run=0,1=col 1, remaining=1.
-        //   J[0]=0 → read 1 bit: if 1, run extends by 1 (hit), run_len=1 >= remaining=1 → done.
-        //   Fill col1 with run_val=0.
-        // Row 1: (1,0): a=above(0,0)=0, b=above(1,0)=0... col=0 so prev_line starts.
-        //   a=buf[prev_off]=0 (above-left at col=0), b=buf[prev_off+0]=0. D1=0,D2=0,D3=0 → run mode.
-        //   Remaining=2. J[0]=0, read bit=1 → run_len=1. J still 0, read bit=1 → run_len=2 >= 2. Done.
-        //   Fill cols 0 and 1 with 0.
-        //
-        // So bitstream is: '1' (regular at (0,0)), '1' (run hit at (0,1)), '1','1' (run hits at row 1)
-        // Total 4 bits: 0b11110000
-        //
-        // BUT the exact run mode encoding depends on current run_index and J values.
-        // For run_index=0: J[0]=0, each hit bit extends run by 2^0=1.
-        //
-        // Let me build the exact bitstream:
-        // (0,0) regular: predictor=0, errval=0, k=0, Golomb(0,32,8): q=0 (read '1'), rem=0 → '1'
-        // (0,1) run: run_val=a=0, remaining=1, J[run_index=0]=0, read bit:
-        //   bit=1 → run_len=1 >= remaining=1 → run_len=1, run_index→1, break.
-        //   Fill (0,1)=0. No interrupt (run_len==remaining).
-        // (1,0) run (since a=0,b=0,c=0,d=0 all zero → run mode):
-        //   Actually at row=1, col=0: a=buf[(1+1-1)*cols + 0-1 if col>0 else prev_off]...
-        //   let me re-read the code.
-        //   row_off = (1+1)*cols = 2*cols. prev_off = 1*cols = cols.
-        //   a = if c>0: buf[row_off+c-1] else buf[prev_off] = buf[cols+0] = 0 (from row 0, col 0).
-        //   b = buf[prev_off+c] = buf[cols+0] = 0.
-        //   cc = if c>0: buf[prev_off+c-1] else buf[prev_off+c] = buf[cols+0] = 0.
-        //   d = if c+1<cols: buf[prev_off+c+1] = buf[cols+1] = 0.
-        //   D1=0,D2=0,D3=0 → run mode.
-        //   run_val=a=0, remaining=2.
-        //   run_index=1 (after the run hit at (0,1)), J[1]=0.
-        //   Read bit=1 → run_len=1, run_index→2, J[2]=0.
-        //   Read bit=1 → run_len=2 >= remaining=2. run_index→3. Break.
-        //   Fill (1,0)=0 and (1,1)=0. No interrupt.
-        //
-        // Total bitstream bits: 1+'1' + 1+'1' + 2*'1' = 5 bits: 0b11111000
+        // All gradients are zero, so rows are represented by run hits only.
+        // The test byte provides five hit bits plus padding.
         let data: &[u8] = &[0b11111000u8];
         let mut reader = BitReader::new(data);
         let params = ScanParams {

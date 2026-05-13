@@ -16,33 +16,9 @@
 //! | `LogImageFilter`             | `LogImageFilter`                   | Log                     |
 //! | `ExpImageFilter`             | `ExpImageFilter`                   | Exp                     |
 
+use crate::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
-
-// ── Shared helpers ────────────────────────────────────────────────────────────
-
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> (Vec<f32>, [usize; 3]) {
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .expect("arithmetic filter requires f32 backend data");
-    (vals, image.shape())
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        src.origin().clone(),
-        src.spacing().clone(),
-        src.direction().clone(),
-    )
-}
 
 // ── AbsImageFilter ────────────────────────────────────────────────────────────
 

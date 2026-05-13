@@ -274,10 +274,11 @@ pub fn load_dicom_series<B: Backend>(
     // Using par_iter to decode and collect is better.
     let slice_pixels: Vec<Vec<f32>> = slices
         .par_iter()
-        .map(|(_p, obj)| {
+        .map(|(path, obj)| {
             let slope = get_f64(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
+            ensure_scalar_samples_per_pixel(samples_per_pixel, path)?;
             let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
             let pixel_representation = get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16;
             let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
@@ -368,6 +369,17 @@ fn get_f64(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Op
 
 fn get_f64_vec(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<Vec<f64>> {
     obj.element(tag).ok()?.to_multi_float64().ok()
+}
+
+fn ensure_scalar_samples_per_pixel(samples_per_pixel: usize, source: &Path) -> Result<()> {
+    if samples_per_pixel == 1 {
+        return Ok(());
+    }
+    bail!(
+        "DICOM scalar volume loader supports only SamplesPerPixel=1; {} declares SamplesPerPixel={samples_per_pixel}. \
+         Decode RGB/color frames through the codec boundary or a color-volume loader",
+        source.display()
+    )
 }
 
 fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<NaPoint3<f64>> {

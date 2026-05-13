@@ -137,6 +137,8 @@ pub struct MultiFrameInfo {
     pub rows: usize,
     /// Pixel columns per frame.
     pub cols: usize,
+    /// SamplesPerPixel (0028,0002). Scalar volume loading supports only 1.
+    pub samples_per_pixel: usize,
     /// Bits allocated per sample (8 or 16).
     pub bits_allocated: u16,
     /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
@@ -195,6 +197,12 @@ fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameI
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(16);
+    let samples_per_pixel: usize = obj
+        .element(Tag(0x0028, 0x0002))
+        .ok()
+        .and_then(|e| e.to_str().ok())
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(1);
     let pixel_representation: u16 = obj
         .element(Tag(0x0028, 0x0103))
         .ok()
@@ -245,6 +253,7 @@ fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> MultiFrameI
         n_frames,
         rows,
         cols,
+        samples_per_pixel,
         bits_allocated,
         pixel_representation,
         pixel_spacing,
@@ -493,6 +502,14 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
             info.rows,
             info.cols,
             path
+        );
+    }
+    if info.samples_per_pixel != 1 {
+        bail!(
+            "DICOM multiframe scalar volume loader supports only SamplesPerPixel=1; {:?} declares SamplesPerPixel={}. \
+             Decode RGB/color frames through the codec boundary or a color-volume loader",
+            path,
+            info.samples_per_pixel
         );
     }
 
@@ -1006,6 +1023,86 @@ mod tests {
         let device = <B as Backend>::Device::default();
         let result = load_dicom_multiframe::<B, _>("/nonexistent/path/file.dcm", &device);
         assert!(result.is_err(), "expected Err for missing file");
+    }
+
+    #[test]
+    fn test_load_multiframe_rejects_rgb_scalar_volume() {
+        let device = <B as Backend>::Device::default();
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("rgb_multiframe.dcm");
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from(MF_GRAYSCALE_WORD_SC_UID),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.999992"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("OT"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0008),
+            VR::IS,
+            PrimitiveValue::from("1"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(3_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("RGB"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OB,
+            PrimitiveValue::U8(SmallVec::from_vec(vec![120, 64, 32])),
+        ));
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid(MF_GRAYSCALE_WORD_SC_UID)
+                    .media_storage_sop_instance_uid("2.25.999992")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build must succeed");
+        file_obj.write_to_file(&path).expect("write must succeed");
+
+        let err = load_dicom_multiframe::<B, _>(&path, &device).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("SamplesPerPixel=3") && msg.contains("scalar volume loader"),
+            "expected scalar loader RGB rejection, got {err:#}"
+        );
     }
 
     #[test]

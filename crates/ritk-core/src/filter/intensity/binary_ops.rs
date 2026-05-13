@@ -28,9 +28,9 @@
 //! | `ImageMinFilter`       | `MinimumImageFilter`   | Min                                  |
 //! | `ImageMaxFilter`       | `MaximumImageFilter`   | Max                                  |
 
+use crate::filter::ops::{extract_vec as extract, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
@@ -40,24 +40,6 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
         b
     );
     Ok(())
-}
-
-fn extract<B: Backend>(img: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let dims = img.shape();
-    let vals = img
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("binary op filter requires f32 data: {:?}", e))?;
-    Ok((vals, dims))
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 // ── AddImageFilter ────────────────────────────────────────────────────────────

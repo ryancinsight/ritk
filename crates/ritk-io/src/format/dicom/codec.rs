@@ -13,9 +13,10 @@
 //!   which has an off-by-one write-start offset (`start = 1` instead of `0`)
 //!   for 8-bit grayscale images, silently corrupting `pixel[0]` and losing
 //!   `pixel[N−1]` for any file where `pixel[0] ≠ 0`.
-//! - **All other compressed transfer syntaxes**: calls
-//!   `dicom_pixeldata::PixelDecoder::decode_pixel_data_frame` to recover raw
-//!   sample bytes, then applies the linear modality LUT via `decode_pixel_bytes`.
+//! - **JPEG-LS Lossless, JPEG 2000, and RLE Lossless**: dispatched through
+//!   `ritk-dicom::NativeCodecBackend`.
+//! - **Remaining external compressed transfer syntaxes**: calls the configured
+//!   `dicom-rs` backend and then applies the linear modality LUT.
 //!
 //! # Supported codecs (pure Rust, `native` feature of `dicom-pixeldata`)
 //!
@@ -25,7 +26,7 @@
 //! | JPEG Extended (Process 2 & 4)          | 1.2.840.10008.1.2.4.51   | jpeg-decoder   | native        |
 //! | JPEG Lossless Non-Hierarchical (P14)   | 1.2.840.10008.1.2.4.57   | jpeg-decoder   | native        |
 //! | JPEG Lossless First-Order Prediction   | 1.2.840.10008.1.2.4.70   | jpeg-decoder   | native        |
-//! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | charls         | charls        |
+//! | JPEG-LS Lossless                       | 1.2.840.10008.1.2.4.80   | RITK-native    | native        |
 //! | JPEG-LS Near-Lossless                  | 1.2.840.10008.1.2.4.81   | charls         | charls        |
 //! | JPEG 2000 Lossless                     | 1.2.840.10008.1.2.4.90   | openjp2        | openjp2       |
 //! | JPEG 2000 Lossy                        | 1.2.840.10008.1.2.4.91   | openjp2        | openjp2       |
@@ -1160,6 +1161,13 @@ mod tests {
         let jls_bytes = codec
             .encode(frame_info, 0, pixels_u8)
             .expect("CharLS encode failed");
+        let charls_decoded = codec
+            .decode(&jls_bytes)
+            .expect("CharLS self-decode failed for lossless fixture");
+        assert_eq!(
+            charls_decoded, pixels_u8,
+            "CharLS lossless fixture generator must preserve source bytes"
+        );
 
         // Encapsulate as single fragment per DICOM PS3.5 §A.4.
         let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jls_bytes]);
@@ -1264,34 +1272,55 @@ mod tests {
         file_obj.write_to_file(path).expect("write_to_file failed");
     }
 
-    /// JPEG-LS Lossless negative fixture: a CharLS-produced bitstream which the current
-    /// native lossless decoder rejects must return a JPEG-contextual error.
+    /// JPEG-LS Lossless round-trip: a CharLS-produced bitstream is decoded by
+    /// the RITK-native lossless decoder with exact per-sample fidelity.
     #[test]
     fn test_decode_compressed_frame_jpegls_lossless_round_trip() {
         let width = 4u32;
-        let height = 4u32;
-        let original: Vec<u8> = vec![
-            0, 42, 85, 127, 128, 170, 200, 225, 50, 100, 150, 199, 64, 96, 128, 255,
-        ];
+        let height = 1u32;
+        let original: Vec<u8> = vec![0, 42, 85, 127];
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("test_jpegls_lossless.dcm");
         write_jpegls_lossless_dicom_file(&path, width, height, &original);
 
         let obj = dicom::object::open_file(&path).expect("open_file failed");
-        let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0);
+        let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+            .expect("JPEG-LS Lossless decode must succeed for CharLS conformance fixture");
 
-        assert!(
-            decoded.is_err(),
-            "this JPEG-LS lossless fixture must fail until covered by a native decoder conformance case"
+        let expected = original
+            .iter()
+            .map(|&sample| f32::from(sample))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            decoded, expected,
+            "JPEG-LS Lossless must preserve every sample exactly"
         );
-        let err_str = format!("{:?}", decoded.unwrap_err());
-        assert!(
-            err_str.contains("Pixel Data")
-                || err_str.contains("JPEG")
-                || err_str.contains("bytes")
-                || err_str.contains("Sequence"),
-            "Error should reference pixel data issue: {}",
-            err_str
+    }
+
+    /// JPEG-LS Lossless multi-row round-trip: a CharLS-produced scan containing
+    /// JPEG-LS stuffed bits is decoded by the native backend without bit drift.
+    #[test]
+    fn test_decode_compressed_frame_jpegls_lossless_multirow_round_trip() {
+        let width = 4u32;
+        let height = 4u32;
+        let original: Vec<u8> = vec![
+            0, 42, 85, 127, 128, 170, 200, 225, 10, 20, 30, 40, 240, 230, 220, 210,
+        ];
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("test_jpegls_lossless_multirow.dcm");
+        write_jpegls_lossless_dicom_file(&path, width, height, &original);
+
+        let obj = dicom::object::open_file(&path).expect("open_file failed");
+        let decoded = decode_compressed_frame(&obj, 0, 8, 0, 1.0, 0.0)
+            .expect("JPEG-LS Lossless decode must succeed for multi-row CharLS fixture");
+
+        let expected = original
+            .iter()
+            .map(|&sample| f32::from(sample))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            decoded, expected,
+            "JPEG-LS Lossless multi-row decode must preserve every sample exactly"
         );
     }
 

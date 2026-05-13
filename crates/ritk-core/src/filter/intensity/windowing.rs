@@ -9,9 +9,9 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Clamp input to [window_min, window_max], then rescale to [out_min, out_max].
 #[derive(Debug, Clone)]
@@ -59,23 +59,6 @@ impl IntensityWindowingFilter {
 
         Ok(rebuild(out, dims, image))
     }
-}
-
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("IntensityWindowingFilter requires f32 data: {:?}", e))?;
-    Ok((vals, image.shape()))
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 #[cfg(test)]

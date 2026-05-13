@@ -197,7 +197,11 @@ pub fn parse_dicom_tm(s: &str) -> Option<f64> {
 /// midnight and 86 400 s is added. Result ∈ [0, 86 400).
 pub fn compute_delta_t_s(rph_start_s: f64, series_time_s: f64) -> f64 {
     let diff = series_time_s - rph_start_s;
-    if diff < 0.0 { diff + 86_400.0 } else { diff }
+    if diff < 0.0 {
+        diff + 86_400.0
+    } else {
+        diff
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -495,7 +499,10 @@ mod tests {
     fn parse_dicom_tm_hhmmss_gives_correct_seconds() {
         // 13:30:45 = 13*3600 + 30*60 + 45 = 48645 s
         let s = parse_dicom_tm("133045").unwrap();
-        assert!((s - 48_645.0).abs() < 1e-9, "133045 must be 48645 s; got {s}");
+        assert!(
+            (s - 48_645.0).abs() < 1e-9,
+            "133045 must be 48645 s; got {s}"
+        );
     }
 
     #[test]
@@ -516,13 +523,19 @@ mod tests {
     fn parse_dicom_tm_fractional_seconds_parsed_correctly() {
         // 12:00:00.500 = 43200.5 s
         let s = parse_dicom_tm("120000.500").unwrap();
-        assert!((s - 43_200.5).abs() < 1e-9, "120000.500 must be 43200.5 s; got {s}");
+        assert!(
+            (s - 43_200.5).abs() < 1e-9,
+            "120000.500 must be 43200.5 s; got {s}"
+        );
     }
 
     #[test]
     fn parse_dicom_tm_invalid_returns_none() {
         assert!(parse_dicom_tm("").is_none(), "empty string must be None");
-        assert!(parse_dicom_tm("AB0000").is_none(), "non-digit HH must be None");
+        assert!(
+            parse_dicom_tm("AB0000").is_none(),
+            "non-digit HH must be None"
+        );
         assert!(parse_dicom_tm("250000").is_none(), "HH=25 must be None");
     }
 
@@ -532,30 +545,49 @@ mod tests {
     fn compute_delta_t_s_normal_same_day() {
         // inject 08:00:00, scan 09:00:00 → 3600 s
         let d = compute_delta_t_s(28_800.0, 32_400.0);
-        assert!((d - 3_600.0).abs() < 1e-9, "same-day delta must be 3600 s; got {d}");
+        assert!(
+            (d - 3_600.0).abs() < 1e-9,
+            "same-day delta must be 3600 s; got {d}"
+        );
     }
 
     #[test]
     fn compute_delta_t_s_midnight_rollover() {
         // inject 23:50:00 (85800 s), scan 00:10:00 (600 s) → 1200 s
         let d = compute_delta_t_s(85_800.0, 600.0);
-        assert!((d - 1_200.0).abs() < 1e-9, "midnight rollover must be 1200 s; got {d}");
+        assert!(
+            (d - 1_200.0).abs() < 1e-9,
+            "midnight rollover must be 1200 s; got {d}"
+        );
     }
 
     // ── delta_t_s_from_vol ────────────────────────────────────────────────────
 
     #[test]
     fn delta_t_s_from_vol_parses_both_fields() {
-        let mut vol = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), Some("START"));
+        let mut vol = minimal_vol(
+            Some(70.0),
+            Some(370_000_000.0),
+            Some(F18_HALF_LIFE_S),
+            Some("START"),
+        );
         vol.radiopharmaceutical_start_time = Some("080000".to_string());
         vol.series_time = Some("090000".to_string());
         let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
-        assert!((delta - 3_600.0).abs() < 1e-9, "delta_t_s must be 3600 s; got {delta}");
+        assert!(
+            (delta - 3_600.0).abs() < 1e-9,
+            "delta_t_s must be 3600 s; got {delta}"
+        );
     }
 
     #[test]
     fn delta_t_s_from_vol_missing_series_time_returns_zero() {
-        let vol = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), Some("START"));
+        let vol = minimal_vol(
+            Some(70.0),
+            Some(370_000_000.0),
+            Some(F18_HALF_LIFE_S),
+            Some("START"),
+        );
         let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
         assert_eq!(delta, 0.0, "missing series_time must return 0.0");
     }

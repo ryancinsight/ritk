@@ -1,13 +1,15 @@
 //! Bit-level reader for JPEG-LS compressed scan data.
 //!
-//! # JPEG-LS Byte Stuffing (ISO 14495-1 §C.2.1)
-//! In a JPEG-LS scan, any `0xFF` byte followed by `0x00` is a stuffed byte:
-//! the `0x00` is not part of the data and is discarded by the decoder.
-//! Markers (0xFF followed by any non-zero byte) terminate the scan.
+//! # JPEG-LS Bit Stuffing (ISO 14495-1 §C.2.1)
+//! In a JPEG-LS scan, an encoded `0xFF` data byte is followed by one stuffed
+//! zero bit. The decoder preserves all eight `0xFF` data bits, discards that
+//! single zero bit, and then consumes the remaining seven bits of the following
+//! byte as entropy data. Marker prefixes (`0xFF` followed by a byte with the
+//! high bit set) terminate the scan.
 
 /// Bit-level reader for JPEG-LS compressed scan data.
 ///
-/// Maintains a 32-bit buffer with lazy refill. Handles 0xFF/0x00 stuffing bytes.
+/// Maintains a 32-bit buffer with lazy refill. Handles JPEG-LS bit stuffing.
 pub(super) struct BitReader<'a> {
     data: &'a [u8],
     /// Current byte position in `data`.
@@ -31,17 +33,32 @@ impl<'a> BitReader<'a> {
         r
     }
 
-    /// Refill `buf` with up to 2 bytes, skipping JPEG-LS stuffing zeros.
+    #[inline(always)]
+    fn push_bits(&mut self, value: u32, count: u32) {
+        self.buf = (self.buf << count) | (value & ((1 << count) - 1));
+        self.bits += count;
+    }
+
+    /// Refill `buf` with entropy bits, removing JPEG-LS stuffed zero bits.
     fn refill(&mut self) {
         while self.bits <= 16 && self.pos < self.data.len() {
             let b = self.data[self.pos];
-            self.pos += 1;
-            // Stuffing: 0xFF 0x00 → emit 0xFF, discard 0x00
-            if b == 0xFF && self.pos < self.data.len() && self.data[self.pos] == 0x00 {
-                self.pos += 1;
+            if b == 0xFF && self.pos + 1 < self.data.len() && (self.data[self.pos + 1] & 0x80) != 0
+            {
+                self.pos = self.data.len();
+                break;
             }
-            self.buf = (self.buf << 8) | (b as u32);
-            self.bits += 8;
+
+            self.pos += 1;
+            self.push_bits(b as u32, 8);
+
+            if b == 0xFF && self.pos < self.data.len() {
+                let stuffed = self.data[self.pos];
+                if (stuffed & 0x80) == 0 {
+                    self.pos += 1;
+                    self.push_bits((stuffed & 0x7F) as u32, 7);
+                }
+            }
         }
     }
 
@@ -80,17 +97,24 @@ impl<'a> BitReader<'a> {
         // Count leading zeros (unary quotient), stopping at limit−qbpp−1
         let max_zeros = limit - qbpp - 1;
         let mut q = 0u32;
-        while q < max_zeros && self.read_bit() == 0 {
+        loop {
+            if self.read_bit() == 1 {
+                break;
+            }
             q += 1;
+            if q == max_zeros {
+                let _ = self.read_bit();
+                break;
+            }
         }
         if q < max_zeros {
             // Normal Golomb-Rice: MErrval = (q << k) | read_bits(k)
             let rem = self.read_bits(k);
             (q << k) | rem
         } else {
-            // Limited-length code: read qbpp bits, result is raw_val − 1
+            // Limited-length code: encoded low bits store mapped_error − 1.
             let raw_val = self.read_bits(qbpp);
-            raw_val.wrapping_sub(1)
+            raw_val + 1
         }
     }
 
@@ -127,14 +151,23 @@ mod tests {
     }
 
     #[test]
-    fn stuffing_byte_discarded() {
-        // 0xFF 0x00 0b10000000 → bits from 0xFF (all 1s) then from 0b10000000
+    fn stuffed_zero_bit_discarded() {
+        // 0xFF 0x00 0b10000000 -> 0xFF, seven data zeros, then the next byte.
         let data = [0xFF, 0x00, 0b10000000u8];
         let mut r = BitReader::new(&data);
-        // First 8 bits from 0xFF = all 1s
         assert_eq!(r.read_bits(8), 0xFF);
-        // Next bit from 0b10000000 = 1
+        assert_eq!(r.read_bits(7), 0);
         assert_eq!(r.read_bit(), 1);
+    }
+
+    #[test]
+    fn marker_terminates_scan_data() {
+        let data = [0b10100000u8, 0xFF, 0xD9, 0xFF];
+        let mut r = BitReader::new(&data);
+
+        assert_eq!(r.read_bits(8), 0b10100000);
+        assert_eq!(r.read_bits(8), 0);
+        assert_eq!(r.remaining_bytes(), 0);
     }
 
     #[test]
@@ -172,5 +205,14 @@ mod tests {
         let qbpp = 8u32;
         let val = r.read_golomb(1, limit, qbpp);
         assert_eq!(val, 5);
+    }
+
+    #[test]
+    fn golomb_limited_code_decodes_mapped_error_plus_one() {
+        let data = [0x00, 0x00, 0x01, 0xFE];
+        let mut r = BitReader::new(&data);
+        let val = r.read_golomb(2, 32, 8);
+
+        assert_eq!(val, 255);
     }
 }

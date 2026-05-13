@@ -55,8 +55,10 @@ pub(super) const MAX_C: i32 = 127;
 pub(crate) struct ContextModel {
     /// Regular-mode context states indexed by `context_index()`.
     pub(crate) regular: [ContextState; CONTEXTS],
-    /// Run-interrupt context state (§A.6).
-    pub(crate) run_int: ContextState,
+    /// Run-interrupt context for `RItype = 0` (§A.6).
+    pub(crate) run_int_diff: RunInterruptionContext,
+    /// Run-interrupt context for `RItype = 1` (§A.6).
+    pub(crate) run_int_same: RunInterruptionContext,
     /// Run-mode Golomb J-table index per component (§A.6.4, Rl).
     pub(crate) run_index: usize,
 }
@@ -75,9 +77,72 @@ impl ContextModel {
         };
         Self {
             regular: [s; CONTEXTS],
-            run_int: s,
+            run_int_diff: RunInterruptionContext::new(0, a_init),
+            run_int_same: RunInterruptionContext::new(1, a_init),
             run_index: 0,
         }
+    }
+}
+
+/// ISO 14495-1 run-interruption context state for indices 365 and 366.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct RunInterruptionContext {
+    run_interruption_type: u32,
+    a: u32,
+    n: u32,
+    nn: u32,
+}
+
+impl RunInterruptionContext {
+    pub(crate) const fn new(run_interruption_type: u32, a_init: u32) -> Self {
+        Self {
+            run_interruption_type,
+            a: a_init,
+            n: 1,
+            nn: 0,
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) const fn run_interruption_type(self) -> u32 {
+        self.run_interruption_type
+    }
+
+    #[inline(always)]
+    pub(crate) fn compute_k(self, qbpp: u32) -> u32 {
+        let temp = self.a + (self.n >> 1) * self.run_interruption_type;
+        let mut n_test = self.n;
+        let mut k = 0;
+        while n_test < temp && k < qbpp {
+            n_test <<= 1;
+            k += 1;
+        }
+        k
+    }
+
+    #[inline(always)]
+    pub(crate) fn compute_error_value(self, temp: u32, k: u32) -> i32 {
+        let map = temp & 1 != 0;
+        let error_value_abs = ((temp + u32::from(map)) / 2) as i32;
+        if (k != 0 || 2 * self.nn >= self.n) == map {
+            -error_value_abs
+        } else {
+            error_value_abs
+        }
+    }
+
+    #[inline(always)]
+    pub(crate) fn update(&mut self, error_value: i32, mapped_error_value: u32) {
+        if error_value < 0 {
+            self.nn += 1;
+        }
+        self.a += (mapped_error_value + 1 - self.run_interruption_type) >> 1;
+        if self.n == RESET {
+            self.a >>= 1;
+            self.n >>= 1;
+            self.nn >>= 1;
+        }
+        self.n += 1;
     }
 }
 
@@ -88,25 +153,41 @@ impl ContextModel {
 #[inline(always)]
 pub(crate) fn update_context(ctx: &mut ContextState, errval: i32, near: u32) {
     ctx.a += errval.unsigned_abs();
-    ctx.n += 1;
     ctx.b += errval * (2 * near as i32 + 1);
     if ctx.n == RESET {
-        ctx.n >>= 1;
         ctx.a >>= 1;
         ctx.b /= 2;
+        ctx.n >>= 1;
     }
+    ctx.n += 1;
     // Bias correction update
-    if ctx.b <= -(ctx.n as i32) {
-        ctx.b = -(ctx.n as i32) + 1;
+    if ctx.b + ctx.n as i32 <= 0 {
+        ctx.b += ctx.n as i32;
+        if ctx.b <= -(ctx.n as i32) {
+            ctx.b = -(ctx.n as i32) + 1;
+        }
         if ctx.c > MIN_C {
             ctx.c -= 1;
         }
     } else if ctx.b > 0 {
         ctx.b -= ctx.n as i32;
-        ctx.b = ctx.b.min(0);
+        if ctx.b > 0 {
+            ctx.b = 0;
+        }
         if ctx.c < MAX_C {
             ctx.c += 1;
         }
+    }
+}
+
+#[inline(always)]
+pub(crate) fn error_correction(ctx: &ContextState, k_or_near: u32) -> i32 {
+    if k_or_near != 0 {
+        0
+    } else if 2 * ctx.b + ctx.n as i32 - 1 < 0 {
+        -1
+    } else {
+        0
     }
 }
 

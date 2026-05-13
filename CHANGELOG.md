@@ -5,6 +5,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.40.9] - 2026-05-12
+
+### Added [patch]
+- `crates/ritk-python/tests/test_registration_side_by_side.py`: 27 value-semantic registration validation tests across 6 test classes covering synthetic sphere recovery (Dice ≥ 0.85), synthetic Gaussian blob NCC improvement (Demons, BSpline FFD, SyN, LDDMM), inter-subject brain MNI MSE reduction (Demons, SyN), multi-modal CT/MR cross-modal NCC improvement (RIRE and VM head datasets), and a comprehensive quality report across all RITK algorithms on shifted synthetic data. All 27 tests pass.
+
+### Fixed [patch]
+- `TestInterSubjectBrainMNI` now asserts MSE reduction instead of NCC improvement, correctly reflecting that inter-subject brain pairs have genuinely different anatomy (NCC_before≈0.04); NCC improvement is analytically infeasible as a registration quality criterion for this class of data.
+
+<!-- ──────────────────────────────────────────── -->
+## [0.40.8] - 2026-05-12
+
+### Fixed [patch]
+- PET/CT fused slice rendering now converts PT volume samples from Bq/mL to SUVbw through `PetAcquisitionParams` before applying the PET SUV window and colormap. Non-PET volumes and PET volumes without complete acquisition metadata preserve the raw-value display contract.
+- PT series hanging-protocol selection now uses the SUV whole-body window (`center=3.0`, `width=6.0`) instead of the generic 8-bit fallback.
+
+### Added [patch]
+- Value-semantic tests cover SUV-aware PET secondary fusion at `alpha=1.0`, non-PT raw-unit preservation when PET metadata fields are present, and PT hanging-protocol selection.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.40.7] - 2026-05-12
 
 ### Added [patch]

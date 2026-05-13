@@ -1792,6 +1792,10 @@ pub(super) fn decode_pixel_bytes(
     intercept: f32,
 ) -> Vec<f32> {
     match (bits_allocated, pixel_representation) {
+        (8, 1) => bytes
+            .iter()
+            .map(|&b| (b as i8) as f32 * slope + intercept)
+            .collect(),
         (8, _) => bytes
             .iter()
             .map(|&b| b as f32 * slope + intercept)
@@ -1805,6 +1809,19 @@ pub(super) fn decode_pixel_bytes(
             .map(|c| u16::from_le_bytes([c[0], c[1]]) as f32 * slope + intercept)
             .collect(),
     }
+}
+
+fn ensure_scalar_samples_per_pixel(
+    samples_per_pixel: usize,
+    source: impl fmt::Display,
+) -> Result<()> {
+    if samples_per_pixel == 1 {
+        return Ok(());
+    }
+    bail!(
+        "DICOM scalar volume loader supports only SamplesPerPixel=1; {source} declares SamplesPerPixel={samples_per_pixel}. \
+         Decode RGB/color frames through the codec boundary or a color-volume loader"
+    )
 }
 
 fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
@@ -1839,6 +1856,7 @@ fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse::<usize>().ok())
         .unwrap_or(1);
+    ensure_scalar_samples_per_pixel(samples_per_pixel, slice.path.display())?;
 
     let data = decode_frame_with::<DicomRsBackend>(
         &obj,
@@ -3436,6 +3454,91 @@ mod tests {
         assert_eq!(result[0], -1000.0f32, "pixel[0] must be -1000.0");
         assert_eq!(result[1], 0.0f32, "pixel[1] must be 0.0");
         assert_eq!(result[2], 1000.0f32, "pixel[2] must be 1000.0");
+    }
+
+    #[test]
+    fn test_read_slice_pixels_rejects_rgb_scalar_volume() {
+        use dicom::core::smallvec::SmallVec;
+        use dicom::object::meta::FileMetaTableBuilder;
+        use dicom::object::InMemDicomObject;
+
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.999991"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0060),
+            VR::CS,
+            PrimitiveValue::from("OT"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0002),
+            VR::US,
+            PrimitiveValue::from(3_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0010),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0011),
+            VR::US,
+            PrimitiveValue::from(1_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0100),
+            VR::US,
+            PrimitiveValue::from(8_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0103),
+            VR::US,
+            PrimitiveValue::from(0_u16),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0028, 0x0004),
+            VR::CS,
+            PrimitiveValue::from("RGB"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x7FE0, 0x0010),
+            VR::OB,
+            PrimitiveValue::U8(SmallVec::from_vec(vec![120, 64, 32])),
+        ));
+
+        let file_obj = obj
+            .with_meta(
+                FileMetaTableBuilder::new()
+                    .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.7")
+                    .media_storage_sop_instance_uid("2.25.999991")
+                    .transfer_syntax("1.2.840.10008.1.2.1"),
+            )
+            .expect("meta build must succeed");
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("rgb.dcm");
+        file_obj.write_to_file(&path).expect("write must succeed");
+
+        let slice_meta = DicomSliceMetadata {
+            path,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            ..DicomSliceMetadata::default()
+        };
+
+        let err = read_slice_pixels(&slice_meta).unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("SamplesPerPixel=3") && msg.contains("scalar volume loader"),
+            "expected scalar loader RGB rejection, got {err:#}"
+        );
     }
 
     #[test]

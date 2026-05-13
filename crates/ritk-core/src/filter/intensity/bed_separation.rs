@@ -33,9 +33,9 @@
 //! ultrasound, the caller should either avoid this filter or provide explicit
 //! configuration derived from modality-specific display semantics.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use std::collections::VecDeque;
 
 /// Configuration for CT bed separation.
@@ -94,7 +94,7 @@ impl BedSeparationFilter {
     /// Apply the filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
-        let vals = extract_f32(image)?;
+        let (vals, _) = extract_vec(image)?;
         let binary = threshold_foreground(&vals, self.config.body_threshold);
         let binary = if self.config.keep_largest_component {
             keep_largest_component(&binary, dims)
@@ -105,13 +105,13 @@ impl BedSeparationFilter {
         let binary = binary_opening(&binary, dims, self.config.opening_radius);
         let out = apply_mask(&vals, &binary, self.config.outside_value);
 
-        rebuild(out, dims, image)
+        Ok(rebuild(out, dims, image))
     }
 
     /// Compute the foreground mask without modifying the source intensity values.
     pub fn mask<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
-        let vals = extract_f32(image)?;
+        let (vals, _) = extract_vec(image)?;
         let binary = threshold_foreground(&vals, self.config.body_threshold);
         let binary = if self.config.keep_largest_component {
             keep_largest_component(&binary, dims)
@@ -122,33 +122,8 @@ impl BedSeparationFilter {
         let binary = binary_opening(&binary, dims, self.config.opening_radius);
         let mask_f32: Vec<f32> = binary.into_iter().map(|v| v as f32).collect();
 
-        rebuild(mask_f32, dims, image)
+        Ok(rebuild(mask_f32, dims, image))
     }
-}
-
-fn extract_f32<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<Vec<f32>> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("BedSeparationFilter requires f32 data: {:?}", e))
-}
-
-fn rebuild<B: Backend>(
-    vals: Vec<f32>,
-    dims: [usize; 3],
-    src: &Image<B, 3>,
-) -> anyhow::Result<Image<B, 3>> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Ok(Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    ))
 }
 
 fn apply_mask(values: &[f32], mask: &[u8], outside_value: f32) -> Vec<f32> {

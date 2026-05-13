@@ -4,7 +4,8 @@
 //! The JPEG decoder produces integer sample values in image raster order. RITK
 //! validates that the decoded raster shape and sample representation match the
 //! DICOM metadata, then applies the same linear modality LUT used by native
-//! uncompressed pixel data: `output = sample * slope + intercept`.
+//! uncompressed pixel data: `output = sample * slope + intercept`. RGB24 output
+//! is preserved as interleaved samples in raster order.
 //!
 //! # Backend boundary
 //! `backend::JpegDecodeBackend` is a sealed, static-dispatch boundary. The
@@ -38,10 +39,12 @@ fn decode_jpeg_fragment_with<B: JpegDecodeBackend>(
     )?;
 
     match decoded.pixel_format {
-        JpegPixelFormat::L8 => decode_native_pixel_bytes_checked(&decoded.pixels, layout),
+        JpegPixelFormat::L8 | JpegPixelFormat::Rgb24 => {
+            decode_native_pixel_bytes_checked(&decoded.pixels, layout)
+        }
         JpegPixelFormat::L16 => decode_l16_native_endian(&decoded.pixels, layout),
-        JpegPixelFormat::Rgb24 | JpegPixelFormat::Cmyk32 => bail!(
-            "native JPEG decoder only accepts grayscale DICOM pixel data; decoded format was {:?}",
+        JpegPixelFormat::Cmyk32 => bail!(
+            "native JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
             decoded.pixel_format
         ),
     }
@@ -63,9 +66,19 @@ fn validate_jpeg_layout(
             layout.rows
         );
     }
-    if layout.samples_per_pixel != 1 {
+    if matches!(pixel_format, JpegPixelFormat::Cmyk32) {
         bail!(
-            "native JPEG decoder accepts one DICOM sample per pixel; layout declares {}",
+            "native JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
+            pixel_format
+        );
+    }
+
+    let expected_samples_per_pixel = pixel_format.samples_per_pixel();
+    if layout.samples_per_pixel != expected_samples_per_pixel {
+        bail!(
+            "JPEG decoded format {:?} requires samples_per_pixel={}; layout declares {}",
+            pixel_format,
+            expected_samples_per_pixel,
             layout.samples_per_pixel
         );
     }
@@ -74,10 +87,7 @@ fn validate_jpeg_layout(
         .pixels_per_frame()?
         .checked_mul(pixel_format.pixel_bytes())
         .context("JPEG decoded byte length overflow")?;
-    if !matches!(
-        (pixel_format, layout.bits_allocated),
-        (JpegPixelFormat::L8, 8) | (JpegPixelFormat::L16, 16)
-    ) {
+    if layout.bits_allocated != pixel_format.bits_allocated() {
         bail!(
             "JPEG decoded format {:?} is incompatible with DICOM BitsAllocated={}",
             pixel_format,
@@ -158,6 +168,18 @@ mod tests {
             .expect("test image dimensions must match sample count");
         let mut jpeg = Vec::new();
         DynamicImage::ImageLuma8(gray)
+            .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg)
+            .expect("test JPEG encode must succeed");
+        jpeg
+    }
+
+    fn encode_rgb_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
+        use image::{DynamicImage, RgbImage};
+
+        let rgb = RgbImage::from_raw(width, height, pixels.to_vec())
+            .expect("test RGB image dimensions must match sample count");
+        let mut jpeg = Vec::new();
+        DynamicImage::ImageRgb8(rgb)
             .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg)
             .expect("test JPEG encode must succeed");
         jpeg
@@ -248,12 +270,59 @@ mod tests {
     }
 
     #[test]
+    fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
+        let source = [120u8, 64, 32, 120, 64, 32];
+        let jpeg = encode_rgb_jpeg(2, 1, &source);
+        let layout = PixelLayout {
+            rows: 1,
+            cols: 2,
+            samples_per_pixel: 3,
+            bits_allocated: 8,
+            pixel_representation: 0,
+            rescale_slope: 1.0,
+            rescale_intercept: 0.0,
+        };
+
+        let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
+
+        assert_eq!(decoded.len(), source.len());
+        for (i, (actual, expected)) in decoded.iter().zip(source).enumerate() {
+            assert!(
+                (*actual - f32::from(expected)).abs() <= 16.0,
+                "RGB JPEG sample {i}: expected near {expected}, got {actual}"
+            );
+        }
+    }
+
+    #[test]
+    fn jpeg_rgb24_rejects_grayscale_layout() {
+        let jpeg = encode_rgb_jpeg(1, 1, &[120, 64, 32]);
+
+        let err = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.0, 0.0)).unwrap_err();
+
+        assert!(
+            err.to_string().contains("samples_per_pixel"),
+            "expected samples-per-pixel validation error, got {err:#}"
+        );
+    }
+
+    #[test]
     fn jpeg_lossless_grayscale_fragment_decodes_exact_sample() {
         let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
 
         let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0)).unwrap();
 
         assert_eq!(decoded, vec![190.0]);
+    }
+
+    #[test]
+    fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
+        let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
+        let layout = layout_with_bits(1, 1, 8, 1, 2.0, 5.0);
+
+        let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
+
+        assert_eq!(decoded, vec![-251.0]);
     }
 
     #[test]

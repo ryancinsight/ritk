@@ -497,7 +497,10 @@ mod tests {
 
     #[test]
     fn format_pointer_str_with_suv_shows_suv_label() {
-        assert_eq!(format_pointer_str(5000.0, Some(1.89_f32)), "Pointer SUV: 1.89");
+        assert_eq!(
+            format_pointer_str(5000.0, Some(1.89_f32)),
+            "Pointer SUV: 1.89"
+        );
     }
 
     #[test]
@@ -519,6 +522,9 @@ mod tests {
 
     #[test]
     fn format_cursor_str_suv_takes_priority_over_cursor_hu() {
-        assert_eq!(format_cursor_str(Some(5000.0), Some(1.89_f32)), "Cursor SUV: 1.89");
+        assert_eq!(
+            format_cursor_str(Some(5000.0), Some(1.89_f32)),
+            "Cursor SUV: 1.89"
+        );
     }
 }

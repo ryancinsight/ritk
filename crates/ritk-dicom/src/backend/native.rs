@@ -113,6 +113,21 @@ mod tests {
         jpeg
     }
 
+    fn encode_rgb_jpeg(width: u32, height: u32, samples: &[u8]) -> Vec<u8> {
+        use image::{DynamicImage, RgbImage};
+
+        let image = RgbImage::from_raw(width, height, samples.to_vec())
+            .expect("test RGB image dimensions must match sample count");
+        let mut jpeg = Vec::new();
+        DynamicImage::ImageRgb8(image)
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpeg),
+                image::ImageFormat::Jpeg,
+            )
+            .expect("test JPEG encode must succeed");
+        jpeg
+    }
+
     #[test]
     fn native_backend_decodes_rle_without_dicom_rs_object() {
         let source = SingleFragment(rle_fragment_8bit(&[1, 2, 3, 4]));
@@ -151,6 +166,37 @@ mod tests {
             assert!(
                 (value - 54.0).abs() <= 2.0,
                 "expected JPEG decoded sample near 32 with modality LUT result near 54, got {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_backend_decodes_rgb_jpeg_baseline_without_dicom_rs_object() {
+        let original = [120u8, 64, 32, 120, 64, 32];
+        let source = SingleFragment(encode_rgb_jpeg(2, 1, &original));
+        let decoded = NativeCodecBackend::decode_frame(
+            &source,
+            DecodeFrameRequest {
+                frame_index: 0,
+                transfer_syntax: TransferSyntaxKind::JpegBaseline,
+                layout: PixelLayout {
+                    rows: 1,
+                    cols: 2,
+                    samples_per_pixel: 3,
+                    bits_allocated: 8,
+                    pixel_representation: 0,
+                    rescale_slope: 1.0,
+                    rescale_intercept: 0.0,
+                },
+            },
+        )
+        .unwrap();
+
+        assert_eq!(decoded.pixels.len(), original.len());
+        for (i, (actual, expected)) in decoded.pixels.iter().zip(original).enumerate() {
+            assert!(
+                (*actual - f32::from(expected)).abs() <= 16.0,
+                "native RGB JPEG sample {i}: expected near {expected}, got {actual}"
             );
         }
     }

@@ -21,9 +21,9 @@
 //! # Complexity
 //! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Edge-preserving bilateral filter for 3-D volumes.
 ///
@@ -69,30 +69,7 @@ impl BilateralFilter {
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Extract flat `Vec<f32>` and `[Z, Y, X]` shape from an image.
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let td = image.data().clone().into_data();
-    let vals = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("tensor as_slice<f32> failed: {e:?}"))?
-        .to_vec();
-    Ok((vals, image.shape()))
-}
-
-/// Rebuild an `Image` from flat voxel data, preserving the reference metadata.
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], reference: &Image<B, 3>) -> Image<B, 3> {
-    let device = reference.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        *reference.origin(),
-        *reference.spacing(),
-        *reference.direction(),
-    )
-}
+// ── bilateral_3d ────────────────────────────────────────────────────────────────
 
 /// Bilateral filter on a 3-D volume stored in flat Z×Y×X order.
 ///

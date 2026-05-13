@@ -8,9 +8,9 @@
 //!
 //! This is the unique affine bijection mapping [I_min, I_max] to [out_min, out_max].
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Linear rescale of image intensity to [out_min, out_max].
 ///
@@ -56,23 +56,6 @@ impl RescaleIntensityFilter {
 
         Ok(rebuild(out, dims, image))
     }
-}
-
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("RescaleIntensityFilter requires f32 data: {:?}", e))?;
-    Ok((vals, image.shape()))
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 #[cfg(test)]

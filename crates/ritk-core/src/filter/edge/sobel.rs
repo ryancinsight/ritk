@@ -52,8 +52,9 @@
 //! Zucker, S. W. & Hummel, R. A. (1981). "A three-dimensional edge operator."
 //! *IEEE Trans. Pattern Analysis and Machine Intelligence*, 3(3), 324–331.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use burn::tensor::backend::Backend;
 
 /// 3-D Sobel gradient filter.
 ///
@@ -133,25 +134,7 @@ impl SobelFilter {
     }
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-/// Extract `(Vec<f32>, [nz, ny, nx])` from an `Image<B, 3>`.
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let td = image.data().clone().into_data();
-    let vals = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("SobelFilter requires f32 data: {:?}", e))?
-        .to_vec();
-    Ok((vals, image.shape()))
-}
-
-/// Rebuild an `Image<B, 3>` from a flat `Vec<f32>`, inheriting metadata from `src`.
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
-}
+// ── sobel_components ─────────────────────────────────────────────────────────────
 
 /// Compute Sobel gradient components (gz, gy, gx) via separable 1-D convolutions.
 ///

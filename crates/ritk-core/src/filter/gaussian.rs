@@ -215,3 +215,109 @@ impl<B: Backend> GaussianFilter<B> {
         output_permuted.permute(inv_permute_indices)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::image::Image;
+    use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+        let device = Default::default();
+        let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+        Image::new(
+            t,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        )
+    }
+
+    fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+        img.data().clone().into_data().into_vec::<f32>().unwrap()
+    }
+
+    // ── generate_kernel ───────────────────────────────────────────────────────
+
+    /// The Gaussian kernel normalizes correctly: interior voxels of a constant image
+    /// are preserved under convolution.
+    ///
+    /// # Derivation
+    /// The kernel weights sum to 1.0 by construction. For interior voxels where the
+    /// full kernel fits within the image, the convolution output equals the constant:
+    ///   out(x) = Σ w_k * C = C * Σ w_k = C * 1.0 = C.
+    ///
+    /// Boundary voxels receive partial kernel support under zero-padding and may
+    /// deviate. We test only the center voxel of a large image (size=15) where the
+    /// radius-3 kernel (sigma=1, radius=ceil(3*1)=3) fits fully.
+    #[test]
+    fn gaussian_kernel_sums_to_one() {
+        let size = 15usize;
+        let filter = GaussianFilter::<B>::new(vec![1.0]);
+        let img = make_image(vec![3.0_f32; size * size * size], [size, size, size]);
+        let out = filter.apply(&img);
+        let vals = voxels(&out);
+        // Center voxel index: (size/2) * size * size + (size/2) * size + (size/2)
+        let cx = size / 2;
+        let center_idx = cx * size * size + cx * size + cx;
+        let v = vals[center_idx];
+        assert!(
+            (v - 3.0).abs() < 5e-3,
+            "center voxel of constant image under Gaussian must stay ≈ 3.0; got {v}"
+        );
+    }
+
+    /// Zero sigma must skip smoothing (output identical to input).
+    ///
+    /// # Derivation
+    /// The implementation has `if sigma <= 1e-6 { continue; }` which bypasses the
+    /// convolution entirely. The output tensor must be identical to the input.
+    #[test]
+    fn zero_sigma_skips_smoothing() {
+        let filter = GaussianFilter::<B>::new(vec![0.0]);
+        let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let img = make_image(data.clone(), [2, 2, 2]);
+        let out = filter.apply(&img);
+        let got = voxels(&out);
+        for (i, (&a, &b)) in got.iter().zip(data.iter()).enumerate() {
+            assert!(
+                (a - b).abs() < 1e-6,
+                "zero sigma must not change voxel {i}: expected {b}, got {a}"
+            );
+        }
+    }
+
+    /// Spatial metadata (origin, spacing, direction) is preserved.
+    #[test]
+    fn gaussian_preserves_metadata() {
+        let filter = GaussianFilter::<B>::new(vec![0.5]);
+        let sp = Spacing::new([2.0, 3.0, 4.0]);
+        let device = Default::default();
+        let t = Tensor::<B, 3>::from_data(
+            TensorData::new(vec![1.0_f32; 2 * 2 * 2], Shape::new([2usize, 2, 2])),
+            &device,
+        );
+        let img = Image::new(
+            t,
+            Point::new([10.0, 20.0, 30.0]),
+            sp.clone(),
+            Direction::identity(),
+        );
+        let out = filter.apply(&img);
+        assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
+        assert_eq!(out.origin(), img.origin(), "origin must be preserved");
+    }
+
+    /// Output shape must equal input shape after smoothing (padding=kernel_size/2).
+    #[test]
+    fn gaussian_preserves_shape() {
+        let filter = GaussianFilter::<B>::new(vec![1.5]);
+        let img = make_image(vec![1.0_f32; 5 * 6 * 7], [5, 6, 7]);
+        let out = filter.apply(&img);
+        assert_eq!(out.shape(), img.shape(), "shape must be preserved after Gaussian");
+    }
+}

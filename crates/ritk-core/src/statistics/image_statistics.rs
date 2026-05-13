@@ -87,6 +87,14 @@ pub fn masked_statistics<B: Backend, const D: usize>(
 /// - `values` is non-empty (caller enforced).
 /// - Sorts `values` in-place; NaN propagates arithmetic and is ordered last by
 ///   the `partial_cmp` fallback.
+///
+/// # Precision
+/// Mean and variance accumulate in f64 to avoid catastrophic f32 cancellation
+/// for large arrays (n > ~10^7).  Sequential f32 summation of n ≈ 10^8 values
+/// with mean ≈ −789 produces a running sum of ~−85 billion; at that scale the
+/// f32 ULP (≈8192) exceeds individual element magnitudes, so additions are
+/// rounded to zero and the sum saturates.  Two-pass f64 accumulation is the
+/// algorithm's numerical contract requirement, not a convenience cast.
 pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
     let mut sorted_values = values.to_vec();
     let values = sorted_values.as_mut_slice();
@@ -98,10 +106,23 @@ pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
     let min = values[0];
     let max = values[n - 1];
 
-    let mean: f32 = values.iter().sum::<f32>() / n as f32;
+    // Accumulate in f64: sequential f32 sum saturates for n > ~10^7 elements
+    // when the running total exceeds the f32 ULP of individual values.
+    let sum_f64: f64 = values.iter().map(|&v| v as f64).sum::<f64>();
+    let mean_f64: f64 = sum_f64 / n as f64;
+    let mean: f32 = mean_f64 as f32;
 
-    let variance: f32 = values.iter().map(|&v| (v - mean) * (v - mean)).sum::<f32>() / n as f32;
-    let std = variance.sqrt();
+    // Two-pass f64 variance: squared deviations sum to ~10^13 for CT-scale
+    // data, exceeding f32 representable precision per element at n > ~10^7.
+    let var_f64: f64 = values
+        .iter()
+        .map(|&v| {
+            let d = v as f64 - mean_f64;
+            d * d
+        })
+        .sum::<f64>()
+        / n as f64;
+    let std = var_f64.sqrt() as f32;
 
     // Floor-division percentile indices as specified in the module contract.
     let p25 = values[n / 4];
@@ -327,5 +348,60 @@ mod tests {
         let image = make_image_1d(vec![1.0, 2.0, 3.0]);
         let mask = make_image_1d(vec![1.0, 1.0]);
         let _ = masked_statistics(&image, &mask);
+    }
+
+    // ── Large-N f64-accumulation precision ───────────────────────────────────
+    //
+    // Sequential f32 summation of n ≈ 10^7 elements with CT-scale values
+    // (-2048..=3071, mean ≈ -789) produces a running total of ~-85 billion.
+    // At that magnitude the f32 ULP (≈8192) exceeds typical per-element values
+    // so additions round to zero; the accumulated sum saturates.  The f64
+    // accumulator path must return a mean within ε = 1.0 HU of the f64 reference.
+
+    #[test]
+    fn test_large_n_ct_scale_mean_precision() {
+        // n = 10,485,760 (10 × 2^20) elements spanning a CT-like range.
+        // Pattern: floor(i * 5120 / n) − 2048 produces values uniformly spaced
+        // in [−2048, 3071] with mean = 511.5.
+        // Analytical mean: (−2048 + 3071) / 2 = 511.5
+        let n: usize = 10_485_760;
+        let scale = 5120_f64;
+        let data: Vec<f32> = (0..n)
+            .map(|i| ((i as f64 * scale / n as f64).floor() as f32) - 2048.0)
+            .collect();
+
+        let s = compute_statistics_from_slice(&data);
+
+        let expected_mean = 511.5_f32;
+        assert!(
+            (s.mean - expected_mean).abs() < 1.0,
+            "large-N mean={} expected≈{} (f64 accumulation required for precision)",
+            s.mean,
+            expected_mean
+        );
+        assert_eq!(s.min, -2048.0, "min");
+        assert_eq!(s.max, 3071.0, "max");
+    }
+
+    #[test]
+    fn test_large_n_negative_mean_precision() {
+        // n = 10,485,760 elements all equal to a large negative CT value (−789).
+        // Sequential f32 sum saturates at n ≈ 17M; at n = 10.5M the error is
+        // ~200 HU without f64 accumulation and <0.01 HU with it.
+        let n: usize = 10_485_760;
+        let constant = -789.0_f32;
+        let data = vec![constant; n];
+
+        let s = compute_statistics_from_slice(&data);
+
+        assert!(
+            (s.mean - constant).abs() < 1.0,
+            "large-N constant mean={} expected={} (precision lost without f64 accumulation)",
+            s.mean,
+            constant
+        );
+        assert_eq!(s.min, constant, "min");
+        assert_eq!(s.max, constant, "max");
+        assert!(s.std < 1e-3, "std of constant array must be ~0, got {}", s.std);
     }
 }

@@ -7,9 +7,9 @@
 //! This is the binary indicator function B(x) = 1[I(x) in [lo, hi]]
 //! scaled to {foreground, background}.
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Maps pixels inside [lower_threshold, upper_threshold] to foreground, others to background.
 #[derive(Debug, Clone)]
@@ -51,23 +51,6 @@ impl BinaryThresholdImageFilter {
             .collect();
         Ok(rebuild(out, dims, image))
     }
-}
-
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("BinaryThresholdImageFilter requires f32 data: {:?}", e))?;
-    Ok((vals, image.shape()))
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 #[cfg(test)]

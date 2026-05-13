@@ -3702,7 +3702,7 @@ impl SnapApp {
         self.viewer_state = ViewerState::new();
         self.linked_cursor = None;
         self.pointer_intensity = 0.0;
-                self.pointer_suv = None;
+        self.pointer_suv = None;
         self.cached_histogram = None;
         self.selected_series = None;
         self.pan_offset = egui::Vec2::ZERO;
@@ -4225,19 +4225,19 @@ impl SnapApp {
     fn update_pointer_intensity(&mut self, axis: usize, pos: Option<egui::Pos2>, rect: egui::Rect) {
         let Some(point) = pos else {
             self.pointer_intensity = 0.0;
-                self.pointer_suv = None;
+            self.pointer_suv = None;
             return;
         };
         let Some(volume) = &self.loaded else {
             self.pointer_intensity = 0.0;
-                self.pointer_suv = None;
+            self.pointer_suv = None;
             return;
         };
         let slice_index = self.axis_slice_info(axis).0;
         let Some(voxel) = viewport_point_to_voxel(volume.shape, axis, slice_index, point, rect)
         else {
             self.pointer_intensity = 0.0;
-                self.pointer_suv = None;
+            self.pointer_suv = None;
             return;
         };
         self.pointer_intensity = intensity_at_voxel(volume, voxel);
@@ -4267,7 +4267,11 @@ impl SnapApp {
         let pet = PetAcquisitionParams::from_loaded_volume(vol)?;
         let delta_t = PetAcquisitionParams::delta_t_s_from_vol(vol);
         let suv = pet.pixel_to_suvbw(pixel_bqml, delta_t);
-        if suv.is_finite() { Some(suv as f32) } else { None }
+        if suv.is_finite() {
+            Some(suv as f32)
+        } else {
+            None
+        }
     }
 
     /// Compute SUVbw at the linked-cursor voxel position, if available.

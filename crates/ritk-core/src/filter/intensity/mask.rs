@@ -20,9 +20,9 @@
 //! | `MaskImageFilter`           | `MaskImageFilter`            |
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
@@ -32,21 +32,6 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
         b
     );
     Ok(())
-}
-
-fn extract<B: Backend>(img: &Image<B, 3>) -> anyhow::Result<Vec<f32>> {
-    img.data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("mask filter requires f32 data: {:?}", e))
-}
-
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 // ── MaskImageFilter ───────────────────────────────────────────────────────────
@@ -95,8 +80,8 @@ impl MaskImageFilter {
     ) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         check_shapes(dims, mask.shape())?;
-        let iv = extract(image)?;
-        let mv = extract(mask)?;
+        let (iv, _) = extract_vec(image)?;
+        let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
         let thr = self.threshold;
         let out: Vec<f32> = iv
@@ -154,8 +139,8 @@ impl MaskNegatedImageFilter {
     ) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         check_shapes(dims, mask.shape())?;
-        let iv = extract(image)?;
-        let mv = extract(mask)?;
+        let (iv, _) = extract_vec(image)?;
+        let (mv, _) = extract_vec(mask)?;
         let outside = self.outside_value;
         let thr = self.threshold;
         let out: Vec<f32> = iv

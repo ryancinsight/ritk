@@ -94,6 +94,10 @@ pub fn decode_native_pixel_bytes(bytes: &[u8], layout: PixelLayout) -> Vec<f32> 
 
 fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec<f32> {
     match (layout.bits_allocated, layout.pixel_representation) {
+        (8, 1) => bytes
+            .iter()
+            .map(|&b| (b as i8) as f32 * layout.rescale_slope + layout.rescale_intercept)
+            .collect(),
         (8, _) => bytes
             .iter()
             .map(|&b| b as f32 * layout.rescale_slope + layout.rescale_intercept)
@@ -188,6 +192,27 @@ mod tests {
             },
         )
         .unwrap();
+        assert_eq!(out, vec![1.0, 5.0, 25.0]);
+    }
+
+    #[test]
+    fn native_signed_8_decode_applies_linear_modality_lut() {
+        let bytes = [-2i8, 0, 10].iter().map(|v| *v as u8).collect::<Vec<_>>();
+
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 3,
+                samples_per_pixel: 1,
+                bits_allocated: 8,
+                pixel_representation: 1,
+                rescale_slope: 2.0,
+                rescale_intercept: 5.0,
+            },
+        )
+        .unwrap();
+
         assert_eq!(out, vec![1.0, 5.0, 25.0]);
     }
 

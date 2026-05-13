@@ -19,9 +19,9 @@
 //! Standard finite difference approximation of the gradient (see e.g., Press et al.,
 //! *Numerical Recipes in C*, 3rd ed., §18.1).
 
+use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 use rayon::prelude::*;
 
 /// Filter that computes the gradient magnitude of a 3-D image.
@@ -196,26 +196,7 @@ impl GradientMagnitudeFilter {
     }
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
-
-/// Extract `(Vec<f32>, [nz,ny,nx])` from an Image<B,3>.
-fn extract_vec<B: Backend>(image: &Image<B, 3>) -> anyhow::Result<(Vec<f32>, [usize; 3])> {
-    let vals = image
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .map_err(|e| anyhow::anyhow!("GradientMagnitudeFilter requires f32 data: {:?}", e))?;
-    Ok((vals, image.shape()))
-}
-
-/// Rebuild an `Image<B,3>` from a flat `Vec<f32>`, inheriting metadata from `src`.
-fn rebuild<B: Backend>(vals: Vec<f32>, dims: [usize; 3], src: &Image<B, 3>) -> Image<B, 3> {
-    let device = src.data().device();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
-}
+// ── gradient_vecs ────────────────────────────────────────────────────────────────
 
 /// Compute gradient component vectors (gz, gy, gx) via finite differences.
 ///

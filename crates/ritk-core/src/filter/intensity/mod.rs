@@ -13,6 +13,7 @@ pub mod arithmetic;
 pub mod bed_separation;
 pub mod binary_ops;
 pub mod binary_threshold;
+pub mod blend;
 pub mod clahe;
 pub mod clamp;
 pub mod equalization;
@@ -34,6 +35,7 @@ pub use binary_ops::{
     SubtractImageFilter,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
+pub use blend::BlendImageFilter;
 pub use clahe::ClaheFilter;
 pub use clamp::ClampImageFilter;
 pub use equalization::HistogramEqualizationFilter;

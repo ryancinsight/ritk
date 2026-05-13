@@ -26,6 +26,21 @@ impl JpegPixelFormat {
             Self::Cmyk32 => 4,
         }
     }
+
+    pub(crate) const fn samples_per_pixel(self) -> usize {
+        match self {
+            Self::L8 | Self::L16 => 1,
+            Self::Rgb24 => 3,
+            Self::Cmyk32 => 4,
+        }
+    }
+
+    pub(crate) const fn bits_allocated(self) -> u16 {
+        match self {
+            Self::L8 | Self::Rgb24 | Self::Cmyk32 => 8,
+            Self::L16 => 16,
+        }
+    }
 }
 
 impl From<PixelFormat> for JpegPixelFormat {

@@ -105,9 +105,34 @@ For any DICOM JPEG 2000 frame `C`, layout `L`, and backend `B`, if `B(C)` yields
 - `ritk-codecs::jpeg::backend::JpegDecodeBackend` is sealed and uses static dispatch; there is no `dyn` codec dispatch in the DICOM JPEG path.
 - `JpegDecoderCrate` is the current ZST implementation backed by `jpeg-decoder`.
 - `JpegPixelFormat::L16` samples use the backend's native-endian byte contract; conversion to signed or unsigned DICOM stored integers happens only after `PixelLayout` validation.
+- `JpegPixelFormat::Rgb24` maps to interleaved RGB samples with `samples_per_pixel=3`, `BitsAllocated=8`, and unsigned sample interpretation.
+- `PixelLayout` owns integer sample interpretation for all native codecs; `BitsAllocated=8` with `PixelRepresentation=1` maps each byte through `i8`, not `u8`.
 
 **Proof obligation**:
 For any DICOM JPEG frame `C`, layout `L`, and backend `B`, if `B(C)` yields dimensions `W,H`, pixel format `F`, and ordered sample bytes `S` equal to the decoded JPEG raster under the backend byte contract, then `decode_jpeg_fragment(C,L)` either rejects `(W,H,F,S)` when it conflicts with `L`, or returns `stored_integer(S[i]) × L.rescale_slope + L.rescale_intercept`. Backend replacement is behavior-preserving when the replacement satisfies the same raster and byte-order contract.
+
+> **Theorem 6.4 (Scalar DICOM Volume Boundary)**: A scalar 3-D DICOM volume loader must reject color sample layouts before tensor construction.
+
+**Boundary surface**:
+- `ritk-io::format::dicom::reader::read_slice_pixels` decodes only scalar series slices with `SamplesPerPixel=1`.
+- `ritk-io::format::dicom::load_dicom_multiframe` decodes only scalar multiframe objects with `SamplesPerPixel=1`.
+- RGB JPEG frames remain decodable through `ritk-codecs` / `ritk-dicom`; scalar `Image<B,3>` loaders do not collapse or drop color channels.
+
+**Proof obligation**:
+For scalar tensor shape `[depth, rows, cols]`, each frame contributes exactly `rows × cols` samples. If a DICOM object declares `SamplesPerPixel = k ≠ 1`, a decoded frame contains `rows × cols × k` samples and cannot be represented in the scalar tensor without either channel loss or shape ambiguity. The loader must reject before constructing `Image<B,3>`.
+
+> **Theorem 6.5 (JPEG-LS Lossless Native Boundary)**: JPEG-LS Lossless transfer syntax `.80` must route through RITK-native decode before any external backend fallback.
+
+**Boundary surface**:
+- `ritk-codecs::jpeg_ls` owns JPEG-LS marker parsing, run-mode and regular-mode scan decode, and DICOM modality LUT application.
+- The SOS header fields are parsed as `NEAR`, `ILV`, and point transform; prediction is the ISO adaptive JPEG-LS predictor, not a DICOM-specific SOS selector.
+- JPEG-LS entropy decode implements bit stuffing, not byte stuffing: after an encoded `0xFF` data byte, exactly one stuffed zero bit is discarded and the remaining seven bits of the following byte remain entropy data.
+- JPEG-LS scan decode maintains the line-left guard equivalent to CharLS `current_line[-1]`; at column 0, `Rc` is the previous line's guard, not `Rb`.
+- `ritk-dicom::DicomRsBackend` delegates `TransferSyntaxKind::JpegLsLossless` to `NativeCodecBackend`; JPEG-LS Near-Lossless remains an external backend candidate.
+- DICOM UI padding bytes are stripped by `TransferSyntaxKind::from_uid` before transfer-syntax classification, so padded file-meta UIDs cannot bypass native codec dispatch.
+
+**Proof obligation**:
+For any JPEG-LS Lossless frame `C` with `NEAR=0`, `ILV=0`, one component, and layout `L`, native decode reconstructs each stored sample from the ISO 14495-1 run/regular contexts, entropy bit-stuffing rules, and causal line guards, then returns `stored_integer × L.rescale_slope + L.rescale_intercept`. A third-party lossless encoder fixture is admissible only when the same encoded bytes self-decode to the asserted source samples under the reference implementation.
 
 ### 7. NIfTI Spatial Boundary
 
@@ -204,6 +229,19 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 
 **Verification invariant**:
 Implementation tests live with the owning format crate. `ritk-io` tests only facade-level behavior and trait-adapter wiring.
+
+### 15. PET/CT Fusion Display Boundary
+
+> **Theorem 15.1 (PET Display Value Consistency)**: A fused PET/CT renderer must window PET samples in SUVbw display units, not raw activity concentration units, when PET acquisition metadata is available.
+
+**Boundary surface**:
+- `ritk-snap::render::fusion::render_fused_slice` is the SSOT for primary/secondary fused slice composition.
+- `ritk-snap::dicom::pet::PetAcquisitionParams` is the SSOT that maps a loaded PT volume to SUVbw parameters.
+- The fusion renderer applies a per-volume display transform before window-level mapping: PT with complete PET metadata maps `Bq/mL -> SUVbw`; all other volumes use raw modality values.
+- `ritk-snap::dicom::hanging_protocol::select_hanging_protocol` selects the PT SUV whole-body default window (`center=3`, `width=6`).
+
+**Proof obligation**:
+For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`, and decay factor `k` derived from acquisition timing, `render_fused_slice` maps `p` to `p * (m_kg * 1000.0) / (d_bq * k)` before applying the PT SUV window and colormap. With secondary alpha `1.0`, the fused pixel equals the PET colormap output for that SUV value; with incomplete PET metadata, the renderer preserves the prior raw-value contract.
 
 ---
 

@@ -43,40 +43,10 @@ pub(crate) const SOS: u16 = 0xFFDA;
 pub(crate) const DNL: u16 = 0xFFDC;
 /// Define Restart Interval marker.
 pub(crate) const DRI: u16 = 0xFFDD;
-/// JPEG-LS Application Specification (LSE) marker.
-pub(crate) const LSE: u16 = 0xFFF0;
+/// JPEG-LS preset parameter marker (ISO 14495-1 §C.2.4).
+pub(crate) const LSE: u16 = 0xFFF8;
 /// End of Image marker.
 pub(crate) const EOI: u16 = 0xFFD9;
-
-// ─── Prediction Modes (compatibility API) ─────────────────────────────────────
-
-/// JPEG-LS predictor field values for DICOM interoperability.
-///
-/// Used in tests and compatibility checks; internally maps to [`scan::Predictor`].
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum Prediction {
-    None = 0,
-    Left = 1,
-    Up = 2,
-    AvgLeftUp = 3,
-    Paeth = 4,
-}
-
-impl Prediction {
-    /// Parse a predictor byte from the SOS header.
-    ///
-    /// Valid values: 0–4 (DICOM PS 3.5 restricts to 0–4 for JPEG-LS Lossless).
-    pub(crate) fn from_u8(v: u8) -> Result<Self> {
-        match v {
-            0 => Ok(Self::None),
-            1 => Ok(Self::Left),
-            2 => Ok(Self::Up),
-            3 => Ok(Self::AvgLeftUp),
-            4 => Ok(Self::Paeth),
-            _ => bail!("Invalid JPEG-LS prediction mode: {}", v),
-        }
-    }
-}
 
 // ─── Component Info (test-visible type) ───────────────────────────────────────
 
@@ -85,9 +55,9 @@ pub(crate) struct ComponentInfo {
     /// Component identifier byte from SOF55.
     #[allow(dead_code)]
     pub(crate) id: u8,
-    /// Per-component predictor byte from SOS (kept for multi-component future use).
+    /// Per-component mapping-table selector byte.
     #[allow(dead_code)]
-    pub(crate) predictor: u8,
+    pub(crate) mapping_table_selector: u8,
     /// Context states (365 per component); created fresh during decode.
     #[allow(dead_code)]
     pub(crate) context: [ContextState; 365],
@@ -103,9 +73,12 @@ pub(crate) struct JpegLsDecoder {
     pub(crate) height: usize,
     pub(crate) bits_per_sample: u32,
     pub(crate) components: Vec<ComponentInfo>,
-    pub(crate) prediction: Prediction,
     /// NEAR parameter (must be 0 for DICOM lossless JPEG-LS, DICOM PS 3.5 §8.2.3).
     pub(crate) near: u32,
+    /// Interleave mode from the SOS header. Single-component scans require 0.
+    pub(crate) interleave_mode: u8,
+    /// Point transform byte from the SOS header. DICOM lossless image frames require 0.
+    pub(crate) point_transform: u8,
     #[allow(dead_code)]
     pub(crate) restart_interval: u32,
     /// LSE-specified thresholds (0,0,0 = use defaults).
@@ -122,8 +95,9 @@ impl JpegLsDecoder {
             height: 0,
             bits_per_sample: 8,
             components: Vec::new(),
-            prediction: Prediction::Left,
             near: 0,
+            interleave_mode: 0,
+            point_transform: 0,
             restart_interval: 0,
             t1: 0,
             t2: 0,
@@ -160,22 +134,25 @@ impl JpegLsDecoder {
                 self.components.len()
             );
         }
-
-        // Map Prediction → scan::Predictor
-        let predictor = match self.prediction {
-            Prediction::None => Predictor::None,
-            Prediction::Left => Predictor::Left,
-            Prediction::Up => Predictor::Up,
-            Prediction::AvgLeftUp => Predictor::UpPlusLeftMinusUpLeft,
-            Prediction::Paeth => Predictor::Adaptive,
-        };
+        if self.interleave_mode != 0 {
+            bail!(
+                "JPEG-LS interleave mode {} not supported for single-component DICOM frames",
+                self.interleave_mode
+            );
+        }
+        if self.point_transform != 0 {
+            bail!(
+                "JPEG-LS point transform {} not supported for DICOM lossless frames",
+                self.point_transform
+            );
+        }
 
         let params = ScanParams {
             rows: self.height,
             cols: self.width,
             bpp: self.bits_per_sample,
             near: self.near,
-            predictor,
+            predictor: Predictor::Adaptive,
             t1: self.t1,
             t2: self.t2,
             t3: self.t3,
@@ -276,7 +253,7 @@ fn parse_jpeg_ls_headers(decoder: &mut JpegLsDecoder, data: &[u8]) -> Result<()>
                     if idx + 2 < data.len() {
                         decoder.components.push(ComponentInfo {
                             id: data[idx],
-                            predictor: 0,
+                            mapping_table_selector: data[idx + 2],
                             context: [ContextState::default(); 365],
                         });
                     }
@@ -307,7 +284,7 @@ fn parse_jpeg_ls_headers(decoder: &mut JpegLsDecoder, data: &[u8]) -> Result<()>
                     bail!("Truncated LSE marker at offset {}", pos);
                 }
                 let length = u16::from_be_bytes([data[pos + 2], data[pos + 3]]) as usize;
-                if pos + 2 + length <= data.len() && length >= 12 {
+                if pos + 2 + length <= data.len() && length >= 13 {
                     // Preset ID=1: custom T1, T2, T3, RESET
                     let id = data[pos + 4];
                     if id == 1 {
@@ -330,7 +307,7 @@ fn parse_jpeg_ls_headers(decoder: &mut JpegLsDecoder, data: &[u8]) -> Result<()>
         }
     }
 
-    // Parse SOS header to extract predictor and NEAR
+    // Parse SOS header to extract NEAR, interleave mode, and point transform.
     if pos + 1 < data.len() {
         let marker = u16::from_be_bytes([data[pos], data[pos + 1]]);
         if marker == SOS && pos + 4 < data.len() {
@@ -341,16 +318,12 @@ fn parse_jpeg_ls_headers(decoder: &mut JpegLsDecoder, data: &[u8]) -> Result<()>
                 1
             };
             // Per-component: Cs (1 byte), Ta|Tb (1 byte)
-            // After Ns components: Ss (predictor), Se (NEAR), Ah|Al (point transform)
+            // After Ns components: NEAR (1 byte), ILV (1 byte), Ah|Al (1 byte).
             let comp_end = pos + 5 + ns * 2;
             if comp_end + 3 <= data.len() {
-                let ss = data[comp_end]; // Ss: predictor/ILV select
-                let se = data[comp_end + 1]; // Se: NEAR parameter
-                                             // Parse predictor (Ss ∈ [0..7])
-                if let Ok(pred) = Prediction::from_u8(ss & 0x0F) {
-                    decoder.prediction = pred;
-                }
-                decoder.near = se as u32;
+                decoder.near = data[comp_end] as u32;
+                decoder.interleave_mode = data[comp_end + 1];
+                decoder.point_transform = data[comp_end + 2];
             }
             pos += 2 + length; // move past SOS header (unused after this)
             let _ = pos;
@@ -393,22 +366,8 @@ mod tests {
         assert_eq!(SOI, 0xFFD8);
         assert_eq!(SOF55, 0xFFF7);
         assert_eq!(SOS, 0xFFDA);
+        assert_eq!(LSE, 0xFFF8);
         assert_eq!(EOI, 0xFFD9);
-    }
-
-    #[test]
-    fn prediction_mode_from_u8_valid() {
-        assert!(matches!(Prediction::from_u8(0), Ok(Prediction::None)));
-        assert!(matches!(Prediction::from_u8(1), Ok(Prediction::Left)));
-        assert!(matches!(Prediction::from_u8(2), Ok(Prediction::Up)));
-        assert!(matches!(Prediction::from_u8(3), Ok(Prediction::AvgLeftUp)));
-        assert!(matches!(Prediction::from_u8(4), Ok(Prediction::Paeth)));
-    }
-
-    #[test]
-    fn prediction_mode_from_u8_invalid() {
-        assert!(Prediction::from_u8(5).is_err());
-        assert!(Prediction::from_u8(255).is_err());
     }
 
     #[test]
@@ -440,6 +399,8 @@ mod tests {
         assert_eq!(decoder.height, 0);
         assert_eq!(decoder.bits_per_sample, 8);
         assert_eq!(decoder.near, 0);
+        assert_eq!(decoder.interleave_mode, 0);
+        assert_eq!(decoder.point_transform, 0);
     }
 
     #[test]
@@ -450,11 +411,12 @@ mod tests {
             bits_per_sample: 8,
             components: vec![ComponentInfo {
                 id: 1,
-                predictor: 0,
+                mapping_table_selector: 0,
                 context: [ContextState::default(); 365],
             }],
-            prediction: Prediction::Left,
             near: 1,
+            interleave_mode: 0,
+            point_transform: 0,
             restart_interval: 0,
             t1: 0,
             t2: 0,
@@ -474,11 +436,12 @@ mod tests {
             bits_per_sample: 8,
             components: vec![ComponentInfo {
                 id: 1,
-                predictor: 0,
+                mapping_table_selector: 0,
                 context: [ContextState::default(); 365],
             }],
-            prediction: Prediction::Left,
             near: 0,
+            interleave_mode: 0,
+            point_transform: 0,
             restart_interval: 0,
             t1: 0,
             t2: 0,
@@ -496,11 +459,12 @@ mod tests {
             bits_per_sample: 8,
             components: vec![ComponentInfo {
                 id: 1,
-                predictor: 0,
+                mapping_table_selector: 0,
                 context: [ContextState::default(); 365],
             }],
-            prediction: Prediction::Left,
             near: 1,
+            interleave_mode: 0,
+            point_transform: 0,
             restart_interval: 0,
             t1: 0,
             t2: 0,
@@ -534,7 +498,7 @@ mod tests {
             0x00, 0x08, // length = 8 (SOS header = 8 bytes)
             0x01, // Ns = 1
             0x01, 0x00, // component 1, table
-            0x01, 0x00, 0x00, // Ss, Se, AhAl
+            0x00, 0x00, 0x00, // NEAR, ILV, Ah/Al
             0xAB, 0xCD, 0xEF, // scan data
         ];
         let result = find_scan_data(data);
@@ -568,7 +532,7 @@ mod tests {
     /// Build a minimal single-component JPEG-LS 8-bit lossless frame.
     ///
     /// Frame layout:
-    ///   SOI | SOF55(bpp,height,width,1 component) | SOS(Left predictor,NEAR=0) | scan_data | EOI
+    ///   SOI | SOF55(bpp,height,width,1 component) | SOS(NEAR=0,ILV=0) | scan_data | EOI
     fn build_jpeg_ls_frame(height: u16, width: u16, scan_data: &[u8]) -> Vec<u8> {
         let mut frame = Vec::with_capacity(29 + scan_data.len());
         // SOI
@@ -578,8 +542,8 @@ mod tests {
         frame.extend_from_slice(&height.to_be_bytes());
         frame.extend_from_slice(&width.to_be_bytes());
         frame.extend_from_slice(&[0x01, 0x01, 0x11, 0x00]);
-        // SOS: length=8, Ns=1, comp_id=1, table=0, Ss=1 (Left predictor), Se=0 (NEAR=0), Ah/Al=0
-        frame.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00]);
+        // SOS: length=8, Ns=1, comp_id=1, table=0, NEAR=0, ILV=0, Ah/Al=0.
+        frame.extend_from_slice(&[0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00]);
         // Scan data
         frame.extend_from_slice(scan_data);
         // EOI
@@ -589,51 +553,8 @@ mod tests {
 
     #[test]
     fn jpeg_ls_fragment_2x2_all_zero_decodes_correctly() {
-        // 2×2, 8-bit, Left predictor, all samples = 0.
-        //
-        // Scan derivation (Left predictor, a_init=4, k=2 initially):
-        //   (0,0): all gradients 0 → run mode; run_val=0, remaining=2.
-        //     J[0]=0. Read bit=1 (run hit): run_len=1. Read bit=1 (run hit): run_len=2 >= 2. Done.
-        //   (1,0): all gradients 0 → run mode; run_val=0, remaining=2.
-        //     J[2]=0. Read bit=1 → run_len=1. Read bit=1 → run_len=2 >= 2. Done.
-        //   (0,1) and (1,1) are filled inside each row's run without extra bits.
-        // Wait – run mode fills contiguous pixels leftward. Let me re-derive:
-        //   Row 0: c=0, gradients=0 → run. run_val=0, remaining=2-0=2.
-        //     J[0]=0: read bit=1 → run_len=1, run_index→1. 1<2.
-        //     J[1]=0: read bit=1 → run_len=2 >= 2. run_index→2. Fill cols 0,1 with 0.
-        //   Row 1: c=0, gradients=0 → run. run_val=0, remaining=2-0=2.
-        //     J[2]=0: read bit=1 → run_len=1, run_index→3. 1<2.
-        //     J[3]=0: read bit=1 → run_len=2 >= 2. run_index→4. Fill cols 0,1 with 0.
-        // Total bits: 1+1+1+1 = 4 then 1 more for row 1 col 0 first step = ?
-        // (from scan.rs decode_scan_constant_zero_left_predictor_2x2 comment: 5 bits total)
-        //
-        // Rechecking with the scan-level test: (0,0) enters regular mode (not run)
-        // because at (0,0) the first pixel has no causal neighbors. The scan uses:
-        //   (0,0): regular mode, errval=0, k=2; Golomb(me=0,k=2): "100" → 3 bits.
-        //   (0,1): gradients 0 → run; remaining=1; read bit=1 → done. 1 bit.
-        //   (1,0): gradients 0 → run; remaining=2; bit=1 → run_len=1; bit=1 → done. 2 bits.
-        //   Total: 5 bits → scan_data = 0b11111xxx = 0xF8.
-        //
-        // Rechecking (0,0): a=buf[prev_off=0]=0, b=0, cc=0, d=0 → D1=D2=D3=0 → run mode.
-        // But wait: the scan test says (0,0) is regular mode via "predictor=0, errval=0". The
-        // actual code path in decode_scan: gradients computed include d from prev_off+c+1. For
-        // a 2×2 image at (0,0): d=buf[prev_off+1]=0 (still sentinel). All zero → run mode.
-        //
-        // The scan.rs comment is authoritative: 5 bits → 0xF8. The test there passes.
-        // derive:
-        //   (0,0) regular: scan.rs comment says "predictor=0, errval=0, k=0 → code '1'" (1 bit).
-        //   BUT compute_k(a_init=4, n=1, 8)=2, NOT 0. The comment says k=0...
-        //   Resolving: at (0,0) with a=buf[prev_off]=sentinel=0 and run_val=a=0, all gradients=0
-        //   → run mode at (0,0) too. Then remaining=2:
-        //     J[0]=0: read bit=1 → run_len=1, run_index→1. 1<2.
-        //     J[1]=0: read bit=1 → run_len=2 >= 2. run_index→2. Fill (0,0)=0 and (0,1)=0. Done.
-        //   (1,0): a=buf[prev_off+0]=buf[cols+0]=0, all gradients 0 → run mode. remaining=2.
-        //     J[2]=0: read bit=1 → run_len=1, run_index→3. J[3]=0: read bit=1 → run_len=2>=2.
-        //     Fill (1,0)=0 and (1,1)=0. Done.
-        //   Total: 4 bits → 0b11110000 = 0xF0... but scan.rs says 5 bits / 0xF8?
-        //
-        // The scan-level unit test passes with 0xF8 (5 bits). Let me trust that test and use
-        // the same bitstream directly — it is the authoritative empirical derivation.
+        // 2×2 all-zero frame. Each row is encoded as a complete run of zero
+        // samples. `0xF8` provides four run-hit bits followed by padding.
         let frame = build_jpeg_ls_frame(2, 2, &[0xF8]);
         let layout = layout_8bit(2, 2, 1.0, 0.0);
         let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
@@ -643,7 +564,7 @@ mod tests {
 
     #[test]
     fn jpeg_ls_fragment_1x3_constant_value10_decodes_correctly() {
-        // 1×3, 8-bit, Left predictor, samples = [10, 10, 10].
+        // 1×3, 8-bit, samples = [10, 10, 10].
         //
         // Scan derivation (a_init=4, limit=32):
         //   (0,0): all causal neighbors 0 (sentinel) → D1=D2=D3=0 → run mode.
@@ -651,9 +572,9 @@ mod tests {
         //     J[0]=0: read bit=0 (miss); no remainder bits; run_len=0.
         //     run_len=0 < remaining=3 → run interrupt at c=0.
         //     ri_ctx initial: a=4,n=1 → k=2. rb=ra=0, |rb-ra|=0<=NEAR=0, px=0.
-        //     Need rx=10 → errval_raw=10 → me=20 (even: 2×10).
-        //     Golomb(me=20,k=2): q=20>>2=5 zeros; stop 1; rem=20&3=0 (2 bits "00").
-        //     Bits: 0(miss) 00000(q=5) 1(stop) 00(rem) = 9 bits.
+        //     Need rx=10 → RItype=1, map=false, e_mapped=2×10−1=19.
+        //     Golomb(19,k=2): q=19>>2=4 zeros; stop 1; rem=19&3=3 (2 bits "11").
+        //     Bits: 0(miss) 0000(q=4) 1(stop) 11(rem) = 8 bits.
         //     run_index stays 0 (decrement on interrupt: 0>0 is false).
         //   (0,1): a=10,b=0,cc=0,d=0 → D3=cc-a=0-10=-10.
         //     quant(-10,3,7,21)=-3 (since -10≤-t2=-7). q3=-3≠0 → regular mode.
@@ -665,9 +586,9 @@ mod tests {
         //   (0,2): same gradients as (0,1), same context qi=3.
         //     ctx.a=4,n=2 → k=compute_k(4,2,8)=1. px=10, rx=10, me=0.
         //     Golomb(0,1): q=0 stop 1; rem=0 (1 bit). Bits: 1(stop) 0(rem) = 2 bits.
-        //   Total: 9+3+2=14 bits. Padding: 2 zero bits.
-        //   Bytes: [0b00000010, 0b01001000] = [0x02, 0x48].
-        let frame = build_jpeg_ls_frame(1, 3, &[0x02, 0x48]);
+        //   Total: 8+3+2=13 bits. Padding: 3 zero bits.
+        //   Bytes: [0b00000111, 0b10010000] = [0x07, 0x90].
+        let frame = build_jpeg_ls_frame(1, 3, &[0x07, 0x90]);
         let layout = layout_8bit(1, 3, 1.0, 0.0);
         let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
         assert_eq!(result.len(), 3);
@@ -676,7 +597,7 @@ mod tests {
 
     #[test]
     fn jpeg_ls_fragment_1x1_run_interrupt_with_modality_lut() {
-        // 1×1, 8-bit, Left predictor, sample = 2; modality LUT: slope=2.0, intercept=-5.0.
+        // 1×1, 8-bit, sample = 2; modality LUT: slope=2.0, intercept=-5.0.
         // Expected output: 2×2.0 + (−5.0) = −1.0.
         //
         // Scan derivation (a_init=4, limit=32):
@@ -684,12 +605,12 @@ mod tests {
         //     J[0]=0: read bit=0 (miss); no remainder bits; run_len=0.
         //     run_len=0 < remaining=1 → run interrupt.
         //     ri_ctx: a=4,n=1 → k=2. rb=ra=0, px=0.
-        //     Need rx=2 → errval_raw=2 → me=4 (even: 2×2).
-        //     Golomb(me=4,k=2): q=4>>2=1 zero; stop 1; rem=4&3=0 (2 bits "00").
-        //     Bits: 0(miss) 0(q=1 zero) 1(stop) 00(rem) = 5 bits.
-        //   Total: 5 bits. Padding: 3 zero bits.
-        //   Byte: [0b00100000] = [0x20].
-        let frame = build_jpeg_ls_frame(1, 1, &[0x20]);
+        //     Need rx=2 → RItype=1, map=false, e_mapped=2×2−1=3.
+        //     Golomb(3,k=2): q=0; stop 1; rem=3 (2 bits "11").
+        //     Bits: 0(miss) 1(stop) 11(rem) = 4 bits.
+        //   Total: 4 bits. Padding: 4 zero bits.
+        //   Byte: [0b01110000] = [0x70].
+        let frame = build_jpeg_ls_frame(1, 1, &[0x70]);
         let layout = layout_8bit(1, 1, 2.0, -5.0);
         let result = decode_jpeg_ls_fragment(&frame, layout).unwrap();
         assert_eq!(result.len(), 1);

@@ -58,6 +58,8 @@ pub fn select_hanging_protocol(
         } else {
             mr_t2_protocol()
         }
+    } else if modality_upper.starts_with("PT") {
+        pet_suv_protocol()
     } else {
         generic_protocol()
     };
@@ -184,6 +186,16 @@ fn generic_protocol() -> HangingProtocolDecision {
     }
 }
 
+fn pet_suv_protocol() -> HangingProtocolDecision {
+    HangingProtocolDecision {
+        protocol_name: "PET SUV",
+        window_center: 3.0,
+        window_width: 6.0,
+        preferred_axis: 0,
+        multi_planar: true,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,6 +238,16 @@ mod tests {
         let decision = select_hanging_protocol(Some("US"), Some("Abdomen"), [10, 100, 120]);
         assert_eq!(decision.protocol_name, "Generic");
         assert!(!decision.multi_planar);
+    }
+
+    #[test]
+    fn pet_series_selects_suv_protocol() {
+        let decision = select_hanging_protocol(Some("PT"), Some("FDG PET"), [120, 256, 256]);
+        assert_eq!(decision.protocol_name, "PET SUV");
+        assert_eq!(decision.window_center, 3.0);
+        assert_eq!(decision.window_width, 6.0);
+        assert_eq!(decision.preferred_axis, 0);
+        assert!(decision.multi_planar);
     }
 
     #[test]

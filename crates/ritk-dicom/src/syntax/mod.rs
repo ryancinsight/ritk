@@ -31,7 +31,7 @@ pub enum TransferSyntaxKind {
 
 impl TransferSyntaxKind {
     pub fn from_uid(uid: &str) -> Self {
-        match uid.trim() {
+        match uid.trim().trim_end_matches('\0') {
             "1.2.840.10008.1.2" => Self::ImplicitVrLittleEndian,
             "1.2.840.10008.1.2.1" => Self::ExplicitVrLittleEndian,
             "1.2.840.10008.1.2.2" => Self::ExplicitVrBigEndian,
@@ -196,6 +196,14 @@ mod tests {
         for syntax in variants() {
             assert_eq!(TransferSyntaxKind::from_uid(syntax.uid()), syntax);
         }
+    }
+
+    #[test]
+    fn from_uid_accepts_dicom_ui_padding_byte() {
+        assert_eq!(
+            TransferSyntaxKind::from_uid("1.2.840.10008.1.2.4.80\0"),
+            TransferSyntaxKind::JpegLsLossless
+        );
     }
 
     #[test]

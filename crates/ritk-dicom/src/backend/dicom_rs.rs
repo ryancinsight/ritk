@@ -63,6 +63,9 @@ impl PixelDecodeBackend<DefaultDicomObject> for DicomRsBackend {
             TransferSyntaxKind::RleLossless => {
                 NativeCodecBackend::decode_frame(object, request.clone())?.pixels
             }
+            TransferSyntaxKind::JpegLsLossless => {
+                NativeCodecBackend::decode_frame(object, request.clone())?.pixels
+            }
             TransferSyntaxKind::Jpeg2000Lossless | TransferSyntaxKind::Jpeg2000Lossy => {
                 NativeCodecBackend::decode_frame(object, request.clone())?.pixels
             }
