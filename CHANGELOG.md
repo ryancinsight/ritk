@@ -1,3 +1,19 @@
+## [0.50.5] - 2026-05-13
+### Changed [patch]
+
+- Split `ritk-cli/src/commands/segment.rs` (3276 lines) into deep-vertical hierarchy under `segment/`: `mod.rs` (96 lines, dispatch + module declarations), `args.rs` (170 lines, `SegmentArgs` + `Default`), `helpers.rs` (45 lines, `parse_seed` + `count_foreground`), `threshold.rs` (259 lines, 7 threshold algorithms), `region_growing.rs` (184 lines, 3 region-growing algorithms), `watershed.rs` (94 lines, 2 watershed algorithms), `clustering.rs` (180 lines, 6 cluster/morphology algorithms), `level_set.rs` (213 lines, 5 level-set algorithms), `tests/mod.rs` (144 lines, shared test infrastructure + 5 image factories), `tests/threshold.rs` (493), `tests/clustering.rs` (435), `tests/level_set.rs` (409), `tests/region_growing.rs` (381), `tests/watershed.rs` (172). All 14 leaf files ≤ 500 lines.
+- Deleted flat `commands/segment.rs`.
+
+### Closed gaps
+
+- `ritk-cli/src/commands/segment.rs` 3276-line structural violation — **Closed**
+
+### Verification
+
+- `cargo build -p ritk-cli`: 0 warnings, 0 errors
+- `cargo test -p ritk-cli`: 197 passed, 0 failed
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.4] - 2026-05-13
 ### Changed [patch]
 

@@ -1,3 +1,37 @@
+## Sprint 232 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.5 [patch]
+**Goal**: Split `ritk-cli/src/commands/segment.rs` (3276 lines) into deep-vertical hierarchy under `segment/`.
+
+### Checklist items
+- [x] Create `segment/args.rs` (170 lines, `SegmentArgs` + `Default`)
+- [x] Create `segment/helpers.rs` (45 lines, `parse_seed` + `count_foreground`, `pub(crate)`)
+- [x] Create `segment/threshold.rs` (259 lines, 7 algorithms)
+- [x] Create `segment/region_growing.rs` (184 lines, 3 algorithms)
+- [x] Create `segment/watershed.rs` (94 lines, 2 algorithms)
+- [x] Create `segment/clustering.rs` (180 lines, 6 algorithms)
+- [x] Create `segment/level_set.rs` (213 lines, 5 algorithms)
+- [x] Create `segment/mod.rs` (96 lines, dispatch + `#[cfg(test)]` re-exports)
+- [x] Create `segment/tests/mod.rs` (144 lines, shared infra + 5 image factories)
+- [x] Create `segment/tests/threshold.rs` (493 lines, 23 tests)
+- [x] Create `segment/tests/clustering.rs` (435 lines, 13 tests)
+- [x] Create `segment/tests/level_set.rs` (409 lines, 14 tests)
+- [x] Create `segment/tests/region_growing.rs` (381 lines, 18 tests)
+- [x] Create `segment/tests/watershed.rs` (172 lines, 4 tests)
+- [x] Delete flat `commands/segment.rs`
+- [x] Verify `cargo build -p ritk-cli`: 0 warnings, 0 errors
+- [x] Verify `cargo test -p ritk-cli`: 197 passed, 0 failed
+- [x] Update CHANGELOG.md [0.50.5], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| `ritk-snap/src/app.rs` structural split (5395 lines) | High | Open |
+| `ritk-io/src/format/dicom/reader.rs` structural split (~4898 lines) | High | Open |
+
+---
+
 ## Sprint 231 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

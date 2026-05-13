@@ -1,3 +1,21 @@
+## Sprint 232 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `ritk-cli/src/commands/segment.rs` 3276-line structural violation | Split into 14 leaf files under `segment/` (all ≤ 500 lines); 197 tests pass; 0 warnings |
+
+### Structural violations in `ritk-cli` remaining
+None — all `ritk-cli` source files are now ≤ 500 lines.
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+
+---
+
 ## Sprint 231 Audit — 2026-05-13
 
 ### Gaps Closed
