@@ -1,3 +1,38 @@
+## Sprint 226 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.4 [patch]
+**Goal**: Close the `ritk-mgh` reader/writer structural image-format gap and refresh the active image-gap audit.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| `ritk-mgh/src/reader.rs` violation | 1128-line flat reader file exceeded the 500-line structural limit | **Closed** |
+| `ritk-mgh/src/writer.rs` violation | 980-line flat writer file exceeded the 500-line structural limit | **Closed** |
+| MGH test duplication | Reader/writer test helpers duplicated crafted MGH byte and image construction | **Closed** |
+| Image gap audit refresh | Active image-format structural backlog reconciled after MGH split | **Closed** |
+
+### Delivered
+- `crates/ritk-mgh/src/reader/`: 150-line reader module plus data-type, gzip, geometry, round-trip, and error test leaves.
+- `crates/ritk-mgh/src/writer/`: 92-line writer module plus round-trip, header, and data-type/error test leaves.
+- `crates/ritk-mgh/src/binary.rs`: shared big-endian primitive I/O helpers.
+- `crates/ritk-mgh/src/spatial.rs`: shared RAS-center/origin transforms for reader and writer.
+- `crates/ritk-mgh/src/types.rs`: MGH scalar type byte-width validation.
+- `crates/ritk-mgh/src/test_support.rs`: crate-local test construction SSOT for crafted MGH streams and test images.
+- Deleted flat `crates/ritk-mgh/src/reader.rs` and `crates/ritk-mgh/src/writer.rs`.
+
+### Remaining high-priority image gaps
+| Task | Description | Priority |
+|---|---|---|
+| DICOM format module split | `ritk-io/src/format/dicom/{reader,multiframe,seg,codec,writer,rt_*}.rs` still exceed 500 lines | High |
+| JPEG-LS module split | `ritk-codecs/src/jpeg_ls/mod.rs` remains 572 lines | Medium |
+
+### Remaining non-image gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| `bspline_ffd/mod.rs` structural violation | 1431-line flat file in `ritk-registration` | Medium |
+
 ## Sprint 225 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

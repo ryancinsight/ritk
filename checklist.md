@@ -1,3 +1,36 @@
+## Sprint 226 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.4 [patch]
+**Goal**: Split `ritk-mgh` reader/writer into deep-vertical implementation and test leaves while preserving public MGH/MGZ APIs.
+
+### Checklist items
+- [x] Audit current image-format structural line counts after Sprint 225
+- [x] Identify `crates/ritk-mgh/src/reader.rs` (1128 lines) and `writer.rs` (980 lines) as the next bounded image-format gap
+- [x] Extract shared big-endian primitive I/O into `binary.rs`
+- [x] Extract MGH scalar byte-width validation into `types.rs`
+- [x] Extract RAS origin/center transforms into `spatial.rs`
+- [x] Move reader implementation to `reader/mod.rs` and split tests by data type, gzip, geometry, round-trip, and errors
+- [x] Move writer implementation to `writer/mod.rs` and split tests by round-trip, header, and data-type/error coverage
+- [x] Extract duplicated crafted-MGH/image test construction into `test_support.rs`
+- [x] Delete flat `reader.rs` and `writer.rs`
+- [x] Verify every `ritk-mgh` source/test leaf is below 500 lines
+- [x] Verify `cargo test -p ritk-mgh --lib -- --nocapture` (30 passed)
+- [x] Verify `cargo check -p ritk-io` (pass)
+- [x] Verify `cargo fmt --check -p ritk-mgh` (pass)
+
+### Image gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| DICOM format module structural split (`reader`, `multiframe`, `seg`, `codec`, `writer`, `rt_*`) | High | Open |
+| JPEG-LS module structural split (`ritk-codecs/src/jpeg_ls/mod.rs`, 572 lines) | Medium | Open |
+
+### Non-image gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `bspline_ffd/mod.rs` structural violation (1431 lines) | Medium | Open |
+
 ## Sprint 225 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

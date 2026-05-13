@@ -236,6 +236,14 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 **Verification invariant**:
 Implementation tests live with the owning format crate. `ritk-io` tests only facade-level behavior and trait-adapter wiring.
 
+**MGH / MGZ structural invariant**:
+- `ritk-mgh::reader` owns path handling, gzip selection, header decode, scalar voxel conversion, and `MghReader` delegation.
+- `ritk-mgh::writer` owns path handling, gzip emission, header encode, f32 voxel byte emission, and `MghWriter` delegation.
+- `ritk-mgh::binary` owns big-endian primitive I/O.
+- `ritk-mgh::types` owns MGH scalar type byte-width validation.
+- `ritk-mgh::spatial` owns the inverse RAS transforms `origin = c_ras - Mdc*D*h` and `c_ras = origin + Mdc*D*h`.
+- Reader/writer tests are partitioned by contract family; crafted binary fixtures and image construction live in crate-local `test_support`.
+
 ### 15. PET/CT Fusion Display Boundary
 
 > **Theorem 15.1 (PET Display Value Consistency)**: A fused PET/CT renderer must window PET samples in SUVbw display units, not raw activity concentration units, when PET acquisition metadata is available.

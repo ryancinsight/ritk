@@ -3,6 +3,25 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.49.4] - 2026-05-13
+
+### Changed [patch]
+
+- Split `ritk-mgh/src/reader.rs` (1128 lines) and `ritk-mgh/src/writer.rs` (980 lines) into deep-vertical reader/writer modules, shared binary/type/spatial helpers, and partitioned test leaves.
+- Preserved the public `read_mgh`, `write_mgh`, `MghReader`, and `MghWriter` APIs through `ritk-mgh` and the `ritk-io` facade.
+
+### Closed gaps
+
+- `ritk-mgh` reader/writer 500-line structural violations — **Closed**
+- MGH crafted-byte/image test helper duplication — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-mgh --lib -- --nocapture`: 30 passed
+- `cargo check -p ritk-io`: pass
+- `cargo fmt --check -p ritk-mgh`: pass
+
+<!-- ──────────────────────────────────────── -->
 ## [0.49.3] - 2026-05-13
 
 ### Changed [patch]
