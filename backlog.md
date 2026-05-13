@@ -11,6 +11,38 @@
 | `deformable_field_ops.rs` violation | 681-line flat file in `ritk-registration/src/` | Medium |
 | DICOM format module split | `ritk-io/src/format/dicom/` files exceed 500 lines | High |
 
+## Sprint 228 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.6 [patch]
+**Goal**: Close the bounded JPEG-LS structural image-codec gap and refresh the active image-gap audit.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| `ritk-codecs/src/jpeg_ls/mod.rs` violation | 572-line module mixed public dispatch, markers, decoder state, parser logic, and tests | **Closed** |
+| JPEG-LS test partitioning | Header/parser, decoder-state, and conformance fixtures lived in one flat module body | **Closed** |
+| Image gap audit refresh | Active image-codec structural backlog reconciled after JPEG-LS split | **Closed** |
+
+### Delivered
+- `crates/ritk-codecs/src/jpeg_ls/mod.rs`: 46-line public dispatch and module topology.
+- `crates/ritk-codecs/src/jpeg_ls/marker.rs`: JPEG-LS marker constants.
+- `crates/ritk-codecs/src/jpeg_ls/decoder.rs`: `ComponentInfo`, `JpegLsDecoder`, scan validation, and scan-to-byte conversion.
+- `crates/ritk-codecs/src/jpeg_ls/parser.rs`: SOI/SOF55/SOS/LSE/DRI/DNL/EOI parsing and scan-data discovery.
+- `crates/ritk-codecs/src/jpeg_ls/tests/`: conformance, decoder, and parser tests split by contract family.
+
+### Remaining high-priority image gaps
+| Task | Description | Priority |
+|---|---|---|
+| DICOM format module split | `ritk-io/src/format/dicom/{reader,multiframe,seg,codec,writer,rt_*}.rs` still exceed 500 lines | High |
+
+### Remaining non-image gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| `atlas/label_fusion.rs` structural split | 881-line flat file in `ritk-registration` | Medium |
+| `deformable_field_ops.rs` structural split | 681-line flat file in `ritk-registration` | Medium |
+
 ## Sprint 226 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

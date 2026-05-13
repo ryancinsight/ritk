@@ -3,6 +3,26 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.49.6] - 2026-05-13
+
+### Changed [patch]
+
+- Split `ritk-codecs/src/jpeg_ls/mod.rs` (572 lines) into `marker.rs`, `decoder.rs`, `parser.rs`, and `tests/{conformance,decoder,parser}.rs`.
+- Preserved the public `decode_jpeg_ls_fragment(fragment, PixelLayout)` codec API and DICOM native backend integration.
+
+### Closed gaps
+
+- JPEG-LS module 500-line structural violation — **Closed**
+- JPEG-LS parser/decoder/conformance test partitioning — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-codecs --lib jpeg_ls -- --nocapture`: 55 passed
+- `cargo test -p ritk-codecs --lib`: 104 passed
+- `cargo check -p ritk-dicom`: pass
+- `cargo fmt --check -p ritk-codecs`: pass
+
+<!-- ──────────────────────────────────────── -->
 ## [0.49.5] - 2026-05-13
 
 ### Changed [patch]

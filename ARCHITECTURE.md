@@ -134,6 +134,13 @@ For scalar tensor shape `[depth, rows, cols]`, each frame contributes exactly `r
 **Proof obligation**:
 For any JPEG-LS Lossless frame `C` with `NEAR=0`, `ILV=0`, one component, and layout `L`, native decode reconstructs each stored sample from the ISO 14495-1 run/regular contexts, entropy bit-stuffing rules, and causal line guards, then returns `stored_integer × L.rescale_slope + L.rescale_intercept`. A third-party lossless encoder fixture is admissible only when the same encoded bytes self-decode to the asserted source samples under the reference implementation.
 
+**Structural invariant**:
+- `ritk-codecs::jpeg_ls::marker` owns JPEG-LS marker constants.
+- `ritk-codecs::jpeg_ls::parser` owns marker traversal and scan-data discovery.
+- `ritk-codecs::jpeg_ls::decoder` owns header-derived decoder state, scan precondition validation, and scan-to-native-byte conversion.
+- `ritk-codecs::jpeg_ls::scan`, `context`, and `bitstream` remain the ISO scan, context, and entropy subdomains.
+- `ritk-codecs::jpeg_ls::tests` partitions conformance, parser, and decoder-state tests by contract family.
+
 ### 7. NIfTI Spatial Boundary
 
 > **Theorem 7.1 (NIfTI Axis-Affine Consistency)**: NIfTI voxel payload axis conversion and affine metadata conversion must apply the same file-axis to internal-axis permutation.

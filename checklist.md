@@ -1,3 +1,35 @@
+## Sprint 228 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.6 [patch]
+**Goal**: Split `ritk-codecs/src/jpeg_ls/mod.rs` into deep-vertical codec leaves while preserving `decode_jpeg_ls_fragment`.
+
+### Checklist items
+- [x] Re-audit image-format and image-codec structural line counts
+- [x] Select bounded remaining image gap: `ritk-codecs/src/jpeg_ls/mod.rs` (572 lines)
+- [x] Extract JPEG-LS marker constants into `jpeg_ls/marker.rs`
+- [x] Extract JPEG-LS decoder state and scan-to-byte conversion into `jpeg_ls/decoder.rs`
+- [x] Extract SOI/SOF55/SOS/LSE/DRI/DNL/EOI parsing into `jpeg_ls/parser.rs`
+- [x] Reduce `jpeg_ls/mod.rs` to public dispatch and module topology
+- [x] Split tests into `tests/{conformance,decoder,parser}.rs`
+- [x] Verify every `jpeg_ls` source/test leaf is below 500 lines
+- [x] Verify `cargo test -p ritk-codecs --lib jpeg_ls -- --nocapture` (55 passed)
+- [x] Verify `cargo test -p ritk-codecs --lib` (104 passed)
+- [x] Verify `cargo check -p ritk-dicom` (pass)
+- [x] Verify `cargo fmt --check -p ritk-codecs` (pass)
+
+### Image gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| DICOM format module structural split (`reader`, `multiframe`, `seg`, `codec`, `writer`, `rt_*`) | High | Open |
+
+### Non-image gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `atlas/label_fusion.rs` structural split (881 lines) | Medium | Open |
+| `deformable_field_ops.rs` structural split (681 lines) | Medium | Open |
+
 ## Sprint 227 — Active
 **Status**: Active
 **Phase**: Phase 2 Execution
