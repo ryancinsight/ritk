@@ -7,6 +7,7 @@ Python bindings for the RITK Rust library, exposing:
 - ``ritk.Image``          — Medical image with physical-space metadata (Z×Y×X, f32).
 - ``ritk.io``             — Read / write NIfTI, PNG, DICOM, MetaImage, NRRD.
 - ``ritk.filter``         — Gaussian, median, bilateral, anisotropic diffusion, edge detection, morphology.
+- ``ritk.metrics``        — Image similarity metrics (MSE, NCC, mutual information).
 - ``ritk.registration``   — Deformable registration (Demons, SyN, BSpline FFD, LDDMM, atlas building).
 - ``ritk.segmentation``   — Thresholding, connected components, clustering, level sets, morphology.
 - ``ritk.statistics``     — Descriptive statistics, comparison metrics, normalization.
@@ -51,6 +52,7 @@ _add_windows_dll_directories()
 from ritk._ritk import (
     filter,  # noqa: F401
     io,  # noqa: F401
+    metrics,  # noqa: F401
     registration,  # noqa: F401
     segmentation,  # noqa: F401
     statistics,  # noqa: F401
@@ -70,6 +72,7 @@ import sys as _sys
 # automatically register them as importable paths; we do it here.
 _sys.modules.setdefault("ritk.filter", filter)
 _sys.modules.setdefault("ritk.io", io)
+_sys.modules.setdefault("ritk.metrics", metrics)
 _sys.modules.setdefault("ritk.registration", registration)
 _sys.modules.setdefault("ritk.segmentation", segmentation)
 _sys.modules.setdefault("ritk.statistics", statistics)
@@ -79,9 +82,11 @@ __all__ = [
     "Image",
     "io",
     "filter",
+    "metrics",
     "registration",
     "segmentation",
     "statistics",
 ]
 
-__version__ = "0.12.3"
+__version__ = "0.12.4"
+

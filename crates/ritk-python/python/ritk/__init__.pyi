@@ -5,6 +5,7 @@ from __future__ import annotations
 from ritk._ritk import filter as filter
 from ritk._ritk import image as image
 from ritk._ritk import io as io
+from ritk._ritk import metrics as metrics
 from ritk._ritk import registration as registration
 from ritk._ritk import segmentation as segmentation
 from ritk._ritk import statistics as statistics

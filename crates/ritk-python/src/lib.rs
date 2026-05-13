@@ -9,6 +9,7 @@
 pub mod filter;
 pub mod image;
 pub mod io;
+pub mod metrics;
 pub mod registration;
 pub mod segmentation;
 pub mod statistics;
@@ -24,6 +25,7 @@ fn _ritk(m: &Bound<'_, PyModule>) -> PyResult<()> {
     image::register(m)?;
     io::register(m)?;
     filter::register(m)?;
+    metrics::register(m)?;
     registration::register(m)?;
     segmentation::register(m)?;
     statistics::register(m)?;
