@@ -1,3 +1,28 @@
+## Sprint 231 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.4 [patch]
+**Goal**: Split `classical/spatial.rs` (501 lines) into deep-vertical hierarchy; close last `ritk-registration` structural violation; add Section 13 VI + TC parity tests.
+
+### Checklist items
+- [x] Create `classical/spatial/` with 9 leaf files: `mod.rs`, `error.rs`, `transform.rs`, `centroid.rs`, `kabsch.rs`, `rigid.rs`, `affine.rs`, `volume.rs`, `tests.rs` (all ≤ 90 lines)
+- [x] Extract `EULER_STEP`/`TRANSLATION_STEP`/`SCALE_STEP` to `mod.rs` as `pub(super) const` (DRY-compliant SSOT for constants)
+- [x] Delete flat `classical/spatial.rs`
+- [x] Verify `cargo test -p ritk-registration --lib`: 279 passed, 0 failed, 0 warnings
+- [x] Add Section 13a `TestVariationOfInformationParity` (8 tests) to `test_simpleitk_parity.py`
+- [x] Add Section 13b `TestTotalCorrelationParity` (5 tests) to `test_simpleitk_parity.py`
+- [x] Update CHANGELOG.md [0.50.4], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `ritk-snap/src/app.rs` structural split (5395 lines) | High | Open |
+| `ritk-io/src/format/dicom/reader.rs` structural split (~4898 lines) | High | Open |
+| `ritk-cli/src/commands/segment.rs` structural split (3276 lines) | High | Open |
+
+---
+
 ## Sprint 230 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

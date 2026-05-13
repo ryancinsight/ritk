@@ -1,3 +1,24 @@
+## [0.50.4] - 2026-05-13
+### Changed [patch]
+
+- Split `ritk-registration/src/classical/spatial.rs` (501 lines) into `classical/spatial/` sub-modules: `mod.rs` (module doc + shared constants + re-exports), `error.rs` (`SpatialError`), `transform.rs` (`SpatialTransform`, `build_homogeneous_matrix`, `extract_spatial_transform`), `centroid.rs` (`compute_centroid`, `center_points`), `kabsch.rs` (`kabsch_algorithm`, `compute_fre`), `rigid.rs` (`generate_transform_perturbations`, `apply_transform_perturbation`), `affine.rs` (`generate_affine_perturbations`, `apply_affine_perturbation`), `volume.rs` (`apply_transform`), `tests.rs` (3 unit tests). All 9 leaf files ≤ 90 lines.
+- Extracted shared step-size constants (`EULER_STEP`, `TRANSLATION_STEP`, `SCALE_STEP`) to `spatial/mod.rs` as `pub(super) const` to eliminate DRY violation between `rigid.rs` and `affine.rs`.
+- Added Section 13 `TestVariationOfInformationParity` (8 tests) and `TestTotalCorrelationParity` (5 tests) to `test_simpleitk_parity.py`: VI zero/non-negative/symmetric/NumPy-reference/noise-monotone/registration-decrease/independence parity; TC non-negative/identical/correlation-strength/2-image-MI-equivalence/multivariate invariants.
+
+### Closed gaps
+
+- `classical/spatial.rs` 500-line structural violation (501 lines) — **Closed** (last remaining in `ritk-registration`)
+- Section 13 Variation of Information parity tests absent — **Closed**
+- Section 13 Total Correlation parity tests absent — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib -- classical`: all passed
+- `cargo test -p ritk-registration --lib`: 279 passed, 0 failed, 0 warnings
+- `python -m pytest crates/ritk-python/tests/test_simpleitk_parity.py::TestVariationOfInformationParity -v`: 8 tests
+- `python -m pytest crates/ritk-python/tests/test_simpleitk_parity.py::TestTotalCorrelationParity -v`: 5 tests
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.3] - 2026-05-13
 ### Changed [patch]
 

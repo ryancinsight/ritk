@@ -1,3 +1,25 @@
+## Sprint 231 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `classical/spatial.rs` 501-line structural violation (last in `ritk-registration`) | Split into 9 leaf files (all ≤ 90 lines); 3 unit tests pass |
+| `EULER_STEP`/`TRANSLATION_STEP`/`SCALE_STEP` DRY violation (duplicated in rigid + affine) | Extracted to `spatial/mod.rs` as `pub(super) const`; both modules reference via `super::` |
+| Section 13 VI parity tests absent | 8 tests in `TestVariationOfInformationParity` covering zero/non-negative/symmetric/numpy-reference/noise/registration/independence invariants |
+| Section 13 TC parity tests absent | 5 tests in `TestTotalCorrelationParity` covering non-negative/identical/correlation-strength/2-image-MI/multivariate invariants |
+
+### Structural violations in `ritk-registration` remaining
+None — all `ritk-registration` source files are now ≤ 500 lines.
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+| `ritk-cli/src/commands/segment.rs` | 3276 | High |
+
+---
+
 ## Sprint 230 Audit — 2026-05-13
 
 ### Gaps Closed

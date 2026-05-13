@@ -3509,3 +3509,277 @@ class TestDemonsRegistrationParity:
         assert final < baseline, (
             f"MultiRes Demons MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
         )
+
+
+# ── Section 13: Variation of Information & Total Correlation Parity Tests ──────
+#
+# Analytical specifications:
+#   VI(X,Y)  = H(X) + H(Y) - 2*I(X;Y) = H(X|Y) + H(Y|X)   (Meilă 2003)
+#            = 2*H(X,Y) - H(X) - H(Y)
+#   VI >= 0, VI(X,X) = 0, VI(X,Y) = VI(Y,X)
+#
+#   TC(X1,...,Xn) = sum(H(Xi)) - H(X1,...,Xn)    (Watanabe 1960)
+#   TC >= 0; for n=2: TC(X,Y) = I(X;Y) = MI
+# ──────────────────────────────────────────────────────────────────────────────
+
+_HAS_METRICS = (
+    hasattr(ritk, "metrics")
+    and hasattr(ritk.metrics, "compute_variation_of_information")
+    and hasattr(ritk.metrics, "compute_total_correlation")
+)
+
+
+# ── NumPy reference implementations ──────────────────────────────────────────
+
+def _hist_entropy(arr: np.ndarray, num_bins: int = 64) -> float:
+    """Shannon entropy H(X) estimated via histogram."""
+    counts, _ = np.histogram(arr.flatten().astype(np.float64), bins=num_bins)
+    p = counts / counts.sum()
+    p = p[p > 0]
+    return float(-np.sum(p * np.log(p)))
+
+
+def _hist_joint_entropy(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> float:
+    """Joint entropy H(X,Y) estimated via 2D histogram."""
+    hist2d, _, _ = np.histogram2d(
+        a.flatten().astype(np.float64),
+        b.flatten().astype(np.float64),
+        bins=num_bins,
+    )
+    p = hist2d / hist2d.sum()
+    p = p[p > 0]
+    return float(-np.sum(p * np.log(p)))
+
+
+def _numpy_vi(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> float:
+    """VI(X,Y) = 2*H(X,Y) - H(X) - H(Y)  (Meilă 2003)."""
+    ha  = _hist_entropy(a, num_bins)
+    hb  = _hist_entropy(b, num_bins)
+    hab = _hist_joint_entropy(a, b, num_bins)
+    return float(2.0 * hab - ha - hb)
+
+
+def _numpy_mi(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> float:
+    """I(X;Y) = H(X) + H(Y) - H(X,Y) via histogram."""
+    return float(
+        _hist_entropy(a, num_bins)
+        + _hist_entropy(b, num_bins)
+        - _hist_joint_entropy(a, b, num_bins)
+    )
+
+
+@pytest.mark.skipif(not _HAS_METRICS, reason="ritk.metrics VI/TC not available")
+class TestVariationOfInformationParity:
+    """Section 13a - Variation of Information (Meilă 2003) parity tests.
+
+    Mathematical invariants verified:
+      VI(X,X) = 0
+      VI(X,Y) >= 0
+      VI(X,Y) = VI(Y,X)
+      VI(X,Y) = 2*H(X,Y) - H(X) - H(Y) matches NumPy reference
+      VI decreases after registration
+      VI increases monotonically with added noise
+    """
+
+    def _make_image(self, arr: np.ndarray) -> "ritk.Image":
+        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+
+    def _rng_image(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        return rng.standard_normal(shape).astype(np.float32)
+
+    def test_vi_identical_images_is_zero(self):
+        """VI(X,X) must equal exactly 0."""
+        arr = self._rng_image()
+        img = self._make_image(arr)
+        vi = ritk.metrics.compute_variation_of_information(img, img, num_bins=32)
+        assert vi == pytest.approx(0.0, abs=1e-6), f"VI(X,X)={vi}, expected 0"
+
+    def test_vi_is_non_negative(self):
+        """VI(X,Y) >= 0 for all image pairs."""
+        a = self._rng_image(seed=1)
+        b = self._rng_image(seed=2)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+        vi = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=32)
+        assert vi >= 0.0, f"VI={vi} is negative"
+
+    def test_vi_is_symmetric(self):
+        """VI(X,Y) = VI(Y,X)."""
+        a = self._rng_image(seed=3)
+        b = self._rng_image(seed=4)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+        vi_ab = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=32)
+        vi_ba = ritk.metrics.compute_variation_of_information(img_b, img_a, num_bins=32)
+        assert vi_ab == pytest.approx(vi_ba, abs=1e-9), (
+            f"VI not symmetric: VI(A,B)={vi_ab:.6f} VI(B,A)={vi_ba:.6f}"
+        )
+
+    def test_vi_matches_numpy_reference(self):
+        """VI(X,Y) matches NumPy reference VI = 2*H(X,Y) - H(X) - H(Y) within 5%."""
+        rng = np.random.default_rng(42)
+        a = rng.uniform(0, 1, (10, 10, 10)).astype(np.float32)
+        b = (0.6 * a + 0.4 * rng.standard_normal((10, 10, 10))).astype(np.float32)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+
+        vi_ritk  = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=64)
+        vi_numpy = _numpy_vi(a, b, num_bins=64)
+
+        assert vi_numpy >= 0.0, "NumPy VI reference is negative"
+        assert vi_ritk  >= 0.0, f"RITK VI={vi_ritk} is negative"
+        tol = max(0.05 * abs(vi_numpy), 0.01)
+        assert abs(vi_ritk - vi_numpy) <= tol, (
+            f"VI mismatch: ritk={vi_ritk:.4f} numpy={vi_numpy:.4f} tol={tol:.4f}"
+        )
+
+    def test_vi_increases_with_noise(self):
+        """VI(X, X+noise_large) > VI(X, X+noise_small)."""
+        rng = np.random.default_rng(7)
+        a           = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        noise_small = (0.05 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        noise_large = (0.50 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+
+        img_a = self._make_image(a)
+        img_s = self._make_image(a + noise_small)
+        img_l = self._make_image(a + noise_large)
+
+        vi_small = ritk.metrics.compute_variation_of_information(img_a, img_s, num_bins=32)
+        vi_large = ritk.metrics.compute_variation_of_information(img_a, img_l, num_bins=32)
+        assert vi_large > vi_small, (
+            f"VI_small={vi_small:.4f} VI_large={vi_large:.4f}: large-noise VI must be larger"
+        )
+
+    def test_vi_decreases_after_registration(self):
+        """VI(fixed, warped) < VI(fixed, moving) after Thirion Demons registration."""
+        rng        = np.random.default_rng(11)
+        base       = rng.standard_normal((12, 12, 12)).astype(np.float32)
+        moving_arr = np.roll(base, 2, axis=2)
+        fixed_arr  = base
+
+        fixed  = self._make_image(fixed_arr)
+        moving = self._make_image(moving_arr)
+
+        warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
+
+        vi_before = ritk.metrics.compute_variation_of_information(fixed,  moving, num_bins=32)
+        vi_after  = ritk.metrics.compute_variation_of_information(fixed,  warped, num_bins=32)
+        assert vi_after < vi_before, (
+            f"VI before={vi_before:.4f} after={vi_after:.4f}: expected decrease"
+        )
+
+    def test_vi_independent_exceeds_correlated(self):
+        """VI(X, independent) > VI(X, correlated)."""
+        rng       = np.random.default_rng(13)
+        x         = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y_corr    = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        y_indep   = rng.standard_normal((8, 8, 8)).astype(np.float32)
+
+        img_x     = self._make_image(x)
+        img_corr  = self._make_image(y_corr)
+        img_indep = self._make_image(y_indep)
+
+        vi_corr  = ritk.metrics.compute_variation_of_information(img_x, img_corr,  num_bins=32)
+        vi_indep = ritk.metrics.compute_variation_of_information(img_x, img_indep, num_bins=32)
+        assert vi_indep > vi_corr, (
+            f"VI_indep={vi_indep:.4f} should exceed VI_corr={vi_corr:.4f}"
+        )
+
+    def test_vi_shape_mismatch_raises(self):
+        """compute_variation_of_information raises on shape mismatch."""
+        a = ritk.Image(np.ones((4, 4, 4), dtype=np.float32), spacing=[1.0, 1.0, 1.0])
+        b = ritk.Image(np.ones((4, 4, 5), dtype=np.float32), spacing=[1.0, 1.0, 1.0])
+        with pytest.raises(Exception):
+            ritk.metrics.compute_variation_of_information(a, b, num_bins=8)
+
+
+@pytest.mark.skipif(not _HAS_METRICS, reason="ritk.metrics VI/TC not available")
+class TestTotalCorrelationParity:
+    """Section 13b - Total Correlation / Multivariate MI (Watanabe 1960) parity tests.
+
+    Mathematical invariants:
+      TC(X1,...,Xn) = sum(H(Xi)) - H(X1,...,Xn) >= 0
+      TC(X,Y) = I(X;Y) for n=2
+      TC increases with dependency strength
+    """
+
+    def _make_image(self, arr: np.ndarray) -> "ritk.Image":
+        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+
+    def _rng_image(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
+        rng = np.random.default_rng(seed)
+        return rng.standard_normal(shape).astype(np.float32)
+
+    def test_tc_is_non_negative(self):
+        """TC(X1,...,Xn) >= 0."""
+        imgs = [self._make_image(self._rng_image(seed=i)) for i in range(3)]
+        tc = ritk.metrics.compute_total_correlation(imgs, num_bins=32)
+        assert tc >= 0.0, f"TC={tc} is negative"
+
+    def test_tc_identical_channels_exceeds_independent(self):
+        """TC([X,X,X]) > TC([A,B,C]) for independent A,B,C."""
+        x      = self._rng_image(seed=5)
+        img_x  = self._make_image(x)
+        rng    = np.random.default_rng(6)
+        indep  = [self._make_image(rng.standard_normal((8, 8, 8)).astype(np.float32))
+                  for _ in range(3)]
+
+        tc_identical = ritk.metrics.compute_total_correlation([img_x, img_x, img_x], num_bins=32)
+        tc_indep     = ritk.metrics.compute_total_correlation(indep, num_bins=32)
+        assert tc_identical > tc_indep, (
+            f"TC_identical={tc_identical:.4f} TC_indep={tc_indep:.4f}"
+        )
+
+    def test_tc_increases_with_correlation_strength(self):
+        """TC([X, Y_strong]) > TC([X, Y_weak]) for rho_strong > rho_weak."""
+        rng      = np.random.default_rng(8)
+        x        = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y_weak   = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        y_strong = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+
+        img_x  = self._make_image(x)
+        img_yw = self._make_image(y_weak)
+        img_ys = self._make_image(y_strong)
+
+        tc_weak   = ritk.metrics.compute_total_correlation([img_x, img_yw], num_bins=32)
+        tc_strong = ritk.metrics.compute_total_correlation([img_x, img_ys], num_bins=32)
+        assert tc_strong > tc_weak, (
+            f"TC_strong={tc_strong:.4f} TC_weak={tc_weak:.4f}"
+        )
+
+    def test_tc_two_images_approximates_mutual_information(self):
+        """For n=2: TC(X,Y) = I(X;Y). Verified against NumPy MI within 10%."""
+        rng   = np.random.default_rng(9)
+        a     = rng.uniform(0, 1, (10, 10, 10)).astype(np.float32)
+        b     = (0.7 * a + 0.3 * rng.standard_normal((10, 10, 10))).astype(np.float32)
+
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+
+        tc = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=64)
+        mi = _numpy_mi(a, b, num_bins=64)
+
+        assert tc >= 0.0, f"TC={tc} is negative"
+        assert mi >= 0.0, f"NumPy MI={mi} is negative"
+        tol = max(0.10 * abs(mi), 0.01)
+        assert abs(tc - mi) <= tol, (
+            f"TC={tc:.4f} vs MI={mi:.4f}: difference {abs(tc - mi):.4f} exceeds {tol:.4f}"
+        )
+
+    def test_tc_multivariate_exceeds_pairwise(self):
+        """TC([X,Y,Z]) >= TC([X,Y]) when Z is correlated with X."""
+        rng   = np.random.default_rng(10)
+        x     = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y     = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        z     = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+
+        img_x = self._make_image(x)
+        img_y = self._make_image(y)
+        img_z = self._make_image(z)
+
+        tc_pair = ritk.metrics.compute_total_correlation([img_x, img_y],        num_bins=32)
+        tc_tri  = ritk.metrics.compute_total_correlation([img_x, img_y, img_z], num_bins=32)
+        assert tc_tri >= tc_pair, (
+            f"TC([X,Y,Z])={tc_tri:.4f} TC([X,Y])={tc_pair:.4f}"
+        )
