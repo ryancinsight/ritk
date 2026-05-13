@@ -8,5 +8,5 @@ pub mod statistics;
 pub mod transform;
 
 pub use filter::MultiResolutionPyramid;
-pub use image::Image;
+pub use image::{ColorVolume, Image, RgbVolume};
 pub use spatial::{Direction, Point, Spacing, Vector};

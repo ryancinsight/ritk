@@ -129,7 +129,6 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn::tensor::TensorData;
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

@@ -5,6 +5,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.41.0] - 2026-05-12
+
+### Added [minor]
+- `ritk-core::ColorVolume<B, C>` and `RgbVolume<B>` as the channel-explicit 3-D volume boundary with tensor shape `[depth, rows, cols, channels]`.
+- `ritk-io::format::dicom::read_dicom_color_series` and `load_dicom_color_series` for validated RGB DICOM series loading into `RgbVolume<B>`.
+- Value-semantic tests for RGB sample preservation, shape invariants, spatial metadata preservation, scalar DICOM rejection, and planar RGB rejection through the color loader.
+
+### Fixed [patch]
+- Removed an unused `TensorData` import from `ritk-core::image::grid` tests.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.40.10] - 2026-05-12
 
 ### Added [patch]

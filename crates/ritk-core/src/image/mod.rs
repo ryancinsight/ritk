@@ -3,12 +3,14 @@
 //! This module provides the Image type and related functionality
 //! for representing medical images with physical metadata.
 
+pub mod color;
 pub mod grid;
 #[allow(clippy::module_inception)]
 pub mod image;
 pub mod metadata;
 pub mod transform;
 
+pub use color::{ColorVolume, RgbVolume};
 pub use grid::generate_grid;
 pub use image::Image;
 pub use metadata::ImageMetadata;

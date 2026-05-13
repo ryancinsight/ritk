@@ -1,3 +1,28 @@
+## Sprint 211 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.41.0 [minor]
+**Goal**: Add the first channel-explicit image-volume boundary and wire DICOM RGB series loading through it.
+
+### Checklist items
+- [x] Audit residual image gaps after Sprint 210 JPEG decoder closure
+- [x] Add `ritk-core::image::ColorVolume<B, C>` with tensor shape `[depth, rows, cols, C]`
+- [x] Add `ritk-core::image::RgbVolume<B>` specialization
+- [x] Export `ColorVolume` and `RgbVolume` from `ritk-core`
+- [x] Add `ritk-io::format::dicom::read_dicom_color_series`
+- [x] Add `load_dicom_color_series` alias and `ritk-io` public exports
+- [x] Validate DICOM RGB metadata before tensor construction: `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, consistent rows/columns
+- [x] Add value-semantic tests for RGB sample order, scalar rejection, and planar rejection
+- [x] Verify core image tests: `cargo test -p ritk-core --lib image -- --nocapture` (128 passed)
+- [x] Verify DICOM color tests: `cargo test -p ritk-io --lib format::dicom::color -- --nocapture` (3 passed)
+- [x] Verify new leaf formatting: `rustfmt --edition 2021 --check crates/ritk-core/src/image/color.rs crates/ritk-io/src/format/dicom/color.rs`
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Global metric optimizer (MI/NGF) for inter-subject deformable registration | High | Open |
+| Color multiframe and non-DICOM color-volume loaders | Medium | Open |
+
 ## Sprint 210 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -1,3 +1,27 @@
+## Sprint 211 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.41.0 [minor]
+**Goal**: Close the color-volume representation gap above scalar `Image<B,3>` loaders by adding a channel-explicit core volume boundary and a DICOM RGB series loader.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| Color volume core boundary | `ColorVolume<B, C>` and `RgbVolume<B>` preserve spatial metadata with tensor shape `[depth, rows, cols, channels]` | **Closed** |
+| DICOM RGB series loader | `read_dicom_color_series` validates interleaved RGB unsigned 8-bit series and preserves samples | **Closed** |
+
+### Delivered
+- `crates/ritk-core/src/image/color.rs`: channel-explicit volume type with shape, channel-count, and spatial metadata invariants.
+- `crates/ritk-io/src/format/dicom/color.rs`: RGB DICOM series loader behind the existing DICOM backend boundary.
+- Public exports from `ritk-core`, `ritk-io::format::dicom`, and `ritk-io`.
+- Value-semantic tests for RGB preservation, planar/scalar rejection, and metadata/shape invariants.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| Color multiframe and non-DICOM color loaders | Extend the new `ColorVolume` boundary beyond DICOM RGB series where format metadata supports color volumes | Medium |
+
 ## Sprint 210 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 mod codec;
+mod color;
 mod multiframe;
 mod object_model;
 mod reader;
@@ -28,6 +29,7 @@ mod transfer_syntax;
 mod writer;
 mod writer_object;
 
+pub use color::{load_dicom_color_series, read_dicom_color_series};
 pub use multiframe::{
     load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,

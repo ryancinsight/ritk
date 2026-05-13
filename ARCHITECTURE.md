@@ -243,6 +243,19 @@ Implementation tests live with the owning format crate. `ritk-io` tests only fac
 **Proof obligation**:
 For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`, and decay factor `k` derived from acquisition timing, `render_fused_slice` maps `p` to `p * (m_kg * 1000.0) / (d_bq * k)` before applying the PT SUV window and colormap. With secondary alpha `1.0`, the fused pixel equals the PET colormap output for that SUV value; with incomplete PET metadata, the renderer preserves the prior raw-value contract.
 
+### 16. Color Volume Boundary
+
+> **Theorem 16.1 (Color Volume Shape Separation)**: Multi-component image volumes must use a channel-explicit tensor boundary and must not enter scalar `Image<B,3>` loaders.
+
+**Boundary surface**:
+- `ritk-core::image::ColorVolume<B, C>` is the SSOT for channel-explicit 3-D volumes, backed by tensor shape `[depth, rows, cols, C]`.
+- `ritk-core::image::RgbVolume<B>` is the `C = 3` specialization for interleaved RGB volume data.
+- `ritk-io::format::dicom::read_dicom_color_series` loads validated interleaved RGB DICOM series into `RgbVolume<B>` while preserving spatial metadata from the scalar DICOM series scanner.
+- Scalar DICOM series and multiframe loaders remain constrained to `SamplesPerPixel = 1`.
+
+**Proof obligation**:
+For any RGB DICOM series with depth `d`, rows `r`, columns `c`, and interleaved samples `S`, `read_dicom_color_series` constructs exactly one tensor with shape `[d,r,c,3]` and element order `S[(((z*r + y)*c + x)*3 + k)]`. If declared metadata is not `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, or consistent spatial dimensions, the loader rejects before constructing `RgbVolume<B>`.
+
 ---
 
 ## Theoretical Foundations
