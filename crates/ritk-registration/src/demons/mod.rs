@@ -29,16 +29,20 @@
 //! # Module Layout
 /// ```text
 /// demons/
-/// ├── mod.rs           ← this file (re-exports)
-/// ├── thirion.rs       ← Thirion 1998 classic Demons
-/// ├── diffeomorphic.rs ← Vercauteren 2009 diffeomorphic variant
-/// ├── symmetric.rs     ← Pennec 1999 symmetric-force variant
-/// └── inverse.rs       ← Exact SVF inverse + iterative displacement inverse
+/// ├── mod.rs                          ← this file (re-exports)
+/// ├── config.rs                       ← DemonsConfig, DemonsResult (SSOT)
+/// ├── thirion/                        ← Thirion 1998 classic Demons
+/// ├── diffeomorphic/                  ← Vercauteren 2009 diffeomorphic variant
+/// ├── symmetric.rs                    ← Pennec 1999 symmetric-force variant
+/// ├── inverse/                        ← Exact SVF inverse + iterative displacement inverse
+/// ├── exact_inverse_diffeomorphic/   ← Inverse-consistent diffeomorphic Demons
+/// └── multires.rs                     ← Multi-resolution coarse-to-fine pyramid
 /// ```
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,
 /// field composition, scaling-and-squaring) live in
 /// [`crate::deformable_field_ops`] (crate-level SSOT).
+pub mod config;
 pub mod diffeomorphic;
 pub mod exact_inverse_diffeomorphic;
 pub mod inverse;
@@ -46,6 +50,7 @@ pub mod multires;
 pub mod symmetric;
 pub mod thirion;
 
+pub use config::{DemonsConfig, DemonsResult};
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
 pub use exact_inverse_diffeomorphic::{
     InverseConsistentDemonsConfig, InverseConsistentDemonsResult,
@@ -54,4 +59,4 @@ pub use exact_inverse_diffeomorphic::{
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
 pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};
 pub use symmetric::SymmetricDemonsRegistration;
-pub use thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};
+pub use thirion::ThirionDemonsRegistration;

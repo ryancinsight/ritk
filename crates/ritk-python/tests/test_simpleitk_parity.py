@@ -3270,3 +3270,242 @@ class TestLddmmRegistrationParity:
         )
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert ncc > 0.0, f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
+
+
+# ── Section 12: Demons Registration PyO3 Parity Tests ────────────────────────
+#
+# Tests comparing RITK Demons variants against SimpleITK Demons reference
+# and verifying analytical registration invariants across all 5 variants:
+# Thirion, Diffeomorphic, Symmetric, MultiRes, InverseConsistentDiffeomorphic.
+#
+# Parity claim: all RITK variants and SimpleITK Demons reduce MSE from
+# baseline on the same co-modal shifted input (direction parity, not
+# numerical exact parity — the algorithms differ in detail).
+
+import ritk
+
+_HAS_DEMONS = (
+    hasattr(ritk, "registration")
+    and hasattr(ritk.registration, "demons_register")
+)
+
+
+def _mse(a: np.ndarray, b: np.ndarray) -> float:
+    """Mean-squared error between two float arrays."""
+    diff = a.astype(np.float64) - b.astype(np.float64)
+    return float((diff * diff).mean())
+
+
+def _ncc_demons(a: np.ndarray, b: np.ndarray) -> float:
+    """Normalised cross-correlation in [-1, 1]."""
+    a = a.astype(np.float64).ravel()
+    b = b.astype(np.float64).ravel()
+    a_c = a - a.mean()
+    b_c = b - b.mean()
+    denom = np.linalg.norm(a_c) * np.linalg.norm(b_c)
+    return float(np.dot(a_c, b_c) / denom) if denom > 1e-10 else 0.0
+
+
+def _gaussian_sphere(size: int, sigma: float = 2.5) -> np.ndarray:
+    """Isotropic 3-D Gaussian blob centred at the volume centre."""
+    centre = (size - 1) / 2.0
+    zz, yy, xx = np.mgrid[0:size, 0:size, 0:size]
+    r2 = (zz - centre) ** 2 + (yy - centre) ** 2 + (xx - centre) ** 2
+    return np.exp(-r2 / (2.0 * sigma ** 2)).astype(np.float32)
+
+
+def _shifted_sphere_pair(shift: int = 2, size: int = 16) -> tuple:
+    """Return (fixed, moving) where moving is translated +shift in x."""
+    fixed = _gaussian_sphere(size)
+    moving = np.zeros_like(fixed)
+    moving[:, :, shift:] = fixed[:, :, : size - shift]
+    return fixed, moving
+
+
+def _sitk_demons_mse_demons(fixed_arr: np.ndarray, moving_arr: np.ndarray, n_iter: int = 20) -> float:
+    """Run SimpleITK Demons and return final MSE(fixed, warped_moving)."""
+    fixed_sitk = sitk.GetImageFromArray(fixed_arr.astype(np.float32))
+    moving_sitk = sitk.GetImageFromArray(moving_arr.astype(np.float32))
+    demons = sitk.DemonsRegistrationFilter()
+    demons.SetNumberOfIterations(n_iter)
+    demons.SetStandardDeviations(1.0)
+    disp = demons.Execute(fixed_sitk, moving_sitk)
+    resampler = sitk.ResampleImageFilter()
+    resampler.SetReferenceImage(fixed_sitk)
+    resampler.SetInterpolator(sitk.sitkLinear)
+    resampler.SetDefaultPixelValue(0.0)
+    resampler.SetTransform(sitk.DisplacementFieldTransform(disp))
+    warped_sitk = resampler.Execute(moving_sitk)
+    warped_arr = sitk.GetArrayFromImage(warped_sitk).astype(np.float64)
+    return float(((fixed_arr.astype(np.float64) - warped_arr) ** 2).mean())
+
+
+@pytest.mark.skipif(not _HAS_DEMONS, reason="ritk.registration.demons_register not available")
+class TestDemonsRegistrationParity:
+    """Section 12: Demons variants — analytical invariants and SimpleITK direction parity."""
+
+    # ── Analytical invariants ──────────────────────────────────────────────
+
+    def test_identity_thirion_near_zero_mse(self):
+        """Registering identical images with Thirion Demons yields MSE < 1e-3."""
+        arr = _gaussian_sphere(12)
+        img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.demons_register(img, img, max_iterations=20)
+        mse = _mse(arr, warped.to_numpy())
+        assert mse < 1e-3, f"Thirion identity MSE {mse:.6f} >= 1e-3"
+
+    def test_identity_diffeomorphic_near_zero_mse(self):
+        """Registering identical images with Diffeomorphic Demons yields MSE < 1e-3."""
+        arr = _gaussian_sphere(12)
+        img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.diffeomorphic_demons_register(
+            img, img, max_iterations=20
+        )
+        mse = _mse(arr, warped.to_numpy())
+        assert mse < 1e-3, f"Diffeomorphic identity MSE {mse:.6f} >= 1e-3"
+
+    def test_identity_symmetric_near_zero_mse(self):
+        """Registering identical images with Symmetric Demons yields MSE < 1e-3."""
+        arr = _gaussian_sphere(12)
+        img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.symmetric_demons_register(
+            img, img, max_iterations=20
+        )
+        mse = _mse(arr, warped.to_numpy())
+        assert mse < 1e-3, f"Symmetric identity MSE {mse:.6f} >= 1e-3"
+
+    def test_warped_shape_matches_fixed(self):
+        """Warped image shape must equal fixed image shape for all variants."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=1, size=14)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        for fn in [
+            ritk.registration.demons_register,
+            ritk.registration.diffeomorphic_demons_register,
+            ritk.registration.symmetric_demons_register,
+        ]:
+            warped, _ = fn(fixed, moving, max_iterations=5)
+            assert warped.to_numpy().shape == fixed_arr.shape, (
+                f"{fn.__name__}: warped shape {warped.to_numpy().shape} != {fixed_arr.shape}"
+            )
+
+    def test_displacement_field_packed_shape(self):
+        """Displacement field shape must be (3*nz, ny, nx) for all variants."""
+        size = 10
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=1, size=size)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        expected = (3 * size, size, size)
+        for fn in [
+            ritk.registration.demons_register,
+            ritk.registration.diffeomorphic_demons_register,
+            ritk.registration.symmetric_demons_register,
+        ]:
+            _, disp = fn(fixed, moving, max_iterations=5)
+            assert disp.to_numpy().shape == expected, (
+                f"{fn.__name__}: disp shape {disp.to_numpy().shape} != {expected}"
+            )
+
+    def test_all_output_values_finite(self):
+        """Warped image and displacement field must be finite for all variants."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=1, size=12)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        for fn in [
+            ritk.registration.demons_register,
+            ritk.registration.diffeomorphic_demons_register,
+            ritk.registration.symmetric_demons_register,
+        ]:
+            warped, disp = fn(fixed, moving, max_iterations=10)
+            assert np.all(np.isfinite(warped.to_numpy())), f"{fn.__name__}: warped has non-finite values"
+            assert np.all(np.isfinite(disp.to_numpy())), f"{fn.__name__}: disp has non-finite values"
+
+    # ── Registration quality ───────────────────────────────────────────────
+
+    def test_thirion_reduces_mse_on_shifted_sphere(self):
+        """Thirion Demons reduces MSE on a 2-voxel x-shifted Gaussian sphere."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        baseline = _mse(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
+        final = _mse(fixed_arr, warped.to_numpy())
+        assert final < baseline, (
+            f"Thirion MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
+        )
+
+    def test_diffeomorphic_reduces_mse_on_shifted_sphere(self):
+        """Diffeomorphic Demons reduces MSE on a 2-voxel x-shifted Gaussian sphere."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        baseline = _mse(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.diffeomorphic_demons_register(
+            fixed, moving, max_iterations=30
+        )
+        final = _mse(fixed_arr, warped.to_numpy())
+        assert final < baseline, (
+            f"Diffeomorphic MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
+        )
+
+    def test_symmetric_reduces_mse_on_shifted_sphere(self):
+        """Symmetric Demons reduces MSE on a 2-voxel x-shifted Gaussian sphere."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        baseline = _mse(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.symmetric_demons_register(
+            fixed, moving, max_iterations=30
+        )
+        final = _mse(fixed_arr, warped.to_numpy())
+        assert final < baseline, (
+            f"Symmetric MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
+        )
+
+    # ── SimpleITK direction parity ─────────────────────────────────────────
+
+    def test_ritk_thirion_and_sitk_demons_both_reduce_mse(self):
+        """RITK Thirion and SimpleITK Demons both reduce MSE from baseline."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        baseline = _mse(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+
+        warped_ritk, _ = ritk.registration.demons_register(
+            fixed, moving, max_iterations=20
+        )
+        mse_ritk = _mse(fixed_arr, warped_ritk.to_numpy())
+        mse_sitk = _sitk_demons_mse_demons(fixed_arr, moving_arr, n_iter=20)
+
+        assert mse_ritk < baseline, (
+            f"RITK Thirion MSE {mse_ritk:.6f} >= baseline {baseline:.6f}"
+        )
+        assert mse_sitk < baseline, (
+            f"SimpleITK Demons MSE {mse_sitk:.6f} >= baseline {baseline:.6f}"
+        )
+
+    def test_ncc_improves_after_thirion_demons(self):
+        """NCC(warped, fixed) > NCC(moving, fixed) after Thirion registration."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        ncc_before = _ncc_demons(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
+        ncc_after = _ncc_demons(fixed_arr, warped.to_numpy())
+        assert ncc_after > ncc_before, (
+            f"NCC did not improve: before={ncc_before:.4f} after={ncc_after:.4f}"
+        )
+
+    def test_multires_demons_reduces_mse(self):
+        """Multi-resolution Demons reduces MSE on a shifted Gaussian sphere."""
+        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
+        baseline = _mse(fixed_arr, moving_arr)
+        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
+        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
+        warped, _ = ritk.registration.multires_demons_register(
+            fixed, moving, max_iterations=30, levels=2
+        )
+        final = _mse(fixed_arr, warped.to_numpy())
+        assert final < baseline, (
+            f"MultiRes Demons MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
+        )

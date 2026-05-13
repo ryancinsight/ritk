@@ -1,3 +1,29 @@
+## Sprint 230 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `demons/thirion.rs` 561-line structural violation | Split into `thirion/{mod,forces,registration,tests}.rs` (all ≤ 192 lines); 6 unit tests pass |
+| `demons/inverse.rs` 559-line structural violation | Split into `inverse/{mod,svf,displacement,tests}.rs` (all ≤ 210 lines); 5 unit tests pass |
+| `demons/diffeomorphic.rs` 547-line structural violation | Split into `diffeomorphic/{mod,registration,tests}.rs` (all ≤ 260 lines); 8 unit tests pass |
+| `demons/exact_inverse_diffeomorphic.rs` 523-line structural violation | Split into `exact_inverse_diffeomorphic/{mod,ic_residual,registration,tests}.rs` (all ≤ 230 lines); 9 unit tests pass |
+| `DemonsConfig`/`DemonsResult` SSOT drift (4 importers duplicating from thirion) | Extracted to canonical `demons/config.rs`; all 5 modules import from `super::config` |
+| Section 12 Demons parity tests absent | 12 tests in `TestDemonsRegistrationParity` covering Thirion, Diffeomorphic, Symmetric, MultiRes variants |
+
+### Structural violations in `ritk-registration` remaining
+| File | Lines | Status |
+|---|---|---|
+| `classical/spatial.rs` | 501 | Open |
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+| `ritk-cli/src/commands/segment.rs` | 3276 | High |
+
+---
+
 ## Sprint 229 Audit — 2026-05-13
 
 ### Gaps Closed

@@ -1,3 +1,28 @@
+## [0.50.3] - 2026-05-13
+### Changed [patch]
+
+- Split `ritk-registration/src/demons/thirion.rs` (561 lines) into `demons/thirion/` sub-modules: `mod.rs` (re-exports + `pub(super) use forces::thirion_forces`), `forces.rs` (`thirion_forces`, `thirion_forces_into`, `compute_mse`, `clamp_field_magnitude`), `registration.rs` (`ThirionDemonsRegistration`), `tests.rs` (6 unit tests). All leaf files ≤ 192 lines.
+- Split `ritk-registration/src/demons/inverse.rs` (559 lines) into `demons/inverse/` sub-modules: `mod.rs`, `displacement.rs` (`invert_displacement_field`, `InverseFieldConfig`), `svf.rs` (`invert_velocity_field`), `tests.rs` (5 unit tests). All leaf files ≤ 210 lines.
+- Split `ritk-registration/src/demons/diffeomorphic.rs` (547 lines) into `demons/diffeomorphic/` sub-modules: `mod.rs`, `registration.rs` (`DiffeomorphicDemonsRegistration`), `tests.rs` (8 unit tests). All leaf files ≤ 260 lines.
+- Split `ritk-registration/src/demons/exact_inverse_diffeomorphic.rs` (523 lines) into `demons/exact_inverse_diffeomorphic/` sub-modules: `mod.rs`, `ic_residual.rs` (`compute_ic_residual`), `registration.rs` (`InverseConsistentDiffeomorphicDemonsRegistration`), `tests.rs` (9 unit tests). All leaf files ≤ 230 lines.
+- Extracted `DemonsConfig` and `DemonsResult` from `thirion.rs` to canonical `demons/config.rs` (SSOT); updated all 5 sibling modules to import from `super::config`.
+- Added Section 12 `TestDemonsRegistrationParity` (12 tests) to `test_simpleitk_parity.py`: identity MSE, shape contract, displacement packed shape (3·nz,ny,nx), finite outputs, MSE reduction on shifted sphere, NCC improvement, SimpleITK direction parity, MultiRes Demons MSE reduction for Thirion/Diffeomorphic/Symmetric variants.
+
+### Closed gaps
+
+- `demons/thirion.rs` 500-line structural violation (561 lines) — **Closed**
+- `demons/inverse.rs` 500-line structural violation (559 lines) — **Closed**
+- `demons/diffeomorphic.rs` 500-line structural violation (547 lines) — **Closed**
+- `demons/exact_inverse_diffeomorphic.rs` 500-line structural violation (523 lines) — **Closed**
+- `DemonsConfig`/`DemonsResult` SSOT drift (defined in `thirion.rs`, imported by siblings) — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib -- demons`: 38 passed (thirion: 6, inverse: 5, diffeomorphic: 8, exact_inverse_diffeomorphic: 9, multires: 5, symmetric: 5)
+- `cargo test -p ritk-registration --lib`: 279 passed, 0 failed
+- `python -m pytest crates/ritk-python/tests/test_simpleitk_parity.py::TestDemonsRegistrationParity -v`: 12 tests
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.2] - 2026-05-13
 ### Changed [patch]
 

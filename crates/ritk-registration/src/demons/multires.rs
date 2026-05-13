@@ -11,8 +11,9 @@
 //! - Thirion (1998), Med. Image Anal. 2(3):243-260.
 //! - Vercauteren et al. (2009), NeuroImage 45(S1):S61-S72.
 
+use super::config::{DemonsConfig, DemonsResult};
 use super::diffeomorphic::DiffeomorphicDemonsRegistration;
-use super::thirion::{DemonsConfig, DemonsResult, ThirionDemonsRegistration};
+use super::thirion::ThirionDemonsRegistration;
 use crate::error::RegistrationError;
 
 /// Configuration for multi-resolution Demons registration.
@@ -254,7 +255,7 @@ fn upsample_displacement(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::demons::thirion::DemonsConfig;
+    use crate::demons::DemonsConfig;
 
     fn make_sphere_image(dims: [usize; 3], center: [f32; 3], radius: f32) -> Vec<f32> {
         let [nz, ny, nx] = dims;

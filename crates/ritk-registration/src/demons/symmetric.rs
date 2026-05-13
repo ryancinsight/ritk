@@ -46,7 +46,7 @@
 //!   Iconic feature based nonrigid registration: the PASHA algorithm.
 //!   *CVIU* 89(2–3):272–298.
 
-use super::thirion::{DemonsConfig, DemonsResult};
+use super::config::{DemonsConfig, DemonsResult};
 use crate::deformable_field_ops::{compute_gradient, gaussian_smooth_inplace, warp_image};
 use crate::error::RegistrationError;
 

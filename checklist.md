@@ -1,3 +1,32 @@
+## Sprint 230 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.3 [patch]
+**Goal**: Split 4 remaining `demons/` structural violations into deep-vertical hierarchies; extract `DemonsConfig`/`DemonsResult` to SSOT `config.rs`; add Section 12 Demons parity tests.
+
+### Checklist items
+- [x] Create `demons/config.rs` — SSOT for `DemonsConfig`, `DemonsResult`; update all sibling import sites
+- [x] Split `demons/thirion.rs` (561 lines) → `thirion/{mod,forces,registration,tests}.rs` (all ≤ 192 lines)
+- [x] Split `demons/inverse.rs` (559 lines) → `inverse/{mod,svf,displacement,tests}.rs` (all ≤ 210 lines)
+- [x] Split `demons/diffeomorphic.rs` (547 lines) → `diffeomorphic/{mod,registration,tests}.rs` (all ≤ 260 lines)
+- [x] Split `demons/exact_inverse_diffeomorphic.rs` (523 lines) → `exact_inverse_diffeomorphic/{mod,ic_residual,registration,tests}.rs` (all ≤ 230 lines)
+- [x] Delete 4 flat source files; update `demons/mod.rs` public re-exports
+- [x] Verify `cargo test -p ritk-registration --lib -- demons`: 38 passed (6+5+8+9+5+5)
+- [x] Verify `cargo test -p ritk-registration --lib`: 279 passed, 0 failed
+- [x] Add Section 12 `TestDemonsRegistrationParity` (12 tests) to `test_simpleitk_parity.py`
+- [x] Update CHANGELOG.md [0.50.3], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `classical/spatial.rs` structural split (501 lines) | Medium | Open |
+| DICOM format module structural split (reader, multiframe, seg, codec, writer) | High | Open |
+| `ritk-snap/src/app.rs` structural split (5395 lines) | High | Open |
+| `ritk-cli/src/commands/segment.rs` structural split (3276 lines) | High | Open |
+
+---
+
 ## Sprint 229 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
