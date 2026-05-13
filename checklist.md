@@ -1,3 +1,37 @@
+## Sprint 233 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.6 [minor]
+**Goal**: Implement `ritk-core::statistics::information` module (entropy, MI, VI, TC); refactor `ritk-python/src/metrics/` to delegate to core (SSOT); fix Python test class shadowing bug.
+
+### Checklist items
+- [x] Create `ritk-core/src/statistics/information/entropy.rs` (marginal_entropy, joint_entropy, joint_entropy_n)
+- [x] Create `ritk-core/src/statistics/information/mutual_information.rs` (mutual_information, normalized_mutual_information)
+- [x] Create `ritk-core/src/statistics/information/variation_of_information.rs`
+- [x] Create `ritk-core/src/statistics/information/total_correlation.rs`
+- [x] Create `ritk-core/src/statistics/information/mod.rs` (re-exports + #[cfg(test)] mod tests)
+- [x] Create `ritk-core/src/statistics/information/tests/entropy.rs` (9 value-semantic tests)
+- [x] Create `ritk-core/src/statistics/information/tests/mi.rs` (9 value-semantic tests)
+- [x] Create `ritk-core/src/statistics/information/tests/vi.rs` (7 value-semantic tests)
+- [x] Create `ritk-core/src/statistics/information/tests/tc.rs` (7 value-semantic tests)
+- [x] Create `ritk-core/src/statistics/information/tests/mod.rs`
+- [x] Update `ritk-core/src/statistics/mod.rs` to declare and re-export `information`
+- [x] Refactor `ritk-python/src/metrics/total_correlation.rs` → delegate to `ritk_core`
+- [x] Refactor `ritk-python/src/metrics/variation_of_information.rs` → delegate to `ritk_core`
+- [x] Fix Python test class shadowing: rename Section 13 duplicates in `test_simpleitk_parity.py`
+- [x] Verify `cargo test -p ritk-core statistics::information`: 34 passed, 0 failed
+- [x] Verify `cargo test -p ritk-python metrics`: 15 passed, 0 failed
+- [x] Verify `cargo build -p ritk-core -p ritk-python`: 0 errors, 0 warnings
+- [x] Update CHANGELOG.md [0.50.6], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| `ritk-snap/src/app.rs` structural split (5395 lines) | High | Open |
+| `ritk-io/src/format/dicom/reader.rs` structural split (~4898 lines) | High | Open |
+
+---
+
 ## Sprint 232 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

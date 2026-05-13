@@ -1,3 +1,34 @@
+## [0.50.6] - 2026-05-13
+### Added [minor]
+
+- New `ritk-core/src/statistics/information/` module hierarchy with 4 leaf files, each ≤ 150 lines:
+  - `entropy.rs`: `marginal_entropy`, `joint_entropy`, `joint_entropy_n` (Shannon entropy H via uniform histogram bins; f32 input, f64 output; enforces `num_bins^n ≤ 4_194_304`)
+  - `mutual_information.rs`: `mutual_information`, `normalized_mutual_information` (I(X;Y) = H(X)+H(Y)−H(X,Y); NMI ∈ [1,2])
+  - `variation_of_information.rs`: `variation_of_information` (VI = H(X)+H(Y)−2·I(X;Y); proper metric, Meilă 2003)
+  - `total_correlation.rs`: `total_correlation` (TC = Σᵢ H(Xᵢ)−H(X₁,…,Xₙ); Watanabe 1960)
+- 34 value-semantic tests in `information/tests/` (entropy/mi/vi/tc): uniform entropy = ln(8), I(X;X) = H(X), NMI(X,X) = 2.0, VI(X,X) = 0, TC single channel = 0, bounds, error rejections.
+- All 7 functions re-exported from `ritk-core::statistics`.
+
+### Changed [patch]
+
+- `ritk-python/src/metrics/total_correlation.rs`: replaced standalone implementation with delegation to `ritk_core::statistics::information::total_correlation` (SSOT, removes 193 lines of duplicate code).
+- `ritk-python/src/metrics/variation_of_information.rs`: replaced standalone implementation with delegation to `ritk_core::statistics::information::variation_of_information` (SSOT, removes 168 lines of duplicate code).
+- Fixed Python test class shadowing bug in `test_simpleitk_parity.py`: Section 13 `TestVariationOfInformationParity` → `TestVariationOfInformationSection13Parity` and `TestTotalCorrelationParity` → `TestTotalCorrelationSection13Parity` (Python's last-definition semantics was silently dropping Section 7 test suites).
+
+### Closed gaps
+
+- `statistics/information` module absent from `ritk-core` — **Closed**
+- `ritk-python/src/metrics/total_correlation.rs` duplicate entropy kernel (SSOT violation) — **Closed**
+- `ritk-python/src/metrics/variation_of_information.rs` duplicate entropy kernel (SSOT violation) — **Closed**
+- Python test class shadowing suppressing Section 7 VI+TC suites — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-core statistics::information`: 34 passed, 0 failed
+- `cargo test -p ritk-python metrics`: 15 passed, 0 failed (includes `vi_identical_images_is_zero_via_pyfunction` delegation test)
+- `cargo build -p ritk-core -p ritk-python`: 0 errors, 0 warnings
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.5] - 2026-05-13
 ### Changed [patch]
 

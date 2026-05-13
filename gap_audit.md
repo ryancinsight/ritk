@@ -1,3 +1,25 @@
+## Sprint 233 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `statistics/information` module absent from `ritk-core` | 4 leaf files created (entropy/mi/vi/tc), all ≤ 150 lines; 34 tests pass |
+| `ritk-python/src/metrics/total_correlation.rs` duplicate entropy kernel | Replaced 193-line standalone impl with 15-line delegation to `ritk_core`; 15 Python tests pass |
+| `ritk-python/src/metrics/variation_of_information.rs` duplicate entropy kernel | Replaced 168-line standalone impl with 17-line delegation to `ritk_core`; VI delegation test passes |
+| Python test class shadowing in `test_simpleitk_parity.py` | Section 13 duplicate class names renamed; all 9 unique test classes now discoverable |
+
+### SSOT improvements
+- `marginal_entropy`, `joint_entropy`, `joint_entropy_n`, `mutual_information`, `normalized_mutual_information`, `variation_of_information`, `total_correlation` are now canonical in `ritk-core::statistics::information`.
+- `ritk-python` delegates to core; zero duplicate entropy computation kernels remain.
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+
+---
+
 ## Sprint 232 Audit — 2026-05-13
 
 ### Gaps Closed

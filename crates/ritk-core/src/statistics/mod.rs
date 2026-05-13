@@ -1,5 +1,6 @@
 pub mod image_comparison;
 pub mod image_statistics;
+pub mod information;
 pub mod label_statistics;
 pub mod noise_estimation;
 pub mod normalization;
@@ -13,6 +14,10 @@ pub use label_statistics::{
     LabelIntensityStatistics,
 };
 pub use noise_estimation::{estimate_noise_mad, estimate_noise_mad_masked};
+pub use information::{
+    joint_entropy, joint_entropy_n, marginal_entropy, mutual_information,
+    normalized_mutual_information, total_correlation, variation_of_information,
+};
 pub use normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
     WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,

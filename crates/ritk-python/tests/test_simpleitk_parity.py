@@ -3569,7 +3569,7 @@ def _numpy_mi(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> float:
 
 
 @pytest.mark.skipif(not _HAS_METRICS, reason="ritk.metrics VI/TC not available")
-class TestVariationOfInformationParity:
+class TestVariationOfInformationSection13Parity:
     """Section 13a - Variation of Information (Meilă 2003) parity tests.
 
     Mathematical invariants verified:
@@ -3695,7 +3695,7 @@ class TestVariationOfInformationParity:
 
 
 @pytest.mark.skipif(not _HAS_METRICS, reason="ritk.metrics VI/TC not available")
-class TestTotalCorrelationParity:
+class TestTotalCorrelationSection13Parity:
     """Section 13b - Total Correlation / Multivariate MI (Watanabe 1960) parity tests.
 
     Mathematical invariants:
