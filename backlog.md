@@ -1,3 +1,85 @@
+## Sprint 223 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.1 [patch]
+**Goal**: Close the remaining image-related structural gap by splitting `image_comparison.rs` into metric-family leaf modules.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| `image_comparison.rs` violation | 904-line flat file in `ritk-core/statistics` exceeded the 500-line structural limit | **Closed** |
+| Image comparison SoC | Overlap, surface-distance, and image-quality metrics shared one module body | **Closed** |
+| Image gap audit refresh | Active image backlog reconciled after color-volume and image-comparison closure | **Closed** |
+
+### Delivered
+- `crates/ritk-core/src/statistics/image_comparison/mod.rs`: public module docs and re-exports.
+- `crates/ritk-core/src/statistics/image_comparison/overlap.rs`: Dice coefficient.
+- `crates/ritk-core/src/statistics/image_comparison/surface.rs`: boundary extraction, distance primitives, Hausdorff distance, and mean surface distance.
+- `crates/ritk-core/src/statistics/image_comparison/quality.rs`: PSNR and global SSIM.
+- `crates/ritk-core/src/statistics/image_comparison/tests/`: overlap, surface, and quality metric tests split by domain.
+- Deleted `crates/ritk-core/src/statistics/image_comparison.rs`.
+- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
+## Sprint 222 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.0 [minor]
+**Goal**: Close the TIFF branch of the non-DICOM color-volume loader gap and refresh the active image-gap audit.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| TIFF color-volume loader | `ritk-tiff` loads RGB TIFF / BigTIFF page stacks into `RgbVolume<B>` | **Closed** |
+| Non-DICOM color-volume loader sequence | PNG, JPEG, and TIFF now have channel-explicit RGB loader paths | **Closed** |
+| TIFF color facade exports | `ritk-io::format::tiff` and top-level `ritk-io` expose the authoritative TIFF RGB API without duplicated implementation bodies | **Closed** |
+| Image gap audit refresh | Active image-format backlog reconciled after PNG/JPEG/TIFF color-volume closure | **Closed** |
+
+### Delivered
+- `crates/ritk-tiff/src/color.rs`: RGB TIFF page-stack loader with shape `[page_count, height, width, 3]`, `ColorType::RGB(_)` validation, dimension/sample-count checks, default spatial metadata, and value-semantic tests.
+- `crates/ritk-tiff/src/reader.rs`: shared `DecodingResult -> f32` conversion made crate-visible for scalar and RGB loaders.
+- `crates/ritk-tiff/src/lib.rs`, `crates/ritk-io/src/format/tiff/mod.rs`, and `crates/ritk-io/src/lib.rs`: TIFF color-volume API exports.
+- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| `image_comparison.rs` violation | 904-line file in ritk-core/statistics | Medium |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
+## Sprint 221 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.48.0 [minor]
+**Goal**: Close the JPEG branch of the non-DICOM color-volume loader gap and refresh the image-gap audit.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| JPEG color-volume loader | `ritk-jpeg` loads strict decoded `Rgb8` JPEG files into `RgbVolume<B>` | **Closed for JPEG** |
+| JPEG color facade exports | `ritk-io::format::jpeg` and top-level `ritk-io` expose the authoritative JPEG RGB API without duplicated implementation bodies | **Closed** |
+| Image gap audit refresh | Active image backlog reconciled after DICOM rescale and registration gap closures | **Closed** |
+
+### Delivered
+- `crates/ritk-jpeg/src/color.rs`: JPEG RGB loader with shape `[1, height, width, 3]`, decoded-`Rgb8` validation, default spatial metadata, and value-semantic tests.
+- `crates/ritk-jpeg/src/lib.rs`: public JPEG color API export while preserving scalar JPEG reader/writer APIs.
+- `crates/ritk-io/src/format/jpeg/mod.rs` and `crates/ritk-io/src/lib.rs`: facade re-exports for the JPEG color-volume API.
+- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| TIFF color-volume loader | Extend `RgbVolume<B>` loading to RGB TIFF page stacks | Medium |
+| `image_comparison.rs` violation | 904-line file in ritk-core/statistics | Medium |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
 ## Sprint 220 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
@@ -32,32 +114,6 @@
 |---|---|---|
 | `image_comparison.rs` violation | 904-line file in ritk-core/statistics | Medium |
 | JPEG/TIFF color-volume loaders | Non-DICOM color formats | Medium |
-| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
-| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
-
-## Sprint 220 — Complete
-**Status**: Complete
-**Phase**: Phase 3 Closure
-**Version**: 0.48.0 [minor]
-**Goal**: Close the JPEG branch of the non-DICOM color-volume loader gap and refresh the image-gap audit.
-
-### Gaps closed
-| Gap ID | Description | Status |
-|---|---|---|
-| JPEG color-volume loader | `ritk-jpeg` loads strict decoded `Rgb8` JPEG files into `RgbVolume<B>` | **Closed for JPEG** |
-| JPEG color facade exports | `ritk-io::format::jpeg` and top-level `ritk-io` expose the authoritative JPEG RGB API without duplicated implementation bodies | **Closed** |
-| Image gap audit refresh | Active image backlog reconciled after DICOM rescale and registration gap closures | **Closed** |
-
-### Delivered
-- `crates/ritk-jpeg/src/color.rs`: JPEG RGB loader with shape `[1, height, width, 3]`, decoded-`Rgb8` validation, default spatial metadata, and value-semantic tests.
-- `crates/ritk-jpeg/src/lib.rs`: public JPEG color API export while preserving scalar JPEG reader/writer APIs.
-- `crates/ritk-io/src/format/jpeg/mod.rs` and `crates/ritk-io/src/lib.rs`: facade re-exports for the JPEG color-volume API.
-- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
-
-### Remaining high-priority gaps
-| Task | Description | Priority |
-|---|---|---|
-| TIFF color-volume loader | Extend `RgbVolume<B>` loading to RGB TIFF page stacks | Medium |
 | Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
 | AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
 

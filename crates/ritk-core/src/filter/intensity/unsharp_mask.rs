@@ -51,10 +51,10 @@
 //! - ITK Software Guide 4th Ed., §6.5.2 UnsharpMaskingImageFilter.
 
 use crate::filter::discrete_gaussian::DiscreteGaussianFilter;
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Unsharp mask sharpening filter for 3-D volumes.
 ///
@@ -123,27 +123,13 @@ impl UnsharpMaskFilter {
     /// # Errors
     /// Returns `Err` if tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let shape = image.shape();
-        let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
-        let n = depth * rows * cols;
-
-        // Extract input values.
-        let input_td = image.data().clone().into_data();
-        let input: Vec<f32> = input_td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("UnsharpMaskFilter: failed to extract f32 slice: {e:?}"))?
-            .to_vec();
+        let (input, dims) = extract_vec_infallible(image);
+        let n = input.len();
 
         // Compute blurred image via DiscreteGaussianFilter (variance = sigma^2).
         let variance: Vec<f64> = self.sigmas.iter().map(|&s| s * s).collect();
         let blur = DiscreteGaussianFilter::<B>::new(variance).apply(image);
-        let blurred_td = blur.data().clone().into_data();
-        let blurred: Vec<f32> = blurred_td
-            .as_slice::<f32>()
-            .map_err(|e| {
-                anyhow::anyhow!("UnsharpMaskFilter: failed to extract blurred f32 slice: {e:?}")
-            })?
-            .to_vec();
+        let (blurred, _) = extract_vec_infallible(&blur);
 
         let amount = self.amount as f32;
         let threshold = self.threshold as f32;
@@ -184,16 +170,7 @@ impl UnsharpMaskFilter {
             output.push(sharpened.clamp(v_min, v_max));
         }
 
-        let device = image.data().device();
-        let out_td = TensorData::new(output, Shape::new([depth, rows, cols]));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(output, dims, image))
     }
 }
 
@@ -202,6 +179,7 @@ impl UnsharpMaskFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

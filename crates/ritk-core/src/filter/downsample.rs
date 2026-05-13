@@ -92,7 +92,11 @@ mod tests {
         let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
         let img = make_image(data.clone(), [2, 3, 4]);
         let out = DownsampleFilter::<B>::new(vec![1, 1, 1]).apply(&img);
-        assert_eq!(out.shape(), img.shape(), "shape must be unchanged for factor=1");
+        assert_eq!(
+            out.shape(),
+            img.shape(),
+            "shape must be unchanged for factor=1"
+        );
         let got = out.data().clone().into_data().into_vec::<f32>().unwrap();
         assert_eq!(got, data, "voxels must be identical for factor=1");
     }
@@ -157,8 +161,17 @@ mod tests {
             Direction::identity(),
         );
         let out = DownsampleFilter::<B>::new(vec![3, 2, 1]).apply(&img);
-        assert!((out.spacing()[0] - 1.5).abs() < 1e-9, "spacing[0]: 0.5*3=1.5");
-        assert!((out.spacing()[1] - 2.0).abs() < 1e-9, "spacing[1]: 1.0*2=2.0");
-        assert!((out.spacing()[2] - 2.0).abs() < 1e-9, "spacing[2]: 2.0*1=2.0");
+        assert!(
+            (out.spacing()[0] - 1.5).abs() < 1e-9,
+            "spacing[0]: 0.5*3=1.5"
+        );
+        assert!(
+            (out.spacing()[1] - 2.0).abs() < 1e-9,
+            "spacing[1]: 1.0*2=2.0"
+        );
+        assert!(
+            (out.spacing()[2] - 2.0).abs() < 1e-9,
+            "spacing[2]: 2.0*1=2.0"
+        );
     }
 }

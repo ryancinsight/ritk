@@ -123,6 +123,34 @@ pub fn rebuild<B: Backend, const D: usize>(
     Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
+#[inline]
+pub fn rebuild_with_origin<B: Backend, const D: usize>(
+    vals: Vec<f32>,
+    dims: [usize; D],
+    new_origin: crate::spatial::Point<D>,
+    src: &Image<B, D>,
+) -> Image<B, D> {
+    let device = src.data().device();
+    let td = TensorData::new(vals, Shape::new(dims));
+    let tensor = Tensor::<B, D>::from_data(td, &device);
+    Image::new(tensor, new_origin, *src.spacing(), *src.direction())
+}
+
+#[inline]
+pub fn rebuild_with_metadata<B: Backend, const D: usize>(
+    vals: Vec<f32>,
+    dims: [usize; D],
+    new_origin: crate::spatial::Point<D>,
+    new_spacing: crate::spatial::Spacing<D>,
+    new_direction: crate::spatial::Direction<D>,
+    src: &Image<B, D>,
+) -> Image<B, D> {
+    let device = src.data().device();
+    let td = TensorData::new(vals, Shape::new(dims));
+    let tensor = Tensor::<B, D>::from_data(td, &device);
+    Image::new(tensor, new_origin, new_spacing, new_direction)
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -192,7 +220,11 @@ mod tests {
         let rebuilt = rebuild(vals, dims, &img);
 
         assert_eq!(rebuilt.origin(), img.origin(), "origin must be preserved");
-        assert_eq!(rebuilt.spacing(), img.spacing(), "spacing must be preserved");
+        assert_eq!(
+            rebuilt.spacing(),
+            img.spacing(),
+            "spacing must be preserved"
+        );
     }
 
     /// extract_vec_infallible produces the same result as extract_vec.
@@ -215,6 +247,10 @@ mod tests {
         let img = make_image_3d(data.clone(), [3, 4, 5]);
         let (vals, dims) = extract_vec(&img).unwrap();
         let out = rebuild(vals, dims, &img);
-        assert_eq!(out.shape(), img.shape(), "rebuilt shape must match source shape");
+        assert_eq!(
+            out.shape(),
+            img.shape(),
+            "rebuilt shape must match source shape"
+        );
     }
 }

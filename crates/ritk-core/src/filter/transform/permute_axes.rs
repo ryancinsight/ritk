@@ -30,10 +30,10 @@
 //!
 //! `itk::PermuteAxesImageFilter` with `SetOrder({a, b, c})`.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild_with_metadata};
 use crate::image::Image;
 use crate::spatial::{Direction, Spacing};
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Rearrange the axes of a 3-D image according to a permutation.
 ///
@@ -70,13 +70,9 @@ impl PermuteAxesImageFilter {
             seen[ax] = true;
         }
 
-        let in_shape = image.shape(); // [Nz, Ny, Nx]
+        let (vals_vec, in_shape) = extract_vec_infallible(image);
+        let vals = &vals_vec;
         let out_shape = [in_shape[order[0]], in_shape[order[1]], in_shape[order[2]]];
-
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("PermuteAxesImageFilter: {:?}", e))?;
 
         let [_inz, iny, inx] = in_shape;
         let [oz, oy, ox] = out_shape;
@@ -118,14 +114,13 @@ impl PermuteAxesImageFilter {
         }
         let new_dir = Direction(new_dir_mat);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new(out_shape));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
+        Ok(rebuild_with_metadata(
+            out,
+            out_shape,
             *image.origin(),
             new_spacing,
             new_dir,
+            image,
         ))
     }
 }

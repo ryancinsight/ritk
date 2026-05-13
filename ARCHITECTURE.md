@@ -181,18 +181,22 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 
 **Boundary surface**:
 - `ritk-png` owns `read_png_to_image`, `read_png_series`, `PngReader<B>`, and `PngSeriesReader<B>`.
+- `ritk-png` owns `read_png_color_to_volume`, `read_png_color_series`, `PngColorReader<B>`, and `PngColorSeriesReader<B>`.
 - Reader invariant: grayscale pixels decode into `Image<B, 3>` with tensor shape `[1, height, width]` for a single PNG and `[slice_count, height, width]` for a series.
+- RGB reader invariant: decoded `Rgb8` pixels decode into `RgbVolume<B>` with tensor shape `[1, height, width, 3]` for a single PNG and `[slice_count, height, width, 3]` for a series.
 - Metadata invariant: PNG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
-- Series invariant: directory slices are ordered by deterministic natural filename order and dimension mismatches are rejected.
+- Series invariant: directory slices are ordered by deterministic natural filename order and dimension mismatches are rejected before tensor construction.
 - `ritk-io::format::png` is a facade re-export plus local `ImageReader` adapters only.
 
 ### 11. JPEG Format Boundary
 
-> **Theorem 11.1 (JPEG 2D Ownership)**: JPEG grayscale file parsing and writing have exactly one implementation body owned by `ritk-jpeg`.
+> **Theorem 11.1 (JPEG 2D Ownership)**: JPEG grayscale and RGB file parsing have exactly one implementation body owned by `ritk-jpeg`.
 
 **Boundary surface**:
 - `ritk-jpeg` owns `read_jpeg`, `write_jpeg`, `JpegReader<B>`, and `JpegWriter<B>`.
+- `ritk-jpeg` owns `read_jpeg_color_to_volume` and `JpegColorReader<B>`.
 - Reader invariant: decoded JPEG Luma8 pixels become `Image<B, 3>` with tensor shape `[1, height, width]`.
+- RGB reader invariant: decoded JPEG `Rgb8` pixels become `RgbVolume<B>` with tensor shape `[1, height, width, 3]`.
 - Writer invariant: input `Image<B, 3>` must have `nz == 1`; values are rounded, clamped to `[0,255]`, and encoded as 8-bit grayscale.
 - Metadata invariant: JPEG carries no physical-space metadata, so origin is `[0,0,0]`, spacing is `[1,1,1]`, and direction is identity.
 - `ritk-io::format::jpeg` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
@@ -203,7 +207,9 @@ MetaImage parser/writer dependency changes stay behind `ritk-metaimage`; callers
 
 **Boundary surface**:
 - `ritk-tiff` owns `read_tiff`, `write_tiff`, `TiffReader<B>`, and `TiffWriter`.
+- `ritk-tiff` owns `read_tiff_color_to_volume` and `TiffColorReader<B>`.
 - Reader invariant: TIFF pages decode into `Image<B, 3>` with tensor shape `[page_count, height, width]`; a single-page TIFF has depth 1.
+- RGB reader invariant: TIFF RGB pages decode into `RgbVolume<B>` with tensor shape `[page_count, height, width, 3]`.
 - Writer invariant: `Image<B, 3>` is emitted as a page stack with one page per depth slice.
 - `ritk-io::format::tiff` is a facade re-export plus local `ImageReader` / `ImageWriter` adapters only.
 
@@ -252,10 +258,33 @@ For any PET voxel value `p` in Bq/mL, patient mass `m_kg`, injected dose `d_bq`,
 - `ritk-core::image::RgbVolume<B>` is the `C = 3` specialization for interleaved RGB volume data.
 - `ritk-io::format::dicom::read_dicom_color_series` loads validated interleaved RGB DICOM series into `RgbVolume<B>` while preserving spatial metadata from the scalar DICOM series scanner.
 - `ritk-io::format::dicom::read_dicom_color_multiframe` loads validated interleaved RGB DICOM multiframe objects into `RgbVolume<B>` while preserving multiframe origin, spacing, and direction metadata.
+- `ritk-png::read_png_color_to_volume` and `ritk-png::read_png_color_series` load only decoded `Rgb8` PNG inputs into `RgbVolume<B>` with default PNG spatial metadata.
+- `ritk-jpeg::read_jpeg_color_to_volume` loads only decoded `Rgb8` JPEG inputs into `RgbVolume<B>` with default JPEG spatial metadata.
+- `ritk-tiff::read_tiff_color_to_volume` loads only TIFF `ColorType::RGB(_)` page stacks into `RgbVolume<B>` with default TIFF spatial metadata.
 - Scalar DICOM series and multiframe loaders remain constrained to `SamplesPerPixel = 1`.
 
 **Proof obligation**:
 For any RGB DICOM frame stack with depth `d`, rows `r`, columns `c`, and interleaved samples `S`, the DICOM color loaders construct exactly one tensor with shape `[d,r,c,3]` and element order `S[(((z*r + y)*c + x)*3 + k)]`. If declared metadata is not `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, unsigned 8-bit storage, or consistent spatial dimensions, the loader rejects before constructing `RgbVolume<B>`.
+
+For any RGB PNG stack with depth `d`, height `h`, width `w`, and decoded interleaved RGB bytes `S`, the PNG color loaders construct exactly one tensor with shape `[d,h,w,3]` and element order `S[(((z*h + y)*w + x)*3 + k)]`. If any slice decodes as a non-`Rgb8` color type or has dimensions different from the first slice, the loader rejects before constructing `RgbVolume<B>`.
+
+For any RGB JPEG decode result with height `h`, width `w`, and interleaved RGB bytes `S`, the JPEG color loader constructs exactly one tensor with shape `[1,h,w,3]` and element order `S[((y*w + x)*3 + k)]`. Because JPEG is lossy, the preservation contract is over the decoded raster `S`, not the pre-encoding source raster. If the decoded color type is not `Rgb8`, the loader rejects before constructing `RgbVolume<B>`.
+
+For any RGB TIFF page stack with depth `d`, height `h`, width `w`, and decoded interleaved samples `S`, the TIFF color loader constructs exactly one tensor with shape `[d,h,w,3]` and element order `S[(((z*h + y)*w + x)*3 + k)]`. If any page is not `ColorType::RGB(_)`, has dimensions different from the first page, or decodes to a sample count different from `h*w*3`, the loader rejects before constructing `RgbVolume<B>`.
+
+### 17. Image Comparison Metrics Boundary
+
+> **Theorem 17.1 (Metric Family Separation)**: Image comparison metrics with different mathematical domains must live in separate leaf modules while preserving one public metric API surface.
+
+**Boundary surface**:
+- `ritk-core::statistics::image_comparison::overlap` owns Dice overlap computation.
+- `ritk-core::statistics::image_comparison::surface` owns boundary extraction, distance primitives, Hausdorff distance, and mean surface distance.
+- `ritk-core::statistics::image_comparison::quality` owns PSNR and global SSIM.
+- `ritk-core::statistics::image_comparison::tests` owns value-semantic tests partitioned by the same metric families.
+- `ritk-core::statistics` re-exports `dice_coefficient`, `hausdorff_distance`, `mean_surface_distance`, `psnr`, and `ssim`; caller-visible paths are unchanged.
+
+**Proof obligation**:
+For every public metric function `f` moved from the flat module, the new module tree exports exactly the same symbol, signature, and return contract. Since each function body was moved without semantic dependency changes and the focused `statistics::image_comparison` test suite validates analytical values for overlap, surface distance, PSNR, and SSIM, the split is behavior-preserving.
 
 ---
 

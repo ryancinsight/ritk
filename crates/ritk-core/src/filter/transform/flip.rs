@@ -25,9 +25,9 @@
 //! |--------------------|--------------------|-----------------------------|
 //! | `FlipImageFilter`  | `FlipImageFilter`  | Flip Horizontally / Vertically |
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Flip a 3-D image along any combination of the Z, Y, and X axes.
 ///
@@ -64,12 +64,10 @@ impl FlipImageFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("FlipImageFilter requires f32 data: {:?}", e))?;
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
+        let [nz, ny, nx] = dims;
         let [fz, fy, fx] = self.axes;
         let mut out = vec![0.0f32; nz * ny * nx];
 
@@ -86,15 +84,7 @@ impl FlipImageFilter {
             }
         }
 
-        let device = image.data().device();
-        let td_out = TensorData::new(out, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 

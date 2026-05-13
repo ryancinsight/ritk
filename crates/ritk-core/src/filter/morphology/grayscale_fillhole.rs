@@ -189,13 +189,11 @@ fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let iz = flat / (ny * nx);
         let iy = (flat % (ny * nx)) / nx;
         let ix = flat % nx;
-        for nb_opt in neighbours(iz, iy, ix) {
-            if let Some(nb) = nb_opt {
-                let new_level = level.max(data[nb]);
-                if new_level < h[nb] {
-                    h[nb] = new_level;
-                    heap.push(Reverse((new_level.to_bits(), nb)));
-                }
+        for nb in neighbours(iz, iy, ix).into_iter().flatten() {
+            let new_level = level.max(data[nb]);
+            if new_level < h[nb] {
+                h[nb] = new_level;
+                heap.push(Reverse((new_level.to_bits(), nb)));
             }
         }
     }

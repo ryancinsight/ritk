@@ -20,10 +20,10 @@ pub mod equalization;
 pub mod mask;
 pub mod rescale;
 pub mod sigmoid;
+pub mod suv;
 pub mod threshold;
 pub mod unsharp_mask;
 pub mod windowing;
-pub mod suv;
 
 pub use arithmetic::{
     AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, NormalizeImageFilter,
@@ -50,9 +50,9 @@ pub mod shift_scale;
 pub mod trig;
 pub mod zero_crossing;
 pub use shift_scale::ShiftScaleImageFilter;
+pub use suv::SuvBodyWeightImageFilter;
 pub use trig::{
     AcosImageFilter, AsinImageFilter, AtanImageFilter, BoundedReciprocalImageFilter,
     CosImageFilter, SinImageFilter, TanImageFilter,
 };
 pub use zero_crossing::ZeroCrossingImageFilter;
-pub use suv::SuvBodyWeightImageFilter;

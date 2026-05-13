@@ -25,9 +25,9 @@
 //! `itk::ZeroCrossingImageFilter` with `SetForegroundValue` / `SetBackgroundValue`.
 //! Typical use: detect zero crossings of a Laplacian-of-Gaussian edge image.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Detect zero crossings in a 3-D image.
 ///
@@ -67,11 +67,9 @@ impl ZeroCrossingImageFilter {
 
     /// Apply to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("ZeroCrossingImageFilter: {:?}", e))?;
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = &vals_vec;
+        let [nz, ny, nx] = dims;
 
         let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
 
@@ -121,15 +119,7 @@ impl ZeroCrossingImageFilter {
             }
         }
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new([nz, ny, nx]));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 
@@ -138,6 +128,7 @@ mod tests {
     use super::*;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

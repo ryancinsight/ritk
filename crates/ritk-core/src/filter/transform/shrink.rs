@@ -35,10 +35,10 @@
 //!
 //! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed. §4.7.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild_with_metadata};
 use crate::image::Image;
 use crate::spatial::Spacing;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Integer downsampling filter.
 ///
@@ -70,8 +70,6 @@ impl ShrinkImageFilter {
     /// Apply the shrink filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = image.shape();
-        let device = image.data().device();
-
         let [fz, fy, fx] = [
             self.shrink_factors[0].max(1),
             self.shrink_factors[1].max(1),
@@ -83,10 +81,8 @@ impl ShrinkImageFilter {
         let oy = ny.div_ceil(fy);
         let ox = nx.div_ceil(fx);
 
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ShrinkImageFilter: {:?}", e))?;
+        let (vals_vec, _) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let mut out = vec![0.0f32; oz * oy * ox];
 
@@ -122,14 +118,13 @@ impl ShrinkImageFilter {
             in_s[2] * fx as f64,
         ]);
 
-        let shape = Shape::new([oz, oy, ox]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
+        Ok(rebuild_with_metadata(
+            out,
+            [oz, oy, ox],
             *image.origin(),
             out_spacing,
             *image.direction(),
+            image,
         ))
     }
 }
@@ -138,7 +133,7 @@ impl ShrinkImageFilter {
 mod tests {
     use super::*;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn::tensor::TensorData;
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

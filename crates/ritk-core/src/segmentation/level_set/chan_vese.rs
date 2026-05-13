@@ -310,9 +310,11 @@ fn otsu_threshold_f64(img: &[f64]) -> f64 {
         return 0.0;
     }
 
-    let (x_min, x_max) = img.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(mn, mx), &v| {
-        (mn.min(v), mx.max(v))
-    });
+    let (x_min, x_max) = img
+        .iter()
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(mn, mx), &v| {
+            (mn.min(v), mx.max(v))
+        });
 
     if (x_max - x_min).abs() < f64::EPSILON {
         return x_min;

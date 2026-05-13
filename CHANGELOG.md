@@ -3,6 +3,30 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.49.1] - 2026-05-13
+### Changed [patch]
+- Split `ritk-core/src/statistics/image_comparison.rs` (904 lines) into a deep-vertical module tree: `image_comparison/mod.rs`, `overlap.rs`, `surface.rs`, `quality.rs`, and metric-family test leaves. Public metric re-exports are unchanged.
+
+### Added [patch]
+- Section 8 `TestImageComparisonParity` (15 tests) in `test_simpleitk_parity.py`: Dice vs SimpleITK `LabelOverlapMeasures`, Hausdorff distance vs SimpleITK `HausdorffDistanceImageFilter`, MSD bounded by HD, PSNR vs numpy formula (20 dB reference), SSIM vs Wang et al. 2004 numpy implementation.
+
+### Verification
+- `cargo test -p ritk-core --lib statistics::image_comparison -- --nocapture`: 30 passed
+- `python -m pytest -k TestImageComparisonParity -v`: 15 passed
+
+<!-- ──────────────────────────────────────── -->
+## [0.49.0] - 2026-05-13
+### Added [minor]
+- `ritk-tiff::read_tiff_color_to_volume` and `TiffColorReader` for RGB TIFF / BigTIFF page-stack loading into `RgbVolume<B>` with tensor shape `[page_count, height, width, 3]`.
+- `ritk-io::format::tiff` and top-level `ritk-io` re-exports for the TIFF RGB color-volume API.
+- Value-semantic TIFF RGB tests for page-stack sample preservation, grayscale rejection, and reader delegation.
+
+### Verification
+- `cargo test -p ritk-tiff --lib color -- --nocapture`: 3 passed
+- `cargo test -p ritk-tiff --lib -- --nocapture`: 16 passed
+- `cargo test -p ritk-io --lib format::tiff -- --nocapture`: 1 passed
+
+<!-- ──────────────────────────────────────── -->
 ## [0.48.0] - 2026-05-13
 ### Added [minor]
 - `ritk-jpeg::read_jpeg_color_to_volume` and `JpegColorReader` for strict decoded `Rgb8` JPEG loading into `RgbVolume<B>` with tensor shape `[1, height, width, 3]`.

@@ -15,9 +15,9 @@
 //! - Spatial metadata (shape, origin, spacing, direction) is preserved exactly.
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Convert PET activity concentration (Bq/mL) to SUV Body Weight (SUVbw).
 ///
@@ -64,28 +64,14 @@ impl SuvBodyWeightImageFilter {
     /// Returns a new `Image` with identical spatial metadata and
     /// voxel values transformed to SUVbw.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("SuvBodyWeightImageFilter: {:?}", e))?;
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let factor = self.suv_factor();
 
-        let out_vals: Vec<f32> = vals
-            .iter()
-            .map(|&v| (v as f64 * factor) as f32)
-            .collect();
+        let out_vals: Vec<f32> = vals.iter().map(|&v| (v as f64 * factor) as f32).collect();
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out_vals, Shape::new(dims));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out_vals, dims, image))
     }
 }
 
@@ -129,12 +115,12 @@ mod tests {
     fn test_suv_apply() {
         let filter = SuvBodyWeightImageFilter::new(75.0, 350e6);
         let factor = filter.suv_factor() as f32;
-        
+
         // 10000 Bq/mL should become ~2.14 SUV
         let img = make_image(vec![0.0, 10000.0, 20000.0], [1, 1, 3]);
         let out = filter.apply(&img).unwrap();
         let v = voxels(&out);
-        
+
         assert!((v[0] - 0.0).abs() < 1e-5);
         assert!((v[1] - 10000.0 * factor).abs() < 1e-5);
         assert!((v[2] - 20000.0 * factor).abs() < 1e-5);

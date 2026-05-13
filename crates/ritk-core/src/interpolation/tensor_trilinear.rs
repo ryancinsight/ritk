@@ -16,8 +16,12 @@ pub fn trilinear_interpolation<B: Backend>(
     let [_, _, out_d, out_h, out_w] = grid.dims();
 
     // Split grid into z, y, x
-    let z = grid.clone().slice([0..b, 0..1, 0..out_d, 0..out_h, 0..out_w]);
-    let y = grid.clone().slice([0..b, 1..2, 0..out_d, 0..out_h, 0..out_w]);
+    let z = grid
+        .clone()
+        .slice([0..b, 0..1, 0..out_d, 0..out_h, 0..out_w]);
+    let y = grid
+        .clone()
+        .slice([0..b, 1..2, 0..out_d, 0..out_h, 0..out_w]);
     let x = grid.slice([0..b, 2..3, 0..out_d, 0..out_h, 0..out_w]);
 
     // Floor and Ceil
@@ -125,16 +129,14 @@ mod trilinear_tests {
     #[test]
     fn test_trilinear_interpolation_basic() {
         let device = Default::default();
-        
+
         // Create a 1x1x2x2x2 image (B=1, C=1, D=2, H=2, W=2)
-        // Values: 
+        // Values:
         // z=0: [1.0, 2.0; 3.0, 4.0]
         // z=1: [5.0, 6.0; 7.0, 8.0]
         let data: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-        let image = Tensor::<B, 5>::from_data(
-            TensorData::new(data, Shape::new([1, 1, 2, 2, 2])),
-            &device,
-        );
+        let image =
+            Tensor::<B, 5>::from_data(TensorData::new(data, Shape::new([1, 1, 2, 2, 2])), &device);
 
         // Create a sampling grid [B=1, 3, D=1, H=1, W=1]
         // We want to sample at (z=0.5, y=0.5, x=0.5)
@@ -154,17 +156,15 @@ mod trilinear_tests {
     #[test]
     fn test_trilinear_interpolation_channels() {
         let device = Default::default();
-        
+
         // Create a 1x2x2x2x2 image (B=1, C=2, D=2, H=2, W=2)
         // Channel 0: all 10.0
         // Channel 1: all 20.0
         let mut data: Vec<f32> = vec![10.0; 8];
         data.extend(vec![20.0; 8]);
-        
-        let image = Tensor::<B, 5>::from_data(
-            TensorData::new(data, Shape::new([1, 2, 2, 2, 2])),
-            &device,
-        );
+
+        let image =
+            Tensor::<B, 5>::from_data(TensorData::new(data, Shape::new([1, 2, 2, 2, 2])), &device);
 
         // Grid at (0.0, 0.0, 0.0)
         let grid_data: Vec<f32> = vec![0.0, 0.0, 0.0];

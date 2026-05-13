@@ -112,7 +112,7 @@ impl GrayscaleMorphologicalGradientFilter {
         // gradient(x) = dilation(x) - erosion(x); ≥ 0 by extensivity / anti-extensivity.
         let gradient: Vec<f32> = dilated
             .into_iter()
-            .zip(eroded.into_iter())
+            .zip(eroded)
             .map(|(d, e)| d - e)
             .collect();
 
@@ -121,9 +121,9 @@ impl GrayscaleMorphologicalGradientFilter {
         let tensor = Tensor::<B, 3>::from_data(td, &device);
         Ok(Image::new(
             tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
         ))
     }
 }

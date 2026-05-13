@@ -6,16 +6,29 @@ Test datasets for side-by-side RITK vs SimpleITK registration validation.
 
 ### brain_mni/ — Inter-subject T1 brain registration
 
-Primary registration test pair. Both images are skull-stripped T1-weighted brain volumes suitable for affine and deformable registration testing.
+Primary registration test directory. Contains multiple T1 brain volumes for same-modality and inter-subject registration testing.
 
 | File | Source | Shape | Spacing | Dtype | Size |
 |------|--------|-------|---------|-------|------|
-| mni152.nii.gz | ANTs example data (MNI152 atlas) | (215, 256, 207) | (0.74, 0.74, 0.74) mm | float32 | 4.1 MB |
-| sub-01_T1w.nii.gz | OpenNeuro sub-01 T1w | (256, 256, 176) | (1.0, 1.0, 1.0) mm | int16 | 10.1 MB |
-| r16slice.nii.gz | ANTs r16 test slice | (256, 256) | (1.0, 1.0) mm | float32 | 65 KB |
-| r64slice.nii.gz | ANTs r64 test slice | (256, 256) | (1.0, 1.0) mm | uint8 | 18 KB |
+| mni152.nii.gz | ANTs example data (MNI152 atlas) | (207, 256, 215) | (0.74, 0.74, 0.74) mm | float32 | 4.1 MB |
+| sub-01_T1w.nii.gz | OpenNeuro sub-01 T1w | (176, 256, 256) | (1.0, 1.0, 1.0) mm | int16 | 10.6 MB |
+| ants_ch2.nii.gz | ANTs Colin27 average T1 | (181, 217, 181) | (1.0, 1.0, 1.0) mm | float32 | 1.7 MB |
+| ants_mni.nii.gz | ANTs ICBM MNI template | (182, 218, 182) | (1.0, 1.0, 1.0) mm | float32 | 4.1 MB |
+| ants_surf.nii.gz | ANTs cortical surface | (266, 266, 190) | (0.94, 0.94, 1.20) mm | float32 | 273 KB |
+| single_subj_T1.nii.gz | SPM12 canonical T1 | (91, 109, 91) | (2.0, 2.0, 2.0) mm | float32 | 472 KB |
+| ants_r16.nii.gz | ANTs r16 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 26 KB |
+| ants_r27.nii.gz | ANTs r27 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 28 KB |
+| ants_r30.nii.gz | ANTs r30 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 27 KB |
+| ants_r62.nii.gz | ANTs r62 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 28 KB |
+| ants_r64.nii.gz | ANTs r64 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 29 KB |
+| ants_r85.nii.gz | ANTs r85 2D slice | (256, 256) | (1.0, 1.0) mm | float32 | 28 KB |
 
-Registration pair: `mni152.nii.gz` (atlas) ↔ `sub-01_T1w.nii.gz` (subject)
+Registration pairs:
+- `ants_ch2.nii.gz` (Colin27) ↔ `ants_mni.nii.gz` (ICBM MNI) — same-modality, roughly pre-aligned, NCC_before ≈ 0.7-0.9
+- `mni152.nii.gz` (atlas) ↔ `sub-01_T1w.nii.gz` (subject) — inter-subject, NCC_before ≈ 0.04
+- `ants_r*.nii.gz` — 2D slices only, not suitable for 3D registration
+
+Note: `brain_fixed.nii.gz` and `brain_moving.nii.gz` in the parent directory are **byte-identical** copies of `mni152.nii.gz` (NCC=1.0, MSE=0.0). They are NOT a meaningful registration pair.
 
 ### rire/ — RIRE retrospective image registration evaluation
 
@@ -63,21 +76,55 @@ Source: SimpleITK-Notebooks Data manifest (via Kitware SHA512 hash store)
 
 No downloads required. Synthetic test pairs (translated, rotated, deformed versions of existing images) are generated at runtime by the Python test script.
 
+### rire/ — RIRE retrospective image registration evaluation (updated)
+
+Multi-modal (CT ↔ MR T1) registration pair from the Retrospective Image Registration Evaluation project.
+
+| File | Source | Shape | Spacing | Dtype | Size |
+|------|--------|-------|---------|-------|------|
+| training_001_ct.mha | RIRE patient 001 CT | (29, 512, 512) | (0.65, 0.65, 4.0) mm | int16 | 14.5 MB |
+| training_001_mr_T1.mha | RIRE patient 001 MR T1 | (26, 256, 256) | (1.25, 1.25, 4.0) mm | int16 | 3.2 MB |
+| ct_T1.standard | RIRE fiducial ground truth (8 points) | — | — | — | 1 KB |
+| training_001_ct_to_mr_T1_ground_truth.tfm | SimpleITK Euler3D ground-truth transform | — | — | — | 1 KB |
+| ground_truth_registration.md | Full documentation with metadata and verification | — | — | — | 5 KB |
+
+Ground-truth transform (CT → MR T1, Euler3D, center=(0,0,0)):
+- Rotation: 4.440° Z, 1.901° X, 0.043° Y
+- Translation: [5.04, -17.50, -27.16] mm
+- Validation: 8 RIRE corner-point pairs reproduce with max residual 0.000176 mm
+
+Registration pair: `training_001_ct.mha` (CT) ↔ `training_001_mr_T1.mha` (MR T1)
+
 ### emsocket/ — EM-SOCRATES registration benchmark
 
-**Status: Unavailable** — PUMA repository (https://github.com/rii-mango/PUMA) returned HTTP 404. Data not accessible at the referenced URL.
+**Status: Unavailable** — PUMA repository (https://github.com/rii-mango/PUMA) returned HTTP 404.
 
 ### mrbrains/ — MRBrainS18 multi-modal
 
-**Status: Requires authentication** — MRBrainS18 (https://mrbrains18.isi.uu.nl/) requires login for data access. Skipped per spec.
+**Status: Requires authentication** — MRBrainS18 (https://mrbrains18.isi.uu.nl/) requires login.
 
 ### cachalot/ — Cachalot registration benchmark
 
-**Status: Unavailable** — Insight Journal MIDAS Cachalot page (https://www.insight-journal.org/midas/cachalot/) returned HTTP 404. The Insight Journal has been restructured and the legacy MIDAS data is no longer available at the original URL.
+**Status: Unavailable** — Insight Journal MIDAS Cachalot page returned HTTP 404.
 
-### ixi/ — IXI dataset from NITRC
+### ixi/ — OpenNeuro ds000208 inter-subject T1w pair
 
-**Status: Failed** — Download from NITRC (https://www.nitrc.org/frs/download.php/853/IXI-T1.tar.gz) returned a 7.2 MB ZIP file that did not contain NIfTI images — it contained ANTs utility executables (ARCTIC, CortThickCLP, ImageMath, etc.), not IXI brain data. The NITRC download link appears to be mislabeled or redirected. Deleted.
+Same-modality (T1↔T1) inter-subject registration pair from OpenNeuro ds000208.
+
+| File | Source | Shape | Spacing | Dtype | Size |
+|------|--------|-------|---------|-------|------|
+| openneuro_ds000208_sub01_T1w.nii.gz | OpenNeuro ds000208 sub-01 T1w | (256, 256, 160) | (1.0, 1.0, 1.0) mm | float32 | 7.7 MB |
+| openneuro_ds000208_sub02_T1w.nii.gz | OpenNeuro ds000208 sub-02 T1w | (256, 256, 160) | (1.0, 1.0, 1.0) mm | float32 | 8.4 MB |
+| openneuro_ds000208_sub03_T1w.nii.gz | OpenNeuro ds000208 sub-03 T1w | (256, 256, 160) | (1.0, 1.0, 1.0) mm | float32 | 10.0 MB |
+
+Registration pair: `openneuro_ds000208_sub01_T1w.nii.gz` ↔ `openneuro_ds000208_sub02_T1w.nii.gz`
+Baseline NCC ≈ 0.75 (genuine inter-subject variability)
+
+Source: OpenNeuro S3 bucket (s3.amazonaws.com/openneuro.org/ds000208/...)
+
+### ixi/ — IXI dataset from NITRC (deprecated)
+
+**Status: Failed** — Download from NITRC returned a 7.2 MB ZIP file that did not contain NIfTI images — it contained ANTs utility executables, not IXI brain data. Deleted.
 
 ## Acquisition Details
 

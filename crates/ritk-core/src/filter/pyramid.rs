@@ -133,7 +133,11 @@ mod tests {
     fn pyramid_level_count_matches_schedule() {
         let img = make_image([8, 8, 8]);
         let shrink = vec![vec![4, 4, 4], vec![2, 2, 2], vec![1, 1, 1]];
-        let sigmas = vec![vec![2.0, 2.0, 2.0], vec![1.0, 1.0, 1.0], vec![0.0, 0.0, 0.0]];
+        let sigmas = vec![
+            vec![2.0, 2.0, 2.0],
+            vec![1.0, 1.0, 1.0],
+            vec![0.0, 0.0, 0.0],
+        ];
         let pyr = MultiResolutionPyramid::<B, 3>::new(&img, &shrink, &sigmas);
         assert_eq!(pyr.levels(), 3, "pyramid must have 3 levels");
     }
@@ -191,9 +195,18 @@ mod tests {
         assert_eq!(shrink[0], vec![4, 4, 4], "level 0 factor must be 4");
         assert_eq!(shrink[1], vec![2, 2, 2], "level 1 factor must be 2");
         assert_eq!(shrink[2], vec![1, 1, 1], "level 2 factor must be 1");
-        assert!((sigmas[0][0] - 2.0).abs() < 1e-9, "level 0 sigma must be 2.0");
-        assert!((sigmas[1][0] - 1.0).abs() < 1e-9, "level 1 sigma must be 1.0");
-        assert!((sigmas[2][0] - 0.0).abs() < 1e-9, "level 2 sigma must be 0.0");
+        assert!(
+            (sigmas[0][0] - 2.0).abs() < 1e-9,
+            "level 0 sigma must be 2.0"
+        );
+        assert!(
+            (sigmas[1][0] - 1.0).abs() < 1e-9,
+            "level 1 sigma must be 1.0"
+        );
+        assert!(
+            (sigmas[2][0] - 0.0).abs() < 1e-9,
+            "level 2 sigma must be 0.0"
+        );
     }
 
     /// default_schedule(1) produces one level with factor=1 and sigma=0.0.

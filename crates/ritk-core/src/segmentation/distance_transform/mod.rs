@@ -36,9 +36,9 @@
 //! saturates at `(nz + ny + nx)²`. This is a finite upper bound rather than
 //! `f32::INFINITY` to preserve numerical stability in downstream arithmetic.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Sentinel for "infinite" distance in integer grid units.
 /// Set per-image to `nz + ny + nx` so that `INF_DIST²` never overflows `i64`.
@@ -104,7 +104,7 @@ fn lower_envelope_transform(
     debug_assert!(f.len() >= n);
     debug_assert!(dt.len() >= n);
     debug_assert!(v.len() >= n);
-    debug_assert!(z_buf.len() >= n + 1);
+    debug_assert!(z_buf.len() > n);
 
     if n == 0 {
         return;
@@ -195,10 +195,8 @@ fn div_floor_i64(a: i64, b: i64) -> i64 {
 
 /// Binarize the image: voxels with intensity > `threshold` are foreground (true).
 fn binarize<B: Backend>(image: &Image<B, 3>, threshold: f32) -> (Vec<bool>, [usize; 3]) {
-    let shape = image.shape();
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data.as_slice::<f32>().expect("f32 tensor data");
-    let binary: Vec<bool> = slice.iter().map(|&v| v > threshold).collect();
+    let (vec, shape) = extract_vec_infallible(image);
+    let binary: Vec<bool> = vec.iter().map(|&v| v > threshold).collect();
     (binary, shape)
 }
 
@@ -249,14 +247,7 @@ pub fn distance_transform_squared<B: Backend>(
     // Convention: when no foreground exists, all distances are defined as 0 (no seeds = no-op).
     if !binary.iter().any(|&b| b) {
         let zeros = vec![0.0f32; total];
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(zeros, Shape::new(shape)), &device);
-        return Image::new(
-            tensor,
-            image.origin().clone(),
-            image.spacing().clone(),
-            image.direction().clone(),
-        );
+        return rebuild(zeros, shape, image);
     }
 
     // ── Phase 1: scan along X for each (z, y) row ──
@@ -318,16 +309,7 @@ pub fn distance_transform_squared<B: Backend>(
 
     // ── Convert to f32 tensor ──
     let float_result: Vec<f32> = result.iter().map(|&v| v as f32).collect();
-    let device = image.data().device();
-    let tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(float_result, Shape::new(shape)), &device);
-
-    Image::new(
-        tensor,
-        image.origin().clone(),
-        image.spacing().clone(),
-        image.direction().clone(),
-    )
+    rebuild(float_result, shape, image)
 }
 
 /// Compute the Euclidean distance transform (square root of squared distances).
@@ -341,12 +323,7 @@ pub fn distance_transform<B: Backend>(
 ) -> Image<B, 3> {
     let sq = distance_transform_squared(image, foreground_threshold);
     let sqrt_tensor = sq.data().clone().sqrt();
-    Image::new(
-        sqrt_tensor,
-        sq.origin().clone(),
-        sq.spacing().clone(),
-        sq.direction().clone(),
-    )
+    Image::new(sqrt_tensor, *sq.origin(), *sq.spacing(), *sq.direction())
 }
 
 /// Unit struct providing associated-function API for distance transforms.

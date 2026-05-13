@@ -43,8 +43,9 @@
 //! - Nyúl, L. G., Udupa, J. K., & Zhang, X. (2000). New variants of a method
 //!   of MRI scale standardization. *IEEE Trans. Med. Imaging*, 19(2), 143–150.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use burn::tensor::backend::Backend;
 
 // ── Percentile Helper ─────────────────────────────────────────────────────────
 
@@ -213,9 +214,8 @@ impl NyulUdupaNormalizer {
         let mut sum_landmarks = vec![0.0f64; m];
 
         for image in images {
-            let data = image.data().clone().into_data();
-            let slice = data.as_slice::<f32>().expect("f32 image tensor data");
-            let mut values: Vec<f32> = slice.to_vec();
+            let (values_vec, _) = extract_vec_infallible(*image);
+            let mut values = values_vec;
             sort_f32(&mut values);
 
             for (j, &p) in self.percentiles.iter().enumerate() {
@@ -251,13 +251,12 @@ impl NyulUdupaNormalizer {
             anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
         })?;
 
-        let device = image.data().device();
+        let _device = image.data().device();
         let shape: [usize; D] = image.shape();
 
         // ── 1. Extract and sort voxel intensities ─────────────────────────────
-        let img_data = image.data().clone().into_data();
-        let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
-        let mut sorted: Vec<f32> = img_slice.to_vec();
+        let (img_slice, dims) = extract_vec_infallible(image);
+        let mut sorted: Vec<f32> = img_slice.clone();
         sort_f32(&mut sorted);
 
         // ── 2. Compute input image landmarks ──────────────────────────────────
@@ -275,15 +274,7 @@ impl NyulUdupaNormalizer {
         }
 
         // ── 4. Reconstruct image ──────────────────────────────────────────────
-        let out_tensor =
-            Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
-
-        Ok(Image::new(
-            out_tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(output, dims, image))
     }
 }
 
@@ -297,6 +288,7 @@ impl Default for NyulUdupaNormalizer {
 mod tests {
     use super::*;
     use crate::spatial::{Direction, Point, Spacing};
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;

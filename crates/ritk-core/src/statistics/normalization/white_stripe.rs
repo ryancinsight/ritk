@@ -47,9 +47,9 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// MRI contrast type for white stripe peak detection.
 ///
@@ -139,13 +139,13 @@ impl WhiteStripeNormalizer {
         config: &WhiteStripeConfig,
     ) -> WhiteStripeResult<B> {
         // Step 1: Extract foreground voxel intensities.
-        let all_data = image.data().clone().into_data();
-        let all_slice = all_data.as_slice::<f32>().expect("f32 tensor data");
+        let (all_vec, dims) = extract_vec_infallible(image);
+        let all_slice = &all_vec;
 
         let foreground: Vec<f64> = match mask {
             Some(m) => {
-                let mask_data = m.data().clone().into_data();
-                let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+                let (mask_vec, _) = extract_vec_infallible(m);
+                let mask_slice = &mask_vec;
                 assert_eq!(
                     all_slice.len(),
                     mask_slice.len(),
@@ -240,17 +240,7 @@ impl WhiteStripeNormalizer {
             .map(|&v| ((v as f64 - mu_ws) / denom) as f32)
             .collect();
 
-        let device = image.data().device();
-        let shape = image.shape();
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(normalized_data, Shape::new(shape)), &device);
-
-        let normalized = Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        );
+        let normalized = rebuild(normalized_data, dims, image);
 
         WhiteStripeResult {
             normalized,
@@ -476,6 +466,7 @@ fn find_extreme_local_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;

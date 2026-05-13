@@ -2372,3 +2372,225 @@ class TestVariationOfInformationParity:
         with pytest.raises((ValueError, RuntimeError)):
             ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=16)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Section 8 — Image Comparison Metrics parity vs SimpleITK
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _sphere_mask(radius: int = SIZE // 4) -> np.ndarray:
+    """Binary sphere mask: value 1.0 inside sphere of given radius, else 0.0."""
+    c = (SIZE - 1) / 2.0
+    z, y, x = np.mgrid[0:SIZE, 0:SIZE, 0:SIZE]
+    dist_sq = (z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2
+    return (dist_sq <= radius ** 2).astype(np.float32)
+
+
+def _sphere_mask_shifted(shift: int, axis: int = 2) -> np.ndarray:
+    """Sphere mask shifted by `shift` voxels along `axis`."""
+    c = (SIZE - 1) / 2.0
+    z, y, x = np.mgrid[0:SIZE, 0:SIZE, 0:SIZE]
+    offsets = [c, c, c]
+    offsets[axis] += shift
+    dist_sq = (z - offsets[0]) ** 2 + (y - offsets[1]) ** 2 + (x - offsets[2]) ** 2
+    return (dist_sq <= (SIZE // 4) ** 2).astype(np.float32)
+
+
+class TestImageComparisonParity:
+    """Parity tests for dice_coefficient, hausdorff_distance, mean_surface_distance,
+    psnr, and ssim against SimpleITK or analytically-derived references."""
+
+    # ── Dice coefficient ──────────────────────────────────────────────────────
+
+    def test_dice_identical_masks_vs_sitk(self):
+        """dice_coefficient(A, A) must equal SimpleITK LabelOverlapMeasures Dice(A, A) = 1."""
+        arr = _sphere_mask()
+        ritk_dice = ritk.statistics.dice_coefficient(_ritk(arr), _ritk(arr))
+        # SimpleITK LabelOverlapMeasures requires integer label images.
+        lbl = sitk.Cast(_sitk(arr), sitk.sitkUInt8)
+        f = sitk.LabelOverlapMeasuresImageFilter()
+        f.Execute(lbl, lbl)
+        sitk_dice = f.GetDiceCoefficient()
+        assert abs(ritk_dice - 1.0) < 1e-5, f"RITK Dice(A,A) = {ritk_dice}, expected 1.0"
+        assert abs(sitk_dice - 1.0) < 1e-5, f"SITK Dice(A,A) = {sitk_dice}, expected 1.0"
+        assert abs(ritk_dice - sitk_dice) < 1e-4, (
+            f"RITK dice {ritk_dice:.6f} != SITK dice {sitk_dice:.6f}"
+        )
+
+    def test_dice_half_overlap_vs_sitk(self):
+        """dice_coefficient on half-overlapping 1D masks agrees with SimpleITK to 1e-4."""
+        # 1D masks embedded in 3D: shape [1, 1, 8].
+        pred = np.array([[[1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]]], dtype=np.float32)
+        gt = np.array([[[0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]]], dtype=np.float32)
+        # Analytical: |P∩G|=2, |P|=4, |G|=4 → Dice=2·2/(4+4)=0.5.
+        ritk_dice = ritk.statistics.dice_coefficient(_ritk(pred), _ritk(gt))
+        assert abs(ritk_dice - 0.5) < 1e-5, f"RITK Dice = {ritk_dice}, expected 0.5"
+        # SimpleITK
+        lbl_p = sitk.Cast(_sitk(pred), sitk.sitkUInt8)
+        lbl_g = sitk.Cast(_sitk(gt), sitk.sitkUInt8)
+        f = sitk.LabelOverlapMeasuresImageFilter()
+        f.Execute(lbl_p, lbl_g)
+        sitk_dice = f.GetDiceCoefficient()
+        assert abs(ritk_dice - sitk_dice) < 1e-4, (
+            f"RITK dice {ritk_dice:.6f} != SITK dice {sitk_dice:.6f}"
+        )
+
+    def test_dice_both_empty_convention(self):
+        """dice_coefficient returns 1.0 when both masks are empty (trivially identical)."""
+        empty = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+        ritk_dice = ritk.statistics.dice_coefficient(_ritk(empty), _ritk(empty))
+        assert abs(ritk_dice - 1.0) < 1e-5, (
+            f"both-empty Dice should be 1.0 by convention, got {ritk_dice}"
+        )
+
+    # ── Hausdorff distance ────────────────────────────────────────────────────
+
+    def test_hausdorff_identical_masks_is_zero_vs_sitk(self):
+        """hausdorff_distance(A, A) = 0 matches SimpleITK HausdorffDistance."""
+        arr = _sphere_mask()
+        ritk_hd = ritk.statistics.hausdorff_distance(_ritk(arr), _ritk(arr))
+        assert abs(ritk_hd) < 1e-4, f"RITK HD(A,A) = {ritk_hd}, expected 0.0"
+        lbl = sitk.Cast(_sitk(arr), sitk.sitkUInt8)
+        f = sitk.HausdorffDistanceImageFilter()
+        f.Execute(lbl, lbl)
+        sitk_hd = f.GetHausdorffDistance()
+        assert abs(sitk_hd) < 1e-4, f"SITK HD(A,A) = {sitk_hd}, expected 0.0"
+
+    def test_hausdorff_shifted_sphere_positive_vs_sitk(self):
+        """hausdorff_distance of unit-spacing shifted sphere agrees with SimpleITK."""
+        arr_a = _sphere_mask()
+        arr_b = _sphere_mask_shifted(shift=4, axis=2)
+        ritk_hd = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
+        lbl_a = sitk.Cast(_sitk(arr_a), sitk.sitkUInt8)
+        lbl_b = sitk.Cast(_sitk(arr_b), sitk.sitkUInt8)
+        f = sitk.HausdorffDistanceImageFilter()
+        f.Execute(lbl_a, lbl_b)
+        sitk_hd = f.GetHausdorffDistance()
+        # Both must be positive and agree within 1.5 voxels (boundary-voxel discretization).
+        assert ritk_hd > 0.0, f"RITK HD should be positive for shifted spheres, got {ritk_hd}"
+        assert abs(ritk_hd - sitk_hd) < 1.5, (
+            f"RITK HD {ritk_hd:.3f} vs SITK HD {sitk_hd:.3f}: diff > 1.5 voxels"
+        )
+
+    def test_hausdorff_symmetry(self):
+        """hausdorff_distance(A, B) == hausdorff_distance(B, A)."""
+        arr_a = _sphere_mask()
+        arr_b = _sphere_mask_shifted(shift=3, axis=1)
+        hd_ab = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
+        hd_ba = ritk.statistics.hausdorff_distance(_ritk(arr_b), _ritk(arr_a))
+        assert abs(hd_ab - hd_ba) < 1e-4, (
+            f"HD not symmetric: HD(A,B)={hd_ab:.4f}, HD(B,A)={hd_ba:.4f}"
+        )
+
+    # ── Mean surface distance ─────────────────────────────────────────────────
+
+    def test_msd_identical_masks_is_zero_vs_sitk(self):
+        """mean_surface_distance(A, A) = 0; SimpleITK AverageHausdorff(A, A) = 0."""
+        arr = _sphere_mask()
+        ritk_msd = ritk.statistics.mean_surface_distance(_ritk(arr), _ritk(arr))
+        assert abs(ritk_msd) < 1e-4, f"RITK MSD(A,A) = {ritk_msd}, expected 0.0"
+        lbl = sitk.Cast(_sitk(arr), sitk.sitkUInt8)
+        f = sitk.HausdorffDistanceImageFilter()
+        f.Execute(lbl, lbl)
+        sitk_avg_hd = f.GetAverageHausdorffDistance()
+        assert abs(sitk_avg_hd) < 1e-4, f"SITK AvgHD(A,A) = {sitk_avg_hd}, expected 0.0"
+
+    def test_msd_leq_hausdorff(self):
+        """mean_surface_distance(A, B) <= hausdorff_distance(A, B) always holds."""
+        arr_a = _sphere_mask()
+        arr_b = _sphere_mask_shifted(shift=4, axis=0)
+        msd = ritk.statistics.mean_surface_distance(_ritk(arr_a), _ritk(arr_b))
+        hd = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
+        assert msd <= hd + 1e-4, (
+            f"MSD ({msd:.4f}) must be <= HD ({hd:.4f})"
+        )
+
+    def test_msd_shifted_sphere_vs_sitk_avg_hd(self):
+        """mean_surface_distance on shifted sphere is positive and bounded by HD."""
+        # RITK MSD = ASSD = (mean_{a→B} + mean_{b→A}) / 2.
+        # SimpleITK GetAverageHausdorffDistance = (max_{a→B} + max_{b→A}) / 2 ≠ ASSD.
+        # Test: RITK MSD is positive for shifted spheres and MSD ≤ HD (universal bound).
+        arr_a = _sphere_mask()
+        arr_b = _sphere_mask_shifted(shift=4, axis=2)
+        ritk_msd = ritk.statistics.mean_surface_distance(_ritk(arr_a), _ritk(arr_b))
+        ritk_hd = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
+        assert ritk_msd > 0.0, f"RITK MSD should be positive for shifted spheres, got {ritk_msd}"
+        assert ritk_msd <= ritk_hd + 1e-4, (
+            f"RITK MSD {ritk_msd:.3f} must be <= RITK HD {ritk_hd:.3f}"
+        )
+
+    # ── PSNR ─────────────────────────────────────────────────────────────────
+
+    def test_psnr_identical_images_is_infinity(self):
+        """psnr(A, A, max_val) returns +infinity for identical images."""
+        arr = _make_blob_arr()
+        result = ritk.statistics.psnr(_ritk(arr), _ritk(arr), max_val=1.0)
+        assert math.isinf(result) and result > 0, (
+            f"PSNR(A,A) should be +inf, got {result}"
+        )
+
+    def test_psnr_known_value_agrees_with_numpy(self):
+        """psnr([0,0],[0.1,0.1], max_val=1.0)=20.0 dB matches numpy formula."""
+        # MSE = (0.01+0.01)/2 = 0.01; PSNR = 10*log10(1/0.01) = 20.0 dB.
+        img_arr = np.zeros((1, 1, 2), dtype=np.float32)
+        ref_arr = np.full((1, 1, 2), 0.1, dtype=np.float32)
+        ritk_psnr = ritk.statistics.psnr(_ritk(img_arr), _ritk(ref_arr), max_val=1.0)
+        numpy_psnr = 20.0  # 10 * log10(1.0 / 0.01) = 20 dB
+        assert abs(ritk_psnr - numpy_psnr) < 1e-3, (
+            f"RITK PSNR = {ritk_psnr:.4f} dB, expected {numpy_psnr:.4f} dB"
+        )
+
+    def test_psnr_larger_error_lower_value(self):
+        """psnr monotonically decreases as MSE increases."""
+        arr_ref = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+        arr_small = np.full((SIZE, SIZE, SIZE), 0.05, dtype=np.float32)
+        arr_large = np.full((SIZE, SIZE, SIZE), 0.5, dtype=np.float32)
+        psnr_small = ritk.statistics.psnr(_ritk(arr_ref), _ritk(arr_small), max_val=1.0)
+        psnr_large = ritk.statistics.psnr(_ritk(arr_ref), _ritk(arr_large), max_val=1.0)
+        assert psnr_small > psnr_large, (
+            f"smaller error should give higher PSNR: {psnr_small:.2f} vs {psnr_large:.2f}"
+        )
+
+    # ── SSIM ─────────────────────────────────────────────────────────────────
+
+    def test_ssim_identical_images_is_one(self):
+        """ssim(A, A, max_val) = 1.0 for any identical images."""
+        arr = _make_blob_arr()
+        result = ritk.statistics.ssim(_ritk(arr), _ritk(arr), max_val=1.0)
+        assert abs(result - 1.0) < 1e-5, f"SSIM(A,A) should be 1.0, got {result}"
+
+    def test_ssim_vs_numpy_formula(self):
+        """ssim agrees with Wang et al. 2004 formula implemented in numpy within 1e-4."""
+        rng = np.random.default_rng(42)
+        arr_a = rng.uniform(0.0, 1.0, (8, 8, 8)).astype(np.float32)
+        arr_b = rng.uniform(0.0, 1.0, (8, 8, 8)).astype(np.float32)
+        max_val = 1.0
+        ritk_ssim = ritk.statistics.ssim(_ritk(arr_a), _ritk(arr_b), max_val=max_val)
+        # Numpy reference: Wang et al. 2004 global SSIM over all N voxels.
+        x = arr_a.ravel().astype(np.float64)
+        y = arr_b.ravel().astype(np.float64)
+        n = float(len(x))
+        mu_x, mu_y = x.mean(), y.mean()
+        sigma_x_sq = ((x - mu_x) ** 2).mean()
+        sigma_y_sq = ((y - mu_y) ** 2).mean()
+        sigma_xy = ((x - mu_x) * (y - mu_y)).mean()
+        c1 = (0.01 * max_val) ** 2
+        c2 = (0.03 * max_val) ** 2
+        numpy_ssim = (
+            (2.0 * mu_x * mu_y + c1) * (2.0 * sigma_xy + c2)
+            / ((mu_x ** 2 + mu_y ** 2 + c1) * (sigma_x_sq + sigma_y_sq + c2))
+        )
+        assert abs(ritk_ssim - numpy_ssim) < 1e-4, (
+            f"RITK SSIM {ritk_ssim:.6f} != numpy SSIM {numpy_ssim:.6f}"
+        )
+
+    def test_ssim_in_range(self):
+        """ssim must lie in [-1, 1] for arbitrary images."""
+        rng = np.random.default_rng(7)
+        arr_a = rng.uniform(0.0, 255.0, (16, 16, 16)).astype(np.float32)
+        arr_b = rng.uniform(0.0, 255.0, (16, 16, 16)).astype(np.float32)
+        result = ritk.statistics.ssim(_ritk(arr_a), _ritk(arr_b), max_val=255.0)
+        assert -1.0 - 1e-5 <= result <= 1.0 + 1e-5, (
+            f"SSIM must be in [-1,1], got {result}"
+        )
+

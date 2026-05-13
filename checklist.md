@@ -1,3 +1,84 @@
+## Sprint 223 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.1 [patch]
+**Goal**: Split `image_comparison.rs` into metric-family modules while preserving the public statistics API; add Section 8 Python parity tests comparing dice/hausdorff/MSD/PSNR/SSIM against SimpleITK.
+
+### Checklist items
+- [x] Audit remaining image-related gap after Sprint 222
+- [x] Identify `crates/ritk-core/src/statistics/image_comparison.rs` 904-line structural violation as the active image gap
+- [x] Create `statistics/image_comparison/mod.rs` with public docs and unchanged metric re-exports
+- [x] Create `overlap.rs` for Dice coefficient
+- [x] Create `surface.rs` for boundary extraction, distance primitives, Hausdorff distance, and mean surface distance
+- [x] Create `quality.rs` for PSNR and SSIM
+- [x] Split tests into `tests/overlap.rs`, `tests/surface.rs`, and `tests/quality.rs`
+- [x] Delete the flat `image_comparison.rs` file
+- [x] Verify every image-comparison leaf file is below 500 lines
+- [x] Verify `cargo test -p ritk-core --lib statistics::image_comparison -- --nocapture` (30 passed)
+- [x] Add Section 8 `TestImageComparisonParity` (15 tests) to `test_simpleitk_parity.py`: dice vs SimpleITK LabelOverlapMeasures, Hausdorff vs SimpleITK HausdorffDistance, MSD vs analytical bound, PSNR vs numpy formula, SSIM vs Wang et al. numpy implementation
+- [x] Verify `python -m pytest -k TestImageComparisonParity -v` (15 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
+## Sprint 222 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.0 [minor]
+**Goal**: Add TIFF RGB page-stack loading through the channel-explicit `RgbVolume<B>` boundary and refresh image-gap artifacts.
+
+### Checklist items
+- [x] Audit remaining image-format gap after Sprint 221
+- [x] Identify TIFF RGB page-stack loading as the remaining non-DICOM color-volume loader gap
+- [x] Add `crates/ritk-tiff/src/color.rs` for RGB TIFF / BigTIFF page-stack loading
+- [x] Preserve scalar TIFF `Image<B,3>` reader/writer APIs unchanged
+- [x] Reuse scalar `DecodingResult -> f32` conversion through a crate-visible helper
+- [x] Construct TIFF RGB tensor shape `[page_count, height, width, 3]` with default TIFF spatial metadata
+- [x] Reject non-`ColorType::RGB(_)` TIFF pages before channel-explicit tensor construction
+- [x] Reject dimension mismatches and wrong decoded sample counts before tensor construction
+- [x] Re-export TIFF RGB APIs from `ritk-tiff`, `ritk-io::format::tiff`, and top-level `ritk-io`
+- [x] Add value-semantic tests for RGB page-stack sample order, grayscale rejection, and reader delegation
+- [x] Verify `cargo test -p ritk-tiff --lib color -- --nocapture` (3 passed)
+- [x] Verify `cargo test -p ritk-tiff --lib -- --nocapture` (16 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::tiff -- --nocapture` (1 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| `image_comparison.rs` 500-line violation (904 lines) | Medium | Open |
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
+## Sprint 221 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.48.0 [minor]
+**Goal**: Add JPEG RGB color-volume loading through the channel-explicit `RgbVolume<B>` boundary and refresh image-gap artifacts.
+
+### Checklist items
+- [x] Audit current image gaps after Sprint 220 and verify DICOM rescale GAP-R08g is closed
+- [x] Identify remaining image-format gap set as JPEG/TIFF color-volume loaders
+- [x] Add `crates/ritk-jpeg/src/color.rs` for strict decoded `Rgb8` JPEG loading
+- [x] Preserve scalar JPEG `Image<B,3>` reader/writer APIs unchanged
+- [x] Construct JPEG RGB tensor shape `[1, height, width, 3]` with default JPEG spatial metadata
+- [x] Reject grayscale/non-`Rgb8` JPEG inputs before channel-dropping conversion
+- [x] Re-export JPEG RGB APIs from `ritk-jpeg`, `ritk-io::format::jpeg`, and top-level `ritk-io`
+- [x] Add value-semantic tests for decoded RGB sample order, grayscale rejection, and reader delegation
+- [x] Verify `cargo test -p ritk-jpeg --lib color -- --nocapture` (3 passed)
+- [x] Verify `cargo test -p ritk-jpeg --lib -- --nocapture` (9 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::jpeg -- --nocapture` (1 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| TIFF color-volume loader | Medium | Open |
+| `image_comparison.rs` 500-line violation (904 lines) | Medium | Open |
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
 ## Sprint 220 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
@@ -28,32 +109,6 @@
 |---|---|---|
 | JPEG/TIFF color-volume loaders | Medium | Open |
 | `image_comparison.rs` 500-line violation (904 lines) | Medium | Open |
-| Parameter-map interface (GAP-R08b) | Low | Open |
-| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
-
-## Sprint 220 — Complete
-**Status**: Complete
-**Phase**: Phase 3 Closure
-**Version**: 0.48.0 [minor]
-**Goal**: Add JPEG RGB color-volume loading through the channel-explicit `RgbVolume<B>` boundary and refresh image-gap artifacts.
-
-### Checklist items
-- [x] Audit current image gaps after Sprint 219 and verify DICOM rescale GAP-R08g is closed
-- [x] Identify remaining image-format gap set as JPEG/TIFF color-volume loaders
-- [x] Add `crates/ritk-jpeg/src/color.rs` for strict decoded `Rgb8` JPEG loading
-- [x] Preserve scalar JPEG `Image<B,3>` reader/writer APIs unchanged
-- [x] Construct JPEG RGB tensor shape `[1, height, width, 3]` with default JPEG spatial metadata
-- [x] Reject grayscale/non-`Rgb8` JPEG inputs before channel-dropping conversion
-- [x] Re-export JPEG RGB APIs from `ritk-jpeg`, `ritk-io::format::jpeg`, and top-level `ritk-io`
-- [x] Add value-semantic tests for decoded RGB sample order, grayscale rejection, and reader delegation
-- [x] Verify `cargo test -p ritk-jpeg --lib color -- --nocapture` (3 passed)
-- [x] Verify `cargo test -p ritk-jpeg --lib -- --nocapture` (9 passed)
-- [x] Verify `cargo test -p ritk-io --lib format::jpeg -- --nocapture` (1 passed)
-
-### Gaps remaining
-| Task | Priority | Status |
-|---|---|---|
-| TIFF color-volume loader | Medium | Open |
 | Parameter-map interface (GAP-R08b) | Low | Open |
 | AdaptiveStochasticGD (GAP-R08c) | Low | Open |
 

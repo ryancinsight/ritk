@@ -318,6 +318,10 @@ mod tests {
         let filter = GaussianFilter::<B>::new(vec![1.5]);
         let img = make_image(vec![1.0_f32; 5 * 6 * 7], [5, 6, 7]);
         let out = filter.apply(&img);
-        assert_eq!(out.shape(), img.shape(), "shape must be preserved after Gaussian");
+        assert_eq!(
+            out.shape(),
+            img.shape(),
+            "shape must be preserved after Gaussian"
+        );
     }
 }

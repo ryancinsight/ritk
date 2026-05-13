@@ -46,8 +46,8 @@ pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> Im
 /// borrowed f32 tensor storage. It clones the values once because percentile
 /// computation sorts in-place.
 pub fn compute_statistics_from_slice(slice: &[f32]) -> ImageStatistics {
-    let mut values: Vec<f32> = slice.to_vec();
-    compute_from_values(&mut values)
+    let values: Vec<f32> = slice.to_vec();
+    compute_from_values(&values)
 }
 
 /// Compute statistics restricted to voxels where `mask` > 0.5 (foreground).
@@ -70,7 +70,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         "image and mask must have identical element count"
     );
 
-    let mut values: Vec<f32> = image_slice
+    let values: Vec<f32> = image_slice
         .iter()
         .zip(mask_slice.iter())
         .filter(|(_, &m)| m > 0.5)
@@ -78,7 +78,7 @@ pub fn masked_statistics<B: Backend, const D: usize>(
         .collect();
 
     assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_values(&mut values)
+    compute_from_values(&values)
 }
 
 /// Core statistics computation.
@@ -402,6 +402,10 @@ mod tests {
         );
         assert_eq!(s.min, constant, "min");
         assert_eq!(s.max, constant, "max");
-        assert!(s.std < 1e-3, "std of constant array must be ~0, got {}", s.std);
+        assert!(
+            s.std < 1e-3,
+            "std of constant array must be ~0, got {}",
+            s.std
+        );
     }
 }

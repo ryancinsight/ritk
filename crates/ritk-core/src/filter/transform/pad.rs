@@ -40,10 +40,10 @@
 //!
 //! - ITK Software Guide, 2nd ed., §6.2 Padding.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild_with_origin};
 use crate::image::Image;
 use crate::spatial::{Point, Spacing};
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Shared ───────────────────────────────────────────────────────────────────
 
@@ -92,15 +92,12 @@ impl ConstantPadImageFilter {
     /// Apply the constant pad filter.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = image.shape();
-        let device = image.data().device();
         let [lz, ly, lx] = self.pad_lower;
         let [uz, uy, ux] = self.pad_upper;
         let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
 
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ConstantPadImageFilter: {:?}", e))?;
+        let (vals_vec, _) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let c = self.constant;
 
@@ -126,15 +123,7 @@ impl ConstantPadImageFilter {
         }
 
         let new_origin = updated_origin(image.origin(), image.spacing(), [lz, ly, lx]);
-        let shape = Shape::new([oz, oy, ox]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            new_origin,
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
 }
 
@@ -190,15 +179,12 @@ impl MirrorPadImageFilter {
     /// Apply the mirror pad filter.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = image.shape();
-        let device = image.data().device();
         let [lz, ly, lx] = self.pad_lower;
         let [uz, uy, ux] = self.pad_upper;
         let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
 
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("MirrorPadImageFilter: {:?}", e))?;
+        let (vals_vec, _) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let mut out = vec![0.0f32; oz * oy * ox];
 
@@ -214,15 +200,7 @@ impl MirrorPadImageFilter {
         }
 
         let new_origin = updated_origin(image.origin(), image.spacing(), [lz, ly, lx]);
-        let shape = Shape::new([oz, oy, ox]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            new_origin,
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
 }
 
@@ -268,15 +246,12 @@ impl WrapPadImageFilter {
     /// Apply the wrap pad filter.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let [nz, ny, nx] = image.shape();
-        let device = image.data().device();
         let [lz, ly, lx] = self.pad_lower;
         let [uz, uy, ux] = self.pad_upper;
         let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
 
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("WrapPadImageFilter: {:?}", e))?;
+        let (vals_vec, _) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         let mut out = vec![0.0f32; oz * oy * ox];
 
@@ -292,15 +267,7 @@ impl WrapPadImageFilter {
         }
 
         let new_origin = updated_origin(image.origin(), image.spacing(), [lz, ly, lx]);
-        let shape = Shape::new([oz, oy, ox]);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            new_origin,
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
 }
 
@@ -310,7 +277,7 @@ impl WrapPadImageFilter {
 mod tests {
     use super::*;
     use crate::spatial::Direction;
-    use burn::tensor::TensorData;
+    use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;

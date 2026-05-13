@@ -22,9 +22,9 @@
 //! `itk::PasteImageFilter` with `SetDestinationIndex(idx)` and
 //! `SetSourceRegion(region)` spanning the full source.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Paste a source image into a destination image at a given index.
 ///
@@ -79,15 +79,11 @@ impl PasteImageFilter {
             );
         }
 
-        let dest_td = dest.data().clone().into_data();
-        let mut out: Vec<f32> = dest_td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("PasteImageFilter (dest): {:?}", e))?;
+        let (dest_vec, dims) = extract_vec_infallible(dest);
+        let mut out = dest_vec;
 
-        let src_td = source.data().clone().into_data();
-        let src_vals: Vec<f32> = src_td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("PasteImageFilter (source): {:?}", e))?;
+        let (src_vals_vec, _) = extract_vec_infallible(source);
+        let src_vals = &src_vals_vec;
 
         for iz in 0..sz {
             for iy in 0..sy {
@@ -99,15 +95,7 @@ impl PasteImageFilter {
             }
         }
 
-        let device = dest.data().device();
-        let out_td = TensorData::new(out, Shape::new([dz, dy, dx]));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
-            *dest.origin(),
-            *dest.spacing(),
-            *dest.direction(),
-        ))
+        Ok(rebuild(out, dims, dest))
     }
 }
 

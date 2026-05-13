@@ -36,10 +36,10 @@
 //!
 //! `itk::RegionOfInterestImageFilter` with `SetRegionOfInterest(region)`.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild_with_origin};
 use crate::image::Image;
 use crate::spatial::Point;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Extract a 3-D sub-volume (region of interest) from an image.
 ///
@@ -112,10 +112,8 @@ impl RegionOfInterestImageFilter {
             );
         }
 
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("RegionOfInterestImageFilter: {:?}", e))?;
+        let (vals_vec, _) = extract_vec_infallible(image);
+        let vals = &vals_vec;
 
         // Extract sub-volume
         let sz = self.size_z;
@@ -151,15 +149,7 @@ impl RegionOfInterestImageFilter {
         }
         let new_origin = Point::new(new_coords);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new([sz, sy, sx]));
-        let out_tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            out_tensor,
-            new_origin,
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild_with_origin(out, [sz, sy, sx], new_origin, image))
     }
 }
 

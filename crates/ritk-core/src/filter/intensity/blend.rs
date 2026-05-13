@@ -83,8 +83,8 @@ impl BlendImageFilter {
 mod tests {
     use super::*;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn_ndarray::NdArray;
     use burn::tensor::{Shape, Tensor, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 
@@ -129,11 +129,7 @@ mod tests {
         let out = BlendImageFilter::new(0.0).apply(&a, &b).unwrap();
         let v = voxels(&out);
         for (i, &got) in v.iter().enumerate() {
-            assert!(
-                (got - (i as f32 + 1.0)).abs() < 1e-5,
-                "[{}] expected A",
-                i
-            );
+            assert!((got - (i as f32 + 1.0)).abs() < 1e-5, "[{}] expected A", i);
         }
     }
 

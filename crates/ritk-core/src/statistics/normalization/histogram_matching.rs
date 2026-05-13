@@ -31,8 +31,9 @@
 //! - A constant source image (src_min == src_max) is returned unchanged because
 //!   no CDF slope can be estimated from a degenerate distribution.
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
-use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use burn::tensor::backend::Backend;
 
 /// Histogram matcher via empirical CDF-based lookup.
 ///
@@ -70,17 +71,14 @@ impl HistogramMatcher {
         source: &Image<B, D>,
         reference: &Image<B, D>,
     ) -> Image<B, D> {
-        let device = source.data().device();
+        let _device = source.data().device();
         let shape: [usize; D] = source.shape();
 
         // ── 1. Extract pixel arrays ───────────────────────────────────────────
-        let src_data = source.data().clone().into_data();
-        let src_slice = src_data.as_slice::<f32>().expect("f32 source tensor data");
-
-        let ref_data = reference.data().clone().into_data();
-        let ref_slice = ref_data
-            .as_slice::<f32>()
-            .expect("f32 reference tensor data");
+        let (src_vec, _) = extract_vec_infallible(source);
+        let src_slice = &src_vec;
+        let (ref_vec, _) = extract_vec_infallible(reference);
+        let ref_slice = &ref_vec;
 
         // ── 2. Sort both arrays (ascending) ──────────────────────────────────
         let mut sorted_src: Vec<f32> = src_slice.to_vec();
@@ -141,15 +139,7 @@ impl HistogramMatcher {
         }
 
         // ── 5. Reconstruct image with matched intensities ─────────────────────
-        let out_tensor =
-            Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
-
-        Image::new(
-            out_tensor,
-            *source.origin(),
-            *source.spacing(),
-            *source.direction(),
-        )
+        rebuild(output, shape, source)
     }
 
     /// Map a single pixel value through the LUT with linear interpolation.

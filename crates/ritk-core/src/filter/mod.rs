@@ -1,4 +1,3 @@
-pub(crate) mod ops;
 pub mod bias;
 pub mod bilateral;
 pub mod diffusion;
@@ -11,6 +10,7 @@ pub mod intensity;
 pub mod labeling;
 pub mod median;
 pub mod morphology;
+pub(crate) mod ops;
 pub mod pyramid;
 pub mod recursive_gaussian;
 pub mod resample;
@@ -36,8 +36,9 @@ pub use edge::{
 };
 pub use gaussian::GaussianFilter;
 pub use intensity::{
-    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationConfig, BedSeparationFilter,
-    BinaryThresholdImageFilter, BlendImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
+    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
+    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
+    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, CosImageFilter, DivideImageFilter,
     ExpImageFilter, HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter,
     IntensityWindowingFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
     MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter,

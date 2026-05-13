@@ -27,10 +27,10 @@
 //! - ITK: `HistogramEqualizationImageFilter`.
 //! - ImageJ: Process → Enhance Contrast (Equalize Histogram).
 
+use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use burn::tensor::{Shape, Tensor, TensorData};
 
 /// Global histogram equalization filter.
 ///
@@ -68,27 +68,12 @@ impl HistogramEqualizationFilter {
     /// # Errors
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let shape = image.shape();
-        let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
-
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("failed to extract f32 slice: {e:?}"))?
-            .to_vec();
+        let (vals_vec, dims) = extract_vec_infallible(image);
+        let vals = vals_vec;
 
         let out = histogram_equalize_global(&vals, self.bins);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new([depth, rows, cols]));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, dims, image))
     }
 }
 
@@ -159,12 +144,14 @@ pub(crate) fn histogram_equalize_global(vals: &[f32], bins: usize) -> Vec<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use burn::tensor::{Shape, Tensor, TensorData};
 
     use burn_ndarray::NdArray;
     type B = NdArray<f32>;
+    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn::tensor::{Shape, Tensor, TensorData};
+    use burn::tensor::backend::Backend;
 
     fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();

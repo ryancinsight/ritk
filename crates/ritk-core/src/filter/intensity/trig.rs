@@ -22,7 +22,6 @@ use crate::filter::ops::{extract_vec_infallible as extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
-
 // ── AtanImageFilter ───────────────────────────────────────────────────────────
 
 /// Pixelwise arctangent filter.

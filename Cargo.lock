@@ -6168,6 +6168,7 @@ dependencies = [
  "burn-ndarray",
  "nalgebra",
  "ndarray 0.16.1",
+ "rayon",
  "ritk-core",
  "ritk-io",
  "ritk-model",
