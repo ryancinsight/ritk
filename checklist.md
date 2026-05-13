@@ -1,3 +1,54 @@
+## Sprint 218 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.46.0 [patch]
+**Goal**: Close GAP-R08g — DICOM rescale intercept defect.
+
+### Checklist items
+- [x] Root-cause GAP-R08g: double-rescale in decode_via_dicom_rs (dicom-pixeldata applies modality LUT internally, then RITK re-applies via decode_native_pixel_bytes_checked)
+- [x] Fix decode_via_dicom_rs to pass identity PixelLayout (slope=1, intercept=0) since dicom-pixeldata already applies rescale
+- [x] Add 2 GAP-R08g regression tests in pixel_layout.rs (CT HU correctness with intercept=-1024, identity-rescale passthrough)
+- [x] Fix native_owned_jpeg_errors_do_not_fallback_to_dicom_rs test assertion
+- [x] Verify cargo test -p ritk-codecs --lib (106 passed, 0 failed)
+- [x] Verify cargo test -p ritk-dicom --lib (14 passed, 0 failed)
+- [x] Verify cargo check -p ritk-python (0 errors)
+- [x] Verify RITK CT min=-2048 HU matches SimpleITK exactly (end-to-end Python validation)
+- [x] Update test_registration_gap_validation.py to assert RITK/SimpleITK intensity equality (1% tolerance)
+- [x] Update project artifacts (backlog, checklist, gap_audit, CHANGELOG)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| ~~DICOM rescale intercept (GAP-R08g)~~ | ~~High~~ | **Closed** |
+| bspline_syn.rs structural violation | Medium | Open |
+| multires_syn.rs structural violation | Medium | Open |
+| JPEG/TIFF color-volume loaders | Medium | Open |
+
+## Sprint 217 — Complete
+
+**Status**: Complete  
+**Phase**: Phase 2 Execution  
+**Version**: 0.45.0 [minor]  
+**Goal**: Close GAP-R08a — implement global Mattes MI optimizer with RegularStepGradientDescent and random-coordinate sparse sampling.
+
+### Checklist items
+
+- [x] Implement RegularStepGradientDescent optimizer with ITK-faithful step-accept/revert, gradient normalization, and three convergence modes (20 tests pass)
+- [x] Implement GlobalMiRegistration with multi-resolution Mattes MI + RSGD pipeline (18 tests pass)
+- [x] Add Python binding global_mi_register for translation/rigid/affine MI registration
+- [x] Update re-exports in optimizer/mod.rs, classical/mod.rs, lib.rs, ritk-python/registration/mod.rs
+- [x] Verify cargo test -p ritk-registration --lib (267 passed, 0 failed)
+- [x] Verify cargo check -p ritk-python (0 errors)
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| ~~DICOM rescale intercept (GAP-R08g)~~ | ~~High~~ | **Closed Sprint 218** |
+| bspline_syn.rs structural violation | Medium | Open |
+| multires_syn.rs structural violation | Medium | Open |
+| JPEG/TIFF color-volume loaders | Medium | Open |
+
 ## Sprint 216 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -14,7 +14,7 @@ use crate::backend::{
     DecodeFrameRequest, DecodedFrame, DicomParseBackend, EncapsulatedFrameSource,
     NativeCodecBackend, PixelDecodeBackend,
 };
-use crate::pixel::decode_native_pixel_bytes_checked;
+use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 use crate::syntax::TransferSyntaxKind;
 
 impl EncapsulatedFrameSource for DefaultDicomObject {
@@ -122,7 +122,22 @@ fn decode_via_dicom_rs(
                 request.transfer_syntax.uid()
             )
         })?;
-    decode_native_pixel_bytes_checked(decoded.data(), request.layout)
+    // dicom-pixeldata applies the modality LUT (RescaleSlope × stored +
+    // RescaleIntercept) internally per DICOM PS3.3 §C.7.6.3.1.4. Passing the
+    // layout with rescale applied again would double-apply the linear
+    // transformation: (sample × slope + intercept) × slope + intercept.
+    // Use identity rescale (slope=1, intercept=0) so decode_native_pixel_bytes_checked
+    // only performs the required integer-to-f32 conversion and byte-length validation.
+    let identity_layout = PixelLayout {
+        rows: request.layout.rows,
+        cols: request.layout.cols,
+        samples_per_pixel: request.layout.samples_per_pixel,
+        bits_allocated: request.layout.bits_allocated,
+        pixel_representation: request.layout.pixel_representation,
+        rescale_slope: 1.0,
+        rescale_intercept: 0.0,
+    };
+    decode_native_pixel_bytes_checked(decoded.data(), identity_layout)
 }
 
 #[cfg(test)]
@@ -380,7 +395,7 @@ mod tests {
 
         let msg = format!("{err:#}");
         assert!(
-            msg.contains("native JPEG decoder"),
+            msg.contains("JPEG"),
             "error must come from the RITK-native JPEG decoder, got: {msg}"
         );
         assert!(

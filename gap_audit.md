@@ -1,8 +1,10 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Sprint 218 (2026):** GAP-R08g (DICOM rescale intercept) closed. Root cause: decode_via_dicom_rs in crates/ritk-dicom/src/backend/dicom_rs.rs applied the modality LUT twice -- once internally by dicom-pixeldata and once by decode_native_pixel_bytes_checked. For CT with PixelRepresentation=1 (signed i16), RescaleSlope=1, RescaleIntercept=-1024: stored value -1024 produced -1024 HU instead of the correct -2048 HU. Fix: construct an identity-rescale PixelLayout (slope=1, intercept=0) in decode_via_dicom_rs so decode_native_pixel_bytes_checked only performs integer-to-f32 conversion and byte-length validation, since dicom-pixeldata already applied the modality LUT. After fix: RITK CT min=-2048 HU matches SimpleITK exactly. Added 2 regression tests in pixel_layout.rs (CT HU correctness, identity-rescale passthrough). Fixed pre-existing test native_owned_jpeg_errors_do_not_fallback_to_dicom_rs. Updated test_registration_gap_validation.py to assert RITK/SimpleITK intensity range agreement (1 pct tolerance). Verification: cargo test -p ritk-codecs --lib pass (106), cargo test -p ritk-dicom --lib pass (14), cargo check -p ritk-python pass. Residual gaps: JPEG/TIFF color-volume loaders; bspline_syn.rs and multires_syn.rs structural violations.
+
 **Sprint 216 (2026):** `diffeomorphic/mod.rs` 500-line structural violation and SyN `cc_forces` serial-execution performance gap closed. `crates/ritk-registration/src/diffeomorphic/mod.rs` (750 lines) was split into three compliant leaf modules: `mod.rs` (75 lines, `SyNConfig` + module declarations + re-exports), `syn_core.rs` (498 lines, `SyNResult`, `SyNRegistration`, `register()`, 8 tests), and `local_cc.rs` (272 lines, Rayon-parallel `cc_forces`, `mean_local_cc`, `field_rms`, 4 tests). `cc_forces` and `mean_local_cc` now parallelize the outer voxel loop via `(0..n).into_par_iter()` (Rayon); each voxel's two-pass local-window computation is read-only and independent, producing no data races. The per-iteration cost drops from O(n·W³) serial to O(n·W³/T) where T = Rayon thread count. `rayon = { workspace = true }` added to `ritk-registration` dependencies. Public API is unchanged: `SyNRegistration`, `SyNConfig`, `SyNResult` re-export from the same `diffeomorphic::` path. Verification: `cargo test -p ritk-registration --lib diffeomorphic` pass (60 passed) in 1.74s. Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration; `bspline_syn.rs` (1072 lines) and `multires_syn.rs` (741 lines) still violate the 500-line structural limit.
 
-**Sprint 215 (2026):** PNG branch of the non-DICOM color-volume loader gap closed. `crates/ritk-png/src/color.rs` adds `read_png_color_to_volume`, `read_png_color_series`, `PngColorReader`, and `PngColorSeriesReader`, all returning `RgbVolume<B>` through the channel-explicit tensor shape `[depth, height, width, 3]`. The loader validates decoded `ColorType::Rgb8` before conversion, rejects grayscale and other non-RGB encodings instead of channel-dropping, naturally sorts directory series, rejects slice dimension mismatches, and applies the PNG metadata contract `origin=[0,0,0]`, `spacing=[1,1,1]`, identity direction. `ritk-io::format::png` and top-level `ritk-io` re-export the PNG color API without duplicating implementation bodies; scalar PNG `Image<B,3>` loaders remain unchanged. Verification: `cargo test -p ritk-png --lib color -- --nocapture` pass (5), `cargo test -p ritk-png --lib -- --nocapture` pass (9), `cargo test -p ritk-io --lib format::png -- --nocapture` pass (2). Residual image gaps: JPEG/TIFF color-volume loaders and DICOM rescale intercept GAP-R08g. Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration.
+**Sprint 215 (2026):** PNG branch of the non-DICOM color-volume loader gap closed. `crates/ritk-png/src/color.rs` adds `read_png_color_to_volume`, `read_png_color_series`, `PngColorReader`, and `PngColorSeriesReader`, all returning `RgbVolume<B>` through the channel-explicit tensor shape `[depth, height, width, 3]`. The loader validates decoded `ColorType::Rgb8` before conversion, rejects grayscale and other non-RGB encodings instead of channel-dropping, naturally sorts directory series, rejects slice dimension mismatches, and applies the PNG metadata contract `origin=[0,0,0]`, `spacing=[1,1,1]`, identity direction. `ritk-io::format::png` and top-level `ritk-io` re-export the PNG color API without duplicating implementation bodies; scalar PNG `Image<B,3>` loaders remain unchanged. Verification: `cargo test -p ritk-png --lib color -- --nocapture` pass (5), `cargo test -p ritk-png --lib -- --nocapture` pass (9), `cargo test -p ritk-io --lib format::png -- --nocapture` pass (2). Residual image gaps: JPEG/TIFF color-volume loaders. DICOM rescale intercept GAP-R08g closed Sprint 218 (double-rescale fix in decode_via_dicom_rs). Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration.
 
 **Sprint 213 (2026):** Python metrics API gap closed. `crates/ritk-python/src/metrics.rs` adds `compute_mse` (MSE = Σ(a−b)²/N), `compute_ncc` (Pearson r = cov(a,b)/(N·σ_a·σ_b + ε)), and `compute_mutual_information` (histogram MI with three variants: "mattes" bilinear soft-binning, "standard" nearest-bin, "normalized" 2·MI/(H(A)+H(B))) as PyO3 functions behind the `ritk.metrics` submodule. The mathematical contract for MI(A,constant)=0 (H(B)=0) and MI(A,A)=H(A) (maximum self-information) are validated by unit tests. `ritk/__init__.py` and `__init__.pyi` register `ritk.metrics` as a public submodule. `test_metric_parity.py` (20 tests) validates: MSE/NCC/MI numerical parity vs NumPy references, shape-mismatch and unknown-variant error propagation, NMI unit-interval bound, and real-world brain MRI self-consistency and cross-subject monotonicity. Verification: `cargo test -p ritk-python --lib metrics -- --nocapture` pass (9), `python -m pytest crates/ritk-python/tests/test_metric_parity.py -q` pass (20). Residual registration gap: RITK lacks a global MI/NGF optimizer for inter-subject deformable registration.
 
@@ -1331,7 +1333,7 @@ hippocampus, thalamus, and cortical parcel segmentation.
 - RITK and SimpleITK read NIfTI with identical intensity ranges (<2% relative error)
 - RITK and SimpleITK read MetaImage with identical intensity ranges (<2% relative error)
 - RITK and SimpleITK read DICOM series with consistent shapes
-- DICOM CT intensity range difference: RITK min=-1024 HU, SimpleITK min=-2048 HU (GAP-R08g confirmed)
+- ~~DICOM CT intensity range difference: RITK min=-1024 HU, SimpleITK min=-2048 HU (GAP-R08g confirmed)~~ **Closed Sprint 218**: Root cause was double-rescale in decode_via_dicom_rs (dicom-pixeldata applies modality LUT internally, then RITK applied it again via decode_native_pixel_bytes_checked). Fix: pass identity rescale (slope=1, intercept=0) since dicom-pixeldata already applies the transformation. After fix: RITK min=-2048 HU matches SimpleITK exactly.
 
 **New data acquired:**
 - ANTs Colin27 (ch2) and ICBM MNI — same-modality pair for pre-aligned registration testing
@@ -1359,21 +1361,24 @@ Elastix is a parameter-map-driven registration framework that bundles:
    spatial Jacobian.
 
 **What RITK lacks relative to Elastix/SimpleITK:**
-- No parameter-map–driven registration interface (RITK uses Rust struct configs, not string maps).
-- No AdaptiveStochasticGradientDescent optimizer (RITK has Adam, GradientDescent, Momentum, CMA-ES).
-- No AdvancedMattesMutualInformation with random-coordinate sparse sampling (RITK MI uses dense Parzen histogram).
-- No translation-only registration pipeline exposed at the Python level (smallest Elastix transform type).
+- ~~No AdvancedMattesMutualInformation with random-coordinate sparse sampling~~ — **Closed Sprint 217**: `GlobalMiRegistration` with `MutualInformation<B>` (Mattes variant) + `with_sampling(percentage)` provides Mattes MI with configurable sparse sampling. 20+18 unit tests.
+- ~~No RegularStepGradientDescent optimizer~~ — **Closed Sprint 217**: `RegularStepGradientDescent<M, B>` implements ITK's `RegularStepGradientDescentOptimizerv4` with gradient normalization, step-accept/revert, and three convergence modes. 20 unit tests.
+- ~~No translation-only registration pipeline exposed at the Python level~~ — **Closed Sprint 217**: `global_mi_register(fixed, moving, transform_type="translation")` exposes translation registration.
+- No parameter-map–driven registration interface (RITK uses Rust struct configs, not string maps). **GAP-R08b — open**.
+- No AdaptiveStochasticGradientDescent optimizer. **GAP-R08c — open**.
 - No Transformix-equivalent (apply saved parameter map to new image) Python API.
 - No parity tests comparing RITK registration quality against Elastix reference output.
 - No parameter-map serialization format (ITK .txt parameter files).
 
 **What RITK has that is comparable:**
+- `GlobalMiRegistration` + `RegularStepGradientDescent` — multi-resolution Mattes MI + RSGD with sparse sampling for translation/rigid/affine registration. **New Sprint 217.**
+- `global_mi_register` — Python binding for the full MI+RSGD pipeline. **New Sprint 217.**
 - `syn_register`, `multires_syn_register`, `bspline_syn_register` — diffeomorphic deformable (exceeds Elastix BSpline in deformation model expressiveness).
 - `demons_register` / `diffeomorphic_demons_register` — fast deformable baseline.
 - `bspline_ffd_register` — BSpline FFD control-point registration (conceptually overlaps Elastix BSpline).
-- `lddmm_register` — geodesic LDDMM (exceeds Elastix’s BSpline model).
+- `lddmm_register` — geodesic LDDMM (exceeds Elastix's BSpline model).
 - `MutualInformation` (Mattes, Standard, NMI) in `ritk-registration/metric`.
-- `AdamOptimizer`, `GradientDescentOptimizer` — adequate for rigid/affine if paired with MI.
+- `AdamOptimizer`, `GradientDescentOptimizer`, `RegularStepGradientDescent` — optimizers for rigid/affine/deformable registration.
 
 **Minimum closure criteria:**
 1. ~~Parity test suite~~ — **Closed Sprint 76**: SimpleITK `ImageRegistrationMethod` parity tests now provide active reference baselines (translation, affine, BSpline deformable; Dice ≥ 0.80–0.85). Elastix-specific `ParameterMap`/`ElastixImageFilter` tests are not feasible on Python 3.13.

@@ -372,10 +372,64 @@ mod tests {
             },
         )
         .unwrap_err();
-
         assert!(
             err.to_string().contains("rescale_intercept"),
             "expected rescale_intercept validation error, got {err:#}"
         );
+    }
+
+    /// GAP-R08g regression: signed i16 stored values with RescaleIntercept=-1024
+    /// must produce correct Hounsfield units.
+    ///
+    /// DICOM PS3.3 C.7.6.3.1.4: output = stored_integer x slope + intercept.
+    /// For CT with PixelRepresentation=1, BitsAllocated=16, Slope=1,
+    /// Intercept=-1024: stored value -1024 -> HU = -1024*1 + (-1024) = -2048.
+    /// This was the root cause of GAP-R08g where RITK produced min=-1024
+    /// instead of the correct -2048.
+    #[test]
+    fn ct_signed_i16_rescale_intercept_minus_1024_produces_correct_hu() {
+        // Stored values: -1024 (air), 0 (water), 1000 (bone)
+        let stored: [i16; 3] = [-1024, 0, 1000];
+        let bytes: Vec<u8> = stored.iter().flat_map(|v| v.to_le_bytes()).collect();
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 3,
+                samples_per_pixel: 1,
+                bits_allocated: 16,
+                pixel_representation: 1, // signed
+                rescale_slope: 1.0,
+                rescale_intercept: -1024.0,
+            },
+        )
+        .unwrap();
+        // HU = stored * 1 + (-1024)
+        assert_eq!(out[0], -2048.0, "air: -1024 * 1 + (-1024) = -2048 HU");
+        assert_eq!(out[1], -1024.0, "water: 0 * 1 + (-1024) = -1024 HU");
+        assert_eq!(out[2], -24.0, "bone: 1000 * 1 + (-1024) = -24 HU");
+    }
+
+    /// Verify that identity rescale (slope=1, intercept=0) passes stored values
+    /// through unchanged, which is the correct behavior when rescale has already
+    /// been applied upstream (e.g., by dicom-pixeldata in decode_via_dicom_rs).
+    #[test]
+    fn identity_rescale_preserves_signed_i16_stored_values() {
+        let stored: [i16; 4] = [-1024, -512, 0, 3071];
+        let bytes: Vec<u8> = stored.iter().flat_map(|v| v.to_le_bytes()).collect();
+        let out = decode_native_pixel_bytes_checked(
+            &bytes,
+            PixelLayout {
+                rows: 1,
+                cols: 4,
+                samples_per_pixel: 1,
+                bits_allocated: 16,
+                pixel_representation: 1,
+                rescale_slope: 1.0,
+                rescale_intercept: 0.0,
+            },
+        )
+        .unwrap();
+        assert_eq!(out, vec![-1024.0, -512.0, 0.0, 3071.0]);
     }
 }

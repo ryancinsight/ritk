@@ -1,18 +1,32 @@
 # CHANGELOG
 
-All notable changes to RITK are documented in this file.
-Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
+All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
-<!-- ──────────────────────────────────────────── -->
-## [0.44.1] - 2026-05-13
+<!-- ──────────────────────────────────────── -->
+## [0.46.0] - 2026-05-14
+### Fixed [patch]
+- GAP-R08g: Fixed double-rescale in decode_via_dicom_rs (dicom-pixeldata applies modality LUT internally, then RITK re-applied via decode_native_pixel_bytes_checked). For CT with RescaleIntercept=-1024, stored value -1024 now correctly produces -2048 HU instead of -1024 HU.
+- Fixed native_owned_jpeg_errors_do_not_fallback_to_dicom_rs test assertion to match actual native JPEG error message.
 
-### Changed [patch]
-- Split `crates/ritk-registration/src/diffeomorphic/mod.rs` (750 lines, violating 500-line structural limit) into three compliant leaf modules: `mod.rs` (75 lines, `SyNConfig` + module declarations + re-exports), `syn_core.rs` (498 lines, `SyNResult`, `SyNRegistration`, `register()`), and `local_cc.rs` (272 lines, `cc_forces`, `mean_local_cc`, `field_rms`). Public API is unchanged.
+### Closed gaps
+- GAP-R08g: DICOM rescale intercept (CT min -1024 vs -2048) -- **Closed**
 
-### Improved [patch]
-- `cc_forces` and `mean_local_cc` now parallelize the outer voxel loop via Rayon `into_par_iter`, reducing per-iteration cost from O(n·W³) serial to O(n·W³/T) where T is the Rayon thread count. Each voxel's two-pass local-window computation is read-only and independent, with no data races.
-- Added `rayon = { workspace = true }` to `crates/ritk-registration` dependencies.
+### Verification
+- cargo test -p ritk-codecs --lib: 106 passed, 0 failed
+- cargo test -p ritk-dicom --lib: 14 passed, 0 failed
+- cargo check -p ritk-python: 0 errors
+- End-to-end: RITK CT min=-2048 HU matches SimpleITK exactly on test_data/3_head_ct_mridir
+
+## [0.45.0] - 2026-05-13
+### Added [minor]
+- `RegularStepGradientDescent` optimizer implementing ITK `RegularStepGradientDescentOptimizerv4`: gradient-normalized stepping with configurable step length, relaxation factor on loss increase (with module revert), and three convergence modes (gradient norm, step length, max iterations). 20 unit tests.
+- `GlobalMiRegistration` with multi-resolution Mattes MI + RSGD pipeline for intensity-based translation/rigid/affine registration. Generic `execute_multires` entry point plus typed `register_rigid_full`, `register_affine_full`, `register_translation_full` convenience methods. Per-level auto intensity range estimation, per-level RSGD config, `GlobalMiResult` with 4x4 homogeneous matrix, final MI value, convergence history. 18 unit/integration tests.
+- `global_mi_register` Python binding for the full global MI registration pipeline with configurable transform type, pyramid levels, MI bins, sampling percentage, and RSGD parameters.
+- Re-exports: `RegularStepGdConfig`, `RegularStepGradientDescent`, `ConvergenceReason` from `ritk_registration::optimizer`; `GlobalMiConfig`, `GlobalMiRegistration`, `GlobalMiResult`, `GlobalMiTransformType` from `ritk_registration::classical` and top-level.
+- Added `autodiff` feature to `ritk-python` burn dependency for gradient computation support.
+
+### Closed gaps
+- GAP-R08a: Global MI optimizer (Mattes MI + RSGD with sparse sampling) — **Closed**. RITK now has a complete ITK-parity global registration pipeline for inter-subject brain alignment.
 
 <!-- ──────────────────────────────────────────── -->
 ## [0.44.0] - 2026-05-13

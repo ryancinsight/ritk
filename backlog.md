@@ -1,3 +1,61 @@
+## Sprint 218 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.46.0 [patch]
+**Goal**: Close GAP-R08g — DICOM rescale intercept defect causing CT HU values to be incorrect (RITK min=-1024 vs SimpleITK min=-2048).
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-R08g | DICOM rescale intercept (double-rescale in decode_via_dicom_rs) | **Closed** |
+
+### Delivered
+- `crates/ritk-dicom/src/backend/dicom_rs.rs`: Fixed double-rescale in decode_via_dicom_rs by passing identity PixelLayout (slope=1, intercept=0) to decode_native_pixel_bytes_checked since dicom-pixeldata already applies the modality LUT
+- `crates/ritk-codecs/src/pixel_layout.rs`: Added 2 GAP-R08g regression tests (CT HU correctness, identity-rescale passthrough)
+- `crates/ritk-dicom/src/backend/dicom_rs.rs`: Fixed native_owned_jpeg_errors_do_not_fallback_to_dicom_rs test assertion
+- `crates/ritk-python/tests/test_registration_gap_validation.py`: Updated TestDICOMIOValidation to assert RITK/SimpleITK CT intensity range agreement (1% tolerance) instead of documenting the gap
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+| `bspline_syn.rs` structural violation | 1072-line file exceeds 500-line limit | Medium |
+| `multires_syn.rs` structural violation | 741-line file exceeds 500-line limit | Medium |
+
+## Sprint 217 — Complete
+
+**Status**: Complete  
+**Phase**: Phase 2 Execution  
+**Version**: 0.45.0 [minor]  
+**Goal**: Close GAP-R08a — implement global Mattes MI optimizer with RegularStepGradientDescent and random-coordinate sparse sampling for inter-subject rigid/affine registration.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-R08a | Global MI optimizer (Mattes MI + RSGD with sparse sampling) | **Closed** |
+| — | RegularStepGradientDescent optimizer (ITK `RegularStepGradientDescentOptimizerv4`) | **Closed** |
+| — | Python binding `global_mi_register` for translation/rigid/affine MI registration | **Closed** |
+
+### Delivered
+
+- `crates/ritk-registration/src/optimizer/regular_step_gd.rs`: `RegularStepGradientDescent<M, B>` implementing ITK's `RegularStepGradientDescentOptimizerv4` with gradient normalization via effective learning rate, step-accept/revert with module clone, and three convergence modes (gradient, step, max-iterations). 20 unit tests.
+- `crates/ritk-registration/src/classical/global_mi.rs`: `GlobalMiRegistration` with multi-resolution Mattes MI + RSGD pipeline supporting translation/rigid/affine transforms. Generic `execute_multires<B, T>` plus typed `register_rigid_full`, `register_affine_full`, `register_translation_full` entry points. Per-level intensity range estimation, per-level RSGD config, and `GlobalMiResult` with 4×4 matrix, MI value, convergence history. 18 unit/integration tests.
+- `crates/ritk-python/src/registration/global_mi.rs`: Python binding `global_mi_register(fixed, moving, transform_type, ...)` exposing the full pipeline with configurable pyramid levels, MI bins, sampling percentage, and RSGD parameters. Returns (matrix, final_mi, info_dict).
+- Updated `crates/ritk-registration/src/optimizer/mod.rs`, `crates/ritk-registration/src/classical/mod.rs`, `crates/ritk-registration/src/lib.rs` with re-exports.
+- Updated `crates/ritk-python/src/registration/mod.rs` and `crates/ritk-python/Cargo.toml` (added `"autodiff"` feature).
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| DICOM rescale intercept | RITK CT min=-1024 HU vs SimpleITK min=-2048 HU (GAP-R08g) | High |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based registration dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer with automatic parameter estimation | Low |
+| `bspline_syn.rs` structural violation | 1072-line file exceeds 500-line limit | Medium |
+| `multires_syn.rs` structural violation | 741-line file exceeds 500-line limit | Medium |
+
 ## Sprint 216 — Complete
 
 **Status**: Complete
