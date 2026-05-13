@@ -1,3 +1,33 @@
+## Sprint 226 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `bspline_ffd/mod.rs` 1431-line violation | Split into 14 leaf files (all ≤ 194 lines); 18 unit tests pass |
+| Unused import `burn::nn::Linear` in `adaptive_stochastic_gd.rs` | Removed; 0 warnings on `cargo build -p ritk-registration` |
+| Section 10 B-Spline FFD parity tests | 10 tests in `TestBSplineFFDRegistrationParity`; all pass in 1.1 s |
+
+### Structural violations in `ritk-registration` remaining
+| File | Lines | Status |
+|---|---|---|
+| `atlas/label_fusion.rs` | 881 | Open |
+| `deformable_field_ops.rs` | 681 | Open |
+| `lddmm/mod.rs` | 624 | Open |
+| `demons/thirion.rs` | 561 | Open |
+| `demons/inverse.rs` | 559 | Open |
+| `demons/diffeomorphic.rs` | 547 | Open |
+| `demons/exact_inverse_diffeomorphic.rs` | 523 | Open |
+| `classical/spatial.rs` | 501 | Open |
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+| `ritk-cli/src/commands/segment.rs` | 3276 | High |
+
+---
+
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
 **Sprint 226 (2026):** MGH/MGZ structural image-format gap closed. `crates/ritk-mgh/src/reader.rs` (1128 lines) and `crates/ritk-mgh/src/writer.rs` (980 lines) were deleted and replaced by deep-vertical module trees: `reader/mod.rs` (150 lines), `writer/mod.rs` (92 lines), `binary.rs`, `spatial.rs`, `types.rs`, `test_support.rs`, and partitioned reader/writer test leaves. Public APIs remain unchanged: `read_mgh`, `write_mgh`, `MghReader`, and `MghWriter` still export from `ritk-mgh` and the `ritk-io` facade. Shared invariants now have single owners: big-endian primitive I/O in `binary.rs`, MGH scalar byte-width validation in `types.rs`, and RAS origin/center transforms in `spatial.rs`. Verification: `cargo test -p ritk-mgh --lib -- --nocapture` 30 passed; `cargo check -p ritk-io` passed; `cargo fmt --check -p ritk-mgh` passed. Current image-format functionality status: DICOM series/multiframe, PNG, JPEG, TIFF RGB loaders, MGH/MGZ scalar I/O, and image comparison metrics are present. Residual image structural gaps: `ritk-io/src/format/dicom/reader.rs` (4612), `multiframe.rs` (2404), `seg.rs` (2179), `codec.rs` (1675), `writer.rs` (1403), RT modules (739-761), and `ritk-codecs/src/jpeg_ls/mod.rs` (572). Residual non-image gaps: GAP-R08b parameter-map interface and `bspline_ffd/mod.rs` structural split.

@@ -1,37 +1,43 @@
+## Sprint 227 — Active
+**Status**: Active
+**Phase**: Phase 2 Execution
+**Version**: 0.49.5 → 0.49.6 [patch]
+**Goal**: Close the next bounded structural violations in `ritk-registration`: `atlas/label_fusion.rs` (881 lines) and `deformable_field_ops.rs` (681 lines).
+
+### Next gaps
+| Gap ID | Description | Priority |
+|---|---|---|
+| `atlas/label_fusion.rs` violation | 881-line flat file in `ritk-registration/src/atlas/` | Medium |
+| `deformable_field_ops.rs` violation | 681-line flat file in `ritk-registration/src/` | Medium |
+| DICOM format module split | `ritk-io/src/format/dicom/` files exceed 500 lines | High |
+
 ## Sprint 226 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
-**Version**: 0.49.4 [patch]
-**Goal**: Close the `ritk-mgh` reader/writer structural image-format gap and refresh the active image-gap audit.
+**Version**: 0.49.5 [patch]
+**Goal**: Close `bspline_ffd/mod.rs` 1431-line structural violation; add Section 10 B-Spline FFD parity tests.
 
 ### Gaps closed
 | Gap ID | Description | Status |
 |---|---|---|
-| `ritk-mgh/src/reader.rs` violation | 1128-line flat reader file exceeded the 500-line structural limit | **Closed** |
-| `ritk-mgh/src/writer.rs` violation | 980-line flat writer file exceeded the 500-line structural limit | **Closed** |
-| MGH test duplication | Reader/writer test helpers duplicated crafted MGH byte and image construction | **Closed** |
-| Image gap audit refresh | Active image-format structural backlog reconciled after MGH split | **Closed** |
+| `bspline_ffd/mod.rs` violation | 1431-line flat file in `ritk-registration` | **Closed** |
+| Section 10 parity tests | B-Spline FFD PyO3 bindings parity vs numpy/SimpleITK NCC | **Closed** |
 
 ### Delivered
-- `crates/ritk-mgh/src/reader/`: 150-line reader module plus data-type, gzip, geometry, round-trip, and error test leaves.
-- `crates/ritk-mgh/src/writer/`: 92-line writer module plus round-trip, header, and data-type/error test leaves.
-- `crates/ritk-mgh/src/binary.rs`: shared big-endian primitive I/O helpers.
-- `crates/ritk-mgh/src/spatial.rs`: shared RAS-center/origin transforms for reader and writer.
-- `crates/ritk-mgh/src/types.rs`: MGH scalar type byte-width validation.
-- `crates/ritk-mgh/src/test_support.rs`: crate-local test construction SSOT for crafted MGH streams and test images.
-- Deleted flat `crates/ritk-mgh/src/reader.rs` and `crates/ritk-mgh/src/writer.rs`.
+- `crates/ritk-registration/src/bspline_ffd/` directory: 14 leaf files (mod, config, basis, metric, regularization, pyramid, warp, registration, tests/{mod,basis,metric,regularization,warp,pyramid,integration}), all ≤ 194 lines.
+- Section 10 `TestBSplineFFDRegistrationParity` (10 tests) in `test_simpleitk_parity.py`: identity registration, shape preservation, finite output, NCC improvement, MSE reduction, SimpleITK NCC round-trip parity, valid NCC range, brain data (3 tests).
 
-### Remaining high-priority image gaps
+### Remaining high-priority gaps
 | Task | Description | Priority |
 |---|---|---|
-| DICOM format module split | `ritk-io/src/format/dicom/{reader,multiframe,seg,codec,writer,rt_*}.rs` still exceed 500 lines | High |
-| JPEG-LS module split | `ritk-codecs/src/jpeg_ls/mod.rs` remains 572 lines | Medium |
+| DICOM format module split | `ritk-io/src/format/dicom/` still exceed 500 lines | High |
+| `atlas/label_fusion.rs` structural split (881 lines) | Medium | Open |
+| `deformable_field_ops.rs` structural split (681 lines) | Medium | Open |
 
 ### Remaining non-image gaps
 | Task | Description | Priority |
 |---|---|---|
 | Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
-| `bspline_ffd/mod.rs` structural violation | 1431-line flat file in `ritk-registration` | Medium |
 
 ## Sprint 225 — Complete
 **Status**: Complete

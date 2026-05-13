@@ -362,7 +362,6 @@ mod tests {
     use super::*;
     use burn::backend::Autodiff;
     use burn::module::Module;
-    use burn::nn::Linear;
     use burn::tensor::Tensor;
     use burn_ndarray::NdArray;
 

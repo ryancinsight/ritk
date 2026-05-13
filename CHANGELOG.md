@@ -3,6 +3,27 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.49.5] - 2026-05-13
+
+### Changed [patch]
+
+- Split `ritk-registration/src/bspline_ffd/mod.rs` (1431 lines) into a deep-vertical hierarchy: `config.rs`, `basis.rs`, `metric.rs`, `regularization.rs`, `pyramid.rs`, `warp.rs`, `registration.rs`, and `tests/{mod,basis,metric,regularization,warp,pyramid,integration}.rs`. All 14 leaf files are ≤ 194 lines.
+- Removed unused `burn::nn::Linear` import from `adaptive_stochastic_gd.rs` tests.
+
+### Added [patch]
+
+- Section 10 `TestBSplineFFDRegistrationParity` (10 tests) in `test_simpleitk_parity.py`: B-Spline FFD registration parity tests comparing `ritk.registration.bspline_ffd_register()` against numpy and SimpleITK NCC round-trip on synthetic shifted sphere and real brain-MNI data (ants_r16, ants_r27). Tests skip automatically when test data is absent.
+
+### Closed gaps
+
+- `bspline_ffd/mod.rs` structural violation (1431 lines exceeded 500-line limit) — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib -- bspline_ffd`: 18 passed
+- `pytest crates/ritk-python/tests/test_simpleitk_parity.py::TestBSplineFFDRegistrationParity -v`: 10 passed
+
+<!-- ──────────────────────────────────────── -->
 ## [0.49.4] - 2026-05-13
 
 ### Changed [patch]

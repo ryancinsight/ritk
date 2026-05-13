@@ -1,35 +1,46 @@
+## Sprint 227 — Active
+**Status**: Active
+**Phase**: Phase 2 Execution
+**Version**: 0.49.5 → 0.49.6 [patch]
+**Goal**: Next structural violation: `ritk-registration/src/atlas/label_fusion.rs` (881 lines).
+
+### Next targets
+| Task | Priority | Status |
+|---|---|---|
+| `atlas/label_fusion.rs` structural split (881 lines) | Medium | Open |
+| `deformable_field_ops.rs` structural split (681 lines) | Medium | Open |
+| DICOM format module structural split | High | Open |
+
 ## Sprint 226 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
-**Version**: 0.49.4 [patch]
-**Goal**: Split `ritk-mgh` reader/writer into deep-vertical implementation and test leaves while preserving public MGH/MGZ APIs.
+**Version**: 0.49.5 [patch]
+**Goal**: Split `bspline_ffd/mod.rs` (1431 lines) into deep-vertical hierarchy; add Section 10 B-Spline FFD parity tests.
 
 ### Checklist items
-- [x] Audit current image-format structural line counts after Sprint 225
-- [x] Identify `crates/ritk-mgh/src/reader.rs` (1128 lines) and `writer.rs` (980 lines) as the next bounded image-format gap
-- [x] Extract shared big-endian primitive I/O into `binary.rs`
-- [x] Extract MGH scalar byte-width validation into `types.rs`
-- [x] Extract RAS origin/center transforms into `spatial.rs`
-- [x] Move reader implementation to `reader/mod.rs` and split tests by data type, gzip, geometry, round-trip, and errors
-- [x] Move writer implementation to `writer/mod.rs` and split tests by round-trip, header, and data-type/error coverage
-- [x] Extract duplicated crafted-MGH/image test construction into `test_support.rs`
-- [x] Delete flat `reader.rs` and `writer.rs`
-- [x] Verify every `ritk-mgh` source/test leaf is below 500 lines
-- [x] Verify `cargo test -p ritk-mgh --lib -- --nocapture` (30 passed)
-- [x] Verify `cargo check -p ritk-io` (pass)
-- [x] Verify `cargo fmt --check -p ritk-mgh` (pass)
+- [x] Audit `bspline_ffd/mod.rs` (1431 lines) structural violation
+- [x] Create `bspline_ffd/config.rs` (`BSplineFFDConfig`, `BSplineFFDResult`, ~50 lines)
+- [x] Create `bspline_ffd/basis.rs` (cubic B-spline basis + control grid, ~167 lines)
+- [x] Create `bspline_ffd/metric.rs` (NCC + metric gradient, ~194 lines)
+- [x] Create `bspline_ffd/regularization.rs` (bending energy + gradient, ~172 lines)
+- [x] Create `bspline_ffd/pyramid.rs` (B-spline subdivision, ~155 lines)
+- [x] Create `bspline_ffd/warp.rs` (`warp_image_bspline`, ~25 lines)
+- [x] Create `bspline_ffd/registration.rs` (`BSplineFFDRegistration::register`, ~187 lines)
+- [x] Create `tests/{mod,basis,metric,regularization,warp,pyramid,integration}.rs`
+- [x] Delete flat `bspline_ffd/mod.rs` body (replaced with re-exports only, ~51 lines)
+- [x] Remove unused `burn::nn::Linear` import from `adaptive_stochastic_gd.rs`
+- [x] Verify all 14 `bspline_ffd` leaf files ≤ 194 lines
+- [x] Verify `cargo build -p ritk-registration`: 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-registration --lib -- bspline_ffd`: 18 passed
+- [x] Add Section 10 `TestBSplineFFDRegistrationParity` (10 tests) to `test_simpleitk_parity.py`
+- [x] Verify `pytest TestBSplineFFDRegistrationParity -v`: 10 passed in 1.1s
 
-### Image gaps remaining
-| Task | Priority | Status |
-|---|---|---|
-| DICOM format module structural split (`reader`, `multiframe`, `seg`, `codec`, `writer`, `rt_*`) | High | Open |
-| JPEG-LS module structural split (`ritk-codecs/src/jpeg_ls/mod.rs`, 572 lines) | Medium | Open |
-
-### Non-image gaps remaining
+### Gaps remaining
 | Task | Priority | Status |
 |---|---|---|
 | Parameter-map interface (GAP-R08b) | Low | Open |
-| `bspline_ffd/mod.rs` structural violation (1431 lines) | Medium | Open |
+| `atlas/label_fusion.rs` structural split (881 lines) | Medium | Open |
+| `deformable_field_ops.rs` structural split (681 lines) | Medium | Open |
 
 ## Sprint 225 — Complete
 **Status**: Complete
