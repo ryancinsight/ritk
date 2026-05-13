@@ -1,3 +1,66 @@
+## Sprint 220 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.47.0 [minor]
+**Goal**: Close `global_mi.rs` (1351 lines) 500-line structural violation; implement MMI (Total Correlation) and VI algorithms; expose in Python; parity tests.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| — | `global_mi.rs` 500-line structural violation (1351 lines) | **Closed** |
+| — | Multivariate Mutual Information (Total Correlation) — not in codebase | **Closed** |
+| — | Variation of Information — not in codebase | **Closed** |
+| — | `metrics.rs` approaching 500-line limit (399 lines + new code) | **Closed** |
+
+### Delivered
+- `crates/ritk-registration/src/classical/global_mi/mod.rs` (~55 lines)
+- `crates/ritk-registration/src/classical/global_mi/config.rs` (~185 lines): GlobalMiTransformType, GlobalMiConfig
+- `crates/ritk-registration/src/classical/global_mi/result.rs` (~20 lines): GlobalMiResult
+- `crates/ritk-registration/src/classical/global_mi/transforms.rs` (~110 lines): pub(crate) helpers
+- `crates/ritk-registration/src/classical/global_mi/registration.rs` (~280 lines): GlobalMiRegistration
+- `crates/ritk-registration/src/classical/global_mi/tests/mod.rs` (~260 lines): unit tests
+- `crates/ritk-registration/src/classical/global_mi/tests/integration.rs` (~310 lines): integration tests
+- Deleted: `classical/global_mi.rs` (1351-line flat file)
+- `crates/ritk-python/src/metrics/total_correlation.rs` (~170 lines): total_correlation_slices + 8 tests
+- `crates/ritk-python/src/metrics/variation_of_information.rs` (~160 lines): vi_slices + 7 tests
+- `crates/ritk-python/src/metrics/mod.rs` + mse.rs + ncc.rs + mi.rs (split from 399-line flat file)
+- Deleted: `ritk-python/src/metrics.rs` flat file
+- `crates/ritk-python/tests/test_simpleitk_parity.py` Section 7: 7 TC parity tests + 6 VI parity tests
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| `image_comparison.rs` violation | 904-line file in ritk-core/statistics | Medium |
+| JPEG/TIFF color-volume loaders | Non-DICOM color formats | Medium |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
+## Sprint 220 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.48.0 [minor]
+**Goal**: Close the JPEG branch of the non-DICOM color-volume loader gap and refresh the image-gap audit.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| JPEG color-volume loader | `ritk-jpeg` loads strict decoded `Rgb8` JPEG files into `RgbVolume<B>` | **Closed for JPEG** |
+| JPEG color facade exports | `ritk-io::format::jpeg` and top-level `ritk-io` expose the authoritative JPEG RGB API without duplicated implementation bodies | **Closed** |
+| Image gap audit refresh | Active image backlog reconciled after DICOM rescale and registration gap closures | **Closed** |
+
+### Delivered
+- `crates/ritk-jpeg/src/color.rs`: JPEG RGB loader with shape `[1, height, width, 3]`, decoded-`Rgb8` validation, default spatial metadata, and value-semantic tests.
+- `crates/ritk-jpeg/src/lib.rs`: public JPEG color API export while preserving scalar JPEG reader/writer APIs.
+- `crates/ritk-io/src/format/jpeg/mod.rs` and `crates/ritk-io/src/lib.rs`: facade re-exports for the JPEG color-volume API.
+- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| TIFF color-volume loader | Extend `RgbVolume<B>` loading to RGB TIFF page stacks | Medium |
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
 ## Sprint 219 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

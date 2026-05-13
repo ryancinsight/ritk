@@ -3,6 +3,34 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.48.0] - 2026-05-13
+### Added [minor]
+- `ritk-jpeg::read_jpeg_color_to_volume` and `JpegColorReader` for strict decoded `Rgb8` JPEG loading into `RgbVolume<B>` with tensor shape `[1, height, width, 3]`.
+- `ritk-io::format::jpeg` and top-level `ritk-io` re-exports for the JPEG RGB color-volume API.
+- Value-semantic JPEG RGB tests for decoded interleaved sample preservation, grayscale rejection, and reader delegation.
+
+### Verification
+- `cargo test -p ritk-jpeg --lib color -- --nocapture`: 3 passed
+- `cargo test -p ritk-jpeg --lib -- --nocapture`: 9 passed
+- `cargo test -p ritk-io --lib format::jpeg -- --nocapture`: 1 passed
+
+<!-- ──────────────────────────────────────── -->
+## [0.47.0] - 2026-05-13
+### Added [minor]
+- `compute_total_correlation(images, num_bins=32)` Python function: Total Correlation C(X₁,...,Xₙ) = Σᵢ H(Xᵢ) − H(X₁,...,Xₙ) (Watanabe 1960) via uniform nearest-bin histogram over n channels (B^n joint table, B≤64, B^n≤4M). For n=2 exactly equals standard MI.
+- `compute_variation_of_information(fixed, moving, num_bins=32)` Python function: VI(X,Y) = H(X) + H(Y) − 2·I(X,Y) (Meilă 2003), a proper metric distance; VI=0 iff identical distributions; symmetric.
+- `TestTotalCorrelationParity` (7 tests) and `TestVariationOfInformationParity` (6 tests) in `test_simpleitk_parity.py` Section 7: analytical parity tests with numpy/scipy references.
+
+### Changed [minor]
+- Split `classical/global_mi.rs` (1351 lines) into deep-vertical subdirectory: `mod.rs`, `config.rs`, `result.rs`, `transforms.rs`, `registration.rs`, `tests/mod.rs`, `tests/integration.rs`. No public API change.
+- Split `ritk-python/src/metrics.rs` (399 lines) into `metrics/` directory: `mod.rs`, `mse.rs`, `ncc.rs`, `mi.rs`, `total_correlation.rs`, `variation_of_information.rs`. No public API change.
+
+### Verification
+- `cargo check -p ritk-python`: 0 errors
+- `cargo test -p ritk-python --lib -- metrics`: 30 passed, 0 failed
+- `python -m pytest -k "TotalCorrelation or VariationOfInformation" -v`: 13 passed
+
+<!-- ──────────────────────────────────────── -->
 ## [0.46.1] - 2026-05-13
 ### Changed [patch]
 - Split `diffeomorphic/bspline_syn.rs` (1072 lines) into deep-vertical subdirectory: `bspline_syn/mod.rs` (types + register), `bspline_syn/primitives.rs` (B-spline basis, CP layout, dense field, force accumulation, Laplacian), `bspline_syn/cc.rs` (local CC forces + mean CC), `bspline_syn/tests.rs` (12 tests). No public API change.

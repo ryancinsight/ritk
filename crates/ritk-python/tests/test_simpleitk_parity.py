@@ -2176,3 +2176,199 @@ def test_global_mi_register_translation_parity_vs_sitk():
     assert final_mi_sitk > 0.01, (
         f"SimpleITK MI {final_mi_sitk:.6f} suspiciously low (expected > 0.01 for correlated pair)"
     )
+
+
+# ── Section 7: Total Correlation (Multivariate MI) & Variation of Information ──
+
+
+def _make_blob_arr(shift_x: int = 0) -> np.ndarray:
+    """3D Gaussian blob in [0,1] on a SIZE^3 grid, optionally x-shifted."""
+    c = (SIZE - 1) / 2.0
+    z, y, x = np.mgrid[0:SIZE, 0:SIZE, 0:SIZE]
+    sigma = SIZE / 8.0
+    arr = np.exp(-((z - c) ** 2 + (y - c) ** 2 + (x - c - shift_x) ** 2) / (2 * sigma ** 2))
+    return arr.astype(np.float32)
+
+
+class TestTotalCorrelationParity:
+    """Total Correlation (TC) parity tests against analytical references.
+
+    TC(X₁,...,Xₙ) = Σᵢ H(Xᵢ) − H(X₁,...,Xₙ)
+
+    For n=2: TC(X,Y) = MI(X,Y).
+    For identical channels: TC(A,...,A) > 0 for non-constant A.
+    """
+
+    def test_tc_n2_equals_mi_on_correlated_pair(self):
+        """TC(X,Y) with n=2 must equal MI(X,Y) (standard bivariate MI)."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(2)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+
+        tc = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=32)
+        mi = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="standard")
+
+        assert abs(tc - mi) < 1e-10, (
+            f"TC(X,Y) n=2 must equal MI(X,Y): TC={tc:.6f}, MI={mi:.6f}"
+        )
+
+    def test_tc_identical_channels_positive(self):
+        """TC(A, A) > 0 for non-constant A."""
+        arr = _make_blob_arr(0)
+        img = _ritk(arr)
+
+        tc = ritk.metrics.compute_total_correlation([img, img], num_bins=32)
+        assert tc > 0.0, f"TC(A,A) must be positive for non-constant A, got {tc}"
+
+    def test_tc_n3_greater_than_n2_for_identical(self):
+        """TC(A,A,A) > TC(A,A) for identical non-constant channels.
+
+        Analytical: TC(A,...,A) = (n-1)·H(A), which grows with n.
+        """
+        arr = _make_blob_arr(0)
+        img = _ritk(arr)
+
+        tc2 = ritk.metrics.compute_total_correlation([img, img], num_bins=16)
+        tc3 = ritk.metrics.compute_total_correlation([img, img, img], num_bins=16)
+        assert tc3 > tc2, (
+            f"TC(A,A,A)={tc3:.4f} must exceed TC(A,A)={tc2:.4f} for identical non-constant A"
+        )
+
+    def test_tc_non_negative(self):
+        """TC ≥ 0 by information theory for any inputs."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(4)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+
+        tc = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=32)
+        assert tc >= 0.0, f"TC must be non-negative, got {tc}"
+
+    def test_tc_rejects_empty_list(self):
+        """compute_total_correlation([]) must raise ValueError."""
+        with pytest.raises((ValueError, RuntimeError)):
+            ritk.metrics.compute_total_correlation([], num_bins=16)
+
+    def test_tc_rejects_shape_mismatch(self):
+        """compute_total_correlation with mismatched shapes must raise ValueError."""
+        arr_a = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+        arr_b = np.zeros((SIZE, SIZE, SIZE // 2), dtype=np.float32)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+        with pytest.raises((ValueError, RuntimeError)):
+            ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=16)
+
+    def test_tc_single_channel_equals_zero(self):
+        """TC of a single channel = H(X) - H(X) = 0."""
+        arr = _make_blob_arr(0)
+        img = _ritk(arr)
+        tc = ritk.metrics.compute_total_correlation([img], num_bins=32)
+        assert tc == 0.0, f"TC of a single channel must be 0, got {tc}"
+
+
+class TestVariationOfInformationParity:
+    """Variation of Information (VI) parity tests against analytical references.
+
+    VI(X, Y) = H(X|Y) + H(Y|X) = H(X) + H(Y) − 2·I(X,Y)
+
+    Analytical properties verified:
+    - VI(X,X) = 0
+    - VI ≥ 0
+    - VI is symmetric
+    - VI(A, constant) = H(A) + H(const) - 2·0 = H(A)
+    """
+
+    def test_vi_identical_images_is_zero(self):
+        """VI(X,X) = 0 analytically: H(X)+H(X)−2·I(X,X)=2H(X)−2H(X)=0."""
+        arr = _make_blob_arr(0)
+        img = _ritk(arr)
+        vi = ritk.metrics.compute_variation_of_information(img, img, num_bins=32)
+        assert abs(vi) < 1e-10, f"VI(X,X) must be 0, got {vi}"
+
+    def test_vi_non_negative(self):
+        """VI ≥ 0 for any pair of images."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(4)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+        vi = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=32)
+        assert vi >= 0.0, f"VI must be non-negative, got {vi}"
+
+    def test_vi_is_symmetric(self):
+        """VI(X,Y) = VI(Y,X) by definition."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(3)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+        vi_ab = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=32)
+        vi_ba = ritk.metrics.compute_variation_of_information(img_b, img_a, num_bins=32)
+        assert abs(vi_ab - vi_ba) < 1e-12, (
+            f"VI must be symmetric: VI(a,b)={vi_ab:.8f} != VI(b,a)={vi_ba:.8f}"
+        )
+
+    def test_vi_equals_scipy_reference_for_uniform_input(self):
+        """VI(X,Y) matches reference formula VI = H(X)+H(Y)−2·MI from scipy.
+
+        Uses a pair of uniform intensity images where H and MI can be
+        computed analytically via scipy.stats for cross-validation.
+        """
+        scipy_stats = pytest.importorskip("scipy.stats")
+
+        # Uniform [0,8) repeated pattern — easy to compute H analytically.
+        arr_a = (np.arange(SIZE**3) % 8).reshape(SIZE, SIZE, SIZE).astype(np.float32)
+        arr_b = ((np.arange(SIZE**3) + 2) % 8).reshape(SIZE, SIZE, SIZE).astype(np.float32)
+
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+
+        vi_ritk = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=8)
+
+        # Reference: VI = H(A) + H(B) - 2*MI(A,B) via hard-bin histograms.
+        # With 8 equi-probable values, H(A) = H(B) = ln(8).
+        h_a = math.log(8)
+        h_b = math.log(8)
+
+        # Compute MI from hard-bin histogram using scipy.
+        n = arr_a.size
+        flat_a = arr_a.flatten().astype(int)
+        flat_b = arr_b.flatten().astype(int)
+        joint_counts = np.zeros((8, 8), dtype=np.float64)
+        for ai, bi in zip(flat_a, flat_b):
+            joint_counts[ai, bi] += 1
+        joint_prob = joint_counts / n
+        p_a = joint_prob.sum(axis=1)
+        p_b = joint_prob.sum(axis=0)
+        h_ab = -np.sum(joint_prob[joint_prob > 0] * np.log(joint_prob[joint_prob > 0]))
+        mi_ref = h_a + h_b - h_ab
+        vi_ref = h_a + h_b - 2.0 * mi_ref
+
+        assert abs(vi_ritk - vi_ref) < 0.05, (
+            f"VI_ritk={vi_ritk:.6f} vs VI_ref={vi_ref:.6f}: absolute error {abs(vi_ritk-vi_ref):.6f}"
+        )
+
+    def test_vi_increases_with_shift(self):
+        """VI(X, Y_shifted) increases as shift increases: larger shift → less similar."""
+        arr_fixed = _make_blob_arr(0)
+        img_fixed = _ritk(arr_fixed)
+
+        vi_small = ritk.metrics.compute_variation_of_information(
+            img_fixed, _ritk(_make_blob_arr(1)), num_bins=32
+        )
+        vi_large = ritk.metrics.compute_variation_of_information(
+            img_fixed, _ritk(_make_blob_arr(4)), num_bins=32
+        )
+        assert vi_large > vi_small, (
+            f"VI should increase with shift: VI(shift=1)={vi_small:.4f}, "
+            f"VI(shift=4)={vi_large:.4f}"
+        )
+
+    def test_vi_rejects_shape_mismatch(self):
+        """compute_variation_of_information with mismatched shapes must raise ValueError."""
+        arr_a = np.zeros((SIZE, SIZE, SIZE), dtype=np.float32)
+        arr_b = np.zeros((SIZE, SIZE, SIZE // 2), dtype=np.float32)
+        img_a = _ritk(arr_a)
+        img_b = _ritk(arr_b)
+        with pytest.raises((ValueError, RuntimeError)):
+            ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=16)
+

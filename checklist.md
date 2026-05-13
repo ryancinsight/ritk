@@ -1,3 +1,62 @@
+## Sprint 220 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.47.0 [minor]
+**Goal**: Close `global_mi.rs` (1351 lines) 500-line structural violation; implement Multivariate Mutual Information (Total Correlation) and Variation of Information algorithms; expose both in Python; add parity tests.
+
+### Checklist items
+- [x] Create `classical/global_mi/mod.rs` (~55 lines): module doc, `pub mod` declarations, re-exports
+- [x] Create `classical/global_mi/config.rs` (~185 lines): `GlobalMiTransformType`, `GlobalMiConfig`, `validate()`, defaults
+- [x] Create `classical/global_mi/result.rs` (~20 lines): `GlobalMiResult`
+- [x] Create `classical/global_mi/transforms.rs` (~110 lines): `estimate_intensity_range`, `rigid/affine/translation_matrix_to_homogeneous`, `compute_image_center` (all `pub(crate)`)
+- [x] Create `classical/global_mi/registration.rs` (~280 lines): `GlobalMiRegistration` struct + all impl blocks (register_rigid_full/affine_full/translation_full + execute_multires)
+- [x] Create `classical/global_mi/tests/mod.rs` (~260 lines): helpers + config/intensity/matrix/center/convergence tests
+- [x] Create `classical/global_mi/tests/integration.rs` (~310 lines): translation_recovery, multires_convergence, rigid_recovery, sparse_sampling
+- [x] Delete `classical/global_mi.rs` (1351-line flat file)
+- [x] Create `ritk-python/src/metrics/total_correlation.rs` (~170 lines): `total_correlation_slices` + 8 value-semantic tests
+- [x] Create `ritk-python/src/metrics/variation_of_information.rs` (~160 lines): `variation_of_information_slices` + 7 value-semantic tests
+- [x] Split `ritk-python/src/metrics.rs` (399 lines) into `metrics/` directory: `mod.rs` + `mse.rs` + `ncc.rs` + `mi.rs`
+- [x] Add `compute_total_correlation` and `compute_variation_of_information` PyO3 functions to `metrics/mod.rs`
+- [x] Delete `ritk-python/src/metrics.rs` flat file
+- [x] Add `TestTotalCorrelationParity` (7 tests) and `TestVariationOfInformationParity` (6 tests) to `test_simpleitk_parity.py` Section 7
+- [x] Verify `cargo check -p ritk-python --message-format short`: 0 errors
+- [x] Verify `cargo test -p ritk-python --lib -- metrics`: 30 passed, 0 failed
+- [x] Verify `python -m pytest test_simpleitk_parity.py -k "TotalCorrelation or VariationOfInformation" -v`: 13 passed
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| JPEG/TIFF color-volume loaders | Medium | Open |
+| `image_comparison.rs` 500-line violation (904 lines) | Medium | Open |
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
+## Sprint 220 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.48.0 [minor]
+**Goal**: Add JPEG RGB color-volume loading through the channel-explicit `RgbVolume<B>` boundary and refresh image-gap artifacts.
+
+### Checklist items
+- [x] Audit current image gaps after Sprint 219 and verify DICOM rescale GAP-R08g is closed
+- [x] Identify remaining image-format gap set as JPEG/TIFF color-volume loaders
+- [x] Add `crates/ritk-jpeg/src/color.rs` for strict decoded `Rgb8` JPEG loading
+- [x] Preserve scalar JPEG `Image<B,3>` reader/writer APIs unchanged
+- [x] Construct JPEG RGB tensor shape `[1, height, width, 3]` with default JPEG spatial metadata
+- [x] Reject grayscale/non-`Rgb8` JPEG inputs before channel-dropping conversion
+- [x] Re-export JPEG RGB APIs from `ritk-jpeg`, `ritk-io::format::jpeg`, and top-level `ritk-io`
+- [x] Add value-semantic tests for decoded RGB sample order, grayscale rejection, and reader delegation
+- [x] Verify `cargo test -p ritk-jpeg --lib color -- --nocapture` (3 passed)
+- [x] Verify `cargo test -p ritk-jpeg --lib -- --nocapture` (9 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::jpeg -- --nocapture` (1 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| TIFF color-volume loader | Medium | Open |
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
 ## Sprint 219 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
