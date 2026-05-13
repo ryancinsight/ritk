@@ -17,10 +17,12 @@ pub mod adam;
 pub mod cma_es;
 pub mod gradient_descent;
 pub mod momentum;
+pub mod regular_step_gd;
 pub mod trait_;
 
 pub use adam::AdamOptimizer;
 pub use cma_es::{CmaEsConfig, CmaEsOptimizer, CmaEsResult, StopReason};
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;
+pub use regular_step_gd::{ConvergenceReason, RegularStepGdConfig, RegularStepGradientDescent};
 pub use trait_::{LearningRateScheduler, Optimizer, OptimizerTelemetry, StepDecay};

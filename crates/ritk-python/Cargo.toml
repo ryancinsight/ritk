@@ -14,7 +14,7 @@ ritk-core = { path = "../ritk-core" }
 ritk-io = { path = "../ritk-io" }
 ritk-registration = { path = "../ritk-registration" }
 burn-ndarray = { workspace = true }
-burn = { workspace = true, features = ["ndarray"] }
+burn = { workspace = true, features = ["ndarray", "autodiff"] }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 nalgebra = { workspace = true }

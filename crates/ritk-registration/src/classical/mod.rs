@@ -12,12 +12,14 @@
 /// - `TemporalQualityMetrics` from [`crate::validation`]
 pub mod engine;
 pub mod error;
+pub mod global_mi;
 pub mod spatial;
 pub mod temporal;
 
 // Re-export core types for convenience
 pub use engine::{ImageRegistration, RegistrationResult};
 pub use error::{RegistrationError, Result};
+pub use global_mi::{GlobalMiConfig, GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType};
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;
 

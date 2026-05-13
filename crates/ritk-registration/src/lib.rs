@@ -105,8 +105,9 @@ pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 // Re-exports — Classical (non-ML) registration
 // ============================================================================
 pub use classical::{
-    ImageRegistration, RegistrationQualityMetrics, RegistrationResult, SpatialTransform,
-    TemporalQualityMetrics, TemporalSync,
+    GlobalMiConfig, GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType, ImageRegistration,
+    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalQualityMetrics,
+    TemporalSync,
 };
 
 // ============================================================================
