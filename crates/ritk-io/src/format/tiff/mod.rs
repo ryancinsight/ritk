@@ -1,4 +1,6 @@
-pub use ritk_tiff::{read_tiff, write_tiff, TiffReader, TiffWriter};
+pub use ritk_tiff::{
+    read_tiff, read_tiff_color_to_volume, write_tiff, TiffColorReader, TiffReader, TiffWriter,
+};
 
 use crate::domain::{ImageReader, ImageWriter};
 use burn::tensor::backend::Backend;

@@ -160,7 +160,10 @@ fn read_tiff_from_reader<B: Backend, R: Read + Seek>(
 /// Every integer and float variant is converted losslessly where the source
 /// fits in f32.  For u32/i32/u64/i64, large magnitudes may lose precision
 /// due to the 24-bit f32 significand.
-fn decoding_result_to_f32(result: DecodingResult, page_index: usize) -> Result<Vec<f32>> {
+pub(crate) fn decoding_result_to_f32(
+    result: DecodingResult,
+    page_index: usize,
+) -> Result<Vec<f32>> {
     match result {
         DecodingResult::U8(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::U16(v) => Ok(v.into_iter().map(|x| x as f32).collect()),

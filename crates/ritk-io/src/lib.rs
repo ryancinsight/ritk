@@ -24,7 +24,9 @@ pub use format::dicom::{
     RtPlanInfo, RtRoiInfo, RtStructureSet, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID,
     RT_PLAN_SOP_CLASS_UID,
 };
-pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
+pub use format::jpeg::{
+    read_jpeg, read_jpeg_color_to_volume, write_jpeg, JpegColorReader, JpegReader, JpegWriter,
+};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
 pub use format::minc::{read_minc, write_minc, MincReader, MincWriter};
@@ -33,8 +35,13 @@ pub use format::nifti::{
     NiftiReader, NiftiWriter,
 };
 pub use format::nrrd::{read_nrrd, write_nrrd, NrrdReader, NrrdWriter};
-pub use format::png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};
-pub use format::tiff::{read_tiff, write_tiff, TiffReader, TiffWriter};
+pub use format::png::{
+    read_png_color_series, read_png_color_to_volume, read_png_series, read_png_to_image,
+    PngColorReader, PngColorSeriesReader, PngReader, PngSeriesReader,
+};
+pub use format::tiff::{
+    read_tiff, read_tiff_color_to_volume, write_tiff, TiffColorReader, TiffReader, TiffWriter,
+};
 pub use format::vtk::image_xml::{
     read_vti_binary_appended, read_vti_binary_appended_bytes, write_vti_binary_appended_bytes,
     write_vti_binary_appended_to_file,
