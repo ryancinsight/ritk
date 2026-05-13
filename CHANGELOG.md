@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.44.1] - 2026-05-13
+
+### Changed [patch]
+- Split `crates/ritk-registration/src/diffeomorphic/mod.rs` (750 lines, violating 500-line structural limit) into three compliant leaf modules: `mod.rs` (75 lines, `SyNConfig` + module declarations + re-exports), `syn_core.rs` (498 lines, `SyNResult`, `SyNRegistration`, `register()`), and `local_cc.rs` (272 lines, `cc_forces`, `mean_local_cc`, `field_rms`). Public API is unchanged.
+
+### Improved [patch]
+- `cc_forces` and `mean_local_cc` now parallelize the outer voxel loop via Rayon `into_par_iter`, reducing per-iteration cost from O(n·W³) serial to O(n·W³/T) where T is the Rayon thread count. Each voxel's two-pass local-window computation is read-only and independent, with no data races.
+- Added `rayon = { workspace = true }` to `crates/ritk-registration` dependencies.
+
+<!-- ──────────────────────────────────────────── -->
+## [0.44.0] - 2026-05-13
+
+### Added [minor]
+- `ritk-png::read_png_color_to_volume`, `ritk-png::read_png_color_series`, `PngColorReader`, and `PngColorSeriesReader` for strict `Rgb8` PNG loading into `RgbVolume<B>` with tensor shape `[depth, height, width, 3]`.
+- `ritk-io::format::png` and top-level `ritk-io` re-exports for the PNG RGB color-volume API.
+- Value-semantic PNG RGB tests for interleaved sample preservation, natural slice sorting, grayscale rejection, reader delegation, and dimension-mismatch rejection.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.43.0] - 2026-05-12
 
 ### Added [minor]

@@ -1,3 +1,52 @@
+## Sprint 216 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.44.1 [patch]
+**Goal**: Fix `diffeomorphic/mod.rs` 500-line structural violation and add Rayon parallelism to `cc_forces`/`mean_local_cc` for SyN performance.
+
+### Checklist items
+- [x] Create `crates/ritk-registration/src/diffeomorphic/local_cc.rs` with Rayon-parallel `cc_forces`, `mean_local_cc`, `field_rms`, and 4 unit tests
+- [x] Create `crates/ritk-registration/src/diffeomorphic/syn_core.rs` with `SyNResult`, `SyNRegistration`, `register()`, and 8 tests from the old `mod.rs`
+- [x] Reduce `diffeomorphic/mod.rs` to `SyNConfig` + module declarations + re-exports (75 lines)
+- [x] Add `rayon = { workspace = true }` to `crates/ritk-registration/Cargo.toml`
+- [x] Verify `cargo test -p ritk-registration --lib diffeomorphic` (60 passed, 1.74s)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Global MI/NGF optimizer for inter-subject deformable registration | High | Open |
+| DICOM rescale intercept GAP-R08g | High | Open |
+| `bspline_syn.rs` (1072 lines) structural violation | Medium | Open |
+| `multires_syn.rs` (741 lines) structural violation | Medium | Open |
+| JPEG/TIFF color-volume loaders | Medium | Open |
+
+## Sprint 215 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.44.0 [minor]
+**Goal**: Add PNG RGB color-volume loading through the channel-explicit `RgbVolume<B>` boundary.
+
+### Checklist items
+- [x] Audit scalar PNG loader ownership and non-DICOM color-volume gap
+- [x] Add `crates/ritk-png/src/color.rs` for strict `Rgb8` single PNG and directory-series loading
+- [x] Preserve scalar PNG `Image<B,3>` APIs unchanged
+- [x] Construct RGB tensors with shape `[depth, height, width, 3]` and default PNG spatial metadata
+- [x] Reject grayscale/non-`Rgb8` PNG inputs in the color loader before channel-dropping conversion
+- [x] Reject RGB series dimension mismatches before tensor construction
+- [x] Re-export PNG RGB APIs from `ritk-png`, `ritk-io::format::png`, and top-level `ritk-io`
+- [x] Add value-semantic tests for RGB sample order, natural sorting, reader delegation, grayscale rejection, and dimension mismatch rejection
+- [x] Verify `cargo test -p ritk-png --lib color -- --nocapture` (5 passed)
+- [x] Verify `cargo test -p ritk-png --lib -- --nocapture` (9 passed)
+- [x] Verify `cargo test -p ritk-io --lib format::png -- --nocapture` (2 passed)
+- [x] Verify scoped rustfmt and whitespace checks on touched files
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Global metric optimizer (MI/NGF) for inter-subject deformable registration | High | Open |
+| DICOM rescale intercept GAP-R08g | High | Open |
+| JPEG/TIFF color-volume loaders | Medium | Open |
+
 ## Sprint 213 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

@@ -1,3 +1,95 @@
+## Sprint 216 — Complete
+
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.44.1 [patch]
+**Goal**: Fix `diffeomorphic/mod.rs` 500-line structural violation and parallelize SyN `cc_forces`/`mean_local_cc` via Rayon.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| `diffeomorphic/mod.rs` structural violation | 750-line file split into `mod.rs` (75), `syn_core.rs` (498), `local_cc.rs` (272) | **Closed** |
+| SyN serial `cc_forces` performance | Per-voxel loop now Rayon-parallel; O(n·W³/T) per iteration | **Closed** |
+
+### Delivered
+
+- `crates/ritk-registration/src/diffeomorphic/local_cc.rs`: Rayon-parallel `cc_forces`, `mean_local_cc`, `field_rms`, 4 unit tests.
+- `crates/ritk-registration/src/diffeomorphic/syn_core.rs`: `SyNResult`, `SyNRegistration`, `register()`, 8 tests.
+- `crates/ritk-registration/src/diffeomorphic/mod.rs`: `SyNConfig` + module/re-export declarations only (75 lines).
+- `rayon = { workspace = true }` added to `crates/ritk-registration/Cargo.toml`.
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| DICOM rescale intercept | RITK CT min=-1024 HU vs SimpleITK min=-2048 HU (GAP-R08g) | High |
+| `bspline_syn.rs` structural violation | 1072-line file exceeds 500-line limit | Medium |
+| `multires_syn.rs` structural violation | 741-line file exceeds 500-line limit | Medium |
+| JPEG/TIFF color-volume loaders | Extend `ColorVolume` to remaining non-DICOM color-capable loaders | Medium |
+
+## Sprint 215 — Complete
+
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.44.0 [minor]
+**Goal**: Close the PNG branch of the non-DICOM color-volume loader gap through the existing `RgbVolume<B>` boundary.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| Non-DICOM PNG color-volume loader | `ritk-png` loads strict `Rgb8` single PNG files and naturally sorted PNG series into `RgbVolume<B>` | **Closed for PNG** |
+| PNG color facade exports | `ritk-io::format::png` and top-level `ritk-io` expose the authoritative PNG RGB API without duplicated implementation bodies | **Closed** |
+
+### Delivered
+
+- `crates/ritk-png/src/color.rs`: RGB PNG single-slice and series loaders with shape `[depth, height, width, 3]`, strict `Rgb8` validation, dimension checks, and value-semantic tests.
+- `crates/ritk-png/src/lib.rs`: public PNG color API export plus shared natural-sort helper access.
+- `crates/ritk-io/src/format/png/mod.rs` and `crates/ritk-io/src/lib.rs`: facade re-exports for the PNG color-volume API.
+- Updated `ARCHITECTURE.md`, `CHANGELOG.md`, `checklist.md`, and `gap_audit.md`.
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| DICOM rescale intercept | RITK CT min=-1024 HU vs SimpleITK min=-2048 HU (GAP-R08g) | High |
+| JPEG/TIFF color-volume loaders | Extend `ColorVolume` to remaining non-DICOM color-capable loaders | Medium |
+
+## Sprint 214 — Complete
+
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.43.0 [patch]
+**Goal**: RITK vs SimpleElastix gap analysis validation with real data download and side-by-side registration comparison.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-R08 validation | 41-test side-by-side registration validation suite across 7 image pairs, 5 data types | **Closed** |
+| GAP-R08f | Same-subject NIfTI pair absent | **Closed** (ANTs Colin27/MNI, OpenNeuro ds000208, SPM single-subj T1) |
+| RIRE ground truth | No quantitative ground-truth registration reference | **Closed** (fiducial Euler3D transform .tfm + ct_T1.standard acquired) |
+| I/O intensity validation | No NIfTI/MetaImage intensity range parity check | **Closed** (<2% relative error) |
+| DICOM I/O validation | No DICOM series read validation | **Closed** (shape consistent, GAP-R08g documented) |
+
+### Delivered
+
+- `crates/ritk-python/tests/test_registration_gap_validation.py`: 41 value-semantic tests across 12 test classes. All pass.
+- New test data: ANTs Colin27/MNI, OpenNeuro ds000208 (3 subjects), SPM12 canonical T1, RIRE ground-truth transform
+- Updated `test_data/registration/README.md` and `gap_audit.md` with findings
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| DICOM rescale intercept | RITK CT min=-1024 HU vs SimpleITK min=-2048 HU (GAP-R08g) | High |
+| RITK-owned JPEG decoder | Replace JpegDecoderCrate | High |
+| Non-DICOM color-volume loaders | Extend ColorVolume to PNG/JPEG/TIFF | Medium |
+
 ## Sprint 213 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

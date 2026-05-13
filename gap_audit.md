@@ -1,5 +1,9 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+**Sprint 216 (2026):** `diffeomorphic/mod.rs` 500-line structural violation and SyN `cc_forces` serial-execution performance gap closed. `crates/ritk-registration/src/diffeomorphic/mod.rs` (750 lines) was split into three compliant leaf modules: `mod.rs` (75 lines, `SyNConfig` + module declarations + re-exports), `syn_core.rs` (498 lines, `SyNResult`, `SyNRegistration`, `register()`, 8 tests), and `local_cc.rs` (272 lines, Rayon-parallel `cc_forces`, `mean_local_cc`, `field_rms`, 4 tests). `cc_forces` and `mean_local_cc` now parallelize the outer voxel loop via `(0..n).into_par_iter()` (Rayon); each voxel's two-pass local-window computation is read-only and independent, producing no data races. The per-iteration cost drops from O(n·W³) serial to O(n·W³/T) where T = Rayon thread count. `rayon = { workspace = true }` added to `ritk-registration` dependencies. Public API is unchanged: `SyNRegistration`, `SyNConfig`, `SyNResult` re-export from the same `diffeomorphic::` path. Verification: `cargo test -p ritk-registration --lib diffeomorphic` pass (60 passed) in 1.74s. Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration; `bspline_syn.rs` (1072 lines) and `multires_syn.rs` (741 lines) still violate the 500-line structural limit.
+
+**Sprint 215 (2026):** PNG branch of the non-DICOM color-volume loader gap closed. `crates/ritk-png/src/color.rs` adds `read_png_color_to_volume`, `read_png_color_series`, `PngColorReader`, and `PngColorSeriesReader`, all returning `RgbVolume<B>` through the channel-explicit tensor shape `[depth, height, width, 3]`. The loader validates decoded `ColorType::Rgb8` before conversion, rejects grayscale and other non-RGB encodings instead of channel-dropping, naturally sorts directory series, rejects slice dimension mismatches, and applies the PNG metadata contract `origin=[0,0,0]`, `spacing=[1,1,1]`, identity direction. `ritk-io::format::png` and top-level `ritk-io` re-export the PNG color API without duplicating implementation bodies; scalar PNG `Image<B,3>` loaders remain unchanged. Verification: `cargo test -p ritk-png --lib color -- --nocapture` pass (5), `cargo test -p ritk-png --lib -- --nocapture` pass (9), `cargo test -p ritk-io --lib format::png -- --nocapture` pass (2). Residual image gaps: JPEG/TIFF color-volume loaders and DICOM rescale intercept GAP-R08g. Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration.
+
 **Sprint 213 (2026):** Python metrics API gap closed. `crates/ritk-python/src/metrics.rs` adds `compute_mse` (MSE = Σ(a−b)²/N), `compute_ncc` (Pearson r = cov(a,b)/(N·σ_a·σ_b + ε)), and `compute_mutual_information` (histogram MI with three variants: "mattes" bilinear soft-binning, "standard" nearest-bin, "normalized" 2·MI/(H(A)+H(B))) as PyO3 functions behind the `ritk.metrics` submodule. The mathematical contract for MI(A,constant)=0 (H(B)=0) and MI(A,A)=H(A) (maximum self-information) are validated by unit tests. `ritk/__init__.py` and `__init__.pyi` register `ritk.metrics` as a public submodule. `test_metric_parity.py` (20 tests) validates: MSE/NCC/MI numerical parity vs NumPy references, shape-mismatch and unknown-variant error propagation, NMI unit-interval bound, and real-world brain MRI self-consistency and cross-subject monotonicity. Verification: `cargo test -p ritk-python --lib metrics -- --nocapture` pass (9), `python -m pytest crates/ritk-python/tests/test_metric_parity.py -q` pass (20). Residual registration gap: RITK lacks a global MI/NGF optimizer for inter-subject deformable registration.
 
 **Sprint 212 (2026):** DICOM RGB multiframe color-volume gap closed. `crates/ritk-io/src/format/dicom/color_multiframe.rs` adds `read_dicom_color_multiframe` / `load_dicom_color_multiframe`, validating `SamplesPerPixel=3`, `PhotometricInterpretation=RGB`, `PlanarConfiguration=0`, `BitsAllocated=8`, `PixelRepresentation=0`, positive frame dimensions, supported transfer syntax, and uniform per-frame spacing before constructing `RgbVolume<B>` with tensor shape `[frames, rows, cols, 3]`. Multiframe origin, spacing, and direction metadata are derived from the existing `MultiFrameInfo` boundary and per-frame functional groups when present. `crates/ritk-io/src/format/dicom/color_common.rs` now owns shared RGB DICOM tag parsing for both series and multiframe color loaders. Native JPEG decoder diagnostics were also cleaned: dead CMYK/Huffman storage was removed, the DCT path now uses the shared component-id resolver, and parsed DCT/lossless scan parameters are validated instead of ignored. Verification: `cargo test -p ritk-codecs --lib jpeg -- --nocapture` pass (93), `cargo test -p ritk-io --lib format::dicom::color_multiframe -- --nocapture` pass (3), `cargo test -p ritk-io --lib format::dicom::color -- --nocapture` pass (6), `cargo test -p ritk-core --lib filter::smoothing::mean -- --nocapture` pass (6), `cargo test -p ritk-core --lib filter::edge::canny -- --nocapture` pass (3), `cargo test -p ritk-core --lib filter::vesselness::sato -- --nocapture` pass (5), `cargo test -p ritk-core --lib filter::vesselness::frangi -- --nocapture` pass (7). Residual image gap: extend `ColorVolume` to non-DICOM color-capable loaders where metadata supports channel-explicit volume semantics. Residual registration gap: global MI/NGF optimizer for inter-subject deformable registration.
@@ -1294,7 +1298,48 @@ hippocampus, thalamus, and cortical parcel segmentation.
 - Shamonin et al. (2014), *Front. Neuroinform.* 7:50 (Multi-threaded Elastix).
 - SimpleITK `ImageRegistrationMethod` (ITK optimiser-driven registration, used as parity reference since Sprint 76).
 
-**Status (Sprint 76):** SimpleElastix is archived software (last release ~2018) with no Python ≥3.9 wheels. The installed SimpleITK 2.5.4 is the vanilla build (no `ElastixImageFilter`). Sprint 76 replaced the 4 skipped Elastix-dependent parity tests with 4 SimpleITK `ImageRegistrationMethod`-based tests that provide equivalent optimiser-driven registration reference baselines (Mattes MI + RegularStepGradientDescent + Euler3D/Affine/BSpline transform hierarchy). Parity test coverage is now active (36/36 pass, 0 skipped). The remaining gap is the parameter-map–driven interface and ASGD optimizer, which are convenience/API-parity items rather than correctness requirements.
+**Status (Sprint 210):** Sprint 210 performed a comprehensive side-by-side validation of RITK registration against SimpleITK baselines using 7 image pairs across 5 data types:
+
+1. **Synthetic shifted sphere** — Dice recovery (binary edge)
+2. **Synthetic shifted Gaussian blob** — NCC improvement (continuous)
+3. **Colin27↔ICBM MNI** (ANTs) — Same-modality T1↔T1, roughly pre-aligned (NCC_before≈0.7-0.9)
+4. **OpenNeuro sub-01↔sub-02** (ds000208) — Same-modality T1↔T1, inter-subject (NCC_before≈0.75)
+5. **RIRE CT↔MR T1** — Cross-modal with fiducial ground-truth Euler3D transform
+6. **Visible Male CT↔MRI** — Cross-modal head pair
+7. **DICOM CT/MR series** — I/O validation for rescale intercept handling
+
+41-test suite (`test_registration_gap_validation.py`) — all 41 PASS.
+
+**Key findings from Sprint 210 validation:**
+
+| Algorithm | Data Type | RITK | SimpleITK Baseline | Parity |
+|-----------|-----------|------|--------------------|--------|
+| Demons | Synthetic sphere | Dice≥0.80 | Dice≥0.85 (rigid) | **COMPETITIVE** |
+| Demons | Same-mod T1 (ch2↔mni) | NCC improves | NCC improves (rigid) | **PARITY** |
+| Demons | Cross-modal CT↔MR | NCC improves | NCC improves (rigid) | **PARITY** |
+| SyN | Same-mod T1 | NCC improves | NCC improves (affine) | **PARITY** |
+| SyN | Cross-modal CT↔MR | NCC improves | NCC improves (BSpline) | **PARITY** |
+| LDDMM | Synthetic blob | NCC improves | N/A | **VALID** |
+| BSpline FFD | Synthetic sphere | Dice≥0.55 | N/A | **VALID** |
+
+**RIRE ground-truth validation:**
+- Fiducial ground-truth Euler3D transform recovered: rotation 4.44°Z, 1.90°X, 0.04°Y, translation [5.04, -17.50, -27.16] mm
+- SimpleITK rigid (Euler3D + Mattes MI + RSGD) recovers >30% of ground-truth NCC improvement
+- Ground-truth resampled CT vs MR NCC = 0.1867 (up from baseline -0.03)
+
+**I/O validation:**
+- RITK and SimpleITK read NIfTI with identical intensity ranges (<2% relative error)
+- RITK and SimpleITK read MetaImage with identical intensity ranges (<2% relative error)
+- RITK and SimpleITK read DICOM series with consistent shapes
+- DICOM CT intensity range difference: RITK min=-1024 HU, SimpleITK min=-2048 HU (GAP-R08g confirmed)
+
+**New data acquired:**
+- ANTs Colin27 (ch2) and ICBM MNI — same-modality pair for pre-aligned registration testing
+- OpenNeuro ds000208 sub-01/sub-02/sub-03 — inter-subject same-modality T1w triple
+- SPM12 single-subject T1 (2mm canonical) — MNI-space template
+- RIRE fiducial ground-truth transform (.tfm file) — first quantitative ground-truth reference
+
+SimpleElastix is archived software (last release ~2018) with no Python ≥3.9 wheels. The installed SimpleITK 3.0.0a1 is the vanilla build (no `ElastixImageFilter`). SimpleITK `ImageRegistrationMethod` baselines (Mattes MI + RSGD + Euler3D/Affine/BSpline) serve as the parity reference.
 
 **Gap description:** Elastix is a parameter-map-driven registration framework that bundles:
 **Gap description:**

@@ -12,6 +12,7 @@ thiserror = "2.0"
 tracing = "0.1"
 ndarray = { version = "0.16", features = ["rayon"] }
 nalgebra = "0.33"
+rayon = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = "0.19"
