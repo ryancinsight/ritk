@@ -1,3 +1,32 @@
+## Sprint 210 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.10 [patch]
+**Goal**: Close the RITK-owned JPEG decoder gap; replace `jpeg-decoder` external crate with a full RITK-native implementation behind the `JpegDecodeBackend` sealed trait.
+
+### Checklist items
+- [x] Implement `huffman.rs`: canonical Huffman table (T.81 §C.1), `BitReader` with byte-stuffing, `receive_and_extend`
+- [x] Implement `idct.rs`: separable 8×8 IDCT (T.81 §A.3.3), f64 cosine table, transpose-in-place
+- [x] Implement `marker.rs`: `parse_jpeg` covering SOI/APPn/COM/DRI/DQT/DHT/SOF0+1+3/SOS, `JpegFrameData`
+- [x] Implement `color.rs`: `ycbcr_to_rgb` JFIF §6 BT.601 fixed-point
+- [x] Implement `scan_lossless.rs`: `decode_lossless_scan` SOF3, predictors Ss=1..7, L8/L16 output
+- [x] Implement `scan_dct.rs`: `decode_baseline_scan` SOF0/SOF1, DC+AC entropy, IDCT, grayscale+YCbCr 4:2:0
+- [x] Implement `ritk_decoder.rs`: `RitkJpegDecoder` ZST routing SOF0/SOF1/SOF3
+- [x] Update `backend.rs`: remove `JpegDecoderCrate` and `jpeg-decoder` imports
+- [x] Update `mod.rs`: use `RitkJpegDecoder` at all dispatch sites
+- [x] Remove `jpeg-decoder` from `crates/ritk-codecs/Cargo.toml`
+- [x] Run `cargo fmt -p ritk-codecs` (clean)
+- [x] Verify JPEG tests: `cargo test -p ritk-codecs --lib 'jpeg::'` (24 passed)
+- [x] Verify full codecs suite: `cargo test -p ritk-codecs --lib` (104 passed)
+- [x] Verify downstream crates: `cargo test -p ritk-dicom --lib`, `cargo test -p ritk-io --lib` (pass)
+- [x] Update `gap_audit.md`, `checklist.md`, `CHANGELOG.md`, `backlog.md`
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Full color-volume representation above scalar `Image<B,3>` loaders | Medium | Open |
+| Global metric optimizer (MI/NGF) for inter-subject deformable registration | High | Open |
+
 ## Sprint 209 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

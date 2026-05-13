@@ -8,20 +8,27 @@
 //! is preserved as interleaved samples in raster order.
 //!
 //! # Backend boundary
-//! `backend::JpegDecodeBackend` is a sealed, static-dispatch boundary. The
-//! initial `JpegDecoderCrate` implementation constrains the external
-//! `jpeg-decoder` dependency to this module; a RITK-owned decoder can replace
-//! it by implementing the same sample-raster contract.
+//! `backend::JpegDecodeBackend` is a sealed, static-dispatch boundary.
+//! `RitkJpegDecoder` is the authoritative implementation; all external
+//! `jpeg-decoder` crate dependency has been removed.
 
 mod backend;
+pub(crate) mod color;
+pub(crate) mod huffman;
+pub(crate) mod idct;
+pub(crate) mod marker;
+pub(crate) mod ritk_decoder;
+pub(crate) mod scan_dct;
+pub(crate) mod scan_lossless;
 
 use anyhow::{bail, Context, Result};
 
-use self::backend::{JpegDecodeBackend, JpegDecoderCrate, JpegPixelFormat};
+use self::backend::{JpegDecodeBackend, JpegPixelFormat};
+use self::ritk_decoder::RitkJpegDecoder;
 use crate::{decode_native_pixel_bytes_checked, PixelLayout};
 
 pub fn decode_jpeg_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
-    decode_jpeg_fragment_with::<JpegDecoderCrate>(fragment, layout)
+    decode_jpeg_fragment_with::<RitkJpegDecoder>(fragment, layout)
 }
 
 #[inline]
@@ -44,7 +51,7 @@ fn decode_jpeg_fragment_with<B: JpegDecodeBackend>(
         }
         JpegPixelFormat::L16 => decode_l16_native_endian(&decoded.pixels, layout),
         JpegPixelFormat::Cmyk32 => bail!(
-            "native JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
+            "JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
             decoded.pixel_format
         ),
     }
@@ -68,7 +75,7 @@ fn validate_jpeg_layout(
     }
     if matches!(pixel_format, JpegPixelFormat::Cmyk32) {
         bail!(
-            "native JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
+            "JPEG decoder does not support CMYK DICOM pixel data; decoded format was {:?}",
             pixel_format
         );
     }
@@ -136,7 +143,8 @@ mod tests {
     use std::io::Cursor;
 
     use super::*;
-    use crate::jpeg::backend::{JpegDecodeBackend, JpegDecoderCrate};
+    use crate::jpeg::backend::JpegDecodeBackend;
+    use crate::jpeg::ritk_decoder::RitkJpegDecoder;
 
     fn layout(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {
         layout_with_bits(rows, cols, 8, 0, slope, intercept)
@@ -186,59 +194,11 @@ mod tests {
     }
 
     fn lossless_single_pixel_jpeg_8bit_gray_128() -> Vec<u8> {
-        vec![
-            0xFF, 0xD8, // SOI
-            0xFF, 0xC3, // SOF3: lossless Huffman
-            0x00, 0x0B, // segment length
-            0x08, // precision
-            0x00, 0x01, // height
-            0x00, 0x01, // width
-            0x01, // components
-            0x01, 0x11, 0x00, // component id, sampling, quant table
-            0xFF, 0xC4, // DHT
-            0x00, 0x14, // segment length
-            0x00, // DC table 0
-            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // one 1-bit code
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // no longer codes
-            0x00, // symbol: category 0
-            0xFF, 0xDA, // SOS
-            0x00, 0x08, // segment length
-            0x01, // components
-            0x01, 0x00, // component id, DC/AC table selectors
-            0x01, // predictor selection Ra
-            0x00, // spectral selection end, must be zero for lossless
-            0x00, // point transform
-            0x7F, // Huffman code 0 padded with ones: diff=0, prediction=128
-            0xFF, 0xD9, // EOI
-        ]
+        crate::jpeg::scan_lossless::tests::lossless_8bit_fixture()
     }
 
     fn lossless_single_pixel_jpeg_16bit_gray_0x1234() -> Vec<u8> {
-        vec![
-            0xFF, 0xD8, // SOI
-            0xFF, 0xC3, // SOF3: lossless Huffman
-            0x00, 0x0B, // segment length
-            0x10, // precision
-            0x00, 0x01, // height
-            0x00, 0x01, // width
-            0x01, // components
-            0x01, 0x11, 0x00, // component id, sampling, quant table
-            0xFF, 0xC4, // DHT
-            0x00, 0x14, // segment length
-            0x00, // DC table 0
-            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // one 1-bit code
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // no longer codes
-            0x0F, // symbol: category 15
-            0xFF, 0xDA, // SOS
-            0x00, 0x08, // segment length
-            0x01, // components
-            0x01, 0x00, // component id, DC/AC table selectors
-            0x01, // predictor selection Ra
-            0x00, // spectral selection end, must be zero for lossless
-            0x00, // point transform
-            0x12, 0x33, // code 0 + bits for diff -28108 from prediction 32768
-            0xFF, 0xD9, // EOI
-        ]
+        crate::jpeg::scan_lossless::tests::lossless_16bit_fixture()
     }
 
     #[test]
@@ -329,7 +289,7 @@ mod tests {
     fn jpeg_backend_l16_output_uses_native_endian_contract() {
         let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
 
-        let decoded = JpegDecoderCrate::decode(&jpeg).unwrap();
+        let decoded = RitkJpegDecoder::decode(&jpeg).unwrap();
 
         assert_eq!(decoded.pixel_format, JpegPixelFormat::L16);
         assert_eq!(decoded.pixels, 0x1234u16.to_ne_bytes());

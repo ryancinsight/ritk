@@ -1,3 +1,28 @@
+## Sprint 210 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.40.10 [patch]
+**Goal**: Close the RITK-owned JPEG decoder gap (persistent across Sprints 199–209); replace `jpeg-decoder` external crate with a full RITK-native ITU-T T.81 implementation.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| JPEG decoder ownership | `jpeg-decoder` external crate replaced; `JpegDecoderCrate` removed | **Closed** |
+| SOF0/SOF1 baseline DCT decode | 8×8 IDCT + dequantize + DC/AC entropy + YCbCr 4:2:0 upsampling | **Closed** |
+| SOF3 lossless Huffman decode | Predictors Ss=1..7, precision 2..=16, L8/L16 output | **Closed** |
+
+### Delivered
+- 7 new sub-modules: `huffman.rs`, `idct.rs`, `marker.rs`, `color.rs`, `scan_lossless.rs`, `scan_dct.rs`, `ritk_decoder.rs`
+- 16 new tests (8 original tests retained); 104 total `ritk-codecs` tests pass
+- `jpeg-decoder` removed from workspace dependencies
+- All downstream crates (`ritk-dicom`, `ritk-io`) unaffected
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Global MI/NGF optimizer | RITK lacks a global metric optimizer for inter-subject deformable registration | High |
+| Full color-volume representation | Add explicit color image/volume type above scalar `Image<B,3>` loaders | Medium |
+
 ## Sprint 209 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

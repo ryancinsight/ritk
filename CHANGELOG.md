@@ -5,6 +5,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
+## [0.40.10] - 2026-05-12
+
+### Added [patch]
+- `crates/ritk-codecs/src/jpeg/huffman.rs`: canonical Huffman table construction (ITU-T T.81 §C.1), entropy-coded `BitReader` with byte-stuffing removal, and `receive_and_extend` (T.81 §F.2.2.1) — 6 tests.
+- `crates/ritk-codecs/src/jpeg/idct.rs`: separable 8×8 IDCT (T.81 §A.3.3) with f64 cosine table, transpose-in-place implementation — 2 tests.
+- `crates/ritk-codecs/src/jpeg/marker.rs`: `parse_jpeg` JPEG stream parser covering SOI, APPn, COM, DRI, DQT, DHT, SOF0/SOF1/SOF3, SOS, returning `JpegFrameData` with `scan_data_start` offset — 2 tests.
+- `crates/ritk-codecs/src/jpeg/color.rs`: `ycbcr_to_rgb` JFIF §6 BT.601 fixed-point YCbCr→RGB conversion — 4 tests.
+- `crates/ritk-codecs/src/jpeg/scan_lossless.rs`: `decode_lossless_scan` for SOF3 lossless Huffman; predictors Ss=1..7 (T.81 §H.1.2); L8 output (precision ≤ 8) and L16 native-endian u16 (precision 9..=16) — 2 tests.
+- `crates/ritk-codecs/src/jpeg/scan_dct.rs`: `decode_baseline_scan` for SOF0/SOF1; DC differential + AC run-length entropy decode (T.81 §F.2.2.1–2), zigzag dequantization, 8×8 IDCT, level-shift; grayscale (1-component L8) and YCbCr (3-component 4:4:4 and 4:2:0 with chroma upsampling).
+- `crates/ritk-codecs/src/jpeg/ritk_decoder.rs`: `RitkJpegDecoder` ZST implementing `JpegDecodeBackend`; routes SOF0/SOF1 → `decode_baseline_scan`, SOF3 → `decode_lossless_scan`.
+
+### Removed [patch]
+- `JpegDecoderCrate` struct and its `impl JpegDecodeBackend` that depended on the `jpeg-decoder` external crate.
+- `jpeg-decoder = { workspace = true }` dependency from `crates/ritk-codecs/Cargo.toml` and workspace.
+
+<!-- ──────────────────────────────────────────── -->
 ## [0.40.9] - 2026-05-12
 
 ### Added [patch]
