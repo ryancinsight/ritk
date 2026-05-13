@@ -1,4 +1,7 @@
-pub use ritk_png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};
+pub use ritk_png::{
+    read_png_color_series, read_png_color_to_volume, read_png_series, read_png_to_image,
+    PngColorReader, PngColorSeriesReader, PngReader, PngSeriesReader,
+};
 
 use crate::domain::ImageReader;
 use burn::tensor::backend::Backend;

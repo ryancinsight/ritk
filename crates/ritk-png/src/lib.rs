@@ -5,6 +5,12 @@ use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
 
+mod color;
+
+pub use color::{
+    read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
+};
+
 /// Read a single grayscale PNG into an `Image<B, 3>` with shape `[1, height, width]`.
 pub fn read_png_to_image<B: Backend, P: AsRef<Path>>(
     path: P,
@@ -69,7 +75,7 @@ pub fn read_png_series<B: Backend, P: AsRef<Path>>(
     )
 }
 
-fn sorted_png_files(dir: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn sorted_png_files(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut png_files: Vec<PathBuf> = std::fs::read_dir(dir)
         .with_context(|| format!("Failed to read directory: {}", dir.display()))?
         .filter_map(|entry| entry.ok())

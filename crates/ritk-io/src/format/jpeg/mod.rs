@@ -1,4 +1,6 @@
-pub use ritk_jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
+pub use ritk_jpeg::{
+    read_jpeg, read_jpeg_color_to_volume, write_jpeg, JpegColorReader, JpegReader, JpegWriter,
+};
 
 use crate::domain::{ImageReader, ImageWriter};
 use burn::tensor::backend::Backend;
