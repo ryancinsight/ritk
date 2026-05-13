@@ -1,3 +1,63 @@
+## Sprint 225 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.3 [patch]
+**Goal**: Close `regular_step_gd.rs` 1012-line structural violation via deep-vertical split; close GAP-R08c (AdaptiveStochasticGD); add Section 9 Python parity tests on real brain-MNI NIfTI data.
+
+### Checklist items
+- [x] Audit `regular_step_gd.rs` (1012 lines) structural violation
+- [x] Create `optimizer/regular_step_gd/mod.rs` (re-exports, ~40 lines)
+- [x] Create `optimizer/regular_step_gd/config.rs` (`RegularStepGdConfig`, ~89 lines)
+- [x] Create `optimizer/regular_step_gd/convergence.rs` (`ConvergenceReason`, ~12 lines)
+- [x] Create `optimizer/regular_step_gd/grad_norm.rs` (`GradientNormVisitor`, ~52 lines)
+- [x] Create `optimizer/regular_step_gd/step_mapper.rs` (`RsgdStepMapper`, ~58 lines)
+- [x] Create `optimizer/regular_step_gd/optimizer.rs` (`RegularStepGradientDescent`, ~204 lines)
+- [x] Create `tests/{mod,config,invariants,functional}.rs` (all under 250 lines)
+- [x] Delete flat `regular_step_gd.rs`
+- [x] Rename `AdaptiveStochasticGdConfig::A` → `a_damping` (snake_case fix, 0 warnings)
+- [x] Commit `adaptive_stochastic_gd.rs` to close GAP-R08c
+- [x] Verify `cargo check --workspace`: 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-registration --lib`: 274 passed, 0 failed
+- [x] Add Section 9 `TestStatisticsWithRealBrainData` (14 tests) to `test_simpleitk_parity.py`
+- [x] Verify `python -m pytest -k TestStatisticsWithRealBrainData -v`: 14 passed
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `bspline_ffd/mod.rs` structural violation (1431 lines) | Medium | Open |
+
+## Sprint 224 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.2 [patch]
+**Goal**: Close CC implementation duplication — unify three cloned `cc_forces`/`mean_local_cc` implementations into a single canonical `local_cc.rs`.
+
+### Checklist items
+- [x] Audit three CC implementations in `local_cc.rs`, `bspline_syn/cc.rs`, `multires_syn/cc.rs` and confirm algorithmic identity (Avants 2008 eq. 10)
+- [x] Extract `window_cc_stats` from `multires_syn/cc.rs` (cleaner API) and add to `local_cc.rs` as `pub(crate) fn window_cc_stats`
+- [x] Refactor `cc_forces` in `local_cc.rs` to delegate to `window_cc_stats`
+- [x] Refactor `mean_local_cc` in `local_cc.rs` to delegate to `window_cc_stats`
+- [x] Preserve Rayon parallelism in canonical `cc_forces` and `mean_local_cc`
+- [x] Update `bspline_syn/mod.rs` to import from `super::local_cc` instead of `self::cc`
+- [x] Update `bspline_syn/tests.rs` import path to `super::super::local_cc`
+- [x] Delete `diffeomorphic/bspline_syn/cc.rs` (142 lines)
+- [x] Update `multires_syn/mod.rs` to import from `super::local_cc` instead of `self::cc`
+- [x] Update `multires_syn/tests.rs` import path to `super::super::local_cc`
+- [x] Delete `diffeomorphic/multires_syn/cc.rs` (127 lines)
+- [x] Move `field_rms` import in `syn_core.rs` to `#[cfg(test)]` scope
+- [x] Add 5 new CC tests: `window_cc_stats_constant_images`, `window_cc_stats_identical_non_constant`, `cc_forces_identical_images_bounded`, `mean_local_cc_identical_non_constant_images`, `mean_local_cc_constant_images_is_zero`
+- [x] Verify `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-registration --lib`: 272 passed, 0 failed
+- [x] Verify `cargo test -p ritk-codecs --lib`: 106 passed
+- [x] Verify `cargo check -p ritk-python`: 0 errors
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| AdaptiveStochasticGD (GAP-R08c) | Low | Open |
+
 ## Sprint 223 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

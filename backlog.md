@@ -1,3 +1,50 @@
+## Sprint 225 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.3 [patch]
+**Goal**: Close `regular_step_gd.rs` 1012-line structural violation; close GAP-R08c; add Section 9 parity tests with real brain NIfTI data.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| `regular_step_gd.rs` violation | 1012-line flat file in `optimizer/` | **Closed** |
+| GAP-R08c | AdaptiveStochasticGD optimizer (Klein 2009) | **Closed** |
+
+### Delivered
+- `optimizer/regular_step_gd/` directory: 10 leaf files (mod, config, convergence, grad_norm, step_mapper, optimizer, tests/mod, tests/config, tests/invariants, tests/functional), all under 300 lines.
+- `adaptive_stochastic_gd.rs` (444 lines): ASGD with Klein 2009 sigmoid-schedule adaptive time; `a_damping` rename to satisfy snake_case.
+- Section 9 `TestStatisticsWithRealBrainData` (14 tests): PSNR/SSIM/Dice/TC/VI parity on real brain-MNI NIfTI slices. Skip guards for absent test data.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| `bspline_ffd/mod.rs` violation | 1431-line flat file in `ritk-registration` | Medium |
+
+## Sprint 224 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.49.2 [patch]
+**Goal**: Close CC implementation duplication (3 files implementing the same Avants 2008 eq. 10 algorithm, differing only in sequential vs Rayon parallel execution) in `diffeomorphic/` — architecture drift violating single-authoritative-implementation policy.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| CC deduplication | Three cloned `cc_forces`/`mean_local_cc` implementations across `local_cc.rs`, `bspline_syn/cc.rs`, `multires_syn/cc.rs` | **Closed** |
+
+### Delivered
+- Refactored `diffeomorphic/local_cc.rs` (272→336 lines) as single canonical CC implementation: added `pub(crate) fn window_cc_stats` (extracted from `multires_syn/cc.rs`), refactored `cc_forces` and `mean_local_cc` to delegate to `window_cc_stats`, kept Rayon parallelism, added 5 new tests.
+- Deleted `diffeomorphic/bspline_syn/cc.rs` (142 lines); `bspline_syn/mod.rs` now imports from `super::local_cc`.
+- Deleted `diffeomorphic/multires_syn/cc.rs` (127 lines); `multires_syn/mod.rs` now imports from `super::local_cc`.
+- Cleaned `syn_core.rs` unused `field_rms` import (test-only; moved to `#[cfg(test)]` scope).
+- Net code reduction: 211 lines (2658→2447); all files remain under 500 lines.
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| AdaptiveStochasticGD | GAP-R08c: ASGD optimizer | Low |
+
 ## Sprint 223 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

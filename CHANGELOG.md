@@ -3,6 +3,48 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────── -->
+## [0.49.3] - 2026-05-13
+
+### Changed [patch]
+
+- Split `optimizer/regular_step_gd.rs` (1012 lines) into deep-vertical `regular_step_gd/` directory: `mod.rs`, `config.rs`, `convergence.rs`, `grad_norm.rs`, `step_mapper.rs`, `optimizer.rs`, `tests/{mod,config,invariants,functional}.rs`. All 10 leaf files are under 300 lines.
+- Renamed `AdaptiveStochasticGdConfig::A` field to `a_damping` to satisfy `non_snake_case` invariant; update all computation sites.
+
+### Added [patch]
+
+- `adaptive_stochastic_gd.rs` (444 lines): `AdaptiveStochasticGdConfig`, `AdaptiveStochasticGradientDescent` implementing Klein et al. (2009) ASGD with adaptive time `t_k` and sigmoid step-size schedule. Closes GAP-R08c.
+- Section 9 `TestStatisticsWithRealBrainData` (14 tests) in `test_simpleitk_parity.py`: PSNR/SSIM/Dice/TC/VI parity tests on real brain-MNI NIfTI slices (ants_r16, ants_r27, ants_r64). Tests skip automatically when test data is absent.
+
+### Closed gaps
+
+- `regular_step_gd.rs` structural violation (1012 lines exceeded 500-line limit) — **Closed**
+- GAP-R08c AdaptiveStochasticGD optimizer — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib`: 274 passed, 0 failed
+- `python -m pytest -k TestStatisticsWithRealBrainData -v`: 14 passed
+- `cargo check --workspace`: 0 errors, 0 warnings
+
+<!-- ──────────────────────────────────────── -->
+## [0.49.2] - 2026-05-14
+
+### Changed [patch]
+
+- Unified three duplicated local CC implementations into a single canonical `diffeomorphic/local_cc.rs` with `window_cc_stats`, Rayon-parallel `cc_forces`, and `mean_local_cc`
+- Deleted `bspline_syn/cc.rs` and `multires_syn/cc.rs`; both modules now import from `super::local_cc`
+- Moved `field_rms` import in `syn_core.rs` to test scope
+
+### Closed gaps
+
+- CC implementation duplication (3 cloned `cc_forces`/`mean_local_cc` across `local_cc.rs`, `bspline_syn/cc.rs`, `multires_syn/cc.rs`) — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib`: 272 passed, 0 failed
+
+<!-- ──────────────────────────────────────── -->
+
 ## [0.49.1] - 2026-05-13
 ### Changed [patch]
 - Split `ritk-core/src/statistics/image_comparison.rs` (904 lines) into a deep-vertical module tree: `image_comparison/mod.rs`, `overlap.rs`, `surface.rs`, `quality.rs`, and metric-family test leaves. Public metric re-exports are unchanged.

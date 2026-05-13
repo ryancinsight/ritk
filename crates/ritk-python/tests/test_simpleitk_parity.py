@@ -20,6 +20,7 @@ The entire module is skipped when SimpleITK is not importable.
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -2592,5 +2593,219 @@ class TestImageComparisonParity:
         result = ritk.statistics.ssim(_ritk(arr_a), _ritk(arr_b), max_val=255.0)
         assert -1.0 - 1e-5 <= result <= 1.0 + 1e-5, (
             f"SSIM must be in [-1,1], got {result}"
+        )
+
+
+# =============================================================================
+# Section 9 — Statistics and metrics parity with real test-data NIfTI images
+# =============================================================================
+#
+# Uses brain-MNI 2-D slice images from test_data/registration/brain_mni/.
+# Tests skip automatically when the NIfTI files are absent so CI without
+# large test assets still passes.
+#
+# Metrics validated:
+#   - PSNR  (RITK vs numpy reference)
+#   - SSIM  (identical → 1.0; cross-subject ∈ [0, 1])
+#   - Dice  (RITK vs SimpleITK LabelOverlapMeasuresImageFilter)
+#   - Total Correlation  (TC ≥ 0; multi-brain > 0; single-channel = 0)
+#   - Variation of Information  (VI ≥ 0; identical = 0; symmetry)
+
+_BRAIN_MNI = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "test_data" / "registration" / "brain_mni"
+)
+_R16 = _BRAIN_MNI / "ants_r16.nii.gz"
+_R27 = _BRAIN_MNI / "ants_r27.nii.gz"
+_R64 = _BRAIN_MNI / "ants_r64.nii.gz"
+_HAVE_BRAIN_DATA = _R16.exists() and _R27.exists() and _R64.exists()
+
+
+def _load_brain_slice(path) -> np.ndarray:
+    """Load a 2-D brain NIfTI slice; return float32 array with shape (H, W)."""
+    return sitk.GetArrayFromImage(sitk.ReadImage(str(path))).astype(np.float32)
+
+
+def _brain_ritk(arr2d: np.ndarray) -> "ritk.Image":
+    """Wrap a (H, W) array into a (1, H, W) ritk.Image with unit spacing."""
+    vol = np.ascontiguousarray(arr2d[np.newaxis, :, :], dtype=np.float32)
+    return ritk.Image(vol, [1.0, 1.0, 1.0])
+
+
+def _brain_mask_ritk(arr2d: np.ndarray, threshold: float) -> "ritk.Image":
+    """Threshold arr2d and return binary (1, H, W) ritk.Image."""
+    mask = (arr2d > threshold).astype(np.float32)
+    return _brain_ritk(mask)
+
+
+@pytest.mark.skipif(not _HAVE_BRAIN_DATA, reason="brain NIfTI test data absent")
+class TestStatisticsWithRealBrainData:
+    """Section 9: parity of ritk statistics/metrics vs numpy/SimpleITK on
+    real 256×256 brain-MNI 2-D slices (ants_r16, ants_r27, ants_r64).
+    """
+
+    # ── PSNR ─────────────────────────────────────────────────────────────────
+
+    def test_psnr_on_brain_pair_agrees_with_numpy(self):
+        """PSNR(r16, r27) from ritk must match numpy reference to 1 e-3 dB.
+
+        PSNR = 10·log₁₀(MAX² / MSE), MAX = 255.
+        """
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+
+        ritk_psnr = ritk.statistics.psnr(
+            _brain_ritk(r16), _brain_ritk(r27), max_val=255.0
+        )
+
+        mse = float(np.mean((r16 - r27) ** 2))
+        numpy_psnr = 10.0 * np.log10(255.0 ** 2 / mse)
+
+        assert abs(ritk_psnr - numpy_psnr) < 1e-3, (
+            f"PSNR ritk={ritk_psnr:.4f} numpy={numpy_psnr:.4f}"
+        )
+
+    def test_psnr_identical_brain_slice_is_infinity(self):
+        """PSNR(r16, r16) must be +inf (zero MSE)."""
+        r16 = _load_brain_slice(_R16)
+        val = ritk.statistics.psnr(_brain_ritk(r16), _brain_ritk(r16), max_val=255.0)
+        assert val == float("inf") or val > 1e6, (
+            f"PSNR of identical images must be +inf or very large; got {val}"
+        )
+
+    # ── SSIM ─────────────────────────────────────────────────────────────────
+
+    def test_ssim_identical_brain_slice_is_one(self):
+        """SSIM(r16, r16) = 1.0 (exact)."""
+        r16 = _load_brain_slice(_R16)
+        val = ritk.statistics.ssim(_brain_ritk(r16), _brain_ritk(r16), max_val=255.0)
+        assert abs(val - 1.0) < 1e-5, f"SSIM identical brain must be 1.0; got {val}"
+
+    def test_ssim_cross_subject_brain_in_range(self):
+        """SSIM(r16, r27) ∈ [0, 1] for positive-valued brain images."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        val = ritk.statistics.ssim(_brain_ritk(r16), _brain_ritk(r27), max_val=255.0)
+        assert 0.0 <= val <= 1.0 + 1e-5, (
+            f"SSIM cross-subject must be in [0,1]; got {val}"
+        )
+
+    def test_ssim_cross_subject_less_than_identical(self):
+        """SSIM(r16, r27) < SSIM(r16, r16) = 1.0."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        val_cross = ritk.statistics.ssim(
+            _brain_ritk(r16), _brain_ritk(r27), max_val=255.0
+        )
+        assert val_cross < 1.0, (
+            f"Cross-subject SSIM must be < 1.0; got {val_cross}"
+        )
+
+    # ── Dice ─────────────────────────────────────────────────────────────────
+
+    def test_dice_on_brain_mask_vs_sitk(self):
+        """Dice(threshold(r16), threshold(r27)) must match SimpleITK LabelOverlap.
+
+        Both RITK and SimpleITK threshold at the mid-range value (max/2).
+        """
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        thresh = float(r16.max() / 2.0)
+
+        ritk_dice = ritk.statistics.dice_coefficient(
+            _brain_mask_ritk(r16, thresh), _brain_mask_ritk(r27, thresh)
+        )
+
+        sitk_m16 = sitk.Cast(
+            sitk.GetImageFromArray((r16 > thresh).astype(np.uint8)), sitk.sitkUInt8
+        )
+        sitk_m27 = sitk.Cast(
+            sitk.GetImageFromArray((r27 > thresh).astype(np.uint8)), sitk.sitkUInt8
+        )
+        f = sitk.LabelOverlapMeasuresImageFilter()
+        f.Execute(sitk_m16, sitk_m27)
+        sitk_dice = f.GetDiceCoefficient()
+
+        assert abs(ritk_dice - sitk_dice) < 1e-4, (
+            f"Dice ritk={ritk_dice:.4f} sitk={sitk_dice:.4f}"
+        )
+
+    def test_dice_brain_mask_self_is_one(self):
+        """Dice(mask, mask) = 1.0 for any non-empty brain mask."""
+        r16 = _load_brain_slice(_R16)
+        thresh = float(r16.max() / 2.0)
+        val = ritk.statistics.dice_coefficient(
+            _brain_mask_ritk(r16, thresh), _brain_mask_ritk(r16, thresh)
+        )
+        assert abs(val - 1.0) < 1e-5, f"Dice identical mask must be 1.0; got {val}"
+
+    # ── Total Correlation ─────────────────────────────────────────────────────
+
+    def test_tc_single_brain_image_is_zero(self):
+        """TC of a single image is always 0 (trivially no multi-channel redundancy)."""
+        r16 = _load_brain_slice(_R16)
+        val = ritk.metrics.compute_total_correlation([_brain_ritk(r16)])
+        assert abs(val) < 1e-10, f"TC single channel must be 0; got {val}"
+
+    def test_tc_correlated_brain_trio_positive(self):
+        """TC(r16, r27, r64) > 0: three correlated brain slices carry shared information."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        r64 = _load_brain_slice(_R64)
+        imgs = [_brain_ritk(r) for r in [r16, r27, r64]]
+        val = ritk.metrics.compute_total_correlation(imgs)
+        assert val > 0.0, f"TC of correlated brain trio must be > 0; got {val}"
+
+    def test_tc_non_negative(self):
+        """TC ≥ 0 for all inputs (information-theoretic invariant)."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        val = ritk.metrics.compute_total_correlation(
+            [_brain_ritk(r16), _brain_ritk(r27)]
+        )
+        assert val >= 0.0, f"TC must be non-negative; got {val}"
+
+    # ── Variation of Information ──────────────────────────────────────────────
+
+    def test_vi_identical_brain_slices_is_zero(self):
+        """VI(r16, r16) = 0 (identical distributions)."""
+        r16 = _load_brain_slice(_R16)
+        val = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r16), _brain_ritk(r16), num_bins=32
+        )
+        assert abs(val) < 1e-10, f"VI identical slices must be 0; got {val}"
+
+    def test_vi_cross_subject_positive(self):
+        """VI(r16, r27) > 0: different subjects have non-zero distributional distance."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        val = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r16), _brain_ritk(r27), num_bins=32
+        )
+        assert val > 0.0, f"VI cross-subject must be > 0; got {val}"
+
+    def test_vi_symmetry_on_brain_pair(self):
+        """VI(r16, r27) = VI(r27, r16) (symmetry of conditional entropy sum)."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        v_fwd = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r16), _brain_ritk(r27), num_bins=32
+        )
+        v_rev = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r27), _brain_ritk(r16), num_bins=32
+        )
+        assert abs(v_fwd - v_rev) < 1e-6, (
+            f"VI symmetry violated: VI(16,27)={v_fwd:.6f} VI(27,16)={v_rev:.6f}"
+        )
+
+    def test_vi_increases_with_dissimilarity(self):
+        """VI(r16, r64) ≥ 0 and VI cross-subject > VI(r16, r16) = 0."""
+        r16 = _load_brain_slice(_R16)
+        r64 = _load_brain_slice(_R64)
+        vi_cross = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r16), _brain_ritk(r64), num_bins=32
+        )
+        assert vi_cross > 0.0, (
+            f"VI(r16, r64) must be > 0; got {vi_cross}"
         )
 
