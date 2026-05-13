@@ -16,3 +16,9 @@ io*.log
 snap*.log
 /checklist.pdf
 /README.pdf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
