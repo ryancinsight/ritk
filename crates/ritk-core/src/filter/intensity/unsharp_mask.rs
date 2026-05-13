@@ -179,7 +179,6 @@ impl UnsharpMaskFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

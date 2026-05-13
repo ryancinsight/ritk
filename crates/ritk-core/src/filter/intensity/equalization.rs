@@ -148,10 +148,8 @@ mod tests {
 
     use burn_ndarray::NdArray;
     type B = NdArray<f32>;
-    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
-    use burn::tensor::backend::Backend;
 
     fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();

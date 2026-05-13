@@ -1,3 +1,29 @@
+## Sprint 225 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.1 [patch]
+**Goal**: Close 6 500-line structural violations in ritk-core and ritk-registration.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| — | `multi_otsu.rs` 1139-line violation | **Closed** |
+| — | `skeletonization.rs` 1119-line violation | **Closed** |
+| — | `neighborhood_connected.rs` 991-line violation | **Closed** |
+| — | `label_morphology.rs` 828-line violation | **Closed** |
+| — | `distance_transform/mod.rs` 809-line violation | **Closed** |
+| — | `atlas/label_fusion.rs` 881-line violation | **Closed** |
+
+### Delivered
+- 6 `tests_*.rs` leaf modules extracted alongside source files using `#[path = "..."]` sibling resolution.
+- Unused import cleanup across filter intensity test blocks (equalization, unsharp_mask, zero_crossing, white_stripe).
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| Parameter-map interface | GAP-R08b: Elastix-compatible dict-based dispatch | Low |
+| Additional structural violations | snap/CLI/IO/vtk files exceed 500 lines | Medium |
+
 ## Sprint 227 — Active
 **Status**: Active
 **Phase**: Phase 2 Execution

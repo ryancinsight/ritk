@@ -1,0 +1,121 @@
+//! Shared computational primitives for deformable image registration algorithms.
+//!
+//! All functions operate on flat `Vec<f32>` buffers with shape `[nz, ny, nx]`
+//! (Z-major / row-major order): flat index = `iz * ny * nx + iy * nx + ix`.
+//!
+//! # Conventions
+//! - `dims = [nz, ny, nx]`  — image dimensions
+//! - `spacing = [sz, sy, sx]` — physical voxel size (mm or arbitrary units)
+//! - Displacement components are stored in voxel units (not physical units)
+//!
+//! # Boundary conditions
+//! All sampling operations use **clamp-to-border** (replicate boundary):
+//! coordinates outside `[0, dim − 1]` are clamped to the nearest valid index.
+
+mod compose;
+mod gradient;
+mod integrate;
+mod smooth;
+mod warp;
+
+// Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
+// resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.
+pub(crate) use compose::compose_fields;
+pub(crate) use gradient::compute_gradient;
+pub(crate) use integrate::scaling_and_squaring;
+pub(crate) use smooth::gaussian_smooth_inplace;
+pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
+
+// ── Indexing ──────────────────────────────────────────────────────────────────
+
+/// Flat voxel index for shape `[nz, ny, nx]`.
+#[inline(always)]
+pub(crate) fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usize {
+    iz * ny * nx + iy * nx + ix
+}
+
+// ── Trilinear interpolation ───────────────────────────────────────────────────
+
+/// Sample `data` at a continuous position `(z, y, x)` using trilinear
+/// interpolation with clamp-to-border boundary condition.
+///
+/// # Invariants
+/// - At integer positions the result equals `data[flat(round(z), round(y), round(x))]`.
+/// - Positions outside `[0, nZ−1] × [0, nY−1] × [0, nX−1]` are clamped.
+#[inline]
+pub(crate) fn trilinear_interpolate(data: &[f32], dims: [usize; 3], z: f32, y: f32, x: f32) -> f32 {
+    let [nz, ny, nx] = dims;
+
+    let z = z.max(0.0).min((nz as f32) - 1.0);
+    let y = y.max(0.0).min((ny as f32) - 1.0);
+    let x = x.max(0.0).min((nx as f32) - 1.0);
+
+    let iz0 = z.floor() as usize;
+    let iy0 = y.floor() as usize;
+    let ix0 = x.floor() as usize;
+    let iz1 = (iz0 + 1).min(nz - 1);
+    let iy1 = (iy0 + 1).min(ny - 1);
+    let ix1 = (ix0 + 1).min(nx - 1);
+
+    let dz = z - iz0 as f32;
+    let dy = y - iy0 as f32;
+    let dx = x - ix0 as f32;
+
+    let g = |iz: usize, iy: usize, ix: usize| data[flat(iz, iy, ix, ny, nx)];
+
+    let c00 = g(iz0, iy0, ix0) * (1.0 - dx) + g(iz0, iy0, ix1) * dx;
+    let c01 = g(iz0, iy1, ix0) * (1.0 - dx) + g(iz0, iy1, ix1) * dx;
+    let c10 = g(iz1, iy0, ix0) * (1.0 - dx) + g(iz1, iy0, ix1) * dx;
+    let c11 = g(iz1, iy1, ix0) * (1.0 - dx) + g(iz1, iy1, ix1) * dx;
+
+    let c0 = c00 * (1.0 - dy) + c01 * dy;
+    let c1 = c10 * (1.0 - dy) + c11 * dy;
+
+    c0 * (1.0 - dz) + c1 * dz
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_ramp(dims: [usize; 3]) -> Vec<f32> {
+        let [nz, ny, nx] = dims;
+        (0..nz * ny * nx)
+            .map(|fi| {
+                let ix = fi % nx;
+                let iy = (fi / nx) % ny;
+                let iz = fi / (ny * nx);
+                (iz + iy + ix) as f32
+            })
+            .collect()
+    }
+
+    /// At an integer coordinate the trilinear interpolant must equal the stored value.
+    #[test]
+    fn trilinear_at_integer_equals_value() {
+        let dims = [5usize, 5, 5];
+        let data = make_ramp(dims);
+        for iz in 0..5 {
+            for iy in 0..5 {
+                for ix in 0..5 {
+                    let fi = flat(iz, iy, ix, 5, 5);
+                    let v = trilinear_interpolate(&data, dims, iz as f32, iy as f32, ix as f32);
+                    assert!(
+                        (v - data[fi]).abs() < 1e-5,
+                        "({iz},{iy},{ix}): expected {}, got {v}",
+                        data[fi]
+                    );
+                }
+            }
+        }
+    }
+
+    /// Trilinear interpolation of a constant field returns the constant everywhere.
+    #[test]
+    fn trilinear_constant_field() {
+        let dims = [4usize, 4, 4];
+        let data = vec![7.0_f32; 4 * 4 * 4];
+        let v = trilinear_interpolate(&data, dims, 1.7, 2.3, 0.8);
+        assert!((v - 7.0).abs() < 1e-5, "expected 7.0, got {v}");
+    }
+}

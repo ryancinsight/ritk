@@ -1,3 +1,59 @@
+## Sprint 229 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.2 [patch]
+**Goal**: Split `deformable_field_ops.rs` (681 lines) and `lddmm/mod.rs` (624 lines) into deep-vertical hierarchies; add Section 11 LDDMM parity tests.
+
+### Checklist items
+- [x] Split `deformable_field_ops.rs` (681 lines) → `deformable_field_ops/{mod,gradient,warp,smooth,compose,integrate}.rs` (all ≤ 158 lines)
+- [x] Delete flat `deformable_field_ops.rs`; all `pub(crate)` re-exports preserved in `mod.rs`
+- [x] Split `lddmm/mod.rs` (624 lines) → `lddmm/{mod,config,registration,geodesic,adjoint,tests}.rs` (all ≤ 181 lines)
+- [x] Verify `cargo test -p ritk-registration --lib -- deformable_field_ops`: 14 passed (8 new)
+- [x] Verify `cargo test -p ritk-registration --lib -- lddmm`: 6 passed
+- [x] Verify `cargo test -p ritk-registration --lib`: 279 passed, 0 failed
+- [x] Add Section 11 `TestLddmmRegistrationParity` (10 tests) to `test_simpleitk_parity.py`
+- [x] Verify `pytest TestLddmmRegistrationParity -v`: 10 passed in 5.19s
+- [x] Update CHANGELOG.md [0.50.2], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| `demons/thirion.rs` structural split (561 lines) | Medium | Open |
+| `demons/inverse.rs` structural split (559 lines) | Medium | Open |
+| `demons/diffeomorphic.rs` structural split (547 lines) | Medium | Open |
+| `demons/exact_inverse_diffeomorphic.rs` structural split (523 lines) | Medium | Open |
+| `classical/spatial.rs` structural split (501 lines) | Medium | Open |
+| DICOM format module structural split (reader, multiframe, seg, codec, writer) | High | Open |
+
+---
+
+## Sprint 225 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.1 [patch]
+**Goal**: Close 6 500-line structural violations in ritk-core and ritk-registration by extracting `#[cfg(test)]` blocks into sibling `tests_*.rs` leaf modules.
+
+### Checklist items
+- [x] Audit all files >500 lines via Python line-count scan
+- [x] Identify 6 ritk-core / ritk-registration structural violators with tests as majority contributor
+- [x] Extract tests from `multi_otsu.rs` (1139→346 impl) → `tests_multi_otsu.rs` (796 lines)
+- [x] Extract tests from `skeletonization.rs` (1119→537 impl) → `tests_skeletonization.rs` (586 lines)
+- [x] Extract tests from `neighborhood_connected.rs` (991→333 impl) → `tests_neighborhood_connected.rs` (662 lines)
+- [x] Extract tests from `label_morphology.rs` (828→467 impl) → `tests_label_morphology.rs` (365 lines)
+- [x] Extract tests from `distance_transform/mod.rs` (809→351 impl) → `tests_distance_transform.rs` (462 lines)
+- [x] Extract tests from `atlas/label_fusion.rs` (881→404 impl) → `tests_label_fusion.rs` (481 lines)
+- [x] Use `#[path = "tests_*.rs"] mod tests_*;` pattern to resolve sibling files from non-mod.rs sources
+- [x] Remove unused imports (`extract_vec_infallible`, `rebuild`, `Backend`, `Shape`, etc.) in test blocks
+- [x] Verify `cargo test -p ritk-core --lib` (1112 passed, 0 failed)
+- [x] Verify `cargo test -p ritk-registration --lib` (275 passed, 0 failed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| Parameter-map interface (GAP-R08b) | Low | Open |
+| Remaining >500-line files (snap, CLI, IO DICOM, vtk) | Medium | Open |
+
 ## Sprint 228 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

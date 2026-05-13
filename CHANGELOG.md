@@ -1,3 +1,29 @@
+## [0.50.2] - 2026-05-13
+### Changed [patch]
+
+- Split `ritk-registration/src/deformable_field_ops.rs` (681 lines) into deep-vertical `deformable_field_ops/` directory: `mod.rs` (module doc + `flat` + `trilinear_interpolate` + re-exports), `gradient.rs` (`compute_gradient`, `compute_gradient_into`), `warp.rs` (`warp_image`, `warp_image_into`, `compute_mse_streaming`), `smooth.rs` (`gaussian_smooth_inplace`, `gaussian_kernel_1d`, `convolve_{z,y,x}`), `compose.rs` (`compose_fields`, `compose_fields_into`), `integrate.rs` (`scaling_and_squaring`). All leaf files ≤ 158 lines. All callers via `crate::deformable_field_ops::*` unchanged.
+- Split `ritk-registration/src/lddmm/mod.rs` (624 lines) into `lddmm/` sub-modules: `mod.rs` (math doc + module declarations + re-exports), `config.rs` (`LddmmConfig`, `LddmmResult`), `registration.rs` (`LddmmRegistration::register`), `geodesic.rs` (`integrate_geodesic`), `adjoint.rs` (`epdiff_adjoint`), `tests.rs` (6 unit tests). All leaf files ≤ 181 lines.
+- Added 8 new unit tests in `deformable_field_ops/` covering gradient, warp, smooth, and compose correctness.
+- Added Section 11 `TestLddmmRegistrationParity` (10 tests) to `test_simpleitk_parity.py`: identity fixed-point MSE=0, shape contract, displacement packed shape (3·nz,ny,nx), finite output, zero displacement for identical images, MSE improvement on shifted sphere, NCC improvement, direction parity with SimpleITK Demons, bounded NCC in [-1,1], positive NCC for co-modal pair.
+
+### Closed gaps
+
+- `deformable_field_ops.rs` 500-line structural violation (681 lines) — **Closed**
+- `lddmm/mod.rs` 500-line structural violation (624 lines) — **Closed**
+
+### Verification
+
+- `cargo test -p ritk-registration --lib -- deformable_field_ops`: 14 passed
+- `cargo test -p ritk-registration --lib -- lddmm`: 6 passed
+- `cargo test -p ritk-registration --lib`: 279 passed, 0 failed
+- `python -m pytest crates/ritk-python/tests/test_simpleitk_parity.py::TestLddmmRegistrationParity -v`: 10 passed in 5.19s
+
+<!-- ──────────────────────────────────────── -->
+## [0.50.1] - 2026-05-13
+### Changed
+- Extracted `#[cfg(test)]` blocks from 6 structural violators (>500 lines) in `ritk-core` and `ritk-registration` into sibling `tests_*.rs` leaf modules.
+- Removed unused imports (`extract_vec_infallible`, `rebuild`, `Backend`) from filter intensity test blocks.
+
 # CHANGELOG
 
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).

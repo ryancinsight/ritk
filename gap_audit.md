@@ -1,18 +1,15 @@
-## Sprint 226 Audit — 2026-05-13
+## Sprint 229 Audit — 2026-05-13
 
 ### Gaps Closed
 | Gap | Evidence |
 |---|---|
-| `bspline_ffd/mod.rs` 1431-line violation | Split into 14 leaf files (all ≤ 194 lines); 18 unit tests pass |
-| Unused import `burn::nn::Linear` in `adaptive_stochastic_gd.rs` | Removed; 0 warnings on `cargo build -p ritk-registration` |
-| Section 10 B-Spline FFD parity tests | 10 tests in `TestBSplineFFDRegistrationParity`; all pass in 1.1 s |
+| `deformable_field_ops.rs` 681-line structural violation | Split into 6 leaf files (all ≤ 158 lines); 14 unit tests pass including 8 new tests |
+| `lddmm/mod.rs` 624-line structural violation | Split into 6 leaf files (all ≤ 181 lines); all 6 existing tests preserved in `tests.rs` |
+| Section 11 LDDMM parity tests absent | 10 tests in `TestLddmmRegistrationParity`; all pass in 5.19s |
 
 ### Structural violations in `ritk-registration` remaining
 | File | Lines | Status |
 |---|---|---|
-| `atlas/label_fusion.rs` | 881 | Open |
-| `deformable_field_ops.rs` | 681 | Open |
-| `lddmm/mod.rs` | 624 | Open |
 | `demons/thirion.rs` | 561 | Open |
 | `demons/inverse.rs` | 559 | Open |
 | `demons/diffeomorphic.rs` | 547 | Open |
@@ -27,6 +24,37 @@
 | `ritk-cli/src/commands/segment.rs` | 3276 | High |
 
 ---
+
+## Sprint 226 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `bspline_ffd/mod.rs` 1431-line violation | Split into 14 leaf files (all ≤ 194 lines); 18 unit tests pass |
+| Unused import `burn::nn::Linear` in `adaptive_stochastic_gd.rs` | Removed; 0 warnings on `cargo build -p ritk-registration` |
+| Section 10 B-Spline FFD parity tests | 10 tests in `TestBSplineFFDRegistrationParity`; all pass in 1.1 s |
+
+### Structural violations in `ritk-registration` remaining
+| File | Lines | Status |
+|---|---|---|
+| `deformable_field_ops.rs` | 681 | Closed Sprint 229 |
+| `lddmm/mod.rs` | 624 | Closed Sprint 229 |
+| `demons/thirion.rs` | 561 | Open |
+| `demons/inverse.rs` | 559 | Open |
+| `demons/diffeomorphic.rs` | 547 | Open |
+| `demons/exact_inverse_diffeomorphic.rs` | 523 | Open |
+| `classical/spatial.rs` | 501 | Open |
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+| `ritk-io/src/format/dicom/reader.rs` | ~4898 | High |
+| `ritk-cli/src/commands/segment.rs` | 3276 | High |
+
+---
+
+
 
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 

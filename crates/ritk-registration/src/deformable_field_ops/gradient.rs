@@ -1,0 +1,129 @@
+//! Image gradient computation via finite differences.
+
+use super::flat;
+
+/// Write the gradient of `data` into caller-provided buffers.
+///
+/// Uses central differences at interior voxels and one-sided first-order
+/// differences at boundaries. No allocation occurs; all results are written
+/// into `gz`, `gy`, `gx`, each of length `dims[0] * dims[1] * dims[2]`.
+pub(crate) fn compute_gradient_into(
+    data: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    gz: &mut [f32],
+    gy: &mut [f32],
+    gx: &mut [f32],
+) {
+    let [nz, ny, nx] = dims;
+    let sz = spacing[0] as f32;
+    let sy = spacing[1] as f32;
+    let sx = spacing[2] as f32;
+
+    for iz in 0..nz {
+        for iy in 0..ny {
+            for ix in 0..nx {
+                let fi = flat(iz, iy, ix, ny, nx);
+
+                gz[fi] = if nz == 1 {
+                    0.0
+                } else if iz == 0 {
+                    (data[flat(1, iy, ix, ny, nx)] - data[fi]) / sz
+                } else if iz == nz - 1 {
+                    (data[fi] - data[flat(nz - 2, iy, ix, ny, nx)]) / sz
+                } else {
+                    (data[flat(iz + 1, iy, ix, ny, nx)] - data[flat(iz - 1, iy, ix, ny, nx)])
+                        / (2.0 * sz)
+                };
+
+                gy[fi] = if ny == 1 {
+                    0.0
+                } else if iy == 0 {
+                    (data[flat(iz, 1, ix, ny, nx)] - data[fi]) / sy
+                } else if iy == ny - 1 {
+                    (data[fi] - data[flat(iz, ny - 2, ix, ny, nx)]) / sy
+                } else {
+                    (data[flat(iz, iy + 1, ix, ny, nx)] - data[flat(iz, iy - 1, ix, ny, nx)])
+                        / (2.0 * sy)
+                };
+
+                gx[fi] = if nx == 1 {
+                    0.0
+                } else if ix == 0 {
+                    (data[flat(iz, iy, 1, ny, nx)] - data[fi]) / sx
+                } else if ix == nx - 1 {
+                    (data[fi] - data[flat(iz, iy, nx - 2, ny, nx)]) / sx
+                } else {
+                    (data[flat(iz, iy, ix + 1, ny, nx)] - data[flat(iz, iy, ix - 1, ny, nx)])
+                        / (2.0 * sx)
+                };
+            }
+        }
+    }
+}
+
+/// Compute the gradient of `data` via central differences at interior voxels
+/// and one-sided first-order differences at boundaries.
+///
+/// Each component is divided by the corresponding physical `spacing` so that
+/// the result is in (intensity / length) units.
+///
+/// # Returns
+/// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
+pub(crate) fn compute_gradient(
+    data: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let n = dims[0] * dims[1] * dims[2];
+    let mut gz = vec![0.0_f32; n];
+    let mut gy = vec![0.0_f32; n];
+    let mut gx = vec![0.0_f32; n];
+    compute_gradient_into(data, dims, spacing, &mut gz, &mut gy, &mut gx);
+    (gz, gy, gx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::deformable_field_ops::flat;
+
+    /// Gradient of a linear ramp I[z,y,x] = x should be (0, 0, 1/sx).
+    #[test]
+    fn gradient_linear_ramp_x() {
+        let dims = [4usize, 4, 8];
+        let [nz, ny, nx] = dims;
+        let data: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
+        let spacing = [1.0, 1.0, 1.0];
+        let (gz, gy, gx) = compute_gradient(&data, dims, spacing);
+
+        for iz in 1..nz - 1 {
+            for iy in 1..ny - 1 {
+                for ix in 1..nx - 1 {
+                    let fi = flat(iz, iy, ix, ny, nx);
+                    assert!((gz[fi]).abs() < 1e-5, "gz should be 0, got {}", gz[fi]);
+                    assert!((gy[fi]).abs() < 1e-5, "gy should be 0, got {}", gy[fi]);
+                    assert!(
+                        (gx[fi] - 1.0).abs() < 1e-5,
+                        "gx should be 1, got {}",
+                        gx[fi]
+                    );
+                }
+            }
+        }
+    }
+
+    /// Gradient of a constant field is zero everywhere.
+    #[test]
+    fn gradient_constant_field_is_zero() {
+        let dims = [4usize, 4, 4];
+        let [nz, ny, nx] = dims;
+        let data = vec![5.0_f32; nz * ny * nx];
+        let (gz, gy, gx) = compute_gradient(&data, dims, [1.0; 3]);
+        for i in 0..nz * ny * nx {
+            assert_eq!(gz[i], 0.0, "gz[{i}] should be 0");
+            assert_eq!(gy[i], 0.0, "gy[{i}] should be 0");
+            assert_eq!(gx[i], 0.0, "gx[{i}] should be 0");
+        }
+    }
+}

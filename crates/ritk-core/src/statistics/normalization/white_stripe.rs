@@ -466,7 +466,6 @@ fn find_extreme_local_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filter::ops::{extract_vec_infallible, rebuild};
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
