@@ -1,3 +1,39 @@
+## Sprint 235 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.8 [patch]
+**Goal**: Refresh the image-format structural gap audit after the DICOM reader split and correct the residual backlog.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| DICOM reader structural split | `ritk-io/src/format/dicom/reader/mod.rs` is now a 39-line module root with implementation leaves all ≤ 500 lines | **Closed** |
+| DICOM reader duplicate metadata leaf | Removed stale `reader/metadata.rs`; `reader/types.rs` is the metadata SSOT | **Closed** |
+
+### Current high-priority image structural gaps
+| Task | Evidence | Priority |
+|---|---|---|
+| DICOM multiframe split | `crates/ritk-io/src/format/dicom/multiframe.rs` = 2531 lines | High |
+| DICOM SEG split | `crates/ritk-io/src/format/dicom/seg.rs` = 2422 lines | High |
+| DICOM codec split | `crates/ritk-io/src/format/dicom/codec.rs` = 1771 lines | High |
+| DICOM writer split | `crates/ritk-io/src/format/dicom/writer.rs` = 1490 lines | High |
+| DICOM RT splits | `rt_dose.rs` = 835, `rt_plan.rs` = 828, `rt_struct.rs` = 827 lines | Medium |
+| DICOM object model split | `object_model.rs` = 501 lines | Medium |
+| VTK XML splits | `image_xml/writer.rs` = 1027, `image_xml/reader.rs` = 885, `vtk_data_object.rs` = 741, `unstructured_xml/reader.rs` = 711 lines | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| Image structural audit | 12 remaining image-format files exceed 500 lines; DICOM reader no longer appears |
+| `cargo check -p ritk-io` | Pass, 0 warnings |
+| DICOM reader leaf tests excluding skull CT sample load | Pass: scan_policy 6, scan_metadata 3, preservation 1, load_transfer 3, write_roundtrip 2, pixel 10, geometry 10, scan_geometry 3, gantry 1, patient 2, sample plurality 1 |
+| Skull CT sample loader tests | Timeout at 180 s; retained as residual performance/verification gap, not suppressed |
+
+### Next concrete increment
+Split `crates/ritk-io/src/format/dicom/multiframe.rs` into metadata, frame parsing, geometry, pixel decode, writer, and tests leaves.
+
+---
+
 ## Sprint 225 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

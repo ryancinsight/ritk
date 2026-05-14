@@ -1,3 +1,34 @@
+## Sprint 235 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.8 [patch]
+**Goal**: Re-audit all image-format structural gaps after Sprint 234 and synchronize residual backlog state.
+
+### Checklist items
+- [x] Recount image-format Rust files across `ritk-io`, dedicated image crates, `ritk-codecs`, `ritk-dicom`, and `ritk-vtk`
+- [x] Confirm `ritk-io/src/format/dicom/reader/` implementation leaves are all ≤ 500 lines
+- [x] Confirm `reader/mod.rs` is a thin module root and no stale `reader/metadata.rs` remains
+- [x] Record remaining DICOM structural gaps: multiframe, SEG, codec, writer, RT modules, and object model
+- [x] Record remaining VTK structural gaps: XML reader/writer, data object, and unstructured XML reader
+- [x] Verify `cargo check -p ritk-io`: pass, 0 warnings
+- [x] Verify DICOM reader leaf tests excluding skull CT sample load: 42 passed
+- [x] Isolate skull CT sample loader tests as timeout-bound residual verification/performance gap
+- [x] Update `backlog.md`, `checklist.md`, and `gap_audit.md`
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| DICOM multiframe split | `multiframe.rs` 2531 lines | High | Open |
+| DICOM SEG split | `seg.rs` 2422 lines | High | Open |
+| DICOM codec split | `codec.rs` 1771 lines | High | Open |
+| DICOM writer split | `writer.rs` 1490 lines | High | Open |
+| DICOM RT splits | `rt_dose.rs` 835, `rt_plan.rs` 828, `rt_struct.rs` 827 lines | Medium | Open |
+| DICOM object model split | `object_model.rs` 501 lines | Medium | Open |
+| VTK XML/data-object splits | 1027, 885, 741, and 711-line files | Medium | Open |
+| Skull CT sample loader verification | `test_scan_skull_ct_folder_with_dicomdir_loads_series` timed out at 180 s | Medium | Open |
+
+---
+
 ## Sprint 234 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

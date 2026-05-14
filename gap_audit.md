@@ -1,3 +1,40 @@
+## Sprint 235 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| DICOM reader structural violation | `crates/ritk-io/src/format/dicom/reader/mod.rs` is 39 lines; implementation leaves are `scan.rs` 459, `parse.rs` 366, `loader.rs` 278, `types.rs` 266, `geometry.rs` 169, `preservation.rs` 128, `pixel.rs` 126, `dicomdir.rs` 67, `utils.rs` 26 |
+| DICOM reader test monolith | Reader tests are partitioned into 12 leaf files plus support/mod files; largest test leaf is `scan_metadata.rs` at 402 lines |
+| DICOM reader metadata duplication | Stale `reader/metadata.rs` is absent; `reader/types.rs` owns `DicomSliceMetadata`, `DicomReadMetadata`, `DicomSeriesInfo`, and `PatientPosition` |
+
+### Current image-format structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-io/src/format/dicom/multiframe.rs` | 2531 | High |
+| `crates/ritk-io/src/format/dicom/seg.rs` | 2422 | High |
+| `crates/ritk-io/src/format/dicom/codec.rs` | 1771 | High |
+| `crates/ritk-io/src/format/dicom/writer.rs` | 1490 | High |
+| `crates/ritk-vtk/src/io/image_xml/writer.rs` | 1027 | Medium |
+| `crates/ritk-vtk/src/io/image_xml/reader.rs` | 885 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_dose.rs` | 835 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_plan.rs` | 828 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_struct.rs` | 827 | Medium |
+| `crates/ritk-vtk/src/domain/vtk_data_object.rs` | 741 | Medium |
+| `crates/ritk-vtk/src/io/unstructured_xml/reader.rs` | 711 | Medium |
+| `crates/ritk-io/src/format/dicom/object_model.rs` | 501 | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-io` | Pass, 0 warnings |
+| DICOM reader leaf tests | Pass for scan_policy, scan_metadata, preservation_roundtrip, load_transfer, write_roundtrip, pixel, geometry, scan_geometry, gantry, patient, and sample plurality selection |
+| Skull CT sample loader tests | Timeout at 180 s; retained as open performance/verification gap |
+
+### Next image increment
+Split `crates/ritk-io/src/format/dicom/multiframe.rs` first because it is the largest remaining image-format file and shares geometry/pixel concerns with the now-split DICOM reader.
+
+---
+
 ## Sprint 234 Audit — 2026-05-13
 
 ### Gaps Closed
