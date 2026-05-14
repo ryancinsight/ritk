@@ -1,3 +1,32 @@
+## Sprint 236 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.8 [patch]
+**Goal**: Close `multiframe.rs` 2531-line and `seg.rs` 2422-line structural violations; migrate tests to `tests/` subdirectories; add Python parity tests for Mattes MI and symmetric uncertainty; add CC metric leaf modules for BSplineSyN and MultiResSyN.
+
+### Checklist items
+- [x] Split `ritk-io/src/format/dicom/multiframe.rs` (2531 lines) into `multiframe/` hierarchy: `mod.rs`, `types.rs`, `reader.rs`, `writer.rs`
+- [x] Migrate multiframe tests to `multiframe/tests/`: `mod.rs`, `per_frame.rs`, `reader.rs`, `roundtrip.rs`, `writer.rs` (27 tests total)
+- [x] Split `ritk-io/src/format/dicom/seg.rs` (2422 lines) into `seg/` hierarchy: `mod.rs`, `types.rs`, `converters.rs`, `reader.rs`, `writer.rs`
+- [x] Migrate SEG tests to `seg/tests/`: `mod.rs`, `helpers.rs`, `read.rs`, `write.rs`
+- [x] Add `TestMutualInformationVariantParity` (10 tests) to `test_simpleitk_parity.py` — Mattes MI and SU parity vs NumPy reference
+- [x] Add `ritk-registration/src/diffeomorphic/bspline_syn/cc.rs` (142 lines): local CC metric primitives
+- [x] Add `ritk-registration/src/diffeomorphic/multires_syn/cc.rs` (127 lines): local CC metric primitives
+- [x] Verify `cargo check -p ritk-io --tests`: 0 Rust compilation errors
+- [x] Update CHANGELOG.md [0.50.8], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| `multiframe/reader.rs` 580-line violation | `multiframe/reader.rs` 580 lines (16% over limit) | Medium | Open |
+| DICOM codec split | `codec.rs` 1771 lines | High | Open |
+| DICOM writer split | `writer.rs` 1490 lines | High | Open |
+| DICOM RT splits | `rt_dose.rs` 835, `rt_plan.rs` 828, `rt_struct.rs` 827 lines | Medium | Open |
+| DICOM object model split | `object_model.rs` 501 lines | Medium | Open |
+| VTK XML/data-object splits | `image_xml/writer.rs` 1027, `image_xml/reader.rs` 885 + others | Medium | Open |
+
+---
+
 ## Sprint 235 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

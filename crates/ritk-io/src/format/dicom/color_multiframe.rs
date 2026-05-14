@@ -222,7 +222,7 @@ fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
                             .image_position
                             .map(|p| super::reader::dot_3d(p, normal))
                     })
-                    .collect::<Option<Vec<_>>>();
+                    .collect::<Option<Vec<f64>>>();
                 if let Some(positions) = positions {
                     let report = super::reader::analyze_slice_spacing(&positions);
                     if report.is_nonuniform || report.has_missing_slices {

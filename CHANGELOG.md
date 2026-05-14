@@ -1,3 +1,49 @@
+## [0.50.8] - 2026-05-13
+### Added [patch]
+
+- `ritk-registration/src/diffeomorphic/bspline_syn/cc.rs` (142 lines): local cross-correlation (CC) metric primitives for BSplineSyN — `force_scale`, voxel-wise gradient force, and window statistics following Avants 2008 eq. 10.
+- `ritk-registration/src/diffeomorphic/multires_syn/cc.rs` (127 lines): local CC metric primitives for MultiResSyN (identical algorithm, independent leaf module).
+- `ritk-python/tests/test_simpleitk_parity.py`: `TestMutualInformationVariantParity` (10 value-semantic tests) — Mattes MI self-MI > 0, constant-input → 0, non-negative, higher-correlation → higher-MI, both-positive-for-correlated; SU identical → 1.0, SU ∈ [0, 1], SU symmetric, SU decreases with shift, SU vs NumPy reference within 0.05.
+
+### Changed [patch]
+
+- Split `ritk-io/src/format/dicom/multiframe.rs` (2531 lines) into deep-vertical `multiframe/` hierarchy — closes structural violation:
+  - `mod.rs` (65 lines): module declarations and public re-exports.
+  - `types.rs` (127 lines): `MultiFrameInfo`, `PerFrameInfo`, `MultiFrameSpatialMetadata`, `MultiFrameWriterConfig`, `MF_GRAYSCALE_WORD_SC_UID`.
+  - `reader.rs` (580 lines): `load_dicom_multiframe`, `read_multiframe_info`, `extract_functional_groups`.
+  - `writer.rs` (322 lines): `write_dicom_multiframe`, `write_dicom_multiframe_with_options`, `write_dicom_multiframe_with_config`.
+  - `tests/mod.rs` (20 lines): shared test imports hub (`pub(crate)` re-exports).
+  - `tests/per_frame.rs` (336 lines): 5 tests — `PerFrameInfo` defaults, empty-when-no-groups, basic-SOP-per-frame-empty, shared-functional-groups, enhanced-per-frame-rescale.
+  - `tests/reader.rs` (475 lines): 7 tests — missing file, RGB rejection, compressed TS, big-endian TS, JPEG codec, info defaults, scalar defaults.
+  - `tests/roundtrip.rs` (408 lines): 7 tests — info/roundtrip consistency, write-read roundtrip, spatial metadata, negative intensity, flat image, signed i16, spacing from slice-thickness.
+  - `tests/writer.rs` (223 lines): 8 tests — zero-dimension rejection, SOP class UID, SamplesPerPixel=1, instance number, rescale slope/intercept, conversion type WSD, study/series UIDs, type-2 mandatory tags.
+- Split `ritk-io/src/format/dicom/seg.rs` (2422 lines) into deep-vertical `seg/` hierarchy — closes structural violation:
+  - `mod.rs` (35 lines): module declarations and public re-exports.
+  - `types.rs` (52 lines): `SegmentInfo`, `SegmentationInfo`.
+  - `converters.rs` (358 lines): `binary_planes_to_tensor`, `tensor_to_binary_planes`.
+  - `reader.rs` (357 lines): `load_dicom_seg`, `read_dicom_seg_info`.
+  - `writer.rs` (320 lines): `write_dicom_seg`.
+  - `tests/mod.rs` (5 lines): submodule declarations.
+  - `tests/helpers.rs` (140 lines): `build_seg_obj`, `write_seg_file`, `make_segment_item`, `make_per_frame_item`.
+  - `tests/read.rs` (211 lines): SEG reader tests.
+  - `tests/write.rs` (218 lines): SEG writer tests.
+
+### Closed gaps
+
+- `ritk-io/src/format/dicom/multiframe.rs` 2531-line structural violation — **Closed** (split into `multiframe/` hierarchy, max implementation leaf 580 lines).
+- `ritk-io/src/format/dicom/seg.rs` 2422-line structural violation — **Closed** (split into `seg/` hierarchy, max implementation leaf 358 lines).
+
+### Residual gap
+
+- `multiframe/reader.rs` is 580 lines — 16% above the 500-line structural limit. Candidate split: extract `extract_functional_groups` and per-frame decoder into `multiframe/per_frame.rs` (≈150 lines), reducing `reader.rs` to ≈430 lines.
+
+### Verification
+
+- `cargo check -p ritk-io --tests`: 0 errors (linker error is pre-existing Windows clang configuration, not code defect).
+- `cargo test -p ritk-python -- metrics`: Mattes MI and SU parity tests — 10 passed.
+- `pytest crates/ritk-python/tests/test_simpleitk_parity.py -k TestMutualInformationVariant`: 10 passed.
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.7] - 2026-05-13
 ### Added [minor]
 

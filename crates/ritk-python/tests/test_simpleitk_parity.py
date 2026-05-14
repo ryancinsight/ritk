@@ -3783,3 +3783,155 @@ class TestTotalCorrelationSection13Parity:
         assert tc_tri >= tc_pair, (
             f"TC([X,Y,Z])={tc_tri:.4f} TC([X,Y])={tc_pair:.4f}"
         )
+
+
+_HAS_MI_VARIANTS = (
+    hasattr(ritk, "metrics")
+    and hasattr(ritk.metrics, "compute_mutual_information")
+)
+
+
+@pytest.mark.skipif(not _HAS_MI_VARIANTS, reason="ritk.metrics.compute_mutual_information not available")
+class TestMutualInformationVariantParity:
+    """Mattes and normalized (symmetric-uncertainty) MI variant parity tests.
+
+    Mathematical invariants:
+      Mattes MI: I_mattes(X,Y) >= 0 with bilinear soft-binning (Mattes 2003).
+        I_mattes(X,X) > 0 for non-constant X (self-information is positive).
+        I_mattes(X, constant) ≈ 0 (no shared information with constant signal).
+
+      Normalized MI / Symmetric Uncertainty (SU):
+        SU(X,Y) = 2·I(X;Y) / (H(X) + H(Y)) ∈ [0, 1].
+        SU(X,X) = 1.0 (maximum, analytically: 2·H(X) / 2·H(X) = 1).
+        SU(X, constant) ≈ 0 (H(constant) = 0 so denominator → 0 → SU = 0).
+        SU(X,Y) = SU(Y,X) (symmetric by definition).
+    """
+
+    def _make_image(self, arr: np.ndarray) -> "ritk.Image":
+        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+
+    def test_mattes_self_exceeds_zero(self):
+        """I_mattes(X,X) > 0 for non-constant X.
+
+        Analytical: Mattes MI is a soft-binned estimate of I(X;X) = H(X) > 0.
+        """
+        arr = _make_blob_arr(0)
+        img = self._make_image(arr)
+        mi = ritk.metrics.compute_mutual_information(img, img, num_bins=32, variant="mattes")
+        assert mi > 0.0, f"Mattes MI(X,X) must be positive for non-constant X, got {mi}"
+
+    def test_mattes_constant_approximates_zero(self):
+        """I_mattes(X, constant) ≈ 0.
+
+        Analytical: H(constant) = 0, so I(X;constant) = 0.
+        """
+        arr = _make_blob_arr(0)
+        const = np.full_like(arr, 0.5)
+        img = self._make_image(arr)
+        img_const = self._make_image(const)
+        mi = ritk.metrics.compute_mutual_information(img, img_const, num_bins=32, variant="mattes")
+        assert mi < 0.05, f"Mattes MI(X, constant) must be near 0, got {mi}"
+
+    def test_mattes_non_negative(self):
+        """I_mattes(X,Y) >= 0 for any inputs."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(4)
+        img_a = self._make_image(arr_a)
+        img_b = self._make_image(arr_b)
+        mi = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="mattes")
+        assert mi >= 0.0, f"Mattes MI must be non-negative, got {mi}"
+
+    def test_mattes_higher_correlation_yields_higher_mi(self):
+        """I_mattes(X, Y_near) > I_mattes(X, Y_far) when Y_near is closer to X.
+
+        Shifting the Gaussian blob further reduces overlap, reducing MI.
+        """
+        arr_x   = _make_blob_arr(0)
+        arr_near = _make_blob_arr(1)
+        arr_far  = _make_blob_arr(5)
+        img_x    = self._make_image(arr_x)
+        img_near = self._make_image(arr_near)
+        img_far  = self._make_image(arr_far)
+
+        mi_near = ritk.metrics.compute_mutual_information(img_x, img_near, num_bins=32, variant="mattes")
+        mi_far  = ritk.metrics.compute_mutual_information(img_x, img_far,  num_bins=32, variant="mattes")
+        assert mi_near > mi_far, (
+            f"Mattes MI_near={mi_near:.4f} must exceed MI_far={mi_far:.4f}"
+        )
+
+    def test_mattes_and_standard_both_positive_for_correlated(self):
+        """Both mattes and standard variants return positive MI for correlated inputs."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(1)
+        img_a = self._make_image(arr_a)
+        img_b = self._make_image(arr_b)
+
+        mi_mattes   = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="mattes")
+        mi_standard = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="standard")
+        assert mi_mattes   > 0.0, f"Mattes MI must be positive for correlated inputs, got {mi_mattes}"
+        assert mi_standard > 0.0, f"Standard MI must be positive for correlated inputs, got {mi_standard}"
+
+    def test_normalized_identical_is_one(self):
+        """SU(X,X) = 2·H(X)/(H(X)+H(X)) = 1.0."""
+        arr = _make_blob_arr(0)
+        img = self._make_image(arr)
+        su = ritk.metrics.compute_mutual_information(img, img, num_bins=32, variant="normalized")
+        assert abs(su - 1.0) < 1e-9, f"SU(X,X) must equal 1.0, got {su}"
+
+    def test_normalized_in_zero_one(self):
+        """SU(X,Y) ∈ [0, 1] for any X, Y."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(3)
+        img_a = self._make_image(arr_a)
+        img_b = self._make_image(arr_b)
+        su = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
+        assert 0.0 <= su <= 1.0, f"SU must be in [0,1], got {su}"
+
+    def test_normalized_is_symmetric(self):
+        """SU(X,Y) = SU(Y,X)."""
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(2)
+        img_a = self._make_image(arr_a)
+        img_b = self._make_image(arr_b)
+        su_ab = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
+        su_ba = ritk.metrics.compute_mutual_information(img_b, img_a, num_bins=32, variant="normalized")
+        assert abs(su_ab - su_ba) < 1e-12, f"SU(X,Y)={su_ab:.8f} ≠ SU(Y,X)={su_ba:.8f}"
+
+    def test_normalized_decreases_with_shift(self):
+        """SU(X, Y_far) < SU(X, Y_near): farther shift → less shared information."""
+        arr_x    = _make_blob_arr(0)
+        arr_near = _make_blob_arr(1)
+        arr_far  = _make_blob_arr(5)
+        img_x    = self._make_image(arr_x)
+        img_near = self._make_image(arr_near)
+        img_far  = self._make_image(arr_far)
+
+        su_near = ritk.metrics.compute_mutual_information(img_x, img_near, num_bins=32, variant="normalized")
+        su_far  = ritk.metrics.compute_mutual_information(img_x, img_far,  num_bins=32, variant="normalized")
+        assert su_near > su_far, (
+            f"SU(X, Y_near)={su_near:.4f} must exceed SU(X, Y_far)={su_far:.4f}"
+        )
+
+    def test_normalized_vs_numpy_reference(self):
+        """SU(X,Y) ≈ 2·I_numpy(X,Y) / (H_numpy(X) + H_numpy(Y)) within tolerance.
+
+        Validates the bivariate symmetric uncertainty formula against the NumPy
+        histogram reference implementation.
+        """
+        arr_a = _make_blob_arr(0)
+        arr_b = _make_blob_arr(2)
+        img_a = self._make_image(arr_a)
+        img_b = self._make_image(arr_b)
+
+        su_ritk = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
+
+        mi_ref = _numpy_mi(arr_a, arr_b, num_bins=32)
+        ha_ref = _hist_entropy(arr_a, num_bins=32)
+        hb_ref = _hist_entropy(arr_b, num_bins=32)
+        denom  = ha_ref + hb_ref
+        su_ref = (2.0 * mi_ref / denom) if denom > 1e-12 else 0.0
+
+        assert abs(su_ritk - su_ref) < 0.05, (
+            f"SU_ritk={su_ritk:.6f} vs SU_ref={su_ref:.6f}: "
+            f"absolute error {abs(su_ritk - su_ref):.6f} exceeds 0.05"
+        )

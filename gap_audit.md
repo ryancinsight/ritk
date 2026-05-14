@@ -1,3 +1,39 @@
+## Sprint 236 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `multiframe.rs` 2531-line structural violation | `multiframe/mod.rs` 65, `types.rs` 127, `reader.rs` 580, `writer.rs` 322 lines; `tests/` 4 leaf files (per_frame.rs 336, reader.rs 475, roundtrip.rs 408, writer.rs 223); original monolith absent |
+| `seg.rs` 2422-line structural violation | `seg/mod.rs` 35, `types.rs` 52, `converters.rs` 358, `reader.rs` 357, `writer.rs` 320 lines; `tests/` 3 leaf files (helpers.rs 140, read.rs 211, write.rs 218); original monolith absent |
+
+### Current image-format structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-io/src/format/dicom/multiframe/reader.rs` | 580 | Medium |
+| `crates/ritk-io/src/format/dicom/codec.rs` | 1771 | High |
+| `crates/ritk-io/src/format/dicom/writer.rs` | 1490 | High |
+| `crates/ritk-vtk/src/io/image_xml/writer.rs` | 1027 | Medium |
+| `crates/ritk-vtk/src/io/image_xml/reader.rs` | 885 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_dose.rs` | 835 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_plan.rs` | 828 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_struct.rs` | 827 | Medium |
+| `crates/ritk-vtk/src/domain/vtk_data_object.rs` | 741 | Medium |
+| `crates/ritk-vtk/src/io/unstructured_xml/reader.rs` | 711 | Medium |
+| `crates/ritk-io/src/format/dicom/object_model.rs` | 501 | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-io --tests` | 0 Rust compilation errors (pre-existing Windows clang linker error is non-code) |
+| multiframe test leaves | 27 tests across 4 files; `cargo check` confirms no E0xxx errors |
+| SEG test leaves | tests across 3 files; confirmed by cargo check |
+| Python MI parity tests | `TestMutualInformationVariantParity` 10 passed (Mattes MI + SU) |
+
+### Next image increment
+Split `codec.rs` (1771 lines) — largest remaining DICOM image-format monolith. Candidate partitioning: `codec/mod.rs`, `codec/decode.rs`, `codec/encode.rs`, `codec/transfer_syntax.rs`, `codec/tests/`.
+
+---
+
 ## Sprint 235 Audit — 2026-05-13
 
 ### Gaps Closed
