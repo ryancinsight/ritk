@@ -1,3 +1,58 @@
+## [0.50.12] - 2026-05-14
+### Changed [patch]
+
+- Split `ritk-vtk/src/io/image_xml/writer.rs` (1027 lines) into deep-vertical hierarchy — closes structural violation:
+  - `writer/mod.rs` (13 lines): module declarations + re-exports.
+  - `writer/ascii.rs` (~139 lines): `write_vti_image_data`, `write_vti_str`, `write_attr`.
+  - `writer/binary.rs` (~170 lines): `attr_ncomp`, `flatten_attr`, `write_da_appended_tag`, `write_vti_binary_appended_bytes`, `write_vti_binary_appended_to_file`.
+  - `writer/tests/ascii.rs` (~270 lines): 10 ASCII writer tests.
+  - `writer/tests/binary.rs` (~421 lines): 7 binary-appended tests.
+- Split `ritk-vtk/src/io/image_xml/reader.rs` (885 lines) into deep-vertical hierarchy — closes structural violation:
+  - `reader/mod.rs` (12 lines): module declarations + re-exports.
+  - `reader/xml_helpers.rs` (~100 lines): `find_tag`, `find_section`, `attr_val`, `parse_floats`, `parse_f64s`, `parse_i64s`, `extract_da_content`, `named_da`.
+  - `reader/parse.rs` (~110 lines): `read_vti_image_data`, `parse_vti`, `parse_attrs`.
+  - `reader/binary.rs` (~185 lines): `read_vti_binary_appended_bytes`, `read_vti_binary_appended`.
+  - `reader/tests/parse.rs` (~280 lines): 9 ASCII reader + roundtrip tests.
+  - `reader/tests/binary.rs` (~100 lines): 2 binary-appended roundtrip tests.
+- Split `ritk-vtk/src/domain/vtk_data_object.rs` (741 lines) into deep-vertical hierarchy — closes structural violation:
+  - `vtk_data_object/attribute.rs` (~17 lines): `AttributeArray`.
+  - `vtk_data_object/poly_data.rs` (~135 lines): `VtkPolyData`.
+  - `vtk_data_object/data_object.rs` (~16 lines): `VtkDataObject`.
+  - `vtk_data_object/structured_grid.rs` (~50 lines): `VtkStructuredGrid`.
+  - `vtk_data_object/cell_type.rs` (~95 lines): `VtkCellType`.
+  - `vtk_data_object/unstructured_grid.rs` (~60 lines): `VtkUnstructuredGrid`.
+  - `vtk_data_object/image_data.rs` (~110 lines): `VtkImageData`.
+  - `vtk_data_object/tests.rs` (~275 lines): 22 value-semantic tests.
+- Split `ritk-vtk/src/io/unstructured_xml/reader.rs` (711 lines) into deep-vertical hierarchy — closes structural violation:
+  - `reader/mod.rs` (24 lines): module declarations + re-exports.
+  - `reader/xml_helpers.rs` (~120 lines): `find_tag`, `find_section`, `attr_val`, `attr_usize`, `extract_da_content`, `named_da`, `parse_floats`, `parse_ints`, `parse_attrs`.
+  - `reader/parse.rs` (~105 lines): `read_vtu_unstructured_grid`, `parse_vtu`.
+  - `reader/tests/roundtrip.rs` (~255 lines): 10 roundtrip tests.
+  - `reader/tests/error.rs` (~150 lines): 8 error/boundary tests.
+- Corrected stale Sprint 239 gap_audit entry: `multiframe/reader.rs` measured at 401 lines (compliant; no split required).
+
+### Added [patch]
+
+- `crates/ritk-python/tests/test_metric_parity.py`: 14 new NumPy reference parity tests:
+  - CMI: `test_cmi_constant_z_equals_mi`, `test_cmi_matches_numpy_reference`, `test_cmi_non_negative`.
+  - II: `test_interaction_information_constant_z_is_zero`, `test_interaction_information_matches_numpy_reference`.
+  - DTC: `test_dtc_two_identical_images_equals_mi`, `test_dtc_non_negative`, `test_dtc_matches_numpy_reference`.
+  - O-Information: `test_o_information_two_images_is_zero`, `test_o_information_three_independent_near_zero`, `test_o_information_redundant_triplet_positive`.
+  - MVI: `test_mvi_identical_channels_is_zero`, `test_mvi_non_negative`, `test_mvi_matches_numpy_reference`, `test_mvi_two_channels_equals_pairwise_vi`.
+
+### Closed gaps
+
+- `ritk-vtk/src/io/image_xml/writer.rs` 1027-line structural violation — **Closed**.
+- `ritk-vtk/src/io/image_xml/reader.rs` 885-line structural violation — **Closed**.
+- `ritk-vtk/src/domain/vtk_data_object.rs` 741-line structural violation — **Closed**.
+- `ritk-vtk/src/io/unstructured_xml/reader.rs` 711-line structural violation — **Closed**.
+
+### Verification
+
+- `cargo test -p ritk-vtk --tests`: 130 passed, 0 failed.
+- `cargo check -p ritk-vtk`: 0 errors, 0 warnings.
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.11] - 2026-05-14
 ### Added [patch]
 

@@ -1,3 +1,32 @@
+## Sprint 240 Audit — 2026-05-14
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `ritk-vtk/src/io/image_xml/writer.rs` 1027-line violation | Split into `writer/mod.rs` (13), `ascii.rs` (~139), `binary.rs` (~170), `tests/ascii.rs` (~270), `tests/binary.rs` (~421); max leaf 421 lines |
+| `ritk-vtk/src/io/image_xml/reader.rs` 885-line violation | Split into `reader/mod.rs` (12), `xml_helpers.rs` (~100), `parse.rs` (~110), `binary.rs` (~185), `tests/parse.rs` (~280), `tests/binary.rs` (~100); max leaf 280 lines |
+| `ritk-vtk/src/domain/vtk_data_object.rs` 741-line violation | Split into `vtk_data_object/mod.rs` (38), `attribute.rs` (~17), `poly_data.rs` (~135), `data_object.rs` (~16), `structured_grid.rs` (~50), `cell_type.rs` (~95), `unstructured_grid.rs` (~60), `image_data.rs` (~110), `tests.rs` (~275); max leaf 275 lines |
+| `ritk-vtk/src/io/unstructured_xml/reader.rs` 711-line violation | Split into `reader/mod.rs` (24), `xml_helpers.rs` (~120), `parse.rs` (~105), `tests/roundtrip.rs` (~255), `tests/error.rs` (~150); max leaf 255 lines |
+
+### Stale entry correction
+- `multiframe/reader.rs` was listed as 580 lines in Sprint 239 — current measurement: **401 lines** (already under 500-line limit; no action required).
+
+### Current structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-io/src/format/dicom/multiframe/reader.rs` | 401 | None — compliant |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-vtk --tests` | 130 passed, 0 failed |
+| `cargo check -p ritk-vtk` | 0 errors, 0 warnings |
+
+### Next increment
+Extend `test_metric_parity.py` with additional SimpleITK parity coverage or address remaining gaps in other crates.
+
+---
+
 ## Sprint 239 Audit — 2026-05-14
 
 ### Gaps Closed

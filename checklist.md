@@ -1,3 +1,25 @@
+## Sprint 240 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.12 [patch]
+**Goal**: Close 4 remaining `ritk-vtk` 500-line structural violations (image_xml/writer.rs, image_xml/reader.rs, vtk_data_object.rs, unstructured_xml/reader.rs); add CMI, II, DTC, O-Information, and MVI PyO3 parity tests against NumPy references.
+
+### Checklist items
+- [x] Split `ritk-vtk/src/io/image_xml/writer.rs` (1027 lines) into `writer/` hierarchy (ascii.rs, binary.rs, tests/ascii.rs, tests/binary.rs)
+- [x] Split `ritk-vtk/src/io/image_xml/reader.rs` (885 lines) into `reader/` hierarchy (xml_helpers.rs, parse.rs, binary.rs, tests/parse.rs, tests/binary.rs)
+- [x] Split `ritk-vtk/src/domain/vtk_data_object.rs` (741 lines) into `vtk_data_object/` directory (7 leaf files + tests.rs)
+- [x] Split `ritk-vtk/src/io/unstructured_xml/reader.rs` (711 lines) into `reader/` hierarchy (xml_helpers.rs, parse.rs, tests/roundtrip.rs, tests/error.rs)
+- [x] Add 14 parity tests to `test_metric_parity.py`: CMI (3), II (2), DTC (3), O-Information (3), MVI (4) vs NumPy references
+- [x] Verify `cargo test -p ritk-vtk --tests`: 130 passed, 0 failed
+- [x] Update CHANGELOG.md [0.50.12], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| DICOM multiframe reader | `multiframe/reader.rs` 401 lines (compliant) | None | Resolved |
+
+---
+
 ## Sprint 239 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
