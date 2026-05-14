@@ -1,6 +1,6 @@
 use super::super::mutual_information::{
-    mutual_information, mutual_information_mattes, normalized_mutual_information,
-    symmetric_uncertainty,
+    conditional_mutual_information, interaction_information, mutual_information,
+    mutual_information_mattes, normalized_mutual_information, symmetric_uncertainty,
 };
 use super::super::entropy::marginal_entropy;
 
@@ -173,4 +173,101 @@ fn su_constant_channels_returns_zero() {
         su.abs() < 1e-9,
         "SU(const,const)={su:.6} must be 0.0"
     );
+}
+
+// ── conditional_mutual_information tests ─────────────────────────────────────
+
+#[test]
+fn cmi_is_non_negative() {
+    // I(X;Y|Z) ≥ 0 by the data processing inequality.
+    let x: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
+    let y: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
+    let z: Vec<f32> = (0..256).map(|i| ((i / 16) % 8) as f32).collect();
+    let cmi = conditional_mutual_information(&x, &y, &z, 8).unwrap();
+    assert!(cmi >= 0.0, "CMI must be ≥ 0, got {cmi}");
+}
+
+#[test]
+fn cmi_constant_z_equals_mi() {
+    // I(X;Y|const) = I(X;Y): when Z=const, H(Z)=0, H(X,Z)=H(X), H(Y,Z)=H(Y), H(X,Y,Z)=H(X,Y).
+    let x: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let y: Vec<f32> = (0..128).map(|i| ((i / 8) % 8) as f32).collect();
+    let z_const = vec![3.0_f32; 128];
+    let cmi = conditional_mutual_information(&x, &y, &z_const, 8).unwrap();
+    let mi = mutual_information(&x, &y, 8).unwrap();
+    assert!(
+        (cmi - mi).abs() < 1e-9,
+        "CMI(X,Y|const)={cmi:.9} must equal MI(X,Y)={mi:.9}"
+    );
+}
+
+#[test]
+fn cmi_knowing_z_equal_to_y_is_zero() {
+    // I(X;Y|Y) = H(X,Y) + H(Y,Y) − H(X,Y,Y) − H(Y) = H(X,Y) + H(Y) − H(X,Y) − H(Y) = 0.
+    let x: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let y: Vec<f32> = (0..128).map(|i| ((i / 8) % 8) as f32).collect();
+    let cmi = conditional_mutual_information(&x, &y, &y, 8).unwrap();
+    assert!(cmi.abs() < 1e-9, "CMI(X;Y|Y)={cmi:.10} must be 0");
+}
+
+#[test]
+fn cmi_rejects_length_mismatch() {
+    let x = vec![1.0_f32; 10];
+    let y = vec![1.0_f32; 10];
+    let z = vec![1.0_f32; 8];
+    assert!(conditional_mutual_information(&x, &y, &z, 4).is_err());
+}
+
+#[test]
+fn cmi_rejects_empty() {
+    assert!(conditional_mutual_information(&[], &[], &[], 4).is_err());
+}
+
+// ── interaction_information tests ─────────────────────────────────────────────
+
+#[test]
+fn ii_constant_z_gives_zero() {
+    // II(X;Y;const) = I(X;Y) − I(X;Y|const) = I(X;Y) − I(X;Y) = 0.
+    let x: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let y: Vec<f32> = (0..128).map(|i| ((i / 8) % 8) as f32).collect();
+    let z_const = vec![3.0_f32; 128];
+    let ii = interaction_information(&x, &y, &z_const, 8).unwrap();
+    assert!(ii.abs() < 1e-9, "II(X;Y;const)={ii:.10} must be 0");
+}
+
+#[test]
+fn ii_identical_triple_is_positive() {
+    // II(X;X;X) = I(X;X) − I(X;X|X) = H(X) − 0 = H(X) > 0.
+    let x: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let ii = interaction_information(&x, &x, &x, 8).unwrap();
+    assert!(ii > 0.0, "II(X;X;X)={ii:.6} must be positive (= H(X))");
+}
+
+#[test]
+fn ii_matches_formula_mi_minus_cmi() {
+    // II = I(X;Y) − I(X;Y|Z); verify internal consistency.
+    let x: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let y: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
+    let z: Vec<f32> = (0..128).map(|i| ((i / 16) % 8) as f32).collect();
+    let ii = interaction_information(&x, &y, &z, 8).unwrap();
+    let mi_xy = mutual_information(&x, &y, 8).unwrap();
+    let cmi = conditional_mutual_information(&x, &y, &z, 8).unwrap();
+    let manual = mi_xy - cmi;
+    assert!(
+        (ii - manual).abs() < 1e-12,
+        "II={ii:.12} must equal I(X;Y)−CMI(X;Y|Z)={manual:.12}"
+    );
+}
+
+#[test]
+fn ii_rejects_length_mismatch() {
+    let x = vec![1.0_f32; 10];
+    let y = vec![1.0_f32; 10];
+    let z = vec![1.0_f32; 8];
+    assert!(interaction_information(&x, &y, &z, 4).is_err());
+}
+
+#[test]
+fn ii_rejects_empty() {
+    assert!(interaction_information(&[], &[], &[], 4).is_err());
 }

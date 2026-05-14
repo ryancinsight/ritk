@@ -1,4 +1,6 @@
-use super::super::variation_of_information::variation_of_information;
+use super::super::variation_of_information::{
+    multivariate_variation_of_information, variation_of_information,
+};
 use super::super::entropy::marginal_entropy;
 
 // ── variation_of_information tests ───────────────────────────────────────────
@@ -68,4 +70,58 @@ fn vi_rejects_length_mismatch() {
 #[test]
 fn vi_rejects_empty() {
     assert!(variation_of_information(&[], &[], 4).is_err());
+}
+
+// ── multivariate_variation_of_information tests ───────────────────────────────
+
+#[test]
+fn mvi_identical_channels_is_zero() {
+    // VI_n(X,X,X) = avg of VI(X,X) pairs = 0.
+    let x: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let mvi = multivariate_variation_of_information(
+        &[x.as_slice(), x.as_slice(), x.as_slice()],
+        8,
+    )
+    .unwrap();
+    assert!(mvi.abs() < 1e-9, "MVI(X,X,X)={mvi:.10} must be 0");
+}
+
+#[test]
+fn mvi_is_non_negative() {
+    let a: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
+    let c: Vec<f32> = (0..128).map(|i| ((i / 16) % 8) as f32).collect();
+    let mvi = multivariate_variation_of_information(&[&a, &b, &c], 8).unwrap();
+    assert!(mvi >= 0.0, "MVI must be ≥ 0, got {mvi}");
+}
+
+#[test]
+fn mvi_two_channels_equals_bivariate_vi() {
+    // VI_n with n=2 has exactly one pair: avg = VI(X,Y).
+    let a: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
+    let mvi = multivariate_variation_of_information(&[&a, &b], 8).unwrap();
+    let vi = variation_of_information(&a, &b, 8).unwrap();
+    assert!(
+        (mvi - vi).abs() < 1e-12,
+        "MVI([X,Y])={mvi:.12} must equal VI(X,Y)={vi:.12}"
+    );
+}
+
+#[test]
+fn mvi_rejects_single_channel() {
+    let x: Vec<f32> = vec![1.0; 8];
+    assert!(multivariate_variation_of_information(&[x.as_slice()], 4).is_err());
+}
+
+#[test]
+fn mvi_rejects_empty_channels() {
+    assert!(multivariate_variation_of_information(&[], 4).is_err());
+}
+
+#[test]
+fn mvi_rejects_length_mismatch() {
+    let a = vec![1.0_f32; 10];
+    let b = vec![1.0_f32; 8];
+    assert!(multivariate_variation_of_information(&[&a, &b], 4).is_err());
 }

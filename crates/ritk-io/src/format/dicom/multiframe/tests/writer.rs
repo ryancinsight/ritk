@@ -1,9 +1,7 @@
 use super::*;
-use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
-use dicom::object::InMemDicomObject;
 use ritk_dicom::{DicomRsBackend, parse_file_with};
-use dicom::core::Tag as DicomTag;
 
+    #[test]
     fn test_write_multiframe_rejects_zero_dimension() {
         let device = <B as Backend>::Device::default();
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -26,6 +24,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_multiframe_sop_class_is_mf_grayscale_word() {
         // Verifies that write_dicom_multiframe emits the Multi-Frame Grayscale Word SC SOP class
         // (1.2.840.10008.5.1.4.1.1.7.3) rather than Single-frame SC (1.2.840.10008.5.1.4.1.1.7).
@@ -51,6 +50,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_written_multiframe_has_samples_per_pixel_one() {
         use dicom::object::open_file;
         let device = <B as Backend>::Device::default();
@@ -83,6 +83,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_writer_config_instance_number_propagated() {
         use dicom::object::open_file;
         let device = <B as Backend>::Device::default();
@@ -119,6 +120,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_multiframe_has_conversion_type_wsd() {
         let device = <B as Backend>::Device::default();
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -150,6 +152,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_multiframe_has_study_and_series_uids() {
         let device = <B as Backend>::Device::default();
         let tmp = tempfile::tempdir().expect("tempdir");
@@ -191,6 +194,7 @@ use dicom::core::Tag as DicomTag;
         );
     }
 
+    #[test]
     fn test_multiframe_has_type2_patient_study_series_tags() {
         let device = <B as Backend>::Device::default();
         let tmp = tempfile::tempdir().expect("tempdir");

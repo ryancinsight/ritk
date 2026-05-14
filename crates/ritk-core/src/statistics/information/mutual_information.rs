@@ -7,10 +7,15 @@
 //! NMI(X,Y) = (H(X) + H(Y)) / H(X,Y)   (Studholme et al. 1999)
 //!
 //! I_mattes(X;Y) = bilinear soft-binning MI   (Mattes et al. 2003)
+//!
+//! I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)   (conditional MI)
+//!
+//! II(X;Y;Z) = I(X;Y) − I(X;Y|Z)   (interaction information, Mcgill 1954)
+//!           = I(X;Y) + I(X;Z) − I(X;Y,Z) (equivalent formulation)
 
 use anyhow::{bail, Result};
 
-use super::entropy::{joint_entropy, marginal_entropy, min_max};
+use super::entropy::{joint_entropy, joint_entropy_n, marginal_entropy, min_max};
 
 /// Standard bivariate mutual information I(X;Y) = H(X) + H(Y) − H(X,Y).
 ///
@@ -154,4 +159,81 @@ pub fn mutual_information_mattes(a: &[f32], b: &[f32], num_bins: usize) -> Resul
     let h_b: f64 = hist_b.iter().filter(|&&p| p > 0.0).map(|&p| -p * p.ln()).sum();
     let h_ab: f64 = joint.iter().filter(|&&p| p > 0.0).map(|&p| -p * p.ln()).sum();
     Ok((h_a + h_b - h_ab).max(0.0))
+}
+
+/// Conditional mutual information I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z).
+///
+/// Measures how much X and Y share that is NOT explained by Z.
+/// I(X;Y|Z) ≥ 0 always (data processing inequality).
+///
+/// # Derivation
+///
+/// I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)
+///
+/// # Errors
+///
+/// Returns an error when lengths differ, inputs are empty, `num_bins < 2`,
+/// or the joint histogram size exceeds 4 194 304 entries.
+pub fn conditional_mutual_information(
+    x: &[f32],
+    y: &[f32],
+    z: &[f32],
+    num_bins: usize,
+) -> Result<f64> {
+    if x.len() != y.len() || x.len() != z.len() {
+        bail!(
+            "channel lengths differ: x={} y={} z={}",
+            x.len(),
+            y.len(),
+            z.len()
+        );
+    }
+    if x.is_empty() {
+        bail!("inputs must not be empty");
+    }
+    let h_xz = joint_entropy_n(&[x, z], num_bins)?;
+    let h_yz = joint_entropy_n(&[y, z], num_bins)?;
+    let h_xyz = joint_entropy_n(&[x, y, z], num_bins)?;
+    let h_z = marginal_entropy(z, num_bins)?;
+    Ok((h_xz + h_yz - h_xyz - h_z).max(0.0))
+}
+
+/// Interaction information (co-information) II(X;Y;Z) = I(X;Y) − I(X;Y|Z).
+///
+/// Measures the net effect of Z on the shared information between X and Y.
+/// - II > 0: Z introduces synergy (knowing Z increases I(X;Y)).
+/// - II < 0: Z carries redundant information (knowing Z reduces apparent I(X;Y)).
+/// - II = 0: Z has no net effect on I(X;Y).
+///
+/// Unlike I(X;Y) ≥ 0, interaction information can be negative.
+///
+/// # Definition (McGill 1954)
+///
+/// II(X;Y;Z) = I(X;Y) − I(X;Y|Z)
+///           = H(X) + H(Y) + H(Z) − H(X,Y) − H(X,Z) − H(Y,Z) + H(X,Y,Z)
+///
+/// # Errors
+///
+/// Returns an error when lengths differ, inputs are empty, `num_bins < 2`,
+/// or the joint histogram size exceeds 4 194 304 entries.
+pub fn interaction_information(
+    x: &[f32],
+    y: &[f32],
+    z: &[f32],
+    num_bins: usize,
+) -> Result<f64> {
+    if x.len() != y.len() || x.len() != z.len() {
+        bail!(
+            "channel lengths differ: x={} y={} z={}",
+            x.len(),
+            y.len(),
+            z.len()
+        );
+    }
+    if x.is_empty() {
+        bail!("inputs must not be empty");
+    }
+    let mi_xy = mutual_information(x, y, num_bins)?;
+    let cmi = conditional_mutual_information(x, y, z, num_bins)?;
+    Ok(mi_xy - cmi)
 }

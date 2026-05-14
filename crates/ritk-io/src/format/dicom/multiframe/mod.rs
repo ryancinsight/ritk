@@ -51,6 +51,7 @@
 //!   but does NOT carry a conformance statement or General Series / Frame Of
 //!   Reference modules required for Enhanced Multi-Frame objects.
 
+mod per_frame;
 mod reader;
 mod types;
 mod writer;

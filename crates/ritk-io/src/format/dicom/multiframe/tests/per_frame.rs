@@ -1,6 +1,5 @@
 use super::*;
-use dicom::core::header::Length;
-use dicom::core::value::{DataSetSequence, Value};
+use dicom::core::value::Value;
 
 // -------------------------------------------------------------------------
 // Sprint 58-C: per-frame functional group tests

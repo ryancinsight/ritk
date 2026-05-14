@@ -15,8 +15,10 @@ pub use label_statistics::{
 };
 pub use noise_estimation::{estimate_noise_mad, estimate_noise_mad_masked};
 pub use information::{
-    joint_entropy, joint_entropy_n, marginal_entropy, mutual_information,
-    normalized_mutual_information, total_correlation, variation_of_information,
+    conditional_mutual_information, interaction_information, joint_entropy, joint_entropy_n,
+    marginal_entropy, multivariate_variation_of_information, mutual_information,
+    mutual_information_mattes, normalized_mutual_information, symmetric_uncertainty,
+    total_correlation, variation_of_information,
 };
 pub use normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
