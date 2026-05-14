@@ -1,4 +1,40 @@
+## [0.50.10] - 2026-05-14
+### Added [patch]
+
+- `ritk-core/src/statistics/information/o_information.rs`: `dual_total_correlation` (DTC, Han 1978 — Σᵢ H(X\Xᵢ) − (n−1)H(X)), `o_information` (Ω = TC − DTC, Rosas 2019), `o_information_direct` (single-pass Ω formula), `o_information_from_tc_dtc` (shortcut when TC/DTC already computed).
+- `ritk-core/src/statistics/information/tests/o_info.rs`: 9 value-semantic tests — DTC rejects n<1, DTC ≥ 0, DTC(X,Y)=I(X;Y) for n=2 (Han 1978 Corollary 1), DTC(X,X)=TC(X,X), Ω(X,Y)=0 for n=2, Ω(X,X,X) ≥ 0, Ω(X,Y,Z)=II(X;Y;Z) for n=3 (Rosas 2019), shortcut formula consistency, direct formula consistency.
+- `crates/ritk-python/src/metrics/o_information.rs` (52 lines): PyO3 delegation — `dtc_slices`, `oi_slices`.
+- `crates/ritk-python/src/metrics/mod.rs`: two new `#[pyfunction]` entries — `compute_dual_total_correlation`, `compute_o_information`.
+- `crates/ritk-python/tests/test_simpleitk_parity.py`: `TestDualTotalCorrelationOInformationParity` (Section 13c, 10 tests) — DTC/O-Information parity vs NumPy reference with `_HAS_DTC_OI` capability guard.
+
+### Changed [patch]
+
+- Split `ritk-io/src/format/dicom/writer.rs` (1491 lines) into deep-vertical `writer/` hierarchy — closes structural violation:
+  - `writer/mod.rs` (21 lines): module doc, submodule declarations, pub re-exports.
+  - `writer/utils.rs` (133 lines): `DICOM_SOP_CLASS_SECONDARY_CAPTURE`, format helpers, UID generators, `str_to_vr`, tag key/exclusion set, `ensure_series_directory`.
+  - `writer/preservation.rs` (124 lines): `sequence_item_to_dicom`, `emit_preservation_nodes`.
+  - `writer/series.rs` (185 lines): `write_dicom_series`.
+  - `writer/metadata.rs` (382 lines): `write_dicom_series_with_metadata`, `DicomWriter<B>`.
+  - `writer/tests/mod.rs` (4 lines) + `helpers.rs` (81), `basic.rs` (199), `metadata.rs` (272), `preservation.rs` (113): all 22 original tests preserved.
+- Split `ritk-core/src/statistics/normalization/tests_white_stripe.rs` (505 lines) into `tests_white_stripe/` directory — closes minor structural violation:
+  - `tests_white_stripe/mod.rs` (71 lines): shared helpers (`make_image_3d`, `get_values`, `make_trimodal_volume`).
+  - `tests_white_stripe/behavior.rs` (307 lines): 8 integration tests.
+  - `tests_white_stripe/internals.rs` (89 lines): 6 internal function tests.
+
+### Closed gaps
+
+- `ritk-io/src/format/dicom/writer.rs` 1491-line structural violation — **Closed** (split into `writer/` hierarchy, max leaf 382 lines).
+- `ritk-core/src/statistics/normalization/tests_white_stripe.rs` 505-line violation — **Closed** (split into 3-file directory, max 307 lines).
+
+### Verification
+
+- `cargo test -p ritk-io writer`: 40 passed — all writer hierarchy tests green.
+- `cargo test -p ritk-core white_stripe`: 14 passed — all behavior + internal tests green.
+- `cargo test -p ritk-core statistics`: all information/o_information tests included.
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.9] - 2026-05-13
+
 ### Added [patch]
 
 - `ritk-core/src/statistics/information/mutual_information.rs`: `conditional_mutual_information` (I(X;Y|Z) = H(X,Z)+H(Y,Z)−H(X,Y,Z)−H(Z)) and `interaction_information` (II(X;Y;Z) = I(X;Y)−I(X;Y|Z), McGill 1954; signed — positive=synergy, negative=redundancy).

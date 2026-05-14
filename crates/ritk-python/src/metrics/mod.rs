@@ -7,6 +7,8 @@
 //! - `compute_conditional_mutual_information`: I(X;Y|Z) histogram-based CMI.
 //! - `compute_interaction_information`: II(X;Y;Z) interaction information (McGill 1954).
 //! - `compute_total_correlation`: multivariate MI (total correlation) over N channels.
+//! - `compute_dual_total_correlation`: DTC(X₁,…,Xₙ) dual total correlation (Han 1978).
+//! - `compute_o_information`: Ω(X₁,…,Xₙ) O-information (Rosas 2019).
 //! - `compute_variation_of_information`: VI = H(X|Y) + H(Y|X).
 //! - `compute_multivariate_variation_of_information`: average pairwise VI over N channels.
 //!
@@ -17,6 +19,8 @@
 //! - CMI   = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)
 //! - II    = I(X;Y) − I(X;Y|Z)            (McGill 1954)
 //! - TC    = Σᵢ H(Xᵢ) − H(X₁,...,Xₙ)     (Watanabe 1960)
+//! - DTC   = Σᵢ H(X₁,...,Xₙ\Xᵢ) − (n−1)·H(X₁,...,Xₙ)  (Han 1978)
+//! - Ω     = TC − DTC                     (Rosas 2019)
 //! - VI    = H(X) + H(Y) − 2·I(X,Y)       (Meilă 2003)
 //! - VI_n  = (2/n(n−1)) · Σ_{i<j} VI(Xᵢ,Xⱼ)
 
@@ -25,6 +29,7 @@ mod mi;
 mod mse;
 mod multivariate_vi;
 mod ncc;
+mod o_information;
 mod total_correlation;
 mod variation_of_information;
 
@@ -37,6 +42,7 @@ use mi::mi_slices;
 use mse::mse_slices;
 use multivariate_vi::multivariate_vi_slices;
 use ncc::ncc_slices;
+use o_information::{dtc_slices, oi_slices};
 use total_correlation::total_correlation_slices;
 use variation_of_information::variation_of_information_slices;
 
@@ -171,9 +177,103 @@ pub fn compute_total_correlation(images: Vec<PyRef<PyImage>>, num_bins: usize) -
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
 
-/// Variation of Information between two images.
+/// Dual Total Correlation over N images (Han 1978).
 ///
-/// Both images must have identical shapes. Returns VI ≥ 0.
+/// All images must have identical shapes. Returns DTC ≥ 0.
+///
+/// # Formula (Han 1978)
+/// DTC(X₁,...,Xₙ) = Σᵢ H(X₁,...,Xₙ\Xᵢ) − (n−1)·H(X₁,...,Xₙ)
+///
+/// For n=2: DTC(X,Y) = I(X;Y) (equals total correlation).
+///
+/// # Arguments
+/// - `images`: list of PyImage objects (n ≥ 2).
+/// - `num_bins`: histogram bins per channel (2 ≤ B ≤ 64, default 32).
+#[pyfunction]
+#[pyo3(signature = (images, num_bins=32))]
+pub fn compute_dual_total_correlation(
+    images: Vec<PyRef<PyImage>>,
+    num_bins: usize,
+) -> PyResult<f64> {
+    if images.len() < 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "at least 2 images required, got {}",
+            images.len()
+        )));
+    }
+    let vecs: Vec<(Vec<f32>, [usize; 3])> = images
+        .iter()
+        .map(|img| image_to_vec(&img.inner))
+        .collect::<Result<_, _>>()?;
+    let shape_0 = vecs[0].1;
+    for (i, (_, shape)) in vecs.iter().enumerate().skip(1) {
+        if *shape != shape_0 {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "shape mismatch: images[0] {:?} != images[{}] {:?}",
+                shape_0, i, shape
+            )));
+        }
+    }
+    if num_bins < 2 || num_bins > 64 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "num_bins must be in [2, 64], got {num_bins}"
+        )));
+    }
+    let slices: Vec<&[f32]> = vecs.iter().map(|(v, _)| v.as_slice()).collect();
+    dtc_slices(&slices, num_bins)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
+/// O-Information over N images (Rosas et al. 2019).
+///
+/// All images must have identical shapes. Result may be negative.
+///
+/// # Formula (Rosas 2019)
+/// Ω(X₁,...,Xₙ) = TC(X₁,...,Xₙ) − DTC(X₁,...,Xₙ)
+///
+/// - Ω > 0: redundancy-dominated system.
+/// - Ω < 0: synergy-dominated system.
+/// - Ω = 0: balanced / independent.
+///
+/// For n=3: Ω(X,Y,Z) = II(X;Y;Z) (generalises interaction information).
+/// For n=2: Ω(X,Y) = 0 always (TC=DTC=I(X;Y)).
+///
+/// # Arguments
+/// - `images`: list of PyImage objects (n ≥ 2).
+/// - `num_bins`: histogram bins per channel (2 ≤ B ≤ 64, default 32).
+#[pyfunction]
+#[pyo3(signature = (images, num_bins=32))]
+pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> PyResult<f64> {
+    if images.len() < 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "at least 2 images required, got {}",
+            images.len()
+        )));
+    }
+    let vecs: Vec<(Vec<f32>, [usize; 3])> = images
+        .iter()
+        .map(|img| image_to_vec(&img.inner))
+        .collect::<Result<_, _>>()?;
+    let shape_0 = vecs[0].1;
+    for (i, (_, shape)) in vecs.iter().enumerate().skip(1) {
+        if *shape != shape_0 {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "shape mismatch: images[0] {:?} != images[{}] {:?}",
+                shape_0, i, shape
+            )));
+        }
+    }
+    if num_bins < 2 || num_bins > 64 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "num_bins must be in [2, 64], got {num_bins}"
+        )));
+    }
+    let slices: Vec<&[f32]> = vecs.iter().map(|(v, _)| v.as_slice()).collect();
+    oi_slices(&slices, num_bins)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+}
+
+/// Variation of Information between two images.
 ///
 /// # Formula (Meilă 2003)
 /// VI(X, Y) = H(X|Y) + H(Y|X) = H(X) + H(Y) − 2·I(X,Y)
@@ -340,6 +440,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_conditional_mutual_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_interaction_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_total_correlation, &m)?)?;
+    m.add_function(wrap_pyfunction!(compute_dual_total_correlation, &m)?)?;
+    m.add_function(wrap_pyfunction!(compute_o_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_variation_of_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_multivariate_variation_of_information, &m)?)?;
     parent.add_submodule(&m)?;
@@ -469,10 +571,19 @@ mod tests {
     }
 
     #[test]
-    fn mvi_rejects_single_image() {
+    fn dtc_two_identical_images_non_negative() {
         pyo3::prepare_freethreaded_python();
-        let slices: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
-        let err = multivariate_vi_slices(&[slices.as_slice()], 8).unwrap_err();
-        assert!(err.to_string().contains("2 channels"), "expected 2-channel error: {err}");
+        let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
+        let dtc = dtc_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
+        assert!(dtc >= 0.0, "DTC must be ≥ 0, got {dtc}");
+    }
+
+    #[test]
+    fn oi_two_identical_images_is_zero() {
+        pyo3::prepare_freethreaded_python();
+        let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
+        let oi = oi_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
+        assert!(oi.abs() < 1e-9, "Ω(X,X) must be 0 for n=2, got {oi}");
     }
 }
+

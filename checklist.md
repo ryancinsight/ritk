@@ -1,4 +1,33 @@
+## Sprint 238 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.10 [patch]
+**Goal**: Add DTC and O-Information algorithms; expose in ritk-python; split writer.rs (1491 lines) and tests_white_stripe.rs (505 lines) structural violations.
+
+### Checklist items
+- [x] Add `dual_total_correlation`, `o_information`, `o_information_direct`, `o_information_from_tc_dtc` to `ritk-core/statistics/information/o_information.rs`
+- [x] Add 9 value-semantic tests in `ritk-core/statistics/information/tests/o_info.rs`
+- [x] Create `crates/ritk-python/src/metrics/o_information.rs` (52 lines): `dtc_slices`, `oi_slices`
+- [x] Add `compute_dual_total_correlation`, `compute_o_information` pyfunctions to `metrics/mod.rs`
+- [x] Add `TestDualTotalCorrelationOInformationParity` (10 tests) to `test_simpleitk_parity.py`
+- [x] Split `ritk-io/src/format/dicom/writer.rs` (1491 lines) into `writer/` hierarchy (5 impl + 4 test files, max leaf 382 lines)
+- [x] Split `ritk-core/src/statistics/normalization/tests_white_stripe.rs` (505 lines) into `tests_white_stripe/` directory (3 files, max 307 lines)
+- [x] Verify `cargo test -p ritk-io writer`: 40 passed
+- [x] Verify `cargo test -p ritk-core white_stripe`: 14 passed
+- [x] Update CHANGELOG.md [0.50.10], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| DICOM RT splits | `rt_dose.rs` 835, `rt_plan.rs` 828, `rt_struct.rs` 827 lines | Medium | Open |
+| DICOM object model split | `object_model.rs` 501 lines | Medium | Open |
+| DICOM multiframe/reader split | `multiframe/reader.rs` 580 lines | Medium | Open |
+| VTK XML/data-object splits | `image_xml/writer.rs` 1027, `image_xml/reader.rs` 885 + others | Medium | Open |
+
+---
+
 ## Sprint 237 — Complete
+
 **Status**: Complete
 **Phase**: Phase 3 Closure
 **Version**: 0.50.9 [patch]

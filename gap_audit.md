@@ -1,4 +1,37 @@
+## Sprint 238 Audit — 2026-05-14
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `writer.rs` 1491-line structural violation | `writer/mod.rs` 21, `utils.rs` 133, `preservation.rs` 124, `series.rs` 185, `metadata.rs` 382 lines; `tests/` 4 leaf files (basic.rs 199, metadata.rs 272, preservation.rs 113, helpers.rs 81); original monolith absent |
+| `tests_white_stripe.rs` 505-line violation | `tests_white_stripe/mod.rs` 71, `behavior.rs` 307, `internals.rs` 89 lines; original flat file absent |
+
+### Current image-format structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-vtk/src/io/image_xml/writer.rs` | 1027 | Medium |
+| `crates/ritk-vtk/src/io/image_xml/reader.rs` | 885 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_dose.rs` | 835 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_plan.rs` | 828 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_struct.rs` | 827 | Medium |
+| `crates/ritk-io/src/format/dicom/multiframe/reader.rs` | 580 | Medium |
+| `crates/ritk-vtk/src/domain/vtk_data_object.rs` | 741 | Medium |
+| `crates/ritk-vtk/src/io/unstructured_xml/reader.rs` | 711 | Medium |
+| `crates/ritk-io/src/format/dicom/object_model.rs` | 501 | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-io writer` | 40 passed — all writer hierarchy tests green |
+| `cargo test -p ritk-core white_stripe` | 14 passed — all behavior + internal tests green |
+
+### Next increment
+Split `rt_dose.rs` (835 lines) or `image_xml/writer.rs` (1027 lines) — next largest structural violations.
+
+---
+
 ## Sprint 237 Audit — 2026-05-13
+
 
 ### Gaps Closed
 | Gap | Evidence |

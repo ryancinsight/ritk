@@ -464,5 +464,5 @@ fn find_extreme_local_mode(
 }
 
 #[cfg(test)]
-#[path = "tests_white_stripe.rs"]
+#[path = "tests_white_stripe/mod.rs"]
 mod tests_white_stripe;

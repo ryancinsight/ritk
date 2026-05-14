@@ -1,4 +1,5 @@
 mod entropy;
 mod mi;
-mod vi;
+mod o_info;
 mod tc;
+mod vi;

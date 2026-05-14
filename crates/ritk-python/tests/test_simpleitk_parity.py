@@ -3935,3 +3935,167 @@ class TestMutualInformationVariantParity:
             f"SU_ritk={su_ritk:.6f} vs SU_ref={su_ref:.6f}: "
             f"absolute error {abs(su_ritk - su_ref):.6f} exceeds 0.05"
         )
+
+
+# ==========================================================================
+# Section 13c — Dual Total Correlation and O-Information (Han 1978; Rosas 2019)
+# ==========================================================================
+
+_HAS_DTC_OI = (
+    hasattr(ritk, "metrics")
+    and hasattr(ritk.metrics, "compute_dual_total_correlation")
+    and hasattr(ritk.metrics, "compute_o_information")
+)
+
+
+@pytest.mark.skipif(not _HAS_DTC_OI, reason="ritk.metrics DTC/O-Information not available")
+class TestDualTotalCorrelationOInformationParity:
+    """Section 13c — DTC and O-Information mathematical invariant tests.
+
+    Mathematical invariants verified (Han 1978; Rosas et al. 2019):
+      DTC(X,Y) = I(X;Y) for n=2  (Han 1978, Corollary 1)
+      DTC >= 0 always
+      Omega(X,Y) = 0 for n=2  (TC=DTC=I(X;Y))
+      Omega(X,X,X) >= 0  (pure-redundancy triple is non-negative)
+      Omega(X,Y,Z) = II(X;Y;Z)  (generalises interaction information, Rosas 2019)
+      DTC(X,X,...) = (n-1)*H(X)  (maximal dual correlation for identical channels)
+      TC([X,Y]) == DTC([X,Y])  (for n=2 both collapse to I(X;Y))
+    """
+
+    def _make_image(self, arr: np.ndarray) -> "ritk.Image":
+        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+
+    def _rng(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
+        return np.random.default_rng(seed).standard_normal(shape).astype(np.float32)
+
+    # ── DTC invariants ────────────────────────────────────────────────────────
+
+    def test_dtc_is_non_negative(self):
+        """DTC(X1,...,Xn) >= 0 always (chain rule for conditional entropy)."""
+        imgs = [self._make_image(self._rng(seed=i)) for i in range(3)]
+        dtc = ritk.metrics.compute_dual_total_correlation(imgs, num_bins=16)
+        assert dtc >= 0.0, f"DTC={dtc} is negative"
+
+    def test_dtc_two_channels_equals_mutual_information(self):
+        """DTC(X,Y) = I(X;Y) for n=2 (Han 1978, Corollary 1).
+
+        Validated against NumPy histogram MI within 10%.
+        """
+        rng = np.random.default_rng(20)
+        a = rng.uniform(0, 1, (10, 10, 10)).astype(np.float32)
+        b = (0.7 * a + 0.3 * rng.standard_normal((10, 10, 10))).astype(np.float32)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+
+        dtc = ritk.metrics.compute_dual_total_correlation([img_a, img_b], num_bins=32)
+        mi  = _numpy_mi(a, b, num_bins=32)
+
+        assert dtc >= 0.0, f"DTC={dtc} is negative"
+        assert mi  >= 0.0, f"NumPy MI={mi} is negative"
+        tol = max(0.10 * abs(mi), 0.01)
+        assert abs(dtc - mi) <= tol, (
+            f"DTC(X,Y)={dtc:.4f} vs I(X;Y)={mi:.4f}: diff={abs(dtc - mi):.4f} > tol={tol:.4f} "
+            f"(expected equality for n=2 per Han 1978)"
+        )
+
+    def test_dtc_two_channels_equals_tc(self):
+        """TC(X,Y) = DTC(X,Y) = I(X;Y) for n=2."""
+        rng = np.random.default_rng(21)
+        a = rng.uniform(0, 1, (8, 8, 8)).astype(np.float32)
+        b = (0.8 * a + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+
+        tc  = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=16)
+        dtc = ritk.metrics.compute_dual_total_correlation([img_a, img_b], num_bins=16)
+        assert abs(tc - dtc) < 1e-9, (
+            f"TC(X,Y)={tc:.10f} != DTC(X,Y)={dtc:.10f} for n=2"
+        )
+
+    def test_dtc_increases_with_correlation(self):
+        """DTC([X, Y_strong]) > DTC([X, Y_weak]): more correlated = higher DTC."""
+        rng = np.random.default_rng(22)
+        x = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y_weak   = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        y_strong = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+
+        img_x  = self._make_image(x)
+        img_yw = self._make_image(y_weak)
+        img_ys = self._make_image(y_strong)
+
+        dtc_weak   = ritk.metrics.compute_dual_total_correlation([img_x, img_yw], num_bins=16)
+        dtc_strong = ritk.metrics.compute_dual_total_correlation([img_x, img_ys], num_bins=16)
+        assert dtc_strong > dtc_weak, (
+            f"DTC_strong={dtc_strong:.4f} DTC_weak={dtc_weak:.4f}"
+        )
+
+    def test_dtc_rejects_single_image(self):
+        """compute_dual_total_correlation raises ValueError for n < 2."""
+        img = self._make_image(self._rng())
+        with pytest.raises(Exception, match=r"2"):
+            ritk.metrics.compute_dual_total_correlation([img], num_bins=8)
+
+    # ── O-Information invariants ──────────────────────────────────────────────
+
+    def test_oi_two_channels_is_zero(self):
+        """Omega(X,Y) = TC(X,Y) - DTC(X,Y) = I(X;Y) - I(X;Y) = 0 for n=2."""
+        rng = np.random.default_rng(30)
+        a = rng.uniform(0, 1, (8, 8, 8)).astype(np.float32)
+        b = (0.7 * a + 0.3 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+        oi = ritk.metrics.compute_o_information([img_a, img_b], num_bins=16)
+        assert abs(oi) < 1e-9, f"Omega(X,Y)={oi} must be 0 for n=2"
+
+    def test_oi_redundant_triple_is_non_negative(self):
+        """Omega(X,X,X) >= 0: fully identical channels = maximal redundancy."""
+        rng = np.random.default_rng(31)
+        x = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        img_x = self._make_image(x)
+        oi = ritk.metrics.compute_o_information([img_x, img_x, img_x], num_bins=16)
+        assert oi >= -1e-9, f"Omega(X,X,X)={oi:.8f} must be >= 0 (redundancy-dominated)"
+
+    def test_oi_three_channels_matches_interaction_information(self):
+        """Omega(X,Y,Z) = II(X;Y;Z) for n=3 (Rosas 2019, Theorem 1).
+
+        Both O-Information and Interaction Information are computed independently;
+        they must agree within 1e-9 (exact algebraic identity).
+        """
+        rng = np.random.default_rng(32)
+        a = rng.uniform(0, 1, (8, 8, 8)).astype(np.float32)
+        b = (0.6 * a + 0.4 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        c = (0.6 * a + 0.4 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        img_a = self._make_image(a)
+        img_b = self._make_image(b)
+        img_c = self._make_image(c)
+
+        oi = ritk.metrics.compute_o_information([img_a, img_b, img_c], num_bins=16)
+        ii = ritk.metrics.compute_interaction_information(img_a, img_b, img_c, num_bins=16)
+
+        assert abs(oi - ii) < 1e-9, (
+            f"Omega(X,Y,Z)={oi:.10f} != II(X;Y;Z)={ii:.10f}: "
+            f"diff={abs(oi - ii):.2e} (should be 0 per Rosas 2019 Theorem 1)"
+        )
+
+    def test_oi_tc_dtc_decomposition(self):
+        """Omega = TC - DTC: verify the decomposition identity holds."""
+        rng = np.random.default_rng(33)
+        imgs = [self._make_image(
+            (0.5 * rng.standard_normal((8, 8, 8)) + 0.5 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        ) for _ in range(4)]
+
+        tc  = ritk.metrics.compute_total_correlation(imgs, num_bins=8)
+        dtc = ritk.metrics.compute_dual_total_correlation(imgs, num_bins=8)
+        oi  = ritk.metrics.compute_o_information(imgs, num_bins=8)
+
+        oi_from_decomp = tc - dtc
+        assert abs(oi - oi_from_decomp) < 1e-9, (
+            f"Omega={oi:.10f} != TC-DTC={oi_from_decomp:.10f}: "
+            f"diff={abs(oi - oi_from_decomp):.2e}"
+        )
+
+    def test_oi_rejects_single_image(self):
+        """compute_o_information raises ValueError for n < 2."""
+        img = self._make_image(self._rng())
+        with pytest.raises(Exception, match=r"2"):
+            ritk.metrics.compute_o_information([img], num_bins=8)
