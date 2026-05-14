@@ -1,3 +1,35 @@
+## Sprint 239 Audit — 2026-05-14
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `ritk-python/metrics/mod.rs` 589-line violation | `mod.rs` ~220 lines; pyfunction bodies distributed to 8 leaf modules; 3 new functions added |
+| `ritk-io/dicom/object_model.rs` 501-line violation | `object_model/tag.rs` ~40, `types.rs` ~220, `model.rs` ~85, `preservation.rs` ~55, `tests.rs` ~90 lines |
+| `ritk-io/dicom/rt_dose.rs` 835-line violation | `rt_dose/types.rs` 44, `utils.rs` 20, `reader.rs` 135, `writer.rs` 211, `tests/mod.rs` 246, `mod.rs` 21 lines |
+| `ritk-io/dicom/rt_plan.rs` 828-line violation | `rt_plan/types.rs` 60, `reader.rs` 148, `writer.rs` 175, `tests/mod.rs` 337, `mod.rs` 18 lines |
+| `ritk-io/dicom/rt_struct.rs` 827-line violation | `rt_struct/types.rs` 52, `utils.rs` 32, `reader.rs` 157, `converter.rs` 46, `tests/` 4 files, `mod.rs` 21 lines |
+
+### Current structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-vtk/src/io/image_xml/writer.rs` | 1027 | Medium |
+| `crates/ritk-vtk/src/io/image_xml/reader.rs` | 885 | Medium |
+| `crates/ritk-vtk/src/domain/vtk_data_object.rs` | 741 | Medium |
+| `crates/ritk-vtk/src/io/unstructured_xml/reader.rs` | 711 | Medium |
+| `crates/ritk-io/src/format/dicom/multiframe/reader.rs` | 580 | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-io` | 0 errors, 0 warnings |
+| `cargo check -p ritk-python` | 0 errors |
+| ritk-python metrics unit tests | 37/37 passed |
+
+### Next increment
+Split `image_xml/writer.rs` (1027 lines) or `multiframe/reader.rs` (580 lines) — next largest structural violations.
+
+---
+
 ## Sprint 238 Audit — 2026-05-14
 
 ### Gaps Closed

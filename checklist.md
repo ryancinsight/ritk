@@ -1,3 +1,33 @@
+## Sprint 239 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.11 [patch]
+**Goal**: Close 500-line structural violations in metrics/mod.rs, object_model.rs, rt_dose.rs, rt_plan.rs, rt_struct.rs; add entropy/joint-entropy/symmetric-uncertainty pyfunctions; add NumPy parity tests; expose compute_entropy, compute_joint_entropy, compute_symmetric_uncertainty in ritk-python.
+
+### Checklist items
+- [x] Split `ritk-python/src/metrics/mod.rs` (589 lines) into deep-vertical hierarchy (8 leaf modules + new mod.rs ~220 lines)
+- [x] Add `compute_entropy`, `compute_joint_entropy`, `compute_symmetric_uncertainty` pyfunctions to `metrics/mi.rs`
+- [x] Register 3 new pyfunctions in `metrics/mod.rs` and add 3 integration tests
+- [x] Split `ritk-io/src/format/dicom/object_model.rs` (501 lines) into `object_model/` directory (4 leaf files + tests.rs)
+- [x] Split `ritk-io/src/format/dicom/rt_dose.rs` (835 lines) into `rt_dose/` directory (types, utils, reader, writer, tests)
+- [x] Split `ritk-io/src/format/dicom/rt_plan.rs` (828 lines) into `rt_plan/` directory (types, reader, writer, tests)
+- [x] Split `ritk-io/src/format/dicom/rt_struct.rs` (827 lines) into `rt_struct/` directory (types, utils, reader, converter, tests/)
+- [x] Add 9 parity tests to `test_metric_parity.py` for entropy/joint-entropy/SU vs NumPy references
+- [x] Verify `cargo check -p ritk-io`: 0 errors, 0 warnings
+- [x] Verify `cargo check -p ritk-python`: 0 errors (37/37 metrics tests pass)
+- [x] Update CHANGELOG.md [0.50.11], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| DICOM multiframe reader split | `multiframe/reader.rs` 580 lines | Medium | Open |
+| VTK XML writer split | `image_xml/writer.rs` 1027 lines | Medium | Open |
+| VTK XML reader split | `image_xml/reader.rs` 885 lines | Medium | Open |
+| VTK data-object split | `vtk_data_object.rs` 741 lines | Medium | Open |
+| VTK unstructured XML reader split | `unstructured_xml/reader.rs` 711 lines | Medium | Open |
+
+---
+
 ## Sprint 238 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

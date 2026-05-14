@@ -1,7 +1,11 @@
-//! MSE (Mean Squared Error) slice-level implementation.
+//! MSE (Mean Squared Error) pyfunction wrapper.
 //!
 //! # Formula
 //! MSE = Σ(aᵢ − bᵢ)² / N
+
+use pyo3::prelude::*;
+
+use crate::image::{image_to_vec, PyImage};
 
 /// MSE = Σ(aᵢ − bᵢ)² / N.
 pub(super) fn mse_slices(a: &[f32], b: &[f32]) -> f64 {
@@ -19,6 +23,25 @@ pub(super) fn mse_slices(a: &[f32], b: &[f32]) -> f64 {
         })
         .sum();
     sum / n as f64
+}
+
+/// Mean squared error between two images.
+///
+/// Both images must have identical shapes. Returns the scalar MSE as f64.
+///
+/// # Formula
+/// MSE = Σ(fixed_i − moving_i)² / N
+#[pyfunction]
+pub fn compute_mse(fixed: &PyImage, moving: &PyImage) -> PyResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner)?;
+    let (b, shape_b) = image_to_vec(&moving.inner)?;
+    if shape_a != shape_b {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "shape mismatch: fixed {:?} != moving {:?}",
+            shape_a, shape_b
+        )));
+    }
+    Ok(mse_slices(&a, &b))
 }
 
 #[cfg(test)]

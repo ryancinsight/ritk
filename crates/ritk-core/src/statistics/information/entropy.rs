@@ -96,14 +96,9 @@ pub fn joint_entropy(a: &[f32], b: &[f32], num_bins: usize) -> Result<f64> {
     Ok(entropy_from_hist(&joint))
 }
 
-/// N-way joint entropy H(X₁,...,Xₙ) = -Σ p·ln(p) over the N-dimensional histogram.
-///
-/// Joint histogram size is `num_bins^n`; enforced ≤ 4_194_304 entries.
-///
-/// # Errors
-/// Returns an error on empty channels, length mismatch, `num_bins < 2`,
-/// or when `num_bins^n > 4_194_304`.
-pub fn joint_entropy_n(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
+/// Returns `(histogram, total_samples)` where `histogram` is the unnormalized counts
+/// or probabilities. Here we return probabilities to match existing logic.
+pub fn build_joint_hist_n(channels: &[&[f32]], num_bins: usize) -> Result<Vec<f64>> {
     let n = channels.len();
     if n == 0 {
         bail!("channels must not be empty");
@@ -145,5 +140,49 @@ pub fn joint_entropy_n(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
     for p in joint.iter_mut() {
         *p /= total;
     }
+    Ok(joint)
+}
+
+/// N-way joint entropy H(X₁,...,Xₙ) = -Σ p·ln(p) over the N-dimensional histogram.
+///
+/// Joint histogram size is `num_bins^n`; enforced ≤ 4_194_304 entries.
+///
+/// # Errors
+/// Returns an error on empty channels, length mismatch, `num_bins < 2`,
+/// or when `num_bins^n > 4_194_304`.
+pub fn joint_entropy_n(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
+    let joint = build_joint_hist_n(channels, num_bins)?;
     Ok(entropy_from_hist(&joint))
+}
+
+/// Marginalize an N-dimensional histogram by summing over a specified axis.
+/// The resulting histogram has N-1 dimensions.
+pub fn marginalize_hist(hist: &[f64], num_bins: usize, current_n: usize, axis_to_drop: usize) -> Vec<f64> {
+    let out_size = num_bins.pow((current_n - 1) as u32);
+    let mut out = vec![0.0_f64; out_size];
+    
+    for (idx, &p) in hist.iter().enumerate() {
+        if p == 0.0 { continue; }
+        
+        let mut out_idx = 0;
+        let mut out_multiplier = 1;
+        let mut temp_idx = idx;
+        
+        for d in (0..current_n).rev() {
+            let coord = temp_idx % num_bins;
+            temp_idx /= num_bins;
+            
+            if d != axis_to_drop {
+                out_idx += coord * out_multiplier;
+                out_multiplier *= num_bins;
+            }
+        }
+        out[out_idx] += p;
+    }
+    out
+}
+
+/// Calculate entropy directly from an already computed histogram
+pub fn entropy_from_hist_pub(hist: &[f64]) -> f64 {
+    entropy_from_hist(hist)
 }

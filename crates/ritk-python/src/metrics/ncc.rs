@@ -1,9 +1,12 @@
-//! NCC (Normalized Cross-Correlation) slice-level implementation.
+//! NCC (Normalized Cross-Correlation) pyfunction wrapper.
 //!
 //! # Formula
 //! NCC = Σ(aᵢ−ā)(bᵢ−b̄) / (N·σ_a·σ_b + ε)
 
 use anyhow::{bail, Result};
+use pyo3::prelude::*;
+
+use crate::image::{image_to_vec, PyImage};
 
 /// Pearson r = cov(a,b) / (std_a · std_b + ε).
 pub(super) fn ncc_slices(a: &[f32], b: &[f32]) -> Result<f64> {
@@ -30,6 +33,26 @@ pub(super) fn ncc_slices(a: &[f32], b: &[f32]) -> Result<f64> {
     let std_b = (var_b / n_f).sqrt();
     const EPS: f64 = 1e-10;
     Ok(cov / (n_f * (std_a * std_b + EPS)))
+}
+
+/// Normalized cross-correlation between two images (Pearson r).
+///
+/// Both images must have identical shapes. Returns r ∈ [−1, 1].
+///
+/// # Formula
+/// NCC = Σ(aᵢ−ā)(bᵢ−b̄) / (N·σ_a·σ_b + ε)
+#[pyfunction]
+pub fn compute_ncc(fixed: &PyImage, moving: &PyImage) -> PyResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner)?;
+    let (b, shape_b) = image_to_vec(&moving.inner)?;
+    if shape_a != shape_b {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "shape mismatch: fixed {:?} != moving {:?}",
+            shape_a, shape_b
+        )));
+    }
+    ncc_slices(&a, &b)
+        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
 
 #[cfg(test)]

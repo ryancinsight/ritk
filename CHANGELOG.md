@@ -1,3 +1,59 @@
+## [0.50.11] - 2026-05-14
+### Added [patch]
+
+- `crates/ritk-python/src/metrics/mi.rs`: `compute_entropy` (H(X) = −Σ p·log p), `compute_joint_entropy` (H(X,Y)), `compute_symmetric_uncertainty` (SU = 2·MI/(H(X)+H(Y))) pyfunctions.
+- `crates/ritk-python/tests/test_metric_parity.py`: 9 new parity tests — `compute_entropy` vs NumPy histogram entropy, `compute_joint_entropy` vs NumPy 2-D histogram entropy, `compute_symmetric_uncertainty` vs `2·MI/(H(X)+H(Y))` reference.
+- `crates/ritk-python/src/metrics/mod.rs`: 3 new pyfunction registrations (`compute_entropy`, `compute_joint_entropy`, `compute_symmetric_uncertainty`) and 3 new integration tests.
+
+### Changed [patch]
+
+- Split `ritk-python/src/metrics/mod.rs` (589 lines) into deep-vertical hierarchy — closes structural violation:
+  - `metrics/mod.rs` (≈220 lines): pyfunction registration only; all function bodies delegated to leaf modules.
+  - All 10 pyfunction bodies distributed across 8 existing leaf modules (`mi.rs`, `mse.rs`, `ncc.rs`, `cmi.rs`, `total_correlation.rs`, `variation_of_information.rs`, `o_information.rs`, `multivariate_vi.rs`).
+- Split `ritk-io/src/format/dicom/object_model.rs` (501 lines) into `object_model/` directory:
+  - `object_model/tag.rs` (~40 lines): `DicomTag`, `is_private_tag`.
+  - `object_model/types.rs` (~220 lines): `DicomValue`, `DicomSequenceItem`, `DicomObjectNode` (co-located: mutual recursion).
+  - `object_model/model.rs` (~85 lines): `DicomObjectModel`.
+  - `object_model/preservation.rs` (~55 lines): `DicomPreservedElement`, `DicomPreservationSet`.
+  - `object_model/tests.rs` (~90 lines): 5 value-semantic tests.
+- Split `ritk-io/src/format/dicom/rt_dose.rs` (835 lines) into `rt_dose/` directory:
+  - `rt_dose/types.rs` (44 lines): `RT_DOSE_SOP_CLASS_UID`, `RtDoseGrid`.
+  - `rt_dose/utils.rs` (20 lines): `parse_ds_backslash`.
+  - `rt_dose/reader.rs` (135 lines): `read_rt_dose`.
+  - `rt_dose/writer.rs` (211 lines): `write_rt_dose`.
+  - `rt_dose/tests/mod.rs` (246 lines): 5 value-semantic tests.
+  - `rt_dose/mod.rs` (21 lines): module declarations + re-exports.
+- Split `ritk-io/src/format/dicom/rt_plan.rs` (828 lines) into `rt_plan/` directory:
+  - `rt_plan/types.rs` (60 lines): `RT_PLAN_SOP_CLASS_UID`, `RtBeamInfo`, `RtFractionGroup`, `RtPlanInfo`.
+  - `rt_plan/reader.rs` (148 lines): `read_rt_plan`.
+  - `rt_plan/writer.rs` (175 lines): `write_rt_plan`, `build_beam_item`, `build_fraction_group_item`.
+  - `rt_plan/tests/mod.rs` (337 lines): 5 value-semantic tests.
+  - `rt_plan/mod.rs` (18 lines): module declarations + re-exports.
+- Split `ritk-io/src/format/dicom/rt_struct.rs` (827 lines) into `rt_struct/` directory:
+  - `rt_struct/types.rs` (52 lines): `RT_STRUCT_SOP_CLASS_UID`, `RtContour`, `RtRoiInfo`, `RtStructureSet`.
+  - `rt_struct/utils.rs` (32 lines): `parse_contour_data`, `parse_color`.
+  - `rt_struct/reader.rs` (157 lines): `read_rt_struct`.
+  - `rt_struct/converter.rs` (46 lines): `rt_roi_to_polydata`.
+  - `rt_struct/tests/mod.rs` (12 lines): submodule declarations.
+  - `rt_struct/tests/helpers.rs` (107 lines): helper functions.
+  - `rt_struct/tests/read_tests.rs` (165 lines): tests 1–5.
+  - `rt_struct/tests/poly_tests.rs` (96 lines): tests 6–8.
+  - `rt_struct/mod.rs` (21 lines): module declarations + re-exports.
+
+### Closed gaps
+
+- `ritk-python/src/metrics/mod.rs` 589-line structural violation — **Closed**.
+- `ritk-io/src/format/dicom/object_model.rs` 501-line structural violation — **Closed**.
+- `ritk-io/src/format/dicom/rt_dose.rs` 835-line structural violation — **Closed**.
+- `ritk-io/src/format/dicom/rt_plan.rs` 828-line structural violation — **Closed**.
+- `ritk-io/src/format/dicom/rt_struct.rs` 827-line structural violation — **Closed**.
+
+### Verification
+
+- `cargo check -p ritk-io`: 0 errors, 0 warnings.
+- `cargo check -p ritk-python`: 0 errors (37/37 metrics unit tests pass).
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.10] - 2026-05-14
 ### Added [patch]
 
