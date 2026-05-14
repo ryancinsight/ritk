@@ -36,6 +36,7 @@ impl ExpImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::intensity::arithmetic::LogImageFilter;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};

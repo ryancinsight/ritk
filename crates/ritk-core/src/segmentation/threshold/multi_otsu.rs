@@ -342,5 +342,13 @@ fn apply_multi_otsu_labels<B: Backend, const D: usize>(
 }
 
 #[cfg(test)]
-#[path = "tests_multi_otsu.rs"]
-mod tests_multi_otsu;
+#[path = "tests_multi_otsu_base.rs"]
+mod tests_multi_otsu_base;
+
+#[cfg(test)]
+#[path = "tests_multi_otsu_ext.rs"]
+mod tests_multi_otsu_ext;
+
+#[cfg(test)]
+#[path = "tests_multi_otsu_k4k5.rs"]
+mod tests_multi_otsu_k4k5;
