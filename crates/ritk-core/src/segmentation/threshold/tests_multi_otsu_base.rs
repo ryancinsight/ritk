@@ -20,18 +20,6 @@ fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
     )
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    let device = Default::default();
-    let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
-}
-
 fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
     image
         .data()
