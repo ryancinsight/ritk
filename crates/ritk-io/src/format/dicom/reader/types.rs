@@ -1,27 +1,22 @@
-//! DICOM metadata types extracted from the series reader.
+//! Typed metadata records produced by the DICOM series reader.
 //!
-//! This module contains the per-slice and per-series metadata structs, the
-//! patient position enum, and associated helpers. These types are the typed
-//! output of the DICOM read path and carry no I/O logic.
+//! This module defines the per-slice and per-series metadata structs, the
+//! patient position enum, and associated helpers. These types carry no I/O
+//! logic — they are the typed output of the read path.
 
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
 
-use super::object_model::DicomPreservationSet;
+use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet};
 
 /// Per-slice DICOM metadata extracted during series loading.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomSliceMetadata {
-    /// Source file path for the slice.
     pub path: PathBuf,
-    /// Recursive preservation data extracted from the slice.
     pub preservation: DicomPreservationSet,
-    /// SOP Instance UID if available.
     pub sop_instance_uid: Option<String>,
-    /// Instance number if available.
     pub instance_number: Option<i32>,
-    /// Slice location if available.
     pub slice_location: Option<f64>,
     /// Image position patient (x, y, z) in mm.
     pub image_position_patient: Option<[f64; 3]>,
@@ -29,34 +24,20 @@ pub struct DicomSliceMetadata {
     pub image_orientation_patient: Option<[f64; 6]>,
     /// Pixel spacing (row, column) in mm.
     pub pixel_spacing: Option<[f64; 2]>,
-    /// Slice thickness in mm.
     pub slice_thickness: Option<f64>,
-    /// Rescale slope.
     pub rescale_slope: f32,
-    /// Rescale intercept.
     pub rescale_intercept: f32,
-    /// SOP Class UID if available.
     pub sop_class_uid: Option<String>,
-    /// Transfer syntax UID if available.
     pub transfer_syntax_uid: Option<String>,
-    /// Custom per-slice tags preserved as text.
     pub private_tags: HashMap<String, String>,
     /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
-    /// Defaults to 0 when absent per DICOM PS3.3 C.7.6.3.1.
     pub pixel_representation: u16,
-    /// BitsAllocated (0028,0100) for this slice. Defaults to 16 when absent.
+    /// BitsAllocated (0028,0100). Defaults to 16 when absent.
     pub bits_allocated: u16,
-    /// WindowCenter (0028,1050) for display, first value when multi-valued DS.
     pub window_center: Option<f64>,
-    /// WindowWidth (0028,1051) for display, first value when multi-valued DS.
     pub window_width: Option<f64>,
-    /// GantryDetectorTilt (0018,1120) in degrees. Positive = toward patient's feet.
-    /// Used to synthesize oblique IOP when IOP is absent or effectively axial.
+    /// GantryDetectorTilt (0018,1120) in degrees.
     pub gantry_tilt: Option<f64>,
-    /// Patient position (0018,5100) as a setup code.
-    ///
-    /// This is preserved as a typed semantic label, not as a geometric transform.
-    /// Physical voxel orientation still comes from IOP/IPP and spacing.
     pub patient_position: Option<PatientPosition>,
 }
 
@@ -88,9 +69,6 @@ impl Default for DicomSliceMetadata {
 }
 
 /// Patient setup code from DICOM tag (0018,5100).
-///
-/// The code classifies acquisition setup only. It does not change image-space
-/// geometry, which is still derived from IOP/IPP and spacing.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PatientPosition {
     HeadFirstSupine,
@@ -105,7 +83,6 @@ pub enum PatientPosition {
 }
 
 impl PatientPosition {
-    /// Parse a DICOM CS code into a typed patient position.
     pub fn from_code(code: &str) -> Self {
         let normalized = code.trim().to_uppercase();
         match normalized.as_str() {
@@ -122,7 +99,6 @@ impl PatientPosition {
         }
     }
 
-    /// Return the canonical DICOM code for display and serialization.
     pub fn code(&self) -> &str {
         match self {
             Self::HeadFirstSupine => "HFS",
@@ -137,7 +113,6 @@ impl PatientPosition {
         }
     }
 
-    /// Human-readable label for metadata tables and diagnostics.
     pub fn label(&self) -> &'static str {
         match self {
             Self::HeadFirstSupine => "Head First Supine",
@@ -159,8 +134,7 @@ impl fmt::Display for PatientPosition {
     }
 }
 
-/// Parse a patient position code string, returning `None` for empty/whitespace input.
-pub fn parse_patient_position(code: &str) -> Option<PatientPosition> {
+pub(super) fn parse_patient_position(code: &str) -> Option<PatientPosition> {
     let trimmed = code.trim();
     if trimmed.is_empty() {
         None
@@ -172,49 +146,31 @@ pub fn parse_patient_position(code: &str) -> Option<PatientPosition> {
 /// Series-level DICOM metadata.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DicomReadMetadata {
-    /// Series instance UID if available.
     pub series_instance_uid: Option<String>,
-    /// Study instance UID if available.
     pub study_instance_uid: Option<String>,
-    /// Frame of reference UID if available.
     pub frame_of_reference_uid: Option<String>,
-    /// Series description if available.
     pub series_description: Option<String>,
-    /// Modality if available.
     pub modality: Option<String>,
-    /// Patient ID if available.
     pub patient_id: Option<String>,
-    /// Patient name if available.
     pub patient_name: Option<String>,
-    /// Study date if available.
     pub study_date: Option<String>,
-    /// Series date if available.
     pub series_date: Option<String>,
-    /// Series time if available.
     pub series_time: Option<String>,
-    /// Image dimensions in `[rows, cols, slices]`.
+    /// Image dimensions `[rows, cols, slices]`.
     pub dimensions: [usize; 3],
-    /// Physical spacing in `[x, y, z]` order.
+    /// Physical spacing `[Δz, ΔRow, ΔCol]`.
     pub spacing: [f64; 3],
-    /// Physical origin in mm.
     pub origin: [f64; 3],
-    /// Direction cosines in row-major 3x3 order.
+    /// Direction cosines in row-major 3×3 order.
     pub direction: [f64; 9],
-    /// Bits allocated if available.
     pub bits_allocated: Option<u16>,
-    /// Bits stored if available.
     pub bits_stored: Option<u16>,
-    /// High bit if available.
     pub high_bit: Option<u16>,
-    /// Photometric interpretation if available.
     pub photometric_interpretation: Option<String>,
-    /// Slice metadata in load order.
     pub slices: Vec<DicomSliceMetadata>,
-    /// Custom series-level tags preserved as text.
     pub private_tags: HashMap<String, String>,
-    /// Recursive preservation data for the series.
     pub preservation: DicomPreservationSet,
-    /// (0010,1030) Patient Weight [kg]. Required for SUVbw normalisation.
+    /// (0010,1030) Patient Weight [kg].
     pub patient_weight_kg: Option<f64>,
     /// (0054,1102) Decay Correction: "NONE", "START", or "ADMIN".
     pub decay_correction: Option<String>,
@@ -226,13 +182,85 @@ pub struct DicomReadMetadata {
     pub radionuclide_half_life_s: Option<f64>,
 }
 
-/// A simplified DICOM series descriptor.
+/// Simplified DICOM series descriptor returned from directory scan.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomSeriesInfo {
-    /// Series path.
-    pub path: PathBuf,
-    /// Number of slices discovered in the directory.
+    pub path: std::path::PathBuf,
     pub num_slices: usize,
-    /// Series metadata.
     pub metadata: DicomReadMetadata,
+}
+
+/// Accumulator for first-seen series-level fields during multi-file scanning.
+#[derive(Default)]
+pub(super) struct SeriesFirstSeen {
+    pub rows: Option<u32>,
+    pub cols: Option<u32>,
+    pub pixel_spacing: Option<[f64; 2]>,
+    pub slice_thickness: Option<f64>,
+    pub series_instance_uid: Option<String>,
+    pub study_instance_uid: Option<String>,
+    pub series_description: Option<String>,
+    pub modality: Option<String>,
+    pub patient_id: Option<String>,
+    pub patient_name: Option<String>,
+    pub study_date: Option<String>,
+    pub series_date: Option<String>,
+    pub series_time: Option<String>,
+    pub frame_of_reference_uid: Option<String>,
+    pub bits_allocated: Option<u16>,
+    pub bits_stored: Option<u16>,
+    pub high_bit: Option<u16>,
+    pub photometric_interpretation: Option<String>,
+    pub transfer_syntax_uid: Option<String>,
+    pub patient_weight_kg: Option<f64>,
+    pub decay_correction: Option<String>,
+    pub radionuclide_total_dose_bq: Option<f64>,
+    pub radiopharmaceutical_start_time: Option<String>,
+    pub radionuclide_half_life_s: Option<f64>,
+}
+
+/// Assemble a [`DicomReadMetadata`] from a [`SeriesFirstSeen`] accumulator, sorted slices,
+/// and computed geometry fields.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn assemble_metadata(
+    first: SeriesFirstSeen,
+    slices: Vec<DicomSliceMetadata>,
+    rows: usize,
+    cols: usize,
+    spacing: [f64; 3],
+    origin: [f64; 3],
+    direction: [f64; 9],
+    series_object: DicomObjectModel,
+) -> DicomReadMetadata {
+    DicomReadMetadata {
+        series_instance_uid: first.series_instance_uid,
+        study_instance_uid: first.study_instance_uid,
+        frame_of_reference_uid: first.frame_of_reference_uid,
+        series_description: first.series_description,
+        modality: first.modality,
+        patient_id: first.patient_id,
+        patient_name: first.patient_name,
+        study_date: first.study_date,
+        series_date: first.series_date,
+        series_time: first.series_time,
+        dimensions: [rows, cols, slices.len()],
+        spacing,
+        origin,
+        direction,
+        bits_allocated: first.bits_allocated,
+        bits_stored: first.bits_stored,
+        high_bit: first.high_bit,
+        photometric_interpretation: first.photometric_interpretation,
+        slices,
+        private_tags: HashMap::new(),
+        preservation: DicomPreservationSet {
+            object: series_object,
+            preserved: Vec::new(),
+        },
+        patient_weight_kg: first.patient_weight_kg,
+        decay_correction: first.decay_correction,
+        radionuclide_total_dose_bq: first.radionuclide_total_dose_bq,
+        radiopharmaceutical_start_time: first.radiopharmaceutical_start_time,
+        radionuclide_half_life_s: first.radionuclide_half_life_s,
+    }
 }

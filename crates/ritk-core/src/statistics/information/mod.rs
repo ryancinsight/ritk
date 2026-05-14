@@ -18,7 +18,10 @@ pub mod total_correlation;
 pub mod variation_of_information;
 
 pub use entropy::{joint_entropy, joint_entropy_n, marginal_entropy};
-pub use mutual_information::{mutual_information, normalized_mutual_information};
+pub use mutual_information::{
+    mutual_information, mutual_information_mattes, normalized_mutual_information,
+    symmetric_uncertainty,
+};
 pub use total_correlation::total_correlation;
 pub use variation_of_information::variation_of_information;
 

@@ -1,4 +1,7 @@
-use super::super::mutual_information::{mutual_information, normalized_mutual_information};
+use super::super::mutual_information::{
+    mutual_information, mutual_information_mattes, normalized_mutual_information,
+    symmetric_uncertainty,
+};
 use super::super::entropy::marginal_entropy;
 
 // ── mutual_information tests ──────────────────────────────────────────────────
@@ -103,4 +106,71 @@ fn nmi_at_most_two() {
     let b: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
     let nmi = normalized_mutual_information(&a, &b, 8).unwrap();
     assert!(nmi <= 2.0 + 1e-9, "NMI={nmi:.6} must be ≤ 2.0");
+}
+
+// ── mutual_information_mattes tests ──────────────────────────────────────────
+
+#[test]
+fn mi_mattes_identical_positive() {
+    // I_mattes(X;X) > 0 for non-constant X.
+    let a: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let mi = mutual_information_mattes(&a, &a, 8).unwrap();
+    assert!(mi > 0.0, "Mattes MI(X,X) must be positive, got {mi}");
+}
+
+#[test]
+fn mi_mattes_constant_channel_is_zero() {
+    // I(X, const) = 0 since H(const) = 0.
+    let a: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let b_const = vec![3.0_f32; 64];
+    let mi = mutual_information_mattes(&a, &b_const, 8).unwrap();
+    assert!(mi.abs() < 1e-9, "Mattes MI(X, const) must be 0, got {mi}");
+}
+
+#[test]
+fn mi_mattes_non_negative() {
+    let a: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
+    let mi = mutual_information_mattes(&a, &b, 8).unwrap();
+    assert!(mi >= 0.0, "Mattes MI must be non-negative, got {mi}");
+}
+
+#[test]
+fn mi_mattes_rejects_length_mismatch() {
+    let a = vec![1.0_f32; 10];
+    let b = vec![1.0_f32; 8];
+    assert!(mutual_information_mattes(&a, &b, 4).is_err());
+}
+
+// ── symmetric_uncertainty tests ───────────────────────────────────────────────
+
+#[test]
+fn su_identical_non_constant_is_one() {
+    // SU(X,X) = 2·H(X)/(H(X)+H(X)) = 1.0.
+    let a: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let su = symmetric_uncertainty(&a, &a, 8).unwrap();
+    assert!(
+        (su - 1.0).abs() < 1e-9,
+        "SU(X,X)={su:.6} must equal 1.0 for non-constant X"
+    );
+}
+
+#[test]
+fn su_in_zero_one() {
+    let a: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..256).map(|i| ((i / 8) % 8) as f32).collect();
+    let su = symmetric_uncertainty(&a, &b, 8).unwrap();
+    assert!(su >= 0.0 - 1e-9, "SU={su:.6} must be ≥ 0");
+    assert!(su <= 1.0 + 1e-9, "SU={su:.6} must be ≤ 1");
+}
+
+#[test]
+fn su_constant_channels_returns_zero() {
+    let a = vec![5.0_f32; 100];
+    let b = vec![3.0_f32; 100];
+    let su = symmetric_uncertainty(&a, &b, 8).unwrap();
+    assert!(
+        su.abs() < 1e-9,
+        "SU(const,const)={su:.6} must be 0.0"
+    );
 }

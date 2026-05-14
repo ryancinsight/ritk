@@ -1,3 +1,25 @@
+## Sprint 234 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `ritk-io/src/format/dicom/reader/mod.rs` 4898-line structural violation | Split into 9 leaf files (all ≤ 500 lines) + 13 test leaf files; `cargo test -p ritk-io` all passed |
+| `ritk-python/src/metrics/mi.rs` local `min_max` + `mi_slices` (SSOT vs ritk-core) | Replaced with delegation to `mutual_information`, `mutual_information_mattes`, `symmetric_uncertainty`; tests pass |
+| `ritk-python/src/{filter,metrics,segmentation,statistics}.rs` stale monolithic files (Rust E0761 compile error) | Deleted; build now clean |
+| `mutual_information_mattes` (Mattes 2003 soft-binning) absent from ritk-core | Added to `mutual_information.rs`; 4 tests pass |
+| `symmetric_uncertainty` (SU = 2·I/(H(A)+H(B)) ∈ [0,1]) absent from ritk-core | Added to `mutual_information.rs`; 3 tests pass |
+
+### SSOT improvements
+- `mutual_information_mattes` and `symmetric_uncertainty` are now canonical in `ritk-core::statistics::information`.
+- `ritk-python/src/metrics/mi.rs` delegates all 3 variants to core; zero standalone MI implementations remain in ritk-python.
+
+### High-priority cross-crate violations remaining
+| File | Lines | Priority |
+|---|---|---|
+| `ritk-snap/src/app.rs` | 5395 | High |
+
+---
+
 ## Sprint 233 Audit — 2026-05-13
 
 ### Gaps Closed

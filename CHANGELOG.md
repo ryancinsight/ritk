@@ -1,3 +1,42 @@
+## [0.50.7] - 2026-05-13
+### Added [minor]
+
+- `ritk-core/src/statistics/information/mutual_information.rs`: added `mutual_information_mattes` (bilinear soft-binning MI, Mattes et al. 2003) and `symmetric_uncertainty` (SU = 2·I/(H(A)+H(B)) ∈ [0,1], Liu & Setiono 1996).
+- 8 new value-semantic tests in `ritk-core/src/statistics/information/tests/mi.rs` covering Mattes MI and symmetric uncertainty (non-negativity, identical→max, constant→zero, bounds).
+
+### Changed [patch]
+
+- Split `ritk-io/src/format/dicom/reader/mod.rs` (4898 lines) into deep-vertical hierarchy of 9 leaf files, each ≤ 500 lines:
+  - `types.rs` (267 lines): `DicomSliceMetadata`, `DicomReadMetadata`, `DicomSeriesInfo`, `SeriesFirstSeen`, `PatientPosition`, `assemble_metadata`, `parse_patient_position`.
+  - `geometry.rs` (170 lines): `cross_3d`, `normalize_3d`, `dot_3d`, `slice_normal_from_iop`, `SliceGeometryReport`, `analyze_slice_spacing`, `resample_frames_linear`.
+  - `pixel.rs` (127 lines): `read_slice_pixels`, `ensure_scalar_samples_per_pixel`, `decode_pixel_bytes`.
+  - `parse.rs` (372 lines): `parse_dicom_file` (per-file metadata extraction + preservation capture).
+  - `scan.rs` (460 lines): `scan_dicom_directory` (directory discovery, SOP filtering, geometry assembly).
+  - `loader.rs` (277 lines): `read_dicom_series_with_metadata`, `load_from_series` (uniform + nonuniform decode paths).
+  - `preservation.rs` (129 lines): `known_handled_tags`, `parse_sequence_item`, `tag_key`.
+  - `utils.rs` (46 lines): `is_likely_dicom_file`, `DicomReader`.
+  - `dicomdir.rs` (67 lines): `try_read_dicomdir`.
+  - `tests/` (13 leaf test files): 44 tests covering scan, geometry, gantry tilt, pixel decode, consistency, multi-series, patient position, preservation, and spatial metadata.
+  - New thin `reader/mod.rs` (37 lines): module declarations and public re-exports only.
+- `ritk-python/src/metrics/mi.rs`: replaced standalone Mattes+standard+normalized implementation with delegation to `ritk_core::statistics::information::{mutual_information, mutual_information_mattes, symmetric_uncertainty}` — removes local `min_max` duplicate (SSOT, DRY).
+- Deleted stale monolithic `ritk-python/src/{filter,metrics,segmentation,statistics}.rs` files left over from sprint-220 splits (were shadow-conflicting with `*/mod.rs` hierarchy — build was broken for ritk-python).
+
+### Closed gaps
+
+- `ritk-io/src/format/dicom/reader/mod.rs` 4898-line structural violation — **Closed**
+- `ritk-python/src/metrics/mi.rs` local `min_max` + `mi_slices` (SSOT violation vs ritk-core) — **Closed**
+- `ritk-python/src/{filter,metrics,segmentation,statistics}.rs` stale monolithic files (Rust E0761 build error) — **Closed**
+- `mutual_information_mattes` and `symmetric_uncertainty` absent from `ritk-core` — **Closed**
+
+### Verification
+
+- `cargo build -p ritk-io -p ritk-core -p ritk-python`: 0 errors, 0 warnings
+- `cargo test -p ritk-io`: all passed (including DICOM reader split tests)
+- `cargo test -p ritk-core statistics::information`: 1153 passed, 0 failed
+- `cargo test -p ritk-python metrics`: all passed (delegation tests)
+- `pytest test_simpleitk_parity.py`: exit 0 (VI, TC, MI parity tests all PASSED)
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.6] - 2026-05-13
 ### Added [minor]
 

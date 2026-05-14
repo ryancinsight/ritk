@@ -1,3 +1,39 @@
+## Sprint 234 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.7 [patch]
+**Goal**: Split `ritk-io/src/format/dicom/reader/mod.rs` (4898 lines) into deep-vertical hierarchy; consolidate `mi.rs` SSOT violation; add `mutual_information_mattes` + `symmetric_uncertainty` to ritk-core; remove stale monolithic ritk-python files.
+
+### Checklist items
+- [x] Create `reader/types.rs` (267 lines): DicomSliceMetadata, DicomReadMetadata, DicomSeriesInfo, SeriesFirstSeen, assemble_metadata
+- [x] Create `reader/geometry.rs` (170 lines): cross_3d, normalize_3d, dot_3d, slice_normal_from_iop, analyze_slice_spacing, resample_frames_linear
+- [x] Create `reader/pixel.rs` (127 lines): read_slice_pixels, ensure_scalar_samples_per_pixel
+- [x] Create `reader/preservation.rs` (129 lines): known_handled_tags, parse_sequence_item, tag_key
+- [x] Create `reader/utils.rs` (46 lines): is_likely_dicom_file, DicomReader
+- [x] Create `reader/dicomdir.rs` (67 lines): try_read_dicomdir
+- [x] Create `reader/parse.rs` (372 lines): parse_dicom_file
+- [x] Create `reader/scan.rs` (460 lines): scan_dicom_directory, build_series_object
+- [x] Create `reader/loader.rs` (277 lines): load_from_series, read_dicom_series_with_metadata
+- [x] Create `reader/tests/` (13 leaf files, 44 tests)
+- [x] Create thin `reader/mod.rs` (37 lines): module decls + pub re-exports
+- [x] Add `mutual_information_mattes` + `symmetric_uncertainty` to `ritk-core/statistics/information/mutual_information.rs`
+- [x] Update `ritk-core/statistics/information/mod.rs` re-exports
+- [x] Add 8 value-semantic tests for Mattes MI and SU in `tests/mi.rs`
+- [x] Refactor `ritk-python/src/metrics/mi.rs` → delegate all 3 variants to ritk-core (removes min_max duplicate)
+- [x] Delete stale `ritk-python/src/{filter,metrics,segmentation,statistics}.rs`
+- [x] Verify `cargo build -p ritk-io -p ritk-core -p ritk-python`: 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-core`: 1153 passed, 0 failed
+- [x] Verify `cargo test -p ritk-io`: all passed
+- [x] Verify `pytest test_simpleitk_parity.py`: exit 0
+- [x] Update CHANGELOG.md [0.50.7], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| `ritk-snap/src/app.rs` structural split (5395 lines) | High | Open |
+
+---
+
 ## Sprint 233 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure
