@@ -2609,7 +2609,7 @@ class TestImageComparisonParity:
 #   - SSIM  (identical → 1.0; cross-subject ∈ [0, 1])
 #   - Dice  (RITK vs SimpleITK LabelOverlapMeasuresImageFilter)
 #   - Total Correlation  (TC ≥ 0; multi-brain > 0; single-channel = 0)
-#   - Variation of Information  (VI ≥ 0; identical = 0; symmetry)
+#   - Variation of Information / Multivariate VI (VI ≥ 0; identical = 0; symmetry)
 
 _BRAIN_MNI = (
     Path(__file__).resolve().parent.parent.parent.parent
@@ -2636,6 +2636,86 @@ def _brain_mask_ritk(arr2d: np.ndarray, threshold: float) -> "ritk.Image":
     """Threshold arr2d and return binary (1, H, W) ritk.Image."""
     mask = (arr2d > threshold).astype(np.float32)
     return _brain_ritk(mask)
+
+
+def _min_max(values: np.ndarray) -> tuple[float, float]:
+    flat = np.asarray(values, dtype=np.float64).ravel()
+    return float(flat.min()), float(flat.max())
+
+
+def _hard_histogram(values: np.ndarray, bins: int) -> np.ndarray:
+    flat = np.asarray(values, dtype=np.float64).ravel()
+    minimum, maximum = _min_max(flat)
+    scale = 0.0 if abs(maximum - minimum) < np.finfo(np.float64).eps else (bins - 1) / (maximum - minimum)
+    histogram = np.zeros(bins, dtype=np.float64)
+    for value in flat:
+        bin_index = int(np.clip((value - minimum) * scale, 0.0, bins - 1))
+        histogram[bin_index] += 1.0
+    histogram /= flat.size
+    return histogram
+
+
+def _hard_joint_histogram(arrays: list[np.ndarray], bins: int) -> np.ndarray:
+    lengths = {np.asarray(arr).size for arr in arrays}
+    if len(lengths) != 1:
+        raise ValueError("all arrays must have the same number of elements")
+    if len(arrays) == 1:
+        return _hard_histogram(arrays[0], bins)
+    flat_arrays = [np.asarray(arr, dtype=np.float64).ravel() for arr in arrays]
+    ranges = [_min_max(arr) for arr in flat_arrays]
+    scales = [
+        0.0 if abs(maximum - minimum) < np.finfo(np.float64).eps else (bins - 1) / (maximum - minimum)
+        for minimum, maximum in ranges
+    ]
+    joint_size = bins ** len(arrays)
+    joint = np.zeros(joint_size, dtype=np.float64)
+    for sample_index in range(flat_arrays[0].size):
+        joint_index = 0
+        for array, (minimum, _maximum), scale in zip(flat_arrays, ranges, scales):
+            bin_index = int(np.clip((array[sample_index] - minimum) * scale, 0.0, bins - 1))
+            joint_index = joint_index * bins + bin_index
+        joint[joint_index] += 1.0
+    joint /= flat_arrays[0].size
+    return joint
+
+
+def _entropy_from_histogram(values: np.ndarray, bins: int) -> float:
+    probs = _hard_histogram(values, bins)
+    probs = probs[probs > 0]
+    return float(-(probs * np.log(probs)).sum())
+
+
+def _joint_entropy_from_histogram(arrays: list[np.ndarray], bins: int) -> float:
+    probs = _hard_joint_histogram(arrays, bins).ravel()
+    probs = probs[probs > 0]
+    return float(-(probs * np.log(probs)).sum())
+
+
+def _variation_of_information_reference(a: np.ndarray, b: np.ndarray, bins: int) -> float:
+    h_a = _entropy_from_histogram(a, bins)
+    h_b = _entropy_from_histogram(b, bins)
+    joint = _joint_entropy_from_histogram([a, b], bins)
+    return max(2.0 * joint - h_a - h_b, 0.0)
+
+
+def _total_correlation_reference(arrays: list[np.ndarray], bins: int) -> float:
+    return max(
+        sum(_entropy_from_histogram(arr, bins) for arr in arrays)
+        - _joint_entropy_from_histogram(arrays, bins),
+        0.0,
+    )
+
+
+def _multivariate_vi_reference(arrays: list[np.ndarray], bins: int) -> float:
+    total = 0.0
+    pair_count = 0
+    for left_index in range(len(arrays)):
+        for right_index in range(left_index + 1, len(arrays)):
+            total += _variation_of_information_reference(
+                arrays[left_index], arrays[right_index], bins
+            )
+            pair_count += 1
+    return total / pair_count
 
 
 @pytest.mark.skipif(not _HAVE_BRAIN_DATA, reason="brain NIfTI test data absent")
@@ -2756,6 +2836,20 @@ class TestStatisticsWithRealBrainData:
         val = ritk.metrics.compute_total_correlation(imgs)
         assert val > 0.0, f"TC of correlated brain trio must be > 0; got {val}"
 
+    def test_tc_brain_trio_matches_reference(self):
+        """TC(r16, r27, r64) must match the analytical histogram reference."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        r64 = _load_brain_slice(_R64)
+        expected = _total_correlation_reference([r16, r27, r64], bins=32)
+        result = ritk.metrics.compute_total_correlation(
+            [_brain_ritk(r16), _brain_ritk(r27), _brain_ritk(r64)],
+            num_bins=32,
+        )
+        assert abs(result - expected) < 1e-6, (
+            f"TC brain trio ritk={result:.8f} ref={expected:.8f}"
+        )
+
     def test_tc_non_negative(self):
         """TC ≥ 0 for all inputs (information-theoretic invariant)."""
         r16 = _load_brain_slice(_R16)
@@ -2784,6 +2878,18 @@ class TestStatisticsWithRealBrainData:
         )
         assert val > 0.0, f"VI cross-subject must be > 0; got {val}"
 
+    def test_vi_brain_pair_matches_reference(self):
+        """VI(r16, r27) must match the analytical histogram reference."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        expected = _variation_of_information_reference(r16, r27, bins=32)
+        result = ritk.metrics.compute_variation_of_information(
+            _brain_ritk(r16), _brain_ritk(r27), num_bins=32
+        )
+        assert abs(result - expected) < 1e-6, (
+            f"VI brain pair ritk={result:.8f} ref={expected:.8f}"
+        )
+
     def test_vi_symmetry_on_brain_pair(self):
         """VI(r16, r27) = VI(r27, r16) (symmetry of conditional entropy sum)."""
         r16 = _load_brain_slice(_R16)
@@ -2807,6 +2913,20 @@ class TestStatisticsWithRealBrainData:
         )
         assert vi_cross > 0.0, (
             f"VI(r16, r64) must be > 0; got {vi_cross}"
+        )
+
+    def test_mvi_brain_trio_matches_pairwise_reference(self):
+        """MVI(r16, r27, r64) must equal the average pairwise VI reference."""
+        r16 = _load_brain_slice(_R16)
+        r27 = _load_brain_slice(_R27)
+        r64 = _load_brain_slice(_R64)
+        expected = _multivariate_vi_reference([r16, r27, r64], bins=32)
+        result = ritk.metrics.compute_multivariate_variation_of_information(
+            [_brain_ritk(r16), _brain_ritk(r27), _brain_ritk(r64)],
+            num_bins=32,
+        )
+        assert abs(result - expected) < 1e-6, (
+            f"MVI brain trio ritk={result:.8f} ref={expected:.8f}"
         )
 
 

@@ -31,6 +31,7 @@
 //! - VI_n           = (2/n(n−1)) · Σ_{i<j} VI(Xᵢ,Xⱼ)
 
 mod cmi;
+mod image_batch;
 mod mi;
 mod mse;
 mod multivariate_vi;
@@ -42,7 +43,10 @@ mod variation_of_information;
 use pyo3::prelude::*;
 
 pub use cmi::{compute_conditional_mutual_information, compute_interaction_information};
-pub use mi::{compute_entropy, compute_joint_entropy, compute_mutual_information, compute_symmetric_uncertainty};
+pub use mi::{
+    compute_entropy, compute_joint_entropy, compute_mutual_information,
+    compute_symmetric_uncertainty,
+};
 pub use mse::compute_mse;
 pub use multivariate_vi::compute_multivariate_variation_of_information;
 pub use ncc::compute_ncc;
@@ -71,13 +75,19 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_mse, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_ncc, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_mutual_information, &m)?)?;
-    m.add_function(wrap_pyfunction!(compute_conditional_mutual_information, &m)?)?;
+    m.add_function(wrap_pyfunction!(
+        compute_conditional_mutual_information,
+        &m
+    )?)?;
     m.add_function(wrap_pyfunction!(compute_interaction_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_total_correlation, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_dual_total_correlation, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_o_information, &m)?)?;
     m.add_function(wrap_pyfunction!(compute_variation_of_information, &m)?)?;
-    m.add_function(wrap_pyfunction!(compute_multivariate_variation_of_information, &m)?)?;
+    m.add_function(wrap_pyfunction!(
+        compute_multivariate_variation_of_information,
+        &m
+    )?)?;
     parent.add_submodule(&m)?;
     Ok(())
 }
@@ -108,7 +118,9 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        PyImage { inner: Arc::new(img) }
+        PyImage {
+            inner: Arc::new(img),
+        }
     }
 
     #[test]
@@ -141,7 +153,10 @@ mod tests {
     fn total_correlation_empty_list_errors() {
         pyo3::prepare_freethreaded_python();
         let tc = compute_total_correlation(vec![], 16).unwrap_err();
-        assert!(tc.to_string().contains("empty"), "expected empty error: {tc}");
+        assert!(
+            tc.to_string().contains("empty"),
+            "expected empty error: {tc}"
+        );
     }
 
     #[test]
@@ -239,7 +254,10 @@ mod tests {
         let img_w = make_image(w, [4, 4, 4]);
         let h_xy = compute_joint_entropy(&img_v, &img_w, 16).unwrap();
         let h_x = compute_entropy(&img_v, 16).unwrap();
-        assert!(h_xy >= h_x - 1e-9, "H(X,Y) must be >= H(X), got {h_xy:.6} vs {h_x:.6}");
+        assert!(
+            h_xy >= h_x - 1e-9,
+            "H(X,Y) must be >= H(X), got {h_xy:.6} vs {h_x:.6}"
+        );
     }
 
     #[test]

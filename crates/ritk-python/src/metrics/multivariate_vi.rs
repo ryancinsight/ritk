@@ -7,7 +7,8 @@ use anyhow::Result;
 use pyo3::prelude::*;
 use ritk_core::statistics::information::multivariate_variation_of_information as core_mvi;
 
-use crate::image::{image_to_vec, PyImage};
+use crate::image::PyImage;
+use crate::metrics::image_batch::collect_image_vectors;
 
 /// Average pairwise VI over n image channels.
 ///
@@ -39,20 +40,8 @@ pub fn compute_multivariate_variation_of_information(
             images.len()
         )));
     }
-    let vecs: Vec<(Vec<f32>, [usize; 3])> = images
-        .iter()
-        .map(|img| image_to_vec(&img.inner))
-        .collect::<Result<_, _>>()?;
-
-    let shape_0 = vecs[0].1;
-    for (i, (_, shape)) in vecs.iter().enumerate().skip(1) {
-        if *shape != shape_0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "shape mismatch: images[0] {:?} != images[{}] {:?}",
-                shape_0, i, shape
-            )));
-        }
-    }
+    let (vectors, _) = collect_image_vectors(&images)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     if num_bins < 2 || num_bins > 64 {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "num_bins must be in [2, 64], got {}",
@@ -60,7 +49,7 @@ pub fn compute_multivariate_variation_of_information(
         )));
     }
 
-    let slices: Vec<&[f32]> = vecs.iter().map(|(v, _)| v.as_slice()).collect();
+    let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     multivariate_vi_slices(&slices, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -72,8 +61,7 @@ mod tests {
     #[test]
     fn mvi_identical_slices_is_zero() {
         let x: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
-        let mvi =
-            multivariate_vi_slices(&[x.as_slice(), x.as_slice(), x.as_slice()], 8).unwrap();
+        let mvi = multivariate_vi_slices(&[x.as_slice(), x.as_slice(), x.as_slice()], 8).unwrap();
         assert!(mvi.abs() < 1e-9, "MVI(X,X,X)={mvi:.10} must be 0");
     }
 }

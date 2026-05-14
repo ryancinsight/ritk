@@ -10,7 +10,8 @@ use ritk_core::statistics::information::{
     dual_total_correlation as core_dtc, o_information as core_oi,
 };
 
-use crate::image::{image_to_vec, PyImage};
+use crate::image::PyImage;
+use crate::metrics::image_batch::collect_image_vectors;
 
 pub(super) fn dtc_slices(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
     core_dtc(channels, num_bins)
@@ -44,25 +45,14 @@ pub fn compute_dual_total_correlation(
             images.len()
         )));
     }
-    let vecs: Vec<(Vec<f32>, [usize; 3])> = images
-        .iter()
-        .map(|img| image_to_vec(&img.inner))
-        .collect::<Result<_, _>>()?;
-    let shape_0 = vecs[0].1;
-    for (i, (_, shape)) in vecs.iter().enumerate().skip(1) {
-        if *shape != shape_0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "shape mismatch: images[0] {:?} != images[{}] {:?}",
-                shape_0, i, shape
-            )));
-        }
-    }
+    let (vectors, _) = collect_image_vectors(&images)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     if num_bins < 2 || num_bins > 64 {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "num_bins must be in [2, 64], got {num_bins}"
         )));
     }
-    let slices: Vec<&[f32]> = vecs.iter().map(|(v, _)| v.as_slice()).collect();
+    let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     dtc_slices(&slices, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -93,25 +83,14 @@ pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> Py
             images.len()
         )));
     }
-    let vecs: Vec<(Vec<f32>, [usize; 3])> = images
-        .iter()
-        .map(|img| image_to_vec(&img.inner))
-        .collect::<Result<_, _>>()?;
-    let shape_0 = vecs[0].1;
-    for (i, (_, shape)) in vecs.iter().enumerate().skip(1) {
-        if *shape != shape_0 {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "shape mismatch: images[0] {:?} != images[{}] {:?}",
-                shape_0, i, shape
-            )));
-        }
-    }
+    let (vectors, _) = collect_image_vectors(&images)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
     if num_bins < 2 || num_bins > 64 {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "num_bins must be in [2, 64], got {num_bins}"
         )));
     }
-    let slices: Vec<&[f32]> = vecs.iter().map(|(v, _)| v.as_slice()).collect();
+    let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     oi_slices(&slices, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -148,6 +127,9 @@ mod tests {
         let channels: &[&[f32]] = &[a.as_slice(), b.as_slice(), c.as_slice()];
         let oi = oi_slices(channels, 8).unwrap();
         let oi_d = core_oi_direct(channels, 8).unwrap();
-        assert!((oi - oi_d).abs() < 1e-9, "oi={oi:.10} must equal oi_direct={oi_d:.10}");
+        assert!(
+            (oi - oi_d).abs() < 1e-9,
+            "oi={oi:.10} must equal oi_direct={oi_d:.10}"
+        );
     }
 }
