@@ -48,11 +48,7 @@ pub fn compute_conditional_mutual_information(
             shape_x, shape_y, shape_z
         )));
     }
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     cmi_slices(&x, &y, &z, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -87,11 +83,7 @@ pub fn compute_interaction_information(
             shape_x, shape_y, shape_z
         )));
     }
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     ii_slices(&x, &y, &z, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }

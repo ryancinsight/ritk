@@ -44,11 +44,7 @@ pub(super) fn mi_slices(a: &[f32], b: &[f32], num_bins: usize, variant: &str) ->
 #[pyo3(signature = (image, num_bins=64))]
 pub fn compute_entropy(image: &PyImage, num_bins: usize) -> PyResult<f64> {
     let (a, _) = image_to_vec(&image.inner)?;
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     core_marginal_entropy(&a, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -77,11 +73,7 @@ pub fn compute_joint_entropy(
             shape_a, shape_b
         )));
     }
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     core_joint_entropy(&a, &b, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -112,11 +104,7 @@ pub fn compute_symmetric_uncertainty(
             shape_a, shape_b
         )));
     }
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     core_su(&a, &b, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
 }
@@ -147,11 +135,7 @@ pub fn compute_mutual_information(
             shape_a, shape_b
         )));
     }
-    if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
-    }
+    super::validate_num_bins(num_bins)?;
     match variant {
         "mattes" | "standard" | "normalized" => {}
         other => {

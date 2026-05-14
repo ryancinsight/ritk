@@ -1,3 +1,28 @@
+## Sprint 188 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.11 [patch]
+**Goal**: Enforce 500-line SRP limit on ritk-snap app module; establish validate_num_bins SSOT in ritk-python; add O-Information n≥4 analytical property tests in ritk-core.
+
+### Checklist items
+- [x] Split monolithic `app.rs` into `app/mod.rs` with 13 sub-modules: `filter`, `io_ops`, `menu`, `panels`, `pointer_ops`, `render_cache`, `rt_overlay`, `shortcuts`, `slice_ops`, `state`, `surface_export`, `toolbar`, `viewport`, `viewport_render`, `volume_ops`, `volume_state`
+- [x] Resolve all 62 compile errors (E0365, E0624, E0592, E0425, E0433, dead-code) from the module split
+- [x] Extract render logic from `viewport.rs` (639 lines → 166 lines) to new `viewport_render.rs` (484 lines)
+- [x] Extract file/byte loading from `volume_ops.rs` (579 lines → 274 lines) to new `volume_state.rs` (325 lines)
+- [x] Add `validate_num_bins` SSOT in `ritk-python/src/metrics/mod.rs`; replace 10 inline validation blocks across `mi.rs`, `cmi.rs`, `total_correlation.rs`, `multivariate_vi.rs`, `o_information.rs`
+- [x] Add 5 O-Information n≥4 tests in `ritk-core/src/statistics/information/tests/o_info.rs`: `dtc_four_channels_non_negative`, `oi_four_identical_channels_is_positive`, `oi_four_independent_channels_near_zero`, `oi_direct_matches_for_n4`, `dtc_n4_independent_near_zero`
+- [x] Verify `cargo test -p ritk-core --lib -- statistics::information::tests::o_info` (17 passed)
+- [x] Verify `cargo test -p ritk-python --lib` (47 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- --skip test_load_dicom_volume_shape` (501 passed)
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT fusion + SUV workflow completion | High | In progress (fusion overlay delivered) |
+| GAP-176-RAD-03: CPR / curved-MPR | High | Deferred |
+| GAP-176-RAD-04: anonymize + print/media/report shell | Medium | Deferred |
+| test_load_dicom_volume_shape pre-existing timeout | Medium | Pre-existing; investigate separately |
+
 ## Sprint 187 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

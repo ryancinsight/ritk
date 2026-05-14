@@ -65,6 +65,23 @@ use multivariate_vi::multivariate_vi_slices;
 #[cfg(test)]
 use o_information::{dtc_slices, oi_slices};
 
+// ── shared validation ─────────────────────────────────────────────────────────
+
+/// Validate `num_bins` is in the closed interval [2, 64].
+///
+/// All histogram-based metrics cap `B` at 64 to bound the joint histogram to
+/// B^n ≤ 4_194_304 for n=3 and avoid O(B^n) memory blowup in multivariate
+/// metrics. Entropy estimation is accurate above B=2 and does not improve
+/// meaningfully past B=64 for typical medical image data.
+pub(super) fn validate_num_bins(num_bins: usize) -> PyResult<()> {
+    if num_bins < 2 || num_bins > 64 {
+        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            "num_bins must be in [2, 64], got {num_bins}"
+        )));
+    }
+    Ok(())
+}
+
 // ── module registration ───────────────────────────────────────────────────────
 
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -1,3 +1,33 @@
+## Sprint 188 — Complete
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.38.11 [patch]
+**Goal**: Enforce 500-line SRP limit on ritk-snap app module; establish validate_num_bins SSOT in ritk-python; add O-Information n≥4 analytical property tests in ritk-core.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-188-SNAP-01 | `app.rs` (3000+ lines) violated 500-line structural limit; E0761 module conflict | **Closed** |
+| GAP-188-SNAP-02 | `viewport.rs` (639 lines) exceeded 500-line limit; render logic not SRP-separated | **Closed** |
+| GAP-188-SNAP-03 | `volume_ops.rs` (579 lines) exceeded 500-line limit; state reset mixed with DICOM loading | **Closed** |
+| GAP-188-PYMET-03 | `validate_num_bins` duplicated as 10 inline blocks; inconsistent upper bound (some missing `> 64`) | **Closed** |
+| GAP-188-CORE-01 | O-Information n≥4 analytical property tests absent from `tests/o_info.rs` | **Closed** |
+
+### Delivered
+- ✓ Split `app.rs` into 16 SRP-compliant sub-modules; resolved all 62 compile errors
+- ✓ Extracted `viewport_render.rs` from `viewport.rs`; extracted `volume_state.rs` from `volume_ops.rs`
+- ✓ Established `validate_num_bins` as `pub(super)` SSOT in `ritk-python/src/metrics/mod.rs`
+- ✓ Added 5 O-Information n≥4 tests: DTC≥0, Ω(X⁴)=2H(X), Ω(independent⁴)=0, direct=standard for n=4, DTC(independent⁴)=0
+- ✓ Verified ritk-core (17 o_info tests), ritk-python (47 lib tests), ritk-snap (501 lib tests)
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-02 | Complete PET/CT workflow parity with SUV quantification and modality-aware PET defaults | High |
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Add anonymize + print/media/report distribution shell | Medium |
+| SNAP-TIMEOUT | `test_load_dicom_volume_shape` pre-existing 60s timeout; investigate root cause | Medium |
+
 ## Sprint 187 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

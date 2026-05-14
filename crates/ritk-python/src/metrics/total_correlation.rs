@@ -35,12 +35,7 @@ pub(super) fn total_correlation_slices(channels: &[&[f32]], num_bins: usize) -> 
 pub fn compute_total_correlation(images: Vec<PyRef<PyImage>>, num_bins: usize) -> PyResult<f64> {
     let (vectors, _) = collect_image_vectors(&images)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    if num_bins < 2 || num_bins > 64 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "num_bins must be in [2, 64], got {}",
-            num_bins
-        )));
-    }
+    super::validate_num_bins(num_bins)?;
 
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     total_correlation_slices(&slices, num_bins)

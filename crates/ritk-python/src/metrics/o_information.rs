@@ -47,11 +47,7 @@ pub fn compute_dual_total_correlation(
     }
     let (vectors, _) = collect_image_vectors(&images)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    if num_bins < 2 || num_bins > 64 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "num_bins must be in [2, 64], got {num_bins}"
-        )));
-    }
+    super::validate_num_bins(num_bins)?;
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     dtc_slices(&slices, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
@@ -85,11 +81,7 @@ pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> Py
     }
     let (vectors, _) = collect_image_vectors(&images)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    if num_bins < 2 || num_bins > 64 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
-            "num_bins must be in [2, 64], got {num_bins}"
-        )));
-    }
+    super::validate_num_bins(num_bins)?;
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     oi_slices(&slices, num_bins)
         .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))

@@ -138,3 +138,91 @@ fn oi_three_channel_matches_interaction_information() {
         "Ω(X,Y,Z)={oi:.10} must equal II(X;Y;Z)={ii:.10} for n=3 (Rosas 2019)"
     );
 }
+
+// ── n≥4 tests ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn dtc_four_channels_non_negative() {
+    // DTC ≥ 0 for any n, by Han (1978) Theorem 1 (sub-modularity of entropy).
+    let a: Vec<f32> = (0..256).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..256).map(|i| ((i / 4) % 8) as f32).collect();
+    let c: Vec<f32> = (0..256).map(|i| ((i * 3) % 8) as f32).collect();
+    let d: Vec<f32> = (0..256).map(|i| ((i * 5 + 1) % 8) as f32).collect();
+    let dtc =
+        dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 8)
+            .unwrap();
+    assert!(dtc >= 0.0, "DTC(4 channels) must be ≥ 0, got {dtc}");
+}
+
+#[test]
+fn oi_four_identical_channels_is_positive() {
+    // Analytical: for n=4 identical X, TC = 3H(X) and DTC = H(X), so Ω = 2H(X) > 0.
+    // Derivation: TC = 4H(X)−H(X) = 3H(X); DTC = 4H(X)−3H(X) = H(X); Ω = TC−DTC = 2H(X).
+    let a: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
+    let channels: &[&[f32]] = &[a.as_slice(), a.as_slice(), a.as_slice(), a.as_slice()];
+    let oi = o_information(channels, 8).unwrap();
+    let h_x: f64 = {
+        // H(X) for a uniform 8-symbol distribution over 64 samples = log2(8) = 3.0 bits
+        let tc_xx = total_correlation(&[a.as_slice(), a.as_slice()], 8).unwrap();
+        // TC(X,X) = 2H(X) - H(X) = H(X)
+        tc_xx
+    };
+    let expected = 2.0 * h_x;
+    assert!(
+        (oi - expected).abs() < 1e-9,
+        "Ω(X,X,X,X) must equal 2H(X)={expected:.10}, got {oi:.10}"
+    );
+}
+
+#[test]
+fn oi_four_independent_channels_near_zero() {
+    // Analytical: independent uniform channels over 256 samples with 4 bins.
+    // a[i]=i%4, b[i]=(i/4)%4, c[i]=(i/16)%4, d[i]=(i/64)%4 tile perfectly.
+    // TC = 4H(X) − H(X₁,X₂,X₃,X₄) = 4·2 − 8 = 0; DTC = 0 similarly; Ω = 0.
+    let n = 256_usize;
+    let a: Vec<f32> = (0..n).map(|i| (i % 4) as f32).collect();
+    let b: Vec<f32> = (0..n).map(|i| ((i / 4) % 4) as f32).collect();
+    let c: Vec<f32> = (0..n).map(|i| ((i / 16) % 4) as f32).collect();
+    let d: Vec<f32> = (0..n).map(|i| ((i / 64) % 4) as f32).collect();
+    let oi =
+        o_information(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4).unwrap();
+    assert!(
+        oi.abs() < 1e-9,
+        "Ω(independent 4-channel) must be 0, got {oi:.10}"
+    );
+}
+
+#[test]
+fn oi_direct_matches_for_n4() {
+    // o_information_direct and o_information must agree for n=4 channels.
+    let a: Vec<f32> = (0..128).map(|i| (i % 8) as f32).collect();
+    let b: Vec<f32> = (0..128).map(|i| ((i / 4) % 8) as f32).collect();
+    let c: Vec<f32> = (0..128).map(|i| ((i * 3) % 8) as f32).collect();
+    let d: Vec<f32> = (0..128).map(|i| ((i * 5 + 1) % 8) as f32).collect();
+    let channels: &[&[f32]] = &[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()];
+    let oi_std = o_information(channels, 8).unwrap();
+    let oi_dir = o_information_direct(channels, 8).unwrap();
+    assert!(
+        (oi_std - oi_dir).abs() < 1e-9,
+        "o_information={oi_std:.10} must equal o_information_direct={oi_dir:.10} for n=4"
+    );
+}
+
+#[test]
+fn dtc_n4_independent_near_zero() {
+    // DTC(X₁,X₂,X₃,X₄) = 0 for independent uniform channels (Han 1978).
+    // Each H(X₁,X₂,X₃) = 3·log₂(4) = 6 for independent 4-symbol vars over 256 samples.
+    // DTC = 4·6 − 3·8 = 24 − 24 = 0.
+    let n = 256_usize;
+    let a: Vec<f32> = (0..n).map(|i| (i % 4) as f32).collect();
+    let b: Vec<f32> = (0..n).map(|i| ((i / 4) % 4) as f32).collect();
+    let c: Vec<f32> = (0..n).map(|i| ((i / 16) % 4) as f32).collect();
+    let d: Vec<f32> = (0..n).map(|i| ((i / 64) % 4) as f32).collect();
+    let dtc =
+        dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4)
+            .unwrap();
+    assert!(
+        dtc.abs() < 1e-9,
+        "DTC(independent 4-channel) must be 0, got {dtc:.10}"
+    );
+}

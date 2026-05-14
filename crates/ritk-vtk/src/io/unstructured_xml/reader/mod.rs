@@ -18,6 +18,7 @@ mod xml_helpers;
 mod parse;
 
 pub use parse::read_vtu_unstructured_grid;
+#[cfg(test)]
 pub(crate) use parse::parse_vtu;
 
 #[cfg(test)]

@@ -1,0 +1,447 @@
+use super::state::{LoadBackend, SnapApp};
+use burn::tensor::{Shape, TensorData};
+use ritk_core::image::Image;
+use ritk_core::spatial::{Direction, Point, Spacing};
+
+impl SnapApp {
+    pub(crate) fn apply_filter_to_loaded_volume(&mut self) {
+        use ritk_core::filter::{
+            AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
+            BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
+            ClaheFilter, ConnectedComponentsFilter, ExpImageFilter, GaussianFilter,
+            GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
+            GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
+            MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter, SqrtImageFilter,
+            SquareImageFilter, UnsharpMaskFilter,
+        };
+
+        let Some(vol) = self.loaded.as_ref() else {
+            self.status_message = "No volume loaded.".to_owned();
+            return;
+        };
+
+        let [depth, rows, cols] = vol.shape;
+        let device = burn_ndarray::NdArrayDevice::Cpu;
+
+        // Build Image<LoadBackend, 3> from the flat volume data.
+        let td = TensorData::new((*vol.data).clone(), Shape::new([depth, rows, cols]));
+        let tensor = burn::tensor::Tensor::<LoadBackend, 3>::from_data(td, &device);
+
+        let origin = Point::new(vol.origin);
+        let spacing = Spacing::new(vol.spacing);
+        let mut dir_mat = nalgebra::SMatrix::<f64, 3, 3>::identity();
+        for r in 0..3 {
+            for c in 0..3 {
+                dir_mat[(r, c)] = vol.direction[r * 3 + c];
+            }
+        }
+        let direction = Direction(dir_mat);
+        let image: Image<LoadBackend, 3> = Image::new(tensor, origin, spacing, direction);
+
+        // Apply the selected filter.
+        let filter_kind = self.active_filter.clone();
+        let filter_result = {
+            match &filter_kind {
+                crate::FilterKind::BedSeparation(config) => {
+                    BedSeparationFilter::new(*config).apply(&image)
+                }
+                crate::FilterKind::Gaussian { sigma } => {
+                    Ok(GaussianFilter::<LoadBackend>::new(
+                        vec![f64::from(*sigma); 3],
+                    )
+                    .apply(&image))
+                }
+                crate::FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&image),
+                crate::FilterKind::Clahe {
+                    tile_grid_size,
+                    clip_limit,
+                } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply(&image),
+                crate::FilterKind::HistEq { bins } => {
+                    HistogramEqualizationFilter::new(*bins).apply(&image)
+                }
+                crate::FilterKind::UnsharpMask {
+                    sigma,
+                    amount,
+                    threshold,
+                    clamp,
+                } => UnsharpMaskFilter::new(
+                    vec![f64::from(*sigma)],
+                    f64::from(*amount),
+                    f64::from(*threshold),
+                    *clamp,
+                )
+                .apply(&image),
+                crate::FilterKind::GradientAnisotropicDiffusion {
+                    iterations,
+                    time_step,
+                    conductance,
+                } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
+                    num_iterations: *iterations as usize,
+                    time_step: *time_step,
+                    conductance: *conductance,
+                })
+                .apply(&image),
+                crate::FilterKind::ConnectedComponents {
+                    connectivity_26,
+                    background_value,
+                } => {
+                    let connectivity = if *connectivity_26 { 26 } else { 6 };
+                    let filter = ConnectedComponentsFilter::with_connectivity(connectivity)
+                        .with_background(*background_value);
+                    let (label_image, _stats) = filter.apply(&image);
+                    Ok(label_image)
+                }
+                crate::FilterKind::RelabelComponents {
+                    minimum_object_size,
+                } => {
+                    let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
+                        *minimum_object_size as usize,
+                    )
+                    .apply(&image);
+                    Ok(relabeled)
+                }
+                crate::FilterKind::MultiOtsuThreshold { num_classes } => {
+                    Ok(MultiOtsuThreshold::new(*num_classes as usize).apply(&image))
+                }
+                crate::FilterKind::BinaryErode {
+                    radius,
+                    foreground_value,
+                } => BinaryErodeFilter::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryDilate {
+                    radius,
+                    foreground_value,
+                } => BinaryDilateFilter::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryClosing {
+                    radius,
+                    foreground_value,
+                } => BinaryMorphologicalClosing::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryOpening {
+                    radius,
+                    foreground_value,
+                } => BinaryMorphologicalOpening::new(*radius)
+                    .with_foreground(*foreground_value)
+                    .apply(&image),
+                crate::FilterKind::BinaryFillhole { foreground_value } => {
+                    BinaryFillholeFilter::new()
+                        .with_foreground(*foreground_value)
+                        .apply(&image)
+                }
+                crate::FilterKind::GrayscaleClosing { radius } => {
+                    GrayscaleClosingFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleOpening { radius } => {
+                    GrayscaleOpeningFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleFillhole => {
+                    GrayscaleFillholeFilter::new().apply(&image)
+                }
+                crate::FilterKind::Abs => Ok(AbsImageFilter::new().apply(&image)),
+                crate::FilterKind::InvertIntensity { maximum } => Ok(match maximum {
+                    Some(m) => InvertIntensityFilter::with_maximum(*m).apply(&image),
+                    None => InvertIntensityFilter::new().apply(&image),
+                }),
+                crate::FilterKind::NormalizeIntensity => {
+                    Ok(NormalizeImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Square => Ok(SquareImageFilter::new().apply(&image)),
+                crate::FilterKind::Sqrt => Ok(SqrtImageFilter::new().apply(&image)),
+                crate::FilterKind::Log => Ok(LogImageFilter::new().apply(&image)),
+                crate::FilterKind::Exp => Ok(ExpImageFilter::new().apply(&image)),
+                crate::FilterKind::MorphologicalGradient { radius } => {
+                    GrayscaleMorphologicalGradientFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::DistanceTransform { threshold } => {
+                    ritk_core::filter::DistanceTransformImageFilter::new()
+                        .with_threshold(*threshold)
+                        .apply(&image)
+                }
+                crate::FilterKind::SignedDistanceTransform { threshold } => {
+                    ritk_core::filter::SignedDistanceTransformImageFilter::new()
+                        .with_threshold(*threshold)
+                        .apply(&image)
+                }
+                crate::FilterKind::FlipZ => {
+                    ritk_core::filter::FlipImageFilter::flip_z().apply(&image)
+                }
+                crate::FilterKind::FlipY => {
+                    ritk_core::filter::FlipImageFilter::flip_y().apply(&image)
+                }
+                crate::FilterKind::FlipX => {
+                    ritk_core::filter::FlipImageFilter::flip_x().apply(&image)
+                }
+                crate::FilterKind::MaskThreshold { threshold } => {
+                    let dims = image.shape();
+                    let td = image.data().clone().into_data();
+                    let vals: Vec<f32> = td
+                        .into_vec::<f32>()
+                        .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
+                    let mask_vals: Vec<f32> = vals
+                        .iter()
+                        .map(|&v| if v > *threshold { 1.0_f32 } else { 0.0_f32 })
+                        .collect();
+                    let device = image.data().device();
+                    let mask_td =
+                        burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
+                    let mask_tensor =
+                        burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
+                    let mask_image = ritk_core::image::Image::new(
+                        mask_tensor,
+                        *image.origin(),
+                        *image.spacing(),
+                        *image.direction(),
+                    );
+                    ritk_core::filter::MaskImageFilter::new().apply(&image, &mask_image)
+                }
+                crate::FilterKind::GeodesicDilationSelf => {
+                    ritk_core::filter::GrayscaleGeodesicDilationFilter::new()
+                        .apply(&image, &image)
+                }
+                crate::FilterKind::GeodesicErosionSelf => {
+                    ritk_core::filter::GrayscaleGeodesicErosionFilter::new()
+                        .apply(&image, &image)
+                }
+                crate::FilterKind::ShiftScale { shift, scale } => {
+                    ritk_core::filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
+                }
+                crate::FilterKind::ZeroCrossing {
+                    foreground_value,
+                    background_value,
+                } => ritk_core::filter::ZeroCrossingImageFilter::new()
+                    .with_foreground(*foreground_value)
+                    .with_background(*background_value)
+                    .apply(&image),
+                crate::FilterKind::RegionOfInterest {
+                    start_z,
+                    start_y,
+                    start_x,
+                    size_z,
+                    size_y,
+                    size_x,
+                } => ritk_core::filter::RegionOfInterestImageFilter::new(
+                    [*start_z, *start_y, *start_x],
+                    [*size_z, *size_y, *size_x],
+                )
+                .apply(&image),
+                crate::FilterKind::PermuteAxes {
+                    order_0,
+                    order_1,
+                    order_2,
+                } => ritk_core::filter::PermuteAxesImageFilter::new([
+                    *order_0, *order_1, *order_2,
+                ])
+                .apply(&image),
+                crate::FilterKind::Mean { radius } => {
+                    ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
+                }
+                crate::FilterKind::BinaryContour {
+                    fully_connected,
+                    foreground_value,
+                } => ritk_core::filter::BinaryContourImageFilter::new(
+                    *fully_connected,
+                    *foreground_value,
+                )
+                .apply(&image),
+                crate::FilterKind::LabelContour {
+                    fully_connected,
+                    background_value,
+                } => ritk_core::filter::LabelContourImageFilter::new(
+                    *fully_connected,
+                    *background_value,
+                )
+                .apply(&image),
+                crate::FilterKind::VotingBinary {
+                    radius,
+                    birth_threshold,
+                    survival_threshold,
+                    foreground_value,
+                    background_value,
+                } => ritk_core::filter::VotingBinaryImageFilter::new(
+                    *radius,
+                    *birth_threshold,
+                    *survival_threshold,
+                    *foreground_value,
+                    *background_value,
+                )
+                .apply(&image),
+                crate::FilterKind::Shrink {
+                    factor_z,
+                    factor_y,
+                    factor_x,
+                } => ritk_core::filter::ShrinkImageFilter::new([
+                    *factor_z,
+                    *factor_y,
+                    *factor_x,
+                ])
+                .apply(&image),
+                crate::FilterKind::ConstantPad {
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
+                    constant,
+                } => ritk_core::filter::ConstantPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                    *constant,
+                )
+                .apply(&image),
+                crate::FilterKind::MirrorPad {
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
+                } => ritk_core::filter::MirrorPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                )
+                .apply(&image),
+                crate::FilterKind::WrapPad {
+                    pad_lower_z,
+                    pad_lower_y,
+                    pad_lower_x,
+                    pad_upper_z,
+                    pad_upper_y,
+                    pad_upper_x,
+                } => ritk_core::filter::WrapPadImageFilter::new(
+                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
+                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                )
+                .apply(&image),
+                crate::FilterKind::GrayscaleErode { radius } => {
+                    ritk_core::filter::GrayscaleErosion::new(*radius).apply(&image)
+                }
+                crate::FilterKind::GrayscaleDilate { radius } => {
+                    ritk_core::filter::GrayscaleDilation::new(*radius).apply(&image)
+                }
+                crate::FilterKind::BinaryThreshold {
+                    lower,
+                    upper,
+                    foreground,
+                    background,
+                } => ritk_core::filter::BinaryThresholdImageFilter::new(
+                    *lower,
+                    *upper,
+                    *foreground,
+                    *background,
+                )
+                .apply(&image),
+                crate::FilterKind::RescaleIntensity { out_min, out_max } => {
+                    ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max)
+                        .apply(&image)
+                }
+                crate::FilterKind::Clamp { lower, upper } => {
+                    ritk_core::filter::ClampImageFilter::new(*lower, *upper).apply(&image)
+                }
+                crate::FilterKind::ConnectedThreshold {
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    lower,
+                    upper,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::ConnectedThresholdFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *lower,
+                        *upper,
+                    )
+                    .apply(&image),
+                ),
+                crate::FilterKind::ConfidenceConnected {
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    initial_lower,
+                    initial_upper,
+                    multiplier,
+                    max_iterations,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::ConfidenceConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *initial_lower,
+                        *initial_upper,
+                    )
+                    .with_multiplier(*multiplier)
+                    .with_max_iterations(*max_iterations as usize)
+                    .apply(&image),
+                ),
+                crate::FilterKind::NeighborhoodConnected {
+                    seed_z,
+                    seed_y,
+                    seed_x,
+                    lower,
+                    upper,
+                    radius_z,
+                    radius_y,
+                    radius_x,
+                } => Ok(
+                    ritk_core::segmentation::region_growing::NeighborhoodConnectedFilter::new(
+                        [*seed_z, *seed_y, *seed_x],
+                        *lower,
+                        *upper,
+                    )
+                    .with_radius([*radius_z, *radius_y, *radius_x])
+                    .apply(&image),
+                ),
+                crate::FilterKind::Atan => {
+                    Ok(ritk_core::filter::AtanImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Sin => {
+                    Ok(ritk_core::filter::SinImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Cos => {
+                    Ok(ritk_core::filter::CosImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Tan => {
+                    Ok(ritk_core::filter::TanImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Asin => {
+                    Ok(ritk_core::filter::AsinImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::Acos => {
+                    Ok(ritk_core::filter::AcosImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::BoundedReciprocal => {
+                    Ok(ritk_core::filter::BoundedReciprocalImageFilter::new().apply(&image))
+                }
+                crate::FilterKind::CurvatureFlow {
+                    iterations,
+                    time_step,
+                } => ritk_core::filter::CurvatureFlowImageFilter::new(
+                    ritk_core::filter::CurvatureFlowConfig {
+                        num_iterations: *iterations as usize,
+                        time_step: *time_step,
+                    },
+                )
+                .apply(&image),
+            }
+        };
+
+        match filter_result {
+            Err(e) => {
+                self.status_message = format!("Filter failed: {e:#}");
+            }
+            Ok(out_img) => {
+                let out_td = out_img.into_tensor().into_data();
+                let out_vec: Vec<f32> = out_td.as_slice::<f32>().unwrap_or(&[]).to_vec();
+                let vol = self.loaded.as_mut().unwrap();
+                vol.data = std::sync::Arc::new(out_vec);
+                self.texture_dirty = true;
+                self.coronal_dirty = true;
+                self.sagittal_dirty = true;
+                self.mip_dirty = true;
+                self.status_message = "Filter applied.".to_owned();
+            }
+        }
+    }
+}
