@@ -1,3 +1,34 @@
+## Sprint 237 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.9 [patch]
+**Goal**: Close `codec.rs` 1772-line structural violation; add CMI, II, and multivariate VI algorithms and tests; expose new metrics in ritk-python.
+
+### Checklist items
+- [x] Add `conditional_mutual_information` and `interaction_information` to `ritk-core/statistics/information/mutual_information.rs`
+- [x] Add `multivariate_variation_of_information` to `ritk-core/statistics/information/variation_of_information.rs`
+- [x] Add 10 value-semantic CMI/II tests to `ritk-core/statistics/information/tests/mi.rs`
+- [x] Add 6 value-semantic multivariate VI tests to `ritk-core/statistics/information/tests/vi.rs`
+- [x] Create `crates/ritk-python/src/metrics/cmi.rs` (55 lines): `cmi_slices`, `ii_slices`
+- [x] Create `crates/ritk-python/src/metrics/multivariate_vi.rs` (25 lines): `multivariate_vi_slices`
+- [x] Add `compute_conditional_mutual_information`, `compute_interaction_information`, `compute_multivariate_variation_of_information` pyfunctions to `metrics/mod.rs`
+- [x] Split `ritk-io/src/format/dicom/codec.rs` (1772 lines) into `codec/` hierarchy (7 files, max leaf 242 lines)
+- [x] Remove unused `parse_ds_backslash` import from `multiframe/tests/mod.rs`
+- [x] Verify `cargo test -p ritk-io codec`: 12 passed
+- [x] Verify `cargo test -p ritk-core statistics`: 190 passed
+- [x] Update CHANGELOG.md [0.50.9], gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Evidence | Priority | Status |
+|---|---|---|---|
+| DICOM writer split | `writer.rs` 1490 lines | High | Open |
+| DICOM RT splits | `rt_dose.rs` 835, `rt_plan.rs` 828, `rt_struct.rs` 827 lines | Medium | Open |
+| DICOM object model split | `object_model.rs` 501 lines | Medium | Open |
+| VTK XML/data-object splits | `image_xml/writer.rs` 1027, `image_xml/reader.rs` 885 + others | Medium | Open |
+| `multiframe/reader.rs` 580-line violation | 16% over limit | Medium | Open |
+
+---
+
 ## Sprint 236 — Complete
 **Status**: Complete
 **Phase**: Phase 3 Closure

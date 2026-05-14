@@ -1,3 +1,37 @@
+## [0.50.9] - 2026-05-13
+### Added [patch]
+
+- `ritk-core/src/statistics/information/mutual_information.rs`: `conditional_mutual_information` (I(X;Y|Z) = H(X,Z)+H(Y,Z)−H(X,Y,Z)−H(Z)) and `interaction_information` (II(X;Y;Z) = I(X;Y)−I(X;Y|Z), McGill 1954; signed — positive=synergy, negative=redundancy).
+- `ritk-core/src/statistics/information/variation_of_information.rs`: `multivariate_variation_of_information` (VI_n = (2/n(n−1))·Σ_{i<j} VI(Xᵢ,Xⱼ), arithmetic mean of pairwise VI; rejects n<2).
+- `ritk-core/src/statistics/information/tests/mi.rs`: 10 new value-semantic tests — CMI non-negativity, I(X;Y|const)=I(X;Y), I(X;Y|Y)=0, CMI length-mismatch and empty rejection; II(X;X;X)=H(X)>0, II matches MI−CMI formula, II rejects mismatched/empty inputs.
+- `ritk-core/src/statistics/information/tests/vi.rs`: 6 new multivariate VI tests — identical-channels→0, non-negativity, two-channel identity VI_2=VI(X,Y), single-channel rejection, empty-channels rejection, length-mismatch rejection.
+- `crates/ritk-python/src/metrics/cmi.rs` (55 lines): PyO3 delegation layer for CMI and II — `cmi_slices`, `ii_slices`.
+- `crates/ritk-python/src/metrics/multivariate_vi.rs` (25 lines): PyO3 delegation layer — `multivariate_vi_slices`.
+- `crates/ritk-python/src/metrics/mod.rs`: three new `#[pyfunction]` entries — `compute_conditional_mutual_information`, `compute_interaction_information`, `compute_multivariate_variation_of_information`.
+
+### Changed [patch]
+
+- Split `ritk-io/src/format/dicom/codec.rs` (1772 lines) into deep-vertical `codec/` hierarchy — closes structural violation:
+  - `codec/mod.rs` (134 lines): module doc, `decode_compressed_frame` helper (cfg(test)), `#[cfg(test)] mod tests` declaration.
+  - `codec/tests/mod.rs` (5 lines): 5 submodule declarations.
+  - `codec/tests/jpeg.rs` (231 lines): 3 JPEG tests — Baseline round-trip, rescale contract, Extended round-trip.
+  - `codec/tests/jxl.rs` (109 lines): JXL Lossless round-trip.
+  - `codec/tests/rle.rs` (242 lines): 2 RLE tests — standard and unrestricted pixel[0]≠0 round-trips.
+  - `codec/tests/jpeg_ls.rs` (198 lines): 3 JPEG-LS tests — Lossless, Lossless multirow, Near-Lossless NEAR=2.
+  - `codec/tests/jpeg2000.rs` (187 lines): JPEG 2000 Lossless round-trip (16-bit, irreversible=0).
+- Removed `pub(super) use super::reader::parse_ds_backslash` from `multiframe/tests/mod.rs` (unused import, warning suppression).
+
+### Closed gaps
+
+- `ritk-io/src/format/dicom/codec.rs` 1772-line structural violation — **Closed** (split into `codec/` hierarchy, max leaf 242 lines).
+- `multiframe/tests/mod.rs` unused-import warning — **Closed** (removed stale `parse_ds_backslash` re-export).
+
+### Verification
+
+- `cargo test -p ritk-io codec`: 12 passed — all codec hierarchy tests green.
+- `cargo test -p ritk-core statistics`: 190 passed — CMI/II/multivariate-VI tests included.
+
+<!-- ──────────────────────────────────────── -->
 ## [0.50.8] - 2026-05-13
 ### Added [patch]
 

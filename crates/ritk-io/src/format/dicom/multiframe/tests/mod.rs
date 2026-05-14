@@ -8,7 +8,6 @@ mod roundtrip;
 mod writer;
 
 pub(super) use super::per_frame::extract_functional_groups;
-pub(super) use super::reader::parse_ds_backslash;
 pub(super) use super::types::{PerFrameInfo, MF_GRAYSCALE_WORD_SC_UID};
 pub(super) use super::*;
 pub(super) use burn::tensor::backend::Backend;

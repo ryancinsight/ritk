@@ -1,3 +1,37 @@
+## Sprint 237 Audit — 2026-05-13
+
+### Gaps Closed
+| Gap | Evidence |
+|---|---|
+| `codec.rs` 1772-line structural violation | `codec/mod.rs` 134, `tests/mod.rs` 5, `tests/jpeg.rs` 231, `tests/jxl.rs` 109, `tests/rle.rs` 242, `tests/jpeg_ls.rs` 198, `tests/jpeg2000.rs` 187 lines; original monolith absent |
+| `multiframe/tests/mod.rs` unused-import warning | Removed stale `parse_ds_backslash` re-export |
+
+### Current image-format structural violations
+| File | Lines | Priority |
+|---|---:|---|
+| `crates/ritk-io/src/format/dicom/multiframe/reader.rs` | 580 | Medium |
+| `crates/ritk-io/src/format/dicom/writer.rs` | 1490 | High |
+| `crates/ritk-vtk/src/io/image_xml/writer.rs` | 1027 | Medium |
+| `crates/ritk-vtk/src/io/image_xml/reader.rs` | 885 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_dose.rs` | 835 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_plan.rs` | 828 | Medium |
+| `crates/ritk-io/src/format/dicom/rt_struct.rs` | 827 | Medium |
+| `crates/ritk-vtk/src/domain/vtk_data_object.rs` | 741 | Medium |
+| `crates/ritk-vtk/src/io/unstructured_xml/reader.rs` | 711 | Medium |
+| `crates/ritk-io/src/format/dicom/object_model.rs` | 501 | Medium |
+
+### Verification
+| Check | Result |
+|---|---|
+| `cargo test -p ritk-io codec` | 12 passed — all codec hierarchy tests green |
+| `cargo test -p ritk-core statistics` | 190 passed — CMI, II, multivariate VI included |
+| `cargo check -p ritk-io --tests` | 0 Rust compilation errors |
+
+### Next increment
+Split `writer.rs` (1490 lines) — largest remaining DICOM image-format monolith.
+
+---
+
 ## Sprint 236 Audit — 2026-05-13
 
 ### Gaps Closed
