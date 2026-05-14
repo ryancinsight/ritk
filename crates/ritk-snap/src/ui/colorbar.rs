@@ -50,7 +50,13 @@ const MIN_HEIGHT: f32 = 60.0;
 /// - The bottom corresponds to intensity `center − width / 2`.
 /// - All labels are drawn in white with a dark text shadow for legibility
 ///   on any background.
-pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: f32, width: f32) {
+pub fn draw_colorbar(
+    painter: &Painter,
+    rect: Rect,
+    colormap: Colormap,
+    center: f32,
+    width: f32,
+) {
     let bar_height = (rect.height()).max(MIN_HEIGHT);
     let bar_left = rect.left();
     let bar_right = bar_left + COLORBAR_WIDTH;
@@ -78,11 +84,7 @@ pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: 
 
     // Border around the colorbar.
     let bar_rect = Rect::from_min_max(pos2(bar_left, bar_top), pos2(bar_right, bar_bottom));
-    painter.rect_stroke(
-        bar_rect,
-        Rounding::ZERO,
-        Stroke::new(1.0_f32, Color32::GRAY),
-    );
+    painter.rect_stroke(bar_rect, Rounding::ZERO, Stroke::new(1.0_f32, Color32::GRAY));
 
     // Intensity labels.
     let half_width = width * 0.5;
@@ -129,8 +131,10 @@ pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: 
 /// and delegates to [`draw_colorbar`].
 pub fn show_colorbar(ui: &mut Ui, colormap: Colormap, center: f32, width: f32) {
     let bar_height = ui.available_height().max(MIN_HEIGHT);
-    let (rect, _response) =
-        ui.allocate_exact_size(vec2(COLORBAR_PANEL_WIDTH, bar_height), egui::Sense::hover());
+    let (rect, _response) = ui.allocate_exact_size(
+        vec2(COLORBAR_PANEL_WIDTH, bar_height),
+        egui::Sense::hover(),
+    );
     draw_colorbar(ui.painter(), rect, colormap, center, width);
 }
 
@@ -204,10 +208,7 @@ mod tests {
         let t_top = 1.0f32 - 0.0 / (n as f32 - 1.0);
         let t_bottom = 1.0f32 - (n as f32 - 1.0) / (n as f32 - 1.0);
         assert_eq!(t_top, 1.0, "top row must map to t=1.0");
-        assert!(
-            (t_bottom - 0.0).abs() < 1e-6,
-            "bottom row must map to t≈0.0"
-        );
+        assert!((t_bottom - 0.0).abs() < 1e-6, "bottom row must map to t≈0.0");
     }
 
     /// Middle row (i = N/2) corresponds to t ≈ 0.5 for even N.

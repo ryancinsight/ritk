@@ -6,9 +6,9 @@
 //! - Input: 3D volume, window/level, colormap
 //! - Output: 2D egui::ColorImage for display
 
-use crate::render::{Colormap, WindowLevel};
-use crate::LoadedVolume;
 use egui::ColorImage;
+use crate::LoadedVolume;
+use crate::render::{WindowLevel, Colormap};
 
 /// Render a maximum intensity projection (MIP) along the axial axis (z, depth).
 ///
@@ -16,7 +16,11 @@ use egui::ColorImage;
 /// - `wl`: window/level settings
 /// - `colormap`: colormap for intensity mapping
 /// - Returns: 2D ColorImage (width x height = cols x rows)
-pub fn render_mip_axial(volume: &LoadedVolume, wl: WindowLevel, colormap: Colormap) -> ColorImage {
+pub fn render_mip_axial(
+    volume: &LoadedVolume,
+    wl: WindowLevel,
+    colormap: Colormap,
+) -> ColorImage {
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
     let center = wl.center as f32;
@@ -27,9 +31,7 @@ pub fn render_mip_axial(volume: &LoadedVolume, wl: WindowLevel, colormap: Colorm
             let mut max_val = f32::MIN;
             for z in 0..depth {
                 let v = volume.pixel_at(z, row, col);
-                if v > max_val {
-                    max_val = v;
-                }
+                if v > max_val { max_val = v; }
             }
             let norm = ((max_val - (center - 0.5 * width)) / width).clamp(0.0, 1.0);
             let rgb = colormap.map(norm);
@@ -68,9 +70,7 @@ pub fn render_vr_axial(
                     accum[i] += (1.0 - accum_alpha) * (rgb[i] as f32 / 255.0) * a;
                 }
                 accum_alpha += (1.0 - accum_alpha) * a;
-                if accum_alpha >= 0.99 {
-                    break;
-                }
+                if accum_alpha >= 0.99 { break; }
             }
             let idx = (row * cols + col) * 4;
             for i in 0..3 {

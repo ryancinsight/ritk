@@ -9,24 +9,20 @@ pub use domain::{
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
-    dicom_seg_to_label_map, is_private_tag, label_map_to_dicom_seg, load_dicom_color_multiframe,
-    load_dicom_color_series, load_dicom_multiframe, load_dicom_series,
-    load_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_multiframe,
-    read_dicom_color_series, read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata,
-    read_multiframe_info, read_rt_dose, read_rt_plan, read_rt_struct, rt_roi_to_polydata,
-    scan_dicom_directory, write_dicom_multiframe, write_dicom_multiframe_with_config,
-    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
-    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, DicomObjectModel,
-    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
-    DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata,
-    DicomTag, DicomValue, DicomWriter, MultiFrameInfo, MultiFrameSpatialMetadata,
-    MultiFrameWriterConfig, PatientPosition, RtBeamInfo, RtContour, RtDoseGrid, RtFractionGroup,
-    RtPlanInfo, RtRoiInfo, RtStructureSet, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID,
-    RT_PLAN_SOP_CLASS_UID,
+    dicom_seg_to_label_map, is_private_tag, label_map_to_dicom_seg, load_dicom_multiframe,
+    load_dicom_series, load_dicom_series_with_metadata, model_to_in_mem, read_dicom_seg,
+    read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose,
+    read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, write_dicom_multiframe,
+    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
+    write_dicom_seg, write_dicom_series, write_dicom_series_with_metadata, write_rt_dose,
+    write_rt_plan, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
+    DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, MultiFrameInfo,
+    MultiFrameSpatialMetadata, MultiFrameWriterConfig, PatientPosition, RtBeamInfo, RtContour,
+    RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, TransferSyntaxKind,
+    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
-pub use format::jpeg::{
-    read_jpeg, read_jpeg_color_to_volume, write_jpeg, JpegColorReader, JpegReader, JpegWriter,
-};
+pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
 pub use format::minc::{read_minc, write_minc, MincReader, MincWriter};
@@ -35,13 +31,8 @@ pub use format::nifti::{
     NiftiReader, NiftiWriter,
 };
 pub use format::nrrd::{read_nrrd, write_nrrd, NrrdReader, NrrdWriter};
-pub use format::png::{
-    read_png_color_series, read_png_color_to_volume, read_png_series, read_png_to_image,
-    PngColorReader, PngColorSeriesReader, PngReader, PngSeriesReader,
-};
-pub use format::tiff::{
-    read_tiff, read_tiff_color_to_volume, write_tiff, TiffColorReader, TiffReader, TiffWriter,
-};
+pub use format::png::{read_png_series, read_png_to_image, PngReader, PngSeriesReader};
+pub use format::tiff::{read_tiff, write_tiff, TiffReader, TiffWriter};
 pub use format::vtk::image_xml::{
     read_vti_binary_appended, read_vti_binary_appended_bytes, write_vti_binary_appended_bytes,
     write_vti_binary_appended_to_file,

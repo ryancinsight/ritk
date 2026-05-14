@@ -12,10 +12,6 @@ ritk-nrrd = { workspace = true }
 ritk-metaimage = { workspace = true }
 ritk-mgh = { workspace = true }
 ritk-analyze = { workspace = true }
-ritk-png = { workspace = true }
-ritk-jpeg = { workspace = true }
-ritk-tiff = { workspace = true }
-ritk-minc = { workspace = true }
 ritk-vtk = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
@@ -27,8 +23,13 @@ nalgebra = { workspace = true }
 rayon = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }
+tiff = { workspace = true }
 flate2 = { workspace = true }
 gaia = { workspace = true }
+consus-hdf5 = { workspace = true }
+consus-core = { workspace = true }
+consus-compression = { workspace = true }
+consus-io = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dicom-pixeldata = { workspace = true }
@@ -40,7 +41,7 @@ dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
-openjp2 = { workspace = true, features = ["file-io"] }
+openjpeg-sys = { workspace = true }
 charls = { workspace = true }
 tempfile = { workspace = true }
 zune-jpegxl = { version = "0.4", default-features = false, features = ["std"] }

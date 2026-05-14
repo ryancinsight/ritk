@@ -16,9 +16,6 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 mod codec;
-mod color;
-mod color_common;
-mod color_multiframe;
 mod multiframe;
 mod object_model;
 mod reader;
@@ -31,8 +28,6 @@ mod transfer_syntax;
 mod writer;
 mod writer_object;
 
-pub use color::{load_dicom_color_series, read_dicom_color_series};
-pub use color_multiframe::{load_dicom_color_multiframe, read_dicom_color_multiframe};
 pub use multiframe::{
     load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
@@ -53,7 +48,7 @@ pub use rt_plan::{
 pub use rt_struct::{read_rt_struct, rt_roi_to_polydata, RtContour, RtRoiInfo, RtStructureSet};
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
-    DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID,
+    DicomSegmentInfo, DicomSegmentation,
 };
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
@@ -279,11 +274,10 @@ pub fn load_dicom_series<B: Backend>(
     // Using par_iter to decode and collect is better.
     let slice_pixels: Vec<Vec<f32>> = slices
         .par_iter()
-        .map(|(path, obj)| {
+        .map(|(_p, obj)| {
             let slope = get_f64(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
-            ensure_scalar_samples_per_pixel(samples_per_pixel, path)?;
             let bits_allocated = get_u32(obj, tags::BITS_ALLOCATED).unwrap_or(16) as u16;
             let pixel_representation = get_u32(obj, tags::PIXEL_REPRESENTATION).unwrap_or(0) as u16;
             let transfer_syntax = TransferSyntaxKind::from_uid(obj.meta().transfer_syntax());
@@ -374,17 +368,6 @@ fn get_f64(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Op
 
 fn get_f64_vec(obj: &FileDicomObject<InMemDicomObject>, tag: dicom::core::Tag) -> Option<Vec<f64>> {
     obj.element(tag).ok()?.to_multi_float64().ok()
-}
-
-fn ensure_scalar_samples_per_pixel(samples_per_pixel: usize, source: &Path) -> Result<()> {
-    if samples_per_pixel == 1 {
-        return Ok(());
-    }
-    bail!(
-        "DICOM scalar volume loader supports only SamplesPerPixel=1; {} declares SamplesPerPixel={samples_per_pixel}. \
-         Decode RGB/color frames through the codec boundary or a color-volume loader",
-        source.display()
-    )
 }
 
 fn get_position(obj: &FileDicomObject<InMemDicomObject>) -> Option<NaPoint3<f64>> {

@@ -16,43 +16,8 @@
 
 use egui::ColorImage;
 
-use crate::dicom::pet::PetAcquisitionParams;
 use crate::render::{Colormap, WindowLevel};
 use crate::LoadedVolume;
-
-#[derive(Clone, Copy)]
-struct DisplayValueTransform {
-    pet: Option<PetAcquisitionParams>,
-    delta_t_s: f64,
-}
-
-impl DisplayValueTransform {
-    fn for_volume(volume: &LoadedVolume) -> Self {
-        let pet = if is_pet_modality(volume.modality.as_deref()) {
-            PetAcquisitionParams::from_loaded_volume(volume)
-        } else {
-            None
-        };
-        Self {
-            pet,
-            delta_t_s: PetAcquisitionParams::delta_t_s_from_vol(volume),
-        }
-    }
-
-    #[inline]
-    fn apply(self, pixel: f32) -> f64 {
-        let raw = f64::from(pixel);
-        self.pet
-            .map(|pet| pet.pixel_to_suvbw(raw, self.delta_t_s))
-            .unwrap_or(raw)
-    }
-}
-
-fn is_pet_modality(modality: Option<&str>) -> bool {
-    modality
-        .and_then(|m| m.trim().get(..2).map(str::to_ascii_uppercase))
-        .is_some_and(|prefix| prefix == "PT")
-}
 
 /// Render a fused compare slice where the output geometry follows `primary`.
 ///
@@ -86,8 +51,6 @@ pub fn render_fused_slice(
     let alpha = secondary_alpha.clamp(0.0, 1.0);
     let inv_alpha = 1.0 - alpha;
     let mut rgb = vec![0u8; width * height * 3];
-    let primary_transform = DisplayValueTransform::for_volume(primary);
-    let secondary_transform = DisplayValueTransform::for_volume(secondary);
 
     for row in 0..height {
         let sy = ((row as f32 + 0.5) * secondary_height as f32 / height as f32)
@@ -98,8 +61,8 @@ pub fn render_fused_slice(
                 .floor()
                 .clamp(0.0, (secondary_width - 1) as f32) as usize;
 
-            let p = primary_transform.apply(primary_pixels[row * width + col]);
-            let s = secondary_transform.apply(secondary_pixels[sy * secondary_width + sx]);
+            let p = primary_pixels[row * width + col] as f64;
+            let s = secondary_pixels[sy * secondary_width + sx] as f64;
             let p_rgb = primary_colormap.map(primary_wl.apply(p) as f32 / 255.0);
             let s_rgb = secondary_colormap.map(secondary_wl.apply(s) as f32 / 255.0);
 
@@ -119,7 +82,6 @@ pub fn render_fused_slice(
 mod tests {
     use super::*;
     use crate::render::SliceRenderer;
-    use egui::Color32;
 
     fn test_volume(shape: [usize; 3], scale: f32) -> LoadedVolume {
         let [d, r, c] = shape;
@@ -144,12 +106,6 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
-            patient_weight_kg: None,
-            injected_dose_bq: None,
-            radionuclide_half_life_s: None,
-            series_time: None,
-            radiopharmaceutical_start_time: None,
-            decay_correction: None,
         }
     }
 
@@ -196,81 +152,5 @@ mod tests {
         );
         // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], egui [width, height].
         assert_eq!(fused.size, [9, 5]);
-    }
-
-    #[test]
-    fn pet_secondary_is_windowed_in_suv_units() {
-        let primary = test_volume([1, 1, 1], 40.0);
-        let mut pet = test_volume([1, 1, 1], 0.0);
-        let injected_dose_bq = 370_000_000.0;
-        let patient_weight_kg = 70.0;
-        pet.data = std::sync::Arc::new(vec![
-            (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32,
-        ]);
-        pet.modality = Some("PT".to_owned());
-        pet.patient_weight_kg = Some(patient_weight_kg);
-        pet.injected_dose_bq = Some(injected_dose_bq);
-        pet.radionuclide_half_life_s = Some(6_586.2);
-        pet.decay_correction = Some("START".to_owned());
-
-        let fused = render_fused_slice(
-            &primary,
-            0,
-            0,
-            WindowLevel::new(40.0, 400.0),
-            Colormap::Grayscale,
-            &pet,
-            0,
-            0,
-            WindowLevel::new(3.0, 6.0),
-            Colormap::Hot,
-            1.0,
-        );
-
-        let expected_wl = WindowLevel::new(3.0, 6.0).apply(1.0);
-        let [r, g, b] = Colormap::Hot.map(f32::from(expected_wl) / 255.0);
-        assert_eq!(fused.size, [1, 1]);
-        assert_eq!(
-            fused.pixels[0],
-            Color32::from_rgb(r, g, b),
-            "PET fusion must apply SUVbw before the SUV window"
-        );
-    }
-
-    #[test]
-    fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
-        let primary = test_volume([1, 1, 1], 40.0);
-        let mut secondary = test_volume([1, 1, 1], 0.0);
-        let injected_dose_bq = 370_000_000.0;
-        let patient_weight_kg = 70.0;
-        let raw_bqml = (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32;
-        secondary.data = std::sync::Arc::new(vec![raw_bqml]);
-        secondary.modality = Some("CT".to_owned());
-        secondary.patient_weight_kg = Some(patient_weight_kg);
-        secondary.injected_dose_bq = Some(injected_dose_bq);
-        secondary.radionuclide_half_life_s = Some(6_586.2);
-        secondary.decay_correction = Some("START".to_owned());
-
-        let fused = render_fused_slice(
-            &primary,
-            0,
-            0,
-            WindowLevel::new(40.0, 400.0),
-            Colormap::Grayscale,
-            &secondary,
-            0,
-            0,
-            WindowLevel::new(3.0, 6.0),
-            Colormap::Hot,
-            1.0,
-        );
-
-        let expected_wl = WindowLevel::new(3.0, 6.0).apply(f64::from(raw_bqml));
-        let [r, g, b] = Colormap::Hot.map(f32::from(expected_wl) / 255.0);
-        assert_eq!(
-            fused.pixels[0],
-            Color32::from_rgb(r, g, b),
-            "non-PT fusion inputs must not apply SUV conversion"
-        );
     }
 }

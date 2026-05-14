@@ -232,10 +232,7 @@ mod tests {
 
     #[test]
     fn pathless_nifti_with_bytes_routes_to_in_memory_load() {
-        let files = vec![dropped_pathless_named_with_bytes(
-            "dropped.nii",
-            vec![1, 2, 3],
-        )];
+        let files = vec![dropped_pathless_named_with_bytes("dropped.nii", vec![1, 2, 3])];
         let action = decide_dropped_input_action(&files);
 
         match action {
