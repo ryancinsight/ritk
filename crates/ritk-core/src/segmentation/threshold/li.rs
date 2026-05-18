@@ -30,6 +30,7 @@
 //! - Li, C.H. & Tam, P.K.S. (1998). "An iterative algorithm for minimum
 //!   cross entropy thresholding." *Pattern Recognition Letters*, 19(8), 771–776.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -75,9 +76,8 @@ impl LiThreshold {
         let threshold = self.compute(image);
         let device = image.data().device();
         let shape: [usize; D] = image.shape();
-
-        let img_data = image.data().clone().into_data();
-        let slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+        let (img_vals, _shape) = extract_vec_infallible(image);
+        let slice: &[f32] = &img_vals;
 
         let output: Vec<f32> = slice
             .iter()
@@ -124,11 +124,8 @@ fn compute_li_threshold_impl<B: Backend, const D: usize>(
     num_bins: usize,
     max_iterations: usize,
 ) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+    let (vals, _) = extract_vec_infallible(image);
+    let slice: &[f32] = &vals;
     compute_li_threshold_from_slice(slice, num_bins, max_iterations)
 }
 

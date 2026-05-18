@@ -1,6 +1,7 @@
 //! Tests for otsu
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -216,9 +217,8 @@ fn test_3d_apply_output_binary() {
     let image = make_image_3d(data, [3, 3, 3]);
     let mask = OtsuThreshold::new().apply(&image);
 
-    let result_data = mask.data().clone().into_data();
-    let slice = result_data.as_slice::<f32>().unwrap();
-    for &v in slice {
+    let (slice, _) = extract_vec_infallible(&mask);
+    for &v in &slice {
         assert!(v == 0.0 || v == 1.0, "3D output must be binary, got {}", v);
     }
 }

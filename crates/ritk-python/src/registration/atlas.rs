@@ -6,7 +6,7 @@ use ritk_registration::atlas::label_fusion::{
     joint_label_fusion, majority_vote, LabelFusionConfig,
 };
 use ritk_registration::atlas::{AtlasConfig, AtlasRegistration};
-use ritk_registration::diffeomorphic::multires_syn::{MultiResSyNConfig};
+use ritk_registration::diffeomorphic::multires_syn::MultiResSyNConfig;
 
 /// Build a population-specific atlas template from multiple subject images.
 ///

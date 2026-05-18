@@ -58,14 +58,14 @@ fn test_segment_connected_threshold_output_is_strictly_binary() {
     .unwrap();
 
     let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-    let td = mask.data().clone().into_data();
-    let values = td.as_slice::<f32>().unwrap();
-    for &v in values {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "connected-threshold output must be strictly binary, got {v}"
-        );
-    }
+    mask.with_data_slice(|values| {
+        for &v in values {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "connected-threshold output must be strictly binary, got {v}"
+            );
+        }
+    });
 }
 
 // ── Negative: connected-threshold missing --lower ─────────────────────────
@@ -179,9 +179,7 @@ fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
     assert!(result.is_err(), "lower > upper must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
-        msg.contains("must be \u{2264}")
-            || msg.contains("must be <=")
-            || msg.contains('\u{2264}'),
+        msg.contains("must be \u{2264}") || msg.contains("must be <=") || msg.contains('\u{2264}'),
         "error must explain the bound constraint, got: {msg}"
     );
 }
@@ -280,14 +278,14 @@ fn test_segment_confidence_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let td = mask.data().clone().into_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    for &v in vals {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "all voxels must be 0.0 or 1.0, found {v}"
-        );
-    }
+    mask.with_data_slice(|vals| {
+        for &v in vals {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "all voxels must be 0.0 or 1.0, found {v}"
+            );
+        }
+    });
 }
 
 #[test]
@@ -370,12 +368,12 @@ fn test_segment_neighborhood_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let td = mask.data().clone().into_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    for &v in vals {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "all voxels must be 0.0 or 1.0, found {v}"
-        );
-    }
+    mask.with_data_slice(|vals| {
+        for &v in vals {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "all voxels must be 0.0 or 1.0, found {v}"
+            );
+        }
+    });
 }

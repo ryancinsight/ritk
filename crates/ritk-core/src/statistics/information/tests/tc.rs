@@ -1,5 +1,5 @@
-use super::super::total_correlation::total_correlation;
 use super::super::mutual_information::mutual_information;
+use super::super::total_correlation::total_correlation;
 
 // ── total_correlation tests ───────────────────────────────────────────────────
 

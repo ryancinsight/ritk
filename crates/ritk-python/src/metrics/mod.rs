@@ -74,7 +74,7 @@ use o_information::{dtc_slices, oi_slices};
 /// metrics. Entropy estimation is accurate above B=2 and does not improve
 /// meaningfully past B=64 for typical medical image data.
 pub(super) fn validate_num_bins(num_bins: usize) -> PyResult<()> {
-    if num_bins < 2 || num_bins > 64 {
+    if !(2..=64).contains(&num_bins) {
         return Err(pyo3::exceptions::PyValueError::new_err(format!(
             "num_bins must be in [2, 64], got {num_bins}"
         )));

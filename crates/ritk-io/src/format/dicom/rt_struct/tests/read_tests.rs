@@ -1,5 +1,5 @@
-use super::*;
 use super::helpers::*;
+use super::*;
 
 /// Invariant: a nonexistent path must produce Err.
 #[test]

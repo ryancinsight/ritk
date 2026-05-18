@@ -1,3 +1,9 @@
+#![allow(
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::doc_overindented_list_items,  // sub-list continuations (a., b., etc.) don't match heuristic
+)]
+
 //! ritk-registration: Unified image registration framework for the ritk toolkit.
 //!
 //! This crate provides both ML-based (deep learning) and classical (non-ML)

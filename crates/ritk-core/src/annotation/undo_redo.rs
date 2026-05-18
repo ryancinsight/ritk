@@ -6,9 +6,9 @@
 //! sequence F = [f0, f1, ..., fm]. Invariants:
 //! - H is non-empty: current() = H.last() is always defined.
 //! - undo(): n >= 1 => push sn onto F, pop H -> H = [s0,...,sn-1]; returns true.
-//!           n = 0 (only s0 remains) => returns false (cannot undo initial state).
+//!   n = 0 (only s0 remains) => returns false (cannot undo initial state).
 //! - redo(): m >= 1 => push f0 (top of F) onto H, pop F; returns true.
-//!           m = 0 => returns false.
+//!   m = 0 => returns false.
 //! - push(s): appends s to H, clears F entirely.
 //!   New actions discard the redo future (branching undo semantics).
 //!

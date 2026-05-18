@@ -30,7 +30,10 @@ fn rsgd_minimizes_quadratic_function() {
         RegularStepGradientDescent::new(config);
 
     let initial_loss = module.loss_value();
-    assert!(initial_loss > 1.0, "initial loss must be > 0; got {initial_loss}");
+    assert!(
+        initial_loss > 1.0,
+        "initial loss must be > 0; got {initial_loss}"
+    );
 
     for _ in 0..1000 {
         if optimizer.converged() {
@@ -94,7 +97,10 @@ fn rsgd_detects_gradient_convergence() {
         module = optimizer.step(module, grads_params);
     }
 
-    assert!(optimizer.converged(), "RSGD should converge near the minimum");
+    assert!(
+        optimizer.converged(),
+        "RSGD should converge near the minimum"
+    );
     assert_eq!(
         optimizer.convergence_reason(),
         Some(ConvergenceReason::GradientConvergence),

@@ -126,11 +126,13 @@ impl CurvatureFlowImageFilter {
         let vals: &[f32] = &vals_vec;
         let [nz, ny, nx] = dims;
         let mut cur: Vec<f32> = vals.to_vec();
-
+        // Pre-allocated double buffer: copy_from_slice + swap eliminates per-iteration
+        // heap allocation (clone → alloc + drop) in favour of a plain memcpy.
+        let mut next = vec![0.0f32; cur.len()];
         let dt = self.config.time_step;
 
         for _ in 0..self.config.num_iterations {
-            let mut next = cur.clone();
+            next.copy_from_slice(&cur);
 
             for iz in 0..nz {
                 for iy in 0..ny {
@@ -197,7 +199,7 @@ impl CurvatureFlowImageFilter {
                 }
             }
 
-            cur = next;
+            std::mem::swap(&mut cur, &mut next);
         }
 
         Ok(rebuild(cur, dims, image))
@@ -209,6 +211,7 @@ impl CurvatureFlowImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
@@ -245,9 +248,8 @@ mod tests {
         let out = CurvatureFlowImageFilter::new(cfg(5, 0.0625))
             .apply(&img)
             .unwrap();
-        let td = out.data().clone().into_data();
-        let v: &[f32] = td.as_slice::<f32>().unwrap();
-        for &x in v {
+        let (v, _) = extract_vec_infallible(&out);
+        for &x in &v {
             assert!(
                 (x - 42.0f32).abs() < 1e-4,
                 "constant image not preserved: {x}"
@@ -263,8 +265,7 @@ mod tests {
         let out = CurvatureFlowImageFilter::new(cfg(0, 0.0625))
             .apply(&img)
             .unwrap();
-        let td = out.data().clone().into_data();
-        let v: &[f32] = td.as_slice::<f32>().unwrap();
+        let (v, _) = extract_vec_infallible(&out);
         for (&o, &e) in v.iter().zip(vals.iter()) {
             assert_eq!(o, e, "0-iter output must equal input");
         }
@@ -278,8 +279,7 @@ mod tests {
         let out = CurvatureFlowImageFilter::new(cfg(3, 0.0625))
             .apply(&img)
             .unwrap();
-        let td = out.data().clone().into_data();
-        let v: &[f32] = td.as_slice::<f32>().unwrap();
+        let (v, _) = extract_vec_infallible(&out);
         assert!(
             (v[0] - 100.0f32).abs() < 1e-4,
             "single voxel must be unchanged: {}",
@@ -330,8 +330,7 @@ mod tests {
         let out = CurvatureFlowImageFilter::new(cfg(10, 0.0625))
             .apply(&img)
             .unwrap();
-        let td = out.data().clone().into_data();
-        let v: &[f32] = td.as_slice::<f32>().unwrap();
+        let (v, _) = extract_vec_infallible(&out);
         let out_max = v.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let out_min = v.iter().cloned().fold(f32::INFINITY, f32::min);
         let in_max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);

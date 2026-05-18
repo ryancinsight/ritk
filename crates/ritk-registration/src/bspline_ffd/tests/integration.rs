@@ -1,9 +1,9 @@
-use crate::deformable_field_ops::{flat, trilinear_interpolate};
-use crate::error::RegistrationError;
 use super::super::config::BSplineFFDConfig;
 use super::super::metric::compute_ncc;
 use super::super::registration::BSplineFFDRegistration;
 use super::make_test_image;
+use crate::deformable_field_ops::{flat, trilinear_interpolate};
+use crate::error::RegistrationError;
 
 #[test]
 fn metric_improves_after_iterations() {
@@ -36,8 +36,7 @@ fn metric_improves_after_iterations() {
 
     let initial_ncc = compute_ncc(&fixed, &moving);
 
-    let result =
-        BSplineFFDRegistration::register(&fixed, &moving, dims, spacing, &config).unwrap();
+    let result = BSplineFFDRegistration::register(&fixed, &moving, dims, spacing, &config).unwrap();
 
     assert!(
         result.final_metric >= initial_ncc - 1e-6,
@@ -46,8 +45,10 @@ fn metric_improves_after_iterations() {
         result.final_metric
     );
     assert_eq!(result.warped_moving.len(), n);
-    assert_eq!(result.control_grid_dims[0] * result.control_grid_dims[1] * result.control_grid_dims[2],
-               result.control_points.0.len());
+    assert_eq!(
+        result.control_grid_dims[0] * result.control_grid_dims[1] * result.control_grid_dims[2],
+        result.control_points.0.len()
+    );
 }
 
 #[test]
@@ -55,8 +56,7 @@ fn mismatched_fixed_length_returns_error() {
     let config = BSplineFFDConfig::default();
     let fixed = vec![0.0_f32; 100];
     let moving = vec![0.0_f32; 8];
-    let result =
-        BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
+    let result = BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -71,8 +71,7 @@ fn mismatched_moving_length_returns_error() {
     let config = BSplineFFDConfig::default();
     let fixed = vec![0.0_f32; 8];
     let moving = vec![0.0_f32; 100];
-    let result =
-        BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
+    let result = BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -84,7 +83,10 @@ fn mismatched_moving_length_returns_error() {
 
 #[test]
 fn zero_levels_returns_invalid_configuration() {
-    let config = BSplineFFDConfig { num_levels: 0, ..Default::default() };
+    let config = BSplineFFDConfig {
+        num_levels: 0,
+        ..Default::default()
+    };
     let img = vec![0.0_f32; 8];
     let result = BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
     assert!(result.is_err());

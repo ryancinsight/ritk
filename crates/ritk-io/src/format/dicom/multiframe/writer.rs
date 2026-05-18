@@ -1,6 +1,6 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -101,10 +101,9 @@ fn write_multiframe_impl<B: Backend>(
         );
     }
 
-    let td = image.data().clone().into_data();
-    let all_data: &[f32] = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("image tensor must contain f32 data: {:?}", e))?;
+    let all_data = image
+        .try_data_vec()
+        .context("DICOM multiframe writer requires f32 image data")?;
 
     let (min_val, max_val) = all_data
         .iter()

@@ -7,6 +7,9 @@ description = "RITK-native codec implementations: JPEG, JPEG-LS, JPEG 2000, Pack
 [dependencies]
 anyhow = { workspace = true }
 jpeg-decoder = { workspace = true }
+jpeg2k = { workspace = true }
+charls = { workspace = true }
+openjp2 = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 openjpeg-sys = { workspace = true }

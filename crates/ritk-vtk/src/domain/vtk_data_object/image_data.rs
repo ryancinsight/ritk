@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::AttributeArray;
+use std::collections::HashMap;
 
 /// VTK ImageData domain object — a regular Cartesian grid of scalar/vector/tensor fields.
 ///
@@ -56,13 +56,14 @@ impl VtkImageData {
             }
         }
         let np = self.n_points();
+        #[allow(clippy::collapsible_match)]
         for (name, arr) in &self.point_data {
             match arr {
                 AttributeArray::Scalars {
                     values,
                     num_components,
                 } => {
-                    let expected = np * (*num_components as usize);
+                    let expected = np * (*num_components);
                     if values.len() != expected {
                         return Err(format!(
                             "point_data '{}': expected {} values, got {}",
@@ -87,13 +88,14 @@ impl VtkImageData {
             }
         }
         let nc = self.n_cells();
+        #[allow(clippy::single_match)]
         for (name, arr) in &self.cell_data {
             match arr {
                 AttributeArray::Scalars {
                     values,
                     num_components,
                 } => {
-                    let expected = nc * (*num_components as usize);
+                    let expected = nc * (*num_components);
                     if values.len() != expected {
                         return Err(format!(
                             "cell_data '{}': expected {} values, got {}",

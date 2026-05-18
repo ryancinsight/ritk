@@ -156,6 +156,7 @@ fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
@@ -184,8 +185,7 @@ mod tests {
         let filter = LaplacianFilter::unit();
         let lap = filter.apply(&img).unwrap();
 
-        let td = lap.data().clone().into_data();
-        let out = td.as_slice::<f32>().unwrap();
+        let (out, _) = extract_vec_infallible(&lap);
         for (i, &v) in out.iter().enumerate() {
             assert!(
                 v.abs() < 1e-4,
@@ -209,8 +209,7 @@ mod tests {
         let filter = LaplacianFilter::unit();
         let lap = filter.apply(&img).unwrap();
 
-        let td = lap.data().clone().into_data();
-        let out = td.as_slice::<f32>().unwrap();
+        let (out, _) = extract_vec_infallible(&lap);
 
         // Check interior voxels only (exclude boundary rows/columns).
         for iz in 1..nz - 1 {
@@ -241,8 +240,7 @@ mod tests {
         let filter = LaplacianFilter::new([1.0, 1.0, 2.0]);
         let lap = filter.apply(&img).unwrap();
 
-        let td = lap.data().clone().into_data();
-        let out = td.as_slice::<f32>().unwrap();
+        let (out, _) = extract_vec_infallible(&lap);
 
         for iz in 1..nz - 1 {
             for iy in 1..ny - 1 {
@@ -275,8 +273,7 @@ mod tests {
         let filter = LaplacianFilter::unit();
         let lap = filter.apply(&img).unwrap();
 
-        let td = lap.data().clone().into_data();
-        let out = td.as_slice::<f32>().unwrap();
+        let (out, _) = extract_vec_infallible(&lap);
 
         for iz in 1..nz - 1 {
             for iy in 1..ny - 1 {
@@ -308,9 +305,8 @@ mod tests {
         let filter = LaplacianFilter::unit();
         let lap = filter.apply(&img).unwrap();
 
-        let td = lap.data().clone().into_data();
-        let out = td.as_slice::<f32>().unwrap();
-        for &v in out {
+        let (out, _) = extract_vec_infallible(&lap);
+        for &v in &out {
             assert!(
                 v.abs() < 1e-4,
                 "Laplacian = {v} expected 0 for linear field"

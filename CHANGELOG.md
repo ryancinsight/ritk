@@ -1,6 +1,386 @@
 # CHANGELOG
 
-All notable changes to RITK are documented in this file.
+All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
+
+## [0.50.27] - 2026-05-18
+
+### Added [patch]
+- **`ritk-snap` `RenderBufferPool`** (`render/buffer_pool.rs`): Pre-allocated dual-scratch pool (`pixel_f32: Vec<f32>` + `rgba_u8: Vec<u8>`) with monotone non-decreasing capacity. Eliminates 2 per-frame heap allocations on the slice-render hot path and 1 per-frame alloc on the MIP/VR hot path.
+- **`LoadedVolume::extract_slice_into`** (`loaded_volume.rs`): Zero-allocation in-place variant of `extract_slice`; resizes caller-supplied `Vec<f32>` without shrinking capacity. Differential-equivalence invariant: produces identical data to `extract_slice`.
+- **`SliceRenderer::render_with_scratch`** (`render/slice_render.rs`): Zero-allocation rendering variant using `RenderBufferPool`; pixel-identical to `SliceRenderer::render` for all inputs.
+- **`render_mip_axial_with_scratch` / `render_vr_axial_with_scratch`** (`render/mip_vr.rs`): Zero-allocation core implementations. Public `render_mip_axial` / `render_vr_axial` delegate to these with a local scratch buffer — no logic duplication.
+- **`SnapApp::render_buffer_pool`** (`app/state.rs`): `RenderBufferPool` field on `SnapApp`; initialized via `Default`. All three texture-rebuild call sites (`rebuild_texture_for_axis`, `rebuild_texture_for_mip`, `rebuild_secondary_texture`) in `app/render_cache.rs` now route through pool variants.
+- 9 new tests: 4 capacity-monotonicity / initialization tests, 3 differential-equivalence tests for `render_with_scratch` (axial/coronal/sagittal), 1 pool-reuse consistency test, 1 MIP differential-equivalence test.
+
+### Closed gaps
+- GAP-248-PERF-09 closed: `RenderBufferPool` for persistent cross-frame buffer reuse implemented and wired into all hot render paths.
+
+### Verification
+- `cargo check -p ritk-snap --lib`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib "render::"`: 37 passed (9 new buffer_pool tests + 28 existing)
+
+## [0.50.26] - 2026-05-18
+
+### Added [minor]
+- CPR (Curved Planar Reformation) filter dispatch in ViewerCore::apply_filter with automatic 2-D→3-D output promotion ([minor])
+- CLI `cpr` filter command with `--cpr-point`, `--cpr-path-samples`, `--cpr-half-width`, `--cpr-cross-samples` flags ([minor])
+- 4 new integration tests for CPR dispatch and CLI (3 CLI + 1 viewer) ([patch])
+
+### Added [patch]
+- `selector_values_third.rs` — "CPR" entry added to ComboBox with default control points and parameters
+- `controls_pointwise.rs` — CPR parameter controls UI: sliders for num_path_samples (2‑1024), cross_section_half_width (0.1‑100 mm), num_cross_samples (2‑512); text‑edit for control points (`[z,y,x]; [z,y,x]; …`); "Reset to defaults" button; validation for < 2 control points
+
+### Changed [patch]
+- `filter/apply.rs` — `promote_2d_to_3d` visibility changed to `pub(crate)` so SnapApp path can use it
+- `app/filter.rs` — `FilterKind::Cpr { .. }` SnapApp arm now calls `CprImageFilter` + `promote_2d_to_3d` (no longer returns `Err("not yet implemented")`)
+
+### Fixed [patch]
+- CRLF line-ending breakage in CLI unknown-filter error message (replaced `\` continuation with `concat!`) ([patch])
+
+### Closed gaps
+- GAP-252-SNAP-01 closed: CPR viewer integration in ritk-snap (SnapApp path, selector UI, parameter controls) — CPR filters are now selectable, configurable, and executable end‑to‑end in the viewer
+- GAP-176-RAD-03 closed: CPR viewer+CLI integration complete (14 tests across ritk-core, ritk-snap, ritk-cli)
+
+### Verification
+- `cargo clippy --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap -- test_filter_kind_cpr_dispatch_reshapes_2d_to_3d`: passed
+- `cargo test -p ritk-core -- cpr`: 10 passed
+
+## [0.50.25] - 2026-05-18
+### Added [patch]
+- `Export clinical distribution package…` File-menu action in `ritk-snap`
+- `app/clinical_distribution.rs` — anonymized report builder and export-summary SSOT for clinical distribution packages
+- Printable `report.md` export with direct identifiers redacted and media layout summary
+- `clinical_distribution/media/current_slice.png` plus `clinical_distribution/media/{axial,coronal,sagittal}/*.png` package layout
+- 2 value-semantic tests for report redaction and full export packaging
+
+### Changed [patch]
+- `app/io_ops.rs` — reused preallocated RGB packing helper across current-slice, MPR, and clinical distribution exports
+- `app/io_ops.rs` — added `SnapApp::export_clinical_distribution_to` and dialog wrapper around the package writer
+- `app/tests/distribution.rs` — added deterministic integration coverage for printable report contents and generated media counts
+
+## [0.50.24] - 2026-05-17
+### Added [patch]
+- `CprImageFilter` / `CprConfig` — Curved Planar Reformation filter in `ritk-core/src/filter/cpr.rs`
+- Catmull-Rom spline with arc-length parameterisation
+- Cross-section basis via Gram-Schmidt (world Z/X fallback)
+- Trilinear interpolation with boundary clamping
+- Output: 2-D `Image<B, 2>` (rows=cross-section offset, columns=path position)
+- 10 value-semantic tests: constant image, linear Z-path, non-zero origin, non-unit spacing, insufficient CPs, zero-length path, output shape, metadata, physical-to-index (identity + non-identity)
+- SIMD boundary/interior split for Sobel and recursive Gaussian 1-D convolution kernels (GAP-248-PERF-10):
+  - `filter/iir.rs`: `apply_smooth_1d` (forward/backward init phase vs steady-state), `apply_first_derivative_1d_into` (edge vs central), `apply_second_derivative_1d_into` (edge vs central)
+  - `filter/edge/sobel.rs`: `convolve_1d_axis` (pos=0, pos=len−1 vs interior)
+  - Interior loops have no per-iteration conditionals — enables LLVM auto-vectorization of the 3-tap FMA body
+  - 8 differential verification tests: split vs naive reference (all axes, multiple sizes, all kernels)
+  - 3 edge-case tests: single-element axis, 2-element axis, degenerate volumes
+- `filter/tests_iir.rs` — IIR differential verification and edge-case tests
+
+### Fixed [patch]
+- `catmull_rom_point` coordinate transposition: return `[x, y, z]` instead of `[z, y, x]` — variables `x/y/z` stored Catmull-Rom of `p[0]/p[1]/p[2]` respectively; transposed output caused the path to run along the wrong axis, yielding incorrect sample values
+
+### Changed [patch]
+- Test extraction: `cpr.rs` (716→472) — tests to `tests_cpr.rs` (244) via `#[path]`
+- Test extraction: `iir.rs` (592→350) — tests to `tests_iir.rs` (222) via `#[path]`
+- Restored structural compliance: **0 violations** (max 479)
+
+## [0.50.23] - 2026-05-17
+
+### Fixed
+- Preemptive partition of 8 files approaching the 500-line structural limit (GAP-250-STR-01):
+  - `polydata/reader.rs` (494→354): tests extracted to `tests_reader.rs`
+  - `threshold.rs` (489→214): entropy thresholds extracted to `entropy_thresholds.rs`, negative tests to `threshold_negative.rs`
+  - `local_cc.rs` (485→120): force computation extracted to `forces.rs`, tests to `tests.rs`
+  - `nifti/tests.rs` (485→333): label tests extracted to `tests_labels.rs`
+  - `atlas/mod.rs` (484→282): tests extracted to `tests.rs`
+  - `recursive_gaussian.rs` (482→230): IIR primitives extracted to `iir.rs`
+  - `sato.rs` (481→227): tests extracted to `tests_sato.rs`
+  - `nrrd/reader.rs` (480→233): decode helpers extracted to `decode.rs`
+- Proper `#[cfg(test)]` gating for `cc_forces` and `field_rms` in `local_cc/forces.rs`
+
+## [0.50.22] - 2026-05-17
+
+### Added [patch]
+- ColorVolume::data_vec() — canonical f32 Vec extraction from ColorVolume (panics on dtype mismatch).
+- ColorVolume::with_data_slice() — closure-based zero-copy `&[f32]` accessor on ColorVolume.
+- ritk-snap: selector_values_third.rs — third ComboBox selectable_value entry file (MirrorPad through CurvatureFlow).
+
+### Changed [patch]
+- DRY migration: 6 production writer `.data().clone().to_data().as_slice()` patterns → `try_data_vec()` (ritk-metaimage, ritk-mgh, ritk-nrrd, ritk-tiff, ritk-vtk, ritk-jpeg).
+- DRY migration: ~110+ test-code and production `data().clone().into_data()`/`data().clone().to_data()` occurrences → `with_data_slice()`/`data_vec()`/`try_data_vec()` across 30+ files in 8 crates.
+- Preemptive partition: binary_dilation.rs (491→183+281).
+- Preemptive partition: selector_values_ext.rs (490→234+264).
+
+### Removed [patch]
+- All remaining `.data().clone().into_data()` / `.data().clone().to_data()` patterns codebase-wide (0 remaining).
+
+## [0.50.21] - 2026-05-17
+
+### Added [patch]
+
+- Image::data_vec() — canonical f32 Vec extraction from Image (panics on dtype mismatch).
+- Image::try_data_vec() — fallible Vec extraction for callers that propagate errors.
+- Image::with_data_slice() — closure-based zero-copy `&[f32]` accessor, avoids Vec allocation.
+
+### Changed [patch]
+
+- DRY migration: 14 production-code `.data().clone().into_data().as_slice()` occurrences → `data_vec()`/`try_data_vec()`/`with_data_slice()` across 7 crates (ritk-core, ritk-cli, ritk-io, ritk-nifti, ritk-registration, ritk-analyze, ritk-snap).
+- DRY migration: ~35 test-code `.data().clone().into_data().into_vec()` occurrences → `data_vec()` across 25 ritk-core filter/morphology/intensity/arithmetic test helpers.
+- DRY migration: 6 multi-line test helpers (bilateral, median, log, relabel, tests_n4, tests_curvature) → `data_vec()`.
+- ritk-snap: 3 app/filter + 1 filter/apply `into_vec()` error-handling patterns → `try_data_vec()`.
+
+### Removed
+
+- All raw `.data().clone().into_data()` patterns from production code (14 occurrences eliminated).
+- All raw `.data().clone().into_data().into_vec()` patterns from test code (~35 occurrences eliminated).
+
+### Verification
+
+| Check | Result |
+|---|---|
+| cargo check (all 6 primary crates) | 0 errors |
+| Production raw patterns | 0 (was 14) |
+| Test into_vec raw patterns | 0 (was ~35) |
+| Structural violations | 0 |
+
+## [0.50.20] - 2026-05-17
+
+### Added [patch]
+
+- LDDMM: epdiff_adjoint_into (zero-allocation EPDiff coadjoint operator, 3 output buffers).
+- LDDMM: integrate_geodesic_into (zero-allocation geodesic integration, 16 pre-allocated scratch buffers).
+- Demons: thirion_forces_into (zero-allocation Thirion optical-flow forces, 3 output buffers).
+- Demons: symmetric_forces_into (zero-allocation symmetric Demons forces, 3 output buffers).
+- Diffeomorphic Demons: invert_velocity_field_into (zero-allocation SVF negation, 3 output buffers).
+- BSplineSyN: evaluate_dense_into, cp_laplacian_into, accumulate_to_cp_into (zero-allocation B-spline primitives with differential equivalence tests).
+- Differential equivalence tests for epdiff_adjoint_into and integrate_geodesic_into.
+
+### Changed [patch]
+
+- LDDMM registration: Rewrote register() loop with 16 pre-allocated scratch buffers — zero per-iteration heap allocs (was ~14 allocs/iter).
+- Thirion Demons: Rewrote register() loop with 4 pre-allocated scratch buffers — zero per-iteration allocs (was ~7 allocs/iter).
+- Symmetric Demons: Rewrote register() loop with 7 pre-allocated scratch buffers — zero per-iteration allocs (was ~11 allocs/iter).
+- Diffeomorphic Demons: Rewrote register() loop with 11 pre-allocated scratch buffers — zero per-iteration allocs (was ~19 allocs/iter). Eliminated compute_mse_direct (redundant scaling-and-squaring + 6 allocs/iter); reuses phi from loop-top via compute_mse_streaming.
+- Inverse-consistent Demons: Rewrote register() loop with 16 pre-allocated scratch buffers — zero per-iteration allocs (was ~37 allocs/iter).
+- BSplineSyN: Rewrote register() loop with 30 dense-field + 14 CP-space pre-allocated scratch buffers — zero per-iteration allocs (was ~57 allocs/iter).
+- MultiResSyN: Rewrote register() per-level loop with 30 pre-allocated scratch buffers — zero per-iteration allocs (was ~38 allocs/iter). compose_fields_into wired for inverse-consistency enforcement.
+- deformable_field_ops: Added compose_fields_into to public re-exports.
+- DRY migration: 98 production-code files in ritk-core migrated from raw .clone().into_data() pattern to extract_vec/extract_vec_infallible helpers. ~103 test-file occurrences also migrated. Zero raw patterns remain in ritk-core production code.
+- filter_kind.rs (ritk-snap): Doc-comment externalization partition (497→427 lines, +29 variant_docs/*.md files).
+- spatial.rs (ritk-cli): Preemptive partition into spatial_impl.rs + spatial/mod.rs + spatial/tests/{smoothing,transform}.rs (497→294+19+121+117 lines).
+- cc_forces deduplication: Deleted 2 orphaned duplicate cc_forces implementations (bspline_syn/cc.rs, multires_syn/cc.rs). local_cc.rs is the sole canonical source.
+- Dead-code cleanup: Gated 8 allocating wrapper functions (compose_fields, thirion_forces, cc_forces, evaluate_dense, accumulate_to_cp, cp_laplacian, compute_mse, epdiff_adjoint, integrate_geodesic) with #[cfg(test)] since all production callers now use _into variants.
+- scaling_and_squaring_into: Exposed to callers as public API (was crate-internal).
+- cc_forces_into, compute_gradient_into, warp_image_into, gaussian_smooth_with_scratch: Wired into all 6 registration algorithm loops.
+- 20 structural file partitions (total ~35K lines removed from monolithic files):
+  - filter.rs (CLI, 1945 lines) → filter/ directory
+  - register.rs (CLI, 1893 lines) → register/ directory
+  - stats.rs (CLI, 676 lines) → stats/ directory
+  - 7 snap monolithic files → directory hierarchies
+  - skeletonization.rs (segmentation, 536 lines) → directory
+  - tests_neighborhood_connected.rs (660 lines) → directory
+  - onnx/graph.rs (706 lines) → graph/ directory
+  - unstruct_grid.rs (498 lines) → unstruct_grid/ directory
+  - context.rs (jpeg_ls, 498 lines) → context/ directory
+  - engine.rs (classical, 499 lines) → engine/ directory
+  - syn_core.rs (499 lines) → syn_core/ directory
+  - datasets.rs (xtask, 510 lines) → directory
+  - filter_kind.rs (497→427 lines, doc externalization)
+  - spatial.rs (497→294+19+121+117, test partition)
+
+### Removed [patch]
+
+- Dead code: symmetric_forces, compute_mse, thirion_forces (allocating wrapper functions, superseded by _into variants).
+- Orphaned duplicates: bspline_syn/cc.rs, multires_syn/cc.rs (canonical cc_forces in local_cc.rs).
+
+### Verification
+
+- cargo check: 0 errors, 0 warnings across all primary crates.
+- cargo test -p ritk-core --lib: 1186 passed.
+- cargo test -p ritk-registration --lib: 286 passed (+5 from 0.50.19: +3 BSplineSyN primitive equivalence tests, +2 LDDMM equivalence tests).
+- cargo test -p ritk-codecs --lib: 104 passed.
+- cargo test -p ritk-cli: 197 passed.
+- All .rs files: <= 500 lines. Violation count: 0. Max: 494 (polydata/reader.rs).
+
+## [0.50.19] - 2026-05-16
+
+### Changed [patch]
+
+- syn_core: Pre-allocated 24 scratch buffers outside SyN iteration loop; rewrote register() to use scaling_and_squaring_into, warp_image_into, compute_gradient_into, cc_forces_into, gaussian_smooth_with_scratch. Per-iteration allocation reduced from ~25 full-volume Vecs to zero (~100 GB transient allocs eliminated per 100-iter run at 256³).
+- engine (classical): Split into engine/mod.rs + engine/tests.rs (499→425+74 lines). Structural limit preemptive partition.
+- syn_core: Split into syn_core/mod.rs + syn_core/tests.rs (499→211+297 lines). Structural limit preemptive partition.
+- unstruct_grid: Split into unstruct_grid/mod.rs + unstruct_grid/tests.rs (498→407+115 lines). Structural limit preemptive partition.
+- context (jpeg_ls): Split into context/mod.rs + context/tests.rs (498→250+200 lines). Structural limit preemptive partition.
+- integrate: Added scaling_and_squaring_into (zero-allocation variant accepting 9 caller-owned buffers).
+- local_cc: Added cc_forces_into (zero-allocation variant writing directly into 3 caller-provided buffers with z-slice Rayon parallelism).
+- smooth: Added gaussian_smooth_with_scratch (zero-allocation variant accepting caller-provided scratch buffer).
+
+### Verification
+
+- cargo check: 0 errors, 0 warnings across all primary crates.
+- cargo test -p ritk-core --lib: 1186 passed.
+- cargo test -p ritk-registration --lib: 281 passed.
+- cargo test -p ritk-codecs --lib: 104 passed.
+- cargo test -p ritk-cli: 197 passed.
+- cargo test -p xtask: 4 passed.
+- All .rs files: <= 500 lines. Violation count: 0. Max: 497 (filter_kind.rs, spatial.rs).
+
+## [0.50.18] - 2026-05-16
+
+### Changed [patch]
+- recursive_gaussian: f64-to-f32 IIR smoothing (2x SIMD throughput), hoisted per-line buffer allocations (eliminates ~128K heap allocs/call), pre-allocated scratch buffers for gradient/laplacian (4-to-1 allocs), in-place sqrt, inline on 9 hot-path functions.
+- slice_render: Fused WL+colormap into single pass (4-to-2 allocs/frame), inline on WindowLevel::apply.
+- fusion: Early return when secondary alpha <= 0 (skips secondary slice extraction + blending loop).
+- loaded_volume: Direct slice indexing in extract_slice (axis 0 = single memcpy, axis 1 = extend_from_slice, all axes use Vec::with_capacity).
+- colormap: inline on Colormap::map (~262K calls/frame).
+- bias/n4: Hoisted w/r scratch buffers outside iteration loop (O(levels*iters*2) to O(2) full-volume allocs).
+- curvature_flow: Double-buffer copy_from_slice+swap replaces per-iteration clone (O(iters) to O(1) allocs).
+- bed_separation: Stack-allocated neighbors() returning fixed-size array eliminates O(N) heap allocs in BFS; VecDeque/Vec capacity hints.
+- onnx/tensor: Direct array construction for shape conversion (no intermediate collect); Vec::from_raw_parts transmutation eliminates one full tensor data copy in burn_tensor_to_onnx.
+
+### Verification
+- cargo check: 0 errors, 0 warnings across all primary crates.
+- cargo test -p ritk-core --lib: 1186 passed.
+- cargo test -p ritk-snap --lib: 502 passed.
+- cargo test -p ritk-cli: 197 passed.
+- cargo test -p ritk-model --lib: 58 passed.
+- cargo test -p xtask: 4 passed.
+- All .rs files: <= 500 lines. Violation count: 0.
+
+## [0.50.17] - 2026-05-15
+
+### Added [minor]
+
+- `ui/pet_suv_panel.rs`: SSOT PET SUV sidebar panel with `draw_pet_suv_panel` free function displaying pointer/cursor SUVbw readouts, patient weight, injected dose (MBq), radionuclide half-life (min), and decay correction mode. 7 value-semantic tests.
+- `SidebarTab::PetSuv` variant with "PET SUV" tab button in the sidebar panel.
+- `OverlayRenderer::draw` now accepts `cursor_suv` and `pointer_suv` parameters; bottom-right overlay displays "Cursor SUV: X.XX" and "Pointer SUV: X.XX" for PET volumes.
+- `format_suv_string()` overlay helper: produces empty string for None/non-finite, formatted label for valid SUV values. 3 tests.
+
+### Changed [minor]
+
+- Removed `#[allow(dead_code)]` from `current_cursor_suv()` in `pointer_ops.rs` — method is now consumed by the overlay renderer.
+- Split `ritk-snap/src/ui/sidebar.rs` (567 lines) into `sidebar/` directory with 2 files (mod.rs, tests.rs).
+- Split `ritk-snap/src/ui/overlay.rs` into `overlay/` directory with 2 files (mod.rs, tests.rs).
+
+### Closed gaps
+
+- GAP-176-RAD-02 closed: PET/CT SUV viewer surface implemented. The backend SUV computation pipeline (`PetAcquisitionParams` → `SuvParams` → `compute_suvbw`) is now consumed by the overlay renderer and the PET SUV sidebar panel.
+- 1 structural violation (>500 lines) closed (`sidebar.rs` 567 → 0). Violation count: 1 → **0**.
+
+### Verification
+
+- `cargo check -p ritk-model -p ritk-core -p ritk-io -p ritk-snap --lib -p ritk-cli`: 0 errors, 0 warnings.
+- `cargo test -p ritk-snap --lib -- suv`: 27 passed.
+- `cargo test -p ritk-snap --lib -- overlay`: 26 passed.
+- `cargo test -p ritk-snap --lib -- pet_suv`: 7 passed.
+- `cargo test -p ritk-snap --lib -- sidebar`: 7 passed.
+- `cargo test -p ritk-core --lib -- neighborhood_connected`: 22 passed.
+- `cargo test -p ritk-core --lib -- skeletonization`: 28 passed.
+- `cargo test -p ritk-cli`: 197 passed.
+- `cargo test -p xtask`: 4 passed.
+- All leaf files ≤ 500 lines (max: 500 `recursive_gaussian.rs`).
+
+## [0.50.16] - 2026-05-15
+
+### Changed [patch]
+
+- Split `ritk-model/src/onnx/graph.rs` (706 lines) into `graph/` directory with 7 files (mod.rs, element_type.rs, value.rs, node.rs, tensor.rs, attribute.rs, tests.rs).
+- Split `ritk-core/.../tests_neighborhood_connected.rs` (660 lines) into `tests_neighborhood_connected/` directory with 2 files (mod.rs, boundary.rs).
+- Split `ritk-core/.../tests_skeletonization.rs` (584 lines) into `tests_skeletonization/` directory with 3 files (mod.rs, thin_2d.rs, thin_3d.rs).
+- Fixed `current_cursor_suv` dead_code warning in `ritk-snap/src/app/pointer_ops.rs` with `#[allow(dead_code)]` annotation documenting GAP-176-RAD-02 reservation.
+- Removed redundant `pub(super) use scan::scan_dicom_directory` re-export from `ritk-io/reader/mod.rs`; updated `color.rs` to use direct path.
+- Removed redundant `pub use SEG_SOP_CLASS_UID` from `ritk-io/seg/mod.rs`; updated test helper import to direct path.
+
+### Closed gaps
+
+- 3 structural violations (>500 lines) closed. Violation count: 3 → **0** (100% closure).
+- 3 compiler warnings eliminated (1 dead_code, 2 unused imports).
+- **All `.rs` files in `crates/` now satisfy the 500-line structural limit.**
+
+### Verification
+
+- `cargo check -p ritk-model`: 0 errors, 0 warnings.
+- `cargo check -p ritk-core`: 0 errors, 0 warnings.
+- `cargo check -p ritk-io`: 0 errors, 0 warnings.
+- `cargo check -p ritk-snap --lib`: 0 errors, 0 warnings.
+- `cargo check -p ritk-cli`: 0 errors, 0 warnings.
+- `cargo test -p ritk-core --lib -- neighborhood_connected`: 22 passed.
+- `cargo test -p ritk-core --lib -- skeletonization`: 28 passed.
+- `cargo test -p ritk-snap --lib`: 492 passed (1 skipped).
+- `cargo test -p ritk-cli`: 197 passed.
+- All leaf files ≤ 500 lines (max: 500 `recursive_gaussian.rs`).
+
+## [0.50.15] - 2026-05-15
+
+### Changed [patch]
+
+- Split `ritk-snap/src/dicom/loader.rs` (788 lines) into `loader/` directory with 7 files (mod.rs, dicom_load.rs, nifti_load.rs, convert.rs, scan.rs, bytes.rs, tests.rs).
+- Extracted `extract_spatial_metadata` helper into `convert.rs` to eliminate triplicated `[spacing, origin, direction]` extraction code across `load_dicom_volume`, `load_nifti_volume`, and `volume_from_image_no_meta` (DRY optimization, removes ~30 lines of duplicated code per call site).
+- Split `ritk-cli/src/commands/stats.rs` (676 lines) into `stats/` directory with 3 files (mod.rs, metrics.rs, tests.rs).
+- Split `ritk-core/src/segmentation/morphology/skeletonization.rs` (536 lines) into `skeletonization/` directory with 4 files (mod.rs, thin_1d.rs, thin_2d.rs, thin_3d.rs).
+- Fixed unused-import warning for `fg_components_26` in `skeletonization/mod.rs` by gating re-export behind `#[cfg(test)]`.
+
+### Closed gaps
+
+- 3 structural violations (>500 lines) closed. Violation count: 6 → 3 (50% reduction).
+- All remaining violations are low-priority (test-only files, ONNX model).
+
+### Verification
+
+- `cargo check -p ritk-snap --lib -p ritk-cli -p ritk-core --lib`: 0 errors, 0 new warnings.
+- `cargo test -p ritk-snap --lib`: 492 passed (1 skipped).
+- `cargo test -p ritk-cli`: 197 passed.
+- `cargo test -p ritk-core --lib -- skeletonization`: 28 passed.
+- All new leaf files ≤ 500 lines (max: 248 `loader/tests.rs`).
+
+## [0.50.14] - 2026-05-15
+
+### Changed [patch]
+
+- Split `ritk-snap/src/lib.rs` (1844 lines) into 7 sub-modules: `viewer.rs`, `filter/` (filter_kind.rs, apply.rs, serde_helper.rs), `geometry.rs`, `loaded_volume.rs`, `launch.rs`.
+- Split `ritk-snap/src/ui/filter_panel.rs` (1947 lines) into `filter_panel/` directory with 9 files (selector/, controls.rs, controls_morph.rs, controls_pointwise.rs, tests_smoothing.rs, tests_integrity.rs).
+- Split `ritk-cli/src/commands/filter.rs` (1945 lines) into `filter/` directory with 5 files (smoothing.rs, spatial.rs, intensity.rs, morphology.rs).
+- Split `ritk-cli/src/commands/register.rs` (1893 lines) into `register/` directory with 5 files (mi.rs, demons.rs, diffeomorphic.rs, lddmm.rs).
+- Split `ritk-snap/src/ui/viewport.rs` (1155 lines) into `viewport/` directory with 6 files (state.rs, panel/, tests.rs).
+- Split `ritk-snap/src/tools/interaction.rs` (916 lines) into `interaction/` directory with 4 files (tool_state.rs, annotation.rs, tests.rs).
+- Split `ritk-snap/src/dicom/pet.rs` (594 lines) into `pet/` directory (mod.rs + tests.rs).
+- Split `ritk-snap/src/dicom/series_tree.rs` (592 lines) into `series_tree/` directory (mod.rs + tests.rs).
+- Split `ritk-snap/src/ui/window_presets.rs` (507 lines) into `window_presets/` directory (mod.rs + tests.rs).
+- Split `ritk-snap/src/ui/measurements.rs` (503 lines) into `measurements/` directory (mod.rs + tests.rs).
+- Split `xtask/src/datasets.rs` (510 lines) into `datasets/` directory (mod.rs + catalog.rs + tests.rs).
+- Fixed `register/diffeomorphic.rs` test helper `run_method` returning `PathBuf` from dropped `TempDir` — now returns `(TempDir, PathBuf)` to keep directory alive during validation.
+
+### Closed gaps
+
+- 11 structural violations (>500 lines) closed. Violation count: 17 → 6 (65% reduction).
+
+### Verification
+
+- `cargo check -p ritk-snap --lib -p ritk-cli -p xtask`: 0 errors.
+- `cargo test -p ritk-snap --lib`: 492 passed (1 skipped: slow DICOM load).
+- `cargo test -p ritk-cli`: 197 passed.
+- `cargo test -p xtask`: 4 passed.
+- All new leaf files <= 500 lines (max: 497).
+
+## [0.50.13] - 2026-05-14
+
+### Changed [patch]
+
+- Split `ritk-snap/src/app.rs` (5395 lines) into deep-vertical `app/` subdirectory hierarchy with 15 leaf modules — closes the largest remaining structural violation.
+- Split `app.rs` test module (990 lines) into 8 test submodules under `app/tests/`.
+- Added `pet` and `suv` module declarations to `ritk-snap/src/dicom/mod.rs`.
+- Added 6 PET/SUV fields to `LoadedVolume` struct.
+- Added missing workspace dependencies: `jpeg-decoder`, `openjpeg-sys`, `jpeg2k`, `charls`, `openjp2`, `ritk-jpeg`, `ritk-png`, `ritk-tiff`, `ritk-minc`.
+
+### Closed gaps
+
+- `ritk-snap/src/app.rs` 5395-line structural violation — **Closed**.
+
+### Verification
+
+- `cargo check -p ritk-snap --lib`: 0 errors.
+- `cargo test -p ritk-snap --lib -- app::tests`: 54 passed, 0 failed.
+- All app/ leaf files <= 500 lines.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 

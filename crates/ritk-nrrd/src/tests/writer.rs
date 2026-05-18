@@ -389,17 +389,16 @@ fn test_round_trip_nrrd() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-6, "spacing[2]");
 
     // Voxel values: every element must equal its original value.
-    let loaded_td = loaded.data().clone().to_data();
-    let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert!(
-            (got - expected).abs() < 1e-5,
-            "voxel[{}]: expected {}, got {}",
-            i,
-            expected,
-            got
-        );
-    }
-
+    loaded.with_data_slice(|loaded_vals| {
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert!(
+                (got - expected).abs() < 1e-5,
+                "voxel[{}]: expected {}, got {}",
+                i,
+                expected,
+                got
+            );
+        }
+    });
     Ok(())
 }

@@ -38,16 +38,12 @@ pub fn write_rt_plan<P: AsRef<Path>>(path: P, plan: &RtPlanInfo) -> Result<()> {
         plan.sop_instance_uid.trim()
     };
 
-    let beam_items: Vec<InMemDicomObject> = plan
-        .beams
-        .iter()
-        .map(|beam| build_beam_item(beam))
-        .collect();
+    let beam_items: Vec<InMemDicomObject> = plan.beams.iter().map(build_beam_item).collect();
 
     let fg_items: Vec<InMemDicomObject> = plan
         .fraction_groups
         .iter()
-        .map(|fg| build_fraction_group_item(fg))
+        .map(build_fraction_group_item)
         .collect();
 
     let mut obj = InMemDicomObject::new_empty();

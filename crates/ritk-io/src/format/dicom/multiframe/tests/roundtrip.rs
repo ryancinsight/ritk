@@ -50,28 +50,24 @@ fn test_multiframe_info_and_roundtrip_writer_read_consistency() {
     assert_eq!(loaded_rows, rows, "loaded_rows");
     assert_eq!(loaded_cols, cols, "loaded_cols");
 
-    let recovered_td = loaded.data().clone().into_data();
-    let recovered: &[f32] = recovered_td
-        .as_slice::<f32>()
-        .expect("recovered tensor must be f32");
-    assert_eq!(recovered.len(), data.len(), "recovered pixel count");
-
-    let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
-    let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-    let slope = if (max_val - min_val).abs() <= f32::EPSILON {
-        1.0_f32
-    } else {
-        (max_val - min_val) / 65535.0_f32
-    };
-    let tolerance = slope + 1.0_f32;
-
-    for (idx, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
-        let diff = (rec - orig).abs();
-        assert!(
+    loaded.with_data_slice(|recovered: &[f32]| {
+        assert_eq!(recovered.len(), data.len(), "recovered pixel count");
+        let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
+        let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let slope = if (max_val - min_val).abs() <= f32::EPSILON {
+            1.0_f32
+        } else {
+            (max_val - min_val) / 65535.0_f32
+        };
+        let tolerance = slope + 1.0_f32;
+        for (idx, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
                 diff <= tolerance,
                 "pixel {idx}: original={orig:.4} recovered={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
             );
-    }
+        }
+    });
 }
 
 #[test]
@@ -116,18 +112,16 @@ fn test_write_read_multiframe_roundtrip() {
         (max_val - min_val) / 65535.0_f32
     };
     let tolerance = slope + 1.0_f32;
-    let recovered_td = loaded.data().clone().into_data();
-    let recovered: &[f32] = recovered_td
-        .as_slice::<f32>()
-        .expect("recovered tensor must be f32");
-    assert_eq!(recovered.len(), data.len(), "recovered pixel count");
-    for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
-        let diff = (rec - orig).abs();
-        assert!(
-            diff <= tolerance,
-            "pixel {i}: original={orig:.4} recovered={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
-        );
-    }
+    loaded.with_data_slice(|recovered: &[f32]| {
+        assert_eq!(recovered.len(), data.len(), "recovered pixel count");
+        for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {i}: original={orig:.4} recovered={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
+    });
 }
 
 #[test]
@@ -240,15 +234,15 @@ fn test_write_multiframe_with_spatial_metadata_round_trip() {
         (max_val - min_val) / 65535.0_f32
     };
     let tolerance = slope + 1.0_f32;
-    let recovered_td = loaded.data().clone().into_data();
-    let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32");
-    for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
-        let diff = (rec - orig).abs();
-        assert!(
-            diff <= tolerance,
-            "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
-        );
-    }
+    loaded.with_data_slice(|recovered: &[f32]| {
+        for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
+    });
 }
 
 #[test]
@@ -278,16 +272,16 @@ fn test_round_trip_negative_intensity_image() {
     let slope = (max_val - min_val) / 65535.0_f32;
     let tolerance = slope + 1.0_f32;
 
-    let recovered_td = loaded.data().clone().into_data();
-    let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32 slice");
-    assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
-    for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
-        let diff = (rec - orig).abs();
-        assert!(
-            diff <= tolerance,
-            "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
-        );
-    }
+    loaded.with_data_slice(|recovered: &[f32]| {
+        assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
+        for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
+            let diff = (rec - orig).abs();
+            assert!(
+                diff <= tolerance,
+                "pixel {i}: orig={orig:.4} rec={rec:.4} diff={diff:.6} > tol={tolerance:.6}"
+            );
+        }
+    });
 }
 
 #[test]
@@ -309,16 +303,16 @@ fn test_round_trip_flat_image_exact() {
     );
     write_dicom_multiframe(&out_path, &image).expect("write");
     let loaded = load_dicom_multiframe::<B, _>(&out_path, &device).expect("load");
-    let recovered_td = loaded.data().clone().into_data();
-    let recovered: &[f32] = recovered_td.as_slice::<f32>().expect("f32 slice");
-    assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
-    for (i, &rec) in recovered.iter().enumerate() {
-        assert!(
-            (rec - constant).abs() <= f32::EPSILON,
-            "pixel {i}: expected {constant} got {rec} (diff {})",
-            (rec - constant).abs()
-        );
-    }
+    loaded.with_data_slice(|recovered: &[f32]| {
+        assert_eq!(recovered.len(), data.len(), "pixel count must be preserved");
+        for (i, &rec) in recovered.iter().enumerate() {
+            assert!(
+                (rec - constant).abs() <= f32::EPSILON,
+                "pixel {i}: expected {constant} got {rec} (diff {})",
+                (rec - constant).abs()
+            );
+        }
+    });
 }
 
 #[test]

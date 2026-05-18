@@ -113,7 +113,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
     #[test]

@@ -9,12 +9,14 @@
 //! - [`histogram`] — voxel intensity histogram computation SSOT.
 //! - [`mip_vr`] — multi-resolution image rendering.
 
+pub mod buffer_pool;
 pub mod colormap;
 pub mod fusion;
 pub mod histogram;
 pub mod mip_vr;
 pub mod slice_render;
 
+pub(crate) use buffer_pool::RenderBufferPool;
 pub use colormap::Colormap;
 pub use fusion::render_fused_slice;
 pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_count, Histogram};

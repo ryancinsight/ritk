@@ -55,10 +55,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// [1,2,3] → [1,4,9].
+    /// [1,2,3] → [1,4,9].
     #[test]
     fn square_known_values() {
         let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);

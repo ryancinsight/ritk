@@ -53,16 +53,8 @@ fn write_tiff_to_writer<B: Backend, W: Write + Seek>(
     writer: W,
     display_path: &Path,
 ) -> Result<()> {
-    let tensor_data = image.data().clone().to_data();
-    let f32_slice = match tensor_data.as_slice::<f32>() {
-        Ok(s) => s,
-        Err(e) => {
-            return Err(anyhow!(
-                "Failed to extract f32 slice from tensor data: {:?}",
-                e
-            ))
-        }
-    };
+    let f32_vec = image.try_data_vec()?;
+    let f32_slice: &[f32] = &f32_vec;
 
     let shape = image.shape();
     let nz = shape[0];
@@ -210,20 +202,17 @@ mod tests {
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
         assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-
-        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-            assert!(
-                (got - expected).abs() < 1e-6,
-                "voxel[{}]: expected {}, got {}",
-                i,
-                expected,
-                got,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+                assert!(
+                    (got - expected).abs() < 1e-6,
+                    "voxel[{}]: expected {}, got {}",
+                    i,
+                    expected,
+                    got,
+                );
+            }
+        });
         Ok(())
     }
 
@@ -310,23 +299,20 @@ mod tests {
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
         assert_eq!(loaded.shape(), [1, 3, 4]);
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-
-        for (i, (&got, &expected)) in loaded_vals.iter().zip(values.iter()).enumerate() {
-            assert_eq!(
-                got.to_bits(),
-                expected.to_bits(),
-                "voxel[{}]: expected {} (bits {:#010x}), got {} (bits {:#010x})",
-                i,
-                expected,
-                expected.to_bits(),
-                got,
-                got.to_bits(),
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(values.iter()).enumerate() {
+                assert_eq!(
+                    got.to_bits(),
+                    expected.to_bits(),
+                    "voxel[{}]: expected {} (bits {:#010x}), got {} (bits {:#010x})",
+                    i,
+                    expected,
+                    expected.to_bits(),
+                    got,
+                    got.to_bits(),
+                );
+            }
+        });
         Ok(())
     }
 }

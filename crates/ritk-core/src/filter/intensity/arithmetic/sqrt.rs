@@ -56,10 +56,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// [0,1,4,9] → [0,1,2,3].
+    /// [0,1,4,9] → [0,1,2,3].
     #[test]
     fn sqrt_perfect_squares() {
         let img = make_image(vec![0.0, 1.0, 4.0, 9.0], [1, 2, 2]);

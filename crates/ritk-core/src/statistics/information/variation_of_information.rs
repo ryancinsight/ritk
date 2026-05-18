@@ -43,10 +43,7 @@ pub fn variation_of_information(a: &[f32], b: &[f32], num_bins: usize) -> Result
 ///
 /// Returns an error when `channels` is empty, fewer than 2 channels are provided,
 /// channel lengths differ, any channel is empty, or `num_bins < 2`.
-pub fn multivariate_variation_of_information(
-    channels: &[&[f32]],
-    num_bins: usize,
-) -> Result<f64> {
+pub fn multivariate_variation_of_information(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
     let n = channels.len();
     if n < 2 {
         bail!("at least 2 channels required, got {}", n);
@@ -57,7 +54,12 @@ pub fn multivariate_variation_of_information(
     }
     for (i, ch) in channels.iter().enumerate() {
         if ch.len() != len {
-            bail!("channel {} length {} != channel 0 length {}", i, ch.len(), len);
+            bail!(
+                "channel {} length {} != channel 0 length {}",
+                i,
+                ch.len(),
+                len
+            );
         }
     }
     let n_pairs = n * (n - 1) / 2;

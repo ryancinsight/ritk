@@ -1,5 +1,5 @@
-use super::helpers::{make_image_with_spatial, make_test_metadata};
 use super::super::write_dicom_series_with_metadata;
+use super::helpers::{make_image_with_spatial, make_test_metadata};
 use dicom::core::Tag;
 use dicom::object::open_file;
 
@@ -15,7 +15,9 @@ fn test_metadata_writer_spatial_tags_first_slice() {
     let dcm_path = path.join("slice_0000.dcm");
     let obj = open_file(&dcm_path).expect("must open written DICOM");
 
-    let ipp = obj.element(Tag(0x0020, 0x0032)).expect("IPP tag must exist");
+    let ipp = obj
+        .element(Tag(0x0020, 0x0032))
+        .expect("IPP tag must exist");
     let ipp_str = ipp.to_str().unwrap();
     let ipp_vals: Vec<f64> = ipp_str
         .split('\\')
@@ -26,7 +28,9 @@ fn test_metadata_writer_spatial_tags_first_slice() {
     assert!((ipp_vals[1] - 20.0).abs() < 1e-3, "IPP y={}", ipp_vals[1]);
     assert!((ipp_vals[2] - 30.0).abs() < 1e-3, "IPP z={}", ipp_vals[2]);
 
-    let iop = obj.element(Tag(0x0020, 0x0037)).expect("IOP tag must exist");
+    let iop = obj
+        .element(Tag(0x0020, 0x0037))
+        .expect("IOP tag must exist");
     let iop_str = iop.to_str().unwrap();
     let iop_vals: Vec<f64> = iop_str
         .split('\\')

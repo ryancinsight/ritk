@@ -1,0 +1,176 @@
+//! Tests for local cross-correlation primitives.
+
+use super::*;
+
+// -- Window statistics tests --
+
+#[test]
+fn window_cc_stats_constant_images() {
+    let dims = [5usize, 5, 5];
+    let a = vec![3.0_f32; 125];
+    let b = vec![7.0_f32; 125];
+    let (mu_i, mu_j, num, vi, vj, cnt) = window_cc_stats(&a, &b, dims, 2, 2, 2, 1);
+    assert!((mu_i - 3.0).abs() < 1e-10, "mu_i = {mu_i}");
+    assert!((mu_j - 7.0).abs() < 1e-10, "mu_j = {mu_j}");
+    assert!(num.abs() < 1e-10, "num = {num}");
+    assert!(vi.abs() < 1e-10, "var_i = {vi}");
+    assert!(vj.abs() < 1e-10, "var_j = {vj}");
+    assert!(cnt > 0, "count = {cnt}");
+}
+
+#[test]
+fn window_cc_stats_identical_non_constant() {
+    let dims = [6usize, 6, 6];
+    let image: Vec<f32> = (0..216).map(|i| i as f32).collect();
+    let (_, _, num, di2, dj2, _) = window_cc_stats(&image, &image, dims, 3, 3, 3, 1);
+    // For identical images: num = var_i = var_j, so CC = 1.0
+    let d = (di2 * dj2).sqrt();
+    assert!(d > 1e-10, "denom = {d}");
+    let cc = num / d;
+    assert!(
+        (cc - 1.0).abs() < 1e-10,
+        "CC of identical local patches = {cc}"
+    );
+}
+
+// -- Force computation tests --
+
+#[test]
+fn mean_local_cc_constant_images_safe() {
+    // Constant images have zero variance → CC should be 0, not NaN.
+    let dims = [5usize, 5, 5];
+    let n = 5 * 5 * 5;
+    let a = vec![3.0_f32; n];
+    let b = vec![3.0_f32; n];
+    let cc = mean_local_cc(&a, &b, dims, 1);
+    assert!(
+        cc.is_finite(),
+        "CC of constant images must be finite, got {cc}"
+    );
+    assert!(
+        cc.abs() < 1e-10,
+        "CC of constant images must be 0, got {cc}"
+    );
+}
+
+#[test]
+fn cc_forces_zero_on_constant_images() {
+    // var_i < 1e-10 guard must return zero forces for constant I.
+    let dims = [4usize, 4, 4];
+    let n = 4 * 4 * 4;
+    let a = vec![5.0_f32; n];
+    let b = vec![3.0_f32; n];
+    let gi = vec![1.0_f32; n];
+    let (fz, fy, fx) = cc_forces(&a, &b, &gi, &gi, &gi, dims, 1);
+    for &v in fz.iter().chain(fy.iter()).chain(fx.iter()) {
+        assert!(v.abs() < 1e-6, "constant-I force must be zero, got {v}");
+    }
+}
+
+#[test]
+fn cc_forces_nonzero_for_shifted_images() {
+    // A linearly increasing image vs its shifted version: forces must be
+    // non-trivially large (algorithm sees the local intensity gradient).
+    let dims = [8usize, 8, 10];
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let fixed: Vec<f32> = (0..n).map(|i| i as f32).collect();
+    let shifted: Vec<f32> = (0..n).map(|i| (i + nx) as f32).collect();
+    let gi_x: Vec<f32> = vec![1.0_f32; n];
+    let gi_zero: Vec<f32> = vec![0.0_f32; n];
+    let (_, _, fx) = cc_forces(&fixed, &shifted, &gi_zero, &gi_zero, &gi_x, dims, 1);
+    let rms_fx: f64 = field_rms(&fx);
+    assert!(
+        rms_fx > 0.0,
+        "x-forces must be non-zero for an x-gradient image"
+    );
+}
+
+#[test]
+fn mean_local_cc_identical_images_returns_one() {
+    let dims = [6usize, 6, 6];
+    let n = 6 * 6 * 6;
+    let a: Vec<f32> = (0..n).map(|i| i as f32).collect();
+    let cc = mean_local_cc(&a, &a, dims, 1);
+    assert!(
+        (cc - 1.0).abs() < 1e-8,
+        "CC of identical images must be 1.0, got {cc}"
+    );
+}
+
+#[test]
+fn cc_forces_identical_images_bounded() {
+    // CC forces on identical images are bounded (at optimum, gradient is small).
+    let dims = [6usize, 6, 6];
+    let n = 216;
+    let image: Vec<f32> = (0..n).map(|i| i as f32).collect();
+    let (gz, gy, gx) = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
+    let (fz, fy, fx) = cc_forces(&image, &image, &gz, &gy, &gx, dims, 1);
+    let rms = |f: &[f32]| -> f64 {
+        (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()
+    };
+    assert!(
+        rms(&fz) < 10.0 && rms(&fy) < 10.0 && rms(&fx) < 10.0,
+        "CC forces on identical images should be bounded"
+    );
+}
+
+#[test]
+fn mean_local_cc_identical_non_constant_images() {
+    let dims = [6usize, 6, 6];
+    let image: Vec<f32> = (0..216).map(|i| i as f32).collect();
+    let cc = mean_local_cc(&image, &image, dims, 1);
+    assert!(
+        cc > 0.99,
+        "CC of identical non-constant images should be ≈ 1.0, got {cc}"
+    );
+}
+
+#[test]
+fn mean_local_cc_constant_images_is_zero() {
+    let dims = [5usize, 5, 5];
+    let a = vec![3.0_f32; 125];
+    let cc = mean_local_cc(&a, &a, dims, 1);
+    assert!(cc.is_finite(), "CC must be finite, got {cc}");
+    assert!(
+        cc.abs() < 1e-6,
+        "CC of constant images should be 0, got {cc}"
+    );
+}
+
+#[test]
+fn cc_forces_into_matches_cc_forces() {
+    let dims = [6usize, 6, 6];
+    let n = 6 * 6 * 6;
+    let fixed: Vec<f32> = (0..n).map(|i| i as f32).collect();
+    let moving: Vec<f32> = (0..n).map(|i| (i + 6) as f32).collect();
+    let (gi_z, gi_y, gi_x) =
+        crate::deformable_field_ops::compute_gradient(&fixed, dims, [1.0, 1.0, 1.0]);
+    let (fz_alloc, fy_alloc, fx_alloc) = cc_forces(&fixed, &moving, &gi_z, &gi_y, &gi_x, dims, 1);
+    let mut fz = vec![0.0_f32; n];
+    let mut fy = vec![0.0_f32; n];
+    let mut fx = vec![0.0_f32; n];
+    cc_forces_into(
+        &fixed, &moving, &gi_z, &gi_y, &gi_x, dims, 1, &mut fz, &mut fy, &mut fx,
+    );
+    for i in 0..n {
+        assert!(
+            (fz[i] - fz_alloc[i]).abs() < 1e-5,
+            "fz[{i}] mismatch: into={}, alloc={}",
+            fz[i],
+            fz_alloc[i]
+        );
+        assert!(
+            (fy[i] - fy_alloc[i]).abs() < 1e-5,
+            "fy[{i}] mismatch: into={}, alloc={}",
+            fy[i],
+            fy_alloc[i]
+        );
+        assert!(
+            (fx[i] - fx_alloc[i]).abs() < 1e-5,
+            "fx[{i}] mismatch: into={}, alloc={}",
+            fx[i],
+            fx_alloc[i]
+        );
+    }
+}

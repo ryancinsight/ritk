@@ -11,7 +11,7 @@
 //!    permutation π of the non-background labels.
 //! 3. Let K' = |{k : size(k) ≥ τ}| where τ = `minimum_object_size`.
 //! 4. ρ(k) = position of k in π restricted to {k : size(k) ≥ τ},
-//!           using 1-based indexing.  If size(k) < τ then ρ(k) = 0.
+//!    using 1-based indexing.  If size(k) < τ then ρ(k) = 0.
 //! 5. ρ(0) = 0 (background is preserved).
 //!
 //! The output O[v] = ρ(L[v]) has at most K' non-zero labels, each ≥ 1, with
@@ -29,6 +29,7 @@
 //! - Pass 2 (remap):  O(n).
 //! - Space:           O(K) auxiliary.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -98,11 +99,9 @@ impl RelabelComponentFilter {
         &self,
         label_image: &Image<B, 3>,
     ) -> (Image<B, 3>, Vec<RelabelStatistics>) {
-        let shape = label_image.shape();
+        let (data_vals, shape) = extract_vec_infallible(label_image);
         let device = label_image.data().device();
-
-        let data = label_image.data().clone().into_data();
-        let flat = data.as_slice::<f32>().expect("f32 label tensor");
+        let flat: &[f32] = &data_vals;
 
         let (output_vec, stats) = relabel_impl(flat, self.minimum_object_size);
 
@@ -217,12 +216,7 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
-            .to_vec()
+        img.data_vec()
     }
 
     /// Single component, no size threshold → relabeled as 1, count preserved.

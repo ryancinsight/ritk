@@ -124,7 +124,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 let mask_img = read_image(mask_path)?;
                 ZScoreNormalizer::new().normalize_masked(&input, &mask_img)
             } else {
-                ZScoreNormalizer::default().normalize(&input)
+                ZScoreNormalizer.normalize(&input)
             }
         }
 

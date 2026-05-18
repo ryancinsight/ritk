@@ -31,9 +31,7 @@ pub(crate) fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
         .collect();
     if parts.len() >= N {
         let mut arr = [0.0_f64; N];
-        for i in 0..N {
-            arr[i] = parts[i];
-        }
+        arr[..N].copy_from_slice(&parts[..N]);
         Some(arr)
     } else {
         None

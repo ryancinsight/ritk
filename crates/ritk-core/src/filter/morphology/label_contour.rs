@@ -22,6 +22,7 @@
 //!
 //! - Malandain, G. & Bertrand, G. (1992). Fast characterization of 3D simple points.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -80,13 +81,9 @@ fn n26() -> Vec<(i32, i32, i32)> {
 impl LabelContourImageFilter {
     /// Apply the label contour filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
+        let (vals, dims) = extract_vec(image)?;
+        let [nz, ny, nx] = dims;
         let device = image.data().device();
-
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("LabelContourImageFilter: {:?}", e))?;
 
         let bg = self.background_value;
         let fully = self.fully_connected;
@@ -177,7 +174,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
     /// All-background image → all background in output.

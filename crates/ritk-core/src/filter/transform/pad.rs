@@ -276,6 +276,7 @@ impl WrapPadImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::spatial::Direction;
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
@@ -295,7 +296,8 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        let (v, _) = extract_vec_infallible(img);
+        v
     }
 
     // ── ConstantPadImageFilter tests ──────────────────────────────────────────

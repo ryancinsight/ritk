@@ -1,6 +1,4 @@
-use super::super::{
-    empirical_cdf_rank, find_mode_in_range, quantile_sorted, silverman_bandwidth,
-};
+use super::super::{empirical_cdf_rank, find_mode_in_range, quantile_sorted, silverman_bandwidth};
 
 // ── Internal: quantile_sorted ─────────────────────────────────────────
 

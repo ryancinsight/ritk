@@ -4,7 +4,7 @@ use super::utils::{
     ensure_series_directory, format_pair, format_six, format_triplet, generate_instance_uid,
     generate_series_uid, writer_exclusion_tags, DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -61,10 +61,9 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     // Slice normal is column 0 of direction matrix = direction[0..3] = N̂.
     let normal = [direction[0], direction[1], direction[2]];
 
-    let td = image.data().clone().into_data();
-    let all_data: &[f32] = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("image tensor must contain f32 data: {:?}", e))?;
+    let all_data = image
+        .try_data_vec()
+        .context("DICOM metadata writer requires f32 image data")?;
     let slice_len = rows * cols;
 
     for z in 0..depth {

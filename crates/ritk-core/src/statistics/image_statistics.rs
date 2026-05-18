@@ -13,6 +13,7 @@
 //! - p50     = V_sorted[⌊n/2⌋]
 //! - p75     = V_sorted[⌊3n/4⌋]
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -35,8 +36,8 @@ pub struct ImageStatistics {
 ///
 /// Extraction path: `tensor.clone().into_data()` → `as_slice::<f32>()` → CPU arithmetic.
 pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data.as_slice::<f32>().expect("f32 tensor data");
+    let (vals, _) = extract_vec_infallible(image);
+    let slice: &[f32] = &vals;
     compute_statistics_from_slice(slice)
 }
 
@@ -58,11 +59,10 @@ pub fn masked_statistics<B: Backend, const D: usize>(
     image: &Image<B, D>,
     mask: &Image<B, D>,
 ) -> ImageStatistics {
-    let image_data = image.data().clone().into_data();
-    let image_slice = image_data.as_slice::<f32>().expect("f32 image tensor data");
-
-    let mask_data = mask.data().clone().into_data();
-    let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+    let (img_vals, _) = extract_vec_infallible(image);
+    let image_slice: &[f32] = &img_vals;
+    let (mask_vals, _) = extract_vec_infallible(mask);
+    let mask_slice: &[f32] = &mask_vals;
 
     assert_eq!(
         image_slice.len(),

@@ -1,12 +1,12 @@
 //! B-Spline FFD registration engine.
 
-use crate::deformable_field_ops::warp_image;
-use crate::error::RegistrationError;
 use super::basis::{evaluate_bspline_displacement, init_control_grid};
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
 use super::metric::{compute_metric_gradient, compute_ncc};
 use super::pyramid::refine_control_grid;
 use super::regularization::bending_energy_gradient;
+use crate::deformable_field_ops::warp_image;
+use crate::error::RegistrationError;
 
 /// B-Spline FFD registration engine.
 ///

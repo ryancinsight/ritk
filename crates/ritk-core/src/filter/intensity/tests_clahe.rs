@@ -1,6 +1,7 @@
 //! Tests for clahe
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 
 use burn_ndarray::NdArray;
 type B = NdArray<f32>;
@@ -181,8 +182,8 @@ fn apply_uniform_volume_identity() {
     let img = make_image(data.clone(), [4, 8, 8]);
     let filter = ClaheFilter::new([2, 2], 40.0, 256);
     let out = filter.apply(&img).expect("CLAHE apply failed");
-    let out_data = out.data().clone().into_data();
-    let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
+    let (out_data, _) = extract_vec_infallible(&out);
+    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
     for (i, (&inp, &outp)) in data.iter().zip(out_vals.iter()).enumerate() {
         assert!(
             (inp - outp).abs() < 1e-4,
@@ -200,8 +201,8 @@ fn apply_output_in_input_range() {
     let img = make_image(data.clone(), [4, 32, 32]);
     let filter = ClaheFilter::new([4, 4], 40.0, 256);
     let out = filter.apply(&img).expect("CLAHE apply failed");
-    let out_data = out.data().clone().into_data();
-    let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
+    let (out_data, _) = extract_vec_infallible(&out);
+    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
 
     let slice_size = 32 * 32;
     for d in 0..4 {
@@ -231,8 +232,8 @@ fn apply_ramp_increases_midrange_contrast() {
     let img = make_image(data.clone(), [1, n, n]);
     let filter = ClaheFilter::new([1, 1], 1000.0, 256);
     let out = filter.apply(&img).expect("CLAHE apply failed");
-    let out_data = out.data().clone().into_data();
-    let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
+    let (out_data, _) = extract_vec_infallible(&out);
+    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
 
     // Last pixel should map close to 255.0
     assert!(

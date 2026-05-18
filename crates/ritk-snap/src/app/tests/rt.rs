@@ -170,6 +170,56 @@ fn test_filter_kind_bed_separation_dispatch_replaces_study_image() {
     }
 }
 
+/// CPR dispatch via `ViewerCore::apply_filter` produces a 1×H×W image
+/// from the 2-D CPR output.
+///
+/// Input: 4×4×4 identity-spacing volume with all voxels = 100.0.
+/// Path: single linear segment from (0,0,0) to (3,3,3) in physical coords.
+///
+/// Expected: filter succeeds, study image shape becomes [1, num_cross, num_path].
+#[test]
+fn test_filter_kind_cpr_dispatch_reshapes_2d_to_3d() {
+    let device: <Backend as burn::tensor::backend::Backend>::Device = Default::default();
+    let vals = vec![100.0_f32; 4 * 4 * 4];
+    let tensor =
+        Tensor::<Backend, 3>::from_data(TensorData::new(vals, Shape::new([4, 4, 4])), &device);
+    let image = Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
+    let mut core = crate::ViewerCore::<Backend, 3>::new();
+    core.load_study(crate::Study::new(image));
+
+    let filter_kind = crate::FilterKind::Cpr {
+        control_points: vec![[0.0, 0.0, 0.0], [3.0, 3.0, 3.0]],
+        num_path_samples: 16,
+        cross_section_half_width: 2.0,
+        num_cross_samples: 8,
+    };
+    let result = core.apply_filter(&filter_kind);
+    let event = result.expect("CPR apply_filter must succeed");
+    assert!(
+        matches!(event, crate::ViewerEvent::Status { .. }),
+        "expected ViewerEvent::Status, got {:?}",
+        event
+    );
+    let study = core.study().expect("study must be present after CPR");
+    let shape = study.image.shape();
+    assert_eq!(
+        shape[0], 1,
+        "CPR output must be single-slice (Z=1), got Z={}",
+        shape[0]
+    );
+    assert_eq!(shape[1], 8, "num_cross_samples must be 8, got {}", shape[1]);
+    assert_eq!(
+        shape[2], 16,
+        "num_path_samples must be 16, got {}",
+        shape[2]
+    );
+}
+
 /// An empty `ViewerCore` (no study loaded) must return a `Status` event
 /// whose message contains "no study", not an error.
 ///

@@ -429,8 +429,8 @@ fn test_3d_sphere_neighborhood_erodes_boundary() {
                                 // Outside domain: excluded from check.
                                 continue;
                             }
-                            let v = values
-                                [nzi as usize * ny * nx + nyi as usize * nx + nxi as usize];
+                            let v =
+                                values[nzi as usize * ny * nx + nyi as usize * nx + nxi as usize];
                             if v < 150.0 || v > 255.0 {
                                 all_in_sphere = false;
                                 break 'outer;

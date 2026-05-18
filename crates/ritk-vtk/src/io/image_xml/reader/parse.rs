@@ -1,10 +1,10 @@
 //! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
 
+use super::xml_helpers::{attr_val, find_section, find_tag, parse_f64s, parse_floats, parse_i64s};
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
-use super::xml_helpers::{attr_val, find_section, find_tag, parse_f64s, parse_floats, parse_i64s};
 
 /// Read a VTI XML (ASCII inline) file from disk into a [`VtkImageData`].
 pub fn read_vti_image_data<P: AsRef<Path>>(path: P) -> Result<VtkImageData> {
@@ -33,17 +33,11 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
 
     let origin_str = attr_val(&image_tag, "Origin").unwrap_or_else(|| "0 0 0".to_string());
     let origin_vals = parse_f64s(&origin_str);
-    let mut origin = [0.0f64; 3];
-    for i in 0..3 {
-        origin[i] = origin_vals.get(i).copied().unwrap_or(0.0);
-    }
+    let origin = std::array::from_fn(|i| origin_vals.get(i).copied().unwrap_or(0.0));
 
     let spacing_str = attr_val(&image_tag, "Spacing").unwrap_or_else(|| "1 1 1".to_string());
     let spacing_vals = parse_f64s(&spacing_str);
-    let mut spacing = [1.0f64; 3];
-    for i in 0..3 {
-        spacing[i] = spacing_vals.get(i).copied().unwrap_or(1.0);
-    }
+    let spacing = std::array::from_fn(|i| spacing_vals.get(i).copied().unwrap_or(1.0));
 
     // ── Piece tag (required) ─────────────────────────────────────────────────
     let _piece = find_tag(input, "Piece")
@@ -76,6 +70,7 @@ pub(super) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;
     let close = "</DataArray>";
+    #[allow(clippy::while_let_loop)]
     loop {
         let start = match rest.find("<DataArray") {
             Some(s) => s,

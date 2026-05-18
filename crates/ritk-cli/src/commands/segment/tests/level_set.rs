@@ -64,11 +64,11 @@ fn test_segment_shape_detection_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let td = mask.data().clone().into_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    for &v in vals {
-        assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
-    }
+    mask.with_data_slice(|vals| {
+        for &v in vals {
+            assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
+        }
+    });
 }
 
 #[test]
@@ -127,11 +127,11 @@ fn test_segment_threshold_level_set_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let td = mask.data().clone().into_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    for &v in vals {
-        assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
-    }
+    mask.with_data_slice(|vals| {
+        for &v in vals {
+            assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
+        }
+    });
 }
 
 #[test]
@@ -155,11 +155,7 @@ fn test_segment_threshold_level_set_missing_lower_returns_error() {
     let phi_path = dir.path().join("phi.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    ritk_io::write_nifti(
-        &phi_path,
-        &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0),
-    )
-    .unwrap();
+    ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
     let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
     args.initial_phi = Some(phi_path);
     args.upper_threshold = Some(250.0);
@@ -178,11 +174,7 @@ fn test_segment_threshold_level_set_missing_upper_returns_error() {
     let phi_path = dir.path().join("phi.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    ritk_io::write_nifti(
-        &phi_path,
-        &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0),
-    )
-    .unwrap();
+    ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
     let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(5.0);
@@ -201,11 +193,7 @@ fn test_segment_threshold_level_set_lower_gt_upper_returns_error() {
     let phi_path = dir.path().join("phi.nii");
     let output = dir.path().join("mask.nii");
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-    ritk_io::write_nifti(
-        &phi_path,
-        &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0),
-    )
-    .unwrap();
+    ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.0)).unwrap();
     let mut args = default_args(input.clone(), output.clone(), "threshold-level-set");
     args.initial_phi = Some(phi_path);
     args.lower_threshold = Some(250.0);
@@ -244,26 +232,21 @@ fn test_segment_chan_vese_output_is_binary() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("image.nii");
     let output = dir.path().join("mask.nii");
-
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
-
     let mut args = default_args(input.clone(), output.clone(), "chan-vese");
     args.level_set_max_iterations = 50;
-
     run(args).unwrap();
-
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let vals = mask.data().clone().into_data();
-    let slice = vals.as_slice::<f32>().unwrap();
-
-    for (i, &v) in slice.iter().enumerate() {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "output voxel {} must be binary, got {}",
-            i,
-            v
-        );
-    }
+    mask.with_data_slice(|slice| {
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    });
 }
 
 // -- Geodesic active contour tests -----------------------------------------
@@ -295,28 +278,23 @@ fn test_segment_geodesic_active_contour_output_is_binary() {
     let input = dir.path().join("image.nii");
     let phi_path = dir.path().join("phi.nii");
     let output = dir.path().join("mask.nii");
-
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
-
     let mut args = default_args(input.clone(), output.clone(), "geodesic-active-contour");
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
-
     run(args).unwrap();
-
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let vals = mask.data().clone().into_data();
-    let slice = vals.as_slice::<f32>().unwrap();
-
-    for (i, &v) in slice.iter().enumerate() {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "output voxel {} must be binary, got {}",
-            i,
-            v
-        );
-    }
+    mask.with_data_slice(|slice| {
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    });
 }
 
 #[test]
@@ -366,28 +344,23 @@ fn test_segment_laplacian_level_set_output_is_binary() {
     let input = dir.path().join("image.nii");
     let phi_path = dir.path().join("phi.nii");
     let output = dir.path().join("mask.nii");
-
     ritk_io::write_nifti(&input, &make_sphere_image()).unwrap();
     ritk_io::write_nifti(&phi_path, &make_phi_sphere([5, 5, 5], [2.0, 2.0, 2.0], 1.5)).unwrap();
-
     let mut args = default_args(input.clone(), output.clone(), "laplacian-level-set");
     args.initial_phi = Some(phi_path);
     args.level_set_max_iterations = 50;
-
     run(args).unwrap();
-
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    let vals = mask.data().clone().into_data();
-    let slice = vals.as_slice::<f32>().unwrap();
-
-    for (i, &v) in slice.iter().enumerate() {
-        assert!(
-            v == 0.0 || v == 1.0,
-            "output voxel {} must be binary, got {}",
-            i,
-            v
-        );
-    }
+    mask.with_data_slice(|slice| {
+        for (i, &v) in slice.iter().enumerate() {
+            assert!(
+                v == 0.0 || v == 1.0,
+                "output voxel {} must be binary, got {}",
+                i,
+                v
+            );
+        }
+    });
 }
 
 #[test]

@@ -242,7 +242,11 @@ fn test_k3_with_only_two_distinct_values_returns_two_thresholds() {
 fn test_single_voxel_k3_returns_two_thresholds_equal_to_value() {
     let image = make_image_1d(vec![42.0f32]);
     let thresholds = multi_otsu_threshold(&image, 3);
-    assert_eq!(thresholds.len(), 2, "single-voxel K=3 must return 2 thresholds");
+    assert_eq!(
+        thresholds.len(),
+        2,
+        "single-voxel K=3 must return 2 thresholds"
+    );
     for &t in &thresholds {
         assert!(
             (t - 42.0).abs() < 1.0,

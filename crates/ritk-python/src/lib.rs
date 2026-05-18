@@ -1,3 +1,10 @@
+#![allow(
+    clippy::useless_conversion,     // PyResult<T> == Result<T, PyErr> — type alias, not a conversion
+    clippy::clone_on_copy,          // origin/spacing/direction on Copy spatial types
+    clippy::redundant_closure,      // PyRuntimeError::new_err closure idiom
+    clippy::too_many_arguments,     // registration API functions expose all tunable params
+)]
+
 //! Python extension module for ritk — medical image processing toolkit.
 //!
 //! This crate exposes RITK functionality to Python via PyO3. The module

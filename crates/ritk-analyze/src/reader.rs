@@ -137,10 +137,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
 
     // ── Parse vox_offset (offset 108) ────────────────────────────────────────
-    let vox_offset = {
-        
-        read_f32(&hdr, 108) as u64
-    };
+    let vox_offset = { read_f32(&hdr, 108) as u64 };
 
     // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
     let ox_vox = read_i16(&hdr, 253) as f64;

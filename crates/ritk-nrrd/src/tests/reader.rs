@@ -96,23 +96,21 @@ fn test_raw_payload_x_fastest_maps_to_zyx_tensor_values() -> Result<()> {
 
     let device: <TestBackend as Backend>::Device = Default::default();
     let image = read_nrrd::<TestBackend, _>(&path, &device)?;
-    let tensor_data = image.data().clone().to_data();
-    let values = tensor_data.as_slice::<f32>().unwrap();
-
     assert_eq!(image.shape(), [nz, ny, nx]);
-    for z in 0..nz {
-        for y in 0..ny {
-            for x in 0..nx {
-                let index = z * ny * nx + y * nx + x;
-                let expected = (100 * x + 10 * y + z) as f32;
-                assert_eq!(
-                    values[index], expected,
-                    "value at internal [z={z}, y={y}, x={x}]"
-                );
+    image.with_data_slice(|values| {
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let index = z * ny * nx + y * nx + x;
+                    let expected = (100 * x + 10 * y + z) as f32;
+                    assert_eq!(
+                        values[index], expected,
+                        "value at internal [z={z}, y={y}, x={x}]"
+                    );
+                }
             }
         }
-    }
-
+    });
     Ok(())
 }
 
@@ -271,18 +269,17 @@ fn test_round_trip_nrrd() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-6, "spacing[2]");
 
     // Voxel values: every element must equal its original value.
-    let loaded_td = loaded.data().clone().to_data();
-    let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert!(
-            (got - expected).abs() < 1e-5,
-            "voxel[{}]: expected {}, got {}",
-            i,
-            expected,
-            got
-        );
-    }
-
+    loaded.with_data_slice(|loaded_vals| {
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert!(
+                (got - expected).abs() < 1e-5,
+                "voxel[{}]: expected {}, got {}",
+                i,
+                expected,
+                got
+            );
+        }
+    });
     Ok(())
 }
 
@@ -432,20 +429,18 @@ fn test_detached_data_file() -> Result<()> {
     let image = read_nrrd::<TestBackend, _>(&header_path, &device)?;
 
     assert_eq!(image.shape(), [nz, ny, nx]);
-
-    let td = image.data().clone().to_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    assert_eq!(
-        vals,
-        data.as_slice(),
-        "detached raw file order must preserve RITK ZYX flat values"
-    );
-    let sum: f32 = vals.iter().sum();
-    assert!(
-        (sum - 28.0).abs() < 1e-5,
-        "Voxel sum mismatch: expected 28, got {}",
-        sum
-    );
-
+    image.with_data_slice(|vals| {
+        assert_eq!(
+            vals,
+            data.as_slice(),
+            "detached raw file order must preserve RITK ZYX flat values"
+        );
+        let sum: f32 = vals.iter().sum();
+        assert!(
+            (sum - 28.0).abs() < 1e-5,
+            "Voxel sum mismatch: expected 28, got {}",
+            sum
+        );
+    });
     Ok(())
 }

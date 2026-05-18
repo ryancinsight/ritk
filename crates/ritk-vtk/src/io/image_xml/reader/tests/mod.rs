@@ -1,2 +1,2 @@
-mod parse;
 mod binary;
+mod parse;

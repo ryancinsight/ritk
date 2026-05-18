@@ -21,6 +21,7 @@
 //! # Reference
 //! ITK LabelStatisticsImageFilter -- per-label min, max, mean, sigma, count.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use rayon::prelude::*;
@@ -63,13 +64,10 @@ pub fn compute_label_intensity_statistics<B: Backend>(
         "label_image and intensity_image must have identical shapes"
     );
 
-    let label_data = label_image.data().clone().into_data();
-    let label_slice = label_data.as_slice::<f32>().expect("f32 label tensor data");
-
-    let intensity_data = intensity_image.data().clone().into_data();
-    let intensity_slice = intensity_data
-        .as_slice::<f32>()
-        .expect("f32 intensity tensor data");
+    let (label_vals, _) = extract_vec_infallible(label_image);
+    let label_slice: &[f32] = &label_vals;
+    let (intensity_vals, _) = extract_vec_infallible(intensity_image);
+    let intensity_slice: &[f32] = &intensity_vals;
 
     compute_label_intensity_statistics_from_slices(label_slice, intensity_slice)
 }

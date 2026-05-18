@@ -238,8 +238,7 @@ fn test_custom_percentiles() {
     let data: Vec<f32> = (0..100).map(|i| i as f32).collect();
     let image = make_image_1d(data.clone());
 
-    let mut normalizer =
-        NyulUdupaNormalizer::with_percentiles(vec![5.0, 25.0, 50.0, 75.0, 95.0]);
+    let mut normalizer = NyulUdupaNormalizer::with_percentiles(vec![5.0, 25.0, 50.0, 75.0, 95.0]);
     normalizer.learn_standard(&[&image]);
 
     let standard = normalizer.standard_landmarks.as_ref().unwrap();

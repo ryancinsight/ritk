@@ -36,6 +36,7 @@
 //! - Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -76,12 +77,7 @@ impl GrayscaleErosion {
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("GrayscaleErosion requires f32 data: {:?}", e))?
-            .to_vec();
+        let (vals, dims) = extract_vec(image)?;
 
         let eroded = erode_3d(&vals, dims, self.radius);
 

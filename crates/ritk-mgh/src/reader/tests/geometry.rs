@@ -77,11 +77,10 @@ fn test_read_good_ras_flag_zero() -> Result<()> {
     assert_eq!(image.origin()[0], 0.0);
     assert_eq!(image.origin()[1], 0.0);
     assert_eq!(image.origin()[2], 0.0);
-
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-        assert_eq!(got, expected, "voxel[{i}]");
-    }
+    image.with_data_slice(|loaded| {
+        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
+            assert_eq!(got, expected, "voxel[{i}]");
+        }
+    });
     Ok(())
 }

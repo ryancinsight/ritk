@@ -10,7 +10,7 @@
 //! # Invariants
 //! - Label IDs within a table are unique.
 //! -  returns min { k in N | k not in dom(T) }, guaranteed >= 1
-//!   (so auto-assigned IDs never collide with existing entries).
+//!    (so auto-assigned IDs never collide with existing entries).
 
 use serde::{Deserialize, Serialize};
 

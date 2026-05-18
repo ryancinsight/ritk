@@ -9,6 +9,7 @@
 //! 0.0 at interior foreground, exterior background, and all other voxels.
 
 use super::{BinaryDilation, BinaryErosion, MorphologicalOperation};
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -48,11 +49,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
         let n = nz * ny * nx;
         let device = mask.data().device();
 
-        let dil_data = dilated.data().clone().into_data();
-        let dil_vals: &[f32] = dil_data.as_slice::<f32>().expect("f32 dilated data");
-
-        let ero_data = eroded.data().clone().into_data();
-        let ero_vals: &[f32] = ero_data.as_slice::<f32>().expect("f32 eroded data");
+        let (dil_vals, _) = extract_vec_infallible(&dilated);
+        let (ero_vals, _) = extract_vec_infallible(&eroded);
 
         let mut out = vec![0.0f32; n];
         for i in 0..n {
@@ -91,12 +89,12 @@ mod tests {
     fn test_gradient_all_zero_gives_all_zero() {
         let mask = make_mask(vec![0.0f32; 27], [3, 3, 3]);
         let result = MorphologicalGradient::new(1).apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let vals = result_data.as_slice::<f32>().unwrap();
-        assert!(
-            vals.iter().all(|&v| v < 0.5),
-            "all-zero input must produce all-zero gradient"
-        );
+        result.with_data_slice(|vals| {
+            assert!(
+                vals.iter().all(|&v| v < 0.5),
+                "all-zero input must produce all-zero gradient"
+            );
+        });
     }
 
     /// BinaryErosion treats out-of-bounds neighbors as background (0.0).
@@ -109,20 +107,20 @@ mod tests {
         // 5x5x5 all-one mask; interior indices 1..=3 in each axis have a complete r=1 cube.
         let mask = make_mask(vec![1.0f32; 125], [5, 5, 5]);
         let result = MorphologicalGradient::new(1).apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let vals = result_data.as_slice::<f32>().unwrap();
-        for iz in 1..=3usize {
-            for iy in 1..=3usize {
-                for ix in 1..=3usize {
-                    let i = iz * 25 + iy * 5 + ix;
-                    assert_eq!(
-                        vals[i], 0.0,
-                        "interior voxel ({},{},{}) must have zero gradient for all-one mask",
-                        iz, iy, ix
-                    );
+        result.with_data_slice(|vals| {
+            for iz in 1..=3usize {
+                for iy in 1..=3usize {
+                    for ix in 1..=3usize {
+                        let i = iz * 25 + iy * 5 + ix;
+                        assert_eq!(
+                            vals[i], 0.0,
+                            "interior voxel ({},{},{}) must have zero gradient for all-one mask",
+                            iz, iy, ix
+                        );
+                    }
                 }
             }
-        }
+        });
     }
 
     #[test]
@@ -143,18 +141,18 @@ mod tests {
         }
         let mask = make_mask(vals.clone(), shape);
         let result = MorphologicalGradient::new(1).apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        let center_idx = 3 * 49 + 3 * 7 + 3;
-        assert_eq!(
-            out_vals[center_idx], 0.0,
-            "center voxel must not be a boundary"
-        );
-        let boundary_count = out_vals.iter().filter(|&&v| v >= 0.5).count();
-        assert!(
-            boundary_count > 0,
-            "gradient must detect at least one boundary voxel"
-        );
+        result.with_data_slice(|out_vals| {
+            let center_idx = 3 * 49 + 3 * 7 + 3;
+            assert_eq!(
+                out_vals[center_idx], 0.0,
+                "center voxel must not be a boundary"
+            );
+            let boundary_count = out_vals.iter().filter(|&&v| v >= 0.5).count();
+            assert!(
+                boundary_count > 0,
+                "gradient must detect at least one boundary voxel"
+            );
+        });
     }
 
     #[test]
@@ -172,11 +170,11 @@ mod tests {
         }
         let mask = make_mask(vals, [5, 5, 5]);
         let result = MorphologicalGradient::new(1).apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        assert!(
-            out_vals.iter().all(|&v| v == 0.0 || v == 1.0),
-            "gradient output must be binary"
-        );
+        result.with_data_slice(|out_vals| {
+            assert!(
+                out_vals.iter().all(|&v| v == 0.0 || v == 1.0),
+                "gradient output must be binary"
+            );
+        });
     }
 }

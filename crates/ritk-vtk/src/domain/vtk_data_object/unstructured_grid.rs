@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::{AttributeArray, VtkCellType};
+use std::collections::HashMap;
 
 /// VTK unstructured grid dataset (DATASET UNSTRUCTURED_GRID).
 ///

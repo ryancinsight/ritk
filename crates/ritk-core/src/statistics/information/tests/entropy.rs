@@ -72,7 +72,10 @@ fn joint_entropy_n_single_channel_equals_marginal() {
     let a: Vec<f32> = (0..32).map(|i| (i % 8) as f32).collect();
     let h1 = joint_entropy_n(&[a.as_slice()], 8).unwrap();
     let h_a = marginal_entropy(&a, 8).unwrap();
-    assert!((h1 - h_a).abs() < 1e-9, "H(X) via joint_n={h1:.6} vs marginal={h_a:.6}");
+    assert!(
+        (h1 - h_a).abs() < 1e-9,
+        "H(X) via joint_n={h1:.6} vs marginal={h_a:.6}"
+    );
 }
 
 #[test]

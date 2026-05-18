@@ -259,6 +259,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::interpolation::linear::LinearInterpolator;
     use crate::spatial::{Direction2, Point2, Spacing2};
     use crate::transform::translation::TranslationTransform;
@@ -302,8 +303,8 @@ mod tests {
         let result = filter.apply(&image);
 
         // 6. Verify
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (data, _) = extract_vec_infallible(&result);
+        let slice = data.as_slice();
 
         // Check (6,5) -> index 5*10 + 6 = 56
         assert!(slice[56] > 0.9);

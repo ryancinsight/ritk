@@ -23,7 +23,7 @@
 //!    where K(u) = (1/√(2π)) · exp(−u²/2) and h is the bandwidth.
 //!
 //!    If bandwidth is not specified, Silverman's rule of thumb is used:
-//!      h = 0.9 · min(σ̂, IQR/1.34) · n^(−1/5)
+//!    h = 0.9 · min(σ̂, IQR/1.34) · n^(−1/5)
 //!
 //! 3. **White matter peak detection**:
 //!    - T1-weighted: WM is the brightest tissue class. Search for the mode of f̂ in the

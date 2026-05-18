@@ -23,12 +23,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 }
 
 fn extract_vals(img: Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+    img.data_vec()
 }
 
 /// Coefficient of variation (σ/μ) for a subset of voxels identified by indices.
@@ -73,7 +68,11 @@ fn two_class_n4_stability_discrete_histogram() {
             let iy = (vi / nx) % ny;
             let bias = 1.0_f32 + 0.25 * (ix as f32 / (nx - 1) as f32 - 0.5);
             let true_intensity = if iy < ny / 2 { 100.0_f32 } else { 40.0_f32 };
-            if iy < ny / 2 { class_a.push(vi); } else { class_b.push(vi); }
+            if iy < ny / 2 {
+                class_a.push(vi);
+            } else {
+                class_b.push(vi);
+            }
             true_intensity * bias
         })
         .collect();
@@ -137,15 +136,45 @@ fn histogram_sharpen_continuous_bimodal_reduces_spread() {
     assert_eq!(w_sharp.len(), w.len());
 
     let centre_a = 0.5 * (mode_a_lo + mode_a_hi);
-    let var_a_before: f64 = w.iter().take(n_per_mode).map(|&v| ((v - centre_a) as f64).powi(2)).sum::<f64>() / n_per_mode as f64;
-    let mean_a_after: f64 = w_sharp.iter().take(n_per_mode).map(|&v| v as f64).sum::<f64>() / n_per_mode as f64;
-    let var_a_after: f64 = w_sharp.iter().take(n_per_mode).map(|&v| ((v as f64) - mean_a_after).powi(2)).sum::<f64>() / n_per_mode as f64;
+    let var_a_before: f64 = w
+        .iter()
+        .take(n_per_mode)
+        .map(|&v| ((v - centre_a) as f64).powi(2))
+        .sum::<f64>()
+        / n_per_mode as f64;
+    let mean_a_after: f64 = w_sharp
+        .iter()
+        .take(n_per_mode)
+        .map(|&v| v as f64)
+        .sum::<f64>()
+        / n_per_mode as f64;
+    let var_a_after: f64 = w_sharp
+        .iter()
+        .take(n_per_mode)
+        .map(|&v| ((v as f64) - mean_a_after).powi(2))
+        .sum::<f64>()
+        / n_per_mode as f64;
     assert!(var_a_after < var_a_before, "histogram_sharpen did not reduce Mode-A variance: before={var_a_before:.6} after={var_a_after:.6}");
 
     let centre_b = 0.5 * (mode_b_lo + mode_b_hi);
-    let var_b_before: f64 = w.iter().skip(n_per_mode).map(|&v| ((v - centre_b) as f64).powi(2)).sum::<f64>() / n_per_mode as f64;
-    let mean_b_after: f64 = w_sharp.iter().skip(n_per_mode).map(|&v| v as f64).sum::<f64>() / n_per_mode as f64;
-    let var_b_after: f64 = w_sharp.iter().skip(n_per_mode).map(|&v| ((v as f64) - mean_b_after).powi(2)).sum::<f64>() / n_per_mode as f64;
+    let var_b_before: f64 = w
+        .iter()
+        .skip(n_per_mode)
+        .map(|&v| ((v - centre_b) as f64).powi(2))
+        .sum::<f64>()
+        / n_per_mode as f64;
+    let mean_b_after: f64 = w_sharp
+        .iter()
+        .skip(n_per_mode)
+        .map(|&v| v as f64)
+        .sum::<f64>()
+        / n_per_mode as f64;
+    let var_b_after: f64 = w_sharp
+        .iter()
+        .skip(n_per_mode)
+        .map(|&v| ((v as f64) - mean_b_after).powi(2))
+        .sum::<f64>()
+        / n_per_mode as f64;
     assert!(var_b_after < var_b_before, "histogram_sharpen did not reduce Mode-B variance: before={var_b_before:.6} after={var_b_after:.6}");
 }
 
@@ -166,9 +195,16 @@ fn constant_image_stable() {
         max_fitting_points: 512,
     };
 
-    let out = extract_vals(N4BiasFieldCorrectionFilter::new(config).apply(&image).expect("N4 constant failed"));
+    let out = extract_vals(
+        N4BiasFieldCorrectionFilter::new(config)
+            .apply(&image)
+            .expect("N4 constant failed"),
+    );
     for &v in &out {
-        assert!((v - 100.0).abs() < 5.0, "constant image: expected ~100.0, got {v:.4}");
+        assert!(
+            (v - 100.0).abs() < 5.0,
+            "constant image: expected ~100.0, got {v:.4}"
+        );
     }
 }
 
@@ -199,7 +235,11 @@ fn output_all_positive() {
         max_fitting_points: 512,
     };
 
-    let out = extract_vals(N4BiasFieldCorrectionFilter::new(config).apply(&image).expect("N4 positive failed"));
+    let out = extract_vals(
+        N4BiasFieldCorrectionFilter::new(config)
+            .apply(&image)
+            .expect("N4 positive failed"),
+    );
     for &v in &out {
         assert!(v > 0.0, "non-positive output value: {v}");
     }
@@ -223,10 +263,16 @@ fn gaussian_kernel_normalised_and_symmetric() {
     for &sigma in &[0.5_f64, 1.0, 2.5, 5.0] {
         let k = gaussian_kernel_1d(sigma);
         let sum: f64 = k.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-10, "sigma={sigma}: kernel sum = {sum:.15}");
+        assert!(
+            (sum - 1.0).abs() < 1e-10,
+            "sigma={sigma}: kernel sum = {sum:.15}"
+        );
         let len = k.len();
         for i in 0..len / 2 {
-            assert!((k[i] - k[len - 1 - i]).abs() < 1e-15, "sigma={sigma}: asymmetry at i={i}");
+            assert!(
+                (k[i] - k[len - 1 - i]).abs() < 1e-15,
+                "sigma={sigma}: asymmetry at i={i}"
+            );
         }
     }
 }
@@ -249,7 +295,10 @@ fn dft_round_trip() {
     let freq = dft_real(&data, n);
     let recovered = idft_real(&freq, n);
     for (i, (&orig, &rec)) in data.iter().zip(recovered.iter()).enumerate() {
-        assert!((orig - rec).abs() < 1e-9, "index {i}: orig={orig:.10} rec={rec:.10}");
+        assert!(
+            (orig - rec).abs() < 1e-9,
+            "index {i}: orig={orig:.10} rec={rec:.10}"
+        );
     }
 }
 

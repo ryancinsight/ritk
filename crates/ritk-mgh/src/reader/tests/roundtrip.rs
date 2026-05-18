@@ -13,16 +13,16 @@ fn test_round_trip_basic() -> Result<()> {
     crate::write_mgh(&image, &path)?;
     let loaded = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(loaded.shape(), [3, 4, 5]);
-    let data = loaded.data().clone().to_data();
-    let loaded_vals = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded_vals.len(), data_vec.len());
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    loaded.with_data_slice(|loaded_vals| {
+        assert_eq!(loaded_vals.len(), data_vec.len());
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -43,15 +43,15 @@ fn test_round_trip_mgz() -> Result<()> {
 
     let loaded = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(loaded.shape(), [2, 3, 4]);
-    let data = loaded.data().clone().to_data();
-    let loaded_vals = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    loaded.with_data_slice(|loaded_vals| {
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -86,16 +86,15 @@ fn test_round_trip_nondefault_spatial() -> Result<()> {
     assert!((loaded.origin()[0] - 10.75).abs() < 1e-5);
     assert!((loaded.origin()[1] - 19.25).abs() < 1e-5);
     assert!((loaded.origin()[2] - 29.375).abs() < 1e-5);
-
-    let data = loaded.data().clone().to_data();
-    let loaded_vals = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    loaded.with_data_slice(|loaded_vals| {
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -119,10 +118,10 @@ fn test_mgh_reader_struct_delegates() -> Result<()> {
 
     let image = MghReader::read::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 2, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-        assert_eq!(got, expected, "voxel[{i}]");
-    }
+    image.with_data_slice(|loaded| {
+        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
+            assert_eq!(got, expected, "voxel[{i}]");
+        }
+    });
     Ok(())
 }

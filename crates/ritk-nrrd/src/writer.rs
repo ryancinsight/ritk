@@ -32,16 +32,8 @@ pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
 
     // ── Voxel data ────────────────────────────────────────────────────────
     // RITK [Z,Y,X] flat layout is already NRRD X-fastest raw order.
-    let tensor_data = image.data().clone().to_data();
-    let f32_slice = match tensor_data.as_slice::<f32>() {
-        Ok(s) => s,
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Failed to extract f32 slice from tensor data: {:?}",
-                e
-            ))
-        }
-    };
+    let f32_vec = image.try_data_vec()?;
+    let f32_slice: &[f32] = &f32_vec;
 
     // image.shape() is [nz, ny, nx] in RITK convention.
     let shape = image.shape();

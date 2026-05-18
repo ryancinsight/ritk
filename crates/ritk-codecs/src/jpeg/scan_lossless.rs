@@ -54,7 +54,7 @@ pub(crate) fn decode_lossless_scan(
     }
 
     let precision = frame.sof.precision;
-    if precision < 2 || precision > 16 {
+    if !(2..=16).contains(&precision) {
         bail!("JPEG Lossless: unsupported precision {precision}");
     }
     if frame.sos.se != 0 || frame.sos.ah != 0 {

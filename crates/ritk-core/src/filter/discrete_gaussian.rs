@@ -138,12 +138,12 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
         // Build kernels for each dimension (None = skip, identity).
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
-        for d in 0..D {
+        for (d, k) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
             if sigma >= 1e-9 {
                 let radius = self.kernel_radius(sigma);
                 if radius > 0 {
-                    kernels[d] = Some(self.build_kernel(sigma, radius));
+                    *k = Some(self.build_kernel(sigma, radius));
                 }
             }
         }
@@ -185,8 +185,7 @@ fn conv1d_replicate(input: &[f32], kernel: &[f32], output: &mut [f32]) {
     let r = (ksz / 2) as isize;
     let n_i = n as isize;
     output.fill(0.0);
-    for kj in 0..ksz {
-        let w = kernel[kj];
+    for (kj, &w) in kernel.iter().enumerate() {
         let offset = kj as isize - r; // src_pos = output_i + offset
                                       // i_start: first output index where src_pos >= 0, i.e., i >= -offset.
         let i_start = ((-offset).max(0) as usize).min(n);
@@ -242,8 +241,7 @@ fn convolve3d_dim(
                 .zip(src.par_chunks(nyx))
                 .for_each(|(os, is)| {
                     os.fill(0.0);
-                    for kj in 0..ksz {
-                        let w = kernel[kj];
+                    for (kj, &w) in kernel.iter().enumerate() {
                         let r_offset = kj as isize - r;
                         for iy in 0..ny {
                             let sy = ((iy as isize + r_offset).clamp(0, ny_i - 1)) as usize;
@@ -267,9 +265,8 @@ fn convolve3d_dim(
                 .enumerate()
                 .for_each(|(iz, out_slice)| {
                     out_slice.fill(0.0);
-                    for kj in 0..ksz {
+                    for (kj, &w) in kernel.iter().enumerate() {
                         let sz = ((iz as isize + kj as isize - r).clamp(0, nz_i - 1)) as usize;
-                        let w = kernel[kj];
                         let src_z = &src[sz * nyx..(sz + 1) * nyx]; // contiguous Z-slice
                         for (o, &s) in out_slice.iter_mut().zip(src_z.iter()) {
                             *o += s * w;
@@ -304,16 +301,16 @@ fn convolve_nd_dim_serial(
     let mut ob = vec![0.0f32; line_len];
     for _line in 0..n_lines {
         let base: usize = idx.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
-        for i in 0..line_len {
+        for (i, ob_i) in ob.iter_mut().enumerate() {
             let mut acc = 0.0f32;
-            for kj in 0..ksz {
+            for (kj, &k) in kernel.iter().enumerate() {
                 let pos = ((i as isize + kj as isize - r).clamp(0, ll_i - 1)) as usize;
-                acc += src[base + pos * line_stride] * kernel[kj];
+                acc += src[base + pos * line_stride] * k;
             }
-            ob[i] = acc;
+            *ob_i = acc;
         }
-        for i in 0..line_len {
-            dst[base + i * line_stride] = ob[i];
+        for (i, &val) in ob.iter().enumerate() {
+            dst[base + i * line_stride] = val;
         }
         let mut carry = true;
         for dd in (0..d).rev() {
@@ -339,8 +336,8 @@ fn convolve_separable<const D: usize>(
 ) -> Vec<f32> {
     let n: usize = shape.iter().product();
     let mut buf = vec![0.0f32; n];
-    for dim in 0..D {
-        let Some(kernel) = &kernels[dim] else {
+    for (dim, kernel_opt) in kernels.iter().enumerate() {
+        let Some(kernel) = kernel_opt else {
             continue;
         };
         if D == 3 {

@@ -38,8 +38,8 @@ pub fn label_map_to_dicom_seg(
     let nz = label_map.shape[0];
     let ny = label_map.shape[1];
     let nx = label_map.shape[2];
-    let rows = ny as usize;
-    let cols = nx as usize;
+    let rows = ny;
+    let cols = nx;
     let n_pixels_per_frame = rows * cols;
     let n_frames = foreground_labels.len() * nz;
 
@@ -310,8 +310,7 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
     }
 
     let mut data = vec![0u32; nz * n_pixels_per_frame];
-    for frame_idx in 0..seg.n_frames {
-        let segment_number = seg.frame_segment_numbers[frame_idx];
+    for (frame_idx, &segment_number) in seg.frame_segment_numbers.iter().enumerate() {
         let Some(&segment_idx) = segment_to_index.get(&segment_number) else {
             bail!(
                 "frame {} references undefined segment_number {}",

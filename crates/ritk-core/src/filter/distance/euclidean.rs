@@ -39,6 +39,7 @@
 //! | `DistanceTransformImageFilter`         | `DanielssonDistanceMapImageFilter`       |
 //! | `SignedDistanceTransformImageFilter`   | `SignedMaurerDistanceMapImageFilter`     |
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -196,9 +197,7 @@ pub(crate) fn edt_3d(fg: &[bool], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f3
             let base = iz * ny * nx + iy * nx;
             let row: Vec<bool> = (0..nx).map(|ix| fg[base + ix]).collect();
             let d = phase1_1d(&row, nx, sx);
-            for ix in 0..nx {
-                g1[base + ix] = d[ix];
-            }
+            g1[base..base + nx].copy_from_slice(&d[..nx]);
         }
     }
 
@@ -273,12 +272,8 @@ impl DistanceTransformImageFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
+        let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td.into_vec::<f32>().map_err(|e| {
-            anyhow::anyhow!("DistanceTransformImageFilter requires f32 data: {:?}", e)
-        })?;
 
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let sp = image.spacing();
@@ -339,15 +334,8 @@ impl SignedDistanceTransformImageFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
+        let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td.into_vec::<f32>().map_err(|e| {
-            anyhow::anyhow!(
-                "SignedDistanceTransformImageFilter requires f32 data: {:?}",
-                e
-            )
-        })?;
 
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let bg: Vec<bool> = fg.iter().map(|&b| !b).collect();

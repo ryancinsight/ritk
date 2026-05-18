@@ -12,9 +12,11 @@ pub use ritk_core::spatial::{Direction, Point, Spacing};
 pub use tempfile::tempdir;
 
 mod clustering;
+mod entropy_thresholds;
 mod level_set;
 mod region_growing;
 mod threshold;
+mod threshold_negative;
 mod watershed;
 
 // ── Test image factories ──────────────────────────────────────────────────────

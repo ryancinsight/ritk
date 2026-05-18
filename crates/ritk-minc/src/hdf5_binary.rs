@@ -342,11 +342,7 @@ fn build_minc2_hdf5_binary(
     let dt_msg = wrap_msg(0x0003, &dt_data);
 
     // DATASPACE (0x0001): 3-D fixed.
-    let mut ds_data = Vec::new();
-    ds_data.push(1u8); // version
-    ds_data.push(3u8); // rank = 3
-    ds_data.push(0u8); // flags
-    ds_data.push(0u8); // reserved
+    let mut ds_data = vec![1u8, 3, 0, 0]; // version, rank=3, flags, reserved
     ds_data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     for &dim in &shape {
         ds_data.extend_from_slice(&(dim as u64).to_le_bytes());

@@ -1,0 +1,95 @@
+//! D = 2: Zhang–Suen thinning.
+//!
+//! Two sub-iterations per pass on 8-connected foreground / 4-connected
+//! background. Neighbors P₂..P₉ are labeled clockwise from north.
+
+/// Read a pixel from the mask, treating out-of-bounds as background.
+#[inline]
+fn pixel(mask: &[bool], ny: usize, nx: usize, y: isize, x: isize) -> u8 {
+    if y < 0 || y >= ny as isize || x < 0 || x >= nx as isize {
+        0
+    } else {
+        mask[y as usize * nx + x as usize] as u8
+    }
+}
+
+/// Count 0→1 transitions in the cyclic neighbor sequence P₂..P₉,P₂.
+#[inline]
+fn transitions(nb: &[u8; 8]) -> u8 {
+    let mut count = 0u8;
+    for i in 0..8 {
+        if nb[i] == 0 && nb[(i + 1) % 8] == 1 {
+            count += 1;
+        }
+    }
+    count
+}
+
+/// One sub-iteration of Zhang–Suen. Returns the number of pixels removed.
+fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, step1: bool) -> usize {
+    let mut to_remove: Vec<usize> = Vec::new();
+    for iy in 0..ny {
+        for ix in 0..nx {
+            if !mask[iy * nx + ix] {
+                continue;
+            }
+            let y = iy as isize;
+            let x = ix as isize;
+            // Clockwise from north: P2, P3, P4, P5, P6, P7, P8, P9.
+            let nb: [u8; 8] = [
+                pixel(mask, ny, nx, y - 1, x),     // P2 north
+                pixel(mask, ny, nx, y - 1, x + 1), // P3 northeast
+                pixel(mask, ny, nx, y, x + 1),     // P4 east
+                pixel(mask, ny, nx, y + 1, x + 1), // P5 southeast
+                pixel(mask, ny, nx, y + 1, x),     // P6 south
+                pixel(mask, ny, nx, y + 1, x - 1), // P7 southwest
+                pixel(mask, ny, nx, y, x - 1),     // P8 west
+                pixel(mask, ny, nx, y - 1, x - 1), // P9 northwest
+            ];
+            let b: u8 = nb.iter().sum();
+            if !(2..=6).contains(&b) {
+                continue;
+            }
+            if transitions(&nb) != 1 {
+                continue;
+            }
+            let (p2, p4, p6, p8) = (nb[0], nb[2], nb[4], nb[6]);
+            if step1 {
+                // Sub-iteration 1: P2·P4·P6 = 0 AND P4·P6·P8 = 0
+                if p2 * p4 * p6 != 0 {
+                    continue;
+                }
+                if p4 * p6 * p8 != 0 {
+                    continue;
+                }
+            } else {
+                // Sub-iteration 2: P2·P4·P8 = 0 AND P2·P6·P8 = 0
+                if p2 * p4 * p8 != 0 {
+                    continue;
+                }
+                if p2 * p6 * p8 != 0 {
+                    continue;
+                }
+            }
+            to_remove.push(iy * nx + ix);
+        }
+    }
+    let count = to_remove.len();
+    for idx in to_remove {
+        mask[idx] = false;
+    }
+    count
+}
+
+/// Zhang–Suen iterative thinning for 2-D binary images.
+pub(super) fn skeleton_2d(flat: &[f32], ny: usize, nx: usize) -> Vec<f32> {
+    let mut mask: Vec<bool> = flat.iter().map(|&v| v > 0.5).collect();
+    loop {
+        let removed1 = zhang_suen_step(&mut mask, ny, nx, true);
+        let removed2 = zhang_suen_step(&mut mask, ny, nx, false);
+        if removed1 == 0 && removed2 == 0 {
+            break;
+        }
+    }
+    mask.iter().map(|&b| if b { 1.0 } else { 0.0 }).collect()
+}

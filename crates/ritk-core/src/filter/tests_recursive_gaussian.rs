@@ -96,8 +96,7 @@ fn test_first_derivative_of_linear_ramp() {
     let vals: Vec<f32> = (0..nx).map(|ix| ix as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
 
-    let filter =
-        RecursiveGaussianFilter::new(3.0).with_derivative_order(DerivativeOrder::First);
+    let filter = RecursiveGaussianFilter::new(3.0).with_derivative_order(DerivativeOrder::First);
     let result = filter.apply(&img).unwrap();
     let out = extract_vals(&result);
 
@@ -140,8 +139,7 @@ fn test_second_derivative_of_quadratic() {
     let vals: Vec<f32> = (0..nx).map(|ix| (ix as f32) * (ix as f32)).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
 
-    let filter =
-        RecursiveGaussianFilter::new(3.0).with_derivative_order(DerivativeOrder::Second);
+    let filter = RecursiveGaussianFilter::new(3.0).with_derivative_order(DerivativeOrder::Second);
     let result = filter.apply(&img).unwrap();
     let out = extract_vals(&result);
 

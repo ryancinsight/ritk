@@ -72,8 +72,11 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
 
     let mut raw =
         Vec::with_capacity(pixels_per_frame * layout.samples_per_pixel * bytes_per_sample);
+    #[allow(clippy::needless_range_loop)]
     for pixel_idx in 0..pixels_per_frame {
+        #[allow(clippy::needless_range_loop)]
         for sample_idx in 0..layout.samples_per_pixel {
+            #[allow(clippy::needless_range_loop)]
             for le_byte_idx in 0..bytes_per_sample {
                 let segment_idx =
                     sample_idx * bytes_per_sample + (bytes_per_sample - 1 - le_byte_idx);

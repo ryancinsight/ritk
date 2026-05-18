@@ -81,10 +81,9 @@ fn test_x_fastest_payload_values_are_not_permuted() -> Result<()> {
 
     let device: <TestBackend as Backend>::Device = Default::default();
     let image = read_metaimage::<TestBackend, _>(&path, &device)?;
-    let tensor_data = image.data().clone().to_data();
-    let values = tensor_data.as_slice::<f32>().unwrap();
-
-    assert_eq!(values, data.as_slice());
+    image.with_data_slice(|values| {
+        assert_eq!(values, data.as_slice());
+    });
     Ok(())
 }
 
@@ -176,18 +175,17 @@ fn test_round_trip_mha() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-5);
 
     // Voxel values: every element must equal its original value.
-    let loaded_td = loaded.data().clone().to_data();
-    let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-        assert!(
-            (got - expected).abs() < 1e-5,
-            "voxel[{}]: expected {}, got {}",
-            i,
-            expected,
-            got
-        );
-    }
-
+    loaded.with_data_slice(|loaded_vals| {
+        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+            assert!(
+                (got - expected).abs() < 1e-5,
+                "voxel[{}]: expected {}, got {}",
+                i,
+                expected,
+                got
+            );
+        }
+    });
     Ok(())
 }
 
@@ -314,9 +312,8 @@ fn test_mhd_external_raw_file() -> Result<()> {
     assert_eq!(image.shape(), [nz, ny, nx]);
 
     // Voxels: total = 8; verify X-fastest raw order is kept as RITK flat order.
-    let loaded_td = image.data().clone().to_data();
-    let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-    assert_eq!(loaded_vals, data.as_slice());
-
+    image.with_data_slice(|loaded_vals| {
+        assert_eq!(loaded_vals, data.as_slice());
+    });
     Ok(())
 }

@@ -1,5 +1,5 @@
-use crate::deformable_field_ops::flat;
 use super::super::regularization::bending_energy;
+use crate::deformable_field_ops::flat;
 
 #[test]
 fn bending_energy_of_zero_field_is_zero() {

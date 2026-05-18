@@ -1,11 +1,19 @@
 //! LDDMM registration engine — gradient-descent optimisation of v₀.
+//!
+//! # Memory discipline
+//! All scratch buffers are pre-allocated before the iteration loop.
+//! The loop body performs **zero heap allocations**; all `_into` variants
+//! write into caller-provided buffers. Geodesic integration uses its own
+//! pre-allocated scratch set (8n + 3 per-step reuse).
 
-use crate::deformable_field_ops::{compute_gradient, gaussian_smooth_inplace, warp_image};
+use crate::deformable_field_ops::{
+    compute_gradient_into, gaussian_smooth_with_scratch, warp_image_into,
+};
 use crate::error::RegistrationError;
 
 use super::{
     config::{LddmmConfig, LddmmResult},
-    geodesic::integrate_geodesic,
+    geodesic::integrate_geodesic_into,
 };
 
 /// LDDMM registration engine.
@@ -69,11 +77,42 @@ impl LddmmRegistration {
         let mut v0y = vec![0.0_f32; n];
         let mut v0x = vec![0.0_f32; n];
 
+        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
+        // Displacement field from geodesic
+        let mut dz = vec![0.0_f32; n];
+        let mut dy = vec![0.0_f32; n];
+        let mut dx = vec![0.0_f32; n];
+        // Warped moving image
+        let mut warped = vec![0.0_f32; n];
+        // Gradient of warped
+        let mut gw_z = vec![0.0_f32; n];
+        let mut gw_y = vec![0.0_f32; n];
+        let mut gw_x = vec![0.0_f32; n];
+        // Body force buffers
+        let mut bf_z = vec![0.0_f32; n];
+        let mut bf_y = vec![0.0_f32; n];
+        let mut bf_x = vec![0.0_f32; n];
+        // Smooth scratch
+        let mut smooth_tmp = vec![0.0_f32; n];
+        // Geodesic integration scratch buffers (per-step reuse)
+        let mut gs_mz = vec![0.0_f32; n];
+        let mut gs_my = vec![0.0_f32; n];
+        let mut gs_mx = vec![0.0_f32; n];
+        let mut gs_adz = vec![0.0_f32; n];
+        let mut gs_ady = vec![0.0_f32; n];
+        let mut gs_adx = vec![0.0_f32; n];
+        let mut gs_step_z = vec![0.0_f32; n];
+        let mut gs_step_y = vec![0.0_f32; n];
+        let mut gs_step_x = vec![0.0_f32; n];
+        let mut gs_comp_z = vec![0.0_f32; n];
+        let mut gs_comp_y = vec![0.0_f32; n];
+        let mut gs_comp_x = vec![0.0_f32; n];
+
         let mut prev_mse = f64::MAX;
         let mut num_iters = 0_usize;
 
         for iter in 0..cfg.max_iterations {
-            let (dz, dy, dx) = integrate_geodesic(
+            integrate_geodesic_into(
                 &v0z,
                 &v0y,
                 &v0x,
@@ -81,8 +120,24 @@ impl LddmmRegistration {
                 spacing,
                 cfg.num_time_steps,
                 cfg.kernel_sigma,
+                &mut dz,
+                &mut dy,
+                &mut dx,
+                &mut smooth_tmp,
+                &mut gs_mz,
+                &mut gs_my,
+                &mut gs_mx,
+                &mut gs_adz,
+                &mut gs_ady,
+                &mut gs_adx,
+                &mut gs_step_z,
+                &mut gs_step_y,
+                &mut gs_step_x,
+                &mut gs_comp_z,
+                &mut gs_comp_y,
+                &mut gs_comp_x,
             );
-            let warped = warp_image(moving, dims, &dz, &dy, &dx);
+            warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
 
             let mse: f64 = warped
                 .iter()
@@ -105,20 +160,17 @@ impl LddmmRegistration {
             prev_mse = mse;
 
             // Body force: K_σ ∗ [2 (warped − fixed) · ∇(warped)]
-            let (gw_z, gw_y, gw_x) = compute_gradient(&warped, dims, spacing);
+            compute_gradient_into(&warped, dims, spacing, &mut gw_z, &mut gw_y, &mut gw_x);
 
-            let mut bf_z = vec![0.0_f32; n];
-            let mut bf_y = vec![0.0_f32; n];
-            let mut bf_x = vec![0.0_f32; n];
             for i in 0..n {
                 let residual = 2.0 * (warped[i] - fixed[i]);
                 bf_z[i] = residual * gw_z[i];
                 bf_y[i] = residual * gw_y[i];
                 bf_x[i] = residual * gw_x[i];
             }
-            gaussian_smooth_inplace(&mut bf_z, dims, cfg.kernel_sigma);
-            gaussian_smooth_inplace(&mut bf_y, dims, cfg.kernel_sigma);
-            gaussian_smooth_inplace(&mut bf_x, dims, cfg.kernel_sigma);
+            gaussian_smooth_with_scratch(&mut bf_z, dims, cfg.kernel_sigma, &mut smooth_tmp);
+            gaussian_smooth_with_scratch(&mut bf_y, dims, cfg.kernel_sigma, &mut smooth_tmp);
+            gaussian_smooth_with_scratch(&mut bf_x, dims, cfg.kernel_sigma, &mut smooth_tmp);
 
             for i in 0..n {
                 v0z[i] -= lr * (2.0 * lam * v0z[i] + bf_z[i]);
@@ -127,7 +179,8 @@ impl LddmmRegistration {
             }
         }
 
-        let (dz, dy, dx) = integrate_geodesic(
+        // Final geodesic integration for output displacement (reuses all buffers)
+        integrate_geodesic_into(
             &v0z,
             &v0y,
             &v0x,
@@ -135,8 +188,24 @@ impl LddmmRegistration {
             spacing,
             cfg.num_time_steps,
             cfg.kernel_sigma,
+            &mut dz,
+            &mut dy,
+            &mut dx,
+            &mut smooth_tmp,
+            &mut gs_mz,
+            &mut gs_my,
+            &mut gs_mx,
+            &mut gs_adz,
+            &mut gs_ady,
+            &mut gs_adx,
+            &mut gs_step_z,
+            &mut gs_step_y,
+            &mut gs_step_x,
+            &mut gs_comp_z,
+            &mut gs_comp_y,
+            &mut gs_comp_x,
         );
-        let warped = warp_image(moving, dims, &dz, &dy, &dx);
+        warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
         let final_mse: f64 = warped
             .iter()
             .zip(fixed.iter())

@@ -16,6 +16,7 @@
 //! # References
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -40,12 +41,8 @@ impl LabelDilation {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("LabelDilation requires f32 data: {:?}", e))?;
-        let result = dilate_labels(vals, dims, self.radius);
+        let (vals, dims) = extract_vec(image)?;
+        let result = dilate_labels(&vals, dims, self.radius);
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
         Ok(Image::new(
@@ -135,12 +132,8 @@ impl LabelErosion {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("LabelErosion requires f32 data: {:?}", e))?;
-        let result = erode_labels(vals, dims, self.radius);
+        let (vals, dims) = extract_vec(image)?;
+        let result = erode_labels(&vals, dims, self.radius);
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
         Ok(Image::new(
@@ -311,25 +304,15 @@ impl MorphologicalReconstruction {
         marker: &Image<B, 3>,
         mask: &Image<B, 3>,
     ) -> anyhow::Result<Image<B, 3>> {
-        let marker_dims = marker.shape();
-        let mask_dims = mask.shape();
-        if marker_dims != mask_dims {
+        let (marker_vals, dims) = extract_vec(marker)?;
+        let (mask_vals, mask_dims) = extract_vec(mask)?;
+        if dims != mask_dims {
             anyhow::bail!(
                 "MorphologicalReconstruction: marker shape {:?} != mask shape {:?}",
-                marker_dims,
+                dims,
                 mask_dims
             );
         }
-        let dims = marker_dims;
-
-        let md = marker.data().clone().into_data();
-        let id_ = mask.data().clone().into_data();
-        let marker_vals = md
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("marker: {:?}", e))?;
-        let mask_vals = id_
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("mask: {:?}", e))?;
 
         // Clamp marker to enforce M <= I (dilation) or M >= I (erosion)
         let mut current: Vec<f32> = match self.mode {
@@ -372,9 +355,7 @@ impl MorphologicalReconstruction {
                 .zip(next.iter())
                 .map(|(&a, &b)| (a - b).abs())
                 .fold(0.0f32, f32::max);
-
             current = next;
-
             if max_delta < 1e-5 {
                 break;
             }

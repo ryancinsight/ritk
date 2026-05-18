@@ -14,10 +14,10 @@ mod centroid;
 mod error;
 mod kabsch;
 mod rigid;
-mod transform;
-mod volume;
 #[cfg(test)]
 mod tests;
+mod transform;
+mod volume;
 
 /// Shared step-size constants used by both rigid and affine perturbation modules.
 pub(super) const EULER_STEP: f64 = 0.01;
@@ -27,9 +27,9 @@ pub(super) const SCALE_STEP: f64 = 0.02;
 pub use error::SpatialError;
 pub use transform::SpatialTransform;
 
+pub(crate) use affine::{apply_affine_perturbation, generate_affine_perturbations};
 pub(crate) use centroid::{center_points, compute_centroid};
 pub(crate) use kabsch::{compute_fre, kabsch_algorithm};
 pub(crate) use rigid::{apply_transform_perturbation, generate_transform_perturbations};
-pub(crate) use affine::{apply_affine_perturbation, generate_affine_perturbations};
 pub(crate) use transform::{build_homogeneous_matrix, extract_spatial_transform};
 pub use volume::apply_transform;

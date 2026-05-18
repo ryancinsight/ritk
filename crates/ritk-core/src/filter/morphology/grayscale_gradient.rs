@@ -41,6 +41,7 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §4.3.
 //! - ITK `itk::GrayscaleMorphologicalGradientImageFilter`.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -93,18 +94,7 @@ impl GrayscaleMorphologicalGradientFilter {
     /// Returns an error if the image data cannot be converted to `f32` (only
     /// possible with non-f32 backends).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let vals = image
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| {
-                anyhow::anyhow!(
-                    "GrayscaleMorphologicalGradientFilter requires f32 data: {:?}",
-                    e
-                )
-            })?;
+        let (vals, dims) = extract_vec(image)?;
 
         let dilated = dilate_3d(&vals, dims, self.radius);
         let eroded = erode_3d(&vals, dims, self.radius);
@@ -153,7 +143,7 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
     /// Constant image → gradient = 0 everywhere.

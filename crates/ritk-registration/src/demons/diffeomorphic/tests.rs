@@ -1,8 +1,8 @@
 //! Unit tests for Diffeomorphic Demons registration.
 
 use super::registration::DiffeomorphicDemonsRegistration;
-use crate::demons::config::DemonsConfig;
 use crate::deformable_field_ops::compose_fields;
+use crate::demons::config::DemonsConfig;
 
 fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -208,8 +208,7 @@ fn exact_inverse_composes_to_near_identity() {
     let mut mean_err = 0.0_f64;
 
     for i in 0..n {
-        let err =
-            (comp_z[i] * comp_z[i] + comp_y[i] * comp_y[i] + comp_x[i] * comp_x[i]).sqrt();
+        let err = (comp_z[i] * comp_z[i] + comp_y[i] * comp_y[i] + comp_x[i] * comp_x[i]).sqrt();
         max_err = max_err.max(err);
         mean_err += err as f64;
     }

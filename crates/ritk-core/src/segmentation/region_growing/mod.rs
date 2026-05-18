@@ -10,9 +10,10 @@
 
 pub mod confidence_connected;
 pub mod neighborhood_connected;
-
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+
 pub use confidence_connected::{confidence_connected, ConfidenceConnectedFilter};
 pub use neighborhood_connected::{neighborhood_connected, NeighborhoodConnectedFilter};
 use std::collections::VecDeque;
@@ -89,8 +90,8 @@ pub fn connected_threshold<B: Backend>(
     );
 
     let device = image.data().device();
-    let img_data = image.data().clone().into_data();
-    let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+    let (img_slice_vec, _) = extract_vec_infallible(image);
+    let img_slice: &[f32] = &img_slice_vec;
 
     let result = flood_fill(img_slice, shape, seed, lower, upper);
 

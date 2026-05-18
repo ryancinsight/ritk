@@ -10,6 +10,7 @@
 //! O(n · (2r+1)^D) where n = total voxels, r = radius, D = image dimension.
 
 use super::MorphologicalOperation;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -63,7 +64,6 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
 ) -> Image<B, D> {
     let shape: [usize; D] = mask.shape();
     let total: usize = shape.iter().product();
-
     // Compute row-major strides.
     let mut strides = [0usize; D];
     let mut s = 1usize;
@@ -71,11 +71,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
         strides[i] = s;
         s = s.saturating_mul(shape[i]);
     }
-
-    let input_data = mask.data().clone().into_data();
-    let input_vals = input_data
-        .as_slice::<f32>()
-        .expect("mask tensor must hold f32 values");
+    let (input_vals, _shape) = extract_vec_infallible(mask);
 
     let mut output = vec![0.0f32; total];
     let r = radius as isize;
@@ -89,7 +85,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
             rem %= strides[i];
         }
 
-        let result = scan_neighborhood::<D>(input_vals, &coords, &shape, &strides, r, is_erosion);
+        let result = scan_neighborhood::<D>(&input_vals, &coords, &shape, &strides, r, is_erosion);
         *out = if result { 1.0 } else { 0.0 };
     }
 

@@ -226,13 +226,7 @@ fn test_mri_dir_mri_series_metadata() {
     assert!(shape[2] >= 64, "expected ≥64 columns, got {}", shape[2]);
 
     // ── Non-trivial intensity range ───────────────────────────────────────
-    let voxels: Vec<f32> = image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("MRI tensor must contain f32 data")
-        .to_vec();
+    let voxels: Vec<f32> = image.data_vec();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -296,13 +290,7 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
         .expect("CT DICOM series must load for registration test");
 
     let full_shape = image.shape();
-    let raw_data: Vec<f32> = image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("CT tensor must contain f32 data")
-        .to_vec();
+    let raw_data: Vec<f32> = image.data_vec();
 
     // Downsample to ≈26×32×32 with stride = 16.
     let (ds_data, ds_dims) = downsample_stride(&raw_data, full_shape, 16);
@@ -403,20 +391,8 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     let (mri_img, _mri_meta) = read_dicom_series_with_metadata::<B, _>(&mri_dir, &device)
         .expect("MRI DICOM series must load");
 
-    let ct_raw: Vec<f32> = ct_img
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("CT tensor must contain f32 data")
-        .to_vec();
-    let mri_raw: Vec<f32> = mri_img
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("MRI tensor must contain f32 data")
-        .to_vec();
+    let ct_raw: Vec<f32> = ct_img.data_vec();
+    let mri_raw: Vec<f32> = mri_img.data_vec();
 
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();

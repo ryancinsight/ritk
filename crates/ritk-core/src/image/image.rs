@@ -4,6 +4,7 @@
 //! with tensor data and physical space metadata (origin, spacing, direction).
 
 use crate::spatial::{Direction, Point, Spacing};
+use anyhow::anyhow;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
@@ -81,6 +82,43 @@ impl<B: Backend, const D: usize> Image<B, D> {
     /// Returns `(tensor, origin, spacing, direction)`.
     pub fn into_parts(self) -> (Tensor<B, D>, Point<D>, Spacing<D>, Direction<D>) {
         (self.data, self.origin, self.spacing, self.direction)
+    }
+
+    /// Extract the underlying f32 tensor data as a `Vec<f32>`.
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    #[inline]
+    pub fn data_vec(&self) -> Vec<f32> {
+        self.data
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .expect("Image::data_vec requires f32 backend tensor")
+    }
+
+    /// Extract the underlying f32 tensor data, propagating dtype errors.
+    pub fn try_data_vec(&self) -> anyhow::Result<Vec<f32>> {
+        self.data
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .map_err(|e| anyhow!("image data is not f32: {:?}", e))
+    }
+
+    /// Provide a `&[f32]` view of the image data to a closure without
+    /// allocating a `Vec`.
+    ///
+    /// Use this when only a read-only slice is needed and the caller does
+    /// not require error propagation (returns `Ok`-wrapped values).
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    #[inline]
+    pub fn with_data_slice<R>(&self, f: impl FnOnce(&[f32]) -> R) -> R {
+        let data = self.data.clone().into_data();
+        let slice = data.as_slice::<f32>().unwrap();
+        f(slice)
     }
 }
 

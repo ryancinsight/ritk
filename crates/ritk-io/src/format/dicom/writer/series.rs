@@ -2,7 +2,7 @@ use super::utils::{
     ensure_series_directory, generate_instance_uid, generate_series_uid,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -21,10 +21,9 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 
     let series_uid = generate_series_uid();
     let study_uid = series_uid.clone();
     let series_instance_uid = format!("{}.1", series_uid);
-    let td = image.data().clone().into_data();
-    let all_data: &[f32] = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("image tensor must contain f32 data: {:?}", e))?;
+    let all_data = image
+        .try_data_vec()
+        .context("DICOM series writer requires f32 image data")?;
     let slice_len = rows * cols;
     for z in 0..depth {
         let slice_offset = z * slice_len;

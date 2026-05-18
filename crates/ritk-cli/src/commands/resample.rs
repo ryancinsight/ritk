@@ -10,7 +10,9 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use clap;
 use ritk_core::filter::resample::ResampleImageFilter;
 use ritk_core::interpolation::linear::LinearInterpolator;
-use ritk_core::interpolation::{BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator};
+use ritk_core::interpolation::{
+    BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator,
+};
 use ritk_core::transform::translation::TranslationTransform;
 use std::path::PathBuf;
 use tracing::info;
@@ -34,20 +36,40 @@ pub struct ResampleArgs {
 
 /// Execute the `resample` subcommand.
 pub fn run(args: ResampleArgs) -> Result<()> {
-    info!("resample: starting input={} output={} spacing={} interpolation={}", args.input.display(), args.output.display(), args.spacing, args.interpolation);
+    info!(
+        "resample: starting input={} output={} spacing={} interpolation={}",
+        args.input.display(),
+        args.output.display(),
+        args.spacing,
+        args.interpolation
+    );
 
     let parts: Vec<&str> = args.spacing.split(',').collect();
     if parts.len() != 3 {
-        bail!("spacing must be sz,sy,sx (3 comma-separated values), got '{}'", args.spacing);
+        bail!(
+            "spacing must be sz,sy,sx (3 comma-separated values), got '{}'",
+            args.spacing
+        );
     }
-    let new_sz: f64 = parts[0].trim().parse()
+    let new_sz: f64 = parts[0]
+        .trim()
+        .parse()
         .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[0].trim()))?;
-    let new_sy: f64 = parts[1].trim().parse()
+    let new_sy: f64 = parts[1]
+        .trim()
+        .parse()
         .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[1].trim()))?;
-    let new_sx: f64 = parts[2].trim().parse()
+    let new_sx: f64 = parts[2]
+        .trim()
+        .parse()
         .map_err(|_| anyhow::anyhow!("Invalid spacing value: '{}'", parts[2].trim()))?;
     if new_sz <= 0.0 || new_sy <= 0.0 || new_sx <= 0.0 {
-        bail!("spacing values must be positive, got {},{},{}", new_sz, new_sy, new_sx);
+        bail!(
+            "spacing values must be positive, got {},{},{}",
+            new_sz,
+            new_sy,
+            new_sx
+        );
     }
 
     let image = read_image(&args.input)?;
@@ -56,34 +78,59 @@ pub fn run(args: ResampleArgs) -> Result<()> {
     let orig_origin = *image.origin();
     let orig_dir = *image.direction();
 
-    let new_nz = ((orig_dims[0] as f64 * orig_spacing[0]) / new_sz).round().max(1.0) as usize;
-    let new_ny = ((orig_dims[1] as f64 * orig_spacing[1]) / new_sy).round().max(1.0) as usize;
-    let new_nx = ((orig_dims[2] as f64 * orig_spacing[2]) / new_sx).round().max(1.0) as usize;
+    let new_nz = ((orig_dims[0] as f64 * orig_spacing[0]) / new_sz)
+        .round()
+        .max(1.0) as usize;
+    let new_ny = ((orig_dims[1] as f64 * orig_spacing[1]) / new_sy)
+        .round()
+        .max(1.0) as usize;
+    let new_nx = ((orig_dims[2] as f64 * orig_spacing[2]) / new_sx)
+        .round()
+        .max(1.0) as usize;
 
     use ritk_core::spatial::Spacing;
     let new_spacing = Spacing::new([new_sz, new_sy, new_sx]);
     let device: <Backend as BurnBackend>::Device = Default::default();
-    let zero_t = Tensor::<Backend, 1>::from_data(
-        TensorData::new(vec![0.0f32; 3], Shape::new([3])), &device,
-    );
+    let zero_t =
+        Tensor::<Backend, 1>::from_data(TensorData::new(vec![0.0f32; 3], Shape::new([3])), &device);
 
     let result = match args.interpolation.as_str() {
         "nearest" => ResampleImageFilter::new(
-            [new_nz, new_ny, new_nx], orig_origin, new_spacing, orig_dir,
-            TranslationTransform::<Backend, 3>::new(zero_t), NearestNeighborInterpolator::new(),
-        ).apply(&image),
+            [new_nz, new_ny, new_nx],
+            orig_origin,
+            new_spacing,
+            orig_dir,
+            TranslationTransform::<Backend, 3>::new(zero_t),
+            NearestNeighborInterpolator::new(),
+        )
+        .apply(&image),
         "linear" => ResampleImageFilter::new(
-            [new_nz, new_ny, new_nx], orig_origin, new_spacing, orig_dir,
-            TranslationTransform::<Backend, 3>::new(zero_t), LinearInterpolator::new(),
-        ).apply(&image),
+            [new_nz, new_ny, new_nx],
+            orig_origin,
+            new_spacing,
+            orig_dir,
+            TranslationTransform::<Backend, 3>::new(zero_t),
+            LinearInterpolator::new(),
+        )
+        .apply(&image),
         "bspline" => ResampleImageFilter::new(
-            [new_nz, new_ny, new_nx], orig_origin, new_spacing, orig_dir,
-            TranslationTransform::<Backend, 3>::new(zero_t), BSplineInterpolator::new(),
-        ).apply(&image),
+            [new_nz, new_ny, new_nx],
+            orig_origin,
+            new_spacing,
+            orig_dir,
+            TranslationTransform::<Backend, 3>::new(zero_t),
+            BSplineInterpolator::new(),
+        )
+        .apply(&image),
         "lanczos4" => ResampleImageFilter::new(
-            [new_nz, new_ny, new_nx], orig_origin, new_spacing, orig_dir,
-            TranslationTransform::<Backend, 3>::new(zero_t), Lanczos4Interpolator::new(),
-        ).apply(&image),
+            [new_nz, new_ny, new_nx],
+            orig_origin,
+            new_spacing,
+            orig_dir,
+            TranslationTransform::<Backend, 3>::new(zero_t),
+            Lanczos4Interpolator::new(),
+        )
+        .apply(&image),
         other => bail!(
             "Unknown interpolation mode '{}'..Accepted: nearest, linear, bspline, lanczos4",
             other
@@ -91,7 +138,10 @@ pub fn run(args: ResampleArgs) -> Result<()> {
     };
 
     write_image_inferred(&args.output, &result)?;
-    info!(new_size = format!("[{new_nz},{new_ny},{new_nx}]"), "resample: complete");
+    info!(
+        new_size = format!("[{new_nz},{new_ny},{new_nx}]"),
+        "resample: complete"
+    );
     Ok(())
 }
 
@@ -107,7 +157,12 @@ mod tests {
         let dev: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(data, Shape::new(shape));
         let t = Tensor::<Backend, 3>::from_data(td, &dev);
-        let img = Image::new(t, Point::new([0.0; 3]), Spacing::new(sp), Direction::identity());
+        let img = Image::new(
+            t,
+            Point::new([0.0; 3]),
+            Spacing::new(sp),
+            Direction::identity(),
+        );
         ritk_io::write_nifti::<Backend, _>(path, &img).expect("write ok");
     }
 
@@ -118,8 +173,10 @@ mod tests {
         let output = dir.path().join("out.nii");
         write_test_nifti(&input, vec![1.0f32; 64], [4, 4, 4], [1.0, 1.0, 1.0]);
         let args = ResampleArgs {
-            input: input.clone(), output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(), interpolation: "linear".to_string(),
+            input: input.clone(),
+            output: output.clone(),
+            spacing: "1.0,1.0,1.0".to_string(),
+            interpolation: "linear".to_string(),
         };
         run(args).expect("resample must succeed");
         assert!(output.exists());
@@ -149,12 +206,18 @@ mod tests {
         );
         ritk_io::write_nrrd::<Backend, _>(&input, &img).expect("write_nrrd must succeed");
         let args = ResampleArgs {
-            input: input.clone(), output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(), interpolation: "linear".to_string(),
+            input: input.clone(),
+            output: output.clone(),
+            spacing: "1.0,1.0,1.0".to_string(),
+            interpolation: "linear".to_string(),
         };
         run(args).unwrap();
         let loaded = ritk_io::read_nrrd::<Backend, _>(&output, &dev).unwrap();
-        assert_eq!(loaded.shape(), [8, 8, 8], "halving spacing must double voxel count");
+        assert_eq!(
+            loaded.shape(),
+            [8, 8, 8],
+            "halving spacing must double voxel count"
+        );
     }
 
     #[test]
@@ -164,16 +227,20 @@ mod tests {
         let output = dir.path().join("out.nii");
         write_test_nifti(&input, vec![5.0f32; 27], [3, 3, 3], [1.0, 1.0, 1.0]);
         let args = ResampleArgs {
-            input, output: output.clone(),
-            spacing: "1.0,1.0,1.0".to_string(), interpolation: "nearest".to_string(),
+            input,
+            output: output.clone(),
+            spacing: "1.0,1.0,1.0".to_string(),
+            interpolation: "nearest".to_string(),
         };
         run(args).unwrap();
         let dev: <Backend as BurnBackend>::Device = Default::default();
         let loaded = ritk_io::read_nifti::<Backend, _>(&output, &dev).unwrap();
-        let vals: Vec<f32> = loaded.data().clone().into_data()
-            .as_slice::<f32>().unwrap().to_vec();
+        let vals = loaded.data_vec();
         for &v in &vals {
-            assert!((v - 5.0).abs() < 1e-3, "constant image must stay constant, got {v}");
+            assert!(
+                (v - 5.0).abs() < 1e-3,
+                "constant image must stay constant, got {v}"
+            );
         }
     }
 
@@ -184,12 +251,17 @@ mod tests {
         let output = dir.path().join("out.nii");
         write_test_nifti(&input, vec![0.0f32; 8], [2, 2, 2], [1.0, 1.0, 1.0]);
         let args = ResampleArgs {
-            input, output,
-            spacing: "1.0,1.0,1.0".to_string(), interpolation: "cubic".to_string(),
+            input,
+            output,
+            spacing: "1.0,1.0,1.0".to_string(),
+            interpolation: "cubic".to_string(),
         };
         let result = run(args);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unknown interpolation mode"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unknown interpolation mode"));
     }
 
     #[test]
@@ -199,8 +271,10 @@ mod tests {
         let output = dir.path().join("out.nii");
         write_test_nifti(&input, vec![0.0f32; 8], [2, 2, 2], [1.0, 1.0, 1.0]);
         let args = ResampleArgs {
-            input, output,
-            spacing: "1.0,2.0".to_string(), interpolation: "linear".to_string(),
+            input,
+            output,
+            spacing: "1.0,2.0".to_string(),
+            interpolation: "linear".to_string(),
         };
         let result = run(args);
         assert!(result.is_err());

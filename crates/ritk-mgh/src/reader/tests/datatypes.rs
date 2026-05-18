@@ -29,16 +29,16 @@ fn test_read_f32_data() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 2, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), values.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "f32 voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), values.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "f32 voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -62,15 +62,15 @@ fn test_read_u8_data() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 3, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), expected.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(
-            got, expected,
-            "u8 voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), expected.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
+            assert_eq!(
+                got, expected,
+                "u8 voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -100,15 +100,15 @@ fn test_read_i16_data() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 3, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), expected.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(
-            got, expected,
-            "i16 voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), expected.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
+            assert_eq!(
+                got, expected,
+                "i16 voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -139,14 +139,14 @@ fn test_read_i32_data() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 3, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), expected.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(
-            got, expected,
-            "i32 voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), expected.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
+            assert_eq!(
+                got, expected,
+                "i32 voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }

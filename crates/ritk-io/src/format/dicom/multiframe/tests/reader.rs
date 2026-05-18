@@ -309,28 +309,27 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
     assert_eq!(lr, rows as usize, "shape[1] must equal rows");
     assert_eq!(lc, cols as usize, "shape[2] must equal cols");
 
-    let td = img.data().clone().into_data();
-    let floats: &[f32] = td.as_slice::<f32>().expect("f32 slice");
-    assert_eq!(
-        floats.len(),
-        n_frames * (rows as usize) * (cols as usize),
-        "total pixel count mismatch"
-    );
-
-    // Verify each frame independently.
-    let frame_size = (rows * cols) as usize;
-    for (f_idx, orig_frame) in original.iter().enumerate() {
-        let decoded_frame = &floats[f_idx * frame_size..(f_idx + 1) * frame_size];
-        let max_error = orig_frame
-            .iter()
-            .zip(decoded_frame.iter())
-            .map(|(&o, &d)| (o as f32 - d).abs())
-            .fold(0.0f32, f32::max);
-        assert!(
-            max_error <= 8.0,
-            "frame {f_idx}: codec round-trip error {max_error} exceeds JPEG tolerance 8.0"
+    img.with_data_slice(|floats: &[f32]| {
+        assert_eq!(
+            floats.len(),
+            n_frames * (rows as usize) * (cols as usize),
+            "total pixel count mismatch"
         );
-    }
+        // Verify each frame independently.
+        let frame_size = (rows * cols) as usize;
+        for (f_idx, orig_frame) in original.iter().enumerate() {
+            let decoded_frame = &floats[f_idx * frame_size..(f_idx + 1) * frame_size];
+            let max_error = orig_frame
+                .iter()
+                .zip(decoded_frame.iter())
+                .map(|(&o, &d)| (o as f32 - d).abs())
+                .fold(0.0f32, f32::max);
+            assert!(
+                max_error <= 8.0,
+                "frame {f_idx}: codec round-trip error {max_error} exceeds JPEG tolerance 8.0"
+            );
+        }
+    });
 }
 
 #[test]
@@ -407,18 +406,17 @@ fn test_load_multiframe_signed_i16_roundtrip() {
     assert_eq!(rows, 2, "rows");
     assert_eq!(cols, 2, "cols");
 
-    let td = loaded.data().clone().into_data();
-    let result: &[f32] = td.as_slice::<f32>().expect("f32 slice");
-    assert_eq!(result.len(), 4, "pixel count");
-
-    // Analytical ground truth: i16 × 1.0 + 0.0
-    let expected = [-1000.0_f32, 0.0, 1000.0, 2000.0];
-    for (i, (&got, &exp)) in result.iter().zip(expected.iter()).enumerate() {
-        assert!(
-            (got - exp).abs() < 0.5,
-            "pixel {i}: expected {exp:.1} got {got:.1}"
-        );
-    }
+    loaded.with_data_slice(|result: &[f32]| {
+        assert_eq!(result.len(), 4, "pixel count");
+        // Analytical ground truth: i16 × 1.0 + 0.0
+        let expected = [-1000.0_f32, 0.0, 1000.0, 2000.0];
+        for (i, (&got, &exp)) in result.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (got - exp).abs() < 0.5,
+                "pixel {i}: expected {exp:.1} got {got:.1}"
+            );
+        }
+    });
 }
 
 #[test]

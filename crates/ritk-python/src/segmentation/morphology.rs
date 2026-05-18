@@ -129,11 +129,7 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
 ///     Binary boundary mask, same shape and spatial metadata as input.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn morphological_gradient(
-    py: Python<'_>,
-    image: &PyImage,
-    radius: usize,
-) -> PyResult<PyImage> {
+pub fn morphological_gradient(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
     let inner = Arc::clone(&image.inner);
     let result = py.allow_threads(move || MorphologicalGradient::new(radius).apply(inner.as_ref()));
     Ok(into_py_image(result))

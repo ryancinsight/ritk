@@ -123,7 +123,8 @@ mod tests {
         assert_eq!(loaded.shape(), [2, 2, 3]);
         assert_eq!(*loaded.spacing(), Spacing::new([0.5, 0.75, 1.25]));
         assert_eq!(*loaded.origin(), Point::new([1.0, 2.0, 3.0]));
-        let loaded_data = loaded.data().clone().to_data();
-        assert_eq!(loaded_data.as_slice::<f32>().unwrap(), values.as_slice());
+        loaded.with_data_slice(|loaded_vals| {
+            assert_eq!(loaded_vals, values.as_slice());
+        });
     }
 }

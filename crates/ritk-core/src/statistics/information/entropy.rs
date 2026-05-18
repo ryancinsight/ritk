@@ -12,10 +12,10 @@ use anyhow::{bail, Result};
 /// Both values equal 0.0 when `data` is empty (caller must validate length).
 #[inline]
 pub(super) fn min_max(data: &[f32]) -> (f32, f32) {
-    data.iter().fold(
-        (f32::INFINITY, f32::NEG_INFINITY),
-        |(mn, mx), &v| (mn.min(v), mx.max(v)),
-    )
+    data.iter()
+        .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), &v| {
+            (mn.min(v), mx.max(v))
+        })
 }
 
 /// Bin `data` into `num_bins` uniform bins and return the normalized histogram.
@@ -30,8 +30,7 @@ fn build_marginal_hist(data: &[f32], num_bins: usize) -> Vec<f64> {
     let total = data.len() as f64;
     let mut hist = vec![0.0_f64; num_bins];
     for &v in data {
-        let bin = ((v as f64 - mn as f64) * scale)
-            .clamp(0.0, (num_bins - 1) as f64) as usize;
+        let bin = ((v as f64 - mn as f64) * scale).clamp(0.0, (num_bins - 1) as f64) as usize;
         hist[bin] += 1.0;
     }
     for p in hist.iter_mut() {
@@ -81,8 +80,16 @@ pub fn joint_entropy(a: &[f32], b: &[f32], num_bins: usize) -> Result<f64> {
     let (b_min, b_max) = min_max(b);
     let a_range = (a_max - a_min) as f64;
     let b_range = (b_max - b_min) as f64;
-    let scale_a = if a_range < f64::EPSILON { 0.0 } else { (num_bins - 1) as f64 / a_range };
-    let scale_b = if b_range < f64::EPSILON { 0.0 } else { (num_bins - 1) as f64 / b_range };
+    let scale_a = if a_range < f64::EPSILON {
+        0.0
+    } else {
+        (num_bins - 1) as f64 / a_range
+    };
+    let scale_b = if b_range < f64::EPSILON {
+        0.0
+    } else {
+        (num_bins - 1) as f64 / b_range
+    };
     let total = a.len() as f64;
     let mut joint = vec![0.0_f64; num_bins * num_bins];
     for (&ai, &bi) in a.iter().zip(b.iter()) {
@@ -112,14 +119,21 @@ pub fn build_joint_hist_n(channels: &[&[f32]], num_bins: usize) -> Result<Vec<f6
     }
     for (i, ch) in channels.iter().enumerate() {
         if ch.len() != len {
-            bail!("channel {} length {} != channel 0 length {}", i, ch.len(), len);
+            bail!(
+                "channel {} length {} != channel 0 length {}",
+                i,
+                ch.len(),
+                len
+            );
         }
     }
     let joint_size = num_bins.saturating_pow(n as u32);
     if joint_size > 4_194_304 {
         bail!(
             "joint histogram {}^{} = {} exceeds 4_194_304 limit; reduce num_bins or n",
-            num_bins, n, joint_size
+            num_bins,
+            n,
+            joint_size
         );
     }
     let ranges: Vec<(f32, f32)> = channels.iter().map(|ch| min_max(ch)).collect();
@@ -130,7 +144,11 @@ pub fn build_joint_hist_n(channels: &[&[f32]], num_bins: usize) -> Result<Vec<f6
         for (ch_idx, ch) in channels.iter().enumerate() {
             let (mn, mx) = ranges[ch_idx];
             let range = (mx - mn) as f64;
-            let scale = if range < f64::EPSILON { 0.0 } else { (num_bins - 1) as f64 / range };
+            let scale = if range < f64::EPSILON {
+                0.0
+            } else {
+                (num_bins - 1) as f64 / range
+            };
             let bin = ((ch[sample_idx] as f64 - mn as f64) * scale)
                 .clamp(0.0, (num_bins - 1) as f64) as usize;
             idx = idx * num_bins + bin;
@@ -157,21 +175,28 @@ pub fn joint_entropy_n(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
 
 /// Marginalize an N-dimensional histogram by summing over a specified axis.
 /// The resulting histogram has N-1 dimensions.
-pub fn marginalize_hist(hist: &[f64], num_bins: usize, current_n: usize, axis_to_drop: usize) -> Vec<f64> {
+pub fn marginalize_hist(
+    hist: &[f64],
+    num_bins: usize,
+    current_n: usize,
+    axis_to_drop: usize,
+) -> Vec<f64> {
     let out_size = num_bins.pow((current_n - 1) as u32);
     let mut out = vec![0.0_f64; out_size];
-    
+
     for (idx, &p) in hist.iter().enumerate() {
-        if p == 0.0 { continue; }
-        
+        if p == 0.0 {
+            continue;
+        }
+
         let mut out_idx = 0;
         let mut out_multiplier = 1;
         let mut temp_idx = idx;
-        
+
         for d in (0..current_n).rev() {
             let coord = temp_idx % num_bins;
             temp_idx /= num_bins;
-            
+
             if d != axis_to_drop {
                 out_idx += coord * out_multiplier;
                 out_multiplier *= num_bins;

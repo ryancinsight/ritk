@@ -1,6 +1,6 @@
 use super::state::ProjectionMode;
 use super::state::SnapApp;
-use crate::render::mip_vr::{render_mip_axial, render_vr_axial};
+use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
 use crate::ui::apply_to_image;
 
@@ -23,7 +23,14 @@ impl SnapApp {
                 1 => "slice_tex_coronal",
                 _ => "slice_tex_sagittal",
             };
-            let img = SliceRenderer::render(vol, axis, slice_index, wl, self.colormap);
+            let img = SliceRenderer::render_with_scratch(
+                &mut self.render_buffer_pool,
+                vol,
+                axis,
+                slice_index,
+                wl,
+                self.colormap,
+            );
             // Apply viewport orientation transform (flip/rotate) before GPU upload.
             let img = apply_to_image(&img, self.view_transform);
             (img, name)
@@ -47,8 +54,19 @@ impl SnapApp {
             let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
             match self.projection_mode {
-                ProjectionMode::Mip => render_mip_axial(vol, wl, self.colormap),
-                ProjectionMode::Vr => render_vr_axial(vol, wl, self.colormap, 0.06),
+                ProjectionMode::Mip => render_mip_axial_with_scratch(
+                    &mut self.render_buffer_pool.rgba_u8,
+                    vol,
+                    wl,
+                    self.colormap,
+                ),
+                ProjectionMode::Vr => render_vr_axial_with_scratch(
+                    &mut self.render_buffer_pool.rgba_u8,
+                    vol,
+                    wl,
+                    self.colormap,
+                    0.06,
+                ),
             }
         };
         self.mip_tex = Some(ctx.load_texture(
@@ -87,8 +105,7 @@ impl SnapApp {
         let s = fit_scale * self.zoom;
         let display_size = egui::vec2(tex_w * s, tex_h * s);
 
-        let image_widget =
-            egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size));
+        let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size));
         let response = ui.add(image_widget);
 
         let painter = ui.painter_at(response.rect);
@@ -144,7 +161,14 @@ impl SnapApp {
                 axis.min(2),
                 slice_index
             );
-            let img = SliceRenderer::render(vol, axis, slice_index, wl, self.secondary_colormap);
+            let img = SliceRenderer::render_with_scratch(
+                &mut self.render_buffer_pool,
+                vol,
+                axis,
+                slice_index,
+                wl,
+                self.secondary_colormap,
+            );
             let img = apply_to_image(&img, self.view_transform);
             (img, name)
         };

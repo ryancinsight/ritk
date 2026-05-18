@@ -40,6 +40,7 @@
 //!
 //!   t_intensity = x_min + t / (N − 1) · (x_max − x_min)
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -193,10 +194,8 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
     num_classes: usize,
     num_bins: usize,
 ) -> Vec<f32> {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
+    let (vals, _) = extract_vec_infallible(image);
+    let slice: &[f32] = &vals;
     compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins)
 }
 
@@ -322,9 +321,8 @@ fn apply_multi_otsu_labels<B: Backend, const D: usize>(
 ) -> Image<B, D> {
     let device = image.data().device();
     let shape: [usize; D] = image.shape();
-
-    let img_data = image.data().clone().into_data();
-    let slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+    let (img_vals, _shape) = extract_vec_infallible(image);
+    let slice: &[f32] = &img_vals;
 
     let output: Vec<f32> = slice
         .iter()

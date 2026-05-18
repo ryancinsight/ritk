@@ -73,9 +73,15 @@ pub(crate) fn compute_fre(
     translation: &[f64; 3],
 ) -> f64 {
     let r = Matrix3::new(
-        rotation[0], rotation[1], rotation[2],
-        rotation[3], rotation[4], rotation[5],
-        rotation[6], rotation[7], rotation[8],
+        rotation[0],
+        rotation[1],
+        rotation[2],
+        rotation[3],
+        rotation[4],
+        rotation[5],
+        rotation[6],
+        rotation[7],
+        rotation[8],
     );
     let t = Vector3::new(translation[0], translation[1], translation[2]);
 

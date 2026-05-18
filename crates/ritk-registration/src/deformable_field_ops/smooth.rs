@@ -93,18 +93,32 @@ pub(crate) fn gaussian_smooth_inplace(data: &mut Vec<f32>, dims: [usize; 3], sig
     if sigma <= 0.0 {
         return;
     }
-    let kernel = gaussian_kernel_1d(sigma);
     let n = data.len();
     let mut tmp = vec![0.0_f32; n];
+    gaussian_smooth_with_scratch(data.as_mut_slice(), dims, sigma, &mut tmp);
+}
 
-    convolve_z(data, dims, &kernel, &mut tmp);
-    std::mem::swap(data, &mut tmp);
-
-    convolve_y(data, dims, &kernel, &mut tmp);
-    std::mem::swap(data, &mut tmp);
-
-    convolve_x(data, dims, &kernel, &mut tmp);
-    std::mem::swap(data, &mut tmp);
+/// Apply separable 3-D Gaussian smoothing to `data` **in place** using a
+/// caller-provided scratch buffer.
+///
+/// Equivalent to [`gaussian_smooth_inplace`] but performs zero heap allocation.
+/// `scratch` must have the same length as `data`. A `sigma ≤ 0` is a no-op.
+pub(crate) fn gaussian_smooth_with_scratch(
+    data: &mut [f32],
+    dims: [usize; 3],
+    sigma: f64,
+    scratch: &mut [f32],
+) {
+    if sigma <= 0.0 {
+        return;
+    }
+    let kernel = gaussian_kernel_1d(sigma);
+    convolve_z(data, dims, &kernel, scratch);
+    data.copy_from_slice(scratch);
+    convolve_y(data, dims, &kernel, scratch);
+    data.copy_from_slice(scratch);
+    convolve_x(data, dims, &kernel, scratch);
+    data.copy_from_slice(scratch);
 }
 
 #[cfg(test)]
@@ -154,5 +168,25 @@ mod tests {
         let orig = data.clone();
         gaussian_smooth_inplace(&mut data, dims, 0.0);
         assert_eq!(data, orig, "zero sigma should leave data unchanged");
+    }
+
+    /// `gaussian_smooth_with_scratch` produces identical results to `gaussian_smooth_inplace`.
+    #[test]
+    fn gaussian_smooth_with_scratch_matches_inplace() {
+        let dims = [6usize, 6, 6];
+        let n = 6 * 6 * 6;
+        let mut data1: Vec<f32> = (0..n).map(|i| i as f32).collect();
+        let mut data2 = data1.clone();
+        let mut scratch = vec![0.0_f32; n];
+        gaussian_smooth_inplace(&mut data1, dims, 1.5);
+        gaussian_smooth_with_scratch(&mut data2, dims, 1.5, &mut scratch);
+        for i in 0..n {
+            assert!(
+                (data1[i] - data2[i]).abs() < 1e-6,
+                "mismatch at {i}: inplace={}, scratch={}",
+                data1[i],
+                data2[i]
+            );
+        }
     }
 }

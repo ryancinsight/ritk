@@ -6,9 +6,9 @@ use ritk_core::segmentation::{
     MorphologicalOperation, Skeletonization,
 };
 
+use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
 use super::helpers::count_foreground;
-use super::super::{read_image, write_image_inferred};
 
 // ── K-Means clustering ────────────────────────────────────────────────────────
 

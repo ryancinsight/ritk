@@ -16,20 +16,18 @@
 //! | `LogImageFilter`             | `LogImageFilter`                   | Log                     |
 //! | `ExpImageFilter`             | `ExpImageFilter`                   | Exp                     |
 
-
-
 pub mod abs;
-pub mod invert;
-pub mod normalize;
-pub mod square;
-pub mod sqrt;
-pub mod log;
 pub mod exp;
+pub mod invert;
+pub mod log;
+pub mod normalize;
+pub mod sqrt;
+pub mod square;
 
 pub use abs::AbsImageFilter;
-pub use invert::InvertIntensityFilter;
-pub use normalize::NormalizeImageFilter;
-pub use square::SquareImageFilter;
-pub use sqrt::SqrtImageFilter;
-pub use log::LogImageFilter;
 pub use exp::ExpImageFilter;
+pub use invert::InvertIntensityFilter;
+pub use log::LogImageFilter;
+pub use normalize::NormalizeImageFilter;
+pub use sqrt::SqrtImageFilter;
+pub use square::SquareImageFilter;

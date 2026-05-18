@@ -174,8 +174,8 @@ fn test_read_external_highdicom_binary_seg_real_file() {
     assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
     assert_eq!(seg.frame_segment_numbers, vec![1, 1, 1]);
 
-    let rebuilt = dicom_seg_to_label_map(&seg)
-        .expect("rebuild label map from external highdicom binary SEG");
+    let rebuilt =
+        dicom_seg_to_label_map(&seg).expect("rebuild label map from external highdicom binary SEG");
     assert_eq!(rebuilt.shape, [3, 16, 16]);
     assert!(rebuilt.present_labels().contains(&1));
     assert!(

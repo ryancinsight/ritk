@@ -1,7 +1,7 @@
 //! Tests for marching_cubes
 //! Extracted to keep the 500-line structural limit.
-use super::*;
 use super::mc_tables::EDGE_TABLE;
+use super::*;
 use gaia::domain::core::index::VertexId;
 
 /// Collect all vertex positions as `Vec<[f64;3]>` via sequential VertexId.

@@ -24,16 +24,8 @@ pub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>)
     let path = path.as_ref();
 
     // ── Voxel data ────────────────────────────────────────────────────────
-    let tensor_data = image.data().clone().to_data();
-    let f32_slice = match tensor_data.as_slice::<f32>() {
-        Ok(s) => s,
-        Err(e) => {
-            return Err(anyhow::anyhow!(
-                "Failed to extract f32 slice from tensor data: {:?}",
-                e
-            ))
-        }
-    };
+    let f32_vec = image.try_data_vec()?;
+    let f32_slice: &[f32] = &f32_vec;
 
     // image.shape() is [nz, ny, nx] in RITK convention.
     // MetaImage DimSize is written in [nx, ny, nz] file-axis order.

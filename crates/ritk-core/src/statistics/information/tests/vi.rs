@@ -1,7 +1,7 @@
+use super::super::entropy::marginal_entropy;
 use super::super::variation_of_information::{
     multivariate_variation_of_information, variation_of_information,
 };
-use super::super::entropy::marginal_entropy;
 
 // ── variation_of_information tests ───────────────────────────────────────────
 
@@ -56,7 +56,8 @@ fn vi_bounded_above_by_sum_of_marginals() {
     let vi = variation_of_information(&a, &b, 8).unwrap();
     assert!(
         vi <= h_a + h_b + 1e-9,
-        "VI={vi:.6} must be ≤ H(X)+H(Y)={:.6}", h_a + h_b
+        "VI={vi:.6} must be ≤ H(X)+H(Y)={:.6}",
+        h_a + h_b
     );
 }
 
@@ -78,11 +79,8 @@ fn vi_rejects_empty() {
 fn mvi_identical_channels_is_zero() {
     // VI_n(X,X,X) = avg of VI(X,X) pairs = 0.
     let x: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
-    let mvi = multivariate_variation_of_information(
-        &[x.as_slice(), x.as_slice(), x.as_slice()],
-        8,
-    )
-    .unwrap();
+    let mvi = multivariate_variation_of_information(&[x.as_slice(), x.as_slice(), x.as_slice()], 8)
+        .unwrap();
     assert!(mvi.abs() < 1e-9, "MVI(X,X,X)={mvi:.10} must be 0");
 }
 

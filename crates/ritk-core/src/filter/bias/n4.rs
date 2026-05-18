@@ -25,11 +25,11 @@
 //!   Ĥ_sharp[k] = Ĥ[k] · Ĝ*[k] / (|Ĝ[k]|² + σ_noise²)
 //! followed by CDF-based quantile transfer from H_observed to H_sharp.
 
+use super::bspline_bias::{bspline_evaluate, bspline_fit};
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-
-use super::bspline_bias::{bspline_evaluate, bspline_fit};
 
 // ── Public types ───────────────────────────────────────────────────────────────
 
@@ -88,12 +88,7 @@ impl N4BiasFieldCorrectionFilter {
     /// B-spline normal equations are degenerate (protected by Tikhonov λ=1e-6).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         // ── 1. Extract CPU data ────────────────────────────────────────────
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?
-            .to_vec();
-        let shape = image.shape();
+        let (vals, shape) = extract_vec(image)?;
         let [nz, ny, nx] = shape;
         let n = nz * ny * nx;
         let dims = [nz, ny, nx];
@@ -105,6 +100,10 @@ impl N4BiasFieldCorrectionFilter {
         // ── 3. Multi-resolution bias estimation ────────────────────────────
         // b accumulates the log-bias field across all levels and iterations.
         let mut b = vec![0.0f32; n];
+        // Pre-allocated scratch buffers: reused across all iterations to eliminate
+        // O(iterations × 2) full-volume heap allocations per level.
+        let mut w = vec![0.0f32; n];
+        let mut r = vec![0.0f32; n];
 
         for level in 0..self.config.num_fitting_levels {
             // Control grid doubles each level; clamped to [4, n_d/2 + 2].
@@ -116,20 +115,24 @@ impl N4BiasFieldCorrectionFilter {
             });
 
             for _ in 0..self.config.num_iterations {
-                // Current debiased log-intensity estimate.
-                let w: Vec<f32> = (0..n).map(|i| v[i] - b[i]).collect();
+                // w = v − b (in-place into pre-allocated buffer)
+                for i in 0..n {
+                    w[i] = v[i] - b[i];
+                }
 
                 // Wiener-sharpened estimate of the "true" log-intensity
                 // distribution (removes Rician noise blurring of tissue peaks).
+                // w_sharp allocates internally (cannot be eliminated).
                 let w_sharp = histogram_sharpen(
                     &w,
                     self.config.num_histogram_bins,
                     self.config.noise_estimate,
                 )?;
 
-                // Residual captures the remaining low-frequency bias component
-                // not yet accounted for in b.
-                let r: Vec<f32> = (0..n).map(|i| w[i] - w_sharp[i]).collect();
+                // r = w − w_sharp (in-place into pre-allocated buffer)
+                for i in 0..n {
+                    r[i] = w[i] - w_sharp[i];
+                }
 
                 // Fit a smooth B-spline to the residual → bias correction Δb.
                 let ctrl = bspline_fit(&r, dims, cg, self.config.max_fitting_points)?;
@@ -153,10 +156,13 @@ impl N4BiasFieldCorrectionFilter {
         }
 
         // ── 4. Corrected image: exp(v − b) ─────────────────────────────────
-        let result_vals: Vec<f32> = (0..n).map(|i| (v[i] - b[i]).exp()).collect();
+        // Reuse w buffer for final output instead of allocating result_vals.
+        for i in 0..n {
+            w[i] = (v[i] - b[i]).exp();
+        }
 
         // ── 5. Reconstruct tensor ───────────────────────────────────────────
-        let td2 = TensorData::new(result_vals, Shape::new(shape));
+        let td2 = TensorData::new(w, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td2, &image.data().device());
 
         Ok(Image::new(

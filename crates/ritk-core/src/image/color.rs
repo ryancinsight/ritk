@@ -92,6 +92,31 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
     pub fn into_parts(self) -> (Tensor<B, 4>, Point<3>, Spacing<3>, Direction<3>) {
         (self.data, self.origin, self.spacing, self.direction)
     }
+
+    /// Extract the underlying f32 tensor data as a `Vec<f32>`.
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    #[inline]
+    pub fn data_vec(&self) -> Vec<f32> {
+        self.data
+            .clone()
+            .into_data()
+            .into_vec::<f32>()
+            .expect("ColorVolume::data_vec requires f32 backend tensor")
+    }
+
+    /// Provide a `&[f32]` view of the volume data to a closure without
+    /// allocating a `Vec`.
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    #[inline]
+    pub fn with_data_slice<R>(&self, f: impl FnOnce(&[f32]) -> R) -> R {
+        let data = self.data.clone().into_data();
+        let slice = data.as_slice::<f32>().unwrap();
+        f(slice)
+    }
 }
 
 #[cfg(test)]

@@ -1,3 +1,4 @@
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -44,10 +45,8 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
 ) -> Vec<Vec<f64>> {
     let shape: [usize; D] = mask.shape();
     let shape_slice: &[usize] = &shape;
-    let mask_tensor_data = mask.data().clone().into_data();
-    let flat = mask_tensor_data
-        .as_slice::<f32>()
-        .expect("f32 mask tensor data");
+    let flat_vec = extract_vec_infallible(mask).0;
+    let flat: &[f32] = &flat_vec;
     let strides = compute_strides(shape_slice);
     let n_total: usize = shape_slice.iter().product();
     let mut boundary: Vec<Vec<f64>> = Vec::new();

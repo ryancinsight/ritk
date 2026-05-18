@@ -38,8 +38,8 @@ mod basis;
 mod config;
 mod metric;
 mod pyramid;
-mod regularization;
 mod registration;
+mod regularization;
 mod warp;
 
 #[cfg(test)]

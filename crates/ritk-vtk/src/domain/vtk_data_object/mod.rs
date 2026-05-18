@@ -19,20 +19,20 @@
 //! VTK File Formats (legacy), sections 4.1-4.6, Kitware Inc.
 
 mod attribute;
-mod poly_data;
-mod data_object;
-mod structured_grid;
 mod cell_type;
-mod unstructured_grid;
+mod data_object;
 mod image_data;
+mod poly_data;
+mod structured_grid;
+mod unstructured_grid;
 
 pub use attribute::AttributeArray;
-pub use poly_data::VtkPolyData;
-pub use data_object::VtkDataObject;
-pub use structured_grid::VtkStructuredGrid;
 pub use cell_type::VtkCellType;
-pub use unstructured_grid::VtkUnstructuredGrid;
+pub use data_object::VtkDataObject;
 pub use image_data::VtkImageData;
+pub use poly_data::VtkPolyData;
+pub use structured_grid::VtkStructuredGrid;
+pub use unstructured_grid::VtkUnstructuredGrid;
 
 #[cfg(test)]
 mod tests;

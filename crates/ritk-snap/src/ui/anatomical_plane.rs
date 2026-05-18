@@ -22,6 +22,7 @@
 //! - Step 1 selects one axis from a finite set of size 3.
 //! - Step 2 selects one axis from the two unselected axes.
 //! - Step 3 returns the only remaining axis.
+//!
 //! Therefore all three outputs are distinct and exhaustive, so the result is a
 //! permutation of `{0,1,2}`.
 
@@ -93,7 +94,11 @@ pub(crate) fn axis_order_from_vectors(vectors: [[f64; 3]; 3]) -> [usize; 3] {
 
 fn axis_vectors_for_volume(volume: &LoadedVolume) -> [[f64; 3]; 3] {
     if let Some(meta) = volume.metadata.as_ref() {
-        if let Some(iop) = meta.slices.first().and_then(|s| s.image_orientation_patient) {
+        if let Some(iop) = meta
+            .slices
+            .first()
+            .and_then(|s| s.image_orientation_patient)
+        {
             let row = [iop[0], iop[1], iop[2]];
             let col = [iop[3], iop[4], iop[5]];
             let normal = normalize3(cross3(row, col));

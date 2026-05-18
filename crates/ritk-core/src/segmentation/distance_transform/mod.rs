@@ -135,6 +135,7 @@ fn lower_envelope_transform(
             // Compare s with z_buf[k]. Since z_buf[k] might be MIN/MAX we must be careful.
             // s = s_num / s_den. We want: s <= z_buf[k]?
             // Equivalent to: s_num <= z_buf[k] * s_den  (s_den > 0).
+            #[allow(clippy::if_same_then_else)]
             let remove = if z_buf[k] == i64::MIN {
                 false
             } else if z_buf[k] == i64::MAX {
@@ -171,12 +172,12 @@ fn lower_envelope_transform(
 
     // Scan: assign each position to its minimum parabola.
     let mut j = 0;
-    for q in 0..n {
+    for (q, dt_q) in dt.iter_mut().enumerate() {
         while j < k && (q as i64) > z_buf[j + 1] {
             j += 1;
         }
         let diff = q as i64 - v[j] as i64;
-        dt[q] = diff * diff + f[v[j]];
+        *dt_q = diff * diff + f[v[j]];
     }
 }
 

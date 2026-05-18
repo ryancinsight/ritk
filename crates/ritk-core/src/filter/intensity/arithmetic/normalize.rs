@@ -81,10 +81,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// [1,1,3,3] → mean=2, std=1 → [-1,-1,1,1] exactly.
+    /// [1,1,3,3] → mean=2, std=1 → [-1,-1,1,1] exactly.
     ///
     /// # Derivation
     /// values = [1,1,3,3], N=4, mean=8/4=2.0

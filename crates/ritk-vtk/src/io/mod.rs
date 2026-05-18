@@ -15,7 +15,9 @@ pub mod unstruct_grid;
 pub use struct_grid::{read_vtk_structured_grid, write_vtk_structured_grid};
 pub use unstruct_grid::{read_vtk_unstructured_grid, write_vtk_unstructured_grid};
 pub mod unstructured_xml;
-pub use unstructured_xml::{read_vtu_unstructured_grid, write_vtu_str, write_vtu_unstructured_grid};
+pub use unstructured_xml::{
+    read_vtu_unstructured_grid, write_vtu_str, write_vtu_unstructured_grid,
+};
 
 pub mod reader;
 pub mod writer;

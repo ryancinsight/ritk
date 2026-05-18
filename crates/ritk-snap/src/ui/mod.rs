@@ -34,69 +34,75 @@
 //! | [`colorbar`]     | [`draw_colorbar`] / [`show_colorbar`] — W/L colorbar widget.     |
 //! | [`dropped_input`] | Dropped-file routing SSOT for app-shell ingestion decisions. |
 
-pub mod annotation_panel;
 pub mod anatomical_plane;
+pub mod annotation_panel;
+pub mod cine;
 pub mod colorbar;
+pub mod cursor_info;
 pub mod dropped_input;
-pub mod view_transform;
+pub mod export_plan;
+pub mod filter_panel;
 pub mod histogram;
 pub mod histogram_interact;
-pub mod preset_panel;
 pub mod layout;
-pub mod measurements;
-pub mod cine;
-pub mod cursor_info;
-pub mod export_plan;
 pub mod live_preview;
+pub mod measurements;
 pub mod mpr_cursor;
-pub mod filter_panel;
 pub mod overlay;
 pub mod pan;
+pub mod pet_suv_panel;
 pub mod pointer_intensity;
-pub mod rtdose_overlay;
+pub mod preset_panel;
 pub mod rt_dose_analytics;
+pub mod rtdose_overlay;
 pub mod rtdose_texture;
 pub mod rtstruct_overlay;
 pub mod sidebar;
 pub mod slice_navigation;
-pub mod toolbar;
 pub mod tool_shortcuts;
+pub mod toolbar;
+pub mod view_transform;
 pub mod viewport;
 pub mod window_level;
 pub mod window_presets;
 pub mod zoom;
 
+pub use anatomical_plane::{anatomical_label_for_axis, axis_for_plane_in_volume, AnatomicalPlane};
+pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
 pub use cine::CinePlayback;
-pub use anatomical_plane::{
-	axis_for_plane_in_volume, anatomical_label_for_axis, AnatomicalPlane,
-};
+pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
 pub use cursor_info::{format_lps, voxel_to_lps};
-pub use export_plan::{axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport};
+pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
+pub use export_plan::{
+    axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport,
+};
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{
-	axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
-	viewport_point_to_voxel, LinkedCursor,
+    axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
+    viewport_point_to_voxel, LinkedCursor,
 };
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
+pub use pet_suv_panel::{draw_pet_suv_panel, PetSuvPanelAction};
 pub use pointer_intensity::intensity_at_voxel;
-pub use annotation_panel::{draw_annotation_panel, AnnotationPanelAction};
-pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_WIDTH};
-pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
-pub use view_transform::{apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform};
 pub use preset_panel::draw_preset_buttons;
-pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use rt_dose_analytics::{compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics};
+pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
-pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use tool_shortcuts::tool_kind_for_key;
+pub use toolbar::{ToolbarPanel, ToolbarState};
+pub use view_transform::{
+    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
+};
 pub use viewport::{ViewportPanel, ViewportState};
-pub use window_level::{clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY};
+pub use window_level::MIN_WINDOW_WIDTH;
+pub use window_level::{
+    clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
+};
 pub use window_presets::WindowPreset;
 pub use zoom::{
-	fit_view_transform, should_zoom_with_scroll, zoom_from_drag_delta, zoom_from_scroll, FIT_ZOOM,
-	MAX_ZOOM, MIN_ZOOM,
+    fit_view_transform, should_zoom_with_scroll, zoom_from_drag_delta, zoom_from_scroll, FIT_ZOOM,
+    MAX_ZOOM, MIN_ZOOM,
 };
-pub use window_level::MIN_WINDOW_WIDTH;

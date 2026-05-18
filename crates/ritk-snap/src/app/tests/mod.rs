@@ -14,6 +14,8 @@ mod colormap;
 #[cfg(test)]
 mod cursor;
 #[cfg(test)]
+mod distribution;
+#[cfg(test)]
 mod measurement;
 #[cfg(test)]
 mod navigation;

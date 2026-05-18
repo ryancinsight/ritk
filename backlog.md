@@ -1,3 +1,572 @@
+## Sprint 255 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Performance
+**Version**: 0.50.27 [patch]
+**Goal**: Implement GAP-248-PERF-09: `RenderBufferPool` for persistent cross-frame buffer reuse in the viewer slice-render and MIP-render hot paths.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | **Closed** |
+
+### Delivered
+
+- ✓ `render/buffer_pool.rs` — `RenderBufferPool` struct with dual `Vec` scratch (`pixel_f32`, `rgba_u8`); `resize_u8`; `Default` impl; monotone non-decreasing capacity invariant
+- ✓ `loaded_volume.rs` — `extract_slice_into` zero-allocation in-place slice extraction
+- ✓ `render/slice_render.rs` — `SliceRenderer::render_with_scratch` (pub(crate)); pixel-identical to `render` for all inputs
+- ✓ `render/mip_vr.rs` — refactored: `render_mip_axial_with_scratch` + `render_vr_axial_with_scratch` are zero-allocation cores; public wrappers delegate with local scratch (no duplication)
+- ✓ `app/state.rs` — `render_buffer_pool: RenderBufferPool` field added; `Default` wired
+- ✓ `app/render_cache.rs` — all 3 rebuild functions (`rebuild_texture_for_axis`, `rebuild_texture_for_mip`, `rebuild_secondary_texture`) use pool variants
+- ✓ `render/mod.rs` — `pub mod buffer_pool`; `pub(crate) use buffer_pool::RenderBufferPool`
+- ✓ Verification: `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- ✓ Verification: `cargo test -p ritk-snap --lib "render::"` — 37 passed (9 new buffer_pool + 28 existing)
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-251-STR-01 | 14 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+### Maintenance progress
+
+No structural partitions this cycle.
+
+## Sprint 254 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.26 [patch]
+**Goal**: Complete CPR viewer integration in `ritk-snap` — wire SnapApp filter path, add CPR ComboBox selector entry, add parameter controls UI, and close GAP-252-SNAP-01.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-252-SNAP-01 | CPR viewer integration in ritk-snap (SnapApp path, selector UI, parameter controls) | **Closed** |
+
+### Delivered
+
+- ✓ `filter/apply.rs` — `promote_2d_to_3d` visibility changed to `pub(crate)` so SnapApp path can call it
+- ✓ `app/filter.rs` — `FilterKind::Cpr { .. }` SnapApp arm now calls `CprImageFilter` + `promote_2d_to_3d` (no longer returns `Err("not yet implemented")`)
+- ✓ `selector_values_third.rs` — "CPR" entry added to ComboBox with default `control_points: [[0,0,0], [10,0,0]]`, 256 path samples, 10 mm half-width, 64 cross samples
+- ✓ `controls_pointwise.rs` — CPR parameter UI with sliders for `num_path_samples` (2‑1024), `cross_section_half_width` (0.1‑100 mm), `num_cross_samples` (2‑512); text‑edit for control points (`[z,y,x]; [z,y,x]; …`); "Reset to defaults" button; validation shown when < 2 control points
+- ✓ Verification: `cargo clippy --workspace` — 0 errors, 0 warnings (2 pre-existing allow(clippy::write_literal) unchanged)
+- ✓ Verification: `cargo test -p ritk-snap -- test_filter_kind_cpr_dispatch_reshapes_2d_to_3d` — passed
+- ✓ Verification: `cargo test -p ritk-core -- cpr` — 10 passed
+- ✓ `ritk-cli/src/commands/filter/mod.rs` — CPR CLI args (`--cpr-point`, `--cpr-path-samples`, `--cpr-half-width`, `--cpr-cross-samples`), `"cpr"` dispatch arm, `concat!` error message fix for CRLF
+- ✓ `ritk-cli/src/commands/filter/spatial_impl.rs` — `run_cpr()` with control-point parsing, 2-D→3-D promotion, NIfTI output
+- ✓ `ritk-cli/src/commands/filter/spatial/mod.rs` — `run_cpr` re-export + `mod cpr` test module
+- ✓ `ritk-cli/src/commands/filter/spatial/tests/cpr.rs` — 3 integration tests (success, insufficient points, malformed point)
+- ✓ Verification: 14 total CPR tests (ritk-core 10 + ritk-snap 1 + ritk-cli 3)
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-251-STR-01 | 14 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+### Maintenance progress
+
+No structural partitions this cycle.
+
+## Sprint 253 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.25 [patch] → [minor] (CPR integration)
+**Goal**: Implement the clinical distribution shell (`anonymize + print/media/report`) in `ritk-snap` with anonymized report export, media package export, redaction tests, and artifact sync. Close GAP-176-RAD-03 (CPR viewer+CLI integration).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | **Closed** |
+| GAP-176-RAD-03 / GAP-252-SNAP-01 | CPR viewer integration + CLI `cpr` command (2-D→3-D reshape, 14 tests) | **Closed** |
+
+### Delivered
+
+- ✓ `app/clinical_distribution.rs` — anonymized report builder and export summary SSOT
+- ✓ `SnapApp::export_clinical_distribution_to` — package export into `clinical_distribution/` with `report.md` and `media/current_slice.png` + MPR PNGs
+- ✓ `File > Export clinical distribution package…` menu action
+- ✓ `app/io_ops.rs` — preallocated RGB packing helper reused across current slice, MPR, and clinical package exports
+- ✓ 2 value-semantic tests: report redaction + full export package
+- ✓ Verification: `cargo check -p ritk-snap --lib` — 0 errors
+- ✓ Verification: `cargo test -p ritk-snap --lib distribution` — 2 passed
+- ✓ Verification: `cargo test -p ritk-snap --lib` — timed out after 505 tests observed passing; no failures observed before timeout
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-251-STR-01 | 18 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+### Maintenance progress
+
+- ✓ Preemptive partition: `annotation_panel.rs` (478→207) — tests moved to `annotation_panel/tests.rs`
+- ✓ Preemptive partition: `rt_dose_analytics.rs` (471→374) — tests moved to `rt_dose_analytics/tests.rs`
+- ✓ Preemptive partition: `histogram_matching.rs` (462→183) — tests moved to `histogram_matching/tests.rs`
+- ✓ GAP-251-STR-01 reduced from 18 to 14 open near-limit files
+
+## Sprint 252 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.24 [patch]
+**Goal**: Implement core CPR filter primitive (`CprImageFilter`, `CprConfig`) in `ritk-core` with mathematical specification, value-semantic tests, and full artifact sync.
+
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow (core filter primitive) | **Closed** |
+
+### Delivered
+
+- ✓ `CprImageFilter::apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 2>>` — Catmull-Rom spline with arc-length parameterisation, Gram-Schmidt cross-section basis, trilinear interpolation with boundary clamping
+- ✓ `CprConfig` — num_path_samples, cross_section_half_width, num_cross_samples
+- ✓ Helper functions: `catmull_rom_point`, `generate_path`, `cross_section_basis`, `physical_to_index`, `trilinear_sample`
+- ✓ 10 value-semantic tests (8 pass on first run, 2 fixed by coordinate-transpose patch)
+- ✓ Fix: `catmull_rom_point` coordinate transposition (return `[x, y, z]` instead of `[z, y, x]`)
+- ✓ Partition: `cpr.rs` (716→472) — tests to `tests_cpr.rs`
+- ✓ Partition: `iir.rs` (592→350) — tests to `tests_iir.rs`
+- ✓ **Structural violations: 0** (max 479)
+- ✓ Verification: `cargo test -p ritk-core --lib` — 1203 passed
+- ✓ Verification: `cargo test -p ritk-registration --lib` — 286 passed
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | Low |
+| GAP-251-STR-01 | 18 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 247 — Complete
+**Status**: Complete
+**Phase**: Closure → Foundation
+**Version**: 0.50.19 [patch]
+**Goal**: Preemptively partition at-limit files (structural violations) and eliminate per-iteration heap allocations in SyN registration loop.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-247-STR-01 | syn_core.rs at 499-line limit (preemptive partition) | **Closed** |
+| GAP-247-STR-02 | engine.rs at 499-line limit (preemptive partition) | **Closed** |
+| GAP-247-STR-03 | unstruct_grid.rs at 498-line limit (preemptive partition) | **Closed** |
+| GAP-247-STR-04 | context.rs at 498-line limit (preemptive partition) | **Closed** |
+| GAP-247-PERF-07 | SyN per-iteration ~25 full-volume heap allocs | **Closed** |
+
+### Delivered
+- ⟳ Preemptive partition: syn_core.rs → syn_core/mod.rs + syn_core/tests.rs (499→211+297)
+- ⟳ Preemptive partition: engine.rs → engine/mod.rs + engine/tests.rs (499→425+74)
+- ⟳ Preemptive partition: unstruct_grid.rs → unstruct_grid/mod.rs + unstruct_grid/tests.rs (498→407+115)
+- ⟳ Preemptive partition: context.rs → context/mod.rs + context/tests.rs (498→250+200)
+- ⟳ integrate: scaling_and_squaring_into (9-buffer zero-allocation variant)
+- ⟳ local_cc: cc_forces_into (3-buffer zero-allocation variant with z-slice Rayon parallelism, differential equivalence test)
+- ⟳ smooth: gaussian_smooth_with_scratch (scratch-buffer zero-allocation variant, equivalence test)
+- ⟳ syn_core/mod.rs: Full register() rewrite — 24 pre-allocated scratch buffers, loop body performs zero heap allocs
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-247-PERF-08 | MultiResSyN/BSplineSyN/DiffeomorphicDemons inner-loop scratch hoisting | High (same pattern as PERF-07) |
+| GAP-247-DRY-01 | clone().into_data() pattern (228 occ, 93 files) | Medium |
+| GAP-247-STR-05 | filter_kind.rs (497) and spatial.rs (497) near limit | Medium |
+
+## Sprint 248 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Closure
+**Version**: 0.50.20 [patch]
+**Goal**: Extend zero-allocation registration loops to all remaining engines (PERF-08), complete DRY migration of clone().into_data() pattern (DRY-01), preemptively partition near-limit files (STR-05/06), and consolidate duplicate cc_forces implementations.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-247-PERF-08 | MultiResSyN/BSplineSyN/DiffeomorphicDemons/LDDMM/Demons inner-loop scratch hoisting | **Closed** |
+| GAP-247-DRY-01 | clone().into_data() DRY migration (0 raw patterns remain in ritk-core production code) | **Closed** |
+| GAP-247-STR-05 | filter_kind.rs (497) near limit — doc externalization partition | **Closed** |
+| GAP-247-STR-06 | spatial.rs (497) near limit — test module partition | **Closed** |
+| GAP-247-DRY-02 | cc_forces deduplication (3→1 canonical implementation) | **Closed** |
+
+### Delivered
+
+- ⟳ MultiResSyN: Full register() rewrite — 30 pre-allocated scratch buffers per level, compose_fields_into for inverse consistency, zero per-iteration allocs (was ~38 allocs/iter)
+- ⟳ BSplineSyN: Full register() rewrite — 30 dense-field + 14 CP-space scratch buffers, evaluate_dense_into/accumulate_to_cp_into/cp_laplacian_into, zero per-iteration allocs (was ~57 allocs/iter)
+- ⟳ DiffeomorphicDemons: Full register() rewrite — 11 scratch buffers, eliminated compute_mse_direct (redundant exp-map), zero per-iteration allocs (was ~19 allocs/iter)
+- ⟳ LDDMM: epdiff_adjoint_into + integrate_geodesic_into, 16 scratch buffers, zero per-iteration allocs
+- ⟳ Thirion/Symmetric/IC Demons: All 3 engines rewritten with zero-alloc loops
+- ⟳ compose_fields_into re-export added to deformable_field_ops/mod.rs
+- ⟳ DRY migration: 98 production files + 103 test-file occurrences migrated to extract_vec/extract_vec_infallible
+- ⟳ Preemptive partition: filter_kind.rs (497→427, 29 doc files extracted)
+- ⟳ Preemptive partition: spatial.rs (497→294+19+121+117)
+- ⟳ cc_forces deduplication: Deleted 2 orphaned duplicate files (bspline_syn/cc.rs, multires_syn/cc.rs)
+- ⟳ Dead-code cleanup: 8 allocating wrapper functions gated with #[cfg(test)]
+- ⟳ 3 differential equivalence tests for BSplineSyN primitives
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | Low |
+| GAP-248-STR-07 | binary_dilation.rs (491) and selector_values_ext.rs (490) near limit | Medium |
+| GAP-248-DRY-03 | extract_slice helper for .as_slice() borrow-path (28 test helpers in ritk-core, ~20 files in ritk-cli/ritk-io still using raw pattern) | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 250 — Complete
+**Status**: Complete
+**Phase**: Closure → Code Quality
+**Version**: 0.50.22 [patch]
+**Goal**: Complete DRY migration of all `data().clone().into_data()` / `data().clone().to_data()` patterns codebase-wide; add canonical extraction API to `ColorVolume`; preemptively partition at-limit files.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-248-STR-07 | binary_dilation.rs (491) and selector_values_ext.rs (490) preemptive partition | **Closed** |
+| GAP-249-DRY-04 | All remaining `.data().clone().into_data()` / `.data().clone().to_data()` patterns (63+ occurrences across 18 files in 8 crates) | **Closed** |
+| GAP-250-DRY-01 | `ColorVolume::data_vec()` / `ColorVolume::with_data_slice()` — canonical extraction API on ColorVolume | **Closed** |
+
+### Delivered
+- ⟳ Preemptive partition: binary_dilation.rs (491→183+281) — tests extracted to `binary_dilation/tests.rs`
+- ⟳ Preemptive partition: selector_values_ext.rs (490→234+264) — split into `selector_values_ext.rs` + `selector_values_third.rs`
+- ⟳ `ColorVolume::data_vec()` — zero-allocation Vec extraction on color volumes
+- ⟳ `ColorVolume::with_data_slice()` — zero-copy closure-based slice view on color volumes
+- ⟳ Production writers: 6 files migrated (`try_data_vec()` with error propagation)
+  - ritk-metaimage/writer.rs, ritk-mgh/writer/mod.rs, ritk-nrrd/writer.rs, ritk-tiff/writer.rs, ritk-vtk/io/writer.rs, ritk-jpeg/writer.rs
+- ⟳ Test code: ~40 occurrences across ritk-cli (11 files) → `with_data_slice()` / `data_vec()`
+- ⟳ Test code: ~11 occurrences across ritk-io (5 files) → `with_data_slice()`
+- ⟳ Test code: ~10 occurrences across ritk-core (3 files) → `with_data_slice()` / `data_vec()`
+- ⟳ Test code: ~4 occurrences across ritk-registration (1 file) → `data_vec()`
+- ⟳ ColorVolume test code: 5 occurrences across ritk-jpeg/color.rs, ritk-png/color.rs, ritk-tiff/color.rs, ritk-io/dicom/color.rs, ritk-io/dicom/color_multiframe.rs → `data_vec()` / `with_data_slice()`
+- ⟳ Codec test code: ~35 occurrences across ritk-tiff, ritk-mgh, ritk-nrrd, ritk-metaimage → `with_data_slice()` / `data_vec()`
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | **Closed** |
+| GAP-250-STR-01 | Files approaching 500-line limit: polydata/reader.rs (494), threshold.rs (489), local_cc.rs (485), nifti/tests.rs (485), atlas/mod.rs (484), recursive_gaussian.rs (482), sato.rs (481), nrrd/reader.rs (480) | **Closed** |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **`data().clone().into_data()` / `data().clone().to_data()` patterns** | **0** | **Codebase-wide elimination complete** |
+
+## Sprint 252 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Performance
+**Version**: 0.50.24 [patch]
+**Goal**: SIMD boundary/interior split for Sobel and recursive Gaussian 1-D convolution kernels (GAP-248-PERF-10).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | **Closed** |
+
+### Delivered
+- ⟳ `filter/iir.rs`: boundary/interior split for `apply_smooth_1d` (fwd/bwd init phase vs steady-state), `apply_first_derivative_1d_into` (edge vs central), `apply_second_derivative_1d_into` (edge vs central)
+- ⟳ `filter/tests_iir.rs`: NEW — 6 differential verification tests (split vs naive reference) + 2 edge-case tests
+- ⟳ `filter/edge/sobel.rs`: boundary/interior split for `convolve_1d_axis` (pos=0, pos=len−1, interior)
+- ⟳ `filter/edge/tests_sobel.rs`: NEW — 2 differential verification tests + 1 edge-case test in inline `tests_boundary_interior` module
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-251-STR-01 | 18 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **`data().clone().into_data()` / `data().clone().to_data()` patterns** | **0** | **Codebase-wide elimination complete** |
+
+## Sprint 251 — Complete
+
+**Status**: Complete
+**Phase**: Closure → Code Quality
+**Version**: 0.50.23 [patch]
+**Goal**: Preemptive partition of all 8 files approaching the 500-line structural limit (GAP-250-STR-01).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-250-STR-01 | Preemptive partition of 8 files approaching 500-line structural limit (480–494 lines) | **Closed** |
+
+### Delivered
+
+- ⟳ Preemptive partition: polydata/reader.rs (494→354) — tests extracted to `tests_reader.rs` (141)
+- ⟳ Preemptive partition: threshold.rs (489→214) — entropy thresholds to `entropy_thresholds.rs` (165), negative tests to `threshold_negative.rs` (79)
+- ⟳ Preemptive partition: local_cc.rs (485→120) — force computation to `forces.rs` (179), tests to `tests.rs` (176)
+- ⟳ Preemptive partition: nifti/tests.rs (485→333) — label tests to `tests_labels.rs` (172)
+- ⟳ Preemptive partition: atlas/mod.rs (484→282) — tests to `tests.rs` (193)
+- ⟳ Preemptive partition: recursive_gaussian.rs (482→230) — IIR primitives to `iir.rs` (274)
+- ⟳ Preemptive partition: sato.rs (481→227) — tests to `tests_sato.rs` (257)
+- ⟳ Preemptive partition: nrrd/reader.rs (480→233) — decode helpers to `decode.rs` (251)
+- ⟳ Fix: `cc_forces` and `field_rms` properly `#[cfg(test)]` gated in `forces.rs`; removed erroneous `#[cfg(test)]` on `cc_forces` body and redundant `use rayon::prelude::*;`
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | Low |
+| GAP-251-STR-01 | 18 files at 462–479 lines approaching 500-line limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **`data().clone().into_data()` / `data().clone().to_data()` patterns** | **0** | **Codebase-wide elimination complete** |
+
+**Status**: Complete
+**Phase**: Execution → Code Quality
+**Version**: 0.50.21 [patch]
+**Goal**: DRY migration — eliminate clone().into_data() from all production code and test-code into_vec/into_data helpers; add canonical extraction API on Image.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-249-DRY-01 | Image::data_vec()/try_data_vec()/with_data_slice() — canonical extraction API | **Closed** |
+| GAP-249-DRY-02 | Production code: 14 clone().into_data().as_slice() occurrences → data_vec()/try_data_vec() | **Closed** |
+| GAP-249-DRY-03 | Test-code into_vec(): ~35 occurrences → data_vec() (across ritk-core, ritk-snap) | **Closed** |
+
+### Delivered
+
+- ⟳ `Image::data_vec()` — zero-allocation-encoder-conscious Vec extraction, panics on dtype mismatch
+- ⟳ `Image::try_data_vec()` — fallible Vec extraction for callers with error propagation
+- ⟳ `Image::with_data_slice()` — closure-based zero-copy slice view, avoids Vec allocation
+- ⟳ **ritk-analyze**: writer.rs — replaced clone().into_data() → try_data_vec()
+- ⟳ **ritk-cli**: register/mod.rs (×2), segment/helpers.rs, watershed.rs (×2) — replaced → data_vec()/with_data_slice()
+- ⟳ **ritk-io**: DICOM metadata.rs, series.rs, multiframe/writer.rs — replaced → try_data_vec()
+- ⟳ **ritk-nifti**: writer.rs — replaced → try_data_vec()
+- ⟳ **ritk-registration**: preprocessing.rs (×3), transforms.rs — replaced → data_vec()/try_data_vec()
+- ⟳ **ritk-core (test)**: All ~18 filter/morphology/intensity/arithmetic test helpers → data_vec()
+- ⟳ **ritk-core (test)**: bilateral.rs, median.rs, log.rs, relabel.rs, tests_n4.rs, tests_curvature.rs — 6 multi-line helpers → data_vec()
+- ⟳ **ritk-core (test)**: parity.rs → data_vec()
+- ⟳ **ritk-snap**: filter.rs, volume_ops.rs (×2), apply.rs — replaced → try_data_vec()
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+| GAP-248-PERF-09 | RenderBufferPool for persistent cross-frame buffer reuse | Low |
+| GAP-248-PERF-10 | SIMD boundary/interior split for Sobel and recursive Gaussian | Low |
+| GAP-248-STR-07 | binary_dilation.rs (491) and selector_values_ext.rs (490) near limit | Medium |
+| GAP-249-DRY-04 | Remaining ~149 test-code .as_slice() patterns (80 files) — deferred | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 246 — Complete
+**Status**: Complete
+**Phase**: Closure ⟳ Performance & Memory Optimization
+**Version**: 0.50.18 [patch]
+**Goal**: Eliminate per-frame, per-iteration, and per-voxel allocation anti-patterns across the rendering pipeline, filter kernels, and data-conversion paths. Reduce allocation pressure and enable SIMD auto-vectorization.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-246-PERF-01 | Recursive Gaussian f64 IIR + per-line heap allocs + gradient/laplacian intermediate collects | **Closed** |
+| GAP-246-PERF-02 | Slice renderer 4-alloc/frame pipeline | **Closed** |
+| GAP-246-PERF-03 | N4 inner-loop O(levels*iters*2) full-volume allocs | **Closed** |
+| GAP-246-PERF-04 | Curvature flow per-iteration full-volume clone | **Closed** |
+| GAP-246-PERF-05 | Bed separation O(N) heap allocs in BFS neighbors() | **Closed** |
+| GAP-246-PERF-06 | ONNX tensor double-copy in burn_tensor_to_onnx | **Closed** |
+
+### Delivered
+
+- M-bM-^FM-^S Recursive Gaussian: f64-to-f32 IIR (2x SIMD throughput, 4x bandwidth), hoisted line buffers (128K fewer allocs/call), pre-allocated scratch for gradient/laplacian (4-to-1 allocs), in-place sqrt, 9 inline hints
+- M-bM-^FM-^S Slice renderer: fused WL+colormap single pass (4-to-2 allocs/frame), inline on WindowLevel::apply
+- M-bM-^FM-^S Fusion renderer: early return when alpha <= 0
+- M-bM-^FM-^S LoadedVolume::extract_slice: direct slice indexing (axis 0 = memcpy), Vec::with_capacity
+- M-bM-^FM-^S Colormap::map: inline (~262K calls/frame)
+- M-bM-^FM-^S N4 bias field: hoisted w/r scratch buffers (O(levels*iters*2) to O(2) full-volume allocs)
+- M-bM-^FM-^S Curvature flow: double-buffer copy_from_slice+swap (O(iters) to O(1) allocs)
+- M-bM-^FM-^S Bed separation: stack-allocated neighbors() (0 heap allocs in BFS), VecDeque/Vec capacity hints
+- M-bM-^FM-^S ONNX tensor: Vec::from_raw_parts transmutation (1 copy eliminated), direct array construction for shape
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+
+## Sprint 245 — Complete
+
+**Status**: Complete
+
+**Phase**: Closure → Feature Development
+
+**Version**: 0.50.17 [minor]
+
+**Goal**: Close GAP-176-RAD-02 PET/CT SUV viewer surface — consume the SUV computation pipeline in the overlay renderer and sidebar panel.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-176-RAD-02 | PET/CT SUV viewer surface absent — backend math complete but no UI consumption | **Closed** |
+| GAP-245-SNAP-01 | `sidebar.rs` (567 lines) violated 500-line limit after PET SUV tab addition | **Closed** |
+
+### Delivered
+
+- ✓ Wired `current_cursor_suv()` and `pointer_suv` into `OverlayRenderer::draw` — bottom-right overlay now displays "Cursor SUV: X.XX" and "Pointer SUV: X.XX" for PET volumes
+- ✓ Removed `#[allow(dead_code)]` from `current_cursor_suv()` — method is now consumed by the overlay renderer
+- ✓ Added `format_suv_string()` helper to overlay module — empty string for None/non-finite, formatted label for valid SUV
+- ✓ Created `ui/pet_suv_panel.rs` — SSOT PET SUV sidebar panel with `draw_pet_suv_panel` free function; displays pointer/cursor SUVbw readouts, patient weight, injected dose (MBq), radionuclide half-life (min), decay correction mode
+- ✓ Added `SidebarTab::PetSuv` variant and "PET SUV" tab button to the sidebar
+- ✓ Wired `SidebarPanel` to pass `pointer_suv`/`cursor_suv` and PET acquisition parameters to the panel
+- ✓ Split `sidebar.rs` (567 → directory with mod.rs 416 + tests.rs 125) to restore 500-line compliance
+- ✓ Split `overlay.rs` into `overlay/mod.rs` (399) + `overlay/tests.rs` (129) — test extraction for 500-line compliance
+- ✓ 10 new value-semantic tests (3 overlay SUV format, 7 PET SUV panel)
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+| GAP-176-RAD-04 | Clinical distribution shell (anonymize + print/media/report) | Medium-High |
+
+## Sprint 244 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.16 [patch]
+**Goal**: Close all remaining structural violations (>500 lines), eliminate pre-existing compiler warnings, achieve zero-violation codebase.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-243-MODEL-01 | `onnx/graph.rs` (706 lines) violated 500-line limit | **Closed** |
+| GAP-243-CORE-02 | `tests_neighborhood_connected.rs` (660 lines) violated 500-line limit | **Closed** |
+| GAP-243-CORE-03 | `tests_skeletonization.rs` (584 lines) violated 500-line limit | **Closed** |
+| GAP-244-SNAP-01 | `current_cursor_suv` dead_code warning in pointer_ops.rs | **Closed** |
+| GAP-244-IO-01 | Unused `scan_dicom_directory` re-export warning in ritk-io | **Closed** |
+| GAP-244-IO-02 | Unused `SEG_SOP_CLASS_UID` re-export warning in ritk-io | **Closed** |
+
+### Delivered
+- ✓ Split `onnx/graph.rs` → 7-file directory module (mod.rs, element_type.rs, value.rs, node.rs, tensor.rs, attribute.rs, tests.rs)
+- ✓ Split `tests_neighborhood_connected.rs` → 2-file directory module (mod.rs, boundary.rs)
+- ✓ Split `tests_skeletonization.rs` → 3-file directory module (mod.rs, thin_2d.rs, thin_3d.rs)
+- ✓ Fixed `current_cursor_suv` dead_code warning with `#[allow(dead_code)]` + GAP-176-RAD-02 reservation doc
+- ✓ Removed redundant `pub(super) use scan::scan_dicom_directory` re-export; updated `color.rs` to use direct path `reader::scan::scan_dicom_directory`
+- ✓ Removed redundant `pub use SEG_SOP_CLASS_UID` from `seg/mod.rs`; updated test import to `super::super::types::SEG_SOP_CLASS_UID`
+- ✓ **Structural violation count: 3 → 0 (100% closure)**
+- ✓ **All .rs files in crates/ ≤ 500 lines**
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-02 | Complete PET/CT workflow parity with SUV quantification | High |
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+
+## Sprint 243 — Complete
+
+**Status**: Complete
+**Phase**: Phase 2 Execution
+**Version**: 0.50.15 [patch]
+**Goal**: Close remaining medium-priority structural violations (>500 lines), apply DRY optimization to loader metadata extraction, and eliminate compiler warnings.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-242-SNAP-09 | `dicom/loader.rs` (788 lines) violated 500-line limit | **Closed** |
+| GAP-242-CLI-03 | `commands/stats.rs` (676 lines) violated 500-line limit | **Closed** |
+| GAP-243-CORE-01 | `skeletonization.rs` (536 lines) violated 500-line limit | **Closed** |
+| GAP-243-CORE-02 | Unused `fg_components_26` import warning in skeletonization/mod.rs | **Closed** |
+| GAP-243-SNAP-01 | Triplicated spatial-metadata extraction in loader.rs | **Closed** |
+
+### Delivered
+
+- ✓ Split `loader.rs` → 7-file directory module (mod.rs, dicom_load.rs, nifti_load.rs, convert.rs, scan.rs, bytes.rs, tests.rs)
+- ✓ Extracted `extract_spatial_metadata` DRY helper into `convert.rs` — eliminates 3× duplicated `[spacing, origin, direction]` extraction
+- ✓ Split `stats.rs` → 3-file directory module (mod.rs, metrics.rs, tests.rs)
+- ✓ Split `skeletonization.rs` → 4-file directory module (mod.rs, thin_1d.rs, thin_2d.rs, thin_3d.rs)
+- ✓ Fixed `fg_components_26` unused-import warning with `#[cfg(test)]` gate
+- ✓ Structural violation count: 6 → 3 (50% reduction)
+- ✓ All remaining violations are low-priority (test-only files, ONNX model)
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-176-RAD-02 | Complete PET/CT workflow parity with SUV quantification | High |
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+
+### Remaining low-priority violations
+
+| File | Lines | Note |
+|---|---|---|
+| `ritk-model/onnx/graph.rs` | 706 | ONNX graph model — domain complexity |
+| `ritk-core/.../tests_neighborhood_connected.rs` | 660 | Test-only file |
+| `ritk-core/.../tests_skeletonization.rs` | 584 | Test-only file |
+
+## Sprint 242 — Complete
+
+**Status**: Complete  
+**Phase**: Phase 2 Execution  
+**Version**: 0.50.14 [patch]  
+**Goal**: Enforce 500-line SRP structural limit across ritk-snap, ritk-cli, and xtask by decomposing all files >500 lines into deep-vertical subdirectory hierarchies.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-242-SNAP-01 | `lib.rs` (1844 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-02 | `filter_panel.rs` (1947 lines) violated 500-line limit | **Closed** |
+| GAP-242-CLI-01 | `filter.rs` (1945 lines) violated 500-line limit | **Closed** |
+| GAP-242-CLI-02 | `register.rs` (1893 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-03 | `viewport.rs` (1155 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-04 | `interaction.rs` (916 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-05 | `pet.rs` (594 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-06 | `series_tree.rs` (592 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-07 | `window_presets.rs` (507 lines) violated 500-line limit | **Closed** |
+| GAP-242-SNAP-08 | `measurements.rs` (503 lines) violated 500-line limit | **Closed** |
+| GAP-242-XTASK-01 | `datasets.rs` (510 lines) violated 500-line limit | **Closed** |
+
+### Delivered
+
+- ✓ Split `lib.rs` → 7 sub-modules (viewer.rs, filter/, geometry.rs, loaded_volume.rs, launch.rs)
+- ✓ Split `filter_panel.rs` → 9-file directory module
+- ✓ Split CLI `filter.rs` → 5-file directory module
+- ✓ Split CLI `register.rs` → 5-file directory module
+- ✓ Split `viewport.rs` → 6-file directory module
+- ✓ Split `interaction.rs` → 4-file directory module
+- ✓ Split `pet.rs`, `series_tree.rs`, `window_presets.rs`, `measurements.rs` → test-extracted directory modules
+- ✓ Split `xtask/datasets.rs` → 3-file directory module
+- ✓ Fixed `diffeomorphic.rs` TempDir lifetime bug (7 test failures → 0)
+- ✓ Structural violation count: 17 → 6 (65% reduction)
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-242-SNAP-09 | `dicom/loader.rs` (788 lines) still exceeds 500-line limit | Medium |
+| GAP-242-CLI-03 | `commands/stats.rs` (676 lines) still exceeds 500-line limit | Medium |
+| GAP-176-RAD-02 | Complete PET/CT workflow parity with SUV quantification | High |
+| GAP-176-RAD-03 | Add CPR / curved-MPR workflow | High |
+
 ## Sprint 188 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

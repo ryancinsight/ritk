@@ -152,8 +152,14 @@ fn intensity_range_adds_margin() {
     let device = Default::default();
     let image = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
     let (min_val, max_val) = estimate_intensity_range(&image);
-    assert!(min_val < 0.0, "min with margin should be < 0, got {min_val}");
-    assert!(max_val > 255.0, "max with margin should be > 255, got {max_val}");
+    assert!(
+        min_val < 0.0,
+        "min with margin should be < 0, got {min_val}"
+    );
+    assert!(
+        max_val > 255.0,
+        "max with margin should be > 255, got {max_val}"
+    );
 }
 
 // ── Matrix Extraction Tests ───────────────────────────────────────────────────
@@ -175,9 +181,8 @@ fn rigid_identity_matrix_is_identity_homogeneous() {
 #[test]
 fn translation_identity_matrix_is_identity_homogeneous() {
     let device = Default::default();
-    let transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device),
-    );
+    let transform =
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
     let matrix = translation_matrix_to_homogeneous(&transform);
     let identity: [f64; 16] = [
         1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
@@ -210,9 +215,8 @@ fn convergence_history_tracks_per_level() {
     let fixed = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
     let moving = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
 
-    let initial_transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device),
-    );
+    let initial_transform =
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
 
     let config = GlobalMiConfig {
         num_levels: 3,
@@ -260,6 +264,10 @@ fn convergence_history_tracks_per_level() {
     assert_eq!(result.convergence_history.len(), 3);
     assert_eq!(result.iterations_per_level.len(), 3);
     for (level, &iters) in result.iterations_per_level.iter().enumerate() {
-        assert!(iters > 0, "Level {} must have positive iterations", level + 1);
+        assert!(
+            iters > 0,
+            "Level {} must have positive iterations",
+            level + 1
+        );
     }
 }

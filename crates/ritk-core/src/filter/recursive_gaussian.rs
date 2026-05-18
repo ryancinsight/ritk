@@ -40,9 +40,14 @@
 //! - van Vliet, L.J., Young, I.T., Verbeek, P.W. (1998). Recursive Gaussian
 //!   derivative filters. *Proc. 14th ICPR*, pp. 509–514.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+
+#[path = "iir.rs"]
+mod iir;
+use iir::*;
 
 // ── Derivative order enum ─────────────────────────────────────────────────────
 
@@ -75,8 +80,7 @@ pub struct RecursiveGaussianFilter {
     sigma: f64,
     /// Which derivative order to approximate.
     derivative_order: DerivativeOrder,
-    /// When true, multiply the filter output by σ^order so that responses
-    /// at different scales have comparable magnitudes.
+    /// When true, multiply output by σ^order for comparable cross-scale magnitudes.
     normalize_across_scale: bool,
 }
 
@@ -114,12 +118,7 @@ impl RecursiveGaussianFilter {
     ///
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let mut vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("RecursiveGaussianFilter requires f32 data: {:?}", e))?
-            .to_vec();
+        let (mut vals, dims) = extract_vec(image)?;
 
         let spacing = image.spacing();
 
@@ -174,279 +173,6 @@ impl RecursiveGaussianFilter {
         ))
     }
 }
-
-// ── Young–van Vliet coefficient set ───────────────────────────────────────────
-
-/// Precomputed Young–van Vliet IIR coefficients for one 1-D pass.
-///
-/// The recurrence is:
-///   y[n] = B·x[n] + d1·y[n−1] + d2·y[n−2] + d3·y[n−3]
-///
-/// where B = 1 − d1 − d2 − d3 ensures unit DC gain.
-struct YvVCoefficients {
-    /// Feedforward gain.
-    b_gain: f64,
-    /// Feedback coefficient for y[n−1] (or y[n+1] in anticausal pass).
-    d1: f64,
-    /// Feedback coefficient for y[n−2] (or y[n+2] in anticausal pass).
-    d2: f64,
-    /// Feedback coefficient for y[n−3] (or y[n+3] in anticausal pass).
-    d3: f64,
-}
-
-impl YvVCoefficients {
-    /// Compute the Young–van Vliet coefficients from a pixel-space sigma.
-    ///
-    /// # Derivation
-    ///
-    /// Following Young & van Vliet (1995):
-    ///
-    /// The scale parameter q is related to σ by:
-    ///   q = 0.98711σ − 0.96330           for σ ≥ 2.5
-    ///   q = 3.97156 − 4.14554√(1−0.26891σ)  for 0.5 ≤ σ < 2.5
-    ///
-    /// From q the un-normalised feedback coefficients are:
-    ///   b0 = 1.57825 + 2.44413q + 1.4281q² + 0.422205q³
-    ///   b1 = 2.44413q + 2.85619q² + 1.26661q³
-    ///   b2 = −(1.4281q² + 1.26661q³)
-    ///   b3 = 0.422205q³
-    ///
-    /// Normalised: d_i = b_i / b0.
-    /// Feedforward gain: B = 1 − d1 − d2 − d3.
-    fn from_sigma(sigma: f64) -> Self {
-        let q = if sigma >= 2.5 {
-            0.98711 * sigma - 0.96330
-        } else if sigma >= 0.5 {
-            3.97156 - 4.14554 * (1.0 - 0.26891 * sigma).max(0.0).sqrt()
-        } else {
-            // For very small sigma, linearly interpolate q towards 0
-            0.1 * sigma / 0.5
-        };
-
-        let q2 = q * q;
-        let q3 = q2 * q;
-
-        let b0 = 1.57825 + 2.44413 * q + 1.4281 * q2 + 0.422205 * q3;
-        let b1 = 2.44413 * q + 2.85619 * q2 + 1.26661 * q3;
-        let b2 = -(1.4281 * q2 + 1.26661 * q3);
-        let b3 = 0.422205 * q3;
-
-        let d1 = b1 / b0;
-        let d2 = b2 / b0;
-        let d3 = b3 / b0;
-        let b_gain = 1.0 - d1 - d2 - d3;
-
-        Self { b_gain, d1, d2, d3 }
-    }
-}
-
-// ── 1-D line iteration helpers ────────────────────────────────────────────────
-
-/// Information needed to iterate over a 1-D line within a 3-D volume along a
-/// given dimension.
-struct LineParams {
-    /// Length of each 1-D line along the target dimension.
-    len: usize,
-    /// Number of independent lines (product of the other two dimensions).
-    num_lines: usize,
-    /// Stride between consecutive elements along the target dimension.
-    stride: usize,
-}
-
-/// Compute the base offset (index of the first element) for the `line_idx`-th
-/// line along dimension `dim` in a volume with shape `dims = [nz, ny, nx]`.
-fn line_base(dims: [usize; 3], dim: usize, line_idx: usize) -> usize {
-    let [_nz, ny, nx] = dims;
-    match dim {
-        0 => {
-            // Lines along Z. Each line is identified by (iy, ix).
-            // line_idx = iy * nx + ix. Base = iy*nx + ix.
-            line_idx
-        }
-        1 => {
-            // Lines along Y. Each line is identified by (iz, ix).
-            // line_idx = iz * nx + ix. Base = iz * ny * nx + ix.
-            let iz = line_idx / nx;
-            let ix = line_idx % nx;
-            iz * ny * nx + ix
-        }
-        2 => {
-            // Lines along X. Each line is identified by (iz, iy).
-            // line_idx = iz * ny + iy. Base = iz * ny * nx + iy * nx.
-            let iz = line_idx / ny;
-            let iy = line_idx % ny;
-            iz * ny * nx + iy * nx
-        }
-        _ => unreachable!(),
-    }
-}
-
-fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
-    let [nz, ny, nx] = dims;
-    match dim {
-        0 => LineParams {
-            len: nz,
-            num_lines: ny * nx,
-            stride: ny * nx,
-        },
-        1 => LineParams {
-            len: ny,
-            num_lines: nz * nx,
-            stride: nx,
-        },
-        2 => LineParams {
-            len: nx,
-            num_lines: nz * ny,
-            stride: 1,
-        },
-        _ => unreachable!(),
-    }
-}
-
-// ── Smoothing (order 0): two-pass IIR ─────────────────────────────────────────
-
-/// Apply the Young–van Vliet two-pass IIR smoothing along dimension `dim`.
-///
-/// Pass 1 (causal/forward on input):
-///   y_f[n] = B·x[n] + d1·y_f[n−1] + d2·y_f[n−2] + d3·y_f[n−3]
-///
-/// Pass 2 (anticausal/backward on y_f):
-///   y[n]   = B·y_f[n] + d1·y[n+1] + d2·y[n+2] + d3·y[n+3]
-///
-/// Boundary conditions: constant extension (replicate). The steady-state
-/// response of the recursion to a constant input c is c (since B/(1−d1−d2−d3)
-/// = B/B = 1), so we initialise the boundary taps to the first/last sample.
-fn apply_smooth_1d(
-    data: &[f32],
-    dims: [usize; 3],
-    dim: usize,
-    coeffs: &YvVCoefficients,
-) -> Vec<f32> {
-    let lp = line_params(dims, dim);
-    let mut output = vec![0.0_f32; data.len()];
-
-    let bg = coeffs.b_gain;
-    let d1 = coeffs.d1;
-    let d2 = coeffs.d2;
-    let d3 = coeffs.d3;
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-
-        // Read input line into contiguous buffer
-        let mut x = vec![0.0_f64; lp.len];
-        for i in 0..lp.len {
-            x[i] = data[base + i * lp.stride] as f64;
-        }
-
-        // --- Forward (causal) pass ---
-        // Boundary initialisation: steady-state for constant extension = x[0]
-        let mut yf = vec![0.0_f64; lp.len];
-        let init_fwd = x[0];
-        let mut ym1 = init_fwd;
-        let mut ym2 = init_fwd;
-        let mut ym3 = init_fwd;
-
-        for i in 0..lp.len {
-            let val = bg * x[i] + d1 * ym1 + d2 * ym2 + d3 * ym3;
-            yf[i] = val;
-            ym3 = ym2;
-            ym2 = ym1;
-            ym1 = val;
-        }
-
-        // --- Backward (anticausal) pass on yf ---
-        // Boundary initialisation: steady-state for constant extension = yf[N-1]
-        let init_bwd = yf[lp.len - 1];
-        let mut yp1 = init_bwd;
-        let mut yp2 = init_bwd;
-        let mut yp3 = init_bwd;
-
-        for i in (0..lp.len).rev() {
-            let val = bg * yf[i] + d1 * yp1 + d2 * yp2 + d3 * yp3;
-            // Write to output
-            output[base + i * lp.stride] = val as f32;
-            yp3 = yp2;
-            yp2 = yp1;
-            yp1 = val;
-        }
-    }
-
-    output
-}
-
-// ── First derivative via central difference ───────────────────────────────────
-
-/// Apply central-difference first derivative along dimension `dim`:
-///   d[n] = (x[n+1] − x[n−1]) / 2
-///
-/// Boundary: one-sided differences at the edges.
-fn apply_first_derivative_1d(data: &[f32], dims: [usize; 3], dim: usize) -> Vec<f32> {
-    let lp = line_params(dims, dim);
-    let mut output = vec![0.0_f32; data.len()];
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-
-        for i in 0..lp.len {
-            let val = if lp.len == 1 {
-                0.0
-            } else if i == 0 {
-                data[base + lp.stride] - data[base]
-            } else if i == lp.len - 1 {
-                data[base + i * lp.stride] - data[base + (i - 1) * lp.stride]
-            } else {
-                (data[base + (i + 1) * lp.stride] - data[base + (i - 1) * lp.stride]) * 0.5
-            };
-            output[base + i * lp.stride] = val;
-        }
-    }
-
-    output
-}
-
-// ── Second derivative via second-order finite difference ──────────────────────
-
-/// Apply second-order finite difference along dimension `dim`:
-///   d²[n] = x[n+1] − 2·x[n] + x[n−1]
-///
-/// Boundary: one-sided second-order differences at the edges.
-fn apply_second_derivative_1d(data: &[f32], dims: [usize; 3], dim: usize) -> Vec<f32> {
-    let lp = line_params(dims, dim);
-    let mut output = vec![0.0_f32; data.len()];
-
-    for li in 0..lp.num_lines {
-        let base = line_base(dims, dim, li);
-
-        for i in 0..lp.len {
-            let val = if lp.len < 3 {
-                0.0
-            } else if i == 0 {
-                // Forward one-sided: x[2] - 2x[1] + x[0]
-                let x0 = data[base] as f64;
-                let x1 = data[base + lp.stride] as f64;
-                let x2 = data[base + 2 * lp.stride] as f64;
-                (x2 - 2.0 * x1 + x0) as f32
-            } else if i == lp.len - 1 {
-                // Backward one-sided: x[n-1] - 2x[n-2] + x[n-3]
-                let xn1 = data[base + i * lp.stride] as f64;
-                let xn2 = data[base + (i - 1) * lp.stride] as f64;
-                let xn3 = data[base + (i - 2) * lp.stride] as f64;
-                (xn1 - 2.0 * xn2 + xn3) as f32
-            } else {
-                // Central: x[n+1] - 2x[n] + x[n-1]
-                let xp = data[base + (i + 1) * lp.stride] as f64;
-                let xc = data[base + i * lp.stride] as f64;
-                let xm = data[base + (i - 1) * lp.stride] as f64;
-                (xp - 2.0 * xc + xm) as f32
-            };
-            output[base + i * lp.stride] = val;
-        }
-    }
-
-    output
-}
-
 // ── Combined derivative operators (gradient magnitude, Laplacian) ─────────────
 
 /// Compute the gradient magnitude of a 3-D volume:
@@ -456,19 +182,23 @@ fn apply_second_derivative_1d(data: &[f32], dims: [usize; 3], dim: usize) -> Vec
 /// Uses central differences at interior points and one-sided differences at
 /// boundaries. Each component is divided by the physical spacing along that
 /// axis so the result is in physical units (intensity / mm).
+#[inline]
 fn gradient_magnitude_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
     let n = data.len();
-    let mut sum_sq = vec![0.0_f64; n];
-
+    let mut sum_sq = vec![0.0_f32; n];
+    let mut deriv_buf = vec![0.0_f32; n];
     for (dim, &s) in spacing.iter().enumerate() {
-        let deriv = apply_first_derivative_1d(data, dims, dim);
+        apply_first_derivative_1d_into(data, dims, dim, &mut deriv_buf);
+        let inv_s = (1.0 / s) as f32;
         for i in 0..n {
-            let d = deriv[i] as f64 / s;
+            let d = deriv_buf[i] * inv_s;
             sum_sq[i] += d * d;
         }
     }
-
-    sum_sq.iter().map(|v| v.sqrt() as f32).collect()
+    for v in &mut sum_sq {
+        *v = v.sqrt();
+    }
+    sum_sq
 }
 
 /// Compute the Laplacian of a 3-D volume:
@@ -478,19 +208,19 @@ fn gradient_magnitude_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> V
 /// Uses central second-order finite differences at interior points and
 /// one-sided differences at boundaries. Each component is divided by the
 /// squared physical spacing along that axis.
+#[inline]
 fn laplacian_3d(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
     let n = data.len();
-    let mut result = vec![0.0_f64; n];
-
+    let mut result = vec![0.0_f32; n];
+    let mut deriv_buf = vec![0.0_f32; n];
     for (dim, &s) in spacing.iter().enumerate() {
-        let d2 = apply_second_derivative_1d(data, dims, dim);
-        let s2 = s * s;
+        apply_second_derivative_1d_into(data, dims, dim, &mut deriv_buf);
+        let inv_s2 = (1.0 / (s * s)) as f32;
         for i in 0..n {
-            result[i] += d2[i] as f64 / s2;
+            result[i] += deriv_buf[i] * inv_s2;
         }
     }
-
-    result.iter().map(|v| *v as f32).collect()
+    result
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

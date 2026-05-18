@@ -14,6 +14,7 @@
 
 use super::grayscale_dilation::GrayscaleDilation;
 use super::grayscale_erosion::GrayscaleErosion;
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -61,15 +62,8 @@ impl BlackTopHatFilter {
 
 fn sub_clamp<B: Backend>(a: &Image<B, 3>, b: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
     use burn::tensor::{Shape, Tensor, TensorData};
-    let dims = a.shape();
-    let ad = a.data().clone().into_data();
-    let bd = b.data().clone().into_data();
-    let av = ad
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("sub_clamp a: {:?}", e))?;
-    let bv = bd
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("sub_clamp b: {:?}", e))?;
+    let (av, dims) = extract_vec(a)?;
+    let (bv, _) = extract_vec(b)?;
     let result: Vec<f32> = av
         .iter()
         .zip(bv.iter())
@@ -98,7 +92,7 @@ mod tests {
         )
     }
     fn vv(i: &Image<B, 3>) -> Vec<f32> {
-        i.data().clone().into_data().into_vec::<f32>().unwrap()
+        i.data_vec()
     }
 
     #[test]

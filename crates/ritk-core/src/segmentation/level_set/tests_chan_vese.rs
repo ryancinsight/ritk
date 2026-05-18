@@ -154,7 +154,11 @@ fn test_output_is_strictly_binary() {
     let data: Vec<f32> = (0..n)
         .map(|i| {
             let ix = i % 10;
-            if ix < 5 { 20.0 } else { 180.0 }
+            if ix < 5 {
+                20.0
+            } else {
+                180.0
+            }
         })
         .collect();
     let image = make_image(data, dims);
@@ -166,7 +170,8 @@ fn test_output_is_strictly_binary() {
         assert!(
             v == 0.0 || v == 1.0,
             "Output voxel {} must be 0.0 or 1.0, got {}",
-            i, v
+            i,
+            v
         );
     }
 }
@@ -185,8 +190,16 @@ fn test_spatial_metadata_preserved() {
     let result = ChanVeseSegmentation::new().apply(&image).unwrap();
 
     assert_eq!(result.origin(), image.origin(), "Origin must be preserved");
-    assert_eq!(result.spacing(), image.spacing(), "Spacing must be preserved");
-    assert_eq!(result.direction(), image.direction(), "Direction must be preserved");
+    assert_eq!(
+        result.spacing(),
+        image.spacing(),
+        "Spacing must be preserved"
+    );
+    assert_eq!(
+        result.direction(),
+        image.direction(),
+        "Direction must be preserved"
+    );
     assert_eq!(result.shape(), dims, "Shape must be preserved");
 }
 
@@ -196,11 +209,23 @@ fn test_spatial_metadata_preserved() {
 fn test_regularised_heaviside_properties() {
     let eps = 1.0;
     let h0 = regularised_heaviside(0.0, eps);
-    assert!((h0 - 0.5).abs() < 1e-12, "H_ε(0) must equal 0.5, got {}", h0);
+    assert!(
+        (h0 - 0.5).abs() < 1e-12,
+        "H_ε(0) must equal 0.5, got {}",
+        h0
+    );
     let h_large = regularised_heaviside(1e6, eps);
-    assert!((h_large - 1.0).abs() < 1e-6, "H_ε(large) must approach 1.0, got {}", h_large);
+    assert!(
+        (h_large - 1.0).abs() < 1e-6,
+        "H_ε(large) must approach 1.0, got {}",
+        h_large
+    );
     let h_neg = regularised_heaviside(-1e6, eps);
-    assert!(h_neg.abs() < 1e-6, "H_ε(-large) must approach 0.0, got {}", h_neg);
+    assert!(
+        h_neg.abs() < 1e-6,
+        "H_ε(-large) must approach 0.0, got {}",
+        h_neg
+    );
     assert!(regularised_heaviside(-1.0, eps) < h0);
     assert!(h0 < regularised_heaviside(1.0, eps));
 }
@@ -212,10 +237,20 @@ fn test_regularised_dirac_properties() {
     let eps = 1.0;
     let d0 = regularised_dirac(0.0, eps);
     let expected = 1.0 / (std::f64::consts::PI * eps);
-    assert!((d0 - expected).abs() < 1e-12, "δ_ε(0) must equal 1/(πε), got {} vs expected {}", d0, expected);
+    assert!(
+        (d0 - expected).abs() < 1e-12,
+        "δ_ε(0) must equal 1/(πε), got {} vs expected {}",
+        d0,
+        expected
+    );
     let d_pos = regularised_dirac(2.5, eps);
     let d_neg = regularised_dirac(-2.5, eps);
-    assert!((d_pos - d_neg).abs() < 1e-15, "Dirac must be symmetric: {} vs {}", d_pos, d_neg);
+    assert!(
+        (d_pos - d_neg).abs() < 1e-15,
+        "Dirac must be symmetric: {} vs {}",
+        d_pos,
+        d_neg
+    );
     assert!(d0 > 0.0);
     assert!(d_pos > 0.0);
     assert!(d0 >= d_pos);
@@ -247,10 +282,18 @@ fn test_curvature_of_sphere_phi() {
     compute_curvature(&phi, dims, &mut kappa);
 
     let test_idx = 5 * n * n + 5 * n + 8;
-    assert!(kappa[test_idx] > 0.0, "Curvature of sphere φ at near-surface point must be positive, got {}", kappa[test_idx]);
+    assert!(
+        kappa[test_idx] > 0.0,
+        "Curvature of sphere φ at near-surface point must be positive, got {}",
+        kappa[test_idx]
+    );
 
     let center_idx = 5 * n * n + 5 * n + 5;
-    assert!(kappa[center_idx].is_finite(), "Curvature at center must be finite, got {}", kappa[center_idx]);
+    assert!(
+        kappa[center_idx].is_finite(),
+        "Curvature at center must be finite, got {}",
+        kappa[center_idx]
+    );
 }
 
 // ── Test 8: Two-region slab with distinct intensities ──────────────────────
@@ -278,7 +321,9 @@ fn test_two_region_slab() {
         for ix in 0..nx {
             let v = vals[iy * nx + ix];
             if ix < 5 {
-                if v == 1.0 { left_ones += 1; }
+                if v == 1.0 {
+                    left_ones += 1;
+                }
             } else if v == 1.0 {
                 right_ones += 1;
             }

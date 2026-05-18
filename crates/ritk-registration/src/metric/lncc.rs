@@ -273,9 +273,8 @@ mod tests {
 
         let image = make_image(data, [size, size, size]);
         let device = Default::default();
-        let transform = TranslationTransform::<B, 3>::new(
-            burn::tensor::Tensor::<B, 1>::zeros([3], &device),
-        );
+        let transform =
+            TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
         let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
         let loss = metric.forward(&image, &image, &transform);
@@ -307,9 +306,8 @@ mod tests {
         let moving = make_image(data2, [size, size, size]);
 
         let device = Default::default();
-        let transform = TranslationTransform::<B, 3>::new(
-            burn::tensor::Tensor::<B, 1>::zeros([3], &device),
-        );
+        let transform =
+            TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
         let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
         let loss = metric.forward(&fixed, &moving, &transform);
@@ -336,9 +334,8 @@ mod tests {
 
         let image = make_image(data, [size, size, size]);
         let device = Default::default();
-        let transform = TranslationTransform::<B, 3>::new(
-            burn::tensor::Tensor::<B, 1>::zeros([3], &device),
-        );
+        let transform =
+            TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
         let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
 
@@ -364,9 +361,8 @@ mod tests {
         let size = 4;
         let image = make_image(vec![5.0_f32; size * size * size], [size, size, size]);
         let device = Default::default();
-        let transform = TranslationTransform::<B, 3>::new(
-            burn::tensor::Tensor::<B, 1>::zeros([3], &device),
-        );
+        let transform =
+            TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
         let metric = LocalNormalizedCrossCorrelation::<B>::new(1.0);
         let loss_val = metric.forward(&image, &image, &transform).into_scalar();

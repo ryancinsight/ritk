@@ -2,15 +2,10 @@
 
 use crate::deformable_field_ops::flat;
 
-/// Compute the EPDiff coadjoint operator ad\*\_v(m).
+/// Write the EPDiff coadjoint operator ad\*\_v(m) into caller-provided buffers.
 ///
-/// For each spatial component i ∈ {z, y, x}:
-///
-///   (ad\*\_v m)\_i = Σ\_j \[v\_j · ∂m\_i/∂x\_j + m\_j · ∂v\_i/∂x\_j\] + m\_i · div(v)
-///
-/// Derivatives use central differences at interior voxels and one-sided
-/// differences at boundaries, consistent with [`compute_gradient`].
-pub(super) fn epdiff_adjoint(
+/// Performs zero heap allocation. All output buffers must have length `nz*ny*nx`.
+pub(super) fn epdiff_adjoint_into(
     vz: &[f32],
     vy: &[f32],
     vx: &[f32],
@@ -19,16 +14,14 @@ pub(super) fn epdiff_adjoint(
     mx: &[f32],
     dims: [usize; 3],
     spacing: [f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    ad_z: &mut [f32],
+    ad_y: &mut [f32],
+    ad_x: &mut [f32],
+) {
     let [nz, ny, nx] = dims;
-    let n = nz * ny * nx;
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
-
-    let mut ad_z = vec![0.0_f32; n];
-    let mut ad_y = vec![0.0_f32; n];
-    let mut ad_x = vec![0.0_f32; n];
 
     for iz in 0..nz {
         for iy in 0..ny {
@@ -100,6 +93,26 @@ pub(super) fn epdiff_adjoint(
             }
         }
     }
+}
 
+/// Compute the EPDiff coadjoint operator ad\*_v(m) (allocating convenience wrapper).
+#[cfg(test)]
+pub(super) fn epdiff_adjoint(
+    vz: &[f32],
+    vy: &[f32],
+    vx: &[f32],
+    mz: &[f32],
+    my: &[f32],
+    mx: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let n = dims[0] * dims[1] * dims[2];
+    let mut ad_z = vec![0.0_f32; n];
+    let mut ad_y = vec![0.0_f32; n];
+    let mut ad_x = vec![0.0_f32; n];
+    epdiff_adjoint_into(
+        vz, vy, vx, mz, my, mx, dims, spacing, &mut ad_z, &mut ad_y, &mut ad_x,
+    );
     (ad_z, ad_y, ad_x)
 }

@@ -408,9 +408,9 @@ mod tests {
             ],
             [2.0, 0.5, 0.25]
         );
-        let data = volume.data().clone().to_data();
-        let samples = data.as_slice::<f32>().expect("f32 tensor data");
-        assert_eq!(samples, expected.as_slice());
+        volume.with_data_slice(|samples| {
+            assert_eq!(samples, expected.as_slice());
+        });
     }
 
     #[test]

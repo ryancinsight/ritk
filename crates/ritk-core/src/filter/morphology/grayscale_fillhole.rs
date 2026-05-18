@@ -53,6 +53,7 @@
 //!   analysis: Applications and efficient algorithms. *IEEE Trans. Image
 //!   Processing*, 2(2), 176–201.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -84,13 +85,9 @@ impl GrayscaleFillholeFilter {
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("GrayscaleFillholeFilter requires f32 data: {:?}", e))?;
+        let (vals, dims) = extract_vec(image)?;
 
-        let filled = fill_holes_3d(vals, dims);
+        let filled = fill_holes_3d(&vals, dims);
 
         let device = image.data().device();
         let out_td = TensorData::new(filled, Shape::new(dims));

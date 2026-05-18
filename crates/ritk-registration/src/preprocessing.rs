@@ -14,7 +14,7 @@
 //!   Masking           : I'[i] = if mask[i]==0 { 0 } else { I[i] }
 //!   Smoothing         : I' = Gaussian_sigma(I)
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::filter::bias::N4Config;
@@ -99,11 +99,9 @@ impl PreprocessingPipeline {
                 }
 
                 PreprocessingStep::IntensityNormalization { mode } => {
-                    let td = image.data().clone().into_data();
-                    let vals: Vec<f32> = td
-                        .as_slice::<f32>()
-                        .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?
-                        .to_vec();
+                    let vals = image
+                        .try_data_vec()
+                        .context("IntensityNormalization requires f32 image data")?;
                     let n = vals.len();
                     let result = match mode {
                         NormalizationMode::ZScore => {
@@ -133,11 +131,9 @@ impl PreprocessingPipeline {
                 }
 
                 PreprocessingStep::Clamp { lower, upper } => {
-                    let td = image.data().clone().into_data();
-                    let vals: Vec<f32> = td
-                        .as_slice::<f32>()
-                        .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?
-                        .to_vec();
+                    let vals = image
+                        .try_data_vec()
+                        .context("Clamp requires f32 image data")?;
                     let result: Vec<f32> = vals.iter().map(|&v| v.clamp(*lower, *upper)).collect();
                     rebuild_image_3d(&image, result)?
                 }
@@ -163,11 +159,9 @@ impl PreprocessingPipeline {
                             expected
                         ));
                     }
-                    let td = image.data().clone().into_data();
-                    let vals: Vec<f32> = td
-                        .as_slice::<f32>()
-                        .map_err(|e| anyhow::anyhow!("f32 required: {:?}", e))?
-                        .to_vec();
+                    let vals = image
+                        .try_data_vec()
+                        .context("Masking requires f32 image data")?;
                     let result: Vec<f32> = vals
                         .iter()
                         .zip(mask.iter())

@@ -30,12 +30,12 @@
 //! - Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
+use super::binary_dilate::dilate_binary_3d;
+use super::binary_erode::erode_binary_3d;
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-
-use super::binary_dilate::dilate_binary_3d;
-use super::binary_erode::erode_binary_3d;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -72,14 +72,10 @@ impl BinaryMorphologicalOpening {
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground) or `0.0` (background).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().map_err(|e| {
-            anyhow::anyhow!("BinaryMorphologicalOpening requires f32 data: {:?}", e)
-        })?;
+        let (vals, dims) = extract_vec(image)?;
 
         // Opening = dilate(erode(f))
-        let eroded = erode_binary_3d(vals, dims, self.radius, self.foreground_value);
+        let eroded = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
         let result = dilate_binary_3d(&eroded, dims, self.radius, self.foreground_value);
 
         let device = image.data().device();

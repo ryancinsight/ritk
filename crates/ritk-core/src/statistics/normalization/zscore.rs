@@ -13,6 +13,7 @@
 //!   as the input.
 //! - μ and σ are computed from the full image population (not a sample).
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::statistics::image_statistics::{compute_statistics, masked_statistics};
 use burn::tensor::backend::Backend;
@@ -76,8 +77,8 @@ impl ZScoreNormalizer {
     ) -> Image<B, D> {
         // Extract mask slice once to check for foreground before calling
         // masked_statistics, which panics on an empty foreground set.
-        let mask_data = mask.data().clone().into_data();
-        let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+        let (mask_vals, _) = extract_vec_infallible(mask);
+        let mask_slice: &[f32] = &mask_vals;
         let has_foreground = mask_slice.iter().any(|&m| m > 0.5);
 
         let stats = if has_foreground {
@@ -199,8 +200,7 @@ mod tests {
         let normalizer = ZScoreNormalizer::new();
         let result = normalizer.normalize(&image);
 
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (slice, _) = extract_vec_infallible(&result);
 
         assert!(
             (slice[0] - (-1.0)).abs() < 1e-4,
@@ -224,8 +224,7 @@ mod tests {
         let normalizer = ZScoreNormalizer::new();
         let result = normalizer.normalize(&image);
 
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (slice, _) = extract_vec_infallible(&result);
         for &v in slice.iter() {
             assert!(
                 v.abs() < 1e-3,
@@ -242,8 +241,7 @@ mod tests {
         let normalizer = ZScoreNormalizer::new();
         let result = normalizer.normalize(&image);
 
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (slice, _) = extract_vec_infallible(&result);
         assert!(
             slice[0].abs() < 1e-3,
             "single voxel output = 0, got {}",
@@ -274,8 +272,7 @@ mod tests {
         let normalizer = ZScoreNormalizer::new();
         let result = normalizer.normalize_masked(&image, &mask);
 
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (slice, _) = extract_vec_infallible(&result);
 
         let expected_std = (2.0_f32 / 3.0_f32).sqrt();
         let denom = expected_std + 1e-8_f32;
@@ -322,10 +319,8 @@ mod tests {
         let result_masked = normalizer.normalize_masked(&image, &mask);
         let result_full = normalizer.normalize(&image);
 
-        let masked_data = result_masked.data().clone().into_data();
-        let full_data = result_full.data().clone().into_data();
-        let masked_slice = masked_data.as_slice::<f32>().unwrap();
-        let full_slice = full_data.as_slice::<f32>().unwrap();
+        let (masked_slice, _) = extract_vec_infallible(&result_masked);
+        let (full_slice, _) = extract_vec_infallible(&result_full);
 
         for (i, (&m, &f)) in masked_slice.iter().zip(full_slice.iter()).enumerate() {
             assert!(
@@ -378,8 +373,7 @@ mod tests {
         let normalizer = ZScoreNormalizer::new();
         let result = normalizer.normalize(&image);
 
-        let result_data = result.data().clone().into_data();
-        let slice = result_data.as_slice::<f32>().unwrap();
+        let (slice, _) = extract_vec_infallible(&result);
 
         for i in 0..4 {
             assert!(

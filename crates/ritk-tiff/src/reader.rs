@@ -257,19 +257,17 @@ mod tests {
         assert_eq!(loaded.origin(), &Point::new([0.0, 0.0, 0.0]));
         assert_eq!(loaded.spacing(), &Spacing::new([1.0, 1.0, 1.0]));
         assert_eq!(loaded.direction(), &Direction::identity());
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-            assert!(
-                (got - expected).abs() < 1e-6,
-                "voxel[{}]: expected {}, got {}",
-                i,
-                expected,
-                got,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+                assert!(
+                    (got - expected).abs() < 1e-6,
+                    "voxel[{}]: expected {}, got {}",
+                    i,
+                    expected,
+                    got,
+                );
+            }
+        });
         Ok(())
     }
 
@@ -290,18 +288,17 @@ mod tests {
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
         assert_eq!(loaded.shape(), [nz, ny, nx], "shape mismatch");
 
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-            assert!(
-                (got - expected).abs() < 1e-6,
-                "voxel[{}]: expected {}, got {}",
-                i,
-                expected,
-                got,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+                assert!(
+                    (got - expected).abs() < 1e-6,
+                    "voxel[{}]: expected {}, got {}",
+                    i,
+                    expected,
+                    got,
+                );
+            }
+        });
         Ok(())
     }
 
@@ -326,26 +323,23 @@ mod tests {
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
         assert_eq!(loaded.shape(), [nz, ny, nx]);
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-
-        for z in 0..nz {
-            let expected = (z + 1) as f32 * 100.0;
-            let offset = z * pixels_per_slice;
-            for px in 0..pixels_per_slice {
-                let got = loaded_vals[offset + px];
-                assert!(
-                    (got - expected).abs() < 1e-6,
-                    "slice {} pixel {}: expected {}, got {}",
-                    z,
-                    px,
-                    expected,
-                    got,
-                );
+        loaded.with_data_slice(|loaded_vals| {
+            for z in 0..nz {
+                let expected = (z + 1) as f32 * 100.0;
+                let offset = z * pixels_per_slice;
+                for px in 0..pixels_per_slice {
+                    let got = loaded_vals[offset + px];
+                    assert!(
+                        (got - expected).abs() < 1e-6,
+                        "slice {} pixel {}: expected {}, got {}",
+                        z,
+                        px,
+                        expected,
+                        got,
+                    );
+                }
             }
-        }
-
+        });
         Ok(())
     }
 
@@ -362,18 +356,16 @@ mod tests {
         let reader = TiffReader::<TestBackend>::new(device);
         let loaded = reader.read_image(&path)?;
         assert_eq!(loaded.shape(), [2, 3, 4]);
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        for (i, &v) in loaded_vals.iter().enumerate() {
-            assert!(
-                (v - 42.0).abs() < 1e-6,
-                "voxel[{}]: expected 42.0, got {}",
-                i,
-                v,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, &v) in loaded_vals.iter().enumerate() {
+                assert!(
+                    (v - 42.0).abs() < 1e-6,
+                    "voxel[{}]: expected 42.0, got {}",
+                    i,
+                    v,
+                );
+            }
+        });
         Ok(())
     }
 
@@ -421,19 +413,17 @@ mod tests {
 
         let loaded = read_tiff::<TestBackend, _>(&path, &device)?;
         assert_eq!(loaded.shape(), [nz, ny, nx]);
-
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
-            assert!(
-                (got - expected).abs() < 1e-6,
-                "voxel[{}]: expected {}, got {}",
-                i,
-                expected,
-                got,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+                assert!(
+                    (got - expected).abs() < 1e-6,
+                    "voxel[{}]: expected {}, got {}",
+                    i,
+                    expected,
+                    got,
+                );
+            }
+        });
         Ok(())
     }
 }

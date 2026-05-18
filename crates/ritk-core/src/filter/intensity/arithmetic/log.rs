@@ -55,10 +55,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// ln(1) = 0.
+    /// ln(1) = 0.
     #[test]
     fn log_of_one_is_zero() {
         let img = make_image(vec![1.0, 1.0], [1, 1, 2]);

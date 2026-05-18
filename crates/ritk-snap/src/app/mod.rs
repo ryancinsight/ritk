@@ -13,6 +13,7 @@
 //! | `false`        | Single viewport — current axis fills panel. |
 //! | `true`         | 2×2 grid: Axial / Coronal / Sagittal / 3D-MIP, with Info below.|
 
+pub(crate) mod clinical_distribution;
 mod filter;
 mod io_ops;
 mod menu;
@@ -26,7 +27,9 @@ pub(crate) mod state;
 mod surface_export;
 mod toolbar;
 mod viewport;
+mod viewport_render;
 mod volume_ops;
+mod volume_state;
 
 #[cfg(test)]
 mod tests;

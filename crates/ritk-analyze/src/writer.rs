@@ -63,11 +63,9 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
     let img_path = path.with_extension("img");
 
     // Extract voxel values from the tensor as f32.
-    let td = image.data().clone().into_data();
-    let vals: Vec<f32> = td
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("Analyze writer requires f32 image data: {:?}", e))?
-        .to_vec();
+    let vals = image
+        .try_data_vec()
+        .context("Analyze writer requires f32 image data")?;
 
     // Spatial metadata.  RITK shape = [nz, ny, nx]; spacing/origin in XYZ order.
     let shape = image.shape(); // [nz, ny, nx]

@@ -4,8 +4,8 @@ use tracing::info;
 
 use ritk_core::segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
-use super::args::SegmentArgs;
 use super::super::{read_image, write_image_inferred};
+use super::args::SegmentArgs;
 
 // ── Watershed segmentation ────────────────────────────────────────────────────
 
@@ -20,11 +20,7 @@ pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
     let ws = WatershedSegmentation::new();
     let labeled = ws.apply(&image)?;
 
-    let td = labeled.data().clone().into_data();
-    let vals = td
-        .as_slice::<f32>()
-        .expect("watershed output must contain f32 data");
-    let max_label = vals.iter().cloned().fold(0.0_f32, f32::max);
+    let max_label = labeled.with_data_slice(|vals| vals.iter().copied().fold(0.0_f32, f32::max));
     let n_basins = max_label as usize;
 
     write_image_inferred(&args.output, &labeled)?;
@@ -71,11 +67,7 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
         .apply(&gradient, &markers)
         .with_context(|| format!("marker-watershed failed for input={}", args.input.display()))?;
 
-    let td = labeled.data().clone().into_data();
-    let vals = td
-        .as_slice::<f32>()
-        .expect("marker-watershed output must contain f32 data");
-    let max_label = vals.iter().cloned().fold(0.0_f32, f32::max);
+    let max_label = labeled.with_data_slice(|vals| vals.iter().copied().fold(0.0_f32, f32::max));
     let n_basins = max_label as usize;
 
     write_image_inferred(&args.output, &labeled)?;

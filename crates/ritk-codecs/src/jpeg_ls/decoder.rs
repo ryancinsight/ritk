@@ -105,7 +105,7 @@ impl JpegLsDecoder {
         let mut samples = Vec::with_capacity(self.height * self.width);
         decode_scan(&mut reader, &params, &mut samples).context("JPEG-LS scan decode failed")?;
 
-        let bytes_per_sample = (self.bits_per_sample as usize + 7) / 8;
+        let bytes_per_sample = (self.bits_per_sample as usize).div_ceil(8);
         let mut out = vec![0u8; samples.len() * bytes_per_sample];
         for (i, &sample) in samples.iter().enumerate() {
             if bytes_per_sample == 1 {

@@ -236,6 +236,7 @@ fn diffuse(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
@@ -275,9 +276,8 @@ mod tests {
         });
         let out = filter.apply(&img).unwrap();
 
-        let td = out.data().clone().into_data();
-        let result = td.as_slice::<f32>().unwrap();
-        for &v in result {
+        let (result, _) = extract_vec_infallible(&out);
+        for &v in &result {
             assert!(
                 (v - val).abs() < 1e-4,
                 "expected {val} for uniform image after diffusion, got {v}"
@@ -321,8 +321,7 @@ mod tests {
         });
         let out = filter.apply(&img).unwrap();
 
-        let td = out.data().clone().into_data();
-        let result = td.as_slice::<f32>().unwrap();
+        let (result, _) = extract_vec_infallible(&out);
 
         // 1. Mean conservation (Neumann BC → total mass is invariant).
         let final_mean: f32 = result.iter().sum::<f32>() / n as f32;
@@ -379,9 +378,8 @@ mod tests {
         });
         let out = filter.apply(&img).unwrap();
 
-        let td = out.data().clone().into_data();
-        let result = td.as_slice::<f32>().unwrap();
-        let (final_mean, _) = image_stats(result);
+        let (result, _) = extract_vec_infallible(&out);
+        let (final_mean, _) = image_stats(&result);
 
         let rel_error = (final_mean - initial_mean).abs() / (initial_mean.abs() + 1e-6);
         assert!(
@@ -405,13 +403,12 @@ mod tests {
         });
         let out = filter.apply(&img).unwrap();
 
-        let td = out.data().clone().into_data();
-        let result = td.as_slice::<f32>().unwrap();
+        let (result, _) = extract_vec_infallible(&out);
 
         // All values should remain finite and in a reasonable range.
         let initial_max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let initial_min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
-        for &v in result {
+        for &v in &result {
             assert!(
                 v.is_finite(),
                 "quadratic conductance produced non-finite value"

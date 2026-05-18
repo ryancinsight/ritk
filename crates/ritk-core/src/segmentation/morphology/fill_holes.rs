@@ -9,6 +9,7 @@
 //! Output(x) = M(x) if M(x)=1 OR x in E, else 1 (hole -> foreground).
 
 use super::MorphologicalOperation;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::collections::VecDeque;
@@ -26,8 +27,8 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         let n = nz * ny * nx;
         let device = mask.data().device();
 
-        let mask_data = mask.data().clone().into_data();
-        let vals: &[f32] = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+        let (vals_vec, _shape) = extract_vec_infallible(mask);
+        let vals: &[f32] = &vals_vec;
 
         let idx = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
         let is_background = |v: f32| v < 0.5_f32;
@@ -141,9 +142,9 @@ mod tests {
         }
         let mask = make_mask(vals.clone(), shape);
         let result = BinaryFillHoles.apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        assert_eq!(out_vals, vals.as_slice(), "solid sphere must be unchanged");
+        result.with_data_slice(|out_vals| {
+            assert_eq!(out_vals, vals.as_slice(), "solid sphere must be unchanged");
+        });
     }
 
     #[test]
@@ -165,27 +166,27 @@ mod tests {
         }
         let mask = make_mask(vals.clone(), shape);
         let result = BinaryFillHoles.apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        for iz in 0..7usize {
-            for iy in 0..7usize {
-                for ix in 0..7usize {
-                    let d2 = ((iz as i32 - 3).pow(2)
-                        + (iy as i32 - 3).pow(2)
-                        + (ix as i32 - 3).pow(2)) as f32;
-                    if d2 < 4.0 {
-                        assert_eq!(
-                            out_vals[iz * 49 + iy * 7 + ix],
-                            1.0,
-                            "interior hole at ({},{},{}) must be filled",
-                            iz,
-                            iy,
-                            ix
-                        );
+        result.with_data_slice(|out_vals| {
+            for iz in 0..7usize {
+                for iy in 0..7usize {
+                    for ix in 0..7usize {
+                        let d2 = ((iz as i32 - 3).pow(2)
+                            + (iy as i32 - 3).pow(2)
+                            + (ix as i32 - 3).pow(2)) as f32;
+                        if d2 < 4.0 {
+                            assert_eq!(
+                                out_vals[iz * 49 + iy * 7 + ix],
+                                1.0,
+                                "interior hole at ({},{},{}) must be filled",
+                                iz,
+                                iy,
+                                ix
+                            );
+                        }
                     }
                 }
             }
-        }
+        });
     }
 
     #[test]
@@ -194,9 +195,9 @@ mod tests {
         let vals = vec![0.0f32; 27];
         let mask = make_mask(vals.clone(), shape);
         let result = BinaryFillHoles.apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        assert_eq!(out_vals, vals.as_slice(), "all-zero mask must be unchanged");
+        result.with_data_slice(|out_vals| {
+            assert_eq!(out_vals, vals.as_slice(), "all-zero mask must be unchanged");
+        });
     }
 
     #[test]
@@ -205,9 +206,9 @@ mod tests {
         let vals = vec![1.0f32; 27];
         let mask = make_mask(vals.clone(), shape);
         let result = BinaryFillHoles.apply(&mask);
-        let result_data = result.data().clone().into_data();
-        let out_vals = result_data.as_slice::<f32>().unwrap();
-        assert_eq!(out_vals, vals.as_slice(), "all-one mask must be unchanged");
+        result.with_data_slice(|out_vals| {
+            assert_eq!(out_vals, vals.as_slice(), "all-one mask must be unchanged");
+        });
     }
 
     #[test]

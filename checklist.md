@@ -1,3 +1,470 @@
+## Sprint 255 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Performance
+**Version**: 0.50.27 [patch]
+**Target**: Implement GAP-248-PERF-09: `RenderBufferPool` for persistent cross-frame buffer reuse.
+
+### Checklist items
+
+- [x] Create `render/buffer_pool.rs` — `RenderBufferPool` with `pixel_f32: Vec<f32>` + `rgba_u8: Vec<u8>`, `resize_u8`, `Default`
+- [x] Add `LoadedVolume::extract_slice_into` — zero-allocation in-place slice extraction
+- [x] Add `SliceRenderer::render_with_scratch` — pool-based pixel-identical slice render
+- [x] Refactor `mip_vr.rs` — `render_mip_axial_with_scratch` + `render_vr_axial_with_scratch` as zero-allocation cores; public wrappers delegate
+- [x] Add `render_buffer_pool: RenderBufferPool` field to `SnapApp` in `state.rs`
+- [x] Wire `rebuild_texture_for_axis`, `rebuild_texture_for_mip`, `rebuild_secondary_texture` in `render_cache.rs`
+- [x] Register `pub mod buffer_pool` and `pub(crate) use` in `render/mod.rs`
+- [x] Verify `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-snap --lib "render::"` — 37 passed (9 new buffer_pool + 28 existing)
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-251-STR-01: 14 files at 462–479 lines approaching limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 254 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.26 [patch]
+**Target**: Complete CPR viewer integration in `ritk-snap` — wire SnapApp filter path, add CPR ComboBox entry, add parameter controls UI.
+
+### Checklist items
+
+- [x] Change `promote_2d_to_3d` visibility to `pub(crate)` in `filter/apply.rs`
+- [x] Wire `FilterKind::Cpr { .. }` SnapApp arm in `app/filter.rs` — call `CprImageFilter` + `promote_2d_to_3d`
+- [x] Add "CPR" entry to `selector_values_third.rs` with default control points and parameters
+- [x] Add CPR controls UI in `controls_pointwise.rs` — sliders for num_path_samples, cross_section_half_width, num_cross_samples; text-edit for control points; reset button; validation
+- [x] Verify `cargo clippy --workspace` — 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-snap -- test_filter_kind_cpr_dispatch_reshapes_2d_to_3d` — passed
+- [x] Verify `cargo test -p ritk-core -- cpr` — 10 passed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-251-STR-01: 14 files at 462–479 lines approaching limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 253 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.25 [patch] → [minor] (CPR integration)
+**Target**: Implement the clinical distribution shell (`anonymize + print/media/report`) in `ritk-snap` with anonymized report export, media package export, and redaction tests. Close GAP-176-RAD-03 (CPR viewer+CLI integration).
+
+### Checklist items
+
+- [x] Add `app/clinical_distribution.rs` with anonymized report builder and export summary
+- [x] Add `SnapApp::export_clinical_distribution_to` and dialog wrapper
+- [x] Add File menu entry: `Export clinical distribution package…`
+- [x] Reuse slice-render PNG helper with preallocated RGB packing
+- [x] Add value-semantic report redaction test
+- [x] Add export integration test for report + current slice + MPR outputs
+- [x] Verify `cargo check -p ritk-snap --lib` — 0 errors
+- [x] Verify `cargo test -p ritk-snap --lib distribution` — 2 passed
+- [x] Verify full `cargo test -p ritk-snap --lib` — timed out after 505 tests observed passing; no failures observed before timeout
+- [x] Replace placeholder `FilterKind::Cpr` arm in `ritk-snap/src/filter/apply.rs` with full dispatch + `promote_2d_to_3d` helper [minor]
+- [x] Add CPR CLI args and `"cpr"` dispatch arm in `ritk-cli/src/commands/filter/mod.rs` [minor]
+- [x] Add `run_cpr()` in `ritk-cli/src/commands/filter/spatial_impl.rs` with control-point parsing, 2-D→3-D promotion, NIfTI output [minor]
+- [x] Add `run_cpr` re-export and `mod cpr` test module in `ritk-cli/src/commands/filter/spatial/mod.rs` [patch]
+- [x] Add 3 CLI integration tests in `ritk-cli/src/commands/filter/spatial/tests/cpr.rs` [patch]
+- [x] Add viewer dispatch test `test_filter_kind_cpr_dispatch_reshapes_2d_to_3d` in `ritk-snap/src/app/tests/rt.rs` [patch]
+- [x] Fix CRLF line-ending breakage in CLI unknown-filter error message (`concat!` + `format!` pattern) [patch]
+
+### Maintenance progress
+
+- [x] Preemptive partition: `annotation_panel.rs` (478→207) — tests moved to `annotation_panel/tests.rs`
+- [x] Preemptive partition: `rt_dose_analytics.rs` (471→374) — tests moved to `rt_dose_analytics/tests.rs`
+- [x] Preemptive partition: `histogram_matching.rs` (462→183) — tests moved to `histogram_matching/tests.rs`
+- [x] GAP-251-STR-01 reduced from 18 to 14 open near-limit files
+- [x] GAP-176-RAD-03 / GAP-252-SNAP-01 closed — CPR dispatch in viewer + CLI `cpr` command (14 tests total)
+
+## Sprint 252 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Feature Development
+**Version**: 0.50.24 [patch]
+**Target**: Implement core CPR filter primitive (`CprImageFilter`, `CprConfig`) in `ritk-core` with mathematical specification, value-semantic tests, and full artifact sync.
+
+### Checklist items
+
+- [x] Add `cpr.rs` module with `CprConfig`, `CprImageFilter`, and helpers (`catmull_rom_point`, `generate_path`, `cross_section_basis`, `physical_to_index`, `trilinear_sample`)
+- [x] Register module in `filter/mod.rs` — `pub mod cpr;` + `pub use`
+- [x] Implement `CprImageFilter::apply` with 3-stage pipeline: arc-length path → Gram-Schmidt cross-section basis → trilinear sampling
+- [x] Add 10 value-semantic tests (constant image, linear Z-path, non-zero origin, non-unit spacing, insufficient CPs, zero-length path, output shape, metadata, physical-to-index ×2)
+- [x] Fix `catmull_rom_point` coordinate transposition bug (return `[x, y, z]` instead of `[z, y, x]`)
+- [x] Partition `cpr.rs` (716→472) — tests to `tests_cpr.rs`
+- [x] Partition `iir.rs` (592→350) — tests to `tests_iir.rs`
+- [x] Verify structural compliance — 0 violations (max 479)
+- [x] Verify `cargo test -p ritk-core --lib` — 1203 passed
+- [x] Verify `cargo test -p ritk-registration --lib` — 286 passed
+- [x] Update CHANGELOG.md, backlog.md, checklist.md, gap_audit.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-04: Clinical distribution shell (anonymize + print/media/report) | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-248-PERF-10: SIMD boundary/interior split | Low | Open |
+| GAP-251-STR-01: 18 files at 462–479 lines approaching limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 247 — Complete
+**Status**: Complete
+**Phase**: Closure → Foundation
+**Version**: 0.50.19 [patch]
+**Target**: Preemptively partition at-limit files and eliminate SyN per-iteration heap allocations.
+
+### Checklist items
+- [x] Preemptive partition: syn_core.rs (499 lines) → syn_core/mod.rs + syn_core/tests.rs
+- [x] Preemptive partition: engine.rs (499 lines) → engine/mod.rs + engine/tests.rs
+- [x] Preemptive partition: unstruct_grid.rs (498 lines) → unstruct_grid/mod.rs + unstruct_grid/tests.rs
+- [x] Preemptive partition: context.rs (498 lines) → context/mod.rs + context/tests.rs
+- [x] Add scaling_and_squaring_into (zero-allocation variant with 9 caller-owned buffers)
+- [x] Add cc_forces_into (zero-allocation variant with 3 caller-provided buffers, z-slice Rayon parallelism)
+- [x] Add gaussian_smooth_with_scratch (zero-allocation variant with caller-provided scratch buffer)
+- [x] Rewrite SyN register() loop: 24 pre-allocated scratch buffers, zero per-iteration heap allocs
+- [x] Differential equivalence test: cc_forces_into matches cc_forces within 1e-5
+- [x] Equivalence test: gaussian_smooth_with_scratch matches gaussian_smooth_inplace within 1e-6
+- [x] Verify cargo check: 0 errors, 0 warnings
+- [x] Verify cargo test -p ritk-core --lib: 1186 passed
+- [x] Verify cargo test -p ritk-registration --lib: 281 passed
+- [x] Verify cargo test -p ritk-codecs --lib: 104 passed
+- [x] Verify cargo test -p ritk-cli: 197 passed
+- [x] Verify structural compliance (all <= 500 lines, max 497)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-247-PERF-08: MultiResSyN/BSplineSyN/DiffeomorphicDemons inner-loop scratch hoisting | High | Open |
+| GAP-247-DRY-01: clone().into_data() DRY migration (228 occ, 93 files) | Medium | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 248 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Closure
+**Version**: 0.50.20 [patch]
+**Target**: Zero-allocation loops for all remaining registration engines, DRY migration completion, preemptive partitions, cc_forces deduplication.
+
+### Checklist items
+
+- [x] Add compose_fields_into re-export in deformable_field_ops/mod.rs
+- [x] Add evaluate_dense_into, accumulate_to_cp_into, cp_laplacian_into (BSplineSyN primitives)
+- [x] Differential equivalence tests: evaluate_dense_into, accumulate_to_cp_into, cp_laplacian_into
+- [x] Rewrite MultiResSyN register() loop: 30 scratch buffers/level, zero per-iteration allocs
+- [x] Rewrite BSplineSyN register() loop: 30 dense + 14 CP scratch buffers, zero per-iteration allocs
+- [x] Rewrite DiffeomorphicDemons register() loop: 11 scratch buffers, eliminate compute_mse_direct
+- [x] Rewrite LDDMM register() loop: epdiff_adjoint_into + integrate_geodesic_into
+- [x] Rewrite Thirion/Symmetric/IC Demons loops: zero-alloc
+- [x] Gate 8 dead allocating wrappers with #[cfg(test)]: compose_fields, thirion_forces, cc_forces, evaluate_dense, accumulate_to_cp, cp_laplacian, compute_mse, epdiff_adjoint, integrate_geodesic
+- [x] Delete orphaned duplicate cc_forces: bspline_syn/cc.rs, multires_syn/cc.rs
+- [x] DRY migration: ~98 production files + ~103 test occurrences → extract_vec/extract_vec_infallible
+- [x] Preemptive partition: filter_kind.rs (497→427, doc externalization)
+- [x] Preemptive partition: spatial.rs (497→294+19+121+117)
+- [x] Verify cargo check: 0 errors, 0 warnings
+- [x] Verify cargo test -p ritk-core --lib: 1186 passed
+- [x] Verify cargo test -p ritk-registration --lib: 286 passed
+- [x] Verify cargo test -p ritk-codecs --lib: 104 passed
+- [x] Verify cargo test -p ritk-cli: 197 passed
+- [x] Verify structural compliance (all <= 500 lines, max 494)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-248-PERF-10: SIMD boundary/interior split | Low | Open |
+| GAP-248-STR-07: binary_dilation.rs (491), selector_values_ext.rs (490) near limit | Medium | Open |
+| GAP-248-DRY-03: extract_slice for .as_slice() borrow-path | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 250 — Complete
+**Status**: Complete
+**Phase**: Closure → Code Quality
+**Version**: 0.50.22 [patch]
+**Target**: Complete DRY migration of all data().clone().into_data()/to_data() patterns; add ColorVolume canonical extraction API; preemptively partition at-limit files.
+
+### Checklist items
+- [x] Preemptive partition: binary_dilation.rs (491 lines) → binary_dilation/mod.rs (183) + binary_dilation/tests.rs (281)
+- [x] Preemptive partition: selector_values_ext.rs (490 lines) → selector_values_ext.rs (234) + selector_values_third.rs (264)
+- [x] Add `ColorVolume::data_vec()` and `ColorVolume::with_data_slice()` to ritk-core/src/image/color.rs
+- [x] Migrate ~40 ritk-cli test-code `data().clone().into_data().as_slice()` occurrences → `with_data_slice()` / `data_vec()`
+- [x] Migrate ~11 ritk-io DICOM test-code occurrences → `with_data_slice()`
+- [x] Migrate ~10 ritk-core morphology test-code occurrences → `with_data_slice()` / `data_vec()`
+- [x] Migrate ~4 ritk-registration test-code occurrences → `data_vec()`
+- [x] Migrate 6 production writer `data().clone().to_data().as_slice()` occurrences → `try_data_vec()` (ritk-metaimage, ritk-mgh, ritk-nrrd, ritk-tiff, ritk-vtk, ritk-jpeg)
+- [x] Migrate ~35 codec test-code occurrences across ritk-tiff, ritk-mgh, ritk-nrrd, ritk-metaimage → `with_data_slice()` / `data_vec()`
+- [x] Migrate 5 ColorVolume test-code occurrences → `data_vec()` / `with_data_slice()`
+- [x] Verify cargo check --workspace: 0 errors
+- [x] Verify cargo test -p ritk-core --lib: 1186 passed
+- [x] Verify cargo test -p ritk-registration --lib: 286 passed
+- [x] Verify cargo test -p ritk-codecs --lib: 104 passed
+- [x] Verify cargo test -p ritk-cli: 197 passed
+- [x] Verify cargo test -p ritk-tiff: 16 passed
+- [x] Verify cargo test -p ritk-jpeg: 9 passed
+- [x] Verify cargo test -p ritk-png: 9 passed
+- [x] Verify cargo test -p ritk-mgh: 30 passed
+- [x] Verify cargo test -p ritk-nrrd: 23 passed
+- [x] Verify cargo test -p ritk-nifti: 13 passed
+- [x] Verify cargo test -p ritk-metaimage: 19 passed
+- [x] Verify structural compliance (all <= 500 lines, max 494)
+- [x] Verify zero remaining `data().clone().into_data()` / `data().clone().to_data()` patterns
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-248-PERF-10: SIMD boundary/interior split | Low | Open |
+| GAP-250-STR-01: polydata/reader.rs (494), threshold.rs (489), local_cc.rs (485), nifti/tests.rs (485), atlas/mod.rs (484), recursive_gaussian.rs (482), sato.rs (481), nrrd/reader.rs (480) | Medium | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **`data().clone().into_data()` / `data().clone().to_data()` patterns** | **0** | **Codebase-wide elimination complete** |
+
+## Sprint 251 — Complete
+
+**Status**: Complete
+**Phase**: Closure → Code Quality
+**Version**: 0.50.23 [patch]
+**Target**: Preemptive partition of 8 files approaching 500-line structural limit (GAP-250-STR-01).
+
+### Checklist items
+- [x] Partition polydata/reader.rs (494→354)
+- [x] Partition threshold.rs (489→214)
+- [x] Partition local_cc.rs (485→120)
+- [x] Partition nifti/tests.rs (485→333)
+- [x] Partition atlas/mod.rs (484→282)
+- [x] Partition recursive_gaussian.rs (482→230)
+- [x] Partition sato.rs (481→227)
+- [x] Partition nrrd/reader.rs (480→233)
+- [x] Fix cc_forces/field_rms cfg(test) gating + remove redundant import
+- [x] Verify: cargo check --workspace 0 errors, 0 warnings
+- [x] Verify: all 6 crate test suites pass
+- [x] Verify: max line count 479 (down from 494)
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-248-PERF-10: SIMD boundary/interior split | Low | **Closed** |
+| GAP-251-STR-01: 18 files at 462–479 lines approaching limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **DRY violations** | **0** | **Codebase-wide elimination complete** |
+
+## Sprint 252 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Performance
+**Version**: 0.50.24 [patch]
+**Target**: SIMD boundary/interior split for Sobel and recursive Gaussian 1-D convolution kernels (GAP-248-PERF-10).
+
+### Checklist items
+- [x] Split `apply_smooth_1d` forward/backward passes: init phase (boundary, first/last 3 elements) vs steady-state (interior)
+- [x] Split `apply_first_derivative_1d_into`: boundary (i=0, i=len-1) vs interior (i=1..len-2)
+- [x] Split `apply_second_derivative_1d_into`: boundary (i=0, i=len-1) vs interior (i=1..len-2)
+- [x] Split `convolve_1d_axis` (Sobel): boundary (pos=0, pos=len-1) vs interior (pos=1..len-2)
+- [x] Add differential verification tests: split vs naive reference (all 3 axes, multiple sizes, both kernels)
+- [x] Add edge-case tests: single-element axis, 2-element axis, degenerate volumes
+- [x] Verify: cargo check --workspace 0 errors, 0 warnings
+- [x] Verify: cargo test -p ritk-core --lib 1203 passed (17 new)
+- [x] Verify: cargo test -p ritk-registration --lib 286 passed
+- [x] Verify: cargo test -p ritk-cli 197 passed
+- [x] Verify: all modified files ≤ 500 lines
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-251-STR-01: 18 files at 462–479 lines approaching limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| **DRY violations** | **0** | **Codebase-wide elimination complete** |
+
+**Status**: Complete
+**Phase**: Execution → Code Quality
+**Version**: 0.50.21 [patch]
+**Target**: DRY migration — eliminate clone().into_data() from production code and test-code into_vec helpers; add Image::data_vec()/try_data_vec()/with_data_slice() as canonical extraction API.
+
+### Checklist items
+
+- [x] Add `Image::data_vec()`, `Image::try_data_vec()`, `Image::with_data_slice()` to ritk-core/src/image/image.rs
+- [x] Migrate 14 production-code clone().into_data().as_slice() occurrences (analyze, cli, io, nifti, registration)
+- [x] Migrate ~35 test-code clone().into_data().into_vec().unwrap() occurrences (ritk-core, ritk-snap) → data_vec()
+- [x] Migrate 6 test-code multi-line data()→clone()→into_data()→as_slice()→unwrap()→to_vec() patterns → data_vec()
+- [x] Verify cargo check: 0 errors on all affected crates (ritk-core, cli, io, nifti, analyze, registration, snap)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| GAP-248-PERF-09: RenderBufferPool | Low | Open |
+| GAP-248-PERF-10: SIMD boundary/interior split | Low | Open |
+| GAP-248-STR-07: binary_dilation.rs (491), selector_values_ext.rs (490) near limit | Medium | Open |
+| GAP-249-DRY-04: Remaining ~149 test-code .as_slice() patterns (80 files) — deferred | Low | Deferred |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 246 — Complete
+**Status**: Complete
+**Phase**: Closure ⟳ Performance & Memory Optimization
+**Version**: 0.50.18 [patch]
+**Target**: Eliminate allocation anti-patterns across rendering, filters, and data conversion.
+
+### Checklist items
+
+- [x] Recursive Gaussian: f64-to-f32 IIR smoothing
+- [x] Recursive Gaussian: hoist per-line buffer allocations outside line loop
+- [x] Recursive Gaussian: pre-allocated scratch buffers for gradient/laplacian (_into variants)
+- [x] Recursive Gaussian: in-place sqrt, eliminate .collect()
+- [x] Recursive Gaussian: #[inline] on 9 hot-path functions
+- [x] Remove dead-code wrappers (apply_first_derivative_1d, apply_second_derivative_1d)
+- [x] Slice renderer: fuse WL+colormap into single pass (4-to-2 allocs/frame)
+- [x] Slice renderer: #[inline] on WindowLevel::apply
+- [x] Fusion renderer: early return when alpha <= 0
+- [x] LoadedVolume::extract_slice: direct slice indexing + Vec::with_capacity
+- [x] Colormap::map: #[inline]
+- [x] N4 bias field: hoist w/r scratch buffers outside iteration loop
+- [x] Curvature flow: double-buffer copy_from_slice+swap
+- [x] Bed separation: stack-allocated neighbors() + VecDeque/Vec capacity hints
+- [x] ONNX tensor: Vec::from_raw_parts transmutation + direct array shape construction
+- [x] Verify cargo check: 0 errors, 0 warnings
+- [x] Verify cargo test -p ritk-core --lib: 1186 passed
+- [x] Verify cargo test -p ritk-snap --lib: 502 passed
+- [x] Verify cargo test -p ritk-cli: 197 passed
+- [x] Verify structural compliance (all <= 500 lines)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 245 — Complete
+
+**Status**: Complete
+**Phase**: Closure → Feature Development
+**Version**: 0.50.17 [minor]
+**Target**: Close GAP-176-RAD-02 PET/CT SUV viewer surface.
+
+### Checklist items
+- [x] Wire `current_cursor_suv()` and `pointer_suv` into `OverlayRenderer::draw` (bottom-right SUV readout)
+- [x] Remove `#[allow(dead_code)]` from `current_cursor_suv()` in pointer_ops.rs
+- [x] Add `format_suv_string()` helper to overlay module (None/non-finite → empty string)
+- [x] Create `ui/pet_suv_panel.rs` with `draw_pet_suv_panel` (SUV readouts + acquisition parameters)
+- [x] Add `SidebarTab::PetSuv` variant and "PET SUV" tab button to sidebar
+- [x] Wire `SidebarPanel` to pass pointer_suv/cursor_suv + PET params to panel
+- [x] Split `sidebar.rs` (567 → directory mod.rs 416 + tests.rs 125)
+- [x] Verify `cargo check -p ritk-snap --lib` (0 errors, 0 warnings)
+- [x] Verify `cargo check -p ritk-model -p ritk-core -p ritk-io -p ritk-cli` (0 errors, 0 warnings)
+- [x] Verify `cargo test -p ritk-snap --lib -- suv` (27 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- overlay` (26 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- pet_suv` (7 passed)
+- [x] Verify `cargo test -p ritk-snap --lib -- sidebar` (7 passed)
+- [x] Verify `cargo test -p ritk-core --lib -- neighborhood_connected` (22 passed)
+- [x] Verify `cargo test -p ritk-core --lib -- skeletonization` (28 passed)
+- [x] Verify `cargo test -p ritk-cli` (197 passed)
+- [x] Verify `cargo test -p xtask` (4 passed)
+- [x] Verify structural compliance (all ≤ 500 lines)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md, checklist.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | Open |
+| GAP-176-RAD-04: Clinical distribution shell | Medium-High | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 244 — Complete
+**Status**: Complete
+**Phase**: Phase 3 Closure
+**Version**: 0.50.16 [patch]
+**Target**: Close all remaining structural violations (>500 lines), eliminate pre-existing compiler warnings, achieve zero-violation codebase.
+
+### Checklist items
+- [x] Split `ritk-model/src/onnx/graph.rs` (706 → directory with 7 files)
+- [x] Split `ritk-core/.../tests_neighborhood_connected.rs` (660 → directory with 2 files)
+- [x] Split `ritk-core/.../tests_skeletonization.rs` (584 → directory with 3 files)
+- [x] Fix `current_cursor_suv` dead_code warning with `#[allow(dead_code)]` + GAP-176-RAD-02 reservation
+- [x] Fix unused `scan_dicom_directory` re-export warning in `ritk-io`
+- [x] Fix unused `SEG_SOP_CLASS_UID` re-export warning in `ritk-io`
+- [x] Verify `cargo check -p ritk-model` (0 errors, 0 warnings)
+- [x] Verify `cargo check -p ritk-core` (0 errors, 0 warnings)
+- [x] Verify `cargo check -p ritk-io` (0 errors, 0 warnings)
+- [x] Verify `cargo check -p ritk-snap --lib` (0 errors, 0 warnings)
+- [x] Verify `cargo check -p ritk-cli` (0 errors, 0 warnings)
+- [x] Verify `cargo test -p ritk-core --lib -- neighborhood_connected` (22 passed)
+- [x] Verify `cargo test -p ritk-core --lib -- skeletonization` (28 passed)
+- [x] Verify `cargo test -p ritk-snap --lib` (492 passed)
+- [x] Verify `cargo test -p ritk-cli` (197 passed)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-176-RAD-02: PET/CT SUV workflow | High | In progress |
+| GAP-176-RAD-03: CPR / curved-MPR workflow | High | In progress |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+## Sprint 243 — Complete
+
+**Status**: Complete  
+**Version**: 0.50.14 [patch]  
+**Target**: Enforce 500-line SRP structural limit across ritk-snap, ritk-cli, xtask
+
+### Checklist items
+
+- [x] Split `ritk-snap/src/lib.rs` (1844 → 306 lines) into viewer.rs, filter/, geometry.rs, loaded_volume.rs, launch.rs
+- [x] Split `ritk-snap/src/ui/filter_panel.rs` (1947 → directory) into 9-file module
+- [x] Split `ritk-cli/src/commands/filter.rs` (1945 → directory) into 5-file module
+- [x] Split `ritk-cli/src/commands/register.rs` (1893 → directory) into 5-file module
+- [x] Split `ritk-snap/src/ui/viewport.rs` (1155 → directory) into 6-file module
+- [x] Split `ritk-snap/src/tools/interaction.rs` (916 → directory) into 4-file module
+- [x] Split `ritk-snap/src/dicom/pet.rs` (594 → directory)
+- [x] Split `ritk-snap/src/dicom/series_tree.rs` (592 → directory)
+- [x] Split `ritk-snap/src/ui/window_presets.rs` (507 → directory)
+- [x] Split `ritk-snap/src/ui/measurements.rs` (503 → directory)
+- [x] Split `xtask/src/datasets.rs` (510 → directory)
+- [x] Fix `register/diffeomorphic.rs` TempDir lifetime bug
+- [x] Verify `cargo check -p ritk-snap --lib -p ritk-cli -p xtask` (0 errors)
+- [x] Verify `cargo test -p ritk-snap --lib` (492 passed)
+- [x] Verify `cargo test -p ritk-cli` (197 passed)
+- [x] Verify `cargo test -p xtask` (4 passed)
+- [x] Update CHANGELOG.md, backlog.md, gap_audit.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| `dicom/loader.rs` (788 lines) | Medium | Next sprint |
+| `commands/stats.rs` (676 lines) | Medium | Next sprint |
+| `ritk-model/onnx/graph.rs` (706 lines) | Low | Deferred |
+| `ritk-core` test files (536–660 lines) | Low | Deferred |
+| GAP-176-RAD-02: PET/CT SUV workflow | High | In progress |
+
 ## Sprint 188 — Complete
 **Status**: Complete
 **Phase**: Phase 2 Execution

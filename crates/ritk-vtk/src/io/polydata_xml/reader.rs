@@ -27,8 +27,10 @@ pub(crate) fn parse_vtp(input: &str) -> Result<VtkPolyData> {
     }
     let points: Vec<[f32; 3]> = coords.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
 
-    let mut poly = VtkPolyData::default();
-    poly.points = points;
+    let mut poly = VtkPolyData {
+        points,
+        ..Default::default()
+    };
     poly.vertices = parse_cells(input, "Verts");
     poly.lines = parse_cells(input, "Lines");
     poly.polygons = parse_cells(input, "Polys");
@@ -153,6 +155,7 @@ fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;
     let close = "</DataArray>";
+    #[allow(clippy::while_let_loop)]
     loop {
         let start = match rest.find("<DataArray") {
             Some(s) => s,

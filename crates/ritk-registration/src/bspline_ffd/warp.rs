@@ -1,7 +1,7 @@
 //! Convenience warp via B-spline displacement field.
 
-use crate::deformable_field_ops::warp_image;
 use super::basis::evaluate_bspline_displacement;
+use crate::deformable_field_ops::warp_image;
 
 /// Warp an image using the B-spline displacement field.
 ///

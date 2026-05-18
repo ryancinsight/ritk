@@ -1464,6 +1464,7 @@ source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f46
 dependencies = [
  "byteorder",
  "consus-core",
+ "flate2",
 ]
 
 [[package]]
@@ -5044,6 +5045,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "openjpeg-sys"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92682cb92e7b01e2c020cf8ec12f3374558924bb24621df1112d8a7c93d419ef"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "openssl"
 version = "0.10.75"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5956,9 +5967,12 @@ name = "ritk-codecs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "charls",
  "image 0.24.9",
+ "jpeg-decoder",
  "jpeg2k",
  "openjp2",
+ "openjpeg-sys",
  "proptest",
 ]
 
@@ -6002,6 +6016,10 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "charls",
+ "consus-compression",
+ "consus-core",
+ "consus-hdf5",
+ "consus-io",
  "dicom",
  "dicom-core",
  "dicom-pixeldata",
@@ -6012,6 +6030,7 @@ dependencies = [
  "nalgebra",
  "ndarray 0.16.1",
  "openjp2",
+ "openjpeg-sys",
  "rayon",
  "ritk-analyze",
  "ritk-codecs",
@@ -6028,6 +6047,7 @@ dependencies = [
  "ritk-vtk",
  "tempfile",
  "thiserror 2.0.18",
+ "tiff 0.9.1",
  "tracing",
  "zune-core 0.4.12",
  "zune-jpegxl",

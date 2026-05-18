@@ -125,6 +125,11 @@ impl SnapApp {
                         self.export_all_mpr_slices();
                     }
 
+                    if ui.button("Export clinical distribution package…").clicked() {
+                        ui.close_menu();
+                        self.export_clinical_distribution_dialog();
+                    }
+
                     if ui.button("Save segmentation as NIfTI…").clicked() {
                         ui.close_menu();
                         self.save_segmentation_dialog();

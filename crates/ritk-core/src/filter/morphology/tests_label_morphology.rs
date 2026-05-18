@@ -1,6 +1,7 @@
 //! Tests for label_morphology
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -16,7 +17,8 @@ fn img(v: Vec<f32>, d: [usize; 3]) -> Image<B, 3> {
     )
 }
 fn vv(i: &Image<B, 3>) -> Vec<f32> {
-    i.data().clone().into_data().into_vec::<f32>().unwrap()
+    let (v, _) = extract_vec_infallible(i);
+    v
 }
 
 #[test]

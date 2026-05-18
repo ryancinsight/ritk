@@ -1,6 +1,7 @@
 //! Tests for sobel
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -34,8 +35,7 @@ fn test_uniform_image_zero_gradient() {
     let filter = SobelFilter::unit();
     let mag = filter.apply(&img).unwrap();
 
-    let td = mag.data().clone().into_data();
-    let out = td.as_slice::<f32>().unwrap();
+    let (out, _) = extract_vec_infallible(&mag);
     for (i, &v) in out.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -65,12 +65,9 @@ fn test_ramp_x_unit_spacing() {
     let filter = SobelFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
 
     // Check interior voxels only (1-voxel margin from each face).
     for iz in 1..nz - 1 {
@@ -98,8 +95,7 @@ fn test_ramp_x_unit_spacing() {
 
     // Verify magnitude at interior.
     let mag = filter.apply(&img).unwrap();
-    let mag_data = mag.data().clone().into_data();
-    let mag_vals = mag_data.as_slice::<f32>().unwrap();
+    let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -138,15 +134,10 @@ fn test_diagonal_ramp_magnitude() {
     let filter = SobelFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
-
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
     let expected_mag = 3.0_f32.sqrt();
-
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -169,10 +160,8 @@ fn test_diagonal_ramp_magnitude() {
             }
         }
     }
-
     let mag = filter.apply(&img).unwrap();
-    let mag_data = mag.data().clone().into_data();
-    let mag_vals = mag_data.as_slice::<f32>().unwrap();
+    let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -202,13 +191,9 @@ fn test_non_unit_spacing() {
     let filter = SobelFilter::new([1.0, 1.0, 2.0]);
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
-
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -231,11 +216,9 @@ fn test_non_unit_spacing() {
             }
         }
     }
-
     // Verify magnitude = 0.5 at interior.
     let mag = filter.apply(&img).unwrap();
-    let mag_data = mag.data().clone().into_data();
-    let mag_vals = mag_data.as_slice::<f32>().unwrap();
+    let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -316,13 +299,9 @@ fn test_ramp_y_axis_separation() {
     let filter = SobelFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
-
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -363,13 +342,9 @@ fn test_ramp_z_axis_separation() {
     let filter = SobelFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
-
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -417,19 +392,15 @@ fn test_anisotropic_spacing_diagonal() {
     let filter = SobelFilter::new(sp);
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let gz_data = gz.data().clone().into_data();
-    let gz_vals = gz_data.as_slice::<f32>().unwrap();
-    let gy_data = gy.data().clone().into_data();
-    let gy_vals = gy_data.as_slice::<f32>().unwrap();
-    let gx_data = gx.data().clone().into_data();
-    let gx_vals = gx_data.as_slice::<f32>().unwrap();
+    let (gz_vals, _) = extract_vec_infallible(&gz);
+    let (gy_vals, _) = extract_vec_infallible(&gy);
+    let (gx_vals, _) = extract_vec_infallible(&gx);
 
     let expected_gz = 1.0_f32 / 0.5;
     let expected_gy = 1.0_f32 / 1.0;
     let expected_gx = 1.0_f32 / 2.0;
     let expected_mag =
-        (expected_gz * expected_gz + expected_gy * expected_gy + expected_gx * expected_gx)
-            .sqrt();
+        (expected_gz * expected_gz + expected_gy * expected_gy + expected_gx * expected_gx).sqrt();
 
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -455,8 +426,7 @@ fn test_anisotropic_spacing_diagonal() {
     }
 
     let mag = filter.apply(&img).unwrap();
-    let mag_data = mag.data().clone().into_data();
-    let mag_vals = mag_data.as_slice::<f32>().unwrap();
+    let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {

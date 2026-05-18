@@ -37,9 +37,5 @@ pub(crate) fn parse_seed(s: &str) -> Result<[usize; 3]> {
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(crate) fn count_foreground(image: &ritk_core::image::Image<Backend, 3>) -> usize {
-    let td = image.data().clone().into_data();
-    let slice = td
-        .as_slice::<f32>()
-        .expect("segmentation output must contain f32 data");
-    slice.iter().filter(|&&v| v > 0.5).count()
+    image.with_data_slice(|slice| slice.iter().filter(|&&v| v > 0.5).count())
 }

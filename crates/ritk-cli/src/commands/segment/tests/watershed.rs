@@ -56,11 +56,11 @@ fn test_segment_watershed_creates_output() {
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(labels.shape(), [4, 4, 4], "shape must be preserved");
 
-    let td = labels.data().clone().into_data();
-    let vals = td.as_slice::<f32>().unwrap();
-    for &v in vals {
-        assert!(v >= 0.0, "watershed labels must be non-negative, got {v}");
-    }
+    labels.with_data_slice(|vals| {
+        for &v in vals {
+            assert!(v >= 0.0, "watershed labels must be non-negative, got {v}");
+        }
+    });
 }
 
 // ── Negative: marker-watershed missing markers path returns error ─────────
@@ -151,22 +151,20 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
     run(args).expect("marker-watershed must succeed with valid inputs");
 
     let img = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    let td = img.data().clone().into_data();
-    let vals = td.as_slice::<f32>().expect("output must contain f32 data");
-
-    let has_label_1 = vals.iter().any(|&v| v == 1.0_f32);
-    let has_label_2 = vals.iter().any(|&v| v == 2.0_f32);
-
-    assert!(
-        has_label_1,
-        "output must contain at least one voxel with label 1.0 (seed basin 1); \
-         got values: {:?}",
-        &vals[..vals.len().min(27)]
-    );
-    assert!(
-        has_label_2,
-        "output must contain at least one voxel with label 2.0 (seed basin 2); \
-         got values: {:?}",
-        &vals[..vals.len().min(27)]
-    );
+    img.with_data_slice(|vals| {
+        let has_label_1 = vals.iter().any(|&v| v == 1.0_f32);
+        let has_label_2 = vals.iter().any(|&v| v == 2.0_f32);
+        assert!(
+            has_label_1,
+            "output must contain at least one voxel with label 1.0 (seed basin 1); \
+             got values: {:?}",
+            &vals[..vals.len().min(27)]
+        );
+        assert!(
+            has_label_2,
+            "output must contain at least one voxel with label 2.0 (seed basin 2); \
+             got values: {:?}",
+            &vals[..vals.len().min(27)]
+        );
+    });
 }

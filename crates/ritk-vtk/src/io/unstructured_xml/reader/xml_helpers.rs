@@ -1,8 +1,8 @@
 //! XML parsing helpers for the VTU ASCII reader.
 
+use crate::domain::vtk_data_object::AttributeArray;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use crate::domain::vtk_data_object::AttributeArray;
 
 /// Return the opening tag string for the first occurrence of `<tag ...>` or
 /// `<tag>` in `s`, including the closing `>`.
@@ -93,6 +93,7 @@ pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;
     let close = "</DataArray>";
+    #[allow(clippy::while_let_loop)]
     loop {
         let start = match rest.find("<DataArray") {
             Some(s) => s,

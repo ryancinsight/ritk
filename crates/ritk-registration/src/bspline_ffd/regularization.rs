@@ -88,7 +88,11 @@ pub fn bending_energy(
         }
     }
 
-    if count > 0 { energy / count as f64 } else { 0.0 }
+    if count > 0 {
+        energy / count as f64
+    } else {
+        0.0
+    }
 }
 
 /// Compute the gradient of the bending energy w.r.t. control-point displacements.

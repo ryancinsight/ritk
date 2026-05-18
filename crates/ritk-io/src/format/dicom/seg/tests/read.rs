@@ -1,5 +1,5 @@
-use super::helpers::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
 use super::super::read_dicom_seg;
+use super::helpers::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
 use dicom::core::header::Length;
 use dicom::core::value::{DataSetSequence, Value};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -80,8 +80,15 @@ fn test_read_seg_binary_4x4_single_frame() {
     assert_eq!(seg.segments.len(), 1, "segment count");
     assert_eq!(seg.segments[0].segment_label, "TUMOR", "segment label");
     assert_eq!(seg.segments[0].segment_number, 1, "segment number");
-    assert_eq!(seg.frame_segment_numbers.len(), 1, "frame_segment_numbers len");
-    assert_eq!(seg.frame_segment_numbers[0], 1, "frame 0 references segment 1");
+    assert_eq!(
+        seg.frame_segment_numbers.len(),
+        1,
+        "frame_segment_numbers len"
+    );
+    assert_eq!(
+        seg.frame_segment_numbers[0], 1,
+        "frame 0 references segment 1"
+    );
     assert_eq!(seg.pixel_data.len(), 1, "pixel_data frames");
     assert_eq!(seg.pixel_data[0].len(), 16, "pixels per frame");
     assert_eq!(

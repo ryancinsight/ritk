@@ -149,8 +149,7 @@ fn jlf_equidistant_same_labels() {
         patch_radius: 0,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(result.labels[i], 5, "voxel {}", i);
@@ -187,8 +186,7 @@ fn jlf_equidistant_majority() {
         patch_radius: 0,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     let expected_conf = 2.0f64 / 3.0;
     for i in 0..n {
@@ -228,8 +226,7 @@ fn jlf_equidistant_tie_smallest_label() {
         patch_radius: 0,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(
@@ -263,8 +260,7 @@ fn jlf_zero_distance_singular_fallback() {
         patch_radius: 0,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(result.labels[i], 3, "voxel {}", i);
@@ -298,8 +294,7 @@ fn jlf_single_atlas() {
         patch_radius: 0,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(result.labels[i], i as u32 + 100, "voxel {}", i);
@@ -331,8 +326,7 @@ fn jlf_nonzero_patch_radius_equidistant() {
         patch_radius: 1,
         beta: 0.1,
     };
-    let result =
-        joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
+    let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(result.labels[i], 1, "voxel {}", i);
@@ -355,8 +349,8 @@ fn jlf_empty_error() {
     let atlas_images: Vec<&[f32]> = vec![];
     let atlas_labels: Vec<&[u32]> = vec![];
     let config = LabelFusionConfig::default();
-    let err = joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config)
-        .unwrap_err();
+    let err =
+        joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config).unwrap_err();
     assert!(
         matches!(err, RegistrationError::InvalidConfiguration(_)),
         "expected InvalidConfiguration, got {:?}",
@@ -374,8 +368,8 @@ fn jlf_atlas_count_mismatch() {
     let atlas_images: Vec<&[f32]> = vec![&a];
     let atlas_labels: Vec<&[u32]> = vec![&l1, &l2];
     let config = LabelFusionConfig::default();
-    let err = joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config)
-        .unwrap_err();
+    let err =
+        joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config).unwrap_err();
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",
@@ -392,8 +386,8 @@ fn jlf_target_dimension_mismatch() {
     let atlas_images: Vec<&[f32]> = vec![&a];
     let atlas_labels: Vec<&[u32]> = vec![&l];
     let config = LabelFusionConfig::default();
-    let err = joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config)
-        .unwrap_err();
+    let err =
+        joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config).unwrap_err();
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",
@@ -410,8 +404,8 @@ fn jlf_atlas_image_dimension_mismatch() {
     let atlas_images: Vec<&[f32]> = vec![&a];
     let atlas_labels: Vec<&[u32]> = vec![&l];
     let config = LabelFusionConfig::default();
-    let err = joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config)
-        .unwrap_err();
+    let err =
+        joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config).unwrap_err();
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",
@@ -428,8 +422,8 @@ fn jlf_atlas_label_dimension_mismatch() {
     let atlas_images: Vec<&[f32]> = vec![&a];
     let atlas_labels: Vec<&[u32]> = vec![&l];
     let config = LabelFusionConfig::default();
-    let err = joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config)
-        .unwrap_err();
+    let err =
+        joint_label_fusion(&target, &atlas_images, &atlas_labels, [2, 2, 2], &config).unwrap_err();
     assert!(
         matches!(err, RegistrationError::DimensionMismatch(_)),
         "expected DimensionMismatch, got {:?}",

@@ -51,7 +51,10 @@ mod tests {
     #[test]
     fn mse_identical_images_returns_zero() {
         let result = mse_slices(&[1.0, 2.0, 3.0, 4.0], &[1.0, 2.0, 3.0, 4.0]);
-        assert!(result.abs() < 1e-12, "MSE of identical must be 0, got {result}");
+        assert!(
+            result.abs() < 1e-12,
+            "MSE of identical must be 0, got {result}"
+        );
     }
 
     #[test]
@@ -60,7 +63,10 @@ mod tests {
         let a = [0.0_f32, 1.0, 2.0, 3.0];
         let b = [1.0_f32, 2.0, 3.0, 4.0];
         let result = mse_slices(&a, &b);
-        assert!((result - 1.0).abs() < 1e-12, "MSE([0..3],[1..4]) must be 1.0, got {result}");
+        assert!(
+            (result - 1.0).abs() < 1e-12,
+            "MSE([0..3],[1..4]) must be 1.0, got {result}"
+        );
     }
 
     #[test]

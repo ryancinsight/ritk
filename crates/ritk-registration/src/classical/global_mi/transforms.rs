@@ -14,8 +14,7 @@ use ritk_core::transform::{AffineTransform, RigidTransform, TranslationTransform
 pub(crate) fn estimate_intensity_range<B: Backend, const D: usize>(
     image: &Image<B, D>,
 ) -> (f32, f32) {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data.as_slice::<f32>().unwrap();
+    let slice = &image.data_vec();
     let min_val = slice.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = slice.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     let range = max_val - min_val;

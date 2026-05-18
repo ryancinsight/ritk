@@ -12,7 +12,7 @@
 //! ```text
 //! θ₀ = initial parameters
 //! t₀ = 0
-//! 
+//!
 //! For iteration k = 0, 1, ..., max_iters-1:
 //!   1. Compute gradient: g_k = ∇θ L(θₖ)
 //!   2. Compute gradient magnitude: |g_k|
@@ -99,10 +99,16 @@ impl AdaptiveStochasticGdConfig {
             ));
         }
         if self.sigmoid_scale <= 0.0 {
-            return Err(format!("sigmoid_scale must be > 0, got {}", self.sigmoid_scale));
+            return Err(format!(
+                "sigmoid_scale must be > 0, got {}",
+                self.sigmoid_scale
+            ));
         }
         if self.gradient_tolerance <= 0.0 {
-            return Err(format!("gradient_tolerance must be > 0, got {}", self.gradient_tolerance));
+            return Err(format!(
+                "gradient_tolerance must be > 0, got {}",
+                self.gradient_tolerance
+            ));
         }
         if self.maximum_iterations == 0 {
             return Err("maximum_iterations must be > 0".to_string());
@@ -309,15 +315,21 @@ where
                     / (1.0 + (dot / self.config.sigmoid_scale).exp());
 
             self.t_k = (self.t_k + f_val).max(0.0);
-            
+
             tracing::debug!(
                 "ASGD: step {}, a(t_k)={:.6e}, dot={:.6e}, f_val={:.6e}, t_k={:.6e}",
-                self.steps, a_tk, dot, f_val, self.t_k
+                self.steps,
+                a_tk,
+                dot,
+                f_val,
+                self.t_k
             );
         } else {
             tracing::debug!(
                 "ASGD: step {}, a(t_k)={:.6e}, t_k={:.6e} (first step)",
-                self.steps, a_tk, self.t_k
+                self.steps,
+                a_tk,
+                self.t_k
             );
         }
 

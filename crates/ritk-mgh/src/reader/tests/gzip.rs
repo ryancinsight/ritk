@@ -23,16 +23,16 @@ fn test_read_mgz() -> Result<()> {
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
     assert_eq!(image.shape(), [2, 2, 2]);
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), values.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "mgz voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), values.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "mgz voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -58,10 +58,10 @@ fn test_read_mgh_gz_extension() -> Result<()> {
     std::fs::write(&path, encoder.finish()?)?;
 
     let image = read_mgh::<TestBackend, _>(&path, &device)?;
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
-        assert_eq!(got, expected, "voxel[{i}]");
-    }
+    image.with_data_slice(|loaded| {
+        for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
+            assert_eq!(got, expected, "voxel[{i}]");
+        }
+    });
     Ok(())
 }

@@ -20,10 +20,12 @@ mod warp;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
 // resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.
+#[cfg(test)]
 pub(crate) use compose::compose_fields;
-pub(crate) use gradient::compute_gradient;
-pub(crate) use integrate::scaling_and_squaring;
-pub(crate) use smooth::gaussian_smooth_inplace;
+pub(crate) use compose::compose_fields_into;
+pub(crate) use gradient::{compute_gradient, compute_gradient_into};
+pub(crate) use integrate::{scaling_and_squaring, scaling_and_squaring_into};
+pub(crate) use smooth::{gaussian_smooth_inplace, gaussian_smooth_with_scratch};
 pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 
 // ── Indexing ──────────────────────────────────────────────────────────────────

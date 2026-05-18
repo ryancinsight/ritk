@@ -70,7 +70,7 @@ pub mod ops;
 pub mod tensor;
 
 pub use error::{OnnxError, OnnxResult};
-pub use graph::{OnnxGraph, OnnxNode, OnnxTensor, OnnxValue};
+pub use graph::{OnnxAttribute, OnnxElementType, OnnxGraph, OnnxNode, OnnxTensor, OnnxValue};
 pub use importer::{ImportConfig, OnnxImporter};
 
 use burn::tensor::backend::Backend;

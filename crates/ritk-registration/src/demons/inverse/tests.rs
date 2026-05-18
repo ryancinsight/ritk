@@ -17,8 +17,7 @@ fn warp_displacement(
     let mut out_y = vec![0.0_f32; n];
     let mut out_x = vec![0.0_f32; n];
     warp_displacement_into(
-        disp_z, disp_y, disp_x, query_z, query_y, query_x, dims, &mut out_z, &mut out_y,
-        &mut out_x,
+        disp_z, disp_y, disp_x, query_z, query_y, query_x, dims, &mut out_z, &mut out_y, &mut out_x,
     );
     for v in &mut out_z {
         *v = -*v;

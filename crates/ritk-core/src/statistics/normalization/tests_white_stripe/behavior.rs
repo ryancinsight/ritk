@@ -1,7 +1,7 @@
-use super::{make_image_3d, make_trimodal_volume, get_values, TestBackend};
 use super::super::{
     empirical_cdf_rank, quantile_sorted, MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
+use super::{get_values, make_image_3d, make_trimodal_volume, TestBackend};
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -267,7 +267,11 @@ fn test_preserves_spatial_metadata() {
 
     assert_eq!(result.normalized.origin(), &origin, "origin preserved");
     assert_eq!(result.normalized.spacing(), &spacing, "spacing preserved");
-    assert_eq!(result.normalized.direction(), &direction, "direction preserved");
+    assert_eq!(
+        result.normalized.direction(),
+        &direction,
+        "direction preserved"
+    );
     assert_eq!(result.normalized.shape(), [3, 3, 3], "shape preserved");
 }
 

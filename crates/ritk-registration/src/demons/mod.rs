@@ -29,14 +29,16 @@
 //! # Module Layout
 /// ```text
 /// demons/
-/// ├── mod.rs                          ← this file (re-exports)
-/// ├── config.rs                       ← DemonsConfig, DemonsResult (SSOT)
-/// ├── thirion/                        ← Thirion 1998 classic Demons
-/// ├── diffeomorphic/                  ← Vercauteren 2009 diffeomorphic variant
-/// ├── symmetric.rs                    ← Pennec 1999 symmetric-force variant
-/// ├── inverse/                        ← Exact SVF inverse + iterative displacement inverse
-/// ├── exact_inverse_diffeomorphic/   ← Inverse-consistent diffeomorphic Demons
-/// └── multires.rs                     ← Multi-resolution coarse-to-fine pyramid
+/// ├── mod.rs ← this file (re-exports)
+/// ├── config.rs ← DemonsConfig, DemonsResult (SSOT)
+/// ├── thirion/ ← Thirion 1998 classic Demons
+/// ├── diffeomorphic/ ← Vercauteren 2009 diffeomorphic variant
+/// ├── symmetric/  ← Pennec 1999 symmetric-force variant
+/// │   ├── mod.rs
+/// │   └── tests.rs
+/// ├── inverse/ ← Exact SVF inverse + iterative displacement inverse
+/// ├── exact_inverse_diffeomorphic/ ← Inverse-consistent diffeomorphic Demons
+/// └── multires.rs ← Multi-resolution coarse-to-fine pyramid
 /// ```
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,

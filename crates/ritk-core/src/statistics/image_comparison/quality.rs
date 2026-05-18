@@ -1,3 +1,4 @@
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -34,13 +35,8 @@ pub fn ssim<B: Backend, const D: usize>(
     reference: &Image<B, D>,
     max_val: f32,
 ) -> f32 {
-    let img_data = image.data().clone().into_data();
-    let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
-
-    let ref_data = reference.data().clone().into_data();
-    let ref_slice = ref_data
-        .as_slice::<f32>()
-        .expect("f32 reference tensor data");
+    let img_slice: &[f32] = &extract_vec_infallible(image).0;
+    let ref_slice: &[f32] = &extract_vec_infallible(reference).0;
 
     let n = img_slice.len() as f64;
 

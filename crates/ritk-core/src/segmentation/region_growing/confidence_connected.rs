@@ -38,6 +38,7 @@
 //! Yanowitz, S.D., & Bruckstein, A.M. (1989). "A New Method for Image
 //! Segmentation." *Computer Vision, Graphics, and Image Processing*, 46(1), 82-95.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::collections::VecDeque;
@@ -161,8 +162,8 @@ pub fn confidence_connected<B: Backend>(
     );
 
     let device = image.data().device();
-    let img_data = image.data().clone().into_data();
-    let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+    let (img_slice_vec, _) = extract_vec_infallible(image);
+    let img_slice: &[f32] = &img_slice_vec;
 
     let result = grow_region(
         img_slice,

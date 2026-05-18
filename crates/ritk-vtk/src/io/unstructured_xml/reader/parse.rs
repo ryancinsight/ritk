@@ -1,12 +1,12 @@
 //! VTU reader: `read_vtu_unstructured_grid`, `parse_vtu`.
 
-use crate::domain::vtk_data_object::{VtkCellType, VtkUnstructuredGrid};
-use anyhow::{bail, Context, Result};
-use std::path::Path;
 use super::xml_helpers::{
     attr_usize, extract_da_content, find_section, find_tag, named_da, parse_attrs, parse_floats,
     parse_ints,
 };
+use crate::domain::vtk_data_object::{VtkCellType, VtkUnstructuredGrid};
+use anyhow::{bail, Context, Result};
+use std::path::Path;
 
 /// Read a VTU XML (ASCII inline) file from disk into a [`VtkUnstructuredGrid`].
 pub fn read_vtu_unstructured_grid<P: AsRef<Path>>(path: P) -> Result<VtkUnstructuredGrid> {
@@ -109,12 +109,13 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
         .map(|sec| parse_attrs(&sec))
         .unwrap_or_default();
 
-    let mut grid = VtkUnstructuredGrid::default();
-    grid.points = points;
-    grid.cells = cells;
-    grid.cell_types = cell_types;
-    grid.point_data = point_data;
-    grid.cell_data = cell_data;
+    let grid = VtkUnstructuredGrid {
+        points,
+        cells,
+        cell_types,
+        point_data,
+        cell_data,
+    };
 
     grid.validate().map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(grid)

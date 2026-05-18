@@ -120,12 +120,7 @@ mod tests {
     }
 
     fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
-            .to_vec()
+        img.data_vec()
     }
 
     /// LoG of a constant image is zero everywhere.

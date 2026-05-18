@@ -52,37 +52,32 @@ fn test_write_series_load_series_intensity_roundtrip() {
     let loaded_image =
         load_dicom_series::<B, _>(&series_path, &device).expect("load_dicom_series must succeed");
 
-    let loaded_td = loaded_image.data().clone().into_data();
-    let loaded_vals: &[f32] = loaded_td
-        .as_slice::<f32>()
-        .expect("loaded image must contain f32");
-
-    assert_eq!(
-        loaded_vals.len(),
-        original_data.len(),
-        "loaded voxel count must equal original"
-    );
-
-    // Analytical bound per slice: slope = range / 65535 = 15 / 65535 ≈ 2.29e-4.
-    // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
-    // per coefficient. Accumulated slope error over max u16 (65535):
-    //   65535 * 0.5e-6 ≈ 0.033.
-    // Quantization from round(): slope / 2 ≈ 1.14e-4.
-    // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
-    let slice_range = 15.0f32;
-    let slope = slice_range / 65535.0_f32;
-    let ds_half_ulp = 0.5e-6_f32;
-    let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
-
-    // The writer writes per-slice rescale; reader applies per-slice rescale.
-    // Re-sort loaded voxels by z-position. The series may be loaded in sorted order.
-    for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
-        let err = (loaded - orig).abs();
-        assert!(
-            err <= tol,
-            "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}; slope={slope}"
+    loaded_image.with_data_slice(|loaded_vals: &[f32]| {
+        assert_eq!(
+            loaded_vals.len(),
+            original_data.len(),
+            "loaded voxel count must equal original"
         );
-    }
+        // Analytical bound per slice: slope = range / 65535 = 15 / 65535 ≈ 2.29e-4.
+        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+        // per coefficient. Accumulated slope error over max u16 (65535):
+        // 65535 * 0.5e-6 ≈ 0.033.
+        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+        let slice_range = 15.0f32;
+        let slope = slice_range / 65535.0_f32;
+        let ds_half_ulp = 0.5e-6_f32;
+        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+        // The writer writes per-slice rescale; reader applies per-slice rescale.
+        // Re-sort loaded voxels by z-position. The series may be loaded in sorted order.
+        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+            let err = (loaded - orig).abs();
+            assert!(
+                err <= tol,
+                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}; slope={slope}"
+            );
+        }
+    });
 }
 
 #[test]
@@ -159,33 +154,30 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
             .expect("load_dicom_series_with_metadata must succeed");
 
     // --- Intensity round-trip ---
-    let loaded_td = loaded_image.data().clone().into_data();
-    let loaded_vals: &[f32] = loaded_td.as_slice::<f32>().expect("loaded must be f32");
-
-    assert_eq!(
-        loaded_vals.len(),
-        original_data.len(),
-        "voxel count must match"
-    );
-
-    // Analytical slope per slice: each slice has range=15, slope = 15/65535.
-    // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
-    // per coefficient. Accumulated slope error over max u16 (65535):
-    //   65535 * 0.5e-6 ≈ 0.033.
-    // Quantization from round(): slope / 2 ≈ 1.14e-4.
-    // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
-    let slice_range = 15.0f32;
-    let slope = slice_range / 65535.0_f32;
-    let ds_half_ulp = 0.5e-6_f32;
-    let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
-
-    for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
-        let err = (loaded - orig).abs();
-        assert!(
-            err <= tol,
-            "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}"
+    loaded_image.with_data_slice(|loaded_vals: &[f32]| {
+        assert_eq!(
+            loaded_vals.len(),
+            original_data.len(),
+            "voxel count must match"
         );
-    }
+        // Analytical slope per slice: each slice has range=15, slope = 15/65535.
+        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+        // per coefficient. Accumulated slope error over max u16 (65535):
+        // 65535 * 0.5e-6 ≈ 0.033.
+        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+        let slice_range = 15.0f32;
+        let slope = slice_range / 65535.0_f32;
+        let ds_half_ulp = 0.5e-6_f32;
+        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+            let err = (loaded - orig).abs();
+            assert!(
+                err <= tol,
+                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}"
+            );
+        }
+    });
 
     // --- Spatial metadata round-trip ---
     let pos_tol = 1e-4_f64;

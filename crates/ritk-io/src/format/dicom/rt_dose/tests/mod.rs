@@ -212,10 +212,7 @@ fn test_write_rt_dose_rejects_mismatched_voxel_count() {
     assert!(result.is_err(), "mismatched voxel count must return Err");
     let msg = result.unwrap_err().to_string();
     assert!(
-        msg.contains("dose_gy")
-            || msg.contains("voxel")
-            || msg.contains('5')
-            || msg.contains('4'),
+        msg.contains("dose_gy") || msg.contains("voxel") || msg.contains('5') || msg.contains('4'),
         "error message must reference the count mismatch; got: {msg}"
     );
 }
@@ -277,9 +274,21 @@ fn test_write_rt_dose_round_trip() {
     );
 
     let pos = back.image_position.expect("image_position must be Some");
-    assert!((pos[0] - 10.0).abs() < 1e-6, "image_position[0] = {}", pos[0]);
-    assert!((pos[1] - 20.0).abs() < 1e-6, "image_position[1] = {}", pos[1]);
-    assert!((pos[2] - 30.0).abs() < 1e-6, "image_position[2] = {}", pos[2]);
+    assert!(
+        (pos[0] - 10.0).abs() < 1e-6,
+        "image_position[0] = {}",
+        pos[0]
+    );
+    assert!(
+        (pos[1] - 20.0).abs() < 1e-6,
+        "image_position[1] = {}",
+        pos[1]
+    );
+    assert!(
+        (pos[2] - 30.0).abs() < 1e-6,
+        "image_position[2] = {}",
+        pos[2]
+    );
 
     let ps = back.pixel_spacing.expect("pixel_spacing must be Some");
     assert!((ps[0] - 2.5).abs() < 1e-6, "pixel_spacing[0] = {}", ps[0]);

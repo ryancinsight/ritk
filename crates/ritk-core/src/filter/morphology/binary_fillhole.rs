@@ -6,14 +6,14 @@
 //!
 //! 1. Compute the set of background voxels reachable from the image border
 //!    via 6-connected BFS (external background):
-//!       E = { x ∈ background(f) : x is 6-connected to any border voxel }
+//!    E = { x ∈ background(f) : x is 6-connected to any border voxel }
 //!
 //! 2. Background voxels not in E are interior holes:
-//!       H = background(f) \ E
+//!    H = background(f) \ E
 //!
 //! 3. Output:
-//!       output(x) = fg   if f(x) = fg  or  x ∈ H
-//!                 = 0    if x ∈ E
+//!    output(x) = fg   if f(x) = fg  or  x ∈ H
+//!    = 0    if x ∈ E
 //!
 //! # Properties
 //!
@@ -38,6 +38,7 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer §5.6.
 //! - ITK Software Guide, Vol 2, §6.3.4 Binary Fillhole Image Filter.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -75,13 +76,9 @@ impl BinaryFillholeFilter {
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground or hole) or `0.0` (external background).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("BinaryFillholeFilter requires f32 data: {:?}", e))?;
+        let (vals, dims) = extract_vec(image)?;
 
-        let result = fill_holes_3d(vals, dims, self.foreground_value);
+        let result = fill_holes_3d(&vals, dims, self.foreground_value);
 
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);

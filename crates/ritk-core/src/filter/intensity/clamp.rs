@@ -30,6 +30,7 @@
 //!
 //! O(N) time, O(N) space (output allocation), O(1) auxiliary.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -76,11 +77,7 @@ impl ClampImageFilter {
     ///
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ClampImageFilter: f32 required: {:?}", e))?;
+        let (vals, dims) = extract_vec(image)?;
 
         let lo = self.lower;
         let hi = self.upper;
@@ -89,7 +86,12 @@ impl ClampImageFilter {
         let out_td = TensorData::new(out, Shape::new(dims));
         let device = image.data().device();
         let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(tensor, *image.origin(), *image.spacing(), *image.direction()))
+        Ok(Image::new(
+            tensor,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        ))
     }
 }
 
@@ -98,6 +100,7 @@ impl ClampImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use burn_ndarray::NdArray;
 
     use crate::image::Image;
@@ -126,8 +129,7 @@ mod tests {
     fn constant_within_bounds_is_identity() {
         let img = make_image(vec![50.0_f32; 27], [3, 3, 3]);
         let out = ClampImageFilter::new(0.0, 100.0).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
+        let (vals, _) = extract_vec_infallible(&out);
         assert!(
             vals.iter().all(|&v| v == 50.0),
             "all voxels must remain 50.0; got {:?}",
@@ -143,8 +145,7 @@ mod tests {
     fn all_below_lower_clamped_to_lower() {
         let img = make_image(vec![-10.0_f32; 8], [2, 2, 2]);
         let out = ClampImageFilter::new(0.0, 255.0).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
+        let (vals, _) = extract_vec_infallible(&out);
         assert!(
             vals.iter().all(|&v| v == 0.0),
             "all voxels below lower must be clamped to 0.0; got {:?}",
@@ -160,8 +161,7 @@ mod tests {
     fn all_above_upper_clamped_to_upper() {
         let img = make_image(vec![300.0_f32; 8], [2, 2, 2]);
         let out = ClampImageFilter::new(0.0, 255.0).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
+        let (vals, _) = extract_vec_infallible(&out);
         assert!(
             vals.iter().all(|&v| v == 255.0),
             "all voxels above upper must be clamped to 255.0; got {:?}",
@@ -178,8 +178,7 @@ mod tests {
     fn mixed_values_clamped_correctly() {
         let img = make_image(vec![-5.0_f32, 50.0, 300.0], [1, 1, 3]);
         let out = ClampImageFilter::new(0.0, 100.0).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
+        let (vals, _) = extract_vec_infallible(&out);
         assert_eq!(vals[0], 0.0, "below lower must be clamped to 0");
         assert_eq!(vals[1], 50.0, "within bounds must be unchanged");
         assert_eq!(vals[2], 100.0, "above upper must be clamped to 100");
@@ -193,8 +192,7 @@ mod tests {
     fn lower_equals_upper_all_same() {
         let img = make_image(vec![0.0, 42.0, 100.0, -100.0], [1, 2, 2]);
         let out = ClampImageFilter::new(42.0, 42.0).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
+        let (vals, _) = extract_vec_infallible(&out);
         assert!(
             vals.iter().all(|&v| v == 42.0),
             "lower==upper: all outputs must be 42.0; got {:?}",
@@ -243,9 +241,8 @@ mod tests {
         let lo = -500.0_f32;
         let hi = 500.0_f32;
         let out = ClampImageFilter::new(lo, hi).apply(&img).unwrap();
-        let td = out.data().clone().into_data();
-        let vals: &[f32] = td.as_slice::<f32>().unwrap();
-        for &v in vals {
+        let (vals, _) = extract_vec_infallible(&out);
+        for &v in &vals {
             assert!(v >= lo, "voxel {v} < lower bound {lo}");
             assert!(v <= hi, "voxel {v} > upper bound {hi}");
         }

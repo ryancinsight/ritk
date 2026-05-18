@@ -275,35 +275,33 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
     assert_eq!(lr, 2, "rows");
     assert_eq!(lc, 2, "cols");
 
-    let td = img.data().clone().into_data();
-    let floats: &[f32] = td.as_slice::<f32>().expect("f32 slice");
-    assert_eq!(floats.len(), 8, "total pixel count = 2 frames × 4 pixels");
-
-    // Frame 0: raw=[100,200,300,400], slope=1.0, intercept=0.0
-    // Decoded: [100.0, 200.0, 300.0, 400.0]
-    assert!(
-        (floats[0] - 100.0).abs() < 0.5,
-        "frame0 pixel0: expected 100.0, got {}",
-        floats[0]
-    );
-    assert!(
-        (floats[3] - 400.0).abs() < 0.5,
-        "frame0 pixel3: expected 400.0, got {}",
-        floats[3]
-    );
-
-    // Frame 1: raw=[10,20,30,40], slope=2.0, intercept=10.0
-    // Decoded: [30.0, 50.0, 70.0, 90.0]
-    assert!(
-        (floats[4] - 30.0).abs() < 0.5,
-        "frame1 pixel0: expected 30.0 (10*2+10), got {}",
-        floats[4]
-    );
-    assert!(
-        (floats[7] - 90.0).abs() < 0.5,
-        "frame1 pixel3: expected 90.0 (40*2+10), got {}",
-        floats[7]
-    );
+    img.with_data_slice(|floats: &[f32]| {
+        assert_eq!(floats.len(), 8, "total pixel count = 2 frames × 4 pixels");
+        // Frame 0: raw=[100,200,300,400], slope=1.0, intercept=0.0
+        // Decoded: [100.0, 200.0, 300.0, 400.0]
+        assert!(
+            (floats[0] - 100.0).abs() < 0.5,
+            "frame0 pixel0: expected 100.0, got {}",
+            floats[0]
+        );
+        assert!(
+            (floats[3] - 400.0).abs() < 0.5,
+            "frame0 pixel3: expected 400.0, got {}",
+            floats[3]
+        );
+        // Frame 1: raw=[10,20,30,40], slope=2.0, intercept=10.0
+        // Decoded: [30.0, 50.0, 70.0, 90.0]
+        assert!(
+            (floats[4] - 30.0).abs() < 0.5,
+            "frame1 pixel0: expected 30.0 (10*2+10), got {}",
+            floats[4]
+        );
+        assert!(
+            (floats[7] - 90.0).abs() < 0.5,
+            "frame1 pixel3: expected 90.0 (40*2+10), got {}",
+            floats[7]
+        );
+    });
 
     // Verify per_frame metadata via read_multiframe_info.
     let info = read_multiframe_info(&path).expect("read_multiframe_info");

@@ -211,7 +211,10 @@ fn test_read_rt_plan_synthetic_plan() {
 
     assert_eq!(plan.beams[0].beam_number, 1, "beam 0 number");
     assert_eq!(plan.beams[0].beam_name, "FIELD_1", "beam 0 name");
-    assert_eq!(plan.beams[0].radiation_type, "PHOTON", "beam 0 radiation_type");
+    assert_eq!(
+        plan.beams[0].radiation_type, "PHOTON",
+        "beam 0 radiation_type"
+    );
     assert_eq!(
         plan.beams[0].treatment_delivery_type, "TREATMENT",
         "beam 0 delivery type"
@@ -220,7 +223,10 @@ fn test_read_rt_plan_synthetic_plan() {
 
     assert_eq!(plan.beams[1].beam_number, 2, "beam 1 number");
     assert_eq!(plan.beams[1].beam_name, "FIELD_2", "beam 1 name");
-    assert_eq!(plan.beams[1].radiation_type, "PHOTON", "beam 1 radiation_type");
+    assert_eq!(
+        plan.beams[1].radiation_type, "PHOTON",
+        "beam 1 radiation_type"
+    );
 
     assert_eq!(plan.fraction_groups.len(), 1, "fraction group count");
     assert_eq!(
@@ -264,7 +270,10 @@ fn test_write_rt_plan_rejects_nothing_but_writes_empty() {
     let back = read_rt_plan(&path).expect("read_rt_plan empty round-trip");
     assert_eq!(back.rt_plan_label, "EMPTY_PLAN", "rt_plan_label");
     assert!(back.beams.is_empty(), "beams must be empty");
-    assert!(back.fraction_groups.is_empty(), "fraction_groups must be empty");
+    assert!(
+        back.fraction_groups.is_empty(),
+        "fraction_groups must be empty"
+    );
 }
 
 // ── Test E: full round-trip ───────────────────────────────────────────────────
@@ -310,7 +319,10 @@ fn test_write_rt_plan_round_trip() {
     write_rt_plan(&path, &plan).expect("write_rt_plan round-trip");
     let back = read_rt_plan(&path).expect("read_rt_plan round-trip");
 
-    assert!(!back.sop_instance_uid.is_empty(), "sop_instance_uid must be present");
+    assert!(
+        !back.sop_instance_uid.is_empty(),
+        "sop_instance_uid must be present"
+    );
     assert_eq!(back.rt_plan_label, "PLAN_B", "rt_plan_label");
     assert_eq!(back.rt_plan_name, "Full Plan", "rt_plan_name");
     assert_eq!(back.plan_intent, "CURATIVE", "plan_intent");
@@ -318,12 +330,21 @@ fn test_write_rt_plan_round_trip() {
 
     assert_eq!(back.beams[0].beam_number, 10, "beam[0].beam_number");
     assert_eq!(back.beams[0].beam_name, "BEAM_A", "beam[0].beam_name");
-    assert_eq!(back.beams[0].radiation_type, "PHOTON", "beam[0].radiation_type");
-    assert_eq!(back.beams[0].n_control_points, 5, "beam[0].n_control_points");
+    assert_eq!(
+        back.beams[0].radiation_type, "PHOTON",
+        "beam[0].radiation_type"
+    );
+    assert_eq!(
+        back.beams[0].n_control_points, 5,
+        "beam[0].n_control_points"
+    );
 
     assert_eq!(back.beams[1].beam_number, 20, "beam[1].beam_number");
     assert_eq!(back.beams[1].beam_name, "BEAM_B", "beam[1].beam_name");
-    assert_eq!(back.beams[1].radiation_type, "ELECTRON", "beam[1].radiation_type");
+    assert_eq!(
+        back.beams[1].radiation_type, "ELECTRON",
+        "beam[1].radiation_type"
+    );
 
     assert_eq!(back.fraction_groups.len(), 1, "fraction_groups.len");
     assert_eq!(

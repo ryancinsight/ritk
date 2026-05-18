@@ -206,12 +206,7 @@ pub fn binary_threshold(
 /// ITK Parity: BlendImageFilter
 #[pyfunction]
 #[pyo3(signature = (a, b, alpha=0.5_f32))]
-pub fn blend_images(
-    py: Python<'_>,
-    a: &PyImage,
-    b: &PyImage,
-    alpha: f32,
-) -> PyResult<PyImage> {
+pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> PyResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
     let result = py.allow_threads(|| {

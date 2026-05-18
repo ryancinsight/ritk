@@ -36,10 +36,10 @@
 //!   "Shape Modeling with Front Propagation: A Level Set Approach."
 //!   *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 17(2).
 
+use super::helpers;
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-
-use super::helpers;
 
 /// Shape Detection level set segmentation.
 ///
@@ -118,18 +118,8 @@ impl ShapeDetectionSegmentation {
 
         let device = image.data().device();
 
-        let img_td = image.data().clone().into_data();
-        let img_f32: Vec<f32> = img_td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ShapeDetection requires f32 image data: {:?}", e))?
-            .to_vec();
-
-        let phi_td = initial_phi.data().clone().into_data();
-        let phi_f32: Vec<f32> = phi_td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ShapeDetection requires f32 phi data: {:?}", e))?
-            .to_vec();
-
+        let (img_f32, _) = extract_vec(image)?;
+        let (phi_f32, _) = extract_vec(initial_phi)?;
         let img_f64: Vec<f64> = img_f32.iter().map(|&v| v as f64).collect();
         let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
 

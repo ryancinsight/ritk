@@ -34,6 +34,7 @@
 //!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532–550.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -76,13 +77,9 @@ impl BinaryErodeFilter {
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground) or `0.0` (background).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("BinaryErodeFilter requires f32 data: {:?}", e))?;
+        let (vals, dims) = extract_vec(image)?;
 
-        let result = erode_binary_3d(vals, dims, self.radius, self.foreground_value);
+        let result = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
 
         let device = image.data().device();
         let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);

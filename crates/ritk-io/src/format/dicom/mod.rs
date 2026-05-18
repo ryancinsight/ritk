@@ -16,6 +16,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 mod codec;
+mod color;
+mod color_common;
 mod multiframe;
 mod object_model;
 mod reader;

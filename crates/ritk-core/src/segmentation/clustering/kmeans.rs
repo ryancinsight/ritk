@@ -42,6 +42,7 @@
 //! - Arthur, D. & Vassilvitskii, S. (2007). "k-means++: The Advantages of
 //!   Careful Seeding." *Proc. 18th ACM-SIAM Symposium on Discrete Algorithms*.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -127,13 +128,9 @@ impl KMeansSegmentation {
     /// For a constant image (zero range), all voxels are assigned label 0.0.
     /// For k=1, all voxels are assigned label 0.0.
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+        let (vals, shape) = extract_vec_infallible(image);
         let device = image.data().device();
-        let shape: [usize; D] = image.shape();
-
-        let tensor_data = image.data().clone().into_data();
-        let slice = tensor_data
-            .as_slice::<f32>()
-            .expect("f32 image tensor data");
+        let slice: &[f32] = &vals;
 
         let labels = kmeans_impl(
             slice,

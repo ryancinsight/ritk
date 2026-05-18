@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use super::AttributeArray;
+use std::collections::HashMap;
 
 /// VTK polygonal mesh dataset (DATASET POLYDATA).
 ///

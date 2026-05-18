@@ -15,6 +15,7 @@
 //! - `x = origin[0] + ix * spacing[0]`
 //! - `y = origin[1] + iy * spacing[1]`
 //! - `z = origin[2] + iz * spacing[2]`
+//!
 //! and `(ix, iy, iz)` is the interpolated fractional voxel position on the cut edge.
 //!
 //! # Mesh orientation
@@ -186,8 +187,8 @@ impl MarchingCubesFilter {
 
                     // Build the 8-bit cube index: bit i = 1 iff corner i > isovalue.
                     let mut cube_idx: usize = 0;
-                    for i in 0..8 {
-                        if vals[i] > iso {
+                    for (i, &v) in vals.iter().enumerate() {
+                        if v > iso {
                             cube_idx |= 1 << i;
                         }
                     }
@@ -233,7 +234,6 @@ impl MarchingCubesFilter {
         builder.build()
     }
 }
-
 
 // ─── Lookup Tables ────────────────────────────────────────────────────────────
 #[allow(clippy::all)]

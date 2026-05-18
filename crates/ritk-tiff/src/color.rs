@@ -192,8 +192,7 @@ mod tests {
     }
 
     fn volume_values(volume: &RgbVolume<TestBackend>) -> Vec<f32> {
-        let data = volume.data().clone().to_data();
-        data.as_slice::<f32>().unwrap().to_vec()
+        volume.data_vec()
     }
 
     #[test]

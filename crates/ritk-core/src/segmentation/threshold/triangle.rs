@@ -33,6 +33,7 @@
 //! - Zack G.W., Rogers W.E., Latt S.A. (1977). "Automatic measurement of
 //!   sister chromatid exchange frequency." *J. Histochem. Cytochem.* 25(7):741–753.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -82,9 +83,8 @@ impl TriangleThreshold {
         let threshold = self.compute(image);
         let device = image.data().device();
         let shape: [usize; D] = image.shape();
-
-        let img_data = image.data().clone().into_data();
-        let slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+        let (img_vals, _shape) = extract_vec_infallible(image);
+        let slice: &[f32] = &img_vals;
 
         let output: Vec<f32> = slice
             .iter()
@@ -131,11 +131,8 @@ fn compute_triangle_threshold_impl<B: Backend, const D: usize>(
     image: &Image<B, D>,
     num_bins: usize,
 ) -> f32 {
-    let tensor_data = image.data().clone().into_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .expect("f32 image tensor data");
-
+    let (vals, _) = extract_vec_infallible(image);
+    let slice: &[f32] = &vals;
     compute_triangle_threshold_from_slice(slice, num_bins)
 }
 

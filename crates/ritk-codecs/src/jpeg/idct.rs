@@ -17,10 +17,10 @@ use std::f64::consts::{PI, SQRT_2};
 /// then cast to f32 for arithmetic on block samples.
 fn cosine_table() -> [[f32; 8]; 8] {
     let mut c = [[0.0f32; 8]; 8];
-    for u in 0..8usize {
+    for (u, row) in c.iter_mut().enumerate() {
         let cu = if u == 0 { 1.0 / SQRT_2 } else { 1.0_f64 };
-        for x in 0..8usize {
-            c[u][x] = (cu * ((2 * x + 1) as f64 * u as f64 * PI / 16.0).cos()) as f32;
+        for (x, cell) in row.iter_mut().enumerate() {
+            *cell = (cu * ((2 * x + 1) as f64 * u as f64 * PI / 16.0).cos()) as f32;
         }
     }
     c

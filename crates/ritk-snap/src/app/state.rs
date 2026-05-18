@@ -1,9 +1,10 @@
 use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
+use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState};
 use crate::tools::kind::ToolKind;
-use crate::ui::{CinePlayback, LinkedCursor, ViewTransform};
 use crate::ui::RoiDoseAnalytics;
+use crate::ui::{CinePlayback, LinkedCursor, ViewTransform};
 use crate::{LoadedVolume, ViewerState};
 
 // ── Helper types ──────────────────────────────────────────────────────────────
@@ -173,6 +174,12 @@ pub(crate) struct SnapApp {
     /// Used to render the W/L histogram panel in the sidebar.
     pub(crate) cached_histogram: Option<crate::render::histogram::Histogram>,
 
+    /// Pre-allocated scratch buffers for per-frame texture rebuild.
+    ///
+    /// Eliminates per-call heap allocations on the slice-render and MIP-render
+    /// hot paths. Capacity grows monotonically to the maximum observed dimension.
+    pub(crate) render_buffer_pool: RenderBufferPool,
+
     // ── Series browser ────────────────────────────────────────────────────────
     /// Hierarchical DICOM series tree.
     pub(crate) series_tree: crate::dicom::series_tree::SeriesTree,
@@ -255,6 +262,7 @@ impl Default for SnapApp {
             pointer_intensity: 0.0,
             pointer_suv: None,
             cached_histogram: None,
+            render_buffer_pool: RenderBufferPool::default(),
             series_tree: crate::dicom::series_tree::SeriesTree::new(),
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,

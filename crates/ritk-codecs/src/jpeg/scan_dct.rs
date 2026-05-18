@@ -168,8 +168,8 @@ fn decode_baseline_grayscale(
     let fc_idx = comp_by_id(scan_comp.id)?;
     let fc = &frame.sof.components[fc_idx];
 
-    let blocks_x = (width + 7) / 8;
-    let blocks_y = (height + 7) / 8;
+    let blocks_x = width.div_ceil(8);
+    let blocks_y = height.div_ceil(8);
     let mut pixels = vec![0u8; width * height];
     let mut prev_dc = 0i32;
     let mut reader = BitReader::new(entropy_data);
@@ -234,8 +234,8 @@ fn decode_baseline_ycbcr(
 
     let mcu_width = 8 * max_h as usize;
     let mcu_height = 8 * max_v as usize;
-    let mcus_x = (width + mcu_width - 1) / mcu_width;
-    let mcus_y = (height + mcu_height - 1) / mcu_height;
+    let mcus_x = width.div_ceil(mcu_width);
+    let mcus_y = height.div_ceil(mcu_height);
     let total_width = mcus_x * mcu_width;
     let total_height = mcus_y * mcu_height;
 

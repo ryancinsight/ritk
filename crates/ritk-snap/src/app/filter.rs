@@ -8,12 +8,12 @@ impl SnapApp {
         use ritk_core::filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, ConnectedComponentsFilter, ExpImageFilter, GaussianFilter,
-            GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
-            GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
-            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
-            MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter, SqrtImageFilter,
-            SquareImageFilter, UnsharpMaskFilter,
+            ClaheFilter, ConnectedComponentsFilter, CprConfig, CprImageFilter, ExpImageFilter,
+            GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+            GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
+            GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter,
+            LogImageFilter, MedianFilter, MultiOtsuThreshold, NormalizeImageFilter,
+            RelabelComponentFilter, SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
         };
 
         let Some(vol) = self.loaded.as_ref() else {
@@ -46,12 +46,10 @@ impl SnapApp {
                 crate::FilterKind::BedSeparation(config) => {
                     BedSeparationFilter::new(*config).apply(&image)
                 }
-                crate::FilterKind::Gaussian { sigma } => {
-                    Ok(GaussianFilter::<LoadBackend>::new(
-                        vec![f64::from(*sigma); 3],
-                    )
-                    .apply(&image))
-                }
+                crate::FilterKind::Gaussian { sigma } => Ok(GaussianFilter::<LoadBackend>::new(
+                    vec![f64::from(*sigma); 3],
+                )
+                .apply(&image)),
                 crate::FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&image),
                 crate::FilterKind::Clahe {
                     tile_grid_size,
@@ -178,9 +176,8 @@ impl SnapApp {
                 }
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
-                    let td = image.data().clone().into_data();
-                    let vals: Vec<f32> = td
-                        .into_vec::<f32>()
+                    let vals: Vec<f32> = image
+                        .try_data_vec()
                         .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
                     let mask_vals: Vec<f32> = vals
                         .iter()
@@ -200,12 +197,10 @@ impl SnapApp {
                     ritk_core::filter::MaskImageFilter::new().apply(&image, &mask_image)
                 }
                 crate::FilterKind::GeodesicDilationSelf => {
-                    ritk_core::filter::GrayscaleGeodesicDilationFilter::new()
-                        .apply(&image, &image)
+                    ritk_core::filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)
                 }
                 crate::FilterKind::GeodesicErosionSelf => {
-                    ritk_core::filter::GrayscaleGeodesicErosionFilter::new()
-                        .apply(&image, &image)
+                    ritk_core::filter::GrayscaleGeodesicErosionFilter::new().apply(&image, &image)
                 }
                 crate::FilterKind::ShiftScale { shift, scale } => {
                     ritk_core::filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
@@ -233,10 +228,8 @@ impl SnapApp {
                     order_0,
                     order_1,
                     order_2,
-                } => ritk_core::filter::PermuteAxesImageFilter::new([
-                    *order_0, *order_1, *order_2,
-                ])
-                .apply(&image),
+                } => ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+                    .apply(&image),
                 crate::FilterKind::Mean { radius } => {
                     ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
                 }
@@ -274,12 +267,8 @@ impl SnapApp {
                     factor_z,
                     factor_y,
                     factor_x,
-                } => ritk_core::filter::ShrinkImageFilter::new([
-                    *factor_z,
-                    *factor_y,
-                    *factor_x,
-                ])
-                .apply(&image),
+                } => ritk_core::filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
+                    .apply(&image),
                 crate::FilterKind::ConstantPad {
                     pad_lower_z,
                     pad_lower_y,
@@ -337,8 +326,7 @@ impl SnapApp {
                 )
                 .apply(&image),
                 crate::FilterKind::RescaleIntensity { out_min, out_max } => {
-                    ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max)
-                        .apply(&image)
+                    ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
                 }
                 crate::FilterKind::Clamp { lower, upper } => {
                     ritk_core::filter::ClampImageFilter::new(*lower, *upper).apply(&image)
@@ -424,6 +412,25 @@ impl SnapApp {
                     },
                 )
                 .apply(&image),
+                crate::FilterKind::Cpr {
+                    control_points,
+                    num_path_samples,
+                    cross_section_half_width,
+                    num_cross_samples,
+                } => {
+                    let cpr_filter = CprImageFilter::new(
+                        control_points.clone(),
+                        CprConfig {
+                            num_path_samples: *num_path_samples as usize,
+                            cross_section_half_width: f64::from(*cross_section_half_width),
+                            num_cross_samples: *num_cross_samples as usize,
+                        },
+                    );
+                    match cpr_filter.apply(&image) {
+                        Ok(image_2d) => crate::filter::promote::promote_2d_to_3d(image_2d),
+                        Err(e) => Err(e),
+                    }
+                }
             }
         };
 

@@ -151,7 +151,6 @@ pub fn image_to_vec(image: &Image<Backend, 3>) -> PyResult<(Vec<f32>, [usize; 3]
     Ok((values, shape))
 }
 
-
 /// Call `f` with a borrowed `&[f32]` slice from a `Tensor<Backend, 3>`.
 ///
 /// Zero-copy fast path: clones the tensor (arc refcount increment only, O(1)),

@@ -98,11 +98,8 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     writeln!(writer, "LOOKUP_TABLE default").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
-
-    let tensor_data = image.data().clone().to_data();
-    let slice = tensor_data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to extract f32 tensor data: {:?}", e))?;
+    let f32_vec = image.try_data_vec()?;
+    let slice: &[f32] = &f32_vec;
 
     if slice.len() != total_voxels {
         anyhow::bail!(

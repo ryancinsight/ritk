@@ -112,12 +112,12 @@ pub fn mutual_information_mattes(a: &[f32], b: &[f32], num_bins: usize) -> Resul
     let n = a.len();
     let (a_min, a_max) = min_max(a);
     let (b_min, b_max) = min_max(b);
-    let a_range = if (a_max - a_min).abs() < f32::EPSILON as f32 {
+    let a_range = if (a_max - a_min).abs() < f32::EPSILON {
         1.0_f64
     } else {
         (a_max - a_min) as f64
     };
-    let b_range = if (b_max - b_min).abs() < f32::EPSILON as f32 {
+    let b_range = if (b_max - b_min).abs() < f32::EPSILON {
         1.0_f64
     } else {
         (b_max - b_min) as f64
@@ -151,13 +151,31 @@ pub fn mutual_information_mattes(a: &[f32], b: &[f32], num_bins: usize) -> Resul
         hist_b[ib1] += wb1;
     }
 
-    for v in joint.iter_mut() { *v /= total; }
-    for v in hist_a.iter_mut() { *v /= total; }
-    for v in hist_b.iter_mut() { *v /= total; }
+    for v in joint.iter_mut() {
+        *v /= total;
+    }
+    for v in hist_a.iter_mut() {
+        *v /= total;
+    }
+    for v in hist_b.iter_mut() {
+        *v /= total;
+    }
 
-    let h_a: f64 = hist_a.iter().filter(|&&p| p > 0.0).map(|&p| -p * p.ln()).sum();
-    let h_b: f64 = hist_b.iter().filter(|&&p| p > 0.0).map(|&p| -p * p.ln()).sum();
-    let h_ab: f64 = joint.iter().filter(|&&p| p > 0.0).map(|&p| -p * p.ln()).sum();
+    let h_a: f64 = hist_a
+        .iter()
+        .filter(|&&p| p > 0.0)
+        .map(|&p| -p * p.ln())
+        .sum();
+    let h_b: f64 = hist_b
+        .iter()
+        .filter(|&&p| p > 0.0)
+        .map(|&p| -p * p.ln())
+        .sum();
+    let h_ab: f64 = joint
+        .iter()
+        .filter(|&&p| p > 0.0)
+        .map(|&p| -p * p.ln())
+        .sum();
     Ok((h_a + h_b - h_ab).max(0.0))
 }
 
@@ -216,12 +234,7 @@ pub fn conditional_mutual_information(
 ///
 /// Returns an error when lengths differ, inputs are empty, `num_bins < 2`,
 /// or the joint histogram size exceeds 4 194 304 entries.
-pub fn interaction_information(
-    x: &[f32],
-    y: &[f32],
-    z: &[f32],
-    num_bins: usize,
-) -> Result<f64> {
+pub fn interaction_information(x: &[f32], y: &[f32], z: &[f32], num_bins: usize) -> Result<f64> {
     if x.len() != y.len() || x.len() != z.len() {
         bail!(
             "channel lengths differ: x={} y={} z={}",

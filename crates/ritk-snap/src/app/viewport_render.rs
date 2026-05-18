@@ -1,15 +1,15 @@
 //! Per-axis and secondary-compare viewport renderers for [`SnapApp`].
 //!
-//! Separated from the panel-layout methods in `viewport` to satisfy the
-//! 500-line structural limit.
+//! These methods build or refresh GPU textures, compute spacing-aware
+//! fit scales, paint overlays (DICOM 4-corner, crosshair, annotations),
+//! and dispatch pointer / wheel events to the active tool.
 
+use super::state::SnapApp;
 use crate::render::fusion::render_fused_slice;
 use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::OverlayRenderer;
 use crate::ui::{apply_to_image, should_zoom_with_scroll, zoom_from_scroll};
-
-use super::state::SnapApp;
 
 impl SnapApp {
     /// Render one MPR viewport for the given `axis` into `ui`.
@@ -108,10 +108,8 @@ impl SnapApp {
         };
 
         let display_size = egui::vec2(tex_w * scale_x, tex_h * scale_y);
-
         let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size))
             .sense(egui::Sense::click_and_drag());
-
         let response = ui.add(image_widget);
 
         // Track which axis is currently hovered for status/info display
@@ -135,7 +133,6 @@ impl SnapApp {
         );
 
         let (slice_idx, total) = self.axis_slice_info(axis);
-
         painter.text(
             egui::pos2(response.rect.max.x - 6.0, response.rect.min.y + 6.0),
             egui::Align2::RIGHT_TOP,
@@ -163,10 +160,9 @@ impl SnapApp {
                     self.zoom,
                     cursor_value,
                     self.pointer_intensity,
-                    self.pointer_suv,
                     self.current_cursor_suv(),
+                    self.pointer_suv,
                 );
-
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
                     response.rect,
@@ -179,11 +175,9 @@ impl SnapApp {
         if self.show_label_overlay {
             self.draw_label_overlay(&painter, response.rect, axis);
         }
-
         if self.show_rt_struct_overlay {
             self.draw_rt_struct_overlay(&painter, response.rect, axis, tex_h_usize, tex_w_usize);
         }
-
         if self.show_rt_dose_overlay {
             self.draw_rt_dose_overlay(&painter, response.rect, axis, slice_idx);
         }
@@ -226,9 +220,9 @@ impl SnapApp {
                 |p: egui::Pos2| egui::pos2(origin.x + p.x * scale_x, origin.y + p.y * scale_y);
 
             // Per-axis 2-D spacing: [row_mm_per_px, col_mm_per_px]
-            //   axis 0 axial    → dy, dx
-            //   axis 1 coronal  → dz, dx
-            //   axis 2 sagittal → dz, dy
+            //   axis 0 axial  → dy, dx
+            //   axis 1 coronal → dz, dx
+            //   axis 2 sagittal→ dz, dy
             let spacing_2d: [f32; 2] = if let Some(vol) = &self.loaded {
                 let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
                 match axis {
@@ -256,19 +250,17 @@ impl SnapApp {
             crate::ui::measurements::MeasurementLayer::draw_annotations(
                 &meas_painter,
                 &self.annotations,
-                &img_to_screen,
+                img_to_screen,
             );
-
             crate::ui::measurements::MeasurementLayer::draw_in_progress(
                 &meas_painter,
                 &self.tool_state,
                 response.hover_pos(),
                 cursor_img_opt,
                 spacing_2d,
-                &img_to_screen,
+                img_to_screen,
             );
-        }
-        // painter is dropped here; no longer borrows ui.
+        } // painter is dropped here; no longer borrows ui.
         drop(painter);
 
         // ── 7. Wheel input: zoom or slice navigation ───────────────────────────
@@ -308,7 +300,6 @@ impl SnapApp {
                     (s.y - response.rect.min.y) / scale_y,
                 )
             });
-
             self.on_drag_start(img_pos);
         }
 
@@ -324,7 +315,6 @@ impl SnapApp {
                     (s.y - response.rect.min.y) / scale_y,
                 )
             });
-
             self.on_drag(img_pos);
         }
 
@@ -335,7 +325,6 @@ impl SnapApp {
                     (s.y - response.rect.min.y) / scale_y,
                 )
             });
-
             self.on_drag_end(img_pos);
         }
 
@@ -357,7 +346,6 @@ impl SnapApp {
                     (s.y - response.rect.min.y) / scale_y,
                 )
             });
-
             self.on_click(img_pos);
         }
     }
@@ -378,7 +366,6 @@ impl SnapApp {
 
         let primary_total = self.axis_slice_info(primary_axis).1.max(1);
         let primary_idx = self.axis_slice_info(primary_axis).0;
-
         let secondary_total = Self::axis_extent_for_volume(secondary, secondary_axis).max(1);
         let secondary_idx =
             Self::map_slice_index_between_volumes(primary_idx, primary_total, secondary_total);
@@ -402,7 +389,6 @@ impl SnapApp {
                     let primary_wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
                     let primary_ww =
                         self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
-
                     let secondary_wc = self.secondary_window_center.unwrap_or(128.0) as f64;
                     let secondary_ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
 
@@ -453,7 +439,6 @@ impl SnapApp {
         let tex_h = h as f32;
 
         let avail = ui.available_size();
-
         let fit = if tex_w > 0.0 && tex_h > 0.0 {
             (avail.x / tex_w).min(avail.y / tex_h)
         } else {
@@ -468,7 +453,6 @@ impl SnapApp {
         );
 
         let painter = ui.painter_at(response.rect);
-
         painter.text(
             response.rect.min + egui::vec2(6.0, 6.0),
             egui::Align2::LEFT_TOP,

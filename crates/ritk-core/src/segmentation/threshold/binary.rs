@@ -23,6 +23,7 @@
 //! # References
 //! - ITK `BinaryThresholdImageFilter` (www.itk.org/Doxygen/html/classitk_1_1BinaryThresholdImageFilter.html)
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -145,9 +146,8 @@ pub fn binary_threshold<B: Backend, const D: usize>(
 
     let device = image.data().device();
     let shape: [usize; D] = image.shape();
-
-    let img_data = image.data().clone().into_data();
-    let slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
+    let (img_vals, _shape) = extract_vec_infallible(image);
+    let slice: &[f32] = &img_vals;
 
     let output: Vec<f32> =
         apply_binary_threshold_to_slice(slice, lower, upper, inside_value, outside_value);

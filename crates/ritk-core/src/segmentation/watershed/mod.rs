@@ -41,10 +41,10 @@
 //!   *Signal Processing*, 38(1), 113–125.
 
 pub mod marker_controlled;
-pub use marker_controlled::MarkerControlledWatershed;
-
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+pub use marker_controlled::MarkerControlledWatershed;
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -74,12 +74,7 @@ impl WatershedSegmentation {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let device = image.data().device();
-
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("WatershedSegmentation requires f32 data: {:?}", e))?
-            .to_vec();
+        let (vals, _) = extract_vec(image)?;
 
         let labels = watershed_flooding(&vals, dims);
 

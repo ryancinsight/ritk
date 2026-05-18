@@ -129,8 +129,8 @@ pub fn majority_vote(
 
     for v in 0..n_voxels {
         counts.clear();
-        for a in 0..n_atlases {
-            *counts.entry(atlas_labels[a][v]).or_insert(0) += 1;
+        for labels in atlas_labels.iter() {
+            *counts.entry(labels[v]).or_insert(0) += 1;
         }
 
         // Deterministic tie-breaking: highest count wins; on tie, smallest
@@ -350,10 +350,12 @@ fn solve_linear_system(a: &mut [Vec<f64>], b: &mut [f64]) -> Option<Vec<f64>> {
     debug_assert!(a.len() == n);
 
     // Forward elimination with partial pivoting.
+    #[allow(clippy::needless_range_loop)]
     for col in 0..n {
         // Find pivot row.
         let mut max_row = col;
         let mut max_val = a[col][col].abs();
+        #[allow(clippy::needless_range_loop)]
         for row in (col + 1)..n {
             let v = a[row][col].abs();
             if v > max_val {
@@ -371,8 +373,10 @@ fn solve_linear_system(a: &mut [Vec<f64>], b: &mut [f64]) -> Option<Vec<f64>> {
         }
         // Eliminate below.
         let pivot = a[col][col];
+        #[allow(clippy::needless_range_loop)]
         for row in (col + 1)..n {
             let factor = a[row][col] / pivot;
+            #[allow(clippy::needless_range_loop)]
             for j in col..n {
                 // Split borrow: read a[col][j], write a[row][j].
                 let a_col_j = a[col][j];

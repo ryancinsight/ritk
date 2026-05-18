@@ -1,5 +1,6 @@
 pub mod bias;
 pub mod bilateral;
+pub mod cpr;
 pub mod diffusion;
 pub mod discrete_gaussian;
 pub mod distance;
@@ -22,6 +23,7 @@ pub mod vesselness;
 
 pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
+pub use cpr::{CprConfig, CprImageFilter};
 pub use diffusion::{
     AnisotropicDiffusionFilter, ConductanceFunction, CurvatureAnisotropicDiffusionFilter,
     CurvatureConfig, CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig,

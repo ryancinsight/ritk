@@ -78,10 +78,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// Auto maximum: [1,2,3] → max=3, out=[2,1,0].
+    /// Auto maximum: [1,2,3] → max=3, out=[2,1,0].
     #[test]
     fn invert_auto_max() {
         let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);

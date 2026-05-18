@@ -1,6 +1,8 @@
 //! Tests for trig
 //! Extracted to keep the 500-line structural limit.
+
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -27,9 +29,8 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 fn atan_zero_is_zero() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let out = AtanImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert_eq!(x, 0.0f32, "atan(0) must equal 0 exactly");
     }
 }
@@ -39,10 +40,9 @@ fn atan_zero_is_zero() {
 fn atan_one_is_pi_over_four() {
     let img = make_image(vec![1.0f32; 8], [2, 2, 2]);
     let out = AtanImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
     let expected = (1.0f32).atan();
-    for &x in v {
+    for &x in &v {
         assert!(
             (x - expected).abs() < 1e-6,
             "atan(1) = {x}, expected {expected}"
@@ -57,10 +57,8 @@ fn atan_odd_function() {
     let pos = AtanImageFilter::new().apply(&img);
     let img_neg = make_image(vec![-2.5f32; 8], [2, 2, 2]);
     let neg = AtanImageFilter::new().apply(&img_neg);
-    let pos_td = pos.data().clone().into_data();
-    let neg_td = neg.data().clone().into_data();
-    let pv: &[f32] = pos_td.as_slice::<f32>().unwrap();
-    let nv: &[f32] = neg_td.as_slice::<f32>().unwrap();
+    let (pv, _) = extract_vec_infallible(&pos);
+    let (nv, _) = extract_vec_infallible(&neg);
     for (&p, &n) in pv.iter().zip(nv.iter()) {
         assert!((p + n).abs() < 1e-6, "atan not odd: {p} + {n} ≠ 0");
     }
@@ -73,10 +71,9 @@ fn atan_range_bounded() {
     let n = vals.len();
     let img = make_image(vals, [1, 1, n]);
     let out = AtanImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
     let pi_half = std::f32::consts::FRAC_PI_2;
-    for &x in v {
+    for &x in &v {
         assert!(x > -pi_half && x < pi_half, "atan out of range: {x}");
     }
 }
@@ -99,9 +96,8 @@ fn atan_preserves_metadata() {
 fn sin_zero_is_zero() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let out = SinImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 0.0f32).abs() < 1e-6, "sin(0) must equal 0");
     }
 }
@@ -112,9 +108,8 @@ fn sin_pi_over_2_is_one() {
     let pi_half = std::f32::consts::FRAC_PI_2;
     let img = make_image(vec![pi_half; 8], [2, 2, 2]);
     let out = SinImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 1.0f32).abs() < 1e-6, "sin(π/2) = {x}");
     }
 }
@@ -126,9 +121,8 @@ fn sin_range_bounded() {
     let n = vals.len();
     let img = make_image(vals, [1, 1, n]);
     let out = SinImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!(
             x >= -1.0 - 1e-6 && x <= 1.0 + 1e-6,
             "sin out of [−1,1]: {x}"
@@ -143,9 +137,8 @@ fn sin_range_bounded() {
 fn cos_zero_is_one() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let out = CosImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 1.0f32).abs() < 1e-6, "cos(0) = {x}");
     }
 }
@@ -156,9 +149,8 @@ fn cos_pi_is_minus_one() {
     let pi = std::f32::consts::PI;
     let img = make_image(vec![pi; 8], [2, 2, 2]);
     let out = CosImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - (-1.0f32)).abs() < 1e-5, "cos(π) = {x}");
     }
 }
@@ -173,10 +165,8 @@ fn sin_cos_pythagorean_identity() {
     let img2 = make_image(vals, [2, 2, 2]);
     let sins = SinImageFilter::new().apply(&img);
     let coss = CosImageFilter::new().apply(&img2);
-    let s_td = sins.data().clone().into_data();
-    let c_td = coss.data().clone().into_data();
-    let sv: &[f32] = s_td.as_slice::<f32>().unwrap();
-    let cv: &[f32] = c_td.as_slice::<f32>().unwrap();
+    let (sv, _) = extract_vec_infallible(&sins);
+    let (cv, _) = extract_vec_infallible(&coss);
     for (&s, &c) in sv.iter().zip(cv.iter()) {
         let sum = s * s + c * c;
         assert!((sum - 1.0f32).abs() < 1e-5, "sin²+cos²={sum}");
@@ -190,9 +180,8 @@ fn sin_cos_pythagorean_identity() {
 fn tan_zero_is_zero() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let out = TanImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 0.0f32).abs() < 1e-6, "tan(0) = {x}");
     }
 }
@@ -203,9 +192,8 @@ fn tan_pi_over_4_is_one() {
     let pi_4 = std::f32::consts::FRAC_PI_4;
     let img = make_image(vec![pi_4; 8], [2, 2, 2]);
     let out = TanImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 1.0f32).abs() < 1e-5, "tan(π/4) = {x}");
     }
 }
@@ -221,8 +209,7 @@ fn asin_boundary_values() {
         [2, 2, 2],
     );
     let out = AsinImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
     assert!((v[0] - 0.0f32).abs() < 1e-6, "asin(0) = {}", v[0]);
     assert!((v[1] - pi_half).abs() < 1e-5, "asin(1) = {}", v[1]);
     assert!((v[2] - (-pi_half)).abs() < 1e-5, "asin(-1) = {}", v[2]);
@@ -237,10 +224,8 @@ fn asin_acos_complement_identity() {
     let img2 = make_image(vals, [2, 2, 2]);
     let asins = AsinImageFilter::new().apply(&img);
     let acoss = AcosImageFilter::new().apply(&img2);
-    let as_td = asins.data().clone().into_data();
-    let ac_td = acoss.data().clone().into_data();
-    let asv: &[f32] = as_td.as_slice::<f32>().unwrap();
-    let acv: &[f32] = ac_td.as_slice::<f32>().unwrap();
+    let (asv, _) = extract_vec_infallible(&asins);
+    let (acv, _) = extract_vec_infallible(&acoss);
     for (&a, &b) in asv.iter().zip(acv.iter()) {
         assert!((a + b - pi_half).abs() < 1e-5, "asin+acos={} ≠ π/2", a + b);
     }
@@ -255,8 +240,7 @@ fn acos_boundary_values() {
     let pi_half = std::f32::consts::FRAC_PI_2;
     let img = make_image(vec![1.0f32, 0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0], [2, 2, 2]);
     let out = AcosImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
     assert!((v[0] - 0.0f32).abs() < 1e-5, "acos(1) = {}", v[0]);
     assert!((v[1] - pi_half).abs() < 1e-5, "acos(0) = {}", v[1]);
     assert!((v[2] - pi).abs() < 1e-5, "acos(-1) = {}", v[2]);
@@ -269,9 +253,8 @@ fn acos_boundary_values() {
 fn bounded_reciprocal_zero_is_one() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let out = BoundedReciprocalImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert_eq!(x, 1.0f32, "1/(1+|0|) must equal 1.0");
     }
 }
@@ -284,9 +267,8 @@ fn bounded_reciprocal_at_one_is_half() {
         [2, 2, 2],
     );
     let out = BoundedReciprocalImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!((x - 0.5f32).abs() < 1e-6, "1/(1+1) = {x}");
     }
 }
@@ -298,9 +280,8 @@ fn bounded_reciprocal_range() {
     let n = vals.len();
     let img = make_image(vals, [1, 1, n]);
     let out = BoundedReciprocalImageFilter::new().apply(&img);
-    let td = out.data().clone().into_data();
-    let v: &[f32] = td.as_slice::<f32>().unwrap();
-    for &x in v {
+    let (v, _) = extract_vec_infallible(&out);
+    for &x in &v {
         assert!(x > 0.0 && x <= 1.0, "bounded reciprocal out of (0,1]: {x}");
     }
 }
@@ -312,10 +293,8 @@ fn bounded_reciprocal_monotone() {
     let img_large = make_image(vec![10.0f32; 8], [2, 2, 2]);
     let out_small = BoundedReciprocalImageFilter::new().apply(&img_small);
     let out_large = BoundedReciprocalImageFilter::new().apply(&img_large);
-    let s_td = out_small.data().clone().into_data();
-    let l_td = out_large.data().clone().into_data();
-    let sv: &[f32] = s_td.as_slice::<f32>().unwrap();
-    let lv: &[f32] = l_td.as_slice::<f32>().unwrap();
+    let (sv, _) = extract_vec_infallible(&out_small);
+    let (lv, _) = extract_vec_infallible(&out_large);
     for (&s, &l) in sv.iter().zip(lv.iter()) {
         assert!(s > l, "bounded_reciprocal not monotone: {s} <= {l}");
     }

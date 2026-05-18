@@ -65,10 +65,10 @@
 //! - Malladi, R., Sethian, J. A., & Vemuri, B. C. (1995). "Shape Modeling
 //!   with Front Propagation: A Level Set Approach." *IEEE TPAMI*, 17(2).
 
+use super::helpers;
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-
-use super::helpers;
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
@@ -162,23 +162,13 @@ impl GeodesicActiveContourSegmentation {
                 phi_dims
             );
         }
-
         let device = image.data().device();
 
-        let img_td = image.data().clone().into_data();
-        let img_vals: Vec<f32> = img_td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("GAC requires f32 image data: {:?}", e))?
-            .to_vec();
-
-        let phi_td = initial_phi.data().clone().into_data();
-        let phi_f32: Vec<f32> = phi_td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("GAC requires f32 phi data: {:?}", e))?
-            .to_vec();
-
+        let (img_vals, _) = extract_vec(image)?;
+        let img_f32: Vec<f32> = img_vals;
+        let (phi_f32, _) = extract_vec(initial_phi)?;
         // Convert to f64 for the entire PDE pipeline.
-        let img_f64: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let img_f64: Vec<f64> = img_f32.iter().map(|&v| v as f64).collect();
         let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
 
         // Precompute smoothed image.

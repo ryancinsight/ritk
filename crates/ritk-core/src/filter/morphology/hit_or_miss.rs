@@ -10,6 +10,7 @@
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 //! - Soille, P. (2003). Morphological Image Analysis, 2nd ed. Springer.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -28,13 +29,7 @@ impl HitOrMissTransform {
         }
     }
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let dims = image.shape();
-        let vals: Vec<f32> = image
-            .data()
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("HitOrMissTransform requires f32 data: {:?}", e))?;
+        let (vals, dims) = extract_vec(image)?;
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
         let device = image.data().device();
         let tensor = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
@@ -172,7 +167,7 @@ mod tests {
         )
     }
     fn vv(i: &Image<B, 3>) -> Vec<f32> {
-        i.data().clone().into_data().into_vec::<f32>().unwrap()
+        i.data_vec()
     }
     #[test]
     fn test_identity_both_zero() {

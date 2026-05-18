@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use nifti::NiftiHeader;
 use ritk_core::image::Image;
@@ -112,11 +112,9 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
     let ny = shape[1];
     let nx = shape[2];
 
-    let tensor_data = image.data().clone().into_data();
-    let slice = match tensor_data.as_slice::<f32>() {
-        Ok(s) => s,
-        Err(e) => return Err(anyhow::anyhow!("Failed to get tensor data: {:?}", e)),
-    };
+    let slice = &image
+        .try_data_vec()
+        .context("NIfTI writer requires f32 image data")?;
 
     let mut array = Array3::<f32>::zeros((nx, ny, nz));
     for z in 0..nz {

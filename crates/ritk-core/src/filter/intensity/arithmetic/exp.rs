@@ -57,10 +57,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// exp(0) = 1.
+    /// exp(0) = 1.
     #[test]
     fn exp_of_zero_is_one() {
         let img = make_image(vec![0.0, 0.0], [1, 1, 2]);

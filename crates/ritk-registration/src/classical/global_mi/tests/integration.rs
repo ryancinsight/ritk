@@ -19,9 +19,8 @@ fn translation_recovery_shifted_gaussian() {
         &device,
     );
 
-    let initial_transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device),
-    );
+    let initial_transform =
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
 
     let config = GlobalMiConfig {
         num_levels: 1,
@@ -129,7 +128,11 @@ fn multires_convergence_runs_all_levels() {
     );
     assert_eq!(result.iterations_per_level.len(), 2);
     for (level, &iters) in result.iterations_per_level.iter().enumerate() {
-        assert!(iters > 0, "Level {} must have at least 1 iteration", level + 1);
+        assert!(
+            iters > 0,
+            "Level {} must have at least 1 iteration",
+            level + 1
+        );
     }
 }
 
@@ -166,7 +169,10 @@ fn rigid_recovery_identity_validates_pipeline() {
     let (final_transform, result) =
         GlobalMiRegistration::register_rigid_full(&fixed, &moving, initial_transform, &config);
 
-    assert!(!result.convergence_history.is_empty(), "Must have convergence info");
+    assert!(
+        !result.convergence_history.is_empty(),
+        "Must have convergence info"
+    );
 
     let rotation_data = final_transform.rotation().to_data();
     let r_slice = rotation_data.as_slice::<f32>().unwrap();
@@ -194,9 +200,8 @@ fn sparse_sampling_produces_comparable_result() {
     let fixed = make_gaussian_blob([24, 24, 24], [12.0, 12.0, 12.0], 3.0, &device);
     let moving = make_gaussian_blob([24, 24, 24], [14.0, 13.0, 12.0], 3.0, &device);
 
-    let initial_transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device),
-    );
+    let initial_transform =
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
 
     let config_sparse = GlobalMiConfig {
         num_levels: 1,

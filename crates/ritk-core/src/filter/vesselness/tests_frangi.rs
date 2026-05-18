@@ -1,6 +1,7 @@
 //! Tests for frangi
 //! Extracted to keep the 500-line structural limit.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -99,7 +100,7 @@ fn test_frangi_cylindrical_tube() {
     let filter = FrangiVesselnessFilter::new(config);
     let out = filter.apply(&image).expect("frangi apply failed");
 
-    let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
 
     let get = |iz: usize, iy: usize, ix: usize| v[iz * N * N + iy * N + ix];
 
@@ -137,7 +138,7 @@ fn test_frangi_uniform_image_zero_vesselness() {
     let filter = FrangiVesselnessFilter::new(FrangiConfig::default());
     let out = filter.apply(&image).expect("frangi apply failed");
 
-    let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
     for (i, &val) in v.iter().enumerate() {
         assert!(val < 1e-6, "uniform image: voxel {i} expected 0, got {val}");
     }
@@ -184,7 +185,7 @@ fn test_frangi_sphere_low_vesselness() {
     let filter = FrangiVesselnessFilter::new(config);
     let out = filter.apply(&image).expect("frangi apply failed");
 
-    let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
 
     // Sphere-centre voxel.
     let c = 14usize; // floor(14.5)
@@ -252,19 +253,8 @@ fn test_frangi_tube_exceeds_sphere() {
     let tube_out = filter.apply(&tube_image).unwrap();
     let sphere_out = filter.apply(&sphere_image).unwrap();
 
-    let tube_v: Vec<f32> = tube_out
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
-    let sphere_v: Vec<f32> = sphere_out
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
-
+    let (tube_v, _) = extract_vec_infallible(&tube_out);
+    let (sphere_v, _) = extract_vec_infallible(&sphere_out);
     // Centre index for 20×20×20 image.
     let c = 9usize;
     let tube_centre = tube_v[c * N * N + c * N + c];
@@ -306,7 +296,7 @@ fn test_frangi_dark_vessel_gate_rejects_bright_tube() {
     let filter = FrangiVesselnessFilter::new(config);
     let out = filter.apply(&image).expect("frangi apply failed");
 
-    let v: Vec<f32> = out.data().clone().into_data().into_vec::<f32>().unwrap();
+    let (v, _) = extract_vec_infallible(&out);
 
     let c = N / 2;
     let centre_val = v[c * N * N + c * N + c];

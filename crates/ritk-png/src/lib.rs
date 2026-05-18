@@ -227,8 +227,7 @@ mod tests {
     }
 
     fn tensor_values(image: &ritk_core::image::Image<TestBackend, 3>) -> Vec<f32> {
-        let data = image.data().clone().to_data();
-        data.as_slice::<f32>().unwrap().to_vec()
+        image.data_vec()
     }
 
     #[test]

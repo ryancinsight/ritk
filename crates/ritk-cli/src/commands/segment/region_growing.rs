@@ -3,9 +3,9 @@ use tracing::info;
 
 use ritk_core::segmentation::connected_threshold;
 
+use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
 use super::helpers::{count_foreground, parse_seed};
-use super::super::{read_image, write_image_inferred};
 
 // ── Connected-threshold region growing ───────────────────────────────────────
 

@@ -4,7 +4,6 @@ pub(super) mod config;
 pub(super) mod functional;
 pub(super) mod invariants;
 
-
 use burn::backend::Autodiff;
 use burn::module::{Module, Param};
 use burn::tensor::backend::Backend;

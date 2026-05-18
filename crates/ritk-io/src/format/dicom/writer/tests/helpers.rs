@@ -1,5 +1,5 @@
-use burn::tensor::{Shape, Tensor, TensorData};
 use crate::format::dicom::reader::DicomReadMetadata;
+use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
@@ -46,7 +46,10 @@ pub(super) fn make_image_with_spatial(
 pub(super) fn make_test_metadata() -> DicomReadMetadata {
     let mut private_tags = HashMap::new();
     private_tags.insert("0019,10AA".to_string(), "PRIVATE_SERIES_VALUE".to_string());
-    private_tags.insert("0029,10BB".to_string(), "PRIVATE_SERIES_VALUE_2".to_string());
+    private_tags.insert(
+        "0029,10BB".to_string(),
+        "PRIVATE_SERIES_VALUE_2".to_string(),
+    );
 
     DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.789".to_string()),

@@ -200,14 +200,8 @@ mod tests {
     #[test]
     fn viewport_mapping_axial_center_hits_expected_voxel() {
         let rect = egui::Rect::from_min_size(egui::pos2(0.0, 0.0), egui::vec2(200.0, 100.0));
-        let voxel = viewport_point_to_voxel(
-            [8, 10, 20],
-            0,
-            3,
-            egui::pos2(100.0, 50.0),
-            rect,
-        )
-        .expect("center point must map to a voxel");
+        let voxel = viewport_point_to_voxel([8, 10, 20], 0, 3, egui::pos2(100.0, 50.0), rect)
+            .expect("center point must map to a voxel");
         assert_eq!(voxel, [3, 5, 10]);
     }
 

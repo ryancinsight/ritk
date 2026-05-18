@@ -1,7 +1,6 @@
-//! Volume state management: file/bytes loading, study close, histogram cache.
-//!
-//! Split from `volume_ops` to satisfy the 500-line structural limit.
+//! Generic volume loading (file/bytes), study lifecycle, and histogram cache.
 
+use std::sync::Arc;
 use tracing::{error, info};
 
 use super::state::{ProjectionMode, SeriesLoadTarget, SnapApp};
@@ -10,7 +9,7 @@ use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::tools::interaction::ToolState;
 use crate::ui::LinkedCursor;
-use crate::{ViewerState};
+use crate::ViewerState;
 
 impl SnapApp {
     pub(crate) fn load_volume_file(&mut self, path: std::path::PathBuf) {
@@ -161,10 +160,7 @@ impl SnapApp {
     }
 
     /// Load a DICOM series from pathless dropped named byte payloads.
-    pub(crate) fn load_dicom_series_bytes(
-        &mut self,
-        files: Vec<(String, std::sync::Arc<[u8]>)>,
-    ) {
+    pub(crate) fn load_dicom_series_bytes(&mut self, files: Vec<(String, Arc<[u8]>)>) {
         self.cine.stop();
 
         let borrowed: Vec<(String, &[u8])> = files
@@ -236,9 +232,8 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message = format!(
-                    "Volume load failed for dropped in-memory DICOM series: {e:#}"
-                );
+                self.status_message =
+                    format!("Volume load failed for dropped in-memory DICOM series: {e:#}");
                 error!("{}", self.status_message);
             }
         }

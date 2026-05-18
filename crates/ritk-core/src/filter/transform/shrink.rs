@@ -132,6 +132,7 @@ impl ShrinkImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
@@ -151,7 +152,8 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        let (v, _) = extract_vec_infallible(img);
+        v
     }
 
     /// Factor [1,1,1] → identity (same shape and values).

@@ -16,7 +16,7 @@
 
 use egui::ColorImage;
 
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{Colormap, SliceRenderer, WindowLevel};
 use crate::LoadedVolume;
 
 /// Render a fused compare slice where the output geometry follows `primary`.
@@ -42,13 +42,26 @@ pub fn render_fused_slice(
         return ColorImage::from_rgb([1, 1], &[0, 0, 0]);
     }
 
+    let alpha = secondary_alpha.clamp(0.0, 1.0);
+
+    // Early return: when secondary contribution is zero, delegate to the
+    // single-volume renderer, eliminating the secondary slice extraction
+    // and the blending loop entirely.
+    if alpha <= 0.0 {
+        return SliceRenderer::render(
+            primary,
+            primary_axis,
+            primary_slice,
+            primary_wl,
+            primary_colormap,
+        );
+    }
+
     let (secondary_pixels, secondary_width, secondary_height) =
         secondary.extract_slice(secondary_axis, secondary_slice);
     if secondary_width == 0 || secondary_height == 0 {
         return ColorImage::from_rgb([width, height], &vec![0; width * height * 3]);
     }
-
-    let alpha = secondary_alpha.clamp(0.0, 1.0);
     let inv_alpha = 1.0 - alpha;
     let mut rgb = vec![0u8; width * height * 3];
 
@@ -106,6 +119,12 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            series_time: None,
+            patient_weight_kg: None,
+            injected_dose_bq: None,
+            radionuclide_half_life_s: None,
+            radiopharmaceutical_start_time: None,
+            decay_correction: None,
         }
     }
 

@@ -13,7 +13,9 @@ pub mod hanging_protocol;
 pub mod input_path;
 pub mod loader;
 pub mod metadata_table;
+pub mod pet;
 pub mod series_tree;
+pub mod suv;
 
 pub use hanging_protocol::{select_hanging_protocol, HangingProtocolDecision};
 pub use input_path::{classify_dicom_input_path, DicomInputPath};

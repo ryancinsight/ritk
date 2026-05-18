@@ -26,10 +26,8 @@ pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
         "writing JPEG grayscale image"
     );
 
-    let data = image.data().clone().to_data();
-    let slice = data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow::anyhow!("failed to read tensor data as f32: {:?}", e))?;
+    let f32_vec = image.try_data_vec()?;
+    let slice: &[f32] = &f32_vec;
 
     let mut gray_img = GrayImage::new(nx as u32, ny as u32);
 

@@ -43,7 +43,7 @@ impl PixelLayout {
     }
 
     pub fn bytes_per_sample(self) -> Result<usize> {
-        if self.bits_allocated % 8 != 0 {
+        if !self.bits_allocated.is_multiple_of(8) {
             bail!(
                 "bits_allocated={} is not byte-addressable",
                 self.bits_allocated

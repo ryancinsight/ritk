@@ -69,17 +69,16 @@ mod tests {
             "shape must be preserved through adapter round-trip"
         );
 
-        let loaded_td = loaded.data().clone().to_data();
-        let loaded_vals = loaded_td.as_slice::<f32>().unwrap();
-        for (i, &v) in loaded_vals.iter().enumerate() {
-            assert!(
-                (v - 1.5).abs() < 1e-6,
-                "voxel[{}]: expected 1.5, got {}",
-                i,
-                v,
-            );
-        }
-
+        loaded.with_data_slice(|loaded_vals| {
+            for (i, &v) in loaded_vals.iter().enumerate() {
+                assert!(
+                    (v - 1.5).abs() < 1e-6,
+                    "voxel[{}]: expected 1.5, got {}",
+                    i,
+                    v,
+                );
+            }
+        });
         Ok(())
     }
 }

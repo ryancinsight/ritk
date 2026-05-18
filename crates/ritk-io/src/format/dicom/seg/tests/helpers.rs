@@ -4,7 +4,7 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 
-use super::super::SEG_SOP_CLASS_UID;
+use super::super::types::SEG_SOP_CLASS_UID;
 
 /// Build a minimal DICOM-SEG InMemDicomObject with given geometry and raw pixel bytes.
 pub(super) fn build_seg_obj(

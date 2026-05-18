@@ -273,8 +273,8 @@ mod tests {
         let img = make_image(data.clone(), [2, 8, 8]);
         let filter = HistogramEqualizationFilter::new(256);
         let out = filter.apply(&img).expect("HE apply failed");
-        let out_data = out.data().clone().into_data();
-        let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
+        let (out_data, _) = extract_vec_infallible(&out);
+        let out_vals: Vec<f32> = out_data.as_slice().to_vec();
         for (i, (&inp, &outp)) in data.iter().zip(out_vals.iter()).enumerate() {
             assert!(
                 (inp - outp).abs() < 1e-4,
@@ -291,8 +291,8 @@ mod tests {
         let img = make_image(data, [2, 16, 16]);
         let filter = HistogramEqualizationFilter::new(256);
         let out = filter.apply(&img).expect("HE apply failed");
-        let out_data = out.data().clone().into_data();
-        let out_vals: Vec<f32> = out_data.as_slice::<f32>().unwrap().to_vec();
+        let (out_data, _) = extract_vec_infallible(&out);
+        let out_vals: Vec<f32> = out_data.as_slice().to_vec();
         for &o in &out_vals {
             assert!(
                 o >= v_min - 0.5 && o <= v_max + 0.5,

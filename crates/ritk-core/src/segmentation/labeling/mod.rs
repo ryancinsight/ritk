@@ -26,6 +26,7 @@
 //! - Time:  O(n · α(n)) ≈ O(n) with union-find path compression.
 //! - Space: O(n) for provisional labels + O(K) for statistics.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -148,11 +149,9 @@ impl ConnectedComponentsFilter {
     /// - `label_image` has the same shape and spatial metadata as `mask`.
     /// - `statistics` has one entry per component, ordered by label index.
     pub fn apply<B: Backend>(&self, mask: &Image<B, 3>) -> (Image<B, 3>, Vec<LabelStatistics>) {
-        let shape = mask.shape();
+        let (mask_vals, shape) = extract_vec_infallible(mask);
         let device = mask.data().device();
-
-        let mask_data = mask.data().clone().into_data();
-        let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+        let mask_slice: &[f32] = &mask_vals;
 
         let (label_vec, stats) =
             hoshen_kopelman(mask_slice, shape, self.connectivity, self.background_value);

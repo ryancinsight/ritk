@@ -17,14 +17,7 @@ fn tetra() -> VtkUnstructuredGrid {
 }
 
 /// Build a minimal VTU XML string from raw section content for error injection.
-fn minimal_vtu(
-    np: usize,
-    nc: usize,
-    points: &str,
-    conn: &str,
-    offs: &str,
-    types: &str,
-) -> String {
+fn minimal_vtu(np: usize, nc: usize, points: &str, conn: &str, offs: &str, types: &str) -> String {
     format!(
         "<?xml version=\"1.0\"?>\n\
          <VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">\n\

@@ -66,6 +66,7 @@ impl<B: Backend> DownsampleFilter<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::ops::extract_vec_infallible;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn::tensor::{Shape, Tensor, TensorData};
@@ -97,7 +98,7 @@ mod tests {
             img.shape(),
             "shape must be unchanged for factor=1"
         );
-        let got = out.data().clone().into_data().into_vec::<f32>().unwrap();
+        let (got, _) = extract_vec_infallible(&out);
         assert_eq!(got, data, "voxels must be identical for factor=1");
     }
 

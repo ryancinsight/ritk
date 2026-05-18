@@ -1,6 +1,6 @@
 use super::super::{
-    DicomSegmentInfo, DicomSegmentation, dicom_seg_to_label_map, label_map_to_dicom_seg,
-    read_dicom_seg, write_dicom_seg,
+    dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
+    DicomSegmentInfo, DicomSegmentation,
 };
 
 #[test]
@@ -54,10 +54,26 @@ fn test_label_map_to_dicom_seg_multi_label() {
         vec![1, 1, 2, 2],
         "segment assignment per frame"
     );
-    assert_eq!(seg.pixel_data[0], vec![1u8; 4], "frame 0 (seg 1, z=0) all ones");
-    assert_eq!(seg.pixel_data[1], vec![0u8; 4], "frame 1 (seg 1, z=1) all zeros");
-    assert_eq!(seg.pixel_data[2], vec![0u8; 4], "frame 2 (seg 2, z=0) all zeros");
-    assert_eq!(seg.pixel_data[3], vec![1u8; 4], "frame 3 (seg 2, z=1) all ones");
+    assert_eq!(
+        seg.pixel_data[0],
+        vec![1u8; 4],
+        "frame 0 (seg 1, z=0) all ones"
+    );
+    assert_eq!(
+        seg.pixel_data[1],
+        vec![0u8; 4],
+        "frame 1 (seg 1, z=1) all zeros"
+    );
+    assert_eq!(
+        seg.pixel_data[2],
+        vec![0u8; 4],
+        "frame 2 (seg 2, z=0) all zeros"
+    );
+    assert_eq!(
+        seg.pixel_data[3],
+        vec![1u8; 4],
+        "frame 3 (seg 2, z=1) all ones"
+    );
 }
 
 #[test]
@@ -77,7 +93,11 @@ fn test_label_map_to_dicom_seg_background_excluded() {
         .expect("label_map_to_dicom_seg");
 
     assert_eq!(seg.n_frames, 1, "1 foreground label × 1 z-slice = 1 frame");
-    assert_eq!(seg.pixel_data[0], vec![0, 0, 1, 1], "correct mask for label 1");
+    assert_eq!(
+        seg.pixel_data[0],
+        vec![0, 0, 1, 1],
+        "correct mask for label 1"
+    );
 }
 
 #[test]
@@ -105,7 +125,11 @@ fn test_label_map_to_dicom_seg_spatial_metadata() {
         Some([0.5, 1.5]),
         "pixel_spacing [ny_spacing, nx_spacing]"
     );
-    assert_eq!(seg.slice_thickness, Some(2.0), "slice_thickness from spacing[0]");
+    assert_eq!(
+        seg.slice_thickness,
+        Some(2.0),
+        "slice_thickness from spacing[0]"
+    );
     assert_eq!(
         seg.image_position_per_frame[0],
         Some([10.0, 20.0, 30.0]),
@@ -257,7 +281,11 @@ fn test_dicom_seg_to_label_map_sparse_uneven_frames_supported() {
 
     let result =
         dicom_seg_to_label_map(&seg).expect("sparse uneven frame layout must be supported");
-    assert_eq!(result.shape, [2, 2, 2], "nz inferred from max per-segment frame count");
+    assert_eq!(
+        result.shape,
+        [2, 2, 2],
+        "nz inferred from max per-segment frame count"
+    );
     let present = result.present_labels();
     assert!(present.contains(&1), "label 1 must be reconstructed");
     assert!(present.contains(&2), "label 2 must be reconstructed");
@@ -286,8 +314,8 @@ fn test_dicom_seg_to_label_map_sorts_frames_by_physical_position() {
         slice_thickness: None,
     };
 
-    let rebuilt = dicom_seg_to_label_map(&seg)
-        .expect("position-sorted frame reconstruction must succeed");
+    let rebuilt =
+        dicom_seg_to_label_map(&seg).expect("position-sorted frame reconstruction must succeed");
     assert_eq!(rebuilt.shape, [2, 2, 2]);
 
     // z=0 slice must come from second frame: pixel (1,1) = label 1.
@@ -307,8 +335,7 @@ fn test_label_map_dicom_seg_file_roundtrip_identity() {
     table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
     table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
     let original =
-        LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table)
-            .unwrap();
+        LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table).unwrap();
 
     let seg = label_map_to_dicom_seg(
         &original,

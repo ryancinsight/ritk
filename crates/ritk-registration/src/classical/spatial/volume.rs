@@ -27,8 +27,7 @@ pub fn apply_transform(volume: &Array3<f64>, transform: &[f64; 16]) -> Array3<f6
                     && sz >= 0
                     && sz < depth as isize
                 {
-                    result[[z, y, x]] =
-                        volume[[sz as usize, sy as usize, sx as usize]];
+                    result[[z, y, x]] = volume[[sz as usize, sy as usize, sx as usize]];
                 }
             }
         }

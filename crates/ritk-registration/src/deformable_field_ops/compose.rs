@@ -43,6 +43,7 @@ pub(crate) fn compose_fields_into(
 }
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂`.
+#[cfg(test)]
 pub(crate) fn compose_fields(
     phi1_z: &[f32],
     phi1_y: &[f32],
@@ -115,9 +116,21 @@ mod tests {
         let (cz, cy, cx) = compose_fields(&zero, &zero, &zero, &phi, &phi, &phi, dims);
 
         for i in 0..n {
-            assert!((cz[i] - phi[i]).abs() < 1e-4, "cz[{i}]: expected {}", phi[i]);
-            assert!((cy[i] - phi[i]).abs() < 1e-4, "cy[{i}]: expected {}", phi[i]);
-            assert!((cx[i] - phi[i]).abs() < 1e-4, "cx[{i}]: expected {}", phi[i]);
+            assert!(
+                (cz[i] - phi[i]).abs() < 1e-4,
+                "cz[{i}]: expected {}",
+                phi[i]
+            );
+            assert!(
+                (cy[i] - phi[i]).abs() < 1e-4,
+                "cy[{i}]: expected {}",
+                phi[i]
+            );
+            assert!(
+                (cx[i] - phi[i]).abs() < 1e-4,
+                "cx[{i}]: expected {}",
+                phi[i]
+            );
         }
     }
 }

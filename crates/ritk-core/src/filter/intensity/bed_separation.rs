@@ -145,8 +145,8 @@ fn keep_largest_component(mask: &[u8], dims: [usize; 3]) -> Vec<u8> {
     let [dz, dy, dx] = dims;
     let n = dz * dy * dx;
     let mut visited = vec![false; n];
-    let mut best_component: Vec<usize> = Vec::new();
-    let mut queue = VecDeque::new();
+    let mut best_component: Vec<usize> = Vec::with_capacity(n / 4);
+    let mut queue = VecDeque::with_capacity(n / 16);
 
     for start in 0..n {
         if visited[start] || mask[start] == 0 {
@@ -159,7 +159,8 @@ fn keep_largest_component(mask: &[u8], dims: [usize; 3]) -> Vec<u8> {
 
         while let Some(idx) = queue.pop_front() {
             component.push(idx);
-            for neighbor in neighbors(idx, dims) {
+            let (nbrs, nbr_count) = neighbors(idx, dims);
+            for &neighbor in &nbrs[..nbr_count] {
                 if !visited[neighbor] && mask[neighbor] != 0 {
                     visited[neighbor] = true;
                     queue.push_back(neighbor);
@@ -245,35 +246,40 @@ fn binary_erosion(mask: &[u8], dims: [usize; 3], radius: usize) -> Vec<u8> {
     out
 }
 
-fn neighbors(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
+#[inline]
+fn neighbors(idx: usize, dims: [usize; 3]) -> ([usize; 6], usize) {
     let [dz, dy, dx] = dims;
     let z = idx / (dy * dx);
     let rem = idx % (dy * dx);
     let y = rem / dx;
     let x = rem % dx;
-
-    let mut out = Vec::with_capacity(6);
-
+    let mut out = [0usize; 6];
+    let mut count = 0;
     if z > 0 {
-        out.push(index(z - 1, y, x, dims));
+        out[count] = index(z - 1, y, x, dims);
+        count += 1;
     }
     if z + 1 < dz {
-        out.push(index(z + 1, y, x, dims));
+        out[count] = index(z + 1, y, x, dims);
+        count += 1;
     }
     if y > 0 {
-        out.push(index(z, y - 1, x, dims));
+        out[count] = index(z, y - 1, x, dims);
+        count += 1;
     }
     if y + 1 < dy {
-        out.push(index(z, y + 1, x, dims));
+        out[count] = index(z, y + 1, x, dims);
+        count += 1;
     }
     if x > 0 {
-        out.push(index(z, y, x - 1, dims));
+        out[count] = index(z, y, x - 1, dims);
+        count += 1;
     }
     if x + 1 < dx {
-        out.push(index(z, y, x + 1, dims));
+        out[count] = index(z, y, x + 1, dims);
+        count += 1;
     }
-
-    out.into_iter()
+    (out, count)
 }
 
 #[inline]
@@ -332,7 +338,7 @@ mod tests {
         let img = make_image(values, dims);
         let filter = BedSeparationFilter::new(BedSeparationConfig::default());
         let out = filter.mask(&img).unwrap();
-        let vals = out.data().clone().into_data().into_vec::<f32>().unwrap();
+        let vals = out.data_vec();
         assert_eq!(vals.len(), 8);
         assert_eq!(vals.iter().filter(|&&v| v > 0.5).count(), 8);
         assert_eq!(vals[0], 1.0);
@@ -350,16 +356,18 @@ mod tests {
         let dims = [1, 1, 4];
         let values = vec![-1000.0, -500.0, 50.0, 200.0];
         let img = make_image(values, dims);
-        let mut config = BedSeparationConfig::default();
-        config.body_threshold = -600.0;
-        config.outside_value = -2048.0;
-        config.keep_largest_component = false;
-        config.closing_radius = 0;
-        config.opening_radius = 0;
+        let config = BedSeparationConfig {
+            body_threshold: -600.0,
+            outside_value: -2048.0,
+            keep_largest_component: false,
+            closing_radius: 0,
+            opening_radius: 0,
+            ..Default::default()
+        };
 
         let filter = BedSeparationFilter::new(config);
         let out = filter.apply(&img).unwrap();
-        let vals = out.data().clone().into_data().into_vec::<f32>().unwrap();
+        let vals = out.data_vec();
 
         assert_eq!(vals, vec![-2048.0, -500.0, 50.0, 200.0]);
     }

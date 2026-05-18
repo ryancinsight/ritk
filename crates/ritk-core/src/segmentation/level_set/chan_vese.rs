@@ -74,6 +74,7 @@
 //!   *IEEE Transactions on Image Processing*, 10(2), 266–277.
 
 use super::helpers::{compute_curvature_into, regularised_dirac, regularised_heaviside};
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
@@ -148,14 +149,9 @@ impl ChanVeseSegmentation {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let device = image.data().device();
-
-        let td = image.data().clone().into_data();
-        let img: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("ChanVeseSegmentation requires f32 data: {:?}", e))?
-            .to_vec();
-
-        let mask = self.evolve(&img, dims);
+        let (img_vals, _dims) = extract_vec(image)?;
+        let img: &[f32] = &img_vals;
+        let mask = self.evolve(img, dims);
 
         let tensor = Tensor::<B, 3>::from_data(TensorData::new(mask, Shape::new(dims)), &device);
 

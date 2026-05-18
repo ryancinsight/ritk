@@ -172,6 +172,7 @@ impl Colormap {
     ///
     /// Values outside [0, 1] are clamped before mapping so the function never
     /// panics regardless of input.
+    #[inline]
     pub fn map(&self, t: f32) -> [u8; 3] {
         let t = t.clamp(0.0, 1.0);
         match self {

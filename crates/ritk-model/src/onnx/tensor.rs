@@ -30,14 +30,14 @@ pub fn onnx_tensor_to_burn<B: Backend, const D: usize>(
         ));
     }
 
-    // Convert shape
-    let dims: [usize; D] = onnx_tensor
-        .dims
-        .iter()
-        .map(|&d| d as usize)
-        .collect::<Vec<_>>()
-        .try_into()
-        .map_err(|_| "Shape conversion failed")?;
+    // Convert shape — direct array construction, no intermediate Vec
+    let dims: [usize; D] = {
+        let mut arr = [0usize; D];
+        for (i, &d) in onnx_tensor.dims.iter().enumerate() {
+            arr[i] = d as usize;
+        }
+        arr
+    };
     let shape = Shape::new(dims);
 
     // Convert data based on element type
@@ -64,7 +64,7 @@ pub fn burn_tensor_to_onnx<B: Backend, const D: usize>(
     let shape: Vec<i64> = data.shape.iter().map(|&d| d as i64).collect();
 
     // Extract f32 values
-    let values: Vec<f32> = data
+    let mut values: Vec<f32> = data
         .as_slice::<f32>()
         .map_err(|_| "Failed to extract tensor data as f32")?
         .to_vec();
@@ -72,8 +72,24 @@ pub fn burn_tensor_to_onnx<B: Backend, const D: usize>(
     // Create ONNX tensor
     let mut onnx_tensor = OnnxTensor::new("output".to_string(), shape, OnnxElementType::Float);
 
-    // Copy data
-    onnx_tensor.raw_data = bytemuck::cast_slice(&values).to_vec();
+    // Reinterpret Vec<f32> allocation as Vec<u8> in-place (zero-copy).
+    //
+    // Safety:
+    // 1. f32 has alignment 4, u8 has alignment 1 — the original pointer is
+    //    valid for u8 because u8's alignment requirement is strictly weaker.
+    // 2. byte_len = len * size_of::<f32>(), byte_cap = capacity * size_of::<f32>(),
+    //    both correctly scaled for the new element type.
+    // 3. mem::forget prevents the original Vec<f32> from deallocating.
+    // 4. The new Vec<u8> takes ownership of the same heap allocation.
+    // 5. The f32 values are valid bit-patterns for their original type; the
+    //    u8 view is a raw byte representation consumed by ONNX protobuf.
+    let byte_len = values.len() * std::mem::size_of::<f32>();
+    let byte_cap = values.capacity() * std::mem::size_of::<f32>();
+    let ptr = values.as_mut_ptr() as *mut u8;
+    std::mem::forget(values);
+    unsafe {
+        onnx_tensor.raw_data = Vec::from_raw_parts(ptr, byte_len, byte_cap);
+    }
 
     Ok(onnx_tensor)
 }

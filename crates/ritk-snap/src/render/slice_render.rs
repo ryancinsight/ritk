@@ -28,6 +28,7 @@
 //! through a [`Colormap`], producing an [`egui::ColorImage`] of size
 //! `[width, height]` = `[cols, rows]` in egui convention.
 
+use super::buffer_pool::RenderBufferPool;
 use super::colormap::Colormap;
 use crate::LoadedVolume;
 
@@ -71,6 +72,7 @@ impl WindowLevel {
     /// # Safety comment
     /// Division by `(u − l)` is guarded by the branch structure: the division
     /// executes only when `l < v < u`, which implies `u − l = width > 0`.
+    #[inline]
     pub fn apply(&self, v: f64) -> u8 {
         let l = self.center - self.width * 0.5;
         let u = self.center + self.width * 0.5;
@@ -115,7 +117,7 @@ impl SliceRenderer {
     /// # Parameters
     /// - `volume`   — source volume with row-major `[depth, rows, cols]` layout.
     /// - `axis`     — 0 = axial (fixed depth), 1 = coronal (fixed row),
-    ///                2 = sagittal (fixed column).
+    ///   2 = sagittal (fixed column).
     /// - `index`    — position along `axis`; clamped to the valid range silently.
     /// - `wl`       — DICOM window/level parameters for intensity mapping.
     /// - `colormap` — colormap applied after WL normalisation.
@@ -131,27 +133,71 @@ impl SliceRenderer {
         colormap: Colormap,
     ) -> egui::ColorImage {
         let (pixels, width, height) = volume.extract_slice(axis, index);
-
         if width == 0 || height == 0 {
             // Return a minimal valid image rather than panic; callers can detect
             // the degenerate case by checking image.size.
             return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
         }
 
-        // Map raw intensities through the DICOM window/level formula → [0, 255].
-        let wl_bytes: Vec<u8> = wl.apply_slice(&pixels);
-
-        // Map 8-bit WL output through the colormap → packed RGB.
-        let mut rgb: Vec<u8> = Vec::with_capacity(width * height * 3);
-        for byte in wl_bytes {
-            let t = byte as f32 / 255.0;
-            let [r, g, b] = colormap.map(t);
-            rgb.push(r);
-            rgb.push(g);
-            rgb.push(b);
+        // Fused WL+colormap single pass: apply window/level per pixel, then
+        // map the normalised result through the colormap directly, eliminating
+        // the intermediate `wl_bytes` allocation.
+        let mut rgba = Vec::with_capacity(width * height * 4);
+        for &p in &pixels {
+            let byte = wl.apply(p as f64);
+            let [r, g, b] = colormap.map(byte as f32 / 255.0);
+            rgba.push(r);
+            rgba.push(g);
+            rgba.push(b);
+            rgba.push(255);
         }
 
-        egui::ColorImage::from_rgb([width, height], &rgb)
+        egui::ColorImage::from_rgba_unmultiplied([width, height], &rgba)
+    }
+
+    /// Extract and render a single slice using pre-allocated scratch buffers.
+    ///
+    /// Produces output pixel-identical to [`Self::render`] for the same inputs
+    /// while eliminating two per-call heap allocations:
+    ///
+    /// 1. The `Vec<f32>` created by `extract_slice` (replaced by
+    ///    `pool.pixel_f32` reuse via `extract_slice_into`).
+    /// 2. The `Vec<u8>` RGBA intermediate (replaced by `pool.rgba_u8` reuse).
+    ///
+    /// # Differential equivalence invariant
+    ///
+    /// For all valid (`volume`, `axis`, `index`, `wl`, `colormap`) inputs:
+    /// ```text
+    /// render_with_scratch(pool, volume, axis, index, wl, colormap).pixels
+    ///   == render(volume, axis, index, wl, colormap).pixels
+    /// ```
+    pub(crate) fn render_with_scratch(
+        pool: &mut RenderBufferPool,
+        volume: &LoadedVolume,
+        axis: usize,
+        index: usize,
+        wl: WindowLevel,
+        colormap: Colormap,
+    ) -> egui::ColorImage {
+        let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
+        if width == 0 || height == 0 {
+            return egui::ColorImage::from_rgb([1, 1], &[0u8, 0, 0]);
+        }
+        pool.resize_u8(width * height * 4);
+        // Split-borrow: pool.pixel_f32 (read) and pool.rgba_u8 (write) are
+        // distinct fields; Rust NLL permits simultaneous borrows.
+        let pixels = pool.pixel_f32.as_slice();
+        let rgba = pool.rgba_u8.as_mut_slice();
+        for (i, &p) in pixels.iter().enumerate() {
+            let byte = wl.apply(p as f64);
+            let [r, g, b] = colormap.map(byte as f32 / 255.0);
+            let base = i * 4;
+            rgba[base] = r;
+            rgba[base + 1] = g;
+            rgba[base + 2] = b;
+            rgba[base + 3] = 255;
+        }
+        egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
     }
 }
 
@@ -181,10 +227,10 @@ mod tests {
             patient_id: None,
             study_date: None,
             series_description: None,
+            series_time: None,
             patient_weight_kg: None,
             injected_dose_bq: None,
             radionuclide_half_life_s: None,
-            series_time: None,
             radiopharmaceutical_start_time: None,
             decay_correction: None,
         }

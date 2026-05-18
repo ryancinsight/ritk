@@ -381,6 +381,8 @@ impl SnapApp {
     }
 
     /// Compute SUVbw at the linked-cursor voxel position, if available.
+    ///
+    /// Consumed by the overlay renderer for PET/CT SUV workflow (GAP-176-RAD-02).
     pub(crate) fn current_cursor_suv(&self) -> Option<f32> {
         let volume = self.loaded.as_ref()?;
         let cursor = self.linked_cursor?;

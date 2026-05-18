@@ -75,16 +75,15 @@ fn test_all_four_data_types_readable() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
     let image = crate::read_mgh::<TestBackend, _>(&path, &device)?;
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    for (i, (&got, &expected)) in loaded.iter().zip(vals.iter()).enumerate() {
-        assert_eq!(
-            got.to_bits(),
-            expected.to_bits(),
-            "f32 voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
-
+    image.with_data_slice(|loaded| {
+        for (i, (&got, &expected)) in loaded.iter().zip(vals.iter()).enumerate() {
+            assert_eq!(
+                got.to_bits(),
+                expected.to_bits(),
+                "f32 voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }
 
@@ -120,14 +119,14 @@ fn assert_read_values(
     label: &str,
 ) -> Result<()> {
     let image = crate::read_mgh::<TestBackend, _>(path, device)?;
-    let data = image.data().clone().to_data();
-    let loaded = data.as_slice::<f32>().unwrap();
-    assert_eq!(loaded.len(), expected.len());
-    for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
-        assert_eq!(
-            got, expected,
-            "{label} voxel[{i}]: expected {expected}, got {got}"
-        );
-    }
+    image.with_data_slice(|loaded| {
+        assert_eq!(loaded.len(), expected.len());
+        for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
+            assert_eq!(
+                got, expected,
+                "{label} voxel[{i}]: expected {expected}, got {got}"
+            );
+        }
+    });
     Ok(())
 }

@@ -89,7 +89,10 @@ fn oi_identical_triple_is_non_negative() {
     // Identical channels are maximally redundant: Ω ≥ 0.
     let a: Vec<f32> = (0..64).map(|i| (i % 8) as f32).collect();
     let oi = o_information(&[a.as_slice(), a.as_slice(), a.as_slice()], 8).unwrap();
-    assert!(oi >= 0.0, "Ω(X,X,X) must be ≥ 0 (redundancy-dominated), got {oi}");
+    assert!(
+        oi >= 0.0,
+        "Ω(X,X,X) must be ≥ 0 (redundancy-dominated), got {oi}"
+    );
 }
 
 #[test]
@@ -148,9 +151,8 @@ fn dtc_four_channels_non_negative() {
     let b: Vec<f32> = (0..256).map(|i| ((i / 4) % 8) as f32).collect();
     let c: Vec<f32> = (0..256).map(|i| ((i * 3) % 8) as f32).collect();
     let d: Vec<f32> = (0..256).map(|i| ((i * 5 + 1) % 8) as f32).collect();
-    let dtc =
-        dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 8)
-            .unwrap();
+    let dtc = dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 8)
+        .unwrap();
     assert!(dtc >= 0.0, "DTC(4 channels) must be ≥ 0, got {dtc}");
 }
 
@@ -184,8 +186,7 @@ fn oi_four_independent_channels_near_zero() {
     let b: Vec<f32> = (0..n).map(|i| ((i / 4) % 4) as f32).collect();
     let c: Vec<f32> = (0..n).map(|i| ((i / 16) % 4) as f32).collect();
     let d: Vec<f32> = (0..n).map(|i| ((i / 64) % 4) as f32).collect();
-    let oi =
-        o_information(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4).unwrap();
+    let oi = o_information(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4).unwrap();
     assert!(
         oi.abs() < 1e-9,
         "Ω(independent 4-channel) must be 0, got {oi:.10}"
@@ -218,9 +219,8 @@ fn dtc_n4_independent_near_zero() {
     let b: Vec<f32> = (0..n).map(|i| ((i / 4) % 4) as f32).collect();
     let c: Vec<f32> = (0..n).map(|i| ((i / 16) % 4) as f32).collect();
     let d: Vec<f32> = (0..n).map(|i| ((i / 64) % 4) as f32).collect();
-    let dtc =
-        dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4)
-            .unwrap();
+    let dtc = dual_total_correlation(&[a.as_slice(), b.as_slice(), c.as_slice(), d.as_slice()], 4)
+        .unwrap();
     assert!(
         dtc.abs() < 1e-9,
         "DTC(independent 4-channel) must be 0, got {dtc:.10}"

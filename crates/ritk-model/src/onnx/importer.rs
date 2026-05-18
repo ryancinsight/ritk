@@ -198,9 +198,11 @@ impl OnnxImporter {
 
     /// Extract metadata from the ONNX graph.
     fn extract_metadata(&self, graph: &OnnxGraph) -> OnnxResult<OnnxMetadata> {
-        let mut metadata = OnnxMetadata::default();
-        metadata.producer_name = Some(graph.name.clone());
-        metadata.metadata_props = HashMap::new();
+        let metadata = OnnxMetadata {
+            producer_name: Some(graph.name.clone()),
+            metadata_props: HashMap::new(),
+            ..Default::default()
+        };
         Ok(metadata)
     }
 }

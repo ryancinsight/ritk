@@ -1,7 +1,7 @@
-use crate::deformable_field_ops::{flat, trilinear_interpolate};
 use super::super::basis::init_control_grid;
 use super::super::warp_image_bspline;
 use super::make_test_image;
+use crate::deformable_field_ops::{flat, trilinear_interpolate};
 
 #[test]
 fn zero_control_displacements_produce_identity_warp() {
@@ -15,8 +15,7 @@ fn zero_control_displacements_produce_identity_warp() {
     let cp_y = vec![0.0_f32; cn];
     let cp_x = vec![0.0_f32; cn];
 
-    let warped =
-        warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+    let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
     for i in 0..image.len() {
         assert!(
@@ -45,8 +44,7 @@ fn constant_displacement_translates_image() {
     let [nz, ny, nx] = dims;
     let image: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
 
-    let warped =
-        warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+    let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
     // At interior voxels (away from boundary clamping), warped(z,y,x) ≈
     // moving(z, y, x + 2) = (x + 2). Near the right boundary, clamping

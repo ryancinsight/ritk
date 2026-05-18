@@ -1,6 +1,8 @@
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::read_vti_binary_appended_bytes;
-use crate::io::image_xml::writer::{write_vti_binary_appended_bytes, write_vti_binary_appended_to_file};
+use crate::io::image_xml::writer::{
+    write_vti_binary_appended_bytes, write_vti_binary_appended_to_file,
+};
 
 /// Build a 2×2×2-point grid (extent [0,1,0,1,0,1], 8 points, 1 cell)
 /// with a scalar point-data field named "density".
@@ -64,8 +66,7 @@ fn test_write_vti_binary_appended_header_contains_appended_format() {
         .expect("'_' marker must be present after AppendedData tag");
     let underscore_abs = ad_start + gt_rel + 1 + us_rel;
 
-    let header =
-        std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
+    let header = std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
 
     assert!(
         header.contains("format=\"appended\""),
@@ -180,8 +181,7 @@ fn test_write_vti_binary_appended_offset_correctness() {
         },
     );
 
-    let bytes =
-        write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");
+    let bytes = write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");
 
     let ad_start = bytes
         .windows(b"<AppendedData".len())
@@ -197,8 +197,7 @@ fn test_write_vti_binary_appended_offset_correctness() {
         .expect("'_' marker must be present");
     let underscore_abs = ad_start + gt_rel + 1 + us_rel;
 
-    let header =
-        std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
+    let header = std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
 
     assert!(
         header.contains("offset=\"0\""),
@@ -367,8 +366,7 @@ fn test_write_vti_binary_appended_cell_data_offset_after_point_data() {
         },
     );
 
-    let bytes =
-        write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");
+    let bytes = write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");
 
     let ad_start = bytes
         .windows(b"<AppendedData".len())
@@ -384,8 +382,7 @@ fn test_write_vti_binary_appended_cell_data_offset_after_point_data() {
         .expect("'_' marker must be present");
     let underscore_abs = ad_start + gt_rel + 1 + us_rel;
 
-    let header =
-        std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
+    let header = std::str::from_utf8(&bytes[..underscore_abs]).expect("header must be valid UTF-8");
 
     assert!(
         header.contains("Name=\"pd\""),

@@ -13,18 +13,16 @@
 //! let optimizer = config.init();
 //! ```
 
-pub mod adaptive_stochastic_gd;
 pub mod adam;
+pub mod adaptive_stochastic_gd;
 pub mod cma_es;
 pub mod gradient_descent;
 pub mod momentum;
 pub mod regular_step_gd;
 pub mod trait_;
 
-pub use adaptive_stochastic_gd::{
-    AdaptiveStochasticGdConfig, AdaptiveStochasticGradientDescent,
-};
 pub use adam::AdamOptimizer;
+pub use adaptive_stochastic_gd::{AdaptiveStochasticGdConfig, AdaptiveStochasticGradientDescent};
 pub use cma_es::{CmaEsConfig, CmaEsOptimizer, CmaEsResult, StopReason};
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;

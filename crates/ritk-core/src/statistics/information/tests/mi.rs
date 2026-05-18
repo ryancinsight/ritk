@@ -1,8 +1,8 @@
+use super::super::entropy::marginal_entropy;
 use super::super::mutual_information::{
     conditional_mutual_information, interaction_information, mutual_information,
     mutual_information_mattes, normalized_mutual_information, symmetric_uncertainty,
 };
-use super::super::entropy::marginal_entropy;
 
 // ── mutual_information tests ──────────────────────────────────────────────────
 
@@ -169,10 +169,7 @@ fn su_constant_channels_returns_zero() {
     let a = vec![5.0_f32; 100];
     let b = vec![3.0_f32; 100];
     let su = symmetric_uncertainty(&a, &b, 8).unwrap();
-    assert!(
-        su.abs() < 1e-9,
-        "SU(const,const)={su:.6} must be 0.0"
-    );
+    assert!(su.abs() < 1e-9, "SU(const,const)={su:.6} must be 0.0");
 }
 
 // ── conditional_mutual_information tests ─────────────────────────────────────

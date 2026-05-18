@@ -150,7 +150,10 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
                                 .map(|s| parse_contour_data(s.trim()))
                                 .unwrap_or_default();
 
-                            contours.push(RtContour { geometric_type, points });
+                            contours.push(RtContour {
+                                geometric_type,
+                                points,
+                            });
                         }
                     }
                 }

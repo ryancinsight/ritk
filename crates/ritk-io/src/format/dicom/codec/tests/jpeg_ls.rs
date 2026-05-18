@@ -43,23 +43,91 @@ fn write_jpegls_lossless_dicom_file(
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
 
     let mut obj = InMemDicomObject::new_empty();
-    obj.put(DataElement::new(Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3")));
-    obj.put(DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("2.25.99999931")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0010), VR::PN, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0020), VR::LO, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000D), VR::UI, PrimitiveValue::from("2.25.99999932")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000E), VR::UI, PrimitiveValue::from("2.25.99999933")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(height as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(width as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0100), VR::US, PrimitiveValue::from(8u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0101), VR::US, PrimitiveValue::from(8u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0102), VR::US, PrimitiveValue::from(7u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0103), VR::US, PrimitiveValue::from(0u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0002), VR::US, PrimitiveValue::from(1u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0004), VR::CS, PrimitiveValue::from("MONOCHROME2")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0008), VR::IS, PrimitiveValue::from("1")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1053), VR::DS, PrimitiveValue::from("1.000000")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1052), VR::DS, PrimitiveValue::from("0.000000")));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0016),
+        VR::UI,
+        PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999931"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0010),
+        VR::PN,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0020),
+        VR::LO,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000D),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999932"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999933"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0010),
+        VR::US,
+        PrimitiveValue::from(height as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0011),
+        VR::US,
+        PrimitiveValue::from(width as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(8u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0002),
+        VR::US,
+        PrimitiveValue::from(1u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0004),
+        VR::CS,
+        PrimitiveValue::from("MONOCHROME2"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0008),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        PrimitiveValue::from("1.000000"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1052),
+        VR::DS,
+        PrimitiveValue::from("0.000000"),
+    ));
     obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj
@@ -92,7 +160,10 @@ fn test_decode_compressed_frame_jpegls_lossless_round_trip() {
         .iter()
         .map(|&sample| f32::from(sample))
         .collect::<Vec<_>>();
-    assert_eq!(decoded, expected, "JPEG-LS Lossless must preserve every sample exactly");
+    assert_eq!(
+        decoded, expected,
+        "JPEG-LS Lossless must preserve every sample exactly"
+    );
 }
 
 /// JPEG-LS Lossless multi-row round-trip: a CharLS-produced scan containing
@@ -116,7 +187,10 @@ fn test_decode_compressed_frame_jpegls_lossless_multirow_round_trip() {
         .iter()
         .map(|&sample| f32::from(sample))
         .collect::<Vec<_>>();
-    assert_eq!(decoded, expected, "JPEG-LS Lossless multi-row decode must preserve every sample exactly");
+    assert_eq!(
+        decoded, expected,
+        "JPEG-LS Lossless multi-row decode must preserve every sample exactly"
+    );
 }
 
 /// JPEG-LS Near-Lossless round-trip: encode known pixel values with NEAR=2, decode via
@@ -150,23 +224,91 @@ fn test_decode_compressed_frame_jpegls_near_lossless_round_trip() {
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
 
     let mut obj = InMemDicomObject::new_empty();
-    obj.put(DataElement::new(Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3")));
-    obj.put(DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("2.25.99999941")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0010), VR::PN, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0020), VR::LO, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000D), VR::UI, PrimitiveValue::from("2.25.99999942")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000E), VR::UI, PrimitiveValue::from("2.25.99999943")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(height as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(width as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0100), VR::US, PrimitiveValue::from(8u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0101), VR::US, PrimitiveValue::from(8u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0102), VR::US, PrimitiveValue::from(7u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0103), VR::US, PrimitiveValue::from(0u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0002), VR::US, PrimitiveValue::from(1u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0004), VR::CS, PrimitiveValue::from("MONOCHROME2")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0008), VR::IS, PrimitiveValue::from("1")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1053), VR::DS, PrimitiveValue::from("1.000000")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1052), VR::DS, PrimitiveValue::from("0.000000")));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0016),
+        VR::UI,
+        PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999941"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0010),
+        VR::PN,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0020),
+        VR::LO,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000D),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999942"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999943"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0010),
+        VR::US,
+        PrimitiveValue::from(height as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0011),
+        VR::US,
+        PrimitiveValue::from(width as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(8u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(8u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(7u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0002),
+        VR::US,
+        PrimitiveValue::from(1u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0004),
+        VR::CS,
+        PrimitiveValue::from("MONOCHROME2"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0008),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        PrimitiveValue::from("1.000000"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1052),
+        VR::DS,
+        PrimitiveValue::from("0.000000"),
+    ));
     obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj

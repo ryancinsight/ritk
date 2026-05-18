@@ -167,12 +167,20 @@ impl SnapApp {
                 ui.separator();
 
                 let sidebar_result = {
+                    let pointer_suv = self.pointer_suv;
+                    let cursor_suv = self.current_cursor_suv();
                     let tree_ref = &self.series_tree;
                     let sel_ref = &mut self.selected_series;
                     let tab_ref = &mut self.sidebar_tab;
                     let vol_ref = self.loaded.as_ref();
-                    let mut panel =
-                        crate::ui::sidebar::SidebarPanel::new(tree_ref, sel_ref, tab_ref, vol_ref);
+                    let mut panel = crate::ui::sidebar::SidebarPanel::new(
+                        tree_ref,
+                        sel_ref,
+                        tab_ref,
+                        vol_ref,
+                        pointer_suv,
+                        cursor_suv,
+                    );
                     panel.show(ui)
                 };
 

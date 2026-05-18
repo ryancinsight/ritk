@@ -3,9 +3,9 @@ use tracing::info;
 
 use ritk_core::segmentation::{ChanVeseSegmentation, LaplacianLevelSet};
 
+use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
 use super::helpers::count_foreground;
-use super::super::{read_image, write_image_inferred};
 
 // -- Shape-detection level set ------------------------------------------
 

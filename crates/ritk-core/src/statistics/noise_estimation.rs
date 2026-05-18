@@ -31,6 +31,7 @@
 //! - Rousseeuw, P. J. & Croux, C. (1993). Alternatives to the Median Absolute
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -108,9 +109,8 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
 /// # Complexity
 /// O(n log n) where n is the total number of voxels.
 pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
-    let data = image.data().clone().into_data();
-    let slice = data.as_slice::<f32>().expect("f32 image tensor data");
-    let mut values: Vec<f32> = slice.to_vec();
+    let (vals, _) = extract_vec_infallible(image);
+    let mut values: Vec<f32> = vals;
     mad_sigma(&mut values)
 }
 
@@ -142,11 +142,10 @@ pub fn estimate_noise_mad_masked<B: Backend, const D: usize>(
     image: &Image<B, D>,
     mask: &Image<B, D>,
 ) -> f32 {
-    let img_data = image.data().clone().into_data();
-    let img_slice = img_data.as_slice::<f32>().expect("f32 image tensor data");
-
-    let mask_data = mask.data().clone().into_data();
-    let mask_slice = mask_data.as_slice::<f32>().expect("f32 mask tensor data");
+    let (img_vals, _) = extract_vec_infallible(image);
+    let img_slice: &[f32] = &img_vals;
+    let (mask_vals, _) = extract_vec_infallible(mask);
+    let mask_slice: &[f32] = &mask_vals;
 
     assert_eq!(
         img_slice.len(),

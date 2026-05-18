@@ -11,6 +11,7 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -42,12 +43,7 @@ impl MedianFilter {
     /// # Errors
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let shape = image.shape();
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("failed to extract f32 slice: {e:?}"))?
-            .to_vec();
+        let (vals, shape) = extract_vec(image)?;
 
         let filtered = median_3d(&vals, shape, self.radius);
 
@@ -152,12 +148,7 @@ mod tests {
 
     /// Extract voxel data as `Vec<f32>` from an image.
     fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
-            .to_vec()
+        img.data_vec()
     }
 
     // ── Test 1: Uniform image is unchanged ────────────────────────────────

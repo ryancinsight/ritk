@@ -28,7 +28,8 @@ pub(super) mod utils;
 mod tests;
 
 pub use loader::{load_dicom_series_with_metadata, read_dicom_series_with_metadata};
-pub(super) use scan::scan_dicom_directory;
+// scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
+// by sibling modules (color.rs). No re-export needed.
 pub use types::{DicomReadMetadata, DicomSliceMetadata, PatientPosition};
 
 pub(super) use geometry::{

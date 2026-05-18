@@ -28,6 +28,7 @@
 //! - Breu, H. et al. (1995). Linear time Euclidean distance algorithms.
 //!   *IEEE Trans. PAMI* 17(5):529–533.
 
+use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -79,13 +80,9 @@ impl Default for VotingBinaryImageFilter {
 impl VotingBinaryImageFilter {
     /// Apply a single voting step to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
+        let (vals, dims) = extract_vec(image)?;
+        let [nz, ny, nx] = dims;
         let device = image.data().device();
-
-        let td = image.data().clone().into_data();
-        let vals: &[f32] = td
-            .as_slice::<f32>()
-            .map_err(|e| anyhow::anyhow!("VotingBinaryImageFilter: {:?}", e))?;
 
         let r = self.radius;
         let birth = self.birth_threshold;
@@ -173,7 +170,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
     /// All-background image with birth_threshold=1 and high survival_threshold=0:

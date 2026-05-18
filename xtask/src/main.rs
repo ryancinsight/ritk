@@ -290,9 +290,8 @@ fn find_image_pairs(data_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
         let path = entry.path();
 
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-            if stem.ends_with("_fixed") {
-                let moving =
-                    path.with_file_name(format!("{}_moving.nii.gz", &stem[..stem.len() - 6]));
+            if let Some(stripped) = stem.strip_suffix("_fixed") {
+                let moving = path.with_file_name(format!("{}_moving.nii.gz", stripped));
                 if moving.exists() {
                     pairs.push((path.to_path_buf(), moving));
                 }
@@ -367,7 +366,11 @@ fn python_parity_report(python: &str) -> Result<()> {
         );
     }
 
-    info!("Running Python API drift report: {} {}", python, script.display());
+    info!(
+        "Running Python API drift report: {} {}",
+        python,
+        script.display()
+    );
 
     let status = Command::new(python)
         .arg(&script)

@@ -1,8 +1,6 @@
 use super::state::{RtDoseOverlayCacheEntry, SnapApp};
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
-use crate::ui::rtdose_texture::{
-    build_overlay_image, overlay_alpha, positive_finite_dose_range,
-};
+use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 use crate::ui::{
     axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
     project_rt_struct_contours_for_slice,
@@ -84,7 +82,8 @@ impl SnapApp {
                 info!("{}", self.status_message);
             }
             Err(e) => {
-                self.status_message = format!("RT-STRUCT load failed for {}: {e:#}", path.display());
+                self.status_message =
+                    format!("RT-STRUCT load failed for {}: {e:#}", path.display());
                 error!("{}", self.status_message);
             }
         }
@@ -178,17 +177,9 @@ impl SnapApp {
         }
 
         let [depth, rows, cols] = vol_shape;
-        let vol_origin = [
-            vol.origin[0] as f64,
-            vol.origin[1] as f64,
-            vol.origin[2] as f64,
-        ];
-        let vol_dir: [f64; 9] = std::array::from_fn(|i| vol.direction[i] as f64);
-        let vol_spacing = [
-            vol.spacing[0] as f64,
-            vol.spacing[1] as f64,
-            vol.spacing[2] as f64,
-        ];
+        let vol_origin = vol.origin;
+        let vol_dir: [f64; 9] = vol.direction;
+        let vol_spacing = vol.spacing;
 
         let Some(dose_map) = extract_dose_slice_for_volume(
             rt_dose,
@@ -228,9 +219,10 @@ impl SnapApp {
         };
 
         let tex_name = format!("rtdose_overlay_axis{}_slice{}", axis_slot, slice_idx);
-        let texture = painter
-            .ctx()
-            .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
+        let texture =
+            painter
+                .ctx()
+                .load_texture(tex_name, color_image, egui::TextureOptions::LINEAR);
         let texture_id = texture.id();
 
         self.rt_dose_overlay_cache[axis_slot] = Some(RtDoseOverlayCacheEntry {

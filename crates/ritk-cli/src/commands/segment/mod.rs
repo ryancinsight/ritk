@@ -34,11 +34,11 @@ mod watershed;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+pub(crate) use super::Backend;
 pub use args::SegmentArgs;
 #[cfg(test)]
 pub(crate) use helpers::{count_foreground, parse_seed};
-#[cfg(test)]
-pub(crate) use super::Backend;
 
 /// Execute the `segment` subcommand.
 ///

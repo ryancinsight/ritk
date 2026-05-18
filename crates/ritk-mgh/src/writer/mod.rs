@@ -68,10 +68,8 @@ fn write_mgh_to_writer<B: Backend, W: Write>(image: &Image<B, 3>, writer: &mut W
         .write_all(&[0u8; PADDING_LEN])
         .context("Failed to write MGH header padding")?;
 
-    let tensor_data = image.data().clone().to_data();
-    let f32_slice = tensor_data
-        .as_slice::<f32>()
-        .map_err(|e| anyhow!("Failed to extract f32 slice from tensor: {:?}", e))?;
+    let f32_vec = image.try_data_vec()?;
+    let f32_slice: &[f32] = &f32_vec;
     let n_voxels = nx * ny * nz;
     if f32_slice.len() != n_voxels {
         return Err(anyhow!(

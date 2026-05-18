@@ -1,10 +1,10 @@
 //! Binary-appended VTI reader: `read_vti_binary_appended_bytes`, helpers.
 
+use super::xml_helpers::{attr_val, find_section, find_tag, parse_f64s, parse_i64s};
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::path::Path;
-use super::xml_helpers::{attr_val, find_section, find_tag, parse_f64s, parse_i64s};
 
 /// Parse all appended-format `<DataArray>` elements in a PointData/CellData
 /// section into an attribute map, reading binary values from `binary_block`.
@@ -23,6 +23,7 @@ fn parse_appended_attrs(
 ) -> Result<HashMap<String, AttributeArray>> {
     let mut map = HashMap::new();
     let mut rest = section;
+    #[allow(clippy::while_let_loop)]
     loop {
         let start = match rest.find("<DataArray") {
             Some(s) => s,
@@ -162,17 +163,11 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
 
     let origin_str = attr_val(&image_tag, "Origin").unwrap_or_else(|| "0 0 0".to_string());
     let origin_vals = parse_f64s(&origin_str);
-    let mut origin = [0.0f64; 3];
-    for i in 0..3 {
-        origin[i] = origin_vals.get(i).copied().unwrap_or(0.0);
-    }
+    let origin = std::array::from_fn(|i| origin_vals.get(i).copied().unwrap_or(0.0));
 
     let spacing_str = attr_val(&image_tag, "Spacing").unwrap_or_else(|| "1 1 1".to_string());
     let spacing_vals = parse_f64s(&spacing_str);
-    let mut spacing = [1.0f64; 3];
-    for i in 0..3 {
-        spacing[i] = spacing_vals.get(i).copied().unwrap_or(1.0);
-    }
+    let spacing = std::array::from_fn(|i| spacing_vals.get(i).copied().unwrap_or(1.0));
 
     // ── Parse PointData and CellData sections ────────────────────────────────
     let point_data = find_section(header_str, "PointData")

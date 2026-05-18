@@ -56,10 +56,10 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data().clone().into_data().into_vec::<f32>().unwrap()
+        img.data_vec()
     }
 
-/// Non-negative image: abs is identity.
+    /// Non-negative image: abs is identity.
     #[test]
     fn abs_nonneg_is_identity() {
         let img = make_image(vec![0.0, 1.0, 2.5, 10.0], [1, 2, 2]);

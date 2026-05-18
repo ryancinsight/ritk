@@ -1,13 +1,13 @@
 //! VTK XML ImageData (.vti) reader (ASCII inline and binary-appended formats).
 
-mod xml_helpers;
-mod parse;
 mod binary;
+mod parse;
+mod xml_helpers;
 
-pub use parse::read_vti_image_data;
+pub use binary::{read_vti_binary_appended, read_vti_binary_appended_bytes};
 #[cfg(test)]
 pub(crate) use parse::parse_vti;
-pub use binary::{read_vti_binary_appended, read_vti_binary_appended_bytes};
+pub use parse::read_vti_image_data;
 
 #[cfg(test)]
 mod tests;

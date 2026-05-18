@@ -1,5 +1,5 @@
-use super::helpers::make_image;
 use super::super::write_dicom_series_with_metadata;
+use super::helpers::make_image;
 use crate::format::dicom::object_model::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomSequenceItem, DicomTag,
     DicomValue,

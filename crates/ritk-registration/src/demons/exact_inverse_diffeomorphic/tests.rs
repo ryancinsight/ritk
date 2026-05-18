@@ -28,8 +28,7 @@ fn make_image(nz: usize, ny: usize, nx: usize) -> Vec<f32> {
             let cz = nz as f32 / 2.0;
             let cy = ny as f32 / 2.0;
             let cx = nx as f32 / 2.0;
-            let r2 =
-                (z as f32 - cz).powi(2) + (y as f32 - cy).powi(2) + (x as f32 - cx).powi(2);
+            let r2 = (z as f32 - cz).powi(2) + (y as f32 - cy).powi(2) + (x as f32 - cx).powi(2);
             (-(r2 / (2.0 * 4.0_f32.powi(2)))).exp()
         })
         .collect()

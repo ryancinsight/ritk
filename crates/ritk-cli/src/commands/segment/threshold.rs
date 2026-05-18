@@ -6,9 +6,9 @@ use ritk_core::segmentation::{
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 
+use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
 use super::helpers::count_foreground;
-use super::super::{read_image, write_image_inferred};
 
 // ── Otsu thresholding ─────────────────────────────────────────────────────────
 

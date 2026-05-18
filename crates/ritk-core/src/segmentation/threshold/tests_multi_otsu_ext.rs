@@ -1,5 +1,6 @@
 //! Extracted tests: general invariants, edge cases, internal variance, negative, from_slice.
 use super::*;
+use crate::filter::ops::extract_vec_infallible;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -113,10 +114,8 @@ fn test_apply_preserves_spatial_metadata_3d() {
             }
         })
         .collect();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, Shape::new([3, 3, 3])),
-        &device,
-    );
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new([3, 3, 3])), &device);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();
@@ -124,7 +123,11 @@ fn test_apply_preserves_spatial_metadata_3d() {
     let labels = MultiOtsuThreshold::new(3).apply(&image);
     assert_eq!(labels.origin(), &origin, "origin must be preserved");
     assert_eq!(labels.spacing(), &spacing, "spacing must be preserved");
-    assert_eq!(labels.direction(), &direction, "direction must be preserved");
+    assert_eq!(
+        labels.direction(),
+        &direction,
+        "direction must be preserved"
+    );
     assert_eq!(labels.shape(), [3, 3, 3], "shape must be preserved");
 }
 
@@ -143,8 +146,7 @@ fn test_apply_3d_trimodal_labels_correct() {
         .collect();
     let image = make_image_3d(data, [3, 3, 3]);
     let labels = MultiOtsuThreshold::new(3).apply(&image);
-    let result_data = labels.data().clone().into_data();
-    let values = result_data.as_slice::<f32>().unwrap();
+    let (values, _) = extract_vec_infallible(&labels);
     for (i, &v) in values[..9].iter().enumerate() {
         assert_eq!(v, 0.0, "voxel {} (10.0) must have label 0, got {}", i, v);
     }

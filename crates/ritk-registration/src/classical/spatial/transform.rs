@@ -27,15 +27,24 @@ pub enum SpatialTransform {
 }
 
 /// Build 4×4 homogeneous transformation matrix from rotation and translation.
-pub(crate) fn build_homogeneous_matrix(
-    rotation: &[f64; 9],
-    translation: &[f64; 3],
-) -> [f64; 16] {
+pub(crate) fn build_homogeneous_matrix(rotation: &[f64; 9], translation: &[f64; 3]) -> [f64; 16] {
     [
-        rotation[0], rotation[1], rotation[2], translation[0],
-        rotation[3], rotation[4], rotation[5], translation[1],
-        rotation[6], rotation[7], rotation[8], translation[2],
-        0.0, 0.0, 0.0, 1.0,
+        rotation[0],
+        rotation[1],
+        rotation[2],
+        translation[0],
+        rotation[3],
+        rotation[4],
+        rotation[5],
+        translation[1],
+        rotation[6],
+        rotation[7],
+        rotation[8],
+        translation[2],
+        0.0,
+        0.0,
+        0.0,
+        1.0,
     ]
 }
 
@@ -56,32 +65,31 @@ pub(crate) fn extract_spatial_transform(
 
     if is_rigid {
         let rotation = [
-            matrix[0], matrix[1], matrix[2],
-            matrix[4], matrix[5], matrix[6],
-            matrix[8], matrix[9], matrix[10],
+            matrix[0], matrix[1], matrix[2], matrix[4], matrix[5], matrix[6], matrix[8], matrix[9],
+            matrix[10],
         ];
         let translation = [matrix[3], matrix[7], matrix[11]];
-        Ok(SpatialTransform::RigidBody { rotation, translation })
+        Ok(SpatialTransform::RigidBody {
+            rotation,
+            translation,
+        })
     } else {
         let affine_matrix = [
-            matrix[0], matrix[1], matrix[2], matrix[3],
-            matrix[4], matrix[5], matrix[6], matrix[7],
+            matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5], matrix[6], matrix[7],
             matrix[8], matrix[9], matrix[10], matrix[11],
         ];
-        Ok(SpatialTransform::Affine { matrix: affine_matrix })
+        Ok(SpatialTransform::Affine {
+            matrix: affine_matrix,
+        })
     }
 }
 
 /// Transform a single point using a 4×4 homogeneous matrix.
 pub(crate) fn transform_point(point: &[f64; 3], transform: &[f64; 16]) -> [f64; 3] {
-    let x = transform[0] * point[0]
-        + transform[1] * point[1]
-        + transform[2] * point[2]
-        + transform[3];
-    let y = transform[4] * point[0]
-        + transform[5] * point[1]
-        + transform[6] * point[2]
-        + transform[7];
+    let x =
+        transform[0] * point[0] + transform[1] * point[1] + transform[2] * point[2] + transform[3];
+    let y =
+        transform[4] * point[0] + transform[5] * point[1] + transform[6] * point[2] + transform[7];
     let z = transform[8] * point[0]
         + transform[9] * point[1]
         + transform[10] * point[2]

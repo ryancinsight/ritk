@@ -1,7 +1,7 @@
 //! NCC similarity metric and its gradient w.r.t. control-point displacements.
 
-use crate::deformable_field_ops::{compute_gradient, flat};
 use super::basis::cubic_bspline_1d;
+use crate::deformable_field_ops::{compute_gradient, flat};
 
 /// Compute global normalized cross-correlation between two images.
 ///
@@ -113,8 +113,16 @@ pub(super) fn compute_metric_gradient(
     let mut grad_cy = vec![0.0_f64; cn];
     let mut grad_cx = vec![0.0_f64; cn];
 
-    let inv_n_sigma_f = if sigma_f > 1e-12 { 1.0 / (nf * sigma_f) } else { 0.0 };
-    let inv_n_sigma_w = if sigma_w > 1e-12 { 1.0 / (nf * sigma_w) } else { 0.0 };
+    let inv_n_sigma_f = if sigma_f > 1e-12 {
+        1.0 / (nf * sigma_f)
+    } else {
+        0.0
+    };
+    let inv_n_sigma_w = if sigma_w > 1e-12 {
+        1.0 / (nf * sigma_w)
+    } else {
+        0.0
+    };
     let inv_sigma_w = if sigma_w > 1e-12 { 1.0 / sigma_w } else { 0.0 };
 
     for iz in 0..nz {

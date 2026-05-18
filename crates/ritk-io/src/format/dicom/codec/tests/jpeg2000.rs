@@ -36,8 +36,8 @@ fn write_jpeg2000_lossless_dicom_file(
             opj_cparameters_t, opj_create_compress, opj_destroy_codec, opj_encode,
             opj_end_compress, opj_image_create, opj_image_destroy,
             opj_set_default_encoder_parameters, opj_setup_encoder, opj_start_compress,
-            opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT,
-            COLOR_SPACE, OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
+            opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, COLOR_SPACE,
+            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
         };
         use openjp2::opj_image_comptparm as opj_image_cmptparm_t;
 
@@ -65,7 +65,10 @@ fn write_jpeg2000_lossless_dicom_file(
         (*image).y1 = height;
 
         let data_ptr = (*(*image).comps).data;
-        assert!(!data_ptr.is_null(), "opj_image_comp_t data pointer is NULL after opj_image_create");
+        assert!(
+            !data_ptr.is_null(),
+            "opj_image_comp_t data pointer is NULL after opj_image_create"
+        );
         for (i, &px) in pixels_u16.iter().enumerate() {
             *data_ptr.add(i) = px as i32;
         }
@@ -74,19 +77,35 @@ fn write_jpeg2000_lossless_dicom_file(
         assert!(!codec.is_null(), "opj_create_compress returned NULL");
 
         let setup_ok = opj_setup_encoder(codec, &mut params, image);
-        assert_eq!(setup_ok, OPJ_TRUE as OPJ_BOOL, "opj_setup_encoder failed (returned {setup_ok})");
+        assert_eq!(
+            setup_ok, OPJ_TRUE as OPJ_BOOL,
+            "opj_setup_encoder failed (returned {setup_ok})"
+        );
 
-        let stream = opj_stream_create_default_file_stream(tmp_cstr.as_ptr(), OPJ_FALSE as OPJ_BOOL);
-        assert!(!stream.is_null(), "opj_stream_create_default_file_stream returned NULL");
+        let stream =
+            opj_stream_create_default_file_stream(tmp_cstr.as_ptr(), OPJ_FALSE as OPJ_BOOL);
+        assert!(
+            !stream.is_null(),
+            "opj_stream_create_default_file_stream returned NULL"
+        );
 
         let start_ok = opj_start_compress(codec, image, stream);
-        assert_eq!(start_ok, OPJ_TRUE as OPJ_BOOL, "opj_start_compress failed (returned {start_ok})");
+        assert_eq!(
+            start_ok, OPJ_TRUE as OPJ_BOOL,
+            "opj_start_compress failed (returned {start_ok})"
+        );
 
         let encode_ok = opj_encode(codec, stream);
-        assert_eq!(encode_ok, OPJ_TRUE as OPJ_BOOL, "opj_encode failed (returned {encode_ok})");
+        assert_eq!(
+            encode_ok, OPJ_TRUE as OPJ_BOOL,
+            "opj_encode failed (returned {encode_ok})"
+        );
 
         let end_ok = opj_end_compress(codec, stream);
-        assert_eq!(end_ok, OPJ_TRUE as OPJ_BOOL, "opj_end_compress failed (returned {end_ok})");
+        assert_eq!(
+            end_ok, OPJ_TRUE as OPJ_BOOL,
+            "opj_end_compress failed (returned {end_ok})"
+        );
 
         opj_stream_destroy(stream);
         opj_image_destroy(image);
@@ -95,29 +114,100 @@ fn write_jpeg2000_lossless_dicom_file(
         std::fs::read(&*j2k_tmp_path).expect("failed to read encoded J2K codestream")
     };
 
-    assert!(!j2k_bytes.is_empty(), "J2K encoded codestream must not be empty");
+    assert!(
+        !j2k_bytes.is_empty(),
+        "J2K encoded codestream must not be empty"
+    );
 
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![j2k_bytes]);
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
 
     let mut obj = InMemDicomObject::new_empty();
-    obj.put(DataElement::new(Tag(0x0008, 0x0016), VR::UI, PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3")));
-    obj.put(DataElement::new(Tag(0x0008, 0x0018), VR::UI, PrimitiveValue::from("2.25.99999951")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0010), VR::PN, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0010, 0x0020), VR::LO, PrimitiveValue::from("")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000D), VR::UI, PrimitiveValue::from("2.25.99999952")));
-    obj.put(DataElement::new(Tag(0x0020, 0x000E), VR::UI, PrimitiveValue::from("2.25.99999953")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0010), VR::US, PrimitiveValue::from(height as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0011), VR::US, PrimitiveValue::from(width as u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0100), VR::US, PrimitiveValue::from(16u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0101), VR::US, PrimitiveValue::from(16u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0102), VR::US, PrimitiveValue::from(15u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0103), VR::US, PrimitiveValue::from(0u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0002), VR::US, PrimitiveValue::from(1u16)));
-    obj.put(DataElement::new(Tag(0x0028, 0x0004), VR::CS, PrimitiveValue::from("MONOCHROME2")));
-    obj.put(DataElement::new(Tag(0x0028, 0x0008), VR::IS, PrimitiveValue::from("1")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1053), VR::DS, PrimitiveValue::from("1.000000")));
-    obj.put(DataElement::new(Tag(0x0028, 0x1052), VR::DS, PrimitiveValue::from("0.000000")));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0016),
+        VR::UI,
+        PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.7.3"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0008, 0x0018),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999951"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0010),
+        VR::PN,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0010, 0x0020),
+        VR::LO,
+        PrimitiveValue::from(""),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000D),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999952"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0020, 0x000E),
+        VR::UI,
+        PrimitiveValue::from("2.25.99999953"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0010),
+        VR::US,
+        PrimitiveValue::from(height as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0011),
+        VR::US,
+        PrimitiveValue::from(width as u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0100),
+        VR::US,
+        PrimitiveValue::from(16u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0101),
+        VR::US,
+        PrimitiveValue::from(16u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0102),
+        VR::US,
+        PrimitiveValue::from(15u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0103),
+        VR::US,
+        PrimitiveValue::from(0u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0002),
+        VR::US,
+        PrimitiveValue::from(1u16),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0004),
+        VR::CS,
+        PrimitiveValue::from("MONOCHROME2"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x0008),
+        VR::IS,
+        PrimitiveValue::from("1"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1053),
+        VR::DS,
+        PrimitiveValue::from("1.000000"),
+    ));
+    obj.put(DataElement::new(
+        Tag(0x0028, 0x1052),
+        VR::DS,
+        PrimitiveValue::from("0.000000"),
+    ));
     obj.put(DataElement::new(Tag(0x7FE0, 0x0010), VR::OB, pfs));
 
     let file_obj = obj

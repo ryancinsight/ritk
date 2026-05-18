@@ -36,5 +36,5 @@ mod tests;
 
 pub use registration::ThirionDemonsRegistration;
 
-/// Re-export `thirion_forces` for sibling Demons variants.
-pub(super) use forces::thirion_forces;
+/// Re-export `thirion_forces_into` for zero-allocation loop variants.
+pub(super) use forces::thirion_forces_into;
