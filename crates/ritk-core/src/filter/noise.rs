@@ -81,8 +81,8 @@ impl AdditiveGaussianNoiseFilter {
             .iter()
             .map(|&v| {
                 // Box-Muller transform for Gaussian random variate
-                let u1: f64 = rng.gen();
-                let u2: f64 = rng.gen();
+                let u1: f64 = rng.random();
+                let u2: f64 = rng.random();
                 let n = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
                     * (2.0 * std::f64::consts::TAU * u2).cos();
                 (v as f64 + n * self.std + self.mean) as f32
@@ -143,7 +143,7 @@ impl SaltAndPepperNoiseFilter {
         let out: Vec<f32> = vals
             .iter()
             .map(|&v| {
-                let r: f64 = rng.gen();
+                let r: f64 = rng.random();
                 if r < half_p {
                     min_val // pepper
                 } else if r < self.probability {
@@ -233,15 +233,15 @@ fn poisson_sample(rng: &mut StdRng, lambda: f64) -> f64 {
         let mut p = 1.0_f64;
         loop {
             k += 1.0;
-            p *= rng.gen::<f64>();
+            p *= rng.random::<f64>();
             if p <= l {
                 return k - 1.0;
             }
         }
     } else {
         // Normal approximation: Poisson(λ) ≈ N(λ, λ) for large λ.
-        let u1: f64 = rng.gen();
-        let u2: f64 = rng.gen();
+        let u1: f64 = rng.random();
+        let u2: f64 = rng.random();
         let z = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
             * (2.0 * std::f64::consts::TAU * u2).cos();
         (lambda + z * lambda.sqrt()).max(0.0).round()
@@ -294,8 +294,8 @@ impl SpeckleNoiseFilter {
             .iter()
             .map(|&v| {
                 // Box-Muller for Gaussian
-                let u1: f64 = rng.gen();
-                let u2: f64 = rng.gen();
+                let u1: f64 = rng.random();
+                let u2: f64 = rng.random();
                 let n = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
                     * (2.0 * std::f64::consts::TAU * u2).cos()
                     * self.std;
