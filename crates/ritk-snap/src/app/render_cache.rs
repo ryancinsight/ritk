@@ -46,28 +46,44 @@ impl SnapApp {
 
     /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
     pub(crate) fn rebuild_texture_for_mip(&mut self, ctx: &egui::Context) {
-        let color_image = {
-            let Some(vol) = &self.loaded else {
-                return;
-            };
-            let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
-            let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
-            let wl = WindowLevel::new(wc, ww);
-            match self.projection_mode {
-                ProjectionMode::Mip => render_mip_axial_with_scratch(
-                    &mut self.render_buffer_pool.rgba_u8,
-                    vol,
-                    wl,
-                    self.colormap,
-                ),
-                ProjectionMode::Vr => render_vr_axial_with_scratch(
-                    &mut self.render_buffer_pool.rgba_u8,
-                    vol,
-                    wl,
-                    self.colormap,
-                    0.06,
-                ),
+        let Some(vol) = self.loaded.clone() else {
+            return;
+        };
+        let wc = self.viewer_state.window_center.unwrap_or(128.0) as f64;
+        let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
+        let wl = WindowLevel::new(wc, ww);
+
+        // ── GPU-accelerated MIP (native only; VR falls through to CPU) ──────
+        #[cfg(not(target_arch = "wasm32"))]
+        if let ProjectionMode::Mip = self.projection_mode {
+            if let Some(ref mut gpu) = self.gpu_renderer {
+                if let Some(img) = gpu.render_mip(&vol, wl, self.colormap) {
+                    self.mip_tex = Some(ctx.load_texture(
+                        "slice_tex_mip_axial",
+                        img,
+                        egui::TextureOptions::LINEAR,
+                    ));
+                    return;
+                }
+                tracing::warn!("GPU MIP render failed; falling back to CPU path");
             }
+        }
+
+        // ── CPU fallback (always available) ──────────────────────────────────
+        let color_image = match self.projection_mode {
+            ProjectionMode::Mip => render_mip_axial_with_scratch(
+                &mut self.render_buffer_pool.rgba_u8,
+                &vol,
+                wl,
+                self.colormap,
+            ),
+            ProjectionMode::Vr => render_vr_axial_with_scratch(
+                &mut self.render_buffer_pool.rgba_u8,
+                &vol,
+                wl,
+                self.colormap,
+                0.06,
+            ),
         };
         self.mip_tex = Some(ctx.load_texture(
             "slice_tex_mip_axial",

@@ -67,6 +67,8 @@ rustfft = "6.2"
 rand = "0.9"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.11", features = ["blocking", "stream"] }
+wgpu = { version = "0.20", default-features = false, features = ["wgsl"] }
+pollster = "0.3"
 flate2 = "1.0"
 tar = "0.4"
 zip = "0.6"

@@ -3,6 +3,42 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.40] - 2026-05-19
+
+### Added [minor]
+
+- **GPU Volume MIP Rendering** (Sprint 269, GAP-262-VIZ-01): wgpu compute-shader-accelerated
+  Maximum Intensity Projection integrated into `ritk-snap`.
+  - `crates/ritk-snap/src/render/gpu_volume/` module (native only; `#[cfg(not(target_arch = "wasm32"))]`):
+    - `GpuContext::try_new()` — headless wgpu adapter + device initialization via `pollster::block_on`;
+      returns `None` gracefully on headless CI or systems without a GPU.
+    - `RenderParams` — `#[repr(C)]` uniform struct (16 bytes, std140) matching the WGSL `struct RenderParams`.
+    - `mip.wgsl` — compute shader dispatched as `ceil(cols/8) × ceil(rows/8) × 1` workgroups;
+      each thread iterates the full depth axis for one `(col, row)` pixel and writes the
+      maximum raw intensity to a storage buffer.  Coalesced memory access: adjacent threads
+      read consecutive column-major voxels within each depth slice.
+    - `GpuVolumeRenderer::try_create()` — compiles the MIP compute pipeline; returns `None` on failure.
+    - `GpuVolumeRenderer::render_mip(volume, wl, colormap) -> Option<ColorImage>` — full render cycle:
+      1. Lazy volume upload to `STORAGE` buffer (re-upload only when `Arc` pointer or shape changes).
+      2. Compute dispatch + `device.poll(Maintain::Wait)` synchronous readback.
+      3. WL normalisation + colormap applied on CPU → RGBA `ColorImage`.
+  - `SnapApp::gpu_renderer: Option<GpuVolumeRenderer>` added to state (native only); initialized in
+    `Default::default()` via `try_create()`.
+  - `rebuild_texture_for_mip` restructured: GPU path attempted first for `ProjectionMode::Mip`;
+    logs a warning and falls through to the existing CPU path on any GPU failure.
+    VR mode always uses CPU path.
+  - Differential equivalence invariant: `∀ pixel p: |GPU_MIP(p) − CPU_MIP(p)| ≤ 2` (u8 channel),
+    verified by `gpu_mip_matches_cpu_mip_grayscale` test.
+- Fixed pre-existing `E0596` in `ritk-core::filter::bin_shrink` (rayon `for_each` capturing
+  `out_data` mutably in a `Fn` closure): replaced with parallel `flat_map_iter` collecting
+  `(offset, value)` pairs followed by sequential scatter fill.
+
+### Dependencies [patch]
+
+- `Cargo.toml` (workspace): added `wgpu = { version = "0.20", features = ["wgsl"] }`, `pollster = "0.3"`.
+- `crates/ritk-snap/Cargo.toml`: added `bytemuck` (workspace); platform-gated `wgpu` + `pollster`
+  under `[target.'cfg(not(target_arch = "wasm32"))'.dependencies]`.
+
 ## [0.50.39] - 2026-05-19
 
 ### Added [minor]

@@ -27,6 +27,11 @@ image = { workspace = true }
 nalgebra = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }
+bytemuck = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wgpu = { workspace = true }
+pollster = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2"

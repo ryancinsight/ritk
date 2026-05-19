@@ -1,5 +1,6 @@
 pub mod bias;
 pub mod bilateral;
+pub mod bin_shrink;
 pub mod cpr;
 pub mod deconvolution;
 pub mod diffusion;
@@ -24,9 +25,9 @@ pub mod surface;
 pub mod threshold;
 pub mod transform;
 pub mod vesselness;
-
 pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
+pub use bin_shrink::BinShrinkImageFilter;
 pub use cpr::{CprConfig, CprImageFilter};
 pub use diffusion::{
     AnisotropicDiffusionFilter,

@@ -440,7 +440,7 @@ fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
     if p1 == 0.0 {
         // Diagonal matrix: eigenvalues are the diagonal entries.
         // Eigenvectors are the standard basis vectors.
-        let mut eigs = [m00, m11, m22];
+        let eigs = [m00, m11, m22];
         let mut indices = [0usize, 1, 2];
         indices.sort_unstable_by(|&a, &b| eigs[a].partial_cmp(&eigs[b]).unwrap_or(std::cmp::Ordering::Equal));
         let sorted = [eigs[indices[0]], eigs[indices[1]], eigs[indices[2]]];

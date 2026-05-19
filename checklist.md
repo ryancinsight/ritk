@@ -1,3 +1,42 @@
+## Sprint 269 — Complete
+
+**Status**: Complete
+**Phase**: Execution → GPU Volume MIP Rendering (GAP-262-VIZ-01)
+**Version**: 0.50.40 [minor]
+**Target**: Close GAP-262-VIZ-01 (GPU 3D volume rendering) via wgpu compute shader MIP path.
+
+### Checklist items
+
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/context.rs` — `GpuContext::try_new()` (headless wgpu init via pollster)
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/params.rs` — `RenderParams` bytemuck uniform struct
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/mip.wgsl` — compute shader (8×8 workgroup, coalesced col-major)
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/mod.rs` — `GpuVolumeRenderer` + `render_mip` + `ensure_volume_uploaded`
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/tests_gpu_volume.rs` — 3 differential + integration tests
+- [x] Add `pub mod gpu_volume` to `render/mod.rs` (cfg-gated for non-wasm32)
+- [x] Add `gpu_renderer: Option<GpuVolumeRenderer>` to `SnapApp` state (cfg-gated)
+- [x] Initialize `gpu_renderer` in `Default for SnapApp` via `try_create()`
+- [x] Restructure `rebuild_texture_for_mip` to try GPU path first, CPU fallback
+- [x] Add `wgpu = "0.20"`, `pollster = "0.3"` to workspace `Cargo.toml`
+- [x] Add `bytemuck`, platform-gated `wgpu` + `pollster` to `ritk-snap/Cargo.toml`
+- [x] Fix pre-existing `E0596` in `ritk-core::filter::bin_shrink` (rayon Fn closure)
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib render::gpu_volume`: 3 passed
+- [x] `cargo test -p ritk-snap --lib app::mesh_ops`: 5 passed (no regression)
+- [x] `cargo test -p ritk-io --lib format::dicomweb`: 12 passed (no regression)
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO (GPU/wgpu phase) | High | Open |
+| GAP-262-VIZ-01 — GPU VR volume rendering (GPU MIP closed) | High | Partial |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM specialty IODs | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
 ## Sprint 268 — Complete
 
 **Status**: Complete

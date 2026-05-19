@@ -1,5 +1,40 @@
-## Sprint 268 — Complete
+## Sprint 269 — Complete
 **Status**: Complete
+**Phase**: Execution → GPU Volume MIP Rendering (GAP-262-VIZ-01)
+**Version**: 0.50.40 [minor]
+**Goal**: Close the highest-risk open gap (GPU 3D volume rendering) via a wgpu compute shader MIP path with CPU fallback and differential equivalence verification.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-01 (MIP phase) | GPU-accelerated MIP via compute shader; VR fallback deferred | **Closed (MIP)** |
+
+### Delivered
+- ✓ `crates/ritk-snap/src/render/gpu_volume/context.rs`: `GpuContext::try_new()` — headless wgpu init
+- ✓ `crates/ritk-snap/src/render/gpu_volume/params.rs`: `RenderParams` uniform (16-byte std140)
+- ✓ `crates/ritk-snap/src/render/gpu_volume/mip.wgsl`: compute shader, 8×8 workgroup, coalesced col-major access
+- ✓ `crates/ritk-snap/src/render/gpu_volume/mod.rs`: `GpuVolumeRenderer` — `try_create`, `ensure_volume_uploaded`, `render_mip`
+- ✓ `crates/ritk-snap/src/render/gpu_volume/tests_gpu_volume.rs`: 3 value-semantic tests (differential, cache invalidation, single-slice)
+- ✓ `render/mod.rs`: `pub mod gpu_volume` (cfg-gated non-wasm32)
+- ✓ `app/state.rs`: `gpu_renderer: Option<GpuVolumeRenderer>` field + `Default` init via `try_create()`
+- ✓ `app/render_cache.rs`: GPU-first MIP path with CPU fallback
+- ✓ Workspace `Cargo.toml`: `wgpu = "0.20"`, `pollster = "0.3"`
+- ✓ `ritk-snap/Cargo.toml`: `bytemuck` + platform-gated `wgpu` + `pollster`
+- ✓ Fixed pre-existing `E0596` in `ritk-core::filter::bin_shrink`
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-01 (VR) | GPU VR volume rendering (MIP closed; VR still CPU) | High |
+| GAP-262-VIZ-02 | OIT depth peeling + SSAO (GPU mesh pipeline via egui-wgpu) | High |
+| GAP-262-IO-01 | DICOM networking (DIMSE C-ECHO/C-FIND/C-STORE/C-MOVE) | High |
+| GAP-262-IO-02 | DICOM specialty IODs (SEG/RT write round-trip) | High |
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+
+---
+
+## Sprint 268 — Complete
 **Phase**: Execution → MeshRenderer GUI Wiring + DICOMweb REST SCU
 **Version**: 0.50.39 [minor]
 **Goal**: Close Sprint 266 §F residual (mesh overlay in viewer) and GAP-262-IO-04 (DICOMweb QIDO-RS/WADO-RS/STOW-RS HTTP client).

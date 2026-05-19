@@ -6620,6 +6620,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "bytemuck",
  "clap",
  "eframe",
  "egui",
@@ -6629,6 +6630,7 @@ dependencies = [
  "image 0.24.9",
  "js-sys",
  "nalgebra",
+ "pollster",
  "rfd",
  "ritk-core",
  "ritk-io",
@@ -6640,6 +6642,7 @@ dependencies = [
  "walkdir",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wgpu 0.20.1",
 ]
 
 [[package]]

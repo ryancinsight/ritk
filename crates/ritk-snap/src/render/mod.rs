@@ -16,6 +16,8 @@ pub mod histogram;
 pub mod mesh_render;
 pub mod mip_vr;
 pub mod slice_render;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod gpu_volume;
 
 pub(crate) use buffer_pool::RenderBufferPool;
 pub use colormap::Colormap;

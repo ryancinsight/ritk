@@ -1,5 +1,65 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 269 Audit — 2026-05-19 — GPU Volume MIP Rendering (GAP-262-VIZ-01)
+
+### Gaps closed
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-VIZ-01 (MIP phase) | GPU-accelerated MIP via wgpu compute shader; VR deferred | `ritk-snap::render::gpu_volume` | 3 |
+
+### §A — GpuVolumeRenderer Architecture
+
+**Location**: `ritk-snap::render::gpu_volume`
+
+**Module tree**:
+- `context.rs`: `GpuContext { device, queue, adapter }` — headless wgpu init via `pollster::block_on`.
+  Returns `None` on any failure without panicking. Enables clean fallback to CPU.
+- `params.rs`: `RenderParams { depth, rows, cols, _pad }` — `#[repr(C)]` bytemuck uniform, 16-byte std140.
+  Matches WGSL `struct RenderParams` exactly.
+- `mip.wgsl`: compute shader, workgroup `(8, 8, 1)`, dispatched as `ceil(cols/8) × ceil(rows/8) × 1`.
+  Fast axis is `id.x = col`, enabling coalesced reads within a warp.
+  Initial max value = `-3.0e38` (safe for all clinical HU / PET / MRI ranges).
+- `mod.rs`: `GpuVolumeRenderer` — owns `GpuContext`, compute pipeline, bind group layout, and
+  a cached `STORAGE` buffer for the volume. Change detection via `Arc::as_ptr` comparison:
+  re-upload only when the `Arc<Vec<f32>>` pointer or shape differs.
+  `render_mip` dispatches, does synchronous readback (`Maintain::Wait`), applies WL + colormap on CPU.
+
+**Render cycle (per frame)**:
+1. `ensure_volume_uploaded`: compare Arc ptr + shape; extract first channel; `create_buffer_init(STORAGE)`.
+2. `render_mip_internal`: create transient params / output / staging buffers; create bind group;
+   encode compute pass; copy output → staging; submit + `poll(Wait)`; map + `cast_slice`;
+   apply WL norm + colormap → RGBA Vec<u8> → `ColorImage`.
+
+**SnapApp integration**:
+- `gpu_renderer: Option<GpuVolumeRenderer>` added to `SnapApp` (non-wasm32 only).
+- Initialized in `Default::default()` via `try_create()` (one-time startup cost).
+- `rebuild_texture_for_mip`: GPU path taken for `ProjectionMode::Mip`; CPU fallback on `None` or error.
+  VR mode always uses CPU path.
+
+### §B — Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `gpu_mip_matches_cpu_mip_grayscale` | Synthetic vol (8×16×16); WL(1024,2048); Grayscale; ∀p: `∆ ≤ 2` | pass |
+| `gpu_mip_cache_invalidated_on_volume_change` | vol_b all-zeros → black; vol_a ≠ vol_b | pass |
+| `gpu_mip_empty_volume_no_panic` | 1×4×4 volume; size = [4,4] | pass |
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| Sprint 268 regression: `app::mesh_ops` (5) + `dicomweb` (12) | unchanged | pass |
+
+### §C — Residual Risk
+
+- **VR GPU path absent**: VR continues on CPU. A VR compute shader requires per-pixel RGBA accumulation
+  with colormap applied in-shader; deferred to Sprint 270.
+- **GPU→CPU readback latency**: `Maintain::Wait` blocks the render thread. Acceptable for medical
+  imaging (renders are not continuous 60fps). Async readback with double-buffering is a future
+  optimization.
+- **Volume extract-first-channel**: multi-channel (RGB) volumes use only the red channel for MIP.
+  Clinical impact: minimal (DICOM CT/MRI/PET are scalar; RGB is rare in primary modalities).
+- **Startup latency**: `try_create()` in `Default::default()` adds ~50–300ms to app startup on
+  systems with slow GPU driver initialization. Acceptable for a clinical workstation.
+
+---
+
 ## Sprint 268 Audit — 2026-05-19 — MeshRenderer GUI Wiring + DICOMweb REST SCU
 
 ### Gaps closed

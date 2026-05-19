@@ -207,6 +207,12 @@ pub(crate) struct SnapApp {
     pub(crate) pending_load: Option<std::path::PathBuf>,
     /// Secondary path queued for load on next update cycle.
     pub(crate) pending_secondary_load: Option<std::path::PathBuf>,
+
+    // ── GPU renderer (native only) ────────────────────────────────────────────
+    /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
+    /// available or when running on wasm32.  CPU path is the fallback.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) gpu_renderer: Option<crate::render::gpu_volume::GpuVolumeRenderer>,
 }
 
 impl Default for SnapApp {
@@ -285,6 +291,8 @@ impl Default for SnapApp {
             pending_load: None,
             pending_secondary_load: None,
             status_axis: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),
         }
     }
 }
