@@ -1,3 +1,53 @@
+## Sprint 258 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural / Maintenance
+**Version**: 0.50.30 [patch]
+**Target**: GAP-251-STR-01 — Close final 2 near-limit files + fix 4 pre-existing API call-site errors in `ritk-snap`.
+
+### Checklist items
+
+- [x] Extract `Shrink`/`ConstantPad`/`MirrorPad`/`WrapPad` arms from `controls_morph.rs` (462→323) into `controls_geom.rs` (151 lines)
+- [x] Register `mod controls_geom;` in `filter_panel/mod.rs` and add to dispatch chain
+- [x] Verify `rtdose_overlay/mod.rs` (306) + `rtdose_overlay/tests.rs` (182) already in place
+- [x] Fix `app/rt_overlay.rs`: construct `VolumeGeometry { shape, origin, direction, spacing }` at call site
+- [x] Fix `app/viewport_render.rs` (×2): construct `OverlayContext` and `FusedSliceParams` at call sites
+- [x] Fix `ui/viewport/panel/show.rs`: construct `OverlayContext` at call site
+- [x] Verify `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-snap --lib -- rtdose_overlay` — 10 passed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-251-STR-01 | — | **CLOSED** — all near-limit files now under 500 lines |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+
+## Sprint 258 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.30 [patch]
+**Target**: GAP-251-STR-01 — Continue structural partition: rtdose_overlay.rs and overlay/mod.rs.
+
+### Checklist items
+
+- [x] Extract `rtdose_overlay.rs` (496→283 lines) → `rtdose_overlay/mod.rs` + `tests.rs` (171 lines, 10 tests)
+- [x] Extract `overlay/mod.rs` (548→380 lines) inline tests → existing `overlay/tests.rs` (154 lines)
+- [x] Remove stale monolithic `app.rs` (4976 lines) and `viewport.rs` resolving E0761 file/directory conflicts
+- [x] Fix `app/rt_overlay.rs` call site: `VolumeGeometry` struct instead of individual fields
+- [x] Remove dead SUV overlay tests referencing non-existent `format_suv_string`
+- [x] Verify `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-snap --lib "overlay::tests"` — 28 passed
+- [x] Verify `cargo test -p ritk-snap --lib "rtdose_overlay::tests"` — 10 passed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
 ## Sprint 257 — Complete
 
 **Status**: Complete

@@ -87,43 +87,47 @@ fn test_orientation_labels_sagittal_standard_axes() {
     assert_eq!(labels.bottom, "S");
 }
 
-/// `format_suv_string` produces `"Cursor SUV: 3.50"` for `Some(3.5)`
-/// and `"Pointer SUV: 2.10"` for `Some(2.1)`, verifying the {:.2}
-/// format contract.
+// ── format_pointer_str ────────────────────────────────────────────────────────
+
 #[test]
-fn test_overlay_suv_display_format() {
+fn format_pointer_str_zero_intensity_no_suv_returns_empty() {
+    assert!(format_pointer_str(0.0, None).is_empty());
+}
+
+#[test]
+fn format_pointer_str_nonzero_intensity_no_suv_shows_hu() {
+    assert_eq!(format_pointer_str(512.0, None), "Pointer HU: 512");
+}
+
+#[test]
+fn format_pointer_str_with_suv_shows_suv_label() {
     assert_eq!(
-        OverlayRenderer::format_suv_string("Cursor SUV", Some(3.5)),
-        "Cursor SUV: 3.50"
-    );
-    assert_eq!(
-        OverlayRenderer::format_suv_string("Pointer SUV", Some(2.1)),
-        "Pointer SUV: 2.10"
+        format_pointer_str(5000.0, Some(1.89_f32)),
+        "Pointer SUV: 1.89"
     );
 }
 
-/// `format_suv_string` returns an empty string for `None`, ensuring
-/// non-PET volumes produce no SUV overlay text.
 #[test]
-fn test_overlay_suv_none_produces_empty() {
-    assert_eq!(OverlayRenderer::format_suv_string("Cursor SUV", None), "");
-    assert_eq!(OverlayRenderer::format_suv_string("Pointer SUV", None), "");
+fn format_pointer_str_zero_intensity_with_suv_still_shows_suv() {
+    assert_eq!(format_pointer_str(0.0, Some(2.5_f32)), "Pointer SUV: 2.50");
 }
 
-/// `format_suv_string` returns an empty string for NaN and ±Inf,
-/// preventing non-physical display values in the overlay.
+// ── format_cursor_str ─────────────────────────────────────────────────────────
+
 #[test]
-fn test_overlay_suv_nonfinite_produces_empty() {
+fn format_cursor_str_none_cursor_none_suv_returns_empty() {
+    assert!(format_cursor_str(None, None).is_empty());
+}
+
+#[test]
+fn format_cursor_str_cursor_only_shows_hu() {
+    assert_eq!(format_cursor_str(Some(100.0), None), "Cursor HU: 100");
+}
+
+#[test]
+fn format_cursor_str_suv_takes_priority_over_cursor_hu() {
     assert_eq!(
-        OverlayRenderer::format_suv_string("Cursor SUV", Some(f32::NAN)),
-        ""
-    );
-    assert_eq!(
-        OverlayRenderer::format_suv_string("Cursor SUV", Some(f32::INFINITY)),
-        ""
-    );
-    assert_eq!(
-        OverlayRenderer::format_suv_string("Cursor SUV", Some(f32::NEG_INFINITY)),
-        ""
+        format_cursor_str(Some(5000.0), Some(1.89_f32)),
+        "Cursor SUV: 1.89"
     );
 }

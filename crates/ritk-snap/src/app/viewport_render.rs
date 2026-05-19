@@ -5,10 +5,10 @@
 //! and dispatch pointer / wheel events to the active tool.
 
 use super::state::SnapApp;
-use crate::render::fusion::render_fused_slice;
+use crate::render::fusion::{render_fused_slice, FusedSliceParams};
 use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
-use crate::ui::overlay::OverlayRenderer;
+use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::ui::{apply_to_image, should_zoom_with_scroll, zoom_from_scroll};
 
 impl SnapApp {
@@ -154,14 +154,16 @@ impl SnapApp {
                     &painter,
                     response.rect,
                     vol,
-                    axis,
-                    slice_idx,
-                    wl,
-                    self.zoom,
-                    cursor_value,
-                    self.pointer_intensity,
-                    self.current_cursor_suv(),
-                    self.pointer_suv,
+                    OverlayContext {
+                        axis,
+                        slice_index: slice_idx,
+                        wl,
+                        zoom: self.zoom,
+                        cursor_value,
+                        pointer_intensity: self.pointer_intensity,
+                        cursor_suv: self.current_cursor_suv(),
+                        pointer_suv: self.pointer_suv,
+                    },
                 );
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
@@ -393,16 +395,20 @@ impl SnapApp {
                     let secondary_ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
 
                     let color_image = render_fused_slice(
-                        primary,
-                        primary_axis,
-                        primary_idx,
-                        WindowLevel::new(primary_wc, primary_ww),
-                        self.colormap,
-                        secondary,
-                        secondary_axis,
-                        secondary_idx,
-                        WindowLevel::new(secondary_wc, secondary_ww),
-                        self.secondary_colormap,
+                        FusedSliceParams {
+                            volume: primary,
+                            axis: primary_axis,
+                            slice: primary_idx,
+                            wl: WindowLevel::new(primary_wc, primary_ww),
+                            colormap: self.colormap,
+                        },
+                        FusedSliceParams {
+                            volume: secondary,
+                            axis: secondary_axis,
+                            slice: secondary_idx,
+                            wl: WindowLevel::new(secondary_wc, secondary_ww),
+                            colormap: self.secondary_colormap,
+                        },
                         self.compare_fusion_alpha,
                     );
 

@@ -1,3 +1,66 @@
+## Sprint 258 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural / Maintenance
+**Version**: 0.50.30 [patch]
+**Goal**: GAP-251-STR-01 — Close final 2 near-limit files; repair 4 pre-existing API call-site errors.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-251-STR-01 | All near-limit files partitioned; 0 production files at or above 500 lines | **CLOSED** |
+
+### Delivered
+
+- ✓ `ritk-snap/ui/filter_panel/controls_morph.rs` (462→323): `Shrink`/`ConstantPad`/`MirrorPad`/`WrapPad` arms extracted to `controls_geom.rs` (151 lines)
+- ✓ `ritk-snap/ui/rtdose_overlay/mod.rs` (306) + `rtdose_overlay/tests.rs` (182): directory module with 10 test functions (already converted, verified)
+- ✓ `app/rt_overlay.rs`: fixed `compute_roi_dose_analytics` call — construct `VolumeGeometry` from scattered fields
+- ✓ `app/viewport_render.rs` (×2): fixed `OverlayRenderer::draw` — construct `OverlayContext`; fixed `render_fused_slice` — construct `FusedSliceParams` structs
+- ✓ `ui/viewport/panel/show.rs`: fixed `OverlayRenderer::draw` — construct `OverlayContext`
+- ✓ Verification: `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- ✓ Verification: `cargo test -p ritk-snap --lib -- rtdose_overlay` — 10 passed
+- ✓ All production files under 500-line structural limit
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-251-STR-01 | **CLOSED** | — |
+| **Structural violations (>500 lines)** | **Zero** | — |
+
+
+## Sprint 258 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.30 [patch]
+**Goal**: GAP-251-STR-01 — Partition rtdose_overlay.rs and overlay/mod.rs. Remove stale monolithic files.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-251-STR-01 | rtdose_overlay (496→283), overlay/mod.rs (548→380) partitioned | **Partial** |
+| E0761 | Stale app.rs/viewport.rs removed — directory modules now authoritative | **Closed** |
+
+### Delivered
+
+- ✓ `rtdose_overlay.rs` → `rtdose_overlay/mod.rs` (283) + `tests.rs` (171): 10 tests extracted
+- ✓ `overlay/mod.rs` (548→380): inline tests extracted to existing `tests.rs` (14 tests)
+- ✓ Stale `app.rs` (4976 lines) and `viewport.rs` deleted — resolved E0761 conflicts
+- ✓ `app/rt_overlay.rs` — `VolumeGeometry` struct constructed at call site
+- ✓ Pre-existing dead SUV overlay tests (non-existent `format_suv_string`) removed from `tests.rs`
+- ✓ Verification: `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- ✓ Verification: `cargo test -p ritk-snap --lib "overlay"` — 28 passed
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---| 
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| filter/apply.rs (468) | Near-limit, under threshold | Low |
+
 ## Sprint 257 — Complete
 
 **Status**: Complete

@@ -32,6 +32,7 @@ use crate::FilterKind;
 
 mod controls;
 mod controls_cpr;
+mod controls_geom;
 mod controls_morph;
 mod controls_pointwise;
 mod selector;
@@ -64,6 +65,7 @@ pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> b
         // ── Per-filter parameter controls ──────────────────────────────────
         if !controls::show_controls(ui, active_filter)
             && !controls_morph::show_controls(ui, active_filter)
+            && !controls_geom::show_controls(ui, active_filter)
             && !controls_cpr::show_controls(ui, active_filter)
         {
             controls_pointwise::show_controls(ui, active_filter);

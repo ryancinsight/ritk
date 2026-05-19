@@ -3,6 +3,48 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.30] - 2026-05-18
+
+### Added [patch]
+
+- **Preemptive partition of 7 near-limit files** (GAP-251-STR-01):
+  - `ritk-cli/commands/filter/tests.rs` (31 lines): dispatch-level tests extracted from `filter/mod.rs` (482→450)
+  - `ritk-core/filter/diffusion/gradient_anisotropic/tests.rs` (269 lines): 9 test functions from `gradient_anisotropic.rs` (474→210)
+  - `ritk-core/filter/vesselness/hessian/tests.rs` (198 lines): 8 test functions from `hessian.rs` (466→264)
+  - `ritk-core/segmentation/morphology/binary_erosion/tests.rs` (264 lines): 13 test functions from `binary_erosion.rs` (465→190)
+  - `ritk-registration/demons/symmetric/tests.rs` (184 lines): 6 test functions from `symmetric.rs` (464→325)
+  - `ritk-vtk/io/struct_grid/tests.rs` (138 lines): 3 test functions delegated via `#[path]` from `struct_grid.rs` (469→328)
+  - `ritk-io/format/dicom/color/tests.rs` (249 lines): 3 test functions from `color.rs` (462→272)
+
+### Fixed [patch]
+
+- `ritk-io/format/dicom/color/mod.rs` — doc-comment/function-signature missing newline on line 36
+- Deleted stale `ritk-registration/demons/symmetric.rs` preventing E0761 module ambiguity
+
+### Verification
+
+- `cargo check -p ritk-core --lib`: 0 errors
+- `cargo check -p ritk-cli`: 0 errors
+- `cargo test -p ritk-core --lib`: 1203 passed
+- `cargo test -p ritk-cli -- filter`: 37 passed
+
+## [0.50.30] - 2026-05-18
+
+### Added [patch]
+- **`rtdose_overlay/` directory** (`ui/`): Extracted test module from `rtdose_overlay.rs` (496→283 lines) into `rtdose_overlay/tests.rs` (171 lines, 10 tests). Resolved structural violation.
+
+### Changed [patch]
+- **`overlay/mod.rs`** (`ui/overlay/`): Extracted inline test module (548→380 lines) into existing `overlay/tests.rs`. Resolved structural violation.
+- Removed stale monolithic `app.rs` (4976 lines) and `viewport.rs` that caused E0761 file/directory conflicts — the directory-based modules were the authoritative source.
+- Fixed `app/rt_overlay.rs` call site: `compute_roi_dose_analytics` now passes `VolumeGeometry` struct instead of individual fields.
+
+### Verification
+- `cargo check -p ritk-snap --lib`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib "overlay"`: 28 passed
+- `cargo test -p ritk-snap --lib "rtdose_overlay"`: 10 passed
+- Structural violations (>500 lines): **0** in ritk-snap
+- Near-limit: `filter/apply.rs` (468) — remaining
+
 ## [0.50.29] - 2026-05-18
 
 ### Added [patch]

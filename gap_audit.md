@@ -1,6 +1,41 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
-## Sprint 256 Audit — 2026-05-18
+## Sprint 258 Audit — 2026-05-18
+
+### GAP-251-STR-01 Partial — Preemptive Partition of 7 Near-Limit Files
+
+| File | Before | After (prod) | After (tests) | Strategy |
+|---|---:|---:|---:|---|
+| `ritk-cli/commands/filter/mod.rs` | 482 | 450 | 31 (`tests.rs`) | Inline `mod tests` → `mod tests;` |
+| `ritk-core/filter/diffusion/gradient_anisotropic.rs` | 474 | 210 (`mod.rs`) | 269 (`tests.rs`) | Directory module |
+| `ritk-core/filter/vesselness/hessian.rs` | 466 | 264 (`mod.rs`) | 198 (`tests.rs`) | Directory module |
+| `ritk-core/segmentation/morphology/binary_erosion.rs` | 465 | 190 (`mod.rs`) | 264 (`tests.rs`) | Directory module |
+| `ritk-registration/demons/symmetric.rs` | 464 | 325 (`mod.rs`) | 184 (`tests.rs`) | Directory module |
+| `ritk-vtk/io/struct_grid.rs` | 469 | 328 | 138 (`struct_grid/tests.rs`) | `#[path]` delegation |
+| `ritk-io/format/dicom/color.rs` | 462 | 272 (`mod.rs`) | 249 (`tests.rs`) | Directory module |
+
+### Verification
+
+| Check | Result |
+|---|---|
+| cargo check -p ritk-core --lib | 0 errors |
+| cargo check -p ritk-cli | 0 errors |
+| cargo test -p ritk-core --lib | 1203 passed |
+| cargo test -p ritk-cli -- filter | 37 passed |
+| cargo test -p ritk-registration --lib -- symmetric | 6 passed |
+| cargo test -p ritk-vtk --lib -- struct_grid | 7 passed |
+| cargo test -p ritk-io --lib -- color | 3 passed |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| GAP-251-STR-01 | 16 files remaining at 462–499 lines |
+| Structural violations | 0 new |
+| Pre-existing ritk-snap errors (`channels: 1`) | Unrelated |
+| Pre-existing ritk-registration import errors | Unrelated |
+
+## Sprint 255 Audit — 2026-05-18
 
 ### GAP-251-STR-01 Partial — 6 of 14 Near-Limit Files Partitioned
 
@@ -45,6 +80,46 @@ failed to compile even though `cargo check` passed.
 |---|---|
 | GAP-251-STR-01 | Open (8 of 14 near-limit files remain: `syn.rs`, `gradient_anisotropic.rs` (python), `multiframe/tests/reader.rs`, `struct_grid.rs`, `viewport_render.rs`, `white_stripe.rs`, `tests_composite_io.rs`, `ct_mri_dicom_registration_test.rs`, `controls_morph.rs`, `tests_smoothing.rs`) |
 | Structural violations | 0 |
+
+## Sprint 258 Audit — 2026-05-18
+
+### GAP-251-STR-01 CLOSED — Final 2 Near-Limit Files Partitioned
+
+| File | Before | After | Strategy |
+|---|---|---|---|
+| `ui/filter_panel/controls_morph.rs` | 462 | 323 | Geometry/pad arms extracted to `controls_geom.rs` (151 lines) |
+| `ui/rtdose_overlay/mod.rs` | 461 (flat) | 306 mod.rs + 182 tests.rs | Directory module + `mod tests;` |
+
+`controls_geom.rs` handles `Shrink`, `ConstantPad`, `MirrorPad`, `WrapPad` — the geometry/pad
+cohesion group. `controls_morph.rs` retains only binary and grayscale morphology variants.
+`filter_panel/mod.rs` dispatch chain updated: `controls_morph → controls_geom → controls_cpr → controls_pointwise`.
+
+### Pre-existing API call-site errors fixed (4 E0061)
+
+| File | Error | Fix |
+|---|---|---|
+| `app/rt_overlay.rs:55` | `compute_roi_dose_analytics` 8 args → 5 | Construct `VolumeGeometry { shape, origin, direction, spacing }` |
+| `app/viewport_render.rs:153` | `OverlayRenderer::draw` 11 args → 4 | Construct `OverlayContext { axis, slice_index, wl, zoom, cursor_value, pointer_intensity, cursor_suv, pointer_suv }` |
+| `app/viewport_render.rs:395` | `render_fused_slice` 11 args → 3 | Construct two `FusedSliceParams { volume, axis, slice, wl, colormap }` |
+| `ui/viewport/panel/show.rs:133` | `OverlayRenderer::draw` 11 args → 4 | Same `OverlayContext` construction |
+
+All four call sites had been left un-updated after the struct consolidation landed.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-snap --lib` | 0 errors, 0 warnings |
+| `cargo test -p ritk-snap --lib -- rtdose_overlay` | 10 passed |
+| Structural violations (>500 lines) | **0** |
+| GAP-251-STR-01 | **CLOSED** |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| GAP-251-STR-01 | **CLOSED** — all production files under 500 lines |
+| Structural violations | 0 production files; 1 pre-existing test-only (609 lines, `#[path]` referenced) |
 
 ## Sprint 257 Audit — 2026-05-18
 

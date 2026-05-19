@@ -3,7 +3,7 @@ use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 use crate::ui::{
     axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
-    project_rt_struct_contours_for_slice,
+    project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry,
 };
 use tracing::{error, info};
 
@@ -56,10 +56,12 @@ impl SnapApp {
             rt_struct,
             rt_dose,
             roi_number,
-            vol.shape,
-            vol.origin,
-            vol.direction,
-            vol.spacing,
+            VolumeGeometry {
+                shape: vol.shape,
+                origin: vol.origin,
+                direction: vol.direction,
+                spacing: vol.spacing,
+            },
             128,
         );
     }

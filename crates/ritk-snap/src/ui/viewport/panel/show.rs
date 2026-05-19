@@ -12,7 +12,11 @@ use crate::{
         slice_render::SliceRenderer,
     },
     tools::interaction::ToolState,
-    ui::{measurements::MeasurementLayer, overlay::OverlayRenderer, zoom::fit_view_transform},
+    ui::{
+        measurements::MeasurementLayer,
+        overlay::{OverlayContext, OverlayRenderer},
+        zoom::fit_view_transform,
+    },
     LoadedVolume,
 };
 
@@ -134,14 +138,16 @@ impl<'a> ViewportPanel<'a> {
                     &painter,
                     rect,
                     volume,
-                    self.state.axis,
-                    self.state.slice_index,
-                    self.state.wl,
-                    self.state.zoom,
-                    cursor_hu,
-                    pointer_intensity,
-                    None,
-                    None,
+                    OverlayContext {
+                        axis: self.state.axis,
+                        slice_index: self.state.slice_index,
+                        wl: self.state.wl,
+                        zoom: self.state.zoom,
+                        cursor_value: cursor_hu,
+                        pointer_intensity,
+                        cursor_suv: None,
+                        pointer_suv: None,
+                    },
                 );
             }
 
