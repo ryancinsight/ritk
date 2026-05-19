@@ -15,6 +15,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+mod anonymize;
 mod codec;
 mod color;
 mod color_common;
@@ -30,6 +31,10 @@ mod transfer_syntax;
 mod writer;
 mod writer_object;
 
+pub use anonymize::{
+    anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
+    AnonymizeOptions, AnonymizeStats, TagAction,
+};
 pub use color::{is_rgb_dicom_series, load_dicom_color_series, read_dicom_color_series};
 pub use multiframe::{
     load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,

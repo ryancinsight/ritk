@@ -9,12 +9,14 @@
 //! - [`neighborhood_connected`]: Neighborhood-admissibility-predicate region growing.
 
 pub mod confidence_connected;
+pub mod growcut;
 pub mod neighborhood_connected;
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 pub use confidence_connected::{confidence_connected, ConfidenceConnectedFilter};
+pub use growcut::{growcut, growcut_slice, GrowCutFilter};
 pub use neighborhood_connected::{neighborhood_connected, NeighborhoodConnectedFilter};
 use std::collections::VecDeque;
 

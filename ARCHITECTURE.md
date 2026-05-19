@@ -287,9 +287,36 @@ For any RGB JPEG decode result with height `h`, width `w`, and interleaved RGB b
 
 For any RGB TIFF page stack with depth `d`, height `h`, width `w`, and decoded interleaved samples `S`, the TIFF color loader constructs exactly one tensor with shape `[d,h,w,3]` and element order `S[(((z*h + y)*w + x)*3 + k)]`. If any page is not `ColorType::RGB(_)`, has dimensions different from the first page, or decodes to a sample count different from `h*w*3`, the loader rejects before constructing `RgbVolume<B>`.
 
-### 17. Image Comparison Metrics Boundary
+### 17. Render Pipeline Scratch-Buffer Boundary
 
-> **Theorem 17.1 (Metric Family Separation)**: Image comparison metrics with different mathematical domains must live in separate leaf modules while preserving one public metric API surface.
+> **Theorem 17.1 (Render-Path Zero-Allocation After Warm-Up)**: Once `RenderBufferPool` scratch buffers have reached peak observed dimension, all subsequent dirty-texture rebuilds for equal or smaller dimensions incur zero heap allocations.
+
+**Boundary surface**:
+- `ritk-snap::render::buffer_pool::RenderBufferPool` owns three monotone-capacity scratch buffers: `pixel_f32: Vec<f32>`, `rgba_u8: Vec<u8>`, `color32: Vec<egui::Color32>`.
+- `SliceRenderer::render_with_scratch` writes f32 extraction and u8 RGBA encoding into `pool.pixel_f32` and `pool.rgba_u8`, replacing the former per-rebuild `Vec<f32>` and `Vec<u8>` allocations.
+- `render_mip_axial_with_scratch` / `render_vr_axial_with_scratch` write RGBA into `pool.rgba_u8`.
+- `apply_to_image_into` writes viewport orientation transform output (flip/rotate) into `pool.color32`, replacing the former multi-step `Vec<Color32>` allocations (one per flip/rotate step).
+- `SnapApp::render_buffer_pool` is the single owner; it is threaded through as `&mut RenderBufferPool`.
+
+**Capacity invariant**: `Vec::capacity` is monotone non-decreasing for each scratch field. `resize_u8`, `resize_color32`, and direct `pixel_f32.resize` extend when needed and reuse without shrinking. New elements are zero-initialized (`0_u8`, `Color32::BLACK`, `0.0_f32`).
+
+**Allocation profile per dirty-texture rebuild (after warm-up)**:
+
+| Operation | Before pool | After pool | Remaining |
+|---|---|---|---|
+| `extract_slice` → f32 | 1 × `Vec<f32>` alloc | 0 (reused) | — |
+| RGBA encoding → u8 | 1 × `Vec<u8>` alloc | 0 (reused) | — |
+| Orientation transform | N × `Vec<Color32>` allocs | 0 (reused) | — |
+| `ColorImage::from_rgba_unmultiplied` | 1 × `Vec<Color32>` alloc | same | 1 (egui API) |
+| Texture name string | 1 × `String` alloc (format!) | 0 (static str) | — |
+
+**Deferred**: `egui::ColorImage::from_rgba_unmultiplied` constructs a `Vec<Color32>` internally. Eliminating this requires an egui API addition for in-place texture pixel update. Tracked as GAP-258-PERF-03 (Low, blocked on upstream).
+
+**Proof obligation**: For all valid (`img`, `transform`) inputs, `apply_to_image_into(pool, img, transform).pixels == apply_to_image(img, transform).pixels`. The differential test suite in `view_transform/tests.rs` verifies pixel identity across all 16 `(flip_h, flip_v, rotation)` combinations for both rectangular and square images.
+
+### 18. Image Comparison Metrics Boundary
+
+> **Theorem 18.1 (Metric Family Separation)**: Image comparison metrics with different mathematical domains must live in separate leaf modules while preserving one public metric API surface.
 
 **Boundary surface**:
 - `ritk-core::statistics::image_comparison::overlap` owns Dice overlap computation.
@@ -303,7 +330,29 @@ For every public metric function `f` moved from the flat module, the new module 
 
 ---
 
-## Theoretical Foundations
+### 19. Gaia Meshing Boundary
+
+> **Theorem 19.1 (Gaia SSOT)**: All surface mesh generation, Boolean CSG operations, watertight analysis, and welded mesh I/O must be delegated to `gaia::IndexedMesh<f64>`. No RITK crate may implement competing mesh topology, vertex deduplication, or triangle-soup-to-indexed-mesh conversion.
+
+**Repository layout**:
+- `gaia/` is cloned at `D:\ritk\gaia` as a separate git repository tracked independently. It is excluded from the ritk `.gitignore` (`/gaia`).
+- The workspace `Cargo.toml` references it via `gaia = { path = "gaia", default-features = false }`.
+
+**Boundary surface**:
+- `ritk-core::filter::surface::Mesh` is `pub type Mesh = gaia::IndexedMesh<f64>` — the SSOT type alias for all surface-extraction output.
+- `ritk-core::filter::surface::MeshBuilder` re-exports `gaia::MeshBuilder` — the SSOT builder for low-level triangle construction.
+- `ritk-vtk::domain::mesh_bridge::indexed_mesh_to_poly` converts `IndexedMesh<f64>` → `VtkPolyData` for VTK interchange (preserving welded topology, narrowing coordinates to f32).
+- `ritk-vtk::domain::mesh_bridge::poly_to_indexed_mesh` converts `VtkPolyData` → `IndexedMesh<f64>` (applying VertexPool welding, promoting coordinates to f64; only triangular cells are mapped).
+- `ritk-vtk::io::mesh_indexed` owns gaia-native file I/O: `read_stl_indexed`, `read_obj_indexed`, `read_ply_indexed`, `write_indexed_stl_binary`, `write_indexed_stl_ascii`, `write_indexed_obj`, `write_indexed_ply`, `write_indexed_glb`.
+- `ritk-vtk::io::{stl,obj,ply,gltf}` own `VtkPolyData`-based I/O for VTK pipeline interchange (triangle soup, no welding); these are retained for Paraview/ITK-SNAP round-trip compatibility.
+
+**Invariants**:
+1. Every surface mesh produced by `MarchingCubesFilter`, CSG operations, or primitive generation is an `IndexedMesh<f64>` with VertexPool-welded vertices.
+2. Writing an `IndexedMesh` to any supported format (STL, OBJ, PLY, GLB) must use `ritk-vtk::io::mesh_indexed`; writing a `VtkPolyData` to a format uses the corresponding `ritk-vtk::io::{stl,obj,ply}` function.
+3. The `VtkPolyData` representation is permissible only at VTK interchange boundaries; internal algorithm state must use `IndexedMesh<f64>`.
+
+**Proof obligation**:
+For `poly_to_indexed_mesh(indexed_mesh_to_poly(M))`, vertex count ≤ M.vertex_count() because narrowing f64→f32 cannot introduce new distinct vertex positions, and welding can only merge. Face count is invariant because each triangle is mapped to exactly one face.
 
 ### Transform Theory
 

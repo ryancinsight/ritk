@@ -1,3 +1,260 @@
+## Sprint 267 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Gaia In-Tree Integration
+**Version**: 0.50.33 [minor]
+**Target**: Migrate gaia to in-tree path; add VtkPolyData ↔ IndexedMesh bridge; add gaia-native I/O surface in ritk-vtk.
+
+### Checklist items
+
+- [x] Update `Cargo.toml` workspace gaia path from `"../gaia"` to `"gaia"`
+- [x] Add `/gaia` to `.gitignore`
+- [x] Add `gaia = { workspace = true }` + `nalgebra = { workspace = true }` to `ritk-vtk/Cargo.toml`
+- [x] Create `ritk-vtk/src/domain/mesh_bridge.rs` with `indexed_mesh_to_poly` + `poly_to_indexed_mesh` + 7 tests
+- [x] Create `ritk-vtk/src/io/mesh_indexed.rs` with gaia-native STL/OBJ/PLY/GLB I/O + 6 tests
+- [x] Register `mesh_bridge` in `domain/mod.rs`
+- [x] Register `mesh_indexed` in `io/mod.rs` with re-exports
+- [x] Re-export bridge + indexed I/O from `lib.rs`
+- [x] Add `ARCHITECTURE.md §19 Gaia Meshing Boundary`
+- [x] Delete stale `ritk-core/src/segmentation/clustering/slic.rs` (E0761 fix)
+- [x] `cargo check --workspace`: 0 errors
+- [x] `cargo test -p ritk-vtk --lib`: 177 passed
+- [x] `cargo test -p ritk-core --lib`: 1350 passed
+
+---
+
+
+**Status**: Complete
+**Phase**: Execution → Gap Closure (3D Deconvolution, Phong Mesh Renderer, DICOM Private Tags)
+**Version**: 0.50.38 [minor]
+**Target**: Close GAP-262-FLT-02 (3D deconvolution), GAP-262-VIZ-02 (CPU Phong renderer), GAP-262-IO-08 (private tags).
+
+### Checklist items
+
+- [x] Convert `ritk-core/src/filter/deconvolution.rs` (543 lines) → `deconvolution/` module directory (8 files)
+- [x] Add `helpers.rs` with `convolve_2d` + `convolve_3d` (pub(super))
+- [x] Add `wiener.rs` — `WienerDeconvolution::apply_2d` + `apply_3d`
+- [x] Add `tikhonov.rs` — `TikhonovDeconvolution::apply_2d` + `apply_3d` (3D Laplacian)
+- [x] Add `rl.rs` — `RichardsonLucyDeconvolution::apply_2d` + `apply_3d`
+- [x] Add `landweber.rs` — `LandweberDeconvolution::apply_2d` + `apply_3d`
+- [x] Add `tests_3d.rs` — 11 value-semantic 3D deconvolution tests
+- [x] Update `ritk-python/src/filter/deconvolution.rs` — `apply_3d` native bindings, remove slice restriction
+- [x] Create `ritk-snap/src/render/mesh_render.rs` — CPU Z-buffer Phong renderer
+- [x] Create `ritk-snap/src/render/tests_mesh_render.rs` — 19 value-semantic renderer tests
+- [x] Update `ritk-snap/src/render/mod.rs` — register + re-export mesh_render
+- [x] Add `clean_private_tags: bool` to `AnonymizeOptions` + implement in `anonymize_object`
+- [x] Add 3 `clean_private_tags` value-semantic tests to `tests_anonymize.rs`
+- [x] Expose `clean_private_tags` in `ritk-python/src/io/anonymize.rs`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib filter::deconvolution` — 25 passed, 0 failed
+- [x] `cargo test -p ritk-snap --lib render::mesh_render` — 19 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::anonymize` — 26 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO (GPU phase) | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM specialty IODs | High | Open |
+| GAP-262-IO-04 — DICOMweb | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+| SLIC pre-existing test failures (3) | Medium | Open |
+
+---
+
+## Sprint 265 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Gap Closure (Mesh I/O, DICOM Anonymization, Extended Shape Statistics)
+**Version**: 0.50.37 [minor]
+**Target**: Close GAP-262-IO-05, GAP-262-IO-03, GAP-262-STA-03; add Python bindings.
+
+### Checklist items
+
+- [x] Create `ritk-vtk/src/io/obj/` — reader.rs, writer.rs, tests_obj.rs (OBJ ASCII read/write)
+- [x] Create `ritk-vtk/src/io/stl/` — reader.rs (ASCII+binary detect), writer.rs, tests_stl.rs
+- [x] Create `ritk-vtk/src/io/ply/` — reader.rs (ASCII+binary LE), writer.rs, tests_ply.rs
+- [x] Create `ritk-vtk/src/io/gltf/` — writer.rs (glTF 2.0 JSON, base64, no external crates)
+- [x] Update `ritk-vtk/src/io/mod.rs` + `lib.rs` — re-export 8 new mesh I/O functions
+- [x] Update `ritk-io/src/format/vtk/mod.rs` + `lib.rs` — mesh I/O facade re-exports
+- [x] Create `ritk-io/src/format/dicom/anonymize/profile.rs` — TagAction + AnonymizationProfile
+- [x] Create `ritk-io/src/format/dicom/anonymize/mod.rs` — anonymize_object, anonymize_dicom_file, anonymize_dicom_directory
+- [x] Create `ritk-io/src/format/dicom/anonymize/tests_anonymize.rs` — 23 value-semantic tests
+- [x] Update `ritk-io/src/format/dicom/mod.rs` + `lib.rs` — re-exports for anonymize module
+- [x] Create `ritk-core/src/statistics/label_shape_extended.rs` — LabelShapeStatisticsExtended, Cardano eigenvalues
+- [x] Create `ritk-core/src/statistics/tests_label_shape_extended.rs` — 13 value-semantic tests
+- [x] Update `ritk-core/src/statistics/mod.rs` — pub mod + re-exports + #[cfg(test)] mod
+- [x] Split `ritk-python/src/io.rs` → `ritk-python/src/io/` (mod.rs, mesh.rs, anonymize.rs, transform.rs)
+- [x] Create `ritk-python/src/io/mesh.rs` — PyMesh class + read_mesh + write_mesh
+- [x] Create `ritk-python/src/io/anonymize.rs` — anonymize_dicom_dir Python binding
+- [x] Create `ritk-python/src/statistics/label_shape_extended.rs` — extended_label_shape_statistics_py
+- [x] Update `ritk-python/src/statistics/mod.rs` — register extended_label_shape_statistics_py
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib` — 1327 passed, 0 failed
+- [x] `cargo test -p ritk-vtk --lib` — 164 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::anonymize` — 23 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM SEG/RT IODs | High | Open |
+| GAP-262-IO-04 — DICOMweb | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-VIZ-02 — Surface mesh rendering | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline | High | Open |
+| GAP-262-IO-08 — Private tag round-trip | Medium | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+| GAP-262-APP-03 — 4D viewer | Medium | Open |
+| GAP-262-FLT-02 — Image deconvolution suite | Medium | Open |
+
+---
+
+## Sprint 264 — Complete
+
+
+**Status**: Complete
+**Phase**: Execution → Gap Closure (Segmentation & Statistics)
+**Version**: 0.50.36 [minor]
+**Target**: Close GAP-262-STA-01, GAP-262-SEG-01, GAP-262-SEG-03; add Python bindings.
+
+### Checklist items
+
+- [x] Implement `ritk-core/src/statistics/label_overlap.rs` — LabelOverlapMeasures: Dice, Jaccard, VolSim, FNR, FPR, Sensitivity, Specificity; O(N) Rayon parallel fold
+- [x] Create `ritk-core/src/statistics/tests_label_overlap.rs` — 13 value-semantic tests (perfect, disjoint, known values, multi-label, sort, asymmetric, specificity zero, adversarial, panic)
+- [x] Add `pub mod label_overlap` + re-exports + `#[cfg(test)] mod tests_label_overlap` to `ritk-core/src/statistics/mod.rs`
+- [x] Create `ritk-core/src/segmentation/ensemble/staple.rs` — STAPLE EM (Warfield 2004): log-domain E-step, parallel M-step, clamp to (eps, 1-eps), convergence flag
+- [x] Create `ritk-core/src/segmentation/ensemble/mod.rs` — ensemble module re-exports + test wiring
+- [x] Create `ritk-core/src/segmentation/ensemble/tests_staple.rs` — 9 value-semantic tests (perfect raters, majority vote, output lengths, parameter range, convergence, iteration bound, panics)
+- [x] Update `ritk-core/src/segmentation/mod.rs` — add `pub mod ensemble` + `pub use ensemble::{staple, StapleResult}`
+- [x] Create `ritk-core/src/segmentation/region_growing/growcut.rs` — GrowCut cellular automaton (Vezhnevets 2005): parallel attack loop, convergence detection, seed immutability
+- [x] Update `ritk-core/src/segmentation/region_growing/mod.rs` — add `pub mod growcut` + re-exports
+- [x] Update `ritk-core/src/segmentation/mod.rs` — add GrowCut re-exports
+- [x] Create `ritk-python/src/statistics/label_overlap.rs` — Python binding: `label_overlap_measures` → list of dicts
+- [x] Create `ritk-python/src/segmentation/ensemble.rs` — Python bindings: `staple_ensemble` (returns dict), `growcut_segment` (returns PyImage)
+- [x] Update `ritk-python/src/statistics/mod.rs` — register `label_overlap_measures` (18→19 functions)
+- [x] Update `ritk-python/src/segmentation/mod.rs` — register `staple_ensemble`, `growcut_segment`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib` — 1286 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM SEG/RT IODs | High | Open |
+| GAP-262-IO-04 — DICOMweb | High | Open |
+| GAP-262-IO-05 — Mesh I/O | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-VIZ-02 — Surface mesh rendering | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline | High | Open |
+| GAP-262-IO-03 — DICOM anonymization | Medium | Open |
+| GAP-262-IO-08 — Private tag round-trip | Medium | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+| GAP-262-APP-03 — 4D viewer | Medium | Open |
+
+---
+
+## Sprint 263 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Gap Closure (Filtering & Statistics)
+**Version**: 0.50.35 [minor]
+**Target**: Close GAP-262-FLT-01, GAP-262-FLT-04, GAP-262-STA-02; confirm GAP-262-FLT-06; add Python bindings.
+
+### Checklist items
+
+- [x] Rewrite `ritk-core/src/filter/fft/forward.rs` — ForwardFftFilter with [H,2*W] output, no padding, no unsafe
+- [x] Rewrite `ritk-core/src/filter/fft/inverse.rs` — InverseFftFilter, normalize by 1/(H*W), [H,2*W]→[H,W]
+- [x] Rewrite `ritk-core/src/filter/fft/shift.rs` — FftShiftFilter, cyclic roll by (H/2, W/2), self-inverse for even dims
+- [x] Rewrite `ritk-core/src/filter/fft/convolution.rs` — FftConvolutionFilter (2D, "same") + FftNormalizedCorrelationFilter
+- [x] Create tests_forward.rs (5 tests: shape, DC, Parseval, zero), tests_inverse.rs (4 tests), tests_shift.rs (4 tests), tests_convolution.rs (7 tests)
+- [x] Add `pub mod fft` + FFT re-exports to `ritk-core/src/filter/mod.rs`
+- [x] Implement `ritk-core/src/filter/projection.rs` — MaxIP, MinIP, MeanIP, SumIP, StdDevIP; Rayon parallelism; f64 accumulation
+- [x] Create `ritk-core/src/filter/tests_projection.rs` (7 tests, all value-semantic)
+- [x] Add `pub mod projection` + projection re-exports to `ritk-core/src/filter/mod.rs`
+- [x] Implement `ritk-core/src/statistics/jacobian.rs` — `jacobian_determinant` (central differences, Rayon), `analyze_jacobian`, `JacobianStats`
+- [x] Create `ritk-core/src/statistics/tests_jacobian.rs` (5 tests: identity field, uniform expansion, analyze, shape, stats)
+- [x] Add `pub mod jacobian` + jacobian re-exports to `ritk-core/src/statistics/mod.rs`
+- [x] Confirm GAP-262-FLT-06 (CLAHE) pre-existing: `ClaheFilter` exported from filter/intensity
+- [x] Write `ritk-python/src/filter/fft.rs` — forward_fft, inverse_fft, fft_shift
+- [x] Write `ritk-python/src/filter/projection.rs` — 5 Python projection bindings
+- [x] Update `ritk-python/src/filter/mod.rs` — register 8 new functions, add fft + projection modules
+- [x] Delete stale scratch files from workspace root
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib` — 1235 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM SEG/RT IODs | High | Open |
+| GAP-262-IO-04 — DICOMweb | High | Open |
+| GAP-262-IO-05 — Mesh I/O | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-VIZ-02 — Surface mesh rendering | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline | High | Open |
+| GAP-262-SEG-01 — STAPLE ensemble | Medium | Open |
+| GAP-262-SEG-03 — GrowCut | Medium | Open |
+| GAP-262-STA-01 — LabelOverlapMeasures suite | Medium | Open |
+| GAP-262-IO-03 — DICOM anonymization | Medium | Open |
+| GAP-262-IO-08 — Private tag round-trip | Medium | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+| GAP-262-APP-03 — 4D viewer | Medium | Open |
+
+---
+
+## Sprint 262 — Complete
+
+**Status**: Complete
+**Phase**: Foundation → Gap Analysis
+**Version**: 0.50.34 [patch]
+**Target**: Produce a comprehensive gap analysis between RITK and all eight reference tools: ITK, SimpleITK, SimpleElastix, VTK, ITK-SNAP, 3D Slicer, RadiAnt DICOM Viewer, and GDCM. Update gap_audit.md with new gap IDs, updated parity matrix, and per-tool analysis.
+
+### Checklist items
+
+- [x] Audit confirmed RITK inventory from `lib.rs` / `mod.rs` entry points across all crates
+- [x] Research ITK 5.4.x capabilities: registration, segmentation, filtering, statistics, IO, architecture
+- [x] Research SimpleITK 2.5.x capabilities: Python API, filter surface, language bindings
+- [x] Research SimpleElastix / itk-elastix: ParameterMap API, metrics, optimizers, Transformix
+- [x] Research VTK 9.6.x capabilities: rendering, mesh, IO, GPU backends, Python, WebAssembly
+- [x] Research ITK-SNAP 4.4.0: segmentation workflow, DSS/AI, 4D support, Convert3D, Greedy
+- [x] Research 3D Slicer 5.x: DICOM networking, extension ecosystem, Python scripting, RT
+- [x] Research RadiAnt DICOM Viewer 2025.2: PACS, MPR, 3D VR, clinical measurements, codecs
+- [x] Research GDCM 3.2.6: tag dictionary, transfer syntax, networking, anonymization, DICOMDIR
+- [x] Write Sprint 262 section in `gap_audit.md`: §A–§G with confirmed inventory, parity matrix, per-tool analysis, 30 new gap IDs, updated parity summary, verification, residual risk
+- [x] Update `backlog.md` with Sprint 262 entry
+- [x] Update `checklist.md` with Sprint 262 entry
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-FLT-01 — FFT filter suite | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM SEG/RT IODs | High | Open |
+| GAP-262-IO-04 — DICOMweb | High | Open |
+| GAP-262-IO-05 — Mesh I/O | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-VIZ-02 — Surface mesh rendering | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline | High | Open |
+| GAP-262-SEG-01 — STAPLE ensemble | Medium | Open |
+| GAP-262-SEG-03 — GrowCut | Medium | Open |
+| GAP-262-FLT-04 — Volume projection filters | Medium | Open |
+| GAP-262-FLT-06 — Adaptive histogram equalization | Medium | Open |
+| GAP-262-STA-01 — LabelOverlapMeasures suite | Medium | Open |
+| GAP-262-STA-02 — Deformation field Jacobian | Medium | Open |
+| GAP-262-IO-03 — DICOM anonymization | Medium | Open |
+| GAP-262-IO-08 — Private tag round-trip | Medium | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+| GAP-262-APP-03 — 4D viewer | Medium | Open |
+
+
 ## Sprint 260 — Complete
 
 **Status**: Complete

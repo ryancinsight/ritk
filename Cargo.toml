@@ -40,7 +40,7 @@ ritk-vtk = { path = "crates/ritk-vtk" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
-gaia = { path = "../gaia", default-features = false }
+gaia = { path = "gaia", default-features = false }
 
 burn = { version = "0.19", default-features = false, features = ["wgpu", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
@@ -63,6 +63,8 @@ tempfile = "3.10" # For testing
 proptest = "1.0"
 walkdir = "2.4"
 charls = { version = "0.4", features = ["static"] }
+rustfft = "6.2"
+rand = "0.9"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.11", features = ["blocking", "stream"] }
 flate2 = "1.0"

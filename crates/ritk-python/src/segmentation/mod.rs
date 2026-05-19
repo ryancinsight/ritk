@@ -10,13 +10,16 @@
 //! - `morphology`: Binary erosion/dilation/opening/closing, fill holes, gradient, skeletonization.
 //! - `levelset`:   Chan-Vese, Geodesic Active Contour, Shape Detection, Threshold, Laplacian.
 //! - `growing`:    Connected-threshold, confidence-connected, neighbourhood-connected.
+//! - `ensemble`:   STAPLE EM consensus labeling and GrowCut interactive segmentation.
 
+mod ensemble;
 mod growing;
 mod labeling;
 mod levelset;
 mod morphology;
 mod threshold;
 
+pub use ensemble::*;
 pub use growing::*;
 pub use labeling::*;
 pub use levelset::*;
@@ -78,6 +81,10 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Skeletonization
     m.add_function(wrap_pyfunction!(skeletonization, &m)?)?;
+
+    // Ensemble
+    m.add_function(wrap_pyfunction!(staple_ensemble, &m)?)?;
+    m.add_function(wrap_pyfunction!(growcut_segment, &m)?)?;
 
     parent.add_submodule(&m)?;
     Ok(())

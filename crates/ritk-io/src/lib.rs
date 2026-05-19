@@ -9,19 +9,20 @@ pub use domain::{
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
-    dicom_seg_to_label_map, is_private_tag, is_rgb_dicom_series, label_map_to_dicom_seg,
-    load_dicom_color_series, load_dicom_multiframe, load_dicom_series,
-    load_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_series, read_dicom_seg,
-    read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose,
-    read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, write_dicom_multiframe,
-    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
-    write_dicom_seg, write_dicom_series, write_dicom_series_with_metadata, write_rt_dose,
-    write_rt_plan, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
-    DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
-    DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameWriterConfig, PatientPosition, RtBeamInfo, RtContour,
-    RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, TransferSyntaxKind,
-    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, dicom_seg_to_label_map,
+    is_private_tag, is_rgb_dicom_series, label_map_to_dicom_seg, load_dicom_color_series,
+    load_dicom_multiframe, load_dicom_series, load_dicom_series_with_metadata, model_to_in_mem,
+    read_dicom_color_series, read_dicom_seg, read_dicom_series, read_dicom_series_with_metadata,
+    read_multiframe_info, read_rt_dose, read_rt_plan, read_rt_struct, rt_roi_to_polydata,
+    scan_dicom_directory, write_dicom_multiframe, write_dicom_multiframe_with_config,
+    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
+    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, AnonymizationProfile,
+    AnonymizeOptions, AnonymizeStats, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
+    DicomPreservedElement, DicomReadMetadata, DicomSegmentInfo, DicomSegmentation,
+    DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomTag, DicomValue, DicomWriter,
+    MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameWriterConfig, PatientPosition, RtBeamInfo,
+    RtContour, RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, TagAction,
+    TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
@@ -42,4 +43,8 @@ pub use format::vtk::{mesh_to_vtk_string, write_mesh_as_vtk};
 pub use format::vtk::{read_vtk, write_vtk, VtkReader, VtkWriter};
 pub use format::vtk::{
     read_vtk_polydata, read_vtp_polydata, write_vtk_polydata, write_vtp_polydata,
+    read_obj_mesh, write_obj_mesh,
+    read_stl_mesh, write_stl_binary, write_stl_ascii,
+    read_ply_mesh, write_ply_ascii, write_ply_binary_le,
+    write_gltf,
 };

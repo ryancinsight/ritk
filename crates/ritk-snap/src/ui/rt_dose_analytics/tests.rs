@@ -54,10 +54,12 @@ fn compute_roi_dvh_uniform_dose_is_step_like() {
         &square_roi(),
         &uniform_dose_3x3(),
         1,
-        [1, 3, 3],
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        [1.0, 1.0, 1.0],
+        VolumeGeometry {
+            shape: [1, 3, 3],
+            origin: [0.0, 0.0, 0.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            spacing: [1.0, 1.0, 1.0],
+        },
         10,
     )
     .expect("analytics");
@@ -82,10 +84,12 @@ fn compute_roi_dvh_missing_roi_returns_none() {
         &square_roi(),
         &uniform_dose_3x3(),
         99,
-        [1, 3, 3],
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        [1.0, 1.0, 1.0],
+        VolumeGeometry {
+            shape: [1, 3, 3],
+            origin: [0.0, 0.0, 0.0],
+            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+            spacing: [1.0, 1.0, 1.0],
+        },
         10,
     );
     assert!(result.is_none());

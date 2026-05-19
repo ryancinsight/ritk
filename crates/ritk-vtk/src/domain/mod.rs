@@ -3,6 +3,7 @@
 pub mod vtk_data_object;
 pub mod vtk_pipeline;
 pub mod vtk_scene;
+pub mod mesh_bridge;
 
 pub use vtk_data_object::{
     AttributeArray, VtkCellType, VtkDataObject, VtkImageData, VtkPolyData, VtkStructuredGrid,

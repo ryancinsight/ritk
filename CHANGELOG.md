@@ -3,7 +3,34 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
-## [0.50.32] - 2026-05-19
+## [0.50.33] - 2026-05-19
+
+### Added [minor]
+
+- **gaia in-tree integration** (Sprint 267): cloned `gaia` into `D:\ritk\gaia` as a separate, independently-tracked git repo; updated workspace `Cargo.toml` path from `"../gaia"` to `"gaia"`; added `/gaia` to `.gitignore` so ritk's VCS does not absorb gaia commits.
+- `ritk-vtk::domain::mesh_bridge` — bidirectional bridge between `gaia::IndexedMesh<f64>` and `VtkPolyData`:
+  - `indexed_mesh_to_poly(mesh: &IndexedMesh) -> VtkPolyData`: emits welded vertices in VertexId sequential order; stores per-vertex normals in `point_data["Normals"]`.
+  - `poly_to_indexed_mesh(poly: &VtkPolyData) -> IndexedMesh`: fan-triangulates triangular polygons; applies VertexPool welding (1 nm tolerance); skips non-triangle cells and out-of-bounds indices.
+- `ritk-vtk::io::mesh_indexed` — gaia-native mesh I/O returning/consuming `IndexedMesh<f64>` directly:
+  - `read_stl_indexed` / `write_indexed_stl_binary` / `write_indexed_stl_ascii` (delegate to `gaia::infrastructure::io::stl`).
+  - `read_obj_indexed` / `write_indexed_obj` (delegate to `gaia::infrastructure::io::obj`).
+  - `read_ply_indexed` / `write_indexed_ply` (delegate to `gaia::infrastructure::io::ply`).
+  - `write_indexed_glb` (delegate to `gaia::infrastructure::io::gltf_export`).
+- `ritk-vtk/Cargo.toml`: added `gaia = { workspace = true }` and `nalgebra = { workspace = true }` dependencies.
+- `ARCHITECTURE.md §19 Gaia Meshing Boundary`: formal theorem, invariants, boundary surface, and proof obligation documenting the gaia-as-SSOT contract.
+- 13 new value-semantic tests: 7 in `domain::mesh_bridge::tests`, 6 in `io::mesh_indexed::tests`.
+
+### Fixed [patch]
+
+- Removed stale monolithic `crates/ritk-core/src/segmentation/clustering/slic.rs` (940 lines) that conflicted with the directory module `slic/mod.rs` via E0761. The `slic/` directory module is authoritative; `tests_slic.rs` was already co-located in `slic/`.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 new warnings
+- `cargo check -p gaia`: resolves from `D:\ritk\gaia` (in-tree clone confirmed)
+- `cargo test -p ritk-vtk --lib`: 177 passed (13 new bridge + mesh_indexed tests included)
+- `cargo test -p ritk-core --lib`: 1350 passed
+
 
 ### Changed [patch]
 

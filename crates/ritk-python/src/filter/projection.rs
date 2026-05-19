@@ -1,0 +1,180 @@
+//! Python-exposed intensity projection filters.
+//!
+//! All filters delegate to `ritk_core::filter::projection` (SSOT).
+//!
+//! # Output convention
+//!
+//! All projection functions return a 3-D PyImage where the projected axis has
+//! size 1. For example, maximum intensity projection along Z of a [D, H, W]
+//! image returns a [1, H, W] PyImage.
+
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{into_py_image, PyImage};
+use pyo3::prelude::*;
+use ritk_core::filter::projection::{
+    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
+};
+
+/// Parse an axis integer (0, 1, 2) into `ProjectionAxis`.
+fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
+    match axis {
+        0 => Ok(ProjectionAxis::Z),
+        1 => Ok(ProjectionAxis::Y),
+        2 => Ok(ProjectionAxis::X),
+        other => Err(RitkPyError::value(format!(
+            "projection axis must be 0 (Z), 1 (Y), or 2 (X); got {other}"
+        ))),
+    }
+}
+
+/// Maximum intensity projection along a spatial axis.
+///
+/// Reduces the image along `axis` by taking the maximum voxel value. The
+/// output has size 1 along the projected axis.
+///
+/// Args:
+///     image: Input PyImage [D, H, W].
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///
+/// Returns:
+///     Projected PyImage with size 1 along `axis`.
+///
+/// Raises:
+///     ValueError:   if `axis` is not 0, 1, or 2.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn max_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MaxIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Minimum intensity projection along a spatial axis.
+///
+/// Args:
+///     image: Input PyImage [D, H, W].
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///
+/// Returns:
+///     Projected PyImage with size 1 along `axis`.
+///
+/// Raises:
+///     ValueError:   if `axis` is not 0, 1, or 2.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn min_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MinIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Mean intensity projection along a spatial axis.
+///
+/// Args:
+///     image: Input PyImage [D, H, W].
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///
+/// Returns:
+///     Projected PyImage with size 1 along `axis`.
+///
+/// Raises:
+///     ValueError:   if `axis` is not 0, 1, or 2.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn mean_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        MeanIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Sum intensity projection along a spatial axis.
+///
+/// Args:
+///     image: Input PyImage [D, H, W].
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///
+/// Returns:
+///     Projected PyImage with size 1 along `axis`.
+///
+/// Raises:
+///     ValueError:   if `axis` is not 0, 1, or 2.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn sum_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        SumIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}
+
+/// Standard-deviation intensity projection along a spatial axis.
+///
+/// Computes the per-pixel population standard deviation across the projected
+/// axis. Useful for temporal or motion variability analysis.
+///
+/// Args:
+///     image: Input PyImage [D, H, W].
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///
+/// Returns:
+///     Projected PyImage with size 1 along `axis`.
+///
+/// Raises:
+///     ValueError:   if `axis` is not 0, 1, or 2.
+///     RuntimeError: on internal computation failure.
+#[pyfunction]
+#[pyo3(signature = (image, axis=0))]
+pub fn stddev_intensity_projection(
+    py: Python<'_>,
+    image: &PyImage,
+    axis: usize,
+) -> RitkResult<PyImage> {
+    let ax = parse_axis(axis)?;
+    let image = std::sync::Arc::clone(&image.inner);
+    py.allow_threads(|| {
+        StdDevIntensityProjectionFilter::new(ax)
+            .apply(image.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
+}

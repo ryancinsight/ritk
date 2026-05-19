@@ -20,4 +20,15 @@ pub use io::{
     write_vti_image_data, write_vti_str, write_vtk, write_vtk_polydata, write_vtk_structured_grid,
     write_vtk_unstructured_grid, write_vtp_polydata, write_vtu_str, write_vtu_unstructured_grid,
     VtkReader, VtkWriter,
+    read_obj_mesh, write_obj_mesh,
+    read_stl_mesh, write_stl_binary, write_stl_ascii,
+    read_ply_mesh, write_ply_ascii, write_ply_binary_le,
+    write_gltf,
+    // Gaia-native indexed-mesh I/O (welded, watertight IndexedMesh<f64>)
+    read_stl_indexed, write_indexed_stl_binary, write_indexed_stl_ascii,
+    read_obj_indexed, write_indexed_obj,
+    read_ply_indexed, write_indexed_ply,
+    write_indexed_glb,
 };
+
+pub use domain::mesh_bridge::{indexed_mesh_to_poly, poly_to_indexed_mesh};

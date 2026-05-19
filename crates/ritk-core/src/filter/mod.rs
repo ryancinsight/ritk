@@ -1,17 +1,21 @@
 pub mod bias;
 pub mod bilateral;
 pub mod cpr;
+pub mod deconvolution;
 pub mod diffusion;
 pub mod discrete_gaussian;
 pub mod distance;
 pub mod downsample;
 pub mod edge;
+pub mod fft;
 pub mod gaussian;
 pub mod intensity;
 pub mod labeling;
 pub mod median;
 pub mod morphology;
+pub mod noise;
 pub(crate) mod ops;
+pub mod projection;
 pub mod pyramid;
 pub mod recursive_gaussian;
 pub mod resample;
@@ -36,6 +40,15 @@ pub use edge::{
     CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
     SobelFilter,
 };
+pub use fft::{
+    FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,
+    FftNormalizedCorrelationFilter, FftShiftFilter, ForwardFftFilter, FrequencyDomainFilter,
+    InverseFftFilter,
+};
+pub use deconvolution::{
+    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution,
+    WienerDeconvolution,
+};
 pub use gaussian::GaussianFilter;
 pub use intensity::{
     AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
@@ -53,6 +66,9 @@ pub use labeling::{
     RelabelStatistics,
 };
 pub use median::MedianFilter;
+pub use noise::{
+    AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
+};
 pub use morphology::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
@@ -61,6 +77,10 @@ pub use morphology::{
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform, LabelClosing,
     LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
     MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
+};
+pub use projection::{
+    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
 pub use recursive_gaussian::RecursiveGaussianFilter;

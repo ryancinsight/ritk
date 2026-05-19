@@ -27,6 +27,7 @@ pub(crate) mod state;
 mod surface_export;
 mod toolbar;
 mod viewport;
+mod viewport_compare;
 mod viewport_render;
 mod volume_ops;
 mod volume_state;
