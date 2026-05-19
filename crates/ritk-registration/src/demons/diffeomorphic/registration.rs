@@ -2,10 +2,10 @@
 
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
-use super::super::thirion::thirion_forces;
+use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring,
-    warp_image,
+    warp_image, VectorField3D, VectorFieldMut3D,
 };
 use crate::error::RegistrationError;
 
@@ -79,6 +79,9 @@ impl DiffeomorphicDemonsRegistration {
         let mut vel_z = vec![0.0_f32; n];
         let mut vel_y = vec![0.0_f32; n];
         let mut vel_x = vec![0.0_f32; n];
+        let mut fz = vec![0.0_f32; n];
+        let mut fy = vec![0.0_f32; n];
+        let mut fx = vec![0.0_f32; n];
 
         let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
 
@@ -101,13 +104,20 @@ impl DiffeomorphicDemonsRegistration {
 
             let m_warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
 
-            let (fz, fy, fx) = thirion_forces(
+            thirion_forces_into(
                 fixed,
                 &m_warped,
-                &grad_z,
-                &grad_y,
-                &grad_x,
+                VectorField3D {
+                    z: &grad_z,
+                    y: &grad_y,
+                    x: &grad_x,
+                },
                 self.config.max_step_length,
+                VectorFieldMut3D {
+                    z: &mut fz,
+                    y: &mut fy,
+                    x: &mut fx,
+                },
             );
 
             for i in 0..n {

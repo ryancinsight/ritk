@@ -2,6 +2,7 @@
 
 use crate::deformable_field_ops::{warp_image, VectorField3D, VectorFieldMut3D};
 
+#[allow(dead_code)]
 /// Compute MSE = mean((F(p) − M_w(p))²) where M_w = warp(M, D).
 pub(super) fn compute_mse(
     fixed: &[f32],
@@ -24,6 +25,7 @@ pub(super) fn compute_mse(
 ///
 /// Returns `(fz, fy, fx)` force components. Forces whose magnitude exceeds
 /// `max_step_length` are rescaled.
+#[cfg(test)]
 pub fn thirion_forces(
     fixed: &[f32],
     m_warped: &[f32],
@@ -57,7 +59,7 @@ pub fn thirion_forces(
 }
 
 /// Compute optical-flow Thirion forces into caller-provided buffers.
-pub(super) fn thirion_forces_into(
+pub(crate) fn thirion_forces_into(
     fixed: &[f32],
     m_warped: &[f32],
     grad: VectorField3D<'_>,

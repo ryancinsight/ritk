@@ -9,7 +9,7 @@ use crate::render::fusion::{render_fused_slice, FusedSliceParams};
 use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
-use crate::ui::{apply_to_image, should_zoom_with_scroll, zoom_from_scroll};
+use crate::ui::{apply_to_image_into, should_zoom_with_scroll, zoom_from_scroll};
 
 impl SnapApp {
     /// Render one MPR viewport for the given `axis` into `ui`.
@@ -412,8 +412,7 @@ impl SnapApp {
                         self.compare_fusion_alpha,
                     );
 
-                    let color_image = apply_to_image(&color_image, self.view_transform);
-
+                    let color_image = apply_to_image_into(&mut self.render_buffer_pool, &color_image, self.view_transform);
                     let tex_name = format!(
                         "slice_tex_fused_axis{}_{}_slice{}_{}_a{}",
                         primary_axis.min(2),

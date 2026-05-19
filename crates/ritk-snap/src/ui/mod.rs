@@ -87,15 +87,19 @@ pub use pan::pan_from_drag_delta;
 pub use pet_suv_panel::{draw_pet_suv_panel, PetSuvPanelAction};
 pub use pointer_intensity::intensity_at_voxel;
 pub use preset_panel::draw_preset_buttons;
-pub use rt_dose_analytics::{compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics, VolumeGeometry};
+pub use rt_dose_analytics::{
+    compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics, VolumeGeometry,
+};
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
 pub use tool_shortcuts::tool_kind_for_key;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub use view_transform::{
-    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
+    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps,
+    ViewTransform,
 };
+pub(crate) use view_transform::apply_to_image_into;
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_level::MIN_WINDOW_WIDTH;
 pub use window_level::{

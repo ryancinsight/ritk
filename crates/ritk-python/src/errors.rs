@@ -15,7 +15,14 @@ use pyo3::prelude::*;
 /// Opaque wrapper around `PyErr` that makes `From<RitkPyError> for PyErr`
 /// a non-identity conversion, silencing `clippy::useless_conversion` in
 /// PyO3-generated `#[pyfunction]` / `#[pymethods]` wrappers.
+#[derive(Debug)]
 pub struct RitkPyError(PyErr);
+
+impl std::fmt::Display for RitkPyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(&self.0, f)
+    }
+}
 
 impl From<RitkPyError> for PyErr {
     #[inline]

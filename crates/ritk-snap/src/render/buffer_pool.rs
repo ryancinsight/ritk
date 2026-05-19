@@ -13,12 +13,17 @@
 //!
 //! ## Eliminated allocations per dirty-texture rebuild
 //!
-//! | Call site                        | Eliminated scratch alloc        |
+//! | Call site | Eliminated scratch alloc |
 //! |----------------------------------|---------------------------------|
 //! | `SliceRenderer::render_with_scratch` | `Vec<f32>` from `extract_slice` |
-//! | `SliceRenderer::render_with_scratch` | `Vec<u8>` RGBA intermediate     |
-//! | `render_mip_axial_with_scratch`  | `Vec<u8>` RGBA intermediate     |
-//! | `render_vr_axial_with_scratch`   | `Vec<u8>` RGBA intermediate     |
+//! | `SliceRenderer::render_with_scratch` | `Vec<u8>` RGBA intermediate |
+//! | `render_mip_axial_with_scratch` | `Vec<u8>` RGBA intermediate |
+//! | `render_vr_axial_with_scratch` | `Vec<u8>` RGBA intermediate |
+//! | `apply_to_image_into` | `Vec<Color32>` for transform output |
+//!
+//! The `color32` scratch buffer allows viewport orientation transforms
+//! (flip/rotate) to write their output into pre-allocated memory instead
+//! of allocating a new `Vec<Color32>` per transform step.
 
 /// Pre-allocated scratch buffers eliminating per-frame heap allocation on the
 /// slice-render hot path.
@@ -27,6 +32,7 @@
 ///
 /// - `pixel_f32.len()` equals the most-recently-requested `f32` length.
 /// - `rgba_u8.len()` equals the most-recently-requested `u8` length.
+/// - `color32.len()` equals the most-recently-requested `Color32` length.
 /// - `Vec::capacity` is monotone non-decreasing; `Vec::resize` extends when
 ///   needed and reuses without shrinking otherwise.
 #[derive(Debug, Default)]
@@ -35,6 +41,8 @@ pub(crate) struct RenderBufferPool {
     pub(crate) pixel_f32: Vec<f32>,
     /// u8 scratch for RGBA intermediate encoding.
     pub(crate) rgba_u8: Vec<u8>,
+    /// Color32 scratch for viewport orientation transform output.
+    pub(crate) color32: Vec<egui::Color32>,
 }
 
 impl RenderBufferPool {
@@ -44,6 +52,14 @@ impl RenderBufferPool {
     #[inline]
     pub(crate) fn resize_u8(&mut self, len: usize) {
         self.rgba_u8.resize(len, 0_u8);
+    }
+
+    /// Resize `color32` to exactly `len` elements, reusing existing capacity.
+    ///
+    /// Elements beyond the previous length are set to `Color32::BLACK`.
+    #[inline]
+    pub(crate) fn resize_color32(&mut self, len: usize) {
+        self.color32.resize(len, egui::Color32::BLACK);
     }
 }
 
@@ -256,5 +272,34 @@ mod tests {
             actual.pixels, expected.pixels,
             "MIP scratch render must produce pixel-identical output"
         );
+        }
+
+        /// `resize_color32` must preserve monotone capacity invariant.
+        ///
+        /// Analytical: after resize(200), capacity ≥ 200 → subsequent resize(50)
+        /// must not shrink capacity.
+        #[test]
+        fn test_resize_color32_capacity_monotone() {
+            let mut pool = RenderBufferPool::default();
+            pool.resize_color32(200);
+            let cap_at_200 = pool.color32.capacity();
+            assert!(cap_at_200 >= 200, "capacity must be ≥ 200 after resize(200)");
+            pool.resize_color32(50);
+            assert!(
+                pool.color32.capacity() >= cap_at_200,
+                "capacity must not shrink when resize requests a smaller length"
+            );
+            assert_eq!(pool.color32.len(), 50, "len must equal the new requested size");
+        }
+
+        /// New elements added by `resize_color32` must be initialized to BLACK.
+        #[test]
+        fn test_resize_color32_new_elements_black() {
+            let mut pool = RenderBufferPool::default();
+            pool.resize_color32(4);
+            assert!(
+                pool.color32.iter().all(|&v| v == egui::Color32::BLACK),
+                "all newly allocated Color32 elements must be BLACK"
+            );
+        }
     }
-}

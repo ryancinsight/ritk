@@ -2,7 +2,7 @@ use super::state::ProjectionMode;
 use super::state::SnapApp;
 use crate::render::mip_vr::{render_mip_axial_with_scratch, render_vr_axial_with_scratch};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
-use crate::ui::apply_to_image;
+use crate::ui::apply_to_image_into;
 
 impl SnapApp {
     pub(crate) fn rebuild_texture_for_axis(&mut self, ctx: &egui::Context, axis: usize) {
@@ -32,7 +32,7 @@ impl SnapApp {
                 self.colormap,
             );
             // Apply viewport orientation transform (flip/rotate) before GPU upload.
-            let img = apply_to_image(&img, self.view_transform);
+            let img = apply_to_image_into(&mut self.render_buffer_pool, &img, self.view_transform);
             (img, name)
         };
         // immutable borrow of self.loaded released here
@@ -169,7 +169,7 @@ impl SnapApp {
                 wl,
                 self.secondary_colormap,
             );
-            let img = apply_to_image(&img, self.view_transform);
+            let img = apply_to_image_into(&mut self.render_buffer_pool, &img, self.view_transform);
             (img, name)
         };
         self.secondary_texture =

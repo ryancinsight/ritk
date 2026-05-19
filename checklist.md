@@ -1,9 +1,61 @@
-## Sprint 258 — Complete
+## Sprint 260 — Complete
 
 **Status**: Complete
-**Phase**: Execution → Structural / Maintenance
-**Version**: 0.50.30 [patch]
-**Target**: GAP-251-STR-01 — Close final 2 near-limit files + fix 4 pre-existing API call-site errors in `ritk-snap`.
+**Phase**: Execution → Structural
+**Version**: 0.50.32 [patch]
+**Target**: Partition the remaining structural violations in `ritk-python` registration bindings and `ritk-core` neighborhood-connected tests.
+
+### Checklist items
+
+- [x] Partition `ritk-python/src/registration/syn.rs` into `syn/` directory modules (`mod.rs`, `shared.rs`, `greedy.rs`, `multires.rs`, `bspline_ffd.rs`, `bspline_syn.rs`, `lddmm.rs`)
+- [x] Partition `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` into `tests_neighborhood_connected/` directory modules (`mod.rs`, `tests.rs`, `positive.rs`, `negative.rs`, `structural.rs`, `predicate.rs`, `adversarial.rs`)
+- [x] Update `neighborhood_connected.rs` to load the new directory-based test module
+- [x] Verify `cargo check -p ritk-python -p ritk-core --lib` — 0 errors, 1 pre-existing warning (`validate_num_bins` in `metrics/mod.rs`)
+- [x] Verify `cargo test -p ritk-core --lib neighborhood_connected` — 22 passed
+- [x] Update CHANGELOG.md, backlog.md, checklist.md, gap_audit.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| Structural violations (>500 lines) | None | Zero |
+
+
+
+## Sprint 259 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Closure
+**Version**: 0.50.31 [patch]
+**Target**: Resolve E0761 conflicts and ritk-registration compilation blockers. Implement missing `_into` functions.
+
+### Checklist items
+
+- [x] Delete `commands/filter.rs` (1947 lines) — E0761 conflict with `filter/mod.rs`
+- [x] Delete `commands/register.rs` (1893 lines) — E0761 conflict with `register/mod.rs`
+- [x] Implement `scaling_and_squaring_into` in `integrate.rs` with ping-pong scratch buffers
+- [x] Implement `epdiff_adjoint_into` in `adjoint.rs` using `VectorFieldMut3D`
+- [x] Implement `integrate_geodesic_into` in `geodesic.rs` with 13 caller-provided scratch buffers
+- [x] Restore `#[cfg(test)]` on `compose_fields` in `compose.rs` (no production callers)
+- [x] Restore `#[cfg(test)]` on `cc_forces` in `local_cc/forces.rs` (no production callers)
+- [x] Gate `thirion_forces` with `#[cfg(test)]` in `thirion/forces.rs`
+- [x] Gate `integrate_geodesic` with `#[cfg(test)]` in `geodesic.rs`
+- [x] Add differential equivalence test `scaling_and_squaring_into_matches_allocating`
+- [x] Verify `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] Verify `cargo check -p ritk-cli`: 0 errors, 0 warnings
+- [x] Verify `cargo test -p ritk-registration --lib`: 285 passed, 0 failed
+- [x] Verify `cargo test -p ritk-cli`: 200 passed, 0 failed
+- [x] Update CHANGELOG.md, backlog.md, checklist.md
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-259-STR-01: `syn.rs` (690 lines) structural violation | High | Open |
+| GAP-259-STR-02: `tests_neighborhood_connected.rs` (660 lines) structural violation | High | Open |
+| ~16 near-limit files (420–499 lines) | Medium | Open |
+
+
 
 ### Checklist items
 

@@ -1,6 +1,6 @@
 //! EPDiff coadjoint operator ad*_v(m).
 
-use crate::deformable_field_ops::{flat, VectorField3D};
+use crate::deformable_field_ops::{flat, VectorField3D, VectorFieldMut3D};
 
 /// Compute the EPDiff coadjoint operator ad\*\_v(m).
 ///
@@ -10,31 +10,50 @@ use crate::deformable_field_ops::{flat, VectorField3D};
 ///
 /// Derivatives use central differences at interior voxels and one-sided
 /// differences at boundaries, consistent with [`compute_gradient`].
+#[cfg(test)]
 pub(super) fn epdiff_adjoint(
     v: VectorField3D<'_>,
     m: VectorField3D<'_>,
     dims: [usize; 3],
     spacing: [f64; 3],
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let VectorField3D {
-        z: vz,
-        y: vy,
-        x: vx,
-    } = v;
-    let VectorField3D {
-        z: mz,
-        y: my,
-        x: mx,
-    } = m;
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let sz = spacing[0] as f32;
-    let sy = spacing[1] as f32;
-    let sx = spacing[2] as f32;
-
     let mut ad_z = vec![0.0_f32; n];
     let mut ad_y = vec![0.0_f32; n];
     let mut ad_x = vec![0.0_f32; n];
+    epdiff_adjoint_into(
+        v,
+        m,
+        dims,
+        spacing,
+        VectorFieldMut3D {
+            z: &mut ad_z,
+            y: &mut ad_y,
+            x: &mut ad_x,
+        },
+    );
+    (ad_z, ad_y, ad_x)
+}
+
+/// Zero-allocation variant of [`epdiff_adjoint`].
+///
+/// Writes the result directly into `out` instead of allocating new `Vec`s.
+/// `out` must have the same length as `v.z` (i.e. `dims[0]*dims[1]*dims[2]`).
+pub(super) fn epdiff_adjoint_into(
+    v: VectorField3D<'_>,
+    m: VectorField3D<'_>,
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    out: VectorFieldMut3D<'_>,
+) {
+    let VectorField3D { z: vz, y: vy, x: vx } = v;
+    let VectorField3D { z: mz, y: my, x: mx } = m;
+    let VectorFieldMut3D { z: ad_z, y: ad_y, x: ad_x } = out;
+    let [nz, ny, nx] = dims;
+    let sz = spacing[0] as f32;
+    let sy = spacing[1] as f32;
+    let sx = spacing[2] as f32;
 
     for iz in 0..nz {
         for iy in 0..ny {
@@ -106,6 +125,4 @@ pub(super) fn epdiff_adjoint(
             }
         }
     }
-
-    (ad_z, ad_y, ad_x)
 }

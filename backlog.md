@@ -1,9 +1,72 @@
-## Sprint 258 — Complete
+## Sprint 260 — Complete
 
 **Status**: Complete
-**Phase**: Execution → Structural / Maintenance
-**Version**: 0.50.30 [patch]
-**Goal**: GAP-251-STR-01 — Close final 2 near-limit files; repair 4 pre-existing API call-site errors.
+**Phase**: Execution → Structural
+**Version**: 0.50.32 [patch]
+**Goal**: Partition the remaining structural violations in `ritk-python` registration bindings and `ritk-core` neighborhood-connected tests.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-260-STR-01 | `ritk-python/src/registration/syn.rs` structural violation | **Closed** |
+| GAP-260-STR-02 | `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` structural violation | **Closed** |
+
+### Delivered
+
+- ⟳ `ritk-python/src/registration/syn.rs` → `syn/mod.rs`, `syn/shared.rs`, `syn/greedy.rs`, `syn/multires.rs`, `syn/bspline_ffd.rs`, `syn/bspline_syn.rs`, `syn/lddmm.rs`
+- ⟳ `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` → `tests_neighborhood_connected/mod.rs`, `tests.rs`, `positive.rs`, `negative.rs`, `structural.rs`, `predicate.rs`, `adversarial.rs`
+- ⟳ `neighborhood_connected.rs`: updated nested test-module path to the directory layout
+- ✓ Verification: `cargo check -p ritk-python -p ritk-core --lib` — 0 errors, 1 pre-existing warning (`validate_num_bins` in `metrics/mod.rs`)
+- ✓ Verification: `cargo test -p ritk-core --lib neighborhood_connected` — 22 passed
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| Structural violations (>500 lines) | None | Zero |
+
+
+
+
+## Sprint 259 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Closure
+**Version**: 0.50.31 [patch]
+**Goal**: Resolve pre-existing ritk-cli E0761 conflicts and ritk-registration compilation blockers from incomplete Sprint 248 migration. Implement missing `_into` functions.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-259-BLD-01 | ritk-cli E0761: stale `filter.rs`/`register.rs` blocking build | **Closed** |
+| GAP-259-REG-01 | ritk-registration: `scaling_and_squaring_into` not implemented | **Closed** |
+| GAP-259-REG-02 | ritk-registration: `epdiff_adjoint_into` not implemented | **Closed** |
+| GAP-259-REG-03 | ritk-registration: `integrate_geodesic_into` not implemented | **Closed** |
+| GAP-259-REG-04 | ritk-registration: test-only functions incorrectly un-gated | **Closed** |
+
+### Delivered
+
+- ⟳ Deleted `ritk-cli/commands/filter.rs` (1947 lines, E0761 conflict)
+- ⟳ Deleted `ritk-cli/commands/register.rs` (1893 lines, E0761 conflict)
+- ⟳ `integrate.rs`: `scaling_and_squaring_into` — zero-alloc scaling-and-squaring with caller ping-pong buffers
+- ⟳ `adjoint.rs`: `epdiff_adjoint_into` — writes into `VectorFieldMut3D`, `epdiff_adjoint` delegates to it
+- ⟳ `geodesic.rs`: `integrate_geodesic_into` — 13-buffer zero-alloc geodesic integration (production); `integrate_geodesic` gated `#[cfg(test)]`
+- ⟳ `compose.rs`: `compose_fields` re-gated `#[cfg(test)]` — no production callers exist
+- ⟳ `local_cc/forces.rs`: `cc_forces` re-gated `#[cfg(test)]` — no production callers exist
+- ⟳ `thirion/forces.rs`: `thirion_forces` gated `#[cfg(test)]` — all production callers use `thirion_forces_into`
+- ⟳ Test: `scaling_and_squaring_into_matches_allocating` — differential equivalence assertion
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-259-STR-01 | `ritk-python/src/registration/syn.rs` (690 lines) — structural violation >500 | High |
+| GAP-259-STR-02 | `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` (660 lines) — structural violation >500 | High |
+| GAP-251-STR-01 | ~16 files in 420–499 line range — monitor and partition as needed | Medium |
+
+
 
 ### Gaps closed
 

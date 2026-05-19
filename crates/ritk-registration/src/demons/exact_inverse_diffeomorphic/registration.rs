@@ -2,11 +2,11 @@
 
 use super::super::config::DemonsConfig;
 use super::super::inverse::invert_velocity_field;
-use super::super::thirion::thirion_forces;
+use super::super::thirion::thirion_forces_into;
 use super::ic_residual::compute_ic_residual;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring,
-    warp_image,
+    warp_image, VectorField3D, VectorFieldMut3D,
 };
 use crate::error::RegistrationError;
 
@@ -123,6 +123,12 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         let mut vel_z = vec![0.0_f32; n];
         let mut vel_y = vec![0.0_f32; n];
         let mut vel_x = vec![0.0_f32; n];
+        let mut fz_fwd = vec![0.0_f32; n];
+        let mut fy_fwd = vec![0.0_f32; n];
+        let mut fx_fwd = vec![0.0_f32; n];
+        let mut fz_bwd = vec![0.0_f32; n];
+        let mut fy_bwd = vec![0.0_f32; n];
+        let mut fx_bwd = vec![0.0_f32; n];
 
         let mut final_mse: f64 = fixed
             .iter()
@@ -148,10 +154,36 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             let m_warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
             let f_warped = warp_image(fixed, dims, &psi_z, &psi_y, &psi_x);
 
-            let (fz_fwd, fy_fwd, fx_fwd) =
-                thirion_forces(fixed, &m_warped, &gf_z, &gf_y, &gf_x, cfg.max_step_length);
-            let (fz_bwd, fy_bwd, fx_bwd) =
-                thirion_forces(moving, &f_warped, &gm_z, &gm_y, &gm_x, cfg.max_step_length);
+            thirion_forces_into(
+                fixed,
+                &m_warped,
+                VectorField3D {
+                    z: &gf_z,
+                    y: &gf_y,
+                    x: &gf_x,
+                },
+                cfg.max_step_length,
+                VectorFieldMut3D {
+                    z: &mut fz_fwd,
+                    y: &mut fy_fwd,
+                    x: &mut fx_fwd,
+                },
+            );
+            thirion_forces_into(
+                moving,
+                &f_warped,
+                VectorField3D {
+                    z: &gm_z,
+                    y: &gm_y,
+                    x: &gm_x,
+                },
+                cfg.max_step_length,
+                VectorFieldMut3D {
+                    z: &mut fz_bwd,
+                    y: &mut fy_bwd,
+                    x: &mut fx_bwd,
+                },
+            );
 
             let w_fwd = (1.0 - w) as f32;
             let w_bwd = w as f32;

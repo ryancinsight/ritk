@@ -47,13 +47,14 @@
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
-    compose_fields, compute_gradient, gaussian_smooth_inplace, scaling_and_squaring, warp_image,
+    compose_fields_into, compute_gradient, gaussian_smooth_inplace, scaling_and_squaring,
+    warp_image, VectorField3D, VectorFieldMut3D,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
 
 use self::pyramid::{downsample, upsample_field};
-use super::local_cc::{cc_forces, mean_local_cc};
+use super::local_cc::{cc_forces_into, mean_local_cc};
 
 pub(crate) mod pyramid;
 
@@ -162,6 +163,18 @@ impl MultiResSyNRegistration {
                 spacing[2] * factor as f64,
             ];
             let ln = ld[0] * ld[1] * ld[2];
+            let mut u1z = vec![0.0_f32; ln];
+            let mut u1y = vec![0.0_f32; ln];
+            let mut u1x = vec![0.0_f32; ln];
+            let mut u2z = vec![0.0_f32; ln];
+            let mut u2y = vec![0.0_f32; ln];
+            let mut u2x = vec![0.0_f32; ln];
+            let mut c1z = vec![0.0_f32; ln];
+            let mut c1y = vec![0.0_f32; ln];
+            let mut c1x = vec![0.0_f32; ln];
+            let mut c2z = vec![0.0_f32; ln];
+            let mut c2y = vec![0.0_f32; ln];
+            let mut c2x = vec![0.0_f32; ln];
 
             let f_ds = if factor > 1 {
                 downsample(fixed, dims, factor)
@@ -208,8 +221,8 @@ impl MultiResSyNRegistration {
                 let j_w = warp_image(&m_ds, ld, &p2z, &p2y, &p2x);
                 let (giz, giy, gix) = compute_gradient(&i_w, ld, ls);
                 let (gjz, gjy, gjx) = compute_gradient(&j_w, ld, ls);
-                let (u1z, u1y, u1x) = cc_forces(&i_w, &j_w, &giz, &giy, &gix, ld, r);
-                let (u2z, u2y, u2x) = cc_forces(&j_w, &i_w, &gjz, &gjy, &gjx, ld, r);
+                cc_forces_into(&i_w, &j_w, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x);
+                cc_forces_into(&j_w, &i_w, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x);
 
                 let max_u1 = u1z
                     .iter()
@@ -217,7 +230,6 @@ impl MultiResSyNRegistration {
                     .chain(u1x.iter())
                     .map(|&v| (v as f64).abs())
                     .fold(0.0_f64, f64::max);
-                let (mut u1z, mut u1y, mut u1x) = (u1z, u1y, u1x);
                 if max_u1 > 1e-10 {
                     let s = (self.config.gradient_step / max_u1) as f32;
                     u1z.iter_mut().for_each(|v| *v *= s);
@@ -230,7 +242,6 @@ impl MultiResSyNRegistration {
                     .chain(u2x.iter())
                     .map(|&v| (v as f64).abs())
                     .fold(0.0_f64, f64::max);
-                let (mut u2z, mut u2y, mut u2x) = (u2z, u2y, u2x);
                 if max_u2 > 1e-10 {
                     let s = (self.config.gradient_step / max_u2) as f32;
                     u2z.iter_mut().for_each(|v| *v *= s);
@@ -255,8 +266,18 @@ impl MultiResSyNRegistration {
                     gaussian_smooth_inplace(&mut v2x, ld, self.config.sigma_smooth);
                 }
                 if self.config.enforce_inverse_consistency {
-                    let (c1z, c1y, c1x) = compose_fields(&v1z, &v1y, &v1x, &v2z, &v2y, &v2x, ld);
-                    let (c2z, c2y, c2x) = compose_fields(&v2z, &v2y, &v2x, &v1z, &v1y, &v1x, ld);
+                    compose_fields_into(
+                        VectorField3D { z: &v1z, y: &v1y, x: &v1x },
+                        VectorField3D { z: &v2z, y: &v2y, x: &v2x },
+                        ld,
+                        VectorFieldMut3D { z: &mut c1z, y: &mut c1y, x: &mut c1x },
+                    );
+                    compose_fields_into(
+                        VectorField3D { z: &v2z, y: &v2y, x: &v2x },
+                        VectorField3D { z: &v1z, y: &v1y, x: &v1x },
+                        ld,
+                        VectorFieldMut3D { z: &mut c2z, y: &mut c2y, x: &mut c2x },
+                    );
                     for i in 0..ln {
                         v1z[i] = (v1z[i] - c1z[i]) * 0.5;
                         v1y[i] = (v1y[i] - c1y[i]) * 0.5;

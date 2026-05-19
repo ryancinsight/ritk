@@ -328,5 +328,5 @@ fn grow_neighborhood(
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "tests_neighborhood_connected.rs"]
+#[path = "tests_neighborhood_connected/mod.rs"]
 mod tests_neighborhood_connected;

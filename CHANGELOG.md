@@ -3,6 +3,47 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.32] - 2026-05-19
+
+### Changed [patch]
+
+- Partitioned `ritk-python/src/registration/syn.rs` into the `syn/` directory module:
+  - `syn/mod.rs`, `syn/shared.rs`, `syn/greedy.rs`, `syn/multires.rs`, `syn/bspline_ffd.rs`, `syn/bspline_syn.rs`, `syn/lddmm.rs`.
+  - Preserved the public PyO3 binding surface while moving each registration family into a leaf module.
+- Partitioned `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` into the `tests_neighborhood_connected/` directory module:
+  - `tests_neighborhood_connected/mod.rs`, `tests.rs`, `positive.rs`, `negative.rs`, `structural.rs`, `predicate.rs`, `adversarial.rs`.
+  - Preserved all neighborhood-connected assertions while splitting them by test theme.
+- Updated `neighborhood_connected.rs` to load the new directory-based test module.
+
+### Verification
+
+- `cargo check -p ritk-python -p ritk-core --lib`: 0 errors, 1 pre-existing warning (`validate_num_bins` in `metrics/mod.rs`)
+- `cargo test -p ritk-core --lib neighborhood_connected`: 22 passed
+
+## [0.50.31] - 2026-05-19
+
+### Fixed [patch]
+
+- **ritk-cli E0761 — deleted stale monolithic files that conflicted with directory modules** (Sprint 259):
+  - `commands/filter.rs` (1947 lines) deleted; `commands/filter/mod.rs` + sub-modules are authoritative.
+  - `commands/register.rs` (1893 lines) deleted; `commands/register/mod.rs` + sub-modules are authoritative.
+- **ritk-registration — resolved 6 compilation blockers** (incomplete Sprint 248 migration):
+  - `deformable_field_ops/integrate.rs`: implemented `scaling_and_squaring_into` (zero-allocation, caller-provided ping-pong buffers; differential equivalence test added).
+  - `lddmm/adjoint.rs`: implemented `epdiff_adjoint_into` writing into `VectorFieldMut3D` output (replaces allocating `epdiff_adjoint` in production paths; `epdiff_adjoint` retained as `#[cfg(test)]` reference).
+  - `lddmm/geodesic.rs`: implemented `integrate_geodesic_into` (zero-allocation geodesic integration; 13 caller-provided scratch buffers; `integrate_geodesic` retained as `#[cfg(test)]` reference).
+  - `deformable_field_ops/compose.rs`: restored `#[cfg(test)]` gate on `compose_fields` (all production callers confirmed to use `compose_fields_into`).
+  - `diffeomorphic/local_cc/forces.rs`: restored `#[cfg(test)]` gate on `cc_forces` (all production callers use `cc_forces_into`).
+  - `demons/thirion/forces.rs`: gated `thirion_forces` with `#[cfg(test)]` (all production callers use `thirion_forces_into`).
+  - `lddmm/geodesic.rs`: gated `integrate_geodesic` and its test-only imports with `#[cfg(test)]`.
+
+### Verification
+
+- `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- `cargo check -p ritk-cli`: 0 errors, 0 warnings
+- `cargo test -p ritk-registration --lib`: 285 passed, 0 failed
+- `cargo test -p ritk-cli`: 200 passed, 0 failed
+
+
 ## [0.50.30] - 2026-05-18
 
 ### Added [patch]

@@ -1,5 +1,28 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 260 Audit — 2026-05-19
+
+### GAP-260-STR-01 / GAP-260-STR-02 Closed — Partition of 2 Structural Files
+
+| File | Before | After (prod) | After (tests) | Strategy |
+|---|---:|---:|---:|---|
+| `ritk-python/src/registration/syn.rs` | 690 | 37 (`syn/mod.rs`) | 108 (`syn/shared.rs`) + 71 + 91 + 80 + 83 + 77 | Directory module with one file per registration family |
+| `ritk-core/src/segmentation/region_growing/tests_neighborhood_connected.rs` | 660 | 6 (`mod.rs`) | 41 (`tests.rs`) + 154 + 65 + 223 + 65 + 123 | Directory module with one file per test theme |
+
+### Verification
+
+| Check | Result |
+|---|---|
+| cargo check -p ritk-python -p ritk-core --lib | 0 errors, 1 warning (`validate_num_bins` in `metrics/mod.rs`) |
+| cargo test -p ritk-core --lib neighborhood_connected | 22 passed |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| Structural violations | 0 in the touched scope |
+| Unrelated warning in `ritk-python/src/metrics/mod.rs` | Present |
+
 ## Sprint 258 Audit — 2026-05-18
 
 ### GAP-251-STR-01 Partial — Preemptive Partition of 7 Near-Limit Files
