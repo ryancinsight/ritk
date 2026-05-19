@@ -7,6 +7,8 @@ use pyo3::types::{PyDict, PyList};
 use ritk_core::segmentation::{
     connected_components as core_connected_components, ConnectedComponentsFilter,
     KMeansSegmentation, MarkerControlledWatershed, WatershedSegmentation,
+    SlicConfig,
+    SlicSuperpixelFilter,
 };
 use std::sync::Arc;
 
@@ -198,4 +200,54 @@ pub fn marker_watershed_segment(
     result
         .map(into_py_image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
+}
+
+
+/// Segment a 3D image via SLIC super-pixel clustering (Achanta et al. 2012).
+///
+/// SLIC performs local clustering of voxels in a combined
+/// intensity-spatial feature space, producing spatially compact
+/// super-pixel regions. Uses k-means-style Lloyd iteration on a
+/// regular grid initialization with search-window optimization.
+///
+/// Args:
+///     image: Input PyImage.
+///     n_superpixels: Number of desired superpixels (default 100).
+///     compactness: Compactness parameter: higher = more regular shapes (default 10.0).
+///     max_iterations: Maximum Lloyd iterations (default 10).
+///     tolerance: Convergence tolerance on center shift (default 1e-3).
+///     seed: Deterministic seed (default 42).
+///     min_component_size: Minimum component size for connectivity enforcement (default 5).
+///
+/// Returns:
+///     Label PyImage with superpixel indices in [0, K-1].
+#[pyfunction]
+#[pyo3(signature = (image, n_superpixels=100, compactness=10.0, max_iterations=10, tolerance=1e-3, seed=42, min_component_size=5))]
+pub fn slic_superpixel(
+    py: Python<'_>,
+    image: &PyImage,
+    n_superpixels: usize,
+    compactness: f64,
+    max_iterations: usize,
+    tolerance: f64,
+    seed: u64,
+    min_component_size: usize,
+) -> RitkResult<PyImage> {
+    if n_superpixels < 1 {
+        return Err(RitkPyError::value("n_superpixels must be >= 1"));
+    }
+    let image = Arc::clone(&image.inner);
+    let result = py.allow_threads(|| {
+        let config = SlicConfig {
+            n_superpixels,
+            compactness,
+            max_iterations,
+            tolerance,
+            seed,
+            min_component_size,
+        };
+        let filter = SlicSuperpixelFilter::new(config);
+        filter.apply(image.as_ref())
+    });
+    Ok(into_py_image(result))
 }

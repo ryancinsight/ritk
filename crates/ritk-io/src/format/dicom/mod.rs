@@ -33,7 +33,7 @@ mod writer_object;
 
 pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
-    AnonymizeOptions, AnonymizeStats, TagAction,
+    AnonymizeOptions, AnonymizeResult, AnonymizeStats, TagAction,
 };
 pub use color::{is_rgb_dicom_series, load_dicom_color_series, read_dicom_color_series};
 pub use multiframe::{

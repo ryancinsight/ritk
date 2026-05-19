@@ -1,3 +1,41 @@
+## Sprint 270 — Complete
+**Status**: Complete
+**Phase**: Execution → DICOM Anonymization + Python Bindings
+**Version**: 0.50.41 [minor]
+**Goal**: Close GAP-262-IO-03 (DICOM de-identification/anonymization per PS 3.15 Annex E). Add Python bindings for CED, BinShrink, and SLIC.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-IO-03 | DICOM de-identification/anonymization (PS 3.15 Annex E Basic + Enhanced) | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-io/src/format/dicom/anonymize/mod.rs` — `AnonymizeOptions`, `AnonymizeProfile`, `AnonymizeResult`, `anonymize_object`, `anonymize_dicom_file`
+- ✓ `crates/ritk-io/src/format/dicom/anonymize/profile.rs` — 70+ tag/action mappings, Basic + Enhanced profiles
+- ✓ `crates/ritk-io/src/format/dicom/anonymize/tests_anonymize.rs` — 40 value-semantic tests
+- ✓ `crates/ritk-io/src/format/dicom/mod.rs` — added `mod anonymize` + re-exports
+- ✓ `crates/ritk-io/src/lib.rs` — added `AnonymizeResult` re-export
+- ✓ `crates/ritk-io/Cargo.toml` — added `sha2` workspace dependency
+- ✓ `crates/ritk-python/src/io/anonymize.rs` — Python binding: `anonymize_dicom`
+- ✓ `crates/ritk-python/src/filter/smooth.rs` — added `coherence_enhancing_diffusion` + `bin_shrink` bindings
+- ✓ `crates/ritk-python/src/segmentation/labeling.rs` — added `slic_superpixel` binding
+- ✓ `crates/ritk-python/src/filter/mod.rs` — registered new filter functions
+- ✓ `crates/ritk-python/src/segmentation/mod.rs` — registered `slic_superpixel`
+- ✓ `cargo check --workspace`: 0 errors, 0 warnings
+- ✓ `cargo test -p ritk-core --lib`: 1373 passed, 0 failed
+- ✓ `cargo test -p ritk-io --lib format::dicom::anonymize`: 40 passed, 0 failed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-01 (VR) | GPU VR volume rendering (MIP closed) | High |
+| GAP-262-VIZ-02 | OIT depth peeling + SSAO (GPU mesh pipeline) | High |
+| GAP-262-IO-01 | DICOM networking (DIMSE) | High |
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+
+---
+
 ## Sprint 269 — Complete
 **Status**: Complete
 **Phase**: Execution → GPU Volume MIP Rendering (GAP-262-VIZ-01)

@@ -10,31 +10,36 @@ use ritk_io::{anonymize_dicom_directory, AnonymizationProfile, AnonymizeOptions}
 /// Applies PS 3.15 Annex E patient de-identification.
 ///
 /// Args:
-///     input_dir:  Source directory containing DICOM files (str).
+///     input_dir: Source directory containing DICOM files (str).
 ///     output_dir: Destination directory; created if absent (str).
-///     profile:    Anonymization profile name (str, default "basic").
-///                 Choices: `"basic"` | `"basic_replace_uids"` | `"aggressive"`.
+///     profile: Anonymization profile name (str, default "basic").
+///              Choices: `"basic"` | `"basic_replace_uids"` | `"aggressive"` | `"enhanced"`.
+///     patient_name: Replacement for PatientName (str, default "ANONYMOUS").
+///     patient_id: Replacement for PatientID (str, default "ANON001").
+///     uid_salt: Salt for deterministic UID remapping (str, default "ritk-anon-salt").
 ///     clean_pixel_data: If True, zero-pad PixelData elements (bool, default False).
 ///     clean_private_tags: If True, remove all private DICOM elements (odd-group
-///                         tags). Required for full PS 3.15 Annex E compliance
-///                         (default False).
+///         tags). Required for full PS 3.15 Annex E compliance (default False).
 ///
 /// Returns:
 ///     dict with keys:
-///       - `"file_count"` (int): total files processed.
-///       - `"success_count"` (int): files successfully anonymized.
-///       - `"error_count"` (int): files that failed.
-///       - `"errors"` (list[list[str]]): `[[path, error_msg], ...]` for failures.
+///     - `"file_count"` (int): total files processed.
+///     - `"success_count"` (int): files successfully anonymized.
+///     - `"error_count"` (int): files that failed.
+///     - `"errors"` (list[list[str]]): `[[path, error_msg], ...]` for failures.
 ///
 /// Raises:
 ///     IOError: if `input_dir` cannot be scanned or `output_dir` cannot be created.
 #[pyfunction]
-#[pyo3(signature = (input_dir, output_dir, profile="basic", clean_pixel_data=false, clean_private_tags=false))]
+#[pyo3(signature = (input_dir, output_dir, profile="basic", patient_name="ANONYMOUS", patient_id="ANON001", uid_salt="ritk-anon-salt", clean_pixel_data=false, clean_private_tags=false))]
 pub fn anonymize_dicom_dir(
     py: Python<'_>,
     input_dir: &str,
     output_dir: &str,
     profile: &str,
+    patient_name: &str,
+    patient_id: &str,
+    uid_salt: &str,
     clean_pixel_data: bool,
     clean_private_tags: bool,
 ) -> RitkResult<Py<PyDict>> {
@@ -42,18 +47,23 @@ pub fn anonymize_dicom_dir(
         "basic" => AnonymizationProfile::Basic,
         "basic_replace_uids" => AnonymizationProfile::BasicReplaceUids,
         "aggressive" => AnonymizationProfile::Aggressive,
+        "enhanced" => AnonymizationProfile::Enhanced,
         other => {
             return Err(RitkPyError::io(format!(
                 "Unknown anonymization profile '{other}'. \
-                 Choices: basic, basic_replace_uids, aggressive"
+                 Choices: basic, basic_replace_uids, aggressive, enhanced"
             )));
         }
     };
     let options = AnonymizeOptions {
         profile: anon_profile,
+        patient_name: patient_name.to_owned(),
+        patient_id: patient_id.to_owned(),
+        uid_salt: uid_salt.to_owned(),
         clean_pixel_data,
         clean_private_tags,
     };
+
     let input_owned = input_dir.to_string();
     let output_owned = output_dir.to_string();
 
@@ -67,6 +77,7 @@ pub fn anonymize_dicom_dir(
     dict.set_item("file_count", stats.file_count)?;
     dict.set_item("success_count", stats.success_count)?;
     dict.set_item("error_count", stats.error_count)?;
+
     let errors_list = PyList::empty_bound(py);
     for (path, msg) in &stats.errors {
         let pair = PyList::empty_bound(py);
@@ -75,5 +86,6 @@ pub fn anonymize_dicom_dir(
         errors_list.append(pair)?;
     }
     dict.set_item("errors", errors_list)?;
+
     Ok(dict.into())
 }

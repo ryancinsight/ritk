@@ -28,6 +28,7 @@ rayon = { workspace = true }
 ndarray = { workspace = true }
 image = { workspace = true }
 tiff = { workspace = true }
+sha2 = { workspace = true }
 flate2 = { workspace = true }
 gaia = { workspace = true }
 consus-hdf5 = { workspace = true }

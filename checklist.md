@@ -1,3 +1,35 @@
+## Sprint 270 — Complete
+**Status**: Complete
+**Phase**: Execution → DICOM Anonymization + Python Bindings
+**Version**: 0.50.41 [minor]
+**Target**: Close GAP-262-IO-03 (DICOM anonymization); add Python bindings for CED, BinShrink, SLIC.
+
+### Checklist items
+- [x] Create `crates/ritk-io/src/format/dicom/anonymize/mod.rs` — `AnonymizeOptions`, `AnonymizeProfile`, `AnonymizeResult`, `anonymize_object`, `anonymize_dicom_file`
+- [x] Create `crates/ritk-io/src/format/dicom/anonymize/profile.rs` — 70+ tag/action mappings, Basic + Enhanced profiles
+- [x] Create `crates/ritk-io/src/format/dicom/anonymize/tests_anonymize.rs` — 40 value-semantic tests
+- [x] Update `crates/ritk-io/src/format/dicom/mod.rs` — add `mod anonymize` + re-exports
+- [x] Update `crates/ritk-io/src/lib.rs` — add `AnonymizeResult` re-export
+- [x] Update `crates/ritk-io/Cargo.toml` — add `sha2` workspace dependency
+- [x] Create `crates/ritk-python/src/io/anonymize.rs` — Python binding: `anonymize_dicom`
+- [x] Add `coherence_enhancing_diffusion` + `bin_shrink` Python bindings to `crates/ritk-python/src/filter/smooth.rs`
+- [x] Add `slic_superpixel` Python binding to `crates/ritk-python/src/segmentation/labeling.rs`
+- [x] Register new functions in `crates/ritk-python/src/filter/mod.rs` and `segmentation/mod.rs`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib` — 1373 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::anonymize` — 40 passed, 0 failed
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-01 (VR) — GPU VR volume rendering | High | Open |
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
 ## Sprint 269 — Complete
 
 **Status**: Complete

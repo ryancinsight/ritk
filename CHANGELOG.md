@@ -3,6 +3,23 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.41] - 2026-05-19
+### Added [minor]
+- **DICOM De-identification/Anonymization** (Sprint 270, GAP-262-IO-03): PS 3.15 Annex E compliant DICOM anonymization in `ritk-io::format::dicom::anonymize`.
+  - `AnonymizeOptions` with configurable patient name, ID, UID salt, and profile (Basic/Enhanced).
+  - `AnonymizeProfile::Basic` — 70+ tag/action mappings per PS 3.15 Annex E Table E.1-1.
+  - `AnonymizeProfile::Enhanced` — extends Basic with procedure-step, content annotation, digital signature removal, and automatic private tag cleanup.
+  - SHA-256 deterministic UID remapping with `2.25.` ISO/IEC 9834-8 UUID arc prefix.
+  - `AnonymizeResult` returned with statistics (tags deleted/zeroed, UIDs remapped, private tags removed, UID map).
+  - In-memory and file-to-file anonymization APIs.
+  - Python binding: `ritk.io.anonymize_dicom`.
+  - 40 value-semantic tests.
+- **Python bindings for CED, BinShrink, SLIC** [patch]: `ritk.filter.coherence_enhancing_diffusion`, `ritk.filter.bin_shrink`, `ritk.segmentation.slic_superpixel`.
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib`: 1373 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::anonymize`: 40 passed, 0 failed
+
 ## [0.50.40] - 2026-05-19
 
 ### Added [minor]

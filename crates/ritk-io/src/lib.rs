@@ -17,7 +17,7 @@ pub use format::dicom::{
     scan_dicom_directory, write_dicom_multiframe, write_dicom_multiframe_with_config,
     write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
     write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, AnonymizationProfile,
-    AnonymizeOptions, AnonymizeStats, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
+    AnonymizeOptions, AnonymizeResult, AnonymizeStats, DicomObjectModel, DicomObjectNode, DicomPreservationSet,
     DicomPreservedElement, DicomReadMetadata, DicomSegmentInfo, DicomSegmentation,
     DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata, DicomTag, DicomValue, DicomWriter,
     MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameWriterConfig, PatientPosition, RtBeamInfo,
