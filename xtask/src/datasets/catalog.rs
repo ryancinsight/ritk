@@ -141,7 +141,7 @@ impl DatasetManager {
     }
 }
 
-fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
+pub(crate) fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
     if is_html_payload(data) {
         anyhow::bail!(
             "{} appears to be HTML, not NIfTI data (possible bad download URL or auth page)",
@@ -170,14 +170,14 @@ fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn is_html_payload(data: &[u8]) -> bool {
+pub(crate) fn is_html_payload(data: &[u8]) -> bool {
     let prefix_len = data.len().min(1024);
     let prefix = &data[..prefix_len];
     let text = String::from_utf8_lossy(prefix).to_ascii_lowercase();
     text.contains("<!doctype html") || text.contains("<html")
 }
 
-fn looks_like_nifti_header(header4: &[u8]) -> bool {
+pub(crate) fn looks_like_nifti_header(header4: &[u8]) -> bool {
     if header4.len() < 4 {
         return false;
     }

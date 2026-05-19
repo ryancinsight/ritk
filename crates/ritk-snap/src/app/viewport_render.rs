@@ -413,14 +413,7 @@ impl SnapApp {
                     );
 
                     let color_image = apply_to_image_into(&mut self.render_buffer_pool, &color_image, self.view_transform);
-                    let tex_name = format!(
-                        "slice_tex_fused_axis{}_{}_slice{}_{}_a{}",
-                        primary_axis.min(2),
-                        secondary_axis.min(2),
-                        primary_idx,
-                        secondary_idx,
-                        (self.compare_fusion_alpha.clamp(0.0, 1.0) * 100.0).round() as i32,
-                    );
+                    let tex_name = "slice_tex_fused";
 
                     (color_image, tex_name)
                 };

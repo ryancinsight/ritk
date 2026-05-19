@@ -156,11 +156,7 @@ impl SnapApp {
             let wc = self.secondary_window_center.unwrap_or(128.0) as f64;
             let ww = self.secondary_window_width.unwrap_or(256.0).max(1.0) as f64;
             let wl = WindowLevel::new(wc, ww);
-            let name = format!(
-                "slice_tex_secondary_axis{}_slice{}",
-                axis.min(2),
-                slice_index
-            );
+            let name = "slice_tex_secondary";
             let img = SliceRenderer::render_with_scratch(
                 &mut self.render_buffer_pool,
                 vol,

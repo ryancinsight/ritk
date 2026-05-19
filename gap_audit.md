@@ -1,5 +1,60 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 261 Audit — 2026-05-19
+
+### GAP-258-PERF-01 Closed — Single-Pass Fused Viewport Transform + Color32 Scratch Buffer
+
+| Component | Change |
+|---|---|
+| `render/buffer_pool.rs` | New: `color32: Vec<Color32>` scratch + `resize_color32` method |
+| `ui/view_transform/mod.rs` | New: `apply_to_image_into` — fuses flip_h + flip_v + rotation into single index mapping pass |
+| `ui/view_transform/tests.rs` | New: 4 differential tests (all 16 combos × 2 image shapes, pool reuse, identity) |
+| `render/buffer_pool.rs` | New: 2 tests (resize_color32 monotone, new elements BLACK) |
+| `app/render_cache.rs` | `apply_to_image` → `apply_to_image_into` at both call sites |
+| `app/viewport_render.rs` | `apply_to_image` → `apply_to_image_into` at fused viewport call site |
+
+#### Allocation elimination per dirty-texture rebuild
+
+| Call site | Before | After |
+|---|---|---|
+| `rebuild_texture_for_axis` (identity transform) | 1× `Vec<Color32>` clone (~1 MB for 512²) | Arc bump (zero-cost) |
+| `rebuild_texture_for_axis` (flip_h/flip_v only) | 2× `Vec<Color32>` allocs | 1× `to_vec()` (from scratch) |
+| `rebuild_texture_for_axis` (rotation 90°) | 3× `Vec<Color32>` allocs | 1× `to_vec()` (from scratch) |
+| `rebuild_texture_for_axis` (flip_h + flip_v + 270°) | 5× `Vec<Color32>` allocs | 1× `to_vec()` (from scratch) |
+| `rebuild_secondary_texture` | Same pattern | Same reduction |
+| `render_secondary_compare_viewport` | Same pattern | Same reduction |
+
+### GAP-258-PERF-02 Closed — format! Texture Name Elimination
+
+| Call site | Before | After |
+|---|---|---|
+| `rebuild_secondary_texture` | `format!("...", ...)` → 1 String alloc/rebuild | `"slice_tex_secondary"` (static &str) |
+| `render_secondary_compare_viewport` | `format!("...", ...)` → 1 String alloc/rebuild | `"slice_tex_fused"` (static &str) |
+
+### GAP-258-STR-01 Closed — view_transform Test Extraction
+
+| File | Before | After |
+|---|---|---|
+| `ui/view_transform.rs` | 739 lines | — |
+| `ui/view_transform/mod.rs` | — | 462 lines |
+| `ui/view_transform/tests.rs` | — | 283 lines (16 test functions) |
+
+### Verification
+
+| Check | Result |
+|---|---|
+| cargo check -p ritk-snap --lib | 0 errors, 0 warnings |
+| cargo test -p ritk-snap --lib view_transform | 16 passed |
+| cargo test -p ritk-snap --lib buffer_pool | 11 passed |
+| Structural violations (>500 lines) | **0** |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| GAP-258-PERF-03 | Open — `ColorImage::from_rgba_unmultiplied` per-rebuild `Vec<Color32>` alloc (egui API limitation) |
+| Structural violations | 0 |
+
 ## Sprint 260 Audit — 2026-05-19
 
 ### GAP-260-STR-01 / GAP-260-STR-02 Closed — Partition of 2 Structural Files

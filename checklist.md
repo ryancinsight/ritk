@@ -76,29 +76,31 @@
 | **Structural violations (>500 lines)** | **None** | **Zero** |
 
 
-## Sprint 258 — Complete
-
+## Sprint 261 — Complete
 **Status**: Complete
-**Phase**: Execution → Structural
-**Version**: 0.50.30 [patch]
-**Target**: GAP-251-STR-01 — Continue structural partition: rtdose_overlay.rs and overlay/mod.rs.
+**Phase**: Execution → Performance & Memory Optimization
+**Version**: 0.50.33 [patch]
+**Target**: GAP-258-PERF-01 — Single-pass fused transform with Color32 scratch; GAP-258-PERF-02 — format! elimination; GAP-258-STR-01 — view_transform test extraction.
 
 ### Checklist items
-
-- [x] Extract `rtdose_overlay.rs` (496→283 lines) → `rtdose_overlay/mod.rs` + `tests.rs` (171 lines, 10 tests)
-- [x] Extract `overlay/mod.rs` (548→380 lines) inline tests → existing `overlay/tests.rs` (154 lines)
-- [x] Remove stale monolithic `app.rs` (4976 lines) and `viewport.rs` resolving E0761 file/directory conflicts
-- [x] Fix `app/rt_overlay.rs` call site: `VolumeGeometry` struct instead of individual fields
-- [x] Remove dead SUV overlay tests referencing non-existent `format_suv_string`
+- [x] Add `color32: Vec<Color32>` field + `resize_color32` method to `RenderBufferPool`
+- [x] Implement `apply_to_image_into` with all 16 fused index mappings (analytically verified via Python)
+- [x] Migrate hot-path call sites: `render_cache.rs` rebuild_texture_for_axis, rebuild_secondary_texture
+- [x] Migrate hot-path call site: `viewport_render.rs` render_secondary_compare_viewport
+- [x] Eliminate `format!` in `rebuild_secondary_texture` → static `"slice_tex_secondary"`
+- [x] Eliminate `format!` in `render_secondary_compare_viewport` → static `"slice_tex_fused"`
+- [x] Extract `view_transform.rs` (739→462) tests to `view_transform/tests.rs` (283)
+- [x] Add 4 differential tests: all 16 combinations (rect + square), pool reuse, identity
+- [x] Add 2 buffer_pool tests: resize_color32 capacity monotone, new elements BLACK
 - [x] Verify `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
-- [x] Verify `cargo test -p ritk-snap --lib "overlay::tests"` — 28 passed
-- [x] Verify `cargo test -p ritk-snap --lib "rtdose_overlay::tests"` — 10 passed
+- [x] Verify `cargo test -p ritk-snap --lib view_transform` — 16 passed
+- [x] Verify `cargo test -p ritk-snap --lib buffer_pool` — 11 passed
 
 ### Gaps remaining
-
 | Task | Priority | Status |
 |---|---|---|
-| **Structural violations (>500 lines)** | **None** | **Zero** |
+| GAP-258-PERF-03 | Low (egui) | Blocked — `ColorImage::from_rgba_unmultiplied` per-rebuild alloc |
+| Structural violations | **None** | Zero |
 
 ## Sprint 257 — Complete
 

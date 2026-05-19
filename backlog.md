@@ -1,3 +1,35 @@
+## Sprint 261 — Complete
+**Status**: Complete
+**Phase**: Execution → Performance & Memory Optimization
+**Version**: 0.50.33 [patch]
+**Goal**: GAP-258-PERF-01 — Eliminate per-rebuild `Vec<Color32>` allocations from viewport orientation transforms; GAP-258-PERF-02 — Replace `format!` texture names with static strings; GAP-258-STR-01 — Extract `view_transform.rs` tests to directory module.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-258-PERF-01 | Single-pass fused `apply_to_image_into` + `color32` scratch buffer | **Closed** |
+| GAP-258-PERF-02 | `format!` texture name allocations eliminated | **Closed** |
+| GAP-258-STR-01 | `view_transform.rs` (739→462) test extraction to directory module | **Closed** |
+
+### Delivered
+- ⟳ `RenderBufferPool`: added `color32: Vec<Color32>` scratch buffer + `resize_color32` method
+- ⟳ `apply_to_image_into`: single-pass fused transform writing into pool scratch — eliminates N× `Vec<Color32>` allocations (one per transform step) → 1 final construction
+- ⟳ All 16 (flip_h, flip_v, rotation) index mappings verified via Python analytical derivation + differential tests
+- ⟳ Hot-path call sites migrated: `render_cache.rs` (×2), `viewport_render.rs` (×1) use `apply_to_image_into`
+- ⟳ `format!` eliminated: `render_cache.rs` secondary name → `"slice_tex_secondary"`; `viewport_render.rs` fused name → `"slice_tex_fused"`
+- ⟳ `view_transform.rs` → `view_transform/mod.rs` (462) + `view_transform/tests.rs` (283): 16 tests (12 existing + 4 new differential)
+- ⟳ `buffer_pool.rs` tests: +2 (resize_color32 capacity monotone + new elements BLACK)
+- ✓ Verification: `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- ✓ Verification: `cargo test -p ritk-snap --lib view_transform` — 16 passed
+- ✓ Verification: `cargo test -p ritk-snap --lib buffer_pool` — 11 passed
+- ✓ Verification: `cargo test -p ritk-snap --lib rtdose_overlay` — 10 passed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-258-PERF-03 | `ColorImage::from_rgba_unmultiplied` per-rebuild alloc (egui limitation) | Low (blocked on egui) |
+| Structural violations (>500 lines) | **None** | Zero |
+
 ## Sprint 260 — Complete
 
 **Status**: Complete
