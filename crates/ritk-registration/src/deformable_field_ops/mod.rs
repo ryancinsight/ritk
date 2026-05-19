@@ -20,7 +20,6 @@ mod warp;
 
 // Flat `flat` and `trilinear_interpolate` are defined here to avoid peer-module
 // resolution cycles: every sub-module accesses them via `use super::{flat, trilinear_interpolate}`.
-#[cfg(test)]
 pub(crate) use compose::compose_fields;
 pub(crate) use compose::compose_fields_into;
 pub(crate) use gradient::{compute_gradient, compute_gradient_into};

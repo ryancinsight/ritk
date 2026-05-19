@@ -52,7 +52,6 @@ pub(crate) fn compose_fields_into(
 }
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂`.
-#[cfg(test)]
 pub(crate) fn compose_fields(
     phi1_z: &[f32],
     phi1_y: &[f32],
