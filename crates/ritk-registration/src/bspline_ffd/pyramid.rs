@@ -11,19 +11,21 @@
 
 use crate::deformable_field_ops::flat;
 
+/// Refined control grid: `(disp_z, disp_y, disp_x, new_dims, new_spacing)`.
+type RefinedControlGrid = (Vec<f32>, Vec<f32>, Vec<f32>, [usize; 3], [f64; 3]);
+
 /// Double the control-grid resolution via B-spline subdivision.
 ///
 /// Each control-point displacement is subdivided using the cubic B-spline
 /// refinement mask so that the represented displacement field is preserved
 /// exactly (to within floating-point precision). The control spacing is halved.
-#[allow(clippy::type_complexity)]
 pub(super) fn refine_control_grid(
     cp_z: &[f32],
     cp_y: &[f32],
     cp_x: &[f32],
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>, [usize; 3], [f64; 3]) {
+) -> RefinedControlGrid {
     let [cnz, cny, cnx] = *ctrl_dims;
 
     let new_spacing = [

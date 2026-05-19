@@ -1,5 +1,6 @@
 //! Edge detection and gradient filters: gradient magnitude, Laplacian, Canny, LoG, Sobel.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
@@ -21,19 +22,18 @@ use ritk_core::filter::{
 /// Raises:
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
-pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let arc = std::sync::Arc::clone(&image.inner);
     let dims = arc.shape();
-    let spacing = arc.spacing().clone();
-    let result = with_tensor_slice(arc.data(), |vals| {
+    let spacing = *arc.spacing();
+    with_tensor_slice(arc.data(), |vals| {
         let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
         py.allow_threads(|| {
             filter
                 .apply_from_slice(vals, dims, arc.as_ref())
-                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+                .map_err(|e| RitkPyError::runtime(e.to_string()))
         })
-    })?;
-    Ok(into_py_image(result))
+    }).map(into_py_image)
 }
 
 /// Compute the discrete Laplacian ∇²I = ∂²I/∂z² + ∂²I/∂y² + ∂²I/∂x².
@@ -50,16 +50,15 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> 
 /// Raises:
 ///     RuntimeError: on tensor extraction failure.
 #[pyfunction]
-pub fn laplacian(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = LaplacianFilter::new([spacing[0], spacing[1], spacing[2]]);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply the Canny edge detector to an image.
@@ -87,15 +86,14 @@ pub fn canny_edge_detect(
     sigma: f64,
     low_threshold: f64,
     high_threshold: f64,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = CannyEdgeDetector::new(sigma, low_threshold, high_threshold);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply the Laplacian of Gaussian (LoG) filter.
@@ -116,15 +114,14 @@ pub fn canny_edge_detect(
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0))]
-pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> PyResult<PyImage> {
+pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = LaplacianOfGaussianFilter::new(sigma);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Compute the Sobel gradient magnitude of an image.
@@ -143,14 +140,13 @@ pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> PyR
 /// Raises:
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
-pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }

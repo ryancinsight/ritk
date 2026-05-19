@@ -1,5 +1,6 @@
 //! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
@@ -25,15 +26,14 @@ pub fn rescale_intensity(
     image: &PyImage,
     out_min: f32,
     out_max: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = RescaleIntensityFilter::new(out_min, out_max);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Clamp to [window_min, window_max] then rescale to [out_min, out_max].
@@ -55,15 +55,14 @@ pub fn intensity_windowing(
     window_max: f32,
     out_min: f32,
     out_max: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = IntensityWindowingFilter::new(window_min, window_max, out_min, out_max);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Set pixels strictly below threshold to outside_value; keep others unchanged.
@@ -74,15 +73,14 @@ pub fn threshold_below(
     image: &PyImage,
     threshold: f32,
     outside_value: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = ThresholdImageFilter::below(threshold, outside_value);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Set pixels strictly above threshold to outside_value; keep others unchanged.
@@ -93,15 +91,14 @@ pub fn threshold_above(
     image: &PyImage,
     threshold: f32,
     outside_value: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = ThresholdImageFilter::above(threshold, outside_value);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Set pixels outside [lower, upper] to outside_value; keep interior pixels unchanged.
@@ -113,15 +110,14 @@ pub fn threshold_outside(
     lower: f32,
     upper: f32,
     outside_value: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = ThresholdImageFilter::outside(lower, upper, outside_value);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Sigmoid intensity transform.
@@ -149,18 +145,17 @@ pub fn sigmoid_filter(
     beta: f32,
     min_output: f32,
     max_output: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         // Rust SigmoidImageFilter uses (inflection=alpha_rust, width=beta_rust).
         // Python/SimpleITK convention: alpha=width, beta=inflection.
         // Map: inflection=beta (Python), width=alpha (Python).
         let filter = SigmoidImageFilter::new(beta, alpha, min_output, max_output);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Binary threshold: foreground if I in [lower_threshold, upper_threshold], else background.
@@ -180,9 +175,9 @@ pub fn binary_threshold(
     upper_threshold: f32,
     foreground: f32,
     background: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = BinaryThresholdImageFilter::new(
             lower_threshold,
             upper_threshold,
@@ -191,9 +186,8 @@ pub fn binary_threshold(
         );
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Linearly blend two co-registered images.
@@ -206,13 +200,17 @@ pub fn binary_threshold(
 /// ITK Parity: BlendImageFilter
 #[pyfunction]
 #[pyo3(signature = (a, b, alpha=0.5_f32))]
-pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> PyResult<PyImage> {
+pub fn blend_images(
+    py: Python<'_>,
+    a: &PyImage,
+    b: &PyImage,
+    alpha: f32,
+) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         BlendImageFilter::new(alpha)
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }

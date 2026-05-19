@@ -201,7 +201,7 @@ impl OnnxImporter {
         let metadata = OnnxMetadata {
             producer_name: Some(graph.name.clone()),
             metadata_props: HashMap::new(),
-            ..Default::default()
+            ..OnnxMetadata::default()
         };
         Ok(metadata)
     }

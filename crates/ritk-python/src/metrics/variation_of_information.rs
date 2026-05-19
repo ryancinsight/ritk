@@ -7,6 +7,7 @@ use anyhow::Result;
 use pyo3::prelude::*;
 use ritk_core::statistics::information::variation_of_information as core_vi;
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 
 /// VI(X,Y) = H(X) + H(Y) − 2·I(X,Y).
@@ -36,20 +37,18 @@ pub fn compute_variation_of_information(
     fixed: &PyImage,
     moving: &PyImage,
     num_bins: usize,
-) -> PyResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner)?;
-    let (b, shape_b) = image_to_vec(&moving.inner)?;
+) -> RitkResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner);
+    let (b, shape_b) = image_to_vec(&moving.inner);
     if shape_a != shape_b {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
     if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_bins must be >= 2",
-        ));
+        return Err(RitkPyError::value("num_bins must be >= 2"));
     }
     variation_of_information_slices(&a, &b, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

@@ -50,17 +50,17 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     }
 
     /// Build the rotation matrix from Quaternion.
-    #[allow(clippy::single_range_in_vec_init)]
     fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         // Normalize quaternion to ensure it represents a rotation
         let q = self.rotation.val();
         let norm = q.clone().powf_scalar(2.0).sum().sqrt() + 1e-12; // Avoid div by zero
         let q = q / norm;
 
-        let x = q.clone().slice([0..1]);
-        let y = q.clone().slice([1..2]);
-        let z = q.clone().slice([2..3]);
-        let w = q.clone().slice([3..4]);
+        let (q0, q1, q2, q3) = (0..1, 1..2, 2..3, 3..4);
+        let x = q.clone().slice([q0]);
+        let y = q.clone().slice([q1]);
+        let z = q.clone().slice([q2]);
+        let w = q.clone().slice([q3]);
 
         let xx = x.clone().mul(x.clone());
         let yy = y.clone().mul(y.clone());

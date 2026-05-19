@@ -1,5 +1,6 @@
 //! Automatic thresholding methods: Otsu, Li, Yen, Kapur, Triangle, Multi-Otsu, binary threshold.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_core::segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
@@ -22,7 +23,7 @@ use std::sync::Arc;
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
@@ -36,7 +37,7 @@ pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage
         })
     });
     let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
-    Ok((threshold, into_py_image(mask)))
+    (threshold, into_py_image(mask))
 }
 
 /// Compute the Li minimum cross-entropy threshold and produce a binary mask.
@@ -50,7 +51,7 @@ pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+pub fn li_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
@@ -64,7 +65,7 @@ pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)>
         })
     });
     let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
-    Ok((threshold, into_py_image(mask)))
+    (threshold, into_py_image(mask))
 }
 
 /// Compute the Yen maximum correlation threshold and produce a binary mask.
@@ -78,7 +79,7 @@ pub fn li_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)>
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
@@ -92,7 +93,7 @@ pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)
         })
     });
     let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
-    Ok((threshold, into_py_image(mask)))
+    (threshold, into_py_image(mask))
 }
 
 /// Compute the Kapur maximum entropy threshold and produce a binary mask.
@@ -106,7 +107,7 @@ pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
@@ -120,7 +121,7 @@ pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImag
         })
     });
     let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
-    Ok((threshold, into_py_image(mask)))
+    (threshold, into_py_image(mask))
 }
 
 /// Compute the Triangle (Zack) threshold and produce a binary mask.
@@ -134,7 +135,7 @@ pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImag
 /// Returns:
 ///     (threshold, mask): threshold value as f32 and binary mask as PyImage.
 #[pyfunction]
-pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyImage)> {
+pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
     let (threshold, mask_vals) = with_tensor_slice(arc.data(), |slice| {
@@ -148,7 +149,7 @@ pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> PyResult<(f32, PyI
         })
     });
     let mask = vec_to_image_like(mask_vals, dims, arc.as_ref());
-    Ok((threshold, into_py_image(mask)))
+    (threshold, into_py_image(mask))
 }
 
 /// Compute multi-class Otsu thresholds and produce a labeled image.
@@ -168,11 +169,9 @@ pub fn multi_otsu_threshold(
     py: Python<'_>,
     image: &PyImage,
     num_classes: usize,
-) -> PyResult<(Vec<f32>, PyImage)> {
+) -> RitkResult<(Vec<f32>, PyImage)> {
     if num_classes < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "num_classes must be ≥ 2",
-        ));
+        return Err(RitkPyError::value("num_classes must be ≥ 2"));
     }
     let arc = Arc::clone(&image.inner);
     let dims = arc.shape();
@@ -218,21 +217,21 @@ pub fn binary_threshold_segment(
     upper: Option<f32>,
     inside_value: f32,
     outside_value: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let lower = lower.unwrap_or(f32::NEG_INFINITY);
     let upper = upper.unwrap_or(f32::INFINITY);
     if lower > upper {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "lower bound ({lower}) must be ≤ upper bound ({upper})"
         )));
     }
     if !inside_value.is_finite() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "inside_value must be finite, got {inside_value}"
         )));
     }
     if !outside_value.is_finite() {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "outside_value must be finite, got {outside_value}"
         )));
     }

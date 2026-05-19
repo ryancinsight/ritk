@@ -172,7 +172,6 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
     ///
     /// # Returns
     /// A new DisplacementField with resampled components.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn resample(
         &self,
         new_shape: [usize; D],
@@ -216,7 +215,8 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
             let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-            let chunk_indices = new_indices.clone().slice([start..end]);
+            let chunk_range = start..end;
+            let chunk_indices = new_indices.clone().slice([chunk_range]);
 
             // World = Origin + Indices @ M
             let offset = chunk_indices.matmul(m_tensor.clone());
@@ -253,7 +253,6 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
     ///
     /// # Returns
     /// A tensor of shape `[Batch, D]` containing continuous indices
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let [n_points, _] = points.dims();
 
@@ -270,7 +269,8 @@ impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_points = points.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_points = points.clone().slice([chunk_range]);
 
                 let diff = chunk_points - self.origin_tensor.clone().reshape([1, D]);
                 let result = diff.matmul(self.world_to_index_matrix.clone());

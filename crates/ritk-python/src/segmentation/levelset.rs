@@ -1,6 +1,7 @@
 //! Level set segmentation methods: Chan-Vese, Geodesic Active Contour, Shape Detection,
 //! Threshold level set, and Laplacian level set.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::segmentation::{
@@ -9,6 +10,42 @@ use ritk_core::segmentation::{
 };
 use std::sync::Arc;
 
+/// Configuration options for [`chan_vese_segment`].
+#[pyclass(name = "ChanVeseOptions")]
+#[derive(Clone)]
+pub struct PyChanVeseOptions {
+    /// Curvature (length) penalty weight.
+    #[pyo3(get, set)]
+    pub mu: f64,
+    /// Area penalty weight.
+    #[pyo3(get, set)]
+    pub nu: f64,
+    /// Data fidelity weight for inside region.
+    #[pyo3(get, set)]
+    pub lambda1: f64,
+    /// Data fidelity weight for outside region.
+    #[pyo3(get, set)]
+    pub lambda2: f64,
+    /// Maximum PDE evolution iterations.
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+    /// Euler forward time step.
+    #[pyo3(get, set)]
+    pub dt: f64,
+    /// Convergence tolerance on max|Δφ|/dt.
+    #[pyo3(get, set)]
+    pub tolerance: f64,
+}
+
+#[pymethods]
+impl PyChanVeseOptions {
+    #[new]
+    #[pyo3(signature = (mu=0.25, nu=0.0, lambda1=1.0, lambda2=1.0, max_iterations=200, dt=0.1, tolerance=1e-3))]
+    pub fn new(mu: f64, nu: f64, lambda1: f64, lambda2: f64, max_iterations: usize, dt: f64, tolerance: f64) -> Self {
+        Self { mu, nu, lambda1, lambda2, max_iterations, dt, tolerance }
+    }
+}
+
 /// Segment a 3D image via Chan-Vese level set evolution.
 ///
 /// Delegates to `ritk_core::segmentation::ChanVeseSegmentation` (Active
@@ -16,45 +53,70 @@ use std::sync::Arc;
 /// under an energy functional driven by region statistics (no edges required).
 ///
 /// Args:
-///     image:          Input PyImage.
-///     mu:             Curvature (length) penalty weight. Default 0.25.
-///     nu:             Area penalty weight. Default 0.0.
-///     lambda1:        Data fidelity weight for inside region. Default 1.0.
-///     lambda2:        Data fidelity weight for outside region. Default 1.0.
-///     max_iterations: Maximum PDE evolution iterations. Default 200.
-///     dt:             Euler forward time step. Default 0.1.
-///     tolerance:      Convergence tolerance on max|Δφ|/dt. Default 1e-3.
+///     image: Input PyImage.
+///     opts:  [`ChanVeseOptions`] controlling PDE parameters and stopping criteria.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0 = inside, 0.0 = outside).
 #[pyfunction]
-#[pyo3(signature = (image, mu=0.25, nu=0.0, lambda1=1.0, lambda2=1.0, max_iterations=200, dt=0.1, tolerance=1e-3))]
+#[pyo3(signature = (image, opts = None))]
 pub fn chan_vese_segment(
     py: Python<'_>,
     image: &PyImage,
-    mu: f64,
-    nu: f64,
-    lambda1: f64,
-    lambda2: f64,
-    max_iterations: usize,
-    dt: f64,
-    tolerance: f64,
-) -> PyResult<PyImage> {
+    opts: Option<PyChanVeseOptions>,
+) -> RitkResult<PyImage> {
+    let opts = opts.unwrap_or_else(|| PyChanVeseOptions::new(0.25, 0.0, 1.0, 1.0, 200, 0.1, 1e-3));
     let image_arc = Arc::clone(&image.inner);
-    let result = py
+    py
         .allow_threads(|| {
             let mut seg = ChanVeseSegmentation::new();
-            seg.mu = mu;
-            seg.nu = nu;
-            seg.lambda1 = lambda1;
-            seg.lambda2 = lambda2;
-            seg.max_iterations = max_iterations;
-            seg.dt = dt;
-            seg.tolerance = tolerance;
+            seg.mu = opts.mu;
+            seg.nu = opts.nu;
+            seg.lambda1 = opts.lambda1;
+            seg.lambda2 = opts.lambda2;
+            seg.max_iterations = opts.max_iterations;
+            seg.dt = opts.dt;
+            seg.tolerance = opts.tolerance;
             seg.apply(image_arc.as_ref()).map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
+}
+
+/// Configuration options for [`geodesic_active_contour_segment`].
+#[pyclass(name = "GeodesicActiveContourOptions")]
+#[derive(Clone)]
+pub struct PyGacOptions {
+    /// Balloon force ν (expansion if > 0).
+    #[pyo3(get, set)]
+    pub propagation_weight: f64,
+    /// Weight on curvature regularisation.
+    #[pyo3(get, set)]
+    pub curvature_weight: f64,
+    /// Weight on ∇g·∇φ edge attraction.
+    #[pyo3(get, set)]
+    pub advection_weight: f64,
+    /// Edge stopping sensitivity parameter k.
+    #[pyo3(get, set)]
+    pub edge_k: f64,
+    /// Gaussian pre-smoothing σ for gradient.
+    #[pyo3(get, set)]
+    pub sigma: f64,
+    /// Euler forward time step Δt.
+    #[pyo3(get, set)]
+    pub dt: f64,
+    /// Maximum PDE iterations.
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+}
+
+#[pymethods]
+impl PyGacOptions {
+    #[new]
+    #[pyo3(signature = (propagation_weight=1.0, curvature_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200))]
+    pub fn new(propagation_weight: f64, curvature_weight: f64, advection_weight: f64, edge_k: f64, sigma: f64, dt: f64, max_iterations: usize) -> Self {
+        Self { propagation_weight, curvature_weight, advection_weight, edge_k, sigma, dt, max_iterations }
+    }
 }
 
 /// Segment a 3D image via Geodesic Active Contour level set evolution.
@@ -64,16 +126,10 @@ pub fn chan_vese_segment(
 /// toward image edges using the GAC PDE.
 ///
 /// Args:
-///     image:              Input PyImage.
-///     initial_phi:        Initial level set function PyImage (same shape as image).
-///                         φ < 0 inside the initial contour, φ > 0 outside.
-///     propagation_weight: Balloon force ν (expansion if > 0). Default 1.0.
-///     curvature_weight:   Weight on curvature regularisation. Default 1.0.
-///     advection_weight:   Weight on ∇g·∇φ edge attraction. Default 1.0.
-///     edge_k:             Edge stopping sensitivity parameter k. Default 1.0.
-///     sigma:              Gaussian pre-smoothing σ for gradient. Default 1.0.
-///     dt:                 Euler forward time step Δt. Default 0.05.
-///     max_iterations:     Maximum PDE iterations. Default 200.
+///     image:       Input PyImage.
+///     initial_phi: Initial level set function PyImage (same shape as image).
+///                  φ < 0 inside the initial contour, φ > 0 outside.
+///     opts:        [`GeodesicActiveContourOptions`] controlling PDE parameters.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0 where φ < 0, 0.0 elsewhere).
@@ -81,36 +137,84 @@ pub fn chan_vese_segment(
 /// Raises:
 ///     RuntimeError: if image and initial_phi shapes do not match.
 #[pyfunction]
-#[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200))]
+#[pyo3(signature = (image, initial_phi, opts = None))]
 pub fn geodesic_active_contour_segment(
     py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
-    propagation_weight: f64,
-    curvature_weight: f64,
-    advection_weight: f64,
-    edge_k: f64,
-    sigma: f64,
-    dt: f64,
-    max_iterations: usize,
-) -> PyResult<PyImage> {
+    opts: Option<PyGacOptions>,
+) -> RitkResult<PyImage> {
+    let opts = opts.unwrap_or_else(|| PyGacOptions::new(1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 200));
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    let result = py
+    py
         .allow_threads(|| {
             let mut seg = GeodesicActiveContourSegmentation::new();
-            seg.propagation_weight = propagation_weight;
-            seg.curvature_weight = curvature_weight;
-            seg.advection_weight = advection_weight;
-            seg.edge_k = edge_k;
-            seg.sigma = sigma;
-            seg.dt = dt;
-            seg.max_iterations = max_iterations;
+            seg.propagation_weight = opts.propagation_weight;
+            seg.curvature_weight = opts.curvature_weight;
+            seg.advection_weight = opts.advection_weight;
+            seg.edge_k = opts.edge_k;
+            seg.sigma = opts.sigma;
+            seg.dt = opts.dt;
+            seg.max_iterations = opts.max_iterations;
             seg.apply(image_arc.as_ref(), phi_arc.as_ref())
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
+}
+
+/// Configuration options for [`shape_detection_segment`].
+#[pyclass(name = "ShapeDetectionOptions")]
+#[derive(Clone)]
+pub struct PyShapeDetectionOptions {
+    /// Weight of curvature term.
+    #[pyo3(get, set)]
+    pub curvature_weight: f64,
+    /// Weight of propagation term.
+    #[pyo3(get, set)]
+    pub propagation_weight: f64,
+    /// Weight of advection term.
+    #[pyo3(get, set)]
+    pub advection_weight: f64,
+    /// K parameter for edge potential.
+    #[pyo3(get, set)]
+    pub edge_k: f64,
+    /// Smoothing sigma for gradient filter.
+    #[pyo3(get, set)]
+    pub sigma: f64,
+    /// Time step.
+    #[pyo3(get, set)]
+    pub dt: f64,
+    /// Maximum iterations.
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+    /// Convergence tolerance.
+    #[pyo3(get, set)]
+    pub tolerance: f64,
+}
+
+impl Default for PyShapeDetectionOptions {
+    fn default() -> Self {
+        Self {
+            curvature_weight: 1.0,
+            propagation_weight: 1.0,
+            advection_weight: 1.0,
+            edge_k: 1.0,
+            sigma: 1.0,
+            dt: 0.05,
+            max_iterations: 200,
+            tolerance: 1e-3,
+        }
+    }
+}
+
+#[pymethods]
+impl PyShapeDetectionOptions {
+    #[new]
+    pub fn new() -> Self {
+        Self::default()
+    }
 }
 
 /// Shape-detection level set segmentation.
@@ -119,16 +223,9 @@ pub fn geodesic_active_contour_segment(
 /// gradient-magnitude filter, enabling detection of topological changes.
 ///
 /// Args:
-///     image:              Input PyImage.
-///     initial_phi:        Initial level set function (signed distance).
-///     curvature_weight:   Weight of curvature term (default 1.0).
-///     propagation_weight: Weight of propagation term (default 1.0).
-///     advection_weight:   Weight of advection term (default 1.0).
-///     edge_k:             K parameter for edge potential (default 1.0).
-///     sigma:              Smoothing sigma for gradient filter (default 1.0).
-///     dt:                 Time step (default 0.05).
-///     max_iterations:     Maximum iterations (default 200).
-///     tolerance:          Convergence tolerance (default 1e-3).
+///     image:       Input PyImage.
+///     initial_phi: Initial level set function (signed distance).
+///     opts:        [`ShapeDetectionOptions`] controlling PDE parameters.
 ///
 /// Returns:
 ///     Evolved level set function as PyImage.
@@ -136,38 +233,68 @@ pub fn geodesic_active_contour_segment(
 /// Raises:
 ///     RuntimeError: if computation fails.
 #[pyfunction]
-#[pyo3(signature = (image, initial_phi, curvature_weight=1.0, propagation_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
+#[pyo3(signature = (image, initial_phi, opts = None))]
 pub fn shape_detection_segment(
     py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
-    curvature_weight: f64,
-    propagation_weight: f64,
-    advection_weight: f64,
-    edge_k: f64,
-    sigma: f64,
-    dt: f64,
-    max_iterations: usize,
-    tolerance: f64,
-) -> PyResult<PyImage> {
+    opts: Option<PyShapeDetectionOptions>,
+) -> RitkResult<PyImage> {
+    let opts = opts.unwrap_or_default();
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    let result = py
+    py
         .allow_threads(|| {
             let mut seg = ShapeDetectionSegmentation::new();
-            seg.curvature_weight = curvature_weight;
-            seg.propagation_weight = propagation_weight;
-            seg.advection_weight = advection_weight;
-            seg.edge_k = edge_k;
-            seg.sigma = sigma;
-            seg.dt = dt;
-            seg.max_iterations = max_iterations;
-            seg.tolerance = tolerance;
+            seg.curvature_weight = opts.curvature_weight;
+            seg.propagation_weight = opts.propagation_weight;
+            seg.advection_weight = opts.advection_weight;
+            seg.edge_k = opts.edge_k;
+            seg.sigma = opts.sigma;
+            seg.dt = opts.dt;
+            seg.max_iterations = opts.max_iterations;
+            seg.tolerance = opts.tolerance;
             seg.apply(image_arc.as_ref(), phi_arc.as_ref())
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
+}
+
+/// Configuration options for [`threshold_level_set_segment`].
+#[pyclass(name = "ThresholdLevelSetOptions")]
+#[derive(Clone)]
+pub struct PyThresholdLevelSetOptions {
+    /// Lower intensity threshold.
+    #[pyo3(get, set)]
+    pub lower_threshold: f64,
+    /// Upper intensity threshold.
+    #[pyo3(get, set)]
+    pub upper_threshold: f64,
+    /// Weight of propagation term.
+    #[pyo3(get, set)]
+    pub propagation_weight: f64,
+    /// Weight of curvature term.
+    #[pyo3(get, set)]
+    pub curvature_weight: f64,
+    /// Time step.
+    #[pyo3(get, set)]
+    pub dt: f64,
+    /// Maximum iterations.
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+    /// Convergence tolerance.
+    #[pyo3(get, set)]
+    pub tolerance: f64,
+}
+
+#[pymethods]
+impl PyThresholdLevelSetOptions {
+    #[new]
+    #[pyo3(signature = (lower_threshold, upper_threshold, propagation_weight=1.0, curvature_weight=0.2, dt=0.05, max_iterations=200, tolerance=1e-3))]
+    pub fn new(lower_threshold: f64, upper_threshold: f64, propagation_weight: f64, curvature_weight: f64, dt: f64, max_iterations: usize, tolerance: f64) -> Self {
+        Self { lower_threshold, upper_threshold, propagation_weight, curvature_weight, dt, max_iterations, tolerance }
+    }
 }
 
 /// Threshold-based level set segmentation.
@@ -177,15 +304,9 @@ pub fn shape_detection_segment(
 /// zero speed; outside this band propagation occurs.
 ///
 /// Args:
-///     image:              Input PyImage.
-///     initial_phi:        Initial level set function (signed distance).
-///     lower_threshold:    Lower intensity threshold.
-///     upper_threshold:    Upper intensity threshold.
-///     propagation_weight: Weight of propagation term (default 1.0).
-///     curvature_weight:   Weight of curvature term (default 0.2).
-///     dt:                 Time step (default 0.05).
-///     max_iterations:     Maximum iterations (default 200).
-///     tolerance:          Convergence tolerance (default 1e-3).
+///     image:       Input PyImage.
+///     initial_phi: Initial level set function (signed distance).
+///     opts:        [`ThresholdLevelSetOptions`] controlling thresholds and PDE parameters.
 ///
 /// Returns:
 ///     Evolved level set function as PyImage.
@@ -193,34 +314,61 @@ pub fn shape_detection_segment(
 /// Raises:
 ///     RuntimeError: if computation fails.
 #[pyfunction]
-#[pyo3(signature = (image, initial_phi, lower_threshold, upper_threshold, propagation_weight=1.0, curvature_weight=0.2, dt=0.05, max_iterations=200, tolerance=1e-3))]
+#[pyo3(signature = (image, initial_phi, opts))]
 pub fn threshold_level_set_segment(
     py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
-    lower_threshold: f64,
-    upper_threshold: f64,
-    propagation_weight: f64,
-    curvature_weight: f64,
-    dt: f64,
-    max_iterations: usize,
-    tolerance: f64,
-) -> PyResult<PyImage> {
+    opts: PyThresholdLevelSetOptions,
+) -> RitkResult<PyImage> {
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    let result = py
+    py
         .allow_threads(|| {
-            let mut seg = ThresholdLevelSet::new(lower_threshold, upper_threshold);
-            seg.propagation_weight = propagation_weight;
-            seg.curvature_weight = curvature_weight;
-            seg.dt = dt;
-            seg.max_iterations = max_iterations;
-            seg.tolerance = tolerance;
+            let mut seg = ThresholdLevelSet::new(opts.lower_threshold, opts.upper_threshold);
+            seg.propagation_weight = opts.propagation_weight;
+            seg.curvature_weight = opts.curvature_weight;
+            seg.dt = opts.dt;
+            seg.max_iterations = opts.max_iterations;
+            seg.tolerance = opts.tolerance;
             seg.apply(image_arc.as_ref(), phi_arc.as_ref())
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
+}
+
+/// Configuration options for [`laplacian_level_set_segment`].
+#[pyclass(name = "LaplacianLevelSetOptions")]
+#[derive(Clone)]
+pub struct PyLaplacianLevelSetOptions {
+    /// Weight of Laplacian propagation term.
+    #[pyo3(get, set)]
+    pub propagation_weight: f64,
+    /// Weight of curvature regularisation term.
+    #[pyo3(get, set)]
+    pub curvature_weight: f64,
+    /// Gaussian pre-smoothing standard deviation.
+    #[pyo3(get, set)]
+    pub sigma: f64,
+    /// Euler time step.
+    #[pyo3(get, set)]
+    pub dt: f64,
+    /// Maximum PDE iterations.
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+    /// Convergence tolerance on max|delta phi|/dt.
+    #[pyo3(get, set)]
+    pub tolerance: f64,
+}
+
+#[pymethods]
+impl PyLaplacianLevelSetOptions {
+    #[new]
+    #[pyo3(signature = (propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
+    pub fn new(propagation_weight: f64, curvature_weight: f64, sigma: f64, dt: f64, max_iterations: usize, tolerance: f64) -> Self {
+        Self { propagation_weight, curvature_weight, sigma, dt, max_iterations, tolerance }
+    }
 }
 
 /// Laplacian level set segmentation.
@@ -229,14 +377,9 @@ pub fn threshold_level_set_segment(
 /// Positive propagation speed is applied where L(I) < 0 (local bright maxima).
 ///
 /// Args:
-///     image:              Input PyImage.
-///     initial_phi:        Initial level set function (signed distance).
-///     propagation_weight: Weight of Laplacian propagation term (default 1.0).
-///     curvature_weight:   Weight of curvature regularisation term (default 0.2).
-///     sigma:              Gaussian pre-smoothing standard deviation (default 1.0).
-///     dt:                 Euler time step (default 0.05).
-///     max_iterations:     Maximum PDE iterations (default 200).
-///     tolerance:          Convergence tolerance on max|delta phi|/dt (default 1e-3).
+///     image:       Input PyImage.
+///     initial_phi: Initial level set function (signed distance).
+///     opts:        [`LaplacianLevelSetOptions`] controlling PDE parameters.
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0=foreground, 0.0=background).
@@ -244,32 +387,28 @@ pub fn threshold_level_set_segment(
 /// Raises:
 ///     RuntimeError: if computation fails.
 #[pyfunction]
-#[pyo3(signature = (image, initial_phi, propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
+#[pyo3(signature = (image, initial_phi, opts = None))]
 pub fn laplacian_level_set_segment(
     py: Python<'_>,
     image: &PyImage,
     initial_phi: &PyImage,
-    propagation_weight: f64,
-    curvature_weight: f64,
-    sigma: f64,
-    dt: f64,
-    max_iterations: usize,
-    tolerance: f64,
-) -> PyResult<PyImage> {
+    opts: Option<PyLaplacianLevelSetOptions>,
+) -> RitkResult<PyImage> {
+    let opts = opts.unwrap_or_else(|| PyLaplacianLevelSetOptions::new(1.0, 0.2, 1.0, 0.05, 200, 1e-3));
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    let result = py
+    py
         .allow_threads(|| {
             let mut seg = LaplacianLevelSet::new();
-            seg.propagation_weight = propagation_weight;
-            seg.curvature_weight = curvature_weight;
-            seg.sigma = sigma;
-            seg.dt = dt;
-            seg.max_iterations = max_iterations;
-            seg.tolerance = tolerance;
+            seg.propagation_weight = opts.propagation_weight;
+            seg.curvature_weight = opts.curvature_weight;
+            seg.sigma = opts.sigma;
+            seg.dt = opts.dt;
+            seg.max_iterations = opts.max_iterations;
+            seg.tolerance = opts.tolerance;
             seg.apply(image_arc.as_ref(), phi_arc.as_ref())
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
 }

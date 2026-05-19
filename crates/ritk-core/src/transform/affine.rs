@@ -75,7 +75,6 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
-    #[allow(clippy::single_range_in_vec_init)]
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         // points: [Batch, D]
         // matrix (A): [D, D]
@@ -114,7 +113,8 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_points = points.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_points = points.clone().slice([chunk_range]);
 
                 let centered = chunk_points - c.clone();
                 let rotated = centered.matmul(a_t.clone());

@@ -28,15 +28,23 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(diffeomorphic_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(symmetric_demons_register, &m)?)?;
     m.add_function(wrap_pyfunction!(inverse_consistent_demons_register, &m)?)?;
+    m.add_class::<PyMultiresDemonsOptions>()?;
     m.add_function(wrap_pyfunction!(multires_demons_register, &m)?)?;
+    m.add_class::<PySynConfig>()?;
     m.add_function(wrap_pyfunction!(syn_register, &m)?)?;
+    m.add_class::<PyBSplineFfdConfig>()?;
     m.add_function(wrap_pyfunction!(bspline_ffd_register, &m)?)?;
+    m.add_class::<PyMultiresSynOptions>()?;
     m.add_function(wrap_pyfunction!(multires_syn_register, &m)?)?;
+    m.add_class::<PyBSplineSynOptions>()?;
     m.add_function(wrap_pyfunction!(bspline_syn_register, &m)?)?;
+    m.add_class::<PyLddmmConfig>()?;
     m.add_function(wrap_pyfunction!(lddmm_register, &m)?)?;
+    m.add_class::<PyAtlasBuildOptions>()?;
     m.add_function(wrap_pyfunction!(build_atlas, &m)?)?;
     m.add_function(wrap_pyfunction!(majority_vote_fusion, &m)?)?;
     m.add_function(wrap_pyfunction!(joint_label_fusion_py, &m)?)?;
+    m.add_class::<PyGlobalMiOptions>()?;
     m.add_function(wrap_pyfunction!(global_mi_register, &m)?)?;
 
     parent.add_submodule(&m)?;

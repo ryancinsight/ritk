@@ -116,7 +116,6 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
         point_data,
         cell_data,
     };
-
     grid.validate().map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(grid)
 }

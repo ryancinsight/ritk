@@ -90,16 +90,16 @@ pub struct CmaEsOptimizer {
     config: CmaEsConfig,
 }
 
+impl Default for CmaEsOptimizer {
+    fn default() -> Self {
+        Self::new(CmaEsConfig::default())
+    }
+}
+
 impl CmaEsOptimizer {
     /// Create a new CMA-ES optimizer.
     pub fn new(config: CmaEsConfig) -> Self {
         Self { config }
-    }
-
-    /// Create with default configuration.
-    #[allow(clippy::should_implement_trait)]
-    pub fn default() -> Self {
-        Self::new(CmaEsConfig::default())
     }
 
     /// Run CMA-ES minimization of `f` starting from `x0`.

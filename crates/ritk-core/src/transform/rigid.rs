@@ -86,16 +86,16 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Build the rotation matrix from Euler angles.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         let r = self.rotation.val();
 
         if D == 3 {
             // Euler angles: x (alpha), y (beta), z (gamma)
             // R = R_z(gamma) * R_y(beta) * R_x(alpha)
-            let alpha = r.clone().slice([0..1]); // x
-            let beta = r.clone().slice([1..2]); // y
-            let gamma = r.clone().slice([2..3]); // z
+            let (r_x, r_y, r_z) = (0..1, 1..2, 2..3);
+            let alpha = r.clone().slice([r_x]); // x
+            let beta = r.clone().slice([r_y]); // y
+            let gamma = r.clone().slice([r_z]); // z
 
             let cx = alpha.clone().cos();
             let sx = alpha.sin();
@@ -142,7 +142,8 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
 
             Tensor::cat(vec![row1, row2, row3], 0)
         } else if D == 2 {
-            let theta = r.clone().slice([0..1]);
+            let theta_range = 0..1;
+            let theta = r.clone().slice([theta_range]);
             let c = theta.clone().cos();
             let s = theta.sin();
 
@@ -174,7 +175,6 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for RigidTransform<B, D> {
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
-    #[allow(clippy::single_range_in_vec_init)]
     fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         // points: [Batch, D]
         // R: [D, D]
@@ -205,7 +205,8 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_points = points.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_points = points.clone().slice([chunk_range]);
 
                 let centered = chunk_points - c.clone();
                 let rotated = centered.matmul(r.clone().transpose());

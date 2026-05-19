@@ -14,7 +14,7 @@ pub(super) fn collect_image_vectors(
     let mut reference_shape = [0usize; 3];
 
     for (index, image) in images.iter().enumerate() {
-        let (values, shape) = image_to_vec(&image.inner)?;
+        let (values, shape) = image_to_vec(&image.inner);
         if index == 0 {
             reference_shape = shape;
         } else if shape != reference_shape {

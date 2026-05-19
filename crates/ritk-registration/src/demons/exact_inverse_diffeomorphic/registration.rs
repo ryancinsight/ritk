@@ -1,21 +1,12 @@
 //! Inverse-consistent diffeomorphic Demons registration.
-//!
-//! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~22n f32
-//! (3 velocity + 3 fixed grad + 3 moving grad + 3 forward displacement +
-//! 3 inverted velocity + 3 backward displacement + 1 forward warped +
-//! 1 backward warped + 3 forward forces + 3 backward forces +
-//! 3 SS scratch + 1 smooth scratch = ~30n, with some sharing).
 
 use super::super::config::DemonsConfig;
-use super::super::inverse::invert_velocity_field_into;
-use super::super::thirion::thirion_forces_into;
+use super::super::inverse::invert_velocity_field;
+use super::super::thirion::thirion_forces;
 use super::ic_residual::compute_ic_residual;
 use crate::deformable_field_ops::{
-    compute_gradient_into, compute_mse_streaming, gaussian_smooth_with_scratch,
-    scaling_and_squaring_into, warp_image_into,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring,
+    warp_image,
 };
 use crate::error::RegistrationError;
 
@@ -126,43 +117,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         let cfg = &self.config.demons;
         let n_sq = self.config.n_squarings;
 
-        let mut gf_z = vec![0.0_f32; n];
-        let mut gf_y = vec![0.0_f32; n];
-        let mut gf_x = vec![0.0_f32; n];
-        compute_gradient_into(fixed, dims, spacing, &mut gf_z, &mut gf_y, &mut gf_x);
-        let mut gm_z = vec![0.0_f32; n];
-        let mut gm_y = vec![0.0_f32; n];
-        let mut gm_x = vec![0.0_f32; n];
-        compute_gradient_into(moving, dims, spacing, &mut gm_z, &mut gm_y, &mut gm_x);
+        let (gf_z, gf_y, gf_x) = compute_gradient(fixed, dims, spacing);
+        let (gm_z, gm_y, gm_x) = compute_gradient(moving, dims, spacing);
 
         let mut vel_z = vec![0.0_f32; n];
         let mut vel_y = vec![0.0_f32; n];
         let mut vel_x = vec![0.0_f32; n];
 
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
-        let mut phi_z = vec![0.0_f32; n];
-        let mut phi_y = vec![0.0_f32; n];
-        let mut phi_x = vec![0.0_f32; n];
-        let mut inv_vel_z = vec![0.0_f32; n];
-        let mut inv_vel_y = vec![0.0_f32; n];
-        let mut inv_vel_x = vec![0.0_f32; n];
-        let mut psi_z = vec![0.0_f32; n];
-        let mut psi_y = vec![0.0_f32; n];
-        let mut psi_x = vec![0.0_f32; n];
-        let mut m_warped = vec![0.0_f32; n];
-        let mut f_warped = vec![0.0_f32; n];
-        let mut fz_fwd = vec![0.0_f32; n];
-        let mut fy_fwd = vec![0.0_f32; n];
-        let mut fx_fwd = vec![0.0_f32; n];
-        let mut fz_bwd = vec![0.0_f32; n];
-        let mut fy_bwd = vec![0.0_f32; n];
-        let mut fx_bwd = vec![0.0_f32; n];
-        let mut scratch_ss_z = vec![0.0_f32; n];
-        let mut scratch_ss_y = vec![0.0_f32; n];
-        let mut scratch_ss_x = vec![0.0_f32; n];
-        let mut smooth_tmp = vec![0.0_f32; n];
-
-        // Initial MSE: v = 0 (identity) — MSE of raw fixed vs moving.
         let mut final_mse: f64 = fixed
             .iter()
             .zip(moving.iter())
@@ -174,72 +135,23 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             / n as f64;
 
         let mut iter = 0usize;
+
         for it in 0..cfg.max_iterations {
             iter = it + 1;
 
-            // φ_fwd = exp(v)
-            scaling_and_squaring_into(
-                &vel_z,
-                &vel_y,
-                &vel_x,
-                dims,
-                n_sq,
-                &mut phi_z,
-                &mut phi_y,
-                &mut phi_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
-            );
+            let (phi_z, phi_y, phi_x) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
 
-            // φ_inv = exp(−v)
-            invert_velocity_field_into(
-                &vel_z,
-                &vel_y,
-                &vel_x,
-                &mut inv_vel_z,
-                &mut inv_vel_y,
-                &mut inv_vel_x,
-            );
-            scaling_and_squaring_into(
-                &inv_vel_z,
-                &inv_vel_y,
-                &inv_vel_x,
-                dims,
-                n_sq,
-                &mut psi_z,
-                &mut psi_y,
-                &mut psi_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
-            );
+            let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(&vel_z, &vel_y, &vel_x);
+            let (psi_z, psi_y, psi_x) =
+                scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, n_sq);
 
-            warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
-            warp_image_into(fixed, dims, &psi_z, &psi_y, &psi_x, &mut f_warped);
+            let m_warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
+            let f_warped = warp_image(fixed, dims, &psi_z, &psi_y, &psi_x);
 
-            thirion_forces_into(
-                fixed,
-                &m_warped,
-                &gf_z,
-                &gf_y,
-                &gf_x,
-                cfg.max_step_length,
-                &mut fz_fwd,
-                &mut fy_fwd,
-                &mut fx_fwd,
-            );
-            thirion_forces_into(
-                moving,
-                &f_warped,
-                &gm_z,
-                &gm_y,
-                &gm_x,
-                cfg.max_step_length,
-                &mut fz_bwd,
-                &mut fy_bwd,
-                &mut fx_bwd,
-            );
+            let (fz_fwd, fy_fwd, fx_fwd) =
+                thirion_forces(fixed, &m_warped, &gf_z, &gf_y, &gf_x, cfg.max_step_length);
+            let (fz_bwd, fy_bwd, fx_bwd) =
+                thirion_forces(moving, &f_warped, &gm_z, &gm_y, &gm_x, cfg.max_step_length);
 
             let w_fwd = (1.0 - w) as f32;
             let w_bwd = w as f32;
@@ -250,83 +162,23 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             }
 
             if cfg.sigma_diffusion > 0.0 {
-                gaussian_smooth_with_scratch(
-                    &mut vel_z,
-                    dims,
-                    cfg.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut vel_y,
-                    dims,
-                    cfg.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut vel_x,
-                    dims,
-                    cfg.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
+                gaussian_smooth_inplace(&mut vel_z, dims, cfg.sigma_diffusion);
+                gaussian_smooth_inplace(&mut vel_y, dims, cfg.sigma_diffusion);
+                gaussian_smooth_inplace(&mut vel_x, dims, cfg.sigma_diffusion);
             }
 
-            // Reuse psi buffer for MSE displacement — psi is consumed here and
-            // overwritten at the top of the next iteration.
-            scaling_and_squaring_into(
-                &vel_z,
-                &vel_y,
-                &vel_x,
-                dims,
-                n_sq,
-                &mut psi_z,
-                &mut psi_y,
-                &mut psi_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
-            );
-            final_mse = compute_mse_streaming(fixed, moving, dims, &psi_z, &psi_y, &psi_x);
+            {
+                let (pz, py, px) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
+                final_mse = compute_mse_streaming(fixed, moving, dims, &pz, &py, &px);
+            }
         }
 
-        // Final φ_fwd = exp(v) — reuses phi buffers.
-        scaling_and_squaring_into(
-            &vel_z,
-            &vel_y,
-            &vel_x,
-            dims,
-            n_sq,
-            &mut phi_z,
-            &mut phi_y,
-            &mut phi_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
-        );
-        let mut warped = vec![0.0_f32; n];
-        warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut warped);
+        let (phi_z, phi_y, phi_x) = scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, n_sq);
+        let warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
 
-        // Final φ_inv = exp(−v)
-        invert_velocity_field_into(
-            &vel_z,
-            &vel_y,
-            &vel_x,
-            &mut inv_vel_z,
-            &mut inv_vel_y,
-            &mut inv_vel_x,
-        );
-        scaling_and_squaring_into(
-            &inv_vel_z,
-            &inv_vel_y,
-            &inv_vel_x,
-            dims,
-            n_sq,
-            &mut psi_z,
-            &mut psi_y,
-            &mut psi_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
-        );
+        let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(&vel_z, &vel_y, &vel_x);
+        let (psi_z, psi_y, psi_x) =
+            scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, n_sq);
 
         let ic_residual = compute_ic_residual(&phi_z, &phi_y, &phi_x, &psi_z, &psi_y, &psi_x, dims);
 

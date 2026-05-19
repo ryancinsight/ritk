@@ -5,12 +5,11 @@
 
 pub mod color;
 pub mod grid;
-#[allow(clippy::module_inception)]
-pub mod image;
 pub mod metadata;
 pub mod transform;
+pub mod types;
 
 pub use color::{ColorVolume, RgbVolume};
 pub use grid::generate_grid;
-pub use image::Image;
 pub use metadata::ImageMetadata;
+pub use types::Image;

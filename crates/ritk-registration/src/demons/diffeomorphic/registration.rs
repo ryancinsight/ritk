@@ -1,34 +1,11 @@
 //! Diffeomorphic Demons registration struct and iteration loop.
-//!
-//! # Algorithm
-//! Stationary-velocity-field (SVF) Demons: iteratively updates a velocity
-//! field whose exponential map (scaling-and-squaring) gives the deformation.
-//! Thirion optical-flow forces drive the update; Gaussian smoothing
-//! regularises the velocity field.
-//!
-//! **Per-iteration steps:**
-//! 1. φ = exp(v)  (scaling-and-squaring)
-//! 2. I_w = warp(M, φ)
-//! 3. f = Thirion_forces(F, I_w, ∇F)
-//! 4. v ← v + f
-//! 5. v ← G_σ ∗ v  (if σ > 0)
-//! 6. MSE = MSE(F, M, φ)  (reuses φ from step 1)
-//!
-//! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~14n f32
-//! (3 velocity + 3 displacement + 3 SS scratch + 1 warped image +
-//! 3 forces + 1 smooth scratch = 14n). The fixed-image gradient (3n)
-//! is computed once before the loop and does not contribute to per-iteration
-//! allocation.
 
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
-use super::super::thirion::thirion_forces_into;
+use super::super::thirion::thirion_forces;
 use crate::deformable_field_ops::{
-    compute_gradient, compute_mse_streaming, gaussian_smooth_with_scratch,
-    scaling_and_squaring_into, warp_image_into,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring,
+    warp_image,
 };
 use crate::error::RegistrationError;
 
@@ -67,9 +44,9 @@ impl DiffeomorphicDemonsRegistration {
     /// Register `moving` to `fixed` using a stationary velocity field.
     ///
     /// # Arguments
-    /// - `fixed` — reference image, flat `Vec<f32>` in Z-major order.
-    /// - `moving` — moving image, same shape as `fixed`.
-    /// - `dims` — image dimensions `[nz, ny, nx]`.
+    /// - `fixed`   — reference image, flat `Vec<f32>` in Z-major order.
+    /// - `moving`  — moving image, same shape as `fixed`.
+    /// - `dims`    — image dimensions `[nz, ny, nx]`.
     /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
     ///
     /// # Errors
@@ -103,53 +80,34 @@ impl DiffeomorphicDemonsRegistration {
         let mut vel_y = vec![0.0_f32; n];
         let mut vel_x = vec![0.0_f32; n];
 
-        // Fixed-image gradient (computed once, not per-iteration)
         let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
 
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
-        let mut phi_z = vec![0.0_f32; n];
-        let mut phi_y = vec![0.0_f32; n];
-        let mut phi_x = vec![0.0_f32; n];
-        let mut scratch_ss_z = vec![0.0_f32; n];
-        let mut scratch_ss_y = vec![0.0_f32; n];
-        let mut scratch_ss_x = vec![0.0_f32; n];
-        let mut m_warped = vec![0.0_f32; n];
-        let mut fz = vec![0.0_f32; n];
-        let mut fy = vec![0.0_f32; n];
-        let mut fx = vec![0.0_f32; n];
-        let mut smooth_tmp = vec![0.0_f32; n];
-
-        // Initial MSE: φ = 0 (identity) — buffers already zero-initialised.
-        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
-
+        let mut final_mse = compute_mse_direct(
+            fixed,
+            moving,
+            &vel_z,
+            &vel_y,
+            &vel_x,
+            dims,
+            self.n_squarings,
+        );
         let mut iter = 0usize;
+
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
-            scaling_and_squaring_into(
-                &vel_z,
-                &vel_y,
-                &vel_x,
-                dims,
-                self.n_squarings,
-                &mut phi_z,
-                &mut phi_y,
-                &mut phi_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
-            );
-            warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
-            thirion_forces_into(
+            let (phi_z, phi_y, phi_x) =
+                scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, self.n_squarings);
+
+            let m_warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
+
+            let (fz, fy, fx) = thirion_forces(
                 fixed,
                 &m_warped,
                 &grad_z,
                 &grad_y,
                 &grad_x,
                 self.config.max_step_length,
-                &mut fz,
-                &mut fy,
-                &mut fx,
             );
 
             for i in 0..n {
@@ -159,47 +117,25 @@ impl DiffeomorphicDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_with_scratch(
-                    &mut vel_z,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut vel_y,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut vel_x,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
+                gaussian_smooth_inplace(&mut vel_z, dims, self.config.sigma_diffusion);
+                gaussian_smooth_inplace(&mut vel_y, dims, self.config.sigma_diffusion);
+                gaussian_smooth_inplace(&mut vel_x, dims, self.config.sigma_diffusion);
             }
 
-            // Reuse φ already computed at loop top — avoids redundant
-            // scaling-and-squaring allocation that `compute_mse_direct` incurred.
-            final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
+            final_mse = compute_mse_direct(
+                fixed,
+                moving,
+                &vel_z,
+                &vel_y,
+                &vel_x,
+                dims,
+                self.n_squarings,
+            );
         }
 
-        // Final displacement fields (zero alloc, reuse scratch)
-        scaling_and_squaring_into(
-            &vel_z,
-            &vel_y,
-            &vel_x,
-            dims,
-            self.n_squarings,
-            &mut phi_z,
-            &mut phi_y,
-            &mut phi_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
-        );
-        let mut warped = vec![0.0_f32; n];
-        warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut warped);
+        let (phi_z, phi_y, phi_x) =
+            scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, self.n_squarings);
+        let warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
 
         Ok(DemonsResult {
             warped,
@@ -226,8 +162,6 @@ impl DiffeomorphicDemonsRegistration {
         match (&result.vel_z, &result.vel_y, &result.vel_x) {
             (Some(vel_z), Some(vel_y), Some(vel_x)) => {
                 let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(vel_z, vel_y, vel_x);
-                // Not in a hot loop — allocating variant is acceptable.
-                use crate::deformable_field_ops::scaling_and_squaring;
                 scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, self.n_squarings)
             }
             _ => {
@@ -244,4 +178,17 @@ impl DiffeomorphicDemonsRegistration {
             }
         }
     }
+}
+
+fn compute_mse_direct(
+    fixed: &[f32],
+    moving: &[f32],
+    vel_z: &[f32],
+    vel_y: &[f32],
+    vel_x: &[f32],
+    dims: [usize; 3],
+    n_squarings: usize,
+) -> f64 {
+    let (phi_z, phi_y, phi_x) = scaling_and_squaring(vel_z, vel_y, vel_x, dims, n_squarings);
+    compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x)
 }

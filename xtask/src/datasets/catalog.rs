@@ -28,6 +28,7 @@ impl DatasetManager {
 
     pub fn download(&self, dataset: &dyn Dataset, force: bool) -> Result<()> {
         let dataset_dir = self.data_dir.join(dataset.name());
+
         if dataset_dir.exists() && !force {
             info!(
                 "Dataset {} already exists at {}. Use --force to re-download.",
@@ -36,6 +37,7 @@ impl DatasetManager {
             );
             return Ok(());
         }
+
         std::fs::create_dir_all(&dataset_dir)?;
 
         let urls = dataset.urls();
@@ -51,7 +53,8 @@ impl DatasetManager {
 
         for (url, expected_hash) in urls {
             info!("Downloading from: {}", url);
-            let filename = url.rsplit('/').next().unwrap_or("download");
+
+            let filename = url.split('/').next_back().unwrap_or("download");
             let download_path = dataset_dir.join(filename);
 
             // Download with progress bar
@@ -101,6 +104,7 @@ impl DatasetManager {
         for entry in std::fs::read_dir(&self.data_dir)? {
             let entry = entry?;
             let path = entry.path();
+
             if path.is_dir() {
                 let name = path.file_name().unwrap_or_default().to_string_lossy();
                 info!("Checking dataset: {}", name);
@@ -116,7 +120,11 @@ impl DatasetManager {
                         .and_then(|n| n.to_str())
                         .unwrap_or("<unknown>");
                     if let Err(err) = validate_nifti_payload(filename, &data) {
-                        invalid_nifti_files.push(format!("{} ({})", nifti_path.display(), err));
+                        invalid_nifti_files.push(format!(
+                            "{} ({})",
+                            nifti_path.display(),
+                            err
+                        ));
                     }
                 }
             }
@@ -128,17 +136,19 @@ impl DatasetManager {
                 invalid_nifti_files.join("\n")
             );
         }
+
         Ok(())
     }
 }
 
-pub(crate) fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
+fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> {
     if is_html_payload(data) {
         anyhow::bail!(
             "{} appears to be HTML, not NIfTI data (possible bad download URL or auth page)",
             filename
         );
     }
+
     if filename.ends_with(".nii.gz") {
         if data.len() < 2 || data[0] != 0x1f || data[1] != 0x8b {
             anyhow::bail!("{} is not a gzip stream", filename);
@@ -151,21 +161,23 @@ pub(crate) fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> 
         if !looks_like_nifti_header(&header) {
             anyhow::bail!("{} does not contain a valid NIfTI header", filename);
         }
-    } else if filename.ends_with(".nii") && (data.len() < 4 || !looks_like_nifti_header(&data[..4]))
+    } else if filename.ends_with(".nii")
+        && (data.len() < 4 || !looks_like_nifti_header(&data[..4]))
     {
         anyhow::bail!("{} does not contain a valid NIfTI header", filename);
     }
+
     Ok(())
 }
 
-pub(crate) fn is_html_payload(data: &[u8]) -> bool {
+fn is_html_payload(data: &[u8]) -> bool {
     let prefix_len = data.len().min(1024);
     let prefix = &data[..prefix_len];
     let text = String::from_utf8_lossy(prefix).to_ascii_lowercase();
     text.contains("<!doctype html") || text.contains("<html")
 }
 
-pub(crate) fn looks_like_nifti_header(header4: &[u8]) -> bool {
+fn looks_like_nifti_header(header4: &[u8]) -> bool {
     if header4.len() < 4 {
         return false;
     }
@@ -193,22 +205,25 @@ fn download_with_progress(url: &str) -> Result<Vec<u8>> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(300))
         .build()?;
+
     let response = client
         .get(url)
         .send()
         .map_err(|e| anyhow::anyhow!("Failed to download from {}: {}", url, e))?;
+
     let total_size = response.content_length().unwrap_or(0);
 
     let pb = ProgressBar::new(total_size);
     pb.set_style(
         ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")?
-            .progress_chars("#>-"),
+        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")?
+        .progress_chars("#>-"),
     );
 
     let mut data = Vec::new();
     let mut stream = response;
     let mut buffer = [0u8; 8192];
+
     loop {
         let bytes_read = stream.read(&mut buffer)?;
         if bytes_read == 0 {
@@ -217,6 +232,7 @@ fn download_with_progress(url: &str) -> Result<Vec<u8>> {
         data.extend_from_slice(&buffer[..bytes_read]);
         pb.inc(bytes_read as u64);
     }
+
     pb.finish_with_message("Download complete");
     Ok(data)
 }
@@ -233,9 +249,11 @@ fn extract_tar_gz(data: &[u8], dest: &Path) -> Result<()> {
 fn extract_zip(data: &[u8], dest: &Path) -> Result<()> {
     let reader = std::io::Cursor::new(data);
     let mut archive = zip::ZipArchive::new(reader)?;
+
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
         let outpath = dest.join(file.name());
+
         if file.name().ends_with('/') {
             std::fs::create_dir_all(&outpath)?;
         } else {
@@ -246,25 +264,66 @@ fn extract_zip(data: &[u8], dest: &Path) -> Result<()> {
             std::io::copy(&mut file, &mut outfile)?;
         }
     }
+
     Ok(())
 }
 
 /// Count NIfTI files in directory
 fn count_nifti_files(dir: &Path) -> Result<usize> {
     let mut count = 0;
+
     for entry in walkdir::WalkDir::new(dir) {
         let entry = entry?;
         let path = entry.path();
+
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             if ext == "nii" || ext == "gz" {
                 count += 1;
             }
         }
     }
+
     Ok(count)
 }
 
-// ── Dataset Implementations ──────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    use super::{is_html_payload, looks_like_nifti_header, validate_nifti_payload};
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
+    #[test]
+    fn nifti_header_detection_accepts_nifti1_little_endian() {
+        let h = 348_i32.to_le_bytes();
+        assert!(looks_like_nifti_header(&h));
+    }
+
+    #[test]
+    fn html_payload_detection_flags_doctype() {
+        let html = b"<!doctype html><html><head></head><body>not nii</body></html>";
+        assert!(is_html_payload(html));
+    }
+
+    #[test]
+    fn validate_nifti_payload_rejects_html_masquerade() {
+        let html = b"<!doctype html><html><head></head><body>404</body></html>";
+        let err = validate_nifti_payload("bad.nii.gz", html).unwrap_err().to_string();
+        assert!(err.contains("appears to be HTML"));
+    }
+
+    #[test]
+    fn validate_nifti_payload_accepts_valid_gzip_nifti_header() {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&348_i32.to_le_bytes()).unwrap();
+        let gz = encoder.finish().unwrap();
+        validate_nifti_payload("ok.nii.gz", &gz).unwrap();
+    }
+}
+
+// ============================================================================
+// Dataset Implementations
+// ============================================================================
 
 /// Example brain MRI data from OpenNeuro (ds000102 - Flanker task)
 /// Small subset for testing
@@ -280,9 +339,11 @@ impl Dataset for OpenNeuroDataset {
     fn name(&self) -> &'static str {
         "openneuro"
     }
+
     fn description(&self) -> &'static str {
         "OpenNeuro ds000102 - Sample fMRI dataset for testing"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // OpenNeuro has S3 buckets with public access
         // Using a small test NIfTI file
@@ -306,9 +367,11 @@ impl Dataset for AntsExampleDataset {
     fn name(&self) -> &'static str {
         "ants_example"
     }
+
     fn description(&self) -> &'static str {
         "ANTs example brain data for registration testing"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // Using niivue-demo-images which are reliable
         vec![
@@ -339,9 +402,11 @@ impl Dataset for BrainWebDataset {
     fn name(&self) -> &'static str {
         "brainweb"
     }
+
     fn description(&self) -> &'static str {
         "BrainWeb simulated brain MRI (requires manual download from brainweb.bic.mni.mcgill.ca)"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // BrainWeb requires form submission
         vec![]
@@ -361,9 +426,11 @@ impl Dataset for OasisDataset {
     fn name(&self) -> &'static str {
         "oasis"
     }
+
     fn description(&self) -> &'static str {
         "OASIS Brains Dataset (416 MR sessions) - Requires registration at https://www.oasis-brains.org/"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // OASIS requires registration
         vec![]
@@ -383,9 +450,11 @@ impl Dataset for IxiDataset {
     fn name(&self) -> &'static str {
         "ixi"
     }
+
     fn description(&self) -> &'static str {
         "IXI Dataset (~600 MR brain images) - Download from https://brain-development.org/ixi-dataset/"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // IXI has direct download links for sample data
         vec![]
@@ -405,9 +474,11 @@ impl Dataset for Learn2RegDataset {
     fn name(&self) -> &'static str {
         "learn2reg"
     }
+
     fn description(&self) -> &'static str {
         "Learn2Reg Challenge datasets - Available at https://learn2reg.grand-challenge.org/"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // Learn2Reg datasets are hosted on Zenodo
         vec![]
@@ -427,9 +498,11 @@ impl Dataset for SynthStripDataset {
     fn name(&self) -> &'static str {
         "synthstrip"
     }
+
     fn description(&self) -> &'static str {
         "SynthStrip test brain MRI data - FreeSurfer project"
     }
+
     fn urls(&self) -> Vec<(&'static str, &'static str)> {
         // SynthStrip has some test data available
         vec![]

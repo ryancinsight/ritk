@@ -20,7 +20,7 @@
 //! - Christensen, G. E. & Johnson, H. J. (2001). Consistent image registration.
 //!   *IEEE Trans. Med. Imaging* 20(7):568–582.
 
-use crate::deformable_field_ops::trilinear_interpolate;
+use crate::deformable_field_ops::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
 
 /// Configuration for iterative inverse computation (used for non-SVF fields).
 ///
@@ -76,16 +76,22 @@ pub fn invert_displacement_field(
         iters += 1;
 
         warp_displacement_into(
-            disp_z,
-            disp_y,
-            disp_x,
-            &inv_z,
-            &inv_y,
-            &inv_x,
+            VectorField3D {
+                z: disp_z,
+                y: disp_y,
+                x: disp_x,
+            },
+            VectorField3D {
+                z: &inv_z,
+                y: &inv_y,
+                x: &inv_x,
+            },
             dims,
-            &mut next_z,
-            &mut next_y,
-            &mut next_x,
+            VectorFieldMut3D {
+                z: &mut next_z,
+                y: &mut next_y,
+                x: &mut next_x,
+            },
         );
 
         let max_change = (0..n)
@@ -115,18 +121,27 @@ pub fn invert_displacement_field(
 /// All three displacement components are sampled in one pass to avoid
 /// repeating the same coordinate computation three times.
 pub(super) fn warp_displacement_into(
-    disp_z: &[f32],
-    disp_y: &[f32],
-    disp_x: &[f32],
-    query_z: &[f32],
-    query_y: &[f32],
-    query_x: &[f32],
+    disp: VectorField3D<'_>,
+    query: VectorField3D<'_>,
     dims: [usize; 3],
-    out_z: &mut [f32],
-    out_y: &mut [f32],
-    out_x: &mut [f32],
+    out: VectorFieldMut3D<'_>,
 ) {
     let [nz, ny, nx] = dims;
+    let VectorField3D {
+        z: disp_z,
+        y: disp_y,
+        x: disp_x,
+    } = disp;
+    let VectorField3D {
+        z: query_z,
+        y: query_y,
+        x: query_x,
+    } = query;
+    let VectorFieldMut3D {
+        z: out_z,
+        y: out_y,
+        x: out_x,
+    } = out;
 
     for iz in 0..nz {
         for iy in 0..ny {

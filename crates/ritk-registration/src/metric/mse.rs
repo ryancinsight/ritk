@@ -33,7 +33,6 @@ impl Default for MeanSquaredError {
 }
 
 impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
-    #[allow(clippy::single_range_in_vec_init)]
     fn forward(
         &self,
         fixed: &Image<B, D>,
@@ -69,7 +68,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
 
-                let chunk_indices = fixed_indices.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_indices = fixed_indices.clone().slice([chunk_range]);
                 let chunk_fixed_points = fixed.index_to_world_tensor(chunk_indices);
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);

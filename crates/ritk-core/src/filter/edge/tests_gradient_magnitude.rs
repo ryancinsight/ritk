@@ -1,5 +1,4 @@
 use super::*;
-use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -28,8 +27,9 @@ fn test_uniform_image_zero_gradient() {
     let filter = GradientMagnitudeFilter::unit();
     let mag = filter.apply(&img).unwrap();
 
-    let (out, _) = extract_vec_infallible(&mag);
-    for &v in &out {
+    let td = mag.data().clone().into_data();
+    let out = td.as_slice::<f32>().unwrap();
+    for &v in out {
         assert!(v.abs() < 1e-5, "expected 0.0 for uniform image, got {v}");
     }
 }
@@ -48,9 +48,14 @@ fn test_ramp_x_gradient() {
     let filter = GradientMagnitudeFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let (gz_vals, _) = extract_vec_infallible(&gz);
-    let (gy_vals, _) = extract_vec_infallible(&gy);
-    let (gx_vals, _) = extract_vec_infallible(&gx);
+    let gz_data = gz.data().clone().into_data();
+    let gz_vals = gz_data.as_slice::<f32>().unwrap();
+    let gy_data = gy.data().clone().into_data();
+    let gy_vals = gy_data.as_slice::<f32>().unwrap();
+    let gx_data = gx.data().clone().into_data();
+    let gx_vals = gx_data.as_slice::<f32>().unwrap();
+
+    // Interior voxels: ix in 1..nx-1
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -76,7 +81,8 @@ fn test_ramp_x_gradient() {
 
     // Magnitude image interior
     let mag = filter.apply(&img).unwrap();
-    let (mag_vals, _) = extract_vec_infallible(&mag);
+    let mag_data = mag.data().clone().into_data();
+    let mag_vals = mag_data.as_slice::<f32>().unwrap();
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -108,9 +114,13 @@ fn test_diagonal_ramp_gradient() {
     let filter = GradientMagnitudeFilter::unit();
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
-    let (gz_vals, _) = extract_vec_infallible(&gz);
-    let (gy_vals, _) = extract_vec_infallible(&gy);
-    let (gx_vals, _) = extract_vec_infallible(&gx);
+    let gz_data = gz.data().clone().into_data();
+    let gz_vals = gz_data.as_slice::<f32>().unwrap();
+    let gy_data = gy.data().clone().into_data();
+    let gy_vals = gy_data.as_slice::<f32>().unwrap();
+    let gx_data = gx.data().clone().into_data();
+    let gx_vals = gx_data.as_slice::<f32>().unwrap();
+
     let expected_mag = 3.0_f32.sqrt();
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -136,7 +146,8 @@ fn test_diagonal_ramp_gradient() {
     }
 
     let mag = filter.apply(&img).unwrap();
-    let (mag_vals, _) = extract_vec_infallible(&mag);
+    let mag_data = mag.data().clone().into_data();
+    let mag_vals = mag_data.as_slice::<f32>().unwrap();
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
             for ix in 1..nx - 1 {
@@ -159,7 +170,8 @@ fn test_non_unit_spacing() {
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
     let filter = GradientMagnitudeFilter::new([1.0, 1.0, 2.0]);
     let (_, _, gx) = filter.apply_components(&img).unwrap();
-    let (gx_vals, _) = extract_vec_infallible(&gx);
+    let gx_data = gx.data().clone().into_data();
+    let gx_vals = gx_data.as_slice::<f32>().unwrap();
     // interior gx = 1 pixel / 2.0 mm = 0.5
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -195,12 +207,15 @@ fn test_apply_from_slice_matches_apply() {
     let img = make_image(vals.clone(), [nz, ny, nx], spacing);
     let filter = GradientMagnitudeFilter::new(spacing);
 
-    // Reference path: apply() extracts data internally via extract_vec_infallible.
+    // Reference path: apply() extracts data internally via clone().into_data().
     let mag_ref = filter.apply(&img).unwrap();
-    let (ref_vals, _) = extract_vec_infallible(&mag_ref);
+    let ref_data = mag_ref.data().clone().into_data();
+    let ref_vals = ref_data.as_slice::<f32>().unwrap();
+
     // Zero-copy path: apply_from_slice() accepts pre-extracted &[f32].
     let mag_slice = filter.apply_from_slice(&vals, [nz, ny, nx], &img).unwrap();
-    let (slice_vals, _) = extract_vec_infallible(&mag_slice);
+    let slice_data = mag_slice.data().clone().into_data();
+    let slice_vals = slice_data.as_slice::<f32>().unwrap();
 
     assert_eq!(ref_vals.len(), slice_vals.len(), "output length must match");
     for (i, (&r, &s)) in ref_vals.iter().zip(slice_vals.iter()).enumerate() {

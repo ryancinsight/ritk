@@ -1,6 +1,7 @@
 //! Region growing segmentation: connected-threshold, confidence-connected,
 //! and neighbourhood-connected.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::segmentation::{
@@ -34,15 +35,15 @@ pub fn connected_threshold_segment(
     seed: [usize; 3],
     lower: f32,
     upper: f32,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if lower > upper {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "lower bound ({lower}) must be ≤ upper bound ({upper})"
         )));
     }
     let shape = image.inner.shape();
     if seed[0] >= shape[0] || seed[1] >= shape[1] || seed[2] >= shape[2] {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "seed {:?} is out of bounds for image shape {:?}",
             seed, shape
         )));
@@ -81,9 +82,9 @@ pub fn confidence_connected_segment(
     initial_upper: f32,
     multiplier: f32,
     max_iterations: usize,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if seed.len() != 3 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "seed must have exactly 3 elements, got {}",
             seed.len()
         )));
@@ -125,9 +126,9 @@ pub fn neighborhood_connected_segment(
     lower: f32,
     upper: f32,
     radius: usize,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if seed.len() != 3 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "seed must have exactly 3 elements, got {}",
             seed.len()
         )));

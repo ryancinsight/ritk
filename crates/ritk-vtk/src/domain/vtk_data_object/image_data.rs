@@ -56,14 +56,13 @@ impl VtkImageData {
             }
         }
         let np = self.n_points();
-        #[allow(clippy::collapsible_match)]
         for (name, arr) in &self.point_data {
             match arr {
                 AttributeArray::Scalars {
                     values,
                     num_components,
                 } => {
-                    let expected = np * (*num_components);
+                    let expected = np * *num_components;
                     if values.len() != expected {
                         return Err(format!(
                             "point_data '{}': expected {} values, got {}",
@@ -73,39 +72,34 @@ impl VtkImageData {
                         ));
                     }
                 }
-                AttributeArray::Vectors { values } => {
-                    // values: Vec<[f32; 3]> — one 3-vector per point.
-                    if values.len() != np {
-                        return Err(format!(
-                            "point_data vectors '{}': expected {} vectors, got {}",
-                            name,
-                            np,
-                            values.len()
-                        ));
-                    }
+                // values: Vec<[f32; 3]> — one 3-vector per point.
+                AttributeArray::Vectors { values } if values.len() != np => {
+                    return Err(format!(
+                        "point_data vectors '{}': expected {} vectors, got {}",
+                        name,
+                        np,
+                        values.len()
+                    ));
                 }
                 _ => {}
             }
         }
         let nc = self.n_cells();
-        #[allow(clippy::single_match)]
         for (name, arr) in &self.cell_data {
-            match arr {
-                AttributeArray::Scalars {
-                    values,
-                    num_components,
-                } => {
-                    let expected = nc * (*num_components);
-                    if values.len() != expected {
-                        return Err(format!(
-                            "cell_data '{}': expected {} values, got {}",
-                            name,
-                            expected,
-                            values.len()
-                        ));
-                    }
+            if let AttributeArray::Scalars {
+                values,
+                num_components,
+            } = arr
+            {
+                let expected = nc * *num_components;
+                if values.len() != expected {
+                    return Err(format!(
+                        "cell_data '{}': expected {} values, got {}",
+                        name,
+                        expected,
+                        values.len()
+                    ));
                 }
-                _ => {}
             }
         }
         Ok(())

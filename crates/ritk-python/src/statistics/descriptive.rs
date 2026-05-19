@@ -1,5 +1,6 @@
 //! Descriptive statistics, image comparison, noise estimation, and label statistics.
 
+use crate::errors::RitkResult;
 use crate::image::{with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -17,7 +18,7 @@ use std::sync::Arc;
 
 /// Convert [`ImageStatistics`] to a Python dict with keys:
 /// `min`, `max`, `mean`, `std`, `p25`, `p50`, `p75`.
-pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> PyResult<Py<PyDict>> {
+pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResult<Py<PyDict>> {
     let dict = PyDict::new_bound(py);
     dict.set_item("min", stats.min)?;
     dict.set_item("max", stats.max)?;
@@ -40,7 +41,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> PyResult
 ///     dict with keys: min, max, mean, std, p25, p50, p75 (all float).
 ///     Percentiles correspond to the 25th, 50th (median), and 75th percentiles.
 #[pyfunction]
-pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> PyResult<Py<PyDict>> {
+pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDict>> {
     let stats = with_tensor_slice(image.inner.data(), compute_statistics_from_slice);
     stats_to_dict(py, &stats)
 }
@@ -60,7 +61,7 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> PyResult<Py<PyDict
 /// Raises:
 ///     RuntimeError: if image and mask shapes differ or mask has no foreground voxels.
 #[pyfunction]
-pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> PyResult<Py<PyDict>> {
+pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> RitkResult<Py<PyDict>> {
     let stats = with_tensor_slice(image.inner.data(), |img_slice| {
         with_tensor_slice(mask.inner.data(), |mask_slice| {
             assert_eq!(
@@ -92,11 +93,11 @@ pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> PyR
 /// Returns:
 ///     Dice coefficient in [0, 1]. Returns 1.0 if both images have zero volume.
 #[pyfunction]
-pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
-    Ok(core_dice_coefficient(
+pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
+    core_dice_coefficient(
         image1.inner.as_ref(),
         image2.inner.as_ref(),
-    ))
+    )
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
@@ -111,12 +112,12 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
 /// Returns:
 ///     Hausdorff distance (float, mm). Returns 0.0 if both boundaries are empty.
 #[pyfunction]
-pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
     let arc1 = Arc::clone(&image1.inner);
     let arc2 = Arc::clone(&image2.inner);
-    Ok(py.allow_threads(|| core_hausdorff_distance(arc1.as_ref(), arc2.as_ref(), &spacing)))
+    py.allow_threads(|| core_hausdorff_distance(arc1.as_ref(), arc2.as_ref(), &spacing))
 }
 
 /// Compute the symmetric mean surface distance between two binary masks.
@@ -131,12 +132,12 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 /// Returns:
 ///     Mean surface distance (float, mm). Returns 0.0 if both boundaries are empty.
 #[pyfunction]
-pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> PyResult<f32> {
+pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
     let arc1 = Arc::clone(&image1.inner);
     let arc2 = Arc::clone(&image2.inner);
-    Ok(py.allow_threads(|| core_mean_surface_distance(arc1.as_ref(), arc2.as_ref(), &spacing)))
+    py.allow_threads(|| core_mean_surface_distance(arc1.as_ref(), arc2.as_ref(), &spacing))
 }
 
 /// Compute the Peak Signal-to-Noise Ratio between two images.
@@ -153,12 +154,12 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 ///     PSNR in decibels (dB). Returns infinity when images are identical (MSE = 0).
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
-pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> PyResult<f32> {
-    Ok(core_psnr(
+pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
+    core_psnr(
         image1.inner.as_ref(),
         image2.inner.as_ref(),
         max_val,
-    ))
+    )
 }
 
 /// Compute the Structural Similarity Index (SSIM) between two images.
@@ -175,12 +176,12 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> PyResult<f32> {
 ///     SSIM in [-1, 1]. Returns 1.0 for identical images.
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
-pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> PyResult<f32> {
-    Ok(core_ssim(
+pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
+    core_ssim(
         image1.inner.as_ref(),
         image2.inner.as_ref(),
         max_val,
-    ))
+    )
 }
 
 /// Estimate additive Gaussian noise σ̂ via the Median Absolute Deviation (MAD).
@@ -198,16 +199,15 @@ pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> PyResult<f32> {
 ///     images or empty masks.
 #[pyfunction]
 #[pyo3(signature = (image, mask=None))]
-pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> PyResult<f32> {
-    let sigma = match mask {
+pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
+    match mask {
         Some(m) => with_tensor_slice(image.inner.data(), |img_slice| {
             with_tensor_slice(m.inner.data(), |mask_slice| {
                 estimate_noise_mad_masked_from_slices(img_slice, mask_slice)
             })
         }),
         None => with_tensor_slice(image.inner.data(), estimate_noise_mad_from_slice),
-    };
-    Ok(sigma)
+    }
 }
 
 /// Compute per-label intensity statistics over a co-registered intensity image.
@@ -231,7 +231,7 @@ pub fn compute_label_intensity_statistics(
     py: Python<'_>,
     label_image: &PyImage,
     intensity_image: &PyImage,
-) -> PyResult<Py<PyList>> {
+) -> RitkResult<Py<PyList>> {
     let stats = with_tensor_slice(label_image.inner.data(), |label_slice| {
         with_tensor_slice(intensity_image.inner.data(), |intensity_slice| {
             core_label_intensity_stats_from_slices(label_slice, intensity_slice)

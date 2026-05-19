@@ -70,20 +70,21 @@ pub fn decode_rle_lossless_fragment(fragment: &[u8], layout: PixelLayout) -> Res
         segments.push(segment);
     }
 
+    // Precompute the segment access order: for each output byte position (sample, le_byte),
+    // record which segment index to read. This avoids indexing `segments` with a range
+    // loop variable, replacing triple-nested for loops with flat_map iterators.
+    let segment_order: Vec<usize> = (0..layout.samples_per_pixel)
+        .flat_map(|s| {
+            (0..bytes_per_sample).map(move |b| s * bytes_per_sample + (bytes_per_sample - 1 - b))
+        })
+        .collect();
+
     let mut raw =
         Vec::with_capacity(pixels_per_frame * layout.samples_per_pixel * bytes_per_sample);
-    #[allow(clippy::needless_range_loop)]
-    for pixel_idx in 0..pixels_per_frame {
-        #[allow(clippy::needless_range_loop)]
-        for sample_idx in 0..layout.samples_per_pixel {
-            #[allow(clippy::needless_range_loop)]
-            for le_byte_idx in 0..bytes_per_sample {
-                let segment_idx =
-                    sample_idx * bytes_per_sample + (bytes_per_sample - 1 - le_byte_idx);
-                raw.push(segments[segment_idx][pixel_idx]);
-            }
-        }
-    }
+    let segs = &segments;
+    raw.extend(
+        (0..pixels_per_frame).flat_map(|pi| segment_order.iter().map(move |&si| segs[si][pi])),
+    );
 
     decode_native_pixel_bytes_checked(&raw, layout)
 }

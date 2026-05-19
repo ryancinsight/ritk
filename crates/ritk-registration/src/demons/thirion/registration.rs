@@ -1,16 +1,10 @@
 //! Thirion Demons registration struct and iteration loop.
-//!
-//! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; `gaussian_smooth_with_scratch`
-//! and `warp_image_into` write into caller-provided buffers.
-//! Total pre-allocation: ~8n f32 (3 displacement + 1 warped + 3 forces + 1 smooth scratch).
-//! The fixed-image gradient (3n) is computed once before the loop.
 
 use super::super::config::{DemonsConfig, DemonsResult};
-use super::forces::thirion_forces_into;
+use super::forces::{compute_mse, thirion_forces_into};
 use crate::deformable_field_ops::{
-    compute_gradient, gaussian_smooth_with_scratch, warp_image, warp_image_into,
+    compute_gradient, gaussian_smooth_inplace, warp_image, warp_image_into, VectorField3D,
+    VectorFieldMut3D,
 };
 use crate::error::RegistrationError;
 
@@ -73,22 +67,13 @@ impl ThirionDemonsRegistration {
 
         let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
 
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
+        let mut final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
+        let mut iter = 0usize;
         let mut m_warped = vec![0.0_f32; n];
         let mut fz = vec![0.0_f32; n];
         let mut fy = vec![0.0_f32; n];
         let mut fx = vec![0.0_f32; n];
-        let mut smooth_tmp = vec![0.0_f32; n];
 
-        // Initial MSE: D = 0 (identity) — displacement buffers already zero.
-        let mut final_mse: f64 = fixed
-            .iter()
-            .zip(moving.iter())
-            .map(|(&f, &m)| ((f - m) as f64).powi(2))
-            .sum::<f64>()
-            / n as f64;
-
-        let mut iter = 0usize;
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
@@ -97,34 +82,23 @@ impl ThirionDemonsRegistration {
             thirion_forces_into(
                 fixed,
                 &m_warped,
-                &grad_z,
-                &grad_y,
-                &grad_x,
+                VectorField3D {
+                    z: &grad_z,
+                    y: &grad_y,
+                    x: &grad_x,
+                },
                 self.config.max_step_length,
-                &mut fz,
-                &mut fy,
-                &mut fx,
+                VectorFieldMut3D {
+                    z: &mut fz,
+                    y: &mut fy,
+                    x: &mut fx,
+                },
             );
 
             if self.config.sigma_fluid > 0.0 {
-                gaussian_smooth_with_scratch(
-                    &mut fz,
-                    dims,
-                    self.config.sigma_fluid,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut fy,
-                    dims,
-                    self.config.sigma_fluid,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut fx,
-                    dims,
-                    self.config.sigma_fluid,
-                    &mut smooth_tmp,
-                );
+                gaussian_smooth_inplace(&mut fz, dims, self.config.sigma_fluid);
+                gaussian_smooth_inplace(&mut fy, dims, self.config.sigma_fluid);
+                gaussian_smooth_inplace(&mut fx, dims, self.config.sigma_fluid);
             }
 
             for i in 0..n {
@@ -134,33 +108,12 @@ impl ThirionDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_with_scratch(
-                    &mut disp_z,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut disp_y,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
-                    &mut disp_x,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
+                gaussian_smooth_inplace(&mut disp_z, dims, self.config.sigma_diffusion);
+                gaussian_smooth_inplace(&mut disp_y, dims, self.config.sigma_diffusion);
+                gaussian_smooth_inplace(&mut disp_x, dims, self.config.sigma_diffusion);
             }
 
-            // Reuse m_warped from loop top — avoids allocating a separate warp for MSE.
-            final_mse = fixed
-                .iter()
-                .zip(m_warped.iter())
-                .map(|(&f, &m)| ((f - m) as f64).powi(2))
-                .sum::<f64>()
-                / n as f64;
+            final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         }
 
         let warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);

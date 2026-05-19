@@ -1,6 +1,6 @@
 //! Displacement field composition φ₁ ∘ φ₂.
 
-use super::{flat, trilinear_interpolate};
+use super::{flat, trilinear_interpolate, VectorField3D, VectorFieldMut3D};
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
 ///
@@ -10,18 +10,27 @@ use super::{flat, trilinear_interpolate};
 ///
 /// Output buffers must have length `dims[0] * dims[1] * dims[2]`.
 pub(crate) fn compose_fields_into(
-    phi1_z: &[f32],
-    phi1_y: &[f32],
-    phi1_x: &[f32],
-    phi2_z: &[f32],
-    phi2_y: &[f32],
-    phi2_x: &[f32],
+    phi1: VectorField3D<'_>,
+    phi2: VectorField3D<'_>,
     dims: [usize; 3],
-    out_z: &mut [f32],
-    out_y: &mut [f32],
-    out_x: &mut [f32],
+    out: VectorFieldMut3D<'_>,
 ) {
     let [nz, ny, nx] = dims;
+    let VectorField3D {
+        z: phi1_z,
+        y: phi1_y,
+        x: phi1_x,
+    } = phi1;
+    let VectorField3D {
+        z: phi2_z,
+        y: phi2_y,
+        x: phi2_x,
+    } = phi2;
+    let VectorFieldMut3D {
+        z: out_z,
+        y: out_y,
+        x: out_x,
+    } = out;
 
     for iz in 0..nz {
         for iy in 0..ny {
@@ -61,7 +70,22 @@ pub(crate) fn compose_fields(
     let mut cx = vec![0.0_f32; n];
 
     compose_fields_into(
-        phi1_z, phi1_y, phi1_x, phi2_z, phi2_y, phi2_x, dims, &mut cz, &mut cy, &mut cx,
+        VectorField3D {
+            z: phi1_z,
+            y: phi1_y,
+            x: phi1_x,
+        },
+        VectorField3D {
+            z: phi2_z,
+            y: phi2_y,
+            x: phi2_x,
+        },
+        dims,
+        VectorFieldMut3D {
+            z: &mut cz,
+            y: &mut cy,
+            x: &mut cx,
+        },
     );
 
     (cz, cy, cx)

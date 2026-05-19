@@ -18,7 +18,12 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 }
 
 fn image_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_vec()
+    img.data()
+        .clone()
+        .into_data()
+        .as_slice::<f32>()
+        .unwrap()
+        .to_vec()
 }
 
 // ── Test 1: constant image must be unchanged ───────────────────────────────

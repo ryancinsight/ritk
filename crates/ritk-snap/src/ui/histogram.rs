@@ -26,7 +26,7 @@
 use egui::{Color32, Painter, Pos2, Rect, Stroke, Ui};
 
 use crate::render::histogram::{histogram_peak_count, Histogram};
-use crate::ui::histogram_interact::{wl_center_from_click, wl_from_histogram_drag};
+use crate::ui::histogram_interact::{wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry};
 
 // ── visual constants ───────────────────────────────────────────────────────────
 
@@ -205,10 +205,12 @@ pub fn draw_histogram(
         let (new_c, new_w) = wl_from_histogram_drag(
             delta.x,
             delta.y,
-            rect.width(),
-            rect.height(),
-            hist_min,
-            hist_max,
+            HistogramCanvasGeometry {
+                canvas_width: rect.width(),
+                canvas_height: rect.height(),
+                hist_min,
+                hist_max,
+            },
             window_center,
             window_width,
         );

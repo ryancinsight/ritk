@@ -18,6 +18,7 @@ use ritk_core::statistics::information::{
     symmetric_uncertainty as core_su,
 };
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 
 /// Histogram-based MI with configurable binning strategy.
@@ -42,11 +43,13 @@ pub(super) fn mi_slices(a: &[f32], b: &[f32], num_bins: usize, variant: &str) ->
 /// - `num_bins`: histogram bins (default 64).
 #[pyfunction]
 #[pyo3(signature = (image, num_bins=64))]
-pub fn compute_entropy(image: &PyImage, num_bins: usize) -> PyResult<f64> {
-    let (a, _) = image_to_vec(&image.inner)?;
-    super::validate_num_bins(num_bins)?;
+pub fn compute_entropy(image: &PyImage, num_bins: usize) -> RitkResult<f64> {
+    let (a, _) = image_to_vec(&image.inner);
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
     core_marginal_entropy(&a, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Joint entropy H(X,Y) between two images.
@@ -60,18 +63,24 @@ pub fn compute_entropy(image: &PyImage, num_bins: usize) -> PyResult<f64> {
 /// - `num_bins`: histogram bins per axis (default 64).
 #[pyfunction]
 #[pyo3(signature = (fixed, moving, num_bins=64))]
-pub fn compute_joint_entropy(fixed: &PyImage, moving: &PyImage, num_bins: usize) -> PyResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner)?;
-    let (b, shape_b) = image_to_vec(&moving.inner)?;
+pub fn compute_joint_entropy(
+    fixed: &PyImage,
+    moving: &PyImage,
+    num_bins: usize,
+) -> RitkResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner);
+    let (b, shape_b) = image_to_vec(&moving.inner);
     if shape_a != shape_b {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
-    super::validate_num_bins(num_bins)?;
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
     core_joint_entropy(&a, &b, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Symmetric uncertainty SU(X,Y) = 2·I(X;Y) / (H(X) + H(Y)) ∈ [0,1].
@@ -91,17 +100,20 @@ pub fn compute_symmetric_uncertainty(
     fixed: &PyImage,
     moving: &PyImage,
     num_bins: usize,
-) -> PyResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner)?;
-    let (b, shape_b) = image_to_vec(&moving.inner)?;
+) -> RitkResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner);
+    let (b, shape_b) = image_to_vec(&moving.inner);
     if shape_a != shape_b {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
-    super::validate_num_bins(num_bins)?;
-    core_su(&a, &b, num_bins).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
+    core_su(&a, &b, num_bins)
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Mutual information between two images.
@@ -121,27 +133,29 @@ pub fn compute_mutual_information(
     moving: &PyImage,
     num_bins: usize,
     variant: &str,
-) -> PyResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner)?;
-    let (b, shape_b) = image_to_vec(&moving.inner)?;
+) -> RitkResult<f64> {
+    let (a, shape_a) = image_to_vec(&fixed.inner);
+    let (b, shape_b) = image_to_vec(&moving.inner);
     if shape_a != shape_b {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
-    super::validate_num_bins(num_bins)?;
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
     match variant {
         "mattes" | "standard" | "normalized" => {}
         other => {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(RitkPyError::value(format!(
                 "unknown variant '{}'; expected one of: mattes, standard, normalized",
                 other
             )));
         }
     }
     mi_slices(&a, &b, num_bins, variant)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]
@@ -156,10 +170,7 @@ mod tests {
         let b_const: Vec<f32> = vec![5.0_f32; 32];
         let mi_self = mi_slices(&a, &a, 16, "standard").unwrap();
         let mi_const = mi_slices(&a, &b_const, 16, "standard").unwrap();
-        assert!(
-            mi_self > 0.0,
-            "MI(A,A) must be positive for non-constant A, got {mi_self}"
-        );
+        assert!(mi_self > 0.0, "MI(A,A) must be positive for non-constant A, got {mi_self}");
         assert!(
             mi_const.abs() < 1e-10,
             "MI(A,constant) must be 0, got {mi_const}"
@@ -183,7 +194,10 @@ mod tests {
         // SU(X,X) = 2·H(X)/(H(X)+H(X)) = 1.0.
         let a: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let su = mi_slices(&a, &a, 16, "normalized").unwrap();
-        assert!((su - 1.0).abs() < 1e-9, "SU(X,X) must equal 1.0, got {su}");
+        assert!(
+            (su - 1.0).abs() < 1e-9,
+            "SU(X,X) must equal 1.0, got {su}"
+        );
     }
 
     #[test]
@@ -216,10 +230,7 @@ mod tests {
         let b: Vec<f32> = (0..64).map(|x| ((x / 8) % 8) as f32).collect();
         let h_xy = core_joint_entropy(&a, &b, 16).unwrap();
         let h_x = core_marginal_entropy(&a, 16).unwrap();
-        assert!(
-            h_xy >= h_x - 1e-9,
-            "H(X,Y) must be >= H(X), got H(X,Y)={h_xy:.6}, H(X)={h_x:.6}"
-        );
+        assert!(h_xy >= h_x - 1e-9, "H(X,Y) must be >= H(X), got H(X,Y)={h_xy:.6}, H(X)={h_x:.6}");
     }
 
     #[test]

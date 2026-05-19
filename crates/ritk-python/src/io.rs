@@ -21,9 +21,9 @@
 //! Unsupported formats return `PyIOError` with an explicit message listing
 //! the supported extensions.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use burn_ndarray::{NdArray, NdArrayDevice};
-use pyo3::exceptions::PyIOError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_core::transform::composite_io::{CompositeTransform, TransformDescription};
@@ -56,7 +56,7 @@ type Backend = NdArray<f32>;
 /// Raises:
 ///     IOError: on read failure or unsupported format.
 #[pyfunction]
-pub fn read_image(py: Python<'_>, path: &str) -> PyResult<PyImage> {
+pub fn read_image(py: Python<'_>, path: &str) -> RitkResult<PyImage> {
     let path_owned = path.to_string();
     py.allow_threads(move || {
         let device = NdArrayDevice::default();
@@ -66,64 +66,64 @@ pub fn read_image(py: Python<'_>, path: &str) -> PyResult<PyImage> {
 
         if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
             let image = ritk_io::read_nifti::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("NIfTI read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("NIfTI read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".png") {
             let image = ritk_io::read_png_to_image::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("PNG read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("PNG read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
             let image = ritk_io::read_metaimage::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("MetaImage read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("MetaImage read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".nrrd") {
             let image = ritk_io::read_nrrd::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("NRRD read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("NRRD read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if p.is_dir() {
             let image = ritk_io::read_dicom_series::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("DICOM read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("DICOM read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".tif") || path_lower.ends_with(".tiff") {
             let image = ritk_io::read_tiff::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("TIFF read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("TIFF read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".vtk") {
             let image = ritk_io::read_vtk::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("VTK read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("VTK read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".mgh") || path_lower.ends_with(".mgz") {
             let image = ritk_io::read_mgh::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("MGH read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("MGH read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".hdr") || path_lower.ends_with(".img") {
             let image = ritk_io::read_analyze::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("Analyze read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("Analyze read error: {e}")))?;
             return Ok(into_py_image(image));
         }
 
         if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
             let image = ritk_io::read_jpeg::<Backend, _>(p, &device)
-                .map_err(|e| PyIOError::new_err(format!("JPEG read error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("JPEG read error: {e}")))?;
             return Ok(into_py_image(image));
         }
-        Err(PyIOError::new_err(format!(
+        Err(RitkPyError::io(format!(
             "Unsupported path '{}'. Supported: \
              .nii, .nii.gz (NIfTI), .png (single PNG slice), \
              .mha, .mhd (MetaImage), .nrrd (NRRD), \
@@ -156,7 +156,7 @@ pub fn read_image(py: Python<'_>, path: &str) -> PyResult<PyImage> {
 /// Raises:
 ///     IOError: on write failure or unsupported format.
 #[pyfunction]
-pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> PyResult<()> {
+pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> RitkResult<()> {
     let image = std::sync::Arc::clone(&image.inner);
     let path_owned = path.to_string();
 
@@ -165,12 +165,12 @@ pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> PyResult<()> 
 
         if path_lower.ends_with(".nii.gz") || path_lower.ends_with(".nii") {
             ritk_io::write_nifti(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("NIfTI write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("NIfTI write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".png") {
-            return Err(PyIOError::new_err(
+            return Err(RitkPyError::io(
                 "PNG write is not yet implemented in ritk-io. \
                  Use .nii, .nii.gz, .mha, .mhd, or .nrrd instead.",
             ));
@@ -178,46 +178,46 @@ pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> PyResult<()> 
 
         if path_lower.ends_with(".mha") || path_lower.ends_with(".mhd") {
             ritk_io::write_metaimage(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("MetaImage write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("MetaImage write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".nrrd") {
             ritk_io::write_nrrd(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("NRRD write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("NRRD write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".tif") || path_lower.ends_with(".tiff") {
             ritk_io::write_tiff(image.as_ref(), &path_owned)
-                .map_err(|e| PyIOError::new_err(format!("TIFF write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("TIFF write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".vtk") {
             ritk_io::write_vtk(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("VTK write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("VTK write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".mgh") || path_lower.ends_with(".mgz") {
             ritk_io::write_mgh(image.as_ref(), &path_owned)
-                .map_err(|e| PyIOError::new_err(format!("MGH write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("MGH write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".hdr") {
             ritk_io::write_analyze(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("Analyze write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("Analyze write error: {e}")))?;
             return Ok(());
         }
 
         if path_lower.ends_with(".jpg") || path_lower.ends_with(".jpeg") {
             ritk_io::write_jpeg(&path_owned, image.as_ref())
-                .map_err(|e| PyIOError::new_err(format!("JPEG write error: {e}")))?;
+                .map_err(|e| RitkPyError::io(format!("JPEG write error: {e}")))?;
             return Ok(());
         }
-        Err(PyIOError::new_err(format!(
+        Err(RitkPyError::io(format!(
             "Unsupported write extension for path '{}'. \
              Supported write formats: .nii, .nii.gz, .mha, .mhd, .nrrd",
             path_owned
@@ -246,9 +246,9 @@ pub fn write_image(py: Python<'_>, image: &PyImage, path: &str) -> PyResult<()> 
 /// Raises:
 ///     IOError: on read failure or invalid JSON.
 #[pyfunction]
-pub fn read_transform(py: Python<'_>, path: String) -> PyResult<PyObject> {
+pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
     let composite = CompositeTransform::load_json(&path)
-        .map_err(|e| PyIOError::new_err(format!("Transform read error: {e}")))?;
+        .map_err(|e| RitkPyError::io(format!("Transform read error: {e}")))?;
 
     let transforms_list = PyList::empty_bound(py);
     for t in &composite.transforms {
@@ -329,36 +329,36 @@ pub fn write_transform(
     dimensionality: usize,
     transforms: Vec<PyObject>,
     description: &str,
-) -> PyResult<()> {
+) -> RitkResult<()> {
     let mut composite = CompositeTransform::new(dimensionality);
     composite.description = description.to_string();
 
     for obj in &transforms {
         let dict = obj
             .downcast_bound::<PyDict>(py)
-            .map_err(|_| PyIOError::new_err("each transform must be a dict"))?;
+            .map_err(|_| RitkPyError::io("each transform must be a dict"))?;
 
         let type_str: String = dict
             .get_item("type")?
-            .ok_or_else(|| PyIOError::new_err("transform dict missing 'type' key"))?
+            .ok_or_else(|| RitkPyError::io("transform dict missing 'type' key"))?
             .extract()?;
 
         let td = match type_str.as_str() {
             "translation" => {
                 let offset: Vec<f64> = dict
                     .get_item("offset")?
-                    .ok_or_else(|| PyIOError::new_err("translation missing 'offset'"))?
+                    .ok_or_else(|| RitkPyError::io("translation missing 'offset'"))?
                     .extract()?;
                 TransformDescription::Translation { offset }
             }
             "rigid" => {
                 let rotation: Vec<f64> = dict
                     .get_item("rotation")?
-                    .ok_or_else(|| PyIOError::new_err("rigid missing 'rotation'"))?
+                    .ok_or_else(|| RitkPyError::io("rigid missing 'rotation'"))?
                     .extract()?;
                 let translation: Vec<f64> = dict
                     .get_item("translation")?
-                    .ok_or_else(|| PyIOError::new_err("rigid missing 'translation'"))?
+                    .ok_or_else(|| RitkPyError::io("rigid missing 'translation'"))?
                     .extract()?;
                 TransformDescription::Rigid {
                     rotation,
@@ -368,26 +368,26 @@ pub fn write_transform(
             "affine" => {
                 let matrix: Vec<f64> = dict
                     .get_item("matrix")?
-                    .ok_or_else(|| PyIOError::new_err("affine missing 'matrix'"))?
+                    .ok_or_else(|| RitkPyError::io("affine missing 'matrix'"))?
                     .extract()?;
                 TransformDescription::Affine { matrix }
             }
             "displacement_field" => {
                 let dims: Vec<usize> = dict
                     .get_item("dims")?
-                    .ok_or_else(|| PyIOError::new_err("displacement_field missing 'dims'"))?
+                    .ok_or_else(|| RitkPyError::io("displacement_field missing 'dims'"))?
                     .extract()?;
                 let origin: Vec<f64> = dict
                     .get_item("origin")?
-                    .ok_or_else(|| PyIOError::new_err("displacement_field missing 'origin'"))?
+                    .ok_or_else(|| RitkPyError::io("displacement_field missing 'origin'"))?
                     .extract()?;
                 let spacing: Vec<f64> = dict
                     .get_item("spacing")?
-                    .ok_or_else(|| PyIOError::new_err("displacement_field missing 'spacing'"))?
+                    .ok_or_else(|| RitkPyError::io("displacement_field missing 'spacing'"))?
                     .extract()?;
                 let components: Vec<Vec<f64>> = dict
                     .get_item("components")?
-                    .ok_or_else(|| PyIOError::new_err("displacement_field missing 'components'"))?
+                    .ok_or_else(|| RitkPyError::io("displacement_field missing 'components'"))?
                     .extract()?;
                 TransformDescription::DisplacementField {
                     dims,
@@ -399,19 +399,19 @@ pub fn write_transform(
             "bspline" => {
                 let grid_dims: Vec<usize> = dict
                     .get_item("grid_dims")?
-                    .ok_or_else(|| PyIOError::new_err("bspline missing 'grid_dims'"))?
+                    .ok_or_else(|| RitkPyError::io("bspline missing 'grid_dims'"))?
                     .extract()?;
                 let grid_origin: Vec<f64> = dict
                     .get_item("grid_origin")?
-                    .ok_or_else(|| PyIOError::new_err("bspline missing 'grid_origin'"))?
+                    .ok_or_else(|| RitkPyError::io("bspline missing 'grid_origin'"))?
                     .extract()?;
                 let grid_spacing: Vec<f64> = dict
                     .get_item("grid_spacing")?
-                    .ok_or_else(|| PyIOError::new_err("bspline missing 'grid_spacing'"))?
+                    .ok_or_else(|| RitkPyError::io("bspline missing 'grid_spacing'"))?
                     .extract()?;
                 let components: Vec<Vec<f64>> = dict
                     .get_item("components")?
-                    .ok_or_else(|| PyIOError::new_err("bspline missing 'components'"))?
+                    .ok_or_else(|| RitkPyError::io("bspline missing 'components'"))?
                     .extract()?;
                 TransformDescription::BSpline {
                     grid_dims,
@@ -421,7 +421,7 @@ pub fn write_transform(
                 }
             }
             other => {
-                return Err(PyIOError::new_err(format!(
+                return Err(RitkPyError::io(format!(
                     "unknown transform type '{other}'; expected one of: \
                      translation, rigid, affine, displacement_field, bspline"
                 )));
@@ -433,9 +433,7 @@ pub fn write_transform(
 
     composite
         .save_json(&path)
-        .map_err(|e| PyIOError::new_err(format!("Transform write error: {e}")))?;
-
-    Ok(())
+        .map_err(|e| RitkPyError::io(format!("Transform write error: {e}")))
 }
 
 // ── Submodule registration ────────────────────────────────────────────────────

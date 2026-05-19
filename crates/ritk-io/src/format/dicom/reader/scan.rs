@@ -14,7 +14,7 @@ use super::geometry::{
     analyze_slice_spacing, cross_3d, dot_3d, normalize_3d, slice_normal_from_iop,
 };
 use super::parse::parse_dicom_file;
-use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
+use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen, SeriesGeometry};
 use super::utils::is_likely_dicom_file;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
 use crate::format::dicom::sop_class::{classify_sop_class, SopClassKind};
@@ -372,11 +372,13 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     let metadata = super::types::assemble_metadata(
         first,
         slices,
-        rows,
-        cols,
-        spacing,
-        origin,
-        direction,
+        SeriesGeometry {
+            rows,
+            cols,
+            spacing,
+            origin,
+            direction,
+        },
         series_object,
     );
 

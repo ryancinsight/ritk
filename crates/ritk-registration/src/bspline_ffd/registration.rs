@@ -127,11 +127,7 @@ impl BSplineFFDRegistration {
                 // 5. Compute metric gradient w.r.t. control points.
                 let (grad_z, grad_y, grad_x) = compute_metric_gradient(
                     fixed,
-                    moving,
                     &warped,
-                    &disp_z,
-                    &disp_y,
-                    &disp_x,
                     &ctrl_dims,
                     &ctrl_spacing,
                     dims,

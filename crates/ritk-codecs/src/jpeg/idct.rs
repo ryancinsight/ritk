@@ -19,8 +19,8 @@ fn cosine_table() -> [[f32; 8]; 8] {
     let mut c = [[0.0f32; 8]; 8];
     for (u, row) in c.iter_mut().enumerate() {
         let cu = if u == 0 { 1.0 / SQRT_2 } else { 1.0_f64 };
-        for (x, cell) in row.iter_mut().enumerate() {
-            *cell = (cu * ((2 * x + 1) as f64 * u as f64 * PI / 16.0).cos()) as f32;
+        for (x, val) in row.iter_mut().enumerate() {
+            *val = (cu * ((2 * x + 1) as f64 * u as f64 * PI / 16.0).cos()) as f32;
         }
     }
     c

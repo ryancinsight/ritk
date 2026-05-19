@@ -13,6 +13,15 @@
 use anyhow::Result;
 use consus_io::WriteAt;
 
+/// Geometry parameters for a MINC2 volume.
+#[derive(Debug, Clone, Copy)]
+struct Minc2VolumeGeometry {
+    shape: [usize; 3],
+    origin: [f64; 3],
+    spacing: [f64; 3],
+    direction: nalgebra::SMatrix<f64, 3, 3>,
+}
+
 /// Construct a MINC2-compliant HDF5 file at `path`.
 ///
 /// # Arguments
@@ -41,10 +50,12 @@ pub fn write_minc2_hdf5(
     build_minc2_hdf5_binary(
         &mut file,
         raw_data,
-        shape,
-        origin,
-        spacing,
-        direction,
+        Minc2VolumeGeometry {
+            shape,
+            origin,
+            spacing,
+            direction: *direction,
+        },
         dim_names,
         offset_size,
         length_size,
@@ -246,18 +257,20 @@ fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
 /// ...          image ds OH    → datatype, dataspace, layout
 /// offset N:    raw voxel data (contiguous f32 LE)
 /// ```
-#[allow(clippy::too_many_arguments)]
 fn build_minc2_hdf5_binary(
     file: &mut std::fs::File,
     raw_data: &[u8],
-    shape: [usize; 3],
-    origin: [f64; 3],
-    spacing: [f64; 3],
-    direction: &nalgebra::SMatrix<f64, 3, 3>,
+    geom: Minc2VolumeGeometry,
     dim_names: [&str; 3],
     offset_size: u8,
     length_size: u8,
 ) -> Result<()> {
+    let Minc2VolumeGeometry {
+        shape,
+        origin,
+        spacing,
+        direction,
+    } = geom;
     let _s = offset_size as usize;
     let _l = length_size as usize;
 
@@ -342,7 +355,7 @@ fn build_minc2_hdf5_binary(
     let dt_msg = wrap_msg(0x0003, &dt_data);
 
     // DATASPACE (0x0001): 3-D fixed.
-    let mut ds_data = vec![1u8, 3, 0, 0]; // version, rank=3, flags, reserved
+    let mut ds_data = vec![1u8, 3u8, 0u8, 0u8]; // version, rank=3, flags, reserved
     ds_data.extend_from_slice(&0u32.to_le_bytes()); // reserved
     for &dim in &shape {
         ds_data.extend_from_slice(&(dim as u64).to_le_bytes());

@@ -171,15 +171,19 @@ pub fn compute_multi_otsu_thresholds_from_slice(
     let mut current = Vec::with_capacity(k_minus_1);
     let mut best: (f64, Vec<usize>) = (f64::NEG_INFINITY, vec![0; k_minus_1]);
     search_thresholds(
-        0,
-        k_minus_1,
-        0,
-        num_bins,
+        ThresholdSearchState {
+            level: 0,
+            k_minus_1,
+            prev: 0,
+            num_bins,
+        },
+        OtsuTables {
+            prefix_h: &prefix_h,
+            prefix_m: &prefix_m,
+            total_mu,
+        },
         &mut current,
         &mut best,
-        &prefix_h,
-        &prefix_m,
-        total_mu,
     );
     best.1
         .iter()
@@ -201,24 +205,48 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
 
 /// Recursive exhaustive search over all valid K−1 threshold bin combinations.
 ///
+/// Recursive traversal state for threshold placement.
+#[derive(Debug, Clone, Copy)]
+struct ThresholdSearchState {
+    /// Current recursion depth (0-based threshold index).
+    level: usize,
+    /// K − 1 (total number of thresholds to place).
+    k_minus_1: usize,
+    /// Last placed threshold bin index (exclusive lower bound for next threshold).
+    prev: usize,
+    /// Total number of histogram bins.
+    num_bins: usize,
+}
+
+/// Precomputed prefix-sum tables for the between-class variance objective.
+#[derive(Debug, Clone, Copy)]
+struct OtsuTables<'a> {
+    /// Cumulative normalised histogram: `prefix_h[i] = Σ_{j=0}^{i} h[j]`.
+    prefix_h: &'a [f64],
+    /// Cumulative intensity-weighted histogram: `prefix_m[i] = Σ_{j=0}^{i} j·h[j]`.
+    prefix_m: &'a [f64],
+    /// Total mean of the distribution.
+    total_mu: f64,
+}
+
 /// # Validity constraint
 /// At depth `level` (0-based), given `prev` (the most recently placed threshold):
 /// - lo = prev + 1                        (must strictly exceed prior threshold)
 /// - hi_inclusive = N − k_minus_1 + level (must leave ≥ 1 bin per remaining class)
 ///
 /// For K = 2 (k_minus_1 = 1), this reduces to a linear scan over [1, N−1].
-#[allow(clippy::too_many_arguments)]
 fn search_thresholds(
-    level: usize,
-    k_minus_1: usize,
-    prev: usize,
-    num_bins: usize,
+    state: ThresholdSearchState,
+    tables: OtsuTables<'_>,
     current: &mut Vec<usize>,
     best: &mut (f64, Vec<usize>),
-    prefix_h: &[f64],
-    prefix_m: &[f64],
-    total_mu: f64,
 ) {
+    let ThresholdSearchState {
+        level,
+        k_minus_1,
+        prev,
+        num_bins,
+    } = state;
     let lo = prev + 1;
     // hi_inclusive guarantees each remaining class gets ≥ 1 bin.
     // Derivation: t + (k_minus_1 − level − 1) ≤ N − 1  →  t ≤ N − k_minus_1 + level.
@@ -233,22 +261,27 @@ fn search_thresholds(
 
         if level == k_minus_1 - 1 {
             // All K−1 thresholds have been placed; evaluate this combination.
-            let sigma2 = between_class_variance(current, prefix_h, prefix_m, total_mu, num_bins);
+            let sigma2 = between_class_variance(
+                current,
+                tables.prefix_h,
+                tables.prefix_m,
+                tables.total_mu,
+                num_bins,
+            );
             if sigma2 > best.0 {
                 best.0 = sigma2;
                 best.1 = current.clone();
             }
         } else {
             search_thresholds(
-                level + 1,
-                k_minus_1,
-                t,
-                num_bins,
+                ThresholdSearchState {
+                    level: level + 1,
+                    prev: t,
+                    ..state
+                },
+                tables,
                 current,
                 best,
-                prefix_h,
-                prefix_m,
-                total_mu,
             );
         }
 

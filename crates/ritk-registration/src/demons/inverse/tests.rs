@@ -2,6 +2,7 @@
 
 use super::displacement::{invert_displacement_field, warp_displacement_into, InverseFieldConfig};
 use super::svf::invert_velocity_field;
+use crate::deformable_field_ops::{VectorField3D, VectorFieldMut3D};
 
 fn warp_displacement(
     disp_z: &[f32],
@@ -17,7 +18,22 @@ fn warp_displacement(
     let mut out_y = vec![0.0_f32; n];
     let mut out_x = vec![0.0_f32; n];
     warp_displacement_into(
-        disp_z, disp_y, disp_x, query_z, query_y, query_x, dims, &mut out_z, &mut out_y, &mut out_x,
+        VectorField3D {
+            z: disp_z,
+            y: disp_y,
+            x: disp_x,
+        },
+        VectorField3D {
+            z: query_z,
+            y: query_y,
+            x: query_x,
+        },
+        dims,
+        VectorFieldMut3D {
+            z: &mut out_z,
+            y: &mut out_y,
+            x: &mut out_x,
+        },
     );
     for v in &mut out_z {
         *v = -*v;

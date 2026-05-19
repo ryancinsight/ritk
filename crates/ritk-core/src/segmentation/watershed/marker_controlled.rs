@@ -45,7 +45,6 @@
 //!   algorithm based on immersion simulations." *IEEE Trans. Pattern Anal. Mach. Intell.*,
 //!   13(6), 583–598.
 
-use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::cmp::Ordering;
@@ -94,8 +93,18 @@ impl MarkerControlledWatershed {
         );
 
         let device = gradient.data().device();
-        let (g_vals, _) = extract_vec(gradient)?;
-        let (m_vals, _) = extract_vec(markers)?;
+
+        let g_data = gradient.data().clone().into_data();
+        let g_vals: Vec<f32> = g_data
+            .as_slice::<f32>()
+            .map_err(|e| anyhow::anyhow!("gradient image requires f32 data: {:?}", e))?
+            .to_vec();
+
+        let m_data = markers.data().clone().into_data();
+        let m_vals: Vec<f32> = m_data
+            .as_slice::<f32>()
+            .map_err(|e| anyhow::anyhow!("marker image requires f32 data: {:?}", e))?
+            .to_vec();
 
         let labels = marker_controlled_flooding(&g_vals, &m_vals, dims_g);
 
@@ -313,8 +322,7 @@ fn marker_controlled_flooding(
             if lbl == UNLABELED || lbl == 0 {
                 continue;
             }
-            let found = nbr_labels[..n_distinct].contains(&lbl);
-            if !found {
+            if !nbr_labels[..n_distinct].contains(&lbl) {
                 nbr_labels[n_distinct] = lbl;
                 n_distinct += 1;
             }

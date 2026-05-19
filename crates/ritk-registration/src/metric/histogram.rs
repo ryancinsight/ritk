@@ -96,7 +96,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
     /// Compute soft joint histogram between two images (vectorized).
     /// Uses Gaussian kernel for differentiability.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn compute_joint_histogram(
         &self,
         fixed: &Tensor<B, 1>,
@@ -153,8 +152,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
                 let current_chunk_size = end - start;
 
-                let fixed_chunk = fixed.clone().slice([start..end]);
-                let moving_chunk = moving.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let fixed_chunk = fixed.clone().slice([chunk_range.clone()]);
+                let moving_chunk = moving.clone().slice([chunk_range]);
 
                 let fixed_norm = normalize(fixed_chunk);
                 let moving_norm = normalize(moving_chunk);
@@ -178,7 +178,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
     /// Compute joint histogram from images with transform and sampling.
     /// Handles chunking of the spatial domain to respect memory and dispatch limits.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn compute_image_joint_histogram<const D: usize>(
         &self,
         fixed: &Image<B, D>,
@@ -351,10 +350,15 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let end = std::cmp::min(start + CHUNK_SIZE, n);
 
                 // Pipeline for this chunk
+                let chunk_range = start..end;
                 let chunk_fixed_points = if have_all_points {
-                    all_fixed_points.clone().slice([start..end])
+                    all_fixed_points.clone().slice([chunk_range.clone()])
                 } else {
-                    let chunk_indices = fixed_indices.as_ref().unwrap().clone().slice([start..end]);
+                    let chunk_indices = fixed_indices
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                        .slice([chunk_range.clone()]);
                     fixed.index_to_world_tensor(chunk_indices)
                 };
 
@@ -365,14 +369,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 // Get fixed values
                 let chunk_fixed_values = if use_sampling {
-                    let chunk_indices = fixed_indices.as_ref().unwrap().clone().slice([start..end]);
+                    let chunk_indices = fixed_indices
+                        .as_ref()
+                        .unwrap()
+                        .clone()
+                        .slice([chunk_range.clone()]);
                     interpolator.interpolate(fixed.data(), chunk_indices)
                 } else {
                     fixed_data_flat
                         .as_ref()
                         .unwrap()
                         .clone()
-                        .slice([start..end])
+                        .slice([chunk_range])
                 };
 
                 // Compute partial histogram

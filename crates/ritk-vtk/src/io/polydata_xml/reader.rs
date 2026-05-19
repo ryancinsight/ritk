@@ -27,21 +27,19 @@ pub(crate) fn parse_vtp(input: &str) -> Result<VtkPolyData> {
     }
     let points: Vec<[f32; 3]> = coords.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
 
-    let mut poly = VtkPolyData {
+    let poly = VtkPolyData {
         points,
-        ..Default::default()
+        vertices: parse_cells(input, "Verts"),
+        lines: parse_cells(input, "Lines"),
+        polygons: parse_cells(input, "Polys"),
+        triangle_strips: parse_cells(input, "Strips"),
+        point_data: find_section(input, "PointData")
+            .map(|sec| parse_attrs(&sec))
+            .unwrap_or_default(),
+        cell_data: find_section(input, "CellData")
+            .map(|sec| parse_attrs(&sec))
+            .unwrap_or_default(),
     };
-    poly.vertices = parse_cells(input, "Verts");
-    poly.lines = parse_cells(input, "Lines");
-    poly.polygons = parse_cells(input, "Polys");
-    poly.triangle_strips = parse_cells(input, "Strips");
-
-    if let Some(sec) = find_section(input, "PointData") {
-        poly.point_data = parse_attrs(&sec);
-    }
-    if let Some(sec) = find_section(input, "CellData") {
-        poly.cell_data = parse_attrs(&sec);
-    }
     Ok(poly)
 }
 
@@ -155,12 +153,7 @@ fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;
     let close = "</DataArray>";
-    #[allow(clippy::while_let_loop)]
-    loop {
-        let start = match rest.find("<DataArray") {
-            Some(s) => s,
-            None => break,
-        };
+    while let Some(start) = rest.find("<DataArray") {
         rest = &rest[start..];
         let te = match rest.find(">") {
             Some(e) => e + 1,

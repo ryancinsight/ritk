@@ -107,7 +107,6 @@ impl<B: Backend> GaussianFilter<B> {
         kernel
     }
 
-    #[allow(clippy::single_range_in_vec_init)]
     fn convolve_1d<const D: usize>(
         &self,
         input: Tensor<B, D>,
@@ -171,7 +170,8 @@ impl<B: Backend> GaussianFilter<B> {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
 
-                let chunk_input = input_reshaped.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_input = input_reshaped.clone().slice([chunk_range]);
                 let chunk_output = burn::tensor::module::conv1d(
                     chunk_input,
                     kernel_reshaped.clone(),

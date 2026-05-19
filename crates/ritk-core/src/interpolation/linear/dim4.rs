@@ -1,17 +1,15 @@
 use burn::tensor::{backend::Backend, Int, Tensor};
 
 #[inline]
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn gather_4d<B: Backend>(
     flat_data: &Tensor<B, 1>,
     xi: &Tensor<B, 1, Int>,
     yi: &Tensor<B, 1, Int>,
     zi: &Tensor<B, 1, Int>,
     wi: &Tensor<B, 1, Int>,
-    stride_y: i32,
-    stride_z: i32,
-    stride_w: i32,
+    strides: [i32; 3],
 ) -> Tensor<B, 1> {
+    let [stride_y, stride_z, stride_w] = strides;
     let idx = wi.clone() * stride_w + zi.clone() * stride_z + yi.clone() * stride_y + xi.clone();
     flat_data.clone().gather(0, idx)
 }
@@ -74,52 +72,132 @@ pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
 
     // Gather all 16 values
     let v0000 = gather_4d(
-        &flat_data, &x0_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y0_i,
+        &z0_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0001 = gather_4d(
-        &flat_data, &x0_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y0_i,
+        &z0_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0010 = gather_4d(
-        &flat_data, &x0_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y0_i,
+        &z1_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0011 = gather_4d(
-        &flat_data, &x0_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y0_i,
+        &z1_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0100 = gather_4d(
-        &flat_data, &x0_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y1_i,
+        &z0_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0101 = gather_4d(
-        &flat_data, &x0_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y1_i,
+        &z0_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0110 = gather_4d(
-        &flat_data, &x0_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y1_i,
+        &z1_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v0111 = gather_4d(
-        &flat_data, &x0_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x0_i,
+        &y1_i,
+        &z1_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1000 = gather_4d(
-        &flat_data, &x1_i, &y0_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y0_i,
+        &z0_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1001 = gather_4d(
-        &flat_data, &x1_i, &y0_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y0_i,
+        &z0_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1010 = gather_4d(
-        &flat_data, &x1_i, &y0_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y0_i,
+        &z1_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1011 = gather_4d(
-        &flat_data, &x1_i, &y0_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y0_i,
+        &z1_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1100 = gather_4d(
-        &flat_data, &x1_i, &y1_i, &z0_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y1_i,
+        &z0_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1101 = gather_4d(
-        &flat_data, &x1_i, &y1_i, &z0_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y1_i,
+        &z0_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1110 = gather_4d(
-        &flat_data, &x1_i, &y1_i, &z1_i, &w0_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y1_i,
+        &z1_i,
+        &w0_i,
+        [stride_y, stride_z, stride_w],
     );
     let v1111 = gather_4d(
-        &flat_data, &x1_i, &y1_i, &z1_i, &w1_i, stride_y, stride_z, stride_w,
+        &flat_data,
+        &x1_i,
+        &y1_i,
+        &z1_i,
+        &w1_i,
+        [stride_y, stride_z, stride_w],
     );
 
     // Pre-compute (1 - weight)

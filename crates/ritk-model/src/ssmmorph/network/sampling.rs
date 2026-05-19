@@ -133,14 +133,14 @@ impl<B: Backend> GridSampler<B> {
         let iz1_i = iz1.int();
 
         // Gather values at 8 corners
-        let v000 = self.gather(&input, &iz0_i, &iy0_i, &ix0_i, d_out, h_out, w_out);
-        let v100 = self.gather(&input, &iz0_i, &iy0_i, &ix1_i, d_out, h_out, w_out);
-        let v010 = self.gather(&input, &iz0_i, &iy1_i, &ix0_i, d_out, h_out, w_out);
-        let v110 = self.gather(&input, &iz0_i, &iy1_i, &ix1_i, d_out, h_out, w_out);
-        let v001 = self.gather(&input, &iz1_i, &iy0_i, &ix0_i, d_out, h_out, w_out);
-        let v101 = self.gather(&input, &iz1_i, &iy0_i, &ix1_i, d_out, h_out, w_out);
-        let v011 = self.gather(&input, &iz1_i, &iy1_i, &ix0_i, d_out, h_out, w_out);
-        let v111 = self.gather(&input, &iz1_i, &iy1_i, &ix1_i, d_out, h_out, w_out);
+        let v000 = self.gather(&input, &iz0_i, &iy0_i, &ix0_i, [d_out, h_out, w_out]);
+        let v100 = self.gather(&input, &iz0_i, &iy0_i, &ix1_i, [d_out, h_out, w_out]);
+        let v010 = self.gather(&input, &iz0_i, &iy1_i, &ix0_i, [d_out, h_out, w_out]);
+        let v110 = self.gather(&input, &iz0_i, &iy1_i, &ix1_i, [d_out, h_out, w_out]);
+        let v001 = self.gather(&input, &iz1_i, &iy0_i, &ix0_i, [d_out, h_out, w_out]);
+        let v101 = self.gather(&input, &iz1_i, &iy0_i, &ix1_i, [d_out, h_out, w_out]);
+        let v011 = self.gather(&input, &iz1_i, &iy1_i, &ix0_i, [d_out, h_out, w_out]);
+        let v111 = self.gather(&input, &iz1_i, &iy1_i, &ix1_i, [d_out, h_out, w_out]);
 
         // Reshape weights for broadcasting
         let wx0 = wx0.reshape([batch, 1, d_out, h_out, w_out]);
@@ -183,7 +183,7 @@ impl<B: Backend> GridSampler<B> {
         let iz_n = iz.round().clamp(0.0, (d_in - 1) as f32).int();
 
         // Gather values
-        self.gather(&input, &iz_n, &iy_n, &ix_n, d_out, h_out, w_out)
+        self.gather(&input, &iz_n, &iy_n, &ix_n, [d_out, h_out, w_out])
     }
 
     /// Denormalize coordinates from [-1, 1] to [0, size-1]
@@ -223,17 +223,15 @@ impl<B: Backend> GridSampler<B> {
     }
 
     /// Gather values from input at specified coordinates
-    #[allow(clippy::too_many_arguments)]
     fn gather(
         &self,
         input: &Tensor<B, 5>,
         iz: &Tensor<B, 4, Int>,
         iy: &Tensor<B, 4, Int>,
         ix: &Tensor<B, 4, Int>,
-        d_out: usize,
-        h_out: usize,
-        w_out: usize,
+        output_dims: [usize; 3],
     ) -> Tensor<B, 5> {
+        let [d_out, h_out, w_out] = output_dims;
         let [batch, channels, d_in, h_in, w_in] = input.dims();
 
         // Flatten input

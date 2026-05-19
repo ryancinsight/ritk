@@ -7,6 +7,7 @@
 //! ITK Parity: AddImageFilter, SubtractImageFilter, MultiplyImageFilter,
 //!             DivideImageFilter, MinimumImageFilter, MaximumImageFilter
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
@@ -18,88 +19,82 @@ use ritk_core::filter::{
 ///
 /// ITK Parity: AddImageFilter
 #[pyfunction]
-pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         AddImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Pixelwise subtraction: out(x) = a(x) - b(x).
 ///
 /// ITK Parity: SubtractImageFilter
 #[pyfunction]
-pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         SubtractImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Pixelwise multiplication: out(x) = a(x) * b(x).
 ///
 /// ITK Parity: MultiplyImageFilter
 #[pyfunction]
-pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         MultiplyImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Pixelwise division: out(x) = a(x) / b(x). Division by zero yields 0.
 ///
 /// ITK Parity: DivideImageFilter
 #[pyfunction]
-pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         DivideImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Pixelwise minimum: out(x) = min(a(x), b(x)).
 ///
 /// ITK Parity: MinimumImageFilter
 #[pyfunction]
-pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         ImageMinFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Pixelwise maximum: out(x) = max(a(x), b(x)).
 ///
 /// ITK Parity: MaximumImageFilter
 #[pyfunction]
-pub fn maximum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> PyResult<PyImage> {
+pub fn maximum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         ImageMaxFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }

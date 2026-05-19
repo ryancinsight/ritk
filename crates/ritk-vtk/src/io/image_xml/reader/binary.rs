@@ -23,12 +23,7 @@ fn parse_appended_attrs(
 ) -> Result<HashMap<String, AttributeArray>> {
     let mut map = HashMap::new();
     let mut rest = section;
-    #[allow(clippy::while_let_loop)]
-    loop {
-        let start = match rest.find("<DataArray") {
-            Some(s) => s,
-            None => break,
-        };
+    while let Some(start) = rest.find("<DataArray") {
         rest = &rest[start..];
         let te = match rest.find('>') {
             Some(e) => e + 1,
@@ -163,11 +158,17 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
 
     let origin_str = attr_val(&image_tag, "Origin").unwrap_or_else(|| "0 0 0".to_string());
     let origin_vals = parse_f64s(&origin_str);
-    let origin = std::array::from_fn(|i| origin_vals.get(i).copied().unwrap_or(0.0));
+    let mut origin = [0.0f64; 3];
+    for (i, dst) in origin.iter_mut().enumerate() {
+        *dst = origin_vals.get(i).copied().unwrap_or(0.0);
+    }
 
     let spacing_str = attr_val(&image_tag, "Spacing").unwrap_or_else(|| "1 1 1".to_string());
     let spacing_vals = parse_f64s(&spacing_str);
-    let spacing = std::array::from_fn(|i| spacing_vals.get(i).copied().unwrap_or(1.0));
+    let mut spacing = [1.0f64; 3];
+    for (i, dst) in spacing.iter_mut().enumerate() {
+        *dst = spacing_vals.get(i).copied().unwrap_or(1.0);
+    }
 
     // ── Parse PointData and CellData sections ────────────────────────────────
     let point_data = find_section(header_str, "PointData")

@@ -1,4 +1,4 @@
-use crate::image::image::Image;
+use crate::image::types::Image;
 use crate::spatial::Point;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Tensor, TensorData};
@@ -58,7 +58,6 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Returns
     /// A tensor of shape `[Batch, D]` containing continuous indices
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = points.device();
         let [n_points, _] = points.dims();
@@ -103,7 +102,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_points = points.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_points = points.clone().slice([chunk_range]);
 
                 let diff = chunk_points - origin_tensor.clone();
                 let result = diff.matmul(t_tensor.clone());
@@ -123,7 +123,6 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Returns
     /// A tensor of shape `[Batch, D]` containing physical points
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         let device = indices.device();
         let [n_points, _] = indices.dims();
@@ -163,7 +162,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_indices = indices.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_indices = indices.clone().slice([chunk_range]);
 
                 let rotated = chunk_indices.matmul(m_tensor.clone());
                 let result = rotated + origin_tensor.clone();

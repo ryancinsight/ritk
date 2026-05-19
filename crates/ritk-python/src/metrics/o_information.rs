@@ -10,6 +10,7 @@ use ritk_core::statistics::information::{
     dual_total_correlation as core_dtc, o_information as core_oi,
 };
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;
 use crate::metrics::image_batch::collect_image_vectors;
 
@@ -38,19 +39,23 @@ pub(super) fn oi_slices(channels: &[&[f32]], num_bins: usize) -> Result<f64> {
 pub fn compute_dual_total_correlation(
     images: Vec<PyRef<PyImage>>,
     num_bins: usize,
-) -> PyResult<f64> {
+) -> RitkResult<f64> {
     if images.len() < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "at least 2 images required, got {}",
             images.len()
         )));
     }
     let (vectors, _) = collect_image_vectors(&images)
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    super::validate_num_bins(num_bins)?;
+        .map_err(|e| RitkPyError::value(e.to_string()))?;
+    if !(2..=64).contains(&num_bins) {
+        return Err(RitkPyError::value(format!(
+            "num_bins must be in [2, 64], got {num_bins}"
+        )));
+    }
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     dtc_slices(&slices, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// O-Information over N images (Rosas et al. 2019).
@@ -72,19 +77,23 @@ pub fn compute_dual_total_correlation(
 /// - `num_bins`: histogram bins per channel (2 ≤ B ≤ 64, default 32).
 #[pyfunction]
 #[pyo3(signature = (images, num_bins=32))]
-pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> PyResult<f64> {
+pub fn compute_o_information(images: Vec<PyRef<PyImage>>, num_bins: usize) -> RitkResult<f64> {
     if images.len() < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "at least 2 images required, got {}",
             images.len()
         )));
     }
     let (vectors, _) = collect_image_vectors(&images)
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-    super::validate_num_bins(num_bins)?;
+        .map_err(|e| RitkPyError::value(e.to_string()))?;
+    if !(2..=64).contains(&num_bins) {
+        return Err(RitkPyError::value(format!(
+            "num_bins must be in [2, 64], got {num_bins}"
+        )));
+    }
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
     oi_slices(&slices, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]

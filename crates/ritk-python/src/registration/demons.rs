@@ -1,6 +1,7 @@
 //! Demons-family registration algorithms: Thirion, Diffeomorphic, Symmetric, Multi-resolution,
 //! and Inverse-consistent Diffeomorphic Demons.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
@@ -38,23 +39,23 @@ pub fn demons_register(
     moving: &PyImage,
     max_iterations: usize,
     sigma_diffusion: f64,
-) -> PyResult<(PyImage, PyImage)> {
-    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
-    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+) -> RitkResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
 
     if fixed_shape != moving_shape {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+        return Err(RitkPyError::runtime(format!(
             "fixed shape {:?} != moving shape {:?}; images must have identical shapes",
             fixed_shape, moving_shape
         )));
     }
 
-    let fixed_origin = fixed.inner.origin().clone();
-    let fixed_spacing = fixed.inner.spacing().clone();
-    let fixed_direction = fixed.inner.direction().clone();
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    let result = py
+    py
         .allow_threads(|| {
             let config = DemonsConfig {
                 max_iterations,
@@ -66,31 +67,29 @@ pub fn demons_register(
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-    let warped_image = vec_to_image(
-        result.warped,
-        fixed_shape,
-        fixed_origin,
-        fixed_spacing,
-        fixed_direction,
-    );
-
-    let n = nz * ny * nx;
-    let mut disp_packed = Vec::with_capacity(3 * n);
-    disp_packed.extend_from_slice(&result.disp_z);
-    disp_packed.extend_from_slice(&result.disp_y);
-    disp_packed.extend_from_slice(&result.disp_x);
-
-    let disp_image = vec_to_image(
-        disp_packed,
-        [3 * nz, ny, nx],
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-
-    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+        .map_err(RitkPyError::runtime)
+        .map(|result| {
+            let warped_image = vec_to_image(
+                result.warped,
+                fixed_shape,
+                fixed_origin,
+                fixed_spacing,
+                fixed_direction,
+            );
+            let n = nz * ny * nx;
+            let mut disp_packed = Vec::with_capacity(3 * n);
+            disp_packed.extend_from_slice(&result.disp_z);
+            disp_packed.extend_from_slice(&result.disp_y);
+            disp_packed.extend_from_slice(&result.disp_x);
+            let disp_image = vec_to_image(
+                disp_packed,
+                [3 * nz, ny, nx],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            (into_py_image(warped_image), into_py_image(disp_image))
+        })
 }
 
 /// Register a moving image to a fixed image using Diffeomorphic Demons.
@@ -122,23 +121,23 @@ pub fn diffeomorphic_demons_register(
     max_iterations: usize,
     sigma_diffusion: f64,
     n_squarings: usize,
-) -> PyResult<(PyImage, PyImage)> {
-    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
-    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+) -> RitkResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
 
     if fixed_shape != moving_shape {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+        return Err(RitkPyError::runtime(format!(
             "fixed shape {:?} != moving shape {:?}",
             fixed_shape, moving_shape
         )));
     }
 
-    let fixed_origin = fixed.inner.origin().clone();
-    let fixed_spacing = fixed.inner.spacing().clone();
-    let fixed_direction = fixed.inner.direction().clone();
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    let result = py
+    py
         .allow_threads(|| {
             let config = DemonsConfig {
                 max_iterations,
@@ -153,31 +152,29 @@ pub fn diffeomorphic_demons_register(
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-    let warped_image = vec_to_image(
-        result.warped,
-        fixed_shape,
-        fixed_origin,
-        fixed_spacing,
-        fixed_direction,
-    );
-
-    let n = nz * ny * nx;
-    let mut disp_packed = Vec::with_capacity(3 * n);
-    disp_packed.extend_from_slice(&result.disp_z);
-    disp_packed.extend_from_slice(&result.disp_y);
-    disp_packed.extend_from_slice(&result.disp_x);
-
-    let disp_image = vec_to_image(
-        disp_packed,
-        [3 * nz, ny, nx],
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-
-    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+        .map_err(RitkPyError::runtime)
+        .map(|result| {
+            let warped_image = vec_to_image(
+                result.warped,
+                fixed_shape,
+                fixed_origin,
+                fixed_spacing,
+                fixed_direction,
+            );
+            let n = nz * ny * nx;
+            let mut disp_packed = Vec::with_capacity(3 * n);
+            disp_packed.extend_from_slice(&result.disp_z);
+            disp_packed.extend_from_slice(&result.disp_y);
+            disp_packed.extend_from_slice(&result.disp_x);
+            let disp_image = vec_to_image(
+                disp_packed,
+                [3 * nz, ny, nx],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            (into_py_image(warped_image), into_py_image(disp_image))
+        })
 }
 
 /// Register a moving image to a fixed image using Symmetric Demons.
@@ -206,23 +203,23 @@ pub fn symmetric_demons_register(
     moving: &PyImage,
     max_iterations: usize,
     sigma_diffusion: f64,
-) -> PyResult<(PyImage, PyImage)> {
-    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
-    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+) -> RitkResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
 
     if fixed_shape != moving_shape {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+        return Err(RitkPyError::runtime(format!(
             "fixed shape {:?} != moving shape {:?}",
             fixed_shape, moving_shape
         )));
     }
 
-    let fixed_origin = fixed.inner.origin().clone();
-    let fixed_spacing = fixed.inner.spacing().clone();
-    let fixed_direction = fixed.inner.direction().clone();
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    let result = py
+    py
         .allow_threads(|| {
             let config = DemonsConfig {
                 max_iterations,
@@ -234,31 +231,71 @@ pub fn symmetric_demons_register(
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+        .map_err(RitkPyError::runtime)
+        .map(|result| {
+            let warped_image = vec_to_image(
+                result.warped,
+                fixed_shape,
+                fixed_origin,
+                fixed_spacing,
+                fixed_direction,
+            );
+            let n = nz * ny * nx;
+            let mut disp_packed = Vec::with_capacity(3 * n);
+            disp_packed.extend_from_slice(&result.disp_z);
+            disp_packed.extend_from_slice(&result.disp_y);
+            disp_packed.extend_from_slice(&result.disp_x);
+            let disp_image = vec_to_image(
+                disp_packed,
+                [3 * nz, ny, nx],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            (into_py_image(warped_image), into_py_image(disp_image))
+        })
+}
 
-    let warped_image = vec_to_image(
-        result.warped,
-        fixed_shape,
-        fixed_origin,
-        fixed_spacing,
-        fixed_direction,
-    );
+/// Configuration options for [`multires_demons_register`].
+#[pyclass(name = "MultiResDemonsOptions")]
+#[derive(Clone)]
+pub struct PyMultiresDemonsOptions {
+    /// Base iteration count (scaled per pyramid level).
+    #[pyo3(get, set)]
+    pub max_iterations: usize,
+    /// Displacement field Gaussian smoothing sigma in voxels.
+    #[pyo3(get, set)]
+    pub sigma_diffusion: f64,
+    /// Number of pyramid levels >= 1.
+    #[pyo3(get, set)]
+    pub levels: usize,
+    /// When true, use DiffeomorphicDemons at each level.
+    #[pyo3(get, set)]
+    pub use_diffeomorphic: bool,
+    /// Scaling-and-squaring steps when use_diffeomorphic=True.
+    #[pyo3(get, set)]
+    pub n_squarings: usize,
+}
 
-    let n = nz * ny * nx;
-    let mut disp_packed = Vec::with_capacity(3 * n);
-    disp_packed.extend_from_slice(&result.disp_z);
-    disp_packed.extend_from_slice(&result.disp_y);
-    disp_packed.extend_from_slice(&result.disp_x);
-
-    let disp_image = vec_to_image(
-        disp_packed,
-        [3 * nz, ny, nx],
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-
-    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+#[pymethods]
+impl PyMultiresDemonsOptions {
+    #[new]
+    #[pyo3(signature = (
+        max_iterations = 50,
+        sigma_diffusion = 1.0,
+        levels = 3,
+        use_diffeomorphic = false,
+        n_squarings = 6,
+    ))]
+    pub fn new(
+        max_iterations: usize,
+        sigma_diffusion: f64,
+        levels: usize,
+        use_diffeomorphic: bool,
+        n_squarings: usize,
+    ) -> Self {
+        Self { max_iterations, sigma_diffusion, levels, use_diffeomorphic, n_squarings }
+    }
 }
 
 /// Register a moving image to a fixed image using multi-resolution Demons.
@@ -267,14 +304,9 @@ pub fn symmetric_demons_register(
 /// Supports both Thirion (classic) and Diffeomorphic variants.
 ///
 /// Args:
-///     fixed:              Fixed (reference) image.
-///     moving:             Moving image to register.
-///     max_iterations:     Base iteration count (scaled per pyramid level, default 50).
-///     sigma_diffusion:    Displacement field Gaussian smoothing sigma in voxels (default 1.0).
-///     levels:             Number of pyramid levels >= 1 (default 3). With 3 levels,
-///                         downsampling factors are [4, 2, 1].
-///     use_diffeomorphic:  When True, use DiffeomorphicDemons at each level (default False).
-///     n_squarings:        Scaling-and-squaring steps when use_diffeomorphic=True (default 6).
+///     fixed:  Fixed (reference) image.
+///     moving: Moving image to register.
+///     opts:   [`MultiResDemonsOptions`] controlling pyramid and algorithm variant.
 ///
 /// Returns:
 ///     (warped_moving, displacement_field) — same convention as demons_register.
@@ -283,33 +315,35 @@ pub fn symmetric_demons_register(
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
 #[pyfunction]
-#[pyo3(signature = (fixed, moving, max_iterations=50, sigma_diffusion=1.0, levels=3, use_diffeomorphic=false, n_squarings=6))]
+#[pyo3(signature = (fixed, moving, opts = None))]
 pub fn multires_demons_register(
     py: Python<'_>,
     fixed: &PyImage,
     moving: &PyImage,
-    max_iterations: usize,
-    sigma_diffusion: f64,
-    levels: usize,
-    use_diffeomorphic: bool,
-    n_squarings: usize,
-) -> PyResult<(PyImage, PyImage)> {
-    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
-    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+    opts: Option<PyMultiresDemonsOptions>,
+) -> RitkResult<(PyImage, PyImage)> {
+    let opts = opts.unwrap_or_else(|| PyMultiresDemonsOptions::new(50, 1.0, 3, false, 6));
+    let max_iterations = opts.max_iterations;
+    let sigma_diffusion = opts.sigma_diffusion;
+    let levels = opts.levels;
+    let use_diffeomorphic = opts.use_diffeomorphic;
+    let n_squarings = opts.n_squarings;
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
 
     if fixed_shape != moving_shape {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+        return Err(RitkPyError::runtime(format!(
             "fixed shape {:?} != moving shape {:?}; images must have identical shapes",
             fixed_shape, moving_shape
         )));
     }
 
-    let fixed_origin = fixed.inner.origin().clone();
-    let fixed_spacing = fixed.inner.spacing().clone();
-    let fixed_direction = fixed.inner.direction().clone();
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    let result = py
+    py
         .allow_threads(|| {
             let config = MultiResDemonsConfig {
                 base_config: DemonsConfig {
@@ -326,31 +360,29 @@ pub fn multires_demons_register(
                 .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-    let warped_image = vec_to_image(
-        result.warped,
-        fixed_shape,
-        fixed_origin,
-        fixed_spacing,
-        fixed_direction,
-    );
-
-    let n = nz * ny * nx;
-    let mut disp_packed = Vec::with_capacity(3 * n);
-    disp_packed.extend_from_slice(&result.disp_z);
-    disp_packed.extend_from_slice(&result.disp_y);
-    disp_packed.extend_from_slice(&result.disp_x);
-
-    let disp_image = vec_to_image(
-        disp_packed,
-        [3 * nz, ny, nx],
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-
-    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+        .map_err(RitkPyError::runtime)
+        .map(|result| {
+            let warped_image = vec_to_image(
+                result.warped,
+                fixed_shape,
+                fixed_origin,
+                fixed_spacing,
+                fixed_direction,
+            );
+            let n = nz * ny * nx;
+            let mut disp_packed = Vec::with_capacity(3 * n);
+            disp_packed.extend_from_slice(&result.disp_z);
+            disp_packed.extend_from_slice(&result.disp_y);
+            disp_packed.extend_from_slice(&result.disp_x);
+            let disp_image = vec_to_image(
+                disp_packed,
+                [3 * nz, ny, nx],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            (into_py_image(warped_image), into_py_image(disp_image))
+        })
 }
 
 /// Register a moving image to a fixed image using inverse-consistent
@@ -388,23 +420,23 @@ pub fn inverse_consistent_demons_register(
     sigma_diffusion: f64,
     inverse_consistency_weight: f64,
     n_squarings: usize,
-) -> PyResult<(PyImage, PyImage)> {
-    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref())?;
-    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref())?;
+) -> RitkResult<(PyImage, PyImage)> {
+    let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
+    let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
 
     if fixed_shape != moving_shape {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(format!(
+        return Err(RitkPyError::runtime(format!(
             "fixed shape {:?} != moving shape {:?}",
             fixed_shape, moving_shape
         )));
     }
 
-    let fixed_origin = fixed.inner.origin().clone();
-    let fixed_spacing = fixed.inner.spacing().clone();
-    let fixed_direction = fixed.inner.direction().clone();
+    let fixed_origin = *fixed.inner.origin();
+    let fixed_spacing = *fixed.inner.spacing();
+    let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    let result = py
+    py
         .allow_threads(|| {
             let config = InverseConsistentDemonsConfig {
                 demons: DemonsConfig {
@@ -420,29 +452,27 @@ pub fn inverse_consistent_demons_register(
             reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-    let warped_image = vec_to_image(
-        result.warped,
-        fixed_shape,
-        fixed_origin,
-        fixed_spacing,
-        fixed_direction,
-    );
-
-    let n = nz * ny * nx;
-    let mut disp_packed = Vec::with_capacity(3 * n);
-    disp_packed.extend_from_slice(&result.disp_z);
-    disp_packed.extend_from_slice(&result.disp_y);
-    disp_packed.extend_from_slice(&result.disp_x);
-
-    let disp_image = vec_to_image(
-        disp_packed,
-        [3 * nz, ny, nx],
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-
-    Ok((into_py_image(warped_image), into_py_image(disp_image)))
+        .map_err(RitkPyError::runtime)
+        .map(|result| {
+            let warped_image = vec_to_image(
+                result.warped,
+                fixed_shape,
+                fixed_origin,
+                fixed_spacing,
+                fixed_direction,
+            );
+            let n = nz * ny * nx;
+            let mut disp_packed = Vec::with_capacity(3 * n);
+            disp_packed.extend_from_slice(&result.disp_z);
+            disp_packed.extend_from_slice(&result.disp_y);
+            disp_packed.extend_from_slice(&result.disp_x);
+            let disp_image = vec_to_image(
+                disp_packed,
+                [3 * nz, ny, nx],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+            );
+            (into_py_image(warped_image), into_py_image(disp_image))
+        })
 }

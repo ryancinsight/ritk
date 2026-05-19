@@ -93,12 +93,7 @@ pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;
     let close = "</DataArray>";
-    #[allow(clippy::while_let_loop)]
-    loop {
-        let start = match rest.find("<DataArray") {
-            Some(s) => s,
-            None => break,
-        };
+    while let Some(start) = rest.find("<DataArray") {
         rest = &rest[start..];
         let te = match rest.find('>') {
             Some(e) => e + 1,

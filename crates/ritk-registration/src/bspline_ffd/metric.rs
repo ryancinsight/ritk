@@ -64,14 +64,9 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
 /// ```text
 /// ∂NCC/∂φ_d(x) = (∂ρ/∂W(x)) · ∇_d M_warped(x)
 /// ```
-#[allow(clippy::too_many_arguments)]
 pub(super) fn compute_metric_gradient(
     fixed: &[f32],
-    _moving: &[f32],
     warped: &[f32],
-    _disp_z: &[f32],
-    _disp_y: &[f32],
-    _disp_x: &[f32],
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
     dims: [usize; 3],

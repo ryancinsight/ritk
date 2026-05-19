@@ -6,6 +6,7 @@
 //! `ritk-registration`, and returns the 4×4 homogeneous matrix, final MI
 //! value, and convergence diagnostics.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -34,19 +35,19 @@ type AutodiffBackend = Autodiff<InnerBackend>;
 /// This is necessary because `GlobalMiRegistration` requires `B: AutodiffBackend`
 /// for gradient computation, while `PyImage` stores data on the non-autodiff
 /// `NdArray<f32>` backend.
-fn py_image_to_autodiff_image(py_image: &PyImage) -> PyResult<Image<AutodiffBackend, 3>> {
-    let (values, shape) = image_to_vec(py_image.inner.as_ref())?;
+fn py_image_to_autodiff_image(py_image: &PyImage) -> Image<AutodiffBackend, 3> {
+    let (values, shape) = image_to_vec(py_image.inner.as_ref());
     let device = Default::default();
     let tensor = Tensor::<AutodiffBackend, 3>::from_data(
         TensorData::new(values, Shape::new(shape)),
         &device,
     );
-    Ok(Image::new(
+    Image::new(
         tensor,
-        py_image.inner.origin().clone(),
-        py_image.inner.spacing().clone(),
-        py_image.inner.direction().clone(),
-    ))
+        *py_image.inner.origin(),
+        *py_image.inner.spacing(),
+        *py_image.inner.direction(),
+    )
 }
 
 /// Compute the physical center of a 3D image from its metadata.
@@ -66,6 +67,15 @@ fn compute_image_center(image: &Image<AutodiffBackend, 3>) -> Tensor<AutodiffBac
     )
 }
 
+/// Per-optimizer scalar parameters for RSGD, grouped to stay within the
+/// function argument limit.
+struct RsgdParams {
+    initial_step_length: f64,
+    relaxation_factor: f64,
+    minimum_step_length: f64,
+    maximum_iterations: usize,
+}
+
 /// Build a `GlobalMiConfig` from Python parameters.
 ///
 /// Creates per-level RSGD configurations from the single set of optimizer
@@ -79,11 +89,14 @@ fn build_config(
     smoothing_sigmas: Vec<f64>,
     num_mi_bins: usize,
     sampling_percentage: f32,
-    initial_step_length: f64,
-    relaxation_factor: f64,
-    minimum_step_length: f64,
-    maximum_iterations: usize,
+    rsgd: RsgdParams,
 ) -> GlobalMiConfig {
+    let RsgdParams {
+        initial_step_length,
+        relaxation_factor,
+        minimum_step_length,
+        maximum_iterations,
+    } = rsgd;
     // Build per-level RSGD configs with step-length decay across pyramid levels.
     // Coarse levels: larger step, fewer iterations. Fine levels: smaller step, more iterations.
     let rsgd_configs: Vec<RegularStepGdConfig> = (0..num_levels)
@@ -115,91 +128,49 @@ fn build_config(
 
 // ─── Python function ─────────────────────────────────────────────────────────
 
-/// Register a moving image to a fixed image using global Mutual Information.
-///
-/// Multi-resolution Mattes MI + RegularStepGradientDescent (RSGD) registration,
-/// following ITK's `ImageRegistrationMethod` architecture.
-///
-/// Args:
-///     fixed: Fixed (reference) image.
-///     moving: Moving image to register to the fixed image.
-///     transform_type: Transform type — `"translation"`, `"rigid"`, or `"affine"`.
-///         Default: `"rigid"`.
-///     num_levels: Number of multi-resolution pyramid levels (default: 3).
-///     shrink_factors: Shrink factors per level. Length must equal `num_levels`.
-///         Default: `[4, 2, 1]`.
-///     smoothing_sigmas: Gaussian smoothing sigmas per level in physical units.
-///         Length must equal `num_levels`. Default: `[4.0, 2.0, 0.0]`.
-///     num_mi_bins: Number of Mattes MI histogram bins (default: 50).
-///     sampling_percentage: Fraction of voxels sampled for MI estimation (default: 0.20).
-///     initial_step_length: RSGD initial step length (default: 1.0).
-///     relaxation_factor: RSGD step shrinkage factor on rejected steps (default: 0.5).
-///     minimum_step_length: RSGD step convergence threshold (default: 1e-6).
-///     maximum_iterations: RSGD maximum accepted steps at the finest level (default: 200).
-///
-/// Returns:
-///     (matrix, final_mi, info):
-///         - matrix: 4×4 homogeneous transform as 16 floats (row-major).
-///         - final_mi: Final Mattes MI value (positive; negated from the loss).
-///         - info: Dict with keys:
-///             - convergence_history: list of per-level convergence reason strings.
-///             - iterations_per_level: list of iteration counts per level.
-///             - converged: bool — True if every level converged.
-///             - loss_history: list of loss values from the final level.
-///
-/// Raises:
-///     RuntimeError: If configuration validation fails or registration produces an error.
-#[pyfunction]
-#[pyo3(signature = (
-    fixed,
-    moving,
-    transform_type="rigid",
-    num_levels=3,
-    shrink_factors=None,
-    smoothing_sigmas=None,
-    num_mi_bins=50,
-    sampling_percentage=0.20,
-    initial_step_length=1.0,
-    relaxation_factor=0.5,
-    minimum_step_length=1e-6,
-    maximum_iterations=200,
-))]
-pub fn global_mi_register(
-    py: Python<'_>,
-    fixed: &PyImage,
-    moving: &PyImage,
-    transform_type: &str,
+/// All scalar tuning knobs for `global_mi_register`, grouped to stay within
+/// the function argument limit.
+struct GlobalMiOptions {
+    transform_type: String,
     num_levels: usize,
     shrink_factors: Option<Vec<usize>>,
     smoothing_sigmas: Option<Vec<f64>>,
     num_mi_bins: usize,
     sampling_percentage: f32,
-    initial_step_length: f64,
-    relaxation_factor: f64,
-    minimum_step_length: f64,
-    maximum_iterations: usize,
-) -> PyResult<(Vec<f32>, f64, PyObject)> {
+    rsgd: RsgdParams,
+}
+
+/// Core registration logic, separated from the `#[pyfunction]` entry point so
+/// the public Rust function signature stays within the argument limit.
+fn run_global_mi_register(
+    py: Python<'_>,
+    fixed: &PyImage,
+    moving: &PyImage,
+    opts: GlobalMiOptions,
+) -> RitkResult<(Vec<f32>, f64, PyObject)> {
     // ── 1. Parse transform type ──────────────────────────────────────────
-    let transform_type_enum = match transform_type {
+    let transform_type_enum = match opts.transform_type.as_str() {
         "translation" => GlobalMiTransformType::Translation,
         "rigid" => GlobalMiTransformType::Rigid,
         "affine" => GlobalMiTransformType::Affine,
         other => {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(RitkPyError::value(format!(
                 "transform_type must be \"translation\", \"rigid\", or \"affine\", got \"{}\"",
                 other
             )));
         }
     };
 
+    let num_levels = opts.num_levels;
+
     // ── 2. Apply default lists when not provided ─────────────────────────
-    let shrink_factors = shrink_factors.unwrap_or_else(|| match num_levels {
+    let shrink_factors = opts.shrink_factors.unwrap_or_else(|| match num_levels {
         0 => vec![],
         1 => vec![1],
         2 => vec![2, 1],
         _ => vec![4, 2, 1],
     });
-    let smoothing_sigmas = smoothing_sigmas.unwrap_or_else(|| match num_levels {
+    let smoothing_sigmas = opts.smoothing_sigmas.unwrap_or_else(|| match num_levels {
         0 => vec![],
         1 => vec![0.0],
         2 => vec![2.0, 0.0],
@@ -212,17 +183,14 @@ pub fn global_mi_register(
         num_levels,
         shrink_factors,
         smoothing_sigmas,
-        num_mi_bins,
-        sampling_percentage,
-        initial_step_length,
-        relaxation_factor,
-        minimum_step_length,
-        maximum_iterations,
+        opts.num_mi_bins,
+        opts.sampling_percentage,
+        opts.rsgd,
     );
 
     // ── 4. Convert PyImages to autodiff-backend Images ───────────────────
-    let fixed_ad = py_image_to_autodiff_image(fixed)?;
-    let moving_ad = py_image_to_autodiff_image(moving)?;
+    let fixed_ad = py_image_to_autodiff_image(fixed);
+    let moving_ad = py_image_to_autodiff_image(moving);
 
     // ── 5. Run registration inside allow_threads ─────────────────────────
     let (matrix, final_mi, convergence_history, iterations_per_level, loss_history, converged) = py
@@ -308,4 +276,123 @@ pub fn global_mi_register(
     info.set_item("loss_history", loss_history)?;
 
     Ok((matrix_vec, final_mi, info.unbind().into()))
+}
+
+// ─── Python-visible options class ────────────────────────────────────────────
+
+/// Registration options for `global_mi_register`.
+///
+/// Groups all tuning parameters so `global_mi_register` stays within the
+/// function argument limit while exposing every knob to Python callers.
+///
+/// Args:
+///     transform_type: `"translation"`, `"rigid"`, or `"affine"` (default `"rigid"`).
+///     num_levels: Multi-resolution pyramid levels (default 3).
+///     shrink_factors: Shrink factors per level (default `[4, 2, 1]` for 3 levels).
+///     smoothing_sigmas: Gaussian smoothing sigmas per level in physical units
+///         (default `[4.0, 2.0, 0.0]` for 3 levels).
+///     num_mi_bins: Mattes MI histogram bins (default 50).
+///     sampling_percentage: Fraction of voxels sampled for MI (default 0.20).
+///     initial_step_length: RSGD initial step (default 1.0).
+///     relaxation_factor: RSGD step shrinkage on rejected steps (default 0.5).
+///     minimum_step_length: RSGD convergence threshold (default 1e-6).
+///     maximum_iterations: RSGD max steps at finest level (default 200).
+#[pyclass(name = "GlobalMiOptions")]
+#[derive(Clone)]
+pub struct PyGlobalMiOptions {
+    #[pyo3(get, set)]
+    pub transform_type: String,
+    #[pyo3(get, set)]
+    pub num_levels: usize,
+    #[pyo3(get, set)]
+    pub shrink_factors: Option<Vec<usize>>,
+    #[pyo3(get, set)]
+    pub smoothing_sigmas: Option<Vec<f64>>,
+    #[pyo3(get, set)]
+    pub num_mi_bins: usize,
+    #[pyo3(get, set)]
+    pub sampling_percentage: f32,
+    #[pyo3(get, set)]
+    pub initial_step_length: f64,
+    #[pyo3(get, set)]
+    pub relaxation_factor: f64,
+    #[pyo3(get, set)]
+    pub minimum_step_length: f64,
+    #[pyo3(get, set)]
+    pub maximum_iterations: usize,
+}
+
+impl Default for PyGlobalMiOptions {
+    fn default() -> Self {
+        Self {
+            transform_type: "rigid".to_owned(),
+            num_levels: 3,
+            shrink_factors: None,
+            smoothing_sigmas: None,
+            num_mi_bins: 50,
+            sampling_percentage: 0.20,
+            initial_step_length: 1.0,
+            relaxation_factor: 0.5,
+            minimum_step_length: 1e-6,
+            maximum_iterations: 200,
+        }
+    }
+}
+
+#[pymethods]
+impl PyGlobalMiOptions {
+    #[new]
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+// ─── Python function ─────────────────────────────────────────────────────────
+
+/// Register a moving image to a fixed image using global Mutual Information.
+///
+/// Multi-resolution Mattes MI + RegularStepGradientDescent (RSGD) registration,
+/// following ITK's `ImageRegistrationMethod` architecture.
+///
+/// Args:
+///     fixed: Fixed (reference) image.
+///     moving: Moving image to register to the fixed image.
+///     opts: `GlobalMiOptions` instance controlling transform type, pyramid
+///           levels, MI bins, and RSGD optimizer parameters.
+///
+/// Returns:
+///     (matrix, final_mi, info):
+///         - matrix: 4×4 homogeneous transform as 16 floats (row-major).
+///         - final_mi: Final Mattes MI value (positive; negated from the loss).
+///         - info: Dict with keys `convergence_history`, `iterations_per_level`,
+///           `converged`, `loss_history`.
+///
+/// Raises:
+///     RuntimeError: If configuration validation fails or registration produces an error.
+#[pyfunction]
+pub fn global_mi_register(
+    py: Python<'_>,
+    fixed: &PyImage,
+    moving: &PyImage,
+    opts: PyGlobalMiOptions,
+) -> RitkResult<(Vec<f32>, f64, PyObject)> {
+    run_global_mi_register(
+        py,
+        fixed,
+        moving,
+        GlobalMiOptions {
+            transform_type: opts.transform_type,
+            num_levels: opts.num_levels,
+            shrink_factors: opts.shrink_factors,
+            smoothing_sigmas: opts.smoothing_sigmas,
+            num_mi_bins: opts.num_mi_bins,
+            sampling_percentage: opts.sampling_percentage,
+            rsgd: RsgdParams {
+                initial_step_length: opts.initial_step_length,
+                relaxation_factor: opts.relaxation_factor,
+                minimum_step_length: opts.minimum_step_length,
+                maximum_iterations: opts.maximum_iterations,
+            },
+        },
+    )
 }

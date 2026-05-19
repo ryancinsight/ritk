@@ -219,19 +219,36 @@ pub(super) struct SeriesFirstSeen {
     pub radionuclide_half_life_s: Option<f64>,
 }
 
+/// Spatial geometry of a reconstructed DICOM series.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SeriesGeometry {
+    /// Number of pixel rows per slice.
+    pub rows: usize,
+    /// Number of pixel columns per slice.
+    pub cols: usize,
+    /// Voxel spacing \[mm\]: (row, col, slice).
+    pub spacing: [f64; 3],
+    /// Image position of the first slice in patient coordinates \[mm\].
+    pub origin: [f64; 3],
+    /// 3×3 row-major direction cosine matrix (col 0 = normal, col 1 = F_c, col 2 = F_r).
+    pub direction: [f64; 9],
+}
+
 /// Assemble a [`DicomReadMetadata`] from a [`SeriesFirstSeen`] accumulator, sorted slices,
 /// and computed geometry fields.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn assemble_metadata(
     first: SeriesFirstSeen,
     slices: Vec<DicomSliceMetadata>,
-    rows: usize,
-    cols: usize,
-    spacing: [f64; 3],
-    origin: [f64; 3],
-    direction: [f64; 9],
+    geometry: SeriesGeometry,
     series_object: DicomObjectModel,
 ) -> DicomReadMetadata {
+    let SeriesGeometry {
+        rows,
+        cols,
+        spacing,
+        origin,
+        direction,
+    } = geometry;
     DicomReadMetadata {
         series_instance_uid: first.series_instance_uid,
         study_instance_uid: first.study_instance_uid,

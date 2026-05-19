@@ -61,10 +61,15 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(morphological_gradient, &m)?)?;
 
     // Level set
+    m.add_class::<PyChanVeseOptions>()?;
     m.add_function(wrap_pyfunction!(chan_vese_segment, &m)?)?;
+    m.add_class::<PyGacOptions>()?;
     m.add_function(wrap_pyfunction!(geodesic_active_contour_segment, &m)?)?;
+    m.add_class::<PyShapeDetectionOptions>()?;
     m.add_function(wrap_pyfunction!(shape_detection_segment, &m)?)?;
+    m.add_class::<PyThresholdLevelSetOptions>()?;
     m.add_function(wrap_pyfunction!(threshold_level_set_segment, &m)?)?;
+    m.add_class::<PyLaplacianLevelSetOptions>()?;
     m.add_function(wrap_pyfunction!(laplacian_level_set_segment, &m)?)?;
 
     // Region growing (confidence / neighbourhood)

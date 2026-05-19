@@ -1,5 +1,6 @@
 //! Smoothing and diffusion filters: Gaussian, median, bilateral, N4, anisotropic diffusion.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::bias::N4Config;
@@ -25,18 +26,15 @@ use ritk_core::filter::{
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.
-///
-/// Raises:
-///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma))]
-pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyResult<PyImage> {
+pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyImage {
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         let filter = GaussianFilter::<Backend>::new(vec![sigma, sigma, sigma]);
         filter.apply(image.as_ref())
     });
-    Ok(into_py_image(result))
+    into_py_image(result)
 }
 
 /// Apply ITK-style discrete Gaussian smoothing parameterized by variance.
@@ -54,9 +52,6 @@ pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyResult<
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.
-///
-/// Raises:
-///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 #[pyo3(signature = (image, variance, maximum_error=0.01, use_image_spacing=true))]
 pub fn discrete_gaussian(
@@ -65,7 +60,7 @@ pub fn discrete_gaussian(
     variance: f64,
     maximum_error: f64,
     use_image_spacing: bool,
-) -> PyResult<PyImage> {
+) -> PyImage {
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         let filter = DiscreteGaussianFilter::<Backend>::new(vec![variance])
@@ -73,7 +68,7 @@ pub fn discrete_gaussian(
             .with_use_image_spacing(use_image_spacing);
         filter.apply(image.as_ref())
     });
-    Ok(into_py_image(result))
+    into_py_image(result)
 }
 
 /// Apply a median (rank) filter for impulse-noise removal.
@@ -94,15 +89,14 @@ pub fn discrete_gaussian(
 ///     RuntimeError: on internal tensor operation failure.
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
-pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> PyResult<PyImage> {
+pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = MedianFilter::new(radius);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply a bilateral filter (edge-preserving smoothing).
@@ -128,15 +122,14 @@ pub fn bilateral_filter(
     image: &PyImage,
     spatial_sigma: f64,
     range_sigma: f64,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = BilateralFilter::new(spatial_sigma, range_sigma);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply N4 bias field correction to an MRI image.
@@ -166,9 +159,9 @@ pub fn n4_bias_correction(
     num_fitting_levels: usize,
     num_iterations: usize,
     noise_estimate: f64,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let config = N4Config {
             num_fitting_levels,
             num_iterations,
@@ -178,9 +171,8 @@ pub fn n4_bias_correction(
         let filter = N4BiasFieldCorrectionFilter::new(config);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply Perona-Malik anisotropic diffusion for edge-preserving smoothing.
@@ -210,9 +202,9 @@ pub fn anisotropic_diffusion(
     conductance: f64,
     time_step: f64,
     exponential: bool,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let function = if exponential {
             ConductanceFunction::Exponential
         } else {
@@ -227,9 +219,8 @@ pub fn anisotropic_diffusion(
         let filter = AnisotropicDiffusionFilter::new(config);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply curvature anisotropic diffusion (Alvarez et al. 1992).
@@ -254,18 +245,17 @@ pub fn curvature_anisotropic_diffusion(
     image: &PyImage,
     iterations: usize,
     time_step: f64,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig {
             num_iterations: iterations,
             time_step: time_step as f32,
         });
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.
@@ -293,23 +283,22 @@ pub fn recursive_gaussian(
     image: &PyImage,
     sigma: f64,
     order: usize,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let derivative_order = match order {
         0 => DerivativeOrder::Zero,
         1 => DerivativeOrder::First,
         2 => DerivativeOrder::Second,
         _ => {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(RitkPyError::value(format!(
                 "recursive_gaussian: order must be 0, 1, or 2, got {order}"
             )));
         }
     };
     let image = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
         filter
             .apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }

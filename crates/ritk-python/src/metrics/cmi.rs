@@ -10,6 +10,7 @@ use ritk_core::statistics::information::{
     conditional_mutual_information as core_cmi, interaction_information as core_ii,
 };
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
 
 /// I(X;Y|Z) via `ritk_core::statistics::information::conditional_mutual_information`.
@@ -38,19 +39,21 @@ pub fn compute_conditional_mutual_information(
     y_img: &PyImage,
     z_img: &PyImage,
     num_bins: usize,
-) -> PyResult<f64> {
-    let (x, shape_x) = image_to_vec(&x_img.inner)?;
-    let (y, shape_y) = image_to_vec(&y_img.inner)?;
-    let (z, shape_z) = image_to_vec(&z_img.inner)?;
+) -> RitkResult<f64> {
+    let (x, shape_x) = image_to_vec(&x_img.inner);
+    let (y, shape_y) = image_to_vec(&y_img.inner);
+    let (z, shape_z) = image_to_vec(&z_img.inner);
     if shape_x != shape_y || shape_x != shape_z {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: x {:?}, y {:?}, z {:?}",
             shape_x, shape_y, shape_z
         )));
     }
-    super::validate_num_bins(num_bins)?;
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
     cmi_slices(&x, &y, &z, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Interaction Information II(X;Y;Z) between three images (McGill 1954).
@@ -73,19 +76,21 @@ pub fn compute_interaction_information(
     y_img: &PyImage,
     z_img: &PyImage,
     num_bins: usize,
-) -> PyResult<f64> {
-    let (x, shape_x) = image_to_vec(&x_img.inner)?;
-    let (y, shape_y) = image_to_vec(&y_img.inner)?;
-    let (z, shape_z) = image_to_vec(&z_img.inner)?;
+) -> RitkResult<f64> {
+    let (x, shape_x) = image_to_vec(&x_img.inner);
+    let (y, shape_y) = image_to_vec(&y_img.inner);
+    let (z, shape_z) = image_to_vec(&z_img.inner);
     if shape_x != shape_y || shape_x != shape_z {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "shape mismatch: x {:?}, y {:?}, z {:?}",
             shape_x, shape_y, shape_z
         )));
     }
-    super::validate_num_bins(num_bins)?;
+    if num_bins < 2 {
+        return Err(RitkPyError::value("num_bins must be >= 2"));
+    }
     ii_slices(&x, &y, &z, num_bins)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]

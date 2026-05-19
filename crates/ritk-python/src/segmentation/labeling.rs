@@ -1,5 +1,6 @@
 //! Labeling, clustering, and watershed segmentation.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
@@ -30,9 +31,9 @@ pub fn connected_components(
     py: Python<'_>,
     mask: &PyImage,
     connectivity: u32,
-) -> PyResult<(PyImage, usize)> {
+) -> RitkResult<(PyImage, usize)> {
     if connectivity != 6 && connectivity != 26 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "connectivity must be 6 or 26, got {connectivity}"
         )));
     }
@@ -67,9 +68,9 @@ pub fn label_shape_statistics(
     py: Python<'_>,
     mask: &PyImage,
     connectivity: u32,
-) -> PyResult<Py<PyList>> {
+) -> RitkResult<Py<PyList>> {
     if connectivity != 6 && connectivity != 26 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "connectivity must be 6 or 26, got {connectivity}"
         )));
     }
@@ -117,9 +118,9 @@ pub fn kmeans_segment(
     max_iterations: Option<usize>,
     tolerance: Option<f64>,
     seed: Option<u64>,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if k < 1 {
-        return Err(pyo3::exceptions::PyValueError::new_err("k must be ≥ 1"));
+        return Err(RitkPyError::value("k must be ≥ 1"));
     }
     let image = Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
@@ -150,14 +151,13 @@ pub fn kmeans_segment(
 /// Returns:
 ///     Label PyImage with basin indices and watershed boundaries (0).
 #[pyfunction]
-pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> PyResult<PyImage> {
+pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
+    py.allow_threads(|| {
         let seg = WatershedSegmentation::new();
         seg.apply(image.as_ref())
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(into_py_image(result))
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    }).map(into_py_image)
 }
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.
@@ -189,7 +189,7 @@ pub fn marker_watershed_segment(
     py: Python<'_>,
     gradient: &PyImage,
     markers: &PyImage,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let grad_arc = Arc::clone(&gradient.inner);
     let mark_arc = Arc::clone(&markers.inner);
     let result = py.allow_threads(|| {
@@ -197,5 +197,5 @@ pub fn marker_watershed_segment(
     });
     result
         .map(into_py_image)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

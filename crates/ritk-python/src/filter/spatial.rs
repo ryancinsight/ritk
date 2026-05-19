@@ -1,5 +1,6 @@
 //! Spatial filters: resample image to new spacing, Euclidean distance transform.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -38,16 +39,16 @@ pub fn resample_image(
     spacing_y: f64,
     spacing_x: f64,
     mode: &str,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if spacing_z <= 0.0 || spacing_y <= 0.0 || spacing_x <= 0.0 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "spacing values must be positive, got ({spacing_z},{spacing_y},{spacing_x})"
         )));
     }
     let mode = mode.to_string();
     let inner = std::sync::Arc::clone(&image.inner);
 
-    let result = py
+    py
         .allow_threads(move || -> Result<_, String> {
             let orig_dims = inner.shape();
             let orig_sp = *inner.spacing();
@@ -114,9 +115,8 @@ pub fn resample_image(
                 )),
             }
         })
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
-
-    Ok(into_py_image(result))
+        .map_err(RitkPyError::value)
+        .map(into_py_image)
 }
 
 /// Compute the Euclidean (or squared Euclidean) distance transform of a binary image.
@@ -139,7 +139,7 @@ pub fn distance_transform(
     image: &PyImage,
     foreground_threshold: f32,
     squared: bool,
-) -> PyResult<PyImage> {
+) -> PyImage {
     let arc = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         if squared {
@@ -148,5 +148,5 @@ pub fn distance_transform(
             DistanceTransform::transform(arc.as_ref(), foreground_threshold)
         }
     });
-    Ok(into_py_image(result))
+    into_py_image(result)
 }

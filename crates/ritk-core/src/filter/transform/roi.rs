@@ -63,7 +63,7 @@ pub struct RegionOfInterestImageFilter {
 impl RegionOfInterestImageFilter {
     /// Create a new ROI filter.
     ///
-    /// `start` = `[start_z, start_y, start_x]`
+    /// `start` = `[start_z, start_y, start_x]`  
     /// `size`  = `[size_z, size_y, size_x]`
     pub fn new(start: [usize; 3], size: [usize; 3]) -> Self {
         Self {
@@ -140,12 +140,13 @@ impl RegionOfInterestImageFilter {
         let old_origin = image.origin();
         let spacing = image.spacing();
         let dir = image.direction();
-        let new_coords = std::array::from_fn(|k| {
-            old_origin.0.coords[k]
+        let mut new_coords = [0.0f64; 3];
+        for (k, coord) in new_coords.iter_mut().enumerate() {
+            *coord = old_origin.0.coords[k]
                 + self.start_z as f64 * spacing[0] * dir.0[(k, 0)]
                 + self.start_y as f64 * spacing[1] * dir.0[(k, 1)]
-                + self.start_x as f64 * spacing[2] * dir.0[(k, 2)]
-        });
+                + self.start_x as f64 * spacing[2] * dir.0[(k, 2)];
+        }
         let new_origin = Point::new(new_coords);
 
         Ok(rebuild_with_origin(out, [sz, sy, sx], new_origin, image))
@@ -155,7 +156,6 @@ impl RegionOfInterestImageFilter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filter::ops::extract_vec_infallible;
     use crate::image::Image;
     use crate::spatial::{Direction, Point, Spacing};
     use burn_ndarray::NdArray;
@@ -176,8 +176,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        let (v, _) = extract_vec_infallible(img);
-        v
+        img.data().clone().into_data().into_vec::<f32>().unwrap()
     }
 
     #[test]

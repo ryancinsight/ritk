@@ -71,6 +71,18 @@ pub fn x_to_intensity(x: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right
 
 // ── wl_from_histogram_drag ─────────────────────────────────────────────────────
 
+/// Canvas geometry and intensity range for histogram interaction.
+///
+/// Groups the four canvas/range parameters so `wl_from_histogram_drag` stays
+/// within the function argument limit.
+#[derive(Clone, Copy)]
+pub struct HistogramCanvasGeometry {
+    pub canvas_width: f32,
+    pub canvas_height: f32,
+    pub hist_min: f32,
+    pub hist_max: f32,
+}
+
 /// Compute updated `(window_center, window_width)` from a histogram canvas
 /// pointer drag delta.
 ///
@@ -86,13 +98,11 @@ pub fn x_to_intensity(x: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right
 pub fn wl_from_histogram_drag(
     dx: f32,
     dy: f32,
-    canvas_width: f32,
-    canvas_height: f32,
-    hist_min: f32,
-    hist_max: f32,
+    canvas: HistogramCanvasGeometry,
     current_center: f32,
     current_width: f32,
 ) -> (f32, f32) {
+    let HistogramCanvasGeometry { canvas_width, canvas_height, hist_min, hist_max } = canvas;
     let intensity_span = hist_max - hist_min;
     if intensity_span <= 0.0 || canvas_width <= 0.0 {
         return (current_center, current_width);
@@ -194,7 +204,7 @@ mod tests {
     /// Zero drag delta leaves center and width unchanged.
     #[test]
     fn wl_from_drag_zero_delta_identity() {
-        let (c, w) = wl_from_histogram_drag(0.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, w) = wl_from_histogram_drag(0.0, 0.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         assert_eq!(c, 40.0);
         assert_eq!(w, 400.0);
     }
@@ -204,7 +214,7 @@ mod tests {
     /// Analytical: Δcenter = (100/200) × 4000 = 2000; new center = 40 + 2000 = 2040.
     #[test]
     fn wl_from_drag_rightward_shifts_center() {
-        let (c, _) = wl_from_histogram_drag(100.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, _) = wl_from_histogram_drag(100.0, 0.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         let expected = 40.0_f32 + 0.5 * 4000.0_f32;
         assert!((c - expected).abs() < 1e-3, "got {c}, expected {expected}");
     }
@@ -212,7 +222,7 @@ mod tests {
     /// Leftward drag shifts center toward lower intensity.
     #[test]
     fn wl_from_drag_leftward_shifts_center_negative() {
-        let (c, _) = wl_from_histogram_drag(-200.0, 0.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, _) = wl_from_histogram_drag(-200.0, 0.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         // Δcenter = (-200/200) × 4000 = -4000; new center = 40 - 4000 = -3960
         let expected = 40.0_f32 - 4000.0_f32;
         assert!((c - expected).abs() < 1e-3, "got {c}, expected {expected}");
@@ -223,7 +233,7 @@ mod tests {
     /// Analytical: scale = 1 - (-40/80) = 1.5; new_width = 400 × 1.5 = 600.
     #[test]
     fn wl_from_drag_upward_narrows_width() {
-        let (_, w) = wl_from_histogram_drag(0.0, -40.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (_, w) = wl_from_histogram_drag(0.0, -40.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         let expected = 400.0_f32 * 1.5_f32;
         assert!((w - expected).abs() < 1e-3, "got {w}, expected {expected}");
     }
@@ -233,7 +243,7 @@ mod tests {
     /// Analytical: scale = 1 - (80/80) = 0.0; new_width = max(1, 400 × 0.0) = 1.
     #[test]
     fn wl_from_drag_extreme_downward_clamps_to_min_width() {
-        let (_, w) = wl_from_histogram_drag(0.0, 80.0, 200.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (_, w) = wl_from_histogram_drag(0.0, 80.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         assert!(w >= 1.0, "width {w} below minimum");
         assert!((w - 1.0).abs() < 1e-3, "got {w}, expected 1.0");
     }
@@ -241,7 +251,7 @@ mod tests {
     /// Degenerate canvas_width returns input unchanged.
     #[test]
     fn wl_from_drag_degenerate_canvas_width_identity() {
-        let (c, w) = wl_from_histogram_drag(10.0, 5.0, 0.0, 80.0, -1000.0, 3000.0, 40.0, 400.0);
+        let (c, w) = wl_from_histogram_drag(10.0, 5.0, HistogramCanvasGeometry { canvas_width: 0.0, canvas_height: 80.0, hist_min: -1000.0, hist_max: 3000.0 }, 40.0, 400.0);
         assert_eq!(c, 40.0);
         assert_eq!(w, 400.0);
     }
@@ -249,7 +259,7 @@ mod tests {
     /// Degenerate intensity span (hist_min == hist_max) returns input unchanged.
     #[test]
     fn wl_from_drag_degenerate_span_identity() {
-        let (c, w) = wl_from_histogram_drag(50.0, 20.0, 200.0, 80.0, 1000.0, 1000.0, 40.0, 400.0);
+        let (c, w) = wl_from_histogram_drag(50.0, 20.0, HistogramCanvasGeometry { canvas_width: 200.0, canvas_height: 80.0, hist_min: 1000.0, hist_max: 1000.0 }, 40.0, 400.0);
         assert_eq!(c, 40.0);
         assert_eq!(w, 400.0);
     }

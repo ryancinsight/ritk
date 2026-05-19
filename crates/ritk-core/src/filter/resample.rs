@@ -96,7 +96,6 @@ where
     }
 
     /// Apply filter to an input image.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn apply(&self, input: &Image<B, D>) -> Image<B, D> {
         let device = input.data().device();
 
@@ -130,7 +129,8 @@ where
                 let start = i * CHUNK_SIZE;
                 let end = std::cmp::min(start + CHUNK_SIZE, n_pixels);
 
-                let chunk_indices = output_indices.clone().slice([start..end]);
+                let chunk_range = start..end;
+                let chunk_indices = output_indices.clone().slice([chunk_range]);
 
                 // Pipeline for this chunk
                 let chunk_out_points = self.indices_to_physical(chunk_indices, &device);

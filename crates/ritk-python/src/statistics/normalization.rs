@@ -1,6 +1,7 @@
 //! Image intensity normalization: min-max, z-score, histogram matching,
 //! white stripe, and Nyul-Udupa piecewise-linear standardization.
 
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::statistics::normalization::white_stripe::{
@@ -56,9 +57,8 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 /// Returns:
 ///     Normalized PyImage with intensities in [0, 1].
 #[pyfunction]
-pub fn minmax_normalize(image: &PyImage) -> PyResult<PyImage> {
-    let result = MinMaxNormalizer::new().normalize(image.inner.as_ref());
-    Ok(into_py_image(result))
+pub fn minmax_normalize(image: &PyImage) -> PyImage {
+    into_py_image(MinMaxNormalizer::new().normalize(image.inner.as_ref()))
 }
 
 /// Normalize image intensities to [target_min, target_max] via min-max rescaling.
@@ -77,12 +77,13 @@ pub fn minmax_normalize_range(
     image: &PyImage,
     target_min: f32,
     target_max: f32,
-) -> PyResult<PyImage> {
-    validate_range(target_min, target_max)
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
-    let result =
-        MinMaxNormalizer::with_range(target_min, target_max).normalize(image.inner.as_ref());
-    Ok(into_py_image(result))
+) -> RitkResult<PyImage> {
+    if let Err(e) = validate_range(target_min, target_max) {
+        return Err(RitkPyError::value(e));
+    }
+    Ok(into_py_image(
+        MinMaxNormalizer::with_range(target_min, target_max).normalize(image.inner.as_ref()),
+    ))
 }
 
 /// Normalize image intensities to zero mean and unit variance (Z-score).
@@ -102,12 +103,12 @@ pub fn zscore_normalize(
     py: Python<'_>,
     image: &PyImage,
     mask: Option<&PyImage>,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     let image_arc = Arc::clone(&image.inner);
     let result = match mask {
         Some(m) => {
             if image_arc.shape() != m.inner.shape() {
-                return Err(pyo3::exceptions::PyValueError::new_err(
+                return Err(RitkPyError::value(
                     "zscore_normalize: mask must have the same shape as image",
                 ));
             }
@@ -139,9 +140,9 @@ pub fn histogram_match(
     source: &PyImage,
     reference: &PyImage,
     num_bins: usize,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if num_bins < 2 {
-        return Err(pyo3::exceptions::PyValueError::new_err(format!(
+        return Err(RitkPyError::value(format!(
             "histogram_match: num_bins must be ≥ 2, got {num_bins}"
         )));
     }
@@ -179,12 +180,12 @@ pub fn white_stripe_normalize(
     mask: Option<&PyImage>,
     contrast: Option<&str>,
     width: Option<f64>,
-) -> PyResult<(PyImage, f64, f64, f64, usize)> {
+) -> RitkResult<(PyImage, f64, f64, f64, usize)> {
     let mri_contrast = match contrast.unwrap_or("t1") {
         "t1" | "T1" => MriContrast::T1,
         "t2" | "T2" => MriContrast::T2,
         other => {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+            return Err(RitkPyError::value(format!(
                 "white_stripe_normalize: contrast must be \"t1\" or \"t2\", got \"{other}\""
             )));
         }
@@ -236,15 +237,17 @@ pub fn nyul_udupa_normalize(
     image: &PyImage,
     training_images: Vec<PyRef<'_, PyImage>>,
     percentiles: Option<Vec<f64>>,
-) -> PyResult<PyImage> {
+) -> RitkResult<PyImage> {
     if training_images.is_empty() {
-        return Err(pyo3::exceptions::PyRuntimeError::new_err(
+        return Err(RitkPyError::runtime(
             "training_images must contain at least one image",
         ));
     }
 
     if let Some(ref p) = percentiles {
-        validate_percentiles(p).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+        if let Err(e) = validate_percentiles(p) {
+            return Err(RitkPyError::value(e));
+        }
     }
 
     let training_arcs: Vec<_> = training_images
@@ -253,7 +256,7 @@ pub fn nyul_udupa_normalize(
         .collect();
     let input_arc = image.inner.clone();
 
-    let normalized = py
+    py
         .allow_threads(|| {
             let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
                 training_arcs.iter().map(|a| a.as_ref()).collect();
@@ -266,9 +269,8 @@ pub fn nyul_udupa_normalize(
                 .apply(input_arc.as_ref())
                 .map_err(|e| e.to_string())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-    Ok(into_py_image(normalized))
+        .map_err(RitkPyError::runtime)
+        .map(into_py_image)
 }
 
 #[cfg(test)]

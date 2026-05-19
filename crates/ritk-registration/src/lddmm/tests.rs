@@ -1,10 +1,9 @@
 //! Unit and integration tests for LDDMM.
 
 use super::{
-    adjoint::{epdiff_adjoint, epdiff_adjoint_into},
-    geodesic::{integrate_geodesic, integrate_geodesic_into},
-    LddmmConfig, LddmmRegistration,
+    adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration,
 };
+use crate::deformable_field_ops::VectorField3D;
 use crate::error::RegistrationError;
 
 fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
@@ -170,148 +169,24 @@ fn epdiff_adjoint_zero_momentum_is_zero() {
     let n = 4 * 4 * 4;
     let v: Vec<f32> = (0..n).map(|i| 0.01 * i as f32).collect();
     let zeros = vec![0.0_f32; n];
-    let (az, ay, ax) = epdiff_adjoint(&v, &v, &v, &zeros, &zeros, &zeros, dims, [1.0; 3]);
+    let (az, ay, ax) = epdiff_adjoint(
+        VectorField3D {
+            z: &v,
+            y: &v,
+            x: &v,
+        },
+        VectorField3D {
+            z: &zeros,
+            y: &zeros,
+            x: &zeros,
+        },
+        dims,
+        [1.0; 3],
+    );
 
     for i in 0..n {
         assert_eq!(az[i], 0.0, "ad_z[{}] = {} != 0", i, az[i]);
         assert_eq!(ay[i], 0.0, "ad_y[{}] = {} != 0", i, ay[i]);
         assert_eq!(ax[i], 0.0, "ad_x[{}] = {} != 0", i, ax[i]);
-    }
-}
-
-#[test]
-fn epdiff_adjoint_into_matches_allocating() {
-    let dims = [5, 5, 5];
-    let n = 5 * 5 * 5;
-    let vz: Vec<f32> = (0..n).map(|i| 0.01 * i as f32).collect();
-    let vy: Vec<f32> = (0..n).map(|i| 0.005 * i as f32).collect();
-    let vx: Vec<f32> = (0..n).map(|i| -0.003 * i as f32).collect();
-    let mz: Vec<f32> = (0..n).map(|i| (i % 7) as f32).collect();
-    let my: Vec<f32> = (0..n).map(|i| (i % 11) as f32).collect();
-    let mx: Vec<f32> = (0..n).map(|i| (i % 13) as f32).collect();
-    let spacing = [1.2, 1.0, 0.8];
-
-    let (ref_z, ref_y, ref_x) = epdiff_adjoint(&vz, &vy, &vx, &mz, &my, &mx, dims, spacing);
-
-    let mut into_z = vec![0.0_f32; n];
-    let mut into_y = vec![0.0_f32; n];
-    let mut into_x = vec![0.0_f32; n];
-    epdiff_adjoint_into(
-        &vz,
-        &vy,
-        &vx,
-        &mz,
-        &my,
-        &mx,
-        dims,
-        spacing,
-        &mut into_z,
-        &mut into_y,
-        &mut into_x,
-    );
-
-    for i in 0..n {
-        assert!(
-            (ref_z[i] - into_z[i]).abs() < 1e-6,
-            "ad_z[{}]: ref={} into={}",
-            i,
-            ref_z[i],
-            into_z[i]
-        );
-        assert!(
-            (ref_y[i] - into_y[i]).abs() < 1e-6,
-            "ad_y[{}]: ref={} into={}",
-            i,
-            ref_y[i],
-            into_y[i]
-        );
-        assert!(
-            (ref_x[i] - into_x[i]).abs() < 1e-6,
-            "ad_x[{}]: ref={} into={}",
-            i,
-            ref_x[i],
-            into_x[i]
-        );
-    }
-}
-
-#[test]
-fn integrate_geodesic_into_matches_allocating() {
-    let dims = [4, 4, 4];
-    let n = 4 * 4 * 4;
-    let v0z: Vec<f32> = (0..n).map(|i| 0.005 * (i % 5) as f32).collect();
-    let v0y: Vec<f32> = (0..n).map(|i| -0.003 * (i % 7) as f32).collect();
-    let v0x: Vec<f32> = (0..n).map(|i| 0.002 * (i % 11) as f32).collect();
-    let spacing = [1.0, 1.0, 1.0];
-    let num_steps = 4;
-    let kernel_sigma = 1.0;
-
-    let (ref_z, ref_y, ref_x) =
-        integrate_geodesic(&v0z, &v0y, &v0x, dims, spacing, num_steps, kernel_sigma);
-
-    let mut dz = vec![0.0_f32; n];
-    let mut dy = vec![0.0_f32; n];
-    let mut dx = vec![0.0_f32; n];
-    let mut smooth_tmp = vec![0.0_f32; n];
-    let mut mz = vec![0.0_f32; n];
-    let mut my = vec![0.0_f32; n];
-    let mut mx = vec![0.0_f32; n];
-    let mut adz = vec![0.0_f32; n];
-    let mut ady = vec![0.0_f32; n];
-    let mut adx = vec![0.0_f32; n];
-    let mut step_z = vec![0.0_f32; n];
-    let mut step_y = vec![0.0_f32; n];
-    let mut step_x = vec![0.0_f32; n];
-    let mut comp_z = vec![0.0_f32; n];
-    let mut comp_y = vec![0.0_f32; n];
-    let mut comp_x = vec![0.0_f32; n];
-    integrate_geodesic_into(
-        &v0z,
-        &v0y,
-        &v0x,
-        dims,
-        spacing,
-        num_steps,
-        kernel_sigma,
-        &mut dz,
-        &mut dy,
-        &mut dx,
-        &mut smooth_tmp,
-        &mut mz,
-        &mut my,
-        &mut mx,
-        &mut adz,
-        &mut ady,
-        &mut adx,
-        &mut step_z,
-        &mut step_y,
-        &mut step_x,
-        &mut comp_z,
-        &mut comp_y,
-        &mut comp_x,
-    );
-
-    for i in 0..n {
-        assert!(
-            (ref_z[i] - dz[i]).abs() < 1e-5,
-            "disp_z[{}]: ref={} into={}",
-            i,
-            ref_z[i],
-            dz[i]
-        );
-        assert!(
-            (ref_y[i] - dy[i]).abs() < 1e-5,
-            "disp_y[{}]: ref={} into={}",
-            i,
-            ref_y[i],
-            dy[i]
-        );
-        assert!(
-            (ref_x[i] - dx[i]).abs() < 1e-5,
-            "disp_x[{}]: ref={} into={}",
-            i,
-            ref_x[i],
-            dx[i]
-        );
     }
 }

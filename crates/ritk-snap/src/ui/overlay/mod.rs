@@ -8,9 +8,9 @@
 //! │ Patient ID            Modality / Date   │
 //! │                                         │
 //! │                                         │
-//! │ Slice N/M             W: WWWW C: CCCC  │
-//! │ Spacing               Zoom: ZZZ%       │
-//! │ Dimensions            HU: VVVV         │
+//! │ Slice N/M             W: WWWW C: CCCC   │
+//! │ Spacing               Zoom: ZZZ%        │
+//! │ Dimensions            HU: VVVV          │
 //! └─────────────────────────────────────────┘
 //! ```
 //!
@@ -34,9 +34,6 @@ use super::anatomical_label_for_axis;
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
 
-#[cfg(test)]
-mod tests;
-
 // ── constants ──────────────────────────────────────────────────────────────────
 
 /// Font size for overlay text (points).
@@ -53,6 +50,21 @@ const MARGIN: f32 = 6.0;
 
 // ── OverlayRenderer ───────────────────────────────────────────────────────────
 
+/// Per-frame display state passed to `OverlayRenderer::draw`.
+///
+/// Groups axis/slice/WL/zoom/cursor parameters so the function stays within
+/// the argument limit.
+pub struct OverlayContext {
+    pub axis: usize,
+    pub slice_index: usize,
+    pub wl: WindowLevel,
+    pub zoom: f32,
+    pub cursor_value: Option<f32>,
+    pub pointer_intensity: f32,
+    pub pointer_suv: Option<f32>,
+    pub cursor_suv: Option<f32>,
+}
+
 /// Renders DICOM-style information overlays on a viewport rectangle.
 ///
 /// All methods are stateless; call them with the current render state on
@@ -66,37 +78,40 @@ impl OverlayRenderer {
     ///
     /// Corner assignments:
     ///
-    /// | Corner      | Content                                         |
-    /// |-------------|-------------------------------------------------|
-    /// | Top-left    | Patient Name, Patient ID                        |
-    /// | Top-right   | Series description, Modality, Study date        |
-    /// | Bottom-left | Slice N/M, Voxel spacing, Image dimensions      |
-    /// | Bottom-right| Window width/centre, Zoom %, cursor HU, SUV    |
+    /// | Corner      | Content                                          |
+    /// |-------------|--------------------------------------------------|
+    /// | Top-left    | Patient Name, Patient ID                         |
+    /// | Top-right   | Series description, Modality, Study date         |
+    /// | Bottom-left | Slice N/M, Voxel spacing, Image dimensions       |
+    /// | Bottom-right| Window width/centre, Zoom %, cursor HU value    |
     ///
     /// # Parameters
-    /// - `painter` — egui painter for the viewport.
-    /// - `rect` — viewport rectangle in screen coordinates.
-    /// - `volume` — loaded volume supplying metadata.
-    /// - `axis` — current MPR axis (0=axial, 1=coronal, 2=sagittal).
-    /// - `slice_index` — currently displayed slice index.
-    /// - `wl` — current window/level settings.
-    /// - `zoom` — current zoom factor (1.0 = fit-to-viewport).
+    /// - `painter`      — egui painter for the viewport.
+    /// - `rect`         — viewport rectangle in screen coordinates.
+    /// - `volume`       — loaded volume supplying metadata.
+    /// - `axis`         — current MPR axis (0=axial, 1=coronal, 2=sagittal).
+    /// - `slice_index`  — currently displayed slice index.
+    /// - `wl`           — current window/level settings.
+    /// - `zoom`         — current zoom factor (1.0 = fit-to-viewport).
     /// - `cursor_value` — pixel value (HU) at the cursor position, or `None`.
-    /// - `cursor_suv` — SUVbw at the linked-cursor voxel, or `None`.
-    /// - `pointer_suv` — SUVbw at the pointer voxel, or `None`.
+    /// - `pointer_suv`  — SUVbw value under the pointer (PT only), or `None`.
+    /// - `cursor_suv`   — SUVbw value at the linked-cursor voxel (PT only), or `None`.
     pub fn draw(
         painter: &Painter,
         rect: Rect,
         volume: &LoadedVolume,
-        axis: usize,
-        slice_index: usize,
-        wl: WindowLevel,
-        zoom: f32,
-        cursor_value: Option<f32>,
-        pointer_intensity: f32,
-        cursor_suv: Option<f32>,
-        pointer_suv: Option<f32>,
+        ctx: OverlayContext,
     ) {
+        let OverlayContext {
+            axis,
+            slice_index,
+            wl,
+            zoom,
+            cursor_value,
+            pointer_intensity,
+            pointer_suv,
+            cursor_suv,
+        } = ctx;
         let [depth, rows, cols] = volume.shape;
 
         // ── Top-left: patient information ──────────────────────────────────
@@ -112,7 +127,6 @@ impl OverlayRenderer {
         } else {
             format!("{}\nID: {}", patient_name, patient_id)
         };
-
         Self::draw_text_anchored(
             painter,
             rect,
@@ -140,7 +154,6 @@ impl OverlayRenderer {
         if !study_date.is_empty() {
             tr_lines.push(format!("Date: {}", study_date));
         }
-
         if !tr_lines.is_empty() {
             Self::draw_text_anchored(
                 painter,
@@ -158,11 +171,12 @@ impl OverlayRenderer {
             _ => (cols, rows, depth),
         };
         let axis_name = anatomical_label_for_axis(Some(volume), axis);
+
         let [dz, dy, dx] = volume.spacing;
         let spacing_str = format!("{:.2} × {:.2} × {:.2} mm", dx, dy, dz);
         let dims_str = format!("{}×{}×{}", cols, rows, depth);
         let slice_str = format!(
-            "{}: {}/{} {}×{}",
+            "{}: {}/{}   {}×{}",
             axis_name,
             slice_index + 1,
             total_slices,
@@ -181,34 +195,21 @@ impl OverlayRenderer {
             OVERLAY_TEXT_COLOR,
         );
 
-        // ── Bottom-right: W/L, zoom, cursor HU, pointer intensity, SUV ────
+        // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
-        let cursor_hu_str = match cursor_value {
-            Some(v) => format!("Cursor HU: {:.0}", v),
-            None => String::new(),
-        };
-        let pointer_hu_str = if pointer_intensity != 0.0 {
-            format!("Pointer HU: {:.0}", pointer_intensity)
-        } else {
-            String::new()
-        };
-        let cursor_suv_str = Self::format_suv_string("Cursor SUV", cursor_suv);
-        let pointer_suv_str = Self::format_suv_string("Pointer SUV", pointer_suv);
-
+        let cursor_val_str = format_cursor_str(cursor_value, cursor_suv);
+        let pointer_val_str = format_pointer_str(pointer_intensity, pointer_suv);
         let br_lines: Vec<&str> = [
             &wl_str as &str,
             &zoom_str as &str,
-            &cursor_hu_str as &str,
-            &pointer_hu_str as &str,
-            &cursor_suv_str as &str,
-            &pointer_suv_str as &str,
+            &cursor_val_str as &str,
+            &pointer_val_str as &str,
         ]
         .iter()
         .filter(|s| !s.is_empty())
         .copied()
         .collect();
-
         Self::draw_text_anchored(
             painter,
             rect,
@@ -216,19 +217,6 @@ impl OverlayRenderer {
             &br_lines.join("\n"),
             OVERLAY_TEXT_COLOR,
         );
-    }
-
-    /// Format an SUV value for overlay display.
-    ///
-    /// Returns `"{label}: {value:.2}"` when `suv` is `Some(v)` and `v` is
-    /// finite. Returns an empty string for `None` or non-finite values
-    /// (NaN, ±Inf), ensuring non-PET volumes produce no SUV text in the
-    /// overlay.
-    fn format_suv_string(label: &str, suv: Option<f32>) -> String {
-        match suv {
-            Some(v) if v.is_finite() => format!("{}: {:.2}", label, v),
-            _ => String::new(),
-        }
     }
 
     /// Draw patient orientation labels on the four edges of the viewport.
@@ -244,16 +232,16 @@ impl OverlayRenderer {
     ///
     /// For display purposes:
     /// - `axis = 0` (axial): horizontal = column axis (col 2),
-    ///   vertical = row axis (col 1).
+    ///   vertical   = row axis (col 1).
     /// - `axis = 1` (coronal): horizontal = column axis (col 2),
-    ///   vertical = depth axis (col 0).
+    ///   vertical   = depth axis (col 0).
     /// - `axis = 2` (sagittal): horizontal = row axis (col 1),
-    ///   vertical = depth axis (col 0).
+    ///   vertical   = depth axis (col 0).
     ///
     /// # Parameters
-    /// - `painter` — egui painter for the viewport.
-    /// - `rect` — viewport rectangle in screen coordinates.
-    /// - `axis` — current MPR axis.
+    /// - `painter`   — egui painter for the viewport.
+    /// - `rect`      — viewport rectangle in screen coordinates.
+    /// - `axis`      — current MPR axis.
     /// - `direction` — 3×3 direction cosine matrix (row-major, 9 elements).
     pub fn draw_orientation_labels(
         painter: &Painter,
@@ -280,7 +268,6 @@ impl OverlayRenderer {
             font.clone(),
             ORIENT_LABEL_COLOR,
         );
-
         // Right edge: vertically centred, right-aligned.
         painter.text(
             Pos2::new(rect.max.x - MARGIN, cy),
@@ -289,7 +276,6 @@ impl OverlayRenderer {
             font.clone(),
             ORIENT_LABEL_COLOR,
         );
-
         // Top edge: horizontally centred, top-aligned.
         painter.text(
             Pos2::new(cx, rect.min.y + MARGIN),
@@ -298,7 +284,6 @@ impl OverlayRenderer {
             font.clone(),
             ORIENT_LABEL_COLOR,
         );
-
         // Bottom edge: horizontally centred, bottom-aligned.
         painter.text(
             Pos2::new(cx, rect.max.y - MARGIN),
@@ -360,6 +345,7 @@ struct OrientationLabels {
 
 fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
     let col = |j: usize| -> [f64; 3] { [direction[j], direction[3 + j], direction[6 + j]] };
+
     let depth_axis = col(0);
     let row_axis = col(1);
     let col_axis = col(2);
@@ -395,5 +381,168 @@ fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
         (1, false) => "A",
         (2, true) => "S",
         _ => "I",
+    }
+}
+
+// ── Pure display-string helpers (testable) ────────────────────────────────────
+
+/// Format the pointer-position intensity label.
+///
+/// Returns `"Pointer SUV: {:.2}"` when `pointer_suv` is `Some`,
+/// `"Pointer HU: {:.0}"` when `pointer_intensity != 0.0`, or `""` otherwise.
+pub(crate) fn format_pointer_str(pointer_intensity: f32, pointer_suv: Option<f32>) -> String {
+    match pointer_suv {
+        Some(s) => format!("Pointer SUV: {:.2}", s),
+        None if pointer_intensity != 0.0 => format!("Pointer HU: {:.0}", pointer_intensity),
+        _ => String::new(),
+    }
+}
+
+/// Format the cursor-position intensity label.
+///
+/// Returns `"Cursor SUV: {:.2}"` when `cursor_suv` is `Some`,
+/// `"Cursor HU: {:.0}"` when `cursor_value` is `Some`, or `""` otherwise.
+pub(crate) fn format_cursor_str(cursor_value: Option<f32>, cursor_suv: Option<f32>) -> String {
+    match (cursor_suv, cursor_value) {
+        (Some(s), _) => format!("Cursor SUV: {:.2}", s),
+        (None, Some(v)) => format!("Cursor HU: {:.0}", v),
+        _ => String::new(),
+    }
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // We cannot run egui painter methods in unit tests without a GPU context,
+    // so we test the pure-computation helpers only.
+
+    /// `anchor_pos` for LEFT_TOP must return (min.x + MARGIN, min.y + MARGIN).
+    #[test]
+    fn test_anchor_pos_left_top() {
+        let rect = Rect::from_min_max(Pos2::new(10.0, 20.0), Pos2::new(110.0, 120.0));
+        let pos = OverlayRenderer::anchor_pos(rect, Align2::LEFT_TOP);
+        assert!(
+            (pos.x - (10.0 + MARGIN)).abs() < 1e-4,
+            "LEFT_TOP x must be rect.min.x + MARGIN"
+        );
+        assert!(
+            (pos.y - (20.0 + MARGIN)).abs() < 1e-4,
+            "LEFT_TOP y must be rect.min.y + MARGIN"
+        );
+    }
+
+    /// `anchor_pos` for RIGHT_BOTTOM must return (max.x − MARGIN, max.y − MARGIN).
+    #[test]
+    fn test_anchor_pos_right_bottom() {
+        let rect = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(200.0, 100.0));
+        let pos = OverlayRenderer::anchor_pos(rect, Align2::RIGHT_BOTTOM);
+        assert!(
+            (pos.x - (200.0 - MARGIN)).abs() < 1e-4,
+            "RIGHT_BOTTOM x must be rect.max.x - MARGIN"
+        );
+        assert!(
+            (pos.y - (100.0 - MARGIN)).abs() < 1e-4,
+            "RIGHT_BOTTOM y must be rect.max.y - MARGIN"
+        );
+    }
+
+    /// `anchor_pos` for CENTER_CENTER must return the rect centre exactly.
+    #[test]
+    fn test_anchor_pos_center_center() {
+        let rect = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(100.0, 80.0));
+        let pos = OverlayRenderer::anchor_pos(rect, Align2::CENTER_CENTER);
+        assert!(
+            (pos.x - 50.0).abs() < 1e-4,
+            "CENTER_CENTER x must be rect centre x = 50"
+        );
+        assert!(
+            (pos.y - 40.0).abs() < 1e-4,
+            "CENTER_CENTER y must be rect centre y = 40"
+        );
+    }
+
+    #[test]
+    fn test_lps_label_selects_dominant_signed_axis() {
+        assert_eq!(lps_label([0.9, 0.1, 0.0], true), "L");
+        assert_eq!(lps_label([0.0, -2.0, 0.5], true), "A");
+        assert_eq!(lps_label([0.0, 0.2, -3.0], true), "I");
+    }
+
+    #[test]
+    fn test_orientation_labels_axial_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(0, &direction);
+        assert_eq!(labels.left, "R");
+        assert_eq!(labels.right, "L");
+        assert_eq!(labels.top, "A");
+        assert_eq!(labels.bottom, "P");
+    }
+
+    #[test]
+    fn test_orientation_labels_coronal_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(1, &direction);
+        assert_eq!(labels.left, "R");
+        assert_eq!(labels.right, "L");
+        assert_eq!(labels.top, "I");
+        assert_eq!(labels.bottom, "S");
+    }
+
+    #[test]
+    fn test_orientation_labels_sagittal_standard_axes() {
+        let direction = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
+        let labels = orientation_labels(2, &direction);
+        assert_eq!(labels.left, "A");
+        assert_eq!(labels.right, "P");
+        assert_eq!(labels.top, "I");
+        assert_eq!(labels.bottom, "S");
+    }
+
+    // ── format_pointer_str ────────────────────────────────────────────────────
+
+    #[test]
+    fn format_pointer_str_zero_intensity_no_suv_returns_empty() {
+        assert!(format_pointer_str(0.0, None).is_empty());
+    }
+
+    #[test]
+    fn format_pointer_str_nonzero_intensity_no_suv_shows_hu() {
+        assert_eq!(format_pointer_str(512.0, None), "Pointer HU: 512");
+    }
+
+    #[test]
+    fn format_pointer_str_with_suv_shows_suv_label() {
+        assert_eq!(
+            format_pointer_str(5000.0, Some(1.89_f32)),
+            "Pointer SUV: 1.89"
+        );
+    }
+
+    #[test]
+    fn format_pointer_str_zero_intensity_with_suv_still_shows_suv() {
+        assert_eq!(format_pointer_str(0.0, Some(2.5_f32)), "Pointer SUV: 2.50");
+    }
+
+    // ── format_cursor_str ─────────────────────────────────────────────────────
+
+    #[test]
+    fn format_cursor_str_none_cursor_none_suv_returns_empty() {
+        assert!(format_cursor_str(None, None).is_empty());
+    }
+
+    #[test]
+    fn format_cursor_str_cursor_only_shows_hu() {
+        assert_eq!(format_cursor_str(Some(100.0), None), "Cursor HU: 100");
+    }
+
+    #[test]
+    fn format_cursor_str_suv_takes_priority_over_cursor_hu() {
+        assert_eq!(
+            format_cursor_str(Some(5000.0), Some(1.89_f32)),
+            "Cursor SUV: 1.89"
+        );
     }
 }

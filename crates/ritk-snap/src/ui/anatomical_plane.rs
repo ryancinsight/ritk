@@ -22,9 +22,8 @@
 //! - Step 1 selects one axis from a finite set of size 3.
 //! - Step 2 selects one axis from the two unselected axes.
 //! - Step 3 returns the only remaining axis.
-//!
-//! Therefore all three outputs are distinct and exhaustive, so the result is a
-//! permutation of `{0,1,2}`.
+//!   Therefore all three outputs are distinct and exhaustive, so the result is a
+//!   permutation of `{0,1,2}`.
 
 use crate::LoadedVolume;
 

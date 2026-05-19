@@ -138,12 +138,12 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
         // Build kernels for each dimension (None = skip, identity).
         let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
-        for (d, k) in kernels.iter_mut().enumerate() {
+        for (d, kernel_slot) in kernels.iter_mut().enumerate() {
             let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
             if sigma >= 1e-9 {
                 let radius = self.kernel_radius(sigma);
                 if radius > 0 {
-                    *k = Some(self.build_kernel(sigma, radius));
+                    *kernel_slot = Some(self.build_kernel(sigma, radius));
                 }
             }
         }
@@ -301,13 +301,13 @@ fn convolve_nd_dim_serial(
     let mut ob = vec![0.0f32; line_len];
     for _line in 0..n_lines {
         let base: usize = idx.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
-        for (i, ob_i) in ob.iter_mut().enumerate() {
+        for (i, ob_elem) in ob.iter_mut().enumerate() {
             let mut acc = 0.0f32;
-            for (kj, &k) in kernel.iter().enumerate() {
+            for (kj, &w) in kernel.iter().enumerate() {
                 let pos = ((i as isize + kj as isize - r).clamp(0, ll_i - 1)) as usize;
-                acc += src[base + pos * line_stride] * k;
+                acc += src[base + pos * line_stride] * w;
             }
-            *ob_i = acc;
+            *ob_elem = acc;
         }
         for (i, &val) in ob.iter().enumerate() {
             dst[base + i * line_stride] = val;

@@ -12,7 +12,6 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     ///
     /// By determining affine target positions dynamically matching local space intervals exactly, linear projection
     /// enforces mathematical equivalence mapping bounded geometric states precisely onto the local continuous components.
-    #[allow(clippy::single_range_in_vec_init)]
     pub fn resample(
         &self,
         new_shape: [usize; D],
@@ -49,7 +48,8 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
             let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-            let chunk_indices = new_indices.clone().slice([start..end]);
+            let chunk_range = start..end;
+            let chunk_indices = new_indices.clone().slice([chunk_range]);
 
             let offset = chunk_indices.matmul(m_tensor.clone());
             let world = offset + origin_tensor.clone();

@@ -28,6 +28,33 @@ pub(crate) use integrate::{scaling_and_squaring, scaling_and_squaring_into};
 pub(crate) use smooth::{gaussian_smooth_inplace, gaussian_smooth_with_scratch};
 pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 
+// ── 3D vector field grouping structs ─────────────────────────────────────────
+
+/// Immutable 3D vector field: three co-equal flat component slices (z, y, x).
+///
+/// Groups the three spatial components of a displacement, velocity, momentum, or
+/// gradient field so that functions stay within Clippy's `too_many_arguments` limit.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct VectorField3D<'a> {
+    /// Z-component (flat buffer, Z-major order).
+    pub z: &'a [f32],
+    /// Y-component.
+    pub y: &'a [f32],
+    /// X-component.
+    pub x: &'a [f32],
+}
+
+/// Mutable 3D vector field: three co-equal flat component slice-muts (z, y, x).
+#[derive(Debug)]
+pub(crate) struct VectorFieldMut3D<'a> {
+    /// Z-component (flat buffer, Z-major order).
+    pub z: &'a mut [f32],
+    /// Y-component.
+    pub y: &'a mut [f32],
+    /// X-component.
+    pub x: &'a mut [f32],
+}
+
 // ── Indexing ──────────────────────────────────────────────────────────────────
 
 /// Flat voxel index for shape `[nz, ny, nx]`.

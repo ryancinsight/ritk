@@ -6,6 +6,7 @@
 //! - Direction is a 3×3 rotation matrix (identity by default).
 //! - The inner `Arc<Image<Backend, 3>>` allows cheap clone across Python objects.
 
+use crate::errors::{RitkPyError, RitkResult};
 use burn::tensor::{Shape, Tensor, TensorData, TensorPrimitive};
 use burn_ndarray::{NdArray, NdArrayDevice, NdArrayTensor};
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
@@ -86,15 +87,15 @@ impl PyImage {
     }
 
     /// Convert image data to a NumPy f32 array with shape [Z, Y, X].
-    fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyArray3<f32>>> {
+    fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray3<f32>>> {
         let shape = self.inner.shape();
         // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
         // One O(N) memcpy remains: f32 -> Array3 -> Python (direct f32-to-f32, no u8 round-trip).
-        let arr = with_tensor_slice(self.inner.data(), |slice| {
+        with_tensor_slice(self.inner.data(), |slice| {
             Array3::from_shape_vec((shape[0], shape[1], shape[2]), slice.to_vec())
         })
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-        Ok(arr.into_pyarray_bound(py))
+        .map_err(|e| RitkPyError::runtime(e.to_string()))
+        .map(|arr| arr.into_pyarray_bound(py))
     }
 
     /// Image shape as (Z, Y, X).
@@ -140,15 +141,15 @@ pub fn into_py_image(image: Image<Backend, 3>) -> PyImage {
 
 /// Extract tensor data as `Vec<f32>` plus shape `[Z, Y, X]`.
 ///
-/// # Errors
-/// Returns `PyRuntimeError` if the tensor dtype is not f32.
-pub fn image_to_vec(image: &Image<Backend, 3>) -> PyResult<(Vec<f32>, [usize; 3])> {
+/// Infallible: the NdArray backend always stores f32 data contiguously.
+/// Panics only if the tensor primitive is not `NdArrayTensor::F32` (invariant of `Backend = NdArray<f32>`).
+pub fn image_to_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
     // Zero-copy slice extraction: arc clone O(1) + as_slice_memory_order O(1).
     // The resulting to_vec() is the single unavoidable O(N) copy when the caller
     // needs an owned Vec<f32>. Eliminates the Vec<u8> intermediate from into_data().
     let values = with_tensor_slice(image.data(), |slice| slice.to_vec());
-    Ok((values, shape))
+    (values, shape)
 }
 
 /// Call `f` with a borrowed `&[f32]` slice from a `Tensor<Backend, 3>`.
@@ -191,9 +192,9 @@ pub fn vec_to_image_like(
     let tensor = Tensor::<Backend, 3>::from_data(td, &device);
     Image::new(
         tensor,
-        reference.origin().clone(),
-        reference.spacing().clone(),
-        reference.direction().clone(),
+        *reference.origin(),
+        *reference.spacing(),
+        *reference.direction(),
     )
 }
 

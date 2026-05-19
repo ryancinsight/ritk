@@ -236,7 +236,6 @@ impl MarchingCubesFilter {
 }
 
 // ─── Lookup Tables ────────────────────────────────────────────────────────────
-#[allow(clippy::all)]
 #[path = "mc_tables.rs"]
 mod mc_tables;
 use mc_tables::{EDGE_TABLE, TRI_TABLE};
