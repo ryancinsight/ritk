@@ -1,5 +1,80 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 268 Audit — 2026-05-19 — MeshRenderer GUI Wiring + DICOMweb REST SCU
+
+### Gaps closed
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-VIZ-02 (CPU phase) | CPU Phong mesh overlay wired to `ritk-snap` 3D MIP viewport | `ritk-snap::app::mesh_ops` | 5 |
+| GAP-262-IO-04 | DICOMweb REST SCU — QIDO-RS / WADO-RS / STOW-RS | `ritk-io::format::dicomweb` | 12 |
+
+### §A — MeshRenderer GUI Wiring (GAP-262-VIZ-02 CPU closure)
+
+**Location**: `ritk-snap::app::mesh_ops`
+
+**Architecture**:
+- `SnapApp::load_mesh_file(path)`: dispatch on `.stl`/`.obj`/`.ply` → `ritk_io::read_*_mesh` → `loaded_mesh`.
+- `SnapApp::auto_camera_for_poly(poly, w, h)`: AABB centroid `c`, diagonal `d`. Camera: eye = `c + [0,0,1.5d]`, target = `c`, up = `[0,1,0]`, fov_y = π/4, aspect = `w/h`, near = `0.01d`, far = `10d`.
+- `SnapApp::rebuild_mesh_texture(ctx, w, h)`: two-light Phong render at MIP texture resolution → egui `ColorImage::from_rgba_unmultiplied` → `ctx.load_texture`.
+- `render_mip_viewport`: after MIP image widget, paints `mesh_overlay_tex` via `painter.image()` when `show_mesh_overlay`.
+- File menu: "Open Mesh…" (STL/OBJ/PLY). View menu: "Show Mesh Overlay" checkbox.
+
+**State fields added to `SnapApp`**:
+- `loaded_mesh: Option<VtkPolyData>` — SSOT surface mesh
+- `mesh_tex: Option<egui::TextureHandle>` — GPU-uploaded RGBA texture
+- `mesh_dirty: bool` — invalidation flag
+- `show_mesh_overlay: bool` — visibility toggle
+
+**Residual limitations**:
+- GPU depth peeling OIT and SSAO remain deferred to wgpu phase.
+- Mesh and MIP projections use independent cameras; overlay is visual-only, not geometrically aligned to MIP volume.
+
+### §B — DICOMweb REST SCU (GAP-262-IO-04)
+
+**Location**: `ritk-io::format::dicomweb`
+
+**Architecture**:
+- `DicomWebClient`: owns `reqwest::blocking::Client`; optional `Authorization` header; single entry point for all three services.
+- **QIDO-RS**: `build_qido_url(base, endpoint, params) → String`. Params appended as `?k=v&k=v`. DICOM keyword names per PS 3.18 §8.3.4. Response parsed as `Vec<serde_json::Value>`.
+- **WADO-RS**: `build_wado_url(base, s_uid, r_uid, i_uid) → String`. GET with `Accept: application/octet-stream`. Returns raw bytes.
+- **STOW-RS**: `build_multipart_body(parts, boundary) → Vec<u8>`. RFC 2046 multipart/related; each part has `Content-Type: application/dicom`. POST body via `reqwest::blocking::Body::from`.
+- `parse_stow_response`: minimal JSON parse; empty body → `{stored:[], failed:[]}`.
+- All URL/body construction is pure — no I/O, fully unit-testable.
+
+**PS 3.18 compliance**:
+- QIDO path: `{base}/qido-rs/studies[/{uid}/series[/{uid}/instances]]`
+- WADO path: `{base}/wado-rs/studies/{s}/series/{r}/instances/{i}`
+- STOW path: `{base}/stow-rs/studies[/{uid}]`
+
+**Residual**:
+- No multi-frame retrieve (bulkdata) via WADO-RS.
+- DICOMweb SCP (server-side) not implemented.
+
+### §C — Verification
+
+| Test type | Count | Basis |
+|---|---|---|
+| `auto_camera_centers_on_aabb` | 1 | center = (min+max)/2; unit triangle → (0.5, 0.5, 0.0) |
+| `auto_camera_eye_above_target` | 1 | eye.z = cz + 1.5·d > cz for d ≥ 1 |
+| `auto_camera_aspect_ratio` | 1 | 800÷400 = 2.0 exactly |
+| `auto_camera_near_far_positive` | 1 | near = 0.01d > 0, far = 10d > near |
+| `auto_camera_empty_poly_no_panic` | 1 | Default MeshCamera — invariants satisfied |
+| QIDO URL construction | 4 | RFC 3986 query string; PS 3.18 keyword names |
+| WADO URL construction | 1 | PS 3.18 §10.4 path template |
+| STOW URL construction | 2 | PS 3.18 §10.5 path template |
+| MIME body assembly | 2 | RFC 2046 multipart/related boundary rules |
+| JSON response parsing (QIDO) | 2 | `b"[]"` → empty; NativeDICOM JSON with `00100020` |
+| STOW response parsing | 1 | Empty body → `{stored:[], failed:[]}` |
+| `cargo check --workspace` | 1 | 0 errors, 0 warnings |
+
+### §D — Residual Risk
+
+- **DICOMweb GPU phase (VIZ-01)**: GPU 3D volume rendering remains the single highest-risk open gap.
+- **DIMSE networking (IO-01)**: TCP-based C-FIND/C-STORE/C-MOVE/C-ECHO still absent; required for traditional PACS integration.
+- **Mesh/MIP camera misalignment**: mesh overlay does not share the MIP orthographic projection; overlay is visual, not geometrically co-registered. Fix requires unified camera model or GPU compositing.
+
+---
+
 ## Sprint 266 Audit — 2026-05-19 — 3D Deconvolution, CPU Phong Mesh Renderer, DICOM Private Tags
 
 ### Gaps closed

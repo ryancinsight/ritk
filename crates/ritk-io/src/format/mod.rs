@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod dicom;
+pub mod dicomweb;
 pub mod jpeg;
 pub mod metaimage;
 pub mod mgh;

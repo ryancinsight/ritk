@@ -1,3 +1,44 @@
+## Sprint 268 — Complete
+**Status**: Complete
+**Phase**: Execution → MeshRenderer GUI Wiring + DICOMweb REST SCU
+**Version**: 0.50.39 [minor]
+**Goal**: Close Sprint 266 §F residual (mesh overlay in viewer) and GAP-262-IO-04 (DICOMweb QIDO-RS/WADO-RS/STOW-RS HTTP client).
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-02 (CPU) | MeshRenderer wired to ritk-snap viewer UI — mesh overlay in 3D MIP viewport | **Closed (CPU phase)** |
+| GAP-262-IO-04 | DICOMweb REST SCU — QIDO-RS / WADO-RS / STOW-RS in `ritk-io::format::dicomweb` | **Closed** |
+
+### Delivered
+- ➳ `crates/ritk-snap/src/app/mesh_ops.rs`: `load_mesh_file`, `auto_camera_for_poly`, `rebuild_mesh_texture` + 5 tests
+- ➳ `crates/ritk-snap/src/app/state.rs`: 4 new fields (`loaded_mesh`, `mesh_tex`, `mesh_dirty`, `show_mesh_overlay`)
+- ➳ `crates/ritk-snap/src/app/render_cache.rs`: mesh overlay compositing in `render_mip_viewport`
+- ➳ `crates/ritk-snap/src/app/menu.rs`: "Open Mesh…" in File menu; "Show Mesh Overlay" checkbox in View menu
+- ➳ `crates/ritk-snap/src/app/mod.rs`: registered `mod mesh_ops`
+- ➳ `crates/ritk-io/src/format/dicomweb/mod.rs`: `DicomWebClient` with all three operations
+- ➳ `crates/ritk-io/src/format/dicomweb/qido.rs`: `QidoSearchParams`, `QidoClient`, `build_qido_url`, `parse_qido_response`
+- ➳ `crates/ritk-io/src/format/dicomweb/wado.rs`: `WadoClient`, `build_wado_url`, `retrieve_instance_bytes`
+- ➳ `crates/ritk-io/src/format/dicomweb/stow.rs`: `StowClient`, `StowResponse`, `StowFailure`, `MULTIPART_BOUNDARY`, `build_multipart_body`, `parse_stow_response`
+- ➳ `crates/ritk-io/src/format/dicomweb/tests_dicomweb.rs`: 12 value-semantic tests (zero network calls)
+- ➳ `crates/ritk-io/Cargo.toml`: added `reqwest` + `serde_json` workspace deps
+- ➳ `crates/ritk-core/src/filter/diffusion/coherence.rs`: removed spurious `unused_mut` on `eigs_unsorted`
+- ➳ `cargo check --workspace`: 0 errors, 0 warnings
+- ➳ `cargo test -p ritk-snap --lib app::mesh_ops`: 5 passed
+- ➳ `cargo test -p ritk-io --lib format::dicomweb`: 12 passed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-02 | Surface mesh rendering — depth peeling OIT + SSAO (GPU/wgpu phase) | High |
+| GAP-262-VIZ-01 | GPU 3D volume rendering pipeline | High |
+| GAP-262-IO-01 | DICOM networking (DIMSE) | High |
+| GAP-262-IO-02 | DICOM specialty IODs (SEG/RT) | High |
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+
+---
+
 ## Sprint 267 — Complete
 **Status**: Complete
 **Phase**: Execution → Gaia In-Tree Integration

@@ -129,6 +129,16 @@ pub(crate) struct SnapApp {
     /// Active projection mode for the bottom-right 3D viewport.
     pub(crate) projection_mode: ProjectionMode,
 
+    // ── Surface mesh overlay ──────────────────────────────────────────────────
+    /// Currently loaded surface mesh for overlay rendering on the MIP viewport.
+    pub(crate) loaded_mesh: Option<ritk_io::VtkPolyData>,
+    /// Cached egui texture for the Phong-shaded mesh overlay.
+    pub(crate) mesh_tex: Option<egui::TextureHandle>,
+    /// `true` when the mesh overlay texture must be rebuilt before next frame.
+    pub(crate) mesh_dirty: bool,
+    /// Whether the mesh overlay is composited on the 3D-MIP viewport.
+    pub(crate) show_mesh_overlay: bool,
+
     // ── Viewport ──────────────────────────────────────────────────────────────
     /// Viewport pan offset in screen pixels.
     pub(crate) pan_offset: egui::Vec2,
@@ -243,6 +253,10 @@ impl Default for SnapApp {
             mip_tex: None,
             mip_dirty: false,
             projection_mode: ProjectionMode::Mip,
+            loaded_mesh: None,
+            mesh_tex: None,
+            mesh_dirty: false,
+            show_mesh_overlay: false,
             pan_offset: egui::Vec2::ZERO,
             zoom: 1.0,
             view_transform: ViewTransform::default(),

@@ -3,6 +3,33 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.39] - 2026-05-19
+
+### Added [minor]
+
+- **MeshRenderer GUI wiring** (Sprint 268, GAP-262-VIZ-02 CPU closure): surface mesh overlay viewport wired into `ritk-snap` 3D MIP panel.
+  - `SnapApp::load_mesh_file(path)` — dispatch on `.stl`/`.obj`/`.ply` extension, load via `ritk_io::read_*_mesh`, store in `loaded_mesh`, set `mesh_dirty = true`.
+  - `SnapApp::auto_camera_for_poly(poly, w, h)` — auto-positions `MeshCamera` above AABB center: eye = `[cx, cy, cz + diag·1.5]`, fov_y = π/4, near/far = diag·{0.01, 10}.
+  - `SnapApp::rebuild_mesh_texture(ctx, w, h)` — renders mesh to RGBA via `MeshRenderer`, uploads as egui texture `mesh_overlay_tex`.
+  - `SnapApp` state: `loaded_mesh`, `mesh_tex`, `mesh_dirty`, `show_mesh_overlay` fields added.
+  - File menu: "Open Mesh…" dialog (STL / OBJ / PLY).
+  - View menu: "Show Mesh Overlay" checkbox.
+  - `render_mip_viewport`: mesh texture composited over MIP via `painter.image()` when `show_mesh_overlay`.
+- **DICOMweb REST SCU** (Sprint 268, GAP-262-IO-04): `ritk-io::format::dicomweb` module with QIDO-RS, WADO-RS, STOW-RS.
+  - `DicomWebClient` — unified client owning a `reqwest::blocking::Client`; optional `Authorization` header.
+  - `QidoSearchParams` — typed search parameters: `PatientID`, `PatientName`, `StudyDate`, `Modality`, `StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`, `limit`, `offset`.
+  - `search_studies`, `search_series`, `search_instances` — HTTP GET to QIDO-RS endpoints; return `Vec<serde_json::Value>`.
+  - `retrieve_instance` — HTTP GET to WADO-RS endpoint; returns raw bytes.
+  - `store_instances` — HTTP POST multipart/related to STOW-RS endpoint; returns `StowResponse { stored, failed }`.
+  - URL construction: `build_qido_url`, `build_wado_url`, `build_stow_url` — pure functions, no I/O.
+  - MIME body: `build_multipart_body(parts, boundary)` — RFC 2046 multipart/related assembly.
+  - `parse_qido_response`, `parse_stow_response` — JSON/body parsers.
+  - Re-exported from `ritk-io`: `DicomWebClient`, `QidoSearchParams`, `StowFailure`, `StowResponse`.
+
+### Fixed [patch]
+
+- `ritk-core::filter::diffusion::coherence`: removed spurious `mut` on `eigs_unsorted` (`-radius as i64` operator-precedence already fixed; `let mut` annotation now consistent).
+
 ## [0.50.33] - 2026-05-19
 
 ### Added [minor]

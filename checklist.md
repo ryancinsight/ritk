@@ -1,3 +1,40 @@
+## Sprint 268 — Complete
+
+**Status**: Complete
+**Phase**: Execution → MeshRenderer GUI Wiring + DICOMweb REST SCU
+**Version**: 0.50.39 [minor]
+**Target**: Close Sprint 266 §F residual (MeshRenderer GUI wiring, GAP-262-VIZ-02 CPU), and GAP-262-IO-04 (DICOMweb QIDO-RS/WADO-RS/STOW-RS).
+
+### Checklist items
+
+- [x] Create `crates/ritk-snap/src/app/mesh_ops.rs` — `load_mesh_file`, `auto_camera_for_poly`, `rebuild_mesh_texture` + 5 tests
+- [x] Add `loaded_mesh`, `mesh_tex`, `mesh_dirty`, `show_mesh_overlay` to `SnapApp` state + defaults
+- [x] Wire mesh overlay compositing in `render_mip_viewport` (render_cache.rs)
+- [x] Add "Open Mesh…" to File menu (menu.rs)
+- [x] Add "Show Mesh Overlay" checkbox to View menu (menu.rs)
+- [x] Register `mod mesh_ops` in `app/mod.rs`
+- [x] Create `crates/ritk-io/src/format/dicomweb/` — `mod.rs`, `qido.rs`, `wado.rs`, `stow.rs`, `tests_dicomweb.rs`
+- [x] Add `pub mod dicomweb` to `ritk-io/src/format/mod.rs`
+- [x] Re-export `DicomWebClient`, `QidoSearchParams`, `StowFailure`, `StowResponse` from `ritk-io/src/lib.rs`
+- [x] Add `reqwest` + `serde_json` to `ritk-io/Cargo.toml`
+- [x] Fix `unused_mut` warning in `coherence.rs`
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib app::mesh_ops`: 5 passed
+- [x] `cargo test -p ritk-io --lib format::dicomweb`: 12 passed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO (GPU/wgpu phase) | High | Open |
+| GAP-262-VIZ-01 — GPU 3D volume rendering | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-IO-02 — DICOM specialty IODs | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
 ## Sprint 267 — Complete
 
 **Status**: Complete

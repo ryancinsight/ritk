@@ -34,6 +34,8 @@ consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-compression = { workspace = true }
 consus-io = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dicom-pixeldata = { workspace = true }

@@ -108,6 +108,17 @@ impl SnapApp {
         let image_widget = egui::Image::new(egui::load::SizedTexture::new(tex_id, display_size));
         let response = ui.add(image_widget);
 
+        if self.show_mesh_overlay && self.loaded_mesh.is_some() {
+            if self.mesh_dirty || self.mesh_tex.is_none() {
+                self.rebuild_mesh_texture(ctx, tex_w_usize, tex_h_usize);
+            }
+            if let Some(ref mesh_tex) = self.mesh_tex {
+                let painter = ui.painter_at(response.rect);
+                let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                painter.image(mesh_tex.id(), response.rect, uv, egui::Color32::WHITE);
+            }
+        }
+
         let painter = ui.painter_at(response.rect);
         let label = match self.projection_mode {
             ProjectionMode::Mip => "3D MIP",

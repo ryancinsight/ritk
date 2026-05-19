@@ -75,7 +75,7 @@ impl SnapApp {
                         }
                     }
 
-                    if ui.button("Open NIfTI / MHA / NRRD file…").clicked() {
+                    if ui.button("Open NIfTI / MHA / NRRD file\u{2026}").clicked() {
                         ui.close_menu();
                         if let Some(path) = FileDialog::new()
                             .add_filter(
@@ -85,6 +85,16 @@ impl SnapApp {
                             .pick_file()
                         {
                             self.load_volume_file(path);
+                        }
+                    }
+
+                    if ui.button("Open Mesh\u{2026}").clicked() {
+                        ui.close_menu();
+                        if let Some(path) = FileDialog::new()
+                            .add_filter("Surface meshes", &["stl", "obj", "ply"])
+                            .pick_file()
+                        {
+                            self.load_mesh_file(path);
                         }
                     }
 
@@ -228,7 +238,7 @@ impl SnapApp {
                     }
 
                     let rt_dose_label = if self.show_rt_dose_overlay {
-                        "✔ Show RT-DOSE Overlay"
+                        "\u{2714} Show RT-DOSE Overlay"
                     } else {
                         " Show RT-DOSE Overlay"
                     };
@@ -236,6 +246,8 @@ impl SnapApp {
                         ui.close_menu();
                         self.show_rt_dose_overlay = !self.show_rt_dose_overlay;
                     }
+
+                    ui.checkbox(&mut self.show_mesh_overlay, "Show Mesh Overlay");
 
                     let filter_label = if self.show_filter_panel {
                         "✔ Show Filter Panel"
