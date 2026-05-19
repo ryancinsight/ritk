@@ -9,8 +9,9 @@ pub use domain::{
 };
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
-    dicom_seg_to_label_map, is_private_tag, label_map_to_dicom_seg, load_dicom_multiframe,
-    load_dicom_series, load_dicom_series_with_metadata, model_to_in_mem, read_dicom_seg,
+    dicom_seg_to_label_map, is_private_tag, is_rgb_dicom_series, label_map_to_dicom_seg,
+    load_dicom_color_series, load_dicom_multiframe, load_dicom_series,
+    load_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_series, read_dicom_seg,
     read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose,
     read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, write_dicom_multiframe,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,

@@ -70,6 +70,7 @@ mod tests {
         LoadedVolume {
             data: Arc::new(data),
             shape,
+            channels: 1,
             spacing: [1.0, 1.0, 1.0],
             origin: [0.0, 0.0, 0.0],
             direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],

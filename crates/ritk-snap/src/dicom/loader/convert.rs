@@ -65,6 +65,7 @@ pub(super) fn volume_from_image_no_meta(
     Ok(LoadedVolume {
         data: Arc::new(pixels),
         shape,
+        channels: 1,
         spacing,
         origin,
         direction,

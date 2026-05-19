@@ -18,6 +18,7 @@ fn make_anisotropic_volume() -> LoadedVolume {
     LoadedVolume {
         data: Arc::new(vec![0.0f32; shape[0] * shape[1] * shape[2]]),
         shape,
+        channels: 1,
         spacing: [2.0, 3.0, 5.0], // [dz, dy, dx]
         origin: [0.0, 0.0, 0.0],
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],

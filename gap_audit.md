@@ -1,5 +1,85 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 256 Audit — 2026-05-18
+
+### GAP-251-STR-01 Partial — 6 of 14 Near-Limit Files Partitioned
+
+| File | Before | After | Pattern | Test count |
+|---|---|---|---|---|
+| `filter/diffusion/gradient_anisotropic` | 474 | 133 | `mod.rs` + `tests.rs` | 9 |
+| `filter/vesselness/hessian` | 466 | 264 | `mod.rs` + `tests.rs` | 8 |
+| `segmentation/morphology/binary_erosion` | 465 | 190 | `mod.rs` + `tests.rs` | 13 |
+| `registration/demons/symmetric` | 464 | 325 | `mod.rs` + `tests.rs` | 5 |
+| `vtk/io/struct_grid.rs` | 469 | 328 | flat + `struct_grid/tests.rs` | 3 |
+| `io/format/dicom/color` | 462 | 232 | `mod.rs` + `tests.rs` | 3 |
+
+All 6 modules use the directory/mod.rs pattern (consistent with Sprint 253 precedent).
+`struct_grid.rs` retains the flat file pattern; its tests directory holds `tests.rs` only.
+
+### Pre-existing broken state fixed
+
+`region_growing/tests_neighborhood_connected.rs` was missing (deleted in Sprint 225, never
+restored). Recovered from git commit `63676a1`. This file is referenced by
+`#[path = "tests_neighborhood_connected.rs"] mod tests_neighborhood_connected;` inside
+`neighborhood_connected.rs` under `#[cfg(test)]`. Without it, `cargo test -p ritk-core`
+failed to compile even though `cargo check` passed.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-core --lib` | 0 errors, 0 warnings |
+| `cargo check -p ritk-registration --lib` | 0 errors, 0 warnings |
+| `cargo check -p ritk-vtk --lib` | 0 errors, 0 warnings |
+| `cargo check -p ritk-io --lib` | 0 errors, 9 pre-existing warnings |
+| `cargo test -p ritk-core --lib gradient_anisotropic` | 9 passed |
+| `cargo test -p ritk-core --lib vesselness` | 20 passed (8 hessian + 12 frangi/sato) |
+| `cargo test -p ritk-core --lib binary_erosion` | 13 passed |
+| `cargo test -p ritk-registration --lib symmetric` | 5 passed |
+| `cargo test -p ritk-vtk --lib struct_grid` | 3 passed |
+| `cargo test -p ritk-io --lib dicom::color` | 3 passed |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| GAP-251-STR-01 | Open (8 of 14 near-limit files remain: `syn.rs`, `gradient_anisotropic.rs` (python), `multiframe/tests/reader.rs`, `struct_grid.rs`, `viewport_render.rs`, `white_stripe.rs`, `tests_composite_io.rs`, `ct_mri_dicom_registration_test.rs`, `controls_morph.rs`, `tests_smoothing.rs`) |
+| Structural violations | 0 |
+
+## Sprint 257 Audit — 2026-05-18
+
+### GAP-251-STR-01 Reduced — 2 More Near-Limit Files Partitioned
+
+| File | Before | After | Strategy |
+|---|---|---|---|
+| `ui/filter_panel/controls_pointwise.rs` | **502** (violation) | 426 | CPR controls extracted to `controls_cpr.rs` (84 lines) |
+| `filter/apply.rs` | 499 | 472 | `promote_2d_to_3d` extracted to `filter/promote.rs` (29 lines) |
+
+### Pre-existing fix — `render/mod.rs` re-export visibility
+
+`pub use RenderBufferPool` → `pub(crate) use RenderBufferPool`. The `pub use` leaked
+an internal implementation detail; the pool is only used within the crate's render
+pipeline.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `cargo check -p ritk-core --lib` | 0 errors, 0 warnings |
+| `cargo check -p ritk-snap --lib` | 0 errors, 0 warnings |
+| `cargo test -p ritk-core --lib gradient_anisotropic` | 9 passed |
+| `cargo test -p ritk-snap --lib "render::buffer_pool"` | 9 passed |
+| `cargo test -p ritk-snap --lib "test_filter_kind_cpr"` | 1 passed |
+| `cargo test -p ritk-core --lib "cpr"` | 10 passed |
+| Structural violations (>500 lines) | **0** (production); 1 pre-existing test-only (609) |
+
+### Residual risk
+
+| Gap | Status |
+|---|---|
+| GAP-251-STR-01 | Reduced: `controls_morph.rs` (462), `rtdose_overlay.rs` (461) near-limit |
+| Structural violations | 0 production files; 1 test-only (609, `#[path]` referenced, pre-existing) |
+
 ## Sprint 255 Audit — 2026-05-18
 
 ### GAP-248-PERF-09 Closed — RenderBufferPool

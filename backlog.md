@@ -1,3 +1,78 @@
+## Sprint 257 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.29 [patch]
+**Goal**: GAP-251-STR-01 — Continue structural partition: controls_pointwise.rs (502→426) and filter/apply.rs (499→472).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-251-STR-01 | controls_pointwise.rs partitioned (502→426), apply.rs partitioned (499→472) | **Partial** |
+
+### Delivered
+
+- ✓ `controls_pointwise.rs` (502→426): CPR controls extracted to `controls_cpr.rs` (84 lines)
+- ✓ `filter/apply.rs` (499→472): `promote_2d_to_3d` extracted to `filter/promote.rs` (29 lines)
+- ✓ `app/filter.rs` updated import path
+- ✓ `filter_panel/mod.rs` registers `controls_cpr` module and calls chain
+- ✓ `render/mod.rs` — `pub use` → `pub(crate) use` for `RenderBufferPool`
+- ✓ Verification: `cargo check -p ritk-core -p ritk-snap --lib` — 0 errors, 0 warnings
+- ✓ Verification: `cargo test -p ritk-core --lib gradient_anisotropic` — 9 passed
+- ✓ Verification: `cargo test -p ritk-snap --lib "render::buffer_pool"` — 9 passed
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-251-STR-01 | `controls_morph.rs` (462), `rtdose_overlay.rs` (461) near-limit | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+### Maintenance progress
+
+2 more files partitioned; 2 remaining near-limit in ritk-snap.
+
+## Sprint 256 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.28 [patch]
+**Goal**: GAP-251-STR-01 — Extract test blocks from 6 near-limit files, reducing all below 350 lines.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-251-STR-01 | 6 near-limit files partitioned (6 of 14) | **Partial** |
+| tests_neighborhood_connected.rs | Restored missing test file from git (pre-existing broken state) | **Fixed** |
+
+### Delivered
+
+| File | Before | After | Pattern |
+|---|---|---|---|
+| `filter/diffusion/gradient_anisotropic.rs` → `mod.rs` | 474 | 133 | directory/mod.rs |
+| `filter/vesselness/hessian.rs` → `hessian/mod.rs` | 466 | 264 | directory/mod.rs |
+| `segmentation/morphology/binary_erosion.rs` → `mod.rs` | 465 | 190 | directory/mod.rs |
+| `registration/demons/symmetric.rs` → `symmetric/mod.rs` | 464 | 325 | directory/mod.rs |
+| `vtk/io/struct_grid.rs` | 469 | 328 | flat + `tests/tests.rs` |
+| `io/format/dicom/color.rs` → `color/mod.rs` | 462 | 232 | directory/mod.rs |
+| `segmentation/region_growing/tests_neighborhood_connected.rs` | 0 (missing) | 660 | git recovery |
+
+- ✓ Verification: `cargo check -p ritk-core -p ritk-registration -p ritk-vtk -p ritk-io --lib` — 0 errors, 0 new warnings
+- ✓ Verification: all 6 test modules — 9 + 8 + 13 + 5 + 3 + 3 = 41 tests passed
+
+### Remaining high-priority gaps
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-251-STR-01 | 8 remaining near-limit files (462–479 lines) | Low |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
+### Maintenance progress
+
+6 files extracted; 8 remaining in GAP-251-STR-01 batch.
+
 ## Sprint 255 — Complete
 
 **Status**: Complete

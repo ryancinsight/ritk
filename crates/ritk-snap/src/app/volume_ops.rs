@@ -110,6 +110,7 @@ impl SnapApp {
                 self.loaded = Some(LoadedVolume {
                     data,
                     shape,
+                    channels: 1,
                     spacing,
                     origin,
                     direction,
@@ -227,6 +228,7 @@ impl SnapApp {
                 self.loaded_secondary = Some(LoadedVolume {
                     data,
                     shape,
+                    channels: 1,
                     spacing,
                     origin,
                     direction,

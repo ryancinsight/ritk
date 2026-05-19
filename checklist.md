@@ -1,3 +1,55 @@
+## Sprint 257 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.29 [patch]
+**Target**: GAP-251-STR-01 — Continue structural partition: controls_pointwise.rs and filter/apply.rs.
+
+### Checklist items
+
+- [x] Extract CPR controls from `controls_pointwise.rs` (502→426) → new `controls_cpr.rs` (84 lines)
+- [x] Extract `promote_2d_to_3d` from `filter/apply.rs` (499→472) → new `filter/promote.rs` (29 lines)
+- [x] Update `app/filter.rs` import path (`crate::filter::promote` instead of `crate::filter::apply`)
+- [x] Register `controls_cpr` module in `filter_panel/mod.rs` and wire into the chain
+- [x] Fix `render/mod.rs` re-export visibility (`pub use` → `pub(crate) use`)
+- [x] Document `gradient_anisotropic/tests.rs` placeholder gap in `gap_audit.md` Sprint 256 section
+- [x] Verify `cargo check -p ritk-snap --lib` — 0 errors, 0 warnings
+- [x] Verify `cargo check -p ritk-core --lib` — 0 errors, 0 warnings
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-251-STR-01: `controls_morph.rs` (462 lines), `rtdose_overlay.rs` (461 lines) near-limit | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+| gradient_anisotropic test gap noted in gap_audit.md | — | **Acknowledged** |
+
+## Sprint 256 — Complete
+
+**Status**: Complete
+**Phase**: Execution → Structural
+**Version**: 0.50.28 [patch]
+**Target**: GAP-251-STR-01 — Partition 6 near-limit files via test extraction.
+
+### Checklist items
+
+- [x] Extract `gradient_anisotropic.rs` (474→133) → `gradient_anisotropic/mod.rs` + `tests.rs`
+- [x] Extract `hessian.rs` (466→264) → `hessian/mod.rs` + `tests.rs`
+- [x] Extract `binary_erosion.rs` (465→190) → `binary_erosion/mod.rs` + `tests.rs`
+- [x] Extract `symmetric.rs` (464→325) → `symmetric/mod.rs` + `tests.rs`
+- [x] Extract `struct_grid.rs` (469→328) — `struct_grid/tests.rs` only
+- [x] Extract `color.rs` (462→232) → `color/mod.rs` + `tests.rs`
+- [x] Restore `tests_neighborhood_connected.rs` (660 lines) from git history (pre-existing missing file)
+- [x] Verify `cargo check -p ritk-core -p ritk-registration -p ritk-vtk -p ritk-io` — 0 errors
+- [x] Verify 41 tests across 6 modules — all passed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| GAP-251-STR-01: 8 files at 462–479 lines remaining | Low | Open |
+| **Structural violations (>500 lines)** | **None** | **Zero** |
+
 ## Sprint 255 — Complete
 
 **Status**: Complete

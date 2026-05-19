@@ -45,6 +45,7 @@ pub fn load_nifti_volume<P: AsRef<Path>>(path: P) -> Result<LoadedVolume> {
     Ok(LoadedVolume {
         data: Arc::new(pixels),
         shape,
+        channels: 1,
         spacing,
         origin,
         direction,

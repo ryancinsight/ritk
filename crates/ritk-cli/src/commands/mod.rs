@@ -13,11 +13,11 @@ pub mod segment;
 pub mod stats;
 pub mod viewer;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_io::read_dicom_series;
+use ritk_io::{is_rgb_dicom_series, read_dicom_series};
 use std::path::Path;
 
 // ── Shared backend ────────────────────────────────────────────────────────────
@@ -83,8 +83,16 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
             .with_context(|| format!("Failed to read NRRD file: {}", path.display())),
         "png" => ritk_io::read_png_to_image::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read PNG file: {}", path.display())),
-        "dicom" => read_dicom_series::<Backend, _>(path, &device)
-            .with_context(|| format!("Failed to read DICOM series from: {}", path.display())),
+        "dicom" => {
+            if is_rgb_dicom_series(path).unwrap_or(false) {
+                bail!(
+                    "RGB DICOM colour series are not supported by the CLI. \
+                     Use `ritk-snap` (the graphical viewer) to load and inspect RGB DICOM volumes."
+                );
+            }
+            read_dicom_series::<Backend, _>(path, &device)
+                .with_context(|| format!("Failed to read DICOM series from: {}", path.display()))
+        }
         "mgh" => ritk_io::read_mgh::<Backend, _>(path, &device)
             .with_context(|| format!("Failed to read MGH file: {}", path.display())),
         "tiff" => ritk_io::read_tiff::<Backend, _>(path, &device)

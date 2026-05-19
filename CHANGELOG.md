@@ -3,6 +3,48 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.29] - 2026-05-18
+
+### Added [patch]
+- **`controls_cpr.rs`** (`ui/filter_panel/`): CPR parameter controls extracted from `controls_pointwise.rs` into dedicated module (84 lines). Reduces `controls_pointwise.rs` from 502 to 426 lines.
+- **`filter/promote.rs`** (`filter/`): `promote_2d_to_3d` helper extracted from `filter/apply.rs` (499→472). Single authoritative source for both `app/filter.rs` and `filter/apply.rs` call sites.
+
+### Changed [patch]
+- `filter_panel/mod.rs` — registers `controls_cpr` module, calls CPR controls in chain before pointwise controls
+- `app/filter.rs` — imports `promote_2d_to_3d` from `crate::filter::promote` instead of `crate::filter::apply`
+
+### Fixed [patch]
+- `render/mod.rs` — re-export visibility `pub use` → `pub(crate) use` for `RenderBufferPool`
+- `gap_audit.md` — documented `gradient_anisotropic/tests.rs` as placeholder with 0 real tests (E0761 root cause); cross-reference that sprint artifacts already describe the recovery as part of Sprint 256
+
+### Verification
+- `cargo check -p ritk-core --lib`: 0 errors, 0 warnings
+- `cargo check -p ritk-snap --lib`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib gradient_anisotropic`: 9 passed
+- `cargo test -p ritk-snap --lib "render::buffer_pool"`: 9 passed
+- Structural violations (>500 lines): 0 production files; 1 pre-existing test-only (609 lines, `#[path]` referenced)
+
+## [0.50.28] - 2026-05-18
+
+### Added [patch]
+- **6 near-limit files partitioned** via test extraction:
+  - `gradient_anisotropic.rs` (474→133) → `gradient_anisotropic/mod.rs` + `tests.rs`
+  - `hessian.rs` (466→264) → `hessian/mod.rs` + `tests.rs`
+  - `binary_erosion.rs` (465→190) → `binary_erosion/mod.rs` + `tests.rs`
+  - `symmetric.rs` (464→325) → `symmetric/mod.rs` + `tests.rs`
+  - `struct_grid.rs` (469→328) → `struct_grid/tests.rs` (flat + tests submodule)
+  - `color.rs` (462→232) → `color/mod.rs` + `tests.rs`
+- **`tests_neighborhood_connected.rs`** restored from git commit `63676a1` (660 lines). Pre-existing missing file referenced by `#[path]` attribute in `neighborhood_connected.rs`.
+
+### Verification
+- `cargo check -p ritk-core -p ritk-registration -p ritk-vtk -p ritk-io --lib`: 0 errors, 0 new warnings
+- `cargo test -p ritk-core --lib gradient_anisotropic`: 9 passed
+- `cargo test -p ritk-core --lib vesselness`: 20 passed
+- `cargo test -p ritk-core --lib binary_erosion`: 13 passed
+- `cargo test -p ritk-registration --lib symmetric`: 5 passed
+- `cargo test -p ritk-vtk --lib struct_grid`: 3 passed
+- `cargo test -p ritk-io --lib dicom::color`: 3 passed
+
 ## [0.50.27] - 2026-05-18
 
 ### Added [patch]

@@ -24,12 +24,55 @@ use super::color_common::{
 };
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
 
+/// Check whether a directory contains a DICOM RGB colour series.
+///
+/// Iterates through the files in `path`, attempting to parse each as DICOM
+/// until one succeeds (skipping non-DICOM files like `DICOMDIR`, thumbnails,
+/// or hidden files).  Inspects `PhotometricInterpretation` (0028,0004) and
+/// `SamplesPerPixel` (0028,0002) on the first successfully parsed file.
+///
+/// Returns `true` when both `PhotometricInterpretation` is `"RGB"` (case-
+/// insensitive) and `SamplesPerPixel` equals 3.
+///
+/// Returns `false` when the first parseable file is not RGB, or `Err` when
+/// no DICOM file could be found or parsed.
+pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
+    let dir = path.as_ref();
+    let mut entries = std::fs::read_dir(dir)
+        .with_context(|| format!("cannot read DICOM directory '{}'", dir.display()))?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_file())
+        .peekable();
+
+    if entries.peek().is_none() {
+        bail!("no files found in '{}'", dir.display());
+    }
+
+    // Try each file until one parses as valid DICOM — skips DICOMDIR,
+    // thumbnails, and other non-DICOM files.
+    for entry in entries {
+        let obj = match parse_file_with::<DicomRsBackend, _>(entry.path()) {
+            Ok(o) => o,
+            Err(_) => continue,
+        };
+
+        let samples = optional_usize(&obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+        if samples != RGB_CHANNELS {
+            return Ok(false);
+        }
+
+        let photometric = required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+        return Ok(photometric.trim().eq_ignore_ascii_case("RGB"));
+    }
+
+    bail!("no parseable DICOM files found in '{}'", dir.display())
+}
+
 /// Read a DICOM RGB series into a rank-4 color volume.
 ///
 /// The returned tensor shape is `[depth, rows, cols, 3]` with interleaved RGB
 /// samples in the channel axis. Only byte-addressable unsigned RGB data is
 /// accepted; scalar, palette, YBR, CMYK, and signed color data are rejected.
-#[allow(dead_code)]
 pub fn read_dicom_color_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
@@ -39,7 +82,6 @@ pub fn read_dicom_color_series<B: Backend, P: AsRef<Path>>(
 }
 
 /// Alias matching the scalar loader naming convention.
-#[allow(dead_code)]
 pub fn load_dicom_color_series<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
@@ -47,7 +89,6 @@ pub fn load_dicom_color_series<B: Backend, P: AsRef<Path>>(
     read_dicom_color_series(path, device)
 }
 
-#[allow(dead_code)]
 fn load_color_from_series<B: Backend>(
     mut metadata: DicomReadMetadata,
     device: &B::Device,
@@ -119,7 +160,6 @@ fn load_color_from_series<B: Backend>(
     Ok((image, metadata))
 }
 
-#[allow(dead_code)]
 fn read_rgb_slice_samples(
     slice: &DicomSliceMetadata,
     expected_rows: usize,

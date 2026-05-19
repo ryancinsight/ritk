@@ -11,6 +11,7 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     LoadedVolume {
         data: std::sync::Arc::new((0..n).map(|i| i as f32).collect()),
         shape: [depth, rows, cols],
+        channels: 1,
         spacing: [1.0, 1.0, 1.0],
         origin: [0.0, 0.0, 0.0],
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],

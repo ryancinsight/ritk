@@ -16,6 +16,7 @@ fn clinical_distribution_report_redacts_identifiers_and_lists_media_layout() {
     volume = LoadedVolume {
         data: Arc::new((0..24).map(|v| v as f32).collect()),
         shape: volume.shape,
+        channels: 1,
         spacing: volume.spacing,
         origin: volume.origin,
         direction: volume.direction,
@@ -88,6 +89,7 @@ fn clinical_distribution_export_writes_report_and_media_with_expected_counts() {
     app.loaded = Some(LoadedVolume {
         data: Arc::new((0..24).map(|v| v as f32).collect()),
         shape: [2, 3, 4],
+        channels: 1,
         spacing: [1.5, 0.75, 0.5],
         origin: [10.0, -2.0, 5.0],
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
