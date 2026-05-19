@@ -22,6 +22,7 @@ use rayon::prelude::*;
 
 mod forces;
 pub(crate) use forces::cc_forces_into;
+#[cfg(test)]
 pub(crate) use forces::cc_forces;
 #[cfg(test)]
 pub(crate) use forces::field_rms;

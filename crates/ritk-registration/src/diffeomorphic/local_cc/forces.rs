@@ -58,6 +58,7 @@ unsafe impl Sync for CellSlice {}
 ///
 /// Parallelized over voxels via Rayon; each voxel's window reads are
 /// independent, producing no data race.
+#[cfg(test)]
 pub(crate) fn cc_forces(
     i_w: &[f32],
     j_w: &[f32],
