@@ -11,10 +11,17 @@
 //   acc_alpha += contrib
 //   early-exit when acc_alpha >= 0.99  (fully opaque; further layers contribute < 1%)
 //
-// Output buffer `vr_out`: 4 x f32 per pixel in row-major order (R, G, B, A ∈ [0,1]).
+// # Output format
+//   `vr_out`: 1 packed u32 per pixel (row-major), written via pack4x8unorm.
+//   Byte layout in memory (little-endian): R G B A, each 0–255.
+//   This is 4× smaller than the previous 4×f32 layout (4 bytes vs 16 bytes per
+//   pixel), reducing staging buffer allocation and map/unmap cost by 4×.
+//   The host reads the staging buffer as `&[u8]` and forwards directly to
+//   egui::ColorImage::from_rgba_unmultiplied — zero CPU post-processing.
 //
-// Dispatch: ceil(cols / 8) x ceil(rows / 8) x 1 workgroups.
-// Fast-varying dimension id.x = col → coalesced volume reads within each warp.
+// # Dispatch
+//   ceil(cols / 8) × ceil(rows / 8) × 1 workgroups.
+//   Fast-varying dimension id.x = col → coalesced volume reads within each warp.
 
 struct VrParams {
     depth       : u32,
@@ -28,7 +35,7 @@ struct VrParams {
 }
 
 @group(0) @binding(0) var<storage, read>       volume : array<f32>;
-@group(0) @binding(1) var<storage, read_write> vr_out : array<f32>;  // 4 f32 per pixel
+@group(0) @binding(1) var<storage, read_write> vr_out : array<u32>;  // 1 packed u32 per pixel
 @group(0) @binding(2) var<uniform>             params : VrParams;
 @group(0) @binding(3) var<storage, read>       lut    : array<f32>;  // 256 * 4 f32 RGBA
 
@@ -73,9 +80,9 @@ fn vr_main(@builtin(global_invocation_id) id: vec3<u32>) {
         }
     }
 
-    let pixel_base : u32 = (row * params.cols + col) * 4u;
-    vr_out[pixel_base + 0u] = acc_r;
-    vr_out[pixel_base + 1u] = acc_g;
-    vr_out[pixel_base + 2u] = acc_b;
-    vr_out[pixel_base + 3u] = acc_alpha;
+    // Pack composited RGBA into one u32 (little-endian: R G B A in memory).
+    // pack4x8unorm clamps each component to [0,1] and rounds to nearest u8.
+    vr_out[row * params.cols + col] = pack4x8unorm(
+        vec4<f32>(acc_r, acc_g, acc_b, acc_alpha)
+    );
 }

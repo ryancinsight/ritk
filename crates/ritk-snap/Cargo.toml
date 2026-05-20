@@ -28,6 +28,7 @@ nalgebra = { workspace = true }
 gaia = { workspace = true }
 walkdir = { workspace = true }
 bytemuck = { workspace = true }
+rayon    = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 wgpu = { workspace = true }

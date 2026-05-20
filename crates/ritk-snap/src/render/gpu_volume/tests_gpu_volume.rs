@@ -1,11 +1,26 @@
-//! Differential equivalence tests: GPU MIP vs CPU MIP.
+//! Differential equivalence tests: GPU MIP and VR vs CPU reference paths.
 //!
-//! # Invariant
+//! # Invariants under test
 //!
-//! For all valid volumes and the Grayscale colormap, the GPU and CPU MIP
-//! outputs must agree within ±2 u8 per channel (accounts for f32→u8 rounding
-//! differences caused by the GPU shader outputting raw f32 max values that are
-//! window-levelled on CPU, vs the CPU path which window-levels inline).
+//! ```text
+//! ∀ pixel p: |gpu_mip(p) − cpu_mip(p)| ≤ 2   (u8 channel value)
+//! ∀ pixel p: |gpu_vr(p)  − cpu_vr(p)|  ≤ 2   (u8 channel value)
+//! ```
+//!
+//! The ±2 tolerance accounts for:
+//! - LUT index truncation (`floor(norm * 255)`) vs CPU `colormap.map(norm)`.
+//! - `pack4x8unorm` rounding vs CPU integer truncation (`as u8`).
+//!
+//! # Sprint 272 additions
+//!
+//! - `gpu_mip_wl_clamps_below_floor_all_black` — uniform volume below WL
+//!   → all pixels black (norm=0 → Grayscale LUT index 0).
+//! - `gpu_mip_wl_clamps_above_ceiling_all_white` — uniform volume above WL
+//!   ceiling → all pixels white (norm=1 → Grayscale LUT index 255).
+//! - `gpu_mip_repeated_render_identical` — two consecutive renders of the
+//!   same volume with the same params produce pixel-identical output, verifying
+//!   that frame buffer reuse does not corrupt results.
+//! - `gpu_vr_repeated_render_identical` — same for VR.
 //!
 //! # Headless GPU guard
 //!
@@ -22,8 +37,6 @@ use crate::LoadedVolume;
 use super::GpuVolumeRenderer;
 
 /// Build a small synthetic `LoadedVolume` with uniform intensity `value`.
-///
-/// All voxels are set to `value`.
 fn make_uniform_volume(depth: usize, rows: usize, cols: usize, value: f32) -> LoadedVolume {
     LoadedVolume {
         data: Arc::new(vec![value; depth * rows * cols]),
@@ -51,7 +64,6 @@ fn make_uniform_volume(depth: usize, rows: usize, cols: usize, value: f32) -> Lo
 /// Build a small synthetic `LoadedVolume` with a deterministic voxel pattern.
 ///
 /// Voxel value at (d, r, c) = `d * rows * cols + r * cols + c` as `f32`.
-/// The maximum along the depth axis for pixel (r, c) is thus `(depth-1)*R*C + r*C + c`.
 fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     let mut data = Vec::with_capacity(depth * rows * cols);
     for d in 0..depth {
@@ -84,11 +96,12 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     }
 }
 
-/// GPU MIP output must match CPU MIP output within ±2 u8 per channel for a
-/// small synthetic volume under the Grayscale colormap.
+/// GPU MIP vs CPU MIP: Grayscale colormap, synthetic ramp volume.
 ///
-/// The analytical ground truth: max along depth for pixel (r, c) is
-/// `(depth-1) * rows * cols + r * cols + c`.
+/// # Invariant
+///
+/// For all pixels: |gpu_r − cpu_r| ≤ 2 ∧ |gpu_g − cpu_g| ≤ 2 ∧ |gpu_b − cpu_b| ≤ 2.
+/// Bound: LUT truncation (≤1) + pack4x8unorm rounding (≤1) = ≤2 total.
 #[test]
 fn gpu_mip_matches_cpu_mip_grayscale() {
     let renderer = GpuVolumeRenderer::try_create();
@@ -98,8 +111,6 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
     };
 
     let volume = make_test_volume(8, 16, 16);
-    // Window/level: centre on the midpoint of the expected range.
-    // Max pixel value = 7*16*16 + 15*16 + 15 = 1792+240+15 = 2047
     let wl = WindowLevel::new(1024.0, 2048.0);
     let colormap = Colormap::Grayscale;
 
@@ -109,11 +120,7 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
         .expect("GPU MIP must succeed when GPU is available");
 
     assert_eq!(cpu_img.size, gpu_img.size, "MIP image sizes must match");
-    assert_eq!(
-        cpu_img.pixels.len(),
-        gpu_img.pixels.len(),
-        "Pixel buffer lengths must match"
-    );
+    assert_eq!(cpu_img.pixels.len(), gpu_img.pixels.len(), "Pixel buffer lengths must match");
 
     let mut max_diff: i32 = 0;
     for (i, (c, g)) in cpu_img.pixels.iter().zip(gpu_img.pixels.iter()).enumerate() {
@@ -121,9 +128,7 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
             .abs()
             .max((c.g() as i32 - g.g() as i32).abs())
             .max((c.b() as i32 - g.b() as i32).abs());
-        if diff > max_diff {
-            max_diff = diff;
-        }
+        if diff > max_diff { max_diff = diff; }
         assert!(
             diff <= 2,
             "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds ±2 tolerance"
@@ -132,17 +137,16 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
     tracing::info!(max_diff, "GPU vs CPU MIP max |channel diff|");
 }
 
-/// Volume change detection: uploading a different volume must produce a
-/// different MIP (the cache is invalidated).
+/// GPU MIP cache: rendering different volumes produces different output.
+///
+/// Also verifies that zero-intensity volume with WL(0, 200) → all black pixels
+/// (norm = 0, Grayscale LUT index 0 = black, alpha = 255).
 #[test]
 fn gpu_mip_cache_invalidated_on_volume_change() {
-    let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        return;
-    };
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
 
     let vol_a = make_test_volume(4, 8, 8);
     let vol_b = {
-        // vol_b has all zeros → MIP output should be all zeros after WL.
         let zeros = vec![0.0f32; 4 * 8 * 8];
         LoadedVolume {
             data: Arc::new(zeros),
@@ -167,31 +171,102 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
         }
     };
 
+    // wl_lo = 100 - 0.5*200 = 0; wl_range = 200.
+    // vol_b norm = (0 - 0) / 200 = 0 → black; alpha always 255 (MIP).
     let wl = WindowLevel::new(100.0, 200.0);
     let cm = Colormap::Grayscale;
 
     let img_a = renderer.render_mip(&vol_a, wl, cm).expect("render vol_a");
     let img_b = renderer.render_mip(&vol_b, wl, cm).expect("render vol_b");
 
-    // vol_b is all zeros → WL-normalised to 0 → Grayscale maps to [0,0,0,255].
     let zero_pixel = egui::Color32::from_rgba_unmultiplied(0, 0, 0, 255);
     for &p in &img_b.pixels {
-        assert_eq!(p, zero_pixel, "vol_b must render to black");
+        assert_eq!(p, zero_pixel, "vol_b must render to black (norm=0 → Grayscale LUT[0]=black)");
     }
 
-    // vol_a has non-zero values → at least one pixel must differ from vol_b.
     let all_same = img_a.pixels.iter().zip(img_b.pixels.iter()).all(|(a, b)| a == b);
     assert!(!all_same, "vol_a and vol_b MIP outputs must differ");
 }
 
-// ── VR tests ─────────────────────────────────────────────────────────────────
-
-/// GPU VR output must match CPU VR output within ±2 u8 per channel (after
-/// premultiplication by egui) for a synthetic volume under the Grayscale
-/// colormap and `alpha_scale = 0.06`.
+/// GPU MIP: uniform volume with intensity below WL floor → all black pixels.
 ///
-/// Tolerance ±2 accounts for f32 IEEE 754 rounding differences between GPU
-/// shader-side FMA and the CPU sequential accumulation loop.
+/// # Derivation
+///
+/// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
+/// voxel = -100.0 → norm = clamp((-100 - 0)/256, 0, 1) = 0 → LUT[0] = black.
+/// Alpha always 255 for MIP (pack4x8unorm(*, *, *, 1.0)).
+#[test]
+fn gpu_mip_wl_clamps_below_floor_all_black() {
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
+
+    let vol = make_uniform_volume(4, 8, 8, -100.0);
+    let wl  = WindowLevel::new(128.0, 256.0);
+    let img = renderer
+        .render_mip(&vol, wl, Colormap::Grayscale)
+        .expect("GPU MIP must succeed when GPU is available");
+
+    assert_eq!(img.size, [8, 8], "Output size must be [cols, rows] = [8, 8]");
+    for &p in &img.pixels {
+        assert_eq!(p.r(), 0,   "R must be 0 for below-floor volume");
+        assert_eq!(p.g(), 0,   "G must be 0 for below-floor volume");
+        assert_eq!(p.b(), 0,   "B must be 0 for below-floor volume");
+        assert_eq!(p.a(), 255, "A must be 255 (MIP: fully opaque)");
+    }
+}
+
+/// GPU MIP: uniform volume with intensity above WL ceiling → all white pixels.
+///
+/// # Derivation
+///
+/// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
+/// voxel = 5000.0 → norm = clamp((5000 - 0)/256, 0, 1) = 1.0 → LUT[255].
+/// Grayscale LUT[255] = [255/255, 255/255, 255/255] → pack4x8unorm gives white.
+#[test]
+fn gpu_mip_wl_clamps_above_ceiling_all_white() {
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
+
+    let vol = make_uniform_volume(4, 8, 8, 5000.0);
+    let wl  = WindowLevel::new(128.0, 256.0);
+    let img = renderer
+        .render_mip(&vol, wl, Colormap::Grayscale)
+        .expect("GPU MIP must succeed when GPU is available");
+
+    assert_eq!(img.size, [8, 8], "Output size must be [cols, rows] = [8, 8]");
+    for &p in &img.pixels {
+        // Grayscale LUT[255]: pack4x8unorm(1.0, 1.0, 1.0, 1.0) = round(255) = 255 each.
+        assert_eq!(p.r(), 255, "R must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p.g(), 255, "G must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p.b(), 255, "B must be 255 for above-ceiling Grayscale MIP");
+        assert_eq!(p.a(), 255, "A must be 255 (MIP: fully opaque)");
+    }
+}
+
+/// GPU MIP: two consecutive renders of the same volume with the same params
+/// produce pixel-identical output, verifying that frame buffer reuse (caching)
+/// does not corrupt results.
+#[test]
+fn gpu_mip_repeated_render_identical() {
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
+
+    let vol = make_test_volume(8, 16, 16);
+    let wl  = WindowLevel::new(1024.0, 2048.0);
+    let cm  = Colormap::Grayscale;
+
+    let img1 = renderer.render_mip(&vol, wl, cm).expect("first MIP render");
+    let img2 = renderer.render_mip(&vol, wl, cm).expect("second MIP render (cache reuse)");
+
+    assert_eq!(img1.size, img2.size, "Sizes must match on repeated render");
+    for (i, (a, b)) in img1.pixels.iter().zip(img2.pixels.iter()).enumerate() {
+        assert_eq!(a, b, "Pixel {i}: repeated MIP render must be pixel-identical");
+    }
+}
+
+/// GPU VR vs CPU VR: Grayscale colormap, synthetic ramp volume.
+///
+/// # Invariant
+///
+/// For all pixels: max(|Δr|, |Δg|, |Δb|) ≤ 2.
+/// Bound: LUT truncation (≤1) + pack4x8unorm rounding (≤1) = ≤2 total.
 #[test]
 fn gpu_vr_matches_cpu_vr_grayscale() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
@@ -200,8 +275,6 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
     };
 
     let volume = make_test_volume(8, 16, 16);
-    // WL: centre on the midpoint of the value range; width spans the full range.
-    // Max pixel value = 7*256 + 15*16 + 15 = 2047.
     let wl = WindowLevel::new(1024.0, 2048.0);
     let colormap = Colormap::Grayscale;
     let alpha_scale = 0.06f32;
@@ -212,11 +285,7 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
         .expect("GPU VR must succeed when GPU is available");
 
     assert_eq!(cpu_img.size, gpu_img.size, "VR image sizes must match");
-    assert_eq!(
-        cpu_img.pixels.len(),
-        gpu_img.pixels.len(),
-        "Pixel buffer lengths must match"
-    );
+    assert_eq!(cpu_img.pixels.len(), gpu_img.pixels.len(), "Pixel buffer lengths must match");
 
     let mut max_diff: i32 = 0;
     for (i, (c, g)) in cpu_img.pixels.iter().zip(gpu_img.pixels.iter()).enumerate() {
@@ -224,9 +293,7 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
             .abs()
             .max((c.g() as i32 - g.g() as i32).abs())
             .max((c.b() as i32 - g.b() as i32).abs());
-        if diff > max_diff {
-            max_diff = diff;
-        }
+        if diff > max_diff { max_diff = diff; }
         assert!(
             diff <= 2,
             "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds ±2 tolerance"
@@ -235,18 +302,20 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
     tracing::info!(max_diff, "GPU vs CPU VR max |channel diff|");
 }
 
-/// All voxels below the WL floor (norm = 0) must produce a fully transparent
-/// black pixel: `a = alpha_scale * 0 = 0` → no accumulation.
+/// GPU VR: zero-intensity uniform volume → transparent black pixels.
 ///
-/// WL: center = 128, width = 256 → wl_lo = 0; norm(v=0) = 0 exactly.
+/// # Derivation
+///
+/// wl_lo = 0; wl_range = 256. voxel = 0.0 → norm = 0 → a = 0.06 × 0 = 0.
+/// No accumulation → acc_r=0, acc_g=0, acc_b=0, acc_alpha=0.
+/// pack4x8unorm(0,0,0,0) → bytes [0,0,0,0] → from_rgba_unmultiplied(0,0,0,0)
+/// → Color32::TRANSPARENT.
 #[test]
 fn gpu_vr_below_window_floor_transparent_black() {
-    let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        return;
-    };
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
 
     let vol = make_uniform_volume(4, 8, 8, 0.0);
-    let wl = WindowLevel::new(128.0, 256.0);
+    let wl  = WindowLevel::new(128.0, 256.0);
     let img = renderer
         .render_vr(&vol, wl, Colormap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
@@ -259,40 +328,47 @@ fn gpu_vr_below_window_floor_transparent_black() {
     }
 }
 
-/// Non-zero-intensity volume must produce at least one pixel with non-zero
-/// channel values, confirming the compositing path executes and accumulates.
+/// GPU VR: non-zero volume produces at least one non-black pixel.
 #[test]
 fn gpu_vr_nonzero_volume_has_nonzero_output() {
-    let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        return;
-    };
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
 
-    // make_test_volume(4,8,8): voxel values span 0..255.
-    // WL: center=128, width=256 → most voxels have norm > 0.
     let volume = make_test_volume(4, 8, 8);
-    let wl = WindowLevel::new(128.0, 256.0);
-    let img = renderer
+    let wl     = WindowLevel::new(128.0, 256.0);
+    let img    = renderer
         .render_vr(&volume, wl, Colormap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
-    // At least one pixel must have a non-zero colour channel.
     let has_nonzero = img.pixels.iter().any(|p| p.r() > 0 || p.g() > 0 || p.b() > 0);
-    assert!(
-        has_nonzero,
-        "Non-zero-intensity volume must produce at least one non-black pixel"
-    );
+    assert!(has_nonzero, "Non-zero-intensity volume must produce at least one non-black pixel");
 }
 
-/// Empty volume (zero depth) must not panic and must return a valid image.
+/// GPU VR: two consecutive renders of the same volume produce pixel-identical
+/// output, verifying that frame buffer reuse (caching) does not corrupt results.
+#[test]
+fn gpu_vr_repeated_render_identical() {
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
+
+    let vol = make_test_volume(8, 16, 16);
+    let wl  = WindowLevel::new(1024.0, 2048.0);
+    let cm  = Colormap::Grayscale;
+
+    let img1 = renderer.render_vr(&vol, wl, cm, 0.06).expect("first VR render");
+    let img2 = renderer.render_vr(&vol, wl, cm, 0.06).expect("second VR render (cache reuse)");
+
+    assert_eq!(img1.size, img2.size, "Sizes must match on repeated VR render");
+    for (i, (a, b)) in img1.pixels.iter().zip(img2.pixels.iter()).enumerate() {
+        assert_eq!(a, b, "Pixel {i}: repeated VR render must be pixel-identical");
+    }
+}
+
+/// GPU MIP: single-slice volume (depth=1) produces valid output without panic.
 #[test]
 fn gpu_mip_empty_volume_no_panic() {
-    let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        return;
-    };
+    let Some(mut renderer) = GpuVolumeRenderer::try_create() else { return; };
 
-    // Minimum non-zero shape (1×4×4) to avoid zero-size buffer issues.
     let vol = make_test_volume(1, 4, 4);
-    let wl = WindowLevel::new(0.0, 1.0);
+    let wl  = WindowLevel::new(0.0, 1.0);
     let img = renderer.render_mip(&vol, wl, Colormap::Grayscale);
     assert!(img.is_some(), "Single-slice volume must produce a valid MIP");
     let img = img.unwrap();

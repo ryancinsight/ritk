@@ -1,8 +1,35 @@
-## Sprint 271 — Complete
+## Sprint 272 — Complete
 **Status**: Complete
-**Phase**: Execution → GPU VR compute shader
-**Version**: 0.50.42 [minor]
-**Target**: Close GAP-262-VIZ-01 VR portion; GPU front-to-back alpha compositing pipeline.
+**Phase**: Closure — GPU pipeline performance + memory efficiency
+**Version**: 0.50.43 [minor]
+**Target**: Optimize GPU MIP/VR pipelines; eliminate CPU post-processing; 4× VR staging buffer reduction; zero-copy single-channel upload; Rayon parallel multi-channel extraction; GpuFrameCache buffer reuse.
+
+### Checklist items
+- [x] Update `mip.wgsl` — WL normalization + LUT in-shader; output `array<u32>` packed RGBA via `pack4x8unorm`
+- [x] Update `vr.wgsl` — output `array<u32>` packed RGBA via `pack4x8unorm` (4× buffer reduction)
+- [x] Update `params.rs` — extend `RenderParams` to 32 bytes (add `wl_lo`, `wl_range`, `_pad2`, `_pad3`)
+- [x] Create `frame_cache.rs` — `GpuFrameCache` struct for cached output+staging buffers
+- [x] Update `mip_pass.rs` — accept pre-allocated buffers; use `super::build_colormap_lut`; zero CPU postprocess
+- [x] Update `vr_pass.rs` — accept pre-allocated buffers; use `super::build_colormap_lut`; zero CPU conversion
+- [x] Update `mod.rs` — `build_colormap_lut` at module level; add `mip_cache`+`vr_cache`; zero-copy upload; Rayon parallel extraction
+- [x] Update `ritk-snap/Cargo.toml` — add `rayon = { workspace = true }`
+- [x] Update `tests_gpu_volume.rs` — 4 new tests (WL boundary ×2, repeated render ×2)
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib render::gpu_volume` — 10 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib` — 1373 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::anonymize` — 40 passed, 0 failed
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
+## Sprint 271 — Complete
 
 ### Checklist items
 - [x] Create `crates/ritk-snap/src/render/gpu_volume/vr.wgsl` — VR compute shader

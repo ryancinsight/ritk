@@ -17,14 +17,24 @@ use bytemuck::{Pod, Zeroable};
 ///
 /// ```wgsl
 /// struct RenderParams {
-///     depth: u32,
-///     rows:  u32,
-///     cols:  u32,
-///     _pad:  u32,
+///     depth    : u32,
+///     rows     : u32,
+///     cols     : u32,
+///     _pad0    : u32,
+///     wl_lo    : f32,
+///     wl_range : f32,
+///     _pad2    : f32,
+///     _pad3    : f32,
 /// }
 /// ```
 ///
-/// Total size: 16 bytes (4 × u32).
+/// Total size: 32 bytes (8 × 4-byte fields), satisfying 16-byte std140 alignment.
+///
+/// # Field derivation
+///
+/// Given a [`WindowLevel`](crate::render::WindowLevel) with `center` and `width`:
+/// - `wl_lo    = center − 0.5 × width`
+/// - `wl_range = width`  (floored to 1.0 to prevent division by zero)
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct RenderParams {
@@ -34,8 +44,16 @@ pub(super) struct RenderParams {
     pub rows: u32,
     /// Number of columns (x-axis, third dimension of the output image).
     pub cols: u32,
-    /// Padding to 16-byte std140 boundary.
-    pub _pad: u32,
+    /// Padding to first 16-byte boundary.
+    pub _pad0: u32,
+    /// Lower bound of the window/level range: `center − 0.5 × width`.
+    pub wl_lo: f32,
+    /// Width of the window/level range (≥ 1.0).
+    pub wl_range: f32,
+    /// Padding — reserved for future use (e.g., gamma or transfer curve).
+    pub _pad2: f32,
+    /// Padding to 32-byte std140 boundary.
+    pub _pad3: f32,
 }
 
 /// Uniform parameters for the VR compute shader.
@@ -59,7 +77,7 @@ pub(super) struct RenderParams {
 ///
 /// # Field derivation
 ///
-/// Given a [`WindowLevel`] with `center` and `width`:
+/// Given a [`WindowLevel`](crate::render::WindowLevel) with `center` and `width`:
 /// - `wl_lo    = center − 0.5 × width`
 /// - `wl_range = width`  (floored to 1.0 to prevent division by zero)
 #[repr(C)]

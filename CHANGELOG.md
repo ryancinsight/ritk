@@ -3,6 +3,24 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.43] - 2026-05-19
+### Changed [minor]
+- **GPU pipeline performance optimizations** (Sprint 272): applied across `ritk-snap::render::gpu_volume`.
+  - `mip.wgsl` — WL normalization and 256-entry colormap LUT lookup moved into shader; output changed from `array<f32>` (raw max, 4 bytes/pixel) to `array<u32>` packed RGBA via `pack4x8unorm` (4 bytes/pixel); eliminates entire CPU WL+colormap post-processing scan.
+  - `vr.wgsl` — output changed from `array<f32>` 4×f32/pixel (16 bytes) to `array<u32>` packed RGBA via `pack4x8unorm` (4 bytes/pixel); **4× staging buffer size reduction**; eliminates CPU f32→u8 conversion loop.
+  - `params.rs` — `RenderParams` extended from 16 to 32 bytes: added `wl_lo`, `wl_range`, `_pad2`, `_pad3` fields matching updated WGSL struct.
+  - `frame_cache.rs` (new) — `GpuFrameCache` struct caching per-pass output + staging GPU buffers; reused across frames while output dimensions are stable; reallocated only on viewport resize.
+  - `mip_pass.rs` — accepts pre-allocated `output_buf` + `staging_buf` from `GpuFrameCache`; LUT uploaded from module-level `build_colormap_lut`; zero CPU post-processing after readback.
+  - `vr_pass.rs` — accepts pre-allocated buffers; zero CPU conversion after readback; uses module-level `build_colormap_lut`.
+  - `mod.rs` — `build_colormap_lut` promoted to module level (shared by MIP and VR passes); `GpuVolumeRenderer` adds `mip_cache` + `vr_cache`; volume upload zero-copies single-channel `Arc<Vec<f32>>` slices; multi-channel volumes extracted in parallel via Rayon.
+  - `ritk-snap/Cargo.toml` — added `rayon = { workspace = true }`.
+### Added [minor]
+- 4 new GPU volume tests in `tests_gpu_volume.rs` (total now 10):
+  - `gpu_mip_wl_clamps_below_floor_all_black` — analytically: norm=0 → Grayscale LUT[0] = black.
+  - `gpu_mip_wl_clamps_above_ceiling_all_white` — analytically: norm=1 → Grayscale LUT[255] = white.
+  - `gpu_mip_repeated_render_identical` — frame buffer reuse produces pixel-identical output.
+  - `gpu_vr_repeated_render_identical` — frame buffer reuse produces pixel-identical output.
+
 ## [0.50.42] - 2026-05-19
 ### Added [minor]
 - **GPU VR (Volume Rendering)** (Sprint 271, GAP-262-VIZ-01 VR portion): front-to-back alpha compositing compute pipeline in `ritk-snap::render::gpu_volume`.

@@ -1,8 +1,35 @@
-## Sprint 271 — Complete
+## Sprint 272 — Complete
 **Status**: Complete
-**Phase**: Execution → GPU VR compute shader
-**Version**: 0.50.42 [minor]
-**Goal**: Close GAP-262-VIZ-01 VR portion; implement GPU front-to-back alpha compositing.
+**Phase**: Closure — GPU pipeline performance + memory efficiency
+**Version**: 0.50.43 [minor]
+**Goal**: Optimize GPU MIP/VR pipelines; eliminate CPU post-processing; 4× VR staging buffer reduction; zero-copy single-channel upload; GpuFrameCache buffer reuse.
+
+### Delivered
+- ✓ `mip.wgsl` — WL normalization + LUT applied in-shader; output `array<u32>` packed RGBA via `pack4x8unorm`
+- ✓ `vr.wgsl` — output `array<u32>` packed RGBA via `pack4x8unorm`; **4× staging buffer reduction**
+- ✓ `params.rs` — `RenderParams` extended from 16 → 32 bytes with WL fields
+- ✓ `frame_cache.rs` (new) — `GpuFrameCache` caches output + staging buffers per pass
+- ✓ `mip_pass.rs` — pre-allocated buffers; zero CPU post-processing after readback
+- ✓ `vr_pass.rs` — pre-allocated buffers; zero CPU conversion after readback
+- ✓ `mod.rs` — `build_colormap_lut` at module level; `mip_cache`+`vr_cache`; zero-copy upload; Rayon parallel multi-channel extraction
+- ✓ `ritk-snap/Cargo.toml` — `rayon = { workspace = true }`
+- ✓ `tests_gpu_volume.rs` — 4 new tests (WL boundary ×2, buffer reuse ×2); total 10/10 pass
+- ✓ `cargo check --workspace`: 0 errors, 0 warnings
+- ✓ `cargo test -p ritk-snap --lib render::gpu_volume`: 10 passed
+- ✓ `cargo test -p ritk-core --lib`: 1373 passed
+- ✓ `cargo test -p ritk-io --lib format::dicom::anonymize`: 40 passed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-IO-01 | DICOM networking (DIMSE) | High |
+| GAP-262-VIZ-02 | OIT depth peeling + SSAO (GPU mesh pipeline) | High |
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+
+---
+
+## Sprint 271 — Complete
 
 ### Gaps closed
 | Gap ID | Description | Status |
