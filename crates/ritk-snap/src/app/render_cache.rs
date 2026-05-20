@@ -53,20 +53,25 @@ impl SnapApp {
         let ww = self.viewer_state.window_width.unwrap_or(256.0).max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
-        // ── GPU-accelerated MIP (native only; VR falls through to CPU) ──────
+        // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
         #[cfg(not(target_arch = "wasm32"))]
-        if let ProjectionMode::Mip = self.projection_mode {
-            if let Some(ref mut gpu) = self.gpu_renderer {
-                if let Some(img) = gpu.render_mip(&vol, wl, self.colormap) {
-                    self.mip_tex = Some(ctx.load_texture(
-                        "slice_tex_mip_axial",
-                        img,
-                        egui::TextureOptions::LINEAR,
-                    ));
-                    return;
-                }
-                tracing::warn!("GPU MIP render failed; falling back to CPU path");
+        if let Some(ref mut gpu) = self.gpu_renderer {
+            let gpu_img = match self.projection_mode {
+                ProjectionMode::Mip => gpu.render_mip(&vol, wl, self.colormap),
+                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, 0.06),
+            };
+            if let Some(img) = gpu_img {
+                self.mip_tex = Some(ctx.load_texture(
+                    "slice_tex_mip_axial",
+                    img,
+                    egui::TextureOptions::LINEAR,
+                ));
+                return;
             }
+            tracing::warn!(
+                mode = ?self.projection_mode,
+                "GPU render failed; falling back to CPU path"
+            );
         }
 
         // ── CPU fallback (always available) ──────────────────────────────────

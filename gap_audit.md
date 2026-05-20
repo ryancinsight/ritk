@@ -1,5 +1,30 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 270 Audit — 2026-05-19 — DICOM Anonymization + Python Bindings
+
+### Gaps closed
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-IO-03 | DICOM de-identification/anonymization (PS 3.15 Annex E Basic + Enhanced) | `ritk-io::format::dicom::anonymize` | 40 |
+
+### §A — DICOM Anonymization (GAP-262-IO-03)
+
+**Specification:** DICOM PS 3.15 Annex E "Basic Application Level Confidentiality Profile" defines tag actions (D=Delete, Z=Zero, U=UID remap, K=Keep) for de-identification.
+
+**Implementation:**
+- 70+ tag/action mappings per Annex E Table E.1-1
+- SHA-256 deterministic UID remapping with `2.25.` ISO/IEC 9834-8 UUID arc prefix
+- Configurable patient name/ID replacement and UID salt
+- Basic and Enhanced profiles (Enhanced removes private tags and additional procedure/annotation tags)
+- `AnonymizeResult` with statistics and UID cross-reference map
+
+**Residual Risk:**
+- Private tags require Enhanced profile or explicit `keep_private_tags: false`
+- Nested sequences not recursively anonymized (single-pass limitation)
+- UID salt must be kept secret
+
+---
+
 ## Sprint 269 Audit — 2026-05-19 — GPU Volume MIP Rendering (GAP-262-VIZ-01)
 
 ### Gaps closed

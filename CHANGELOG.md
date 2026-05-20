@@ -3,7 +3,20 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
-## [0.50.41] - 2026-05-19
+## [0.50.42] - 2026-05-19
+### Added [minor]
+- **GPU VR (Volume Rendering)** (Sprint 271, GAP-262-VIZ-01 VR portion): front-to-back alpha compositing compute pipeline in `ritk-snap::render::gpu_volume`.
+  - `vr.wgsl` — WGSL compute shader; per-pixel depth accumulation, 256-entry f32 RGBA colormap LUT, early exit at α ≥ 0.99.
+  - `vr_pass.rs` — `build_colormap_lut`, `render_vr_internal`.
+  - `mip_pass.rs` — extracted `render_mip_internal` (structural refactor; no behaviour change).
+  - `params.rs` — added `VrParams` (32-byte std140 uniform).
+  - `GpuVolumeRenderer::render_vr()` — GPU-first VR path mirroring the MIP interface.
+  - `render_cache.rs` — unified GPU dispatch covers both MIP and VR; CPU fallback retained.
+  - 3 value-semantic VR tests: differential equivalence (±2 u8), transparent-black boundary, non-zero output.
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib render::gpu_volume`: 6 passed (3 MIP + 3 VR), 0 failed
+
 ### Added [minor]
 - **DICOM De-identification/Anonymization** (Sprint 270, GAP-262-IO-03): PS 3.15 Annex E compliant DICOM anonymization in `ritk-io::format::dicom::anonymize`.
   - `AnonymizeOptions` with configurable patient name, ID, UID salt, and profile (Basic/Enhanced).

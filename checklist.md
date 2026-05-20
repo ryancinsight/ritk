@@ -1,4 +1,29 @@
-## Sprint 270 — Complete
+## Sprint 271 — Complete
+**Status**: Complete
+**Phase**: Execution → GPU VR compute shader
+**Version**: 0.50.42 [minor]
+**Target**: Close GAP-262-VIZ-01 VR portion; GPU front-to-back alpha compositing pipeline.
+
+### Checklist items
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/vr.wgsl` — VR compute shader
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/vr_pass.rs` — `build_colormap_lut` + `render_vr_internal`
+- [x] Create `crates/ritk-snap/src/render/gpu_volume/mip_pass.rs` — extract MIP pass (structural refactor)
+- [x] Update `crates/ritk-snap/src/render/gpu_volume/params.rs` — add `VrParams`
+- [x] Update `crates/ritk-snap/src/render/gpu_volume/mod.rs` — `vr_pipeline` + `render_vr()`
+- [x] Update `crates/ritk-snap/src/render/gpu_volume/tests_gpu_volume.rs` — 3 VR tests
+- [x] Update `crates/ritk-snap/src/app/render_cache.rs` — unified GPU dispatch
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO | High | Open |
+| GAP-262-IO-01 — DICOM networking (DIMSE) | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
 **Status**: Complete
 **Phase**: Execution → DICOM Anonymization + Python Bindings
 **Version**: 0.50.41 [minor]
