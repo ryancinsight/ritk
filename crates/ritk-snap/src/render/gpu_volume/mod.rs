@@ -70,8 +70,8 @@ mod tests;
 
 use context::GpuContext;
 use frame_cache::GpuFrameCache;
-use mip_pass::render_mip_internal;
-use vr_pass::render_vr_internal;
+use mip_pass::{collect_mip_result, submit_mip_async};
+use vr_pass::{collect_vr_result, submit_vr_async};
 
 /// Build a 256-entry f32 RGBA colormap LUT for GPU upload.
 ///
@@ -98,11 +98,42 @@ fn build_colormap_lut(colormap: Colormap) -> Vec<f32> {
     lut
 }
 
-/// GPU-accelerated MIP and VR volume renderer.
+/// In-flight GPU readback awaiting `map_async` completion.
+///
+/// Produced by `submit_mip_async` / `submit_vr_async`; consumed by the next
+/// `render_mip` / `render_vr` call once `device.poll(Poll)` drives the
+/// callback to fire.
+struct PendingReadback {
+    /// Receiver fired by the `map_async` callback.
+    ///
+    /// - `Ok(Ok(()))` — GPU done; staging buffer is mapped and safe to read.
+    /// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); retry next cycle.
+    /// - `Err(Disconnected)` — internal error; treat as `map_async` failure.
+    rx: std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
+    /// Expected output dimensions; validated against the collected image.
+    rows: usize,
+    cols: usize,
+}
+
+/// GPU-accelerated MIP and VR volume renderer with non-blocking async readback.
 ///
 /// Owns a wgpu device, queue, compiled compute pipelines for MIP and VR, and
-/// per-pass frame caches that hold pre-allocated GPU output and staging buffers
-/// reused across frames while output dimensions are stable.
+/// per-pass frame caches that hold pre-allocated GPU output, staging, params,
+/// and LUT buffers reused across frames while output dimensions are stable.
+///
+/// # Async readback model
+///
+/// Each `render_mip` / `render_vr` call:
+/// 1. Calls `device.poll(Poll)` — non-blocking; fires any completed callbacks.
+/// 2. If a pending readback is complete, collects the result into `*_last`.
+/// 3. If no readback is in-flight, submits new GPU work and registers
+///    `map_async` (stores `PendingReadback`).
+/// 4. Returns the last completed frame — `None` only on the first call before
+///    any frame has been rendered.
+///
+/// This decouples GPU execution from CPU readback: the render thread is never
+/// blocked waiting for the GPU.  One-frame display latency is acceptable for
+/// interactive medical visualization.
 pub struct GpuVolumeRenderer {
     ctx: GpuContext,
     mip_pipeline: wgpu::ComputePipeline,
@@ -115,10 +146,18 @@ pub struct GpuVolumeRenderer {
     vol_size: Option<[usize; 3]>,
     /// `Arc` raw pointer of the volume's `data` field for change detection.
     vol_data_ptr: Option<usize>,
-    /// Cached output + staging buffers for the MIP pass (reused while cols/rows stable).
+    /// Cached output, staging, params, and LUT buffers for the MIP pass.
     mip_cache: Option<GpuFrameCache>,
-    /// Cached output + staging buffers for the VR pass (reused while cols/rows stable).
+    /// Cached output, staging, params, and LUT buffers for the VR pass.
     vr_cache: Option<GpuFrameCache>,
+    /// In-flight MIP readback awaiting GPU completion.
+    mip_pending: Option<PendingReadback>,
+    /// Last successfully collected MIP frame; `None` before any frame completes.
+    mip_last: Option<egui::ColorImage>,
+    /// In-flight VR readback awaiting GPU completion.
+    vr_pending: Option<PendingReadback>,
+    /// Last successfully collected VR frame; `None` before any frame completes.
+    vr_last: Option<egui::ColorImage>,
 }
 
 impl GpuVolumeRenderer {
@@ -285,6 +324,10 @@ impl GpuVolumeRenderer {
             vol_data_ptr: None,
             mip_cache: None,
             vr_cache: None,
+            mip_pending: None,
+            mip_last: None,
+            vr_pending: None,
+            vr_last: None,
         })
     }
 
@@ -357,11 +400,17 @@ impl GpuVolumeRenderer {
     /// Render a Maximum Intensity Projection (MIP) of `volume` on the GPU.
     ///
     /// WL normalisation and colormap are applied entirely on the GPU.
-    /// Output and staging buffers are reused from `mip_cache` when dimensions
-    /// are unchanged.
+    /// Buffers are reused from `mip_cache` when dimensions are unchanged.
     ///
-    /// Returns `None` when no volume is loaded or a GPU error occurs.
-    /// Callers must fall back to the CPU path on `None`.
+    /// # Async readback behaviour
+    ///
+    /// - Returns `None` on the first call (work submitted, no result yet).
+    /// - Subsequent calls return the last completed frame while the GPU works
+    ///   on the current one (1-frame display latency).
+    /// - The calling thread is never blocked waiting for the GPU.
+    ///
+    /// Returns `None` when no volume is loaded, the GPU is unavailable, or
+    /// no frame has completed yet.  Callers fall back to the CPU path on `None`.
     pub fn render_mip(
         &mut self,
         volume: &LoadedVolume,
@@ -371,37 +420,78 @@ impl GpuVolumeRenderer {
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 
-        // Ensure cached frame buffers are allocated for this output size.
-        // MIP: 1 packed u32 per pixel = 4 bytes per pixel.
+        // Viewport resize: cancel pending readback and reallocate all buffers.
+        // mip_last is also cleared because the cached image has wrong dimensions.
         if self.mip_cache.as_ref().map_or(true, |c| c.rows != rows || c.cols != cols) {
-            self.mip_cache = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
+            self.mip_pending = None;
+            self.mip_last    = None;
+            self.mip_cache   = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
         }
-        let cache = self.mip_cache.as_ref().unwrap();
 
-        render_mip_internal(
-            &self.ctx,
-            &self.mip_pipeline,
-            &self.mip_bgl,
-            self.vol_buffer.as_ref()?,
-            &cache.output_buf,
-            &cache.staging_buf,
-            volume.shape,
-            wl,
-            colormap,
-        )
+        // Non-blocking GPU poll: drives map_async callbacks for any completed work.
+        self.ctx.device.poll(wgpu::Maintain::Poll);
+
+        // Collect any completed readback.
+        if let Some(pending) = self.mip_pending.take() {
+            match pending.rx.try_recv() {
+                Ok(Ok(())) => {
+                    // GPU finished — read the mapped staging buffer.
+                    let img = {
+                        let cache = self.mip_cache.as_ref().unwrap();
+                        collect_mip_result(&cache.staging_buf, pending.rows, pending.cols)
+                    };
+                    self.mip_last = Some(img);
+                    // mip_pending remains None; new work submitted below.
+                }
+                Ok(Err(e)) => {
+                    // map_async failed — log and retry on next cycle.
+                    tracing::warn!(?e, "MIP map_async failed; retrying next render cycle");
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    tracing::warn!("MIP readback channel disconnected unexpectedly");
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    // GPU still executing — restore pending, return cached frame.
+                    self.mip_pending = Some(pending);
+                    return self.mip_last.clone();
+                }
+            }
+        }
+
+        // Submit new GPU work (only when no readback is in-flight).
+        if self.vol_buffer.is_some() {
+            let rx = {
+                let vol_buf = self.vol_buffer.as_ref().unwrap();
+                let cache   = self.mip_cache.as_ref().unwrap();
+                submit_mip_async(
+                    &self.ctx,
+                    &self.mip_pipeline,
+                    &self.mip_bgl,
+                    vol_buf,
+                    cache,
+                    volume.shape,
+                    wl,
+                    colormap,
+                )
+            };
+            self.mip_pending = Some(PendingReadback { rx, rows, cols });
+        }
+
+        self.mip_last.clone()
     }
 
     /// Render a Volume Rendering (VR) projection via front-to-back alpha
     /// compositing on the GPU.
     ///
-    /// `alpha_scale` controls per-voxel opacity contribution. The canonical
+    /// `alpha_scale` controls per-voxel opacity contribution.  The canonical
     /// value used by the application is `0.06`.
     ///
-    /// Output and staging buffers are reused from `vr_cache` when dimensions
-    /// are unchanged; the staging buffer is 4× smaller than the previous
-    /// f32-based layout.
+    /// # Async readback behaviour
     ///
-    /// Returns `None` on GPU error; callers must fall back to the CPU path.
+    /// Same 1-frame latency model as [`render_mip`].  Returns `None` on the
+    /// first call; subsequent calls return the last completed frame.
+    ///
+    /// Returns `None` on GPU error or before any frame completes.
     pub fn render_vr(
         &mut self,
         volume: &LoadedVolume,
@@ -412,24 +502,75 @@ impl GpuVolumeRenderer {
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
 
-        // Ensure cached frame buffers are allocated for this output size.
-        // VR: 1 packed u32 per pixel = 4 bytes per pixel.
+        // Viewport resize: cancel pending readback and reallocate all buffers.
         if self.vr_cache.as_ref().map_or(true, |c| c.rows != rows || c.cols != cols) {
-            self.vr_cache = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
+            self.vr_pending = None;
+            self.vr_last    = None;
+            self.vr_cache   = Some(GpuFrameCache::new(&self.ctx.device, rows, cols, 4));
         }
-        let cache = self.vr_cache.as_ref().unwrap();
 
-        render_vr_internal(
-            &self.ctx,
-            &self.vr_pipeline,
-            &self.vr_bgl,
-            self.vol_buffer.as_ref()?,
-            &cache.output_buf,
-            &cache.staging_buf,
-            volume.shape,
-            wl,
-            colormap,
-            alpha_scale,
-        )
+        // Non-blocking GPU poll.
+        self.ctx.device.poll(wgpu::Maintain::Poll);
+
+        // Collect any completed readback.
+        if let Some(pending) = self.vr_pending.take() {
+            match pending.rx.try_recv() {
+                Ok(Ok(())) => {
+                    let img = {
+                        let cache = self.vr_cache.as_ref().unwrap();
+                        collect_vr_result(&cache.staging_buf, pending.rows, pending.cols)
+                    };
+                    self.vr_last = Some(img);
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!(?e, "VR map_async failed; retrying next render cycle");
+                }
+                Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                    tracing::warn!("VR readback channel disconnected unexpectedly");
+                }
+                Err(std::sync::mpsc::TryRecvError::Empty) => {
+                    self.vr_pending = Some(pending);
+                    return self.vr_last.clone();
+                }
+            }
+        }
+
+        // Submit new GPU work.
+        if self.vol_buffer.is_some() {
+            let rx = {
+                let vol_buf = self.vol_buffer.as_ref().unwrap();
+                let cache   = self.vr_cache.as_ref().unwrap();
+                submit_vr_async(
+                    &self.ctx,
+                    &self.vr_pipeline,
+                    &self.vr_bgl,
+                    vol_buf,
+                    cache,
+                    volume.shape,
+                    wl,
+                    colormap,
+                    alpha_scale,
+                )
+            };
+            self.vr_pending = Some(PendingReadback { rx, rows, cols });
+        }
+
+        self.vr_last.clone()
+    }
+
+    /// Block the calling thread until all in-flight GPU work completes.
+    ///
+    /// Drives `device.poll(Maintain::Wait)` so that any pending `map_async`
+    /// callbacks fire before this function returns.  After this call,
+    /// `mip_pending` and `vr_pending` receivers are guaranteed to have data.
+    ///
+    /// # Test use only
+    ///
+    /// Production code must use `device.poll(Maintain::Poll)` via `render_mip`
+    /// / `render_vr`.  This function exists to give tests deterministic,
+    /// blocking access to GPU results without spinning.
+    #[cfg(test)]
+    pub(super) fn poll_blocking(&mut self) {
+        self.ctx.device.poll(wgpu::Maintain::Wait);
     }
 }
