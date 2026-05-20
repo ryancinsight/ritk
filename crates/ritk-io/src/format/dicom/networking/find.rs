@@ -3,7 +3,7 @@
 use super::association::{AssociationConfig, FindResult, NetworkingError};
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
-    parse_command_response, parse_dataset_ivr_le, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,
+    parse_command_response, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,
     IMPLICIT_VR_LE_TS, NO_DATASET, PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
     STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS,
 };
@@ -56,9 +56,9 @@ pub fn find(
 ) -> Result<Vec<FindResult>, NetworkingError> {
     let mut assoc = ClientAssociationOptions::new()
         .calling_ae_title(config.calling_ae_title.as_str())
-        .called_ae_title(config.remote.ae_title.as_str())
+        .called_ae_title(config.called_ae_title.as_str())
         .with_presentation_context(STUDY_ROOT_FIND_SOP_CLASS, vec![IMPLICIT_VR_LE_TS])
-        .establish(&config.remote.socket_addr())
+        .establish(&format!("{}:{}", config.host, config.port))
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
     let ctx_id = find_ctx_id(&assoc)?;
@@ -123,8 +123,7 @@ pub fn find(
             STATUS_PENDING | STATUS_PENDING_WARN => {
                 if rsp.data_set_type != NO_DATASET {
                     let data_bytes = receive_data_pdv(&mut assoc, ctx_id)?;
-                    let elements = parse_dataset_ivr_le(&data_bytes);
-                    results.push(FindResult { elements });
+                    results.push(FindResult { matches: vec![data_bytes], status: rsp.status });
                 }
             }
             STATUS_SUCCESS | 0xA700 | 0xA900 | 0xC000..=0xCFFF => break,

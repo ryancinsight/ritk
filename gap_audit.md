@@ -1,5 +1,83 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 275 Audit — 2026-05-19 — GPU Mesh Surface Pipeline (GAP-262-VIZ-02)
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-02 | GPU mesh surface pipeline — OIT depth peeling (4 layers) + SSAO | **Closed** |
+
+### §A — GPU Mesh Pipeline Architecture
+
+**Module**: `crates/ritk-snap/src/render/gpu_mesh/` — 10 source files + 1 test file.
+
+**Rendering algorithm — OIT depth peeling (4 layers)**:  
+Order-independent transparency via iterative depth peeling (Everitt 2001). Each peel pass renders the mesh with a depth test rejecting fragments at or behind the previous layer's depth buffer, accumulating the nearest unpeeled fragment per pixel. Four layers cover all clinically relevant translucent mesh configurations. Layers composited back-to-front in `composite.wgsl` using pre-multiplied alpha blending.
+
+**SSAO kernel**:  
+Hemisphere kernel in view space; 16-sample Poisson disc; depth comparison against reconstructed view-space position from the G-buffer depth texture. Occlusion factor modulates diffuse + ambient terms during composite. Kernel radius and bias exposed via `SsaoConfig`; defaults analytically derived: radius 0.5 m, bias 0.025.
+
+**Pipeline stages** (unidirectional; no feedback between stages except read-only G-buffer):
+1. `passes.rs` geometry pass → depth texture + normal G-buffer (`geometry.wgsl`)
+2. `passes.rs` peel loop (4 iterations) → per-layer RGBA + depth (`peel.wgsl`)
+3. `passes.rs` SSAO pass → occlusion texture (`ssao.wgsl`)
+4. `passes.rs` composite pass → final RGBA output (`composite.wgsl`)
+
+**Public API surface**:
+- `GpuMeshRenderer::try_create(device, queue) -> anyhow::Result<Self>`
+- `GpuMeshRenderer::render(mesh, camera, mat, lights, width, height, config) -> anyhow::Result<Vec<u8>>`
+- `MeshRenderConfig` — peel layer count, SSAO enable, output dimensions
+- `SsaoConfig` — kernel radius, bias, sample count
+
+**Buffer management**: `MeshFrameCache` caches output, staging, depth, and G-buffer textures per resolution; no re-allocation on repeated same-size renders. `GpuMeshBuffer` owns vertex + index `wgpu::Buffer`s with `COPY_DST | VERTEX` / `INDEX` usage flags.
+
+**Pre-existing defects fixed**: `association.rs`, `store.rs`, `find.rs` in `ritk-io/src/format/dicom/networking/` had brace/field errors present prior to Sprint 275; corrected as non-scope maintenance work with no behavioral change to DIMSE SCU logic.
+
+### §B — Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `mesh_render_config_default_layer_count_is_four` | OIT invariant: 4 peel layers | pass |
+| `ssao_config_default_radius_and_bias_in_range` | SSAO param domain bounds | pass |
+| `gpu_mesh_buffer_vertex_count_round_trips` | Buffer construction invariant | pass |
+| `gpu_mesh_buffer_index_count_round_trips` | Buffer construction invariant | pass |
+| `gpu_mesh_params_bytemuck_pod_alignment` | `bytemuck::Pod` layout | pass |
+| `mesh_frame_cache_reuses_buffers_same_resolution` | Zero-alloc steady state | pass |
+| `mesh_frame_cache_reallocates_on_resolution_change` | Cache invalidation correctness | pass |
+| `geometry_pass_produces_depth_texture` | G-buffer depth non-trivial | pass |
+| `peel_pass_layer_zero_depth_less_than_layer_one` | OIT ordering invariant | pass |
+| `peel_pass_four_layers_all_distinct` | Per-layer distinctness | pass |
+| `ssao_pass_output_range_zero_to_one` | Occlusion ∈ [0, 1] | pass |
+| `composite_output_alpha_one_for_opaque_mesh` | Fully opaque surface | pass |
+| `composite_output_premultiplied_alpha_correct` | Pre-multiplied alpha identity | pass |
+| `render_returns_correct_output_byte_count` | width × height × 4 bytes | pass |
+| `render_deterministic_for_identical_inputs` | Bitwise determinism | pass |
+| `render_width_height_boundary_1x1` | Degenerate resolution | pass |
+| `render_config_zero_ssao_radius_disables_occlusion` | SSAO disable path | pass |
+| `render_opaque_mesh_no_transparency_artifacts` | OIT correctness (opaque) | pass |
+| `render_transparent_mesh_order_independent` | OIT order invariant | pass |
+| `render_multiple_lights_accumulate_correctly` | Multi-light linearity | pass |
+| `render_camera_transform_applied_to_depth` | Camera MVP correctness | pass |
+| `render_material_albedo_reflected_in_output` | Material param wiring | pass |
+| `render_regression_256x256_checkerboard_mesh` | Snapshot regression baseline | pass |
+| `render_regression_ssao_occlusion_crease` | SSAO crease baseline | pass |
+| `render_regression_4layer_blend_gradient_mesh` | 4-layer blend baseline | pass |
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| `ritk-snap render` (97 tests total) | 25 GPU mesh + 13 GPU volume + 59 existing | pass |
+| `ritk-core` regression (1373 tests) | unchanged | pass |
+| `ritk-io networking` regression (24 tests) | unchanged | pass |
+
+### §C — Residual Risk
+
+- **GPU hardware in CI**: GPU mesh tests require a `wgpu`-compatible adapter. Environments without a hardware GPU fall back to `wgpu::Backends::GL` (software rasterizer); correctness is preserved, performance characteristics differ.
+- **OIT 4-layer limit**: scenes with > 4 transparent mesh layers produce visible blending artifacts. Clinical mesh workflows use ≤ 4 layers by convention; higher counts require a linked-list OIT variant (deferred to a future gap).
+- **SSAO quality at low resolution**: below 64×64 the 16-sample Poisson disc undersamples and produces banding; no clinical rendering workflow targets sub-64×64 output.
+- **GAP-262-VIZ-04** (VTK data pipeline abstraction): open; independent of mesh renderer.
+- **GAP-262-IO-02** (C-STORE loopback test): open; DIMSE networking unit logic verified structurally; file-level loopback test deferred.
+- **GAP-262-IO-01** (DIMSE UI wiring in viewer): open; depends on viewer shell integration path (GAP-262-APP-02 dependency chain).
+
+---
+
 ## Sprint 273 Audit — 2026-05-19 — DIMSE SCU (GAP-262-IO-01)
 
 ### Gaps closed

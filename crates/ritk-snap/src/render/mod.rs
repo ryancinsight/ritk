@@ -18,6 +18,8 @@ pub mod mip_vr;
 pub mod slice_render;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod gpu_volume;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod gpu_mesh;
 
 pub(crate) use buffer_pool::RenderBufferPool;
 pub use colormap::Colormap;
@@ -26,3 +28,5 @@ pub use histogram::{compute_histogram, histogram_bin_center, histogram_peak_coun
 pub use mesh_render::{DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
 pub use mip_vr::{render_mip_axial, render_vr_axial};
 pub use slice_render::{SliceRenderer, WindowLevel};
+#[cfg(not(target_arch = "wasm32"))]
+pub use gpu_mesh::{GpuMeshRenderer, MeshRenderConfig, SsaoConfig};

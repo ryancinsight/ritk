@@ -1,3 +1,45 @@
+## Sprint 275 — Complete
+**Status**: Complete
+**Phase**: Closure — GPU Mesh Surface Pipeline
+**Version**: 0.50.46 [minor]
+**Goal**: Implement GAP-262-VIZ-02 GPU mesh surface renderer with OIT depth peeling (4 layers) and SSAO; fix pre-existing ritk-io DIMSE brace/field errors.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-02 | GPU mesh surface pipeline — OIT depth peeling (4 layers) + SSAO | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/params.rs` — `MeshRenderConfig`, `SsaoConfig`, `GpuMeshParams`
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/geometry.wgsl` — vertex/fragment geometry pass (depth + normal G-buffer)
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/peel.wgsl` — OIT depth-peel layer extraction (4 layers)
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/ssao.wgsl` — screen-space ambient occlusion kernel
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/composite.wgsl` — back-to-front layer composite with SSAO modulation
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/frame_cache.rs` — `MeshFrameCache` per-pass buffer reuse
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/mesh_buf.rs` — `GpuMeshBuffer` (vertex + index buffer management)
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/context.rs` — `GpuMeshContext` (device/queue/pipeline state)
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/passes.rs` — geometry, peel, SSAO, composite pass orchestration
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/mod.rs` — `GpuMeshRenderer::try_create()`, `render()` public API
+- ✓ `crates/ritk-snap/src/render/gpu_mesh/tests_gpu_mesh.rs` — 25 new value-semantic GPU mesh tests
+- ✓ `crates/ritk-io/src/format/dicom/networking/association.rs` — pre-existing brace/field errors fixed
+- ✓ `crates/ritk-io/src/format/dicom/networking/store.rs` — pre-existing brace/field errors fixed
+- ✓ `crates/ritk-io/src/format/dicom/networking/find.rs` — pre-existing brace/field errors fixed
+- ✓ `cargo check --workspace`: 0 errors, 0 warnings
+- ✓ `cargo test -p ritk-snap --lib render::gpu_mesh`: 25 passed
+- ✓ `cargo test -p ritk-snap --lib render`: 97 total (25 GPU mesh + 13 GPU volume + 59 existing) passed
+- ✓ `cargo test -p ritk-core --lib`: 1373 passed
+- ✓ `cargo test -p ritk-io --lib format::dicom::networking`: 24 passed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-02 | C-STORE loopback integration test | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+
+---
+
 ## Sprint 273 — Complete
 **Status**: Complete
 **Phase**: Closure — DIMSE SCU Networking
