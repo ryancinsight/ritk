@@ -3,6 +3,24 @@
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
+## [0.50.44] - 2026-05-19
+
+### Added [minor]
+
+- **DIMSE SCU** (Sprint 273, GAP-262-IO-01): `ritk-io::format::dicom::networking` module.
+  - `AeTitle` — validated DICOM AE title newtype (1–16 printable ASCII, no backslash, no control chars; PS3.7 §7.1.3).
+  - `DicomAddress` — remote endpoint: host, port, called AE title.
+  - `AssociationConfig` — SCU configuration with connect + read timeouts.
+  - `echo(config)` — C-ECHO SCU (PS3.4 §A.5): verifies PACS connectivity; returns `EchoResponse { status: u16 }`.
+  - `find(config, query)` — C-FIND SCU (PS3.4 §C.4.1): Study Root QR query; returns `Vec<FindResult>`; `FindQuery` builder with `FindLevel` (Patient/Study/Series/Image).
+  - `store(config, path)` — C-STORE SCU (PS3.4 §B): sends a DICOM file to PACS; re-encodes as EVLE; fragmented PDV transmission.
+  - `retrieve(config, dest, uid)` — C-MOVE SCU (PS3.4 §C.4.2): Study-level retrieval; returns `MoveResponse { completed, failed, warning, final_status }`.
+  - All encoding: Implicit VR Little Endian for command PDVs; Explicit VR Little Endian for C-STORE datasets.
+  - Transport: `dicom-ul = "0.8"` Upper Layer Protocol (RFC-like TCP association + PDU framing).
+  - 24 value-semantic tests: 8 unit tests (AeTitle, encode_ui/us/str, command round-trip, dataset parse), 3 loopback integration tests (C-ECHO, C-FIND, C-MOVE with real `dicom_ul::ServerAssociationOptions` SCP).
+  - Re-exported from `ritk-io`: `AeTitle`, `AssociationConfig`, `DicomAddress`, `EchoResponse`, `FindLevel`, `FindQuery`, `FindResult`, `MoveDestination`, `MoveResponse`, `NetworkingError`, `StoreResponse`, `dicom_echo`, `dicom_find`, `dicom_retrieve`, `dicom_store`.
+  - `dicom-ul = "0.8"` added to workspace and `ritk-io` dependencies.
+
 ## [0.50.43] - 2026-05-19
 ### Changed [minor]
 - **GPU pipeline performance optimizations** (Sprint 272): applied across `ritk-snap::render::gpu_volume`.

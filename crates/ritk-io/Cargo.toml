@@ -19,6 +19,7 @@ ritk-tiff = { workspace = true }
 ritk-minc = { workspace = true }
 dicom = { workspace = true }
 dicom-core = { workspace = true }
+dicom-ul = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

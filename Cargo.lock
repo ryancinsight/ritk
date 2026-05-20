@@ -2385,6 +2385,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dicom-ul"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96af12961f5e98687dba1b452f6facd3d5322d2440f5b6f6954859ff940b9ba0"
+dependencies = [
+ "byteordered",
+ "bytes",
+ "dicom-encoding",
+ "dicom-transfer-syntax-registry",
+ "snafu",
+ "tracing",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6437,6 +6451,7 @@ dependencies = [
  "dicom-core",
  "dicom-pixeldata",
  "dicom-transfer-syntax-registry",
+ "dicom-ul",
  "flate2",
  "gaia",
  "image 0.24.9",

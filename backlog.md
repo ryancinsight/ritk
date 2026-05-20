@@ -1,3 +1,41 @@
+## Sprint 273 — Complete
+**Status**: Complete
+**Phase**: Closure — DIMSE SCU Networking
+**Version**: 0.50.44 [minor]
+**Goal**: Implement GAP-262-IO-01 DIMSE Service Class User: C-ECHO, C-FIND, C-STORE, C-MOVE against a standard PACS using `dicom-ul = "0.8"`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-IO-01 | DICOM networking — DIMSE SCU (C-ECHO/C-FIND/C-STORE/C-MOVE) | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-io/src/format/dicom/networking/association.rs` — `AeTitle`, `DicomAddress`, `AssociationConfig`, `NetworkingError`, response types
+- ✓ `crates/ritk-io/src/format/dicom/networking/command.rs` — IVR-LE encoding/decoding, DIMSE constants
+- ✓ `crates/ritk-io/src/format/dicom/networking/echo.rs` — C-ECHO SCU + `find_ctx_id`, `receive_command_pdv`, `receive_data_pdv` helpers
+- ✓ `crates/ritk-io/src/format/dicom/networking/find.rs` — C-FIND SCU with `FindLevel`, `FindQuery`
+- ✓ `crates/ritk-io/src/format/dicom/networking/store.rs` — C-STORE SCU with fragmented PDV transmission
+- ✓ `crates/ritk-io/src/format/dicom/networking/move_.rs` — C-MOVE SCU with `MoveDestination`, progress accumulation
+- ✓ `crates/ritk-io/src/format/dicom/networking/mod.rs` — module re-exports
+- ✓ `crates/ritk-io/src/format/dicom/networking/tests_dimse.rs` — 24 value-semantic tests (loopback SCP)
+- ✓ `crates/ritk-io/src/format/dicom/mod.rs` — `pub mod networking` + re-exports
+- ✓ `crates/ritk-io/src/lib.rs` — networking re-exports
+- ✓ `Cargo.toml` (workspace) — `dicom-ul = "0.8"`
+- ✓ `crates/ritk-io/Cargo.toml` — `dicom-ul = { workspace = true }`
+- ✓ `cargo check --workspace`: 0 errors, 0 warnings
+- ✓ `cargo test -p ritk-io --lib format::dicom::networking`: 24 passed
+- ✓ `cargo test -p ritk-core --lib`: 1373 passed
+- ✓ `cargo test -p ritk-io --lib format::dicom::anonymize`: 40 passed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-02 | OIT depth peeling + SSAO (GPU mesh pipeline) | High |
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+
+---
+
 ## Sprint 272 — Complete
 **Status**: Complete
 **Phase**: Closure — GPU pipeline performance + memory efficiency

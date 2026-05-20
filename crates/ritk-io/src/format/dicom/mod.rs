@@ -28,6 +28,7 @@ mod rt_struct;
 mod seg;
 mod sop_class;
 mod transfer_syntax;
+pub mod networking;
 mod writer;
 mod writer_object;
 
@@ -61,6 +62,11 @@ pub use seg::{
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
+pub use networking::
+    {echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve,
+    store as dicom_store, AeTitle, AssociationConfig, DicomAddress, EchoResponse,
+    FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse, NetworkingError,
+    StoreResponse};
 
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]

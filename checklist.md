@@ -1,3 +1,36 @@
+## Sprint 273 — Complete
+**Status**: Complete
+**Phase**: Closure — DIMSE SCU Networking
+**Version**: 0.50.44 [minor]
+**Target**: Close GAP-262-IO-01 (DIMSE C-ECHO/C-FIND/C-STORE/C-MOVE using dicom-ul 0.8).
+
+### Checklist items
+- [x] Create `crates/ritk-io/src/format/dicom/networking/association.rs` — types, errors, response structs
+- [x] Create `crates/ritk-io/src/format/dicom/networking/command.rs` — IVR-LE encode/decode, DIMSE constants
+- [x] Create `crates/ritk-io/src/format/dicom/networking/echo.rs` — C-ECHO SCU + PDV helpers
+- [x] Create `crates/ritk-io/src/format/dicom/networking/find.rs` — C-FIND SCU (`FindLevel`, `FindQuery`)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/store.rs` — C-STORE SCU (fragmented PDV)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/move_.rs` — C-MOVE SCU (`MoveDestination`, progress)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/mod.rs` — module declaration + re-exports
+- [x] Create `crates/ritk-io/src/format/dicom/networking/tests_dimse.rs` — 24 value-semantic tests
+- [x] Update `crates/ritk-io/src/format/dicom/mod.rs` — add `pub mod networking` + `pub use networking::...`
+- [x] Update `crates/ritk-io/src/lib.rs` — networking re-exports
+- [x] Update `Cargo.toml` (workspace) — add `dicom-ul = "0.8"`
+- [x] Update `crates/ritk-io/Cargo.toml` — add `dicom-ul = { workspace = true }`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 24 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib` — 1373 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::anonymize` — 40 passed, 0 failed
+
+### Gaps remaining
+| Task | Priority | Status |
+|---|---|---|
+| GAP-262-VIZ-02 — OIT depth peeling + SSAO | High | Open |
+| GAP-262-VIZ-04 — VTK data pipeline abstraction | High | Open |
+| GAP-262-APP-02 — AI inference endpoint | Medium | Open |
+
+---
+
 ## Sprint 272 — Complete
 **Status**: Complete
 **Phase**: Closure — GPU pipeline performance + memory efficiency

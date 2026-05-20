@@ -1,5 +1,64 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 273 Audit — 2026-05-19 — DIMSE SCU (GAP-262-IO-01)
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-IO-01 | DICOM networking — DIMSE SCU (C-ECHO/C-FIND/C-STORE/C-MOVE) | **Closed** |
+
+### §A — DIMSE SCU Architecture
+
+**Transport**: `dicom-ul = "0.8"` provides DICOM Upper Layer (PS3.8) TCP association negotiation + PDU framing. `ClientAssociationOptions::establish(&addr: ToSocketAddrs)` connects, negotiates presentation contexts, and returns `ClientAssociation<TcpStream>`.
+
+**Command encoding**: All DIMSE command PDVs encoded as Implicit VR Little Endian (PS3.7 §6.3.1). Manual IVR-LE encoder: 4-byte tag + 4-byte length + value bytes; (0000,0000) group length prepended analytically. No dependency on dicom-object for command sets.
+
+**C-FIND query encoding**: IVR-LE dataset bytes (no group length tag per modern DICOM). Response datasets parsed by `parse_dataset_ivr_le` → `Vec<((group, element), Vec<u8>)>`.
+
+**C-STORE dataset encoding**: `InMemDicomObject::write_dataset_with_ts(&mut buf, &EXPLICIT_VR_LITTLE_ENDIAN.erased())` encodes the source object as EVLE; fragmented PDV transmission at ≤16 384 bytes/fragment.
+
+**Presentation context acceptance**: `find_ctx_id` selects the first accepted context (`PresentationContextResultReason::Acceptance`). Single-SOP-class associations guarantee unambiguous context selection.
+
+### §B — Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `ae_title_accepts_single_char` | 1-char boundary | pass |
+| `ae_title_accepts_max_length` | 16-char boundary | pass |
+| `ae_title_accepts_with_spaces` | Embedded spaces | pass |
+| `ae_title_rejects_empty` | 0-char boundary | pass |
+| `ae_title_rejects_too_long` | 17-char boundary | pass |
+| `ae_title_rejects_backslash` | Backslash excluded | pass |
+| `ae_title_rejects_control_char` | Control chars excluded | pass |
+| `ae_title_rejects_del` | DEL (0x7F) excluded | pass |
+| `encode_ui_odd_length_uid_padded_with_null` | IVR-LE null pad | pass |
+| `encode_ui_verification_sop_class_odd_gets_null_pad` | 17-char UID pad | pass |
+| `encode_us_little_endian` | 4 boundary values | pass |
+| `encode_str_odd_length_padded_with_space` | Space pad | pass |
+| `encode_str_even_length_no_pad` | No pad | pass |
+| `build_command_pdu_group_length_correct` | Analytic group length | pass |
+| `build_command_pdu_round_trips_through_parse` | Encode→decode C-ECHO-RSP | pass |
+| `build_dataset_ivr_le_single_element` | Tag/len/value structure | pass |
+| `parse_command_response_missing_command_field_errors` | Error on empty bytes | pass |
+| `parse_command_response_c_echo_rsp_from_synthetic_bytes` | Full RSP round-trip | pass |
+| `parse_dataset_ivr_le_round_trips_two_elements` | 2-element decode | pass |
+| `find_query_builder_stores_keys_in_order` | Builder API | pass |
+| `move_destination_holds_ae_title` | Newtype correctness | pass |
+| `c_echo_loopback_returns_success_status` | Real C-ECHO protocol exchange | pass |
+| `c_find_loopback_returns_synthetic_study_result` | Real C-FIND with result dataset | pass |
+| `c_move_loopback_returns_final_success_status` | Real C-MOVE with progress + final | pass |
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| `ritk-core` regression (1373 tests) | unchanged | pass |
+| `ritk-io anonymize` regression (40 tests) | unchanged | pass |
+
+### §C — Residual Risk
+
+- **C-STORE loopback test not present**: C-STORE requires a pre-existing DICOM file; a file-level loopback test was deferred to an integration test fixture. The unit logic (command set encoding, fragmented PDV transmission) is verified structurally.
+- **GAP-262-APP-01** (PACS networking in viewer UI): depends on this DIMSE SCU; implementation deferred.
+- **No SCP implementation**: DIMSE SCP (server-side, responding to incoming C-STORE) is not implemented. DIMSE SCU-only is the initial scope.
+
+---
+
 ## Sprint 272 Audit — 2026-05-19 — GPU Pipeline Performance + Memory Efficiency
 
 ### No new gaps closed

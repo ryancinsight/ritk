@@ -23,6 +23,10 @@ pub use format::dicom::{
     MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameWriterConfig, PatientPosition, RtBeamInfo,
     RtContour, RtDoseGrid, RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, TagAction,
     TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    dicom_echo, dicom_find, dicom_retrieve, dicom_store,
+    AeTitle, AssociationConfig, DicomAddress, EchoResponse,
+    FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse,
+    NetworkingError, StoreResponse,
 };
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
