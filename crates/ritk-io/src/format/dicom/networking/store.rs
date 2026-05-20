@@ -1,6 +1,7 @@
 //! C-STORE SCU — DICOM Storage Service Class (PS3.4 §B).
 
-use super::association::{AssociationConfig, NetworkingError, StoreResponse};
+use super::association::{NetworkingError, StoreResponse};
+use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, encode_ui, encode_us, parse_command_response, C_STORE_RQ, C_STORE_RSP,
     EXPLICIT_VR_LE_TS, HAS_DATASET, PRIORITY_MEDIUM,

@@ -17,6 +17,7 @@
 //! barycentre.  For λ = 0, the mesh is unchanged.  The topology (connectivity)
 //! is preserved; only vertex coordinates change.
 
+use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::VtkDataObject;
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::Result;
@@ -28,22 +29,74 @@ use std::collections::HashSet;
 /// average position of its edge-neighbours.
 #[derive(Debug, Clone)]
 pub struct SmoothFilter {
-    /// Relaxation factor λ ∈ (0, 1].  Default: 0.5.
-    pub relaxation_factor: f32,
-    /// Number of Laplacian smoothing iterations.  Default: 20.
-    pub iterations: usize,
+    /// Relaxation factor λ ∈ (0, 1]. Default: 0.5.
+    relaxation_factor: f32,
+    /// Number of Laplacian smoothing iterations. Default: 20.
+    iterations: usize,
+    /// Modification timestamp; bumped on any parameter change.
+    mtime: ModifiedTime,
+}
+
+impl SmoothFilter {
+    /// Construct a new smoothing filter with the given parameters.
+    pub fn new(relaxation_factor: f32, iterations: usize) -> Self {
+        Self {
+            relaxation_factor,
+            iterations,
+            mtime: ModifiedTime::tick(),
+        }
+    }
+
+    /// Set the relaxation factor λ.
+    ///
+    /// Bumps the modification time so that downstream pipeline stages
+    /// detect the parameter change.
+    pub fn set_relaxation_factor(&mut self, lambda: f32) {
+        self.relaxation_factor = lambda;
+        self.modified();
+    }
+
+    /// Set the number of Laplacian smoothing iterations.
+    ///
+    /// Bumps the modification time so that downstream pipeline stages
+    /// detect the parameter change.
+    pub fn set_iterations(&mut self, n: usize) {
+        self.iterations = n;
+        self.modified();
+    }
+
+    /// Returns the relaxation factor λ.
+    pub fn relaxation_factor(&self) -> f32 {
+        self.relaxation_factor
+    }
+
+    /// Returns the number of smoothing iterations.
+    pub fn iterations(&self) -> usize {
+        self.iterations
+    }
 }
 
 impl Default for SmoothFilter {
     fn default() -> Self {
-        Self {
-            relaxation_factor: 0.5,
-            iterations: 20,
-        }
+        Self::new(0.5, 20)
+    }
+}
+
+impl Modifiable for SmoothFilter {
+    fn get_mtime(&self) -> ModifiedTime {
+        self.mtime
+    }
+
+    fn modified(&mut self) {
+        self.mtime = ModifiedTime::tick();
     }
 }
 
 impl VtkFilter for SmoothFilter {
+    fn mtime(&self) -> ModifiedTime {
+        self.get_mtime()
+    }
+
     fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject> {
         match input {
             VtkDataObject::PolyData(mut poly) => {
@@ -136,10 +189,7 @@ mod tests {
 
     #[test]
     fn zero_iterations_leaves_points_unchanged() {
-        let f = SmoothFilter {
-            relaxation_factor: 0.5,
-            iterations: 0,
-        };
+        let f = SmoothFilter::new(0.5, 0);
         let original = triangle();
         let out = f
             .execute(VtkDataObject::PolyData(original.clone()))
@@ -155,10 +205,7 @@ mod tests {
         // Triangle [0,0,0], [1,0,0], [0.5,1,0], polygon [0,1,2].
         // adj[0] = {1, 2}: mean = ([1,0,0]+[0.5,1,0])/2 = [0.75, 0.5, 0]
         // v0' = 0.5*[0,0,0] + 0.5*[0.75,0.5,0] = [0.375, 0.25, 0]
-        let f = SmoothFilter {
-            relaxation_factor: 0.5,
-            iterations: 1,
-        };
+        let f = SmoothFilter::new(0.5, 1);
         let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
         let VtkDataObject::PolyData(p) = out else { panic!() };
         let v0 = p.points[0];
@@ -182,10 +229,7 @@ mod tests {
     #[test]
     fn relaxation_factor_one_snaps_fully_to_mean() {
         // λ=1 → v_i' = mean(neighbors(v_i)) after 1 iteration.
-        let f = SmoothFilter {
-            relaxation_factor: 1.0,
-            iterations: 1,
-        };
+        let f = SmoothFilter::new(1.0, 1);
         let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
         let VtkDataObject::PolyData(p) = out else { panic!() };
         let v0 = p.points[0];
@@ -237,10 +281,7 @@ mod tests {
             polygons: vec![vec![1, 2, 3]], // only connects 1,2,3
             ..Default::default()
         };
-        let f = SmoothFilter {
-            relaxation_factor: 0.5,
-            iterations: 50,
-        };
+        let f = SmoothFilter::new(0.5, 50);
         let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
         let VtkDataObject::PolyData(p) = out else { panic!() };
         let iso = p.points[0];
@@ -250,6 +291,30 @@ mod tests {
                 && (iso[2] - 5.0).abs() < 1e-5,
             "isolated vertex must not move: got {:?}",
             iso
-        );
-    }
+            );
+            }
+
+            #[test]
+        fn test_smooth_filter_parameter_change_triggers_rerun() {
+            let mut sf = SmoothFilter::new(0.5, 20);
+            let mtime_before = sf.get_mtime();
+
+            sf.set_relaxation_factor(0.8);
+            let mtime_after_relax = sf.get_mtime();
+            assert!(
+                mtime_after_relax > mtime_before,
+                "set_relaxation_factor must bump mtime: before={}, after={}",
+                mtime_before.value(),
+                mtime_after_relax.value()
+            );
+
+            sf.set_iterations(5);
+            let mtime_after_iters = sf.get_mtime();
+            assert!(
+                mtime_after_iters > mtime_after_relax,
+                "set_iterations must bump mtime: before={}, after={}",
+                mtime_after_relax.value(),
+                mtime_after_iters.value()
+            );
+        }
 }

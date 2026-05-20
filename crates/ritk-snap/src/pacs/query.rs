@@ -19,6 +19,7 @@ use ritk_io::{FindLevel, FindQuery, MoveResponse};
 /// | Tag          | Attribute                           |
 /// |--------------|-------------------------------------|
 /// | (0008,0020)  | StudyDate                           |
+/// | (0008,0050)  | AccessionNumber                     |
 /// | (0008,0060)  | Modality                            |
 /// | (0008,1030)  | StudyDescription                    |
 /// | (0010,0010)  | PatientName                         |
@@ -41,6 +42,7 @@ pub struct FindResultRow {
     pub study_date: String,
     pub study_description: String,
     pub modality: String,
+    pub accession_number: String,
     pub study_instance_uid: String,
     pub num_series: String,
     pub num_instances: String,
@@ -75,6 +77,7 @@ impl FindResultRow {
             study_date:         get(0x0008, 0x0020),
             study_description:  get(0x0008, 0x1030),
             modality:           get(0x0008, 0x0060),
+            accession_number:   get(0x0008, 0x0050),
             study_instance_uid: get(0x0020, 0x000D),
             num_series:         get(0x0020, 0x1206),
             num_instances:      get(0x0020, 0x1208), // NumberOfStudyRelatedInstances (study scope)
@@ -85,17 +88,21 @@ impl FindResultRow {
     ///
     /// `patient_name` accepts DICOM wildcard characters (`*`, `?`).
     /// An empty `modality` string requests all modalities (key set to `""`).
+    /// `study_date` accepts DICOM date range format (`YYYYMMDD-YYYYMMDD`,
+    /// `YYYYMMDD-`, `-YYYYMMDD`); empty string = return all dates.
+    /// `accession_number` is an exact-match filter; empty string = all.
     ///
-    /// Return keys cover all eight attributes decoded by [`FindResultRow::from_raw_bytes`].
-    pub fn build_study_query(patient_name: &str, modality: &str) -> FindQuery {
+    /// Return keys cover all nine attributes decoded by [`FindResultRow::from_raw_bytes`].
+    pub fn build_study_query(patient_name: &str, modality: &str, study_date: &str, accession_number: &str) -> FindQuery {
         let mut q = FindQuery::new(FindLevel::Study)
-            .with_key(0x0010, 0x0010, patient_name) // PatientName (filter / return)
-            .with_key(0x0010, 0x0020, "")            // PatientID (return)
-            .with_key(0x0008, 0x0020, "")            // StudyDate (return)
-            .with_key(0x0008, 0x1030, "")            // StudyDescription (return)
-            .with_key(0x0020, 0x000D, "")            // StudyInstanceUID (return)
-            .with_key(0x0020, 0x1206, "")            // NumberOfStudyRelatedSeries (return)
-            .with_key(0x0020, 0x1208, "");           // NumberOfStudyRelatedInstances (return)
+            .with_key(0x0010, 0x0010, patient_name)     // PatientName (filter / return)
+            .with_key(0x0010, 0x0020, "")                // PatientID (return)
+            .with_key(0x0008, 0x0020, study_date)        // StudyDate (range filter if non-empty; return key)
+            .with_key(0x0008, 0x0050, accession_number)  // AccessionNumber (filter / return)
+            .with_key(0x0008, 0x1030, "")                // StudyDescription (return)
+            .with_key(0x0020, 0x000D, "")                // StudyInstanceUID (return)
+            .with_key(0x0020, 0x1206, "")                // NumberOfStudyRelatedSeries (return)
+            .with_key(0x0020, 0x1208, "");               // NumberOfStudyRelatedInstances (return)
         if modality.is_empty() {
             q = q.with_key(0x0008, 0x0060, ""); // return all modalities
         } else {
@@ -113,9 +120,15 @@ pub enum PacsRequest {
     /// C-ECHO connectivity verification (PS 3.4 §A.5).
     Echo,
     /// C-FIND study-level query (Study Root Query/Retrieve, PS 3.4 §C.4.1).
+    ///
+    /// `study_date` — DICOM date range format (`YYYYMMDD-YYYYMMDD`, `YYYYMMDD-`,
+    /// `-YYYYMMDD`); empty string means no date filter (return all).
+    /// `accession_number` — exact-match filter; empty string = all.
     FindStudies {
         patient_name: String,
         modality: String,
+        study_date: String,
+        accession_number: String,
     },
     /// C-MOVE study retrieval to a configured destination AE (PS 3.4 §C.4.2).
     ///

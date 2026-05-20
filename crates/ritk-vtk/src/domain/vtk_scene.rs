@@ -7,6 +7,18 @@
 
 use crate::domain::vtk_data_object::VtkDataObject;
 
+/// Visibility state for VTK scene actors and overlays.
+///
+/// Replaces bare `bool` to eliminate call-site boolean blindness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Visibility {
+    /// The object is hidden (not rendered).
+    #[default]
+    Hidden,
+    /// The object is visible (rendered).
+    Visible,
+}
+
 /// Rendering display properties for a VTK actor.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderProperties {
@@ -33,7 +45,7 @@ pub struct VtkActor {
     pub name: String,
     pub data: VtkDataObject,
     pub properties: RenderProperties,
-    pub visible: bool,
+    pub visible: Visibility,
 }
 
 impl VtkActor {
@@ -42,14 +54,14 @@ impl VtkActor {
             name: name.into(),
             data,
             properties: RenderProperties::default(),
-            visible: true,
+            visible: Visibility::Visible,
         }
     }
     pub fn with_properties(mut self, props: RenderProperties) -> Self {
         self.properties = props;
         self
     }
-    pub fn with_visible(mut self, visible: bool) -> Self {
+    pub fn with_visible(mut self, visible: Visibility) -> Self {
         self.visible = visible;
         self
     }

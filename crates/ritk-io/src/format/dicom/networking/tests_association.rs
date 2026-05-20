@@ -1,8 +1,8 @@
 //! Association unit tests (extracted from association.rs per 500-line structural limit).
 
-use crate::format::dicom::networking::association::{
-    Association, AssociationConfig, NegotiatedContext, RequestedPresentationContext,
-    transfer_syntax,
+use crate::format::dicom::networking::association::Association;
+use crate::format::dicom::networking::context::{
+    AssociationConfig, NegotiatedContext, RequestedPresentationContext, transfer_syntax,
 };
 use crate::format::dicom::networking::dimse::sop_class;
 use crate::format::dicom::networking::pdu::{

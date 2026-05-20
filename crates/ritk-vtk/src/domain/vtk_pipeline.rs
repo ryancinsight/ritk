@@ -15,9 +15,10 @@
 //!
 //! # Modification-Time Re-execution Invariant
 //!
-//! Given pipeline P with output mtime M_out and dependency mtime M_dep,
-//! P must re-execute iff M_dep > M_out. When M_dep ≤ M_out, the cached output
-//! is valid and `execute_if_needed` returns `Ok(None)`.
+//! Given pipeline P with output mtime M_out and the maximum mtime M_dep of
+//! its source and filter stages, P must re-execute iff M_dep > M_out.
+//! When M_dep ≤ M_out, the cached output is valid and `execute_if_needed`
+//! returns `Ok(None)`.
 //!
 //! # Event Notification Invariant
 //!
@@ -33,6 +34,15 @@ use anyhow::Result;
 pub trait VtkSource: Send + Sync {
     /// Generate the initial data object.
     fn produce(&self) -> Result<VtkDataObject>;
+
+    /// Returns the modification time of this source.
+    ///
+    /// The default implementation returns `ModifiedTime::ZERO`, meaning the
+    /// source never forces re-execution through its own mtime. Sources that
+    /// can change after construction must override this.
+    fn mtime(&self) -> ModifiedTime {
+        ModifiedTime::ZERO
+    }
 }
 
 /// Transforms one `VtkDataObject` into another.
@@ -85,8 +95,8 @@ impl VtkPipeline {
 
     /// Append a filter stage. Returns `&mut Self` for chaining.
     ///
-    /// Bumps `self.mtime` so that a subsequent `execute_if_needed` call with a
-    /// fresh dependency timestamp re-executes the pipeline.
+    /// Bumps `self.mtime` so that a subsequent `execute_if_needed` call
+    /// re-executes the pipeline.
     pub fn add_filter(&mut self, filter: Box<dyn VtkFilter>) -> &mut Self {
         self.filters.push(filter);
         self.modified();
@@ -137,23 +147,19 @@ impl VtkPipeline {
 
     /// Conditionally execute the pipeline based on modification-time staleness.
     ///
-    /// Computes the maximum mtime among `dependency_mtime` and all filter mtimes.
-    /// If `self.needs_update(max_mtime)`, calls `execute()` internally.
+    /// Computes the maximum mtime among the source and all filter stages.
+    /// If `self.needs_update(max_dep)`, calls `execute()` internally.
     ///
     /// # Returns
     ///
     /// - `Ok(None)` — no re-execution needed; cached output is valid.
     /// - `Ok(Some(data))` — execution happened and produced new output.
     /// - `Err(e)` — execution failed.
-    pub fn execute_if_needed(
-        &mut self,
-        dependency_mtime: ModifiedTime,
-    ) -> Result<Option<VtkDataObject>> {
-        let max_mtime = self
-            .filters
-            .iter()
-            .fold(dependency_mtime, |acc, f| acc.max(f.mtime()));
-        if self.needs_update(max_mtime) {
+    pub fn execute_if_needed(&mut self) -> Result<Option<VtkDataObject>> {
+        let max_dep = self.source.mtime().max(
+            self.filters.iter().fold(ModifiedTime::ZERO, |acc, f| acc.max(f.mtime()))
+        );
+        if self.needs_update(max_dep) {
             self.execute().map(Some)
         } else {
             Ok(None)
@@ -186,6 +192,7 @@ impl Observable for VtkPipeline {
 mod tests {
     use super::*;
     use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
+    use std::cell::Cell;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -198,10 +205,59 @@ mod tests {
     }
 
     struct StaticSource(VtkPolyData);
-
     impl VtkSource for StaticSource {
         fn produce(&self) -> Result<VtkDataObject> {
             Ok(VtkDataObject::PolyData(self.0.clone()))
+        }
+    }
+
+    /// A source whose mtime can be bumped externally for testing staleness detection.
+    struct MutatingSource {
+        data: VtkPolyData,
+        mtime: Cell<ModifiedTime>,
+        /// Number of `produce()` calls after which to auto-bump mtime.
+        /// After the Nth call, mtime advances so that subsequent
+        /// `execute_if_needed` calls observe a newer source mtime.
+        bump_after: usize,
+        produce_count: Cell<usize>,
+    }
+    impl MutatingSource {
+        fn new(data: VtkPolyData) -> Self {
+            Self {
+                data,
+                mtime: Cell::new(ModifiedTime::tick()),
+                bump_after: usize::MAX, // never auto-bump by default
+                produce_count: Cell::new(0),
+            }
+        }
+        fn new_with_bump_after(data: VtkPolyData, bump_after: usize) -> Self {
+            Self {
+                data,
+                mtime: Cell::new(ModifiedTime::tick()),
+                bump_after,
+                produce_count: Cell::new(0),
+            }
+        }
+    }
+    impl VtkSource for MutatingSource {
+        fn produce(&self) -> Result<VtkDataObject> {
+            let count = self.produce_count.get() + 1;
+            self.produce_count.set(count);
+            if count == self.bump_after {
+                self.mtime.set(ModifiedTime::tick());
+            }
+            Ok(VtkDataObject::PolyData(self.data.clone()))
+        }
+        fn mtime(&self) -> ModifiedTime {
+            self.mtime.get()
+        }
+    }
+    impl Modifiable for MutatingSource {
+        fn get_mtime(&self) -> ModifiedTime {
+            self.mtime.get()
+        }
+        fn modified(&mut self) {
+            self.mtime.set(ModifiedTime::tick());
         }
     }
 
@@ -409,17 +465,15 @@ mod tests {
         let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
 
         // First execution stamps the pipeline's mtime.
-        let dep_mtime = pipeline.get_mtime();
         pipeline.execute().unwrap();
-        let mtime_after_execute = pipeline.get_mtime();
+                let mtime_after_execute = pipeline.get_mtime();
 
-        // Same dependency mtime as the pipeline's own mtime → no update needed.
-        let result = pipeline.execute_if_needed(dep_mtime).unwrap();
-        assert!(
-            result.is_none(),
-            "execute_if_needed must return Ok(None) when dependency mtime ({}) <= pipeline mtime ({})",
-            dep_mtime.value(),
-            mtime_after_execute.value()
+                // No source or filter mtime change since last execute → no update needed.
+        let result = pipeline.execute_if_needed().unwrap();
+                assert!(
+                    result.is_none(),
+                    "execute_if_needed must return Ok(None) when no stage mtime exceeds pipeline mtime ({})",
+                    mtime_after_execute.value()
         );
     }
 
@@ -435,7 +489,7 @@ mod tests {
         let stale_dep = ModifiedTime::tick();
         assert!(stale_dep > mtime_after, "test precondition: stale_dep must be newer");
 
-        let result = pipeline.execute_if_needed(stale_dep).unwrap();
+        let result = pipeline.execute_if_needed().unwrap();
         assert!(
             result.is_some(),
             "execute_if_needed must return Ok(Some(..)) when dependency mtime ({}) > pipeline mtime ({})",
@@ -481,7 +535,7 @@ mod tests {
         // own (freshly bumped) mtime as the dependency so needs_update fires.
         let dep_fresh = ModifiedTime::tick();
         assert!(dep_fresh > mtime_after_first_execute);
-        let result = pipeline.execute_if_needed(dep_fresh).unwrap();
+        let result = pipeline.execute_if_needed().unwrap();
         assert!(
             result.is_some(),
             "execute_if_needed must re-execute after add_filter bumped the pipeline mtime"

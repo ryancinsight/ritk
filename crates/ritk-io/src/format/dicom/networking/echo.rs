@@ -1,6 +1,7 @@
 //! C-ECHO SCU — DICOM Verification Service Class (PS3.4 §A.5).
 
-use super::association::{AssociationConfig, EchoResponse, NetworkingError};
+use super::association::{EchoResponse, NetworkingError};
+use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, encode_ui, encode_us, parse_command_response, C_ECHO_RQ, C_ECHO_RSP,
     EXPLICIT_VR_LE_TS, NO_DATASET, VERIFICATION_SOP_CLASS,

@@ -4,9 +4,8 @@
 //! association from the SCU side via `Association::connect`, sends a
 //! C-STORE-RQ, and asserts a Success (0x0000) C-STORE-RSP round-trip.
 
-use crate::format::dicom::networking::association::{
-    Association, AssociationConfig, RequestedPresentationContext, transfer_syntax,
-};
+use crate::format::dicom::networking::association::{Association, transfer_syntax};
+use crate::format::dicom::networking::context::{AssociationConfig, RequestedPresentationContext};
 use crate::format::dicom::networking::dimse::{CommandField, DimseMessage, DimseStatus};
 use crate::format::dicom::networking::pdu::{
     APPLICATION_CONTEXT_NAME, AssociateAcPdu, CommandType, ImplementationClassUidSubItem,

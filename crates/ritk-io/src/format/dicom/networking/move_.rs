@@ -20,7 +20,8 @@
 //! assert_eq!(resp.final_status, 0x0000);
 //! ```
 
-use super::association::{AeTitle, AssociationConfig, MoveResponse, NetworkingError};
+use super::association::{AeTitle, MoveResponse, NetworkingError};
+use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
     parse_command_response, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS,

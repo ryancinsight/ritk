@@ -17,9 +17,9 @@ pub use vtk_data_object::{
     VtkUnstructuredGrid,
 };
 pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
-pub use vtk_scene::{RenderProperties, VtkActor, VtkScene};
+pub use vtk_scene::{RenderProperties, Visibility, VtkActor, VtkScene};
 pub use mtime::{ModifiedTime, Modifiable};
 pub use observer::{EventHandlers, EventId, Observable, ObserverCallback, ObserverTag};
-pub use mapper::{ColormapPreset, PolygonMode, SurfaceMapper, VtkLookupTable, VtkMapper};
+pub use mapper::{ColormapPreset, PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper};
 pub use multi_block::{Block, LeafIter, VtkMultiBlockDataSet};
 pub use filters::{ComputeNormalsFilter, SmoothFilter, ThresholdFilter};

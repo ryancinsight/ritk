@@ -13,6 +13,7 @@
 //!
 //! Bounds are inclusive: `lower ≤ S ≤ upper`.
 
+use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid};
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::{bail, Result};
@@ -25,11 +26,13 @@ use anyhow::{bail, Result};
 #[derive(Debug, Clone)]
 pub struct ThresholdFilter {
     /// Name of the scalar field to threshold on.
-    pub scalar_name: String,
+    scalar_name: String,
     /// Inclusive lower bound.
-    pub lower: f64,
+    lower: f64,
     /// Inclusive upper bound.
-    pub upper: f64,
+    upper: f64,
+    /// Modification timestamp; bumped on any parameter change.
+    mtime: ModifiedTime,
 }
 
 impl ThresholdFilter {
@@ -39,11 +42,60 @@ impl ThresholdFilter {
             scalar_name: scalar_name.into(),
             lower,
             upper,
+            mtime: ModifiedTime::tick(),
         }
+    }
+
+    /// Set the threshold range (inclusive lower and upper bounds).
+    ///
+    /// Bumps the modification time so that downstream pipeline stages
+    /// detect the parameter change.
+    pub fn set_range(&mut self, lower: f64, upper: f64) {
+        self.lower = lower;
+        self.upper = upper;
+        self.modified();
+    }
+
+    /// Set the scalar field name.
+    ///
+    /// Bumps the modification time so that downstream pipeline stages
+    /// detect the parameter change.
+    pub fn set_scalar_name(&mut self, name: impl Into<String>) {
+        self.scalar_name = name.into();
+        self.modified();
+    }
+
+    /// Returns the scalar field name.
+    pub fn scalar_name(&self) -> &str {
+        &self.scalar_name
+    }
+
+    /// Returns the inclusive lower bound.
+    pub fn lower(&self) -> f64 {
+        self.lower
+    }
+
+    /// Returns the inclusive upper bound.
+    pub fn upper(&self) -> f64 {
+        self.upper
+    }
+}
+
+impl Modifiable for ThresholdFilter {
+    fn get_mtime(&self) -> ModifiedTime {
+        self.mtime
+    }
+
+    fn modified(&mut self) {
+        self.mtime = ModifiedTime::tick();
     }
 }
 
 impl VtkFilter for ThresholdFilter {
+    fn mtime(&self) -> ModifiedTime {
+        self.get_mtime()
+    }
+
     fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject> {
         match input {
             VtkDataObject::ImageData(img) => {
@@ -286,5 +338,29 @@ mod tests {
         let f = ThresholdFilter::new("s", 0.0, 1.0);
         let result = f.execute(VtkDataObject::PolyData(VtkPolyData::default()));
         assert!(result.is_err(), "PolyData input must return Err");
+    }
+
+    #[test]
+    fn test_threshold_filter_range_change_triggers_rerun() {
+        let mut tf = ThresholdFilter::new("scalars", 0.0, 1.0);
+        let mtime_before = tf.get_mtime();
+
+        tf.set_range(0.5, 0.8);
+        let mtime_after_range = tf.get_mtime();
+        assert!(
+            mtime_after_range > mtime_before,
+            "set_range must bump mtime: before={}, after={}",
+            mtime_before.value(),
+            mtime_after_range.value()
+        );
+
+        tf.set_scalar_name("pressure");
+        let mtime_after_name = tf.get_mtime();
+        assert!(
+            mtime_after_name > mtime_after_range,
+            "set_scalar_name must bump mtime: before={}, after={}",
+            mtime_after_range.value(),
+            mtime_after_name.value()
+        );
     }
 }

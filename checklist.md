@@ -1,8 +1,59 @@
-## Sprint 282 — Complete
+## Sprint 283 — Complete
 
 **Status**: Complete
-**Phase**: Execution — PACS correctness, performance, test coverage, test re-enablement
-**Version**: 0.50.52 [patch]
+**Phase**: Execution — PACS query extension + module partition + VtkFilter fix
+**Version**: 0.50.53 [minor]
+
+### Checklist items
+
+- [x] Create `networking/context.rs` — extract `transfer_syntax`, `AssociationConfig`, `RequestedPresentationContext`, `NegotiatedContext`
+- [x] Update `association.rs` — remove extracted types; import from `context`; 522→455 lines
+- [x] Update `mod.rs` — `pub mod context;` + re-exports from `context`
+- [x] Update `echo.rs` — import `AssociationConfig` from `context`
+- [x] Update `find.rs` — import `AssociationConfig` from `context`
+- [x] Update `move_.rs` — import `AssociationConfig` from `context`
+- [x] Update `store.rs` — import `AssociationConfig` from `context`
+- [x] Update `tests_dimse.rs` — import `AssociationConfig` from `context`
+- [x] Update `tests_store.rs` — import `AssociationConfig`, `RequestedPresentationContext` from `context`
+- [x] Update `tests_association.rs` — import from `context`
+- [x] Add `FindResultRow::accession_number: String` field (tag `(0008,0050)`)
+- [x] Update `FindResultRow::from_raw_bytes` — decode `(0008,0050)`
+- [x] Extend `build_study_query(patient_name, modality, study_date, accession_number)`
+- [x] Add `study_date: String, accession_number: String` to `PacsRequest::FindStudies`
+- [x] Update `worker.rs` — pass-through new fields in `execute_request` + `execute_find`
+- [x] Add `study_date`/`accession_number` to `PacsPanelAction::SubmitFind`
+- [x] Add Study Date + Accession # inputs to `pacs_panel` query grid
+- [x] Bump results grid to 7 columns; add `#I` header + `num_instances` cell
+- [x] Add PatientID hover text on patient name selectable label
+- [x] Add `pacs_study_date_filter: String`, `pacs_accession_filter: String` to `SnapApp` state
+- [x] Pass new filter refs in `panels.rs` `show_pacs_panel` call
+- [x] Update `pacs_ops.rs` `submit_pacs_find` + `handle_pacs_action` for new fields
+- [x] Fix `ThresholdFilter` — `Cell<ModifiedTime>` → plain `ModifiedTime`
+- [x] Fix `SmoothFilter` — `Cell<ModifiedTime>` → plain `ModifiedTime`
+- [x] Add `test_find_result_row_accession_number_decoded`
+- [x] Add `test_find_result_row_default_has_empty_accession`
+- [x] Add `test_build_study_query_study_date_filter_propagated`
+- [x] Add `test_build_study_query_accession_filter_propagated`
+- [x] Add `test_build_study_query_empty_date_is_wildcard`
+- [x] Add `test_pacs_request_find_studies_has_new_filter_fields`
+- [x] Update `test_build_study_query_includes_all_return_keys` — assert `(0008,0050)` is a return key
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib pacs` — 27 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 50 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.53 section
+- [x] Update `backlog.md` — Sprint 283 entry
+- [x] Update `checklist.md` — Sprint 283 entry
+- [x] Update `gap_audit.md` — Sprint 283 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| C-STORE SCP | Embedded receiver for C-MOVE sub-operations | High |
+| Series-level query | `FindResultRowSeries` + series drill-down | Medium |
+
+---
+
 
 ### Checklist items
 

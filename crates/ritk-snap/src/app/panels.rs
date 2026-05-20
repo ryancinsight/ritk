@@ -266,6 +266,8 @@ impl SnapApp {
                         &mut self.pacs_echo_display,
                         &mut self.pacs_patient_filter,
                         &mut self.pacs_modality_filter,
+                        &mut self.pacs_study_date_filter,
+                        &mut self.pacs_accession_filter,
                         &mut self.pacs_selected_row,
                     );
                     self.handle_pacs_action(action);

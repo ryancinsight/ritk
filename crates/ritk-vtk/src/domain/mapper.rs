@@ -226,6 +226,18 @@ fn lerp3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 
 // ── Mapper trait & SurfaceMapper ───────────────────────────────────────────
 
+/// Controls whether scalar colouring is active on a mapper.
+///
+/// Replaces bare `bool` to eliminate call-site boolean blindness.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ScalarVisibility {
+    /// Scalar colouring is disabled; the actor colour is used.
+    #[default]
+    Hidden,
+    /// Scalar values drive colour via the lookup table.
+    Visible,
+}
+
 /// Abstraction for VTK rendering mappers — converts a dataset to a renderable
 /// representation using a lookup table and a chosen polygon display mode.
 pub trait VtkMapper: Send + Sync {
@@ -234,9 +246,9 @@ pub trait VtkMapper: Send + Sync {
     /// Borrow the current lookup table.
     fn lookup_table(&self) -> &VtkLookupTable;
     /// Show or hide scalar colouring.
-    fn set_scalar_visibility(&mut self, visible: bool);
-    /// Returns `true` if scalar colouring is active.
-    fn is_scalar_visible(&self) -> bool;
+    fn set_scalar_visibility(&mut self, visible: ScalarVisibility);
+    /// Returns the current scalar visibility state.
+    fn scalar_visibility(&self) -> ScalarVisibility;
 }
 
 /// Surface mapper: renders `VtkPolyData` as filled polygons, wireframe, or points.
@@ -247,7 +259,7 @@ pub struct SurfaceMapper {
     /// Overall opacity in [0, 1]; 1.0 = fully opaque.
     pub opacity: f32,
     lut: VtkLookupTable,
-    scalar_visibility: bool,
+    scalar_visibility: ScalarVisibility,
 }
 
 impl Default for SurfaceMapper {
@@ -256,7 +268,7 @@ impl Default for SurfaceMapper {
             mode: PolygonMode::Surface,
             opacity: 1.0,
             lut: VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale),
-            scalar_visibility: true,
+            scalar_visibility: ScalarVisibility::Visible,
         }
     }
 }
@@ -268,7 +280,7 @@ impl SurfaceMapper {
             mode,
             opacity: 1.0,
             lut,
-            scalar_visibility: true,
+            scalar_visibility: ScalarVisibility::Visible,
         }
     }
 }
@@ -280,10 +292,10 @@ impl VtkMapper for SurfaceMapper {
     fn lookup_table(&self) -> &VtkLookupTable {
         &self.lut
     }
-    fn set_scalar_visibility(&mut self, visible: bool) {
+    fn set_scalar_visibility(&mut self, visible: ScalarVisibility) {
         self.scalar_visibility = visible;
     }
-    fn is_scalar_visible(&self) -> bool {
+    fn scalar_visibility(&self) -> ScalarVisibility {
         self.scalar_visibility
     }
 }
@@ -400,16 +412,16 @@ mod tests {
     fn surface_mapper_default_mode_is_surface() {
         let m = SurfaceMapper::default();
         assert_eq!(m.mode, PolygonMode::Surface);
-        assert!(m.is_scalar_visible());
+        assert_eq!(m.scalar_visibility(), ScalarVisibility::Visible);
         assert!((m.opacity - 1.0).abs() < 1e-6);
     }
 
     #[test]
     fn surface_mapper_set_scalar_visibility_toggles() {
         let mut m = SurfaceMapper::default();
-        m.set_scalar_visibility(false);
-        assert!(!m.is_scalar_visible());
-        m.set_scalar_visibility(true);
-        assert!(m.is_scalar_visible());
+        m.set_scalar_visibility(ScalarVisibility::Hidden);
+        assert_eq!(m.scalar_visibility(), ScalarVisibility::Hidden);
+        m.set_scalar_visibility(ScalarVisibility::Visible);
+        assert_eq!(m.scalar_visibility(), ScalarVisibility::Visible);
     }
 }

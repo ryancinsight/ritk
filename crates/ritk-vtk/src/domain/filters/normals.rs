@@ -23,6 +23,9 @@ use anyhow::Result;
 /// Compute per-vertex surface normals and store them as `point_data["Normals"]`.
 ///
 /// Accepts `VtkDataObject::PolyData`; returns an error for all other variants.
+///
+/// Stateless filter: no parameters, so `mtime()` defaults to `ModifiedTime::ZERO`,
+/// which is intentional — stateless filters never force re-execution through mtime.
 #[derive(Debug, Clone, Default)]
 pub struct ComputeNormalsFilter;
 

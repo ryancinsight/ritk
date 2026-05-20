@@ -1,6 +1,7 @@
 //! DICOM DIMSE Service Class User (SCU) networking primitives (GAP-262-IO-01).
 
 pub mod types;
+pub mod context;
 pub mod association;
 pub mod dimse;
 pub mod pdu;
@@ -14,7 +15,8 @@ mod store;
 #[path = "tests_dimse.rs"]
 mod tests_dimse;
 
-pub use association::{Association, AssociationConfig, FindResult, MoveResult};
+pub use context::{AssociationConfig, NegotiatedContext, RequestedPresentationContext};
+pub use association::{Association, FindResult, MoveResult};
 pub use dimse::{CommandField, DimseMessage, DimseStatus};
 pub use pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};
 pub use types::{AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse};

@@ -1,5 +1,42 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 283 Audit — 2026-05-20 — PACS Query Extension + Module Partition + VtkFilter Fix
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| PACS-STR-01 | `association.rs` 522→455 lines via `context.rs` partition | `ritk-io::networking` | 0 |
+| PACS-FEAT-01 | `FindResultRow::accession_number` field (0008,0050); extended `build_study_query` | `ritk-snap::pacs::query` | 4 |
+| PACS-FEAT-02 | StudyDate range filter in query + UI | `ritk-snap::pacs::query`, `pacs_panel` | 2 |
+| PACS-UX-01 | `#I` (num_instances) column; PatientID hover text in results grid | `ritk-snap::ui::pacs_panel` | — |
+| PACS-TEST-01 | 6 new value-semantic tests (27 total) | `ritk-snap::pacs::tests` | 6 |
+| VTK-BUG-01 | `Cell<ModifiedTime>` → plain `ModifiedTime` in `ThresholdFilter` + `SmoothFilter` | `ritk-vtk::domain::filters` | — |
+
+### Architecture
+
+1. **`context.rs` partition**: `transfer_syntax` constants, `AssociationConfig`, `RequestedPresentationContext`, `NegotiatedContext` extracted to a dedicated leaf module. `association.rs` imports from sibling `context` via non-re-export `use`. `mod.rs` re-exports directly from `context`. Six SCU modules updated to import `AssociationConfig` from `context` not `association`. No API surface change at `ritk_io::AssociationConfig`.
+2. **`accession_number` field**: single-pass `HashMap` in `from_raw_bytes` already handles the ninth field at zero incremental cost. `build_study_query` passes `accession_number` as the value of `(0008,0050)` — empty = return-all key, non-empty = exact match filter per DICOM PS3.4 C.4.1.
+3. **`study_date` range filter**: passed as the value of `(0008,0020)` — DICOM range format `YYYYMMDD-YYYYMMDD`. UI hint text communicates valid formats.
+4. **`Cell<ModifiedTime>` fix**: `VtkFilter: Send + Sync` requires `Sync` on all fields. `Cell<T>` is `!Sync`. `Modifiable::modified(&mut self)` already requires exclusive access, so interior mutability was architecturally incorrect. Plain `ModifiedTime` field is `Copy + Send + Sync`.
+5. **Results grid**: 6→7 columns. `num_instances` was decoded but never displayed. PatientID hover does not widen the grid.
+
+### Verification
+
+| Test type | Count | Pass |
+|---|---|---|
+| ritk-snap pacs unit | 27 | 27 |
+| ritk-io networking (incl. tests_dimse, loopback) | 50 | 50 |
+| cargo check --workspace | — | 0 errors, 0 warnings |
+
+### Residual Risk
+
+- No embedded C-STORE SCP: C-MOVE still routes retrieved studies to an external destination AE. Viewer cannot receive studies in a standalone deployment without a separately configured SCP.
+- `study_date` filter input is a free-text field — no validation of DICOM date range format in the UI layer. Invalid input silently passes an unparseable value to the SCP.
+- `FindResult::get_string` (Sprint 282) still operates on `self.matches.first()` only.
+
+---
+
 ## Sprint 282 Audit — 2026-05-20 — PACS Correctness / Performance / Coverage
 
 ### Gaps closed

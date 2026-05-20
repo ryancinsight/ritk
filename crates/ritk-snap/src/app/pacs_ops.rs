@@ -82,8 +82,8 @@ impl SnapApp {
         match action {
             PacsPanelAction::None => {}
             PacsPanelAction::SubmitEcho => self.submit_pacs_echo(),
-            PacsPanelAction::SubmitFind { patient_name, modality } => {
-                self.submit_pacs_find(patient_name, modality);
+            PacsPanelAction::SubmitFind { patient_name, modality, study_date, accession_number } => {
+                self.submit_pacs_find(patient_name, modality, study_date, accession_number);
             }
             PacsPanelAction::SubmitRetrieve { study_uid } => {
                 self.submit_pacs_retrieve(study_uid);
@@ -120,7 +120,13 @@ impl SnapApp {
         }
     }
 
-    pub(crate) fn submit_pacs_find(&mut self, patient_name: String, modality: String) {
+    pub(crate) fn submit_pacs_find(
+        &mut self,
+        patient_name: String,
+        modality: String,
+        study_date: String,
+        accession_number: String,
+    ) {
         if self.pacs_worker.is_some() {
             self.status_message = "PACS: a request is already in progress.".to_owned();
             return;
@@ -133,12 +139,12 @@ impl SnapApp {
             use crate::pacs::spawn_pacs_request;
             self.pacs_worker = Some(spawn_pacs_request(
                 self.pacs_config.clone(),
-                PacsRequest::FindStudies { patient_name, modality },
+                PacsRequest::FindStudies { patient_name, modality, study_date, accession_number },
             ));
         }
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = (patient_name, modality);
+            let _ = (patient_name, modality, study_date, accession_number);
             self.pacs_query_state = QueryState::Error(
                 "PACS networking is not available in browser builds.".to_owned(),
             );

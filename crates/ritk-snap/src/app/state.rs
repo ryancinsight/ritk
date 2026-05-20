@@ -219,6 +219,11 @@ pub(crate) struct SnapApp {
     pub(crate) pacs_patient_filter: String,
     /// Modality filter for C-FIND queries; empty = all modalities.
     pub(crate) pacs_modality_filter: String,
+    /// Study date range filter for C-FIND queries.
+    /// DICOM date range format: `YYYYMMDD-YYYYMMDD`, `YYYYMMDD-`, `-YYYYMMDD`, or `""` (all).
+    pub(crate) pacs_study_date_filter: String,
+    /// Accession number filter for C-FIND queries; empty string = all.
+    pub(crate) pacs_accession_filter: String,
     /// Human-readable result of the last C-ECHO test.
     pub(crate) pacs_echo_display: String,
     /// Index of the currently selected C-FIND result row.
@@ -313,6 +318,8 @@ impl Default for SnapApp {
             show_pacs_panel: false,
             pacs_patient_filter: String::new(),
             pacs_modality_filter: String::new(),
+            pacs_study_date_filter: String::new(),
+            pacs_accession_filter: String::new(),
             pacs_echo_display: String::new(),
             pacs_selected_row: None,
             pacs_worker: None,

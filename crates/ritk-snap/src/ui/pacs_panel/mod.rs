@@ -43,7 +43,7 @@ pub enum PacsPanelAction {
     /// User pressed "Test Connection (C-ECHO)".
     SubmitEcho,
     /// User pressed "Search (C-FIND)".
-    SubmitFind { patient_name: String, modality: String },
+    SubmitFind { patient_name: String, modality: String, study_date: String, accession_number: String },
     /// User pressed "Retrieve (C-MOVE)" for a specific study.
     SubmitRetrieve { study_uid: String },
     /// User pressed "Clear" to reset the results table.
@@ -61,6 +61,8 @@ pub enum PacsPanelAction {
 /// - `echo_display` — human-readable result of the last C-ECHO (empty if none).
 /// - `patient_name` — patient name filter string (DICOM wildcard format).
 /// - `modality` — modality filter (empty = all).
+/// - `study_date` — study date range filter (DICOM range format, empty = all).
+/// - `accession_number` — accession number filter (exact match, empty = all).
 /// - `selected_row` — index of the currently selected result row (for C-MOVE).
 ///
 /// # Returns
@@ -73,6 +75,8 @@ pub fn show_pacs_panel(
     echo_display: &mut String,
     patient_name: &mut String,
     modality: &mut String,
+    study_date: &mut String,
+    accession_number: &mut String,
     selected_row: &mut Option<usize>,
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
@@ -149,6 +153,20 @@ pub fn show_pacs_panel(
                     .hint_text("CT, MR … (empty=all)"),
             );
             ui.end_row();
+
+            ui.label("Study Date:");
+            ui.add(
+                egui::TextEdit::singleline(study_date)
+                    .desired_width(150.0)
+                    .hint_text("YYYYMMDD-YYYYMMDD (empty=all)"),
+            );
+            ui.label("Accession #:");
+            ui.add(
+                egui::TextEdit::singleline(accession_number)
+                    .desired_width(150.0)
+                    .hint_text("(empty=all)"),
+            );
+            ui.end_row();
         });
 
     ui.horizontal(|ui| {
@@ -160,6 +178,8 @@ pub fn show_pacs_panel(
             action = PacsPanelAction::SubmitFind {
                 patient_name: patient_name.clone(),
                 modality: modality.clone(),
+                study_date: study_date.clone(),
+                accession_number: accession_number.clone(),
             };
         }
         if matches!(query_state, QueryState::Results(_) | QueryState::Error(_)) {
@@ -214,7 +234,7 @@ fn show_results_section(
                 .max_height(220.0)
                 .show(ui, |ui| {
                     egui::Grid::new("pacs_results_grid")
-                        .num_columns(6)
+                        .num_columns(7)
                         .striped(true)
                         .spacing([8.0, 3.0])
                         .show(ui, |ui| {
@@ -223,6 +243,7 @@ fn show_results_section(
                             ui.strong("Date");
                             ui.strong("Modality");
                             ui.strong("#S");
+                            ui.strong("#I");
                             ui.strong("Description");
                             ui.strong("StudyUID (tail)");
                             ui.end_row();
@@ -234,12 +255,21 @@ fn show_results_section(
                                 } else {
                                     &row.patient_name
                                 };
-                                if ui.selectable_label(is_sel, name).clicked() {
+                                let hover = if row.patient_id.is_empty() {
+                                    "PatientID: (unknown)".to_owned()
+                                } else {
+                                    format!("PatientID: {}", row.patient_id)
+                                };
+                                if ui.selectable_label(is_sel, name)
+                                    .on_hover_text(hover)
+                                    .clicked()
+                                {
                                     *selected_row = Some(idx);
                                 }
                                 ui.label(&row.study_date);
                                 ui.label(&row.modality);
                                 ui.label(&row.num_series);
+                                ui.label(&row.num_instances);
                                 // Truncate long study descriptions with a trailing ellipsis.
                                 let char_count = row.study_description.chars().count();
                                 let desc: String = if char_count > 28 {

@@ -4,80 +4,13 @@
 //! frames, sends/receives DIMSE messages over negotiated presentation
 //! contexts, and releases or aborts the association.
 
+use super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
 use super::dimse::*;
 use super::pdu::*;
 pub use super::types::{AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse};
 use anyhow::{bail, Context, Result};
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use std::time::Duration;
-
-pub mod transfer_syntax {
-    pub const IMPLICIT_VR_LE: &str = "1.2.840.10008.1.2";
-    pub const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
-    pub const EXPLICIT_VR_BE: &str = "1.2.840.10008.1.2.2";
-    pub const JPEG_BASELINE: &str = "1.2.840.10008.1.2.4.50";
-    pub const JPEG_LOSSLESS: &str = "1.2.840.10008.1.2.4.70";
-    pub const JPEG_LS_LOSSLESS: &str = "1.2.840.10008.1.2.4.80";
-    pub const JPEG_2000_LOSSLESS: &str = "1.2.840.10008.1.2.4.90";
-    pub const JPEG_2000: &str = "1.2.840.10008.1.2.4.91";
-}
-
-// -- Configuration ---------------------------------------------------------
-
-#[derive(Debug, Clone)]
-pub struct AssociationConfig {
-    pub called_ae_title: String,
-    pub calling_ae_title: String,
-    pub host: String,
-    pub port: u16,
-    pub max_pdu_length: u32,
-    pub timeout: Duration,
-    pub presentation_contexts: Vec<RequestedPresentationContext>,
-    pub user_identity: Option<UserIdentity>,
-}
-
-impl Default for AssociationConfig {
-    fn default() -> Self {
-        Self {
-            called_ae_title: "ANYSCP".into(),
-            calling_ae_title: "RITK".into(),
-            host: "127.0.0.1".into(),
-            port: 104,
-            max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
-            timeout: Duration::from_secs(30),
-            presentation_contexts: Vec::new(),
-            user_identity: None,
-        }
-    }
-}
-
-impl AssociationConfig {
-    pub fn new(calling: AeTitle, remote: DicomAddress) -> Self {
-        Self {
-            called_ae_title: remote.ae_title.as_str().to_string(),
-            calling_ae_title: calling.as_str().to_string(),
-            host: remote.host.clone(),
-            port: remote.port,
-            ..Default::default()
-        }
-    }
-    pub fn with_connect_timeout(mut self, t: Duration) -> Self { self.timeout = t; self }
-    pub fn with_read_timeout(mut self, t: Duration) -> Self { self.timeout = t; self }
-}
-
-#[derive(Debug, Clone)]
-pub struct RequestedPresentationContext {
-    pub abstract_syntax_uid: String,
-    pub transfer_syntax_uids: Vec<String>,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct NegotiatedContext {
-    pub presentation_context_id: u8,
-    pub abstract_syntax_uid: String,
-    pub transfer_syntax_uid: String,
-}
 
 #[derive(Debug, Clone)]
 pub struct FindResult {

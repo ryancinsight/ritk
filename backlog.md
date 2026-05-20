@@ -1,4 +1,52 @@
-## Sprint 282 — Complete
+## Sprint 283 — Complete
+
+**Status**: Complete
+**Phase**: Execution — PACS query extension (AccessionNumber + StudyDate range) + Association module partition
+**Version**: 0.50.53 [minor]
+**Goal**: Close PACS structural violation, add clinical query filter fields, fix VtkFilter `Send + Sync` defect.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| PACS-STR-01 | `association.rs` 522 lines → 455 via `context.rs` partition | **Closed** |
+| PACS-FEAT-01 | AccessionNumber (0008,0050) query filter + `FindResultRow::accession_number` field | **Closed** |
+| PACS-FEAT-02 | StudyDate range filter in `build_study_query` and PACS panel UI | **Closed** |
+| PACS-UX-01 | `num_instances` (#I) column in results grid; PatientID hover text | **Closed** |
+| PACS-TEST-01 | 6 new value-semantic tests; 27 total (up from 21) | **Closed** |
+| VTK-BUG-01 | `Cell<ModifiedTime>` in `ThresholdFilter`/`SmoothFilter` violates `Send+Sync` | **Closed** |
+
+### Delivered
+
+- `crates/ritk-io/src/format/dicom/networking/context.rs` — new: `transfer_syntax` mod, `AssociationConfig`, `RequestedPresentationContext`, `NegotiatedContext` (100 lines)
+- `crates/ritk-io/src/format/dicom/networking/association.rs` — extracted types; 522→455 lines
+- `crates/ritk-io/src/format/dicom/networking/mod.rs` — re-exports from `context`
+- `crates/ritk-io/src/format/dicom/networking/{echo,find,move_,store,tests_dimse,tests_store,tests_association}.rs` — import paths updated to `context`
+- `crates/ritk-snap/src/pacs/query.rs` — `accession_number` field + `from_raw_bytes` decode + extended `build_study_query` + `PacsRequest::FindStudies` new fields
+- `crates/ritk-snap/src/pacs/worker.rs` — pass-through for new filter fields
+- `crates/ritk-snap/src/ui/pacs_panel/mod.rs` — Study Date + Accession # UI fields; 7-column results grid; PatientID hover
+- `crates/ritk-snap/src/app/state.rs` — `pacs_study_date_filter`, `pacs_accession_filter` fields
+- `crates/ritk-snap/src/app/panels.rs` — pass new filter refs to `show_pacs_panel`
+- `crates/ritk-snap/src/app/pacs_ops.rs` — `submit_pacs_find` extended signature
+- `crates/ritk-snap/src/pacs/tests.rs` — 6 new tests (27 total)
+- `crates/ritk-vtk/src/domain/filters/{threshold,smooth}.rs` — `Cell<ModifiedTime>` → plain `ModifiedTime`
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 27 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::networking`: 50 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| C-STORE SCP | Embedded receiver for C-MOVE sub-operations | High |
+| Series-level query | `FindResultRowSeries` + series drill-down UI | Medium |
+| Date range UI picker | Structured date-from/date-to inputs | Low |
+
+---
+
 
 **Status**: Complete
 **Phase**: Execution — PACS correctness + performance + test coverage + test re-enablement

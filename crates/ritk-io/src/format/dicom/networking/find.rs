@@ -1,6 +1,7 @@
 //! C-FIND SCU — Study Root Query/Retrieve: FIND (PS3.4 §C.4.1).
 
-use super::association::{AssociationConfig, FindResult, NetworkingError};
+use super::association::{FindResult, NetworkingError};
+use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
     parse_command_response, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,

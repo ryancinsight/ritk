@@ -2,6 +2,56 @@
 
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/2.0.0/).
 
+## [0.50.53] - 2026-05-20
+
+### Added [minor]
+
+- **AccessionNumber query filter** (Sprint 283, PACS-FEAT-01): `FindResultRow` gains
+  `accession_number: String` (tag `(0008,0050)`), decoded by `from_raw_bytes` via the
+  existing single-pass `HashMap`. `build_study_query` extended to `(patient_name, modality,
+  study_date, accession_number)` — both new params are forwarded as DICOM key values on
+  `(0008,0020)` (StudyDate range) and `(0008,0050)` (AccessionNumber filter); empty string
+  means return-all per DICOM C-FIND semantics. `PacsRequest::FindStudies` and
+  `PacsPanelAction::SubmitFind` extended with `study_date: String` and
+  `accession_number: String` fields; `SnapApp` state adds `pacs_study_date_filter` and
+  `pacs_accession_filter`.
+
+- **StudyDate range filter UI** (Sprint 283, PACS-FEAT-02): PACS panel query grid gains
+  a second row — Study Date (hint: `YYYYMMDD-YYYYMMDD`) and Accession # fields.
+
+- **`networking/context.rs`** (Sprint 283, PACS-STR-01): new module extracted from
+  `association.rs` containing `transfer_syntax` constants, `AssociationConfig`,
+  `RequestedPresentationContext`, `NegotiatedContext`. `association.rs` reduced from
+  522 → 455 lines (structural limit: 500 lines). All six SCU modules (`echo`, `find`,
+  `move_`, `store`, `tests_dimse`, `tests_store`) updated to import from `context`.
+
+### Fixed [patch]
+
+- **VtkFilter `Cell<ModifiedTime>` → plain `ModifiedTime`** (Sprint 283): `ThresholdFilter`
+  and `SmoothFilter` used `Cell<ModifiedTime>` for mtime tracking, which violated the
+  `VtkFilter: Send + Sync` bound. Replaced with a plain `ModifiedTime` field — `modified()`
+  already takes `&mut self`, so interior mutability was never required.
+
+- **Results grid `#I` column** (Sprint 283, PACS-UX-01): `num_instances` is now displayed
+  as a `#I` column in the results table (was decoded but not shown). Patient name cell
+  shows `PatientID` as a hover tooltip.
+
+### Tests [patch]
+
+- **6 new value-semantic pacs tests** (Sprint 283): `accession_number` decode,
+  default-empty accession, `study_date` filter propagation, `accession_number` filter
+  propagation, empty-date wildcard semantics, `PacsRequest::FindStudies` new fields
+  round-trip. 27 pacs unit tests total (up from 21).
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 27 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::networking`: 50 passed, 0 failed
+
+---
+
+
 ## [0.50.52] - 2026-05-20
 
 ### Fixed [patch]

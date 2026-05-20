@@ -4,7 +4,8 @@
 //! patterns. Integration tests spin a minimal loopback SCP on a random port
 //! using `dicom_ul::ServerAssociationOptions` and verify real DIMSE protocol exchange.
 
-use super::association::{AeTitle, AssociationConfig, DicomAddress, NetworkingError};
+use super::association::{AeTitle, DicomAddress, NetworkingError};
+use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
     parse_command_response, parse_dataset_ivr_le, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP,

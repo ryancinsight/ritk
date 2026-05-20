@@ -171,7 +171,7 @@ fn test_query_state_default_is_idle() {
 /// matches it against the PatientName attribute using wildcard matching.
 #[test]
 fn test_build_study_query_contains_patient_name_wildcard() {
-    let q = FindResultRow::build_study_query("DOE*", "");
+    let q = FindResultRow::build_study_query("DOE*", "", "", "");
     let patient_name_key = q
         .keys
         .iter()
@@ -188,7 +188,7 @@ fn test_build_study_query_contains_patient_name_wildcard() {
 /// with value `""` (request all modalities — DICOM matching semantics).
 #[test]
 fn test_build_study_query_empty_modality_uses_empty_key() {
-    let q = FindResultRow::build_study_query("*", "");
+    let q = FindResultRow::build_study_query("*", "", "", "");
     let modality_key = q
         .keys
         .iter()
@@ -204,7 +204,7 @@ fn test_build_study_query_empty_modality_uses_empty_key() {
 /// When modality is "CT", the Modality key (0008,0060) must carry "CT".
 #[test]
 fn test_build_study_query_ct_modality_uses_ct_filter() {
-    let q = FindResultRow::build_study_query("*", "CT");
+    let q = FindResultRow::build_study_query("*", "CT", "", "");
     let modality_key = q
         .keys
         .iter()
@@ -330,7 +330,7 @@ fn test_find_result_row_all_study_fields_parsed() {
 /// value, because SCPs only return requested keys.
 #[test]
 fn test_build_study_query_includes_all_return_keys() {
-    let q = FindResultRow::build_study_query("*", "CT");
+    let q = FindResultRow::build_study_query("*", "CT", "", "");
     let has_key = |group: u16, element: u16| -> bool {
         q.keys.iter().any(|(g, e, _)| *g == group && *e == element)
     };
@@ -342,6 +342,7 @@ fn test_build_study_query_includes_all_return_keys() {
     assert!(has_key(0x0020, 0x000D), "StudyInstanceUID (0020,000D) must be a return key");
     assert!(has_key(0x0020, 0x1206), "NumberOfStudyRelatedSeries (0020,1206) must be a return key");
     assert!(has_key(0x0020, 0x1208), "NumberOfStudyRelatedInstances (0020,1208) must be a return key");
+    assert!(has_key(0x0008, 0x0050), "AccessionNumber (0008,0050) must be a return key");
 }
 
 // ── PacsPanelAction default ───────────────────────────────────────────────────
@@ -358,4 +359,105 @@ fn test_pacs_panel_action_default_is_none() {
         matches!(action, crate::ui::pacs_panel::PacsPanelAction::None),
         "PacsPanelAction::default() must be None"
     );
+}
+
+// ── Sprint 283: AccessionNumber + StudyDate range tests ───────────────────────────
+
+/// `FindResultRow::from_raw_bytes` must decode AccessionNumber (0008,0050).
+///
+/// Analytical basis: AccessionNumber is a study-level C-FIND return attribute;
+/// the field was absent before Sprint 283.
+#[test]
+fn test_find_result_row_accession_number_decoded() {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(&encode_ivr_le_tag(0x0008, 0x0050, b"ACC-2024-001"));
+    bytes.extend_from_slice(&encode_ivr_le_tag(0x0010, 0x0010, b"TEST^PATIENT"));
+    let row = FindResultRow::from_raw_bytes(&bytes);
+    assert_eq!(
+        row.accession_number, "ACC-2024-001",
+        "AccessionNumber (0008,0050) must be decoded into accession_number field"
+    );
+}
+
+/// `FindResultRow::default()` must have an empty `accession_number`.
+#[test]
+fn test_find_result_row_default_has_empty_accession() {
+    let row = FindResultRow::default();
+    assert!(row.accession_number.is_empty(), "default accession_number must be empty");
+}
+
+/// `build_study_query` with a non-empty `study_date` must pass that value as
+/// the (0008,0020) StudyDate key value.
+///
+/// Analytical basis: DICOM C-FIND date range filter is expressed as the
+/// key value of (0008,0020), e.g. `"20240101-20241231"` (inclusive range).
+#[test]
+fn test_build_study_query_study_date_filter_propagated() {
+    let q = FindResultRow::build_study_query("*", "", "20240101-20241231", "");
+    let date_val = q
+        .keys
+        .iter()
+        .find(|(g, e, _)| *g == 0x0008 && *e == 0x0020)
+        .map(|(_, _, v)| v.as_str());
+    assert_eq!(
+        date_val,
+        Some("20240101-20241231"),
+        "StudyDate key value must equal the supplied date range filter"
+    );
+}
+
+/// `build_study_query` with a non-empty `accession_number` must pass that
+/// value as the (0008,0050) AccessionNumber key value.
+#[test]
+fn test_build_study_query_accession_filter_propagated() {
+    let q = FindResultRow::build_study_query("*", "", "", "ACC-999");
+    let acc_val = q
+        .keys
+        .iter()
+        .find(|(g, e, _)| *g == 0x0008 && *e == 0x0050)
+        .map(|(_, _, v)| v.as_str());
+    assert_eq!(
+        acc_val,
+        Some("ACC-999"),
+        "AccessionNumber key value must equal the supplied filter"
+    );
+}
+
+/// Empty `study_date` must produce an empty-string value for (0008,0020),
+/// which DICOM C-FIND semantics interpret as \"return all dates\".
+#[test]
+fn test_build_study_query_empty_date_is_wildcard() {
+    let q = FindResultRow::build_study_query("*", "", "", "");
+    let date_val = q
+        .keys
+        .iter()
+        .find(|(g, e, _)| *g == 0x0008 && *e == 0x0020)
+        .map(|(_, _, v)| v.as_str());
+    assert_eq!(
+        date_val,
+        Some(""),
+        "Empty study_date must produce empty value for (0008,0020) — match-all semantics"
+    );
+}
+
+/// `PacsRequest::FindStudies` must carry `study_date` and `accession_number`.
+#[test]
+fn test_pacs_request_find_studies_has_new_filter_fields() {
+    let req = crate::pacs::query::PacsRequest::FindStudies {
+        patient_name: "*".to_owned(),
+        modality: "CT".to_owned(),
+        study_date: "20240101-".to_owned(),
+        accession_number: "ACC-001".to_owned(),
+    };
+    match req {
+        crate::pacs::query::PacsRequest::FindStudies {
+            study_date,
+            accession_number,
+            ..
+        } => {
+            assert_eq!(study_date, "20240101-", "study_date field must round-trip");
+            assert_eq!(accession_number, "ACC-001", "accession_number field must round-trip");
+        }
+        _ => panic!("expected FindStudies variant"),
+    }
 }
