@@ -81,7 +81,7 @@ pub use intensity::{
     BinaryThresholdImageFilter,
     BlendImageFilter,
     BoundedReciprocalImageFilter,
-    ClaheFilter,
+    ClaheFilter, ClaheScratch,
     ClampImageFilter,
     CosImageFilter,
     DivideImageFilter,

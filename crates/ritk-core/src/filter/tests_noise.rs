@@ -220,6 +220,92 @@ fn shot_clamps_negative() {
     }
 }
 
+/// Zero-valued input produces zero output (Poisson(0) = 0 with probability 1).
+#[test]
+fn shot_zero_input_returns_zero() {
+    let data = vec![0.0_f32; 27];
+    let img = make_image(data, [3, 3, 3]);
+    let filter = ShotNoiseFilter::new(10.0).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    for (i, &v) in vals.iter().enumerate() {
+        assert_eq!(v, 0.0, "voxel {i}: zero input must produce zero output");
+    }
+}
+
+/// Same seed produces identical output.
+#[test]
+fn shot_same_seed_idempotent() {
+    let data: Vec<f32> = (0..50).map(|i| (i + 1) as f32).collect();
+    let img = make_image(data, [5, 5, 2]);
+    let filter = ShotNoiseFilter::new(5.0).with_seed(42);
+    let v1 = filter
+        .apply_3d(&img)
+        .unwrap()
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .unwrap();
+    let v2 = filter
+        .apply_3d(&img)
+        .unwrap()
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .unwrap();
+    assert_eq!(v1, v2, "same seed must produce identical output");
+}
+
+/// Output shape matches input shape.
+#[test]
+fn shot_preserves_shape() {
+    let data: Vec<f32> = (0..60).map(|i| (i + 1) as f32).collect();
+    let img = make_image(data, [3, 4, 5]);
+    let filter = ShotNoiseFilter::new(10.0).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    assert_eq!(
+        result.shape(),
+        img.shape(),
+        "shot noise must preserve image shape"
+    );
+}
+
+/// Spatial metadata (origin, spacing, direction) is preserved.
+#[test]
+fn shot_preserves_metadata() {
+    use crate::spatial::{Direction, Point, Spacing};
+    let device = Default::default();
+    let t = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![10.0_f32; 8], Shape::new([2, 2, 2])),
+        &device,
+    );
+    let img = Image::new(
+        t,
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 0.5, 2.0]),
+        Direction::identity(),
+    );
+    let filter = ShotNoiseFilter::new(5.0).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    assert_eq!(
+        result.origin(),
+        img.origin(),
+        "origin must be preserved"
+    );
+    assert_eq!(
+        result.spacing(),
+        img.spacing(),
+        "spacing must be preserved"
+    );
+    assert_eq!(
+        result.direction(),
+        img.direction(),
+        "direction must be preserved"
+    );
+}
+
 // ── Speckle ────────────────────────────────────────────────────────────────
 
 /// Zero std dev produces no change.
@@ -274,5 +360,112 @@ fn speckle_preserves_mean_approx() {
     assert!(
         (mean - 50.0).abs() < 1.0,
         "speckle should approximately preserve mean, got {mean}"
+    );
+}
+
+/// Non-zero sigma changes at least some voxel values.
+#[test]
+fn speckle_nonzero_sigma_changes_values() {
+    let data = vec![10.0_f32; 100];
+    let img = make_image(data.clone(), [5, 5, 4]);
+    let filter = SpeckleNoiseFilter::new(0.5).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    assert!(
+        vals.iter().any(|&v| (v - 10.0).abs() > 0.01),
+        "non-zero sigma must change at least some voxel values"
+    );
+}
+
+/// Positive input with moderate speckle must not produce negative output.
+#[test]
+fn speckle_positive_input_no_negatives() {
+    let data: Vec<f32> = (1..=64).map(|i| i as f32).collect();
+    let img = make_image(data, [4, 4, 4]);
+    let filter = SpeckleNoiseFilter::new(0.3).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    // With σ=0.3 the multiplicative factor is (1+N(0,0.3)).
+    // The 3σ range is [0.1, 1.9] so all outputs should be ≥ 0.
+    // (Values slightly below 0 due to extreme tail draws are clamped by the
+    // statistical test: check that no value is significantly negative.)
+    for (i, &v) in vals.iter().enumerate() {
+        assert!(
+            v >= -1e-3,
+            "voxel {i}: speckle on positive input produced negative value {v}"
+        );
+    }
+}
+
+/// Same seed produces identical output.
+#[test]
+fn speckle_same_seed_idempotent() {
+    let data = vec![10.0_f32; 50];
+    let img = make_image(data, [5, 5, 2]);
+    let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
+    let v1 = filter
+        .apply_3d(&img)
+        .unwrap()
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .unwrap();
+    let v2 = filter
+        .apply_3d(&img)
+        .unwrap()
+        .data()
+        .clone()
+        .into_data()
+        .into_vec::<f32>()
+        .unwrap();
+    assert_eq!(v1, v2, "same seed must produce identical output");
+}
+
+/// Output shape matches input shape.
+#[test]
+fn speckle_preserves_shape() {
+    let data: Vec<f32> = (0..60).map(|i| (i + 1) as f32).collect();
+    let img = make_image(data, [3, 4, 5]);
+    let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    assert_eq!(
+        result.shape(),
+        img.shape(),
+        "speckle noise must preserve image shape"
+    );
+}
+
+/// Spatial metadata (origin, spacing, direction) is preserved.
+#[test]
+fn speckle_preserves_metadata() {
+    use crate::spatial::{Direction, Point, Spacing};
+    let device = Default::default();
+    let t = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![10.0_f32; 8], Shape::new([2, 2, 2])),
+        &device,
+    );
+    let img = Image::new(
+        t,
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 0.5, 2.0]),
+        Direction::identity(),
+    );
+    let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
+    let result = filter.apply_3d(&img).unwrap();
+    assert_eq!(
+        result.origin(),
+        img.origin(),
+        "origin must be preserved"
+    );
+    assert_eq!(
+        result.spacing(),
+        img.spacing(),
+        "spacing must be preserved"
+    );
+    assert_eq!(
+        result.direction(),
+        img.direction(),
+        "direction must be preserved"
     );
 }

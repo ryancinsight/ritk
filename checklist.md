@@ -1,4 +1,257 @@
+## Sprint 282 — Complete
+
+**Status**: Complete
+**Phase**: Execution — PACS correctness, performance, test coverage, test re-enablement
+**Version**: 0.50.52 [patch]
+
+### Checklist items
+
+- [x] Remove `FindResultRow::series_description` and `::series_instance_uid` — series-level dead fields
+- [x] Fix `FindResultRow::num_instances` tag `(0020,1209)` → `(0020,1208)` (`NumberOfStudyRelatedInstances`)
+- [x] Add `(0020,1208)` return key to `FindResultRow::build_study_query`
+- [x] Update `FindResultRow` doc table — remove series-level rows, add (0020,1208) note
+- [x] Rewrite `FindResultRow::from_raw_bytes` — `HashMap` for O(1) lookups (was O(n×10))
+- [x] Add `FindResult::get_string` helper to `ritk-io::networking::association`
+- [x] Uncomment `tests_dimse` module in `ritk-io::networking::mod.rs`
+- [x] Remove redundant `|| echo_display.starts_with('✓')` in `pacs_panel/mod.rs`
+- [x] Add description-truncation ellipsis in `show_results_section`
+- [x] Remove 2 dead-field assertions from `test_find_result_row_from_empty_bytes_all_fields_empty`
+- [x] Add `test_query_state_pending_has_label`
+- [x] Add `test_query_state_error_stores_message`
+- [x] Add `test_pacs_config_default_timeout_secs`
+- [x] Add `test_pacs_config_default_called_ae_title`
+- [x] Add `test_pacs_config_default_host`
+- [x] Add `test_pacs_config_default_move_destination`
+- [x] Add `test_find_result_row_all_study_fields_parsed`
+- [x] Add `test_build_study_query_includes_all_return_keys`
+- [x] Add `test_pacs_panel_action_default_is_none`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib pacs` — 21 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 50 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.52 section
+- [x] Update `backlog.md` — Sprint 282 entry
+- [x] Update `checklist.md` — Sprint 282 entry
+- [x] Update `gap_audit.md` — Sprint 282 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| (none) | All Sprint 262 gap inventory items closed | — |
+
+---
+
+## Sprint 281 — Complete
+
+**Status**: Complete
+**Phase**: Execution
+**Version**: 0.50.51 [minor]
+
+### Checklist items
+
+- [x] Wire `Modifiable` impl into `VtkPipeline` — mtime field, `get_mtime()`, `modified()`
+- [x] Wire `Observable` impl into `VtkPipeline` — `event_handlers` field, `event_handlers()`, `event_handlers_mut()`
+- [x] Add `execute_if_needed(&mut self, dep_mtime)` — conditional re-execution via `needs_update()`
+- [x] Add `VtkFilter::mtime()` default method — returns `ModifiedTime::ZERO`
+- [x] Add `cached_output: Option<VtkDataObject>` field — stores last execution result
+- [x] `execute()` fires StartEvent/EndEvent/ErrorEvent and stamps mtime
+- [x] `add_filter`/`set_sink` call `self.modified()` — structural-change propagation
+- [x] Add 7 new VtkPipeline tests — mtime, events, execute_if_needed, filter default mtime, structural-change
+- [x] Create `ClaheScratch` struct — pre-allocated CDFs, histograms, tile_vals, output buffers
+- [x] Add `ClaheFilter::apply_with_scratch()` — caller-provided scratch reuse via `map_with`
+- [x] Refactor `apply()` to use `ClaheScratch` internally — eliminates per-tile allocations
+- [x] Add `build_tile_cdf_into()` — writes directly into caller-provided slices
+- [x] Add 3 new CLAHE tests — bit-identity, reuse determinism, buffer sizes
+- [x] Update `crates/ritk-core/src/filter/intensity/mod.rs` — re-export `ClaheScratch`
+- [x] Update `crates/ritk-core/src/filter/mod.rs` — add `ClaheScratch` to intensity re-exports
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-vtk --lib` — 237 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib filter::intensity::tests_clahe` — 17 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib` — 1385 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.51 section
+- [x] Update `backlog.md` — Sprint 281 entry
+- [x] Update `checklist.md` — Sprint 281 entry
+- [x] Update `gap_audit.md` — Sprint 281 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| (none) | All Sprint 262 gap inventory items closed | — |
+
+---
+
+## Sprint 280 — Complete
+
+**Status**: Complete
+**Phase**: Execution — DIMSE UI Wiring (PACS Panel)
+**Version**: 0.50.50 [minor]
+
+### Checklist items
+
+- [x] Create `crates/ritk-snap/src/pacs/mod.rs` — module manifest + re-exports
+- [x] Create `crates/ritk-snap/src/pacs/config.rs` — `PacsConfig` with `Default` and `to_association_config()`
+- [x] Create `crates/ritk-snap/src/pacs/query.rs` — `FindResultRow`, `PacsRequest`, `PacsResponse`, `QueryState`
+- [x] Create `crates/ritk-snap/src/pacs/worker.rs` — `PacsWorkerHandle`, `spawn_pacs_request`, helpers
+- [x] Create `crates/ritk-snap/src/pacs/tests.rs` — 12 value-semantic tests
+- [x] Create `crates/ritk-snap/src/ui/pacs_panel/mod.rs` — `PacsPanelAction`, `show_pacs_panel`, `show_results_section`
+- [x] Create `crates/ritk-snap/src/app/pacs_ops.rs` — `poll_pacs_worker`, `apply_pacs_response`, `handle_pacs_action`, submit helpers
+- [x] Update `crates/ritk-io/src/format/dicom/networking/command.rs` — promote `parse_dataset_ivr_le` to `pub`
+- [x] Update `crates/ritk-io/src/format/dicom/networking/mod.rs` — add `pub use command::parse_dataset_ivr_le;`
+- [x] Update `crates/ritk-snap/src/lib.rs` — add `pub mod pacs;`
+- [x] Update `crates/ritk-snap/src/ui/mod.rs` — add `pub mod pacs_panel;`
+- [x] Update `crates/ritk-snap/src/app/mod.rs` — add `mod pacs_ops;`
+- [x] Update `crates/ritk-snap/src/app/state.rs` — 8 PACS fields in `SnapApp` and `Default`; `poll_pacs_worker()` in update loop
+- [x] Update `crates/ritk-snap/src/app/menu.rs` — "PACS" top-level menu with "PACS Network Panel" toggle
+- [x] Update `crates/ritk-snap/src/app/panels.rs` — PACS panel `egui::Window` in `show_aux_windows`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-snap --lib pacs` — 12 passed, 0 failed
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 26 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.50 section
+- [x] Update `backlog.md` — Sprint 280 entry
+- [x] Update `checklist.md` — Sprint 280 entry
+- [x] Update `gap_audit.md` — Sprint 280 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| (none) | All Sprint 262 gap inventory items closed | — |
+
+---
+
+## Sprint 279 — Complete
+
+**Status**: Complete
+**Phase**: Execution — AI Inference Endpoint + VtkPipeline Mtime Wiring
+**Version**: 0.50.49 [minor]
+
+### Checklist items
+
+- [x] Create `crates/ritk-model/src/monai/types.rs` — `ServerInfo`, `ModelType`, `ModelInfo`, `InferRequest`, `InferResponse`, `MonaiError`
+- [x] Create `crates/ritk-model/src/monai/multipart.rs` — RFC 2046 multipart parser + 5 inline tests
+- [x] Create `crates/ritk-model/src/monai/client.rs` — `MonaiLabelClient` with `info()`, `models()`, `infer()`
+- [x] Create `crates/ritk-model/src/monai/mod.rs` — module manifest + re-exports
+- [x] Create `crates/ritk-model/src/monai/tests.rs` — 14 value-semantic tests (type serde, multipart parsing, mockito HTTP)
+- [x] Update `crates/ritk-model/src/lib.rs` — add `pub mod monai;`
+- [x] Update `crates/ritk-model/Cargo.toml` — add `reqwest`, `serde`, `serde_json`; `mockito = "1"` dev-dep
+- [x] Update `ritk/Cargo.toml` — add `"json"` to reqwest workspace features
+- [x] Update `crates/ritk-vtk/src/domain/vtk_pipeline.rs` — `add_filter`/`set_sink` call `self.modified()`; 1 new test
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-vtk --lib` — 237 passed, 0 failed
+- [x] `cargo test -p ritk-model --lib monai` — 19 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.49 section
+- [x] Update `backlog.md` — Sprint 279 entry
+- [x] Update `checklist.md` — Sprint 279 entry
+- [x] Update `gap_audit.md` — Sprint 279 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+
+---
+
+## Sprint 278 — Complete
+
+**Status**: Complete
+**Phase**: Execution
+**Version**: 0.50.48 [minor]
+
+### Checklist items
+
+- [x] Create `ShotNoiseFilter` in `crates/ritk-core/src/filter/noise.rs` — Poisson noise with Knuth sampling + normal approximation
+- [x] Create `SpeckleNoiseFilter` in `crates/ritk-core/src/filter/noise.rs` — multiplicative Gaussian noise
+- [x] Refactor all 4 noise filters with deterministic seeded RNG, `Default` impls, `apply()` dispatch
+- [x] Add 9 new value-semantic tests in `crates/ritk-core/src/filter/tests_noise.rs` (23 total)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/tests_store.rs` — C-STORE loopback integration test (2 tests)
+- [x] Register test module in `association.rs`
+- [x] Fix `parse_dataset_ivr_le` dead-code warning — `pub(crate) fn` + `#[allow(dead_code)]`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 26 passed
+- [x] `cargo test -p ritk-core --lib filter::noise` — 23 passed
+- [x] `cargo test -p ritk-core --lib` — 1382 passed
+- [x] Update `CHANGELOG.md` — 0.50.48 section
+- [x] Update `backlog.md` — Sprint 278 entry
+- [x] Update `checklist.md` — Sprint 278 entry
+- [x] Update `gap_audit.md` — Sprint 278 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+| GAP-262-FLT-06 | CLAHE filter optimization | Medium |
+
+---
+
+## Sprint 277 — Complete
+
+**Status**: Complete
+**Phase**: Execution — VTK Data Pipeline Abstraction
+**Version**: 0.50.47 [minor]
+**Target**: Close GAP-262-VIZ-04 by adding observer/event system, MTime tracking, smart mapper, multi-block datasets, and geometry filters to `ritk-vtk`.
+
+### Checklist items
+
+- [x] Create `crates/ritk-vtk/src/domain/mtime.rs` — `ModifiedTime`, `Modifiable` trait, 7 tests
+- [x] Create `crates/ritk-vtk/src/domain/observer.rs` — `EventId`, `EventHandlers`, `Observable` trait, 8 tests
+- [x] Create `crates/ritk-vtk/src/domain/mapper.rs` — `VtkLookupTable` (256-entry, 5 presets), `VtkMapper`, `SurfaceMapper`, 10 tests
+- [x] Create `crates/ritk-vtk/src/domain/multi_block.rs` — `VtkMultiBlockDataSet`, `Block`, `LeafIter` DFS, 8 tests
+- [x] Create `crates/ritk-vtk/src/domain/filters/normals.rs` — `ComputeNormalsFilter`, 6 tests
+- [x] Create `crates/ritk-vtk/src/domain/filters/smooth.rs` — `SmoothFilter` (Laplacian), 6 tests
+- [x] Create `crates/ritk-vtk/src/domain/filters/threshold.rs` — `ThresholdFilter` (f32 precision), 7 tests
+- [x] Create `crates/ritk-vtk/src/domain/filters/mod.rs` — module manifest
+- [x] Update `crates/ritk-vtk/src/domain/mod.rs` — add new module declarations and re-exports
+- [x] Update `crates/ritk-vtk/src/lib.rs` — add new crate-root re-exports
+- [x] Update `CHANGELOG.md` — add v0.50.47 entry
+- [x] `cargo check --workspace` — 0 errors, 1 pre-existing warning
+- [x] `cargo test -p ritk-vtk --lib` — 230 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-02 | C-STORE loopback integration test | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+
+## Sprint 276 — Complete
+
+**Status**: Complete  
+**Phase**: Execution — Native DIMSE Protocol Stack  
+**Version**: 0.50.44 [minor]  
+**Target**: Add native PDU codec, DIMSE message codec, and Association SCU to networking module; close structural violations (association.rs partitioned to 498 lines).
+
+### Checklist items
+
+- [x] Create `crates/ritk-io/src/format/dicom/networking/pdu.rs` — PDU codec (358 lines, 8 tests)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/dimse.rs` — DIMSE message codec (490 lines, 8 tests)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/association.rs` — Association SCU (498 lines, 8 tests)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/types.rs` — Legacy compatibility types (113 lines)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/tests_pdu.rs` — PDU round-trip tests (121 lines)
+- [x] Create `crates/ritk-io/src/format/dicom/networking/tests_association.rs` — Association unit tests (157 lines)
+- [x] Update `crates/ritk-io/src/format/dicom/networking/mod.rs` — add `pub mod types;` + `pub use` for Association, DimseMessage, Pdu
+- [x] Update `crates/ritk-io/src/format/dicom/mod.rs` — add Association, DimseMessage, Pdu re-exports
+- [x] Update `crates/ritk-io/src/lib.rs` — add Association, MoveResult to crate-level re-exports
+- [x] Update `CHANGELOG.md` — add Association SCU, PDU codec, DIMSE codec entries to 0.50.44
+- [x] `cargo check --workspace` — 0 errors, 0 new warnings
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 24 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib` — 1373 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-02 | C-STORE loopback integration test | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
 ## Sprint 275 — Complete
+
 **Status**: Complete
 **Phase**: Closure — GPU Mesh Surface Pipeline
 **Version**: 0.50.46 [minor]

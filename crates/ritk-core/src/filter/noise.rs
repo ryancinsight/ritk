@@ -20,6 +20,7 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 
 // ── AdditiveGaussianNoiseFilter ───────────────────────────────────────────────
 
@@ -77,18 +78,34 @@ impl AdditiveGaussianNoiseFilter {
     pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let mut rng = StdRng::seed_from_u64(self.seed);
-        let out: Vec<f32> = vals
+        // Pre-generate all random variates from a single sequential RNG
+        // to guarantee deterministic output for a given seed.
+        let gaussians: Vec<f64> = vals
             .iter()
-            .map(|&v| {
-                // Box-Muller transform for Gaussian random variate
+            .map(|_| {
                 let u1: f64 = rng.random();
                 let u2: f64 = rng.random();
-                let n = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
-                    * (2.0 * std::f64::consts::TAU * u2).cos();
-                (v as f64 + n * self.std + self.mean) as f32
+                (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
+                    * (2.0 * std::f64::consts::TAU * u2).cos()
             })
             .collect();
+        let out: Vec<f32> = vals
+            .par_iter()
+            .zip(gaussians.par_iter())
+            .map(|(&v, &n)| (v as f64 + n * self.std + self.mean) as f32)
+            .collect();
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply additive Gaussian noise (primary dispatch, delegates to `apply_3d`).
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        self.apply_3d(image)
+    }
+}
+
+impl Default for AdditiveGaussianNoiseFilter {
+    fn default() -> Self {
+        Self::new(1.0)
     }
 }
 
@@ -140,10 +157,12 @@ impl SaltAndPepperNoiseFilter {
         let max_val = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let mut rng = StdRng::seed_from_u64(self.seed);
         let half_p = self.probability / 2.0;
+        // Pre-generate random draws sequentially for deterministic ordering.
+        let draws: Vec<f64> = vals.iter().map(|_| rng.random()).collect();
         let out: Vec<f32> = vals
-            .iter()
-            .map(|&v| {
-                let r: f64 = rng.random();
+            .par_iter()
+            .zip(draws.par_iter())
+            .map(|(&v, &r)| {
                 if r < half_p {
                     min_val // pepper
                 } else if r < self.probability {
@@ -154,6 +173,17 @@ impl SaltAndPepperNoiseFilter {
             })
             .collect();
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply salt-and-pepper noise (primary dispatch, delegates to `apply_3d`).
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        self.apply_3d(image)
+    }
+}
+
+impl Default for SaltAndPepperNoiseFilter {
+    fn default() -> Self {
+        Self::new(0.05)
     }
 }
 
@@ -201,22 +231,40 @@ impl ShotNoiseFilter {
     /// Apply Poisson shot noise to a 3-D image.
     pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+
         // Zero scale means no photons — all output is zero.
         if self.scale <= 0.0 {
             let out = vec![0.0_f32; vals.len()];
             return Ok(rebuild(out, dims, image));
         }
+
         let mut rng = StdRng::seed_from_u64(self.seed);
-        let out: Vec<f32> = vals
+        // Pre-generate Poisson samples sequentially for deterministic ordering.
+        let samples: Vec<f64> = vals
             .iter()
             .map(|&v| {
                 let intensity = (v as f64).max(0.0);
                 let lambda = intensity * self.scale;
-                let k = poisson_sample(&mut rng, lambda);
-                (k / self.scale) as f32
+                poisson_sample(&mut rng, lambda)
             })
             .collect();
+        let out: Vec<f32> = vals
+            .par_iter()
+            .zip(samples.par_iter())
+            .map(|(&_v, &k)| (k / self.scale) as f32)
+            .collect();
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply Poisson shot noise (primary dispatch, delegates to `apply_3d`).
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        self.apply_3d(image)
+    }
+}
+
+impl Default for ShotNoiseFilter {
+    fn default() -> Self {
+        Self::new(1.0)
     }
 }
 
@@ -290,19 +338,34 @@ impl SpeckleNoiseFilter {
     pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let mut rng = StdRng::seed_from_u64(self.seed);
-        let out: Vec<f32> = vals
+        // Pre-generate Gaussian variates sequentially for deterministic ordering.
+        let gaussians: Vec<f64> = vals
             .iter()
-            .map(|&v| {
-                // Box-Muller for Gaussian
+            .map(|_| {
                 let u1: f64 = rng.random();
                 let u2: f64 = rng.random();
-                let n = (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
+                (-2.0_f64 * u1.max(f64::MIN_POSITIVE).ln()).sqrt()
                     * (2.0 * std::f64::consts::TAU * u2).cos()
-                    * self.std;
-                (v as f64 * (1.0 + n)) as f32
+                    * self.std
             })
             .collect();
+        let out: Vec<f32> = vals
+            .par_iter()
+            .zip(gaussians.par_iter())
+            .map(|(&v, &n)| (v as f64 * (1.0 + n)) as f32)
+            .collect();
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Apply speckle noise (primary dispatch, delegates to `apply_3d`).
+    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+        self.apply_3d(image)
+    }
+}
+
+impl Default for SpeckleNoiseFilter {
+    fn default() -> Self {
+        Self::new(0.05)
     }
 }
 

@@ -64,9 +64,11 @@ pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWrit
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
 pub use networking::
     {echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve,
-    store as dicom_store, AeTitle, AssociationConfig, DicomAddress, EchoResponse,
-    FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse, NetworkingError,
-    StoreResponse};
+     store as dicom_store, AeTitle, Association, AssociationConfig, DicomAddress, EchoResponse,
+     FindLevel, FindQuery, FindResult, MoveDestination, MoveResult, MoveResponse, NetworkingError,
+     StoreResponse};
+pub use networking::dimse::{DimseMessage, DimseStatus, CommandField};
+pub use networking::pdu::{Pdu, AssociateRqPdu, AssociateAcPdu};
 
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]

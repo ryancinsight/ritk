@@ -36,7 +36,7 @@ pub use binary_ops::{
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;
-pub use clahe::ClaheFilter;
+pub use clahe::{ClaheFilter, ClaheScratch};
 pub use clamp::ClampImageFilter;
 pub use equalization::HistogramEqualizationFilter;
 pub use mask::{MaskImageFilter, MaskNegatedImageFilter};

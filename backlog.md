@@ -1,3 +1,237 @@
+## Sprint 282 — Complete
+
+**Status**: Complete
+**Phase**: Execution — PACS correctness + performance + test coverage + test re-enablement
+**Version**: 0.50.52 [patch]
+**Goal**: Close all correctness, coverage, and performance gaps identified in the Sprint 280/281 code review.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| PACS-correctness-01 | `num_instances` decoded wrong tag (0020,1209 → 0020,1208) | **Closed** |
+| PACS-correctness-02 | Dead series-level fields in `FindResultRow` removed | **Closed** |
+| PACS-perf-01 | `from_raw_bytes` O(n×fields) → O(n+fields) via HashMap | **Closed** |
+| PACS-test-01 | 9 new value-semantic tests for pacs module | **Closed** |
+| DIMSE-test-01 | `tests_dimse.rs` re-enabled (24 tests) via `get_string` helper | **Closed** |
+| UI-dead-code-01 | Redundant echo display color branch removed | **Closed** |
+| UI-ux-01 | Truncated description ellipsis added | **Closed** |
+
+### Delivered
+
+- `crates/ritk-snap/src/pacs/query.rs` — removed dead fields; fixed `num_instances` tag; HashMap lookup; added `(0020,1208)` return key; updated doc table
+- `crates/ritk-snap/src/pacs/tests.rs` — 9 new tests; removed dead-field assertions (21 total)
+- `crates/ritk-snap/src/ui/pacs_panel/mod.rs` — removed dead OR branch; description ellipsis
+- `crates/ritk-io/src/format/dicom/networking/association.rs` — `FindResult::get_string`
+- `crates/ritk-io/src/format/dicom/networking/mod.rs` — uncommented `tests_dimse`
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 21 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::networking`: 50 passed, 0 failed
+
+### Gaps remaining
+
+(none) — All Sprint 262 gap inventory items closed; Sprint 282 post-review gaps closed.
+
+---
+
+## Sprint 281 — Complete
+
+**Status**: Complete
+**Phase**: Execution — VtkPipeline MTime/Observable Integration + CLAHE Zero-Allocation Optimization
+**Version**: 0.50.51 [minor]
+**Goal**: Close GAP-262-VIZ-04 (VtkPipeline needs_update wiring) and GAP-262-FLT-06 (CLAHE scratch-buffer optimization).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-04 | VtkPipeline Modifiable/Observable integration — needs_update lazy re-execution + event notification | **Closed** |
+| GAP-262-FLT-06 | CLAHE zero-allocation scratch-buffer optimization | **Closed** |
+
+### Delivered
+
+- `crates/ritk-vtk/src/domain/vtk_pipeline.rs` — `VtkPipeline` now implements `Modifiable` and `Observable`; `execute(&mut self)` fires StartEvent/EndEvent/ErrorEvent and stamps mtime; `execute_if_needed(&mut self, dep_mtime)` conditionally re-executes; `VtkFilter::mtime()` default method; `add_filter`/`set_sink` call `modified()`; `cached_output` field; 7 new tests
+- `crates/ritk-core/src/filter/intensity/clahe.rs` — `ClaheScratch` struct pre-allocates CDFs, histograms, tile_vals, output buffers; `ClaheFilter::apply_with_scratch()` for caller-provided scratch reuse; `apply()` now uses `map_with` + scratch internally; `build_tile_cdf_into()` writes directly into caller-provided slices
+- `crates/ritk-core/src/filter/intensity/tests_clahe.rs` — 3 new tests (apply_with_scratch bit-identity, scratch reuse determinism, buffer size invariants); 17 total CLAHE tests
+- `crates/ritk-core/src/filter/intensity/mod.rs` — re-export `ClaheScratch`
+- `crates/ritk-core/src/filter/mod.rs` — added `ClaheScratch` to intensity re-export list
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 237 passed, 0 failed (12 vtk_pipeline + 225 pre-existing)
+- `cargo test -p ritk-core --lib filter::intensity::tests_clahe`: 17 passed, 0 failed
+- `cargo test -p ritk-core --lib`: 1385 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| (none) | All Sprint 262 gap inventory items closed | — |
+
+---
+
+## Sprint 280 — Complete
+
+**Status**: Complete
+**Phase**: Execution — DIMSE UI Wiring (PACS Panel)
+**Version**: 0.50.50 [minor]
+**Goal**: Close GAP-262-IO-01 (DIMSE UI wiring in `ritk-snap` viewer): PACS discovery panel with C-ECHO, C-FIND, and C-MOVE wired into `SnapApp`.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-IO-01 | DIMSE UI wiring in viewer (PACS panel, C-FIND/C-MOVE) | **Closed** |
+
+### Delivered
+
+- `crates/ritk-snap/src/pacs/config.rs` — `PacsConfig` (calling/called AE title, host, port, move_destination, timeout_secs); `Default` → "RITKSNAP"/"ORTHANC"/localhost:4242; `to_association_config()` conversion
+- `crates/ritk-snap/src/pacs/query.rs` — `FindResultRow` (10 DICOM attribute fields, `from_raw_bytes` via IVR-LE parser, `build_study_query`); `PacsRequest` (Echo/FindStudies/RetrieveStudy); `PacsResponse` (EchoOk/EchoErr/FindOk/FindErr/RetrieveOk/RetrieveErr); `QueryState` (Idle/Pending/Results/Error state machine)
+- `crates/ritk-snap/src/pacs/worker.rs` — `PacsWorkerHandle` (`try_recv`); `spawn_pacs_request` (cfg-gated non-WASM, `sync_channel(1)` backpressure, `std::thread::spawn`); `execute_request`/`echo`/`find`/`retrieve` helpers
+- `crates/ritk-snap/src/pacs/tests.rs` — 12 value-semantic tests (IVR-LE parsing, config defaults, `to_association_config`, `QueryState` default, `build_study_query`)
+- `crates/ritk-snap/src/pacs/mod.rs` — module manifest + re-exports
+- `crates/ritk-snap/src/ui/pacs_panel/mod.rs` — `PacsPanelAction` enum (None/SubmitEcho/SubmitFind/SubmitRetrieve/ClearResults); `show_pacs_panel` function; `show_results_section` helper; scrollable C-FIND results table with selectable rows and Retrieve button
+- `crates/ritk-snap/src/app/pacs_ops.rs` — `SnapApp` impl: `poll_pacs_worker`, `apply_pacs_response`, `handle_pacs_action`, `submit_pacs_echo`, `submit_pacs_find`, `submit_pacs_retrieve` (all with WASM fallback error)
+- `crates/ritk-snap/src/lib.rs` — added `pub mod pacs;`
+- `crates/ritk-snap/src/ui/mod.rs` — added `pub mod pacs_panel;`
+- `crates/ritk-snap/src/app/mod.rs` — added `mod pacs_ops;`
+- `crates/ritk-snap/src/app/state.rs` — 8 PACS fields added to `SnapApp` and `Default`; `poll_pacs_worker()` in update loop
+- `crates/ritk-snap/src/app/menu.rs` — "PACS" top-level menu with "PACS Network Panel" toggle
+- `crates/ritk-snap/src/app/panels.rs` — PACS panel `egui::Window` in `show_aux_windows`
+- `crates/ritk-io/src/format/dicom/networking/command.rs` — `parse_dataset_ivr_le` promoted to `pub`
+- `crates/ritk-io/src/format/dicom/networking/mod.rs` — added `pub use command::parse_dataset_ivr_le;`
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 12 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::networking`: 26 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| (none) | All Sprint 262 gap inventory items closed | — |
+
+---
+
+## Sprint 279 — Complete
+
+**Status**: Complete
+**Phase**: Execution — AI Inference Endpoint + VtkPipeline Structural-Change Propagation
+**Version**: 0.50.49 [minor]
+**Goal**: Close GAP-262-APP-02 (MONAI Label Server REST client); wire `self.modified()` into `add_filter`/`set_sink` completing Sprint 277's architectural residual.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-APP-02 | MONAI Label Server REST client (GET /info, GET /models, POST /infer) | **Closed** |
+
+### Delivered
+
+- `crates/ritk-model/src/monai/types.rs` — `ServerInfo`, `ModelType` (4 variants with serde), `ModelInfo`, `InferRequest` + `new()`, `InferResponse`, `MonaiError` (4 variants via `thiserror`)
+- `crates/ritk-model/src/monai/multipart.rs` — RFC 2046 multipart parser: `split_multipart`, `split_at_double_crlf`, `extract_part_name`, `split_bytes`, `find_seq`; 5 inline unit tests
+- `crates/ritk-model/src/monai/client.rs` — `MonaiLabelClient` (`reqwest::blocking`, 30s timeout): `info()`, `models()` (name injected from JSON key), `infer()`; `parse_infer_response` + `extract_boundary` helpers
+- `crates/ritk-model/src/monai/mod.rs` — module manifest + flat public re-exports
+- `crates/ritk-model/src/monai/tests.rs` — 14 value-semantic tests across 3 layers (type serde, multipart parsing, mockito HTTP)
+- `crates/ritk-model/src/lib.rs` — added `pub mod monai;`
+- `crates/ritk-model/Cargo.toml` — added `reqwest`, `serde`, `serde_json` deps; `mockito = "1"` dev-dep
+- `ritk/Cargo.toml` — added `"json"` to reqwest workspace features (`["blocking", "stream", "json"]`)
+- `crates/ritk-vtk/src/domain/vtk_pipeline.rs` — `add_filter` and `set_sink` now call `self.modified()`: structural changes propagate through `execute_if_needed`; 1 new test
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 237 passed, 0 failed
+- `cargo test -p ritk-model --lib monai`: 19 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+
+---
+
+## Sprint 278 — Complete
+
+**Status**: Complete
+**Phase**: Execution — Noise Filters + C-STORE Integration Test + Dead-Code Cleanup
+**Version**: 0.50.48 [minor]
+**Goal**: Close GAP-262-FLT-05 (noise simulation filters) and GAP-262-IO-02 (C-STORE loopback integration test); fix pre-existing dead-code warning.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-FLT-05 | Noise simulation filters (Shot + Speckle) | **Closed** |
+| GAP-262-IO-02 | C-STORE loopback integration test | **Closed** |
+
+### Delivered
+
+- `crates/ritk-core/src/filter/noise.rs` — `ShotNoiseFilter` (Poisson noise with Knuth sampling + normal approximation for lambda >= 30) and `SpeckleNoiseFilter` (multiplicative Gaussian noise); all 4 noise filters refactored with deterministic seeded RNG, `Default` impls, `apply()` primary dispatch
+- `crates/ritk-core/src/filter/tests_noise.rs` — 9 new value-semantic tests (23 total)
+- `crates/ritk-io/src/format/dicom/networking/tests_store.rs` — C-STORE loopback integration test (2 tests: normal round-trip + empty dataset)
+- `crates/ritk-io/src/format/dicom/networking/association.rs` — added `#[cfg(test)] #[path = "tests_store.rs"] mod tests_store;`
+- `crates/ritk-io/src/format/dicom/networking/command.rs` — `parse_dataset_ivr_le` changed from `pub fn` to `pub(crate) fn` with `#[allow(dead_code)]`
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-io --lib format::dicom::networking`: 26 passed, 0 failed
+- `cargo test -p ritk-core --lib filter::noise`: 23 passed, 0 failed
+- `cargo test -p ritk-core --lib`: 1382 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-VIZ-04 | VTK data pipeline abstraction | High |
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+| GAP-262-FLT-06 | CLAHE filter optimization | Medium |
+
+---
+
+## Sprint 277 — Complete
+**Status**: Complete
+**Phase**: Execution — VTK Data Pipeline Abstraction
+**Version**: 0.50.47 [minor]
+**Goal**: Close GAP-262-VIZ-04 — add VTK observer/event system, MTime tracking, smart mapper (5 colormap LUTs), multi-block datasets, and concrete geometry filters to `ritk-vtk`.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-262-VIZ-04 | VTK data pipeline abstraction — observers, smart mapping, multi-block datasets | **Closed** |
+
+### Delivered
+- ✓ `crates/ritk-vtk/src/domain/mtime.rs` — `ModifiedTime`, `Modifiable` trait (7 tests)
+- ✓ `crates/ritk-vtk/src/domain/observer.rs` — `EventId`, `EventHandlers`, `Observable` trait (8 tests)
+- ✓ `crates/ritk-vtk/src/domain/mapper.rs` — `VtkLookupTable`, `ColormapPreset` (5 presets), `VtkMapper`, `SurfaceMapper` (10 tests)
+- ✓ `crates/ritk-vtk/src/domain/multi_block.rs` — `VtkMultiBlockDataSet`, `Block`, `LeafIter` (8 tests)
+- ✓ `crates/ritk-vtk/src/domain/filters/normals.rs` — `ComputeNormalsFilter` (6 tests)
+- ✓ `crates/ritk-vtk/src/domain/filters/smooth.rs` — `SmoothFilter` Laplacian (6 tests)
+- ✓ `crates/ritk-vtk/src/domain/filters/threshold.rs` — `ThresholdFilter` inclusive f32 range (7 tests)
+- ✓ `crates/ritk-vtk/src/domain/filters/mod.rs` — filter module manifest
+- ✓ `crates/ritk-vtk/src/domain/mod.rs` — updated re-exports
+- ✓ `crates/ritk-vtk/src/lib.rs` — updated crate-root re-exports
+- ✓ `cargo check --workspace`: 0 errors, 1 pre-existing warning
+- ✓ `cargo test -p ritk-vtk --lib`: 230 passed (49 new + 181 pre-existing), 0 failed
+
+### Remaining high-priority gaps
+| Task | Description | Priority |
+|---|---|---|
+| GAP-262-APP-02 | AI inference endpoint | Medium |
+| GAP-262-IO-02 | C-STORE loopback integration test | Medium |
+| GAP-262-IO-01 | DIMSE UI wiring in viewer | Medium |
+
+---
+
 ## Sprint 275 — Complete
 **Status**: Complete
 **Phase**: Closure — GPU Mesh Surface Pipeline

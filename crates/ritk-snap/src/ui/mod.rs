@@ -49,6 +49,7 @@ pub mod live_preview;
 pub mod measurements;
 pub mod mpr_cursor;
 pub mod overlay;
+pub mod pacs_panel;
 pub mod pan;
 pub mod pet_suv_panel;
 pub mod pointer_intensity;

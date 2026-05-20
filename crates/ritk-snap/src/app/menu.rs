@@ -416,6 +416,19 @@ impl SnapApp {
                         self.mip_dirty = true;
                     }
                 });
+
+                // ── PACS ───────────────────────────────────────────────────
+                ui.menu_button("PACS", |ui| {
+                    let pacs_label = if self.show_pacs_panel {
+                        "✔ PACS Network Panel"
+                    } else {
+                        " PACS Network Panel"
+                    };
+                    if ui.button(pacs_label).clicked() {
+                        ui.close_menu();
+                        self.show_pacs_panel = !self.show_pacs_panel;
+                    }
+                });
             });
         });
     }

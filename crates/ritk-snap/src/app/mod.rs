@@ -18,6 +18,7 @@ mod filter;
 mod io_ops;
 mod menu;
 mod mesh_ops;
+mod pacs_ops;
 mod panels;
 mod pointer_ops;
 mod render_cache;

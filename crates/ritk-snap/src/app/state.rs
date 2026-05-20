@@ -208,6 +208,24 @@ pub(crate) struct SnapApp {
     /// Secondary path queued for load on next update cycle.
     pub(crate) pending_secondary_load: Option<std::path::PathBuf>,
 
+    // ── PACS panel ────────────────────────────────────────────────────────────
+    /// PACS server connection configuration.
+    pub(crate) pacs_config: crate::pacs::PacsConfig,
+    /// Current PACS query state machine (Idle / Pending / Results / Error).
+    pub(crate) pacs_query_state: crate::pacs::QueryState,
+    /// Whether the PACS panel window is visible.
+    pub(crate) show_pacs_panel: bool,
+    /// Patient name filter string for C-FIND queries (DICOM wildcard format).
+    pub(crate) pacs_patient_filter: String,
+    /// Modality filter for C-FIND queries; empty = all modalities.
+    pub(crate) pacs_modality_filter: String,
+    /// Human-readable result of the last C-ECHO test.
+    pub(crate) pacs_echo_display: String,
+    /// Index of the currently selected C-FIND result row.
+    pub(crate) pacs_selected_row: Option<usize>,
+    /// Handle to an in-flight background PACS operation, if any.
+    pub(crate) pacs_worker: Option<crate::pacs::PacsWorkerHandle>,
+
     // ── GPU renderer (native only) ────────────────────────────────────────────
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
     /// available or when running on wasm32.  CPU path is the fallback.
@@ -290,6 +308,14 @@ impl Default for SnapApp {
             status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
             pending_load: None,
             pending_secondary_load: None,
+            pacs_config: crate::pacs::PacsConfig::default(),
+            pacs_query_state: crate::pacs::QueryState::Idle,
+            show_pacs_panel: false,
+            pacs_patient_filter: String::new(),
+            pacs_modality_filter: String::new(),
+            pacs_echo_display: String::new(),
+            pacs_selected_row: None,
+            pacs_worker: None,
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),
@@ -334,6 +360,10 @@ impl eframe::App for SnapApp {
         if let Some(path) = self.pending_secondary_load.take() {
             self.load_secondary_from_path(path);
         }
+
+        // Poll background PACS worker on every frame (must run even when the
+        // PACS panel is closed so responses are applied promptly).
+        self.poll_pacs_worker();
 
         self.tick_cine(ctx);
         self.consume_global_shortcuts(ctx);

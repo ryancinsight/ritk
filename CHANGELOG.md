@@ -1,7 +1,159 @@
 # CHANGELOG
 
-All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
+All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/2.0.0/).
+
+## [0.50.52] - 2026-05-20
+
+### Fixed [patch]
+
+- **`FindResultRow` correctness** (Sprint 282): removed dead series-level fields
+  `series_description` (0008,103E) and `series_instance_uid` (0020,000E) — both are
+  Series Root attributes never returned by a Study Root STUDY-level C-FIND query.
+  `num_instances` now decodes tag `(0020,1208)` (`NumberOfStudyRelatedInstances`,
+  study-scoped) instead of `(0020,1209)` (`NumberOfSeriesRelatedInstances`,
+  series-scoped); `build_study_query` adds `(0020,1208)` as a return key.
+- **`FindResultRow::from_raw_bytes` O(n×fields) → O(n+fields)** (Sprint 282):
+  replaced per-field linear `find()` scan with a single O(n) `HashMap` build pass
+  and O(1) per-field lookups.
+- **`tests_dimse.rs` re-enabled** (Sprint 282): added `FindResult::get_string`
+  helper (decodes a string attribute from the first match dataset); uncommented the
+  `tests_dimse` module — 24 unit and loopback tests now compile and pass.
+- **Echo display dead code removed** (Sprint 282): `pacs_panel/mod.rs` echo color
+  check had a redundant `|| echo_display.starts_with('✓')` branch (`'✓'` is
+  `U+2713` — identical to the preceding `'\u{2713}'` literal); removed.
+- **Description truncation ellipsis** (Sprint 282): `show_results_section` now
+  appends `…` (U+2026) when a study description exceeds 28 characters.
+
+### Tests [patch]
+
+- **9 new value-semantic pacs tests** (Sprint 282): `QueryState::Pending` label,
+  `QueryState::Error` message, `PacsConfig` timeout/called-AE/host/move-destination
+  defaults, all-8-study-fields decode, complete return-key coverage,
+  `PacsPanelAction::default()`.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 21 passed, 0 failed (up from 12)
+- `cargo test -p ritk-io --lib format::dicom::networking`: 50 passed, 0 failed (up from 26)
+
+---
+
+## [0.50.51] - 2026-05-20
+
+### Added [minor]
+
+- **VtkPipeline Modifiable/Observable integration** (Sprint 281, GAP-262-VIZ-04 closure): full wiring of modification-time lazy re-execution and event notification into the VTK data pipeline.
+  - `VtkPipeline` now implements `Modifiable` (mtime tracking) and `Observable` (event notification).
+  - `execute(&mut self)` fires `StartEvent` before execution and `EndEvent` on success; fires `ErrorEvent` instead of `EndEvent` on failure; caches output and stamps `modified()`.
+  - `execute_if_needed(&mut self, dependency_mtime)` conditionally re-executes only when `max(dependency_mtime, max(filter.mtime())) > self.get_mtime()`; returns `Ok(None)` when cached output is valid.
+  - `VtkFilter::mtime()` default method returns `ModifiedTime::ZERO`; filters can override to signal internal state changes.
+  - `add_filter`/`set_sink` call `self.modified()` to invalidate cached output on structural changes.
+  - 7 new tests: mtime updates, StartEvent/EndEvent firing, ErrorEvent on failure, execute_if_needed skip/execute, filter default mtime, structural-change mtime propagation.
+
+- **CLAHE filter zero-allocation optimization** (Sprint 281, GAP-262-FLT-06): `ClaheScratch` pre-allocated scratch buffer eliminates per-tile allocations during CLAHE execution.
+  - `ClaheScratch` struct: pre-allocates CDFs (`n_tiles * bins` f32), histograms (`n_tiles * bins` u64), tile pixel values, and output slice buffers.
+  - `ClaheFilter::apply_with_scratch(&self, image, &mut ClaheScratch)`: reuses scratch buffers across repeated CLAHE calls via Rayon `map_with` (one scratch per thread, cloned for additional threads).
+  - `ClaheFilter::apply()` internally uses `ClaheScratch` with `map_with`, reducing allocations from ~38,400 per call (512×512×200 @ 8×8) to ~1 per Rayon thread.
+  - `build_tile_cdf_into()`: writes directly into caller-provided histogram and CDF slices, eliminating per-tile `Vec` allocations.
+  - 3 new tests: apply_with_scratch bit-identity, scratch reuse determinism, buffer size invariants.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 237 passed, 0 failed (12 vtk_pipeline + 225 pre-existing)
+- `cargo test -p ritk-core --lib filter::intensity::tests_clahe`: 17 passed, 0 failed
+- `cargo test -p ritk-core --lib`: 1385 passed, 0 failed
+
+---
+
+## [0.50.50] - 2026-05-20
+
+### Added [minor]
+
+- **DIMSE UI wiring** (Sprint 280, GAP-262-IO-01): `ritk-snap::pacs` module providing a full PACS discovery panel with C-ECHO, C-FIND, and C-MOVE operations wired into the `SnapApp` viewer.
+  - `pacs/config.rs` — `PacsConfig` (calling AE title, called AE title, host, port, move_destination, timeout_secs); `Default` → "RITKSNAP"/"ORTHANC"/localhost:4242; `to_association_config()` conversion to `ritk_io::AssociationConfig`.
+  - `pacs/query.rs` — `FindResultRow` (10 DICOM attribute fields, `from_raw_bytes` via IVR-LE parser, `build_study_query`); `PacsRequest` (Echo/FindStudies/RetrieveStudy); `PacsResponse` (EchoOk/EchoErr/FindOk/FindErr/RetrieveOk/RetrieveErr); `QueryState` (Idle/Pending/Results/Error state machine).
+  - `pacs/worker.rs` — `PacsWorkerHandle` (`try_recv`); `spawn_pacs_request` (cfg-gated non-WASM, `sync_channel(1)` backpressure, `std::thread::spawn`); `execute_request`/`echo`/`find`/`retrieve` helpers.
+  - `pacs/tests.rs` — 12 value-semantic tests: IVR-LE parsing, config defaults, `to_association_config`, `QueryState` default, `build_study_query`.
+  - `pacs/mod.rs` — module manifest + re-exports.
+  - `ui/pacs_panel/mod.rs` — `PacsPanelAction` enum (None/SubmitEcho/SubmitFind/SubmitRetrieve/ClearResults); `show_pacs_panel` function; `show_results_section` helper; scrollable C-FIND results table with selectable rows and Retrieve button.
+  - `app/pacs_ops.rs` — `SnapApp` impl: `poll_pacs_worker`, `apply_pacs_response`, `handle_pacs_action`, `submit_pacs_echo`, `submit_pacs_find`, `submit_pacs_retrieve` (all with WASM fallback error).
+  - `app/state.rs` — 8 PACS fields added to `SnapApp` and `Default`; `poll_pacs_worker()` call in update loop.
+  - `app/menu.rs` — "PACS" top-level menu with "PACS Network Panel" toggle.
+  - `app/panels.rs` — PACS panel `egui::Window` in `show_aux_windows`.
+  - `parse_dataset_ivr_le` promoted from `pub(crate)` to `pub` in `ritk-io::format::dicom::networking::command`; re-exported via `ritk-io::format::dicom::networking`.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-snap --lib pacs`: 12 passed, 0 failed
+- `cargo test -p ritk-io --lib format::dicom::networking`: 26 passed, 0 failed
+
+---
+
+## [0.50.49] - 2026-05-20
+
+### Added [minor]
+
+- **MONAI Label Server REST client** (Sprint 279, GAP-262-APP-02): `ritk-model::monai` module providing a synchronous HTTP client for the MONAI Label Server inference API.
+  - `types.rs` — `ServerInfo`, `ModelType` (Segmentation, DeepEdit, ActiveLearning, Unknown), `ModelInfo`, `InferRequest`, `InferResponse`, `MonaiError` (Transport, Json, ServerError, ParseError); full serde impls with `#[serde(default)]` for optional fields.
+  - `multipart.rs` — Minimal RFC 2046 multipart body parser: `split_multipart`, `split_at_double_crlf`, `extract_part_name`, byte utilities (`split_bytes`, `find_seq`); handles both CRLF and LF line endings.
+  - `client.rs` — `MonaiLabelClient` (blocking `reqwest::blocking::Client`, 30s default timeout): `info()` (GET /info → `ServerInfo`), `models()` (GET /models → `Vec<ModelInfo>` with name injected from map key), `infer(&InferRequest)` (POST /infer/{model}?image={id} → `InferResponse`); `parse_infer_response` and `extract_boundary` helpers.
+  - `mod.rs` — module manifest with flat re-exports of the public surface.
+  - 19 value-semantic tests: 5 multipart parser + 6 type serde + 4 parse_infer_response + 4 mockito HTTP client tests.
+- **`VtkPipeline` structural-change mtime propagation** (Sprint 279, architectural follow-up): `add_filter` and `set_sink` now call `self.modified()`, bumping `mtime` on every structural change. Callers using `execute_if_needed(fresh_dep)` after a structural change now correctly receive a `Some` result. 1 new test: `test_add_filter_bumps_mtime_causing_execute_if_needed_to_rerun`.
+- Added `json` to `reqwest` workspace features (`["blocking", "stream", "json"]`) to support `.json()` serialisation/deserialisation on `RequestBuilder` and `Response`.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 237 passed, 0 failed (12 vtk_pipeline + 225 pre-existing)
+- `cargo test -p ritk-model --lib monai`: 19 passed, 0 failed
+
+---
+
+## [0.50.48] - 2026-05-20
+
+### Added [minor]
+
+- **Noise simulation filters** (Sprint 278, GAP-262-FLT-05): ShotNoiseFilter (Poisson noise with Knuth sampling + normal approximation for lambda >= 30) and SpeckleNoiseFilter (multiplicative Gaussian noise) in ritk-core::filter::noise. All 4 noise filters now have deterministic seeded RNG, Default impls, apply() primary dispatch, and apply_3d() internal method. 9 new value-semantic tests (23 total noise tests).
+- **C-STORE loopback integration test** (Sprint 278, GAP-262-IO-02): tests_store.rs with 2 integration tests validating native Association::c_store() against an in-process mock SCP. Tests cover: normal C-STORE round-trip (Success 0x0000 status) and empty dataset edge case.
+
+### Fixed [patch]
+
+- Removed dead-code warning for parse_dataset_ivr_le in ritk-io::format::dicom::networking::command.rs - changed to pub(crate) fn with #[allow(dead_code)] (retained for future test module re-enablement).
+
+### Verification
+
+- cargo check --workspace: 0 errors, 0 warnings
+- cargo test -p ritk-io --lib format::dicom::networking: 26 passed, 0 failed (2 new C-STORE loopback + 24 pre-existing)
+- cargo test -p ritk-core --lib filter::noise: 23 passed, 0 failed (9 new + 14 pre-existing)
+- cargo test -p ritk-core --lib: 1382 passed, 0 failed
+
+---
+
+## [0.50.47] - 2026-05-20
+
+### Added [minor]
+
+- **VTK data pipeline abstraction** (Sprint 277, GAP-262-VIZ-04): extended `ritk-vtk` with observer/event system, MTime tracking, smart mapper with five colormap LUTs, multi-block datasets, and three concrete geometry filters.
+  - `mtime.rs` — `ModifiedTime` (monotonic `u64` counter via `AtomicU64`); `Modifiable` trait with `get_mtime()`, `modified()`, `needs_update(dep)` default method.  Re-execution invariant: `needs_update(d) ⟺ d > self.mtime`.
+  - `observer.rs` — `EventId` (8 variants: Modified, StartEvent, EndEvent, ProgressEvent, ErrorEvent, WarningEvent, PickEvent, RenderEvent); `EventHandlers` registry with `add_observer()` → `ObserverTag`, `remove_observer()`, `invoke_event()`; `Observable` trait with default delegation.
+  - `mapper.rs` — `VtkLookupTable` (256-entry RGBA table sampled from `ColormapPreset`); presets: Grayscale, Jet (piecewise linear), CoolWarm (Moreland 2009 diverging), Viridis (5-anchor perceptually uniform), Rainbow (HSV sweep); `VtkMapper` trait; `SurfaceMapper` with `PolygonMode` (Surface/Wireframe/Points) and scalar visibility toggle.
+  - `multi_block.rs` — `VtkMultiBlockDataSet` with named/unnamed `Block` children (Leaf | Composite); `leaf_count()` (recursive); `iter_leaves()` returning `LeafIter` (explicit DFS stack, zero allocation per step; no `Box<dyn Iterator>` overhead).
+  - `filters/normals.rs` — `ComputeNormalsFilter`: area-weighted face-normal accumulation (cross product of polygon edges), per-vertex normalization; degenerate faces skipped; fallback normal `[0,0,1]` for isolated vertices.
+  - `filters/smooth.rs` — `SmoothFilter`: Laplacian smoothing L(v_i) = (1−λ)v_i + λ·mean(N(i)) for `iterations` steps; edge-based adjacency built from polygon and line connectivity; isolated vertices unchanged.
+  - `filters/threshold.rs` — `ThresholdFilter`: inclusive scalar range `[lower, upper]` applied in f32 precision (thresholds narrowed from f64 to match stored scalar precision); supports `VtkImageData` (point threshold → VtkUnstructuredGrid of Vertex cells) and `VtkUnstructuredGrid` (cell threshold).
+  - All new types re-exported from `ritk_vtk` crate root.
+  - 49 new value-semantic tests: 7 mtime + 8 observer + 10 mapper + 8 multi_block + 6 normals + 6 smooth + 7 threshold = 49 tests (plus 181 pre-existing = 230 total).
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 1 pre-existing warning (unused `parse_dataset_ivr_le` in `ritk-io`)
+- `cargo test -p ritk-vtk --lib`: 230 passed, 0 failed
+
+---
 
 ## [0.50.44] - 2026-05-19
 
@@ -18,7 +170,11 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
   - All encoding: Implicit VR Little Endian for command PDVs; Explicit VR Little Endian for C-STORE datasets.
   - Transport: `dicom-ul = "0.8"` Upper Layer Protocol (RFC-like TCP association + PDU framing).
   - 24 value-semantic tests: 8 unit tests (AeTitle, encode_ui/us/str, command round-trip, dataset parse), 3 loopback integration tests (C-ECHO, C-FIND, C-MOVE with real `dicom_ul::ServerAssociationOptions` SCP).
-  - Re-exported from `ritk-io`: `AeTitle`, `AssociationConfig`, `DicomAddress`, `EchoResponse`, `FindLevel`, `FindQuery`, `FindResult`, `MoveDestination`, `MoveResponse`, `NetworkingError`, `StoreResponse`, `dicom_echo`, `dicom_find`, `dicom_retrieve`, `dicom_store`.
+  - - **Association SCU** (PS3.8): `Association` struct with `connect()`, `c_echo()`, `c_find()`, `c_store()`, `c_move()`, `release()`, `abort()` methods; native PDU codec (no `dicom-ul` dependency for association lifecycle); configurable max PDU length; odd presentation context ID assignment; PDV fragmentation respecting remote max length.
+ - **PDU codec** (PS3.8): `pdu::Pdu` enum with encode/decode for all 7 DUL PDUs (A-ASSOCIATE-RQ/AC/RJ, P-DATA-TF, A-RELEASE-RQ/RP, A-ABORT); `UserInformation` with maximum length, implementation class UID, version name, user identity; 8 round-trip tests.
+ - **DIMSE message codec** (PS3.7): `dimse::DimseMessage` with factory methods for C-ECHO/C-FIND/C-STORE/C-MOVE request/response; Explicit VR LE command set encoding; command group length computation; SOP class UID constants; 8 round-trip tests.
+ - **Transfer syntax module**: `association::transfer_syntax` constants for Implicit VR LE, Explicit VR LE, Explicit VR BE, JPEG Baseline, JPEG Lossless, JPEG-LS Lossless, JPEG 2000 Lossless, JPEG 2000.
+ - Re-exported from `ritk-io`: `AeTitle`, `Association`, `AssociationConfig`, `DicomAddress`, `EchoResponse`, `FindLevel`, `FindQuery`, `FindResult`, `MoveDestination`, `MoveResult`, `MoveResponse`, `NetworkingError`, `StoreResponse`, `dicom_echo`, `dicom_find`, `dicom_retrieve`, `dicom_store`, `DimseMessage`, `DimseStatus`, `CommandField`, `Pdu`, `AssociateRqPdu`, `AssociateAcPdu`.
   - `dicom-ul = "0.8"` added to workspace and `ritk-io` dependencies.
 
 ## [0.50.43] - 2026-05-19

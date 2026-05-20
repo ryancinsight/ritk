@@ -11,6 +11,11 @@ pub use domain::{
     AttributeArray, RenderProperties, VtkActor, VtkCellType, VtkDataObject, VtkFilter,
     VtkImageData, VtkPipeline, VtkPolyData, VtkScene, VtkSink, VtkSource, VtkStructuredGrid,
     VtkUnstructuredGrid,
+    ModifiedTime, Modifiable,
+    EventHandlers, EventId, Observable, ObserverCallback, ObserverTag,
+    ColormapPreset, PolygonMode, SurfaceMapper, VtkLookupTable, VtkMapper,
+    Block, LeafIter, VtkMultiBlockDataSet,
+    ComputeNormalsFilter, SmoothFilter, ThresholdFilter,
 };
 
 pub use io::{

@@ -250,6 +250,28 @@ impl SnapApp {
                 });
         }
         self.show_colorbar = show_cb;
+
+        // ── PACS Network Panel ────────────────────────────────────────────────
+        let mut show_pacs = self.show_pacs_panel;
+        if show_pacs {
+            egui::Window::new("PACS Network")
+                .open(&mut show_pacs)
+                .default_width(560.0)
+                .resizable(true)
+                .show(ctx, |ui| {
+                    let action = crate::ui::pacs_panel::show_pacs_panel(
+                        ui,
+                        &mut self.pacs_config,
+                        &mut self.pacs_query_state,
+                        &mut self.pacs_echo_display,
+                        &mut self.pacs_patient_filter,
+                        &mut self.pacs_modality_filter,
+                        &mut self.pacs_selected_row,
+                    );
+                    self.handle_pacs_action(action);
+                });
+        }
+        self.show_pacs_panel = show_pacs;
     }
 
     pub(crate) fn show_right_info_panel(&self, ui: &mut egui::Ui) {

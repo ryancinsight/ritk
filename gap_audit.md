@@ -1,5 +1,277 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 282 Audit — 2026-05-20 — PACS Correctness / Performance / Coverage
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| PACS-correctness-01 | `num_instances` tag fix (0020,1209→0020,1208) | `ritk-snap::pacs::query` | 1 |
+| PACS-correctness-02 | Dead series-level fields removed from `FindResultRow` | `ritk-snap::pacs::query` | 8 |
+| PACS-perf-01 | `from_raw_bytes` HashMap O(1) lookup | `ritk-snap::pacs::query` | 8 |
+| PACS-test-01 | 9 new pacs unit tests | `ritk-snap::pacs::tests` | 9 |
+| DIMSE-test-01 | `tests_dimse.rs` re-enabled; `FindResult::get_string` added | `ritk-io::networking` | 24 |
+| UI-dead-code-01 | Echo color dead branch removed | `ritk-snap::ui::pacs_panel` | — |
+| UI-ux-01 | Description truncation ellipsis | `ritk-snap::ui::pacs_panel` | — |
+
+### Architecture
+
+1. `FindResultRow` fields now correspond 1:1 to study-level DICOM attributes; no dead series-level fields exist
+2. `from_raw_bytes` uses single-pass `HashMap` build; O(n + 8) vs previous O(8n)
+3. `FindResult::get_string` follows the same PS3.5 §6.2 null/space-strip contract as `FindResultRow::from_raw_bytes`
+4. `tests_dimse.rs` loopback tests exercise C-ECHO, C-FIND, C-MOVE protocol paths end-to-end against a real in-process SCP
+5. `build_study_query` now requests all 8 attributes that `FindResultRow` decodes — no silent empty fields
+
+### Verification
+
+| Test type | Count | Pass |
+|---|---|---|
+| ritk-snap pacs unit | 21 | 21 |
+| ritk-io networking (including tests_dimse) | 50 | 50 |
+| cargo check --workspace | — | 0 errors, 0 warnings |
+
+### Residual Risk
+
+- `FindResult::get_string` operates on `self.matches.first()` only; multi-match datasets are not aggregated (acceptable for current SCU-only query use case)
+- WASM networking returns immediate error state; this behavior is unchanged
+- No integration test against a real PACS endpoint; manual validation against Orthanc remains a recommended follow-up
+
+---
+
+## Sprint 281 Audit — 2026-05-20 — VtkPipeline Modifiable/Observable + CLAHE Zero-Allocation
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-VIZ-04 | VtkPipeline Modifiable/Observable integration: `Modifiable` impl (mtime tracking), `Observable` impl (StartEvent/EndEvent/ErrorEvent), `execute_if_needed(dep_mtime)` lazy re-execution, `VtkFilter::mtime()` default method, `cached_output`, structural-change mtime propagation in `add_filter`/`set_sink` | `ritk-vtk::domain::vtk_pipeline` | 12 |
+| GAP-262-FLT-06 | CLAHE zero-allocation scratch-buffer optimization: `ClaheScratch` pre-allocated buffers, `apply_with_scratch()`, `build_tile_cdf_into()`, `map_with` thread-local scratch reuse | `ritk-core::filter::intensity::clahe` | 17 |
+
+### Architecture
+
+1. **VtkPipeline Modifiable**: `mtime: ModifiedTime` field initialized at `tick()`. `modified()` stamps a fresh `tick()`. `needs_update(dep) ⟺ dep > self.mtime`. `add_filter`/`set_sink` call `modified()` — structural mutations invalidate cache.
+2. **VtkPipeline Observable**: `event_handlers: EventHandlers` field. `execute()` fires `StartEvent` pre-execution, `EndEvent` post-success, `ErrorEvent` on failure.
+3. **execute_if_needed**: Takes `dependency_mtime`, computes `max(dep_mtime, max(filter.mtime()))`. If `needs_update(max_mtime)`, calls `execute()` and returns `Ok(Some(data))`. Otherwise returns `Ok(None)` — cached output is valid.
+4. **VtkFilter::mtime()**: Default returns `ModifiedTime::ZERO`. Filters can override to signal internal state changes (e.g., parameter modification).
+5. **cached_output**: `Option<VtkDataObject>` field. Set after each successful `execute()`. Returned from `execute_if_needed` when no re-execution needed.
+6. **ClaheScratch**: Flat arrays `cdfs: Vec<f32>` and `histograms: Vec<u64>` (each `n_tiles * bins` elements), `tile_vals: Vec<f32>`, `output: Vec<f32>`. `#[derive(Clone)]` for Rayon `map_with` thread cloning.
+7. **apply_with_scratch**: Takes `&mut ClaheScratch`; uses `std::mem::replace` to take ownership for `map_with` init value, replacing with a fresh scratch of correct dimensions.
+8. **build_tile_cdf_into**: Writes histogram + CDF directly into pre-allocated scratch slices. Zero per-tile `Vec` allocations.
+9. **Allocation reduction**: From ~38,400 per `apply()` (512×512×200 @ 8×8) to ~1 per Rayon thread (4–16 typical).
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| vtk_pipeline — 12 tests | Mtime monotonicity, event firing (Start/End/Error), execute_if_needed skip/execute, filter default mtime, structural-change propagation | pass |
+| clahe — 17 tests | Tile CDF invariants, shape preservation, uniform identity, range bounds, scratch bit-identity, reuse determinism, buffer sizes | pass |
+| cargo check --workspace | 0 errors, 0 warnings | pass |
+| cargo test -p ritk-vtk --lib | 237 passed, 0 failed | pass |
+| cargo test -p ritk-core --lib | 1385 passed, 0 failed | pass |
+
+### Residual Risk
+
+- `execute()` signature changed from `&self` to `&mut self` — breaking change under SemVer (pre-1.0, documented in CHANGELOG).
+- `VtkPipeline` uses `Box<dyn VtkSource>` / `Box<dyn VtkFilter>` / `Box<dyn VtkSink>` — dyn dispatch is acceptable because pipeline execution is not throughput-critical (it orchestrates, not computes).
+- ClaheScratch `tile_vals` still collects per-tile pixel values; a future optimization could compute histograms directly from the pixel grid, eliminating this buffer entirely.
+
+---
+
+## Sprint 280 Audit — 2026-05-20 — DIMSE UI Wiring (PACS Panel)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-IO-01 | DIMSE UI wiring: `PacsConfig`, `FindResultRow`, `PacsRequest`/`PacsResponse`, `QueryState`, `PacsWorkerHandle`, `PacsPanelAction`/`show_pacs_panel`, `SnapApp` PACS ops; C-ECHO/C-FIND/C-MOVE wired into `ritk-snap` viewer | `ritk-snap::pacs`, `ritk-snap::ui::pacs_panel`, `ritk-snap::app::pacs_ops` | 12 |
+
+### Architecture
+
+1. **PacsConfig** (`config.rs`): pure data struct; `Default` provides sane local-Orthanc values ("RITKSNAP"/"ORTHANC"/localhost:4242); `to_association_config()` bridges to `ritk_io::AssociationConfig` without embedding the infrastructure type in the domain struct — domain-to-infrastructure decoupling is preserved.
+2. **QueryState state machine** (`query.rs`): `Idle → Pending → Results | Error` transitions enforced via a four-variant enum. `FindResultRow::from_raw_bytes` parses the IVR-LE-encoded C-FIND response dataset using the now-public `parse_dataset_ivr_le` from `ritk-io`. `build_study_query` produces a minimal Study Root query dataset.
+3. **PacsWorkerHandle / spawn_pacs_request** (`worker.rs`): network I/O is dispatched to a `std::thread` (cfg-gated to non-WASM) with a `sync_channel(1)` result pipe, providing single-slot backpressure. `try_recv` is non-blocking so the egui frame loop is never stalled. WASM targets receive an immediate `PacsResponse::*Err` variant documenting the unsupported path.
+4. **PacsPanelAction / show_pacs_panel** (`ui/pacs_panel/mod.rs`): UI action is returned as an enum value rather than mutating `SnapApp` state directly, preserving unidirectional data flow. `show_results_section` renders a scrollable C-FIND results table with per-row Retrieve buttons.
+5. **SnapApp PACS ops** (`app/pacs_ops.rs`): `poll_pacs_worker` → `apply_pacs_response` → state update completes the UI event loop; `handle_pacs_action` dispatches `PacsPanelAction` variants; submit helpers delegate to `spawn_pacs_request` and set `QueryState::Pending`. Temporal coupling is absent: each op reads from `SnapApp` fields set at construction.
+6. **parse_dataset_ivr_le visibility promotion**: changed from `pub(crate)` + `#[allow(dead_code)]` to `pub` with a `pub use` re-export in `ritk-io::format::dicom::networking`, removing the dead-code annotation and the cross-crate visibility workaround introduced in Sprint 278.
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `test_config_default_values` | Asserts calling/called AE, host, port, timeout match spec | pass |
+| `test_to_association_config_fields` | Asserts `AssociationConfig` fields match `PacsConfig` | pass |
+| `test_find_result_row_from_raw_bytes_all_fields` | IVR-LE dataset round-trip; all 10 fields extracted | pass |
+| `test_find_result_row_from_raw_bytes_empty_dataset` | Empty byte slice yields zeroed/empty row | pass |
+| `test_build_study_query_contains_required_tags` | Output dataset contains PatientID, StudyDate, StudyInstanceUID tags | pass |
+| `test_query_state_default_is_idle` | `QueryState::default()` == `Idle` | pass |
+| `test_pacs_request_echo_variant` | `PacsRequest::Echo` constructed and matched | pass |
+| `test_pacs_request_find_studies_variant` | `PacsRequest::FindStudies` carries `PacsConfig` + query string | pass |
+| `test_pacs_request_retrieve_study_variant` | `PacsRequest::RetrieveStudy` carries config + UID | pass |
+| `test_pacs_response_variants_value_semantic` | Each `PacsResponse` variant pattern-matched with payload | pass |
+| `test_find_result_row_partial_tags_present` | Partial IVR-LE dataset yields populated fields where tags present | pass |
+| `test_build_study_query_wildcard_defaults` | Empty query string produces `*` wildcard PatientName tag value | pass |
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| `cargo test -p ritk-snap --lib pacs` | 12 passed | pass |
+| `cargo test -p ritk-io --lib format::dicom::networking` | 26 passed | pass |
+
+### Residual Risk
+
+- WASM target returns immediate error variants for all PACS operations; a WebSocket-proxied DIMSE transport for the browser target is not in scope and has no current gap entry.
+- `PacsWorkerHandle::try_recv` uses a single-slot `sync_channel(1)`; concurrent multi-request fan-out is not supported and not required by the current UI model.
+- All Sprint 262 gap inventory items are now closed; no open gaps remain in the tracked inventory.
+
+## Sprint 279 Audit — 2026-05-20 — MONAI Label Server REST Client + VtkPipeline Mtime Wiring
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-APP-02 | MONAI Label Server REST client: `MonaiLabelClient` with `info()`, `models()`, `infer()`; RFC 2046 multipart response parser; full type system with `ServerInfo`, `ModelType`, `ModelInfo`, `InferRequest`, `InferResponse`, `MonaiError` | `ritk-model::monai` | 19 |
+
+### Architecture
+
+1. **MonaiLabelClient** (`client.rs`): synchronous `reqwest::blocking::Client` (30s default timeout). Preserves async-contagion prohibition — domain callers remain sync. `info()` parses `ServerInfo` from GET /info JSON; `models()` deserialises a `HashMap<String, Value>` from GET /models and injects the map key as `ModelInfo::name` when absent; `infer()` sends POST /infer/{model}?image={id} with JSON params body and parses the multipart response.
+2. **RFC 2046 multipart parser** (`multipart.rs`): `split_multipart(body, boundary)` splits on `--<boundary>` delimiters using a zero-allocation byte search (`split_bytes` + `find_seq`). `extract_part_name` extracts `name="<value>"` (quoted) and `name=<value>` (unquoted) from Content-Disposition headers, case-insensitive. Handles both CRLF and LF line endings.
+3. **`ModelType` serde**: bidirectional mapping via manual `Deserialize`/`Serialize` impls; `Unknown(String)` variant preserves unrecognised type strings without data loss.
+4. **Name injection invariant**: MONAI GET /models returns a JSON map where the model identifier is the key, not always a field inside the value. `models()` injects `name = key` when the object lacks the field, ensuring every returned `ModelInfo` has a non-empty `name`.
+5. **VtkPipeline mtime wiring**: `add_filter` and `set_sink` now call `self.modified()`. This completes the Sprint 277 architectural residual: every structural change to the pipeline produces a monotonically increasing `mtime`, so callers using `execute_if_needed(fresh_dep)` after a structural change always receive `Some(output)` rather than the stale cached result.
+6. **reqwest workspace features**: added `"json"` to `["blocking", "stream", "json"]` in `ritk/Cargo.toml`. `Response::json()` and `RequestBuilder::json()` were previously unavailable because the `json` feature was not listed.
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `test_server_info_deserialize_all_fields` | All fields present + type check | pass |
+| `test_server_info_missing_optional_fields_default` | Missing optional fields fall back to `Default` | pass |
+| `test_model_type_segmentation_roundtrip` | Serialize → Deserialize identity | pass |
+| `test_model_type_unknown_preserves_string` | Unknown variant data preservation | pass |
+| `test_model_info_deserialize_all_fields` | Full JSON roundtrip | pass |
+| `test_infer_request_new_has_empty_params_object` | `new()` sets empty params object | pass |
+| `test_parse_infer_response_label_and_params` | Correct label bytes + JSON params extracted | pass |
+| `test_parse_infer_response_missing_label_returns_parse_error` | ParseError when label part absent | pass |
+| `test_parse_infer_response_missing_boundary_returns_parse_error` | ParseError when no multipart boundary | pass |
+| `test_info_success` (mockito) | GET /info round-trip via local HTTP server | pass |
+| `test_models_success_name_injected_from_key` (mockito) | Name injection from JSON map key | pass |
+| `test_models_server_error_propagated` (mockito) | HTTP 500 mapped to `MonaiError::ServerError` | pass |
+| `test_infer_success_returns_label_and_params` (mockito) | POST /infer multipart round-trip | pass |
+| `test_add_filter_bumps_mtime_causing_execute_if_needed_to_rerun` | add_filter → mtime advanced → execute_if_needed re-runs | pass |
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| `cargo test -p ritk-vtk --lib` | 237 passed | pass |
+| `cargo test -p ritk-model --lib monai` | 19 passed | pass |
+
+### Residual Risk
+
+- `MonaiLabelClient::infer` only supports the `?image={image_id}` path (server-stored image). Direct image upload via multipart request body is not yet implemented; deferred to a future gap.
+- MONAI active-learning (`GET /activelearning/{strategy}`) and datastore (`GET /datastore`, `POST /datastore`) endpoints are not covered; out of scope for this gap.
+- **GAP-262-IO-01**: DIMSE UI wiring in `ritk-snap` viewer (PACS discovery panel, C-FIND/C-MOVE) remains the sole open gap.
+
+## Sprint 278 Audit — 2026-05-20 — Noise Simulation Filters + C-STORE Loopback Test
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-FLT-05 | Noise simulation filters: ShotNoiseFilter (Poisson) and SpeckleNoiseFilter (multiplicative Gaussian) with deterministic seeded RNG, Default impls, apply() dispatch | ritk-core::filter::noise | 23 |
+| GAP-262-IO-02 | C-STORE loopback integration test: mock SCP + native Association::c_store() round-trip | ritk-io::format::dicom::networking::tests_store | 2 |
+
+### Architecture
+
+1. ShotNoiseFilter: I'(x) = Poisson(scale * max(I(x), 0)) / scale. Knuth for lambda < 30, normal approx N(lambda, lambda) for lambda >= 30.
+2. SpeckleNoiseFilter: I'(x) = I(x) * (1 + N(0, sigma)). Multiplicative noise for coherent imaging.
+3. Deterministic RNG pattern: Sequential StdRng pre-generation + par_iter().zip() combination.
+4. C-STORE loopback test: Mock SCP accepts association, decodes C-STORE-RQ, sends C-STORE-RSP (Success 0x0000). Two variants: normal + empty dataset.
+5. Dead-code fix: parse_dataset_ivr_le changed to pub(crate) fn with #[allow(dead_code)].
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| noise.rs — 23 tests | Identity, seed determinism, shape/metadata preservation, Poisson(0)=0, clamping, mean preservation | pass |
+| tests_store.rs — 2 tests | C-STORE round-trip Success 0x0000, empty dataset edge case | pass |
+| cargo check --workspace | 0 errors, 0 warnings | pass |
+| cargo test -p ritk-io --lib format::dicom::networking | 26 passed, 0 failed | pass |
+| cargo test -p ritk-core --lib filter::noise | 23 passed, 0 failed | pass |
+| cargo test -p ritk-core --lib | 1382 passed, 0 failed | pass |
+
+### Residual Risk
+
+- GAP-262-FLT-05 partially closed: PatchBasedDenoising (non-local means) remains Low priority.
+- GAP-262-IO-02 partially closed: SCP implementation for receiving C-STORE sub-operations is a separate gap.
+
+## Sprint 277 Audit — 2026-05-20 — VTK Data Pipeline Abstraction (GAP-262-VIZ-04)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-VIZ-04 | VTK observer/event system, MTime tracking, smart mapper (5 LUT presets), multi-block datasets, geometry filters | `ritk-vtk::domain` | 49 |
+
+### Architecture
+
+1. **MTime tracking** (`mtime.rs`): `ModifiedTime` wraps `u64` stamped from global `AtomicU64`. `Modifiable` trait: `get_mtime()`, `modified()`, default `needs_update(dep) ➺ dep > self.mtime`. No allocation; `Copy`.
+2. **Observer/event system** (`observer.rs`): `EventId` (8 variants). `EventHandlers` registry: `add_observer(event, Arc<dyn Fn(EventId)>)` → unique `ObserverTag`; `remove_observer(tag)` O(n); `invoke_event(event)` iterates in registration order. `Observable` trait provides default delegation from two required accessor methods.
+3. **Smart mapper** (`mapper.rs`): `VtkLookupTable` builds 256-entry `Vec<[f32;4]>` at construction. Presets: Grayscale, Jet (piecewise linear), CoolWarm (Moreland 2009), Viridis (5 anchors), Rainbow (HSV). `map_value(v)` normalises, rounds to index, returns precomputed RGBA; values outside range are clamped. `SurfaceMapper` with `PolygonMode`, opacity, scalar visibility.
+4. **Multi-block dataset** (`multi_block.rs`): `Block = Leaf(VtkDataObject) | Composite(VtkMultiBlockDataSet)`. `LeafIter` uses explicit DFS stack of `std::slice::Iter`; zero allocation per `next()` call; no `Box<dyn Iterator>`.
+5. **ComputeNormalsFilter** (`filters/normals.rs`): area-weighted `N_face = e1 × e2` accumulated per vertex, then normalised. Degenerate faces skipped; zero-accumulator fallback `[0,0,1]`.
+6. **SmoothFilter** (`filters/smooth.rs`): Laplacian `L(v_i) = (1−λ)v_i + λ·mean(N(i))` for `iterations` steps. Edge adjacency from polygon boundary edges. Isolated vertices unchanged.
+7. **ThresholdFilter** (`filters/threshold.rs`): thresholds narrowed `f64 → f32` before comparison with stored `f32` scalars (root-cause fix: `0.8_f32 as f64 = 0.800000011… > 0.8_f64` would otherwise reject boundary values).
+
+### Verification
+
+| Test type | Count | Result |
+|---|---|---|
+| mtime (monotonic, needs_update invariant) | 7 | pass |
+| observer (tags, firing, removal, order) | 8 | pass |
+| mapper (LUT presets, clamping, SurfaceMapper) | 10 | pass |
+| multi_block (counts, DFS order, names) | 8 | pass |
+| normals (XY-plane, unit, count, XZ-plane, degenerate) | 6 | pass |
+| smooth (0-iter, 1-iter analytical, λ=1, topology, isolated) | 6 | pass |
+| threshold (boundaries, UG, missing field, wrong type) | 7 | pass |
+| `cargo test -p ritk-vtk --lib` (230 total) | 230 | pass |
+| `cargo check --workspace` | 0 errors | pass |
+
+### Residual Risk
+
+- `VtkPipeline::execute()` does not yet query `needs_update()` — re-execution is always unconditional; wiring is a low-cost follow-up.
+- No `VolumeMapper` implementor for ray-cast volume rendering; deferred to a future gap.
+- **GAP-262-APP-02**, **GAP-262-IO-02**, **GAP-262-IO-01**: open.
+
+---
+## Sprint 276 Audit — 2026-05-20 — Native DIMSE PDU/Message Codec + Association SCU
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-262-IO-01 (native PDU/DIMSE layer) | Native PDU encode/decode for all 7 DUL PDUs; DIMSE message codec (C-ECHO/C-FIND/C-STORE/C-MOVE); Association SCU with native TCP/PDU lifecycle | `ritk-io::format::dicom::networking` | 24 |
+
+### Architecture
+
+The existing `dicom-ul = "0.8"`-based convenience functions (`echo`, `find`, `store`, `retrieve`) are retained for backward compatibility. The new native protocol stack provides:
+
+1. **PDU codec** (`pdu.rs`, 358 lines): `Pdu` enum with `encode()`/`decode()` for A-ASSOCIATE-RQ/AC/RJ, P-DATA-TF, A-RELEASE-RQ/RP, A-ABORT. `UserInformation` with max length, implementation class UID, version name, user identity, async operations window, SCP/SCU role selection, extended negotiation. 8 round-trip tests in `tests_pdu.rs`.
+2. **DIMSE message codec** (`dimse.rs`, 490 lines): `DimseMessage` with factory methods for all 4 SCU operations (C-ECHO/C-FIND/C-STORE/C-MOVE) request + response. Explicit VR LE command set encoding with automatic CommandGroupLength computation. `CommandField`, `DimseStatus`, `sop_class` constants. 8 tests.
+3. **Association SCU** (`association.rs`, 498 lines): `Association` struct with `connect()`, `c_echo()`, `c_find()`, `c_store()`, `c_move()`, `release()`, `abort()`. Owns `TcpStream` directly. Presentation context ID assignment as odd numbers per PS 3.8. PDV fragmentation respecting remote max_pdu_length. Implicit VR LE always appended as fallback transfer syntax. 8 tests in `tests_association.rs`.
+4. **Legacy types** (`types.rs`, 113 lines): `AeTitle`, `DicomAddress`, `NetworkingError`, `EchoResponse`, `StoreResponse`, `MoveResponse` extracted from association.rs per 500-line structural limit.
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| `pdu.rs` — 8 round-trip tests | All 7 PDU types encode→decode→eq | pass |
+| `dimse.rs` — 8 encode/decode tests | C-ECHO/C-FIND/C-STORE/C-MOVE round-trips | pass |
+| `association.rs` — 8 unit tests | Config defaults, odd IDs, RQ construction, PDV fragmentation, context lookup | pass |
+| `cargo check --workspace` | 0 errors, 0 new warnings | pass |
+| `cargo test -p ritk-io --lib format::dicom::networking` | 24 passed, 0 failed | pass |
+| `cargo test -p ritk-core --lib` | 1373 passed | pass |
+
+### Residual Risk
+
+- **No loopback SCP integration test for native Association**: The convenience functions (`echo`, `find`, `store`, `retrieve`) have loopback tests in `tests_dimse.rs` (currently disabled due to `dicom-ul` 0.8 API drift). Native `Association` requires a real PACS or mock SCP for integration testing.
+- **CommandDataSetType accessor**: `DimseMessage::command_data_set_type()` is used in `recv_message` but not yet a public documented method.
+- **C-STORE dataset encoding**: The native `Association::c_store()` accepts raw bytes; the caller must ensure correct transfer syntax encoding. The `dicom-ul`-based `store()` function handles re-encoding automatically.
+- **SCP role**: Only SCU is implemented. A full SCP (accepting associations, receiving C-STORE sub-operations for C-MOVE) is a separate gap.
+
 ## Sprint 275 Audit — 2026-05-19 — GPU Mesh Surface Pipeline (GAP-262-VIZ-02)
 
 ### Gaps closed
