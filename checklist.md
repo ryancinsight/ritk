@@ -1,3 +1,48 @@
+## Sprint 284 — Complete
+
+**Status**: Complete
+**Phase**: Execution — Embedded C-STORE SCP
+**Version**: 0.50.54 [minor]
+
+### Checklist items
+
+- [x] Create `networking/scp.rs` — `StoreScp`, `StoreScpHandle`, `StoredInstance`, `ScpConfig`
+- [x] Implement `scp_accept_loop` — non-blocking listener, shutdown `AtomicBool`, per-connection threads
+- [x] Implement `handle_connection` — A-ASSOCIATE-RQ → A-ASSOCIATE-AC → message loop → release
+- [x] Implement `handle_store_rq` — respond C-STORE-RSP Success; emit `StoredInstance` on bounded channel
+- [x] Implement `recv_dimse_message` / `recv_data_fragments` — fragment reassembly
+- [x] Implement `send_command_pdv`, `read_pdu_stream`, `write_pdu_stream` helpers
+- [x] Create `networking/tests_scp.rs` — 3 loopback tests
+- [x] Update `networking/mod.rs` — `pub mod scp;` + re-exports
+- [x] Update `format/dicom/mod.rs` — SCP types in networking use block
+- [x] Update `lib.rs` — SCP types at crate root
+- [x] Update `pacs/config.rs` — `scp_ae_title`, `scp_port`
+- [x] Update `app/state.rs` — `pacs_scp_handle`, `pacs_received_count`
+- [x] Update `app/pacs_ops.rs` — `start_pacs_scp`, `stop_pacs_scp`, `poll_pacs_scp`
+- [x] Add `StartScp`/`StopScp` to `PacsPanelAction`; dispatch in `handle_pacs_action`
+- [x] Auto-start SCP in `submit_pacs_retrieve`
+- [x] Update `ui/pacs_panel/mod.rs` — SCP config row; Start/Stop buttons; status indicator
+- [x] Update `app/panels.rs` — forward SCP status params to `show_pacs_panel`
+- [x] Add `test_pacs_config_scp_ae_title_default`
+- [x] Add `test_pacs_config_scp_port_default`
+- [x] Add `test_pacs_config_scp_ae_matches_move_destination_default`
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-io --lib format::dicom::networking` — 53 passed, 0 failed
+- [x] `cargo test -p ritk-snap --lib pacs` — 30 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.54 section
+- [x] Update `backlog.md` — Sprint 284 entry
+- [x] Update `checklist.md` — Sprint 284 entry
+- [x] Update `gap_audit.md` — Sprint 284 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| SCP-LOAD-01 | Load received instances into viewer | High |
+| Series-level query | `FindResultRowSeries` + drill-down | Medium |
+
+---
+
 ## Sprint 283 — Complete
 
 **Status**: Complete

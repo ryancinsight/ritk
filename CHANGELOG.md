@@ -2,6 +2,29 @@
 
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/2.0.0/).
 
+## [0.50.54] - 2026-05-20
+### Added [minor]
+- Embedded C-STORE SCP (SCP-IMPL-01): `StoreScp::start` binds a TCP listener,
+  spawns a non-blocking accept thread, and returns `StoreScpHandle::try_recv` /
+  `port` / `ae_title` / `stop`. Each incoming association is handled on a
+  dedicated thread; `StoredInstance` values are queued in a bounded
+  `sync_channel(queue_capacity)`.
+- `ScpConfig` (ae_title, port, max_pdu_length, queue_capacity, read_timeout);
+  default port 11112, AE "RITKSNAP".
+- Viewer SCP integration (SCP-VIEWER-01): `SnapApp::start_pacs_scp` /
+  `stop_pacs_scp` / `poll_pacs_scp`; `PacsPanelAction::StartScp` / `StopScp`;
+  auto-start on C-MOVE retrieve; PACS panel Start/Stop SCP buttons +
+  `:port (AE)` status line.
+- `PacsConfig::scp_ae_title` + `scp_port` (SCP-CONFIG-01); defaults
+  `"RITKSNAP"` / `11112` matching `move_destination` for zero-config retrieval.
+### Tests [patch]
+- 3 SCP loopback integration tests (single instance, multi-instance same
+  association, ephemeral port); 3 SCP config unit tests; 53 + 30 total.
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-io --lib format::dicom::networking`: 53/53
+- `cargo test -p ritk-snap --lib pacs`: 30/30
+
 ## [0.50.53] - 2026-05-20
 
 ### Added [minor]

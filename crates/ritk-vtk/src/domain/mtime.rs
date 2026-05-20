@@ -29,6 +29,16 @@ impl ModifiedTime {
         self.0
     }
 
+    /// Reconstruct a `ModifiedTime` from a raw counter value.
+    ///
+    /// This is intended for test infrastructure that needs to store and
+    /// reload mtime values through atomic types. Production code should
+    /// use `tick()` and `modified()` exclusively.
+    #[inline]
+    pub fn from_raw(raw: u64) -> Self {
+        Self(raw)
+    }
+
     /// Atomically increments the global counter and returns the new `ModifiedTime`.
     ///
     /// The returned value is strictly greater than all previously returned values.

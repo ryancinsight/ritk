@@ -15,14 +15,14 @@ impl SnapApp {
     /// that completed responses are applied promptly even while the PACS panel
     /// is closed.
     pub(crate) fn poll_pacs_worker(&mut self) {
-        let Some(worker) = &self.pacs_worker else {
-            return;
-        };
-        let Some(resp) = worker.try_recv() else {
-            return;
-        };
-        self.pacs_worker = None;
-        self.apply_pacs_response(resp);
+        if let Some(worker) = &self.pacs_worker {
+            if let Some(resp) = worker.try_recv() {
+                self.pacs_worker = None;
+                self.apply_pacs_response(resp);
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.poll_pacs_scp();
     }
 
     /// Apply a completed [`PacsResponse`] to the viewer state.
@@ -92,6 +92,14 @@ impl SnapApp {
                 self.pacs_query_state = QueryState::Idle;
                 self.pacs_selected_row = None;
             }
+            PacsPanelAction::StartScp => {
+                #[cfg(not(target_arch = "wasm32"))]
+                self.start_pacs_scp();
+            }
+            PacsPanelAction::StopScp => {
+                #[cfg(not(target_arch = "wasm32"))]
+                self.stop_pacs_scp();
+            }
         }
     }
 
@@ -156,6 +164,9 @@ impl SnapApp {
             self.status_message = "PACS: a request is already in progress.".to_owned();
             return;
         }
+        // Auto-start embedded SCP so it is ready to receive C-STORE sub-operations.
+        #[cfg(not(target_arch = "wasm32"))]
+        self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
         self.pacs_query_state = QueryState::Pending { label: format!("C-MOVE → {move_destination}…") };
 
@@ -173,6 +184,71 @@ impl SnapApp {
             self.pacs_query_state = QueryState::Error(
                 "PACS networking is not available in browser builds.".to_owned(),
             );
+        }
+    }
+
+    /// Poll the embedded SCP for received instances on every egui frame.
+    ///
+    /// Drains all buffered instances from the bounded channel into
+    /// `pacs_received_count`.  Future work: queue instances for loading.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn poll_pacs_scp(&mut self) {
+        let Some(handle) = &self.pacs_scp_handle else { return };
+        while let Some(inst) = handle.try_recv() {
+            self.pacs_received_count = self.pacs_received_count.saturating_add(1);
+            tracing::info!(
+                sop_instance_uid = %inst.sop_instance_uid,
+                sop_class_uid = %inst.sop_class_uid,
+                bytes = inst.dataset_bytes.len(),
+                "SCP received instance",
+            );
+        }
+    }
+
+    /// Start the embedded C-STORE SCP if not already running.
+    ///
+    /// Uses `pacs_config.scp_ae_title` and `pacs_config.scp_port`.
+    /// No-op if SCP is already running.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn start_pacs_scp(&mut self) {
+        use ritk_io::{ScpConfig, StoreScp};
+        if self.pacs_scp_handle.is_some() {
+            return;
+        }
+        let config = ScpConfig {
+            ae_title: self.pacs_config.scp_ae_title.clone(),
+            port: self.pacs_config.scp_port,
+            ..ScpConfig::default()
+        };
+        match StoreScp::start(config) {
+            Ok(handle) => {
+                let port = handle.port();
+                let ae = handle.ae_title().to_owned();
+                self.pacs_scp_handle = Some(handle);
+                self.pacs_received_count = 0;
+                let msg = format!("SCP started: AE={ae} port={port}");
+                self.status_message = msg.clone();
+                info!("{}", msg);
+            }
+            Err(e) => {
+                let msg = format!("SCP start failed: {e}");
+                self.status_message = msg.clone();
+                error!("{}", msg);
+            }
+        }
+    }
+
+    /// Stop the embedded C-STORE SCP if running.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn stop_pacs_scp(&mut self) {
+        if let Some(handle) = self.pacs_scp_handle.take() {
+            let msg = format!(
+                "SCP stopped (received {} instance(s))",
+                self.pacs_received_count
+            );
+            handle.stop();
+            self.status_message = msg.clone();
+            info!("{}", msg);
         }
     }
 }

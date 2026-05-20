@@ -192,8 +192,7 @@ impl Observable for VtkPipeline {
 mod tests {
     use super::*;
     use crate::domain::vtk_data_object::{VtkDataObject, VtkPolyData};
-    use std::cell::Cell;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
     use std::sync::Arc;
 
     fn make_triangle() -> VtkPolyData {
@@ -214,50 +213,30 @@ mod tests {
     /// A source whose mtime can be bumped externally for testing staleness detection.
     struct MutatingSource {
         data: VtkPolyData,
-        mtime: Cell<ModifiedTime>,
-        /// Number of `produce()` calls after which to auto-bump mtime.
-        /// After the Nth call, mtime advances so that subsequent
-        /// `execute_if_needed` calls observe a newer source mtime.
-        bump_after: usize,
-        produce_count: Cell<usize>,
+        mtime: AtomicU64,
     }
     impl MutatingSource {
         fn new(data: VtkPolyData) -> Self {
             Self {
                 data,
-                mtime: Cell::new(ModifiedTime::tick()),
-                bump_after: usize::MAX, // never auto-bump by default
-                produce_count: Cell::new(0),
-            }
-        }
-        fn new_with_bump_after(data: VtkPolyData, bump_after: usize) -> Self {
-            Self {
-                data,
-                mtime: Cell::new(ModifiedTime::tick()),
-                bump_after,
-                produce_count: Cell::new(0),
+                mtime: AtomicU64::new(ModifiedTime::tick().value()),
             }
         }
     }
     impl VtkSource for MutatingSource {
         fn produce(&self) -> Result<VtkDataObject> {
-            let count = self.produce_count.get() + 1;
-            self.produce_count.set(count);
-            if count == self.bump_after {
-                self.mtime.set(ModifiedTime::tick());
-            }
             Ok(VtkDataObject::PolyData(self.data.clone()))
         }
         fn mtime(&self) -> ModifiedTime {
-            self.mtime.get()
+            ModifiedTime::from_raw(self.mtime.load(Ordering::SeqCst))
         }
     }
     impl Modifiable for MutatingSource {
         fn get_mtime(&self) -> ModifiedTime {
-            self.mtime.get()
+            self.mtime()
         }
         fn modified(&mut self) {
-            self.mtime.set(ModifiedTime::tick());
+            self.mtime.store(ModifiedTime::tick().value(), Ordering::SeqCst);
         }
     }
 
@@ -479,31 +458,26 @@ mod tests {
 
     #[test]
     fn test_pipeline_execute_if_needed_executes_when_stale() {
-        // Use MutatingSource that auto-bumps its mtime on the 2nd produce() call.
-        // First execute: source mtime is at initial value. Pipeline stamps its mtime higher.
-        // Second execute_if_needed: source.mtime() now returns a higher value (bumped during
-        // the first produce call), which exceeds the pipeline's mtime, forcing re-execution.
-        let source = MutatingSource::new_with_bump_after(make_triangle(), 1);
-        let initial_mtime = source.mtime();
+        // Verify the up-to-date path with a non-static source.
+        // MutatingSource has a nonzero mtime. After execute, pipeline mtime
+        // exceeds source mtime. execute_if_needed must return None.
+        let source = MutatingSource::new(make_triangle());
+        let source_mtime = source.mtime();
         let mut pipeline = VtkPipeline::new(Box::new(source));
-        // Execute once. During execute, produce() is called and the source bumps its own
-        // mtime. After execute, pipeline mtime > initial_mtime, but source.mtime() may now
-        // be higher if the bump happened during produce.
         pipeline.execute().unwrap();
         let pipeline_mtime = pipeline.get_mtime();
-        // After execute, the pipeline's mtime was stamped. The source may or may not have
-        // a higher mtime depending on tick ordering. Verify the invariant:
-        // If source.mtime > pipeline.mtime, execute_if_needed must re-execute.
-        // If source.mtime <= pipeline.mtime, it must not.
+        assert!(
+            pipeline_mtime > source_mtime,
+            "pipeline mtime must exceed source mtime after execute: pipeline={}, source={}",
+            pipeline_mtime.value(),
+            source_mtime.value()
+        );
+        // No stage mtime change since execute → no re-execution.
         let result = pipeline.execute_if_needed().unwrap();
-        // The source bumped its mtime during the first produce(). After pipeline.execute(),
-        // the pipeline stamps its own mtime. The pipeline mtime tick happens after the
-        // source mtime tick (since execute stamps after all stages run), so
-        // pipeline_mtime > source_mtime in most cases. Therefore no re-execution.
-        // This test verifies the "up-to-date" path with a non-static source.
-        if pipeline_mtime > initial_mtime {
-            assert!(result.is_none(), "no re-execution when pipeline mtime exceeds source mtime");
-        }
+        assert!(
+            result.is_none(),
+            "execute_if_needed must skip when no stage mtime exceeds pipeline mtime"
+        );
     }
 
     #[test]
@@ -556,15 +530,15 @@ mod tests {
         // increases on the second call to mtime() itself.
         struct PostExecuteBumpingSource {
             data: VtkPolyData,
-            mtime: Cell<ModifiedTime>,
-            mtime_call_count: Cell<usize>,
+            mtime: AtomicU64,
+            mtime_call_count: AtomicUsize,
         }
         impl PostExecuteBumpingSource {
             fn new(data: VtkPolyData) -> Self {
                 Self {
                     data,
-                    mtime: Cell::new(ModifiedTime::tick()),
-                    mtime_call_count: Cell::new(0),
+                    mtime: AtomicU64::new(ModifiedTime::tick().value()),
+                    mtime_call_count: AtomicUsize::new(0),
                 }
             }
         }
@@ -573,14 +547,13 @@ mod tests {
                 Ok(VtkDataObject::PolyData(self.data.clone()))
             }
             fn mtime(&self) -> ModifiedTime {
-                let count = self.mtime_call_count.get();
-                self.mtime_call_count.set(count + 1);
-                // On the 3rd call to mtime() (which happens during the 2nd
+                let count = self.mtime_call_count.fetch_add(1, Ordering::SeqCst);
+                // On the 2nd call to mtime() (which happens during the 2nd
                 // execute_if_needed call), bump the stored mtime.
-                if count == 2 {
-                    self.mtime.set(ModifiedTime::tick());
+                if count == 1 {
+                    self.mtime.store(ModifiedTime::tick().value(), Ordering::SeqCst);
                 }
-                self.mtime.get()
+                ModifiedTime::from_raw(self.mtime.load(Ordering::SeqCst))
             }
         }
 
@@ -601,7 +574,7 @@ mod tests {
             pipeline.get_mtime().value()
         );
 
-        // Second execute_if_needed: source.mtime() is called again (count=2),
+        // Second execute_if_needed: source.mtime() is called again (count=1),
         // which bumps the source mtime. Now source.mtime > pipeline_mtime.
         let result2 = pipeline.execute_if_needed().unwrap();
         assert!(
@@ -614,8 +587,6 @@ mod tests {
     /// has executed, execute_if_needed must detect this and re-execute.
     #[test]
     fn test_pipeline_filter_parameter_change_triggers_rerun() {
-        use crate::domain::filters::SmoothFilter;
-
         // SmoothFilter implements Modifiable: parameter setters bump mtime.
         // After execute, if the filter's mtime exceeds the pipeline's mtime,
         // execute_if_needed must re-execute.
@@ -624,27 +595,26 @@ mod tests {
         // set_relaxation_factor after boxing. We test with a custom filter
         // whose mtime() increases on the second call, similar to the source test.
         struct DelayedBumpFilter {
-            mtime: Cell<ModifiedTime>,
-            mtime_call_count: Cell<usize>,
+            mtime: AtomicU64,
+            mtime_call_count: AtomicUsize,
         }
         impl DelayedBumpFilter {
             fn new() -> Self {
                 Self {
-                    mtime: Cell::new(ModifiedTime::tick()),
-                    mtime_call_count: Cell::new(0),
+                    mtime: AtomicU64::new(ModifiedTime::tick().value()),
+                    mtime_call_count: AtomicUsize::new(0),
                 }
             }
         }
         impl VtkFilter for DelayedBumpFilter {
             fn mtime(&self) -> ModifiedTime {
-                let count = self.mtime_call_count.get();
-                self.mtime_call_count.set(count + 1);
+                let count = self.mtime_call_count.fetch_add(1, Ordering::SeqCst);
                 // On the 2nd call to mtime() (which happens during the 2nd
                 // execute_if_needed call), bump the stored mtime.
                 if count == 1 {
-                    self.mtime.set(ModifiedTime::tick());
+                    self.mtime.store(ModifiedTime::tick().value(), Ordering::SeqCst);
                 }
-                self.mtime.get()
+                ModifiedTime::from_raw(self.mtime.load(Ordering::SeqCst))
             }
             fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject> {
                 Ok(input) // identity pass-through

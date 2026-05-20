@@ -139,6 +139,8 @@ fn test_pacs_config_to_association_config_copies_fields() {
         host: "192.168.1.10".to_owned(),
         port: 11112,
         move_destination: "STORE01".to_owned(),
+        scp_ae_title: "STORE01".to_owned(),
+        scp_port: 11112,
         timeout_secs: 60,
     };
     let assoc = cfg.to_association_config();
@@ -460,4 +462,52 @@ fn test_pacs_request_find_studies_has_new_filter_fields() {
         }
         _ => panic!("expected FindStudies variant"),
     }
+}
+
+// ── Sprint 284: Embedded SCP configuration tests ─────────────────────────────
+
+/// `PacsConfig::scp_ae_title` default must be "RITKSNAP".
+///
+/// Analytical basis: The embedded SCP's AE title must match the `calling_ae_title`
+/// default so that C-MOVE `move_destination` points to the embedded SCP by default
+/// without user configuration.
+#[test]
+fn test_pacs_config_scp_ae_title_default() {
+    let cfg = PacsConfig::default();
+    assert_eq!(
+        cfg.scp_ae_title, "RITKSNAP",
+        "default scp_ae_title must be RITKSNAP"
+    );
+    assert!(
+        !cfg.scp_ae_title.is_empty(),
+        "scp_ae_title must be non-empty"
+    );
+    assert!(
+        cfg.scp_ae_title.len() <= 16,
+        "scp_ae_title must be \u{2264}16 chars per PS 3.8"
+    );
+}
+
+/// `PacsConfig::scp_port` default must be 11112.
+///
+/// Analytical basis: 11112 is the DICOM standard test/development port and
+/// avoids the privileged 104 port that requires elevated OS permissions.
+#[test]
+fn test_pacs_config_scp_port_default() {
+    let cfg = PacsConfig::default();
+    assert_eq!(cfg.scp_port, 11112, "default scp_port must be 11112");
+    assert_ne!(cfg.scp_port, 0, "scp_port must not be 0 in default config");
+}
+
+/// `PacsConfig` scp_ae_title and move_destination share the same default.
+///
+/// Analytical basis: the embedded SCP's AE title must equal `move_destination`
+/// so that a C-MOVE issued with default config directs instances to the embedded SCP.
+#[test]
+fn test_pacs_config_scp_ae_matches_move_destination_default() {
+    let cfg = PacsConfig::default();
+    assert_eq!(
+        cfg.scp_ae_title, cfg.move_destination,
+        "scp_ae_title must equal move_destination in default config"
+    );
 }

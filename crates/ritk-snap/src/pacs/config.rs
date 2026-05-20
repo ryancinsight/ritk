@@ -28,6 +28,10 @@ pub struct PacsConfig {
     /// The PACS will forward retrieved objects to this AE via C-STORE
     /// sub-operations.  Configure to the AE title of the receiving SCP.
     pub move_destination: String,
+    /// AE title the embedded C-STORE SCP advertises.
+    pub scp_ae_title: String,
+    /// TCP port the embedded C-STORE SCP listens on. Use 0 for OS-assigned.
+    pub scp_port: u16,
     /// TCP connection + read timeout in seconds.
     pub timeout_secs: u64,
 }
@@ -40,6 +44,8 @@ impl Default for PacsConfig {
             host: "localhost".to_owned(),
             port: 4242,
             move_destination: "RITKSNAP".to_owned(),
+            scp_ae_title: "RITKSNAP".to_owned(),
+            scp_port: 11112,
             timeout_secs: 30,
         }
     }

@@ -1,3 +1,49 @@
+## Sprint 284 — Complete
+
+**Status**: Complete
+**Phase**: Execution — Embedded C-STORE SCP
+**Version**: 0.50.54 [minor]
+**Goal**: Implement embedded C-STORE SCP so the viewer can receive DICOM instances directly during C-MOVE retrieval without an external SCP.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| SCP-IMPL-01 | `StoreScp`, `StoreScpHandle`, `StoredInstance`, `ScpConfig` in `ritk-io::networking::scp` | **Closed** |
+| SCP-VIEWER-01 | `SnapApp` SCP handle + `start_pacs_scp` / `stop_pacs_scp` / `poll_pacs_scp`; `StartScp` / `StopScp` panel actions | **Closed** |
+| SCP-CONFIG-01 | `PacsConfig::scp_ae_title` + `scp_port`; default matches `move_destination` | **Closed** |
+| SCP-TEST-01 | 3 SCP loopback tests (single instance, multiple instances same assoc, ephemeral port); 3 config tests | **Closed** |
+
+### Delivered
+
+- `crates/ritk-io/src/format/dicom/networking/scp.rs` — new: `StoreScp`, `StoreScpHandle`, `StoredInstance`, `ScpConfig`, `scp_accept_loop`, `handle_connection`, `handle_store_rq`, `recv_dimse_message`, `recv_data_fragments`, PDU I/O helpers
+- `crates/ritk-io/src/format/dicom/networking/tests_scp.rs` — new: 3 loopback tests
+- `crates/ritk-io/src/format/dicom/networking/mod.rs` — `pub mod scp;` + re-exports
+- `crates/ritk-io/src/format/dicom/mod.rs` — SCP types in networking use block
+- `crates/ritk-io/src/lib.rs` — SCP types at crate root
+- `crates/ritk-snap/src/pacs/config.rs` — `scp_ae_title`, `scp_port` fields
+- `crates/ritk-snap/src/app/state.rs` — `pacs_scp_handle`, `pacs_received_count`
+- `crates/ritk-snap/src/app/pacs_ops.rs` — `start_pacs_scp`, `stop_pacs_scp`, `poll_pacs_scp`; `StartScp`/`StopScp` dispatch; auto-start on retrieve
+- `crates/ritk-snap/src/ui/pacs_panel/mod.rs` — SCP config row; Start/Stop SCP buttons + status
+- `crates/ritk-snap/src/app/panels.rs` — new SCP params forwarded to `show_pacs_panel`
+- `crates/ritk-snap/src/pacs/tests.rs` — 3 new SCP config tests (30 total)
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-io --lib format::dicom::networking`: 53 passed, 0 failed
+- `cargo test -p ritk-snap --lib pacs`: 30 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| SCP-LOAD-01 | Load received instances into viewer (currently counted + logged only) | High |
+| Series-level query | `FindResultRowSeries` + series drill-down | Medium |
+| Date range UI | Structured date-from/date-to with validation | Low |
+
+---
+
 ## Sprint 283 — Complete
 
 **Status**: Complete

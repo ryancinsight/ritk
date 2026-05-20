@@ -66,7 +66,7 @@ pub use networking::
     {echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve,
      store as dicom_store, AeTitle, Association, AssociationConfig, DicomAddress, EchoResponse,
      FindLevel, FindQuery, FindResult, MoveDestination, MoveResult, MoveResponse, NetworkingError,
-     StoreResponse};
+     StoreResponse, ScpConfig, StoreScp, StoreScpHandle, StoredInstance};
 pub use networking::dimse::{DimseMessage, DimseStatus, CommandField};
 pub use networking::pdu::{Pdu, AssociateRqPdu, AssociateAcPdu};
 

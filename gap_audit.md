@@ -1,5 +1,41 @@
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
 
+## Sprint 284 Audit — 2026-05-20 — Embedded C-STORE SCP
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| SCP-IMPL-01 | `StoreScp::start` → `StoreScpHandle`; non-blocking accept loop; bounded `sync_channel`; permissive SOP class acceptance | `ritk-io::networking::scp` | 3 |
+| SCP-VIEWER-01 | `SnapApp::start_pacs_scp` / `stop_pacs_scp` / `poll_pacs_scp`; `PacsPanelAction::StartScp/StopScp` | `ritk-snap::app::pacs_ops` | — |
+| SCP-CONFIG-01 | `PacsConfig::scp_ae_title` / `scp_port`; default `"RITKSNAP"` / `11112` matches `move_destination` | `ritk-snap::pacs::config` | 3 |
+| SCP-TEST-01 | 3 SCP loopback tests; 3 config unit tests | `ritk-io`, `ritk-snap` | 6 |
+
+### Architecture
+
+1. **Non-blocking accept loop**: `TcpListener::set_nonblocking(true)` + `ACCEPT_POLL_INTERVAL` sleep enables clean shutdown without a dedicated wakeup connection. Each connection is handled in a spawned thread so long-running transfers do not block the accept loop.
+2. **Bounded channel**: `mpsc::sync_channel(config.queue_capacity)` enforces memory bounds. Overflow is `try_send` → discard with `tracing::warn` — the protocol still responds Success so the PACS does not retry.
+3. **`ScpMessageResult` enum**: separates DIMSE control-flow outcomes (`Released`, `Aborted`, `Message`) from genuine I/O errors, honoring the control-flow/error-channel discipline.
+4. **Permissive context acceptance**: SCP accepts every SOP class offered in A-ASSOCIATE-RQ with its first offered transfer syntax. This covers all storage SOP classes a PACS may send without maintaining a registry.
+5. **Auto-start on retrieve**: `submit_pacs_retrieve` calls `start_pacs_scp` before issuing the C-MOVE, ensuring the SCP is listening before the PACS begins sub-operations.
+6. **Zero-config defaults**: `PacsConfig::scp_ae_title = "RITKSNAP"` equals `move_destination = "RITKSNAP"` — the default configuration routes C-MOVE sub-operations to the embedded SCP without user action.
+
+### Verification
+
+| Test type | Count | Pass |
+|---|---|---|
+| ritk-io networking (incl. SCP loopback) | 53 | 53 |
+| ritk-snap pacs unit | 30 | 30 |
+| cargo check --workspace | — | 0 errors, 0 warnings |
+
+### Residual Risk
+
+- **SCP-LOAD-01**: Received instances are counted and logged but not loaded into the viewer. A `VecDeque<StoredInstance>` accumulator and a "Load received instances" UI button are the next increment.
+- `study_date` filter has no client-side DICOM format validation.
+- No series-level query variant.
+
+---
+
 ## Sprint 283 Audit — 2026-05-20 — PACS Query Extension + Module Partition + VtkFilter Fix
 
 ### Gaps closed

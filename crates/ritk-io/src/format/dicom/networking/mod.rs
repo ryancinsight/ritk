@@ -10,6 +10,7 @@ mod echo;
 mod find;
 mod move_;
 mod store;
+pub mod scp;
 
 #[cfg(test)]
 #[path = "tests_dimse.rs"]
@@ -26,3 +27,4 @@ pub use find::{find, FindLevel, FindQuery};
 pub use move_::{retrieve, MoveDestination};
 pub use store::store;
 pub use command::parse_dataset_ivr_le;
+pub use scp::{ScpConfig, StoreScp, StoreScpHandle, StoredInstance};

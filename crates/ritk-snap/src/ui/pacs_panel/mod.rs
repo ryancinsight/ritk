@@ -48,6 +48,10 @@ pub enum PacsPanelAction {
     SubmitRetrieve { study_uid: String },
     /// User pressed "Clear" to reset the results table.
     ClearResults,
+    /// User pressed "Start SCP".
+    StartScp,
+    /// User pressed "Stop SCP".
+    StopScp,
 }
 
 // ── show_pacs_panel ───────────────────────────────────────────────────────────
@@ -77,6 +81,9 @@ pub fn show_pacs_panel(
     modality: &mut String,
     study_date: &mut String,
     accession_number: &mut String,
+    scp_listening: bool,
+    scp_actual_port: u16,
+    pacs_received_count: u32,
     selected_row: &mut Option<usize>,
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
@@ -116,6 +123,18 @@ pub fn show_pacs_panel(
                 config.timeout_secs = timeout as u64;
             }
             ui.end_row();
+
+            ui.label("SCP AE:");
+            ui.add(egui::TextEdit::singleline(&mut config.scp_ae_title).desired_width(120.0));
+            ui.label("SCP Port:");
+            let mut sp = config.scp_port as i32;
+            if ui
+                .add(egui::DragValue::new(&mut sp).speed(1.0).range(1..=65535))
+                .changed()
+            {
+                config.scp_port = sp as u16;
+            }
+            ui.end_row();
         });
 
     ui.horizontal(|ui| {
@@ -129,6 +148,27 @@ pub fn show_pacs_panel(
                 egui::Color32::from_rgb(220, 80, 80)
             };
             ui.colored_label(color, echo_display.as_str());
+        }
+    });
+
+    ui.horizontal(|ui| {
+        if scp_listening {
+            if ui.button("Stop SCP").clicked() {
+                action = PacsPanelAction::StopScp;
+            }
+            let actual = if scp_actual_port != 0 { scp_actual_port } else { config.scp_port };
+            ui.colored_label(
+                egui::Color32::GREEN,
+                format!("\u{25cf} SCP :{actual} (AE: {})", config.scp_ae_title),
+            );
+            if pacs_received_count > 0 {
+                ui.label(format!("[{pacs_received_count} received]"));
+            }
+        } else {
+            if ui.button("Start SCP").clicked() {
+                action = PacsPanelAction::StartScp;
+            }
+            ui.weak("SCP not started");
         }
     });
 

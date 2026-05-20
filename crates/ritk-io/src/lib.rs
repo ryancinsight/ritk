@@ -27,6 +27,7 @@ pub use format::dicom::{
     AeTitle, AssociationConfig, DicomAddress, EchoResponse,
     FindLevel, FindQuery, FindResult, MoveDestination, MoveResponse,
     NetworkingError, StoreResponse,
+    ScpConfig, StoreScp, StoreScpHandle, StoredInstance,
 };
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};

@@ -230,6 +230,13 @@ pub(crate) struct SnapApp {
     pub(crate) pacs_selected_row: Option<usize>,
     /// Handle to an in-flight background PACS operation, if any.
     pub(crate) pacs_worker: Option<crate::pacs::PacsWorkerHandle>,
+    /// Embedded C-STORE SCP handle; `Some` when the SCP is running.
+    ///
+    /// Receives instances forwarded by the PACS during C-MOVE sub-operations.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) pacs_scp_handle: Option<ritk_io::StoreScpHandle>,
+    /// Count of DICOM instances received by the embedded SCP since last start.
+    pub(crate) pacs_received_count: u32,
 
     // ── GPU renderer (native only) ────────────────────────────────────────────
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
@@ -323,6 +330,9 @@ impl Default for SnapApp {
             pacs_echo_display: String::new(),
             pacs_selected_row: None,
             pacs_worker: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            pacs_scp_handle: None,
+            pacs_received_count: 0,
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),

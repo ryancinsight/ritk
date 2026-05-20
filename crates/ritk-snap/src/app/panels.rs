@@ -259,6 +259,15 @@ impl SnapApp {
                 .default_width(560.0)
                 .resizable(true)
                 .show(ctx, |ui| {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let (scp_listening, scp_actual_port) = self
+                        .pacs_scp_handle
+                        .as_ref()
+                        .map(|h| (true, h.port()))
+                        .unwrap_or((false, 0));
+                    #[cfg(target_arch = "wasm32")]
+                    let (scp_listening, scp_actual_port) = (false, 0u16);
+
                     let action = crate::ui::pacs_panel::show_pacs_panel(
                         ui,
                         &mut self.pacs_config,
@@ -268,6 +277,9 @@ impl SnapApp {
                         &mut self.pacs_modality_filter,
                         &mut self.pacs_study_date_filter,
                         &mut self.pacs_accession_filter,
+                        scp_listening,
+                        scp_actual_port,
+                        self.pacs_received_count,
                         &mut self.pacs_selected_row,
                     );
                     self.handle_pacs_action(action);
