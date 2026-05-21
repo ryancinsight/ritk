@@ -108,8 +108,8 @@ pub(crate) fn cc_forces(
 
 /// Compute local CC gradient forces into caller-provided buffers (Avants 2008, eq. 10).
 ///
-/// Equivalent to [`cc_forces`] but writes directly into `fz`, `fy`, `fx`
-/// without intermediate allocation. All three buffers must have length
+/// Equivalent to the allocating CC-force helper used by tests, but writes
+/// directly into `fz`, `fy`, `fx` without intermediate allocation. All three buffers must have length
 /// `dims[0] * dims[1] * dims[2]`.
 ///
 /// Parallelized over z-slices via Rayon; each slice writes to a disjoint
