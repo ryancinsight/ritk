@@ -29,6 +29,7 @@ pub use format::dicom::{
     NetworkingError, StoreResponse,
     ScpConfig, StoreScp, StoreScpHandle, StoredInstance,
 };
+pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 pub use format::metaimage::{read_metaimage, write_metaimage, MetaImageReader, MetaImageWriter};
 pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
@@ -45,12 +46,9 @@ pub use format::vtk::image_xml::{
     write_vti_binary_appended_to_file,
 };
 pub use format::vtk::{mesh_to_vtk_string, write_mesh_as_vtk};
-pub use format::vtk::{read_vtk, write_vtk, VtkReader, VtkWriter};
 pub use format::vtk::{
-    read_vtk_polydata, read_vtp_polydata, write_vtk_polydata, write_vtp_polydata,
-    read_obj_mesh, write_obj_mesh,
-    read_stl_mesh, write_stl_binary, write_stl_ascii,
-    read_ply_mesh, write_ply_ascii, write_ply_binary_le,
-    write_gltf,
+    read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vtk_polydata, read_vtp_polydata, write_gltf,
+    write_obj_mesh, write_ply_ascii, write_ply_binary_le, write_stl_ascii, write_stl_binary,
+    write_vtk_polydata, write_vtp_polydata,
 };
-pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
+pub use format::vtk::{read_vtk, write_vtk, VtkReader, VtkWriter};

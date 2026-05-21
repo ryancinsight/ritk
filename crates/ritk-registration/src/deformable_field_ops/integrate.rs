@@ -182,23 +182,28 @@ mod tests {
         let mut sc_y = vec![0.0_f32; n];
         let mut sc_x = vec![0.0_f32; n];
         scaling_and_squaring_into(
-            &vz, &vy, &vx, dims, 6,
-            &mut out_z, &mut out_y, &mut out_x,
-            &mut sc_z, &mut sc_y, &mut sc_x,
+            &vz, &vy, &vx, dims, 6, &mut out_z, &mut out_y, &mut out_x, &mut sc_z, &mut sc_y,
+            &mut sc_x,
         );
 
         for i in 0..n {
             assert!(
                 (out_z[i] - ref_z[i]).abs() < 1e-6,
-                "z[{i}]: into={} ref={}", out_z[i], ref_z[i]
+                "z[{i}]: into={} ref={}",
+                out_z[i],
+                ref_z[i]
             );
             assert!(
                 (out_y[i] - ref_y[i]).abs() < 1e-6,
-                "y[{i}]: into={} ref={}", out_y[i], ref_y[i]
+                "y[{i}]: into={} ref={}",
+                out_y[i],
+                ref_y[i]
             );
             assert!(
                 (out_x[i] - ref_x[i]).abs() < 1e-6,
-                "x[{i}]: into={} ref={}", out_x[i], ref_x[i]
+                "x[{i}]: into={} ref={}",
+                out_x[i],
+                ref_x[i]
             );
         }
     }

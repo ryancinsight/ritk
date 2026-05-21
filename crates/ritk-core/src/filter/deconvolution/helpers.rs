@@ -127,8 +127,22 @@ pub(super) fn convolve_3d(
     }
 
     let mut planner = FftPlanner::<f32>::new();
-    fft3d(&mut img_pad, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
-    fft3d(&mut ker_pad, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
+    fft3d(
+        &mut img_pad,
+        pad_d,
+        pad_h,
+        pad_w,
+        &mut planner,
+        FftDir::Forward,
+    );
+    fft3d(
+        &mut ker_pad,
+        pad_d,
+        pad_h,
+        pad_w,
+        &mut planner,
+        FftDir::Forward,
+    );
 
     for i in 0..pad_n {
         let a = img_pad[i];
@@ -136,7 +150,14 @@ pub(super) fn convolve_3d(
         img_pad[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
     }
 
-    fft3d(&mut img_pad, pad_d, pad_h, pad_w, &mut planner, FftDir::Inverse);
+    fft3d(
+        &mut img_pad,
+        pad_d,
+        pad_h,
+        pad_w,
+        &mut planner,
+        FftDir::Inverse,
+    );
 
     let scale = 1.0_f32 / pad_n as f32;
     let cz = kd / 2;

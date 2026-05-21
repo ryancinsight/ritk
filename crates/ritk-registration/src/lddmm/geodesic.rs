@@ -1,10 +1,10 @@
 //! Geodesic integration via forward Euler for LDDMM.
 
+#[cfg(test)]
+use crate::deformable_field_ops::{compose_fields, gaussian_smooth_inplace};
 use crate::deformable_field_ops::{
     compose_fields_into, gaussian_smooth_with_scratch, VectorField3D, VectorFieldMut3D,
 };
-#[cfg(test)]
-use crate::deformable_field_ops::{compose_fields, gaussian_smooth_inplace};
 
 use super::adjoint::epdiff_adjoint_into;
 
@@ -54,11 +54,23 @@ pub(super) fn integrate_geodesic(
         let mut ady = vec![0.0_f32; n];
         let mut adx = vec![0.0_f32; n];
         epdiff_adjoint_into(
-            VectorField3D { z: &vz, y: &vy, x: &vx },
-            VectorField3D { z: &mz, y: &my, x: &mx },
+            VectorField3D {
+                z: &vz,
+                y: &vy,
+                x: &vx,
+            },
+            VectorField3D {
+                z: &mz,
+                y: &my,
+                x: &mx,
+            },
             dims,
             spacing,
-            VectorFieldMut3D { z: &mut adz, y: &mut ady, x: &mut adx },
+            VectorFieldMut3D {
+                z: &mut adz,
+                y: &mut ady,
+                x: &mut adx,
+            },
         );
         gaussian_smooth_inplace(&mut adz, dims, kernel_sigma);
         gaussian_smooth_inplace(&mut ady, dims, kernel_sigma);
@@ -155,11 +167,23 @@ pub(super) fn integrate_geodesic_into(
 
         // 2. EPDiff adjoint ad*_v(m) → adj.
         epdiff_adjoint_into(
-            VectorField3D { z: vel_z, y: vel_y, x: vel_x },
-            VectorField3D { z: mom_z, y: mom_y, x: mom_x },
+            VectorField3D {
+                z: vel_z,
+                y: vel_y,
+                x: vel_x,
+            },
+            VectorField3D {
+                z: mom_z,
+                y: mom_y,
+                x: mom_x,
+            },
             dims,
             spacing,
-            VectorFieldMut3D { z: adj_z, y: adj_y, x: adj_x },
+            VectorFieldMut3D {
+                z: adj_z,
+                y: adj_y,
+                x: adj_x,
+            },
         );
         // Smooth adjoint: K_σ ∗ ad*_v(m).
         gaussian_smooth_with_scratch(adj_z, dims, kernel_sigma, smooth_tmp);
@@ -189,10 +213,22 @@ pub(super) fn integrate_geodesic_into(
             let d_y: &[f32] = out_y;
             let d_x: &[f32] = out_x;
             compose_fields_into(
-                VectorField3D { z: step_z, y: step_y, x: step_x },
-                VectorField3D { z: d_z, y: d_y, x: d_x },
+                VectorField3D {
+                    z: step_z,
+                    y: step_y,
+                    x: step_x,
+                },
+                VectorField3D {
+                    z: d_z,
+                    y: d_y,
+                    x: d_x,
+                },
                 dims,
-                VectorFieldMut3D { z: comp_z, y: comp_y, x: comp_x },
+                VectorFieldMut3D {
+                    z: comp_z,
+                    y: comp_y,
+                    x: comp_x,
+                },
             );
         }
 

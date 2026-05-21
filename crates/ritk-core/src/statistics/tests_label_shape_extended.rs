@@ -37,8 +37,16 @@ fn single_voxel_centroid() {
     assert_eq!(stats[0].label, 1);
     assert_eq!(stats[0].count, 1);
     assert!((stats[0].centroid[0] - 0.0).abs() < 1e-6, "z");
-    assert!((stats[0].centroid[1] - 1.0).abs() < 1e-6, "y={}", stats[0].centroid[1]);
-    assert!((stats[0].centroid[2] - 2.0).abs() < 1e-6, "x={}", stats[0].centroid[2]);
+    assert!(
+        (stats[0].centroid[1] - 1.0).abs() < 1e-6,
+        "y={}",
+        stats[0].centroid[1]
+    );
+    assert!(
+        (stats[0].centroid[2] - 2.0).abs() < 1e-6,
+        "x={}",
+        stats[0].centroid[2]
+    );
 }
 
 /// Symmetric pair: centroid is midpoint.
@@ -105,8 +113,16 @@ fn line_component_is_highly_elongated() {
     let img = make_label_image(data, [1, 1, 5], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
     // Elongation should be near 0 for a thin line (λ1 << λ2)
-    assert!(stats[0].elongation < 0.3, "line elongation should be low, got {}", stats[0].elongation);
-    assert!(stats[0].flatness < 0.3, "line flatness should be low, got {}", stats[0].flatness);
+    assert!(
+        stats[0].elongation < 0.3,
+        "line elongation should be low, got {}",
+        stats[0].elongation
+    );
+    assert!(
+        stats[0].flatness < 0.3,
+        "line flatness should be low, got {}",
+        stats[0].flatness
+    );
 }
 
 // ── Roundness ───────────────────────────────────────────────────────────────
@@ -119,8 +135,11 @@ fn solid_block_roundness() {
     let stats = compute_label_shape_statistics_extended(&img);
     // Cube inscribed in its circumscribed sphere → roundness ≈ 0.37
     // This is expected for a cubic voxel blob
-    assert!(stats[0].roundness > 0.3 && stats[0].roundness <= 1.0,
-        "roundness should be >0.3 for a cube, got {}", stats[0].roundness);
+    assert!(
+        stats[0].roundness > 0.3 && stats[0].roundness <= 1.0,
+        "roundness should be >0.3 for a cube, got {}",
+        stats[0].roundness
+    );
 }
 
 /// Single voxel: roundness near 1 (sphere-like at unit scale).
@@ -132,8 +151,14 @@ fn single_voxel_roundness() {
     data[13] = 1.0;
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
     let stats = compute_label_shape_statistics_extended(&img);
-    assert!((stats[0].feret_diameter).abs() < 1e-9, "feret must be 0 for single voxel");
-    assert!((stats[0].roundness).abs() < 1e-9, "roundness = 0 when feret = 0");
+    assert!(
+        (stats[0].feret_diameter).abs() < 1e-9,
+        "feret must be 0 for single voxel"
+    );
+    assert!(
+        (stats[0].roundness).abs() < 1e-9,
+        "roundness = 0 when feret = 0"
+    );
 }
 
 // ── Feret diameter ──────────────────────────────────────────────────────────

@@ -43,7 +43,13 @@ pub fn write_ply_binary_le(path: impl AsRef<Path>, poly: &VtkPolyData) -> Result
 
 pub(crate) fn write_ply_ascii_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Result<()> {
     let normals = extract_normals(poly);
-    write_ply_header(w, "ascii", poly.points.len(), poly.polygons.len(), normals.is_some())?;
+    write_ply_header(
+        w,
+        "ascii",
+        poly.points.len(),
+        poly.polygons.len(),
+        normals.is_some(),
+    )?;
 
     // Vertex elements
     for (i, [x, y, z]) in poly.points.iter().enumerate() {
@@ -70,7 +76,13 @@ pub(crate) fn write_ply_ascii_to_writer(w: &mut impl Write, poly: &VtkPolyData) 
 
 pub(crate) fn write_ply_binary_le_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Result<()> {
     let normals = extract_normals(poly);
-    write_ply_header(w, "binary_little_endian", poly.points.len(), poly.polygons.len(), normals.is_some())?;
+    write_ply_header(
+        w,
+        "binary_little_endian",
+        poly.points.len(),
+        poly.polygons.len(),
+        normals.is_some(),
+    )?;
 
     // Vertex elements: raw LE f32 per component
     for (i, [x, y, z]) in poly.points.iter().enumerate() {

@@ -213,7 +213,11 @@ fn test_step_edge() {
     let vals: Vec<f32> = (0..n)
         .map(|i| {
             let iz = i / (ny * nx);
-            if iz < 4 { 0.0 } else { 1.0 }
+            if iz < 4 {
+                0.0
+            } else {
+                1.0
+            }
         })
         .collect();
 

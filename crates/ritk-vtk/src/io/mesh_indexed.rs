@@ -32,8 +32,7 @@ pub fn read_stl_indexed(path: impl AsRef<Path>) -> Result<IndexedMesh> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("opening STL file {}", path.display()))?;
-    gaia::infrastructure::io::stl::read_stl(file)
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    gaia::infrastructure::io::stl::read_stl(file).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Write an [`IndexedMesh`] as binary STL (little-endian, compact).
@@ -68,8 +67,7 @@ pub fn read_obj_indexed(path: impl AsRef<Path>) -> Result<IndexedMesh> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("opening OBJ file {}", path.display()))?;
-    gaia::infrastructure::io::obj::read_obj(file)
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    gaia::infrastructure::io::obj::read_obj(file).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Write an [`IndexedMesh`] as Wavefront OBJ.
@@ -80,8 +78,7 @@ pub fn write_indexed_obj(path: impl AsRef<Path>, mesh: &IndexedMesh) -> Result<(
     let path = path.as_ref();
     let mut file = std::fs::File::create(path)
         .with_context(|| format!("creating OBJ file {}", path.display()))?;
-    gaia::infrastructure::io::obj::write_obj(&mut file, mesh)
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    gaia::infrastructure::io::obj::write_obj(&mut file, mesh).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 // ── PLY ───────────────────────────────────────────────────────────────────────
@@ -91,8 +88,7 @@ pub fn read_ply_indexed(path: impl AsRef<Path>) -> Result<IndexedMesh> {
     let path = path.as_ref();
     let file = std::fs::File::open(path)
         .with_context(|| format!("opening PLY file {}", path.display()))?;
-    gaia::infrastructure::io::ply::read_ply(file)
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    gaia::infrastructure::io::ply::read_ply(file).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Write an [`IndexedMesh`] as ASCII PLY.
@@ -102,8 +98,7 @@ pub fn write_indexed_ply(path: impl AsRef<Path>, mesh: &IndexedMesh) -> Result<(
     let path = path.as_ref();
     let mut file = std::fs::File::create(path)
         .with_context(|| format!("creating PLY file {}", path.display()))?;
-    gaia::infrastructure::io::ply::write_ply(&mut file, mesh)
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    gaia::infrastructure::io::ply::write_ply(&mut file, mesh).map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 // ── glTF 2.0 ─────────────────────────────────────────────────────────────────
@@ -182,7 +177,10 @@ mod tests {
         let has_origin = pts
             .iter()
             .any(|p| p.x.abs() < eps && p.y.abs() < eps && p.z.abs() < eps);
-        assert!(has_origin, "origin vertex must survive round-trip; pts={pts:?}");
+        assert!(
+            has_origin,
+            "origin vertex must survive round-trip; pts={pts:?}"
+        );
     }
 
     // ── OBJ round-trip ───────────────────────────────────────────────────────
@@ -223,10 +221,6 @@ mod tests {
             "GLB must be non-empty; got {} bytes",
             bytes.len()
         );
-        assert_eq!(
-            &bytes[..4],
-            b"glTF",
-            "GLB magic bytes must be 'glTF'"
-        );
+        assert_eq!(&bytes[..4], b"glTF", "GLB magic bytes must be 'glTF'");
     }
 }

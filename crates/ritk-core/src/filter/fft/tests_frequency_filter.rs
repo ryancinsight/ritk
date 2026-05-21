@@ -119,7 +119,11 @@ fn checkerboard_attenuated_by_low_pass_2d() {
         .map(|i| {
             let r = i / 8;
             let c = i % 8;
-            if (r + c) % 2 == 0 { 1.0 } else { -1.0 }
+            if (r + c) % 2 == 0 {
+                1.0
+            } else {
+                -1.0
+            }
         })
         .collect();
     let img = make_image_2d(vals, 8, 8);
@@ -144,7 +148,10 @@ fn butterworth_low_pass_finite_2d() {
         .unwrap();
     let (out, _) = extract_vec(&result).unwrap();
     for (i, &v) in out.iter().enumerate() {
-        assert!(v.is_finite(), "Butterworth low-pass output at index {i} must be finite, got {v}");
+        assert!(
+            v.is_finite(),
+            "Butterworth low-pass output at index {i} must be finite, got {v}"
+        );
     }
 }
 
@@ -158,7 +165,10 @@ fn butterworth_high_pass_finite_2d() {
         .unwrap();
     let (out, _) = extract_vec(&result).unwrap();
     for (i, &v) in out.iter().enumerate() {
-        assert!(v.is_finite(), "Butterworth high-pass output at index {i} must be finite, got {v}");
+        assert!(
+            v.is_finite(),
+            "Butterworth high-pass output at index {i} must be finite, got {v}"
+        );
     }
 }
 

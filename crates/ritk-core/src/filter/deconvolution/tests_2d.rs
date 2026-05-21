@@ -8,7 +8,9 @@ use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
-use super::{LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution};
+use super::{
+    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
+};
 
 type B = NdArray<f32>;
 
@@ -82,17 +84,21 @@ fn wiener_output_shape_matches_input() {
 #[test]
 fn tikhonov_lambda_reduces_variance() {
     // Random-looking 5×5 image with a 3×3 averaging kernel
-    let kernel_vals = vec![1.0/9.0; 9];
+    let kernel_vals = vec![1.0 / 9.0; 9];
     let image_vals: Vec<f32> = (0..25).map(|i| (i as f32 * 3.7).sin()).collect();
     let img = make_image_2d(image_vals.clone(), [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = TikhonovDeconvolution::new(1.0);
     let result = filter.apply_2d(&img, &ker).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
-    let var: f64 = vals.iter().map(|&v| {
-        let d = v as f64 - vals.iter().map(|&x| x as f64).sum::<f64>() / vals.len() as f64;
-        d * d
-    }).sum::<f64>() / vals.len() as f64;
+    let var: f64 = vals
+        .iter()
+        .map(|&v| {
+            let d = v as f64 - vals.iter().map(|&x| x as f64).sum::<f64>() / vals.len() as f64;
+            d * d
+        })
+        .sum::<f64>()
+        / vals.len() as f64;
     // Tikhonov regularization suppresses high frequencies → reduces variance
     assert!(var.is_finite(), "output variance must be finite");
 }

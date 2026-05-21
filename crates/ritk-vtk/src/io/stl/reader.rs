@@ -18,8 +18,8 @@ use std::path::Path;
 /// Read an STL file (ASCII or binary) and return a [`VtkPolyData`].
 pub fn read_stl_mesh(path: impl AsRef<Path>) -> Result<VtkPolyData> {
     let path = path.as_ref();
-    let bytes = std::fs::read(path)
-        .with_context(|| format!("reading STL file {}", path.display()))?;
+    let bytes =
+        std::fs::read(path).with_context(|| format!("reading STL file {}", path.display()))?;
     parse_stl(&bytes)
 }
 
@@ -68,11 +68,14 @@ fn parse_stl_ascii(bytes: &[u8]) -> Result<VtkPolyData> {
             if toks.len() < 5 {
                 bail!("line {}: malformed 'facet normal'", line_idx + 1);
             }
-            let nx: f32 = toks[2].parse()
+            let nx: f32 = toks[2]
+                .parse()
                 .with_context(|| format!("line {}: bad normal x", line_idx + 1))?;
-            let ny: f32 = toks[3].parse()
+            let ny: f32 = toks[3]
+                .parse()
                 .with_context(|| format!("line {}: bad normal y", line_idx + 1))?;
-            let nz: f32 = toks[4].parse()
+            let nz: f32 = toks[4]
+                .parse()
                 .with_context(|| format!("line {}: bad normal z", line_idx + 1))?;
             current_normal = Some([nx, ny, nz]);
             current_verts.clear();
@@ -83,18 +86,24 @@ fn parse_stl_ascii(bytes: &[u8]) -> Result<VtkPolyData> {
             if toks.len() < 4 {
                 bail!("line {}: malformed vertex", line_idx + 1);
             }
-            let x: f32 = toks[1].parse()
+            let x: f32 = toks[1]
+                .parse()
                 .with_context(|| format!("line {}: bad vertex x", line_idx + 1))?;
-            let y: f32 = toks[2].parse()
+            let y: f32 = toks[2]
+                .parse()
                 .with_context(|| format!("line {}: bad vertex y", line_idx + 1))?;
-            let z: f32 = toks[3].parse()
+            let z: f32 = toks[3]
+                .parse()
                 .with_context(|| format!("line {}: bad vertex z", line_idx + 1))?;
             current_verts.push([x, y, z]);
         } else if low.starts_with("endloop") {
             in_loop = false;
         } else if low.starts_with("endfacet") {
             if current_verts.len() != 3 {
-                bail!("facet does not have exactly 3 vertices ({} found)", current_verts.len());
+                bail!(
+                    "facet does not have exactly 3 vertices ({} found)",
+                    current_verts.len()
+                );
             }
             let base = points.len() as u32;
             for v in &current_verts {
@@ -121,7 +130,11 @@ fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
     let n = u32::from_le_bytes([bytes[80], bytes[81], bytes[82], bytes[83]]) as usize;
     let required = n * 50 + 84;
     if bytes.len() < required {
-        bail!("binary STL truncated: need {} bytes, have {}", required, bytes.len());
+        bail!(
+            "binary STL truncated: need {} bytes, have {}",
+            required,
+            bytes.len()
+        );
     }
 
     let mut points = Vec::with_capacity(n * 3);
@@ -149,9 +162,19 @@ fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
 
 #[inline]
 fn read_f32x3_le(bytes: &[u8], off: usize) -> [f32; 3] {
-    let x = f32::from_le_bytes([bytes[off],   bytes[off+1], bytes[off+2],  bytes[off+3]]);
-    let y = f32::from_le_bytes([bytes[off+4], bytes[off+5], bytes[off+6],  bytes[off+7]]);
-    let z = f32::from_le_bytes([bytes[off+8], bytes[off+9], bytes[off+10], bytes[off+11]]);
+    let x = f32::from_le_bytes([bytes[off], bytes[off + 1], bytes[off + 2], bytes[off + 3]]);
+    let y = f32::from_le_bytes([
+        bytes[off + 4],
+        bytes[off + 5],
+        bytes[off + 6],
+        bytes[off + 7],
+    ]);
+    let z = f32::from_le_bytes([
+        bytes[off + 8],
+        bytes[off + 9],
+        bytes[off + 10],
+        bytes[off + 11],
+    ]);
     [x, y, z]
 }
 
@@ -168,7 +191,9 @@ fn build_stl_poly(
     if !cell_normals.is_empty() {
         poly.cell_data.insert(
             "Normals".to_string(),
-            AttributeArray::Normals { values: cell_normals },
+            AttributeArray::Normals {
+                values: cell_normals,
+            },
         );
     }
     Ok(poly)

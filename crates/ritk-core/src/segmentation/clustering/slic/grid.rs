@@ -101,12 +101,7 @@ fn generate_grid_points(
 }
 
 /// Perturb a cluster center to the lowest-gradient voxel in a 3^ndim neighbourhood.
-fn perturb_center(
-    center: &[usize],
-    shape: &[usize],
-    gradient: &[f64],
-    ndim: usize,
-) -> Vec<usize> {
+fn perturb_center(center: &[usize], shape: &[usize], gradient: &[f64], ndim: usize) -> Vec<usize> {
     let mut best_coords = center.to_vec();
     let mut best_grad = f64::MAX;
     let mut offset = vec![0isize; ndim];

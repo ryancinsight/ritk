@@ -216,23 +216,17 @@ fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
                 let dx = (ix_p - ix_m) as f64;
 
                 gz[i] = if dz > 0.0 {
-                    (data[iz_p * ny * nx + iy * nx + ix]
-                        - data[iz_m * ny * nx + iy * nx + ix])
-                        / dz
+                    (data[iz_p * ny * nx + iy * nx + ix] - data[iz_m * ny * nx + iy * nx + ix]) / dz
                 } else {
                     0.0
                 };
                 gy[i] = if dy > 0.0 {
-                    (data[iz * ny * nx + iy_p * nx + ix]
-                        - data[iz * ny * nx + iy_m * nx + ix])
-                        / dy
+                    (data[iz * ny * nx + iy_p * nx + ix] - data[iz * ny * nx + iy_m * nx + ix]) / dy
                 } else {
                     0.0
                 };
                 gx[i] = if dx > 0.0 {
-                    (data[iz * ny * nx + iy * nx + ix_p]
-                        - data[iz * ny * nx + iy * nx + ix_m])
-                        / dx
+                    (data[iz * ny * nx + iy * nx + ix_p] - data[iz * ny * nx + iy * nx + ix_m]) / dx
                 } else {
                     0.0
                 };
@@ -259,20 +253,17 @@ fn compute_structure_tensor_products(grad: &Gradient, dims: [usize; 3]) -> Struc
         data: vec![[0.0f64; 6]; n],
     };
 
-    st.data
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(i, out)| {
-            let gz = grad.gz[i];
-            let gy = grad.gy[i];
-            let gx = grad.gx[i];
-            out[0] = gz * gz; // J_11 = I_z²
-            out[1] = gz * gy; // J_12 = I_z·I_y
-            out[2] = gz * gx; // J_13 = I_z·I_x
-            out[3] = gy * gy; // J_22 = I_y²
-            out[4] = gy * gx; // J_23 = I_y·I_x
-            out[5] = gx * gx; // J_33 = I_x²
-        });
+    st.data.par_iter_mut().enumerate().for_each(|(i, out)| {
+        let gz = grad.gz[i];
+        let gy = grad.gy[i];
+        let gx = grad.gx[i];
+        out[0] = gz * gz; // J_11 = I_z²
+        out[1] = gz * gy; // J_12 = I_z·I_y
+        out[2] = gz * gx; // J_13 = I_z·I_x
+        out[3] = gy * gy; // J_22 = I_y²
+        out[4] = gy * gx; // J_23 = I_y·I_x
+        out[5] = gx * gx; // J_33 = I_x²
+    });
 
     st
 }
@@ -442,7 +433,11 @@ fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
         // Eigenvectors are the standard basis vectors.
         let eigs = [m00, m11, m22];
         let mut indices = [0usize, 1, 2];
-        indices.sort_unstable_by(|&a, &b| eigs[a].partial_cmp(&eigs[b]).unwrap_or(std::cmp::Ordering::Equal));
+        indices.sort_unstable_by(|&a, &b| {
+            eigs[a]
+                .partial_cmp(&eigs[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let sorted = [eigs[indices[0]], eigs[indices[1]], eigs[indices[2]]];
         let mut vecs = [[0.0f64; 3]; 3];
         for (k, &idx) in indices.iter().enumerate() {
@@ -455,10 +450,7 @@ fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
     }
 
     let q = (m00 + m11 + m22) / 3.0;
-    let p2 = (m00 - q) * (m00 - q)
-        + (m11 - q) * (m11 - q)
-        + (m22 - q) * (m22 - q)
-        + 2.0 * p1;
+    let p2 = (m00 - q) * (m00 - q) + (m11 - q) * (m11 - q) + (m22 - q) * (m22 - q) + 2.0 * p1;
     let p = (p2 / 6.0).sqrt();
 
     if p < f64::EPSILON {
@@ -478,8 +470,7 @@ fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
     let b22 = (m22 - q) / p;
 
     // det(B) via cofactor expansion along the first row.
-    let det_b = b00 * (b11 * b22 - b12 * b12)
-        - b01 * (b01 * b22 - b12 * b02)
+    let det_b = b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02)
         + b02 * (b01 * b12 - b11 * b02);
 
     // r = det(B)/2, clamped to [−1, 1] for numerical safety.
@@ -735,9 +726,9 @@ fn compute_divergence(
                     let j = (iz - 1) * ny * nx + iy * nx + ix;
                     let d_face = avg_tensor(d_tensors[i], d_tensors[j]);
                     let diff = data[j] - data[i]; // value at iz−1 minus value at iz (negative)
-                    // The face between iz−1 and iz: flux_z at face(i−1/2)
-                    // = D_face · (I[iz−1] − I[iz]) in the z-component
-                    // = D_11 · diff  (diff is negative, so this subtracts from delta)
+                                                  // The face between iz−1 and iz: flux_z at face(i−1/2)
+                                                  // = D_face · (I[iz−1] − I[iz]) in the z-component
+                                                  // = D_11 · diff  (diff is negative, so this subtracts from delta)
                     delta += d_face[0] * diff;
                 }
 

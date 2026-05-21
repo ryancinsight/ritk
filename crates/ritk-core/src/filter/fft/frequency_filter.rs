@@ -112,7 +112,7 @@ impl FrequencyDomainFilter {
             for c in 0..w {
                 let m = mask[r * w + c];
                 let idx = r * cw + 2 * c;
-                out.push(vals[idx] * m);     // Re
+                out.push(vals[idx] * m); // Re
                 out.push(vals[idx + 1] * m); // Im
             }
         }
@@ -156,7 +156,7 @@ impl FrequencyDomainFilter {
                 for c in 0..w {
                     let m = mask[z * h * w + r * w + c];
                     let idx = z * slice_size + r * cw + 2 * c;
-                    out.push(vals[idx] * m);     // Re
+                    out.push(vals[idx] * m); // Re
                     out.push(vals[idx + 1] * m); // Im
                 }
             }
@@ -172,9 +172,7 @@ impl FrequencyDomainFilter {
 
     fn validate_cutoff(cutoff: f64) -> Result<()> {
         if cutoff <= 0.0 || cutoff > 0.5 {
-            bail!(
-                "FrequencyDomainFilter: cutoff must be in (0, 0.5], got {cutoff}"
-            );
+            bail!("FrequencyDomainFilter: cutoff must be in (0, 0.5], got {cutoff}");
         }
         Ok(())
     }
@@ -235,10 +233,18 @@ impl FrequencyDomainFilter {
         let n = order.max(1) as i32; // minimum order 1 for Butterworth
         match kind {
             FftFilterKind::IdealLowPass => {
-                if radius <= cutoff { 1.0 } else { 0.0 }
+                if radius <= cutoff {
+                    1.0
+                } else {
+                    0.0
+                }
             }
             FftFilterKind::IdealHighPass => {
-                if radius >= cutoff { 1.0 } else { 0.0 }
+                if radius >= cutoff {
+                    1.0
+                } else {
+                    0.0
+                }
             }
             FftFilterKind::ButterworthLowPass => {
                 let ratio = radius / cutoff;

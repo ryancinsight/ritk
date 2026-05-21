@@ -136,10 +136,7 @@ impl SlicSuperpixelFilter {
         let device = image.data().device();
         let ndim = D;
         let labels = slic_impl(&vals, &shape, ndim, &self.config);
-        let tensor = Tensor::<B, D>::from_data(
-            TensorData::new(labels, Shape::new(shape)),
-            &device,
-        );
+        let tensor = Tensor::<B, D>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
         Image::new(
             tensor,
             *image.origin(),
@@ -180,9 +177,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     // Intensity range for normalization.
     let (i_min, i_max) = intensities
         .iter()
-        .fold((f64::MAX, f64::MIN), |(lo, hi), &v| {
-            (lo.min(v), hi.max(v))
-        });
+        .fold((f64::MAX, f64::MIN), |(lo, hi), &v| (lo.min(v), hi.max(v)));
     let intensity_range = i_max - i_min;
 
     // Constant image: all label 0.
@@ -236,9 +231,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         );
 
         // ── Update step ──────────────────────────────────────────────────────
-        let max_shift = assign::update_centers(
-            &mut centers, &intensities, &labels, shape, ndim, k,
-        );
+        let max_shift = assign::update_centers(&mut centers, &intensities, &labels, shape, ndim, k);
 
         if max_shift < config.tolerance {
             break;
@@ -265,7 +258,11 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
     // ── Connectivity enforcement ──────────────────────────────────────────────
     if config.min_component_size > 0 && ndim >= 2 {
         connectivity::enforce_connectivity(
-            &mut labels, shape, ndim, &intensities, config.min_component_size,
+            &mut labels,
+            shape,
+            ndim,
+            &intensities,
+            config.min_component_size,
         );
     }
 

@@ -174,7 +174,11 @@ mod tests {
     fn indexed_to_poly_has_normals() {
         let mesh = unit_tet_mesh();
         let poly = indexed_mesh_to_poly(&mesh);
-        let normals = match poly.point_data.get("Normals").expect("Normals must be present") {
+        let normals = match poly
+            .point_data
+            .get("Normals")
+            .expect("Normals must be present")
+        {
             AttributeArray::Normals { values } => values,
             other => panic!("expected Normals, got {other:?}"),
         };
@@ -214,7 +218,11 @@ mod tests {
             mesh.vertex_count(),
             poly.points.len()
         );
-        assert_eq!(mesh.face_count(), poly.polygons.len(), "face count invariant");
+        assert_eq!(
+            mesh.face_count(),
+            poly.polygons.len(),
+            "face count invariant"
+        );
     }
 
     #[test]

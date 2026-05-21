@@ -175,8 +175,22 @@ impl TikhonovDeconvolution {
         }
 
         let mut planner = FftPlanner::<f32>::new();
-        fft3d(&mut img_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
-        fft3d(&mut ker_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
+        fft3d(
+            &mut img_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
+        fft3d(
+            &mut ker_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
 
         let lambda = self.lambda;
         for depth in 0..pad_d {
@@ -216,7 +230,14 @@ impl TikhonovDeconvolution {
             }
         }
 
-        fft3d(&mut img_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Inverse);
+        fft3d(
+            &mut img_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Inverse,
+        );
 
         let scale = 1.0_f32 / pad_n as f32;
         let mut out_vals = vec![0.0_f32; id * ih * iw];

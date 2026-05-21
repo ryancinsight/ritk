@@ -81,8 +81,7 @@ pub fn enforce_connectivity(
             *comp_int_sum.entry(root).or_insert(0.0) += intensities[i];
         }
 
-        let mut comp_mean: std::collections::HashMap<usize, f64> =
-            std::collections::HashMap::new();
+        let mut comp_mean: std::collections::HashMap<usize, f64> = std::collections::HashMap::new();
         for (&root, &size) in &comp_sizes {
             let sum = comp_int_sum.get(&root).copied().unwrap_or(0.0);
             comp_mean.insert(root, sum / size as f64);
@@ -129,8 +128,7 @@ pub fn enforce_connectivity(
                         if nbr_root != small_root {
                             let nbr_label = new_label[nbr];
                             if nbr_label != small_label {
-                                let nbr_mean =
-                                    comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
+                                let nbr_mean = comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
                                 let dist = (small_mean - nbr_mean).abs();
                                 if dist < best_dist {
                                     best_dist = dist;

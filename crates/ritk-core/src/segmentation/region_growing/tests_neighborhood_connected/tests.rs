@@ -34,13 +34,13 @@ fn count_foreground(image: &Image<TestBackend, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v > 0.5).count()
 }
 
-#[path = "positive.rs"]
-mod positive;
-#[path = "negative.rs"]
-mod negative;
-#[path = "structural.rs"]
-mod structural;
-#[path = "predicate.rs"]
-mod predicate;
 #[path = "adversarial.rs"]
 mod adversarial;
+#[path = "negative.rs"]
+mod negative;
+#[path = "positive.rs"]
+mod positive;
+#[path = "predicate.rs"]
+mod predicate;
+#[path = "structural.rs"]
+mod structural;

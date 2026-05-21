@@ -47,8 +47,9 @@ pub(crate) fn parse_obj(reader: impl BufRead) -> Result<VtkPolyData> {
 
         match directive {
             "v" => {
-                let p = parse_vec3(rest)
-                    .with_context(|| format!("line {}: malformed vertex '{}'", line_idx + 1, rest))?;
+                let p = parse_vec3(rest).with_context(|| {
+                    format!("line {}: malformed vertex '{}'", line_idx + 1, rest)
+                })?;
                 points.push(p);
                 point_normals.push(None);
             }
@@ -90,8 +91,10 @@ pub(crate) fn parse_obj(reader: impl BufRead) -> Result<VtkPolyData> {
             .into_iter()
             .map(|n| n.unwrap_or([0.0, 0.0, 0.0]))
             .collect();
-        poly.point_data
-            .insert("Normals".to_string(), AttributeArray::Normals { values: normals });
+        poly.point_data.insert(
+            "Normals".to_string(),
+            AttributeArray::Normals { values: normals },
+        );
     }
 
     Ok(poly)
@@ -101,17 +104,26 @@ pub(crate) fn parse_obj(reader: impl BufRead) -> Result<VtkPolyData> {
 
 fn parse_vec3(s: &str) -> Result<[f32; 3]> {
     let mut parts = s.split_whitespace();
-    let x: f32 = parts.next().context("missing x coordinate")?.parse().context("x")?;
-    let y: f32 = parts.next().context("missing y coordinate")?.parse().context("y")?;
-    let z: f32 = parts.next().context("missing z coordinate")?.parse().context("z")?;
+    let x: f32 = parts
+        .next()
+        .context("missing x coordinate")?
+        .parse()
+        .context("x")?;
+    let y: f32 = parts
+        .next()
+        .context("missing y coordinate")?
+        .parse()
+        .context("y")?;
+    let z: f32 = parts
+        .next()
+        .context("missing z coordinate")?
+        .parse()
+        .context("z")?;
     Ok([x, y, z])
 }
 
 /// Returns `Vec<(vertex_idx_0based, texcoord_idx_0based_opt, normal_idx_0based_opt)>`.
-fn parse_face_line(
-    s: &str,
-    line_no: usize,
-) -> Result<Vec<(u32, Option<u32>, Option<u32>)>> {
+fn parse_face_line(s: &str, line_no: usize) -> Result<Vec<(u32, Option<u32>, Option<u32>)>> {
     let tokens: Vec<&str> = s.split_whitespace().collect();
     if tokens.len() < 3 {
         bail!("line {}: face has fewer than 3 vertices", line_no);
@@ -140,11 +152,16 @@ fn parse_face_vertex(token: &str, line_no: usize) -> Result<(u32, Option<u32>, O
 
 /// Convert a 1-based OBJ index string to a 0-based `u32`.
 fn parse_obj_index(s: &str, line_no: usize, kind: &str) -> Result<u32> {
-    let idx: i64 = s.parse().with_context(|| {
-        format!("line {}: invalid {} index '{}'", line_no, kind, s)
-    })?;
+    let idx: i64 = s
+        .parse()
+        .with_context(|| format!("line {}: invalid {} index '{}'", line_no, kind, s))?;
     if idx < 1 {
-        bail!("line {}: {} index {} must be >= 1 (OBJ is 1-based)", line_no, kind, idx);
+        bail!(
+            "line {}: {} index {} must be >= 1 (OBJ is 1-based)",
+            line_no,
+            kind,
+            idx
+        );
     }
     Ok((idx - 1) as u32)
 }

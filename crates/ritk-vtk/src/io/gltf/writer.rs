@@ -81,7 +81,9 @@ pub(crate) fn build_gltf_json(poly: &VtkPolyData) -> Result<Value> {
     let total_bytes = idx_byte_offset + idx_byte_len;
     let mut buf: Vec<u8> = Vec::with_capacity(total_bytes);
     buf.extend_from_slice(&vert_bytes);
-    for _ in 0..padding { buf.push(0u8); }
+    for _ in 0..padding {
+        buf.push(0u8);
+    }
     buf.extend_from_slice(&idx_bytes);
     let encoded = base64_encode(&buf);
     let data_uri = format!("data:application/octet-stream;base64,{encoded}");
@@ -160,8 +162,12 @@ fn aabb(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
     let mut lo = points[0];
     let mut hi = points[0];
     for &[x, y, z] in points {
-        lo[0] = lo[0].min(x); lo[1] = lo[1].min(y); lo[2] = lo[2].min(z);
-        hi[0] = hi[0].max(x); hi[1] = hi[1].max(y); hi[2] = hi[2].max(z);
+        lo[0] = lo[0].min(x);
+        lo[1] = lo[1].min(y);
+        lo[2] = lo[2].min(z);
+        hi[0] = hi[0].max(x);
+        hi[1] = hi[1].max(y);
+        hi[2] = hi[2].max(z);
     }
     (lo, hi)
 }
@@ -169,8 +175,7 @@ fn aabb(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
 // ── Base64 encoder (no external crate) ───────────────────────────────────────
 
 /// RFC 4648 §4 base64 encoding.
-const B64: &[u8; 64] =
-    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn base64_encode(bytes: &[u8]) -> String {
     let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
@@ -181,10 +186,16 @@ fn base64_encode(bytes: &[u8]) -> String {
         let n = (b0 << 16) | (b1 << 8) | b2;
         out.push(B64[((n >> 18) & 0x3F) as usize] as char);
         out.push(B64[((n >> 12) & 0x3F) as usize] as char);
-        if chunk.len() > 1 { out.push(B64[((n >> 6) & 0x3F) as usize] as char); }
-        else { out.push('='); }
-        if chunk.len() > 2 { out.push(B64[(n & 0x3F) as usize] as char); }
-        else { out.push('='); }
+        if chunk.len() > 1 {
+            out.push(B64[((n >> 6) & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(B64[(n & 0x3F) as usize] as char);
+        } else {
+            out.push('=');
+        }
     }
     out
 }

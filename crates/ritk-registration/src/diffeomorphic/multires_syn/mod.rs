@@ -221,8 +221,12 @@ impl MultiResSyNRegistration {
                 let j_w = warp_image(&m_ds, ld, &p2z, &p2y, &p2x);
                 let (giz, giy, gix) = compute_gradient(&i_w, ld, ls);
                 let (gjz, gjy, gjx) = compute_gradient(&j_w, ld, ls);
-                cc_forces_into(&i_w, &j_w, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x);
-                cc_forces_into(&j_w, &i_w, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x);
+                cc_forces_into(
+                    &i_w, &j_w, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x,
+                );
+                cc_forces_into(
+                    &j_w, &i_w, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x,
+                );
 
                 let max_u1 = u1z
                     .iter()
@@ -267,16 +271,40 @@ impl MultiResSyNRegistration {
                 }
                 if self.config.enforce_inverse_consistency {
                     compose_fields_into(
-                        VectorField3D { z: &v1z, y: &v1y, x: &v1x },
-                        VectorField3D { z: &v2z, y: &v2y, x: &v2x },
+                        VectorField3D {
+                            z: &v1z,
+                            y: &v1y,
+                            x: &v1x,
+                        },
+                        VectorField3D {
+                            z: &v2z,
+                            y: &v2y,
+                            x: &v2x,
+                        },
                         ld,
-                        VectorFieldMut3D { z: &mut c1z, y: &mut c1y, x: &mut c1x },
+                        VectorFieldMut3D {
+                            z: &mut c1z,
+                            y: &mut c1y,
+                            x: &mut c1x,
+                        },
                     );
                     compose_fields_into(
-                        VectorField3D { z: &v2z, y: &v2y, x: &v2x },
-                        VectorField3D { z: &v1z, y: &v1y, x: &v1x },
+                        VectorField3D {
+                            z: &v2z,
+                            y: &v2y,
+                            x: &v2x,
+                        },
+                        VectorField3D {
+                            z: &v1z,
+                            y: &v1y,
+                            x: &v1x,
+                        },
                         ld,
-                        VectorFieldMut3D { z: &mut c2z, y: &mut c2y, x: &mut c2x },
+                        VectorFieldMut3D {
+                            z: &mut c2z,
+                            y: &mut c2y,
+                            x: &mut c2x,
+                        },
                     );
                     for i in 0..ln {
                         v1z[i] = (v1z[i] - c1z[i]) * 0.5;

@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::format::dicomweb::qido::{
-        build_qido_url, parse_qido_response, QidoSearchParams,
-    };
+    use crate::format::dicomweb::qido::{build_qido_url, parse_qido_response, QidoSearchParams};
     use crate::format::dicomweb::stow::{
         build_multipart_body, build_stow_url, parse_stow_response, MULTIPART_BOUNDARY,
     };
@@ -49,11 +47,7 @@ mod tests {
             "Modality missing from URL: {}",
             url
         );
-        assert!(
-            url.contains('?'),
-            "URL missing query separator: {}",
-            url
-        );
+        assert!(url.contains('?'), "URL missing query separator: {}", url);
     }
 
     // 4. Limit and offset appear with correct values.
@@ -94,10 +88,7 @@ mod tests {
     // 7. STOW-RS URL with study UID appended.
     #[test]
     fn build_stow_url_with_study() {
-        let url = build_stow_url(
-            "http://pacs.local/stow-rs",
-            Some("1.2.840.10008.5.1.4.1.1"),
-        );
+        let url = build_stow_url("http://pacs.local/stow-rs", Some("1.2.840.10008.5.1.4.1.1"));
         assert_eq!(
             url,
             "http://pacs.local/stow-rs/studies/1.2.840.10008.5.1.4.1.1"
@@ -159,11 +150,9 @@ mod tests {
             .matches(&format!("--{}", MULTIPART_BOUNDARY))
             .count();
         assert_eq!(
-            boundary_count,
-            3,
+            boundary_count, 3,
             "expected 2 part boundaries + 1 closing = 3 total, got {}: {}",
-            boundary_count,
-            body_str
+            boundary_count, body_str
         );
     }
 

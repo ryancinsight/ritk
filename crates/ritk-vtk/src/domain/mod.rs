@@ -2,10 +2,10 @@
 //! modification-time tracking, smart mapper, multi-block datasets, and
 //! concrete geometry filters.
 
+pub mod mesh_bridge;
 pub mod vtk_data_object;
 pub mod vtk_pipeline;
 pub mod vtk_scene;
-pub mod mesh_bridge;
 pub mod mtime;
 pub mod observer;
 pub mod mapper;

@@ -11,12 +11,7 @@ pub struct WadoClient<'a> {
 ///
 /// Returns `{base}/studies/{study_uid}/series/{series_uid}/instances/{sop_uid}`
 /// per PS 3.18 §10.4.
-pub fn build_wado_url(
-    base: &str,
-    study_uid: &str,
-    series_uid: &str,
-    sop_uid: &str,
-) -> String {
+pub fn build_wado_url(base: &str, study_uid: &str, series_uid: &str, sop_uid: &str) -> String {
     format!(
         "{}/studies/{}/series/{}/instances/{}",
         base, study_uid, series_uid, sop_uid
@@ -31,9 +26,7 @@ pub fn retrieve_instance_bytes(
     url: &str,
     auth: &Option<String>,
 ) -> anyhow::Result<Vec<u8>> {
-    let mut req = client
-        .get(url)
-        .header("Accept", "application/octet-stream");
+    let mut req = client.get(url).header("Accept", "application/octet-stream");
     if let Some(a) = auth {
         req = req.header("Authorization", a);
     }

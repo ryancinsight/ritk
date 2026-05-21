@@ -37,8 +37,7 @@ pub fn build_grid_map(
             let nc = n_cells_per_axis[d];
 
             let search_lo = (center.pos[d] - 2.0 * step).max(0.0) as usize;
-            let search_hi =
-                ((center.pos[d] + 2.0 * step) as usize).min(shape[d].saturating_sub(1));
+            let search_hi = ((center.pos[d] + 2.0 * step) as usize).min(shape[d].saturating_sub(1));
 
             lo_cell[d] = (search_lo / gs).min(nc - 1);
             hi_cell[d] = (search_hi / gs).min(nc - 1);
@@ -82,7 +81,16 @@ fn enumerate_cells_range(
 
     for c in lo[depth]..=hi[depth] {
         cell_coords[depth] = c;
-        enumerate_cells_range(cell_coords, depth + 1, lo, hi, n_cells, grid_map, center_idx, ndim);
+        enumerate_cells_range(
+            cell_coords,
+            depth + 1,
+            lo,
+            hi,
+            n_cells,
+            grid_map,
+            center_idx,
+            ndim,
+        );
     }
 }
 

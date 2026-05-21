@@ -919,5 +919,8 @@ fn clean_private_tags_true_preserves_standard_elements() {
         .expect("must be string")
         .trim()
         .to_owned();
-    assert_eq!(name, "ANONYMOUS", "PatientName must be anonymized, not removed");
+    assert_eq!(
+        name, "ANONYMOUS",
+        "PatientName must be anonymized, not removed"
+    );
 }

@@ -47,9 +47,21 @@ pub(super) fn epdiff_adjoint_into(
     spacing: [f64; 3],
     out: VectorFieldMut3D<'_>,
 ) {
-    let VectorField3D { z: vz, y: vy, x: vx } = v;
-    let VectorField3D { z: mz, y: my, x: mx } = m;
-    let VectorFieldMut3D { z: ad_z, y: ad_y, x: ad_x } = out;
+    let VectorField3D {
+        z: vz,
+        y: vy,
+        x: vx,
+    } = v;
+    let VectorField3D {
+        z: mz,
+        y: my,
+        x: mx,
+    } = m;
+    let VectorFieldMut3D {
+        z: ad_z,
+        y: ad_y,
+        x: ad_x,
+    } = out;
     let [nz, ny, nx] = dims;
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;

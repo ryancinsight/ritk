@@ -458,7 +458,11 @@ fn ncc3d_identity_template() {
         .unwrap();
 
     let (out_vals, _) = extract_vec(&result).unwrap();
-    assert_eq!(out_vals.len(), 27, "3-D NCC output length must match volume");
+    assert_eq!(
+        out_vals.len(),
+        27,
+        "3-D NCC output length must match volume"
+    );
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.is_finite(),

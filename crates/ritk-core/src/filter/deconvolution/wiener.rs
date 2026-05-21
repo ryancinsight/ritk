@@ -162,8 +162,22 @@ impl WienerDeconvolution {
         }
 
         let mut planner = FftPlanner::<f32>::new();
-        fft3d(&mut img_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
-        fft3d(&mut ker_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
+        fft3d(
+            &mut img_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
+        fft3d(
+            &mut ker_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
 
         let k = self.noise_to_signal;
         for i in 0..pad_n {
@@ -181,7 +195,14 @@ impl WienerDeconvolution {
             }
         }
 
-        fft3d(&mut img_padded, pad_d, pad_h, pad_w, &mut planner, FftDir::Inverse);
+        fft3d(
+            &mut img_padded,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Inverse,
+        );
 
         let scale = 1.0_f32 / pad_n as f32;
         let mut out_vals = vec![0.0_f32; id * ih * iw];

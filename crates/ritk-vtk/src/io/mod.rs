@@ -22,7 +22,7 @@ pub use unstructured_xml::{
 pub mod obj;
 pub use obj::{read_obj_mesh, write_obj_mesh};
 pub mod stl;
-pub use stl::{read_stl_mesh, write_stl_binary, write_stl_ascii};
+pub use stl::{read_stl_mesh, write_stl_ascii, write_stl_binary};
 pub mod ply;
 pub use ply::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
 pub mod gltf;
@@ -30,10 +30,8 @@ pub use gltf::write_gltf;
 
 pub mod mesh_indexed;
 pub use mesh_indexed::{
-    read_stl_indexed, write_indexed_stl_binary, write_indexed_stl_ascii,
-    read_obj_indexed, write_indexed_obj,
-    read_ply_indexed, write_indexed_ply,
-    write_indexed_glb,
+    read_obj_indexed, read_ply_indexed, read_stl_indexed, write_indexed_glb, write_indexed_obj,
+    write_indexed_ply, write_indexed_stl_ascii, write_indexed_stl_binary,
 };
 
 pub mod reader;

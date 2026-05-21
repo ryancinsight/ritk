@@ -21,9 +21,8 @@ use crate::deformable_field_ops::flat;
 use rayon::prelude::*;
 
 mod forces;
-pub(crate) use forces::cc_forces_into;
-#[cfg(test)]
 pub(crate) use forces::cc_forces;
+pub(crate) use forces::cc_forces_into;
 #[cfg(test)]
 pub(crate) use forces::field_rms;
 

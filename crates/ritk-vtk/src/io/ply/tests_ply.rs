@@ -54,8 +54,16 @@ fn test_ply_ascii_roundtrip_coordinates() {
     write_ply_ascii(file.path(), &mesh).unwrap();
     let loaded = read_ply_mesh(file.path()).unwrap();
 
-    assert_eq!(loaded.points.len(), 4, "point count must survive round-trip");
-    assert_eq!(loaded.polygons.len(), 4, "polygon count must survive round-trip");
+    assert_eq!(
+        loaded.points.len(),
+        4,
+        "point count must survive round-trip"
+    );
+    assert_eq!(
+        loaded.polygons.len(),
+        4,
+        "polygon count must survive round-trip"
+    );
 
     let eps = 1e-5_f32;
     // V0 = (0,0,0)
@@ -78,9 +86,7 @@ fn test_ply_ascii_roundtrip_polygon_indices() {
     write_ply_ascii(file.path(), &mesh).unwrap();
     let loaded = read_ply_mesh(file.path()).unwrap();
 
-    let expected: Vec<Vec<u32>> = vec![
-        vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3],
-    ];
+    let expected: Vec<Vec<u32>> = vec![vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3]];
     for (i, (e, g)) in expected.iter().zip(loaded.polygons.iter()).enumerate() {
         assert_eq!(e, g, "polygon {i} must survive round-trip");
     }
@@ -114,9 +120,7 @@ fn test_ply_binary_le_roundtrip_polygon_indices() {
     write_ply_binary_le(file.path(), &mesh).unwrap();
     let loaded = read_ply_mesh(file.path()).unwrap();
 
-    let expected: Vec<Vec<u32>> = vec![
-        vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3],
-    ];
+    let expected: Vec<Vec<u32>> = vec![vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3]];
     for (i, (e, g)) in expected.iter().zip(loaded.polygons.iter()).enumerate() {
         assert_eq!(e, g, "polygon {i} index mismatch in binary LE round-trip");
     }
@@ -131,7 +135,11 @@ fn test_ply_ascii_normals_roundtrip() {
     write_ply_ascii(file.path(), &mesh).unwrap();
     let loaded = read_ply_mesh(file.path()).unwrap();
 
-    let got = match loaded.point_data.get("Normals").expect("Normals must be present") {
+    let got = match loaded
+        .point_data
+        .get("Normals")
+        .expect("Normals must be present")
+    {
         AttributeArray::Normals { values } => values.clone(),
         other => panic!("expected Normals, got {other:?}"),
     };
@@ -199,7 +207,10 @@ fn test_ply_big_endian_rejected() {
 #[test]
 fn test_ply_missing_end_header() {
     let bad = b"ply\nformat ascii 1.0\nelement vertex 0\n";
-    assert!(parse_ply(bad).is_err(), "missing end_header must return Err");
+    assert!(
+        parse_ply(bad).is_err(),
+        "missing end_header must return Err"
+    );
 }
 
 #[test]
@@ -210,7 +221,10 @@ fn test_ply_header_format_in_memory() {
     let text = String::from_utf8(buf).unwrap();
 
     assert!(text.starts_with("ply\n"), "must start with ply");
-    assert!(text.contains("format ascii 1.0"), "must contain format line");
+    assert!(
+        text.contains("format ascii 1.0"),
+        "must contain format line"
+    );
     assert!(text.contains("element vertex 4"), "must declare 4 vertices");
     assert!(text.contains("element face 4"), "must declare 4 faces");
     assert!(text.contains("end_header"), "must contain end_header");

@@ -369,8 +369,22 @@ impl<B: Backend> FftConvolution3DFilter<B> {
 
         let mut planner = FftPlanner::<f32>::new();
 
-        fft3d(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
-        fft3d(&mut ker_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
+        fft3d(
+            &mut vol_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
+        fft3d(
+            &mut ker_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
 
         // Point-wise complex multiply: vol_buf[i] *= ker_buf[i].
         // (a + bi)(c + di) = (ac − bd) + (ad + bc)i
@@ -380,7 +394,14 @@ impl<B: Backend> FftConvolution3DFilter<B> {
             vol_buf[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
-        fft3d(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Inverse);
+        fft3d(
+            &mut vol_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Inverse,
+        );
 
         // Normalize by 1/pad_n and extract "same" window at
         // (⌊KD/2⌋, ⌊KH/2⌋, ⌊KW/2⌋).
@@ -516,8 +537,22 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
 
         let mut planner = FftPlanner::<f32>::new();
 
-        fft3d(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
-        fft3d(&mut tmpl_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Forward);
+        fft3d(
+            &mut vol_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
+        fft3d(
+            &mut tmpl_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Forward,
+        );
 
         // Cross-correlation: multiply volume FFT by conjugate of template FFT.
         // (a + bi) · conj(c + di) = (a + bi)(c − di) = (ac + bd) + (bc − ad)i
@@ -527,7 +562,14 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             vol_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
         }
 
-        fft3d(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner, FftDir::Inverse);
+        fft3d(
+            &mut vol_buf,
+            pad_d,
+            pad_h,
+            pad_w,
+            &mut planner,
+            FftDir::Inverse,
+        );
 
         // Partial normalization: divide by ‖T̂‖₂ · pad_n.
         let denom = if self.template_norm > 1e-10_f32 {
@@ -542,8 +584,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         for z in 0..d {
             for r in 0..h {
                 for c in 0..w {
-                    out[z * h * w + r * w + c] =
-                        vol_buf[z * slice + r * pad_w + c].re * scale;
+                    out[z * h * w + r * w + c] = vol_buf[z * slice + r * pad_w + c].re * scale;
                 }
             }
         }

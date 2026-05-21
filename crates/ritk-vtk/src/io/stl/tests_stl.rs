@@ -19,13 +19,21 @@ use tempfile::NamedTempFile;
 fn tet_stl() -> VtkPolyData {
     let points = vec![
         // T0
-        [0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0],
+        [0.0f32, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.5, 1.0, 0.0],
         // T1
-        [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 0.5, 1.0],
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.5, 0.5, 1.0],
         // T2
-        [0.0, 0.0, 0.0], [0.5, 1.0, 0.0], [0.5, 0.5, 1.0],
+        [0.0, 0.0, 0.0],
+        [0.5, 1.0, 0.0],
+        [0.5, 0.5, 1.0],
         // T3
-        [1.0, 0.0, 0.0], [0.5, 1.0, 0.0], [0.5, 0.5, 1.0],
+        [1.0, 0.0, 0.0],
+        [0.5, 1.0, 0.0],
+        [0.5, 0.5, 1.0],
     ];
     let polygons = vec![
         vec![0u32, 1, 2],
@@ -42,9 +50,16 @@ fn tet_stl() -> VtkPolyData {
     let mut cell_data = HashMap::new();
     cell_data.insert(
         "Normals".to_string(),
-        AttributeArray::Normals { values: cell_normals },
+        AttributeArray::Normals {
+            values: cell_normals,
+        },
     );
-    VtkPolyData { points, polygons, cell_data, ..Default::default() }
+    VtkPolyData {
+        points,
+        polygons,
+        cell_data,
+        ..Default::default()
+    }
 }
 
 // ── Round-trip: ASCII ─────────────────────────────────────────────────────────
@@ -78,7 +93,11 @@ fn test_stl_ascii_roundtrip_cell_normals() {
     write_stl_ascii(file.path(), &mesh).unwrap();
     let loaded = read_stl_mesh(file.path()).unwrap();
 
-    let normals = match loaded.cell_data.get("Normals").expect("cell normals required") {
+    let normals = match loaded
+        .cell_data
+        .get("Normals")
+        .expect("cell normals required")
+    {
         AttributeArray::Normals { values } => values.clone(),
         other => panic!("expected Normals, got {other:?}"),
     };
@@ -122,8 +141,14 @@ fn test_stl_binary_roundtrip_cell_normals() {
         _ => panic!("expected Normals"),
     };
     let eps = 1e-6_f32;
-    assert!((normals[0][2] - (-1.0)).abs() < eps, "T0 normal z must be -1.0");
-    assert!((normals[1][1] - (-1.0)).abs() < eps, "T1 normal y must be -1.0");
+    assert!(
+        (normals[0][2] - (-1.0)).abs() < eps,
+        "T0 normal z must be -1.0"
+    );
+    assert!(
+        (normals[1][1] - (-1.0)).abs() < eps,
+        "T1 normal y must be -1.0"
+    );
 }
 
 #[test]
@@ -136,7 +161,11 @@ fn test_stl_binary_polygon_indices_sequential() {
     // Each triangle's polygon indices must be 3i, 3i+1, 3i+2.
     for (i, tri) in loaded.polygons.iter().enumerate() {
         let base = (i * 3) as u32;
-        assert_eq!(tri, &vec![base, base + 1, base + 2], "triangle {i} index pattern");
+        assert_eq!(
+            tri,
+            &vec![base, base + 1, base + 2],
+            "triangle {i} index pattern"
+        );
     }
 }
 
@@ -172,7 +201,10 @@ fn test_stl_binary_rejects_quads() {
         ..Default::default()
     };
     let file = NamedTempFile::new().unwrap();
-    assert!(write_stl_binary(file.path(), &mesh).is_err(), "quads must be rejected");
+    assert!(
+        write_stl_binary(file.path(), &mesh).is_err(),
+        "quads must be rejected"
+    );
 }
 
 #[test]
@@ -183,7 +215,10 @@ fn test_stl_ascii_rejects_quads() {
         ..Default::default()
     };
     let file = NamedTempFile::new().unwrap();
-    assert!(write_stl_ascii(file.path(), &mesh).is_err(), "quads must be rejected");
+    assert!(
+        write_stl_ascii(file.path(), &mesh).is_err(),
+        "quads must be rejected"
+    );
 }
 
 #[test]
@@ -193,7 +228,11 @@ fn test_stl_binary_file_size_invariant() {
     let file = NamedTempFile::new().unwrap();
     write_stl_binary(file.path(), &mesh).unwrap();
     let metadata = std::fs::metadata(file.path()).unwrap();
-    assert_eq!(metadata.len(), 4 * 50 + 84, "binary STL size invariant violated");
+    assert_eq!(
+        metadata.len(),
+        4 * 50 + 84,
+        "binary STL size invariant violated"
+    );
 }
 
 #[test]
@@ -202,7 +241,10 @@ fn test_stl_malformed_ascii_bad_normal() {
     // NaN parses as f32 in Rust, so this actually succeeds with NaN coords.
     // Verify we at least get a polygon back (parser is lenient on values).
     let result = parse_stl(bad);
-    assert!(result.is_ok(), "ASCII STL with NaN normals should parse (values validated by caller)");
+    assert!(
+        result.is_ok(),
+        "ASCII STL with NaN normals should parse (values validated by caller)"
+    );
 }
 
 #[test]
@@ -224,8 +266,14 @@ fn test_stl_in_memory_ascii_writer() {
     let mut buf = Vec::new();
     write_stl_ascii_to_writer(&mut buf, &mesh).unwrap();
     let text = String::from_utf8(buf).unwrap();
-    assert!(text.starts_with("solid ritk"), "ASCII STL must start with 'solid'");
-    assert!(text.ends_with("endsolid ritk\n"), "ASCII STL must end with 'endsolid'");
+    assert!(
+        text.starts_with("solid ritk"),
+        "ASCII STL must start with 'solid'"
+    );
+    assert!(
+        text.ends_with("endsolid ritk\n"),
+        "ASCII STL must end with 'endsolid'"
+    );
     let facet_count = text.matches("endfacet").count();
     assert_eq!(facet_count, 4, "expected 4 facets");
 }

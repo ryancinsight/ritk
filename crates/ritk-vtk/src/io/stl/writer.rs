@@ -55,7 +55,10 @@ pub(crate) fn write_stl_binary_to_writer(w: &mut impl Write, poly: &VtkPolyData)
     let cell_normals = extract_cell_normals(poly);
 
     for (i, tri) in poly.polygons.iter().enumerate() {
-        let [nx, ny, nz] = cell_normals.and_then(|ns| ns.get(i)).copied().unwrap_or([0.0; 3]);
+        let [nx, ny, nz] = cell_normals
+            .and_then(|ns| ns.get(i))
+            .copied()
+            .unwrap_or([0.0; 3]);
         write_f32_le(w, nx)?;
         write_f32_le(w, ny)?;
         write_f32_le(w, nz)?;
@@ -77,7 +80,10 @@ pub(crate) fn write_stl_ascii_to_writer(w: &mut impl Write, poly: &VtkPolyData) 
     let cell_normals = extract_cell_normals(poly);
 
     for (i, tri) in poly.polygons.iter().enumerate() {
-        let [nx, ny, nz] = cell_normals.and_then(|ns| ns.get(i)).copied().unwrap_or([0.0; 3]);
+        let [nx, ny, nz] = cell_normals
+            .and_then(|ns| ns.get(i))
+            .copied()
+            .unwrap_or([0.0; 3]);
         writeln!(w, "  facet normal {nx} {ny} {nz}")?;
         writeln!(w, "    outer loop")?;
         for &vi in tri {

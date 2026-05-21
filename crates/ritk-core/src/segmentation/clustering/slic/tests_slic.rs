@@ -11,8 +11,7 @@ type B = NdArray<f32>;
 
 fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
     let device = Default::default();
-    let tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+    let tensor = Tensor::<B, 2>::from_data(TensorData::new(data, Shape::new(dims)), &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0]),
@@ -23,8 +22,7 @@ fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
 
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     let device = Default::default();
-    let tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -149,10 +147,10 @@ fn test_small_image_two_superpixels() {
         first_label, last_label
     );
 
-    let distinct: std::collections::HashSet<u32> =
-        labels.iter().map(|&l| l as u32).collect();
+    let distinct: std::collections::HashSet<u32> = labels.iter().map(|&l| l as u32).collect();
     assert_eq!(
-        distinct.len(), 2,
+        distinct.len(),
+        2,
         "exactly 2 distinct labels expected, got {}",
         distinct.len()
     );
@@ -198,8 +196,7 @@ fn test_label_count_bounded() {
     let result = SlicSuperpixelFilter::new(config).apply(&image);
     let labels = get_slice_3d(&result);
 
-    let distinct: std::collections::HashSet<u32> =
-        labels.iter().map(|&l| l as u32).collect();
+    let distinct: std::collections::HashSet<u32> = labels.iter().map(|&l| l as u32).collect();
     assert!(
         distinct.len() <= k,
         "number of distinct labels ({}) must be ≤ n_superpixels ({})",
