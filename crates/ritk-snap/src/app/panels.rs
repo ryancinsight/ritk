@@ -267,6 +267,10 @@ impl SnapApp {
                         .unwrap_or((false, 0));
                     #[cfg(target_arch = "wasm32")]
                     let (scp_listening, scp_actual_port) = (false, 0u16);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let pacs_pending_count = self.pacs_pending_instances.len();
+                    #[cfg(target_arch = "wasm32")]
+                    let pacs_pending_count = 0usize;
 
                     let action = crate::ui::pacs_panel::show_pacs_panel(
                         ui,
@@ -280,6 +284,7 @@ impl SnapApp {
                         scp_listening,
                         scp_actual_port,
                         self.pacs_received_count,
+                        pacs_pending_count,
                         &mut self.pacs_selected_row,
                     );
                     self.handle_pacs_action(action);

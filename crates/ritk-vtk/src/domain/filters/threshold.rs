@@ -17,6 +17,7 @@ use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid};
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::{bail, Result};
+use std::any::Any;
 
 /// Threshold filter: retain only elements where a named scalar field is within
 /// `[lower, upper]`.
@@ -94,6 +95,10 @@ impl Modifiable for ThresholdFilter {
 impl VtkFilter for ThresholdFilter {
     fn mtime(&self) -> ModifiedTime {
         self.get_mtime()
+    }
+
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        Some(self)
     }
 
     fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject> {

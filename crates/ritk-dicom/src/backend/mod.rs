@@ -26,8 +26,8 @@ pub struct DecodedFrame {
 
 pub trait DicomParseBackend {
     type Object;
-
     fn parse_file(path: &Path) -> Result<Self::Object>;
+    fn parse_bytes(data: &[u8]) -> Result<Self::Object>;
 }
 
 pub trait PixelDecodeBackend<O> {
@@ -50,6 +50,13 @@ where
     P: AsRef<Path>,
 {
     B::parse_file(path.as_ref())
+}
+
+pub fn parse_bytes_with<B>(data: &[u8]) -> Result<<B as DicomParseBackend>::Object>
+where
+    B: DicomParseBackend,
+{
+    B::parse_bytes(data)
 }
 
 pub fn decode_frame_with<B>(

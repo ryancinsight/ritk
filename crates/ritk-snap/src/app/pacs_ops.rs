@@ -100,6 +100,10 @@ impl SnapApp {
                 #[cfg(not(target_arch = "wasm32"))]
                 self.stop_pacs_scp();
             }
+            PacsPanelAction::LoadReceived => {
+                #[cfg(not(target_arch = "wasm32"))]
+                self.load_received_scp_instances();
+            }
         }
     }
 
@@ -190,10 +194,12 @@ impl SnapApp {
     /// Poll the embedded SCP for received instances on every egui frame.
     ///
     /// Drains all buffered instances from the bounded channel into
-    /// `pacs_received_count`.  Future work: queue instances for loading.
+    /// `pacs_pending_instances` for deferred loading.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn poll_pacs_scp(&mut self) {
-        let Some(handle) = &self.pacs_scp_handle else { return };
+        let Some(handle) = &self.pacs_scp_handle else {
+            return;
+        };
         while let Some(inst) = handle.try_recv() {
             self.pacs_received_count = self.pacs_received_count.saturating_add(1);
             tracing::info!(
@@ -202,6 +208,7 @@ impl SnapApp {
                 bytes = inst.dataset_bytes.len(),
                 "SCP received instance",
             );
+            self.pacs_pending_instances.push(inst);
         }
     }
 
@@ -225,7 +232,8 @@ impl SnapApp {
                 let port = handle.port();
                 let ae = handle.ae_title().to_owned();
                 self.pacs_scp_handle = Some(handle);
-                self.pacs_received_count = 0;
+                    self.pacs_received_count = 0;
+                    self.pacs_pending_instances.clear();
                 let msg = format!("SCP started: AE={ae} port={port}");
                 self.status_message = msg.clone();
                 info!("{}", msg);
@@ -249,6 +257,41 @@ impl SnapApp {
             handle.stop();
             self.status_message = msg.clone();
             info!("{}", msg);
+        }
+    }
+
+    /// Load all buffered SCP-received instances into the viewer.
+    ///
+    /// Materializes each [`StoredInstance`] as a DICOM Part 10 file in a
+    /// temporary directory, then loads the resulting series through the
+    /// canonical DICOM series loader. On success, the received instances
+    /// buffer and counter are cleared.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn load_received_scp_instances(&mut self) {
+        if self.pacs_pending_instances.is_empty() {
+            self.status_message = "No received DICOM instances to load.".to_owned();
+            return;
+        }
+        let count = self.pacs_pending_instances.len();
+        self.status_message = format!("Loading {count} received DICOM instance(s)…");
+        match crate::dicom::loader::load_dicom_series_from_stored_instances(
+            &self.pacs_pending_instances,
+        ) {
+            Ok(vol) => {
+                let shape = vol.shape;
+                let msg = format!(
+                    "Loaded {count} SCP-received instance(s) — shape {:?}",
+                    shape
+                );
+                self.load_volume(vol, msg);
+                self.pacs_pending_instances.clear();
+                self.pacs_received_count = 0;
+            }
+            Err(e) => {
+                let msg = format!("Failed to load SCP-received instances: {e:#}");
+                self.status_message = msg.clone();
+                tracing::error!("{}", msg);
+            }
         }
     }
 }

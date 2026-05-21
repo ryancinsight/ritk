@@ -1,3 +1,111 @@
+## Sprint 287 - Complete
+**Status**: Complete
+**Phase**: Execution - VtkFilter boxed parameter access via `as_any_mut` and `filter_mut`
+**Version**: 0.50.57 [minor]
+**Goal**: Enable runtime mutation of stateful `VtkFilter` parameters through boxed pipeline handles without sacrificing trait-object composition.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| VTK-FILTER-PARAM-01 | Boxed `VtkFilter` parameter mutation via `as_any_mut` and pipeline `filter_mut` accessor | **Closed** |
+
+### Delivered
+- `crates/ritk-vtk/src/domain/vtk_pipeline/mod.rs` — `VtkFilter::as_any_mut`; `VtkPipeline::filter_mut`
+- `crates/ritk-vtk/src/domain/filters/smooth.rs` — boxed downcast support for `SmoothFilter`
+- `crates/ritk-vtk/src/domain/filters/threshold.rs` — boxed downcast support for `ThresholdFilter`
+- `crates/ritk-vtk/src/domain/vtk_pipeline/tests.rs` — boxed `SmoothFilter` mutation regression test
+
+### Verification
+- `cargo check -p ritk-vtk`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 241 passed, 0 failed
+
+### Gaps remaining
+| Task | Priority |
+|---|---|
+| Series-level query: FindResultRowSeries + drill-down | Medium |
+| CLAHE tile_vals elimination micro-optimization | Medium |
+
+## Sprint 286 - Complete
+**Status**: Complete
+**Phase**: Execution - SCP-LOAD-01: Load Received DICOM Instances into Viewer
+**Version**: 0.50.56 [minor]
+**Goal**: Close SCP-LOAD-01 (received C-STORE instances counted but not loaded into the viewer), extend DicomParseBackend with in-memory parsing capability, reduce code duplication in volume loading.
+
+### Gaps closed
+| Gap ID | Description | Status |
+|---|---|---|
+| SCP-LOAD-01 | Received C-STORE instances buffered and loadable into viewer via Load Received button | **Closed** |
+| DICOM-PARSE-BYTES-01 | DicomParseBackend::parse_bytes enables in-memory DICOM parsing | **Closed** |
+| VOLUME-LOAD-DUP-01 | load_volume helper eliminates ~40 lines of duplicated viewer-state-setup code | **Closed** |
+
+### Delivered
+- ritk-dicom/backend/mod.rs - DicomParseBackend::parse_bytes trait method; parse_bytes_with free function
+- ritk-dicom/backend/dicom_rs.rs - DicomRsBackend::parse_bytes using dicom::object::from_reader
+- ritk-io/networking/scp.rs - StoredInstance::make_part10_bytes(); pad_uid() helper
+- ritk-snap/app/state.rs - pacs_pending_instances field + Default
+- ritk-snap/app/pacs_ops.rs - poll_pacs_scp buffers instances; load_received_scp_instances; LoadReceived dispatch; start_pacs_scp clears pending
+- ritk-snap/app/volume_state.rs - load_volume helper; refactored 3 load methods
+- ritk-snap/dicom/loader/mod.rs - load_dicom_series_from_stored_instances
+- ritk-snap/ui/pacs_panel/mod.rs - PacsPanelAction::LoadReceived; pacs_pending_count; Load Received button
+- ritk-snap/app/panels.rs - pacs_pending_instances.len() passed to panel
+
+### Verification
+- cargo check --workspace: 0 errors, 0 warnings
+- cargo test -p ritk-dicom --lib: 16 passed
+- cargo test -p ritk-io --lib format::dicom::networking: 56 passed
+- cargo test -p ritk-snap --lib pacs: 30 passed
+- cargo test -p ritk-core --lib: 1385 passed
+- cargo test -p ritk-vtk --lib: 241 passed
+
+### Gaps remaining
+| Task | Priority |
+|---|---|
+| Series-level query: FindResultRowSeries + drill-down | Medium |
+| CLAHE tile_vals elimination micro-optimization | Medium |
+| Filter parameter access trait for boxed VtkFilter | Medium |
+
+## Sprint 285 — Complete
+
+**Status**: Complete
+**Phase**: Execution — VtkPipeline Self-Contained Staleness Detection + Boolean Blindness Elimination + 500-Line Structural Fix
+**Version**: 0.50.55 [minor]
+**Goal**: Close GAP-282-VIZ-01 (filter/source mtime tracking correctness defect), GAP-282-VIZ-02 (vtk_pipeline.rs 500-line limit), GAP-282-VIZ-03 (boolean blindness in VTK domain types).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| GAP-282-VIZ-01 | VtkSource mtime integration + self-contained execute_if_needed + filter parameter setters with mtime bumping | **Closed** |
+| GAP-282-VIZ-02 | vtk_pipeline.rs refactored from 646-line file to directory module (mod.rs 191 + tests.rs 453) | **Closed** |
+| GAP-282-VIZ-03 | Visibility + ScalarVisibility enums replace bare bool in VtkActor and VtkMapper | **Closed** |
+
+### Delivered
+
+- `crates/ritk-vtk/src/domain/vtk_pipeline/mod.rs` — VtkSource::mtime() default method; execute_if_needed() no longer takes dependency_mtime parameter; computes max(source.mtime(), max(filter.mtime())) internally
+- `crates/ritk-vtk/src/domain/vtk_pipeline/tests.rs` — 14 pipeline tests (source-only, identity filter, sink, translate, chained, mtime-on-execute, StartEvent/EndEvent, ErrorEvent, execute_if_needed skip/execute, filter default mtime, add_filter bumps mtime, source mtime change triggers rerun, filter parameter change triggers rerun)
+- `crates/ritk-vtk/src/domain/filters/smooth.rs` — private fields with set_relaxation_factor() / set_iterations() setters that call modified(); Modifiable impl; VtkFilter::mtime() override; new() constructor
+- `crates/ritk-vtk/src/domain/filters/threshold.rs` — private fields with set_range() / set_scalar_name() setters; Modifiable impl; VtkFilter::mtime() override; getter methods
+- `crates/ritk-vtk/src/domain/vtk_scene.rs` — Visibility enum (Hidden/Visible); VtkActor.visible: Visibility; with_visible(Visibility)
+- `crates/ritk-vtk/src/domain/mapper.rs` — ScalarVisibility enum (Hidden/Visible); VtkMapper trait: set_scalar_visibility(ScalarVisibility), scalar_visibility() -> ScalarVisibility; SurfaceMapper updated
+- `crates/ritk-vtk/src/domain/mod.rs` — re-export Visibility, ScalarVisibility
+- `crates/ritk-vtk/src/lib.rs` — re-export Visibility, ScalarVisibility
+- `crates/ritk-vtk/src/domain/mtime.rs` — ModifiedTime::from_raw() for atomic round-tripping in test infrastructure
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 241 passed, 0 failed (14 pipeline + 227 pre-existing)
+- `cargo test -p ritk-core --lib`: 1385 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| SCP-LOAD-01 | Load received SCP instances into viewer | High |
+| Series-level query | FindResultRowSeries + drill-down | Medium |
+
+---
+
 ## Sprint 284 — Complete
 
 **Status**: Complete

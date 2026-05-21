@@ -163,6 +163,58 @@ fn test_store_scp_ephemeral_port_is_nonzero() {
     assert_eq!(handle.ae_title(), "RITKSNAP", "ae_title must match config");
 }
 
+// ── Unit tests for SCP-LOAD-01 ───────────────────────────────────────────────
+
+/// `make_part10_bytes` must produce a valid DICOM Part 10 preamble and
+/// File Meta Information header.
+///
+/// Analytical basis (PS3.10 §7, PS3.5 §7.1):
+/// - Bytes 0–127: zero-valued preamble.
+/// - Bytes 128–131: ASCII "DICM" magic.
+/// - Bytes 132–135: File Meta Information Group Length tag (0002,0000).
+/// - Bytes 136–137: VR "UL" for (0002,0000).
+#[test]
+fn test_make_part10_bytes_produces_valid_dicom_preamble() {
+    let inst = super::StoredInstance {
+        sop_class_uid: "1.2.840.10008.5.1.4.1.1.2".to_string(),
+        sop_instance_uid: "1.2.3.4.5.6.7.8.9".to_string(),
+        dataset_bytes: Vec::new(),
+        transfer_syntax_uid: "1.2.840.10008.1.2.1".to_string(),
+    };
+    let bytes = inst.make_part10_bytes();
+
+    // Preamble: 128 zero bytes
+    assert_eq!(&bytes[0..128], &[0u8; 128], "preamble must be 128 zero bytes");
+
+    // DICM magic at offset 128
+    assert_eq!(&bytes[128..132], b"DICM", "DICM magic must be at offset 128");
+
+    // File Meta Information Group Length tag (0002,0000)
+    assert_eq!(&bytes[132..136], &[0x00, 0x00, 0x02, 0x00], "first meta tag must be (0002,0000)");
+
+    // VR must be UL
+    assert_eq!(&bytes[136..138], b"UL", "(0002,0000) VR must be UL");
+}
+
+/// `pad_uid` must append a null byte when the input has odd length,
+/// producing an even-length result per DICOM VR::UI padding rules (PS3.5 §6.2).
+#[test]
+fn test_pad_uid_odd_length_padded_with_null() {
+    // "1.2.3" is 5 bytes (odd)
+    let result = super::pad_uid("1.2.3");
+    assert_eq!(result, b"1.2.3\0");
+    assert_eq!(result.len() % 2, 0, "padded UID must have even length");
+}
+
+/// `pad_uid` must return even-length UIDs unchanged (no padding needed).
+#[test]
+fn test_pad_uid_even_length_unchanged() {
+    // "1.2.840.10008.1.21" is 18 bytes (even) — no padding
+    let result = super::pad_uid("1.2.840.10008.1.21");
+    assert_eq!(result, b"1.2.840.10008.1.21");
+    assert_eq!(result.len() % 2, 0, "even-length UID must remain even");
+}
+
 // ── Poll helper ───────────────────────────────────────────────────────────────
 
 fn poll_instance(

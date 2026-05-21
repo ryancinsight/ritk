@@ -21,6 +21,7 @@ use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::VtkDataObject;
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::Result;
+use std::any::Any;
 use std::collections::HashSet;
 
 /// Laplacian surface smoothing filter.
@@ -95,6 +96,10 @@ impl Modifiable for SmoothFilter {
 impl VtkFilter for SmoothFilter {
     fn mtime(&self) -> ModifiedTime {
         self.get_mtime()
+    }
+
+    fn as_any_mut(&mut self) -> Option<&mut dyn Any> {
+        Some(self)
     }
 
     fn execute(&self, input: VtkDataObject) -> Result<VtkDataObject> {

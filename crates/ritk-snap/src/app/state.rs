@@ -237,6 +237,9 @@ pub(crate) struct SnapApp {
     pub(crate) pacs_scp_handle: Option<ritk_io::StoreScpHandle>,
     /// Count of DICOM instances received by the embedded SCP since last start.
     pub(crate) pacs_received_count: u32,
+    /// Buffered SCP-received instances awaiting load into the viewer.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) pacs_pending_instances: Vec<ritk_io::StoredInstance>,
 
     // ── GPU renderer (native only) ────────────────────────────────────────────
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
@@ -333,6 +336,8 @@ impl Default for SnapApp {
             #[cfg(not(target_arch = "wasm32"))]
             pacs_scp_handle: None,
             pacs_received_count: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            pacs_pending_instances: Vec::new(),
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),

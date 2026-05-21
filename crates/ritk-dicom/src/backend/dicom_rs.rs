@@ -49,6 +49,12 @@ impl DicomParseBackend for DicomRsBackend {
         dicom::object::open_file(path)
             .with_context(|| format!("dicom-rs backend failed to parse {:?}", path))
     }
+
+    fn parse_bytes(data: &[u8]) -> Result<Self::Object> {
+        use std::io::Cursor;
+        dicom::object::from_reader(Cursor::new(data))
+            .with_context(|| "dicom-rs backend failed to parse DICOM bytes")
+    }
 }
 
 impl PixelDecodeBackend<DefaultDicomObject> for DicomRsBackend {
@@ -143,7 +149,7 @@ fn decode_via_dicom_rs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{decode_frame_with, parse_file_with};
+    use crate::backend::{decode_frame_with, parse_bytes_with, parse_file_with};
     use crate::pixel::PixelLayout;
     use dicom::core::smallvec::SmallVec;
     use dicom::core::value::PixelFragmentSequence;
@@ -401,6 +407,74 @@ mod tests {
         assert!(
             !msg.contains("fallback"),
             "native-owned JPEG syntaxes must not fall back through dicom-rs, got: {msg}"
+        );
+    }
+
+    /// `DicomRsBackend::parse_bytes` must round-trip an in-memory DICOM object.
+    ///
+    /// Analytical basis:
+    /// - `InMemDicomObject` with File Meta is written to a temp file.
+    /// - Raw bytes are read back and parsed via `parse_bytes_with::<DicomRsBackend>`.
+    /// - The parsed object must contain the same PatientName value that was written,
+    ///   proving `parse_bytes` constructs a semantically equivalent object from
+    ///   Part 10 bytes without file I/O.
+    #[test]
+    fn dicom_rs_backend_parse_bytes_round_trips_in_memory_object() {
+        let dir = tempfile::tempdir().expect("tempdir must be created");
+        let path = dir.path().join("test_parse_bytes.dcm");
+        let mut obj = InMemDicomObject::new_empty();
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0016),
+            VR::UI,
+            PrimitiveValue::from("1.2.840.10008.5.1.4.1.1.2"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0008, 0x0018),
+            VR::UI,
+            PrimitiveValue::from("2.25.2001"),
+        ));
+        obj.put(DataElement::new(
+            Tag(0x0010, 0x0010),
+            VR::PN,
+            PrimitiveValue::from("Test^Patient"),
+        ));
+        obj.with_meta(
+            FileMetaTableBuilder::new()
+                .media_storage_sop_class_uid("1.2.840.10008.5.1.4.1.1.2")
+                .media_storage_sop_instance_uid("2.25.2001")
+                .transfer_syntax("1.2.840.10008.1.2.1"),
+        )
+        .expect("file meta must be valid")
+        .write_to_file(&path)
+        .expect("DICOM file must be written");
+        let bytes = std::fs::read(&path).expect("temp file must be readable");
+        let parsed = parse_bytes_with::<DicomRsBackend>(&bytes)
+            .expect("parse_bytes must succeed on valid Part 10 bytes");
+        let patient_name = parsed
+            .element(Tag(0x0010, 0x0010))
+            .expect("PatientName must be present")
+            .value()
+            .to_str()
+            .expect("PatientName must be a string")
+            .trim_end_matches(|c: char| c == '\0' || c == ' ')
+            .to_owned();
+        assert_eq!(patient_name, "Test^Patient");
+    }
+
+    /// `DicomRsBackend::parse_bytes` must reject garbage input.
+    ///
+    /// Analytical basis: bytes without a valid DICOM Part 10 preamble or
+    /// DICM magic cannot be parsed. The function must return `Err`, not panic.
+    #[test]
+    fn dicom_rs_backend_parse_bytes_rejects_garbage_input() {
+        let result = parse_bytes_with::<DicomRsBackend>(&[0xDE, 0xAD, 0xBE, 0xEF]);
+        assert!(result.is_err(), "parse_bytes must reject non-DICOM bytes");
+        let msg = format!("{:#}", result.unwrap_err());
+        assert!(
+            msg.to_lowercase().contains("dicom")
+                || msg.to_lowercase().contains("parse")
+                || msg.to_lowercase().contains("failed"),
+            "error must describe parse failure, got: {msg}"
         );
     }
 }

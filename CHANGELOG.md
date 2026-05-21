@@ -1,8 +1,57 @@
 # CHANGELOG
 
+
+
 All notable changes to RITK are documented in this file. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning follows [Semantic Versioning 2.0.0](https://semver.org/2.0.0/).
 
-## [0.50.54] - 2026-05-20
+## [0.50.57] - 2026-05-20
+### Added [minor]
+- **`VtkFilter::as_any_mut`** (Sprint 287): New trait method enables runtime downcasting from boxed `VtkFilter` trait objects to concrete filter types for parameter mutation.
+- **`VtkPipeline::filter_mut`** (Sprint 287): New accessor exposes the stored boxed filter so callers can mutate filter parameters in place through the trait-object boundary.
+
+### Changed [minor]
+- **BREAKING**: `VtkFilter` trait now includes `fn as_any_mut(&mut self) -> Option<&mut dyn Any>`. External implementors must add this method if they override the default behavior. Pre-1.0 breaking change.
+- `SmoothFilter` and `ThresholdFilter` now override `as_any_mut` so boxed instances can be downcast and reconfigured at runtime.
+
+### Tests [patch]
+- `test_pipeline_filter_parameter_change_triggers_rerun`: Regression coverage for mutating a boxed `SmoothFilter` through `VtkPipeline::filter_mut` and verifying `execute_if_needed` re-executes.
+
+### Verification
+- `cargo check -p ritk-vtk`: 0 errors, 0 warnings
+- `cargo test -p ritk-vtk --lib`: 241 passed, 0 failed
+
+## [0.50.56] - 2026-05-20
+### Added [minor]
+- **SCP-LOAD-01: Load received DICOM instances into the viewer** (Sprint 286): Received C-STORE instances are buffered in `SnapApp::pacs_pending_instances` and loaded into the viewer via the "Load Received" button. The `StoredInstance::make_part10_bytes()` method constructs valid DICOM Part 10 bytes (preamble + FMI + dataset) from the SCP's raw dataset bytes, enabling standard DICOM parsing.
+- **`DicomParseBackend::parse_bytes`** (Sprint 286): New trait method and `parse_bytes_with<B>` free function enable in-memory DICOM parsing via `dicom::object::from_reader(Cursor::new(data))`. Zero-cost monomorphized dispatch matches the existing `parse_file` pattern.
+- **`load_volume` helper** (Sprint 286): Extracted from `load_volume_file`, `load_volume_bytes`, `load_dicom_series_bytes` to eliminate ~40 lines of duplicated viewer-state-setup code.
+- **`load_dicom_series_from_stored_instances`** (Sprint 286): New loader function that materializes SCP-received `StoredInstance` values as DICOM Part 10 temp files, then loads them through the canonical series loader.
+- **`PacsPanelAction::LoadReceived`** (Sprint 286): New UI action dispatched by the "Load Received" button when pending instances are available.
+
+### Changed [minor]
+- **BREAKING**: `DicomParseBackend` trait now requires `fn parse_bytes(data: &[u8]) -> Result<Self::Object>`. External implementors must add this method. Pre-1.0 breaking change.
+- `poll_pacs_scp()` now buffers received instances into `pacs_pending_instances` instead of discarding them after counting.
+- `start_pacs_scp()` clears `pacs_pending_instances` on SCP start.
+
+### Tests [patch]
+- `test_make_part10_bytes_produces_valid_dicom_preamble`: Byte-level verification of Part 10 preamble, DICM magic, FMI tag structure.
+- `test_pad_uid_even_length_unchanged` / `test_pad_uid_odd_length_padded_with_null`: PS3.5 UID padding rules.
+- `dicom_rs_backend_parse_bytes_round_trips_in_memory_object`: Round-trip DICOM object through `parse_bytes`.
+- `dicom_rs_backend_parse_bytes_rejects_garbage_input`: Error path for non-DICOM bytes.
+- `test_load_dicom_series_from_stored_instances_empty_input_errors`: Empty-input guard.
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-dicom --lib`: 16 passed (was 14)
+- `cargo test -p ritk-io --lib format::dicom::networking`: 56 passed (was 53)
+- `cargo test -p ritk-snap --lib pacs`: 30 passed
+- `cargo test -p ritk-core --lib`: 1385 passed
+- `cargo test -p ritk-vtk --lib`: 241 passed
+
+---
+
+## [0.50.55] - 2026-05-20 ### Added [minor] - **VtkSource mtime integration** (Sprint 285, GAP-282-VIZ-01): `VtkSource` trait now has a `mtime()` default method returning `ModifiedTime::ZERO`. Sources that can change after construction override this to signal staleness. - **Self-contained `execute_if_needed()`** (Sprint 285, GAP-282-VIZ-01): `VtkPipeline::execute_if_needed()` no longer requires an external `dependency_mtime` parameter. It now computes `max(source.mtime(), max(filter.mtime()))` internally, making the pipeline's staleness detection autonomous. - **Filter parameter setters with mtime bumping** (Sprint 285, GAP-282-VIZ-01): `SmoothFilter` and `ThresholdFilter` have private fields with `set_relaxation_factor()`, `set_iterations()`, `set_range()`, `set_scalar_name()` setters that call `modified()`. Parameter changes now propagate through `execute_if_needed()`. - **`Visibility` enum** (Sprint 285, GAP-282-VIZ-03): Replaces `bool` on `VtkActor::visible` and `VtkActor::with_visible()`. Call sites read `Visibility::Visible` / `Visibility::Hidden` instead of opaque `true` / `false`. - **`ScalarVisibility` enum** (Sprint 285, GAP-282-VIZ-03): Replaces `bool` on `VtkMapper::set_scalar_visibility()` / `is_scalar_visible()`. Renamed to `scalar_visibility() -> ScalarVisibility`. - **Pipeline test module extraction** (Sprint 285, GAP-282-VIZ-02): `vtk_pipeline.rs` refactored from a 646-line file into `vtk_pipeline/mod.rs` (191 lines) + `vtk_pipeline/tests.rs` (453 lines), satisfying the 500-line structural limit. ### Changed [minor] - **BREAKING**: `VtkPipeline::execute_if_needed(&mut self, dependency_mtime)` → `execute_if_needed(&mut self)`. Callers no longer supply an external dependency timestamp; the pipeline queries its own stages. - **BREAKING**: `VtkMapper::set_scalar_visibility(&mut self, visible: bool)` → `set_scalar_visibility(&mut self, visible: ScalarVisibility)`. - **BREAKING**: `VtkMapper::is_scalar_visible(&self) -> bool` → `scalar_visibility(&self) -> ScalarVisibility`. - **BREAKING**: `VtkActor::visible: bool` → `VtkActor::visible: Visibility`. - **BREAKING**: `VtkActor::with_visible(self, bool)` → `with_visible(self, Visibility)`. - **BREAKING**: `SmoothFilter::relaxation_factor` and `SmoothFilter::iterations` are now private; use `relaxation_factor()` / `iterations()` getters and `set_relaxation_factor()` / `set_iterations()` setters. - **BREAKING**: `ThresholdFilter::scalar_name`, `lower`, `upper` are now private; use `scalar_name()` / `lower()` / `upper()` getters and `set_scalar_name()` / `set_range()` setters. ### Verification - `cargo check --workspace`: 0 errors, 0 warnings - `cargo test -p ritk-vtk --lib`: 241 passed, 0 failed (14 pipeline + 227 pre-existing) - `cargo test -p ritk-core --lib`: 1385 passed, 0 failed --- ## [0.50.54] - 2026-05-20
+
 ### Added [minor]
 - Embedded C-STORE SCP (SCP-IMPL-01): `StoreScp::start` binds a TCP listener,
   spawns a non-blocking accept thread, and returns `StoreScpHandle::try_recv` /

@@ -52,6 +52,8 @@ pub enum PacsPanelAction {
     StartScp,
     /// User pressed "Stop SCP".
     StopScp,
+    /// User pressed "Load Received" to load buffered SCP instances into the viewer.
+    LoadReceived,
 }
 
 // ── show_pacs_panel ───────────────────────────────────────────────────────────
@@ -84,6 +86,7 @@ pub fn show_pacs_panel(
     scp_listening: bool,
     scp_actual_port: u16,
     pacs_received_count: u32,
+    pacs_pending_count: usize,
     selected_row: &mut Option<usize>,
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
@@ -162,8 +165,13 @@ pub fn show_pacs_panel(
                 format!("\u{25cf} SCP :{actual} (AE: {})", config.scp_ae_title),
             );
             if pacs_received_count > 0 {
-                ui.label(format!("[{pacs_received_count} received]"));
-            }
+                    ui.label(format!("[{pacs_received_count} received]"));
+                }
+                if pacs_pending_count > 0 {
+                    if ui.button("\u{25b6} Load Received").clicked() {
+                        action = PacsPanelAction::LoadReceived;
+                    }
+                }
         } else {
             if ui.button("Start SCP").clicked() {
                 action = PacsPanelAction::StartScp;

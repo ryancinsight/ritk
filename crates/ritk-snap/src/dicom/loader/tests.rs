@@ -246,3 +246,20 @@ fn test_scan_folder_for_series_empty_dir() {
         "empty directory must produce an empty SeriesTree"
     );
 }
+
+/// `load_dicom_series_from_stored_instances` must reject an empty input slice.
+///
+/// Analytical basis: the function's contract requires at least one instance
+/// to construct a DICOM series. An empty slice produces a descriptive error
+/// rather than silently succeeding or panicking.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn test_load_dicom_series_from_stored_instances_empty_input_errors() {
+    let result = load_dicom_series_from_stored_instances(&[]);
+    assert!(result.is_err());
+    let msg = format!("{:#}", result.unwrap_err());
+    assert!(
+        msg.contains("no SCP-received DICOM instances"),
+        "error must describe empty input, got: {msg}"
+    );
+}

@@ -1,4 +1,61 @@
+## Sprint 287 Audit (2026-05-20)
+
+- **VTK-FILTER-PARAM-01**: `VtkFilter::as_any_mut` + `VtkPipeline::filter_mut` enable boxed filter parameter mutation and downcast to concrete stateful filters -> Closed
+- **Architecture**: public pipeline accessor returns the stored `Box<dyn VtkFilter>` so callers can mutate parameters in place without leaking the pipeline's internal storage model
+- **Verification**: `cargo check -p ritk-vtk` and `cargo test -p ritk-vtk --lib` passed; boxed `SmoothFilter` mutation regression test covers the downcast path
+- **Residual Risk**: `VtkFilter::as_any_mut` is only meaningful for `'static` filter implementations; series-level query and CLAHE tile_vals elimination remain open
+
+## Sprint 286 Audit (2026-05-20)
+
+- **SCP-LOAD-01**: Received C-STORE instances buffered in pacs_pending_instances and loadable via Load Received button -> Closed
+- **DICOM-PARSE-BYTES-01**: DicomParseBackend::parse_bytes + DicomRsBackend impl using from_reader(Cursor::new) -> Closed
+- **VOLUME-LOAD-DUP-01**: load_volume helper extracted; 3 load methods refactored to use it -> Closed
+- **Architecture**: 6 design points documented:
+  1. StoredInstance::make_part10_bytes() constructs Part 10 FMI manually (correct - SCP operates on raw dataset bytes, not InMemDicomObject)
+  2. Part 10 FMI group length = meta.len() - 12 per PS3.10 section 7.1; verified by byte trace (110 bytes)
+  3. pad_uid() appends 0x00 for odd-length UIDs per PS3.5
+  4. pacs_pending_instances as Vec<StoredInstance> (bounded by SCP channel capacity 512)
+  5. load_volume helper: pub(crate) visibility required for cross-file impl blocks on SnapApp
+  6. pacs_pending_count passed as usize (not reusing pacs_received_count which tracks cumulative total)
+- **Residual Risk**: DicomParseBackend::parse_bytes is a breaking trait change (pre-1.0 acceptable); temp-file materialization in load_dicom_series_from_stored_instances is functional but slower than a future zero-copy path
+
 # RITK Gap Audit — ITK / SimpleITK / ANTs / Grassroots DICOM Comparison
+
+## Sprint 285 Audit — 2026-05-20 — VtkPipeline Self-Contained Staleness Detection + Boolean Blindness Elimination + 500-Line Structural Fix
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|---|---|---|---|
+| GAP-282-VIZ-01 | VtkSource mtime integration + self-contained execute_if_needed + filter parameter setters with mtime bumping | `ritk-vtk::domain::vtk_pipeline`, `ritk-vtk::domain::filters` | 14 |
+| GAP-282-VIZ-02 | vtk_pipeline.rs refactored from 646-line file to directory module (mod.rs 191 + tests.rs 453) | `ritk-vtk::domain::vtk_pipeline` | — |
+| GAP-282-VIZ-03 | Visibility + ScalarVisibility enums replace bare bool in VtkActor and VtkMapper | `ritk-vtk::domain::vtk_scene`, `ritk-vtk::domain::mapper` | 8 |
+
+### Architecture
+
+1. **VtkSource::mtime()**: Default returns `ModifiedTime::ZERO`. Sources with mutable state override this to signal staleness.
+2. **Self-contained execute_if_needed()**: Signature simplified from `execute_if_needed(&mut self, dependency_mtime)` to `execute_if_needed(&mut self)`. Computes `max(source.mtime(), max(filter.mtime()))` internally.
+3. **Filter Modifiable impl**: `SmoothFilter` and `ThresholdFilter` implement `Modifiable` with plain `ModifiedTime` field. Fields are private; setters call `modified()`. `VtkFilter::mtime()` overridden.
+4. **Visibility enum**: Replaces `bool` on `VtkActor::visible` and `with_visible()`. Default `Hidden`; `VtkActor::new()` overrides to `Visible`.
+5. **ScalarVisibility enum**: Replaces `bool` on `VtkMapper::set_scalar_visibility()` / `is_scalar_visible()`. Renamed to `scalar_visibility() -> ScalarVisibility`.
+6. **Pipeline test extraction**: `vtk_pipeline.rs` (646 lines) → `vtk_pipeline/mod.rs` (191 lines) + `vtk_pipeline/tests.rs` (453 lines).
+7. **ModifiedTime::from_raw()**: Added for atomic round-tripping in test infrastructure.
+
+### Verification
+
+| Test | Basis | Result |
+|---|---|---|
+| vtk_pipeline — 14 tests | Source, filters, sink, mtime, events, execute_if_needed skip/execute, filter/source mtime triggers | pass |
+| cargo check --workspace | 0 errors, 0 warnings | pass |
+| cargo test -p ritk-vtk --lib | 241 passed, 0 failed | pass |
+| cargo test -p ritk-core --lib | 1385 passed, 0 failed | pass |
+
+### Residual Risk
+
+- `execute_if_needed()` signature change is a SemVer breaking change (pre-1.0, documented).
+- `SmoothFilter`/`ThresholdFilter` setters require `&mut self`, not possible behind `Box<dyn VtkFilter>`. Callers must set parameters before pipeline insertion.
+
+---
 
 ## Sprint 284 Audit — 2026-05-20 — Embedded C-STORE SCP
 

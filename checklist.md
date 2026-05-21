@@ -1,3 +1,83 @@
+## Sprint 287 (0.50.57)
+
+- [x] `VtkFilter::as_any_mut` added for boxed downcast-based parameter mutation
+- [x] `VtkPipeline::filter_mut` added to expose boxed filters for runtime reconfiguration
+- [x] `SmoothFilter` implements boxed downcast parameter access
+- [x] `ThresholdFilter` implements boxed downcast parameter access
+- [x] `test_pipeline_filter_parameter_change_triggers_rerun` now mutates a boxed `SmoothFilter`
+- [x] cargo check -p ritk-vtk: 0/0
+- [x] cargo test -p ritk-vtk --lib: 241/0
+
+**Gaps remaining**: Series-level query (Medium), CLAHE tile_vals elimination (Medium)
+
+## Sprint 286 (0.50.56)
+
+- [x] DicomParseBackend::parse_bytes trait method added
+- [x] DicomRsBackend::parse_bytes implemented with from_reader(Cursor::new)
+- [x] parse_bytes_with<B> free function added
+- [x] StoredInstance::make_part10_bytes() constructs valid Part 10 bytes
+- [x] pad_uid() helper for PS3.5 UID even-length padding
+- [x] SnapApp::pacs_pending_instances field + Default
+- [x] poll_pacs_scp() buffers instances instead of discarding
+- [x] load_received_scp_instances() method
+- [x] handle_pacs_action dispatches LoadReceived
+- [x] start_pacs_scp() clears pacs_pending_instances
+- [x] load_volume helper extracted from volume_state.rs
+- [x] load_volume_file, load_volume_bytes, load_dicom_series_bytes refactored
+- [x] load_dicom_series_from_stored_instances loader function
+- [x] PacsPanelAction::LoadReceived variant
+- [x] pacs_pending_count parameter in show_pacs_panel
+- [x] Load Received button in PACS panel
+- [x] panels.rs passes pacs_pending_instances.len()
+- [x] test_make_part10_bytes_produces_valid_dicom_preamble
+- [x] test_pad_uid_even_length_unchanged / test_pad_uid_odd_length_padded_with_null
+- [x] dicom_rs_backend_parse_bytes_round_trips_in_memory_object
+- [x] dicom_rs_backend_parse_bytes_rejects_garbage_input
+- [x] test_load_dicom_series_from_stored_instances_empty_input_errors
+- [x] cargo check --workspace: 0/0
+- [x] cargo test -p ritk-dicom --lib: 16/0
+- [x] cargo test -p ritk-io --lib format::dicom::networking: 56/0
+- [x] cargo test -p ritk-snap --lib pacs: 30/0
+- [x] CHANGELOG + backlog + checklist + gap_audit updated
+
+**Gaps remaining**: Series-level query (Medium), CLAHE tile_vals elimination (Medium), Filter parameter access trait (Medium)
+
+## Sprint 285 — Complete
+
+**Status**: Complete
+**Phase**: Execution — VtkPipeline Self-Contained Staleness Detection + Boolean Blindness Elimination + 500-Line Structural Fix
+**Version**: 0.50.55 [minor]
+
+### Checklist items
+
+- [x] Add `mtime()` default method to `VtkSource` trait returning `ModifiedTime::ZERO`
+- [x] Change `execute_if_needed` to self-compute max(source.mtime(), max(filter.mtime())) — remove `dependency_mtime` parameter
+- [x] Add `ModifiedTime::from_raw()` for atomic round-tripping in test helpers
+- [x] Make `SmoothFilter` fields private; add `set_relaxation_factor()` / `set_iterations()` that call `modified()`
+- [x] Make `ThresholdFilter` fields private; add `set_range()` / `set_scalar_name()` that call `modified()`
+- [x] Add `Visibility` enum replacing `bool` on `VtkActor::visible` and `with_visible()`
+- [x] Add `ScalarVisibility` enum replacing `bool` on `VtkMapper::set_scalar_visibility()` / `is_scalar_visible()`
+- [x] Rename `is_scalar_visible() -> bool` to `scalar_visibility() -> ScalarVisibility`
+- [x] Re-export `Visibility` and `ScalarVisibility` from `domain/mod.rs` and `lib.rs`
+- [x] Extract `vtk_pipeline.rs` test module into `vtk_pipeline/tests.rs` (directory module pattern)
+- [x] Add 2 new pipeline tests: source mtime change triggers rerun, filter parameter change triggers rerun
+- [x] `cargo check --workspace` — 0 errors, 0 warnings
+- [x] `cargo test -p ritk-vtk --lib` — 241 passed, 0 failed
+- [x] `cargo test -p ritk-core --lib` — 1385 passed, 0 failed
+- [x] Update `CHANGELOG.md` — 0.50.55 section
+- [x] Update `backlog.md` — Sprint 285 entry
+- [x] Update `checklist.md` — Sprint 285 entry
+- [x] Update `gap_audit.md` — Sprint 285 audit
+
+### Gaps remaining
+
+| Task | Description | Priority |
+|---|---|---|
+| SCP-LOAD-01 | Load received instances into viewer | High |
+| Series-level query | FindResultRowSeries + drill-down | Medium |
+
+---
+
 ## Sprint 284 — Complete
 
 **Status**: Complete
