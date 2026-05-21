@@ -241,6 +241,12 @@ pub(crate) struct SnapApp {
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) pacs_pending_instances: Vec<ritk_io::StoredInstance>,
 
+    /// Number of instances auto-loaded this frame (set by `poll_pacs_scp`, consumed by UI).
+    ///
+    /// Set to `Some(N)` when auto-load fires, `None` otherwise. Cleared at the
+    /// start of each frame so the notification is shown for exactly one frame.
+    pub(crate) pacs_auto_loaded_this_frame: Option<usize>,
+
     // ── GPU renderer (native only) ────────────────────────────────────────────
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
     /// available or when running on wasm32.  CPU path is the fallback.
@@ -338,6 +344,7 @@ impl Default for SnapApp {
             pacs_received_count: 0,
             #[cfg(not(target_arch = "wasm32"))]
             pacs_pending_instances: Vec::new(),
+            pacs_auto_loaded_this_frame: None,
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
             gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),

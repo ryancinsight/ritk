@@ -15,12 +15,16 @@ impl SnapApp {
     /// that completed responses are applied promptly even while the PACS panel
     /// is closed.
     pub(crate) fn poll_pacs_worker(&mut self) {
+        // Clear auto-loaded notification from the previous frame.
+        self.pacs_auto_loaded_this_frame = None;
+
         if let Some(worker) = &self.pacs_worker {
             if let Some(resp) = worker.try_recv() {
                 self.pacs_worker = None;
                 self.apply_pacs_response(resp);
             }
         }
+
         #[cfg(not(target_arch = "wasm32"))]
         self.poll_pacs_scp();
     }
@@ -82,7 +86,12 @@ impl SnapApp {
         match action {
             PacsPanelAction::None => {}
             PacsPanelAction::SubmitEcho => self.submit_pacs_echo(),
-            PacsPanelAction::SubmitFind { patient_name, modality, study_date, accession_number } => {
+            PacsPanelAction::SubmitFind {
+                patient_name,
+                modality,
+                study_date,
+                accession_number,
+            } => {
                 self.submit_pacs_find(patient_name, modality, study_date, accession_number);
             }
             PacsPanelAction::SubmitRetrieve { study_uid } => {
@@ -114,7 +123,9 @@ impl SnapApp {
             self.status_message = "PACS: a request is already in progress.".to_owned();
             return;
         }
-        self.pacs_query_state = QueryState::Pending { label: "C-ECHO…".to_owned() };
+        self.pacs_query_state = QueryState::Pending {
+            label: "C-ECHO…".to_owned(),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -126,9 +137,8 @@ impl SnapApp {
         }
         #[cfg(target_arch = "wasm32")]
         {
-            self.pacs_query_state = QueryState::Error(
-                "PACS networking is not available in browser builds.".to_owned(),
-            );
+            self.pacs_query_state =
+                QueryState::Error("PACS networking is not available in browser builds.".to_owned());
         }
     }
 
@@ -143,7 +153,9 @@ impl SnapApp {
             self.status_message = "PACS: a request is already in progress.".to_owned();
             return;
         }
-        self.pacs_query_state = QueryState::Pending { label: "C-FIND…".to_owned() };
+        self.pacs_query_state = QueryState::Pending {
+            label: "C-FIND…".to_owned(),
+        };
         self.pacs_selected_row = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -151,15 +163,19 @@ impl SnapApp {
             use crate::pacs::spawn_pacs_request;
             self.pacs_worker = Some(spawn_pacs_request(
                 self.pacs_config.clone(),
-                PacsRequest::FindStudies { patient_name, modality, study_date, accession_number },
+                PacsRequest::FindStudies {
+                    patient_name,
+                    modality,
+                    study_date,
+                    accession_number,
+                },
             ));
         }
         #[cfg(target_arch = "wasm32")]
         {
             let _ = (patient_name, modality, study_date, accession_number);
-            self.pacs_query_state = QueryState::Error(
-                "PACS networking is not available in browser builds.".to_owned(),
-            );
+            self.pacs_query_state =
+                QueryState::Error("PACS networking is not available in browser builds.".to_owned());
         }
     }
 
@@ -172,34 +188,41 @@ impl SnapApp {
         #[cfg(not(target_arch = "wasm32"))]
         self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
-        self.pacs_query_state = QueryState::Pending { label: format!("C-MOVE → {move_destination}…") };
+        self.pacs_query_state = QueryState::Pending {
+            label: format!("C-MOVE → {move_destination}…"),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         {
             use crate::pacs::spawn_pacs_request;
             self.pacs_worker = Some(spawn_pacs_request(
                 self.pacs_config.clone(),
-                PacsRequest::RetrieveStudy { study_instance_uid: study_uid, move_destination },
+                PacsRequest::RetrieveStudy {
+                    study_instance_uid: study_uid,
+                    move_destination,
+                },
             ));
         }
         #[cfg(target_arch = "wasm32")]
         {
             let _ = (study_uid, move_destination);
-            self.pacs_query_state = QueryState::Error(
-                "PACS networking is not available in browser builds.".to_owned(),
-            );
+            self.pacs_query_state =
+                QueryState::Error("PACS networking is not available in browser builds.".to_owned());
         }
     }
 
     /// Poll the embedded SCP for received instances on every egui frame.
     ///
     /// Drains all buffered instances from the bounded channel into
-    /// `pacs_pending_instances` for deferred loading.
+    /// `pacs_pending_instances`. When `pacs_config.auto_load_received` is
+    /// enabled and instances were received this frame, automatically triggers
+    /// loading into the viewer.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn poll_pacs_scp(&mut self) {
         let Some(handle) = &self.pacs_scp_handle else {
             return;
         };
+        let had_pending = !self.pacs_pending_instances.is_empty();
         while let Some(inst) = handle.try_recv() {
             self.pacs_received_count = self.pacs_received_count.saturating_add(1);
             tracing::info!(
@@ -209,6 +232,23 @@ impl SnapApp {
                 "SCP received instance",
             );
             self.pacs_pending_instances.push(inst);
+        }
+        let pending_count = self.pacs_pending_instances.len();
+        if self.pacs_config.auto_load_received
+            && !had_pending
+            && !self.pacs_pending_instances.is_empty()
+        {
+            if pending_count <= self.pacs_config.auto_load_limit as usize {
+                tracing::info!("auto-load: triggering load of SCP-received instances");
+                self.pacs_auto_loaded_this_frame = Some(pending_count);
+                self.load_received_scp_instances();
+            } else {
+                let limit = self.pacs_config.auto_load_limit;
+                self.status_message = format!(
+                    "Auto-load suppressed: {pending_count} instances exceed limit ({limit}). Click \u{25b6} Load Received to proceed."
+                );
+                tracing::info!("auto-load suppressed: {pending_count} pending > limit {limit}");
+            }
         }
     }
 
@@ -232,8 +272,8 @@ impl SnapApp {
                 let port = handle.port();
                 let ae = handle.ae_title().to_owned();
                 self.pacs_scp_handle = Some(handle);
-                    self.pacs_received_count = 0;
-                    self.pacs_pending_instances.clear();
+                self.pacs_received_count = 0;
+                self.pacs_pending_instances.clear();
                 let msg = format!("SCP started: AE={ae} port={port}");
                 self.status_message = msg.clone();
                 info!("{}", msg);
@@ -262,10 +302,9 @@ impl SnapApp {
 
     /// Load all buffered SCP-received instances into the viewer.
     ///
-    /// Materializes each [`StoredInstance`] as a DICOM Part 10 file in a
-    /// temporary directory, then loads the resulting series through the
-    /// canonical DICOM series loader. On success, the received instances
-    /// buffer and counter are cleared.
+    /// Parses each [`StoredInstance`] in-memory via the zero-disk DICOM
+    /// loading path (Part 10 bytes → `scan_dicom_instances` → pixel decode).
+    /// On success, the received instances buffer and counter are cleared.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn load_received_scp_instances(&mut self) {
         if self.pacs_pending_instances.is_empty() {

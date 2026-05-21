@@ -17,7 +17,7 @@ use ritk_dicom::TransferSyntaxKind;
 use super::geometry::{
     analyze_slice_spacing, dot_3d, resample_frames_linear, slice_normal_from_iop,
 };
-use super::pixel::read_slice_pixels;
+use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_directory;
 use super::types::{DicomReadMetadata, DicomSeriesInfo};
 
@@ -55,6 +55,20 @@ pub fn load_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     device: &B::Device,
 ) -> Result<(Image<B, 3>, DicomReadMetadata)> {
     read_dicom_series_with_metadata(path, device)
+}
+
+/// Load a DICOM series from a pre-scanned [`DicomSeriesInfo`] and return image plus metadata.
+///
+/// This is the zero-disk counterpart of [`load_dicom_series_with_metadata`]:
+/// callers that have already obtained a `DicomSeriesInfo` (e.g. via
+/// [`scan_dicom_instances`](super::scan::scan_dicom_instances)) pass it directly
+/// instead of re-scanning a directory. Pixel decode uses `part10_bytes` from the
+/// slice metadata when present, falling back to file-path I/O otherwise.
+pub fn load_dicom_from_series<B: Backend>(
+    series: DicomSeriesInfo,
+    device: &B::Device,
+) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    load_from_series(series, device)
 }
 
 pub(crate) fn load_from_series<B: Backend>(
@@ -167,7 +181,12 @@ pub(crate) fn load_from_series<B: Backend>(
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
                 .par_iter()
                 .map(|slice| {
-                    let data = read_slice_pixels(slice).with_context(|| {
+                    let data = if let Some(ref bytes) = slice.part10_bytes {
+                        read_slice_pixels_from_bytes(bytes, slice)
+                    } else {
+                        read_slice_pixels(slice)
+                    }
+                    .with_context(|| {
                         format!("failed to decode DICOM slice {:?}", slice.path)
                     })?;
                     if data.len() != frame_len {
@@ -187,8 +206,12 @@ pub(crate) fn load_from_series<B: Backend>(
         let decoded: Vec<Vec<f32>> = {
             let mut decoded = Vec::with_capacity(depth);
             for slice in slices.iter() {
-                let data = read_slice_pixels(slice)
-                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                let data = if let Some(ref bytes) = slice.part10_bytes {
+                    read_slice_pixels_from_bytes(bytes, slice)
+                } else {
+                    read_slice_pixels(slice)
+                }
+                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                 if data.len() != frame_len {
                     bail!(
                         "DICOM slice size mismatch: expected {} pixels, got {}",
@@ -223,7 +246,12 @@ pub(crate) fn load_from_series<B: Backend>(
                 .par_chunks_mut(frame_len)
                 .zip(slices.par_iter())
                 .try_for_each(|(dst, slice)| -> Result<()> {
-                    let data = read_slice_pixels(slice).with_context(|| {
+                    let data = if let Some(ref bytes) = slice.part10_bytes {
+                        read_slice_pixels_from_bytes(bytes, slice)
+                    } else {
+                        read_slice_pixels(slice)
+                    }
+                    .with_context(|| {
                         format!("failed to decode DICOM slice {:?}", slice.path)
                     })?;
                     if data.len() != frame_len {
@@ -241,8 +269,12 @@ pub(crate) fn load_from_series<B: Backend>(
         #[cfg(target_arch = "wasm32")]
         {
             for (z, slice) in slices.iter().enumerate() {
-                let data = read_slice_pixels(slice)
-                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                let data = if let Some(ref bytes) = slice.part10_bytes {
+                    read_slice_pixels_from_bytes(bytes, slice)
+                } else {
+                    read_slice_pixels(slice)
+                }
+                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                 if data.len() != frame_len {
                     bail!(
                         "DICOM slice size mismatch: expected {} pixels, got {}",

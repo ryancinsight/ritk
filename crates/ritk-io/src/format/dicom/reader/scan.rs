@@ -13,11 +13,23 @@ use super::dicomdir::try_read_dicomdir;
 use super::geometry::{
     analyze_slice_spacing, cross_3d, dot_3d, normalize_3d, slice_normal_from_iop,
 };
-use super::parse::parse_dicom_file;
+use super::parse::{parse_dicom_bytes, parse_dicom_file, parse_dicom_file_bytes};
 use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen, SeriesGeometry};
 use super::utils::is_likely_dicom_file;
+use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
 use crate::format::dicom::sop_class::{classify_sop_class, SopClassKind};
+
+// Thresholds used during post-processing (shared by directory and instance scans).
+
+/// Maximum deviation from axial identity IOP to treat as "effectively axial".
+const AXIAL_IOP_THRESHOLD: f64 = 1e-4;
+/// Minimum |GantryDetectorTilt| (degrees) to trigger IOP synthesis.
+const GANTRY_TILT_MIN_DEGREES: f64 = 0.01;
+/// Maximum component-wise IOP deviation before emitting a consistency warning.
+const IOP_CONSISTENCY_THRESHOLD: f64 = 1e-4;
+/// Maximum component-wise PixelSpacing deviation before emitting a consistency warning.
+const PIXEL_SPACING_CONSISTENCY_THRESHOLD: f64 = 1e-4;
 
 /// Scan a directory for DICOM files, extract metadata, and return a typed series descriptor.
 ///
@@ -34,7 +46,6 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
 
     // File discovery: prefer DICOMDIR; fall back to flat-folder scan.
     let mut raw_paths: Vec<PathBuf> = Vec::new();
-
     if let Ok(dicomdir_paths) = try_read_dicomdir(path) {
         raw_paths = dicomdir_paths;
         raw_paths.sort();
@@ -71,6 +82,169 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         }
     }
 
+    finalize_scanned_series(
+        slices,
+        None,
+        per_file_dims,
+        per_file_series_uids,
+        first,
+        path.to_path_buf(),
+        |a, b| a.path.file_name().cmp(&b.path.file_name()),
+        &format!("{:?}", path),
+    )
+}
+
+/// Scan in-memory SCP-received [`StoredInstance`] values, extract metadata, and
+/// return a typed series descriptor.
+///
+/// This is the zero-disk counterpart to [`scan_dicom_directory`]: instead of
+/// scanning a filesystem directory, it parses Part 10 bytes constructed from
+/// each `StoredInstance`, applies the same canonical-dimension filtering and
+/// SeriesInstanceUID grouping, sorts slices spatially, and assembles geometry.
+///
+/// Each slice's `part10_bytes` field is populated so that pixel decoding can
+/// proceed without re-opening a file.
+///
+/// # Invariants
+/// - `instances` must be non-empty.
+/// - All returned slices belong to the most-populated SeriesInstanceUID when
+///   the input contains multiple series with the same image dimensions.
+pub fn scan_dicom_instances(instances: &[StoredInstance]) -> Result<DicomSeriesInfo> {
+    if instances.is_empty() {
+        bail!("no DICOM instances provided for scanning");
+    }
+
+    // Parse metadata from each instance's Part 10 bytes.
+    let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(instances.len());
+    let mut first = SeriesFirstSeen::default();
+    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(instances.len());
+    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(instances.len());
+    let mut part10_bytes_vec: Vec<Vec<u8>> = Vec::with_capacity(instances.len());
+
+    for inst in instances {
+        let part10_bytes = inst.make_part10_bytes();
+        if let Some((slice_meta, file_dim, file_series_uid)) =
+            parse_dicom_bytes(&part10_bytes, &inst.sop_instance_uid, &mut first)
+        {
+            per_file_dims.push(file_dim);
+            per_file_series_uids.push(file_series_uid);
+            part10_bytes_vec.push(part10_bytes);
+            slices.push(slice_meta);
+        }
+    }
+
+    if slices.is_empty() {
+        bail!("no DICOM instances could be parsed from the provided stored instances");
+    }
+
+    finalize_scanned_series(
+        slices,
+        Some(part10_bytes_vec),
+        per_file_dims,
+        per_file_series_uids,
+        first,
+        PathBuf::from("scp://series"),
+        |a, b| a.sop_instance_uid.cmp(&b.sop_instance_uid),
+        "SCP instances",
+    )
+}
+
+/// Scan in-memory DICOM Part 10 byte payloads (e.g. from drag-and-drop),
+/// extract metadata, and return a typed series descriptor.
+///
+/// This is the zero-disk counterpart to both [`scan_dicom_directory`] and
+/// [`scan_dicom_instances`]: instead of scanning a filesystem directory or
+/// constructing Part 10 bytes from `StoredInstance` values, it accepts
+/// pre-existing Part 10 DICOM byte payloads directly.
+///
+/// Each slice's `part10_bytes` field is populated so that pixel decoding can
+/// proceed without writing to disk.
+///
+/// # Invariants
+/// - `files` must be non-empty.
+/// - Each `(&str, &[u8])` pair is a `(name_hint, part10_bytes)` — the name
+///   is used for diagnostics and as a synthetic path; the bytes must be a
+///   valid DICOM Part 10 file (128-byte preamble + DICM magic + FMI + dataset).
+/// - All returned slices belong to the most-populated SeriesInstanceUID when
+///   the input contains multiple series with the same image dimensions.
+pub fn scan_dicom_part10_bytes(files: &[(&str, &[u8])]) -> Result<DicomSeriesInfo> {
+    if files.is_empty() {
+        bail!("no DICOM byte payloads provided for scanning");
+    }
+    // Parse metadata from each Part 10 byte payload.
+    let mut slices: Vec<DicomSliceMetadata> = Vec::with_capacity(files.len());
+    let mut first = SeriesFirstSeen::default();
+    let mut per_file_dims: Vec<(u32, u32)> = Vec::with_capacity(files.len());
+    let mut per_file_series_uids: Vec<Option<String>> = Vec::with_capacity(files.len());
+    let mut part10_bytes_vec: Vec<Vec<u8>> = Vec::with_capacity(files.len());
+    for (name, bytes) in files {
+        // Use a synthetic path based on the name hint.
+        let synthetic_path = PathBuf::from(format!("dropped://{}", name));
+        if let Some((slice_meta, file_dim, file_series_uid)) =
+            parse_dicom_file_bytes(bytes, &synthetic_path, &mut first)
+        {
+            per_file_dims.push(file_dim);
+            per_file_series_uids.push(file_series_uid);
+            part10_bytes_vec.push(bytes.to_vec());
+            slices.push(slice_meta);
+        }
+    }
+    if slices.is_empty() {
+        bail!("no DICOM byte payloads could be parsed from the provided files");
+    }
+    finalize_scanned_series(
+        slices,
+        Some(part10_bytes_vec),
+        per_file_dims,
+        per_file_series_uids,
+        first,
+        PathBuf::from("dropped://series"),
+        |a, b| a.sop_instance_uid.cmp(&b.sop_instance_uid),
+        "dropped byte payloads",
+    )
+}
+
+/// Shared post-processing logic for both directory and instance scans.
+///
+/// After the caller has finished extracting per-slice metadata (the phase
+/// unique to each scan mode), this function performs:
+///
+/// - Canonical-dimension filtering
+/// - SeriesInstanceUID grouping
+/// - SOP class policy filtering
+/// - Slice normal computation
+/// - Slice sorting
+/// - GantryDetectorTilt synthesis
+/// - Cross-slice IOP consistency guard
+/// - Cross-slice PixelSpacing consistency guard
+/// - Z-spacing computation
+/// - Direction/origin assembly
+/// - `build_series_object` call
+/// - `assemble_metadata` call
+/// - `DicomSeriesInfo` construction
+///
+/// # Parameters
+/// - `slices`: already-parsed slice metadata
+/// - `part10_bytes_vec`: `Some(bytes)` for SCP instances (attached to slices
+///   during filtering/grouping); `None` for directory-based scans
+/// - `per_file_dims`: per-slice `(rows, cols)` for canonical-dimension filtering
+/// - `per_file_series_uids`: per-slice SeriesInstanceUID for grouping
+/// - `first`: accumulated `SeriesFirstSeen` from the parse phase
+/// - `series_path`: path to use in the returned `DicomSeriesInfo`
+/// - `sort_tiebreaker`: final comparator for slice sorting (filename vs SOP UID)
+/// - `empty_error_context`: context string for empty-series error messages
+fn finalize_scanned_series(
+    mut slices: Vec<DicomSliceMetadata>,
+    part10_bytes_vec: Option<Vec<Vec<u8>>>,
+    per_file_dims: Vec<(u32, u32)>,
+    mut per_file_series_uids: Vec<Option<String>>,
+    mut first: SeriesFirstSeen,
+    series_path: PathBuf,
+    sort_tiebreaker: fn(&DicomSliceMetadata, &DicomSliceMetadata) -> std::cmp::Ordering,
+    empty_error_context: &str,
+) -> Result<DicomSeriesInfo> {
+    let mut part10_bytes_vec = part10_bytes_vec.unwrap_or_default();
+
     // Canonical-dimension filtering (GAP-R62-02):
     // In DICOMDIR datasets with mixed series (scout + CT), use the plurality
     // (most-frequent) dimensions as canonical; exclude non-matching files.
@@ -96,19 +270,43 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     excluded,
                     canonical_rows = cr,
                     canonical_cols = cc,
-                    "DICOM series: excluding {} file(s) with non-canonical image dimensions \
-                     (canonical {}x{}); likely a mixed-series DICOMDIR dataset",
+                    "DICOM series: excluding {} instance(s) with non-canonical image dimensions \
+                     (canonical {}x{}); likely a mixed-series dataset",
                     excluded,
                     cr,
                     cc
                 );
-                let (new_slices, new_uids): (Vec<_>, Vec<_>) = slices
-                    .into_iter()
-                    .zip(per_file_series_uids)
-                    .zip(per_file_dims.iter().copied())
-                    .filter(|((_, _), (r, c))| (*r == cr && *c == cc) || *r == 0)
-                    .map(|((s, u), _)| (s, u))
-                    .unzip();
+                let mut new_slices = Vec::new();
+                let mut new_uids = Vec::new();
+                if part10_bytes_vec.is_empty() {
+                    // Directory scan: no bytes to carry.
+                    for ((s, u), (r, c)) in slices
+                        .into_iter()
+                        .zip(per_file_series_uids)
+                        .zip(per_file_dims.iter().copied())
+                    {
+                        if (r == cr && c == cc) || r == 0 {
+                            new_slices.push(s);
+                            new_uids.push(u);
+                        }
+                    }
+                } else {
+                    // In-memory scan: carry bytes alongside slices.
+                    let mut new_bytes = Vec::new();
+                    for (((s, u), (r, c)), b) in slices
+                        .into_iter()
+                        .zip(per_file_series_uids)
+                        .zip(per_file_dims.iter().copied())
+                        .zip(part10_bytes_vec)
+                    {
+                        if (r == cr && c == cc) || r == 0 {
+                            new_slices.push(s);
+                            new_uids.push(u);
+                            new_bytes.push(b);
+                        }
+                    }
+                    part10_bytes_vec = new_bytes;
+                }
                 slices = new_slices;
                 per_file_series_uids = new_uids;
                 first.rows = Some(cr);
@@ -154,20 +352,40 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                         excluded,
                         selected_series_uid = uid_str,
                         total_distinct_series = distinct_count,
-                        "DICOM directory contains {} same-dimension series; selecting \
-                         most-populated (SeriesInstanceUID={}); {} file(s) from other \
-                         series excluded",
+                        "DICOM series contains {} same-dimension series; selecting \
+                        most-populated (SeriesInstanceUID={}); {} instance(s) from other \
+                        series excluded",
                         distinct_count,
                         uid_str,
                         excluded
                     );
-                    let retained: Vec<DicomSliceMetadata> = slices
-                        .into_iter()
-                        .zip(per_file_series_uids)
-                        .filter(|(_, u)| u.as_deref() == Some(uid_str) || u.is_none())
-                        .map(|(s, _)| s)
-                        .collect();
-                    slices = retained;
+                    if part10_bytes_vec.is_empty() {
+                        // Directory scan: no bytes to carry.
+                        let retained: Vec<DicomSliceMetadata> = slices
+                            .into_iter()
+                            .zip(per_file_series_uids)
+                            .filter(|(_, u)| u.as_deref() == Some(uid_str) || u.is_none())
+                            .map(|(s, _)| s)
+                            .collect();
+                        slices = retained;
+                    } else {
+                        // In-memory scan: carry bytes and attach to slices.
+                        let retained: Vec<DicomSliceMetadata> = slices
+                            .into_iter()
+                            .zip(per_file_series_uids)
+                            .zip(part10_bytes_vec)
+                            .filter(|((_, u), _)| u.as_deref() == Some(uid_str) || u.is_none())
+                            .map(|((s, _), b)| {
+                                let mut s = s;
+                                s.part10_bytes = Some(b);
+                                s
+                            })
+                            .collect();
+                        slices = retained;
+                        // Bytes have been consumed into slice metadata; clear the
+                        // parallel vec so the post-grouping attachment is a no-op.
+                        part10_bytes_vec = Vec::new();
+                    }
                 }
                 if best_uid.is_some() {
                     first.series_instance_uid = best_uid;
@@ -176,7 +394,20 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         }
     }
 
-    // SOP class policy: remove non-image-bearing files.
+    // Attach part10_bytes to slices that haven't been assigned yet
+    // (handles the single-series case where the grouping block is skipped).
+    if slices.iter().any(|s| s.part10_bytes.is_none())
+        && !part10_bytes_vec.is_empty()
+        && part10_bytes_vec.len() == slices.len()
+    {
+        for (slice, bytes) in slices.iter_mut().zip(part10_bytes_vec) {
+            if slice.part10_bytes.is_none() {
+                slice.part10_bytes = Some(bytes);
+            }
+        }
+    }
+
+    // SOP class policy: remove non-image-bearing instances.
     // Files without a readable SOP class UID are retained (ambiguous → permissive).
     let original_count = slices.len();
     let mut rejected_uids: Vec<String> = Vec::new();
@@ -201,9 +432,9 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     });
     if slices.is_empty() && original_count > 0 {
         bail!(
-            "DICOM directory {:?} contains {} file(s) but none are image-bearing SOP classes;\n\
+            "{} contain(s) {} instance(s) but none are image-bearing SOP classes;\n\
              rejected SOP class UIDs: [{}]",
-            path,
+            empty_error_context,
             original_count,
             rejected_uids.join(", ")
         );
@@ -215,7 +446,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         .find_map(|s| s.image_orientation_patient)
         .and_then(slice_normal_from_iop);
 
-    // Sort slices by projection of IPP onto slice normal, then instance number, then filename.
+    // Sort slices by projection of IPP onto slice normal, then instance number,
+    // then the caller-provided tiebreaker.
     slices.sort_by(|a, b| {
         let pos_a = match (a.image_position_patient, maybe_normal) {
             (Some(ipp), Some(n)) => dot_3d(ipp, n),
@@ -235,13 +467,11 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
                     .unwrap_or(i32::MAX)
                     .cmp(&b.instance_number.unwrap_or(i32::MAX))
             })
-            .then_with(|| a.path.file_name().cmp(&b.path.file_name()))
+            .then_with(|| sort_tiebreaker(a, b))
     });
 
     // GantryDetectorTilt synthesis (GAP-R62-01):
     // When IOP is absent or effectively axial and |tilt| > 0.01°, synthesize oblique IOP.
-    const AXIAL_IOP_THRESHOLD: f64 = 1e-4;
-    const GANTRY_TILT_MIN_DEGREES: f64 = 0.01;
     {
         let ref_iop = slices.first().and_then(|s| s.image_orientation_patient);
         let is_effectively_axial = ref_iop.is_none_or(|iop| {
@@ -282,8 +512,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
 
     let rows = first.rows.unwrap_or(0) as usize;
     let cols = first.cols.unwrap_or(0) as usize;
+
     // Cross-slice IOP consistency guard (DICOM PS3.3 C.7.6.1.1.1).
-    const IOP_CONSISTENCY_THRESHOLD: f64 = 1e-4;
     if let Some(ref_iop) = slices.first().and_then(|s| s.image_orientation_patient) {
         for (i, s) in slices.iter().enumerate().skip(1) {
             if let Some(iop) = s.image_orientation_patient {
@@ -305,7 +535,6 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     }
 
     // Cross-slice PixelSpacing consistency guard.
-    const PIXEL_SPACING_CONSISTENCY_THRESHOLD: f64 = 1e-4;
     if let Some(ref_ps) = slices.first().and_then(|s| s.pixel_spacing) {
         for (i, s) in slices.iter().enumerate().skip(1) {
             if let Some(ps) = s.pixel_spacing {
@@ -343,7 +572,6 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
             first.slice_thickness.unwrap_or(1.0)
         }
     };
-
     let in_plane_spacing = first.pixel_spacing.unwrap_or([1.0, 1.0]);
     let spacing: [f64; 3] = [
         spacing_z.abs().max(1e-6),
@@ -362,13 +590,12 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
     } else {
         [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
     };
-
     let origin = slices
         .first()
         .and_then(|s| s.image_position_patient)
         .unwrap_or([0.0, 0.0, 0.0]);
 
-    let series_object = build_series_object(path, &slices);
+    let series_object = build_series_object(&series_path, &slices);
     let metadata = super::types::assemble_metadata(
         first,
         slices,
@@ -381,9 +608,8 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
         },
         series_object,
     );
-
     Ok(DicomSeriesInfo {
-        path: path.to_path_buf(),
+        path: series_path,
         num_slices: metadata.slices.len(),
         metadata,
     })

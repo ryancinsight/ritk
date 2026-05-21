@@ -6743,6 +6743,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "image 0.24.9",
  "nalgebra",
  "ndarray 0.16.1",
  "rayon",

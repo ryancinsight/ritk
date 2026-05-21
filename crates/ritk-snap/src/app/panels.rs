@@ -285,6 +285,7 @@ impl SnapApp {
                         scp_actual_port,
                         self.pacs_received_count,
                         pacs_pending_count,
+                        self.pacs_auto_loaded_this_frame,
                         &mut self.pacs_selected_row,
                     );
                     self.handle_pacs_action(action);

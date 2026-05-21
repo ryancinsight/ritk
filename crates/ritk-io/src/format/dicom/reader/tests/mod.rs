@@ -6,6 +6,7 @@ mod pixel;
 mod preservation_roundtrip;
 mod sample;
 mod scan_geometry;
+mod scan_instances;
 mod scan_metadata;
 mod scan_policy;
 mod support;

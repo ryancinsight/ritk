@@ -1,29 +1,91 @@
-## Sprint 287 - Complete
+## Sprint 288 - Complete
+
 **Status**: Complete
-**Phase**: Execution - VtkFilter boxed parameter access via `as_any_mut` and `filter_mut`
-**Version**: 0.50.57 [minor]
-**Goal**: Enable runtime mutation of stateful `VtkFilter` parameters through boxed pipeline handles without sacrificing trait-object composition.
+
+**Phase**: Execution - Zero-disk DICOM loading completion + RGB color + auto-load UX + architectural reinforcement
+
+**Version**: 0.50.59 [minor]
+
+**Goal**: Complete the zero-disk DICOM loading pipeline (RGB color, dropped bytes), refactor scan logic to eliminate code duplication, add auto-load instance limit and status notification, clean up dead temp-file code paths.
 
 ### Gaps closed
+
 | Gap ID | Description | Status |
 |---|---|---|
-| VTK-FILTER-PARAM-01 | Boxed `VtkFilter` parameter mutation via `as_any_mut` and pipeline `filter_mut` accessor | **Closed** |
+| SCP-LOAD-03 | RGB zero-disk color support (read_rgb_slice_samples_from_bytes + load_dicom_color_from_series) | **Closed** |
+| SCP-LOAD-04 | Zero-disk dropped DICOM bytes (scan_dicom_part10_bytes replacing temp-file path) | **Closed** |
+| SCAN-DUP-01 | Scan code duplication eliminated via finalize_scanned_series extraction | **Closed** |
+| SCP-AUTO-01 | Auto-load instance limit with PACS panel UX notification | **Closed** |
 
 ### Delivered
-- `crates/ritk-vtk/src/domain/vtk_pipeline/mod.rs` — `VtkFilter::as_any_mut`; `VtkPipeline::filter_mut`
-- `crates/ritk-vtk/src/domain/filters/smooth.rs` — boxed downcast support for `SmoothFilter`
-- `crates/ritk-vtk/src/domain/filters/threshold.rs` — boxed downcast support for `ThresholdFilter`
-- `crates/ritk-vtk/src/domain/vtk_pipeline/tests.rs` — boxed `SmoothFilter` mutation regression test
+
+- crates/ritk-io/src/format/dicom/reader/scan.rs - finalize_scanned_series; scan_dicom_part10_bytes; const thresholds at module level
+- crates/ritk-io/src/format/dicom/reader/parse.rs - parse_dicom_file_bytes
+- crates/ritk-io/src/format/dicom/color/mod.rs - read_rgb_slice_samples_from_bytes; validate_and_decode_rgb_slice; load_dicom_color_from_series
+- crates/ritk-snap/src/dicom/loader/dicom_load.rs - loaded_volume_from_scalar_image; load_dicom_scalar_volume_from_scanned_series; load_dicom_color_volume_from_scanned_series; RGB zero-disk routing
+- crates/ritk-snap/src/dicom/loader/bytes.rs - removed create_unique_temp_subdir, sanitize_temp_filename; module doc rename
+- crates/ritk-snap/src/app/pacs_ops.rs - auto_load_limit on PacsConfig; pacs_auto_loaded_this_frame state; poll_pacs_scp limit check
+- crates/ritk-snap/ui/pacs_panel/mod.rs - Auto-load checkbox with Limit drag-value; Load Received button when suppressed; [auto-loaded N instances] notification; show_pacs_panel signature update
+- Re-exported load_dicom_color_from_series, scan_dicom_part10_bytes from ritk-io
 
 ### Verification
-- `cargo check -p ritk-vtk`: 0 errors, 0 warnings
-- `cargo test -p ritk-vtk --lib`: 241 passed, 0 failed
+
+- cargo check --workspace: 0 errors, 0 warnings
+- cargo test -p ritk-io --lib: 308 passed (skipping 2 slow skull CT tests)
+- cargo test -p ritk-dicom --lib: 16 passed
+- cargo test -p ritk-vtk --lib: 241 passed
+- cargo test -p ritk-snap --lib pacs: 33 passed
 
 ### Gaps remaining
+
 | Task | Priority |
 |---|---|
 | Series-level query: FindResultRowSeries + drill-down | Medium |
 | CLAHE tile_vals elimination micro-optimization | Medium |
+
+## Sprint 287 - Complete
+**Status**: Complete
+**Phase**: Execution - VtkFilter boxed parameter access + Zero-disk SCP auto-load
+**Version**: 0.50.58 [minor]
+**Goal**: (1) Enable runtime mutation of stateful VtkFilter parameters through boxed pipeline handles without sacrificing trait-object composition. (2) Replace temp-file materialization with zero-disk in-memory DICOM parsing for SCP-received instances; add auto-load-on-receive behavior.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| VTK-FILTER-PARAM-01 | Boxed VtkFilter parameter mutation via as_any_mut and pipeline filter_mut accessor | **Closed** |
+| SCP-LOAD-01 | Received C-STORE instances buffered and loadable into viewer | **Closed** |
+| SCP-LOAD-02 | Zero-disk in-memory DICOM parsing for SCP-received instances + auto-load-on-receive | **Closed** |
+
+### Delivered
+
+- crates/ritk-vtk/src/domain/vtk_pipeline/mod.rs - VtkFilter::as_any_mut; VtkPipeline::filter_mut
+- crates/ritk-vtk/src/domain/filters/smooth.rs - boxed downcast support for SmoothFilter
+- crates/ritk-vtk/src/domain/filters/threshold.rs - boxed downcast support for ThresholdFilter
+- crates/ritk-vtk/src/domain/vtk_pipeline/tests.rs - boxed SmoothFilter mutation regression test
+- crates/ritk-io/src/reader/parse.rs - parse_dicom_bytes() with extract_dicom_metadata shared helper
+- crates/ritk-io/src/reader/pixel.rs - read_slice_pixels_from_bytes() with decode_pixels_from_object shared helper
+- crates/ritk-io/src/reader/scan.rs - scan_dicom_instances() producing DicomSeriesInfo with part10_bytes
+- crates/ritk-io/src/reader/loader.rs - load_dicom_from_series() public entry point
+- crates/ritk-snap/src/dicom/dicome_load.rs - load_volume_from_scanned_series(); loaded_volume_from_scalar_image() dedup
+- crates/ritk-snap/src/app/pacs_ops.rs - auto_load_received field on PacsConfig; auto-trigger in poll_pacs_scp
+- crates/ritk-snap/ui/pacs_panel/mod.rs - Auto-load checkbox; conditional Load Received button
+- Re-exported scan_dicom_instances, load_dicom_from_series, ScannedDicomSeries from ritk-io
+
+### Verification
+
+- cargo check --workspace: 0 errors, 0 warnings
+- cargo test -p ritk-vtk --lib: 241 passed, 0 failed
+- cargo test -p ritk-io --lib: passed
+- cargo test -p ritk-snap --lib pacs: passed
+
+### Gaps remaining
+
+| Task | Priority |
+|---|---|
+| Series-level query: FindResultRowSeries + drill-down | Medium |
+| CLAHE tile_vals elimination micro-optimization | Medium |
+| RGB color series from SCP instances produces error | Medium |
 
 ## Sprint 286 - Complete
 **Status**: Complete
@@ -62,7 +124,6 @@
 |---|---|
 | Series-level query: FindResultRowSeries + drill-down | Medium |
 | CLAHE tile_vals elimination micro-optimization | Medium |
-| Filter parameter access trait for boxed VtkFilter | Medium |
 
 ## Sprint 285 — Complete
 

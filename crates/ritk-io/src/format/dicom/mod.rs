@@ -20,6 +20,7 @@ mod codec;
 mod color;
 mod color_common;
 mod multiframe;
+pub mod networking;
 mod object_model;
 mod reader;
 mod rt_dose;
@@ -28,7 +29,6 @@ mod rt_struct;
 mod seg;
 mod sop_class;
 mod transfer_syntax;
-pub mod networking;
 mod writer;
 mod writer_object;
 
@@ -36,19 +36,33 @@ pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, TagAction,
 };
-pub use color::{is_rgb_dicom_series, load_dicom_color_series, read_dicom_color_series};
+pub use color::{
+    is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,
+    read_dicom_color_series,
+};
 pub use multiframe::{
     load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
     MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+};
+pub use networking::dimse::{CommandField, DimseMessage, DimseStatus};
+pub use networking::pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};
+pub use networking::{
+    echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve, store as dicom_store,
+    AeTitle, Association, AssociationConfig, DicomAddress, EchoResponse, FindLevel, FindQuery,
+    FindResult, MoveDestination, MoveResponse, MoveResult, NetworkingError, ScpConfig,
+    StoreResponse, StoreScp, StoreScpHandle, StoredInstance,
 };
 pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomSequenceItem, DicomTag, DicomValue,
 };
 pub use reader::{
-    load_dicom_series_with_metadata, read_dicom_series_with_metadata, DicomReadMetadata,
-    DicomSliceMetadata, PatientPosition,
+    load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
+    scan_dicom_instances,
+    scan_dicom_part10_bytes,
+    DicomReadMetadata, DicomSliceMetadata, PatientPosition,
+    ScannedDicomSeries,
 };
 pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 pub use rt_plan::{
@@ -62,13 +76,6 @@ pub use seg::{
 pub use transfer_syntax::TransferSyntaxKind;
 pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
-pub use networking::
-    {echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve,
-     store as dicom_store, AeTitle, Association, AssociationConfig, DicomAddress, EchoResponse,
-     FindLevel, FindQuery, FindResult, MoveDestination, MoveResult, MoveResponse, NetworkingError,
-     StoreResponse, ScpConfig, StoreScp, StoreScpHandle, StoredInstance};
-pub use networking::dimse::{DimseMessage, DimseStatus, CommandField};
-pub use networking::pdu::{Pdu, AssociateRqPdu, AssociateAcPdu};
 
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]

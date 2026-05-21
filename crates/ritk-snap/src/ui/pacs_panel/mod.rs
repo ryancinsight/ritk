@@ -43,7 +43,12 @@ pub enum PacsPanelAction {
     /// User pressed "Test Connection (C-ECHO)".
     SubmitEcho,
     /// User pressed "Search (C-FIND)".
-    SubmitFind { patient_name: String, modality: String, study_date: String, accession_number: String },
+    SubmitFind {
+        patient_name: String,
+        modality: String,
+        study_date: String,
+        accession_number: String,
+    },
     /// User pressed "Retrieve (C-MOVE)" for a specific study.
     SubmitRetrieve { study_uid: String },
     /// User pressed "Clear" to reset the results table.
@@ -87,6 +92,7 @@ pub fn show_pacs_panel(
     scp_actual_port: u16,
     pacs_received_count: u32,
     pacs_pending_count: usize,
+    pacs_auto_loaded_this_frame: Option<usize>,
     selected_row: &mut Option<usize>,
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
@@ -159,19 +165,47 @@ pub fn show_pacs_panel(
             if ui.button("Stop SCP").clicked() {
                 action = PacsPanelAction::StopScp;
             }
-            let actual = if scp_actual_port != 0 { scp_actual_port } else { config.scp_port };
+            let actual = if scp_actual_port != 0 {
+                scp_actual_port
+            } else {
+                config.scp_port
+            };
             ui.colored_label(
                 egui::Color32::GREEN,
                 format!("\u{25cf} SCP :{actual} (AE: {})", config.scp_ae_title),
             );
             if pacs_received_count > 0 {
-                    ui.label(format!("[{pacs_received_count} received]"));
+                ui.label(format!("[{pacs_received_count} received]"));
+            }
+            ui.checkbox(&mut config.auto_load_received, "Auto-load");
+            if config.auto_load_received {
+                ui.label("Limit:");
+                let mut limit = config.auto_load_limit as i64;
+                if ui
+                    .add(
+                        egui::DragValue::new(&mut limit)
+                            .speed(8.0)
+                            .range(1..=100_000),
+                    )
+                    .changed()
+                {
+                    config.auto_load_limit = limit as u32;
                 }
-                if pacs_pending_count > 0 {
-                    if ui.button("\u{25b6} Load Received").clicked() {
-                        action = PacsPanelAction::LoadReceived;
-                    }
+            }
+            let show_load_btn = !config.auto_load_received
+                || (config.auto_load_received
+                    && pacs_pending_count > config.auto_load_limit as usize);
+            if show_load_btn && pacs_pending_count > 0 {
+                if ui.button("\u{25b6} Load Received").clicked() {
+                    action = PacsPanelAction::LoadReceived;
                 }
+            }
+            if let Some(n) = pacs_auto_loaded_this_frame {
+                ui.colored_label(
+                    egui::Color32::from_rgb(100, 200, 100),
+                    format!("[auto-loaded {n} instances]"),
+                );
+            }
         } else {
             if ui.button("Start SCP").clicked() {
                 action = PacsPanelAction::StartScp;
@@ -308,7 +342,8 @@ fn show_results_section(
                                 } else {
                                     format!("PatientID: {}", row.patient_id)
                                 };
-                                if ui.selectable_label(is_sel, name)
+                                if ui
+                                    .selectable_label(is_sel, name)
                                     .on_hover_text(hover)
                                     .clicked()
                                 {
@@ -336,8 +371,7 @@ fn show_results_section(
                                 } else {
                                     row.study_instance_uid.clone()
                                 };
-                                ui.label(uid_tail)
-                                    .on_hover_text(&row.study_instance_uid);
+                                ui.label(uid_tail).on_hover_text(&row.study_instance_uid);
                                 ui.end_row();
                             }
                         });
@@ -350,11 +384,12 @@ fn show_results_section(
                     let study_uid = rows[idx].study_instance_uid.clone();
                     ui.horizontal(|ui| {
                         if ui.button("\u{25b6} Retrieve (C-MOVE)").clicked() {
-                            *action = PacsPanelAction::SubmitRetrieve {
-                                study_uid,
-                            };
+                            *action = PacsPanelAction::SubmitRetrieve { study_uid };
                         }
-                        ui.weak(format!("\u{2192} destination AE: {}", config.move_destination));
+                        ui.weak(format!(
+                            "\u{2192} destination AE: {}",
+                            config.move_destination
+                        ));
                     });
                 }
             }

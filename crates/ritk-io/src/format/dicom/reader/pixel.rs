@@ -4,10 +4,10 @@ use std::fmt;
 
 use anyhow::{bail, Context, Result};
 use dicom::core::Tag;
-
+use dicom::object::DefaultDicomObject;
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    TransferSyntaxKind,
+    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
+    PixelLayout, TransferSyntaxKind,
 };
 
 use super::types::DicomSliceMetadata;
@@ -66,7 +66,24 @@ pub(super) fn ensure_scalar_samples_per_pixel(
 pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
     let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
+    decode_pixels_from_object(&obj, slice)
+}
 
+/// Decode pixels from in-memory Part-10 bytes (zero-disk path for SCP-received instances).
+pub(super) fn read_slice_pixels_from_bytes(
+    part10_bytes: &[u8],
+    slice: &DicomSliceMetadata,
+) -> Result<Vec<f32>> {
+    let obj = parse_bytes_with::<DicomRsBackend>(part10_bytes)
+        .with_context(|| format!("failed to parse DICOM bytes for {:?}", slice.path))?;
+    decode_pixels_from_object(&obj, slice)
+}
+
+/// Shared pixel-decode logic operating on an already-parsed DICOM object.
+fn decode_pixels_from_object(
+    obj: &DefaultDicomObject,
+    slice: &DicomSliceMetadata,
+) -> Result<Vec<f32>> {
     let ts = slice
         .transfer_syntax_uid
         .as_deref()
@@ -81,6 +98,7 @@ pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> 
         .trim()
         .parse::<usize>()
         .with_context(|| format!("Rows (0028,0010) invalid in {:?}", slice.path))?;
+
     let cols = obj
         .element(Tag(0x0028, 0x0011))
         .with_context(|| format!("Columns (0028,0011) absent in {:?}", slice.path))?
@@ -89,16 +107,18 @@ pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> 
         .trim()
         .parse::<usize>()
         .with_context(|| format!("Columns (0028,0011) invalid in {:?}", slice.path))?;
+
     let samples_per_pixel = obj
         .element(Tag(0x0028, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok())
         .and_then(|s| s.trim().parse::<usize>().ok())
         .unwrap_or(1);
+
     ensure_scalar_samples_per_pixel(samples_per_pixel, slice.path.display())?;
 
     let data = decode_frame_with::<DicomRsBackend>(
-        &obj,
+        obj,
         DecodeFrameRequest {
             frame_index: 0,
             transfer_syntax: ts,
@@ -122,5 +142,6 @@ pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> 
             slice.path
         );
     }
+
     Ok(data)
 }

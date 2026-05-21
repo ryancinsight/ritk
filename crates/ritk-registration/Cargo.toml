@@ -21,6 +21,7 @@ ritk-io = { path = "../ritk-io" }
 anyhow = "1.0"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 walkdir = "2.4"
+image = { workspace = true }
 
 [[example]]
 name = "rigid_registration"
@@ -33,3 +34,7 @@ path = "examples/dl_registration.rs"
 [[example]]
 name = "brain_ct_mri_registration"
 path = "examples/brain_ct_mri_registration.rs"
+
+[[example]]
+name = "rire_mri_ct_registration"
+path = "examples/rire_mri_ct_registration.rs"

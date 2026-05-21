@@ -10,13 +10,13 @@ use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
+use dicom::object::DefaultDicomObject;
 use nalgebra::SMatrix;
-
 use ritk_core::image::RgbVolume;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    TransferSyntaxKind,
+    decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
+    PixelLayout, TransferSyntaxKind,
 };
 
 use super::color_common::{
@@ -28,7 +28,7 @@ use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
 ///
 /// Iterates through the files in `path`, attempting to parse each as DICOM
 /// until one succeeds (skipping non-DICOM files like `DICOMDIR`, thumbnails,
-/// or hidden files).  Inspects `PhotometricInterpretation` (0028,0004) and
+/// or hidden files). Inspects `PhotometricInterpretation` (0028,0004) and
 /// `SamplesPerPixel` (0028,0002) on the first successfully parsed file.
 ///
 /// Returns `true` when both `PhotometricInterpretation` is `"RGB"` (case-
@@ -60,8 +60,8 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
         if samples != RGB_CHANNELS {
             return Ok(false);
         }
-
-        let photometric = required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+        let photometric =
+            required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
         return Ok(photometric.trim().eq_ignore_ascii_case("RGB"));
     }
 
@@ -87,6 +87,21 @@ pub fn load_dicom_color_series<B: Backend, P: AsRef<Path>>(
     device: &B::Device,
 ) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
     read_dicom_color_series(path, device)
+}
+
+/// Load a DICOM RGB color series from a pre-scanned series descriptor.
+///
+/// This is the zero-disk counterpart of [`load_dicom_color_series`]:
+/// callers that have already obtained a scanned series descriptor (e.g. via
+/// [`scan_dicom_instances`](super::reader::scan::scan_dicom_instances)) pass
+/// it directly instead of re-scanning a directory. Pixel decode uses
+/// `part10_bytes` from the slice metadata when present, falling back to
+/// file-path I/O otherwise.
+pub fn load_dicom_color_from_series<B: Backend>(
+    series: super::reader::DicomSeriesInfo,
+    device: &B::Device,
+) -> Result<(RgbVolume<B>, DicomReadMetadata)> {
+    load_color_from_series(series.metadata, device)
 }
 
 fn load_color_from_series<B: Backend>(
@@ -127,8 +142,12 @@ fn load_color_from_series<B: Backend>(
     let mut volume = vec![0.0_f32; total_samples];
 
     for (z, slice) in slices.iter().enumerate() {
-        let frame = read_rgb_slice_samples(slice, rows, cols)
-            .with_context(|| format!("failed to decode DICOM RGB slice {:?}", slice.path))?;
+        let frame = if let Some(ref bytes) = slice.part10_bytes {
+            read_rgb_slice_samples_from_bytes(bytes, slice, rows, cols)
+        } else {
+            read_rgb_slice_samples(slice, rows, cols)
+        }
+        .with_context(|| format!("failed to decode DICOM RGB slice {:?}", slice.path))?;
 
         if frame.len() != frame_samples {
             bail!(
@@ -160,6 +179,7 @@ fn load_color_from_series<B: Backend>(
     Ok((image, metadata))
 }
 
+/// Decode RGB pixel samples from a file-based DICOM slice.
 fn read_rgb_slice_samples(
     slice: &DicomSliceMetadata,
     expected_rows: usize,
@@ -171,24 +191,54 @@ fn read_rgb_slice_samples(
     let transfer_syntax = obj.meta().transfer_syntax();
     let ts = TransferSyntaxKind::from_uid(transfer_syntax);
 
+    validate_and_decode_rgb_slice(&obj, slice, ts, expected_rows, expected_cols)
+}
+
+/// Decode RGB pixel samples from in-memory Part-10 bytes (zero-disk path
+/// for SCP-received instances).
+fn read_rgb_slice_samples_from_bytes(
+    part10_bytes: &[u8],
+    slice: &DicomSliceMetadata,
+    expected_rows: usize,
+    expected_cols: usize,
+) -> Result<Vec<f32>> {
+    let obj = parse_bytes_with::<DicomRsBackend>(part10_bytes)
+        .with_context(|| format!("failed to parse DICOM bytes for {:?}", slice.path))?;
+
+    let transfer_syntax = obj.meta().transfer_syntax();
+    let ts = TransferSyntaxKind::from_uid(transfer_syntax);
+
+    validate_and_decode_rgb_slice(&obj, slice, ts, expected_rows, expected_cols)
+}
+
+/// Shared RGB validation and pixel-decode logic operating on an already-parsed
+/// DICOM object.
+///
+/// Both [`read_rgb_slice_samples`] and [`read_rgb_slice_samples_from_bytes`]
+/// delegate to this function after obtaining a `DefaultDicomObject` from
+/// their respective parse paths.
+fn validate_and_decode_rgb_slice(
+    obj: &DefaultDicomObject,
+    slice: &DicomSliceMetadata,
+    ts: TransferSyntaxKind,
+    expected_rows: usize,
+    expected_cols: usize,
+) -> Result<Vec<f32>> {
     if ts.is_compressed() && !ts.is_codec_supported() {
         bail!(
-            "DICOM RGB series: compressed transfer syntax '{}' in slice {:?} is not supported",
-            transfer_syntax,
+            "DICOM RGB series: compressed transfer syntax in slice {:?} is not supported",
             slice.path
         );
     }
-
     if ts.is_big_endian() {
         bail!(
-            "DICOM RGB series: big-endian transfer syntax '{}' in slice {:?} is not supported",
-            transfer_syntax,
+            "DICOM RGB series: big-endian transfer syntax in slice {:?} is not supported",
             slice.path
         );
     }
 
-    let rows = required_usize(&obj, Tag(0x0028, 0x0010), "Rows")?;
-    let cols = required_usize(&obj, Tag(0x0028, 0x0011), "Columns")?;
+    let rows = required_usize(obj, Tag(0x0028, 0x0010), "Rows")?;
+    let cols = required_usize(obj, Tag(0x0028, 0x0011), "Columns")?;
 
     if rows != expected_rows || cols != expected_cols {
         bail!(
@@ -201,7 +251,7 @@ fn read_rgb_slice_samples(
         );
     }
 
-    let samples_per_pixel = optional_usize(&obj, Tag(0x0028, 0x0002)).unwrap_or(1);
+    let samples_per_pixel = optional_usize(obj, Tag(0x0028, 0x0002)).unwrap_or(1);
     if samples_per_pixel != RGB_CHANNELS {
         bail!(
             "DICOM color volume loader supports only RGB SamplesPerPixel=3; {:?} declares SamplesPerPixel={}",
@@ -210,7 +260,7 @@ fn read_rgb_slice_samples(
         );
     }
 
-    let photometric = required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+    let photometric = required_string(obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
     if !photometric.trim().eq_ignore_ascii_case("RGB") {
         bail!(
             "DICOM color volume loader supports only PhotometricInterpretation=RGB; {:?} declares {}",
@@ -219,7 +269,7 @@ fn read_rgb_slice_samples(
         );
     }
 
-    let planar_configuration = optional_u16(&obj, Tag(0x0028, 0x0006)).unwrap_or(0);
+    let planar_configuration = optional_u16(obj, Tag(0x0028, 0x0006)).unwrap_or(0);
     if planar_configuration != 0 {
         bail!(
             "DICOM RGB color volume loader supports only interleaved PlanarConfiguration=0; {:?} declares {}",
@@ -228,7 +278,7 @@ fn read_rgb_slice_samples(
         );
     }
 
-    let bits_allocated = optional_u16(&obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
+    let bits_allocated = optional_u16(obj, Tag(0x0028, 0x0100)).unwrap_or(slice.bits_allocated);
     if bits_allocated != 8 {
         bail!(
             "DICOM RGB color volume loader supports only BitsAllocated=8; {:?} declares {}",
@@ -238,7 +288,7 @@ fn read_rgb_slice_samples(
     }
 
     let pixel_representation =
-        optional_u16(&obj, Tag(0x0028, 0x0103)).unwrap_or(slice.pixel_representation);
+        optional_u16(obj, Tag(0x0028, 0x0103)).unwrap_or(slice.pixel_representation);
     if pixel_representation != 0 {
         bail!(
             "DICOM RGB color volume loader supports only unsigned samples; {:?} declares PixelRepresentation={}",
@@ -248,7 +298,7 @@ fn read_rgb_slice_samples(
     }
 
     let decoded = decode_frame_with::<DicomRsBackend>(
-        &obj,
+        obj,
         DecodeFrameRequest {
             frame_index: 0,
             transfer_syntax: ts,

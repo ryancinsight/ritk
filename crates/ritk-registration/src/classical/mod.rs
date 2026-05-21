@@ -19,7 +19,11 @@ pub mod temporal;
 // Re-export core types for convenience
 pub use engine::{ImageRegistration, RegistrationResult};
 pub use error::{RegistrationError, Result};
-pub use global_mi::{GlobalMiConfig, GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType};
+pub use global_mi::{
+    compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiRegistration,
+    CmaMiResult, GlobalMiConfig, GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType,
+    MultiStartConfig, MultiStartMiRegistration, MultiStartResult,
+};
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;
 

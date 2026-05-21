@@ -1,15 +1,20 @@
-//! Per-file DICOM metadata parsing for the series scan path.
+//! Per-file and per-bytes DICOM metadata parsing for the series scan path.
 //!
-//! `parse_dicom_file` extracts all per-slice and series-level first-seen
-//! metadata from a single DICOM Part-10 file and accumulates series-level
-//! fields into a `SeriesFirstSeen` record.
+//! `parse_dicom_file` extracts metadata from a DICOM Part-10 file on disk.
+//! `parse_dicom_bytes` extracts the same metadata from in-memory Part-10 bytes
+//! constructed from SCP-received instances.
+//! `parse_dicom_file_bytes` extracts metadata from already-formed Part-10 byte
+//! payloads (e.g. from drag-and-drop DICOM files).
+//! All three delegate to `extract_dicom_metadata` for the shared tag-extraction
+//! logic.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use dicom::core::{Tag, VR};
+use dicom::object::DefaultDicomObject;
 use dicom_core::header::Header;
-use ritk_dicom::{parse_file_with, DicomRsBackend};
+use ritk_dicom::{parse_bytes_with, parse_file_with, DicomRsBackend};
 
 use super::preservation::{known_handled_tags, parse_sequence_item, tag_key};
 use super::types::{parse_patient_position, DicomSliceMetadata, SeriesFirstSeen};
@@ -27,8 +32,65 @@ pub(crate) fn parse_dicom_file(
     file_path: &Path,
     first: &mut SeriesFirstSeen,
 ) -> Option<(DicomSliceMetadata, (u32, u32), Option<String>)> {
+    let obj = parse_file_with::<DicomRsBackend, _>(file_path).ok()?;
+    extract_dicom_metadata(&obj, file_path.to_path_buf(), first)
+}
+
+/// Parse in-memory DICOM Part-10 bytes, populating `first` with series-level
+/// first-seen fields and returning the per-slice metadata, image dimensions,
+/// and SeriesInstanceUID.
+///
+/// `sop_instance_uid` is used to construct a synthetic `scp://` path for
+/// diagnostics and to populate the `sop_instance_uid` field.
+///
+/// Returns `None` when the bytes cannot be parsed by the DICOM backend.
+pub(crate) fn parse_dicom_bytes(
+    bytes: &[u8],
+    sop_instance_uid: &str,
+    first: &mut SeriesFirstSeen,
+) -> Option<(DicomSliceMetadata, (u32, u32), Option<String>)> {
+    let obj = parse_bytes_with::<DicomRsBackend>(bytes).ok()?;
+    let path_for_meta = PathBuf::from(format!("scp://{}", sop_instance_uid));
+    let mut result = extract_dicom_metadata(&obj, path_for_meta, first);
+    if let Some((ref mut slice_meta, _, _)) = result {
+        slice_meta.sop_instance_uid = Some(sop_instance_uid.to_string());
+    }
+    result
+}
+
+/// Parse already-formed DICOM Part-10 byte payload (e.g. from a dropped file),
+/// populating `first` with series-level first-seen fields and returning the
+/// per-slice metadata, image dimensions, and SeriesInstanceUID.
+///
+/// Unlike [`parse_dicom_bytes`], this function does not wrap the bytes in an
+/// SCP Part-10 header — the input must already be a valid DICOM Part 10 file
+/// (128-byte preamble + DICM magic + File Meta Information + dataset).
+///
+/// `synthetic_path` is used for diagnostics; the SOP Instance UID is extracted
+/// from the DICOM metadata itself.
+///
+/// Returns `None` when the bytes cannot be parsed by the DICOM backend.
+pub(crate) fn parse_dicom_file_bytes(
+    bytes: &[u8],
+    synthetic_path: &Path,
+    first: &mut SeriesFirstSeen,
+) -> Option<(DicomSliceMetadata, (u32, u32), Option<String>)> {
+    let obj = parse_bytes_with::<DicomRsBackend>(bytes).ok()?;
+    extract_dicom_metadata(&obj, synthetic_path.to_path_buf(), first)
+}
+
+/// Shared tag-extraction logic for both file-based and in-memory DICOM parsing.
+///
+/// Populates `first` with series-level first-seen fields and returns the
+/// per-slice metadata, per-file image dimensions, and per-file
+/// SeriesInstanceUID.
+fn extract_dicom_metadata(
+    obj: &DefaultDicomObject,
+    path_for_meta: PathBuf,
+    first: &mut SeriesFirstSeen,
+) -> Option<(DicomSliceMetadata, (u32, u32), Option<String>)> {
     let mut slice_meta = DicomSliceMetadata {
-        path: file_path.to_path_buf(),
+        path: path_for_meta,
         preservation: DicomPreservationSet::new(),
         sop_instance_uid: None,
         instance_number: None,
@@ -48,13 +110,14 @@ pub(crate) fn parse_dicom_file(
         window_width: None,
         gantry_tilt: None,
         patient_position: None,
+        part10_bytes: None,
     };
 
-    let obj = parse_file_with::<DicomRsBackend, _>(file_path).ok()?;
-
     // --- Per-slice fields ---
-    if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
-        slice_meta.sop_instance_uid = elem.to_str().ok().map(String::from);
+    if slice_meta.sop_instance_uid.is_none() {
+        if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
+            slice_meta.sop_instance_uid = elem.to_str().ok().map(String::from);
+        }
     }
     let file_series_uid = obj
         .element(Tag(0x0020, 0x000E))
@@ -310,7 +373,7 @@ pub(crate) fn parse_dicom_file(
     // Capture all non-handled elements into the slice preservation model.
     {
         let handled = known_handled_tags();
-        for element in &obj {
+        for element in obj {
             let tag = element.tag();
             let key = tag_key(tag.group(), tag.element());
             if handled.contains(&key) {

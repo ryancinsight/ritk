@@ -27,10 +27,16 @@ pub(super) mod utils;
 #[cfg(test)]
 mod tests;
 
-pub use loader::{load_dicom_series_with_metadata, read_dicom_series_with_metadata};
+pub use loader::{
+    load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
+};
+pub use scan::{scan_dicom_instances, scan_dicom_part10_bytes};
+pub(super) use types::DicomSeriesInfo;
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
-pub use types::{DicomReadMetadata, DicomSliceMetadata, PatientPosition};
+pub use types::{
+    DicomReadMetadata, DicomSeriesInfo as ScannedDicomSeries, DicomSliceMetadata, PatientPosition,
+};
 
 pub(super) use geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,

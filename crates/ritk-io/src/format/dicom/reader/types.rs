@@ -39,6 +39,8 @@ pub struct DicomSliceMetadata {
     /// GantryDetectorTilt (0018,1120) in degrees.
     pub gantry_tilt: Option<f64>,
     pub patient_position: Option<PatientPosition>,
+    /// In-memory Part 10 bytes for zero-disk pixel decode (SCP-received instances).
+    pub part10_bytes: Option<Vec<u8>>,
 }
 
 impl Default for DicomSliceMetadata {
@@ -64,6 +66,7 @@ impl Default for DicomSliceMetadata {
             window_width: None,
             gantry_tilt: None,
             patient_position: None,
+            part10_bytes: None,
         }
     }
 }

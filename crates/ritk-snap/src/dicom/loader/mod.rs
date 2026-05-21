@@ -121,53 +121,44 @@ pub fn load_volume_from_bytes(name_hint: &str, bytes: &[u8]) -> Result<LoadedVol
 
 /// Load a DICOM series from a pathless dropped in-memory byte batch.
 ///
-/// The batch is materialized into a unique temporary directory and then loaded
-/// through the canonical DICOM series loader.
+/// Zero-disk implementation: the batch is scanned in-memory via
+/// [`ritk_io::scan_dicom_part10_bytes`] and loaded via
+/// [`ritk_io::load_dicom_from_series`], which decodes pixel data from
+/// `part10_bytes` stored in each slice's metadata — no temporary files
+/// are written to disk.
 pub fn load_dicom_series_from_named_bytes(files: &[(String, &[u8])]) -> Result<LoadedVolume> {
     if files.is_empty() {
         anyhow::bail!("empty DICOM byte batch")
     }
-
-    let temp_root = bytes::create_unique_temp_subdir("ritk_snap_dropped_dicom")?;
-
-    for (idx, (name, bytes)) in files.iter().enumerate() {
-        if !bytes::is_likely_dicom_bytes(name, bytes) {
-            continue;
-        }
-        let file_name = bytes::sanitize_temp_filename(name, idx);
-        let file_path = temp_root.join(file_name);
-        std::fs::write(&file_path, bytes).with_context(|| {
-            format!(
-                "failed writing dropped DICOM temp file '{}'",
-                file_path.display()
-            )
-        })?;
+    // Filter to DICOM-like payloads and build the scan input.
+    let dicom_files: Vec<(&str, &[u8])> = files
+        .iter()
+        .filter(|(name, bytes)| bytes::is_likely_dicom_bytes(name, bytes))
+        .map(|(name, bytes)| (name.as_str(), *bytes))
+        .collect();
+    if dicom_files.is_empty() {
+        anyhow::bail!("no DICOM Part 10 payloads found in the dropped byte batch")
     }
-
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        load_dicom_volume(&temp_root).with_context(|| {
-            format!(
-                "failed to load dropped DICOM byte batch from '{}'",
-                temp_root.display()
-            )
-        })
-    }))
-    .unwrap_or_else(|_| {
-        anyhow::bail!(
-            "dropped DICOM byte batch does not form a loadable series (insufficient slice geometry or invalid frame set)"
-        )
-    });
-
-    let _ = std::fs::remove_dir_all(&temp_root);
-    result
+    let series = ritk_io::scan_dicom_part10_bytes(&dicom_files)
+        .with_context(|| "failed to scan dropped DICOM byte batch")?;
+    dicom_load::load_volume_from_scanned_series(series)
 }
 
 /// Load a DICOM series from SCP-received [`StoredInstance`] values.
 ///
-/// Each instance is converted to DICOM Part 10 bytes via
-/// [`StoredInstance::make_part10_bytes`], materialized into a unique
-/// temporary directory, and loaded through the canonical DICOM series loader.
-/// The temporary directory is removed after loading completes.
+/// Zero-disk implementation: instances are scanned in-memory via
+/// [`ritk_io::scan_dicom_instances`] and loaded via
+/// [`ritk_io::load_dicom_from_series`], which decodes pixel data from
+/// `part10_bytes` stored in each slice's metadata — no temporary files
+/// are written to disk.
+///
+/// # Errors
+///
+/// Returns an error when:
+/// - `instances` is empty.
+/// - `scan_dicom_instances` fails to parse any instance.
+/// - `load_dicom_from_series` fails to decode pixel data or reconstruct
+///   the volume geometry.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_dicom_series_from_stored_instances(
     instances: &[ritk_io::StoredInstance],
@@ -175,38 +166,7 @@ pub fn load_dicom_series_from_stored_instances(
     if instances.is_empty() {
         anyhow::bail!("no SCP-received DICOM instances to load");
     }
-
-    let temp_root = bytes::create_unique_temp_subdir("ritk_snap_scp_dicom")?;
-
-    for (idx, inst) in instances.iter().enumerate() {
-        let file_name = bytes::sanitize_temp_filename(
-            &format!("{}.dcm", inst.sop_instance_uid),
-            idx,
-        );
-        let file_path = temp_root.join(file_name);
-        let part10 = inst.make_part10_bytes();
-        std::fs::write(&file_path, &part10).with_context(|| {
-            format!(
-                "failed writing SCP DICOM temp file '{}'",
-                file_path.display()
-            )
-        })?;
-    }
-
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        load_dicom_volume(&temp_root).with_context(|| {
-            format!(
-                "failed to load SCP DICOM instances from '{}'",
-                temp_root.display()
-            )
-        })
-    }))
-    .unwrap_or_else(|_| {
-        anyhow::bail!(
-            "SCP DICOM instances do not form a loadable series (insufficient slice geometry or invalid frame set)"
-        )
-    });
-
-    let _ = std::fs::remove_dir_all(&temp_root);
-    result
+    let series = ritk_io::scan_dicom_instances(instances)
+        .with_context(|| "failed to scan SCP-received DICOM instances")?;
+    dicom_load::load_volume_from_scanned_series(series)
 }

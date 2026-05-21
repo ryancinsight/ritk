@@ -34,6 +34,16 @@ pub struct PacsConfig {
     pub scp_port: u16,
     /// TCP connection + read timeout in seconds.
     pub timeout_secs: u64,
+    /// Whether received DICOM objects are automatically loaded into the viewer.
+    pub auto_load_received: bool,
+
+    /// Maximum number of pending instances that will be auto-loaded.
+    ///
+    /// When `auto_load_received` is enabled and the pending instance count
+    /// exceeds this limit, auto-load is suppressed and the user must
+    /// manually click "Load Received". Default: 512 (covers a typical
+    /// CT series of ~300-500 slices).
+    pub auto_load_limit: u32,
 }
 
 impl Default for PacsConfig {
@@ -47,6 +57,8 @@ impl Default for PacsConfig {
             scp_ae_title: "RITKSNAP".to_owned(),
             scp_port: 11112,
             timeout_secs: 30,
+            auto_load_received: true,
+            auto_load_limit: 512,
         }
     }
 }

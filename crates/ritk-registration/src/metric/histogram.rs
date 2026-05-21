@@ -70,7 +70,15 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let device = moving_values.device();
         let [n] = moving_values.dims();
         let num_bins = self.num_bins;
-        let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+        // `normalize()` maps intensity → bin-index units [0, num_bins-1].
+        // One bin-index unit corresponds to `bin_width_intensity` in intensity space.
+        // We must express `parzen_sigma` in the same bin-index units before squaring,
+        // otherwise the Parzen kernel is mis-scaled (too wide for large intensity
+        // ranges such as CT HU, too narrow for [0,1] inputs).
+        let bin_width_intensity =
+            (self.max_intensity - self.min_intensity) / (num_bins as f32 - 1.0).max(1.0);
+        let sigma_in_bins = self.parzen_sigma / bin_width_intensity.max(f32::EPSILON);
+        let sigma_sq = sigma_in_bins * sigma_in_bins;
 
         // Normalize moving values to [0, num_bins-1]
         let moving_norm = {
@@ -115,7 +123,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
         // Create bin centers [Bins]
         let bins = Tensor::<B, 1, Int>::arange(0..self.num_bins as i64, &device).float();
         let bins_exp = bins.clone().reshape([1, self.num_bins]); // [1, Bins]
-        let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+                                                                 // Convert sigma from raw intensity units → bin-index units so that the
+                                                                 // Parzen kernel width is consistent regardless of the image intensity range.
+        let bin_width_intensity =
+            (self.max_intensity - self.min_intensity) / (self.num_bins as f32 - 1.0).max(1.0);
+        let sigma_in_bins = self.parzen_sigma / bin_width_intensity.max(f32::EPSILON);
+        let sigma_sq = sigma_in_bins * sigma_in_bins;
 
         // Vectorized Weight Computation
         // weights: [N, Bins]
@@ -281,7 +294,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
             // For the non-sampling path, precompute W_fixed^T and store alongside points.
             if !use_sampling {
-                let sigma_sq = self.parzen_sigma * self.parzen_sigma;
+                // Same sigma normalisation as in compute_joint_histogram / from_cache:
+                // convert parzen_sigma from intensity units to bin-index units.
+                let bin_width_intensity = (self.max_intensity - self.min_intensity)
+                    / (self.num_bins as f32 - 1.0).max(1.0);
+                let sigma_in_bins = self.parzen_sigma / bin_width_intensity.max(f32::EPSILON);
+                let sigma_sq = sigma_in_bins * sigma_in_bins;
                 let fixed_norm = {
                     let t = fixed_values.clone() - self.min_intensity;
                     let t = t / (self.max_intensity - self.min_intensity);

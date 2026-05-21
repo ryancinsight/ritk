@@ -239,11 +239,108 @@ fn read_dicom_color_series_rejects_planar_rgb_samples() {
         Some(1),
     );
     let device = <B as Backend>::Device::default();
-
     let err = read_dicom_color_series::<B, _>(dir.path(), &device).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
         "expected planar RGB rejection, got {msg}"
     );
+}
+
+/// Test that [`load_dicom_color_from_series`] is callable and compiles.
+///
+/// This constructs a minimal `DicomSeriesInfo` (the type aliased as
+/// `ScannedDicomSeries`) with `part10_bytes` populated from a synthetic
+/// RGB DICOM file, then calls the zero-disk color loader.
+#[test]
+fn load_dicom_color_from_series_is_callable() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_rgb_slice(
+        &dir.path().join("slice1.dcm"),
+        "2.25.4101",
+        1,
+        0.0,
+        &[10, 20, 30, 40, 50, 60],
+        Some(0),
+    );
+
+    let path = dir.path().join("slice1.dcm");
+    let bytes = std::fs::read(&path).expect("must read back written DICOM file");
+
+    // Build a minimal DicomSliceMetadata with part10_bytes populated.
+    let slice = DicomSliceMetadata {
+        path: path.clone(),
+        preservation: Default::default(),
+        sop_instance_uid: Some("2.25.4101".to_string()),
+        instance_number: Some(1),
+        slice_location: None,
+        image_position_patient: Some([0.0, 0.0, 0.0]),
+        image_orientation_patient: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
+        pixel_spacing: Some([0.5, 0.25]),
+        slice_thickness: None,
+        rescale_slope: 1.0,
+        rescale_intercept: 0.0,
+        sop_class_uid: None,
+        transfer_syntax_uid: Some("1.2.840.10008.1.2.1".to_string()),
+        private_tags: Default::default(),
+        pixel_representation: 0,
+        bits_allocated: 8,
+        window_center: None,
+        window_width: None,
+        gantry_tilt: None,
+        patient_position: None,
+        part10_bytes: Some(bytes),
+    };
+
+    let metadata = DicomReadMetadata {
+        series_instance_uid: Some("2.25.4001".to_string()),
+        study_instance_uid: None,
+        frame_of_reference_uid: None,
+        series_description: None,
+        modality: Some("OT".to_string()),
+        patient_id: None,
+        patient_name: None,
+        study_date: None,
+        series_date: None,
+        series_time: None,
+        dimensions: [1, 2, 1],
+        spacing: [2.0, 0.5, 0.25],
+        origin: [0.0, 0.0, 0.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        bits_allocated: Some(8),
+        bits_stored: Some(8),
+        high_bit: Some(7),
+        photometric_interpretation: Some("RGB".to_string()),
+        slices: vec![slice],
+        private_tags: Default::default(),
+        preservation: Default::default(),
+        patient_weight_kg: None,
+        decay_correction: None,
+        radionuclide_total_dose_bq: None,
+        radiopharmaceutical_start_time: None,
+        radionuclide_half_life_s: None,
+    };
+
+    let series = reader::DicomSeriesInfo {
+        path: dir.path().to_path_buf(),
+        num_slices: 1,
+        metadata,
+    };
+
+    let device = <B as Backend>::Device::default();
+    let result = load_dicom_color_from_series::<B>(series, &device);
+    assert!(
+        result.is_ok(),
+        "load_dicom_color_from_series must succeed: {:?}",
+        result.err()
+    );
+
+    let (volume, meta) = result.unwrap();
+    assert_eq!(volume.shape(), [1, 1, 2, 3]);
+    assert_eq!(meta.dimensions, [1, 2, 1]);
+    assert_eq!(meta.photometric_interpretation.as_deref(), Some("RGB"));
+
+    volume.with_data_slice(|samples| {
+        assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
+    });
 }

@@ -1,14 +1,77 @@
-## Sprint 287 (0.50.57)
+## Sprint 288 (0.50.59)
 
-- [x] `VtkFilter::as_any_mut` added for boxed downcast-based parameter mutation
-- [x] `VtkPipeline::filter_mut` added to expose boxed filters for runtime reconfiguration
-- [x] `SmoothFilter` implements boxed downcast parameter access
-- [x] `ThresholdFilter` implements boxed downcast parameter access
-- [x] `test_pipeline_filter_parameter_change_triggers_rerun` now mutates a boxed `SmoothFilter`
-- [x] cargo check -p ritk-vtk: 0/0
-- [x] cargo test -p ritk-vtk --lib: 241/0
+- [x] finalize_scanned_series extracted in ritk-io/reader/scan.rs (~300 lines deduplicated)
+- [x] 4 const thresholds moved to module level in scan.rs
+- [x] scan_dicom_directory and scan_dicom_instances delegate to finalize_scanned_series
+- [x] parse_dicom_file_bytes added in ritk-io/reader/parse.rs (pub(crate))
+- [x] read_rgb_slice_samples_from_bytes added in ritk-io/color/mod.rs
+- [x] validate_and_decode_rgb_slice shared helper extracted for RGB decode
+- [x] load_color_from_series dispatches on slice.part10_bytes (Some→bytes, None→file)
+- [x] load_dicom_color_from_series public API added in ritk-io/color/mod.rs
+- [x] load_volume_from_scanned_series routes RGB series through zero-disk color path
+- [x] scan_dicom_part10_bytes public API added in ritk-io/reader/scan.rs
+- [x] Re-exported load_dicom_color_from_series, scan_dicom_part10_bytes from ritk-io
+- [x] load_dicom_series_from_named_bytes replaced with zero-disk path
+- [x] load_dicom_series_from_stored_instances replaced with zero-disk path
+- [x] create_unique_temp_subdir removed from bytes.rs
+- [x] sanitize_temp_filename removed from bytes.rs
+- [x] bytes.rs module doc renamed to "DICOM byte-payload detection helpers"
+- [x] loaded_volume_from_scalar_image helper added in dicom_load.rs
+- [x] load_dicom_scalar_volume_from_scanned_series private helper added
+- [x] load_dicom_color_volume_from_scanned_series private helper added
+- [x] load_dicom_volume refactored to use loaded_volume_from_scalar_image
+- [x] auto_load_limit: u32 added to PacsConfig (default: 512)
+- [x] pacs_auto_loaded_this_frame: Option<usize> state field added
+- [x] poll_pacs_scp checks auto_load_limit before auto-loading
+- [x] PACS panel: Auto-load checkbox with Limit drag-value
+- [x] PACS panel: "▶ Load Received" button shown when auto-load suppressed
+- [x] PACS panel: green "[auto-loaded N instances]" notification
+- [x] show_pacs_panel signature updated to accept pacs_auto_loaded_this_frame
+- [x] test_scan_dicom_part10_bytes_empty_input_errors
+- [x] test_scan_dicom_part10_bytes_garbage_input_errors
+- [x] test_scan_dicom_part10_bytes_all_unparseable_errors
+- [x] test_pacs_config_auto_load_limit_default
+- [x] test_pacs_config_auto_load_limit_is_u32
+- [x] load_dicom_color_from_series_is_callable (ritk-io color tests)
+- [x] cargo check --workspace: 0/0
+- [x] cargo test -p ritk-io --lib: 308 passed
+- [x] cargo test -p ritk-dicom --lib: 16 passed
+- [x] cargo test -p ritk-vtk --lib: 241 passed
+- [x] cargo test -p ritk-snap --lib pacs: 33 passed
+- [x] CHANGELOG + backlog + checklist updated
 
 **Gaps remaining**: Series-level query (Medium), CLAHE tile_vals elimination (Medium)
+
+## Sprint 287 (0.50.58)
+- [x] VtkFilter::as_any_mut added for boxed downcast-based parameter mutation
+- [x] VtkPipeline::filter_mut added to expose boxed filters for runtime reconfiguration
+- [x] SmoothFilter implements boxed downcast parameter access
+- [x] ThresholdFilter implements boxed downcast parameter access
+- [x] test_pipeline_filter_parameter_change_triggers_rerun now mutates a boxed SmoothFilter
+- [x] parse_dicom_bytes() in ritk-io/reader/parse.rs with extract_dicom_metadata shared helper
+- [x] read_slice_pixels_from_bytes() in ritk-io/reader/pixel.rs with decode_pixels_from_object shared helper
+- [x] scan_dicom_instances() in ritk-io/reader/scan.rs producing DicomSeriesInfo with part10_bytes
+- [x] part10_bytes: Option<Vec<u8>> field added to DicomSliceMetadata
+- [x] load_dicom_from_series() public entry point in ritk-io/reader/loader.rs
+- [x] load_from_series dispatches pixel decode via part10_bytes (Some->from_bytes, None->from_file)
+- [x] Re-exported scan_dicom_instances, load_dicom_from_series, ScannedDicomSeries from ritk-io
+- [x] load_dicom_series_from_stored_instances replaced with zero-disk path
+- [x] load_volume_from_scanned_series() and loaded_volume_from_scalar_image() in dicom_load.rs
+- [x] auto_load_received: bool field on PacsConfig (default: true)
+- [x] poll_pacs_scp auto-triggers load_received_scp_instances when auto_load_received enabled
+- [x] Auto-load checkbox in PACS panel UI
+- [x] Load Received button shown only when auto-load is off and instances are pending
+- [x] load_received_scp_instances doc comment updated for zero-disk path
+- [x] test_pacs_config_auto_load_received_defaults_to_true
+- [x] test_scan_dicom_instances_empty_input_errors
+- [x] test_scan_dicom_instances_garbage_dataset_errors
+- [x] cargo check --workspace: 0/0
+- [x] cargo test -p ritk-vtk --lib: 241/0
+- [x] cargo test -p ritk-io --lib: passed
+- [x] cargo test -p ritk-snap --lib pacs: passed
+- [x] CHANGELOG + backlog + checklist updated
+
+**Gaps remaining**: Series-level query (Medium), CLAHE tile_vals elimination (Medium), RGB color series from SCP instances errors (Medium)
 
 ## Sprint 286 (0.50.56)
 
