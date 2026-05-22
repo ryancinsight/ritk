@@ -260,11 +260,11 @@ fn cma_mi_brain_rigid_default_uses_nmi() {
 
     let cfg = CmaMiConfig::brain_rigid_default();
 
-    // NMI (JointEntropy) is more robust to overlap changes during rotation.
+    // NMI (AverageEntropy) is immune to OOB zero-pad artefact during rotation.
     assert_eq!(
         cfg.mi_variant,
-        MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
-        "brain_rigid_default should use NMI(JointEntropy)"
+        MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
+        "brain_rigid_default should use NMI(AverageEntropy)"
     );
 
     // No cascade schedule — uses single-level path.
@@ -315,7 +315,7 @@ fn cma_mi_multiscale_has_three_levels() {
     use crate::metric::{MutualInformationVariant, NormalizationMethod};
     assert_eq!(
         cfg.mi_variant,
-        MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
+        MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
     );
 
     // CoM init must be disabled for CT↔MRI.
