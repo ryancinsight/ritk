@@ -377,13 +377,23 @@ impl CmaEsOptimizer {
         }
     }
 
-    /// Run IPOP-CMA-ES: automatically restarts with doubled population when CMA-ES
-    /// converges prematurely (step-size too small or condition too large).
+    /// Run IPOP-CMA-ES: run CMA-ES multiple times with increasing population size,
+    /// using **independent random starting points** for restarts to explore different
+    /// basins of attraction.
+    ///
+    /// Unlike the classic IPOP (which restarts from the same x0), this variant draws
+    /// each restart's initial mean uniformly from `[-1, 1]^n`.  This is appropriate
+    /// when `x0` has been normalised so that the entire feasible region lies within
+    /// that box (which is the case for the CMA-ES rigid registration pipeline).
+    ///
+    /// The first run uses the caller-supplied `x0` (warm start from e.g. CoM init);
+    /// subsequent restarts use fresh random starting points so that each restart
+    /// independently searches a different region of the landscape.
     ///
     /// # Arguments
     /// * `f` — objective function
-    /// * `x0` — initial mean
-    /// * `max_restarts` — maximum number of restarts (0 = no restarts, equivalent to `run`)
+    /// * `x0` — initial mean for the **first** run; restarts ignore this
+    /// * `max_restarts` — maximum number of additional runs (0 = no restarts, same as `run`)
     ///
     /// # Returns
     /// The best [`CmaEsResult`] found across all runs.
@@ -402,27 +412,40 @@ impl CmaEsOptimizer {
         let mut lambda = base_lambda;
 
         for restart in 0..max_restarts {
-            // Only restart if we converged prematurely (not due to MaxGenerations or FunctionTolerance)
-            match best_result.stop_reason {
-                StopReason::MaxGenerations | StopReason::FunctionTolerance => break,
-                _ => {}
-            }
-
-            // Double the population for IPOP
+            // Double the population for IPOP (classic schedule)
             lambda = lambda.saturating_mul(2);
+
+            // Vary seed per restart
+            let restart_seed = self
+                .config
+                .seed
+                .wrapping_add(restart as u64 + 1)
+                .wrapping_mul(6_364_136_223_846_793_005);
+
+            // Generate a fresh random starting point in [-1, 1]^n using a
+            // deterministic LCG so that results are reproducible.
+            // LCG: x_{k+1} = a * x_k + c  (mod 2^64)
+            // Parameters from Knuth MMIX.
+            let random_x0: Vec<f64> = {
+                let mut state = restart_seed;
+                (0..n)
+                    .map(|_| {
+                        state = state
+                            .wrapping_mul(6_364_136_223_846_793_005)
+                            .wrapping_add(1_442_695_040_888_963_407);
+                        // Map u64 → (-1, 1)
+                        (state as i64 as f64) / (i64::MAX as f64)
+                    })
+                    .collect()
+            };
 
             let restart_config = CmaEsConfig {
                 lambda,
-                // Vary seed per restart to explore different regions
-                seed: self
-                    .config
-                    .seed
-                    .wrapping_add(restart as u64 + 1)
-                    .wrapping_mul(6_364_136_223_846_793_005),
+                seed: restart_seed,
                 ..self.config.clone()
             };
 
-            let restart_result = CmaEsOptimizer::new(restart_config).run(&f, x0);
+            let restart_result = CmaEsOptimizer::new(restart_config).run(&f, &random_x0);
 
             if restart_result.best_f < best_result.best_f {
                 best_result = restart_result;

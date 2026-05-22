@@ -1,3 +1,66 @@
+## Sprint 293 - Complete
+
+**Status**: Complete
+
+**Phase**: Python bindings + Elastix reference comparison
+
+**Goal**: Expose CMA-ES rigid registration to Python via PyO3 bindings and create a comprehensive itk-elastix vs. RITK side-by-side comparison on RIRE Patient-001.
+
+### Empirical TRE results (Patient-001, cold start, no masking, debug Python build)
+
+| Method | TRE (mm) | Runtime |
+|---|---|---|
+| Identity (baseline) | 46.18 | — |
+| **Elastix rigid MI (4-level)** | **22.15** | 22.2 s |
+| RITK GlobalMI RSGD (3-level) | 407.17 | 274.8 s |
+| RITK CMA-ES thin_slab (3-level) | 134.57 | 171.5 s |
+
+### Key findings
+
+- **Elastix achieves sub-identity TRE from cold start** (22 mm vs 46 mm identity) using `AdvancedMattesMutualInformation` + adaptive stochastic gradient descent.
+- **RITK RSGD diverges severely** (407 mm) — gradient-only search without global exploration.
+- **RITK CMA-ES (thin_slab)** gets 135 mm — better global landscape coverage but still worse than elastix without brain masking.
+- The primary differentiator is elastix's MI metric implementation, which handles partial volume effects better at coarse scales, and its use of a random but dense sampling pattern with smaller steps.
+- The `AdvancedMattesMutualInformation` in elastix uses a different (and more numerically stable) Parzen window implementation than RITK's Mattes MI.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| REG-PY-CMA-01 | `CmaMiOptions` + `cma_mi_register` Python binding (PyO3) | **Closed** |
+| REG-PY-COMP-01 | `test_elastix_vs_ritk_rire.py` elastix comparison test suite | **Closed** |
+
+### Delivered
+
+- `crates/ritk-python/src/registration/global_mi.rs` — `PyCmaMiOptions` class + `cma_mi_register` function + `build_cma_config` helper
+- `crates/ritk-python/src/registration/mod.rs` — registered `CmaMiOptions` and `cma_mi_register`
+- `crates/ritk-python/tests/test_elastix_vs_ritk_rire.py` — 10-test module (8 pure unit + 2 RIRE integration)
+
+### Design notes
+
+- `CmaMiOptions.preset` maps to the four `CmaMiConfig` factory methods or a custom build. This pattern avoids exposing the full `pyramid_schedule` complexity to Python while keeping the common presets accessible.
+- The Python `cma_mi_register` always starts with zero rotation (`[0,0,0]` Euler angles). CoM init is opt-in via `use_com_init=True` (custom preset only).
+- TRE helpers in the test implement the exact same coordinate permutation as the Rust `apply_ritk_m4_to_rire_point` function, validated by the `test_compute_tre_xyz_ground_truth_near_zero` assertion.
+- The `test_compute_tre_ritk_identity_approx_46mm` test confirms that the RITK [z,y,x] ↔ RIRE [x,y,z] permutation is implemented correctly (identity TRE matches in both conventions).
+
+### Verification
+
+- `cargo check -p ritk-python`: 0 errors, 0 warnings
+- `maturin develop --release`: wheel built, ritk 0.12.4 installed
+- `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets"`: **7 passed** in 0.76 s
+- `pytest test_elastix_vs_ritk_rire.py::test_cma_mi_register_binding_on_rire_brain_default`: **1 passed** (MI=1.002, TRE 46→147 mm)
+- `pytest test_elastix_vs_ritk_rire.py::test_elastix_vs_ritk_rire_comparison`: **1 passed** — full 3-way table printed
+
+### Gaps remaining
+
+| Task | Priority |
+|---|---|
+| Investigate why RITK's AdvancedMattesMI diverges vs. elastix; consider adopting elastix-style partial-volume interpolation or smaller default step size | High |
+| Run `test_cma_mi_multiscale_on_rire_patient001` with brain mask (`register_rigid_with_mask`) via Python binding | High |
+| Expose `register_rigid_with_mask` through `cma_mi_register` (add `fixed_mask` optional arg) | Medium |
+| Add `zero_pad` support to Sinc/Lanczos interpolator (parity with Linear/NN/BSpline) | Low |
+| CI nightly job: run RIRE `#[ignore]` tests automatically | Low |
+
 ## Sprint 292 - Complete
 
 **Status**: Complete

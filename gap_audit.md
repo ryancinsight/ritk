@@ -1,3 +1,11 @@
+## Sprint 289 Audit (2026-05-22) — CLAHE Performance + Series Query + Structural Zero-Violations
+- **CLAHE-PERF-01**: Eliminated `tile_vals: Vec<f32>` intermediate buffer from `ClaheScratch`. `build_tile_cdf_into` now accepts pixel slice + tile bounds `(y0, y1, x0, x1, cols)` and computes histograms directly from source data. Eliminates one `Vec::with_capacity(rows×cols)` allocation per scratch and N push operations per tile.
+- **SCP-SERIES-01**: Added `FindResultRowSeries` struct (9 series-level DICOM attributes), `FindResultRowSeries::from_raw_bytes` decoder, `FindResultRowSeries::build_series_query(study_instance_uid)`, `PacsRequest::FindSeries`, `PacsResponse::FindSeriesOk`, `QueryState::SeriesResults`. 7 tests.
+- **STR-289-01 through STR-289-14**: 14 files partitioned below 500-line structural limit. Structural violations: **ZERO**.
+- **Architecture**: Partitions follow the project's SRP/SOC vertical hierarchy pattern: each monolithic file is decomposed into a module directory with `mod.rs` (re-exports) + domain-specific sub-files. All public API unchanged.
+- **Verification**: `cargo check --workspace` 0/0; `cargo test -p ritk-core --lib` 80 passed (clahe/coherence/convolution/bin_shrink); `cargo test -p ritk-snap --lib` 46 passed (pacs/gpu_volume); `cargo test -p ritk-io --lib` 45 passed (scan/anonymize)
+- **Residual Risk**: C-FIND series worker wiring not yet connected (worker.rs returns empty results); PACS panel series drill-down UI interaction pending
+
 ## Sprint 287 Audit (2026-05-20)
 
 - **VTK-FILTER-PARAM-01**: `VtkFilter::as_any_mut` + `VtkPipeline::filter_mut` enable boxed filter parameter mutation and downcast to concrete stateful filters -> Closed

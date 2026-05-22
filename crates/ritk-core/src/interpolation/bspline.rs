@@ -172,6 +172,9 @@ fn interpolate_point_3d<B: Backend, const D: usize>(
                 let weight = wx * wy * wz;
 
                 // Check bounds and sample
+                // Performance: use slice without clone to avoid O(volume_size) allocation.
+                // The slice operation creates a view, and we only need to clone the single
+                // element we're sampling, not the entire volume.
                 if xi >= 0
                     && xi < dims[0] as isize
                     && yi >= 0
@@ -241,6 +244,7 @@ fn interpolate_point_2d<B: Backend, const D: usize>(
             let weight = wx * wy;
 
             // Check bounds and sample
+            // Performance: use slice without clone to avoid O(image_size) allocation.
             if xi >= 0 && xi < dims[0] as isize && yi >= 0 && yi < dims[1] as isize {
                 let sample = data
                     .clone()

@@ -1,3 +1,36 @@
+## Sprint 289 (0.50.61)
+- [x] CLAHE-PERF-01: Removed `tile_vals: Vec<f32>` from `ClaheScratch` — histogram computed directly from pixel slice + tile bounds
+- [x] `build_tile_cdf_into` signature changed to accept `pixels, y0, y1, x0, x1, cols` instead of `tile_vals: &[f32]`
+- [x] Eliminated `Vec::with_capacity(rows * cols)` allocation per scratch instance
+- [x] SCP-SERIES-01: Added `FindResultRowSeries` struct with 9 DICOM series-level attributes
+- [x] `FindResultRowSeries::from_raw_bytes` decoder using HashMap-based O(1) lookup
+- [x] `FindResultRowSeries::build_series_query(study_instance_uid)` constructing `FindLevel::Series` query
+- [x] `PacsRequest::FindSeries` and `PacsResponse::FindSeriesOk` variants added
+- [x] `QueryState::SeriesResults` variant for drill-down display
+- [x] 7 new tests for series-level query (decoding, trimming, query construction)
+- [x] STR-289-01: coherence.rs (790->6 files in coherence/ module directory)
+- [x] STR-289-02: convolution.rs (718->6 files in convolution/ module directory)
+- [x] STR-289-03: scan.rs (692->4 files: mod.rs, finalize.rs, geometry.rs, thresholds.rs)
+- [x] STR-289-04: scp.rs (636->4 files: mod.rs, config.rs, accept.rs, handler.rs)
+- [x] STR-289-05: cma_mi_registration.rs (537->3 files in cma_mi/ module directory)
+- [x] STR-289-06: tests_anonymize.rs (926->3 test modules)
+- [x] STR-289-07: tests.rs (622->2 test modules)
+- [x] STR-289-08: tests_bin_shrink.rs (621->2 test modules)
+- [x] STR-289-09: gpu_volume/mod.rs (576->2 files)
+- [x] STR-289-10: tests_dimse.rs (573->2 test modules)
+- [x] STR-289-11: tests_gpu_volume.rs (536->2 test modules)
+- [x] STR-289-12: rire_registration_algorithm_test.rs (1307->4 files + common/mod.rs)
+- [x] STR-289-13: rire_mri_ct_registration.rs (1195->5 files directory example)
+- [x] STR-289-14: rire_ct_mr_registration_test.rs (1090->3 files + common/mod.rs)
+- [x] cargo check --workspace: 0/0
+- [x] cargo test -p ritk-core --lib clahe coherence convolution bin_shrink: 80 passed
+- [x] cargo test -p ritk-snap --lib pacs gpu_volume: 46 passed
+- [x] cargo test -p ritk-io --lib scan_dicom anonymize: 45 passed
+- [x] Structural audit: ZERO files > 500 lines
+- [x] CHANGELOG + backlog + checklist updated
+
+**Gaps remaining**: C-FIND series worker wiring (Medium), PACS panel series drill-down UI (Medium)
+
 ## Sprint 288 (0.50.59)
 
 - [x] finalize_scanned_series extracted in ritk-io/reader/scan.rs (~300 lines deduplicated)

@@ -1,21 +1,22 @@
-//! CMA-ES, multi-start, and multiscale rigid registration tests on RIRE Patient-001.
+//! CMA-ES and multi-start rigid registration tests on RIRE Patient-001.
 //!
 //! | Test | Method | DOF | Key assertions |
 //! |------|--------|-----|----------------|
 //! | `test_cma_mi_rigid_on_rire_patient001` | CMA-ES (single-level) | 6 | MI > 0, σ adapted, bounds |
 //! | `test_multistart_rigid_on_rire_patient001` | Multi-start RSGD | 6 | MI > 0, best = max, iters |
-//! | `test_cma_mi_multiscale_on_rire_patient001` | CMA-ES 3-level cascade | 6 | MI > 0, σ adapted, bounds |
+//!
+//! Multiscale cascade tests are in `rire_registration_cma_extended_test.rs`.
 //!
 //! # Running
 //!
 //! ```shell
 //! cargo test --test rire_registration_cma_test -- --ignored --nocapture
 //! ```
-
 mod common;
 
 use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
+
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_core::transform::RigidTransform;
 use ritk_io::read_metaimage;
@@ -67,7 +68,6 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     let device: <NdArray<f32> as burn::tensor::backend::Backend>::Device = Default::default();
     let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
-
     println!(
         "CT shape: {:?} spacing [z,y,x]: ({:.4}, {:.4}, {:.4}) mm",
         ct_img.shape(),
@@ -110,10 +110,8 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     };
 
     println!("\n── Running CMA-ES rigid registration (shrink=8, 30% sampling, sigma0=0.7) ──");
-
     let (final_transform, result) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
-
     let (tre_final, tre_max) = compute_tre(&result.matrix);
 
     let rot_data = final_transform.rotation().into_data();
@@ -122,36 +120,33 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     let trans = trans_data.as_slice::<f32>().unwrap();
 
     println!("\n── CMA-ES Results ──");
-    println!(" Generations  : {}", result.cma_generations);
-    println!(" Stop reason  : {:?}", result.cma_stop_reason);
-    println!(" Final sigma  : {:.3e}", result.cma_final_sigma);
-    println!(" Final MI     : {:.6e}", result.final_mi);
+    println!("  Generations   : {}", result.cma_generations);
+    println!("  Stop reason   : {:?}", result.cma_stop_reason);
+    println!("  Final sigma   : {:.3e}", result.cma_final_sigma);
+    println!("  Final MI      : {:.6e}", result.final_mi);
     println!(
-        " Rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
+        "  Rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
         rot[0], rot[1], rot[2]
     );
     println!(
-        " Translation [z,y,x]: [{:.3}, {:.3}, {:.3}] mm",
+        "  Translation [z,y,x]: [{:.3}, {:.3}, {:.3}] mm",
         trans[0], trans[1], trans[2]
     );
-    println!(" TRE identity : {tre_identity:.3} mm");
-    println!(" TRE CMA-ES   : {tre_final:.3} mm (max {tre_max:.3} mm)");
-    println!(" TRE improvement : {:+.3} mm", tre_final - tre_identity);
+    println!("  TRE identity  : {tre_identity:.3} mm");
+    println!("  TRE CMA-ES    : {tre_final:.3} mm (max {tre_max:.3} mm)");
+    println!("  TRE improvement: {:+.3} mm", tre_final - tre_identity);
 
     // ── Assertions ──────────────────────────────────────────────────────
-
     assert!(
         result.final_mi > 0.0,
         "CMA-ES final MI = {:.6e} must be > 0",
         result.final_mi
     );
-
     assert!(
         result.cma_generations >= 10,
         "CMA-ES ran only {} generations (expected >= 10)",
         result.cma_generations
     );
-
     let sigma0 = config.cma_config.sigma0;
     assert!(
         result.cma_final_sigma < sigma0,
@@ -178,12 +173,11 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     }
 
     if tre_final < tre_identity {
-        println!(" ✓ TRE improved: {tre_identity:.2} mm → {tre_final:.2} mm");
+        println!("  ✓ TRE improved: {tre_identity:.2} mm → {tre_final:.2} mm");
     } else {
-        println!(" ⚠ TRE did not improve ({tre_identity:.2} → {tre_final:.2} mm).");
-        println!(" This is expected with Mattes MI at coarse scale without brain masking.");
+        println!("  ⚠ TRE did not improve ({tre_identity:.2} → {tre_final:.2} mm).");
+        println!("  This is expected with Mattes MI at coarse scale without brain masking.");
     }
-
     println!("\n✓ All CMA-ES rigid registration assertions passed.");
 }
 
@@ -260,14 +254,14 @@ fn test_multistart_rigid_on_rire_patient001() {
         MultiStartMiRegistration::register_rigid(&ct_img, &mri_img, initial_transform, &ms_config);
 
     println!("\n── Multi-Start Results ──");
-    println!(" Best start index : {}", ms_result.best_start_index);
-    println!(" Best MI          : {:.6e}", ms_result.best_mi);
+    println!("  Best start index  : {}", ms_result.best_start_index);
+    println!("  Best MI           : {:.6e}", ms_result.best_mi);
     println!(
-        " Best rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
+        "  Best rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
         ms_result.best_rotation[0], ms_result.best_rotation[1], ms_result.best_rotation[2]
     );
     println!(
-        " Best translation [z,y,x]: [{:.3}, {:.3}, {:.3}] mm",
+        "  Best translation [z,y,x]: [{:.3}, {:.3}, {:.3}] mm",
         ms_result.best_translation[0], ms_result.best_translation[1], ms_result.best_translation[2]
     );
     for (i, (mi, iters)) in ms_result
@@ -276,13 +270,12 @@ fn test_multistart_rigid_on_rire_patient001() {
         .zip(ms_result.per_start_iterations.iter())
         .enumerate()
     {
-        println!(" Start {i}: MI = {mi:.6e}, iters = {iters}");
+        println!("  Start {i}: MI = {mi:.6e}, iters = {iters}");
     }
     let (tre_best, tre_best_max) = compute_tre(&ms_result.matrix);
-    println!(" TRE best transform : {tre_best:.3} mm (max {tre_best_max:.3} mm)");
+    println!("  TRE best transform: {tre_best:.3} mm (max {tre_best_max:.3} mm)");
 
     // ── Assertions ────────────────────────────────────────────────────────────
-
     assert_eq!(
         ms_result.per_start_mi.len(),
         ms_config.num_starts,
@@ -293,14 +286,12 @@ fn test_multistart_rigid_on_rire_patient001() {
         ms_config.num_starts,
         "per_start_iterations length mismatch"
     );
-
     for (i, &mi) in ms_result.per_start_mi.iter().enumerate() {
         assert!(
             mi.is_finite() && mi > 0.0,
             "Start {i} MI = {mi:.6e} must be finite and positive"
         );
     }
-
     let expected_best_mi = ms_result
         .per_start_mi
         .iter()
@@ -312,13 +303,11 @@ fn test_multistart_rigid_on_rire_patient001() {
         ms_result.best_mi,
         expected_best_mi,
     );
-
     assert!(
         ms_result.best_mi > 0.0,
         "Multi-start best MI = {:.6e} must be > 0",
         ms_result.best_mi
     );
-
     let total_iters: usize = ms_result.per_start_iterations.iter().sum();
     assert!(
         total_iters >= ms_config.num_starts * 5,
@@ -326,145 +315,5 @@ fn test_multistart_rigid_on_rire_patient001() {
         n = ms_config.num_starts,
         expected = ms_config.num_starts * 5,
     );
-
-    println!("\n\u{2713} All multi-start rigid registration assertions passed.");
-}
-
-/// Run three-level coarse-to-fine CMA-ES cascade on RIRE Patient-001.
-///
-/// Uses `CmaMiConfig::brain_rigid_multiscale()` which runs:
-/// Level 0: shrink=16, sigma0=0.8, 100 gens (wide exploration)
-/// Level 1: shrink= 8, sigma0=0.3, 200 gens (rough alignment)
-/// Level 2: shrink= 4, sigma0=0.1, 100 gens (fine convergence)
-///
-/// Each level seeds the next with its best parameter vector.
-/// The cascade + NMI combination should produce a lower TRE than the
-/// single-level `test_cma_mi_rigid_on_rire_patient001` run.
-///
-/// # Assertions
-///
-/// | Assertion | Rationale |
-/// |-----------|----------|
-/// | `final_mi > 0` | Optimizer found cross-modal alignment. |
-/// | `cma_generations >= 10` | Pipeline ran meaningfully at last level. |
-/// | `final_sigma < sigma0` | CMA-ES adapted (landscape is not flat). |
-/// | Parameters within search bounds | Penalty invariant holds. |
-#[test]
-#[ignore = "requires test_data/registration/rire; takes ~10-15 min on CPU"]
-fn test_cma_mi_multiscale_on_rire_patient001() {
-    let rire_dir = find_rire_dir()
-        .expect("RIRE data not found. Place files under test_data/registration/rire/");
-    let ct_path = rire_dir.join("training_001_ct.mha");
-    let mri_path = rire_dir.join("training_001_mr_T1.mha");
-    let device: <NdArray<f32> as burn::tensor::backend::Backend>::Device = Default::default();
-    let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");
-    let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
-
-    println!(
-        "CT shape: {:?} spacing [z,y,x]: ({:.4}, {:.4}, {:.4}) mm",
-        ct_img.shape(),
-        ct_img.spacing()[0],
-        ct_img.spacing()[1],
-        ct_img.spacing()[2],
-    );
-    println!(
-        "MRI shape: {:?} spacing [z,y,x]: ({:.4}, {:.4}, {:.4}) mm",
-        mri_img.shape(),
-        mri_img.spacing()[0],
-        mri_img.spacing()[1],
-        mri_img.spacing()[2],
-    );
-
-    let id = identity_m4();
-    let (tre_identity, _) = compute_tre(&id);
-    println!("Identity TRE (baseline): {tre_identity:.2} mm");
-
-    // Use the pre-tuned three-level cascade preset.
-    let config = CmaMiConfig::brain_rigid_multiscale();
-    assert_eq!(
-        config.pyramid_schedule.len(),
-        3,
-        "Sanity: multiscale preset must have 3 levels"
-    );
-
-    println!(
-        "\n\u{2500}\u{2500} Running 3-level cascade CMA-ES (NMI, shrinks 16\u{2192}8\u{2192}4) \u{2500}\u{2500}"
-    );
-    for (i, level) in config.pyramid_schedule.iter().enumerate() {
-        println!(
-            " Level {}: shrink={}, sigma_mm={:.1}, sigma0={:.2}, max_gen={}",
-            i, level.shrink, level.sigma_mm, level.cma_sigma0, level.max_generations
-        );
-    }
-
-    let (final_transform, result) =
-        CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
-
-    let (tre_final, tre_max) = compute_tre(&result.matrix);
-
-    let rot_data = final_transform.rotation().into_data();
-    let rot = rot_data.as_slice::<f32>().unwrap();
-    let trans_data = final_transform.translation().into_data();
-    let trans = trans_data.as_slice::<f32>().unwrap();
-
-    println!("\n\u{2500}\u{2500} Multiscale Cascade Results \u{2500}\u{2500}");
-    println!(" Generations (last level): {}", result.cma_generations);
-    println!(" Stop reason : {:?}", result.cma_stop_reason);
-    println!(" Final sigma : {:.3e}", result.cma_final_sigma);
-    println!(" Final MI : {:.6e}", result.final_mi);
-    println!(
-        " Rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
-        rot[0], rot[1], rot[2]
-    );
-    println!(
-        " Translation [z,y,x]: [{:.3}, {:.3}, {:.3}] mm",
-        trans[0], trans[1], trans[2]
-    );
-    println!(" TRE identity : {tre_identity:.3} mm");
-    println!(" TRE multiscale: {tre_final:.3} mm (max {tre_max:.3} mm)");
-    println!(" TRE change : {:+.3} mm", tre_final - tre_identity);
-
-    // ── Assertions ──────────────────────────────────────────────────────
-
-    assert!(
-        result.final_mi > 0.0,
-        "Cascade final MI = {:.6e} must be > 0",
-        result.final_mi
-    );
-
-    assert!(
-        result.cma_generations >= 10,
-        "Last-level CMA-ES ran only {} generations (expected >= 10)",
-        result.cma_generations
-    );
-
-    assert!(
-        result.cma_final_sigma < 0.1,
-        "Final sigma {:.3e} >= last level sigma0 0.1; CMA-ES did not adapt",
-        result.cma_final_sigma
-    );
-
-    let rot_limit = config.rotation_range_rad as f32;
-    let trans_limit = config.translation_range_mm as f32;
-    for (i, &r) in rot.iter().enumerate() {
-        assert!(
-            r.abs() <= rot_limit,
-            "Rotation[{i}] = {r:.4} rad outside [\u{00b1}{rot_limit:.4}]"
-        );
-    }
-    for (i, &t) in trans.iter().enumerate() {
-        assert!(
-            t.abs() <= trans_limit + 1.0,
-            "Translation[{i}] = {t:.2} mm outside expected range \u{00b1}{trans_limit:.0} mm"
-        );
-    }
-
-    if tre_final < tre_identity {
-        println!(" \u{2713} TRE improved: {tre_identity:.2} mm \u{2192} {tre_final:.2} mm");
-    } else {
-        println!(" \u{26a0} TRE did not improve ({tre_identity:.2} \u{2192} {tre_final:.2} mm).");
-        println!(" Expected behaviour: cascade finds better basin than single-level.");
-    }
-
-    println!("\n\u{2713} All multiscale cascade assertions passed.");
+    println!("\n✓ All multi-start rigid registration assertions passed.");
 }

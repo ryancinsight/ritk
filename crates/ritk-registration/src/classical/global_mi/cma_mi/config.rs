@@ -308,9 +308,47 @@ impl CmaMiConfig {
             ],
         }
     }
+
+    /// Pre-tuned three-level coarse-to-fine CMA-ES cascade for **thin-slab** CT volumes
+    /// (typically < 50 z-slices at >= 2 mm z-spacing, e.g. RIRE 29-slice CT).
+    ///
+    /// Uses **anisotropic** per-axis shrink to preserve all z-slices at every pyramid
+    /// level.  Isotropic shrink destroys z-information for thin CT slabs and produces
+    /// spurious MI maxima.
+    ///
+    /// | Level | shrink_per_axis | s_mm | s0  | Max gen | CT voxels (RIRE)  |
+    /// |-------|-----------------|------|-----|---------|-------------------|
+    /// |   0   | [1, 16, 16]     |  8.0 | 0.8 |   100   | 29x32x32 ~30 K    |
+    /// |   1   | [1,  8,  8]     |  4.0 | 0.3 |   200   | 29x64x64 ~119 K   |
+    /// |   2   | [1,  4,  4]     |  2.0 | 0.1 |   100   | 29x128x128 ~476 K |
+    ///
+    /// Otherwise identical to `brain_rigid_multiscale()` (NMI, 32 bins, 25% sampling,
+    /// +/-60 mm / +/-pi/4 search, CoM init disabled).
+    pub fn brain_rigid_multiscale_thin_slab() -> Self {
+        Self {
+            pyramid_schedule: vec![
+                CmaMiLevelConfig {
+                    shrink_per_axis: Some([1, 16, 16]),
+                    // 1 IPOP restart doubles population → better escape from false MI maxima
+                    // at the very coarse 29×32×32 pyramid level where MI is noisy.
+                    ipop_restarts: 1,
+                    ..CmaMiLevelConfig::new(16, 8.0, 0.8, 150)
+                },
+                CmaMiLevelConfig {
+                    shrink_per_axis: Some([1, 8, 8]),
+                    ..CmaMiLevelConfig::new(8, 4.0, 0.3, 200)
+                },
+                CmaMiLevelConfig {
+                    shrink_per_axis: Some([1, 4, 4]),
+                    ..CmaMiLevelConfig::new(4, 2.0, 0.15, 100)
+                },
+            ],
+            ..Self::brain_rigid_multiscale()
+        }
+    }
 }
 
-// ─── Result ───────────────────────────────────────────────────────────────────
+// ─── Result ─────────────────────────────────────────────────────────────────────────────
 
 /// Result produced by [`CmaMiRegistration::register_rigid`](super::CmaMiRegistration::register_rigid).
 #[derive(Debug, Clone)]
@@ -337,4 +375,10 @@ pub struct CmaMiResult {
 
     /// Per-iteration loss history from RSGD refinement (empty if no refinement).
     pub rsgd_loss_history: Vec<f64>,
+
+    /// Normalised CMA-ES best parameter vector `[α_n, β_n, γ_n, tz_n, ty_n, tx_n]`.
+    /// Each component is in `[−1, 1]`; multiply by `rotation_range_rad` (first 3) or
+    /// `translation_range_mm` (last 3) to recover physical units.
+    /// Populated from the last cascade level in multi-scale mode.
+    pub cma_best_params: Vec<f64>,
 }

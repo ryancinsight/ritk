@@ -117,6 +117,35 @@ impl<B: Backend> MutualInformation<B> {
         }
     }
 
+    /// Create with separate intensity ranges for fixed and moving images (elastix-style).
+    ///
+    /// Each image axis of the joint histogram uses its own min/max/sigma,
+    /// giving each image the full histogram resolution. This is particularly
+    /// beneficial for cross-modal registration (CT/MRI) where the two images
+    /// have very different intensity ranges: with a shared range, the narrower
+    /// image wastes a fraction of its bins; with separate ranges, both images
+    /// use all `num_bins` bins.
+    pub fn new_with_separate_ranges(
+        variant: MutualInformationVariant,
+        num_bins: usize,
+        fixed_min: f32,
+        fixed_max: f32,
+        moving_min: f32,
+        moving_max: f32,
+    ) -> Self {
+        let mut s = Self::new(
+            variant,
+            num_bins,
+            fixed_min,
+            fixed_max,
+            (fixed_max - fixed_min).max(1e-6) / num_bins as f32,
+        );
+        s.histogram_calculator = s
+            .histogram_calculator
+            .with_separate_moving_range(moving_min, moving_max);
+        s
+    }
+
     /// Helper to create Mattes Mutual Information with its characteristic parameterization.
     /// Mattes specifies `parzen_sigma = bin_width`.
     pub fn new_mattes(num_bins: usize, min_intensity: f32, max_intensity: f32) -> Self {

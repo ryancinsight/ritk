@@ -38,6 +38,10 @@ pub(super) fn strip_autodiff<B: AutodiffBackend>(img: &Image<B, 3>) -> Image<B::
 /// When `mask_points` is `Some`, the metric uses masked joint histogram evaluation
 /// (only supplied world-space foreground points contribute) instead of stochastic
 /// uniform sampling.
+///
+/// When `moving_range` is `Some((min, max))`, the moving-image axis of the joint
+/// histogram uses its own independent range (elastix-style), giving the moving
+/// image the full `num_bins` resolution instead of sharing the combined range.
 pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
     variant: MutualInformationVariant,
     num_bins: usize,
@@ -45,10 +49,19 @@ pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
     max_int: f32,
     sampling_percentage: f32,
     mask_points: Option<Tensor<IB, 2>>,
+    // NEW: separate moving-image range (None → use combined range, backward compat)
+    moving_range: Option<(f32, f32)>,
 ) -> MutualInformation<IB> {
     let bin_width = (max_int - min_int).max(1e-6) / num_bins as f32;
-    let mi = MutualInformation::new(variant, num_bins, min_int, max_int, bin_width)
-        .with_sampling(sampling_percentage);
+    let mi = if let Some((mov_min, mov_max)) = moving_range {
+        MutualInformation::new_with_separate_ranges(
+            variant, num_bins, min_int, max_int, mov_min, mov_max,
+        )
+        .with_sampling(sampling_percentage)
+    } else {
+        MutualInformation::new(variant, num_bins, min_int, max_int, bin_width)
+            .with_sampling(sampling_percentage)
+    };
     if let Some(pts) = mask_points {
         mi.with_fixed_mask_points(pts)
     } else {
@@ -84,7 +97,13 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 ) -> crate::optimizer::CmaEsResult {
     // ── Build pyramid ─────────────────────────────────────────────────────────
     let shrink_factors = vec![vec![per_axis[0], per_axis[1], per_axis[2]]];
-    let smoothing_sigmas = vec![vec![sigma_mm; 3]];
+    // Zero smoothing for axes with no downsampling (shrink ≤ 1): applying sigma > 0
+    // on an axis we are NOT downsampling wastes z-information that the thin-slab
+    // preset specifically preserves via anisotropic shrink factors.
+    let smoothing_sigmas = vec![per_axis
+        .iter()
+        .map(|&s| if s <= 1 { 0.0 } else { sigma_mm })
+        .collect::<Vec<f64>>()];
 
     let fixed_pyr = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);
     let moving_pyr = MultiResolutionPyramid::new(moving, &shrink_factors, &smoothing_sigmas);
@@ -103,6 +122,23 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     let (min_m, max_m) = estimate_intensity_range(&moving_c);
     let min_int = min_f.min(min_m);
     let max_int = max_f.max(max_m);
+
+    // Pass separate moving range so the moving image uses the full bin resolution
+    // (elastix-style independent binning). The fixed-image axis uses [min_int, max_int]
+    // which includes both image ranges, but the moving-image axis is binned with its
+    // native range [min_m, max_m] so it occupies all num_bins bins.
+    // NOTE: min_int/max_int is still used as the FIXED-image axis range here.
+    // For RIRE (CT fixed, MRI moving): CT -1024..1969 as fixed axis, MRI 2..1626 as moving.
+    //
+    // Guard: only use separate moving range when the moving image has non-trivial contrast.
+    // A degenerate (constant / near-constant) moving image would produce a zero-width
+    // range, causing NaN in the Parzen normalisation. Fall back to combined range when
+    // the moving-image contrast is < 1e-3 (absolute intensity units).
+    let separate_moving_range = if (max_m - min_m).abs() > 1e-3 {
+        Some((min_m, max_m))
+    } else {
+        None // fall back to combined range for degenerate / constant moving images
+    };
 
     // ── Strip autodiff — eliminate tape overhead in CMA-ES loop ──────────────
     let fixed_inner = strip_autodiff(&fixed_c);
@@ -136,6 +172,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         max_int,
         config.sampling_percentage,
         mask_world_points,
+        separate_moving_range,
     );
 
     // ── Objective closure — all tensors on inner (non-autodiff) backend ───────

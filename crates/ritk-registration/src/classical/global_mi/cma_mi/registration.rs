@@ -263,6 +263,7 @@ impl CmaMiRegistration {
             cma_final_sigma: cma_result.final_sigma,
             rsgd_iterations,
             rsgd_loss_history,
+            cma_best_params: cma_result.best_x.clone(),
         };
 
         (final_transform, result)

@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [0.50.63] - 2026-05-22
+
+### Added [minor]
+
+- **REG-PY-CMA-01: `CmaMiOptions` + `cma_mi_register` Python binding** (Sprint 293): New PyO3-exposed `CmaMiOptions` class and `cma_mi_register(fixed, moving, opts)` function in `crates/ritk-python/src/registration/global_mi.rs`. Exposes the full CMA-ES rigid registration pipeline to Python callers. `CmaMiOptions` selects a configuration via a `preset` string (`"brain_default"`, `"brain_multiscale"`, `"brain_multiscale_thin_slab"`, `"fast_exploratory"`, `"custom"`), with individual fields (`coarse_shrink`, `num_mi_bins`, `sampling_percentage`, `translation_range_mm`, `rotation_range_rad`, `sigma0`, `max_generations`, `use_com_init`) active when `preset="custom"`. Returns `(matrix_16, final_mi, info)` where `info` contains `cma_generations`, `stop_reason`, `final_sigma`, `rsgd_iterations`. Registered in `ritk.registration` namespace alongside `GlobalMiOptions`/`global_mi_register`.
+
+- **REG-PY-COMP-01: `test_elastix_vs_ritk_rire.py` — Sprint 293 elastix comparison test suite** (Sprint 293): New Python test module at `crates/ritk-python/tests/test_elastix_vs_ritk_rire.py`. Contains:
+  - **8 pure unit tests** (no RIRE data, no elastix required): `test_cma_mi_options_defaults`, `test_cma_mi_options_preset_mutation`, `test_cma_mi_register_invalid_preset`, `test_cma_mi_register_smoke_synthetic`, `test_compute_tre_xyz_identity_approx_46mm`, `test_compute_tre_ritk_identity_approx_46mm`, `test_compute_tre_xyz_ground_truth_near_zero`, `test_cma_mi_register_all_presets_parse`.
+  - **2 RIRE integration tests**: `test_cma_mi_register_binding_on_rire_brain_default` (brain_default preset, ~8 s), `test_elastix_vs_ritk_rire_comparison` (full 3-way comparison, ~8 min, marked `slow`).
+  - TRE helpers: `compute_tre_xyz` (RIRE/ITK [x,y,z] space), `compute_tre_ritk` (RITK [z,y,x] with permutation), `identity_tre`, `euler3d_to_rotation` (ITK convention: `Rz·Rx·Ry`).
+  - `test_compute_tre_xyz_ground_truth_near_zero` asserts that applying the exact GT Euler3D parameters gives `max_TRE < 0.001 mm` — validates the coordinate-math helpers against the RIRE standard.
+
+### Sprint 293 Elastix vs. RITK RIRE Comparison (Patient-001, cold start, no masking)
+
+| Method | TRE mean | TRE max | Runtime | Note |
+|---|---|---|---|---|
+| Identity (baseline) | 46.18 mm | 58.97 mm | — | Sprint 292 baseline |
+| **Elastix rigid MI (4-level, 1024 iter)** | **22.15 mm** | **23.47 mm** | 22.2 s | itk-elastix 0.25.3, AdvancedMattesMI |
+| RITK GlobalMI RSGD (3-level) | 407.17 mm | 488.24 mm | 274.8 s | Diverges: gradient-only, no global search |
+| RITK CMA-ES thin_slab (3-level) | 134.57 mm | 207.92 mm | 171.5 s | Better than RSGD, still diverges without mask |
+
+**Key finding**: Elastix achieves sub-identity TRE (22 mm < 46 mm) from cold start on RIRE Patient-001, while RITK RSGD and CMA-ES both diverge without brain masking. The primary differentiator is elastix's `AdvancedMattesMutualInformation` metric combined with its stochastic gradient optimizer (adaptive step, random spatial sampling), which navigates the MI landscape more robustly than RITK's RSGD or CMA-ES at this operating point.
+
+### Verification (Sprint 293)
+
+- `cargo check -p ritk-python`: 0 errors, 0 warnings
+- `maturin develop --release`: wheel built and installed (ritk 0.12.4)
+- `python -c "import ritk; print(dir(ritk.registration))"`: `CmaMiOptions` and `cma_mi_register` confirmed present
+- `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets"`: **7 passed** in 0.76 s
+- `pytest test_elastix_vs_ritk_rire.py::test_cma_mi_register_binding_on_rire_brain_default`: **1 passed** — MI=1.002, 200 gens, TRE 46→147 mm (expected cold-start divergence)
+- `pytest test_elastix_vs_ritk_rire.py::test_elastix_vs_ritk_rire_comparison`: **1 passed** — elastix TRE 22.15 mm, RSGD 407 mm, CMA-ES 135 mm
+
 ## [0.50.62] - 2026-05-22
 
 ### Added [minor]

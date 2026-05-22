@@ -46,6 +46,8 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(joint_label_fusion_py, &m)?)?;
     m.add_class::<PyGlobalMiOptions>()?;
     m.add_function(wrap_pyfunction!(global_mi_register, &m)?)?;
+    m.add_class::<PyCmaMiOptions>()?;
+    m.add_function(wrap_pyfunction!(cma_mi_register, &m)?)?;
 
     parent.add_submodule(&m)?;
     Ok(())
