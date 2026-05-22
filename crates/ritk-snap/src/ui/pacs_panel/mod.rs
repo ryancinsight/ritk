@@ -394,5 +394,10 @@ fn show_results_section(
                 }
             }
         }
+        QueryState::SeriesResults { study_instance_uid, series } => {
+            ui.label(format!("Series for study: {}", study_instance_uid));
+            let n = series.len();
+            ui.label(format!("{n} series result(s)"));
+        }
     }
 }

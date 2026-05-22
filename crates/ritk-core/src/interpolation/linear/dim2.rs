@@ -14,6 +14,7 @@ pub(crate) fn gather_2d<B: Backend>(
 pub(crate) fn interpolate_2d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     indices: Tensor<B, 2>,
+    zero_pad: bool,
 ) -> Tensor<B, 1> {
     let shape = data.shape();
     let d0 = shape.dims[0]; // Y
@@ -37,9 +38,9 @@ pub(crate) fn interpolate_2d<B: Backend, const D: usize>(
     let x1 = x0.clone() + 1.0;
     let y1 = y0.clone() + 1.0;
 
-    // Clamp indices
-    let x0_i = x0.clamp(0.0, (d1 - 1) as f64).int();
-    let y0_i = y0.clamp(0.0, (d0 - 1) as f64).int();
+    // Clamp indices (preserve x0, y0 via .clone() so they are available for the zero-pad mask)
+    let x0_i = x0.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let y0_i = y0.clone().clamp(0.0, (d0 - 1) as f64).int();
     let x1_i = x1.clamp(0.0, (d1 - 1) as f64).int();
     let y1_i = y1.clamp(0.0, (d0 - 1) as f64).int();
 
@@ -64,5 +65,16 @@ pub(crate) fn interpolate_2d<B: Backend, const D: usize>(
     let c0 = v00 * one_minus_wx.clone() + v10 * wx.clone();
     let c1 = v01 * one_minus_wx + v11 * wx;
 
-    c0 * one_minus_wy + c1 * wy
+    let result = c0 * one_minus_wy + c1 * wy;
+
+    if zero_pad {
+        // A sample is in-bounds iff floor(c) == clamp(floor(c), 0, d-1) for every dimension.
+        // x0.clone()/y0.clone() preserve the tensors for the final clamp (which consumes them).
+        let x_in = x0.clone().equal(x0.clamp(0.0, (d1 - 1) as f64)).float();
+        let y_in = y0.clone().equal(y0.clamp(0.0, (d0 - 1) as f64)).float();
+        let in_bounds = x_in * y_in;
+        result * in_bounds
+    } else {
+        result
+    }
 }

@@ -224,3 +224,6 @@ fn scaled_spacing<const D: usize>(spacing: &Spacing<D>, factors: &[usize; D]) ->
 #[cfg(test)]
 #[path = "tests_bin_shrink.rs"]
 mod tests_bin_shrink;
+#[cfg(test)]
+#[path = "tests_bin_shrink_edge.rs"]
+mod tests_bin_shrink_edge;

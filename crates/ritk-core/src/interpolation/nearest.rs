@@ -9,12 +9,27 @@ use burn::tensor::Tensor;
 /// Nearest Neighbor Interpolator.
 ///
 /// Performs nearest neighbor interpolation (rounds to nearest integer coordinate).
-pub struct NearestNeighborInterpolator;
+pub struct NearestNeighborInterpolator {
+    /// If `true`, samples outside the volume boundary return `0.0` instead of
+    /// the nearest-edge value.  Mirrors [`LinearInterpolator::zero_pad`].
+    pub zero_pad: bool,
+}
 
 impl NearestNeighborInterpolator {
-    /// Create a new nearest neighbor interpolator.
+    /// Create a new nearest neighbor interpolator with edge-clamping (default).
     pub fn new() -> Self {
-        Self
+        Self { zero_pad: false }
+    }
+
+    /// Create a nearest neighbor interpolator that returns `0.0` for OOB samples.
+    pub fn new_zero_pad() -> Self {
+        Self { zero_pad: true }
+    }
+
+    /// Builder-style setter for `zero_pad`.
+    pub fn with_zero_pad(mut self, zero_pad: bool) -> Self {
+        self.zero_pad = zero_pad;
+        self
     }
 }
 
@@ -52,30 +67,22 @@ impl NearestNeighborInterpolator {
         let d2 = shape.dims[2]; // Y
         let d3 = shape.dims[3]; // X
 
-        // indices: (x, y, z, w)
-        let x = indices
-            .clone()
-            .slice([0..indices.dims()[0], 0..1])
-            .flatten::<1>(0, 1);
-        let y = indices
-            .clone()
-            .slice([0..indices.dims()[0], 1..2])
-            .flatten::<1>(0, 1);
-        let z = indices
-            .clone()
-            .slice([0..indices.dims()[0], 2..3])
-            .flatten::<1>(0, 1);
-        let w = indices
-            .clone()
-            .slice([0..indices.dims()[0], 3..4])
-            .flatten::<1>(0, 1);
+        let n = indices.dims()[0];
+        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+        let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
+        let z = indices.clone().slice([0..n, 2..3]).flatten::<1>(0, 1);
+        let w = indices.slice([0..n, 3..4]).flatten::<1>(0, 1);
 
-        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
-        // Standard tensor .round() implements IEEE 754 half-to-even which biases bounds symmetrically.
-        let x_i = (x + 0.5).floor().clamp(0.0, (d3 - 1) as f64).int();
-        let y_i = (y + 0.5).floor().clamp(0.0, (d2 - 1) as f64).int();
-        let z_i = (z + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
-        let w_i = (w + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
+        // floor(coord + 0.5) gives standard round-to-nearest behavior.
+        let x_f = (x + 0.5).floor();
+        let y_f = (y + 0.5).floor();
+        let z_f = (z + 0.5).floor();
+        let w_f = (w + 0.5).floor();
+
+        let x_i = x_f.clone().clamp(0.0, (d3 - 1) as f64).int();
+        let y_i = y_f.clone().clamp(0.0, (d2 - 1) as f64).int();
+        let z_i = z_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+        let w_i = w_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [W, Z, Y, X]
         let stride_w = (d1 * d2 * d3) as i32;
@@ -85,7 +92,17 @@ impl NearestNeighborInterpolator {
 
         let idx = w_i * stride_w + z_i * stride_z + y_i * stride_y + x_i * stride_x;
         let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
-        flat_data.gather(0, idx)
+        let result = flat_data.gather(0, idx);
+
+        if self.zero_pad {
+            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d3 - 1) as f64)).float();
+            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d2 - 1) as f64)).float();
+            let z_in = z_f.clone().equal(z_f.clamp(0.0, (d1 - 1) as f64)).float();
+            let w_in = w_f.clone().equal(w_f.clamp(0.0, (d0 - 1) as f64)).float();
+            result * (x_in * y_in * z_in * w_in)
+        } else {
+            result
+        }
     }
 
     fn interpolate_3d<B: Backend, const D: usize>(
@@ -99,23 +116,19 @@ impl NearestNeighborInterpolator {
         let d2 = shape.dims[2]; // X
 
         // indices: (x, y, z)
-        let x = indices
-            .clone()
-            .slice([0..indices.dims()[0], 0..1])
-            .flatten::<1>(0, 1);
-        let y = indices
-            .clone()
-            .slice([0..indices.dims()[0], 1..2])
-            .flatten::<1>(0, 1);
-        let z = indices
-            .clone()
-            .slice([0..indices.dims()[0], 2..3])
-            .flatten::<1>(0, 1);
+        let n = indices.dims()[0];
+        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+        let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
+        let z = indices.slice([0..n, 2..3]).flatten::<1>(0, 1);
 
-        // Round to nearest integer and clamp using exact floor algebra
-        let x_i = (x + 0.5).floor().clamp(0.0, (d2 - 1) as f64).int();
-        let y_i = (y + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
-        let z_i = (z + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
+        // floor(coord + 0.5) gives standard round-to-nearest behavior.
+        let x_f = (x + 0.5).floor();
+        let y_f = (y + 0.5).floor();
+        let z_f = (z + 0.5).floor();
+
+        let x_i = x_f.clone().clamp(0.0, (d2 - 1) as f64).int();
+        let y_i = y_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+        let z_i = z_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [Z, Y, X]
         let stride_z = (d1 * d2) as i32;
@@ -124,7 +137,17 @@ impl NearestNeighborInterpolator {
 
         let idx = z_i * stride_z + y_i * stride_y + x_i * stride_x;
         let flat_data = data.clone().reshape([d0 * d1 * d2]);
-        flat_data.gather(0, idx)
+        let result = flat_data.gather(0, idx);
+
+        if self.zero_pad {
+            // x_f.clone().equal(x_f.clamp(...)).float() → 1.0 if coord was in-bounds, 0.0 otherwise
+            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d2 - 1) as f64)).float();
+            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d1 - 1) as f64)).float();
+            let z_in = z_f.clone().equal(z_f.clamp(0.0, (d0 - 1) as f64)).float();
+            result * (x_in * y_in * z_in)
+        } else {
+            result
+        }
     }
 
     fn interpolate_2d<B: Backend, const D: usize>(
@@ -137,18 +160,16 @@ impl NearestNeighborInterpolator {
         let d1 = shape.dims[1]; // X
 
         // indices: (x, y)
-        let x = indices
-            .clone()
-            .slice([0..indices.dims()[0], 0..1])
-            .flatten::<1>(0, 1);
-        let y = indices
-            .clone()
-            .slice([0..indices.dims()[0], 1..2])
-            .flatten::<1>(0, 1);
+        let n = indices.dims()[0];
+        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+        let y = indices.slice([0..n, 1..2]).flatten::<1>(0, 1);
 
-        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
-        let x_i = (x + 0.5).floor().clamp(0.0, (d1 - 1) as f64).int();
-        let y_i = (y + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
+        // floor(coord + 0.5) gives standard round-to-nearest behavior.
+        let x_f = (x + 0.5).floor();
+        let y_f = (y + 0.5).floor();
+
+        let x_i = x_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+        let y_i = y_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
         // Strides for [Y, X]
         let stride_y = d1 as i32;
@@ -156,7 +177,15 @@ impl NearestNeighborInterpolator {
 
         let idx = y_i * stride_y + x_i * stride_x;
         let flat_data = data.clone().reshape([d0 * d1]);
-        flat_data.gather(0, idx)
+        let result = flat_data.gather(0, idx);
+
+        if self.zero_pad {
+            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d1 - 1) as f64)).float();
+            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d0 - 1) as f64)).float();
+            result * (x_in * y_in)
+        } else {
+            result
+        }
     }
 
     fn interpolate_1d<B: Backend, const D: usize>(
@@ -168,17 +197,21 @@ impl NearestNeighborInterpolator {
         let d0 = shape.dims[0]; // X
 
         // indices: (x)
-        let x = indices
-            .clone()
-            .slice([0..indices.dims()[0], 0..1])
-            .flatten::<1>(0, 1);
+        let n = indices.dims()[0];
+        let x = indices.slice([0..n, 0..1]).flatten::<1>(0, 1);
 
-        // Round to nearest integer using mathematically exact mapping (x + 0.5).floor()
-        let x_i = (x.clone() + 0.5).floor().clamp(0.0, (d0 - 1) as f64).int();
+        // floor(coord + 0.5) gives standard round-to-nearest behavior.
+        let x_f = (x + 0.5).floor();
+        let x_i = x_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
-        let idx = x_i;
-        let flat_data = data.clone().reshape([d0]);
-        flat_data.gather(0, idx)
+        let result = data.clone().reshape([d0]).gather(0, x_i);
+
+        if self.zero_pad {
+            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d0 - 1) as f64)).float();
+            result * x_in
+        } else {
+            result
+        }
     }
 }
 
@@ -275,5 +308,74 @@ mod tests {
             .as_slice::<f32>()
             .unwrap()[0];
         assert_eq!(val, 100.0);
+    }
+
+    #[test]
+    fn test_nearest_neighbor_zero_pad_3d_oob_returns_zero() {
+        let device = Default::default();
+        let data_vec = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let data = Tensor::<TestBackend, 3>::from_data(
+            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+            &device,
+        );
+        let interp = NearestNeighborInterpolator::new_zero_pad();
+
+        // Far outside: should be 0.0
+        let oob = Tensor::<TestBackend, 2>::from_floats(
+            [[-5.0, -5.0, -5.0], [10.0, 10.0, 10.0]],
+            &device,
+        );
+        let result = interp.interpolate(&data, oob);
+        let s = result.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert!(s[0].abs() < 1e-6, "OOB 3D should give 0, got {}", s[0]);
+        assert!(s[1].abs() < 1e-6, "OOB 3D should give 0, got {}", s[1]);
+    }
+
+    #[test]
+    fn test_nearest_neighbor_zero_pad_3d_inbounds_unchanged() {
+        let device = Default::default();
+        let data_vec = vec![10.0_f32, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0];
+        let data = Tensor::<TestBackend, 3>::from_data(
+            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2, 2])),
+            &device,
+        );
+        let interp = NearestNeighborInterpolator::new_zero_pad();
+
+        // In-bounds corner at (0,0,0) should return data[0,0,0] = 10.0
+        let corner = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
+        let val = interp
+            .interpolate(&data, corner)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
+        assert!(
+            (val - 10.0).abs() < 1e-5,
+            "In-bounds corner should give 10.0, got {}",
+            val
+        );
+    }
+
+    #[test]
+    fn test_nearest_neighbor_no_zero_pad_clamps_edge() {
+        // Verify backward compat: without zero_pad, OOB clamps to edge.
+        let device = Default::default();
+        let data_vec = vec![1.0_f32, 2.0, 3.0, 4.0];
+        let data = Tensor::<TestBackend, 2>::from_data(
+            burn::tensor::TensorData::new(data_vec, burn::tensor::Shape::new([2, 2])),
+            &device,
+        );
+        let interp = NearestNeighborInterpolator::new(); // zero_pad = false
+        let oob = Tensor::<TestBackend, 2>::from_floats([[-100.0, -100.0]], &device);
+        let val = interp
+            .interpolate(&data, oob)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
+        // Should clamp to (0,0) -> data[0,0] = 1.0
+        assert!(
+            (val - 1.0).abs() < 1e-5,
+            "Edge clamp should give 1.0, got {}",
+            val
+        );
     }
 }

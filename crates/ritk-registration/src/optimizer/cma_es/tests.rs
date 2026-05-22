@@ -94,6 +94,37 @@ fn test_step_size_decreases_monotone_unimodal() {
 }
 
 #[test]
+fn test_ipop_finds_at_least_as_good_as_plain_run() {
+    // IPOP-CMA-ES must produce a result that is at least as good as a plain run
+    // on the sphere function.
+    let x0 = vec![5.0, -3.0, 2.0, 1.0, -2.0];
+    let config = CmaEsConfig {
+        sigma0: 0.8,
+        max_generations: 100,
+        sigma_tol: 1e-8,
+        ftol: f64::NEG_INFINITY,
+        seed: 0xdead_beef,
+        ..Default::default()
+    };
+
+    let plain = CmaEsOptimizer::new(config.clone()).run(sphere, &x0);
+    let ipop = CmaEsOptimizer::new(config).run_ipop(sphere, &x0, 2);
+
+    // IPOP must not be worse than plain
+    assert!(
+        ipop.best_f <= plain.best_f + 1e-12,
+        "IPOP (best_f={:.3e}) must be ≤ plain (best_f={:.3e})",
+        ipop.best_f,
+        plain.best_f,
+    );
+    assert!(
+        ipop.best_f < sphere(&x0),
+        "IPOP must improve over initial value {:.3e}",
+        sphere(&x0)
+    );
+}
+
+#[test]
 fn test_seed_reproducibility() {
     let x0 = vec![2.0, -1.0, 0.5];
     let config = CmaEsConfig {

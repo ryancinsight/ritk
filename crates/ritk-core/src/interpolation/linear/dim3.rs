@@ -16,6 +16,7 @@ pub(crate) fn gather_3d<B: Backend>(
 pub(crate) fn interpolate_3d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     indices: Tensor<B, 2>,
+    zero_pad: bool,
 ) -> Tensor<B, 1> {
     let shape = data.shape();
     let d0 = shape.dims[0]; // Z
@@ -24,7 +25,6 @@ pub(crate) fn interpolate_3d<B: Backend, const D: usize>(
     let batch_size = indices.dims()[0];
     let device = indices.device();
 
-    // Extract coordinates using narrow to avoid unnecessary clones
     // Extract coordinates: narrow gives [Batch, 1], squeeze_dims removes dim 1 to get [Batch]
     // indices: [Batch, 3] -> (x, y, z)
     let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
@@ -46,10 +46,10 @@ pub(crate) fn interpolate_3d<B: Backend, const D: usize>(
     let y1 = y0.clone() + 1.0;
     let z1 = z0.clone() + 1.0;
 
-    // Clamp indices to valid range
-    let x0_i = x0.clamp(0.0, (d2 - 1) as f64).int();
-    let y0_i = y0.clamp(0.0, (d1 - 1) as f64).int();
-    let z0_i = z0.clamp(0.0, (d0 - 1) as f64).int();
+    // Clamp indices to valid range (preserve x0, y0, z0 via .clone() for the zero-pad mask)
+    let x0_i = x0.clone().clamp(0.0, (d2 - 1) as f64).int();
+    let y0_i = y0.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let z0_i = z0.clone().clamp(0.0, (d0 - 1) as f64).int();
 
     let x1_i = x1.clamp(0.0, (d2 - 1) as f64).int();
     let y1_i = y1.clamp(0.0, (d1 - 1) as f64).int();
@@ -90,5 +90,17 @@ pub(crate) fn interpolate_3d<B: Backend, const D: usize>(
     let c1 = c01 * one_minus_wy.clone() + c11 * wy.clone();
 
     // Interpolate along Z
-    c0 * one_minus_wz + c1 * wz
+    let result = c0 * one_minus_wz + c1 * wz;
+
+    if zero_pad {
+        // A sample is in-bounds iff floor(c) == clamp(floor(c), 0, d-1) for every dimension.
+        // x0.clone()/y0.clone()/z0.clone() preserve the tensors for the final clamp (which consumes them).
+        let x_in = x0.clone().equal(x0.clamp(0.0, (d2 - 1) as f64)).float();
+        let y_in = y0.clone().equal(y0.clamp(0.0, (d1 - 1) as f64)).float();
+        let z_in = z0.clone().equal(z0.clamp(0.0, (d0 - 1) as f64)).float();
+        let in_bounds = x_in * y_in * z_in;
+        result * in_bounds
+    } else {
+        result
+    }
 }

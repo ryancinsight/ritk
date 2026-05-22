@@ -111,11 +111,11 @@ pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 // Re-exports — Classical (non-ML) registration
 // ============================================================================
 pub use classical::{
-    compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiRegistration,
-    CmaMiResult, GlobalMiConfig, GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType,
-    ImageRegistration, MultiStartConfig, MultiStartMiRegistration, MultiStartResult,
-    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalQualityMetrics,
-    TemporalSync,
+    compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiLevelConfig,
+    CmaMiRegistration, CmaMiResult, GlobalMiConfig, GlobalMiRegistration, GlobalMiResult,
+    GlobalMiTransformType, ImageRegistration, MultiStartConfig, MultiStartMiRegistration,
+    MultiStartResult, RegistrationQualityMetrics, RegistrationResult, SpatialTransform,
+    TemporalQualityMetrics, TemporalSync,
 };
 
 // ============================================================================

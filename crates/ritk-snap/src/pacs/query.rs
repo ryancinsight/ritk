@@ -10,6 +10,94 @@
 use ritk_io::format::dicom::networking::parse_dataset_ivr_le;
 use ritk_io::{FindLevel, FindQuery, MoveResponse};
 
+// ── FindResultRowSeries ───────────────────────────────────────────────────────
+
+/// A single result row decoded from a SERIES-level C-FIND response dataset.
+///
+/// # DICOM attributes decoded (IVR-LE, Series Root query level)
+///
+/// | Tag | Attribute |
+/// |--------------|-------------------------------------|
+/// | (0008,0060) | Modality |
+/// | (0008,103E) | SeriesDescription |
+/// | (0020,000E) | SeriesInstanceUID |
+/// | (0020,0011) | SeriesNumber |
+/// | (0020,1209) | NumberOfSeriesRelatedInstances |
+/// | (0008,0021) | SeriesDate |
+/// | (0008,0031) | SeriesTime |
+/// | (0008,0050) | AccessionNumber |
+/// | (0020,000D) | StudyInstanceUID (required query key) |
+#[derive(Debug, Clone, Default)]
+pub struct FindResultRowSeries {
+    pub study_instance_uid: String,
+    pub series_instance_uid: String,
+    pub series_number: String,
+    pub modality: String,
+    pub series_description: String,
+    pub num_instances: String,
+    pub series_date: String,
+    pub series_time: String,
+    pub accession_number: String,
+}
+
+impl FindResultRowSeries {
+    /// Decode a `FindResultRowSeries` from a raw IVR-LE C-FIND response dataset.
+    ///
+    /// Missing or non-UTF-8 attributes produce empty strings.
+    /// Malformed trailing bytes are silently ignored (graceful degradation per
+    /// DICOM PS 3.5 §7.1 — incomplete elements at end of stream are skipped).
+    ///
+    /// Uses a `HashMap` for O(1) per-field lookup (O(n) single pass to build
+    /// the map, then O(1) per field — total O(n + fields) vs the naive O(n×fields)).
+    pub fn from_raw_bytes(bytes: &[u8]) -> Self {
+        let attr_map: std::collections::HashMap<(u16, u16), Vec<u8>> =
+            parse_dataset_ivr_le(bytes).into_iter().collect();
+
+        let get = |group: u16, element: u16| -> String {
+            attr_map
+                .get(&(group, element))
+                .map(|v| {
+                    String::from_utf8_lossy(v)
+                        .trim_end_matches(|c: char| c == '\0' || c == ' ')
+                        .to_owned()
+                })
+                .unwrap_or_default()
+        };
+
+        Self {
+            study_instance_uid: get(0x0020, 0x000D),
+            series_instance_uid: get(0x0020, 0x000E),
+            series_number: get(0x0020, 0x0011),
+            modality: get(0x0008, 0x0060),
+            series_description: get(0x0008, 0x103E),
+            num_instances: get(0x0020, 0x1209), // NumberOfSeriesRelatedInstances (series scope)
+            series_date: get(0x0008, 0x0021),
+            series_time: get(0x0008, 0x0031),
+            accession_number: get(0x0008, 0x0050),
+        }
+    }
+
+    /// Build a series-level C-FIND query dataset for drilling into a study.
+    ///
+    /// `study_instance_uid` is the required filter key — only series belonging
+    /// to this study will be returned by the SCP.
+    ///
+    /// Return keys cover all nine attributes decoded by
+    /// [`FindResultRowSeries::from_raw_bytes`].
+    pub fn build_series_query(study_instance_uid: &str) -> FindQuery {
+        FindQuery::new(FindLevel::Series)
+            .with_key(0x0020, 0x000D, study_instance_uid) // StudyInstanceUID (required filter)
+            .with_key(0x0008, 0x0060, "") // Modality (return)
+            .with_key(0x0008, 0x103E, "") // SeriesDescription (return)
+            .with_key(0x0020, 0x000E, "") // SeriesInstanceUID (return)
+            .with_key(0x0020, 0x0011, "") // SeriesNumber (return)
+            .with_key(0x0020, 0x1209, "") // NumberOfSeriesRelatedInstances (return)
+            .with_key(0x0008, 0x0021, "") // SeriesDate (return)
+            .with_key(0x0008, 0x0031, "") // SeriesTime (return)
+            .with_key(0x0008, 0x0050, "") // AccessionNumber (return)
+    }
+}
+
 // ── FindResultRow ──────────────────────────────────────────────────────────────
 
 /// A single result row decoded from a C-FIND response dataset.
@@ -72,15 +160,15 @@ impl FindResultRow {
         };
 
         Self {
-            patient_name:       get(0x0010, 0x0010),
-            patient_id:         get(0x0010, 0x0020),
-            study_date:         get(0x0008, 0x0020),
-            study_description:  get(0x0008, 0x1030),
-            modality:           get(0x0008, 0x0060),
-            accession_number:   get(0x0008, 0x0050),
+            patient_name: get(0x0010, 0x0010),
+            patient_id: get(0x0010, 0x0020),
+            study_date: get(0x0008, 0x0020),
+            study_description: get(0x0008, 0x1030),
+            modality: get(0x0008, 0x0060),
+            accession_number: get(0x0008, 0x0050),
             study_instance_uid: get(0x0020, 0x000D),
-            num_series:         get(0x0020, 0x1206),
-            num_instances:      get(0x0020, 0x1208), // NumberOfStudyRelatedInstances (study scope)
+            num_series: get(0x0020, 0x1206),
+            num_instances: get(0x0020, 0x1208), // NumberOfStudyRelatedInstances (study scope)
         }
     }
 
@@ -93,16 +181,21 @@ impl FindResultRow {
     /// `accession_number` is an exact-match filter; empty string = all.
     ///
     /// Return keys cover all nine attributes decoded by [`FindResultRow::from_raw_bytes`].
-    pub fn build_study_query(patient_name: &str, modality: &str, study_date: &str, accession_number: &str) -> FindQuery {
+    pub fn build_study_query(
+        patient_name: &str,
+        modality: &str,
+        study_date: &str,
+        accession_number: &str,
+    ) -> FindQuery {
         let mut q = FindQuery::new(FindLevel::Study)
-            .with_key(0x0010, 0x0010, patient_name)     // PatientName (filter / return)
-            .with_key(0x0010, 0x0020, "")                // PatientID (return)
-            .with_key(0x0008, 0x0020, study_date)        // StudyDate (range filter if non-empty; return key)
-            .with_key(0x0008, 0x0050, accession_number)  // AccessionNumber (filter / return)
-            .with_key(0x0008, 0x1030, "")                // StudyDescription (return)
-            .with_key(0x0020, 0x000D, "")                // StudyInstanceUID (return)
-            .with_key(0x0020, 0x1206, "")                // NumberOfStudyRelatedSeries (return)
-            .with_key(0x0020, 0x1208, "");               // NumberOfStudyRelatedInstances (return)
+            .with_key(0x0010, 0x0010, patient_name) // PatientName (filter / return)
+            .with_key(0x0010, 0x0020, "") // PatientID (return)
+            .with_key(0x0008, 0x0020, study_date) // StudyDate (range filter if non-empty; return key)
+            .with_key(0x0008, 0x0050, accession_number) // AccessionNumber (filter / return)
+            .with_key(0x0008, 0x1030, "") // StudyDescription (return)
+            .with_key(0x0020, 0x000D, "") // StudyInstanceUID (return)
+            .with_key(0x0020, 0x1206, "") // NumberOfStudyRelatedSeries (return)
+            .with_key(0x0020, 0x1208, ""); // NumberOfStudyRelatedInstances (return)
         if modality.is_empty() {
             q = q.with_key(0x0008, 0x0060, ""); // return all modalities
         } else {
@@ -130,10 +223,14 @@ pub enum PacsRequest {
         study_date: String,
         accession_number: String,
     },
+    /// C-FIND series-level drill-down query (Study Root Query/Retrieve, PS 3.4 §C.4.1).
+    ///
+    /// Returns all series within the specified study.
+    FindSeries { study_instance_uid: String },
     /// C-MOVE study retrieval to a configured destination AE (PS 3.4 §C.4.2).
     ///
     /// The PACS will forward matching instances to `move_destination` via
-    /// C-STORE sub-operations.  This SCU does not receive them directly.
+    /// C-STORE sub-operations. This SCU does not receive them directly.
     RetrieveStudy {
         study_instance_uid: String,
         move_destination: String,
@@ -151,6 +248,8 @@ pub enum PacsResponse {
     EchoErr(String),
     /// C-FIND returned decoded result rows (may be empty — zero matches).
     FindOk(Vec<FindResultRow>),
+    /// C-FIND series-level returned decoded result rows.
+    FindSeriesOk(Vec<FindResultRowSeries>),
     /// C-FIND failed with a human-readable error description.
     FindErr(String),
     /// C-MOVE completed; `MoveResponse` carries sub-operation counters.
@@ -180,6 +279,11 @@ pub enum QueryState {
     Pending { label: String },
     /// C-FIND returned decoded result rows.
     Results(Vec<FindResultRow>),
+    /// Series-level drill-down results for a specific study.
+    SeriesResults {
+        study_instance_uid: String,
+        series: Vec<FindResultRowSeries>,
+    },
     /// The last operation failed; panel shows the error description.
     Error(String),
 }

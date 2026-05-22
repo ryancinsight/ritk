@@ -14,11 +14,14 @@ pub mod query;
 pub mod worker;
 
 pub use config::PacsConfig;
-pub use query::{FindResultRow, PacsRequest, PacsResponse, QueryState};
-pub use worker::PacsWorkerHandle;
+pub use query::{FindResultRow, FindResultRowSeries, PacsRequest, PacsResponse, QueryState};
 #[cfg(not(target_arch = "wasm32"))]
 pub use worker::spawn_pacs_request;
+pub use worker::PacsWorkerHandle;
 
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "tests_query.rs"]
+mod tests_query;

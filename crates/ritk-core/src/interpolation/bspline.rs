@@ -28,13 +28,37 @@ fn cubic_bspline(x: f32) -> f32 {
 /// Cubic B-Spline interpolator.
 ///
 /// Provides smooth interpolation using cubic B-Spline basis functions.
+///
+/// When `zero_pad` is `false` (the default), out-of-bounds neighborhood
+/// samples are skipped and the remaining in-bounds weights are renormalized,
+/// which produces an edge-continuation effect at volume boundaries.
+/// When `zero_pad` is `true`, query coordinates that fall outside the valid
+/// voxel range `[0, dim-1]` for any dimension return `0.0` immediately,
+/// matching the behavior of [`LinearInterpolator`] and
+/// [`NearestNeighborInterpolator`] in zero-pad mode.
 #[derive(Debug, Clone, Copy)]
-pub struct BSplineInterpolator;
+pub struct BSplineInterpolator {
+    /// If `true`, samples outside the volume boundary return `0.0` instead of
+    /// the renormalized edge value.  Mirrors [`LinearInterpolator::zero_pad`]
+    /// and [`NearestNeighborInterpolator::zero_pad`].
+    pub zero_pad: bool,
+}
 
 impl BSplineInterpolator {
-    /// Create a new B-Spline interpolator.
+    /// Create a new B-Spline interpolator with edge-renormalization (default).
     pub fn new() -> Self {
-        Self
+        Self { zero_pad: false }
+    }
+
+    /// Create a B-Spline interpolator that returns `0.0` for out-of-bounds query coordinates.
+    pub fn new_zero_pad() -> Self {
+        Self { zero_pad: true }
+    }
+
+    /// Builder-style setter for the `zero_pad` option.
+    pub fn with_zero_pad(mut self, zero_pad: bool) -> Self {
+        self.zero_pad = zero_pad;
+        self
     }
 }
 
@@ -74,9 +98,9 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
             let coords: Vec<f32> = (0..D).map(|d| indices_slice[coords_start + d]).collect();
 
             let value = if D == 3 {
-                interpolate_point_3d(data, &coords, &dims, &device)
+                interpolate_point_3d(data, &coords, &dims, &device, self.zero_pad)
             } else {
-                interpolate_point_2d(data, &coords, &dims, &device)
+                interpolate_point_2d(data, &coords, &dims, &device, self.zero_pad)
             };
             results.push(value);
         }
@@ -90,15 +114,41 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
 }
 
 /// 3D B-Spline interpolation for a single point.
+///
+/// The data tensor layout is `[dim0, dim1, dim2]` and `coords` are
+/// `[coord0, coord1, coord2]` indexing the respective dimensions.
+///
+/// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d - 1]`
+/// for any dimension `d`, the function returns `0.0` immediately.
 fn interpolate_point_3d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     coords: &[f32],
     dims: &[usize],
     device: &B::Device,
+    zero_pad: bool,
 ) -> Tensor<B, 1> {
     let x = coords[0];
     let y = coords[1];
     let z = coords[2];
+
+    // Zero-pad early exit: if the query coordinate itself is outside the volume,
+    // return 0.0 immediately.  This mirrors the Linear and NearestNeighbor
+    // zero-pad semantics where `floor(coord) == clamp(floor(coord), 0, dim-1)`
+    // is the in-bounds criterion.
+    if zero_pad {
+        let xf = x.floor() as isize;
+        let yf = y.floor() as isize;
+        let zf = z.floor() as isize;
+        if xf < 0
+            || xf >= dims[0] as isize
+            || yf < 0
+            || yf >= dims[1] as isize
+            || zf < 0
+            || zf >= dims[2] as isize
+        {
+            return Tensor::zeros([1], device);
+        }
+    }
 
     let x0 = x.floor() as isize - 1;
     let y0 = y.floor() as isize - 1;
@@ -142,7 +192,7 @@ fn interpolate_point_3d<B: Backend, const D: usize>(
         }
     }
 
-    // Normalize by weight sum
+    // Normalize by weight sum (handles boundary renormalization when neighbors are OOB)
     if weight_sum > 0.0 {
         result = result.div_scalar(weight_sum);
     }
@@ -151,14 +201,27 @@ fn interpolate_point_3d<B: Backend, const D: usize>(
 }
 
 /// 2D B-Spline interpolation for a single point.
+///
+/// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d - 1]`
+/// for any dimension `d`, the function returns `0.0` immediately.
 fn interpolate_point_2d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     coords: &[f32],
     dims: &[usize],
     device: &B::Device,
+    zero_pad: bool,
 ) -> Tensor<B, 1> {
     let x = coords[0];
     let y = coords[1];
+
+    // Zero-pad early exit: if the query coordinate itself is outside the image.
+    if zero_pad {
+        let xf = x.floor() as isize;
+        let yf = y.floor() as isize;
+        if xf < 0 || xf >= dims[0] as isize || yf < 0 || yf >= dims[1] as isize {
+            return Tensor::zeros([1], device);
+        }
+    }
 
     let x0 = x.floor() as isize - 1;
     let y0 = y.floor() as isize - 1;
@@ -276,5 +339,142 @@ mod tests {
 
         // Symmetry
         assert!((cubic_bspline(0.5) - cubic_bspline(-0.5)).abs() < 1e-6);
+    }
+
+    // ---- zero_pad tests ------------------------------------------------
+
+    #[test]
+    fn test_bspline_zero_pad_3d_oob_returns_zero() {
+        let device = Default::default();
+        let data = Tensor::<TestBackend, 3>::from_floats(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            &device,
+        );
+        let interp = BSplineInterpolator::new_zero_pad();
+
+        // Clearly out-of-bounds queries in each direction.
+        let oob = Tensor::<TestBackend, 2>::from_floats(
+            [
+                [-5.0, 0.0, 0.0], // dim0 OOB negative
+                [10.0, 0.0, 0.0], // dim0 OOB positive
+                [0.0, -5.0, 0.0], // dim1 OOB
+                [0.0, 0.0, 10.0], // dim2 OOB
+            ],
+            &device,
+        );
+        let result = interp.interpolate(&data, oob);
+        let s = result.into_data().as_slice::<f32>().unwrap().to_vec();
+        for (i, v) in s.iter().enumerate() {
+            assert!(
+                v.abs() < 1e-6,
+                "OOB 3D sample {} should give 0.0, got {}",
+                i,
+                v
+            );
+        }
+    }
+
+    #[test]
+    fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
+        // In-bounds queries should produce the same result regardless of zero_pad flag.
+        let device = Default::default();
+        let data = Tensor::<TestBackend, 3>::from_floats(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            &device,
+        );
+        let interp_pad = BSplineInterpolator::new_zero_pad();
+        let interp_nop = BSplineInterpolator::new();
+
+        // Interior point; floor coords are (0,0,0) which is in-bounds.
+        let pt = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+
+        let val_pad = interp_pad
+            .interpolate(&data, pt.clone())
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
+        let val_nop = interp_nop
+            .interpolate(&data, pt)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
+
+        assert!(
+            (val_pad - val_nop).abs() < 1e-5,
+            "In-bounds zero_pad {} vs no-pad {} should match",
+            val_pad,
+            val_nop
+        );
+        assert!(
+            (0.0..=8.0).contains(&val_pad),
+            "In-bounds value {} out of range",
+            val_pad
+        );
+    }
+
+    #[test]
+    fn test_bspline_zero_pad_2d_oob_returns_zero() {
+        let device = Default::default();
+        let data =
+            Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
+        let interp = BSplineInterpolator::new_zero_pad();
+
+        // OOB in both dimensions.
+        let oob = Tensor::<TestBackend, 2>::from_floats(
+            [[-1.0, 0.0], [0.0, -1.0], [10.0, 0.0], [0.0, 10.0]],
+            &device,
+        );
+        let result = interp.interpolate(&data, oob);
+        let s = result.into_data().as_slice::<f32>().unwrap().to_vec();
+        for (i, v) in s.iter().enumerate() {
+            assert!(
+                v.abs() < 1e-6,
+                "OOB 2D sample {} should give 0.0, got {}",
+                i,
+                v
+            );
+        }
+    }
+
+    #[test]
+    fn test_bspline_no_zero_pad_oob_gives_finite_value() {
+        // Without zero_pad, a query just outside the boundary should still
+        // produce a finite (non-panic) value thanks to weight renormalization
+        // of the in-bounds neighborhood samples.
+        let device = Default::default();
+        let data = Tensor::<TestBackend, 3>::from_floats(
+            [[[10.0, 20.0], [30.0, 40.0]], [[50.0, 60.0], [70.0, 80.0]]],
+            &device,
+        );
+        let interp = BSplineInterpolator::new(); // zero_pad = false
+
+        // Query just outside: floor(-0.1) = -1 (OOB in dim0).
+        // The kernel neighbourhood still touches in-bounds samples at indices 0,1,2
+        // (clipped from the 4-wide support), so weight_sum > 0 and result is finite.
+        let pt = Tensor::<TestBackend, 2>::from_floats([[-0.1, 0.5, 0.5]], &device);
+        let val = interp
+            .interpolate(&data, pt)
+            .into_data()
+            .as_slice::<f32>()
+            .unwrap()[0];
+        assert!(
+            val.is_finite(),
+            "No-zero-pad OOB should return finite value, got {}",
+            val
+        );
+    }
+
+    #[test]
+    fn test_bspline_with_zero_pad_builder() {
+        let interp_true = BSplineInterpolator::new().with_zero_pad(true);
+        let interp_false = BSplineInterpolator::new().with_zero_pad(false);
+        assert!(interp_true.zero_pad);
+        assert!(!interp_false.zero_pad);
+
+        let interp_default = BSplineInterpolator::default();
+        assert!(
+            !interp_default.zero_pad,
+            "Default should have zero_pad=false"
+        );
     }
 }

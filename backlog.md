@@ -1,3 +1,132 @@
+## Sprint 291 - Complete
+
+**Status**: Complete
+
+**Phase**: Execution — BSpline interpolator zero-pad mode
+
+**Goal**: Complete zero-pad parity across all image interpolators (Linear ✓, NearestNeighbor ✓ from Sprint 290, BSpline ✗ → ✓). Enables MI-based registration metrics and resampling filters to use BSpline interpolation with the same out-of-bounds zeroing behaviour as the other interpolators.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| INTERP-BS-ZP-01 | `BSplineInterpolator::zero_pad` field + `new_zero_pad()` + `with_zero_pad(bool)` | **Closed** |
+
+### Delivered
+
+- `crates/ritk-core/src/interpolation/bspline.rs` — `BSplineInterpolator` converted from unit struct to `{ zero_pad: bool }` struct; `new_zero_pad()` and `with_zero_pad(bool)` constructors added; `interpolate_point_3d` and `interpolate_point_2d` gain a `zero_pad: bool` parameter; early-out path returns `Tensor::zeros([1], device)` when `floor(coord_d) ∉ [0, dim_d - 1]` for any dimension; existing weight-renormalization at in-bounds queries unchanged. All call sites already used `BSplineInterpolator::new()` → backward-compatible.
+
+### Design notes
+
+- BSpline `zero_pad` uses the identical in-bounds criterion as Linear and NearestNeighbor: `floor(x)` (not `round(x+0.5)`) must lie in `[0, dim-1]`. A query at x=0.1 is in-bounds even though the B-spline kernel extends to x=-1; those OOB neighborhood samples are already handled by the existing weight-renormalization path.
+- `Default` implementation is unchanged: `zero_pad = false`.
+- The `zero_pad` field is `pub` for introspection and struct-update syntax, matching `LinearInterpolator` and `NearestNeighborInterpolator`.
+
+### Verification
+
+- `cargo check -p ritk-core -p ritk-cli` (transitive graph including ritk-registration, ritk-snap): 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib interpolation`: **44 passed** (was 39, +5 BSpline zero-pad tests), 0 failed
+- `cargo test -p ritk-registration --lib`: **300 passed**, 0 failed (no regressions)
+
+### Gaps remaining
+
+| Task | Priority |
+|---|---|
+| Run `test_cma_mi_multiscale_on_rire_patient001` with RIRE data and report TRE vs single-level | High |
+| CI nightly job: download RIRE data and run `#[ignore]` integration tests | Low |
+| Fix pre-existing `ritk-snap` duplicate renderer errors (unrelated to registration) | Low |
+| Sinc/Lanczos interpolator: add `zero_pad` mode for full parity | Low |
+
+## Sprint 290 - Complete
+
+**Status**: Complete
+
+**Phase**: Execution — Brain masking for CMA-ES MI registration + NearestNeighbor zero-pad
+
+**Goal**: Two interlocking improvements to the MRI↔CT registration pipeline: (1) add optional fixed-image brain mask support to `CmaMiRegistration` so MI is computed only from foreground voxels (ANTs/ITK strategy, eliminates background-dominated histogram bins); (2) add `zero_pad` mode to `NearestNeighborInterpolator` for consistency with `LinearInterpolator`.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| REG-MASK-01 | Brain masking: `register_rigid_with_mask`, `extract_foreground_world_points`, `MutualInformation::with_fixed_mask_points`, `ParzenJointHistogram::compute_masked_joint_histogram` | **Closed** |
+| INTERP-NN-ZP-01 | `NearestNeighborInterpolator::zero_pad` field + `new_zero_pad()` + `with_zero_pad(bool)` | **Closed** |
+
+### Delivered
+
+- `crates/ritk-registration/src/metric/histogram.rs` — `compute_masked_joint_histogram` method on `ParzenJointHistogram`: accepts pre-selected world-space foreground points, skips point generation, handles chunked path; degenerate empty-mask returns zero histogram
+- `crates/ritk-registration/src/metric/mutual_information.rs` — `fixed_mask_points: Option<Tensor<B, 2>>` field; `with_fixed_mask_points(pts)` builder; `Metric::forward` dispatches to `compute_masked_joint_histogram` when points are set
+- `crates/ritk-registration/src/classical/global_mi/cma_mi/registration.rs` — `extract_foreground_world_points` helper (threshold 0.5, stride sub-sampling to match `sampling_pct` voxel budget, fallback for empty masks); `build_metric` extended with `mask_points: Option<Tensor<IB,2>>`; `run_cma_level` accepts `fixed_mask: Option<&Image<B,3>>`; mask pyramid built with zero smoothing per level; new `register_rigid_with_mask` public API; `register_rigid` delegates to it with `None`
+- `crates/ritk-core/src/interpolation/nearest.rs` — `NearestNeighborInterpolator` gains `pub zero_pad: bool`; `new_zero_pad()` and `with_zero_pad(bool)` constructors; all 4 dims (1D/2D/3D/4D) refactored to split `floor(coord+0.5)` into held tensor and apply OOB mask when `zero_pad=true` (same `val.equal(val.clamp(...)).float()` pattern as `LinearInterpolator`)
+- `crates/ritk-registration/src/classical/global_mi/tests/mod.rs` — 3 new brain-masking tests: `cma_mi_register_rigid_with_mask_accepts_full_foreground_mask`, `cma_mi_register_rigid_without_mask_matches_register_rigid_with_none`, `cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error`; helper `make_box_mask`
+- `crates/ritk-core/src/interpolation/nearest.rs` — 3 new NN zero-pad tests: `test_nearest_neighbor_zero_pad_3d_oob_returns_zero`, `test_nearest_neighbor_zero_pad_3d_inbounds_unchanged`, `test_nearest_neighbor_no_zero_pad_clamps_edge`
+
+### Design notes
+
+- Mask downsampling uses `sigma=0` in `MultiResolutionPyramid` to preserve binary character; `> 0.5` threshold gives majority-vote behaviour at downsampled boundaries.
+- `extract_foreground_world_points` caps the foreground sample count at `ceil(total_voxels × sampling_pct)` so evaluation time per CMA-ES generation stays ≈ the unmasked path.
+- When the mask is all-zero at a given pyramid level, a warning is logged and uniform stride-sampling of all voxels is used as fallback — registration continues rather than panicking.
+- `register_rigid` remains fully backward-compatible (delegates to `register_rigid_with_mask(mask=None)`).
+
+### Verification
+
+- `cargo check -p ritk-registration -p ritk-core`: 0 errors, 0 warnings
+- `cargo test -p ritk-registration --lib`: **300 passed** (was 297, +3 masking tests), 0 failed
+- `cargo test -p ritk-core --lib interpolation`: **39 passed** (was 36, +3 NN zero-pad tests), 0 failed
+
+### Gaps remaining
+
+| Task | Priority |
+|---|---|
+| Run `test_cma_mi_multiscale_on_rire_patient001` with RIRE data and report TRE vs single-level | High |
+| BSpline interpolator: add zero-pad mode for consistency | Low |
+| CI nightly job: download RIRE data and run `#[ignore]` integration tests | Low |
+| Fix pre-existing `ritk-snap` duplicate renderer errors (unrelated to registration) | Low |
+
+## Sprint 289 - Complete
+
+**Status**: Complete
+
+**Phase**: Execution - MRI-to-CT registration accuracy improvements (multi-scale cascade + autodiff stripping + MI variant)
+
+**Goal**: Enhance `CmaMiRegistration` with three interlocking improvements: strip autodiff from CMA-ES evaluations for 2-5× speedup, add a multi-scale cascade (coarse→medium→fine) via `pyramid_schedule`, and expose `mi_variant` so NMI (more robust to partial overlap during rotation) can replace Mattes MI for brain CT↔MRI.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| REG-PERF-01 | Autodiff stripping in CMA-ES loop (`strip_autodiff`, `build_metric`, inner-backend tensors) | **Closed** |
+| REG-CASCADE-01 | Multi-scale CMA-ES cascade (`CmaMiLevelConfig`, `pyramid_schedule` field, `brain_rigid_multiscale` preset) | **Closed** |
+| REG-MI-VAR-01 | MI variant selector (`mi_variant: MutualInformationVariant` on `CmaMiConfig`; NMI as default for brain presets) | **Closed** |
+
+### Delivered
+
+- `crates/ritk-registration/src/classical/global_mi/cma_mi/config.rs` — `CmaMiLevelConfig` struct; `mi_variant` + `pyramid_schedule` fields on `CmaMiConfig`; `brain_rigid_default()` switched to NMI; `brain_rigid_multiscale()` preset (shrink 16→8→4)
+- `crates/ritk-registration/src/classical/global_mi/cma_mi/registration.rs` — `strip_autodiff()` helper converts `Image<Autodiff<B>>` to `Image<B::InnerBackend>` before CMA-ES loop; `build_metric()` uses inner backend; `run_cma_level()` private helper encapsulates per-level logic; cascade support in `register_rigid`
+- `crates/ritk-registration/src/classical/global_mi/cma_mi/mod.rs` — re-export `CmaMiLevelConfig`
+- `crates/ritk-registration/src/classical/global_mi/mod.rs` — re-export `CmaMiLevelConfig`
+- `crates/ritk-registration/src/classical/mod.rs` — re-export `CmaMiLevelConfig`
+- `crates/ritk-registration/src/lib.rs` — re-export `CmaMiLevelConfig`
+- `crates/ritk-registration/src/classical/global_mi/tests/mod.rs` — 4 new invariant tests: `cma_mi_brain_rigid_default_uses_nmi`, `cma_mi_default_uses_mattes_no_schedule`, `cma_mi_multiscale_has_three_levels`, `cma_mi_level_config_new_sets_defaults`
+- `crates/ritk-registration/tests/rire_registration_algorithm_test.rs` — `..CmaMiConfig::default()` added to fix struct literal; `test_cma_mi_multiscale_on_rire_patient001` (`#[ignore]`) integration test
+
+### Verification
+
+- `cargo check -p ritk-registration -p ritk-core -p ritk-python`: 0 errors, 0 warnings
+- `cargo test -p ritk-registration --lib`: **297 passed** (was 293, +4 new invariant tests), 0 failed
+- `cargo test -p ritk-registration --test rire_registration_algorithm_test`: 2 passed, 7 ignored (all `#[ignore]`), 0 failed
+
+### Gaps remaining
+
+| Task | Priority | Status |
+|---|---|---|
+| Run `test_cma_mi_multiscale_on_rire_patient001` with RIRE data and report TRE vs single-level | High | **Open** |
+| Brain masking: compute MI only within a brain mask (standard ITK/ANTs strategy) | Medium | **Closed** (Sprint 290) |
+| BSpline interpolator: add zero-pad mode for consistency | Low | **Closed** (Sprint 290) |
+| NearestNeighbor interpolator: add zero-pad mode for consistency | Low | **Closed** (Sprint 290) |
+| CI nightly job: download RIRE data and run `#[ignore]` integration tests | Low | **Open** |
+| Fix pre-existing `ritk-snap` duplicate renderer errors (unrelated to registration) | Low | **Open** |
+
 ## Sprint 288 - Complete
 
 **Status**: Complete

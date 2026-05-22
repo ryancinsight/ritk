@@ -73,11 +73,25 @@ pub fn spawn_pacs_request(config: PacsConfig, request: PacsRequest) -> PacsWorke
 fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {
     match request {
         PacsRequest::Echo => execute_echo(config),
-        PacsRequest::FindStudies { patient_name, modality, study_date, accession_number } => {
-            execute_find(config, &patient_name, &modality, &study_date, &accession_number)
-        }
-        PacsRequest::RetrieveStudy { study_instance_uid, move_destination } => {
-            execute_retrieve(config, &study_instance_uid, &move_destination)
+        PacsRequest::FindStudies {
+            patient_name,
+            modality,
+            study_date,
+            accession_number,
+        } => execute_find(
+            config,
+            &patient_name,
+            &modality,
+            &study_date,
+            &accession_number,
+        ),
+        PacsRequest::RetrieveStudy {
+            study_instance_uid,
+            move_destination,
+        } => execute_retrieve(config, &study_instance_uid, &move_destination),
+        PacsRequest::FindSeries { .. } => {
+            // Series-level C-FIND execution not yet wired — return empty results.
+            PacsResponse::FindSeriesOk(vec![])
         }
     }
 }
@@ -93,10 +107,17 @@ fn execute_echo(config: &PacsConfig) -> PacsResponse {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn execute_find(config: &PacsConfig, patient_name: &str, modality: &str, study_date: &str, accession_number: &str) -> PacsResponse {
+fn execute_find(
+    config: &PacsConfig,
+    patient_name: &str,
+    modality: &str,
+    study_date: &str,
+    accession_number: &str,
+) -> PacsResponse {
     use ritk_io::{dicom_find, FindResult};
     let assoc_cfg = config.to_association_config();
-    let query = FindResultRow::build_study_query(patient_name, modality, study_date, accession_number);
+    let query =
+        FindResultRow::build_study_query(patient_name, modality, study_date, accession_number);
     match dicom_find(&assoc_cfg, &query) {
         Ok(raw_results) => {
             let rows: Vec<FindResultRow> = raw_results
@@ -111,11 +132,7 @@ fn execute_find(config: &PacsConfig, patient_name: &str, modality: &str, study_d
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn execute_retrieve(
-    config: &PacsConfig,
-    study_uid: &str,
-    move_destination: &str,
-) -> PacsResponse {
+fn execute_retrieve(config: &PacsConfig, study_uid: &str, move_destination: &str) -> PacsResponse {
     use ritk_io::{dicom_retrieve, AeTitle, MoveDestination};
     let assoc_cfg = config.to_association_config();
     let dest_ae = match AeTitle::new(move_destination) {

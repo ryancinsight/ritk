@@ -1,5 +1,6 @@
 //! Unit tests for global MI registration: config, intensity, matrix, and convergence.
 
+mod extended;
 mod integration;
 
 use super::config::{GlobalMiConfig, GlobalMiTransformType};
@@ -171,7 +172,6 @@ fn rigid_identity_matrix_is_identity_homogeneous() {
         Tensor::<TestBackend, 1>::from_data(TensorData::from([16.0f32, 16.0, 16.0]), &device);
     let transform = RigidTransform::<TestBackend, 3>::identity(Some(center), &device);
     let matrix = rigid_matrix_to_homogeneous(&transform);
-
     assert!((matrix[0] - 1.0).abs() < 1e-3, "R[0,0]={}", matrix[0]);
     assert!((matrix[5] - 1.0).abs() < 1e-3, "R[1,1]={}", matrix[5]);
     assert!((matrix[10] - 1.0).abs() < 1e-3, "R[2,2]={}", matrix[10]);
@@ -207,67 +207,242 @@ fn image_center_computation_is_correct() {
     assert!((center[2] - 16.0).abs() < 0.1, "Center Z={}", center[2]);
 }
 
-// ── Convergence History Test ──────────────────────────────────────────────────
+// ── CmaMiConfig Preset Tests ─────────────────────────────────────────────────
 
 #[test]
-fn convergence_history_tracks_per_level() {
-    let device = Default::default();
-    let fixed = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
-    let moving = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
+fn cma_mi_brain_rigid_default_has_expected_fields() {
+    use super::cma_mi::CmaMiConfig;
+    let cfg = CmaMiConfig::brain_rigid_default();
+    assert_eq!(cfg.coarse_shrink, 8);
+    assert!((cfg.sampling_percentage - 0.30).abs() < 1e-6);
+    assert!(!cfg.use_com_init);
+    assert_eq!(cfg.ipop_restarts, 0);
+    assert!(cfg.shrink_per_axis.is_none());
+    assert!((cfg.cma_config.sigma0 - 0.7).abs() < 1e-9);
+    assert_eq!(cfg.cma_config.max_generations, 200);
+}
 
-    let initial_transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
+#[test]
+fn cma_mi_fast_exploratory_uses_coarser_pyramid() {
+    use super::cma_mi::CmaMiConfig;
+    let fast = CmaMiConfig::fast_exploratory();
+    let brain = CmaMiConfig::brain_rigid_default();
 
-    let config = GlobalMiConfig {
-        num_levels: 3,
-        shrink_factors: vec![4, 2, 1],
-        smoothing_sigmas: vec![4.0, 2.0, 0.0],
-        num_mi_bins: 16,
-        sampling_percentage: 0.30,
-        rsgd_configs: vec![
-            RegularStepGdConfig {
-                initial_step_length: 1.0,
-                relaxation_factor: 0.5,
-                minimum_step_length: 1e-4,
-                maximum_step_length: 5.0,
-                gradient_tolerance: 1e-4,
-                maximum_iterations: 30,
-            },
-            RegularStepGdConfig {
-                initial_step_length: 0.5,
-                relaxation_factor: 0.5,
-                minimum_step_length: 1e-5,
-                maximum_step_length: 2.0,
-                gradient_tolerance: 1e-5,
-                maximum_iterations: 30,
-            },
-            RegularStepGdConfig {
-                initial_step_length: 0.2,
-                relaxation_factor: 0.5,
-                minimum_step_length: 1e-6,
-                maximum_step_length: 1.0,
-                gradient_tolerance: 1e-6,
-                maximum_iterations: 30,
-            },
-        ],
-        transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
-
-    let (_, result) = GlobalMiRegistration::register_translation_full(
-        &fixed,
-        &moving,
-        initial_transform,
-        &config,
+    // Fast exploratory must be coarser
+    assert!(
+        fast.coarse_shrink >= brain.coarse_shrink,
+        "fast_exploratory shrink ({}) should be >= brain_rigid_default shrink ({})",
+        fast.coarse_shrink,
+        brain.coarse_shrink,
     );
 
-    assert_eq!(result.convergence_history.len(), 3);
-    assert_eq!(result.iterations_per_level.len(), 3);
-    for (level, &iters) in result.iterations_per_level.iter().enumerate() {
+    // And use fewer generations
+    assert!(
+        fast.cma_config.max_generations <= brain.cma_config.max_generations,
+        "fast_exploratory max_gen ({}) should be <= brain_rigid_default ({})",
+        fast.cma_config.max_generations,
+        brain.cma_config.max_generations,
+    );
+
+    // Wider search range
+    assert!(
+        fast.translation_range_mm >= brain.translation_range_mm,
+        "fast_exploratory translation_range ({} mm) should be >= brain ({}mm)",
+        fast.translation_range_mm,
+        brain.translation_range_mm,
+    );
+}
+
+#[test]
+fn cma_mi_brain_rigid_default_uses_nmi() {
+    use super::cma_mi::CmaMiConfig;
+    use crate::metric::{MutualInformationVariant, NormalizationMethod};
+
+    let cfg = CmaMiConfig::brain_rigid_default();
+
+    // NMI (JointEntropy) is more robust to overlap changes during rotation.
+    assert_eq!(
+        cfg.mi_variant,
+        MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
+        "brain_rigid_default should use NMI(JointEntropy)"
+    );
+
+    // No cascade schedule — uses single-level path.
+    assert!(
+        cfg.pyramid_schedule.is_empty(),
+        "brain_rigid_default should not use pyramid_schedule"
+    );
+}
+
+#[test]
+fn cma_mi_default_uses_mattes_no_schedule() {
+    use super::cma_mi::CmaMiConfig;
+    use crate::metric::MutualInformationVariant;
+
+    let cfg = CmaMiConfig::default();
+    assert_eq!(cfg.mi_variant, MutualInformationVariant::Mattes);
+    assert!(cfg.pyramid_schedule.is_empty());
+}
+
+#[test]
+fn cma_mi_multiscale_has_three_levels() {
+    use super::cma_mi::CmaMiConfig;
+
+    let cfg = CmaMiConfig::brain_rigid_multiscale();
+    assert_eq!(
+        cfg.pyramid_schedule.len(),
+        3,
+        "brain_rigid_multiscale must have 3 levels"
+    );
+
+    // Levels must go coarse → medium → fine (shrink decreasing).
+    let shrinks: Vec<usize> = cfg.pyramid_schedule.iter().map(|l| l.shrink).collect();
+    assert!(
+        shrinks[0] > shrinks[1] && shrinks[1] > shrinks[2],
+        "Pyramid levels should be in decreasing shrink order: {:?}",
+        shrinks
+    );
+
+    // σ₀ should decrease level by level (narrowing the search).
+    let sigmas: Vec<f64> = cfg.pyramid_schedule.iter().map(|l| l.cma_sigma0).collect();
+    assert!(
+        sigmas[0] > sigmas[1] && sigmas[1] > sigmas[2],
+        "Pyramid level sigma0 should decrease coarse→fine: {:?}",
+        sigmas
+    );
+
+    // NMI should be used across all levels.
+    use crate::metric::{MutualInformationVariant, NormalizationMethod};
+    assert_eq!(
+        cfg.mi_variant,
+        MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
+    );
+
+    // CoM init must be disabled for CT↔MRI.
+    assert!(!cfg.use_com_init);
+}
+
+#[test]
+fn cma_mi_level_config_new_sets_defaults() {
+    use super::cma_mi::CmaMiLevelConfig;
+
+    let level = CmaMiLevelConfig::new(8, 4.0, 0.5, 100);
+    assert_eq!(level.shrink, 8);
+    assert!((level.sigma_mm - 4.0).abs() < 1e-9);
+    assert!((level.cma_sigma0 - 0.5).abs() < 1e-9);
+    assert_eq!(level.max_generations, 100);
+    assert_eq!(level.lambda, 0, "lambda should default to 0 (auto)");
+    assert_eq!(level.ipop_restarts, 0);
+    assert!(level.shrink_per_axis.is_none());
+}
+
+#[test]
+fn cma_mi_thin_slab_ct_uses_anisotropic_shrink() {
+    use super::cma_mi::CmaMiConfig;
+
+    let cfg = CmaMiConfig::thin_slab_ct_default();
+    let [sz, sy, sx] = cfg
+        .shrink_per_axis
+        .expect("thin_slab should have shrink_per_axis");
+
+    // z-axis must not be downsampled (sz = 1)
+    assert_eq!(sz, 1, "thin_slab_ct shrink z must be 1 (preserve z-slices)");
+
+    // xy must be downsampled more aggressively
+    assert!(sy > 1, "thin_slab_ct shrink y must be > 1");
+    assert!(sx > 1, "thin_slab_ct shrink x must be > 1");
+}
+
+// ── Sprint 290: Brain Masking Tests ───────────────────────────────────────
+
+/// Create a 3-D binary mask image (1.0 inside a box, 0.0 outside).
+pub(super) fn make_box_mask(
+    shape: [usize; 3],
+    // box corners in voxel space: [z_lo..z_hi, y_lo..y_hi, x_lo..x_hi]
+    z_range: std::ops::Range<usize>,
+    y_range: std::ops::Range<usize>,
+    x_range: std::ops::Range<usize>,
+    device: &<TestBackend as burn::tensor::backend::Backend>::Device,
+) -> Image<TestBackend, 3> {
+    let n = shape[0] * shape[1] * shape[2];
+    let mut data = vec![0.0f32; n];
+    for z in z_range {
+        for y in y_range.clone() {
+            for x in x_range.clone() {
+                data[z * shape[1] * shape[2] + y * shape[2] + x] = 1.0;
+            }
+        }
+    }
+    let tensor =
+        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+    Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+}
+
+#[test]
+fn cma_mi_register_rigid_with_mask_accepts_full_foreground_mask() {
+    // Smoke test: register_rigid_with_mask with an all-ones mask must not panic
+    // and must return the same type as register_rigid.
+    use super::cma_mi::{CmaMiConfig, CmaMiRegistration};
+
+    let device = Default::default();
+    let shape = [8, 8, 8];
+    let fixed = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
+    let moving = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
+
+    // All-ones mask — all voxels are foreground.
+    let mask = make_box_mask(shape, 0..8, 0..8, 0..8, &device);
+
+    let config = CmaMiConfig {
+        cma_config: crate::optimizer::CmaEsConfig {
+            sigma0: 0.3,
+            lambda: 0,
+            max_generations: 2, // minimal — just checking it runs
+            sigma_tol: 1e-8,
+            ftol: f64::NEG_INFINITY,
+            seed: 42,
+            record_history: false,
+        },
+        coarse_shrink: 4,
+        coarse_sigma_mm: 2.0,
+        sampling_percentage: 0.50,
+        ..CmaMiConfig::default()
+    };
+
+    // Must not panic; transform type check only.
+    let (transform_no_mask, _) =
+        CmaMiRegistration::register_rigid(&fixed, &moving, [0.0; 3], None, &config);
+    let (transform_with_mask, _) = CmaMiRegistration::register_rigid_with_mask(
+        &fixed,
+        &moving,
+        [0.0; 3],
+        None,
+        &config,
+        Some(&mask),
+    );
+
+    // Both should produce finite translation vectors.
+    let t_no_mask = transform_no_mask
+        .translation()
+        .into_data()
+        .as_slice::<f32>()
+        .unwrap()
+        .to_vec();
+    let t_with_mask = transform_with_mask
+        .translation()
+        .into_data()
+        .as_slice::<f32>()
+        .unwrap()
+        .to_vec();
+
+    for v in t_no_mask.iter().chain(t_with_mask.iter()) {
         assert!(
-            iters > 0,
-            "Level {} must have positive iterations",
-            level + 1
+            v.is_finite(),
+            "translation component must be finite, got {v}"
         );
     }
 }

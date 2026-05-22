@@ -97,7 +97,6 @@ pub struct ClaheFilter {
 pub struct ClaheScratch {
     cdfs: Vec<f32>,
     histograms: Vec<u64>,
-    tile_vals: Vec<f32>,
     output: Vec<f32>,
     n_tiles_y: usize,
     n_tiles_x: usize,
@@ -106,20 +105,13 @@ pub struct ClaheScratch {
 
 impl ClaheScratch {
     /// Pre-allocate scratch buffers for the given slice and tile dimensions.
-    pub fn new(
-        rows: usize,
-        cols: usize,
-        n_tiles_y: usize,
-        n_tiles_x: usize,
-        bins: usize,
-    ) -> Self {
+    pub fn new(rows: usize, cols: usize, n_tiles_y: usize, n_tiles_x: usize, bins: usize) -> Self {
         let nty = n_tiles_y.max(1).min(rows).max(1);
         let ntx = n_tiles_x.max(1).min(cols).max(1);
         let n_tiles = nty * ntx;
         Self {
             cdfs: vec![0.0f32; n_tiles * bins],
             histograms: vec![0u64; n_tiles * bins],
-            tile_vals: Vec::with_capacity(rows * cols),
             output: vec![0.0f32; rows * cols],
             n_tiles_y: nty,
             n_tiles_x: ntx,
@@ -191,36 +183,28 @@ impl ClaheFilter {
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
 
-        let scratch_init =
-                ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, self.bins);
+        let scratch_init = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, self.bins);
 
-            let clip_limit = self.clip_limit;
-            let bins = self.bins;
-            let slice_size = rows * cols;
+        let clip_limit = self.clip_limit;
+        let bins = self.bins;
+        let slice_size = rows * cols;
 
-            let out_slices: Vec<Vec<f32>> = (0..depth)
-                .into_par_iter()
-                .map_with(scratch_init, |scratch, d| {
-                    let slice = &vals[d * slice_size..(d + 1) * slice_size];
-                    clahe_2d_with_scratch(
-                        slice,
-                        rows,
-                        cols,
-                        n_tiles_y,
-                        n_tiles_x,
-                        clip_limit,
-                        bins,
-                        scratch,
-                    )
-                })
-                .collect();
+        let out_slices: Vec<Vec<f32>> = (0..depth)
+            .into_par_iter()
+            .map_with(scratch_init, |scratch, d| {
+                let slice = &vals[d * slice_size..(d + 1) * slice_size];
+                clahe_2d_with_scratch(
+                    slice, rows, cols, n_tiles_y, n_tiles_x, clip_limit, bins, scratch,
+                )
+            })
+            .collect();
 
-            let mut out = Vec::with_capacity(depth * slice_size);
-            for s in out_slices {
-                out.extend_from_slice(&s);
-            }
-            Ok(rebuild(out, dims, image))
+        let mut out = Vec::with_capacity(depth * slice_size);
+        for s in out_slices {
+            out.extend_from_slice(&s);
         }
+        Ok(rebuild(out, dims, image))
+    }
 
     /// Apply CLAHE to a 3-D image using a caller-provided scratch buffer.
     ///
@@ -286,8 +270,8 @@ impl ClaheFilter {
 /// pre-allocated scratch buffers.
 ///
 /// Returns a new flat `Vec<f32>` of identical length with CLAHE applied.
-/// The scratch CDFs, histograms, and tile_vals buffers are reused (cleared
-/// and refilled each call); the output is freshly allocated for the caller
+/// The scratch CDFs and histogram buffers are reused (cleared and refilled
+/// each call); the output is freshly allocated for the caller
 /// to own after the parallel slice collection.
 ///
 /// # Invariant
@@ -345,25 +329,11 @@ fn clahe_2d_with_scratch(
             let x0 = tx * cols / n_tx;
             let x1 = ((tx + 1) * cols / n_tx).min(cols);
 
-            scratch.tile_vals.clear();
-            for y in y0..y1 {
-                for x in x0..x1 {
-                    scratch.tile_vals.push(pixels[y * cols + x]);
-                }
-            }
-
             let tile_offset = (ty * n_tx + tx) * bins;
             let tile_hist = &mut scratch.histograms[tile_offset..tile_offset + bins];
             let tile_cdf = &mut scratch.cdfs[tile_offset..tile_offset + bins];
-
             build_tile_cdf_into(
-                &scratch.tile_vals,
-                v_min,
-                v_max,
-                bins,
-                clip_limit,
-                tile_hist,
-                tile_cdf,
+                pixels, y0, y1, x0, x1, cols, v_min, v_max, bins, clip_limit, tile_hist, tile_cdf,
             );
         }
     }
@@ -399,8 +369,7 @@ fn clahe_2d_with_scratch(
             let f11 = scratch.cdfs[(ty1 * n_tx + tx1) * bins + bin];
 
             // Bilinear interpolation: (1-u)*lerp_row0 + u*lerp_row1
-            let mapped =
-                (1.0 - u) * ((1.0 - t) * f00 + t * f01) + u * ((1.0 - t) * f10 + t * f11);
+            let mapped = (1.0 - u) * ((1.0 - t) * f00 + t * f01) + u * ((1.0 - t) * f10 + t * f11);
 
             scratch.output[y * cols + x] = v_min + mapped.clamp(0.0, 1.0) * span;
         }
@@ -422,9 +391,14 @@ fn clahe_2d_with_scratch(
 /// 4. Compute cumulative sum and normalise to `[0, 1]` by dividing by `n_T`.
 ///
 /// # Edge case
-/// When `tile_vals` is empty or `n_T == 0`, writes identity ramp `b/(bins-1)`.
+/// When the tile region is empty or `n_T == 0`, writes identity ramp `b/(bins-1)`.
 fn build_tile_cdf_into(
-    tile_vals: &[f32],
+    pixels: &[f32],
+    y0: usize,
+    y1: usize,
+    x0: usize,
+    x1: usize,
+    cols: usize,
     v_min: f32,
     v_max: f32,
     bins: usize,
@@ -434,8 +408,9 @@ fn build_tile_cdf_into(
 ) {
     debug_assert_eq!(hist_out.len(), bins);
     debug_assert_eq!(cdf_out.len(), bins);
-
-    let n = tile_vals.len();
+    let tile_rows = y1 - y0;
+    let tile_cols = x1 - x0;
+    let n = tile_rows * tile_cols;
     if n == 0 {
         // Identity ramp: uniform CDF.
         for (b, out) in cdf_out.iter_mut().enumerate() {
@@ -443,18 +418,19 @@ fn build_tile_cdf_into(
         }
         return;
     }
-
     hist_out.fill(0);
-
     let span = v_max - v_min;
     if span <= 0.0 {
         // Uniform slice: all pixels map to bin 0.
         hist_out[0] = n as u64;
     } else {
-        for &v in tile_vals {
-            let normalized = ((v - v_min) / span).clamp(0.0, 1.0);
-            let bin = ((normalized * (bins as f32 - 1.0)).floor() as usize).min(bins - 1);
-            hist_out[bin] += 1;
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let v = pixels[y * cols + x];
+                let normalized = ((v - v_min) / span).clamp(0.0, 1.0);
+                let bin = ((normalized * (bins as f32 - 1.0)).floor() as usize).min(bins - 1);
+                hist_out[bin] += 1;
+            }
         }
     }
 

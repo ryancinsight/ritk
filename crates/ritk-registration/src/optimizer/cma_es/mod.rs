@@ -376,6 +376,61 @@ impl CmaEsOptimizer {
             best_history,
         }
     }
+
+    /// Run IPOP-CMA-ES: automatically restarts with doubled population when CMA-ES
+    /// converges prematurely (step-size too small or condition too large).
+    ///
+    /// # Arguments
+    /// * `f` — objective function
+    /// * `x0` — initial mean
+    /// * `max_restarts` — maximum number of restarts (0 = no restarts, equivalent to `run`)
+    ///
+    /// # Returns
+    /// The best [`CmaEsResult`] found across all runs.
+    pub fn run_ipop<F>(&self, f: F, x0: &[f64], max_restarts: usize) -> CmaEsResult
+    where
+        F: Fn(&[f64]) -> f64,
+    {
+        let n = x0.len();
+        let base_lambda = if self.config.lambda > 0 {
+            self.config.lambda
+        } else {
+            4 + (3.0 * (n as f64).ln()).floor() as usize
+        };
+
+        let mut best_result = self.run(&f, x0);
+        let mut lambda = base_lambda;
+
+        for restart in 0..max_restarts {
+            // Only restart if we converged prematurely (not due to MaxGenerations or FunctionTolerance)
+            match best_result.stop_reason {
+                StopReason::MaxGenerations | StopReason::FunctionTolerance => break,
+                _ => {}
+            }
+
+            // Double the population for IPOP
+            lambda = lambda.saturating_mul(2);
+
+            let restart_config = CmaEsConfig {
+                lambda,
+                // Vary seed per restart to explore different regions
+                seed: self
+                    .config
+                    .seed
+                    .wrapping_add(restart as u64 + 1)
+                    .wrapping_mul(6_364_136_223_846_793_005),
+                ..self.config.clone()
+            };
+
+            let restart_result = CmaEsOptimizer::new(restart_config).run(&f, x0);
+
+            if restart_result.best_f < best_result.best_f {
+                best_result = restart_result;
+            }
+        }
+
+        best_result
+    }
 }
 
 // Extracted strictly mapped linear algebra components directly inside `math.rs` bounding limits securely.

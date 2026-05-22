@@ -17,6 +17,12 @@
 mod profile;
 #[cfg(test)]
 mod tests_anonymize;
+#[cfg(test)]
+#[path = "tests_anonymize_extended.rs"]
+mod tests_anonymize_extended;
+#[cfg(test)]
+#[path = "tests_anonymize_stats.rs"]
+mod tests_anonymize_stats;
 
 pub use profile::{AnonymizationProfile, TagAction};
 
@@ -144,7 +150,11 @@ pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
     // Strip leading zeros from the decimal portion to avoid UID components
     // with leading zeros (DICOM forbids leading-zero components after the root).
     let decimal_stripped = decimal.trim_start_matches('0');
-    let uid_body = if decimal_stripped.is_empty() { "0" } else { decimal_stripped };
+    let uid_body = if decimal_stripped.is_empty() {
+        "0"
+    } else {
+        decimal_stripped
+    };
     let uid = format!("2.25.{uid_body}");
 
     debug_assert!(
@@ -195,7 +205,7 @@ fn apply_action(
             let vr = obj.element(tag).map(|e| e.vr()).unwrap_or(VR::LO);
             let val: &str = match tag {
                 Tag(0x0010, 0x0010) => &opts.patient_name, // PatientName
-                Tag(0x0010, 0x0020) => &opts.patient_id,  // PatientID
+                Tag(0x0010, 0x0020) => &opts.patient_id,   // PatientID
                 _ => &opts.patient_name,                   // default dummy
             };
             obj.put(DataElement::new(tag, vr, PrimitiveValue::from(val)));

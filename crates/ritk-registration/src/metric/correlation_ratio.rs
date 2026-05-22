@@ -65,7 +65,7 @@ impl<B: Backend> CorrelationRatio<B> {
             ),
             direction,
             sampling_percentage: None,
-            interpolator: LinearInterpolator::new(),
+            interpolator: LinearInterpolator::new_zero_pad(),
             _phantom: PhantomData,
         }
     }

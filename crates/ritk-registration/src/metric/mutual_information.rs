@@ -81,6 +81,7 @@ pub struct MutualInformation<B: Backend> {
     histogram_calculator: ParzenJointHistogram<B>,
     sampling_percentage: Option<f32>,
     interpolator: LinearInterpolator,
+    fixed_mask_points: Option<Tensor<B, 2>>,
     _phantom: PhantomData<B>,
 }
 
@@ -110,7 +111,8 @@ impl<B: Backend> MutualInformation<B> {
                 parzen_sigma,
             ),
             sampling_percentage: None,
-            interpolator: LinearInterpolator::new(),
+            interpolator: LinearInterpolator::new_zero_pad(),
+            fixed_mask_points: None,
             _phantom: PhantomData,
         }
     }
@@ -149,6 +151,25 @@ impl<B: Backend> MutualInformation<B> {
         )
     }
 
+    /// Supply pre-selected foreground world-space sample points for the fixed image.
+    ///
+    /// When set, these replace stochastic uniform sampling in [`Metric::forward`]:
+    /// only the provided world positions contribute to the joint histogram.
+    /// This restricts MI computation to the brain region (standard ANTs strategy),
+    /// eliminating background-dominated histogram bins that cause spurious MI peaks.
+    ///
+    /// The points tensor must have shape `[N, D]` and be on the same device as the
+    /// images passed to `forward`.  It should be generated from the same pyramid
+    /// level as the images — call `extract_foreground_world_points` in the CMA-ES
+    /// registration pipeline to produce these from a downsampled brain mask.
+    ///
+    /// When `None` (the default), the existing stochastic uniform sampling path is
+    /// used (controlled by `with_sampling`).
+    pub fn with_fixed_mask_points(mut self, points: Tensor<B, 2>) -> Self {
+        self.fixed_mask_points = Some(points);
+        self
+    }
+
     /// Set stochastic sampling fraction ∈ (0, 1].
     pub fn with_sampling(mut self, percentage: f32) -> Self {
         let clamped = percentage.clamp(1e-4, 1.0);
@@ -174,13 +195,23 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         transform: &impl Transform<B, D>,
     ) -> Tensor<B, 1> {
         // 1. Joint Histogram built strictly through shared Parzen infrastructure
-        let joint_hist = self.histogram_calculator.compute_image_joint_histogram(
-            fixed,
-            moving,
-            transform,
-            &self.interpolator,
-            self.sampling_percentage,
-        );
+        let joint_hist = if let Some(ref pts) = self.fixed_mask_points {
+            self.histogram_calculator.compute_masked_joint_histogram(
+                fixed,
+                pts.clone(),
+                moving,
+                transform,
+                &self.interpolator,
+            )
+        } else {
+            self.histogram_calculator.compute_image_joint_histogram(
+                fixed,
+                moving,
+                transform,
+                &self.interpolator,
+                self.sampling_percentage,
+            )
+        };
 
         // 2. Normalize to joint PDF p̂(x,y)
         let sum = joint_hist.clone().sum();

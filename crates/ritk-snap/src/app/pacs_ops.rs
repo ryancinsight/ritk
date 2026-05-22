@@ -69,6 +69,21 @@ impl SnapApp {
                 info!("{}", msg);
                 self.pacs_query_state = QueryState::Idle;
             }
+            PacsResponse::FindSeriesOk(series) => {
+                let n = series.len();
+                let study_uid = series
+                    .first()
+                    .map(|s| s.study_instance_uid.clone())
+                    .unwrap_or_default();
+                let msg = format!("PACS C-FIND series: {n} result(s)");
+                self.status_message = msg.clone();
+                info!("{}", msg);
+                self.pacs_query_state = QueryState::SeriesResults {
+                    study_instance_uid: study_uid,
+                    series,
+                };
+                self.pacs_selected_row = None;
+            }
             PacsResponse::RetrieveErr(e) => {
                 let msg = format!("PACS C-MOVE failed: {e}");
                 self.status_message = msg.clone();

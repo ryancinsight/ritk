@@ -36,7 +36,7 @@
 //!   <https://itk.org/Doxygen/html/classitk_1_1ImageRegistrationMethod.html>
 
 pub mod center_of_mass;
-pub mod cma_mi_registration;
+pub mod cma_mi;
 pub mod config;
 pub mod multistart;
 pub mod registration;
@@ -47,7 +47,7 @@ pub(crate) mod transforms;
 mod tests;
 
 pub use center_of_mass::{compute_center_of_mass, translation_from_centers_of_mass};
-pub use cma_mi_registration::{CmaMiConfig, CmaMiRegistration, CmaMiResult};
+pub use cma_mi::{CmaMiConfig, CmaMiLevelConfig, CmaMiRegistration, CmaMiResult};
 pub use config::{GlobalMiConfig, GlobalMiTransformType};
 pub use multistart::{MultiStartConfig, MultiStartMiRegistration, MultiStartResult};
 pub use registration::GlobalMiRegistration;

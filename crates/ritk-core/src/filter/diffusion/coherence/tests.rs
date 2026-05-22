@@ -1,4 +1,5 @@
 use super::*;
+use crate::image::Image;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 

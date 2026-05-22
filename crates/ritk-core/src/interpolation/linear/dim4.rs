@@ -17,6 +17,7 @@ pub(crate) fn gather_4d<B: Backend>(
 pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     indices: Tensor<B, 2>,
+    zero_pad: bool,
 ) -> Tensor<B, 1> {
     let shape = data.shape();
     let d0 = shape.dims[0]; // W (time/4th dim)
@@ -51,11 +52,11 @@ pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
     let z1 = z0.clone() + 1.0;
     let w1 = w0.clone() + 1.0;
 
-    // Clamp indices to valid range
-    let x0_i = x0.clamp(0.0, (d3 - 1) as f64).int();
-    let y0_i = y0.clamp(0.0, (d2 - 1) as f64).int();
-    let z0_i = z0.clamp(0.0, (d1 - 1) as f64).int();
-    let w0_i = w0.clamp(0.0, (d0 - 1) as f64).int();
+    // Clamp indices to valid range (preserve x0/y0/z0/w0 via .clone() for the zero-pad mask)
+    let x0_i = x0.clone().clamp(0.0, (d3 - 1) as f64).int();
+    let y0_i = y0.clone().clamp(0.0, (d2 - 1) as f64).int();
+    let z0_i = z0.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let w0_i = w0.clone().clamp(0.0, (d0 - 1) as f64).int();
 
     let x1_i = x1.clamp(0.0, (d3 - 1) as f64).int();
     let y1_i = y1.clamp(0.0, (d2 - 1) as f64).int();
@@ -229,5 +230,18 @@ pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
     let c1 = c01 * one_minus_wz.clone() + c11 * wz.clone();
 
     // Interpolate along W
-    c0 * one_minus_ww + c1 * ww
+    let result = c0 * one_minus_ww + c1 * ww;
+
+    if zero_pad {
+        // A sample is in-bounds iff floor(c) == clamp(floor(c), 0, d-1) for every dimension.
+        // x0.clone()/y0.clone()/z0.clone()/w0.clone() preserve the tensors for the final clamp.
+        let x_in = x0.clone().equal(x0.clamp(0.0, (d3 - 1) as f64)).float();
+        let y_in = y0.clone().equal(y0.clamp(0.0, (d2 - 1) as f64)).float();
+        let z_in = z0.clone().equal(z0.clamp(0.0, (d1 - 1) as f64)).float();
+        let w_in = w0.clone().equal(w0.clamp(0.0, (d0 - 1) as f64)).float();
+        let in_bounds = x_in * y_in * z_in * w_in;
+        result * in_bounds
+    } else {
+        result
+    }
 }
