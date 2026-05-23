@@ -1,3 +1,40 @@
+## Sprint 299 Audit (2026-05-22) — RIRE Brain Mask Validation
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| SPRINT-299-01 | Brain mask validation on real RIRE data — CT threshold + morphology + largest-component mask generation, thin-slab multiscale CMA-ES with/without mask, TRE comparison | `ritk-registration/tests/rire_registration_brain_mask_test` | 1 |
+
+### Architecture
+
+1. **Brain mask generation pipeline** (`create_ct_brain_mask`): Uses standard ITK-style morphological brain extraction from CT: (a) threshold at [0, 100] HU to extract soft tissue, (b) binary erosion (radius 2) to break thin connections to skull and neck muscle, (c) 26-connected-component labeling to isolate the largest structure (brain), (d) binary dilation (radius 2) to restore the eroded brain boundary, (e) hole filling to close internal CSF spaces.
+
+2. **Mask integration**: The generated mask is passed as `fixed_mask: Option<&Image<B, 3>>` to `CmaMiRegistration::register_rigid_with_mask`. The existing mask pipeline in `helpers.rs::run_cma_level` handles downsampling to each pyramid level, thresholding at 0.5 to maintain binary character after integer-factor downsampling, and `extract_foreground_world_points` to produce world-space coordinates for the masked MI evaluation.
+
+3. **Comparison protocol**: The test runs two registrations — with and without mask — using identical `CmaMiConfig::brain_rigid_multiscale_thin_slab()` config and random seed. Both are cold-started from `[0,0,0]` rotation and center-of-mass translation. TRE is computed against the 8 RIRE corner fiducial pairs.
+
+4. **Test gating**: The test is `#[ignore]`d by default (requires `test_data/registration/rire/` and takes ~10-15 min on CPU), consistent with all other data-gated RIRE tests.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo check --workspace` | 0 errors, 0 new warnings | pass |
+| `cargo test -p ritk-registration --lib` | 307 passed, 0 failed | pass |
+| `cargo test -p ritk-registration --test rire_registration_algorithm_test` | 2 passed, 0 failed | pass |
+| Mask generation | Non-empty check (> 1% foreground voxels) | enforced |
+| Masked MI > 0 | Valid cross-modal alignment | enforced |
+| Masked TRE < identity | Meaningful alignment improvement | enforced |
+| Masked TRE ≤ unmasked TRE + 1mm | Mask does not harm (1 mm tolerance) | enforced |
+
+### Residual Risk
+
+- Mask generation is CT-specific (threshold [0,100] HU). For MRI-to-MRI masked registration, a different mask pipeline (e.g., Otsu → brain extraction) would be needed.
+- Mask generation has not been validated against a ground-truth brain segmentation — only against TRE improvement.
+- The test uses thin-slab multiscale CMA-ES; results may differ with single-level or RSGD-refined configurations.
+- Full RIRE registration (masked + unmasked) takes ~10-15 min — too slow for CI.
+
 ## Sprint 296 Audit (2026-05-22) — RT Structure Set Writer
 
 ### Gaps closed

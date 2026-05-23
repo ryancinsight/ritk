@@ -33,7 +33,7 @@ impl ProgressTracker {
 
     /// Start tracking.
     pub fn start(&self) {
-        *self.start_time.lock().unwrap() = Some(Instant::now());
+        *self.start_time.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
         for callback in &self.callbacks {
             callback.on_start();
         }
@@ -47,7 +47,7 @@ impl ProgressTracker {
         loss: f64,
         learning_rate: f64,
     ) {
-        let start_time = *self.start_time.lock().unwrap();
+        let start_time = *self.start_time.lock().unwrap_or_else(|e| e.into_inner());
         let elapsed = start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO);
 
         let mut info = ProgressInfo::new(iteration, total_iterations, loss, elapsed, learning_rate);
@@ -60,7 +60,7 @@ impl ProgressTracker {
 
     /// Complete tracking.
     pub fn complete(&self, final_loss: f64, learning_rate: f64) {
-        let start_time = *self.start_time.lock().unwrap();
+        let start_time = *self.start_time.lock().unwrap_or_else(|e| e.into_inner());
         let elapsed = start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO);
 
         let info = ProgressInfo::new(

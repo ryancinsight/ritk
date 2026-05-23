@@ -148,18 +148,15 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
 
         // 5. Compute or load Local Stats for FIXED image (Stationary Cache O(1))
         let (mean_f, var_f) = {
-            let mut cache = self.cache.lock().unwrap();
-            let current_shape = fixed.shape().to_vec();
-            let current_origin: Vec<f64> = fixed.origin().0.iter().cloned().collect();
-            let current_spacing: Vec<f64> = fixed.spacing().0.iter().cloned().collect();
-            let current_direction: Vec<f64> = fixed.direction().0.iter().cloned().collect();
+            let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
 
             let mut cache_hit = false;
             if let Some(c) = cache.as_ref() {
-                if c.shape == current_shape
-                    && c.origin == current_origin
-                    && c.spacing == current_spacing
-                    && c.direction == current_direction
+                let fs = fixed.shape();
+                if c.shape.as_slice() == &fs
+                    && c.origin.iter().eq(fixed.origin().0.iter())
+                    && c.spacing.iter().eq(fixed.spacing().0.iter())
+                    && c.direction.iter().eq(fixed.direction().0.iter())
                 {
                     cache_hit = true;
                 }
@@ -179,6 +176,10 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
             } else {
                 let (m_f, v_f) =
                     self.compute_local_stats(fixed_values.clone(), &filter, fixed.spacing());
+                let current_shape = fixed.shape().to_vec();
+                let current_origin: Vec<f64> = fixed.origin().0.iter().cloned().collect();
+                let current_spacing: Vec<f64> = fixed.spacing().0.iter().cloned().collect();
+                let current_direction: Vec<f64> = fixed.direction().0.iter().cloned().collect();
                 *cache = Some(LnccCache {
                     shape: current_shape,
                     origin: current_origin,

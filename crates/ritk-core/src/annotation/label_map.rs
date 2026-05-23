@@ -13,6 +13,7 @@
 //! - shape[0] * shape[1] * shape[2] == data.len() exactly.
 
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use super::label_table::LabelTable;
 
@@ -20,12 +21,22 @@ use super::label_table::LabelTable;
 ///
 /// Layout: ZYX (z varies slowest, x varies fastest).
 /// Invariant: `shape[0] * shape[1] * shape[2] == data.len()`.
+///
+/// # Memory model (Copy-on-Write)
+///
+/// The flat label buffer is wrapped in `Arc<Vec<u32>>` so that `clone()` (used
+/// by the label editor before each edit) increments a reference count instead of
+/// deep-copying every voxel.  The deep copy is deferred to the first `set_label_at`
+/// call via `Arc::make_mut`, which materializes a new buffer only when the `Arc`
+/// has multiple references.  Read-only operations (`label_at`, `as_slice`,
+/// `present_labels`, etc.) incur zero copy overhead regardless of the reference
+/// count.
 #[derive(Debug, Clone)]
 pub struct LabelMap {
     /// Volume dimensions [nz, ny, nx].
     pub shape: [usize; 3],
     /// Flat label buffer in ZYX layout. Label 0 denotes background.
-    data: Vec<u32>,
+    data: Arc<Vec<u32>>,
     /// Label-to-display-properties table.
     pub table: LabelTable,
 }
@@ -36,7 +47,7 @@ impl LabelMap {
         let n = shape[0] * shape[1] * shape[2];
         Self {
             shape,
-            data: vec![0u32; n],
+            data: Arc::new(vec![0u32; n]),
             table,
         }
     }
@@ -53,7 +64,7 @@ impl LabelMap {
                 expected
             ));
         }
-        Ok(Self { shape, data, table })
+        Ok(Self { shape, data: Arc::new(data), table })
     }
 
     /// Total number of voxels.
@@ -67,14 +78,19 @@ impl LabelMap {
     }
 
     /// Set the label at voxel [z, y, x]. Panics if the index is out of bounds.
+    ///
+    /// Uses `Arc::make_mut` for copy-on-write: if the `Arc` is shared (multiple
+    /// references from undo history), the underlying buffer is deep-copied on the
+    /// *first* mutation and subsequently mutated in place.  Subsequent calls with
+    /// exclusive ownership run without any copy.
     pub fn set_label_at(&mut self, idx: [usize; 3], label_id: u32) {
         let flat = self.flat_index(idx);
-        self.data[flat] = label_id;
+        Arc::make_mut(&mut self.data)[flat] = label_id;
     }
 
     /// Return the flat buffer (read-only).
     pub fn as_slice(&self) -> &[u32] {
-        &self.data
+        &self.data[..]
     }
 
     /// Compute a binary mask: `mask[i] = true` iff `data[i] == label_id`.

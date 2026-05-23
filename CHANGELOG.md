@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## [0.50.69] - 2026-05-22
+### Added [minor]
+- **SPRINT-299-01: RIRE brain mask validation test** (Sprint 299): First validation of brain-masking registration pipeline on real RIRE cross-modal data. New integration test `test_brain_masked_registration_tre_on_rire_patient001` in `rire_registration_brain_mask_test.rs` that:
+  - Generates a brain mask from CT via threshold [0,100] HU → binary erosion (r=2) → 26-connected-component labeling → largest component → dilation (r=2) → hole filling.
+  - Runs thin-slab multiscale CMA-ES WITHOUT mask (baseline).
+  - Runs the same config WITH the brain mask.
+  - Asserts masked TRE < identity TRE and masked TRE ≤ unmasked TRE + 1 mm tolerance.
+  - Closes the single highest-priority open gap (Critical): brain masking infrastructure existed (Sprint 290) but was never validated on real data.
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 new warnings
+- `cargo test -p ritk-registration --lib`: 307 passed (all unmasked tests unaffected)
+- `cargo test -p ritk-registration --test rire_registration_algorithm_test`: 2 passed (non-ignored)
+
+## [0.50.68] - 2026-05-22
+### Optimized [patch]
+- **PERF-298-01: LabelMap COW semantics via Arc<Vec<u32>>** (Sprint 298): Changed `LabelMap.data` from `Vec<u32>` to `Arc<Vec<u32>>`. `clone()` now bumps the reference count instead of deep-copying every voxel. `set_label_at` calls `Arc::make_mut`, which performs a deep copy only on the first mutation after `clone()`. For a 512 MB volume, a single paint operation goes from a 512 MB allocation+memcpy to an atomic ref-count increment. Callers see no API change. All 8 label-map tests pass.
+- **PERF-298-02: One-time DICOM tag set via LazyLock** (Sprint 298): `known_handled_tags()` now returns `&'static HashSet<u32>` built once by `std::sync::LazyLock`. Eliminates ~30 `HashSet::insert` calls per DICOM file parse. Call site in `parse.rs` updated.
+- **PERF-298-03: Poisoned-mutex recovery at 21 sites** (Sprint 298): All 21 production `lock().unwrap()` calls replaced with `lock().unwrap_or_else(|e| e.into_inner())`. Zero runtime cost when the lock is uncontested; gracefully recovers the inner value and continues if a thread panic poisoned the mutex. Affects `compute.rs` (6), `lncc.rs` (1), `tracker.rs` (3), `early_stopping.rs` (7), `history.rs` (3).
+- **PERF-298-04: DIMSE encode buffer refactor** (Sprint 298): `encode_element` renamed to `encode_element_into(buf, …)` — writes directly into an existing `&mut Vec<u8>`. `encode_command_set()` pre-sizes the body buffer to `capacity = sum(overhead + value.len())`, eliminating per-element intermediate `Vec` allocations and resize reallocations. Dead `encode_ul` function removed.
+- **PERF-298-05: Zero-allocation cache comparison** (Sprint 298): Histogram and LNCC cache shape/origin/spacing/direction comparisons changed from `.to_vec()` (4 heap allocations per iteration) to zero-allocation `Iterator::eq()` and `as_slice()` slice comparison. Allocations now occur only on cache miss (once per image change).
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib annotation::label_map`: **8 passed**
+- `cargo test -p ritk-io --lib dimse`: **32 passed**
+- `cargo test -p ritk-registration --lib`: **307 passed**
+
 ## [0.50.67] - 2026-05-23
 ### Optimized [major]
 - **SPRINT-295-PERF-01: Chunked-path W_fixed^T caching in Parzen joint histogram** (Sprint 295): Eliminated O(N × num_bins) per-iteration Parzen weight recomputation for the fixed image in the chunked path (n > 32768) of `compute_image_joint_histogram`. Previously, `HistogramCache.w_fixed_transposed` was set to `None` in the chunked path, meaning every CMA-ES objective evaluation recomputed the fixed-image Parzen weights for every chunk. Now, `W_fixed^T [num_bins, N]` is computed once on the first call, cached, and per-chunk slices `[num_bins, start..end]` are used with `compute_joint_histogram_from_cache` on subsequent iterations. Key changes:

@@ -1,3 +1,95 @@
+## Sprint 299 — Complete
+
+**Status**: Complete
+
+**Phase**: Brain masking validation on real RIRE data
+
+**Version**: 0.50.69 [minor]
+
+**Goal**: Close the highest-priority open gap — brain masking infrastructure was built (Sprint 290) but never validated on real RIRE cross-modal data. Generate a CT brain mask via threshold + morphology + component labeling and validate that `register_rigid_with_mask` produces lower TRE than identity baseline and is not worse than unmasked registration.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| SPRINT-299-01 | RIRE brain mask validation test — CT threshold + morphology + largest-component mask generation; thin-slab multiscale CMA-ES with/without mask; TRE comparison | **Closed** |
+
+### Deliverables
+
+- `crates/ritk-registration/tests/rire_registration_brain_mask_test.rs` — full pipeline:
+  - `create_ct_brain_mask()` — threshold [0,100] HU → erosion (r=2) → 26-CCL → largest component → dilation (r=2) → hole fill
+  - `test_brain_masked_registration_tre_on_rire_patient001()` — loads CT+MRI T1 from RIRE Patient-001, runs unmasked and masked thin-slab multiscale CMA-ES, asserts masked TRE < identity TRE and masked TRE ≤ unmasked TRE + 1mm
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 new warnings
+- `cargo test -p ritk-registration --lib`: 307/307 passed
+- Test is `#[ignore]`d as it requires `test_data/registration/rire` and takes ~10-15 min on CPU
+
+### Gaps remaining
+
+| Task | Priority |
+|------|----------|
+| Tier 4 extended: DIMSE value-enum helpers (`encode_us`, `encode_ui`, `encode_ae`) → `encode_into(buf, …)` to eliminate per-field Vec in factory methods | Low |
+| LNCC/Parzen cache structs: `Vec<usize>`/`Vec<f64>` → `[usize; D]`/`[f64; D]` with const-generic `D` for true type-level dimension tracking | Low |
+
+---
+
+## Sprint 298 — Complete
+
+**Status**: Complete
+
+**Phase**: Performance optimization — COW label maps, one-time DICOM tag set, poisoned-mutex recovery, encode buffer refactor
+
+**Version**: 0.50.68 [patch]
+
+**Goal**: Eliminate measurable performance bottlenecks: LabelMap deep-copy on every paint, per-file DICOM tag set build, `lock().unwrap()` panic risk at 21 production sites, per-element DIMSE encode allocations, per-iteration cache-comparison allocations.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| PERF-298-01 | LabelMap `data` field changed from `Vec<u32>` to `Arc<Vec<u32>>` — `clone()` bumps ref count; `set_label_at` uses `Arc::make_mut` (deep copy only on first mutation after clone) | **Closed** |
+| PERF-298-02 | `known_handled_tags()` returns `&'static HashSet<u32>` via `std::sync::LazyLock` — eliminates 30+ `insert` calls per DICOM parse | **Closed** |
+| PERF-298-03 | All 21 production `lock().unwrap()` calls replaced with `lock().unwrap_or_else(\|e\| e.into_inner())` — zero runtime cost, recovers from poisoned mutex | **Closed** |
+| PERF-298-04 | `encode_element` refactored to `encode_element_into(buf, …)` — writes directly into a single pre-sized buffer, eliminating per-element `Vec` allocation in `encode_command_set()` | **Closed** |
+| PERF-298-05 | Cache shape/origin/spacing/direction comparisons use `Iterator::eq` and `as_slice()` instead of `.to_vec()` → zero-allocation comparison path; allocations only on cache miss | **Closed** |
+
+### Deliverables
+
+- `crates/ritk-core/src/annotation/label_map.rs`: `data: Arc<Vec<u32>>`
+- `crates/ritk-io/src/format/dicom/reader/preservation.rs`: `known_handled_tags()` → `LazyLock` static
+- `crates/ritk-io/src/format/dicom/reader/parse.rs`: updated call site for `&'static HashSet`
+- `crates/ritk-registration/src/metric/histogram/parzen/compute.rs`: 6 lock sites, 4 cache-comparison sites → zero-allocation
+- `crates/ritk-registration/src/metric/lncc.rs`: 1 lock site, 1 cache-comparison site → zero-allocation
+- `crates/ritk-registration/src/progress/tracker.rs`: 3 lock sites
+- `crates/ritk-registration/src/progress/early_stopping.rs`: 7 lock sites
+- `crates/ritk-registration/src/progress/history.rs`: 3 lock sites
+- `crates/ritk-io/src/format/dicom/networking/dimse.rs`: `encode_element_into` + pre-sized `encode_command_set` body; removed dead `encode_ul`
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib annotation::label_map`: 8/8 passed
+- `cargo test -p ritk-io --lib dimse`: 32/32 passed
+- `cargo test -p ritk-registration --lib`: 307/307 passed, 0 failed
+
+### Gaps remaining
+
+| Task | Priority |
+|------|----------|
+| Registration brain masking validation on RIRE (mask infrastructure exists but not validated) | Critical |
+| Tier 4 extended: DIMSE value-enum helpers (`encode_us`, `encode_ui`, `encode_ae`) → `encode_into(buf, …)` to eliminate per-field Vec in factory methods | Low |
+| LNCC/Parzen cache structs: `Vec<usize>`/`Vec<f64>` → `[usize; D]`/`[f64; D]` with const-generic `D` for true type-level dimension tracking | Low |
+
+---
+
+## Sprint 297 — Complete
+
+See Sprint 296 — converted `label_map_to_rt_struct` and snap export were delivered as Sprint 297 continuation under the same phase.
+
+---
+
 ## Sprint 296 - Complete
 
 **Status**: Complete

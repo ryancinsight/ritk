@@ -1,3 +1,29 @@
+## Sprint 299 (0.50.69) — RIRE Brain Mask Validation
+- [x] SPRINT-299-01: CT brain mask generation pipeline (threshold [0,100] HU → binary erosion r=2 → 26-CCL → largest component → dilation r=2 → hole fill)
+- [x] `create_ct_brain_mask()` function — generic `B: Backend`, uses `BinaryThresholdImageFilter`, `BinaryErodeFilter`, `ConnectedComponentsFilter`, `BinaryDilateFilter`, `BinaryFillholeFilter`
+- [x] `test_brain_masked_registration_tre_on_rire_patient001()` — thin-slab multiscale CMA-ES with/without mask on RIRE Patient-001
+- [x] Assertions: mask has > 1% foreground voxels (non-empty brain mask), masked MI > 0, masked TRE < identity TRE, masked TRE ≤ unmasked TRE + 1 mm
+- [x] `cargo check --workspace`: 0 errors, 0 new warnings
+- [x] `cargo test -p ritk-registration --lib`: 307 passed (all unmasked tests unaffected)
+- [x] CHANGELOG.md updated (0.50.69)
+- [x] backlog.md updated (Sprint 299 complete)
+- [x] gap_audit.md updated
+
+## Sprint 298 (0.50.68) — Performance Optimization Sprint
+- [x] PERF-298-01: LabelMap `data` → `Arc<Vec<u32>>` — COW clone, `Arc::make_mut` on mutation
+- [x] PERF-298-02: `known_handled_tags` → `LazyLock` static — one-time DICOM tag set construction
+- [x] PERF-298-03: 21 `lock().unwrap()` → `lock().unwrap_or_else(|e| e.into_inner())` across registration crate
+- [x] PERF-298-04: `encode_element` → `encode_element_into(buf, …)` — pre-sized encode body buffer, 0 per-element Vec allocs
+- [x] PERF-298-05: Cache shape/origin/spacing/direction comparison — zero-allocation via `Iterator::eq` + `as_slice()` slice comparison
+- [x] Remove dead `encode_ul` function
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib annotation::label_map`: 8 passed
+- [x] `cargo test -p ritk-io --lib dimse`: 32 passed
+- [x] `cargo test -p ritk-registration --lib`: 307 passed
+- [x] CHANGELOG.md updated
+- [x] backlog.md updated
+- [x] summary.md updated
+
 ## Sprint 295 (0.50.67) — Structural Partitions + Registration Pipeline Optimization
 - [x] STR-295-01: Partition `bspline.rs` (837 lines) → `interpolation/bspline/` directory (4 files: mod, flat, legacy, tests)
 - [x] STR-295-02: Partition `parzen.rs` (645 lines) → `histogram/parzen/` directory (4 files: mod, compute, oob, tests)

@@ -113,7 +113,6 @@ pub struct DimseMessage {
 // ── Value encoding helpers ────────────────────────────────────────────────────
 
 fn encode_us(v: u16) -> Vec<u8> { v.to_le_bytes().to_vec() }
-fn encode_ul(v: u32) -> Vec<u8> { v.to_le_bytes().to_vec() }
 fn encode_ui(uid: &str) -> Vec<u8> {
     let mut b = uid.as_bytes().to_vec();
     if b.len() % 2 != 0 { b.push(0x00); }
@@ -278,8 +277,8 @@ impl DimseMessage {
 // ── Encoding / Decoding ───────────────────────────────────────────────────────
 
 impl DimseMessage {
-    fn encode_element(tag: (u16, u16), vr: CommandVr, value: &[u8]) -> Vec<u8> {
-        let mut buf = Vec::with_capacity(8 + value.len());
+    /// Write the Explicit VR LE encoding of a single command element into `buf`.
+    fn encode_element_into(buf: &mut Vec<u8>, tag: (u16, u16), vr: CommandVr, value: &[u8]) {
         buf.extend_from_slice(&tag.0.to_le_bytes());
         buf.extend_from_slice(&tag.1.to_le_bytes());
         buf.extend_from_slice(&vr.code());
@@ -290,19 +289,45 @@ impl DimseMessage {
             buf.extend_from_slice(&(value.len() as u32).to_le_bytes());
         }
         buf.extend_from_slice(value);
-        buf
     }
 
     /// Encode the command set as DICOM Explicit VR Little Endian bytes.
     /// (0000,0000) CommandGroupLength is computed and prepended.
+    ///
+    /// # Allocation profile
+    ///
+    /// All encoded element bytes are written directly into a single pre-grown
+    /// `Vec<u8>`, avoiding per-element intermediate `Vec` allocations and the
+    /// associated resize/copy overhead.
     pub fn encode_command_set(&self) -> Vec<u8> {
-        let mut body = Vec::new();
+        // Pre-compute total body size for a single allocation.
+        let body_size: usize = self
+            .command_set
+            .iter()
+            .filter(|e| e.tag != TAG_CMD_GROUP_LENGTH)
+            .map(|e| {
+                let overhead = if e.vr.is_short() { 8 } else { 12 };
+                overhead + e.value.len()
+            })
+            .sum();
+
+        let mut body = Vec::with_capacity(body_size);
         for elem in &self.command_set {
-            if elem.tag == TAG_CMD_GROUP_LENGTH { continue; }
-            body.extend(Self::encode_element(elem.tag, elem.vr, &elem.value));
+            if elem.tag == TAG_CMD_GROUP_LENGTH {
+                continue;
+            }
+            Self::encode_element_into(&mut body, elem.tag, elem.vr, &elem.value);
         }
-        let mut full = Self::encode_element(TAG_CMD_GROUP_LENGTH, CommandVr::Ul, &encode_ul(body.len() as u32));
-        full.extend(body);
+
+        // Encode the group-length element (always UL — long-form: 12 bytes overhead)
+        let mut full = Vec::with_capacity(12 + 4 + body_size);
+        Self::encode_element_into(
+            &mut full,
+            TAG_CMD_GROUP_LENGTH,
+            CommandVr::Ul,
+            &(body.len() as u32).to_le_bytes(),
+        );
+        full.extend_from_slice(&body);
         full
     }
 
@@ -457,7 +482,8 @@ mod tests {
         let mut body_len = 0usize;
         for elem in &decoded.command_set {
             if elem.tag != TAG_CMD_GROUP_LENGTH {
-                body_len += DimseMessage::encode_element(elem.tag, elem.vr, &elem.value).len();
+                let overhead: usize = if elem.vr.is_short() { 8 } else { 12 };
+                body_len += overhead + elem.value.len();
             }
         }
         assert_eq!(group_length as usize, body_len, "CommandGroupLength must equal remaining command set bytes");

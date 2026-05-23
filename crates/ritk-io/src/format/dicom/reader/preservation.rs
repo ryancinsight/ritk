@@ -4,6 +4,7 @@
 //! explicitly extracted by the named parsing logic.
 
 use std::collections::HashSet;
+use std::sync::LazyLock;
 
 use dicom::core::VR;
 use dicom_core::header::Header;
@@ -22,49 +23,58 @@ pub(super) fn tag_key(group: u16, element: u16) -> u32 {
 ///
 /// Elements whose `tag_key` is in this set are skipped during full-preservation
 /// iteration to avoid double-capturing named fields.
-pub(super) fn known_handled_tags() -> HashSet<u32> {
-    let mut s = HashSet::new();
-    // Per-slice
-    s.insert(tag_key(0x0008, 0x0018)); // SOP Instance UID
-    s.insert(tag_key(0x0020, 0x0013)); // Instance Number
-    s.insert(tag_key(0x0020, 0x1041)); // Slice Location
-    s.insert(tag_key(0x0020, 0x0032)); // ImagePositionPatient
-    s.insert(tag_key(0x0020, 0x0037)); // ImageOrientationPatient
-    s.insert(tag_key(0x0028, 0x0030)); // PixelSpacing
-    s.insert(tag_key(0x0018, 0x0050)); // SliceThickness
-    s.insert(tag_key(0x0018, 0x5100)); // PatientPosition
-    s.insert(tag_key(0x0028, 0x1053)); // RescaleSlope
-    s.insert(tag_key(0x0028, 0x1052)); // RescaleIntercept
-    s.insert(tag_key(0x0008, 0x0016)); // SOP Class UID
-    s.insert(tag_key(0x0008, 0x0070)); // Manufacturer
-                                       // Rows / Columns / series geometry
-    s.insert(tag_key(0x0028, 0x0010)); // Rows
-    s.insert(tag_key(0x0028, 0x0011)); // Columns
-    s.insert(tag_key(0x0020, 0x000E)); // SeriesInstanceUID
-    s.insert(tag_key(0x0020, 0x000D)); // StudyInstanceUID
-    s.insert(tag_key(0x0008, 0x103E)); // SeriesDescription
-    s.insert(tag_key(0x0008, 0x0060)); // Modality
-    s.insert(tag_key(0x0010, 0x0020)); // PatientID
-    s.insert(tag_key(0x0010, 0x0010)); // PatientName
-    s.insert(tag_key(0x0008, 0x0020)); // StudyDate
-    s.insert(tag_key(0x0008, 0x0021)); // SeriesDate
-    s.insert(tag_key(0x0008, 0x0031)); // SeriesTime
-    s.insert(tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
-    s.insert(tag_key(0x0028, 0x0100)); // BitsAllocated
-    s.insert(tag_key(0x0028, 0x0101)); // BitsStored
-    s.insert(tag_key(0x0028, 0x0102)); // HighBit
-    s.insert(tag_key(0x0028, 0x0004)); // PhotometricInterpretation
-    s.insert(tag_key(0x0028, 0x0002)); // SamplesPerPixel
-    s.insert(tag_key(0x0028, 0x0103)); // PixelRepresentation
-    s.insert(tag_key(0x0028, 0x1050)); // WindowCenter
-    s.insert(tag_key(0x0028, 0x1051)); // WindowWidth
-                                       // Always skip pixel data
-    s.insert(tag_key(0x7FE0, 0x0010));
-    // PET radiopharmaceutical tags
-    s.insert(tag_key(0x0010, 0x1030)); // PatientWeight
-    s.insert(tag_key(0x0054, 0x1102)); // DecayCorrection
-    s.insert(tag_key(0x0054, 0x0016)); // RadiopharmaceuticalInformationSequence
-    s
+///
+/// # Optimization
+///
+/// Built once via `LazyLock` and reused across all DICOM file parses, eliminating
+/// 30+ `HashSet::insert` calls per file.  For a 1000-file series this avoids
+/// 30 000+ per-element insertions.
+pub(super) fn known_handled_tags() -> &'static HashSet<u32> {
+    static KNOWN: LazyLock<HashSet<u32>> = LazyLock::new(|| {
+        let mut s = HashSet::with_capacity(32);
+        // Per-slice
+        s.insert(tag_key(0x0008, 0x0018)); // SOP Instance UID
+        s.insert(tag_key(0x0020, 0x0013)); // Instance Number
+        s.insert(tag_key(0x0020, 0x1041)); // Slice Location
+        s.insert(tag_key(0x0020, 0x0032)); // ImagePositionPatient
+        s.insert(tag_key(0x0020, 0x0037)); // ImageOrientationPatient
+        s.insert(tag_key(0x0028, 0x0030)); // PixelSpacing
+        s.insert(tag_key(0x0018, 0x0050)); // SliceThickness
+        s.insert(tag_key(0x0018, 0x5100)); // PatientPosition
+        s.insert(tag_key(0x0028, 0x1053)); // RescaleSlope
+        s.insert(tag_key(0x0028, 0x1052)); // RescaleIntercept
+        s.insert(tag_key(0x0008, 0x0016)); // SOP Class UID
+        s.insert(tag_key(0x0008, 0x0070)); // Manufacturer
+                                           // Rows / Columns / series geometry
+        s.insert(tag_key(0x0028, 0x0010)); // Rows
+        s.insert(tag_key(0x0028, 0x0011)); // Columns
+        s.insert(tag_key(0x0020, 0x000E)); // SeriesInstanceUID
+        s.insert(tag_key(0x0020, 0x000D)); // StudyInstanceUID
+        s.insert(tag_key(0x0008, 0x103E)); // SeriesDescription
+        s.insert(tag_key(0x0008, 0x0060)); // Modality
+        s.insert(tag_key(0x0010, 0x0020)); // PatientID
+        s.insert(tag_key(0x0010, 0x0010)); // PatientName
+        s.insert(tag_key(0x0008, 0x0020)); // StudyDate
+        s.insert(tag_key(0x0008, 0x0021)); // SeriesDate
+        s.insert(tag_key(0x0008, 0x0031)); // SeriesTime
+        s.insert(tag_key(0x0020, 0x0052)); // FrameOfReferenceUID
+        s.insert(tag_key(0x0028, 0x0100)); // BitsAllocated
+        s.insert(tag_key(0x0028, 0x0101)); // BitsStored
+        s.insert(tag_key(0x0028, 0x0102)); // HighBit
+        s.insert(tag_key(0x0028, 0x0004)); // PhotometricInterpretation
+        s.insert(tag_key(0x0028, 0x0002)); // SamplesPerPixel
+        s.insert(tag_key(0x0028, 0x0103)); // PixelRepresentation
+        s.insert(tag_key(0x0028, 0x1050)); // WindowCenter
+        s.insert(tag_key(0x0028, 0x1051)); // WindowWidth
+                                           // Always skip pixel data
+        s.insert(tag_key(0x7FE0, 0x0010));
+        // PET radiopharmaceutical tags
+        s.insert(tag_key(0x0010, 0x1030)); // PatientWeight
+        s.insert(tag_key(0x0054, 0x1102)); // DecayCorrection
+        s.insert(tag_key(0x0054, 0x0016)); // RadiopharmaceuticalInformationSequence
+        s
+    });
+    &KNOWN
 }
 
 /// Recursively parse a DICOM sequence item into a [`DicomSequenceItem`].

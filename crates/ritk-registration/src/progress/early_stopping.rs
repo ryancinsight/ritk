@@ -39,26 +39,26 @@ impl EarlyStoppingCallback {
 
     /// Check if should stop.
     pub fn should_stop(&self) -> bool {
-        *self.should_stop.lock().unwrap()
+        *self.should_stop.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     /// Reset early stopping state.
     pub fn reset(&self) {
-        *self.counter.lock().unwrap() = 0;
-        *self.best_loss.lock().unwrap() = f64::INFINITY;
-        *self.should_stop.lock().unwrap() = false;
+        *self.counter.lock().unwrap_or_else(|e| e.into_inner()) = 0;
+        *self.best_loss.lock().unwrap_or_else(|e| e.into_inner()) = f64::INFINITY;
+        *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = false;
     }
 }
 
 impl ProgressCallback for EarlyStoppingCallback {
     fn on_progress(&self, info: &ProgressInfo) {
-        let mut best_loss = self.best_loss.lock().unwrap();
-        let mut counter = self.counter.lock().unwrap();
+        let mut best_loss = self.best_loss.lock().unwrap_or_else(|e| e.into_inner());
+        let mut counter = self.counter.lock().unwrap_or_else(|e| e.into_inner());
 
         // Check minimum loss threshold
         if let Some(min_loss) = self.min_loss {
             if info.loss <= min_loss {
-                *self.should_stop.lock().unwrap() = true;
+                *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = true;
                 tracing::info!(
                     "Early stopping: loss {} reached minimum threshold {}",
                     info.loss,
@@ -79,7 +79,7 @@ impl ProgressCallback for EarlyStoppingCallback {
 
         // Check patience
         if *counter >= self.patience {
-            *self.should_stop.lock().unwrap() = true;
+            *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = true;
             tracing::info!(
                 "Early stopping: no improvement for {} iterations (best loss: {:.6}, current: {:.6})",
                 self.patience,

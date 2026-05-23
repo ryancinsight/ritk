@@ -228,18 +228,15 @@ impl<B: Backend> ParzenJointHistogram<B> {
             (Some(indices), num_samples, true, None)
         } else {
             let total_voxels = fixed_shape.iter().product::<usize>();
-            // Check cache
+            // Check cache (slice comparison avoids heap allocation per iteration)
             let cached_points = {
-                let cache = self.cache.lock().unwrap();
+                let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                 if let Some(c) = cache.as_ref() {
-                    let current_shape = fixed.shape().to_vec();
-                    let current_origin: Vec<f64> = fixed.origin().0.iter().cloned().collect();
-                    let current_spacing: Vec<f64> = fixed.spacing().0.iter().cloned().collect();
-                    let current_direction: Vec<f64> = fixed.direction().0.iter().cloned().collect();
-                    if c.shape == current_shape
-                        && c.origin == current_origin
-                        && c.spacing == current_spacing
-                        && c.direction == current_direction
+                    let fs = fixed.shape();
+                    if c.shape.as_slice() == &fs
+                        && c.origin.iter().eq(fixed.origin().0.iter())
+                        && c.spacing.iter().eq(fixed.spacing().0.iter())
+                        && c.direction.iter().eq(fixed.direction().0.iter())
                     {
                         Some(c.points.clone())
                     } else {
@@ -266,12 +263,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             // This avoids recomputing the O(N × num_bins) Parzen matrix for the
             // constant fixed image on every registration iteration.
             let cached_w_fixed_t: Option<Tensor<B, 2>> = if !use_sampling {
-                let cache = self.cache.lock().unwrap();
+                let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                 cache.as_ref().and_then(|c| {
-                    let matches = c.shape == fixed.shape().to_vec()
-                        && c.origin == fixed.origin().0.iter().cloned().collect::<Vec<f64>>()
-                        && c.spacing == fixed.spacing().0.iter().cloned().collect::<Vec<f64>>()
-                        && c.direction == fixed.direction().0.iter().cloned().collect::<Vec<f64>>();
+                    let fs = fixed.shape();
+                    let matches = c.shape.as_slice() == &fs
+                        && c.origin.iter().eq(fixed.origin().0.iter())
+                        && c.spacing.iter().eq(fixed.spacing().0.iter())
+                        && c.direction.iter().eq(fixed.direction().0.iter());
                     if matches {
                         c.w_fixed_transposed.clone()
                     } else {
@@ -324,7 +322,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             if !use_sampling {
                 let w_fixed_t = self.compute_w_fixed_transposed(&fixed_values, n);
 
-                let mut cache = self.cache.lock().unwrap();
+                let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                 *cache = Some(HistogramCache {
                     points: fixed_points,
                     w_fixed_transposed: Some(w_fixed_t),
@@ -353,12 +351,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             // use `compute_joint_histogram_from_cache` instead of recomputing from
             // fixed values.
             let cached_w_fixed_t: Option<Tensor<B, 2>> = if !use_sampling {
-                let cache = self.cache.lock().unwrap();
+                let cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                 cache.as_ref().and_then(|c| {
-                    let matches = c.shape == fixed.shape().to_vec()
-                        && c.origin == fixed.origin().0.iter().cloned().collect::<Vec<f64>>()
-                        && c.spacing == fixed.spacing().0.iter().cloned().collect::<Vec<f64>>()
-                        && c.direction == fixed.direction().0.iter().cloned().collect::<Vec<f64>>();
+                    let fs = fixed.shape();
+                    let matches = c.shape.as_slice() == &fs
+                        && c.origin.iter().eq(fixed.origin().0.iter())
+                        && c.spacing.iter().eq(fixed.spacing().0.iter())
+                        && c.direction.iter().eq(fixed.direction().0.iter());
                     if matches {
                         c.w_fixed_transposed.clone()
                     } else {
@@ -377,7 +376,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 if cached_w_fixed_t.is_none() {
                     let fixed_data_flat = fixed.data().clone().reshape([n]);
                     let w_fixed_t = self.compute_w_fixed_transposed(&fixed_data_flat, n);
-                    let mut cache = self.cache.lock().unwrap();
+                    let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     *cache = Some(HistogramCache {
                         points: pts.clone(),
                         w_fixed_transposed: Some(w_fixed_t),
@@ -388,7 +387,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     });
                 } else {
                     // W_fixed^T is already cached; just cache the points.
-                    let mut cache = self.cache.lock().unwrap();
+                    let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     if cache.as_ref().is_none_or(|c| c.points.dims() != [n, D]) {
                         *cache = Some(HistogramCache {
                             points: pts.clone(),
