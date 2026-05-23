@@ -466,3 +466,7 @@ fn build_tile_cdf_into(
 #[cfg(test)]
 #[path = "tests_clahe.rs"]
 mod tests_clahe;
+
+#[cfg(test)]
+#[path = "tests_clahe_apply.rs"]
+mod tests_clahe_apply;

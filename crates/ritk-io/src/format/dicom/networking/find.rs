@@ -3,8 +3,8 @@
 use super::association::{FindResult, NetworkingError};
 use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
-    parse_command_response, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,
+    build_command_pdu, build_dataset_ivr_le, encode_str,
+    parse_command_response, CommandElementValue, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,
     IMPLICIT_VR_LE_TS, NO_DATASET, PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
     STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS,
 };
@@ -64,13 +64,12 @@ pub fn find(
 
     let ctx_id = find_ctx_id(&assoc)?;
 
-    let sop_uid_bytes = encode_ui(STUDY_ROOT_FIND_SOP_CLASS);
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, sop_uid_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_FIND_RQ)),
-        (0x0000_0110, &encode_us(1u16)),
-        (0x0000_0700, &encode_us(PRIORITY_MEDIUM)),
-        (0x0000_0800, &encode_us(HAS_DATASET)),
+        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(C_FIND_RQ)),
+        (0x0000_0110, CommandElementValue::Us(1u16)),
+        (0x0000_0700, CommandElementValue::Us(PRIORITY_MEDIUM)),
+        (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
     ]);
 
     let level_bytes = encode_str(query.level.as_cs_str());

@@ -6,8 +6,8 @@
 
 use super::association::{AeTitle, NetworkingError};
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
-    parse_command_response, parse_dataset_ivr_le, C_ECHO_RSP, NO_DATASET, STATUS_SUCCESS,
+    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us, parse_command_response,
+    parse_dataset_ivr_le, CommandElementValue, C_ECHO_RSP, NO_DATASET, STATUS_SUCCESS,
     VERIFICATION_SOP_CLASS,
 };
 use super::find::{FindLevel, FindQuery};
@@ -126,12 +126,11 @@ fn encode_str_even_length_no_pad() {
 
 #[test]
 fn build_command_pdu_group_length_correct() {
-    let sop_bytes = encode_ui(VERIFICATION_SOP_CLASS);
     let cmd = build_command_pdu(&[
-        (0x0000_0002, sop_bytes.as_slice()),
-        (0x0000_0100, &encode_us(0x0030u16)),
-        (0x0000_0110, &encode_us(1u16)),
-        (0x0000_0800, &encode_us(NO_DATASET)),
+        (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(0x0030)),
+        (0x0000_0110, CommandElementValue::Us(1)),
+        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
     ]);
 
     // First 12 bytes: (0000,0000) UL = group length.
@@ -152,15 +151,13 @@ fn build_command_pdu_group_length_correct() {
 
 #[test]
 fn build_command_pdu_round_trips_through_parse() {
-    let sop_bytes = encode_ui(VERIFICATION_SOP_CLASS);
-
     // Build a synthetic C-ECHO-RSP.
     let cmd = build_command_pdu(&[
-        (0x0000_0002, sop_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_ECHO_RSP)),
-        (0x0000_0120, &encode_us(1u16)),
-        (0x0000_0800, &encode_us(NO_DATASET)),
-        (0x0000_0900, &encode_us(STATUS_SUCCESS)),
+        (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(C_ECHO_RSP)),
+        (0x0000_0120, CommandElementValue::Us(1)),
+        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+        (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
     ]);
 
     let parsed = parse_command_response(&cmd).unwrap();
@@ -200,13 +197,12 @@ fn parse_command_response_missing_command_field_errors() {
 
 #[test]
 fn parse_command_response_c_echo_rsp_from_synthetic_bytes() {
-    let sop_bytes = encode_ui(VERIFICATION_SOP_CLASS);
     let cmd = build_command_pdu(&[
-        (0x0000_0002, sop_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_ECHO_RSP)),
-        (0x0000_0120, &encode_us(1u16)),
-        (0x0000_0800, &encode_us(NO_DATASET)),
-        (0x0000_0900, &encode_us(STATUS_SUCCESS)),
+        (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(C_ECHO_RSP)),
+        (0x0000_0120, CommandElementValue::Us(1)),
+        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+        (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
     ]);
 
     let resp = parse_command_response(&cmd).unwrap();

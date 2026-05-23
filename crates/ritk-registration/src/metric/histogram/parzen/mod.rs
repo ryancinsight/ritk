@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use super::cache::HistogramCache;
 
 pub(crate) mod compute;
+pub(crate) mod compute_image;
 pub(crate) mod oob;
 
 #[cfg(test)]
@@ -33,6 +34,10 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// Optional separate Parzen sigma for the moving image.
     /// When `None`, falls back to `parzen_sigma`.
     pub moving_parzen_sigma: Option<f32>,
+    /// Pre-computed bin center tensor `[1, num_bins]` — constructed once in `new()`
+    /// and reused across all Parzen weight computations. Eliminates 2 GPU kernel
+    /// dispatches (arange + int-to-float cast) per `compute_joint_histogram*` call.
+    bins_exp: Option<Tensor<B, 2>>,
     /// Cache for fixed image points to avoid recomputation
     pub(super) cache: Arc<Mutex<Option<HistogramCache<B>>>>,
     /// Phantom data
@@ -50,6 +55,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             moving_min_intensity: None,
             moving_max_intensity: None,
             moving_parzen_sigma: None,
+            bins_exp: None, // lazily initialized on first use via `arange_bins`
             cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
         }

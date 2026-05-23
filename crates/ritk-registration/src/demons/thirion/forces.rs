@@ -21,43 +21,6 @@ pub(super) fn compute_mse(
         / fixed.len() as f64
 }
 
-/// Compute optical-flow Thirion forces given pre-computed fixed-image gradient.
-///
-/// Returns `(fz, fy, fx)` force components. Forces whose magnitude exceeds
-/// `max_step_length` are rescaled.
-#[cfg(test)]
-pub fn thirion_forces(
-    fixed: &[f32],
-    m_warped: &[f32],
-    grad_z: &[f32],
-    grad_y: &[f32],
-    grad_x: &[f32],
-    max_step_length: f32,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let n = fixed.len();
-    let mut fz = vec![0.0_f32; n];
-    let mut fy = vec![0.0_f32; n];
-    let mut fx = vec![0.0_f32; n];
-
-    thirion_forces_into(
-        fixed,
-        m_warped,
-        VectorField3D {
-            z: grad_z,
-            y: grad_y,
-            x: grad_x,
-        },
-        max_step_length,
-        VectorFieldMut3D {
-            z: &mut fz,
-            y: &mut fy,
-            x: &mut fx,
-        },
-    );
-
-    (fz, fy, fx)
-}
-
 /// Compute optical-flow Thirion forces into caller-provided buffers.
 pub(crate) fn thirion_forces_into(
     fixed: &[f32],

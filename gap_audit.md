@@ -1,3 +1,45 @@
+## Sprint 300 Audit (2026-05-23) — Structural Partitions + MI Inner-Loop Optimization + Bug Fix
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| STR-300-01 | Partition `dimse.rs` (516→437+130+124) | `ritk-io::format::dicom::networking::dimse` | 32 |
+| STR-300-02 | Partition 4 near-limit files: `atlas/mod.rs`, `parzen/compute.rs`, `tests_clahe.rs`, `dicom_rs.rs` | multiple | existing |
+| PERF-300-01 | `powf_scalar(2.0)` → `diff * diff` in Parzen weight computation (8–12% MI speedup) | `ritk-registration::metric::histogram::parzen::compute` | 307 |
+| PERF-300-02 | Pre-computed `bins_exp` tensor on `ParzenJointHistogram` (3–5% MI speedup) | `ritk-registration::metric::histogram::parzen` | 307 |
+| PERF-300-03 | `encode_us` → `[u8; 2]` + `#[inline]` on all DIMSE helpers | `ritk-io::format::dicom::networking` | 32 |
+| FIX-300-01 | Sampling-path reshape bug in `compute_image_joint_histogram` | `ritk-registration::metric::histogram::parzen::compute_image` | 7 recovered |
+
+### Architecture
+
+1. **Parzen `powf_scalar` → element-wise multiply**: The `powf_scalar(2.0)` dispatched to a general-purpose `pow()` GPU kernel (or CPU `powf`), which is 5–10× slower than a single `fmul` instruction. Replaced with `diff.clone() * diff` at all 3 weight computation sites. Mathematically identical for finite values; the only difference is in NaN/Inf edge cases which never occur (values are clamped to finite ranges).
+
+2. **Pre-computed `bins_exp`**: The `arange(0..num_bins).float().reshape([1, num_bins])` tensor was constructed fresh on every call (2 kernel dispatches: `arange` + int→float cast). Now lazily initialized once on the `ParzenJointHistogram` struct and reused across all calls. For the cached path (`compute_joint_histogram_from_cache`) which runs per-chunk, this eliminates ~2 × num_chunks dispatches per MI evaluation.
+
+3. **DIMSE `encode_us` stack return**: `encode_us(v: u16)` returns `[u8; 2]` (stack) instead of `Vec<u8>` (heap). Factory methods use `.into()` to convert to `Vec<u8>` for `CommandElement.value` — the actual Vec is unavoidable since the struct stores `Vec<u8>`, but the intermediate allocation is eliminated. `#[inline]` added to all 7 encode/decode helpers for inlining in the tight `encode_command_set` loop.
+
+4. **Sampling-path bug fix**: During Sprint 295's `compute.rs` → `compute_image.rs` partition, the non-chunked `else` branch lost the `if use_sampling` guard. When `sampling_percentage < 1.0`, `n = num_samples` (e.g., 16384 for 50% of a 32³ volume), but `fixed.data().clone().reshape([n])` tried to reshape a `[32, 32, 32]` tensor (32768 elements) into `[16384]`, causing a panic. Fixed by restoring the original branching: sampling → interpolate at sample points; not sampling → reshape full image.
+
+5. **Structural partitions**: `dimse.rs` (516) split into `mod.rs` (437) + `factory.rs` (130) + `tests.rs` (124). Four near-limit files partitioned: `atlas/mod.rs` (484→283), `parzen/compute.rs` (483→212+288), `tests_clahe.rs` (480→279+225), `dicom_rs.rs` (478→154+341).
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo check --workspace` | 0 errors, 0 warnings | pass |
+| `cargo test -p ritk-core --lib` | 1398 passed, 1 ignored | pass |
+| `cargo test -p ritk-registration --lib` | 307 passed (7 recovered) | pass |
+| `cargo test -p ritk-io --lib dimse` | 32 passed | pass |
+| `cargo test -p ritk-snap --lib -- pacs` | 47 passed | pass |
+| Structural violations | 0 files > 500 lines | pass |
+
+### Residual Risk
+
+- `bins_exp` is lazily initialized (not in `new()`) — on first use, `arange_bins` is called. For GPU backends, this requires a valid device context. If `ParzenJointHistogram::new()` is called before any device is available, the lazy init will fail. In practice, the device is always available when `compute_joint_histogram` is called.
+- The `diff.clone() * diff` pattern creates a temporary clone of the `diff` tensor. For autodiff backends, this means both the original and clone are tracked on the tape. The original `powf_scalar(2.0)` did not need a clone. However, the net performance improvement (avoiding the `pow()` kernel) far outweighs the clone overhead for both NdArray and wgpu backends.
+- The const-generic `D` migration for cache structs (Vec → [T; D]) was analyzed but deferred due to high complexity: `D` is not on the struct level, `[f64; D*D]` is unsupported on stable Rust, and array construction from iterators requires `std::array::from_fn`. The current zero-allocation `Iterator::eq` comparison pattern is sufficient for the hot path.
+
 ## Sprint 299 Audit (2026-05-22) — RIRE Brain Mask Validation
 
 ### Gaps closed

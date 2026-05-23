@@ -23,9 +23,9 @@
 use super::association::{AeTitle, MoveResponse, NetworkingError};
 use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
-    parse_command_response, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS,
-    PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
+    build_command_pdu, build_dataset_ivr_le, encode_str,
+    parse_command_response, CommandElementValue, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET,
+    IMPLICIT_VR_LE_TS, PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
     STUDY_ROOT_MOVE_SOP_CLASS,
 };
 use super::echo::{find_ctx_id, receive_command_pdv};
@@ -83,15 +83,13 @@ fn retrieve_impl(
 
     let ctx_id = find_ctx_id(&assoc)?;
 
-    let sop_uid_bytes = encode_ui(STUDY_ROOT_MOVE_SOP_CLASS);
-    let dest_bytes = encode_str(destination.as_str());
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, sop_uid_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_MOVE_RQ)),
-        (0x0000_0110, &encode_us(1u16)),
-        (0x0000_0600, dest_bytes.as_slice()),
-        (0x0000_0700, &encode_us(PRIORITY_MEDIUM)),
-        (0x0000_0800, &encode_us(HAS_DATASET)),
+        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(C_MOVE_RQ)),
+        (0x0000_0110, CommandElementValue::Us(1u16)),
+        (0x0000_0600, CommandElementValue::Str(destination.as_str())),
+        (0x0000_0700, CommandElementValue::Us(PRIORITY_MEDIUM)),
+        (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
     ]);
 
     let level_bytes = encode_str(level_cs);

@@ -3,7 +3,7 @@
 use super::association::{NetworkingError, StoreResponse};
 use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, encode_ui, encode_us, parse_command_response, C_STORE_RQ, C_STORE_RSP,
+    build_command_pdu, parse_command_response, CommandElementValue, C_STORE_RQ, C_STORE_RSP,
     EXPLICIT_VR_LE_TS, HAS_DATASET, PRIORITY_MEDIUM,
 };
 use super::echo::{find_ctx_id, receive_command_pdv};
@@ -49,15 +49,13 @@ pub fn store(config: &AssociationConfig, path: &Path) -> Result<StoreResponse, N
 
     let ctx_id = find_ctx_id(&assoc)?;
 
-    let sop_class_bytes = encode_ui(&sop_class_uid);
-    let sop_instance_bytes = encode_ui(&sop_instance_uid);
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, sop_class_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_STORE_RQ)),
-        (0x0000_0110, &encode_us(1u16)),
-        (0x0000_0700, &encode_us(PRIORITY_MEDIUM)),
-        (0x0000_0800, &encode_us(HAS_DATASET)),
-        (0x0000_1000, sop_instance_bytes.as_slice()),
+        (0x0000_0002, CommandElementValue::Ui(&sop_class_uid)),
+        (0x0000_0100, CommandElementValue::Us(C_STORE_RQ)),
+        (0x0000_0110, CommandElementValue::Us(1u16)),
+        (0x0000_0700, CommandElementValue::Us(PRIORITY_MEDIUM)),
+        (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
+        (0x0000_1000, CommandElementValue::Ui(&sop_instance_uid)),
     ]);
 
     assoc

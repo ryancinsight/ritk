@@ -3,7 +3,7 @@
 use super::association::{EchoResponse, NetworkingError};
 use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, encode_ui, encode_us, parse_command_response, C_ECHO_RQ, C_ECHO_RSP,
+    build_command_pdu, parse_command_response, CommandElementValue, C_ECHO_RQ, C_ECHO_RSP,
     EXPLICIT_VR_LE_TS, NO_DATASET, VERIFICATION_SOP_CLASS,
 };
 use dicom_ul::association::client::ClientAssociationOptions;
@@ -21,12 +21,11 @@ pub fn echo(config: &AssociationConfig) -> Result<EchoResponse, NetworkingError>
 
     let ctx_id = find_ctx_id(&assoc)?;
 
-    let sop_uid_bytes = encode_ui(VERIFICATION_SOP_CLASS);
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, sop_uid_bytes.as_slice()),
-        (0x0000_0100, &encode_us(C_ECHO_RQ)),
-        (0x0000_0110, &encode_us(1u16)),
-        (0x0000_0800, &encode_us(NO_DATASET)),
+        (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+        (0x0000_0100, CommandElementValue::Us(C_ECHO_RQ)),
+        (0x0000_0110, CommandElementValue::Us(1u16)),
+        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
     ]);
 
     assoc

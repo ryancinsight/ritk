@@ -1,3 +1,20 @@
+## Sprint 300 (0.50.70) — Structural Partitions + MI Inner-Loop Optimization + Bug Fix
+- [x] STR-300-01: Partition `dimse.rs` (516→437+130+124) into `dimse/mod.rs`, `factory.rs`, `tests.rs`
+- [x] STR-300-02: Partition 4 near-limit files: `atlas/mod.rs` (484→283), `parzen/compute.rs` (483→212+288), `tests_clahe.rs` (480→279+225), `dicom_rs.rs` (478→154+341)
+- [x] PERF-300-01: `powf_scalar(2.0)` → `diff * diff` at all 3 Parzen weight computation sites
+- [x] PERF-300-02: Pre-computed `bins_exp` tensor cached on `ParzenJointHistogram` struct
+- [x] PERF-300-03: `encode_us` → `[u8; 2]` stack return + `#[inline]` on all 7 DIMSE encode/decode helpers
+- [x] FIX-300-01: Sampling-path reshape bug — `fixed.data().reshape([n])` failed when `n = num_samples`; restored `if use_sampling` branch
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib`: 1398 passed, 1 ignored
+- [x] `cargo test -p ritk-registration --lib`: 307 passed
+- [x] `cargo test -p ritk-io --lib dimse`: 32 passed
+- [x] Structural violations: ZERO files > 500 lines
+- [x] CHANGELOG.md updated (0.50.70)
+- [x] backlog.md updated (Sprint 300 complete)
+- [x] gap_audit.md updated
+- [x] OPTIMIZATION.md updated
+
 ## Sprint 299 (0.50.69) — RIRE Brain Mask Validation
 - [x] SPRINT-299-01: CT brain mask generation pipeline (threshold [0,100] HU → binary erosion r=2 → 26-CCL → largest component → dilation r=2 → hole fill)
 - [x] `create_ct_brain_mask()` function — generic `B: Backend`, uses `BinaryThresholdImageFilter`, `BinaryErodeFilter`, `ConnectedComponentsFilter`, `BinaryDilateFilter`, `BinaryFillholeFilter`

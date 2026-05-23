@@ -34,8 +34,6 @@ mod registration;
 #[cfg(test)]
 mod tests;
 
-#[cfg(test)]
-pub(super) use forces::thirion_forces;
 pub use registration::ThirionDemonsRegistration;
 
 /// Re-export `thirion_forces_into` for zero-allocation loop variants.

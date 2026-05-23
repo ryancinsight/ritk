@@ -6,9 +6,10 @@
 
 use super::association::{AeTitle, DicomAddress};
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
-    parse_command_response, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP, HAS_DATASET, NO_DATASET,
-    STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS, STUDY_ROOT_MOVE_SOP_CLASS, VERIFICATION_SOP_CLASS,
+    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui,
+    parse_command_response, CommandElementValue, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP, HAS_DATASET,
+    NO_DATASET, STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS, STUDY_ROOT_MOVE_SOP_CLASS,
+    VERIFICATION_SOP_CLASS,
 };
 use super::context::AssociationConfig;
 use super::echo::echo;
@@ -70,13 +71,12 @@ fn c_echo_loopback_returns_success_status() {
 
                     let cmd = parse_command_response(&cmd_bytes).unwrap();
 
-                    let sop_bytes = encode_ui(VERIFICATION_SOP_CLASS);
                     let rsp = build_command_pdu(&[
-                        (0x0000_0002, sop_bytes.as_slice()),
-                        (0x0000_0100, &encode_us(C_ECHO_RSP)),
-                        (0x0000_0120, &encode_us(cmd.message_id_responded)),
-                        (0x0000_0800, &encode_us(NO_DATASET)),
-                        (0x0000_0900, &encode_us(STATUS_SUCCESS)),
+                        (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+                        (0x0000_0100, CommandElementValue::Us(C_ECHO_RSP)),
+                        (0x0000_0120, CommandElementValue::Us(cmd.message_id_responded)),
+                        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+                        (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
                     ]);
 
                     assoc
@@ -157,13 +157,12 @@ fn c_find_loopback_returns_synthetic_study_result() {
                     let _ = assoc.receive();
 
                     // Send pending C-FIND-RSP with synthetic result dataset.
-                    let sop_bytes = encode_ui(STUDY_ROOT_FIND_SOP_CLASS);
                     let pending_rsp = build_command_pdu(&[
-                        (0x0000_0002, sop_bytes.as_slice()),
-                        (0x0000_0100, &encode_us(C_FIND_RSP)),
-                        (0x0000_0120, &encode_us(1u16)),
-                        (0x0000_0800, &encode_us(HAS_DATASET)),
-                        (0x0000_0900, &encode_us(super::command::STATUS_PENDING)),
+                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+                        (0x0000_0100, CommandElementValue::Us(C_FIND_RSP)),
+                        (0x0000_0120, CommandElementValue::Us(1)),
+                        (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
+                        (0x0000_0900, CommandElementValue::Us(super::command::STATUS_PENDING)),
                     ]);
 
                     assoc
@@ -198,11 +197,11 @@ fn c_find_loopback_returns_synthetic_study_result() {
 
                     // Send final SUCCESS C-FIND-RSP (no dataset).
                     let final_rsp = build_command_pdu(&[
-                        (0x0000_0002, sop_bytes.as_slice()),
-                        (0x0000_0100, &encode_us(C_FIND_RSP)),
-                        (0x0000_0120, &encode_us(1u16)),
-                        (0x0000_0800, &encode_us(NO_DATASET)),
-                        (0x0000_0900, &encode_us(STATUS_SUCCESS)),
+                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+                        (0x0000_0100, CommandElementValue::Us(C_FIND_RSP)),
+                        (0x0000_0120, CommandElementValue::Us(1)),
+                        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+                        (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
                     ]);
 
                     assoc
@@ -284,19 +283,17 @@ fn c_move_loopback_returns_final_success_status() {
                     // Drain data PDV (query).
                     let _ = assoc.receive();
 
-                    let sop_bytes = encode_ui(STUDY_ROOT_MOVE_SOP_CLASS);
-
                     // Send pending progress response.
                     let pending = build_command_pdu(&[
-                        (0x0000_0002, sop_bytes.as_slice()),
-                        (0x0000_0100, &encode_us(C_MOVE_RSP)),
-                        (0x0000_0120, &encode_us(1u16)),
-                        (0x0000_0800, &encode_us(NO_DATASET)),
-                        (0x0000_0900, &encode_us(super::command::STATUS_PENDING)),
-                        (0x0000_1020, &encode_us(1u16)), // remaining
-                        (0x0000_1021, &encode_us(0u16)), // completed
-                        (0x0000_1022, &encode_us(0u16)), // failed
-                        (0x0000_1023, &encode_us(0u16)), // warning
+                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+                        (0x0000_0100, CommandElementValue::Us(C_MOVE_RSP)),
+                        (0x0000_0120, CommandElementValue::Us(1)),
+                        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+                        (0x0000_0900, CommandElementValue::Us(super::command::STATUS_PENDING)),
+                        (0x0000_1020, CommandElementValue::Us(1)), // remaining
+                        (0x0000_1021, CommandElementValue::Us(0)), // completed
+                        (0x0000_1022, CommandElementValue::Us(0)), // failed
+                        (0x0000_1023, CommandElementValue::Us(0)), // warning
                     ]);
 
                     assoc
@@ -312,15 +309,15 @@ fn c_move_loopback_returns_final_success_status() {
 
                     // Send final SUCCESS response.
                     let final_rsp = build_command_pdu(&[
-                        (0x0000_0002, sop_bytes.as_slice()),
-                        (0x0000_0100, &encode_us(C_MOVE_RSP)),
-                        (0x0000_0120, &encode_us(1u16)),
-                        (0x0000_0800, &encode_us(NO_DATASET)),
-                        (0x0000_0900, &encode_us(STATUS_SUCCESS)),
-                        (0x0000_1020, &encode_us(0u16)), // remaining
-                        (0x0000_1021, &encode_us(1u16)), // completed
-                        (0x0000_1022, &encode_us(0u16)), // failed
-                        (0x0000_1023, &encode_us(0u16)), // warning
+                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+                        (0x0000_0100, CommandElementValue::Us(C_MOVE_RSP)),
+                        (0x0000_0120, CommandElementValue::Us(1)),
+                        (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
+                        (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
+                        (0x0000_1020, CommandElementValue::Us(0)), // remaining
+                        (0x0000_1021, CommandElementValue::Us(1)), // completed
+                        (0x0000_1022, CommandElementValue::Us(0)), // failed
+                        (0x0000_1023, CommandElementValue::Us(0)), // warning
                     ]);
 
                     assoc

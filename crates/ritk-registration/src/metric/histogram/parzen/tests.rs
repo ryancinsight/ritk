@@ -179,7 +179,7 @@ fn chunked_cached_path_matches_non_chunked() {
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     // Compute joint histogram via ParzenJointHistogram (triggers chunked path).
-    let mut hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0);
+    let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0);
     let joint_chunked = hist.compute_image_joint_histogram(
         &fixed_img,
         &moving_img,

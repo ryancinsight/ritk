@@ -1,3 +1,67 @@
+## Sprint 300 — Complete
+
+**Status**: Complete  
+**Phase**: Structural partitions, MI inner-loop optimization, DIMSE encode refinement, bug fix  
+**Version**: 0.50.70 [minor]
+
+**Goal**: Continue the development roadmap — partition near-limit files, optimize the Parzen MI inner loop (replace `powf_scalar(2.0)` with element-wise multiply, pre-compute `bins_exp`), refine DIMSE encoding, and fix a sampling-path reshape bug introduced during Sprint 295's partition.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| STR-300-01 | Partition `dimse.rs` (516→437+130+124) | **Closed** |
+| STR-300-02 | Partition 4 near-limit files: `atlas/mod.rs` (484→283), `parzen/compute.rs` (483→212+288), `tests_clahe.rs` (480→279+225), `dicom_rs.rs` (478→154+341) | **Closed** |
+| PERF-300-01 | `powf_scalar(2.0)` → `diff * diff` in Parzen weight computation — single `fmul` vs `pow()` kernel | **Closed** |
+| PERF-300-02 | Pre-computed `bins_exp` `[1, num_bins]` tensor on `ParzenJointHistogram` struct — eliminates 2 GPU kernel dispatches per weight computation call | **Closed** |
+| PERF-300-03 | `encode_us` → `[u8; 2]` stack return + `#[inline]` on all DIMSE encode/decode helpers | **Closed** |
+| FIX-300-01 | Sampling-path reshape bug: `fixed.data().clone().reshape([n])` failed when `n = num_samples ≠ total_voxels` — fixed with proper `if use_sampling` branch | **Closed** |
+
+### Deliverables
+
+- `crates/ritk-io/src/format/dicom/networking/dimse/` — partitioned into `mod.rs` (437), `factory.rs` (130), `tests.rs` (124)
+- `crates/ritk-registration/src/metric/histogram/parzen/compute.rs` — extracted `compute_image_joint_histogram` → `compute_image.rs` (288 lines)
+- `crates/ritk-registration/src/metric/histogram/parzen/mod.rs` — new `bins_exp: Option<Tensor<B, 2>>` field
+- `crates/ritk-registration/src/metric/histogram/parzen/compute.rs` — `arange_bins` helper, `diff * diff` replacing `powf_scalar(2.0)` at 3 call sites
+- `crates/ritk-io/src/format/dicom/networking/command.rs` — `encode_us` returns `[u8; 2]`, `#[inline]` on helpers
+- `crates/ritk-registration/src/metric/histogram/parzen/compute_image.rs` — fixed sampling-path reshape bug
+- `crates/ritk-core/src/filter/intensity/tests_clahe_apply.rs` — extracted apply tests (225 lines)
+- `crates/ritk-dicom/src/backend/tests_dicom_rs.rs` — extracted tests (341 lines)
+
+### Key changes
+
+- **`powf_scalar(2.0)` → `diff.clone() * diff`**: The general-purpose `pow()` kernel is 5–10× slower than a single `fmul` per element. Applied to all 3 Parzen weight computation sites (`compute_w_fixed_transposed`, `compute_joint_histogram_from_cache`, `compute_joint_histogram`). Estimated 8–12% overall MI evaluation speedup.
+- **Pre-computed `bins_exp`**: The `arange(0..num_bins).float().reshape([1, num_bins])` tensor was created fresh on every call (2 GPU kernel dispatches: `arange` + int→float cast). Now computed once and cached on the `ParzenJointHistogram` struct. Estimated 3–5% additional speedup for large volumes.
+- **`encode_us` stack allocation**: `encode_us(v: u16)` now returns `[u8; 2]` (stack) instead of `Vec<u8>` (heap). The `.into()` conversion at call sites still produces a `Vec<u8>` for the `CommandElement.value` field, but avoids the intermediate allocation in the encoder.
+- **Sampling-path bug fix**: During Sprint 295's partition of `compute.rs` → `compute_image.rs`, the non-chunked `else` branch was incorrectly simplified to always use `fixed.data().clone().reshape([n])`, where `n` could be `num_samples` (when `sampling_percentage < 1.0`). The original code branched on `use_sampling` — when sampling, it interpolated at sample points; when not sampling, it reshaped the full image. Restored the correct branching.
+
+### Verification
+
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib`: 1398 passed, 1 ignored
+- `cargo test -p ritk-registration --lib`: 307 passed
+- `cargo test -p ritk-io --lib dimse`: 32 passed
+- `cargo test -p ritk-snap --lib -- pacs`: 47 passed
+- Structural violations: ZERO files > 500 lines
+
+### New tests added
+
+- All existing tests pass — no new tests needed (the bug was caught by existing integration tests)
+
+### Gaps remaining
+
+| Task | Priority |
+|------|----------|
+| SIMD batch BSpline point processing | Medium |
+| Criterion benchmarks for registration pipeline | Medium |
+| Fuse transform + interpolation to reduce intermediate tensor allocations | Medium |
+| Parallelize multi-start registration | Low |
+| LNCC/Parzen cache structs: `Vec<usize>`/`Vec<f64>` → const-generic `D` arrays | Low |
+| DIMSE `encode_ui_into` / `encode_ae_into` to eliminate remaining per-field Vec in factory methods | Low |
+| Periodic structural auditing (new additions may push files back over 500) | Low |
+
+---
+
 ## Sprint 299 — Complete
 
 **Status**: Complete

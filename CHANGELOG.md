@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [0.50.70] - 2026-05-23
+### Optimized [minor]
+- **PERF-300-01: Parzen `powf_scalar(2.0)` → `diff * diff`** (Sprint 300): Replaced `diff.powf_scalar(2.0)` with `diff.clone() * diff` at all 3 Parzen weight computation sites (`compute_w_fixed_transposed`, `compute_joint_histogram_from_cache`, `compute_joint_histogram`). The general-purpose `pow()` GPU kernel (or CPU `powf` libm call) is 5–10× slower than a single `fmul` instruction per element. Mathematically identical for finite values. Estimated **8–12% MI evaluation speedup**.
+- **PERF-300-02: Pre-computed `bins_exp` tensor** (Sprint 300): Added `bins_exp: Option<Tensor<B, 2>>` field to `ParzenJointHistogram`, initialized lazily on first use. The `arange(0..num_bins).float().reshape([1, num_bins])` tensor was previously constructed on every weight computation call (2 GPU kernel dispatches: `arange` + int-to-float cast). Now computed once and reused, eliminating ~2 × num_chunks dispatches per MI evaluation on large volumes. Estimated **3–5% additional speedup**.
+- **PERF-300-03: DIMSE `encode_us` stack allocation** (Sprint 300): `encode_us(v: u16)` now returns `[u8; 2]` (stack-allocated) instead of `Vec<u8>` (heap-allocated). Added `#[inline]` to all 7 DIMSE value encoding/decoding helpers (`encode_us`, `encode_ui`, `encode_ae`, `encode_str_pad`, `decode_us`, `decode_ui`, `decode_ae`) and `encode_element_into`.
+
+### Fixed
+- **FIX-300-01: Sampling-path reshape bug in `compute_image_joint_histogram`** (Sprint 300): The non-chunked `else` branch was incorrectly simplified during Sprint 295's partition of `compute.rs` → `compute_image.rs`. It always used `fixed.data().clone().reshape([n])` where `n` could be `num_samples` (when `sampling_percentage < 1.0`), causing a reshape panic (`32768 != 16384`). Fixed by restoring the `if use_sampling` branch: when sampling, interpolate at sample points; when not sampling, reshape the full image. All 307 registration tests now pass (7 were previously failing).
+
+### Structured
+- **STR-300-01: Partition `dimse.rs`** (516→437+130+124): Extracted factory methods → `factory.rs`, tests → `tests.rs`. All public APIs unchanged.
+- **STR-300-02: Partition 4 near-limit files**: `atlas/mod.rs` (484→283), `parzen/compute.rs` (483→212+288 `compute_image.rs`), `tests_clahe.rs` (480→279+225 `tests_clahe_apply.rs`), `dicom_rs.rs` (478→154+341 `tests_dicom_rs.rs`).
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib`: **1398 passed**, 1 ignored
+- `cargo test -p ritk-registration --lib`: **307 passed**
+- `cargo test -p ritk-io --lib dimse`: **32 passed**
+- Structural violations: **ZERO**
+
 ## [0.50.69] - 2026-05-22
 ### Added [minor]
 - **SPRINT-299-01: RIRE brain mask validation test** (Sprint 299): First validation of brain-masking registration pipeline on real RIRE cross-modal data. New integration test `test_brain_masked_registration_tre_on_rire_patient001` in `rire_registration_brain_mask_test.rs` that:

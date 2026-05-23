@@ -1,14 +1,7 @@
 //! Tests for clahe
 //! Extracted to keep the 500-line structural limit.
+
 use super::*;
-use crate::filter::ops::extract_vec_infallible;
-use burn_ndarray::NdArray;
-
-type B = NdArray<f32>;
-
-use crate::image::Image;
-use crate::spatial::{Direction, Point, Spacing};
-use burn::tensor::{Shape, Tensor, TensorData};
 
 // ── Legacy allocating helpers (used by 2D unit tests) ─────────────────────
 //
@@ -55,6 +48,7 @@ fn clahe_2d(
             let y1 = ((ty + 1) * rows / n_ty).min(rows);
             let x0 = tx * cols / n_tx;
             let x1 = ((tx + 1) * cols / n_tx).min(cols);
+
             let mut tile_vals = Vec::with_capacity((y1 - y0) * (x1 - x0));
             for y in y0..y1 {
                 for x in x0..x1 {
@@ -67,12 +61,12 @@ fn clahe_2d(
 
     let span = v_max - v_min;
     let mut output = vec![0.0f32; pixels.len()];
+
     for y in 0..rows {
         for x in 0..cols {
             let v = pixels[y * cols + x];
             let normalized = ((v - v_min) / span).clamp(0.0, 1.0);
-            let bin =
-                ((normalized * (bins as f32 - 1.0)).floor() as usize).min(bins - 1);
+            let bin = ((normalized * (bins as f32 - 1.0)).floor() as usize).min(bins - 1);
 
             let ty_f = (y as f32 - tile_h * 0.5) / tile_h;
             let tx_f = (x as f32 - tile_w * 0.5) / tile_w;
@@ -90,12 +84,11 @@ fn clahe_2d(
             let f10 = cdfs[ty1 * n_tx + tx0][bin];
             let f11 = cdfs[ty1 * n_tx + tx1][bin];
 
-            let mapped =
-                (1.0 - u) * ((1.0 - t) * f00 + t * f01) + u * ((1.0 - t) * f10 + t * f11);
-
+            let mapped = (1.0 - u) * ((1.0 - t) * f00 + t * f01) + u * ((1.0 - t) * f10 + t * f11);
             output[y * cols + x] = v_min + mapped.clamp(0.0, 1.0) * span;
         }
     }
+
     output
 }
 
@@ -113,6 +106,7 @@ fn build_tile_cdf(
 
     let span = v_max - v_min;
     let mut hist = vec![0u64; bins];
+
     if span <= 0.0 {
         hist[0] = n as u64;
     } else {
@@ -131,7 +125,6 @@ fn build_tile_cdf(
             *h = clip_threshold;
         }
     }
-
     let redistribute = excess / bins as u64;
     let remainder = (excess as usize) - (redistribute as usize) * bins;
     for h in hist.iter_mut() {
@@ -150,24 +143,12 @@ fn build_tile_cdf(
     cdf
 }
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(data, Shape::new(shape));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    )
-}
-
 // ── build_tile_cdf ────────────────────────────────────────────────────────
 
 #[test]
 fn tile_cdf_empty_returns_identity_ramp() {
     // postcondition: empty tile produces identity CDF [0, 1/(B-1), …, 1]
-    let cdf = build_tile_cdf(&[], 0.0, 1.0, 4, 40.0);
+    let cdf = build_tile_cdf(&[][..], 0.0, 1.0, 4, 40.0);
     assert_eq!(cdf.len(), 4);
     assert!((cdf[0]).abs() < 1e-6, "cdf[0]={}", cdf[0]);
     assert!((cdf[3] - 1.0).abs() < 1e-6, "cdf[3]={}", cdf[3]);
@@ -259,6 +240,7 @@ fn clahe_2d_output_in_input_range() {
             ((x >> 33) as f32 / u32::MAX as f32) * 2000.0 - 1000.0
         })
         .collect();
+
     let v_min = pixels.iter().cloned().fold(f32::INFINITY, f32::min);
     let v_max = pixels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let out = clahe_2d(&pixels, 32, 32, 4, 4, 40.0, 256);
@@ -294,190 +276,4 @@ fn clahe_2d_contrast_enhanced_range_preserved() {
     for &o in &out {
         assert!(o >= -1e-4 && o <= 15.0 + 1e-4, "output {o} out of range");
     }
-}
-
-// ── ClaheFilter::apply ────────────────────────────────────────────────────
-
-#[test]
-fn apply_preserves_shape_and_metadata() {
-    // Shape and spatial metadata invariants.
-    let data: Vec<f32> = (0..8 * 16 * 16).map(|i| (i % 256) as f32).collect();
-    let img = make_image(data, [8, 16, 16]);
-    let origin = *img.origin();
-    let spacing = *img.spacing();
-    let direction = *img.direction();
-
-    let filter = ClaheFilter::new([4, 4], 40.0, 256);
-    let out = filter.apply(&img).expect("CLAHE apply failed");
-
-    assert_eq!(out.shape(), [8, 16, 16]);
-    assert_eq!(out.origin(), &origin);
-    assert_eq!(out.spacing(), &spacing);
-    assert_eq!(out.direction(), &direction);
-}
-
-#[test]
-fn apply_uniform_volume_identity() {
-    // Uniform voxel value → output = input (all slices are uniform → identity path).
-    let data = vec![128.0_f32; 4 * 8 * 8];
-    let img = make_image(data.clone(), [4, 8, 8]);
-    let filter = ClaheFilter::new([2, 2], 40.0, 256);
-    let out = filter.apply(&img).expect("CLAHE apply failed");
-    let (out_data, _) = extract_vec_infallible(&out);
-    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
-    for (i, (&inp, &outp)) in data.iter().zip(out_vals.iter()).enumerate() {
-        assert!(
-            (inp - outp).abs() < 1e-4,
-            "voxel {i}: input={inp}, output={outp}"
-        );
-    }
-}
-
-#[test]
-fn apply_output_in_input_range() {
-    // Output voxels must lie within [v_min_slice, v_max_slice] (per-slice).
-    let data: Vec<f32> = (0..4 * 32 * 32)
-        .map(|i| ((i * 7 + 13) % 512) as f32 - 100.0)
-        .collect();
-    let img = make_image(data.clone(), [4, 32, 32]);
-    let filter = ClaheFilter::new([4, 4], 40.0, 256);
-    let out = filter.apply(&img).expect("CLAHE apply failed");
-    let (out_data, _) = extract_vec_infallible(&out);
-    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
-
-    let slice_size = 32 * 32;
-    for d in 0..4 {
-        let sl_in = &data[d * slice_size..(d + 1) * slice_size];
-        let sl_out = &out_vals[d * slice_size..(d + 1) * slice_size];
-        let v_min = sl_in.iter().cloned().fold(f32::INFINITY, f32::min);
-        let v_max = sl_in.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        for &o in sl_out {
-            assert!(
-                o >= v_min - 0.5 && o <= v_max + 0.5,
-                "slice {d}: output {o} outside [{v_min}, {v_max}]"
-            );
-        }
-    }
-}
-
-#[test]
-fn apply_ramp_increases_midrange_contrast() {
-    // Analytical: for a uniform ramp [0,255] on a 1x1 tile grid with large
-    // clip limit, CLAHE ≈ global HE. The output should be approximately a
-    // linear ramp from 0 to 255 (identity) because the ramp already has
-    // uniform histogram. The midpoint pixel value should change less than 20%.
-    let n = 16usize;
-    let data: Vec<f32> = (0..(1 * n * n))
-        .map(|i| i as f32 / (n * n - 1) as f32 * 255.0)
-        .collect();
-    let img = make_image(data.clone(), [1, n, n]);
-    let filter = ClaheFilter::new([1, 1], 1000.0, 256);
-    let out = filter.apply(&img).expect("CLAHE apply failed");
-    let (out_data, _) = extract_vec_infallible(&out);
-    let out_vals: Vec<f32> = out_data.as_slice().to_vec();
-
-    // Last pixel should map close to 255.0
-    assert!(
-        out_vals[n * n - 1] > 200.0,
-        "last pixel = {}",
-        out_vals[n * n - 1]
-    );
-    // First pixel should map close to 0.0
-    assert!(out_vals[0] < 50.0, "first pixel = {}", out_vals[0]);
-}
-
-// ── ClaheScratch + apply_with_scratch ──────────────────────────────────────
-
-#[test]
-fn apply_with_scratch_matches_apply_output() {
-    // Bit-identity invariant: apply_with_scratch must produce identical
-    // output to apply for the same input and filter parameters.
-    let data: Vec<f32> = (0..4 * 16 * 16)
-        .map(|i| ((i * 7 + 13) % 512) as f32 - 100.0)
-        .collect();
-    let img = make_image(data, [4, 16, 16]);
-    let filter = ClaheFilter::new([4, 4], 40.0, 256);
-
-    let out_apply = filter.apply(&img).expect("apply failed");
-    let mut scratch = ClaheScratch::new(16, 16, 4, 4, 256);
-    let out_scratch = filter
-        .apply_with_scratch(&img, &mut scratch)
-        .expect("apply_with_scratch failed");
-
-    let (apply_data, _) = extract_vec_infallible(&out_apply);
-    let (scratch_data, _) = extract_vec_infallible(&out_scratch);
-    let apply_vals: Vec<f32> = apply_data.as_slice().to_vec();
-    let scratch_vals: Vec<f32> = scratch_data.as_slice().to_vec();
-
-    assert_eq!(apply_vals.len(), scratch_vals.len(), "output lengths must match");
-    for (i, (&a, &s)) in apply_vals.iter().zip(scratch_vals.iter()).enumerate() {
-        assert!(
-            (a - s).abs() < 1e-6,
-            "voxel {i}: apply={a}, scratch={s}"
-        );
-    }
-}
-
-#[test]
-fn scratch_reuse_preserves_results() {
-    // Reuse invariant: calling apply_with_scratch twice with the same
-    // scratch and same input produces identical output.
-    let data: Vec<f32> = (0..2 * 8 * 8)
-        .map(|i| ((i * 11 + 7) % 256) as f32)
-        .collect();
-    let img = make_image(data, [2, 8, 8]);
-    let filter = ClaheFilter::new([2, 2], 40.0, 256);
-    let mut scratch = ClaheScratch::new(8, 8, 2, 2, 256);
-
-    let out1 = filter
-        .apply_with_scratch(&img, &mut scratch)
-        .expect("first apply_with_scratch failed");
-    let out2 = filter
-        .apply_with_scratch(&img, &mut scratch)
-        .expect("second apply_with_scratch failed");
-
-    let (data1, _) = extract_vec_infallible(&out1);
-    let (data2, _) = extract_vec_infallible(&out2);
-    let vals1: Vec<f32> = data1.as_slice().to_vec();
-    let vals2: Vec<f32> = data2.as_slice().to_vec();
-
-    assert_eq!(vals1.len(), vals2.len(), "output lengths must match");
-    for (i, (&v1, &v2)) in vals1.iter().zip(vals2.iter()).enumerate() {
-        assert!(
-            (v1 - v2).abs() < 1e-6,
-            "voxel {i}: first={v1}, second={v2}"
-        );
-    }
-}
-
-#[test]
-fn scratch_allocates_correct_sizes() {
-    // Structural invariant: ClaheScratch buffer sizes must equal
-    // n_tiles_y * n_tiles_x * bins for CDFs and histograms, and
-    // rows * cols for output.
-    let rows = 32;
-    let cols = 48;
-    let nty = 4;
-    let ntx = 6;
-    let bins = 128;
-    let scratch = ClaheScratch::new(rows, cols, nty, ntx, bins);
-
-    let expected_tile_count = nty * ntx;
-    assert_eq!(
-        scratch.cdf_len(),
-        expected_tile_count * bins,
-        "CDF buffer size must equal n_tiles * bins"
-    );
-    assert_eq!(
-        scratch.histogram_len(),
-        expected_tile_count * bins,
-        "histogram buffer size must equal n_tiles * bins"
-    );
-    assert_eq!(
-        scratch.output_len(),
-        rows * cols,
-        "output buffer size must equal rows * cols"
-    );
-    assert_eq!(scratch.tile_grid_dims(), (nty, ntx));
-    assert_eq!(scratch.bins(), bins);
 }

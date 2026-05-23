@@ -70,69 +70,126 @@ pub const STATUS_PENDING_WARN: u16 = 0xFF01;
 
 // ── Value encoding helpers ────────────────────────────────────────────────────
 
-/// Encode a UID string as IVR-LE UI value: null-padded to even length (PS3.5 §6.2).
-pub fn encode_ui(uid: &str) -> Vec<u8> {
-    let mut b = uid.as_bytes().to_vec();
-    if b.len() % 2 != 0 {
-        b.push(0x00); // null pad
+/// Write a UID string as IVR-LE UI value into `buf`: null-padded to even length.
+pub fn encode_ui_into(buf: &mut Vec<u8>, uid: &str) {
+    buf.extend_from_slice(uid.as_bytes());
+    if uid.len() % 2 != 0 {
+        buf.push(0x00);
     }
+}
+
+/// Write a string (AE/CS/LO/SH) as IVR-LE into `buf`: space-padded to even length.
+pub fn encode_str_into(buf: &mut Vec<u8>, s: &str) {
+    buf.extend_from_slice(s.as_bytes());
+    if s.len() % 2 != 0 {
+        buf.push(b' ');
+    }
+}
+
+#[inline]
+fn padded_len(s: &str) -> usize {
+    let l = s.len();
+    l + (l & 1)
+}
+
+/// Encode a UID string as IVR-LE UI value: null-padded to even length (PS3.5 §6.2).
+#[allow(dead_code)]
+pub fn encode_ui(uid: &str) -> Vec<u8> {
+    let mut b = Vec::with_capacity(padded_len(uid));
+    encode_ui_into(&mut b, uid);
     b
 }
 
 /// Encode a US (unsigned short) as 2 little-endian bytes.
+#[allow(dead_code)]
 pub fn encode_us(v: u16) -> [u8; 2] {
     v.to_le_bytes()
 }
 
 /// Encode a string (AE/CS/LO/SH) as IVR-LE: space-padded to even length (PS3.5 §6.2).
 pub fn encode_str(s: &str) -> Vec<u8> {
-    let mut b = s.as_bytes().to_vec();
-    if b.len() % 2 != 0 {
-        b.push(b' '); // space pad
-    }
+    let mut b = Vec::with_capacity(padded_len(s));
+    encode_str_into(&mut b, s);
     b
+}
+
+/// Typed DIMSE command-element value that `build_command_pdu` encodes directly
+/// into the body buffer, eliminating per-element intermediate `Vec` allocations.
+#[derive(Debug, Clone)]
+pub enum CommandElementValue<'a> {
+    Us(u16),
+    Ui(&'a str),
+    Str(&'a str),
 }
 
 // ── Command PDU construction ──────────────────────────────────────────────────
 
-/// Build a complete DIMSE command PDV body (IVR-LE) from a sequence of
-/// `(tag: u32, value: &[u8])` pairs.
-///
-/// The tag is encoded as `(tag >> 16) as u16` (group) and `(tag & 0xFFFF) as u16`
-/// (element), each as little-endian u16. Pairs MUST be ordered by tag value.
-///
-/// The mandatory (0000,0000) Command Group Length UL element is prepended
-/// with the total byte count of all other elements.
+/// Build a complete DIMSE command PDV body (IVR-LE) from a sequence of typed
+/// command element values. Values are encoded directly into the body buffer,
+/// eliminating per-element intermediate `Vec` allocations.
 ///
 /// # Example
 /// ```ignore
 /// let cmd = build_command_pdu(&[
-///     (0x0000_0002, encode_ui(VERIFICATION_SOP_CLASS).as_slice()),
-///     (0x0000_0100, &encode_us(C_ECHO_RQ)),
-///     (0x0000_0110, &encode_us(1_u16)),      // message ID
-///     (0x0000_0800, &encode_us(NO_DATASET)),
+///     (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
+///     (0x0000_0100, CommandElementValue::Us(C_ECHO_RQ)),
+///     (0x0000_0110, CommandElementValue::Us(1_u16)),
+///     (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
 /// ]);
 /// ```
-pub fn build_command_pdu(elements: &[(u32, &[u8])]) -> Vec<u8> {
-    // Build body (without group-length element).
-    let mut body = Vec::new();
-    for &(tag, value) in elements {
-        let group = (tag >> 16) as u16;
-        let elem = (tag & 0xFFFF) as u16;
-        body.extend_from_slice(&group.to_le_bytes());
-        body.extend_from_slice(&elem.to_le_bytes());
-        body.extend_from_slice(&(value.len() as u32).to_le_bytes());
-        body.extend_from_slice(value);
+pub fn build_command_pdu(elements: &[(u32, CommandElementValue)]) -> Vec<u8> {
+    let mut buf = Vec::new();
+    build_command_pdu_into(&mut buf, elements);
+    buf
+}
+
+/// Write a DIMSE command PDV body (IVR-LE) into an existing buffer.
+///
+/// The buffer is extended with the encoded command set:
+/// (0000,0000) UL CommandGroupLength followed by the remaining elements.
+pub fn build_command_pdu_into(buf: &mut Vec<u8>, elements: &[(u32, CommandElementValue)]) {
+    // First pass: compute total body size for a single allocation.
+    let body_size: usize = elements
+        .iter()
+        .map(|(_, v)| match v {
+            CommandElementValue::Us(_) => 8 + 2,
+            CommandElementValue::Ui(s) => 8 + padded_len(s),
+            CommandElementValue::Str(s) => 8 + padded_len(s),
+        })
+        .sum();
+    buf.reserve(12 + body_size);
+
+    let header_start = buf.len();
+    buf.extend_from_slice(&0u16.to_le_bytes()); // group 0000
+    buf.extend_from_slice(&0u16.to_le_bytes()); // element 0000
+    buf.extend_from_slice(&4u32.to_le_bytes()); // UL value length = 4
+    buf.extend_from_slice(&0u32.to_le_bytes()); // placeholder for group length
+
+    for (tag, value) in elements {
+        let group = (*tag >> 16) as u16;
+        let elem = (*tag & 0xFFFF) as u16;
+        buf.extend_from_slice(&group.to_le_bytes());
+        buf.extend_from_slice(&elem.to_le_bytes());
+        match value {
+            CommandElementValue::Us(v) => {
+                buf.extend_from_slice(&2u32.to_le_bytes());
+                buf.extend_from_slice(&v.to_le_bytes());
+            }
+            CommandElementValue::Ui(uid) => {
+                buf.extend_from_slice(&(padded_len(uid) as u32).to_le_bytes());
+                encode_ui_into(buf, uid);
+            }
+            CommandElementValue::Str(s) => {
+                buf.extend_from_slice(&(padded_len(s) as u32).to_le_bytes());
+                encode_str_into(buf, s);
+            }
+        }
     }
 
-    // Prepend (0000,0000) UL = body.len().
-    let mut full = Vec::with_capacity(12 + body.len());
-    full.extend_from_slice(&0u16.to_le_bytes()); // group 0000
-    full.extend_from_slice(&0u16.to_le_bytes()); // element 0000
-    full.extend_from_slice(&4u32.to_le_bytes()); // UL value length = 4
-    full.extend_from_slice(&(body.len() as u32).to_le_bytes()); // group length value
-    full.extend_from_slice(&body);
-    full
+    // Fill in group length at the reserved placeholder.
+    let body_len = buf.len() - header_start - 12;
+    let gl = (body_len as u32).to_le_bytes();
+    buf[header_start + 8..header_start + 12].copy_from_slice(&gl);
 }
 
 /// Encode a non-command DICOM dataset as Implicit VR Little Endian bytes.
