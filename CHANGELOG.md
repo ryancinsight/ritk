@@ -1,5 +1,72 @@
 # CHANGELOG
 
+## [0.50.67] - 2026-05-23
+### Optimized [major]
+- **SPRINT-295-PERF-01: Chunked-path W_fixed^T caching in Parzen joint histogram** (Sprint 295): Eliminated O(N × num_bins) per-iteration Parzen weight recomputation for the fixed image in the chunked path (n > 32768) of `compute_image_joint_histogram`. Previously, `HistogramCache.w_fixed_transposed` was set to `None` in the chunked path, meaning every CMA-ES objective evaluation recomputed the fixed-image Parzen weights for every chunk. Now, `W_fixed^T [num_bins, N]` is computed once on the first call, cached, and per-chunk slices `[num_bins, start..end]` are used with `compute_joint_histogram_from_cache` on subsequent iterations. Key changes:
+  - New `compute_w_fixed_transposed` private method on `ParzenJointHistogram` — DRY extraction of the fixed-image Parzen weight matrix computation (replaces duplicated code in both the non-chunked and chunked cache-population paths).
+  - Chunked path now checks cache for `w_fixed_transposed` on entry; computes and stores it on first call; slices it per-chunk on subsequent calls.
+  - Estimated 2× speedup per MI evaluation for volumes with N > 32768 (most clinical volumes).
+
+### Added [minor]
+- **STR-295-01: Partition `bspline.rs` (837→4 files)** — `interpolation/bspline/` directory module: `mod.rs` (struct + trait impl, 138 lines), `flat.rs` (optimized interpolation, 171 lines), `legacy.rs` (dead-code tensor path, 164 lines), `tests.rs` (11 tests, 359 lines). Public API unchanged.
+- **STR-295-02: Partition `parzen.rs` (645→4 files)** — `histogram/parzen/` directory module: `mod.rs` (struct + constructors + entropy, 80 lines), `compute.rs` (histogram computation methods, 424 lines), `oob.rs` (OOB mask function, 35 lines), `tests.rs` (7 tests, 137 lines). Public API unchanged.
+- **STR-295-03: Partition `pacs_ops.rs` (635→445+237)** — Extracted `mod tests` into `tests_pacs_ops.rs` via `#[path]` pattern. Production code: 445 lines (under 500).
+- **STR-295-04: Partition `pacs_panel/mod.rs` (531→403+240)** — Extracted `show_results_section` into `results.rs`. Both files well under 500-line limit.
+
+### Fixed [minor]
+- Fixed `private_interfaces` lint warning in `ritk-python`: `GlobalMiOptions` struct promoted from `pub(self)` to `pub(crate)` to match `into_options` method visibility.
+
+### Tests
+- New `chunked_cached_path_matches_non_chunked` test: verifies chunked W_fixed^T cache produces identical joint histogram to direct computation on a 64×32×32 synthetic volume (N=65536 > CHUNK_SIZE=32768).
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings (pre-existing `private_interfaces` warning fixed)
+- `cargo test -p ritk-core --lib`: **1398 passed**, 1 ignored, 0 failed
+- `cargo test -p ritk-registration --lib`: **307 passed**, 0 failed (was 306, +1 new chunked-cache test)
+- `cargo test -p ritk-snap --lib -- pacs`: **47 passed**, 0 failed
+- Structural violations: **ZERO** files > 500 lines across ~104.5K total lines of Rust
+
+## [0.50.67] - 2026-05-22 ### Added [minor]
+
+- **Sprint 296: RT Structure Set writer** (Sprint 296): Implemented `write_rt_struct()` in `ritk-io/src/format/dicom/rt_struct/writer.rs` — serializes `RtStructureSet` to a DICOM Part-10 file with the full IOD:
+  - `StructureSetROISequence (3006,0020)`: ROI number, name, description per ROI
+  - `ROIContourSequence (3006,0039)`: display color (IS R\\G\\B triple), `ContourSequence (3006,0040)` with geometric type and backslash-delimited DS contour data
+  - `RTROIObservationsSequence (3006,0080)`: ROI interpreted type (GTV/CTV/PTV etc.)
+  - UID generation via atomic counter (`2.25.<timestamp>.<seq>`)
+- Re-exported through `format/dicom/mod.rs` and `ritk-io` crate root (alongside existing `write_rt_dose`, `write_rt_plan`)
+- 4 new value-semantic round-trip tests: single ROI, multi-ROI sort invariance, empty label, POINT contour precision.
+
+### Fixed [patch]
+
+- **Stale file**: Removed `ritk-registration/src/metric/histogram/parzen.rs` which conflicted with `parzen/mod.rs` directory module (E0761).
+
+### Verification (Sprint 296)
+
+- `cargo check --workspace`: 0 errors, 1 pre-existing warning
+- `cargo test -p ritk-io --lib format::dicom::rt_struct`: **12 passed**, 0 failed
+
+## [0.50.66] - 2026-05-22
+
+### Added [minor]
+
+- **Sprint 295: Series-level C-FIND drill-down UI and C-MOVE retrieval** (Sprint 295): Full vertical-slice implementation of series-level PACS operations from the networking layer through the viewer UI:
+  - **ritk-io**: `retrieve_series()` in `move_.rs` issues C-MOVE at `FindLevel::Series` with `StudyInstanceUID` + `SeriesInstanceUID`; re-exported as `dicom_retrieve_series` at crate root.
+  - **worker.rs**: `execute_find_series()` delegates to `dicom_find` + `FindResultRowSeries::build_series_query`; `execute_retrieve_series()` delegates to `dicom_retrieve_series`.
+  - **query.rs**: `PacsRequest::RetrieveSeries` (study_uid, series_uid, destination) and `PacsResponse::RetrieveSeriesOk`/`RetrieveSeriesErr`.
+  - **pacs_panel**: Series drill-down grid (Modality, Series#, Description truncated to 29 chars, Instance count, Date) with selectable rows, Back to Studies button, and Retrieve Series button.
+  - **pacs_ops**: Handler dispatch for `SubmitFindSeries`/`SubmitRetrieveSeries`/`BackToStudies`; `submit_pacs_find_series` and `submit_pacs_retrieve_series` methods.
+  - **state**: `pacs_selected_series_row` and `pacs_study_context_uid` fields.
+  - **tests**: 13 new value-semantic tests covering series query building, IVR-LE parsing, response round-trips, state transitions, and handler dispatch.
+
+### Fixed [patch]
+
+- **Stale file**: Removed `ritk-core/src/interpolation/bspline.rs` which conflicted with `bspline/mod.rs` directory module (E0761).
+
+### Verification (Sprint 295)
+
+- `cargo check --workspace`: 0 errors, 1 pre-existing warning
+- `cargo test -p ritk-snap --lib`: **633 passed**, 0 failed
+
 ## [0.50.65] - 2026-05-23
 
 ### Optimized [major]

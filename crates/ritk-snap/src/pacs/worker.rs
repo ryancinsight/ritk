@@ -26,7 +26,7 @@
 use std::sync::mpsc;
 
 use super::config::PacsConfig;
-use super::query::{FindResultRow, PacsRequest, PacsResponse};
+use super::query::{FindResultRow, FindResultRowSeries, PacsRequest, PacsResponse};
 
 // ── PacsWorkerHandle ──────────────────────────────────────────────────────────
 
@@ -46,6 +46,12 @@ impl PacsWorkerHandle {
     /// exhausted — no further responses will arrive.
     pub fn try_recv(&self) -> Option<PacsResponse> {
         self.rx.try_recv().ok()
+    }
+
+    /// Construct a handle from an existing receiver (test support).
+    #[cfg(test)]
+    pub fn for_test(rx: mpsc::Receiver<PacsResponse>) -> Self {
+        Self { rx }
     }
 }
 
@@ -89,10 +95,14 @@ fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {
             study_instance_uid,
             move_destination,
         } => execute_retrieve(config, &study_instance_uid, &move_destination),
-        PacsRequest::FindSeries { .. } => {
-            // Series-level C-FIND execution not yet wired — return empty results.
-            PacsResponse::FindSeriesOk(vec![])
-        }
+        PacsRequest::FindSeries {
+            study_instance_uid,
+        } => execute_find_series(config, &study_instance_uid),
+        PacsRequest::RetrieveSeries {
+            study_instance_uid,
+            series_instance_uid,
+            move_destination,
+        } => execute_retrieve_series(config, &study_instance_uid, &series_instance_uid, &move_destination),
     }
 }
 
@@ -132,6 +142,24 @@ fn execute_find(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn execute_find_series(config: &PacsConfig, study_instance_uid: &str) -> PacsResponse {
+    use ritk_io::{dicom_find, FindResult};
+    let assoc_cfg = config.to_association_config();
+    let query = FindResultRowSeries::build_series_query(study_instance_uid);
+    match dicom_find(&assoc_cfg, &query) {
+        Ok(raw_results) => {
+            let rows: Vec<FindResultRowSeries> = raw_results
+                .iter()
+                .flat_map(|r: &FindResult| r.matches.iter())
+                .map(|bytes| FindResultRowSeries::from_raw_bytes(bytes))
+                .collect();
+            PacsResponse::FindSeriesOk(rows)
+        }
+        Err(e) => PacsResponse::FindErr(e.to_string()),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn execute_retrieve(config: &PacsConfig, study_uid: &str, move_destination: &str) -> PacsResponse {
     use ritk_io::{dicom_retrieve, AeTitle, MoveDestination};
     let assoc_cfg = config.to_association_config();
@@ -143,5 +171,25 @@ fn execute_retrieve(config: &PacsConfig, study_uid: &str, move_destination: &str
     match dicom_retrieve(&assoc_cfg, &destination, study_uid) {
         Ok(rsp) => PacsResponse::RetrieveOk(rsp),
         Err(e) => PacsResponse::RetrieveErr(e.to_string()),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn execute_retrieve_series(
+    config: &PacsConfig,
+    study_uid: &str,
+    series_uid: &str,
+    move_destination: &str,
+) -> PacsResponse {
+    use ritk_io::{dicom_retrieve_series, AeTitle, MoveDestination};
+    let assoc_cfg = config.to_association_config();
+    let dest_ae = match AeTitle::new(move_destination) {
+        Ok(ae) => ae,
+        Err(e) => return PacsResponse::RetrieveSeriesErr(e.to_string()),
+    };
+    let destination = MoveDestination::new(dest_ae);
+    match dicom_retrieve_series(&assoc_cfg, &destination, study_uid, series_uid) {
+        Ok(rsp) => PacsResponse::RetrieveSeriesOk(rsp),
+        Err(e) => PacsResponse::RetrieveSeriesErr(e.to_string()),
     }
 }

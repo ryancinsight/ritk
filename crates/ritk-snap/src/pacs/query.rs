@@ -235,6 +235,15 @@ pub enum PacsRequest {
         study_instance_uid: String,
         move_destination: String,
     },
+    /// C-MOVE series-level retrieval to a configured destination AE.
+    ///
+    /// Requests that the PACS transfer only instances belonging to the
+    /// specified series within the given study.
+    RetrieveSeries {
+        study_instance_uid: String,
+        series_instance_uid: String,
+        move_destination: String,
+    },
 }
 
 /// Response returned from the background worker thread.
@@ -252,10 +261,14 @@ pub enum PacsResponse {
     FindSeriesOk(Vec<FindResultRowSeries>),
     /// C-FIND failed with a human-readable error description.
     FindErr(String),
-    /// C-MOVE completed; `MoveResponse` carries sub-operation counters.
+    /// C-MOVE (study-level) completed; `MoveResponse` carries sub-operation counters.
     RetrieveOk(MoveResponse),
     /// C-MOVE failed with a human-readable error description.
     RetrieveErr(String),
+    /// C-MOVE (series-level) completed; `MoveResponse` carries sub-operation counters.
+    RetrieveSeriesOk(MoveResponse),
+    /// C-MOVE (series-level) failed with a human-readable error description.
+    RetrieveSeriesErr(String),
 }
 
 // ── QueryState ────────────────────────────────────────────────────────────────

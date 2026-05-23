@@ -5,29 +5,31 @@
 //!
 //! [`show_pacs_panel`] renders the full panel into a supplied `&mut egui::Ui`
 //! and returns a [`PacsPanelAction`] describing any action the user triggered
-//! on this frame.  All state transitions and PACS network calls are handled by
+//! on this frame. All state transitions and PACS network calls are handled by
 //! the caller (`SnapApp`) after the function returns.
 //!
 //! # Layout
 //!
 //! ```text
 //! ┌─ Connection ──────────────────────────────────────────────────────┐
-//! │  Calling AE │ [RITKSNAP     ]   Called AE │ [ORTHANC       ]     │
-//! │  Host       │ [localhost    ]   Port       │ [4242]               │
-//! │  Move dest  │ [RITKSNAP     ]   Timeout(s) │ [30  ]               │
-//! │  [Test Connection (C-ECHO)]   ● Connected (0x0000)               │
+//! │ Calling AE │ [RITKSNAP ]  Called AE │ [ORTHANC   ]              │
+//! │ Host       │ [localhost ]  Port     │ [4242      ]              │
+//! │ Move dest  │ [RITKSNAP ]  Timeout(s)│ [30        ]              │
+//! │ [Test Connection (C-ECHO)]  ● Connected (0x0000)                │
 //! ├─ Query ────────────────────────────────────────────────────────────┤
-//! │  Patient Name: [*         ]   Modality: [    ]                   │
-//! │  [Search (C-FIND)]  [Clear]                                        │
+//! │ Patient Name: [*        ]  Modality: [    ]                     │
+//! │ [Search (C-FIND)]  [Clear]                                       │
 //! ├─ Results ──────────────────────────────────────────────────────────┤
-//! │  3 result(s)                                                       │
-//! │  PatientName  │ Date     │ Modality │ #S │ Description            │
-//! │  DOE^JOHN     │ 20240115 │ CT       │  3 │ CHEST CT               │
-//! │  [Retrieve (C-MOVE)]  → destination AE: RITKSNAP                 │
+//! │ 3 result(s)                                                      │
+//! │ PatientName │ Date │ Modality │ #S │ Description │               │
+//! │ DOE^JOHN    │ 20240115 │ CT   │ 3  │ CHEST CT    │               │
+//! │ [Retrieve (C-MOVE)]  → destination AE: RITKSNAP                 │
 //! └───────────────────────────────────────────────────────────────────┘
 //! ```
 
 use crate::pacs::{PacsConfig, QueryState};
+
+mod results;
 
 // ── PacsPanelAction ───────────────────────────────────────────────────────────
 
@@ -51,6 +53,15 @@ pub enum PacsPanelAction {
     },
     /// User pressed "Retrieve (C-MOVE)" for a specific study.
     SubmitRetrieve { study_uid: String },
+    /// User pressed "Show Series" to drill into a study's series list.
+    SubmitFindSeries { study_instance_uid: String },
+    /// User pressed "Retrieve Series (C-MOVE)" for a specific series.
+    SubmitRetrieveSeries {
+        series_uid: String,
+        study_uid: String,
+    },
+    /// User pressed "Back to studies" to return from series drill-down.
+    BackToStudies,
     /// User pressed "Clear" to reset the results table.
     ClearResults,
     /// User pressed "Start SCP".
@@ -74,7 +85,9 @@ pub enum PacsPanelAction {
 /// - `modality` — modality filter (empty = all).
 /// - `study_date` — study date range filter (DICOM range format, empty = all).
 /// - `accession_number` — accession number filter (exact match, empty = all).
-/// - `selected_row` — index of the currently selected result row (for C-MOVE).
+/// - `selected_row` — index of the currently selected study result row (for C-MOVE).
+/// - `selected_series_row` — index of the currently selected series result row.
+/// - `study_context_uid` — StudyInstanceUID of the study being drilled into via series.
 ///
 /// # Returns
 ///
@@ -94,11 +107,14 @@ pub fn show_pacs_panel(
     pacs_pending_count: usize,
     pacs_auto_loaded_this_frame: Option<usize>,
     selected_row: &mut Option<usize>,
+    selected_series_row: &mut Option<usize>,
+    study_context_uid: &mut String,
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
 
     // ── Connection configuration ──────────────────────────────────────────────
     ui.heading("Connection");
+
     egui::Grid::new("pacs_config_grid")
         .num_columns(4)
         .spacing([6.0, 4.0])
@@ -218,6 +234,7 @@ pub fn show_pacs_panel(
 
     // ── Query form ────────────────────────────────────────────────────────────
     ui.heading("Query");
+
     egui::Grid::new("pacs_query_grid")
         .num_columns(4)
         .spacing([6.0, 4.0])
@@ -275,129 +292,15 @@ pub fn show_pacs_panel(
 
     // ── Results ───────────────────────────────────────────────────────────────
     ui.heading("Results");
-    show_results_section(ui, config, query_state, selected_row, &mut action);
+    results::show_results_section(
+        ui,
+        config,
+        query_state,
+        selected_row,
+        selected_series_row,
+        study_context_uid,
+        &mut action,
+    );
 
     action
-}
-
-// ── Results section ───────────────────────────────────────────────────────────
-
-fn show_results_section(
-    ui: &mut egui::Ui,
-    config: &PacsConfig,
-    query_state: &mut QueryState,
-    selected_row: &mut Option<usize>,
-    action: &mut PacsPanelAction,
-) {
-    match query_state {
-        QueryState::Idle => {
-            ui.weak("Enter search criteria above and press Search.");
-        }
-        QueryState::Pending { label } => {
-            ui.horizontal(|ui| {
-                ui.spinner();
-                ui.label(label.as_str());
-            });
-        }
-        QueryState::Error(msg) => {
-            ui.colored_label(egui::Color32::from_rgb(220, 80, 80), msg.as_str());
-        }
-        QueryState::Results(rows) => {
-            let n = rows.len();
-            ui.label(format!("{n} result(s)"));
-
-            if n == 0 {
-                ui.weak("No matching studies found.");
-                return;
-            }
-
-            egui::ScrollArea::vertical()
-                .id_source("pacs_results_scroll")
-                .max_height(220.0)
-                .show(ui, |ui| {
-                    egui::Grid::new("pacs_results_grid")
-                        .num_columns(7)
-                        .striped(true)
-                        .spacing([8.0, 3.0])
-                        .show(ui, |ui| {
-                            // Header row.
-                            ui.strong("Patient");
-                            ui.strong("Date");
-                            ui.strong("Modality");
-                            ui.strong("#S");
-                            ui.strong("#I");
-                            ui.strong("Description");
-                            ui.strong("StudyUID (tail)");
-                            ui.end_row();
-
-                            for (idx, row) in rows.iter().enumerate() {
-                                let is_sel = *selected_row == Some(idx);
-                                let name = if row.patient_name.is_empty() {
-                                    "(unknown)"
-                                } else {
-                                    &row.patient_name
-                                };
-                                let hover = if row.patient_id.is_empty() {
-                                    "PatientID: (unknown)".to_owned()
-                                } else {
-                                    format!("PatientID: {}", row.patient_id)
-                                };
-                                if ui
-                                    .selectable_label(is_sel, name)
-                                    .on_hover_text(hover)
-                                    .clicked()
-                                {
-                                    *selected_row = Some(idx);
-                                }
-                                ui.label(&row.study_date);
-                                ui.label(&row.modality);
-                                ui.label(&row.num_series);
-                                ui.label(&row.num_instances);
-                                // Truncate long study descriptions with a trailing ellipsis.
-                                let char_count = row.study_description.chars().count();
-                                let desc: String = if char_count > 28 {
-                                    format!(
-                                        "{}\u{2026}",
-                                        row.study_description.chars().take(27).collect::<String>()
-                                    )
-                                } else {
-                                    row.study_description.clone()
-                                };
-                                ui.label(desc);
-                                // Show trailing 12 chars of UID for readability.
-                                let uid_tail = if row.study_instance_uid.len() > 12 {
-                                    let s = &row.study_instance_uid;
-                                    format!("\u{2026}{}", &s[s.len() - 12..])
-                                } else {
-                                    row.study_instance_uid.clone()
-                                };
-                                ui.label(uid_tail).on_hover_text(&row.study_instance_uid);
-                                ui.end_row();
-                            }
-                        });
-                });
-
-            // Retrieve button for selected row.
-            if let Some(idx) = *selected_row {
-                if idx < rows.len() {
-                    ui.separator();
-                    let study_uid = rows[idx].study_instance_uid.clone();
-                    ui.horizontal(|ui| {
-                        if ui.button("\u{25b6} Retrieve (C-MOVE)").clicked() {
-                            *action = PacsPanelAction::SubmitRetrieve { study_uid };
-                        }
-                        ui.weak(format!(
-                            "\u{2192} destination AE: {}",
-                            config.move_destination
-                        ));
-                    });
-                }
-            }
-        }
-        QueryState::SeriesResults { study_instance_uid, series } => {
-            ui.label(format!("Series for study: {}", study_instance_uid));
-            let n = series.len();
-            ui.label(format!("{n} series result(s)"));
-        }
-    }
 }

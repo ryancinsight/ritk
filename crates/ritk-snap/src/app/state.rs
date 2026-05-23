@@ -226,8 +226,12 @@ pub(crate) struct SnapApp {
     pub(crate) pacs_accession_filter: String,
     /// Human-readable result of the last C-ECHO test.
     pub(crate) pacs_echo_display: String,
-    /// Index of the currently selected C-FIND result row.
+    /// Index of the currently selected C-FIND study-level result row.
     pub(crate) pacs_selected_row: Option<usize>,
+    /// Index of the currently selected series-level result row.
+    pub(crate) pacs_selected_series_row: Option<usize>,
+    /// StudyInstanceUID of the study currently being explored in series drill-down.
+    pub(crate) pacs_study_context_uid: String,
     /// Handle to an in-flight background PACS operation, if any.
     pub(crate) pacs_worker: Option<crate::pacs::PacsWorkerHandle>,
     /// Embedded C-STORE SCP handle; `Some` when the SCP is running.
@@ -338,6 +342,8 @@ impl Default for SnapApp {
             pacs_accession_filter: String::new(),
             pacs_echo_display: String::new(),
             pacs_selected_row: None,
+            pacs_selected_series_row: None,
+            pacs_study_context_uid: String::new(),
             pacs_worker: None,
             #[cfg(not(target_arch = "wasm32"))]
             pacs_scp_handle: None,

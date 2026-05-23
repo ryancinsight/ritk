@@ -135,7 +135,7 @@ fn build_config(
 
 /// All scalar tuning knobs for `global_mi_register`, grouped to stay within
 /// the function argument limit.
-struct GlobalMiOptions {
+pub(crate) struct GlobalMiOptions {
     transform_type: String,
     num_levels: usize,
     shrink_factors: Option<Vec<usize>>,

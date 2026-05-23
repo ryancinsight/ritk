@@ -48,10 +48,11 @@ pub use multiframe::{
 pub use networking::dimse::{CommandField, DimseMessage, DimseStatus};
 pub use networking::pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};
 pub use networking::{
-    echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve, store as dicom_store,
-    AeTitle, Association, AssociationConfig, DicomAddress, EchoResponse, FindLevel, FindQuery,
-    FindResult, MoveDestination, MoveResponse, MoveResult, NetworkingError, ScpConfig,
-    StoreResponse, StoreScp, StoreScpHandle, StoredInstance,
+    echo as dicom_echo, find as dicom_find, retrieve as dicom_retrieve,
+    retrieve_series as dicom_retrieve_series, store as dicom_store, AeTitle, Association,
+    AssociationConfig, DicomAddress, EchoResponse, FindLevel, FindQuery, FindResult,
+    MoveDestination, MoveResponse, MoveResult, NetworkingError, ScpConfig, StoreResponse, StoreScp,
+    StoreScpHandle, StoredInstance,
 };
 pub use object_model::{
     is_private_tag, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
@@ -68,7 +69,7 @@ pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID
 pub use rt_plan::{
     read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
 };
-pub use rt_struct::{read_rt_struct, rt_roi_to_polydata, RtContour, RtRoiInfo, RtStructureSet};
+pub use rt_struct::{label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct, RtContour, RtRoiInfo, RtStructureSet};
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
     DicomSegmentInfo, DicomSegmentation,

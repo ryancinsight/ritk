@@ -10,15 +10,15 @@ pub use domain::{
 pub use format::analyze::{read_analyze, write_analyze, AnalyzeReader, AnalyzeWriter};
 pub use format::dicom::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, dicom_echo, dicom_find,
-    dicom_retrieve, dicom_seg_to_label_map, dicom_store, is_private_tag, is_rgb_dicom_series,
+    dicom_retrieve, dicom_retrieve_series, dicom_seg_to_label_map, dicom_store, is_private_tag, is_rgb_dicom_series,
     label_map_to_dicom_seg, load_dicom_color_from_series, load_dicom_color_series,
     load_dicom_from_series, load_dicom_multiframe, load_dicom_series,
     load_dicom_series_with_metadata, model_to_in_mem, read_dicom_color_series, read_dicom_seg,
     read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info, read_rt_dose,
-    read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes,
+    label_map_to_rt_struct, read_rt_plan, read_rt_struct, rt_roi_to_polydata, scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes,
     write_dicom_multiframe, write_dicom_multiframe_with_config,
     write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
-    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, AeTitle, AnonymizationProfile,
+    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, write_rt_struct, AeTitle, AnonymizationProfile,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, AssociationConfig, DicomAddress,
     DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,

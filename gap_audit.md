@@ -1,3 +1,81 @@
+## Sprint 296 Audit (2026-05-22) — RT Structure Set Writer
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| GAP-262-IO-02 (partial) | RT Structure Set IOD write (was read-only) | `ritk-io::format::dicom::rt_struct::writer` | 4 |
+
+### Architecture
+
+1. **Write/Read Invariant**: `write_rt_struct` → `read_rt_struct` preserves all `RtStructureSet` fields invariantly: label, name, ROI number, name, description, interpreted type, display color, geometric type, and every contour point coordinate (f64 precision).
+2. **Contour encoding**: Points are serialized as a `\`-separated DS decimal-string per DICOM PS 3.3 C.8.8.3 — same format the DICOM toolkit uses natively, avoiding encoding/decoding mismatches.
+3. **UID generation**: Same `AtomicU64` counter pattern as `write_rt_dose` and `write_rt_plan` — SOP Instance UID = `2.25.<timestamp_ns>.<counter>`.
+4. **Sequence ordering**: ROIs are written in input order but the reader sorts by `roi_number` — order invariance is handled on the read side.
+5. **Shared helper pattern**: No code duplication — the `rt_struct` module already has `types.rs` (domain types) and `utils.rs` (parsing helpers); the writer reuses the same types.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo check --workspace` | 0 errors, 1 pre-existing warning | pass |
+| `cargo test -p ritk-io --lib format::dicom::rt_struct` | 12 passed, 0 failed | pass |
+| Single ROI round-trip | 12 field-value assertions | pass |
+| Multi-ROI sort invariance | 2 ROIs, reverse input order, sorted by roi_number | pass |
+| Empty label / no ROIs | Edge case: zero-length structure set | pass |
+| POINT contour precision | Single non-integer coordinate (42.5, -13.2, 7.0) | pass |
+
+### Residual Risk
+
+- No RT-Struct export from ritk-snap label editor (separate feature).
+- No external DICOM RT-Struct file round-trip tested (only write-read with our own reader). The DICOM object is standard-conforming but has not been validated against a third-party parser.
+
+## Sprint 295 Audit (2026-05-22) — Series-Level C-FIND Drill-Down + C-MOVE Retrieval
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| SCP-SERIES-02 | Series-level C-FIND worker wired (was returning empty results) | `ritk-snap::pacs::worker` | 2 |
+| SCP-SERIES-03 | Series-level C-MOVE retrieval via `dicom_retrieve_series` | `ritk-io::networking::move_`, `ritk-snap::pacs::worker` | 2 |
+| SCP-SERIES-04 | Series drill-down UI (back button, grid, select, retrieve) | `ritk-snap::ui::pacs_panel` | — |
+| SCP-SERIES-05 | Series-level handler dispatch + state management | `ritk-snap::app::pacs_ops`, `state` | 9 |
+
+### Architecture
+
+1. **Series-level C-MOVE** reuses the same `retrieve_impl()` helper as study-level C-MOVE, passing `FindLevel::Series` + `series_instance_uid` additional key — no code duplication.
+2. **Drill-down state** uses `pacs_selected_series_row` (separate from `pacs_selected_row` to avoid conflict with study selection).
+3. **BackToStudies** transitions to `QueryState::Idle` + clears both selection indices — returns to the query form. The alternative (returning to `Results` state) would require caching the previous results; `Idle` is simpler and correct for the first iteration.
+4. **No changes** to `ritk-core` or `ritk-registration` — scoped entirely to `ritk-io` (networking) and `ritk-snap` (PACS domain).
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo check --workspace` | 0 errors, 1 pre-existing warning | pass |
+| `cargo test -p ritk-snap --lib` | 633 passed, 0 failed | pass |
+| Series parsing | `from_raw_bytes` empty/multiple/nine-field boundary cases | pass |
+| Query construction | `build_series_query` 9 return keys | pass |
+| Response transitions | FindSeriesOk/RetrieveSeriesOk/RetrieveSeriesErr → correct state | pass |
+| Handler dispatch | SubmitFindSeries/SubmitRetrieveSeries/BackToStudies → correct transitions | pass |
+| Duplicate rejection | Active worker blocks second request | pass |
+
+### Residual Risk
+
+- Series-level auto-load after retrieval not yet implemented (user must click "Load Received").
+- `BackToStudies` transitions to `Idle` (query form) rather than returning to previous study-level results — acceptable for first iteration.
+
+## Sprint 295 Audit (2026-05-23) — Structural Zero-Violations + Chunked-Path W_fixed^T Caching
+- **STR-295-01**: Partitioned `bspline.rs` (837 lines) → `interpolation/bspline/` directory with 4 files (mod, flat, legacy, tests). Public API unchanged.
+- **STR-295-02**: Partitioned `parzen.rs` (645 lines) → `histogram/parzen/` directory with 4 files (mod, compute, oob, tests). Public API unchanged.
+- **STR-295-03**: Extracted `mod tests` from `pacs_ops.rs` (635→445+237 lines) via `#[path]` pattern.
+- **STR-295-04**: Extracted `show_results_section` from `pacs_panel/mod.rs` (531→403+240 lines) into `results.rs`.
+- **PERF-295-01**: Chunked-path `W_fixed^T` caching — `HistogramCache.w_fixed_transposed` is now populated in the chunked path; per-chunk slices use `compute_joint_histogram_from_cache` on subsequent CMA-ES iterations, eliminating O(N×bins) recomputation per iteration.
+- **WARN-295-01**: Fixed `private_interfaces` warning: `GlobalMiOptions` → `pub(crate)`.
+- **Architecture**: DRY extraction of `compute_w_fixed_transposed` private method on `ParzenJointHistogram` consolidates the W_fixed^T computation that was duplicated across non-chunked and chunked cache-population paths. Structural violations: **ZERO**.
+- **Verification**: `cargo check --workspace` 0/0; `cargo test -p ritk-core --lib` 1398 passed; `cargo test -p ritk-registration --lib` 307 passed; `cargo test -p ritk-snap --lib -- pacs` 47 passed
+- **Residual Risk**: SIMD batch BSpline point processing deferred; Criterion benchmarks deferred
+
 ## Sprint 289 Audit (2026-05-22) — CLAHE Performance + Series Query + Structural Zero-Violations
 - **CLAHE-PERF-01**: Eliminated `tile_vals: Vec<f32>` intermediate buffer from `ClaheScratch`. `build_tile_cdf_into` now accepts pixel slice + tile bounds `(y0, y1, x0, x1, cols)` and computes histograms directly from source data. Eliminates one `Vec::with_capacity(rows×cols)` allocation per scratch and N push operations per tile.
 - **SCP-SERIES-01**: Added `FindResultRowSeries` struct (9 series-level DICOM attributes), `FindResultRowSeries::from_raw_bytes` decoder, `FindResultRowSeries::build_series_query(study_instance_uid)`, `PacsRequest::FindSeries`, `PacsResponse::FindSeriesOk`, `QueryState::SeriesResults`. 7 tests.

@@ -1,3 +1,61 @@
+## Sprint 295 (0.50.67) — Structural Partitions + Registration Pipeline Optimization
+- [x] STR-295-01: Partition `bspline.rs` (837 lines) → `interpolation/bspline/` directory (4 files: mod, flat, legacy, tests)
+- [x] STR-295-02: Partition `parzen.rs` (645 lines) → `histogram/parzen/` directory (4 files: mod, compute, oob, tests)
+- [x] STR-295-03: Partition `pacs_ops.rs` (635 lines) → extract tests to `tests_pacs_ops.rs` (445+237)
+- [x] STR-295-04: Partition `pacs_panel/mod.rs` (531 lines) → extract results section to `results.rs` (403+240)
+- [x] PERF-295-01: Chunked-path W_fixed^T caching in Parzen joint histogram
+- [x] WARN-295-01: Fix `private_interfaces` lint warning in `ritk-python`
+- [x] DRY: Extract `compute_w_fixed_transposed` private method on `ParzenJointHistogram`
+- [x] New test: `chunked_cached_path_matches_non_chunked` (64×32×32 volume, N=65536)
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `cargo test -p ritk-core --lib`: 1398 passed, 1 ignored
+- [x] `cargo test -p ritk-registration --lib`: 307 passed
+- [x] Structural violations: ZERO files > 500 lines
+- [x] CHANGELOG.md updated
+- [x] backlog.md updated
+- [x] gap_audit.md updated
+- [x] OPTIMIZATION.md updated
+- [x] Committed and pushed
+
+## Sprint 296 (0.50.67) — RT Structure Set Writer
+- [x] `write_rt_struct` added to `ritk-io::format::dicom::rt_struct::writer.rs`
+- [x] Serializes `RtStructureSet` → DICOM Part-10 file with full IOD: `StructureSetROISequence`, `ROIContourSequence` (with `ContourSequence`), `RTROIObservationsSequence`
+- [x] Contour data encoded as backslash-delimited DS string per DICOM PS 3.3 C.8.8
+- [x] `display_color` encoded as `IS "R\G\B"` triple
+- [x] `roi_interpreted_type` carried in `RTROIObservationsSequence`
+- [x] UID generation via atomically-increasing `RT_STRUCT_UID_COUNTER`
+- [x] Re-exported through `format/dicom/mod.rs` and `lib.rs` (crate root)
+- [x] Removed stale `ritk-registration/metric/histogram/parzen.rs` (conflict with `parzen/mod.rs`)
+- [x] 4 new value-semantic round-trip tests (single ROI, multi-ROI, empty label, POINT contour)
+- [x] `cargo check --workspace`: 0 errors, 1 pre-existing warning
+- [x] `cargo test -p ritk-io --lib format::dicom::rt_struct`: 12/12 passed (8 pre-existing + 4 new)
+- [x] CHANGELOG + backlog + checklist + gap_audit updated
+
+**Gaps remaining**: RT-Struct export from ritk-snap label editor (Low), Registration masking validation on RIRE (Critical)
+
+## Sprint 295 (0.50.66) — Series-Level C-FIND Drill-Down + C-MOVE Retrieval
+- [x] `retrieve_series()` added to `ritk-io` — issues C-MOVE at SERIES level via shared `retrieve_impl()`
+- [x] `dicom_retrieve_series` re-exported through `ritk-io` crate root
+- [x] `worker.rs`: `execute_find_series()` wired — calls `dicom_find` with `FindResultRowSeries::build_series_query()`
+- [x] `worker.rs`: `execute_retrieve_series()` wired — calls `dicom_retrieve_series`
+- [x] `query.rs`: `PacsRequest::RetrieveSeries { study_instance_uid, series_instance_uid, move_destination }`
+- [x] `query.rs`: `PacsResponse::RetrieveSeriesOk(MoveResponse)` and `RetrieveSeriesErr(String)`
+- [x] `pacs_panel/mod.rs`: `PacsPanelAction::SubmitFindSeries`, `SubmitRetrieveSeries`, `BackToStudies`
+- [x] Series drill-down UI: back button, series grid (Modality, Series#, Description, #I, Date), selectable rows, Retrieve Series button
+- [x] `show_results_section` signature extended: `selected_series_row`, `study_context_uid` params
+- [x] `pacs_ops.rs`: handler arms for `SubmitFindSeries`, `SubmitRetrieveSeries`, `BackToStudies`
+- [x] `pacs_ops.rs::submit_pacs_find_series` and `submit_pacs_retrieve_series` methods
+- [x] `state.rs`: `pacs_selected_series_row` + `pacs_study_context_uid` fields
+- [x] `panels.rs`: updated `show_pacs_panel` call site with new params
+- [x] Removed stale `ritk-core/interpolation/bspline.rs` (conflict with `bspline/mod.rs`)
+- [x] 13 new value-semantic tests: parsing, query building, response round-trip, state transitions, handler dispatch
+- [x] `cargo check --workspace`: 0 errors, 1 pre-existing warning
+- [x] `cargo test -p ritk-snap --lib`: 633 passed (0 failed)
+- [x] `PacsWorkerHandle::for_test(rx)` test-only constructor
+- [x] CHANGELOG + backlog + checklist + gap_audit updated
+
+**Gaps remaining**: Series-level auto-load after retrieval (Low), Study-level multi-study bulk C-MOVE (Low)
+
 ## Sprint 289 (0.50.61)
 - [x] CLAHE-PERF-01: Removed `tile_vals: Vec<f32>` from `ClaheScratch` — histogram computed directly from pixel slice + tile bounds
 - [x] `build_tile_cdf_into` signature changed to accept `pixels, y0, y1, x0, x1, cols` instead of `tile_vals: &[f32]`

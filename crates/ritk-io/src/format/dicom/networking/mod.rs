@@ -31,6 +31,6 @@ pub use types::{
 pub use command::parse_dataset_ivr_le;
 pub use echo::echo;
 pub use find::{find, FindLevel, FindQuery};
-pub use move_::{retrieve, MoveDestination};
+pub use move_::{retrieve, retrieve_series, MoveDestination};
 pub use scp::{ScpConfig, StoreScp, StoreScpHandle, StoredInstance};
 pub use store::store;

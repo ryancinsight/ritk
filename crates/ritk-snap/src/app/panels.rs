@@ -287,6 +287,8 @@ impl SnapApp {
                         pacs_pending_count,
                         self.pacs_auto_loaded_this_frame,
                         &mut self.pacs_selected_row,
+                        &mut self.pacs_selected_series_row,
+                        &mut self.pacs_study_context_uid,
                     );
                     self.handle_pacs_action(action);
                 });

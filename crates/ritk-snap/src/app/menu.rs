@@ -150,6 +150,11 @@ impl SnapApp {
                         self.save_segmentation_dicom_seg_dialog();
                     }
 
+                    if ui.button("Save segmentation as RT-STRUCT…").clicked() {
+                        ui.close_menu();
+                        self.save_rt_struct_dialog();
+                    }
+
                     if ui.button("Export label surface as VTK…").clicked() {
                         ui.close_menu();
                         self.export_surface_dialog();

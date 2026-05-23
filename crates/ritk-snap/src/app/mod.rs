@@ -23,6 +23,7 @@ mod panels;
 mod pointer_ops;
 mod render_cache;
 mod rt_overlay;
+mod rt_struct_export;
 mod shortcuts;
 mod slice_ops;
 pub(crate) mod state;

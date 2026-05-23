@@ -83,9 +83,25 @@ impl SnapApp {
                     series,
                 };
                 self.pacs_selected_row = None;
+                self.pacs_selected_series_row = None;
             }
             PacsResponse::RetrieveErr(e) => {
                 let msg = format!("PACS C-MOVE failed: {e}");
+                self.status_message = msg.clone();
+                error!("{}", msg);
+                self.pacs_query_state = QueryState::Error(e);
+            }
+            PacsResponse::RetrieveSeriesOk(rsp) => {
+                let msg = format!(
+                    "PACS C-MOVE series: completed={} failed={} warning={} status=0x{:04X}",
+                    rsp.completed, rsp.failed, rsp.warning, rsp.final_status
+                );
+                self.status_message = msg.clone();
+                info!("{}", msg);
+                self.pacs_query_state = QueryState::Idle;
+            }
+            PacsResponse::RetrieveSeriesErr(e) => {
+                let msg = format!("PACS C-MOVE series failed: {e}");
                 self.status_message = msg.clone();
                 error!("{}", msg);
                 self.pacs_query_state = QueryState::Error(e);
@@ -112,9 +128,24 @@ impl SnapApp {
             PacsPanelAction::SubmitRetrieve { study_uid } => {
                 self.submit_pacs_retrieve(study_uid);
             }
+            PacsPanelAction::SubmitFindSeries { study_instance_uid } => {
+                self.submit_pacs_find_series(study_instance_uid);
+            }
+            PacsPanelAction::SubmitRetrieveSeries {
+                series_uid,
+                study_uid,
+            } => {
+                self.submit_pacs_retrieve_series(study_uid, series_uid);
+            }
+            PacsPanelAction::BackToStudies => {
+                self.pacs_query_state = QueryState::Idle;
+                self.pacs_selected_row = None;
+                self.pacs_selected_series_row = None;
+            }
             PacsPanelAction::ClearResults => {
                 self.pacs_query_state = QueryState::Idle;
                 self.pacs_selected_row = None;
+                self.pacs_selected_series_row = None;
             }
             PacsPanelAction::StartScp => {
                 #[cfg(not(target_arch = "wasm32"))]
@@ -221,6 +252,64 @@ impl SnapApp {
         #[cfg(target_arch = "wasm32")]
         {
             let _ = (study_uid, move_destination);
+            self.pacs_query_state =
+                QueryState::Error("PACS networking is not available in browser builds.".to_owned());
+        }
+    }
+
+    pub(crate) fn submit_pacs_find_series(&mut self, study_instance_uid: String) {
+        if self.pacs_worker.is_some() {
+            self.status_message = "PACS: a request is already in progress.".to_owned();
+            return;
+        }
+        self.pacs_query_state = QueryState::Pending {
+            label: "C-FIND series\u{2026}".to_owned(),
+        };
+        self.pacs_selected_series_row = None;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use crate::pacs::spawn_pacs_request;
+            self.pacs_worker = Some(spawn_pacs_request(
+                self.pacs_config.clone(),
+                PacsRequest::FindSeries { study_instance_uid },
+            ));
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = study_instance_uid;
+            self.pacs_query_state =
+                QueryState::Error("PACS networking is not available in browser builds.".to_owned());
+        }
+    }
+
+    pub(crate) fn submit_pacs_retrieve_series(&mut self, study_uid: String, series_uid: String) {
+        if self.pacs_worker.is_some() {
+            self.status_message = "PACS: a request is already in progress.".to_owned();
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.start_pacs_scp();
+        let move_destination = self.pacs_config.move_destination.clone();
+        self.pacs_query_state = QueryState::Pending {
+            label: format!("C-MOVE series → {move_destination}\u{2026}"),
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            use crate::pacs::spawn_pacs_request;
+            self.pacs_worker = Some(spawn_pacs_request(
+                self.pacs_config.clone(),
+                PacsRequest::RetrieveSeries {
+                    study_instance_uid: study_uid,
+                    series_instance_uid: series_uid,
+                    move_destination,
+                },
+            ));
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = (study_uid, series_uid, move_destination);
             self.pacs_query_state =
                 QueryState::Error("PACS networking is not available in browser builds.".to_owned());
         }
@@ -349,3 +438,8 @@ impl SnapApp {
         }
     }
 }
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+#[path = "tests_pacs_ops.rs"]
+mod tests;

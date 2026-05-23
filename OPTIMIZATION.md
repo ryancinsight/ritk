@@ -145,15 +145,17 @@ result += unsafe { *volume_slice.get_unchecked(idx) } * weight;
 
 **Actual speedup:** 33 s → 0.039 s for 1000 pts on 64³ (debug, NdArray backend)
 
-### Sprint 294: Registration Pipeline Optimization
+### Sprint 295: Registration Pipeline Optimization ✅ PARTIAL
 **Goal:** Reduce registration time by 30%
 
-| Task | Priority | Complexity | Estimated Impact |
-|------|----------|------------|------------------|
-| Cache pyramid levels across iterations | High | Medium | Avoid recomputation |
-| Fuse transform + interpolation | Medium | High | Reduce intermediate tensors |
-| Optimize MI metric inner loop | Medium | Medium | 10-20% faster |
-| Parallelize multi-start | Low | High | Linear speedup with cores |
+| Task | Priority | Complexity | Status | Estimated Impact |
+|------|----------|------------|--------|------------------|
+| Cache W_fixed^T in chunked histogram path | High | Medium | ✅ Done | 2× per MI eval for N > 32768 |
+| Fuse transform + interpolation | Medium | High | ⏳ Deferred | Reduce intermediate tensors |
+| Optimize MI metric inner loop | Medium | Medium | ⏳ Deferred | 10-20% faster |
+| Parallelize multi-start | Low | High | ⏳ Deferred | Linear speedup with cores |
+
+**Achieved:** W_fixed^T caching eliminates O(N×bins) recomputation per CMA-ES iteration in the chunked path. DRY extraction via `compute_w_fixed_transposed`.
 
 ### Sprint 295: Memory Efficiency
 **Goal:** Reduce peak memory usage by 40%

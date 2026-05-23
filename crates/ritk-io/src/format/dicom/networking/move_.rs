@@ -54,18 +54,25 @@ impl MoveDestination {
 
 // ── C-MOVE ────────────────────────────────────────────────────────────────────
 
-/// Issue a Study-level C-MOVE request to the configured PACS.
+/// Issue a C-MOVE request at the specified QR level.
 ///
-/// Requests that the PACS transfer the study identified by `study_instance_uid`
-/// to the `destination` AE via C-STORE. Progress is tracked via pending
-/// C-MOVE-RSP messages.
+/// Requests that the PACS transfer matching objects to the `destination` AE
+/// via C-STORE. Progress is tracked via pending C-MOVE-RSP messages.
+///
+/// `query_keys` provides the attribute filter pairs `(group, element, value)`
+/// that identify the objects to move (e.g. `(0x0020,0x000D,study_uid)` for
+/// study level, or additionally `(0x0020,0x000E,series_uid)` for series level).
+///
+/// The QR level string (`level_cs`) determines the Retrieve Level:
+/// `"STUDY"`, `"SERIES"`, or `"IMAGE"`.
 ///
 /// Returns a `MoveResponse` aggregating the completion/failure/warning counts
 /// from the final C-MOVE-RSP.
-pub fn retrieve(
+fn retrieve_impl(
     config: &AssociationConfig,
     destination: &MoveDestination,
-    study_instance_uid: &str,
+    level_cs: &str,
+    query_keys: &[(u16, u16, &str)],
 ) -> Result<MoveResponse, NetworkingError> {
     let mut assoc = ClientAssociationOptions::new()
         .calling_ae_title(config.calling_ae_title.as_str())
@@ -76,13 +83,6 @@ pub fn retrieve(
 
     let ctx_id = find_ctx_id(&assoc)?;
 
-    // Build C-MOVE-RQ command set (PS3.7 C.4.2.1.1):
-    //   (0000,0002) UI = Study Root QR MOVE SOP Class
-    //   (0000,0100) US = 0x0021 (C-MOVE-RQ)
-    //   (0000,0110) US = 1       (Message ID)
-    //   (0000,0600) AE = Move Destination AE title
-    //   (0000,0700) US = 0x0002  (Priority: MEDIUM)
-    //   (0000,0800) US = 0xFEFF  (Has Dataset)
     let sop_uid_bytes = encode_ui(STUDY_ROOT_MOVE_SOP_CLASS);
     let dest_bytes = encode_str(destination.as_str());
     let cmd_bytes = build_command_pdu(&[
@@ -94,17 +94,19 @@ pub fn retrieve(
         (0x0000_0800, &encode_us(HAS_DATASET)),
     ]);
 
-    // Build C-MOVE query dataset (IVR-LE):
-    //   (0008,0052) CS = "STUDY"
-    //   (0020,000D) UI = StudyInstanceUID
-    let level_bytes = encode_str("STUDY");
-    let uid_bytes = encode_ui(study_instance_uid);
-    let dataset_bytes = build_dataset_ivr_le(&[
-        (0x0008_0052, level_bytes.as_slice()),
-        (0x0020_000D, uid_bytes.as_slice()),
-    ]);
+    let level_bytes = encode_str(level_cs);
+    let mut dataset_entries: Vec<(u32, Vec<u8>)> = vec![(0x0008_0052, level_bytes)];
+    for &(group, element, value) in query_keys {
+        let tag = ((group as u32) << 16) | (element as u32);
+        dataset_entries.push((tag, encode_str(value)));
+    }
+    dataset_entries.sort_by_key(|(tag, _)| *tag);
+    let dataset_refs: Vec<(u32, &[u8])> = dataset_entries
+        .iter()
+        .map(|(tag, v)| (*tag, v.as_slice()))
+        .collect();
+    let dataset_bytes = build_dataset_ivr_le(&dataset_refs);
 
-    // Send command PDV.
     assoc
         .send(&Pdu::PData {
             data: vec![PDataValue {
@@ -116,7 +118,6 @@ pub fn retrieve(
         })
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
-    // Send query dataset PDV.
     assoc
         .send(&Pdu::PData {
             data: vec![PDataValue {
@@ -128,7 +129,6 @@ pub fn retrieve(
         })
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
-    // Collect C-MOVE-RSP messages until terminal status.
     let mut completed: u16 = 0;
     let mut failed: u16 = 0;
     let mut warning: u16 = 0;
@@ -144,7 +144,6 @@ pub fn retrieve(
             )));
         }
 
-        // Accumulate progress counters from pending responses.
         if let Some(c) = rsp.number_completed {
             completed = c;
         }
@@ -156,14 +155,8 @@ pub fn retrieve(
         }
 
         match rsp.status {
-            STATUS_PENDING | STATUS_PENDING_WARN => {
-                // Sub-operation in progress; continue.
-                continue;
-            }
-            s => {
-                // Terminal response (success, warning, or failure).
-                break s;
-            }
+            STATUS_PENDING | STATUS_PENDING_WARN => continue,
+            s => break s,
         }
     };
 
@@ -177,4 +170,45 @@ pub fn retrieve(
         warning,
         final_status,
     })
+}
+
+/// Issue a Study-level C-MOVE request to the configured PACS.
+///
+/// Requests that the PACS transfer the study identified by `study_instance_uid`
+/// to the `destination` AE via C-STORE. Progress is tracked via pending
+/// C-MOVE-RSP messages.
+//
+/// Returns a `MoveResponse` aggregating the completion/failure/warning counts
+/// from the final C-MOVE-RSP.
+pub fn retrieve(
+    config: &AssociationConfig,
+    destination: &MoveDestination,
+    study_instance_uid: &str,
+) -> Result<MoveResponse, NetworkingError> {
+    retrieve_impl(config, destination, "STUDY", &[(0x0020, 0x000D, study_instance_uid)])
+}
+
+/// Issue a Series-level C-MOVE request to the configured PACS.
+///
+/// Requests that the PACS transfer the series identified by
+/// `series_instance_uid` within `study_instance_uid` to the `destination` AE
+/// via C-STORE. Progress is tracked via pending C-MOVE-RSP messages.
+///
+/// Returns a `MoveResponse` aggregating the completion/failure/warning counts
+/// from the final C-MOVE-RSP.
+pub fn retrieve_series(
+    config: &AssociationConfig,
+    destination: &MoveDestination,
+    study_instance_uid: &str,
+    series_instance_uid: &str,
+) -> Result<MoveResponse, NetworkingError> {
+    retrieve_impl(
+        config,
+        destination,
+        "SERIES",
+        &[
+            (0x0020, 0x000D, study_instance_uid),
+            (0x0020, 0x000E, series_instance_uid),
+        ],
+    )
 }
