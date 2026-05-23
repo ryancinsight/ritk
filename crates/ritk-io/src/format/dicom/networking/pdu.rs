@@ -1,7 +1,7 @@
 //! DICOM Upper Layer (DUL) PDU codec per PS 3.8.
 use anyhow::{bail, Result};
 
-pub const RITK_IMPLEMENTATION_VERSION: &str = "RITK_0_50_42";
+pub const RITK_IMPLEMENTATION_VERSION: &str = "RITK_0_50_71";
 pub const RITK_IMPLEMENTATION_CLASS_UID: &str = "1.2.826.0.1.3690043.9.7433.1.1";
 pub const DEFAULT_MAXIMUM_LENGTH: u32 = 16384;
 pub const APPLICATION_CONTEXT_NAME: &str = "1.2.840.10008.3.1.1.1";

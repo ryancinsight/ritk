@@ -64,8 +64,8 @@ fn oob_mask_3d_mixed_in_and_out() {
 #[test]
 fn oob_mask_zeros_out_oob_contribution() {
     // Verify that applying an all-zero OOB mask produces a zero histogram.
-    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
     let dev = device();
+    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
 
     let fixed = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
     let moving = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
@@ -83,8 +83,8 @@ fn oob_mask_zeros_out_oob_contribution() {
 fn oob_mask_partial_filters_correctly() {
     // With a partial OOB mask (only first sample in-bounds), the histogram
     // should be dominated by the first sample's contribution.
-    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
     let dev = device();
+    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
 
     // Three samples: first is identity (128, 128), rest are extreme (0, 255)
     let fixed = Tensor::<B, 1>::from_floats([128.0, 0.0, 255.0], &dev);
@@ -112,8 +112,8 @@ fn oob_mask_partial_filters_correctly() {
 #[test]
 fn oob_mask_all_in_bounds_equivalent_to_no_mask() {
     // A mask of all 1.0 must produce the same result as passing None.
-    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
     let dev = device();
+    let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
 
     let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
     let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
@@ -179,7 +179,7 @@ fn chunked_cached_path_matches_non_chunked() {
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     // Compute joint histogram via ParzenJointHistogram (triggers chunked path).
-    let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0);
+    let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0, &device);
     let joint_chunked = hist.compute_image_joint_histogram(
         &fixed_img,
         &moving_img,

@@ -55,6 +55,7 @@ impl<B: Backend> CorrelationRatio<B> {
         max_intensity: f32,
         parzen_sigma: f32,
         direction: CorrelationDirection,
+        device: &B::Device,
     ) -> Self {
         Self {
             histogram_calculator: ParzenJointHistogram::new(
@@ -62,6 +63,7 @@ impl<B: Backend> CorrelationRatio<B> {
                 min_intensity,
                 max_intensity,
                 parzen_sigma,
+                device,
             ),
             direction,
             sampling_percentage: None,
@@ -84,8 +86,15 @@ impl<B: Backend> CorrelationRatio<B> {
     }
 
     /// Create with default parameters.
-    pub fn default_params() -> Self {
-        Self::new(32, 0.0, 255.0, 1.0, CorrelationDirection::MovingGivenFixed)
+    pub fn default_params(device: &B::Device) -> Self {
+        Self::new(
+            32,
+            0.0,
+            255.0,
+            1.0,
+            CorrelationDirection::MovingGivenFixed,
+            device,
+        )
     }
 
     /// Compute conditional mean.
@@ -274,14 +283,14 @@ mod tests {
 
     #[test]
     fn test_cr_creation() {
-        let metric = CorrelationRatio::<TestBackend>::default_params();
+        let metric = CorrelationRatio::<TestBackend>::default_params(&Default::default());
         assert_eq!(metric.histogram_calculator.num_bins, 32);
         assert_eq!(metric.direction, CorrelationDirection::MovingGivenFixed);
     }
 
     #[test]
     fn test_cr_name() {
-        let metric = CorrelationRatio::<TestBackend>::default_params();
+        let metric = CorrelationRatio::<TestBackend>::default_params(&Default::default());
         assert_eq!(
             <CorrelationRatio<TestBackend> as Metric<TestBackend, 3>>::name(&metric),
             "Correlation Ratio"
@@ -316,7 +325,7 @@ mod tests {
             Tensor::<TestBackend, 1>::zeros([3], &device),
         );
 
-        let cr_metric = CorrelationRatio::<TestBackend>::default_params();
+        let cr_metric = CorrelationRatio::<TestBackend>::default_params(&Default::default());
         let loss = cr_metric.forward(&fixed, &moving, &transform);
 
         let loss_val = loss.into_scalar();

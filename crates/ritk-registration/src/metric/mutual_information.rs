@@ -100,6 +100,7 @@ impl<B: Backend> MutualInformation<B> {
         min_intensity: f32,
         max_intensity: f32,
         parzen_sigma: f32,
+        device: &B::Device,
     ) -> Self {
         assert!(num_bins >= 4, "num_bins must be ≥ 4");
         Self {
@@ -109,6 +110,7 @@ impl<B: Backend> MutualInformation<B> {
                 min_intensity,
                 max_intensity,
                 parzen_sigma,
+                device,
             ),
             sampling_percentage: None,
             interpolator: LinearInterpolator::new_zero_pad(),
@@ -132,6 +134,7 @@ impl<B: Backend> MutualInformation<B> {
         fixed_max: f32,
         moving_min: f32,
         moving_max: f32,
+        device: &B::Device,
     ) -> Self {
         let mut s = Self::new(
             variant,
@@ -139,6 +142,7 @@ impl<B: Backend> MutualInformation<B> {
             fixed_min,
             fixed_max,
             (fixed_max - fixed_min).max(1e-6) / num_bins as f32,
+            device,
         );
         s.histogram_calculator = s
             .histogram_calculator
@@ -148,7 +152,12 @@ impl<B: Backend> MutualInformation<B> {
 
     /// Helper to create Mattes Mutual Information with its characteristic parameterization.
     /// Mattes specifies `parzen_sigma = bin_width`.
-    pub fn new_mattes(num_bins: usize, min_intensity: f32, max_intensity: f32) -> Self {
+    pub fn new_mattes(
+        num_bins: usize,
+        min_intensity: f32,
+        max_intensity: f32,
+        device: &B::Device,
+    ) -> Self {
         let bin_width = (max_intensity - min_intensity).max(1e-6) / num_bins as f32;
         Self::new(
             MutualInformationVariant::Mattes,
@@ -156,27 +165,36 @@ impl<B: Backend> MutualInformation<B> {
             min_intensity,
             max_intensity,
             bin_width,
+            device,
         )
     }
 
     /// Create with default Mattes parameters (50 bins, [0, 255]).
-    pub fn mattes_default() -> Self {
-        Self::new_mattes(50, 0.0, 255.0).with_sampling(0.20)
+    pub fn mattes_default(device: &B::Device) -> Self {
+        Self::new_mattes(50, 0.0, 255.0, device).with_sampling(0.20)
     }
 
     /// Create with default Standard parameters (32 bins, [0, 255]).
-    pub fn standard_default() -> Self {
-        Self::new(MutualInformationVariant::Standard, 32, 0.0, 255.0, 1.0)
+    pub fn standard_default(device: &B::Device) -> Self {
+        Self::new(
+            MutualInformationVariant::Standard,
+            32,
+            0.0,
+            255.0,
+            1.0,
+            device,
+        )
     }
 
     /// Create with default Normalized parameters (JointEntropy, 32 bins).
-    pub fn normalized_default() -> Self {
+    pub fn normalized_default(device: &B::Device) -> Self {
         Self::new(
             MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
             32,
             0.0,
             255.0,
             1.0,
+            device,
         )
     }
 
@@ -318,7 +336,7 @@ mod tests {
         let num_bins = 50;
 
         // Mattes specific configuration check
-        let m_mattes = MutualInformation::<B>::new_mattes(num_bins, 0.0, max_intensity);
+        let m_mattes = MutualInformation::<B>::new_mattes(num_bins, 0.0, max_intensity, &Default::default());
         let expected_sigma = max_intensity / 50.0;
 
         assert_eq!(MutualInformationVariant::Mattes, m_mattes.variant);
@@ -330,13 +348,13 @@ mod tests {
             "Mattes Mutual Information"
         );
 
-        let m_std = MutualInformation::<B>::standard_default();
+        let m_std = MutualInformation::<B>::standard_default(&Default::default());
         assert_eq!(
             <MutualInformation<B> as Metric<B, 3>>::name(&m_std),
             "Mutual Information"
         );
 
-        let m_nmi = MutualInformation::<B>::normalized_default();
+        let m_nmi = MutualInformation::<B>::normalized_default(&Default::default());
         assert_eq!(
             <MutualInformation<B> as Metric<B, 3>>::name(&m_nmi),
             "Normalized Mutual Information"
@@ -345,10 +363,10 @@ mod tests {
 
     #[test]
     fn test_sampling_clamp() {
-        let m = MutualInformation::<B>::standard_default().with_sampling(1.5);
+        let m = MutualInformation::<B>::standard_default(&Default::default()).with_sampling(1.5);
         assert_eq!(m.sampling_percentage, None); // Clamps to 1.0, which disables stochastic branch
 
-        let m = MutualInformation::<B>::standard_default().with_sampling(-0.5);
+        let m = MutualInformation::<B>::standard_default(&Default::default()).with_sampling(-0.5);
         assert_eq!(m.sampling_percentage, Some(1e-4)); // Clamps to 1e-4
     }
 }

@@ -51,15 +51,16 @@ pub(super) fn build_metric<IB: burn::tensor::backend::Backend>(
     mask_points: Option<Tensor<IB, 2>>,
     // NEW: separate moving-image range (None → use combined range, backward compat)
     moving_range: Option<(f32, f32)>,
+    device: &IB::Device,
 ) -> MutualInformation<IB> {
     let bin_width = (max_int - min_int).max(1e-6) / num_bins as f32;
     let mi = if let Some((mov_min, mov_max)) = moving_range {
         MutualInformation::new_with_separate_ranges(
-            variant, num_bins, min_int, max_int, mov_min, mov_max,
+            variant, num_bins, min_int, max_int, mov_min, mov_max, device,
         )
         .with_sampling(sampling_percentage)
     } else {
-        MutualInformation::new(variant, num_bins, min_int, max_int, bin_width)
+        MutualInformation::new(variant, num_bins, min_int, max_int, bin_width, device)
             .with_sampling(sampling_percentage)
     };
     if let Some(pts) = mask_points {
@@ -107,7 +108,6 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 
     let fixed_pyr = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);
     let moving_pyr = MultiResolutionPyramid::new(moving, &shrink_factors, &smoothing_sigmas);
-
     let fixed_c = fixed_pyr.get_level(0).clone();
     let moving_c = moving_pyr.get_level(0).clone();
 
@@ -147,12 +147,10 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         let mask_pyr = MultiResolutionPyramid::new(mask, &mask_shrink, &mask_smooth);
         let mask_c = mask_pyr.get_level(0).clone();
         let mask_inner = strip_autodiff(&mask_c);
-
         tracing::info!(
             "CmaMiRegistration: mask at level — shape {:?}",
             mask_inner.shape()
         );
-
         extract_foreground_world_points(&fixed_inner, &mask_inner, config.sampling_percentage)
     });
 
@@ -165,6 +163,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         config.sampling_percentage,
         mask_world_points,
         separate_moving_range,
+        &inner_device,
     );
 
     // ── Objective closure — all tensors on inner (non-autodiff) backend ───────
@@ -173,12 +172,11 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         if params.iter().any(|&p| p.abs() > 1.0) {
             return 10.0;
         }
-
         // Soft boundary penalty: discourage the CMA-ES from converging to
-        // corners of the search box.  When the transform maps most fixed-image
+        // corners of the search box. When the transform maps most fixed-image
         // voxels outside the moving-image FOV (large translations), the zero-pad
         // interpolator returns 0.0 for out-of-bounds samples, which can create
-        // a false MI maximum near |p_i| ≈ 1.  Adding a quadratic penalty for
+        // a false MI maximum near |p_i| ≈ 1. Adding a quadratic penalty for
         // |p_i| > 0.85 (= 85% of the search range, e.g. 51 mm for a 60 mm
         // range) strongly suppresses this artefact without restricting the
         // interior of the search space where the true maximum lies.
@@ -212,7 +210,6 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
             Tensor::<B::InnerBackend, 1>::from_data(TensorData::from([tz, ty, tx]), &inner_device);
         let center =
             Tensor::<B::InnerBackend, 1>::from_data(TensorData::from(center_arr), &inner_device);
-
         let transform = RigidTransform::<B::InnerBackend, 3>::new(translation, rotation, center);
 
         let loss = metric.forward(&fixed_inner, &moving_inner, &transform);
@@ -228,7 +225,6 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         max_generations,
         ..config.cma_config.clone()
     };
-
     tracing::info!(
         "CmaMiRegistration: CMA-ES (max_gen={}, sigma0={:.3}, lambda={}, ipop={})",
         level_cfg.max_generations,

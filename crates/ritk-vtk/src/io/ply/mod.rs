@@ -10,6 +10,7 @@
 //! `float`, `double` (and their sized aliases `int8`…`float64`).
 
 pub mod reader;
+pub(super) mod types;
 pub mod writer;
 
 pub use reader::read_ply_mesh;

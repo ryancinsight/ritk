@@ -212,11 +212,11 @@ impl GlobalMiRegistration {
                 min_intensity,
                 max_intensity,
             );
-
             let metric = MutualInformation::<B>::new_mattes(
                 config.num_mi_bins,
                 min_intensity,
                 max_intensity,
+                &fixed_level.data().device(),
             )
             .with_sampling(config.sampling_percentage);
 

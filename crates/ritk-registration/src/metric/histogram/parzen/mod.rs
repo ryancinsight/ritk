@@ -34,9 +34,10 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// Optional separate Parzen sigma for the moving image.
     /// When `None`, falls back to `parzen_sigma`.
     pub moving_parzen_sigma: Option<f32>,
-    /// Pre-computed bin center tensor `[1, num_bins]` — constructed once in `new()`
-    /// and reused across all Parzen weight computations. Eliminates 2 GPU kernel
-    /// dispatches (arange + int-to-float cast) per `compute_joint_histogram*` call.
+    /// Pre-computed bin center tensor `[1, num_bins]` — eagerly constructed in
+    /// `new()` and reused across all Parzen weight computations. Eliminates 2
+    /// GPU kernel dispatches (arange + int→float cast) per
+    /// `compute_joint_histogram*` call.
     bins_exp: Option<Tensor<B, 2>>,
     /// Cache for fixed image points to avoid recomputation
     pub(super) cache: Arc<Mutex<Option<HistogramCache<B>>>>,
@@ -46,7 +47,17 @@ pub struct ParzenJointHistogram<B: Backend> {
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Create a new Parzen Joint Histogram calculator.
-    pub fn new(num_bins: usize, min_intensity: f32, max_intensity: f32, parzen_sigma: f32) -> Self {
+    ///
+    /// `device` is used to eagerly allocate the pre-computed bin-center tensor
+    /// `[1, num_bins]`, eliminating 2 GPU kernel dispatches (arange + int→float
+    /// cast) per weight-computation call on the hot path.
+    pub fn new(
+        num_bins: usize,
+        min_intensity: f32,
+        max_intensity: f32,
+        parzen_sigma: f32,
+        device: &B::Device,
+    ) -> Self {
         Self {
             num_bins,
             min_intensity,
@@ -55,7 +66,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             moving_min_intensity: None,
             moving_max_intensity: None,
             moving_parzen_sigma: None,
-            bins_exp: None, // lazily initialized on first use via `arange_bins`
+            bins_exp: Some(compute::arange_bins(num_bins, device)),
             cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
         }

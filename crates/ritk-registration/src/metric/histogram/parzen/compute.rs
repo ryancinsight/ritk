@@ -6,10 +6,10 @@ use super::ParzenJointHistogram;
 /// Construct the bin-center row `[1, num_bins]` used for Parzen weight broadcasting.
 ///
 /// Returns `arange(0..num_bins).float().reshape([1, num_bins])` — a [1, B] row
-/// of floating-point bin indices. Constructed once and cached on the struct
-/// (`ParzenJointHistogram::bins_exp`) to eliminate the `arange` + `int→float`
-/// kernel dispatches on every weight computation call.
-fn arange_bins<B: Backend>(num_bins: usize, device: &B::Device) -> Tensor<B, 2> {
+/// of floating-point bin indices. Called once in `ParzenJointHistogram::new()` to
+/// eagerly initialize `bins_exp`, eliminating the `arange` + `int→float` kernel
+/// dispatches on every weight computation call.
+pub(super) fn arange_bins<B: Backend>(num_bins: usize, device: &B::Device) -> Tensor<B, 2> {
     Tensor::<B, 1, Int>::arange(0..num_bins as i64, device)
         .float()
         .reshape([1, num_bins])
@@ -26,7 +26,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
         fixed_values: &Tensor<B, 1>,
         n: usize,
     ) -> Tensor<B, 2> {
-        let device = fixed_values.device();
 
         // Convert parzen_sigma from intensity units to bin-index units.
         let bin_width_intensity =
@@ -41,14 +40,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             t.clamp(0.0, self.num_bins as f32 - 1.0)
         };
 
-        // Pre-compute bin centers [1, num_bins] for broadcasting.
-        // Uses the struct-cached bins_exp when available, falling back to
-        // on-the-fly construction for the rare case where `new()` wasn't used.
-        let bins_exp = self
-            .bins_exp
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| arange_bins(self.num_bins, &device));
+        // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
+        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
         let vals_exp = fixed_norm.reshape([n, 1]);
         let diff = vals_exp - bins_exp;
         // Element-wise square: `diff * diff` compiles to a single fmul per element,
@@ -72,7 +65,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
         moving_values: &Tensor<B, 1>,      // [N]
         oob_mask: Option<&Tensor<B, 1>>,   // [N] in-bounds mask (1.0=in, 0.0=out)
     ) -> Tensor<B, 2> {
-        let device = moving_values.device();
         let [n] = moving_values.dims();
         let num_bins = self.num_bins;
 
@@ -95,13 +87,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             t.clamp(0.0, num_bins as f32 - 1.0)
         };
 
-        // Pre-computed bin centers [1, num_bins] — avoids 2 GPU kernel dispatches
-        // (arange + int-to-float cast) per call on the hot path.
-        let bins_exp = self
-            .bins_exp
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| arange_bins(num_bins, &device));
+        // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
+        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
 
         // W_moving [N, num_bins] = exp(-0.5 * ((val - bin) / sigma)^2)
         let vals_exp = moving_norm.reshape([n, 1]);
@@ -153,12 +140,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             t.clamp(0.0, num_bins_f)
         };
 
-        // Pre-computed bin centers [1, Bins] — avoids 2 GPU kernel dispatches per call.
-        let bins_exp = self
-            .bins_exp
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| arange_bins(num_bins, &device));
+        // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
+        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
 
         // Convert sigma from intensity units → bin-index units for each image.
         let bin_width_fix = (fix_max - fix_min) / num_bins_f.max(1.0);

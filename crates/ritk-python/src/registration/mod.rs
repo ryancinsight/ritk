@@ -5,18 +5,21 @@
 //! (PyImage ↔ flat `Vec<f32>`) and result packing only.
 //!
 //! # Submodules
-//! - `demons`:  Thirion, Diffeomorphic, Symmetric, Multi-resolution, and Inverse-consistent Demons.
+//! - `demons`: Thirion, Diffeomorphic, and Symmetric Demons.
+//! - `multires`: Multi-resolution and Inverse-consistent Demons.
 //! - `syn`:     Greedy SyN, BSpline FFD, Multi-resolution SyN, BSpline SyN, LDDMM.
 //! - `atlas`:   Population atlas building, majority vote fusion, Joint Label Fusion.
 
 mod atlas;
 mod demons;
 mod global_mi;
+mod multires;
 mod syn;
 
 pub use atlas::*;
 pub use demons::*;
 pub use global_mi::*;
+pub use multires::*;
 pub use syn::*;
 
 use pyo3::prelude::*;
