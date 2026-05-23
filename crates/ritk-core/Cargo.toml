@@ -22,3 +22,8 @@ rand = { workspace = true }
 burn-ndarray = { workspace = true }
 tempfile = { workspace = true }
 proptest = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bspline_interpolation"
+harness = false

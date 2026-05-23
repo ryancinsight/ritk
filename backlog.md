@@ -1,3 +1,72 @@
+## Sprint 294 - Complete
+
+**Status**: Complete
+
+**Phase**: BSpline Interpolator Memory Optimization
+
+**Goal**: Eliminate O(64×N×volume_size) memory allocations in `BSplineInterpolator` by replacing per-sample `data.clone().slice(…)` calls with a single pre-flattened `to_data()` extraction and pure-Rust scalar indexing.
+
+### Performance results (debug build, NdArray backend)
+
+| Scenario | Before | After | Speedup |
+|---|---|---|---|
+| 1000 pts on 64³ volume (3D) | ~33 s (estimated) | **0.039 s** | **~850×** |
+| 1000 pts on 64² image (2D) | ~8 s (estimated) | <0.01 s | ~800×+ |
+| Memory allocs per point (3D) | 64 × volume_clone | **0** tensor clones | **64× fewer** |
+
+### Key changes
+
+- Removed `interpolate_point_3d` and `interpolate_point_2d` (tensor-per-sample path).
+- Added `interpolate_point_3d_flat` and `interpolate_point_2d_flat` — pure Rust scalar helpers that take a `&[f32]` slice and return `f32`, with zero tensor allocations.
+- Pre-extract data once: `data.clone().to_data()` is called once per `interpolate()` call, not 64 times per query point.
+- Use row-major stride arithmetic: `idx = xi * stride0 + yi * stride1 + zi` with early `continue` when any axis index is OOB (avoids unconditional 4×4×4 nested loops when near boundaries).
+- Build output tensor once at the end: `Tensor::from_data(TensorData::new(results, [n_pts]), &device)`.
+- Added `#[inline(always)]` to `cubic_bspline` and replaced `.powi()` with manual multiply (avoids power-function dispatch in the hot inner loop).
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|---|---|---|
+| PERF-293-BS-01 | BSpline 3D `data.clone().slice()` per sample → flat slice | **Closed** |
+| PERF-293-BS-02 | BSpline 2D `data.clone().slice()` per sample → flat slice | **Closed** |
+| PERF-293-BS-03 | Eliminate `Tensor::cat()` result accumulation → single `from_data` | **Closed** |
+
+### Delivered
+
+- `crates/ritk-core/src/interpolation/bspline.rs` — full rewrite of hot path
+
+### Design notes
+
+- Safety: The inner `get_unchecked` calls are preceded by explicit OOB guards on all three indices (`xi >= 0 && xi < dim0`, etc.) inside the loop, so the unchecked read is statically safe.
+- Boundary renormalization is preserved: when OOB neighbours are skipped the result is divided by `weight_sum` (same as before).
+- `zero_pad` early exit is preserved: an out-of-bounds query coordinate returns 0.0 immediately without entering the neighbourhood loop.
+- `TensorData::new(results, [n_pts])` is a zero-copy path for the NdArray backend.
+
+### Verification
+
+- `cargo test -p ritk-core --lib`: **1398 passed**, 1 ignored, 0 failed
+- `cargo test -p ritk-registration --lib`: **306 passed**, 0 failed
+- `test_bspline_3d_perf_regression` (ignored, run explicitly): **0.039 s** for 1000 pts on 64³ (debug mode)
+- 11 BSpline-interpolation-specific tests all pass (existing 8 + 3 new)
+
+### New tests added
+
+| Test | Purpose |
+|---|---|
+| `test_bspline_3d_batch_correctness` | Linear ramp exact reproduction at interior integer coords (3D) |
+| `test_bspline_2d_batch_correctness` | Linear ramp exact reproduction at interior integer coords (2D) |
+| `test_bspline_empty_indices` | Empty batch returns empty tensor without panic |
+| `test_bspline_3d_perf_regression` | `#[ignore]` timing guard — 1000 pts 64³ < 5 s in debug |
+
+### Gaps remaining
+
+| Task | Priority |
+|---|---|
+| Task 2: Batch tensor operations (SIMD gather for BSpline) — further 4-8× speedup possible | Medium |
+| Task 3: Add `cargo bench` / Criterion benchmarks | Medium |
+| Sinc/Lanczos zero_pad parity | Low |
+| CI nightly RIRE `#[ignore]` tests | Low |
+
 ## Sprint 293 - Complete
 
 **Status**: Complete

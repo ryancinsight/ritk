@@ -47,9 +47,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
             // Apply transform to get moving world coords, then sample moving image.
             let moving_world_points = transform.transform_points(fixed_world_points);
             let moving_voxel_indices = moving.world_to_index_tensor(moving_world_points);
+            // Compute OOB mask before consuming moving_voxel_indices (uses immutable borrow).
+            let oob_mask: Option<Tensor<B, 1>> = if D == 3 {
+                let shape_arr = moving.shape();
+                Some(super::parzen::compute_oob_mask_3d(&moving_voxel_indices, shape_arr.as_ref()))
+            } else {
+                None
+            };
             let moving_values = interpolator.interpolate(moving.data(), moving_voxel_indices);
 
-            self.compute_joint_histogram(&fixed_values, &moving_values)
+            self.compute_joint_histogram(&fixed_values, &moving_values, oob_mask.as_ref())
         } else {
             // ── Chunked path ──────────────────────────────────────────────────
             let num_chunks = n.div_ceil(CHUNK_SIZE);
@@ -65,10 +72,17 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let chunk_moving_world = transform.transform_points(chunk_fixed_world);
                 let chunk_moving_idx = moving.world_to_index_tensor(chunk_moving_world);
+                // Compute per-chunk OOB mask before consuming chunk_moving_idx.
+                let chunk_oob: Option<Tensor<B, 1>> = if D == 3 {
+                    let shape_arr = moving.shape();
+                    Some(super::parzen::compute_oob_mask_3d(&chunk_moving_idx, shape_arr.as_ref()))
+                } else {
+                    None
+                };
                 let chunk_moving_vals = interpolator.interpolate(moving.data(), chunk_moving_idx);
 
                 joint_hist_acc = joint_hist_acc
-                    + self.compute_joint_histogram(&chunk_fixed_vals, &chunk_moving_vals);
+                    + self.compute_joint_histogram(&chunk_fixed_vals, &chunk_moving_vals, chunk_oob.as_ref());
             }
 
             joint_hist_acc

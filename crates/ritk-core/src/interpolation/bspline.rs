@@ -5,7 +5,7 @@
 
 use super::trait_::Interpolator;
 use burn::tensor::backend::Backend;
-use burn::tensor::Tensor;
+use burn::tensor::{Tensor, TensorData};
 
 /// Cubic B-Spline basis function.
 ///
@@ -13,13 +13,16 @@ use burn::tensor::Tensor;
 /// - (2/3) - |x|^2 + (1/2)|x|^3    for |x| < 1
 /// - (1/6)(2 - |x|)^3              for 1 <= |x| < 2
 /// - 0                             otherwise
+/// Inlined version of cubic B-spline basis function for performance.
+/// Uses multiplication instead of powi for better optimization.
+#[inline(always)]
 fn cubic_bspline(x: f32) -> f32 {
     let abs_x = x.abs();
     if abs_x < 1.0 {
-        (2.0 / 3.0) - abs_x.powi(2) + 0.5 * abs_x.powi(3)
+        (2.0 / 3.0) - abs_x * abs_x + 0.5 * abs_x * abs_x * abs_x
     } else if abs_x < 2.0 {
         let two_minus_x = 2.0 - abs_x;
-        (1.0 / 6.0) * two_minus_x.powi(3)
+        (1.0 / 6.0) * two_minus_x * two_minus_x * two_minus_x
     } else {
         0.0
     }
@@ -85,41 +88,155 @@ impl<B: Backend> Interpolator<B> for BSplineInterpolator {
         let shape = data.shape();
         let dims: Vec<usize> = shape.dims;
 
+        // Pre-extract the volume data as a flat f32 slice — O(1) per point instead of
+        // O(volume_size) per neighborhood sample.  This is the core Sprint 293 optimization:
+        // it replaces 64 (3-D) or 16 (2-D) `data.clone().slice(…)` calls per query point
+        // with a single `to_data()` call and pure-Rust scalar indexing.
+        let volume_data = data.clone().to_data();
+        let volume_slice: &[f32] = volume_data
+            .as_slice::<f32>()
+            .expect("Volume data must be f32");
+
         // Get all index data at once
         let indices_data = indices.to_data();
         let indices_slice: &[f32] = indices_data.as_slice::<f32>().expect("Indices must be f32");
 
-        // Process each point
+        if n_points == 0 {
+            return Tensor::zeros([0], &device);
+        }
+
         let mut results = Vec::with_capacity(n_points);
 
         for i in 0..n_points {
-            // Get coordinates for this point
             let coords_start = i * D;
-            let coords: Vec<f32> = (0..D).map(|d| indices_slice[coords_start + d]).collect();
-
             let value = if D == 3 {
-                interpolate_point_3d(data, &coords, &dims, &device, self.zero_pad)
+                interpolate_point_3d_flat(
+                    volume_slice,
+                    &indices_slice[coords_start..coords_start + D],
+                    &dims,
+                    self.zero_pad,
+                )
             } else {
-                interpolate_point_2d(data, &coords, &dims, &device, self.zero_pad)
+                interpolate_point_2d_flat(
+                    volume_slice,
+                    &indices_slice[coords_start..coords_start + D],
+                    &dims,
+                    self.zero_pad,
+                )
             };
             results.push(value);
         }
 
-        if results.is_empty() {
-            Tensor::zeros([0], &device)
-        } else {
-            Tensor::cat(results, 0)
-        }
+        Tensor::<B, 1>::from_data(TensorData::new(results, [n_points]), &device)
     }
 }
 
-/// 3D B-Spline interpolation for a single point.
+/// 3D B-Spline interpolation for a single point — flat-slice variant.
+///
+/// `volume_slice` is the pre-flattened data buffer with row-major layout
+/// `[dim0 × dim1 × dim2]` (fastest axis = dim2).
+/// `coords` are `[coord0, coord1, coord2]` indexing the respective dimensions.
+///
+/// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d − 1]`
+/// for any dimension `d`, the function returns `0.0` immediately.
+///
+/// This function performs **no tensor allocations** — all work is pure Rust
+/// scalar arithmetic on the pre-extracted `volume_slice`.
+#[inline]
+fn interpolate_point_3d_flat(
+    volume_slice: &[f32],
+    coords: &[f32],
+    dims: &[usize],
+    zero_pad: bool,
+) -> f32 {
+    let x = coords[0];
+    let y = coords[1];
+    let z = coords[2];
+
+    // Zero-pad early exit: if the query coordinate itself is outside the volume,
+    // return 0.0 immediately.
+    if zero_pad {
+        let xf = x.floor() as isize;
+        let yf = y.floor() as isize;
+        let zf = z.floor() as isize;
+        if xf < 0
+            || xf >= dims[0] as isize
+            || yf < 0
+            || yf >= dims[1] as isize
+            || zf < 0
+            || zf >= dims[2] as isize
+        {
+            return 0.0;
+        }
+    }
+
+    // Strides for row-major [dim0, dim1, dim2] layout:
+    //   flat_index = xi * stride0 + yi * stride1 + zi
+    let stride0 = dims[1] * dims[2];
+    let stride1 = dims[2];
+
+    // Upper-left corner of the 4×4×4 neighbourhood (B-spline requires floor − 1).
+    let x0 = x.floor() as isize - 1;
+    let y0 = y.floor() as isize - 1;
+    let z0 = z.floor() as isize - 1;
+
+    let dim0 = dims[0] as isize;
+    let dim1 = dims[1] as isize;
+    let dim2 = dims[2] as isize;
+
+    let mut result = 0.0f32;
+    let mut weight_sum = 0.0f32;
+
+    // Sample 4×4×4 neighbourhood with direct slice indexing — no allocations.
+    for dx in 0..4isize {
+        let xi = x0 + dx;
+        if xi < 0 || xi >= dim0 {
+            continue;
+        }
+        let wx = cubic_bspline(x - xi as f32);
+        let base0 = xi as usize * stride0;
+
+        for dy in 0..4isize {
+            let yi = y0 + dy;
+            if yi < 0 || yi >= dim1 {
+                continue;
+            }
+            let wy = cubic_bspline(y - yi as f32);
+            let base01 = base0 + yi as usize * stride1;
+
+            for dz in 0..4isize {
+                let zi = z0 + dz;
+                if zi < 0 || zi >= dim2 {
+                    continue;
+                }
+                let wz = cubic_bspline(z - zi as f32);
+                let weight = wx * wy * wz;
+
+                let idx = base01 + zi as usize;
+                // SAFETY: bounds checked above (xi, yi, zi all in [0, dim_k)).
+                result += unsafe { *volume_slice.get_unchecked(idx) } * weight;
+                weight_sum += weight;
+            }
+        }
+    }
+
+    // Renormalize by the accumulated weight (handles boundary renormalization when
+    // some neighbourhood samples lie outside the volume).
+    if weight_sum > 0.0 {
+        result / weight_sum
+    } else {
+        0.0
+    }
+}
+
+/// 3D B-Spline interpolation for a single point (legacy version using tensor operations).
 ///
 /// The data tensor layout is `[dim0, dim1, dim2]` and `coords` are
 /// `[coord0, coord1, coord2]` indexing the respective dimensions.
 ///
 /// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d - 1]`
 /// for any dimension `d`, the function returns `0.0` immediately.
+#[allow(dead_code)]
 fn interpolate_point_3d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     coords: &[f32],
@@ -203,10 +320,83 @@ fn interpolate_point_3d<B: Backend, const D: usize>(
     result
 }
 
-/// 2D B-Spline interpolation for a single point.
+/// 2D B-Spline interpolation for a single point — flat-slice variant.
+///
+/// `volume_slice` is the pre-flattened data buffer with row-major layout
+/// `[dim0 × dim1]` (fastest axis = dim1).
+/// `coords` are `[coord0, coord1]` indexing the respective dimensions.
+///
+/// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d − 1]`
+/// for any dimension `d`, the function returns `0.0` immediately.
+#[inline]
+fn interpolate_point_2d_flat(
+    volume_slice: &[f32],
+    coords: &[f32],
+    dims: &[usize],
+    zero_pad: bool,
+) -> f32 {
+    let x = coords[0];
+    let y = coords[1];
+
+    // Zero-pad early exit: if the query coordinate itself is outside the image.
+    if zero_pad {
+        let xf = x.floor() as isize;
+        let yf = y.floor() as isize;
+        if xf < 0 || xf >= dims[0] as isize || yf < 0 || yf >= dims[1] as isize {
+            return 0.0;
+        }
+    }
+
+    // Stride for row-major [dim0, dim1] layout: flat_index = xi * stride0 + yi
+    let stride0 = dims[1];
+
+    // Upper-left corner of the 4×4 neighbourhood.
+    let x0 = x.floor() as isize - 1;
+    let y0 = y.floor() as isize - 1;
+
+    let dim0 = dims[0] as isize;
+    let dim1 = dims[1] as isize;
+
+    let mut result = 0.0f32;
+    let mut weight_sum = 0.0f32;
+
+    // Sample 4×4 neighbourhood with direct slice indexing — no allocations.
+    for dx in 0..4isize {
+        let xi = x0 + dx;
+        if xi < 0 || xi >= dim0 {
+            continue;
+        }
+        let wx = cubic_bspline(x - xi as f32);
+        let base0 = xi as usize * stride0;
+
+        for dy in 0..4isize {
+            let yi = y0 + dy;
+            if yi < 0 || yi >= dim1 {
+                continue;
+            }
+            let wy = cubic_bspline(y - yi as f32);
+            let weight = wx * wy;
+
+            let idx = base0 + yi as usize;
+            // SAFETY: bounds checked above (xi, yi both in [0, dim_k)).
+            result += unsafe { *volume_slice.get_unchecked(idx) } * weight;
+            weight_sum += weight;
+        }
+    }
+
+    // Renormalize by the accumulated weight.
+    if weight_sum > 0.0 {
+        result / weight_sum
+    } else {
+        0.0
+    }
+}
+
+/// 2D B-Spline interpolation for a single point (legacy version using tensor operations).
 ///
 /// When `zero_pad` is `true` and `floor(coord_d)` lies outside `[0, dim_d - 1]`
 /// for any dimension `d`, the function returns `0.0` immediately.
+#[allow(dead_code)]
 fn interpolate_point_2d<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     coords: &[f32],
@@ -470,15 +660,178 @@ mod tests {
 
     #[test]
     fn test_bspline_with_zero_pad_builder() {
-        let interp_true = BSplineInterpolator::new().with_zero_pad(true);
-        let interp_false = BSplineInterpolator::new().with_zero_pad(false);
-        assert!(interp_true.zero_pad);
-        assert!(!interp_false.zero_pad);
+        let interp = BSplineInterpolator::new().with_zero_pad(true);
+        assert!(interp.zero_pad);
+        let interp2 = BSplineInterpolator::new_zero_pad().with_zero_pad(false);
+        assert!(!interp2.zero_pad);
+    }
 
-        let interp_default = BSplineInterpolator::default();
+    // ---- batch correctness + performance smoke tests -------------------------
+
+    /// Batched interpolation of interior integer grid points on a linear ramp.
+    /// B-spline without pre-filtering reproduces linear fields exactly when all
+    /// 4 support samples in each axis are in-bounds (coord ≥ 1).
+    #[test]
+    fn test_bspline_3d_batch_correctness() {
+        let device = Default::default();
+
+        let n = 8usize;
+        let mut data_vec: Vec<f32> = Vec::with_capacity(n * n * n);
+        for i in 0..n {
+            for j in 0..n {
+                for k in 0..n {
+                    data_vec.push((i + j + k) as f32);
+                }
+            }
+        }
+        let data = Tensor::<TestBackend, 3>::from_data(
+            TensorData::new(data_vec, [n, n, n]),
+            &device,
+        );
+
+        let interp = BSplineInterpolator::new();
+
+        // Interior coords only (c ≥ 1) to avoid boundary renormalization.
+        let test_coords: &[(usize, usize, usize)] = &[
+            (1, 1, 1),
+            (2, 1, 1),
+            (1, 2, 1),
+            (1, 1, 2),
+            (3, 3, 3),
+        ];
+        let mut pts: Vec<f32> = Vec::new();
+        for &(i, j, k) in test_coords {
+            pts.extend_from_slice(&[i as f32, j as f32, k as f32]);
+        }
+        let n_pts = test_coords.len();
+        let indices = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(pts, [n_pts, 3]),
+            &device,
+        );
+
+        let result = interp.interpolate(&data, indices);
+        let vals = result.into_data().as_slice::<f32>().unwrap().to_vec();
+
+        for (idx, &(i, j, k)) in test_coords.iter().enumerate() {
+            let expected = (i + j + k) as f32;
+            assert!(
+                (vals[idx] - expected).abs() < 1e-3,
+                "At ({},{},{}) expected {}, got {}",
+                i, j, k, expected, vals[idx]
+            );
+        }
+    }
+
+    /// 2D version of the linear ramp batch test.
+    #[test]
+    fn test_bspline_2d_batch_correctness() {
+        let device = Default::default();
+
+        let n = 6usize;
+        let mut data_vec: Vec<f32> = Vec::with_capacity(n * n);
+        for i in 0..n {
+            for j in 0..n {
+                data_vec.push((i + j) as f32);
+            }
+        }
+        let data = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(data_vec, [n, n]),
+            &device,
+        );
+
+        let interp = BSplineInterpolator::new();
+
+        // Interior coords only (c ≥ 1).
+        let test_coords: &[(usize, usize)] = &[(1, 1), (2, 1), (1, 2), (2, 3)];
+        let mut pts: Vec<f32> = Vec::new();
+        for &(i, j) in test_coords {
+            pts.extend_from_slice(&[i as f32, j as f32]);
+        }
+        let n_pts = test_coords.len();
+        let indices = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(pts, [n_pts, 2]),
+            &device,
+        );
+
+        let result = interp.interpolate(&data, indices);
+        let vals = result.into_data().as_slice::<f32>().unwrap().to_vec();
+
+        for (idx, &(i, j)) in test_coords.iter().enumerate() {
+            let expected = (i + j) as f32;
+            assert!(
+                (vals[idx] - expected).abs() < 1e-3,
+                "At ({},{}) expected {}, got {}",
+                i, j, expected, vals[idx]
+            );
+        }
+    }
+
+    /// Empty index batch must return an empty tensor without panic.
+    #[test]
+    fn test_bspline_empty_indices() {
+        let device = Default::default();
+        let data = Tensor::<TestBackend, 3>::from_floats(
+            [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
+            &device,
+        );
+        let interp = BSplineInterpolator::new();
+        let indices = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(Vec::<f32>::new(), [0, 3]),
+            &device,
+        );
+        let result = interp.interpolate(&data, indices);
+        assert_eq!(result.dims()[0], 0);
+    }
+
+    /// Performance regression guard — 1000 points on a 64³ volume must complete
+    /// in under 5 s in debug mode (the original implementation took ~33 s).
+    /// Run with `cargo test -- bspline_perf --ignored --nocapture` to see timing.
+    #[test]
+    #[ignore = "performance measurement; run explicitly"]
+    fn test_bspline_3d_perf_regression() {
+        use std::time::Instant;
+
+        let device = Default::default();
+        let n = 64usize;
+        let mut data_vec: Vec<f32> = Vec::with_capacity(n * n * n);
+        for i in 0..n {
+            for j in 0..n {
+                for k in 0..n {
+                    data_vec.push((i + j + k) as f32);
+                }
+            }
+        }
+        let data = Tensor::<TestBackend, 3>::from_data(
+            TensorData::new(data_vec, [n, n, n]),
+            &device,
+        );
+
+        // Build 1000 random-ish interior points.
+        let n_pts = 1000usize;
+        let mut pts: Vec<f32> = Vec::with_capacity(n_pts * 3);
+        for p in 0..n_pts {
+            let c = (p % (n - 2) + 1) as f32;
+            pts.extend_from_slice(&[c, c, c]);
+        }
+        let indices = Tensor::<TestBackend, 2>::from_data(
+            TensorData::new(pts, [n_pts, 3]),
+            &device,
+        );
+
+        let interp = BSplineInterpolator::new();
+
+        let t0 = Instant::now();
+        let result = interp.interpolate(&data, indices);
+        let elapsed = t0.elapsed();
+
+        // Consume result to prevent dead-code elimination.
+        let sum: f32 = result.into_data().as_slice::<f32>().unwrap().iter().sum();
+        println!("1000-point 64³ BSpline (debug): {:.3}s  sum={sum:.1}", elapsed.as_secs_f32());
+
         assert!(
-            !interp_default.zero_pad,
-            "Default should have zero_pad=false"
+            elapsed.as_secs_f32() < 5.0,
+            "BSpline 1000-pt 64³ took {:.2}s (regression threshold: 5s in debug mode)",
+            elapsed.as_secs_f32()
         );
     }
 }

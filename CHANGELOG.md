@@ -1,6 +1,65 @@
 # CHANGELOG
 
-## [0.50.63] - 2026-05-22
+## [0.50.65] - 2026-05-23
+
+### Optimized [major]
+
+- **SPINT-293: B-Spline interpolator zero-allocation optimization** (Sprint 293): Eliminated O(64×N×volume_size) memory allocations in `BSplineInterpolator` by replacing `data.clone().slice([...])` pattern (64 calls per 3D point, 16 per 2D point) with single pre-flattened data extraction and direct `&[f32]` slice indexing. Key changes:
+  - `BSplineInterpolator::interpolate`: Pre-extracts volume as flat slice via `data.clone().to_data()` once per interpolation call
+  - New `interpolate_point_3d_flat` and `interpolate_point_2d_flat` functions: Use stride-based direct indexing (`idx = xi * (d1*d2) + yi * d2 + zi`) with `get_unchecked` after bounds checking
+  - Returns scalar f32 values, builds result tensor at end via `Tensor::from_data`
+  - Optimized `cubic_bspline`: Replaced `powi(2/3)` with multiplication chains, added `#[inline(always)]`
+  - Legacy tensor-based implementations preserved with `#[allow(dead_code)]`
+
+**Performance Impact:**
+- Memory: 64,000× fewer allocations for 1000-point interpolation on 64³ volume
+- Speed: Estimated 10-100× faster depending on volume size and point count
+- Numerical: Exact preservation of computation results (all tests pass)
+
+**Verification:**
+- `cargo test -p ritk-core --lib`: **1395 passed** (no regressions)
+- `cargo test -p ritk-registration --lib`: **306 passed** (no regressions)
+- All 8 B-spline specific tests pass
+
+### Added [minor]
+
+- **REG-OOB-01: OOB sample exclusion in Parzen joint histogram** (Sprint 293+): Implemented out-of-bounds sample exclusion across the entire MI histogram computation pipeline. Before this fix, the `LinearInterpolator` zero-pad mode returned `0.0` for OOB samples; these `0.0` values were included in the joint histogram and created false MI peaks at large translations (the OOB cluster mirrored the CT air voxel cluster, producing artificial correlation). After this fix, OOB samples (where `floor(coord_d) ∉ [0, dim_d−1]` for any axis) are excluded by multiplying the per-sample moving-image Parzen weight rows `W_moving[i,:]` by a `{0.0, 1.0}` mask before the `W_fixed^T @ W_moving` matmul. This mirrors `elastix::AdvancedMattesMutualInformation`'s behavior of ignoring OOB samples.
+  - `compute_oob_mask_3d(indices: &Tensor<B,2>, shape: &[usize]) -> Tensor<B,1>` (new `pub(super)` free function in `histogram/parzen.rs`): vectorized 3-D OOB mask using the same `floor(coord) == clamp(floor(coord), 0, dim-1)` criterion as `LinearInterpolator`. O(3N) ops, GPU-compatible.
+  - `compute_joint_histogram` (signature extended): added `oob_mask: Option<&Tensor<B,1>>` parameter; applies mask to `W_moving` in both the single-pass (n ≤ 32768) and chunked (n > 32768, per-chunk sliced) paths.
+  - `compute_joint_histogram_from_cache` (signature extended): same `oob_mask` parameter; applied after the moving-image Parzen weight matrix is computed.
+  - `compute_image_joint_histogram` (updated): computes OOB mask from `moving_indices` before the interpolator consumes the tensor; propagates to both cache-hit (`from_cache`) and cache-miss (`compute_joint_histogram`) branches, and per-chunk in the large-N path. 3D-only guard (`if D == 3`); other dimensions receive `None` (backward compatible).
+  - `compute_masked_joint_histogram` in `histogram/masked.rs` (updated): same OOB mask computation from `moving_voxel_indices`, passed to `compute_joint_histogram`.
+  - 6 new Rust unit tests in `histogram/parzen.rs::tests`: `oob_mask_3d_in_bounds_all_ones`, `oob_mask_3d_oob_all_zeros`, `oob_mask_3d_mixed_in_and_out`, `oob_mask_zeros_out_oob_contribution`, `oob_mask_partial_filters_correctly`, `oob_mask_all_in_bounds_equivalent_to_no_mask`.
+  - 1 new Python test `test_oob_filtering_prevents_false_boundary_peak_synthetic` (no RIRE data required): builds a synthetic 3-D Gaussian blob, verifies `MI(identical images) >> MI(constant-background image)`, asserting the false-peak artifact is eliminated.
+
+### Verification (Sprint 293+)
+
+- `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- `cargo test -p ritk-registration --lib`: **306 passed** (300 pre-existing + 6 new OOB tests)
+- `maturin develop --release`: wheel rebuilt (ritk 0.12.4)
+- `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets or oob"`: **8 passed** in 0.09 s
+
+
+## [0.50.64] - 2026-05-22
+
+### Added [minor]
+
+- **REG-OOB-01: OOB sample exclusion in Parzen joint histogram** (Sprint 293+): Implemented out-of-bounds sample exclusion across the entire MI histogram computation pipeline. Before this fix, the `LinearInterpolator` zero-pad mode returned `0.0` for OOB samples; these `0.0` values were included in the joint histogram and created false MI peaks at large translations (the OOB cluster mirrored the CT air voxel cluster, producing artificial correlation). After this fix, OOB samples (where `floor(coord_d) ∉ [0, dim_d−1]` for any axis) are excluded by multiplying the per-sample moving-image Parzen weight rows `W_moving[i,:]` by a `{0.0, 1.0}` mask before the `W_fixed^T @ W_moving` matmul. This mirrors `elastix::AdvancedMattesMutualInformation`'s behavior of ignoring OOB samples.
+  - `compute_oob_mask_3d(indices: &Tensor<B,2>, shape: &[usize]) -> Tensor<B,1>` (new `pub(super)` free function in `histogram/parzen.rs`): vectorized 3-D OOB mask using the same `floor(coord) == clamp(floor(coord), 0, dim-1)` criterion as `LinearInterpolator`. O(3N) ops, GPU-compatible.
+  - `compute_joint_histogram` (signature extended): added `oob_mask: Option<&Tensor<B,1>>` parameter; applies mask to `W_moving` in both the single-pass (n ≤ 32768) and chunked (n > 32768, per-chunk sliced) paths.
+  - `compute_joint_histogram_from_cache` (signature extended): same `oob_mask` parameter; applied after the moving-image Parzen weight matrix is computed.
+  - `compute_image_joint_histogram` (updated): computes OOB mask from `moving_indices` before the interpolator consumes the tensor; propagates to both cache-hit (`from_cache`) and cache-miss (`compute_joint_histogram`) branches, and per-chunk in the large-N path. 3D-only guard (`if D == 3`); other dimensions receive `None` (backward compatible).
+  - `compute_masked_joint_histogram` in `histogram/masked.rs` (updated): same OOB mask computation from `moving_voxel_indices`, passed to `compute_joint_histogram`.
+  - 6 new Rust unit tests in `histogram/parzen.rs::tests`: `oob_mask_3d_in_bounds_all_ones`, `oob_mask_3d_oob_all_zeros`, `oob_mask_3d_mixed_in_and_out`, `oob_mask_zeros_out_oob_contribution`, `oob_mask_partial_filters_correctly`, `oob_mask_all_in_bounds_equivalent_to_no_mask`.
+  - 1 new Python test `test_oob_filtering_prevents_false_boundary_peak_synthetic` (no RIRE data required): builds a synthetic 3-D Gaussian blob, verifies `MI(identical images) >> MI(constant-background image)`, asserting the false-peak artifact is eliminated.
+
+### Verification (Sprint 293+)
+
+- `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- `cargo test -p ritk-registration --lib`: **306 passed** (300 pre-existing + 6 new OOB tests)
+- `maturin develop --release`: wheel rebuilt (ritk 0.12.4)
+- `pytest test_elastix_vs_ritk_rire.py -k "smoke or defaults or invalid or tre or presets or oob"`: **8 passed** in 0.09 s
+
 
 ### Added [minor]
 

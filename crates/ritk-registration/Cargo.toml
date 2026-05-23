@@ -22,6 +22,11 @@ anyhow = "1.0"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 walkdir = "2.4"
 image = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "mi_histogram"
+harness = false
 
 [[example]]
 name = "rigid_registration"

@@ -42,6 +42,7 @@ ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
 gaia = { path = "gaia", default-features = false }
 
+criterion = { version = "0.5", features = ["html_reports"] }
 burn = { version = "0.19", default-features = false, features = ["wgpu", "autodiff"] }
 burn-ndarray = "0.19" # For CPU testing
 pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }

@@ -189,8 +189,9 @@ impl CmaMiConfig {
     /// - `sampling_percentage = 0.30`: ~4,900 samples at shrink=8 (4.8/bin).
     /// - `sigma0 = 0.7`: covers ~42 mm from the 60 mm search range.
     /// - `use_com_init = false`: CoM is unreliable for CT/MRI (HU vs T1).
-    /// - `mi_variant = Normalized(JointEntropy)`: NMI is more robust to partial
-    ///   overlap during rotation than Mattes MI.
+    /// - `mi_variant = Normalized(AverageEntropy)`: 2·MI/(H(X)+H(Y)) is immune
+    ///   to the OOB zero-pad artefact that inflates JointEntropy NMI when the
+    ///   transform maps many voxels outside the moving image field of view.
     pub fn brain_rigid_default() -> Self {
         Self {
             cma_config: crate::optimizer::CmaEsConfig {
@@ -212,7 +213,7 @@ impl CmaMiConfig {
             use_com_init: false,
             shrink_per_axis: None,
             ipop_restarts: 0,
-            mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
+            mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
             pyramid_schedule: Vec::new(),
         }
     }
@@ -275,7 +276,13 @@ impl CmaMiConfig {
     /// roughly 3× the single `brain_rigid_default()` run but typically produces
     /// better TRE by escaping coarse-scale local maxima.
     ///
-    /// Uses NMI (JointEntropy) which is robust across all scales.
+    /// Uses NMI (AverageEntropy = 2·MI/(H(X)+H(Y))) which is immune to the
+    /// out-of-bounds (OOB) zero-pad artefact: when the transform maps most fixed
+    /// voxels outside the moving image, the OOB samples return 0.0 which inflates
+    /// the JointEntropy NMI (H(X)+H(Y))/H(X,Y) by concentrating the joint
+    /// histogram in one column.  AverageEntropy NMI = 2·MI/(H(X)+H(Y)) correctly
+    /// assigns zero score when MI=0 (full OOB or random mapping), making it a
+    /// much cleaner objective for CMA-ES cold-start search.
     pub fn brain_rigid_multiscale() -> Self {
         Self {
             // cma_config provides the template: seed, sigma_tol, ftol, record_history.
@@ -300,7 +307,9 @@ impl CmaMiConfig {
             use_com_init: false,
             shrink_per_axis: None,
             ipop_restarts: 0,
-            mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
+            // AverageEntropy NMI = 2·MI/(H(X)+H(Y)) is immune to the OOB zero-pad
+            // artefact that inflates JointEntropy NMI at large displacements.
+            mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
             pyramid_schedule: vec![
                 CmaMiLevelConfig::new(16, 8.0, 0.8, 100),
                 CmaMiLevelConfig::new(8, 4.0, 0.3, 200),

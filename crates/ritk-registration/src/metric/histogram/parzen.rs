@@ -71,10 +71,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// `w_fixed_transposed` is the transposed Parzen weight matrix for the fixed image,
     /// precomputed once and cached. `moving_values` carries the autodiff gradient path.
     /// Only the moving-image side needs recomputation each iteration.
+    ///
+    /// `oob_mask` is an optional `[N]` float tensor (`1.0` = in-bounds, `0.0` = out-of-bounds).
+    /// When provided, OOB samples are zeroed out of W_moving before the histogram matmul.
     fn compute_joint_histogram_from_cache(
         &self,
         w_fixed_transposed: &Tensor<B, 2>, // [num_bins, N]
         moving_values: &Tensor<B, 1>,      // [N]
+        oob_mask: Option<&Tensor<B, 1>>,   // [N] in-bounds mask (1.0=in, 0.0=out)
     ) -> Tensor<B, 2> {
         let device = moving_values.device();
         let [n] = moving_values.dims();
@@ -109,6 +113,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let diff = vals_exp - bins_exp;
         let w_moving = (diff.powf_scalar(2.0) * (-0.5 / sigma_sq)).exp();
 
+        // Apply OOB mask: zero out rows for out-of-bounds samples.
+        let w_moving = if let Some(mask) = oob_mask {
+            w_moving * mask.clone().reshape([n, 1])
+        } else {
+            w_moving
+        };
+
         // Joint histogram [num_bins, num_bins] = W_fixed^T @ W_moving
         w_fixed_transposed.clone().matmul(w_moving)
     }
@@ -119,6 +130,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         &self,
         fixed: &Tensor<B, 1>,
         moving: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
     ) -> Tensor<B, 2> {
         let device = fixed.device();
         let [n] = fixed.dims();
@@ -176,6 +188,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let w_fixed = compute_weights(fixed_norm, n, sigma_sq_fix);
             let w_moving = compute_weights(moving_norm, n, sigma_sq_mov);
 
+            // Apply OOB mask: zero out rows for out-of-bounds samples.
+            let w_moving = if let Some(mask) = oob_mask {
+                w_moving * mask.clone().reshape([n, 1])
+            } else {
+                w_moving
+            };
+
             w_fixed.transpose().matmul(w_moving)
         } else {
             let mut joint_hist = Tensor::<B, 2>::zeros([num_bins, num_bins], &device);
@@ -195,6 +214,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let w_fixed = compute_weights(fixed_norm, current_chunk_size, sigma_sq_fix);
                 let w_moving = compute_weights(moving_norm, current_chunk_size, sigma_sq_mov);
+
+                // Apply per-chunk OOB mask if provided.
+                let w_moving = match oob_mask {
+                    Some(m) => w_moving * m.clone().slice([start..end]).reshape([current_chunk_size, 1]),
+                    None => w_moving,
+                };
 
                 joint_hist = joint_hist + w_fixed.transpose().matmul(w_moving);
             }
@@ -296,12 +321,19 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
             let moving_points = transform.transform_points(fixed_points.clone());
             let moving_indices = moving.world_to_index_tensor(moving_points);
+            // Compute OOB mask before consuming moving_indices (uses immutable borrow).
+            let oob_mask: Option<Tensor<B, 1>> = if D == 3 {
+                let shape_arr = moving.shape();
+                Some(compute_oob_mask_3d(&moving_indices, shape_arr.as_ref()))
+            } else {
+                None
+            };
             let moving_values = interpolator.interpolate(moving.data(), moving_indices);
 
             if !use_sampling {
                 if let Some(ref w_ft) = cached_w_fixed_t {
                     // Cache hit: W_fixed^T already computed; only W_moving needs autodiff.
-                    return self.compute_joint_histogram_from_cache(w_ft, &moving_values);
+                    return self.compute_joint_histogram_from_cache(w_ft, &moving_values, oob_mask.as_ref());
                 }
             }
 
@@ -349,7 +381,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 });
             }
 
-            self.compute_joint_histogram(&fixed_values, &moving_values)
+            self.compute_joint_histogram(&fixed_values, &moving_values, oob_mask.as_ref())
         } else {
             // Process in chunks
             let num_chunks = n.div_ceil(CHUNK_SIZE);
@@ -405,6 +437,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+                // Compute per-chunk OOB mask before consuming chunk_moving_indices.
+                let chunk_oob: Option<Tensor<B, 1>> = if D == 3 {
+                    let shape_arr = moving.shape();
+                    Some(compute_oob_mask_3d(&chunk_moving_indices, shape_arr.as_ref()))
+                } else {
+                    None
+                };
                 let chunk_moving_values =
                     interpolator.interpolate(moving.data(), chunk_moving_indices);
 
@@ -426,11 +465,181 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 // Compute partial histogram
                 let chunk_hist =
-                    self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values);
+                    self.compute_joint_histogram(&chunk_fixed_values, &chunk_moving_values, chunk_oob.as_ref());
                 joint_hist_acc = joint_hist_acc + chunk_hist;
             }
 
             joint_hist_acc
+        }
+    }
+}
+
+/// Compute a `{0.0, 1.0}` in-bounds mask for 3-D moving-image voxel indices.
+///
+/// Returns an `[N]` float tensor: `1.0` = in-bounds, `0.0` = out-of-bounds.
+/// Mirrors the zero-pad criterion in `LinearInterpolator`: a sample is
+/// in-bounds when `floor(coord_d) ∈ [0, dim_d − 1]` for every axis.
+///
+/// Column convention (matches `interpolation::linear::dim3`):
+/// - column 0 → x (→ `shape[2]`, the X / last dimension)
+/// - column 1 → y (→ `shape[1]`, the Y / middle dimension)
+/// - column 2 → z (→ `shape[0]`, the Z / first dimension)
+pub(super) fn compute_oob_mask_3d<B: Backend>(
+    indices: &Tensor<B, 2>, // [N, 3]
+    shape: &[usize],        // at least 3 elements: [d0=Z, d1=Y, d2=X]
+) -> Tensor<B, 1> {
+    let d0 = shape[0]; // Z
+    let d1 = shape[1]; // Y
+    let d2 = shape[2]; // X
+
+    let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
+    let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
+    let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
+
+    let x0 = x.clone().floor();
+    let y0 = y.clone().floor();
+    let z0 = z.clone().floor();
+
+    let x_in = x0.clone().equal(x0.clamp(0.0, (d2 - 1) as f64)).float();
+    let y_in = y0.clone().equal(y0.clamp(0.0, (d1 - 1) as f64)).float();
+    let z_in = z0.clone().equal(z0.clamp(0.0, (d0 - 1) as f64)).float();
+
+    x_in * y_in * z_in
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use burn::tensor::TensorData;
+    use burn_ndarray::NdArray;
+
+    type B = NdArray<f32>;
+
+    fn device() -> <B as burn::tensor::backend::Backend>::Device {
+        Default::default()
+    }
+
+    // ─── compute_oob_mask_3d ─────────────────────────────────────────────────
+
+    #[test]
+    fn oob_mask_3d_in_bounds_all_ones() {
+        // 4×4×4 volume; every coordinate strictly inside returns 1.0
+        let dev = device();
+        // [x=1.5, y=1.5, z=1.5] — floor = [1,1,1], dims = [4,4,4] → in-bounds on all axes
+        let indices = Tensor::<B, 2>::from_floats(
+            [[1.5, 1.5, 1.5], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]],
+            &dev,
+        );
+        let mask = compute_oob_mask_3d(&indices, &[4, 4, 4]);
+        let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert_eq!(vals, vec![1.0, 1.0, 1.0], "all in-bounds coords must give 1.0");
+    }
+
+    #[test]
+    fn oob_mask_3d_oob_all_zeros() {
+        let dev = device();
+        // x=-1 (OOB), y=5 > d1-1=3 (OOB), z=-0.1 → floor=-1 (OOB)
+        let indices = Tensor::<B, 2>::from_floats(
+            [[-1.0, 1.0, 1.0], [1.0, 5.0, 1.0], [1.0, 1.0, -0.1]],
+            &dev,
+        );
+        let mask = compute_oob_mask_3d(&indices, &[4, 4, 4]);
+        let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert_eq!(vals, vec![0.0, 0.0, 0.0], "all OOB coords must give 0.0");
+    }
+
+    #[test]
+    fn oob_mask_3d_mixed_in_and_out() {
+        let dev = device();
+        // shape [Z=2, Y=4, X=4]: valid x in [0,3], y in [0,3], z in [0,1]
+        let indices = Tensor::<B, 2>::from_floats(
+            [
+                [1.5, 1.5, 0.5],  // in-bounds
+                [-0.5, 1.5, 0.5], // x OOB (floor=-1)
+                [1.5, 4.0, 0.5],  // y OOB (floor=4 > 3)
+                [1.5, 1.5, 2.0],  // z OOB (floor=2 > 1)
+                [3.0, 3.0, 1.0],  // boundary, in-bounds
+            ],
+            &dev,
+        );
+        let mask = compute_oob_mask_3d(&indices, &[2, 4, 4]);
+        let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
+        assert_eq!(
+            vals,
+            vec![1.0, 0.0, 0.0, 0.0, 1.0],
+            "mixed: in=1 OOB=0, boundary is in-bounds"
+        );
+    }
+
+    // ─── compute_joint_histogram with OOB mask ───────────────────────────────
+
+    #[test]
+    fn oob_mask_zeros_out_oob_contribution() {
+        // Verify that applying an all-zero OOB mask produces a zero histogram.
+        let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
+        let dev = device();
+
+        let fixed = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
+        let moving = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
+        let all_oob = Tensor::<B, 1>::zeros([3], &dev); // all samples are OOB
+
+        let h = hist.compute_joint_histogram(&fixed, &moving, Some(&all_oob));
+        let sum: f32 = h.into_data().as_slice::<f32>().unwrap().iter().sum();
+        assert!(
+            sum < 1e-6,
+            "histogram with all-OOB mask must be zero, got sum={sum}"
+        );
+    }
+
+    #[test]
+    fn oob_mask_partial_filters_correctly() {
+        // With a partial OOB mask (only first sample in-bounds), the histogram
+        // should be dominated by the first sample's contribution.
+        let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
+        let dev = device();
+
+        // Three samples: first is identity (128, 128), rest are extreme (0, 255)
+        let fixed = Tensor::<B, 1>::from_floats([128.0, 0.0, 255.0], &dev);
+        let moving = Tensor::<B, 1>::from_floats([128.0, 255.0, 0.0], &dev);
+        // Only the first sample is in-bounds
+        let partial_mask = Tensor::<B, 1>::from_floats([1.0, 0.0, 0.0], &dev);
+
+        let h_masked = hist.compute_joint_histogram(&fixed, &moving, Some(&partial_mask));
+        let h_unmasked = hist.compute_joint_histogram(&fixed, &moving, None);
+
+        // The masked histogram should have strictly less total weight than unmasked.
+        let sum_masked: f32 = h_masked.into_data().as_slice::<f32>().unwrap().iter().sum();
+        let sum_unmasked: f32 = h_unmasked.into_data().as_slice::<f32>().unwrap().iter().sum();
+        assert!(
+            sum_masked < sum_unmasked,
+            "masked sum ({sum_masked}) must be less than unmasked sum ({sum_unmasked})"
+        );
+    }
+
+    #[test]
+    fn oob_mask_all_in_bounds_equivalent_to_no_mask() {
+        // A mask of all 1.0 must produce the same result as passing None.
+        let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0);
+        let dev = device();
+
+        let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
+        let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
+        let all_in = Tensor::<B, 1>::ones([5], &dev);
+
+        let h_with_mask = hist
+            .compute_joint_histogram(&fixed, &moving, Some(&all_in))
+            .into_data();
+        let h_no_mask = hist
+            .compute_joint_histogram(&fixed, &moving, None)
+            .into_data();
+
+        let s1 = h_with_mask.as_slice::<f32>().unwrap();
+        let s2 = h_no_mask.as_slice::<f32>().unwrap();
+        for (a, b) in s1.iter().zip(s2.iter()) {
+            assert!(
+                (a - b).abs() < 1e-5,
+                "all-ones mask must match no-mask: {a} vs {b}"
+            );
         }
     }
 }

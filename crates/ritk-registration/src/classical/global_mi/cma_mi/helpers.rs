@@ -123,22 +123,14 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     let min_int = min_f.min(min_m);
     let max_int = max_f.max(max_m);
 
-    // Pass separate moving range so the moving image uses the full bin resolution
-    // (elastix-style independent binning). The fixed-image axis uses [min_int, max_int]
-    // which includes both image ranges, but the moving-image axis is binned with its
-    // native range [min_m, max_m] so it occupies all num_bins bins.
-    // NOTE: min_int/max_int is still used as the FIXED-image axis range here.
-    // For RIRE (CT fixed, MRI moving): CT -1024..1969 as fixed axis, MRI 2..1626 as moving.
-    //
-    // Guard: only use separate moving range when the moving image has non-trivial contrast.
-    // A degenerate (constant / near-constant) moving image would produce a zero-width
-    // range, causing NaN in the Parzen normalisation. Fall back to combined range when
-    // the moving-image contrast is < 1e-3 (absolute intensity units).
-    let separate_moving_range = if (max_m - min_m).abs() > 1e-3 {
-        Some((min_m, max_m))
-    } else {
-        None // fall back to combined range for degenerate / constant moving images
-    };
+    // OOB note: using COMBINED intensity range (not separate per-image ranges) for
+    // the CMA-ES cold-start search. With separate moving range, the zero-pad
+    // interpolator returns 0.0 for OOB samples; 0.0 < MRI min (≈ 2 for RIRE) so it
+    // clamps to MRI bin 0, creating a false correlation between CT air (also bin 0 in
+    // separate CT range) and OOB samples. With the combined range, OOB=0.0 maps to
+    // a middle bin (~11 for RIRE), which is different from CT air (bin 0), reducing
+    // false correlations at large-displacement boundary positions.
+    let separate_moving_range: Option<(f32, f32)> = None;
 
     // ── Strip autodiff — eliminate tape overhead in CMA-ES loop ──────────────
     let fixed_inner = strip_autodiff(&fixed_c);
@@ -177,12 +169,32 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 
     // ── Objective closure — all tensors on inner (non-autodiff) backend ───────
     let obj = move |params: &[f64]| -> f64 {
-        // Penalty for parameters outside the normalised box [−1, 1]⁶.
-        // The ZeroPad interpolator returns 0.0 for OOB samples, eliminating
-        // spurious MI peaks from edge-voxel clamping. This penalty prevents
-        // wasting evaluations in the zero-MI exterior of the search space.
+        // Hard penalty for parameters outside the normalised box [−1, 1]⁶.
         if params.iter().any(|&p| p.abs() > 1.0) {
-            return 10.0; // >> max observed |MI| (≈ 0.1 nats at shrink=8)
+            return 10.0;
+        }
+
+        // Soft boundary penalty: discourage the CMA-ES from converging to
+        // corners of the search box.  When the transform maps most fixed-image
+        // voxels outside the moving-image FOV (large translations), the zero-pad
+        // interpolator returns 0.0 for out-of-bounds samples, which can create
+        // a false MI maximum near |p_i| ≈ 1.  Adding a quadratic penalty for
+        // |p_i| > 0.85 (= 85% of the search range, e.g. 51 mm for a 60 mm
+        // range) strongly suppresses this artefact without restricting the
+        // interior of the search space where the true maximum lies.
+        let boundary_penalty: f64 = params
+            .iter()
+            .map(|&p| {
+                let excess = p.abs() - 0.85;
+                if excess > 0.0 {
+                    excess * excess * 100.0 // 2.25 at |p|=1.0, >> any real MI value
+                } else {
+                    0.0
+                }
+            })
+            .sum::<f64>();
+        if boundary_penalty > 0.0 {
+            return boundary_penalty; // short-circuit before MI computation
         }
 
         let alpha = (params[0] * rot_scale) as f32;
