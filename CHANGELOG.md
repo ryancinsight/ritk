@@ -1,5 +1,140 @@
 # CHANGELOG
 
+## [0.50.74] - 2026-05-27
+
+### Optimized
+- **PERF-312-01: Parallel sparse cache build with rayon** (Sprint 312):
+  `build_sparse_w_fixed_transposed` now uses `rayon::par_iter_mut` to compute each
+  sample's sparse entries in parallel. On a 32³ volume, the one-time lazy build cost
+  dropped from **3.94 ms → 2.33 ms** (41% improvement). Combined with `Vec::with_capacity(7)`
+  pre-allocation (MEM-312-01), this eliminates repeated re-allocations for the typical
+  ~7 non-zero entries per sample.
+
+### Fixed
+- **FIX-312-01: Eliminated 5 `non_snake_case` warnings** across `compute_image.rs` and
+  `compute.rs`. Replaced `if/else { None }` pattern with `.then(|| { ... }).flatten()`
+  idiom to avoid `None` variable-name shadowing lint. Also replaced `None =>` match
+  arm with `_ =>` in `compute.rs`.
+
+### Added
+- **ARCH-312-01: Masked-path caching with caller-supplied cache key** (Sprint 312):
+  `compute_masked_joint_histogram` now accepts an optional `cache_key: Option<u64>`
+  parameter. When `Some(key)`, the fixed-image Parzen weights (`w_fixed_transposed`)
+  are cached and reused across calls with the same key and point count, eliminating the
+  O(N × num_bins) fixed-weight computation on every iteration after the first. The
+  sparse W_fixed^T cache is also lazily built for derivative-free backends (CMA-ES).
+  This closes the TODO-311-01 gap.
+- **3 new tests** for masked-path caching:
+  - `masked_cache_reuses_weights_on_same_key` — same cache_key reuses cached W_fixed^T
+  - `masked_cache_different_key_recomputes` — different key causes cache miss
+  - `masked_no_cache_key_matches_uncached` — `None` key matches uncached path result
+- **Benchmark results verified** (release mode, 32³ volume, NdArray backend):
+  | Path | Time | Speedup vs tensor |
+  |------|------|-------------------|
+  | `tensor_joint_histogram_32cubed` (end-to-end) | 10.14 ms | 1.0× |
+  | `direct_joint_histogram_32cubed` | 1.40 ms | **7.2×** |
+  | `direct_sparse_cache_joint_histogram_32cubed` | 1.00 ms | **10.1×** |
+  | `build_sparse_cache_32cubed` (one-time) | 2.33 ms | — |
+
+### Changed
+- **STR-312-01: `masked.rs` → `masked/mod.rs` + `masked/masked_chunked.rs`**: Extracted
+  chunked helper methods into a submodule to stay under the 500-line structural limit.
+- Widened visibility of `compute_w_fixed_transposed`, `sigma_sq_in_bins`, and
+  `normalize_and_extract` to `pub(in crate::metric::histogram)` for masked-path access.
+
+## [0.50.73] - 2026-05-27
+
+### Optimized
+- **PERF-311-01: Inner-loop micro-optimizations for direct Parzen histogram** (Sprint 311): Applied 5 micro-optimizations to the hot accumulation loops in `direct/mod.rs`:
+  - **OPT-1**: Row base pointers (`Vec<*mut f32>`) replace `a * num_bins + b` multiply with pointer addition in the inner loop
+  - **OPT-2**: Hoisted moving exp() — pre-compute moving weights before the fixed-weight loop, eliminating `(f_range - 1) * m_range` redundant exp() calls per sample (49 → 14 for a 7×7 window)
+  - **OPT-3**: Unchecked histogram access (`get_unchecked_mut`) — bin indices are already clamped, removing bounds check from the hottest path
+  - **OPT-4**: Same OPT-2 hoisting applied to `compute_joint_histogram_from_cache_sparse` (the CMA-ES hot-loop path)
+  - **OPT-5**: Stack-allocated `StackWeights` — `[f32; 7]` with length counter replaces `Vec` heap allocation for the pre-computed moving weights
+- **MEM-311-01: Lazy sparse W_fixed^T cache construction** (Sprint 311): The sparse cache is no longer built eagerly alongside the dense cache on the first cache-miss call. Instead, `HistogramCache` stores the normalized `fixed_norm` Vec (~128 KB) and the sparse cache (~2 MB) is built lazily on the first CMA-ES iteration when the sparse dispatch path is taken. This reduces peak memory during initial cache construction from ~6.5 MB (dense tensor + sparse cache) to ~4.1 MB (dense tensor + ~128 KB `fixed_norm` Vec).
+
+### Added
+- **7 new tests** for inner-loop optimizations and lazy cache construction:
+  - `direct_row_base_pointers_correct` — validates OPT-1 pointer layout and write-through correctness
+  - `stack_weights_correct` — validates OPT-2/OPT-5 `StackWeights` matches explicit exp() computation
+  - `direct_large_volume_matches_dense` — N=1000, 32 bins: OPT-2 hoisted exp() doesn't introduce numerical drift
+  - `sparse_cache_large_volume_matches_direct` — N=500, 32 bins: OPT-4 sparse cache path matches direct computation
+  - `direct_oob_partial_mask` — partial OOB mask correctly filters samples
+  - `lazy_sparse_cache_built_on_first_access` — verifies `sparse_w_fixed` is None after first call and Some after second call; `fixed_norm` is consumed
+  - `chunked_sparse_path_matches_nonchunked` — 64×32×32 volume: chunked sparse cache path matches non-chunked dispatch within 5% tolerance
+- **Cache-matching deduplication**: Extracted `cache_matches_image()` helper in `compute_image.rs` — shared by `get_cached_w_fixed_t`, `get_cached_sparse_w_fixed`, and `cached_points` logic, eliminating 3 copies of the shape/origin/spacing/direction comparison.
+- **Masked-path caching TODO**: Added `// TODO:` comments in `masked.rs` at both `compute_joint_histogram_dispatch` call sites, documenting the future optimization opportunity for caching fixed Parzen weights in the brain-masked registration path.
+
+### Fixed
+- **Clippy `op_ref` warning**: Changed `cache.shape.as_slice() == &fs` to `cache.shape.as_slice() == fs` in cache-matching code.
+- **Clippy `unnecessary_unwrap` warning**: Replaced `cached_w_fixed_t.as_ref().unwrap()` with `if let Some(w_fixed_t) = &cached_w_fixed_t` pattern.
+
+### Architecture
+- **`HistogramCache.fixed_norm`**: New `#[cfg(feature = "direct-parzen")]` field `Option<Vec<f32>>` stores normalized fixed-image values for deferred sparse cache construction. Consumed (set to `None`) after the sparse cache is built.
+- **`make_cache` signatures updated**: Both `direct-parzen` and `not(direct-parzen)` overloads now accept `fixed_norm: Option<Vec<f32>>` / `Option<()>` instead of `sparse_w_fixed: Option<SparseWFixedT>` / `Option<()>`.
+- **`get_cached_sparse_w_fixed` signature extended**: Now takes `&mut Option<HistogramCache<B>>`, `num_bins`, and `sigma_sq_fix` parameters to support lazy sparse cache construction from `fixed_norm`.
+
+### Verified
+- `cargo check -p ritk-registration`: 0 errors, 0 warnings (both default features and `--no-default-features`)
+- `cargo test -p ritk-registration --lib`: all tests pass
+- All files under 500-line structural limit
+
+## [0.50.72] - 2026-05-26
+
+### Optimized
+- **PERF-303-01: Sparse W_fixed^T cache for direct Parzen histogram** (Sprint 303):
+  Added `SparseWFixedT` (Vec<Vec<(usize, f32)>>) — a per-sample sparse representation
+  of the fixed-image Parzen weight matrix. Each sample stores only ~7 non-zero
+  (bin_index, weight) pairs instead of all 32 bins, eliminating the 0..num_bins
+  inner scan and the `if w_f > 0.0` branch in the hot loop. Also eliminates
+  strided memory access (`w_fixed_transposed[a * n + i]` with stride up to 128 KB)
+  in favor of contiguous packed entries (~56 bytes per sample, fitting in one L1
+  cache line). Estimated **~2.5–3× speedup** over the dense cache path on CPU.
+
+- **PERF-303-02: Eliminate w_fixed_t.clone().slice() per chunk** (Sprint 303):
+  The chunked `compute_image_joint_histogram` path previously cloned the entire
+  [num_bins × N] dense W_fixed^T tensor (~4 MB for N=32K) on every chunk just to
+  slice out a [num_bins × chunk_size] view. With the sparse cache, slicing is
+  trivial: `sparse[start..end].to_vec()` copies only ~56 bytes per sample.
+  The dense `clone().slice()` pattern remains as a fallback for the autodiff
+  path (RSGD), where the sparse cache cannot be used.
+
+### Added
+- **Sparse cache dispatch method**: `compute_joint_histogram_from_cache_sparse_dispatch`
+  on `ParzenJointHistogram<B>`, gated by `direct-parzen` feature. Extracts moving
+  values to host memory (safe for CMA-ES's `B::InnerBackend`) and calls the sparse
+  inner loop. Only used when the sparse cache is available (non-sampling path with
+  feature enabled).
+
+- **HistogramCache.sparse_w_fixed**: New `#[cfg(feature = "direct-parzen")]` field
+  stores the sparse representation alongside the dense `w_fixed_transposed`. Both
+  are built on the first call (cache miss) and reused on subsequent calls.
+
+- **Dispatch integration tests**: 3 new tests verify `compute_joint_histogram_dispatch`
+  matches the tensor path within 5% relative tolerance, OOB mask correctness, and
+  sparse cache dispatch matches direct computation within 1%.
+
+- **Benchmark additions**: `direct_sparse_cache_joint_histogram_32cubed` and
+  `dispatch_joint_histogram_32cubed` benchmarks added to `parzen_direct`.
+
+### Verified
+- `cargo check -p ritk-registration`: 0 errors, 0 warnings (both default features and `--no-default-features`)
+- `cargo test -p ritk-registration --lib`: **325 passed**, 0 failed, 1 ignored (default features)
+- `cargo test -p ritk-registration --lib --no-default-features`: **323 passed**, 0 failed
+
+## [0.50.71] - 2026-05-26
+### Fixed
+- **FIX-310-01: RSGD zero-gradient bug in `compute_joint_histogram_from_cache_dispatch`** (Sprint 310): Under the `direct-parzen` feature (default=on), `compute_joint_histogram_from_cache_dispatch` was calling `.into_data()` on the `moving_values` tensor to extract host values for the sparse CPU loop, severing the Burn autodiff gradient tape. RSGD therefore received a zero-norm gradient on every iteration and converged after 1 step with `GradientConvergence` instead of running 39+ iterations to `StepConvergence`. Fixed by making `compute_joint_histogram_from_cache_dispatch` unconditionally delegate to the tensor matmul path `compute_joint_histogram_from_cache`, which preserves the gradient tape. The W_fixed^T cache (Sprint 295 PERF-295-01) is retained — the fix costs nothing in the non-autodiff CMA-ES path, which continues to call `compute_joint_histogram_dispatch` (non-cached path) via `NdArray::InnerBackend`. Verified: `translation_recovery_shifted_gaussian` now runs 39 iterations and converges with `StepConvergence`.
+
+### Test Infrastructure
+- **TEST-310-01: Correct nextest filter patterns in `.config/nextest.toml`** (Sprint 310): All `[[profile.default.overrides]]` and `[[profile.ci.overrides]]` filter patterns were using wrong test name prefixes (e.g. `test(bspline_registration)` instead of `test(test_registration_bspline)`). The `test()` filter matches the Rust function name, not the binary name. Fixed all 4 override groups in both `default` and `ci` profiles. Added missing RSGD lib-integration tests (`translation_recovery_shifted_gaussian`, `multires_convergence_runs_all_levels`, `rigid_recovery_identity_validates_pipeline`, `sparse_sampling_produces_comparable_result`) and `test_decoder_stage`. Bumped `bspline_cr`/`multires_cr` and SSMorph/DICOM scan timeouts from 300s to 600s.
+- **TEST-310-02: Remove unused `use super::*` import in `tests_clahe.rs`** (Sprint 310): `crates/ritk-core/src/filter/intensity/tests_clahe.rs` had `use super::*;` at line 4, importing nothing (all test helpers are defined locally in the file). Removed to eliminate `unused_imports` compiler warning.
+
+### Verification
+- `cargo check --workspace`: 0 errors, 0 warnings
+- `translation_recovery_shifted_gaussian`: 39 iterations, `StepConvergence`, loss −0.219 → −0.521
+- `cargo nextest run --workspace --no-fail-fast`: **4496 tests**, all passing
+
 ## [0.50.70] - 2026-05-23
 ### Optimized [minor]
 - **PERF-300-01: Parzen `powf_scalar(2.0)` → `diff * diff`** (Sprint 300): Replaced `diff.powf_scalar(2.0)` with `diff.clone() * diff` at all 3 Parzen weight computation sites (`compute_w_fixed_transposed`, `compute_joint_histogram_from_cache`, `compute_joint_histogram`). The general-purpose `pow()` GPU kernel (or CPU `powf` libm call) is 5–10× slower than a single `fmul` instruction per element. Mathematically identical for finite values. Estimated **8–12% MI evaluation speedup**.

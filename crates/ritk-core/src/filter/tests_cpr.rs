@@ -187,6 +187,55 @@ fn output_metadata_is_reasonable() {
 }
 
 #[test]
+fn generate_path_batch_matches_scalar() {
+    let control_points: Vec<[f64; 3]> = vec![
+        [0.0, 0.0, 0.0],
+        [1.0, 2.0, 0.0],
+        [3.0, 1.0, 4.0],
+        [5.0, 5.0, 5.0],
+        [7.0, 0.0, 3.0],
+    ];
+    let num_samples = 1000;
+    let scalar = generate_path(&control_points, num_samples);
+    let batch = generate_path_batch(&control_points, num_samples);
+    assert_eq!(scalar.len(), batch.len());
+    for (s, b) in scalar.iter().zip(batch.iter()) {
+        for k in 0..3 {
+            assert!(
+                (s[k] - b[k]).abs() < 1e-12,
+                "mismatch at component {k}: scalar={}, batch={}",
+                s[k],
+                b[k]
+            );
+        }
+    }
+}
+
+#[test]
+fn generate_path_batch_empty() {
+    let control_points: Vec<[f64; 3]> = vec![];
+    let scalar = generate_path(&control_points, 100);
+    let batch = generate_path_batch(&control_points, 100);
+    assert!(scalar.is_empty());
+    assert!(batch.is_empty());
+}
+
+#[test]
+fn generate_path_batch_single_point() {
+    let control_points: Vec<[f64; 3]> = vec![[42.0, 7.0, 13.0]];
+    let num_samples = 50;
+    let scalar = generate_path(&control_points, num_samples);
+    let batch = generate_path_batch(&control_points, num_samples);
+    assert_eq!(scalar.len(), num_samples);
+    assert_eq!(batch.len(), num_samples);
+    for (s, b) in scalar.iter().zip(batch.iter()) {
+        for k in 0..3 {
+            assert!((s[k] - b[k]).abs() < 1e-12);
+        }
+    }
+}
+
+#[test]
 fn physical_to_index_identity() {
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);

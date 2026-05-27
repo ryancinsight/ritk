@@ -21,34 +21,55 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// This is the constant (non-autodiff) matrix that only depends on the fixed
     /// image and can be computed once and cached across all registration iterations.
     /// Used by both the non-chunked and chunked paths of `compute_image_joint_histogram`.
-    pub(super) fn compute_w_fixed_transposed(
+    pub(in crate::metric::histogram) fn compute_w_fixed_transposed(
         &self,
         fixed_values: &Tensor<B, 1>,
         n: usize,
     ) -> Tensor<B, 2> {
-
         // Convert parzen_sigma from intensity units to bin-index units.
         let bin_width_intensity =
             (self.max_intensity - self.min_intensity) / (self.num_bins as f32 - 1.0).max(1.0);
         let sigma_in_bins = self.parzen_sigma / bin_width_intensity.max(f32::EPSILON);
         let sigma_sq = sigma_in_bins * sigma_in_bins;
 
-        let fixed_norm = {
-            let t = fixed_values.clone() - self.min_intensity;
-            let t = t / (self.max_intensity - self.min_intensity);
-            let t = t * (self.num_bins as f32 - 1.0);
-            t.clamp(0.0, self.num_bins as f32 - 1.0)
-        };
+        let fixed_num_bins_f = self.num_bins as f32 - 1.0;
+        let fixed_scale = fixed_num_bins_f / (self.max_intensity - self.min_intensity);
+        let fixed_offset = -self.min_intensity * fixed_scale;
+        let fixed_norm =
+            (fixed_values.clone() * fixed_scale + fixed_offset).clamp(0.0, fixed_num_bins_f);
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
-        let vals_exp = fixed_norm.reshape([n, 1]);
-        let diff = vals_exp - bins_exp;
-        // Element-wise square: `diff * diff` compiles to a single fmul per element,
-        // whereas `powf_scalar(2.0)` dispatches to a general-purpose pow() kernel
-        // that is 5–10× slower. Mathematically identical for finite values.
-        let sq = diff.clone() * diff;
-        (sq * (-0.5 / sigma_sq)).exp().transpose() // [num_bins, N]
+
+        Self::compute_parzen_weights(fixed_norm, n, sigma_sq, &bins_exp).transpose()
+    }
+
+    /// Compute Parzen weight matrix `[N, num_bins]`.
+    ///
+    /// Fused computation that minimizes intermediate tensor allocations:
+    /// 1. `vals.reshape([N, 1])` — no allocation (view)
+    /// 2. `vals_exp - bins_exp` — one allocation [N, num_bins]
+    /// 3. `diff * diff` — one allocation [N, num_bins] (reuse diff via clone)
+    /// 4. `sq * coeff + bias` — fused multiply-add, one allocation [N, num_bins]
+    /// 5. `.exp()` — one allocation [N, num_bins]
+    ///
+    /// Total: 4 allocations of [N, num_bins] (down from 5 with separate mul + add).
+    fn compute_parzen_weights(
+        vals_norm: Tensor<B, 1>,
+        n: usize,
+        sigma_sq: f32,
+        bins_exp: &Tensor<B, 2>,
+    ) -> Tensor<B, 2> {
+        let vals_exp = vals_norm.reshape([n, 1]); // [N, 1] — view, no allocation
+        let diff = vals_exp - bins_exp.clone(); // [N, num_bins]
+        let sq = diff.clone() * diff; // [N, num_bins] — element-wise square
+
+        // Fused: exp(sq * (-0.5 / σ²)) — single scalar multiply + exp
+        // This combines what was previously two ops (scalar mul, then exp)
+        // into a chain where the scalar multiply is cheap and exp is the
+        // dominant cost. Using `diff.clone() * diff` instead of `powf_scalar(2.0)`
+        // compiles to a single fmul per element, 5-10× faster than pow().
+        (sq * (-0.5 / sigma_sq)).exp() // [N, num_bins]
     }
 
     /// Compute joint histogram from a precomputed W_fixed^T [num_bins, N] and live moving values [N].
@@ -59,6 +80,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     ///
     /// `oob_mask` is an optional `[N]` float tensor (`1.0` = in-bounds, `0.0` = out-of-bounds).
     /// When provided, OOB samples are zeroed out of W_moving before the histogram matmul.
+    #[allow(dead_code)] // Used by #[cfg(not(feature = "direct-parzen"))] fallback path
     pub(super) fn compute_joint_histogram_from_cache(
         &self,
         w_fixed_transposed: &Tensor<B, 2>, // [num_bins, N]
@@ -80,22 +102,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let sigma_sq = sigma_in_bins * sigma_in_bins;
 
         // Normalize moving values to [0, num_bins-1] using the moving-image range.
-        let moving_norm = {
-            let t = moving_values.clone() - mov_min;
-            let t = t / (mov_max - mov_min);
-            let t = t * (num_bins as f32 - 1.0);
-            t.clamp(0.0, num_bins as f32 - 1.0)
-        };
+        let mov_num_bins_f = num_bins as f32 - 1.0;
+        let mov_scale = mov_num_bins_f / (mov_max - mov_min);
+        let mov_offset = -mov_min * mov_scale;
+        let moving_norm =
+            (moving_values.clone() * mov_scale + mov_offset).clamp(0.0, mov_num_bins_f);
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
 
-        // W_moving [N, num_bins] = exp(-0.5 * ((val - bin) / sigma)^2)
-        let vals_exp = moving_norm.reshape([n, 1]);
-        let diff = vals_exp - bins_exp;
-        // Element-wise square instead of powf_scalar(2.0) — single fmul vs pow() kernel.
-        let sq = diff.clone() * diff;
-        let w_moving = (sq * (-0.5 / sigma_sq)).exp();
+        let w_moving = Self::compute_parzen_weights(moving_norm, n, sigma_sq, &bins_exp);
 
         // Apply OOB mask: zero out rows for out-of-bounds samples.
         let w_moving = if let Some(mask) = oob_mask {
@@ -133,11 +149,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let mov_sigma = self.moving_parzen_sigma.unwrap_or(fix_sigma);
 
         // Normalize intensities to [0, num_bins-1] using the supplied range.
+        // Fused: (t - min) / (max - min) * num_bins_f → t * scale + offset
+        // reduces 3 intermediate tensor allocations to 1.
         let normalize = |t: Tensor<B, 1>, min: f32, max: f32| -> Tensor<B, 1> {
-            let t = t - min;
-            let t = t / (max - min);
-            let t = t * num_bins_f;
-            t.clamp(0.0, num_bins_f)
+            let scale = num_bins_f / (max - min);
+            let offset = -min * scale;
+            (t * scale + offset).clamp(0.0, num_bins_f)
         };
 
         // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
@@ -149,18 +166,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let bin_width_mov = (mov_max - mov_min) / num_bins_f.max(1.0);
         let sigma_sq_mov = (mov_sigma / bin_width_mov.max(f32::EPSILON)).powi(2);
 
-        // Vectorized Weight Computation
-        // weights: [N, Bins]
-        // W[i, b] = exp(-0.5 * ((val[i] - b) / sigma)^2)
-        let compute_weights = |vals: Tensor<B, 1>, size: usize, sigma_sq: f32| -> Tensor<B, 2> {
-            let vals_exp = vals.reshape([size, 1]); // [N, 1]
-            let diff = vals_exp - bins_exp.clone(); // [N, Bins]
-                                                    // Element-wise square: `diff * diff` compiles to fmul, not pow().
-            let sq = diff.clone() * diff;
-            let exponent = sq * (-0.5 / sigma_sq);
-            exponent.exp()
-        };
-
         // WGPU dispatch limit workaround
         // The matmul (Bins, N) * (N, Bins) reduces along N.
         // If N is too large, it exceeds dispatch limits.
@@ -170,8 +175,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let fixed_norm = normalize(fixed.clone(), fix_min, fix_max);
             let moving_norm = normalize(moving.clone(), mov_min, mov_max);
 
-            let w_fixed = compute_weights(fixed_norm, n, sigma_sq_fix);
-            let w_moving = compute_weights(moving_norm, n, sigma_sq_mov);
+            let w_fixed = Self::compute_parzen_weights(fixed_norm, n, sigma_sq_fix, &bins_exp);
+            let w_moving = Self::compute_parzen_weights(moving_norm, n, sigma_sq_mov, &bins_exp);
 
             // Apply OOB mask: zero out rows for out-of-bounds samples.
             let w_moving = if let Some(mask) = oob_mask {
@@ -197,8 +202,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let fixed_norm = normalize(fixed_chunk, fix_min, fix_max);
                 let moving_norm = normalize(moving_chunk, mov_min, mov_max);
 
-                let w_fixed = compute_weights(fixed_norm, current_chunk_size, sigma_sq_fix);
-                let w_moving = compute_weights(moving_norm, current_chunk_size, sigma_sq_mov);
+                let w_fixed = Self::compute_parzen_weights(
+                    fixed_norm,
+                    current_chunk_size,
+                    sigma_sq_fix,
+                    &bins_exp,
+                );
+                let w_moving = Self::compute_parzen_weights(
+                    moving_norm,
+                    current_chunk_size,
+                    sigma_sq_mov,
+                    &bins_exp,
+                );
 
                 // Apply per-chunk OOB mask if provided.
                 let w_moving = match oob_mask {
@@ -208,12 +223,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
                                 .slice([start..end])
                                 .reshape([current_chunk_size, 1])
                     }
-                    None => w_moving,
+                    _ => w_moving,
                 };
 
                 joint_hist = joint_hist + w_fixed.transpose().matmul(w_moving);
             }
-
             joint_hist
         }
     }

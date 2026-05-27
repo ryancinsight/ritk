@@ -77,12 +77,14 @@ fn test_bspline_cr_registration_small() {
     let optimizer = AdamOptimizer::new(0.1);
 
     // Use fewer bins for speed (16 instead of 32)
+    // parzen_sigma in intensity units: bin_width = 1.0/15 ≈ 0.067 for 16 bins
     let metric = CorrelationRatio::new(
-        16,  // bins
-        0.0, // min
-        1.0, // max
-        1.0, // parzen_sigma
+        16,   // bins
+        0.0,  // min
+        1.0,  // max
+        0.07, // parzen_sigma (≈ bin_width for 16 bins over [0,1])
         CorrelationDirection::MovingGivenFixed,
+        &device,
     );
 
     let mut registration = Registration::new(optimizer, metric);

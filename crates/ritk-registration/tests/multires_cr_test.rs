@@ -60,12 +60,14 @@ fn test_multires_cr_registration() {
 
     // 3. Setup MultiRes with CR
     // Note: Image values are 0.0 to 1.0
+    // parzen_sigma in intensity units: bin_width = 1.0/31 ≈ 0.032 for 32 bins
     let metric = CorrelationRatio::new(
-        32,  // bins
-        0.0, // min
-        1.0, // max
-        1.0, // parzen_sigma
+        32,   // bins
+        0.0,  // min
+        1.0,  // max
+        0.03, // parzen_sigma (≈ bin_width for 32 bins over [0,1])
         CorrelationDirection::MovingGivenFixed,
+        &device,
     );
     let multires = MultiResolutionRegistration::new(metric);
 

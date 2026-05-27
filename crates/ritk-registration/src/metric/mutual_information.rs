@@ -249,6 +249,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 moving,
                 transform,
                 &self.interpolator,
+                None, // No caching — mask points are constant across iterations;
+                      // callers (e.g., CMA-ES optimizer) may pass Some(key)
+                      // directly to enable caching.
             )
         } else {
             self.histogram_calculator.compute_image_joint_histogram(
@@ -336,7 +339,8 @@ mod tests {
         let num_bins = 50;
 
         // Mattes specific configuration check
-        let m_mattes = MutualInformation::<B>::new_mattes(num_bins, 0.0, max_intensity, &Default::default());
+        let m_mattes =
+            MutualInformation::<B>::new_mattes(num_bins, 0.0, max_intensity, &Default::default());
         let expected_sigma = max_intensity / 50.0;
 
         assert_eq!(MutualInformationVariant::Mattes, m_mattes.variant);

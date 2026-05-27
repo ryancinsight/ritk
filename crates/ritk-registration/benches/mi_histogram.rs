@@ -32,8 +32,8 @@ fn bench_parzen_joint_histogram(c: &mut Criterion) {
     });
 
     // Also benchmark with independent moving range (elastix-style binning).
-    let histogram_sep =
-        let histogram_sep = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 8.0, &device).with_separate_moving_range(0.0, 255.0);
+    let histogram_sep = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 8.0, &device)
+        .with_separate_moving_range(0.0, 255.0);
 
     group.bench_function(
         "parzen_joint_histogram_1000pts_32bins_separate_range",

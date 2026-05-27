@@ -34,7 +34,7 @@
 //! - Lee, S. et al. (1997). Scattered data interpolation with multilevel
 //!   B-splines. *IEEE TVCG*, 3(3), 228–244.
 
-mod basis;
+pub mod basis;
 mod config;
 mod metric;
 mod pyramid;

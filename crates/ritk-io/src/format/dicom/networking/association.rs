@@ -198,7 +198,7 @@ impl Association {
             let s = rsp.status().context("missing Status")?;
             let le = |tag: (u16,u16)| -> Option<u16> {
                 rsp.find_element(tag).filter(|e| e.value.len()>=2)
-                    .map(|e| u16::from_le_bytes([e.value[0],e.value[1]]))
+                    .map(|e| u16::from_le_bytes([e.value.as_bytes()[0],e.value.as_bytes()[1]]))
             };
             if let Some(v) = le((0x0000,0x1021)) { comp = v; }
             if let Some(v) = le((0x0000,0x1022)) { fail = v; }

@@ -161,6 +161,7 @@ impl Default for CmaMiConfig {
                 // terminates via max_generations or sigma_tol instead.
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
+                parallel_population: true,
                 record_history: false,
             },
             coarse_shrink: 8,
@@ -201,6 +202,7 @@ impl CmaMiConfig {
                 sigma_tol: 1e-8,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
+                parallel_population: true,
                 record_history: false,
             },
             coarse_shrink: 8,
@@ -232,6 +234,7 @@ impl CmaMiConfig {
                 sigma_tol: 1e-6,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
+                parallel_population: true,
                 record_history: false,
             },
             coarse_shrink: 16,
@@ -295,6 +298,7 @@ impl CmaMiConfig {
                 sigma_tol: 1e-8,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
+                parallel_population: true,
                 record_history: false,
             },
             coarse_shrink: 8,     // unused when pyramid_schedule is non-empty

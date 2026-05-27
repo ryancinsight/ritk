@@ -93,6 +93,7 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
+            parallel_population: false,
             record_history: false,
         },
         coarse_shrink: 4,
@@ -139,6 +140,7 @@ fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 42,
+            parallel_population: false,
             record_history: false,
         },
         coarse_shrink: 2, // mild shrink so 8×8×8 → 4×4×4 (mask still has foreground)

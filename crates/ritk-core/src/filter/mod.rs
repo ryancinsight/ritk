@@ -29,6 +29,7 @@ pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
 pub use bin_shrink::BinShrinkImageFilter;
 pub use cpr::{CprConfig, CprImageFilter};
+pub use cpr::{generate_path, generate_path_batch};
 pub use deconvolution::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };

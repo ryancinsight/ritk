@@ -47,6 +47,7 @@ use std::f64::consts::PI;
 
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Tensor, TensorData};
+use rayon::prelude::*;
 use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 
@@ -169,46 +170,59 @@ impl MultiStartMiRegistration {
 
         let device = fixed.data().device();
 
-        let mut best_mi = f64::NEG_INFINITY;
-        let mut best_transform = initial_transform.clone();
-        let mut best_start: usize = 0;
-
-        let mut per_start_mi: Vec<f64> = Vec::with_capacity(config.num_starts);
-        let mut per_start_iterations: Vec<usize> = Vec::with_capacity(config.num_starts);
-
-        let mut rng = config.seed;
-
         tracing::info!(
-            "MultiStartMiRegistration: beginning {} starts \
+            "MultiStartMiRegistration: beginning {} starts in parallel \
              (rot_σ = {:.4} rad, trans_σ = {:.2} mm)",
             config.num_starts,
             config.rotation_perturbation_rad,
             config.translation_perturbation_mm,
         );
 
-        for start_idx in 0..config.num_starts {
-            let start_transform = if start_idx == 0 {
-                initial_transform.clone()
-            } else {
-                perturb_rigid_transform(&initial_transform, config, &mut rng, &device)
-            };
+        // ── Phase 1: generate perturbed starts sequentially (µs per start) ──
+        // This avoids requiring RigidTransform to be Sync (Burn's OnceCell and
+        // internal FnOnce types do not implement Sync), while still costing only
+        // microseconds per start vs seconds-to-minutes per registration.
+        let mut rng = config.seed;
+        let start_transforms: Vec<(usize, RigidTransform<B, 3>)> = (0..config.num_starts)
+            .map(|start_idx| {
+                let t = if start_idx == 0 {
+                    initial_transform.clone()
+                } else {
+                    perturb_rigid_transform(&initial_transform, config, &mut rng, &device)
+                };
+                (start_idx, t)
+            })
+            .collect();
 
-            tracing::info!(
-                "MultiStartMiRegistration: start {}/{} — launching MI registration",
-                start_idx + 1,
-                config.num_starts,
-            );
+        // ── Phase 2: run registrations in parallel ───────────────────────────
+        // Each task owns its RigidTransform (moved, not shared). Only read-only
+        // shared references to fixed/moving images are captured.
+        let results: Vec<(usize, RigidTransform<B, 3>, f64, usize)> = start_transforms
+            .into_par_iter()
+            .map(|(start_idx, start_transform)| {
+                let (final_transform, result) = GlobalMiRegistration::register_rigid_full(
+                    fixed,
+                    moving,
+                    start_transform,
+                    &config.base_config,
+                );
 
-            let (final_transform, result) = GlobalMiRegistration::register_rigid_full(
-                fixed,
-                moving,
-                start_transform,
-                &config.base_config,
-            );
+                let mi = result.final_mi;
+                let total_iters: usize = result.iterations_per_level.iter().sum();
 
-            let mi = result.final_mi;
-            let total_iters: usize = result.iterations_per_level.iter().sum();
+                (start_idx, final_transform, mi, total_iters)
+            })
+            .collect();
 
+        // ── Sequential reduction: find best result ────────────────────────────
+        let mut best_mi = f64::NEG_INFINITY;
+        let mut best_transform = initial_transform.clone();
+        let mut best_start: usize = 0;
+
+        let mut per_start_mi: Vec<f64> = vec![0.0; config.num_starts];
+        let mut per_start_iterations: Vec<usize> = vec![0; config.num_starts];
+
+        for (start_idx, final_transform, mi, total_iters) in results {
             tracing::info!(
                 "MultiStartMiRegistration: start {}/{} — final MI = {:.6e}, \
                  total iterations = {}",
@@ -218,8 +232,8 @@ impl MultiStartMiRegistration {
                 total_iters,
             );
 
-            per_start_mi.push(mi);
-            per_start_iterations.push(total_iters);
+            per_start_mi[start_idx] = mi;
+            per_start_iterations[start_idx] = total_iters;
 
             if mi > best_mi {
                 best_mi = mi;

@@ -64,10 +64,10 @@ fn test_command_group_length() {
         .find_element(TAG_CMD_GROUP_LENGTH)
         .expect("group length element present");
     let group_length = u32::from_le_bytes([
-        gl_elem.value[0],
-        gl_elem.value[1],
-        gl_elem.value[2],
-        gl_elem.value[3],
+        gl_elem.value.as_bytes()[0],
+        gl_elem.value.as_bytes()[1],
+        gl_elem.value.as_bytes()[2],
+        gl_elem.value.as_bytes()[3],
     ]);
 
     let mut body_len = 0usize;

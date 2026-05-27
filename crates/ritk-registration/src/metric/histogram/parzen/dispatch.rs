@@ -1,0 +1,228 @@
+//! Backend-dispatched joint histogram computation.
+//!
+//! When the `direct-parzen` feature is enabled, the **first** dispatch method
+//! (`compute_joint_histogram_dispatch`) extracts tensor data to host memory and
+//! calls the direct sparse-loop path (~6× faster on CPU). The **cached** dispatch
+//! methods provide two paths:
+//!
+//! - `compute_joint_histogram_from_cache_dispatch` — always uses the tensor matmul
+//!   path to preserve the autodiff gradient tape (needed by RSGD).
+//! - `compute_joint_histogram_from_cache_sparse_dispatch` — uses the sparse
+//!   W_fixed^T representation for derivative-free backends (CMA-ES), eliminating
+//!   the `0..num_bins` inner scan and the `if w_f > 0.0` branch (~3× faster than
+//!   the dense cache path on CPU).
+//!
+//! # Design
+//!
+//! Burn's trait system doesn't support runtime backend-type checks. Instead,
+//! we use compile-time feature flags. When `direct-parzen` is enabled, the
+//! non-cached path extracts tensor data to host and calls the direct loop.
+//! This is safe for derivative-free backends (CMA-ES uses `B::InnerBackend`).
+//!
+//! The `from_cache` tensor path must preserve the autodiff tape because RSGD
+//! passes `moving_values` that carry transform-parameter gradients. Calling
+//! `into_data()` there would sever the tape and produce zero gradients.
+//! The W_fixed^T cache still provides the key performance benefit (fixed-image
+//! Parzen weights computed only once per RSGD run).
+//!
+//! The sparse dispatch path is called only from the chunked compute_image path
+//! when a sparse W_fixed^T cache is available. It extracts moving values to
+//! host memory (safe for CMA-ES which uses `B::InnerBackend`) and calls the
+//! sparse inner loop.
+
+use burn::tensor::backend::Backend;
+use burn::tensor::Tensor;
+
+use super::ParzenJointHistogram;
+
+/// Normalize intensities to `[0, num_bins - 1]` and extract as a `Vec<f32>`.
+///
+/// This is the data-extraction bridge: it applies the same normalization as
+/// the tensor path (`val * scale + offset`, clamped) but returns a host-side
+/// `Vec<f32>` suitable for the direct computation functions.
+#[cfg(feature = "direct-parzen")]
+pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
+    values: &Tensor<B, 1>,
+    min_intensity: f32,
+    max_intensity: f32,
+    num_bins: usize,
+) -> Vec<f32> {
+    let num_bins_f = (num_bins - 1) as f32;
+    let scale = num_bins_f / (max_intensity - min_intensity);
+    let offset = -min_intensity * scale;
+    let normalized = (values.clone() * scale + offset).clamp(0.0, num_bins_f);
+    let data = normalized.into_data();
+    data.as_slice::<f32>().expect("f32 data").to_vec()
+}
+
+/// Compute Parzen sigma² in bin-index units from intensity-space sigma.
+#[cfg(feature = "direct-parzen")]
+pub(in crate::metric::histogram) fn sigma_sq_in_bins(
+    sigma: f32,
+    min: f32,
+    max: f32,
+    num_bins: usize,
+) -> f32 {
+    let num_bins_f = (num_bins - 1) as f32;
+    let bin_width = (max - min) / num_bins_f.max(1.0);
+    let sigma_in_bins = sigma / bin_width.max(f32::EPSILON);
+    sigma_in_bins * sigma_in_bins
+}
+
+impl<B: Backend> ParzenJointHistogram<B> {
+    /// Compute joint histogram with backend-dispatched optimization.
+    ///
+    /// When `direct-parzen` is enabled, this attempts to use the direct
+    /// sparse-loop computation path for non-autodiff backends. The method
+    /// signature is backend-generic so it can be called from the same
+    /// `ParzenJointHistogram<B>` regardless of backend.
+    ///
+    /// For autodiff backends, the gradient tape must be preserved, so the
+    /// tensor matmul path is always used. For pure NdArray backends, the
+    /// direct path avoids all `[N, num_bins]` intermediate allocations.
+    #[cfg(feature = "direct-parzen")]
+    pub(crate) fn compute_joint_histogram_dispatch(
+        &self,
+        fixed: &Tensor<B, 1>,
+        moving: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
+    ) -> Tensor<B, 2> {
+        let [_n] = fixed.dims();
+        let num_bins = self.num_bins;
+        let device = fixed.device();
+
+        // Fixed-image normalization parameters
+        let fix_min = self.min_intensity;
+        let fix_max = self.max_intensity;
+        let fix_sigma = self.parzen_sigma;
+
+        // Moving-image normalization parameters
+        let mov_min = self.moving_min_intensity.unwrap_or(fix_min);
+        let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
+        let mov_sigma = self.moving_parzen_sigma.unwrap_or(fix_sigma);
+
+        let sigma_sq_fix = sigma_sq_in_bins(fix_sigma, fix_min, fix_max, num_bins);
+        let sigma_sq_mov = sigma_sq_in_bins(mov_sigma, mov_min, mov_max, num_bins);
+
+        // Extract normalized data for the direct path
+        let fixed_norm = normalize_and_extract(fixed, fix_min, fix_max, num_bins);
+        let moving_norm = normalize_and_extract(moving, mov_min, mov_max, num_bins);
+
+        // Extract OOB mask if present
+        let oob_vec: Option<Vec<f32>> = oob_mask.map(|m| {
+            m.clone()
+                .into_data()
+                .as_slice::<f32>()
+                .expect("f32 data")
+                .to_vec()
+        });
+        let oob_slice: Option<&[f32]> = oob_vec.as_deref();
+
+        let hist_data = super::direct::compute_joint_histogram_direct(
+            &fixed_norm,
+            &moving_norm,
+            num_bins,
+            sigma_sq_fix,
+            sigma_sq_mov,
+            oob_slice,
+        );
+        Tensor::from_data(hist_data, &device)
+    }
+
+    /// Compute joint histogram from cached W_fixed^T with backend dispatch.
+    ///
+    /// Despite the `direct-parzen` feature being enabled, this method always uses
+    /// the tensor matmul path rather than the sparse-loop host extraction.
+    ///
+    /// **Rationale**: `moving_values` may carry an autodiff gradient tape (RSGD
+    /// registration path with `Autodiff<B>` backend). Calling `into_data()` on it
+    /// severs the tape, causing zero gradients and preventing convergence. The
+    /// fixed-image cache (`w_fixed_transposed`) already provides the key perf
+    /// benefit: Parzen weights for the constant fixed image are computed only once.
+    /// The direct sparse-loop optimization (`compute_joint_histogram_from_cache_direct`)
+    /// is only safe for derivative-free backends (CMA-ES uses `B::InnerBackend`),
+    /// which take the `compute_joint_histogram_dispatch` path instead.
+    #[cfg(feature = "direct-parzen")]
+    pub(crate) fn compute_joint_histogram_from_cache_dispatch(
+        &self,
+        w_fixed_transposed: &Tensor<B, 2>,
+        moving_values: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
+    ) -> Tensor<B, 2> {
+        // Always use the tensor path so autodiff gradient tape is preserved.
+        self.compute_joint_histogram_from_cache(w_fixed_transposed, moving_values, oob_mask)
+    }
+
+    /// Compute joint histogram from a sparse W_fixed^T cache (direct CPU path).
+    ///
+    /// This is the sparse-optimized variant for derivative-free backends (CMA-ES).
+    /// It extracts moving values to host memory and calls
+    /// `compute_joint_histogram_from_cache_sparse`, which iterates only over
+    /// the ~7 non-zero fixed-image bins per sample instead of all `num_bins`.
+    /// Eliminates the `if w_f > 0.0` branch and the strided memory access
+    /// pattern of the dense cache path.
+    ///
+    /// **Only safe for derivative-free backends** — calling `into_data()` on
+    /// `moving_values` severs any autodiff tape. The tensor-path
+    /// `compute_joint_histogram_from_cache_dispatch` must be used for RSGD.
+    #[cfg(feature = "direct-parzen")]
+    pub(crate) fn compute_joint_histogram_from_cache_sparse_dispatch(
+        &self,
+        sparse_w_fixed: &super::direct::SparseWFixedT,
+        moving_values: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
+    ) -> Tensor<B, 2> {
+        let num_bins = self.num_bins;
+        let device = moving_values.device();
+
+        let mov_min = self.moving_min_intensity.unwrap_or(self.min_intensity);
+        let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
+        let mov_sigma = self.moving_parzen_sigma.unwrap_or(self.parzen_sigma);
+
+        let sigma_sq_mov = sigma_sq_in_bins(mov_sigma, mov_min, mov_max, num_bins);
+
+        let moving_norm = normalize_and_extract(moving_values, mov_min, mov_max, num_bins);
+
+        let oob_vec: Option<Vec<f32>> = oob_mask.map(|m| {
+            m.clone()
+                .into_data()
+                .as_slice::<f32>()
+                .expect("f32 data")
+                .to_vec()
+        });
+        let oob_slice: Option<&[f32]> = oob_vec.as_deref();
+
+        let hist_data = super::direct::compute_joint_histogram_from_cache_sparse(
+            sparse_w_fixed,
+            &moving_norm,
+            num_bins,
+            sigma_sq_mov,
+            oob_slice,
+        );
+        Tensor::from_data(hist_data, &device)
+    }
+
+    /// Fallback: always use the tensor matmul path.
+    ///
+    /// This is used when the `direct-parzen` feature is disabled, ensuring
+    /// the standard tensor-based computation works with any backend.
+    #[cfg(not(feature = "direct-parzen"))]
+    pub(crate) fn compute_joint_histogram_dispatch(
+        &self,
+        fixed: &Tensor<B, 1>,
+        moving: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
+    ) -> Tensor<B, 2> {
+        self.compute_joint_histogram(fixed, moving, oob_mask)
+    }
+
+    #[cfg(not(feature = "direct-parzen"))]
+    pub(crate) fn compute_joint_histogram_from_cache_dispatch(
+        &self,
+        w_fixed_transposed: &Tensor<B, 2>,
+        moving_values: &Tensor<B, 1>,
+        oob_mask: Option<&Tensor<B, 1>>,
+    ) -> Tensor<B, 2> {
+        self.compute_joint_histogram_from_cache(w_fixed_transposed, moving_values, oob_mask)
+    }
+}

@@ -3,12 +3,15 @@ use burn::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use super::cache::HistogramCache;
+use super::cache::{HistogramCache, MaskedHistogramCache};
 
 pub(crate) mod compute;
 pub(crate) mod compute_image;
+pub(crate) mod direct;
+pub(crate) mod dispatch;
 pub(crate) mod oob;
-
+#[allow(dead_code)]
+pub(crate) mod sparse;
 #[cfg(test)]
 mod tests;
 
@@ -38,9 +41,19 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// `new()` and reused across all Parzen weight computations. Eliminates 2
     /// GPU kernel dispatches (arange + int→float cast) per
     /// `compute_joint_histogram*` call.
+    ///
+    /// Wrapped in `Option<Tensor<B, 2>>` rather than `Tensor<B, 2>` solely for
+    /// backward compatibility with the `Clone` derive: constructing a
+    /// `ParzenJointHistogram` before `new()` sets this field would require a
+    /// dummy tensor, but `Option` allows `None` as the default during struct
+    /// literal construction in test or deserialization contexts. In practice
+    /// the field is always `Some` after [`new()`](Self::new) initializes it,
+    /// so `.unwrap()` calls on this field are safe.
     bins_exp: Option<Tensor<B, 2>>,
-    /// Cache for fixed image points to avoid recomputation
+    /// Cache for fixed image points to avoid recomputation (image-grid path).
     pub(super) cache: Arc<Mutex<Option<HistogramCache<B>>>>,
+    /// Cache for the masked joint histogram path (Strategy 2: caller-supplied key).
+    pub(super) masked_cache: Arc<Mutex<Option<MaskedHistogramCache<B>>>>,
     /// Phantom data
     _phantom: PhantomData<B>,
 }
@@ -68,6 +81,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             moving_parzen_sigma: None,
             bins_exp: Some(compute::arange_bins(num_bins, device)),
             cache: Arc::new(Mutex::new(None)),
+            masked_cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
         }
     }

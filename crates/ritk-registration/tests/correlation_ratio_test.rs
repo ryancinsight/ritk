@@ -30,13 +30,20 @@ fn test_cr_perfect_match() {
     let transform = TranslationTransform::new(Tensor::zeros([3], &device));
 
     // Test MovingGivenFixed
-    let metric =
-        CorrelationRatio::<B>::new(32, 0.0, 1.0, 1.0, CorrelationDirection::MovingGivenFixed);
+    // parzen_sigma in intensity units: bin_width = range/(bins-1) = 1.0/31 ≈ 0.032
+    let metric = CorrelationRatio::<B>::new(
+        32,
+        0.0,
+        1.0,
+        0.03,
+        CorrelationDirection::MovingGivenFixed,
+        &device,
+    );
 
     let loss = metric.forward(&image, &image, &transform);
     let loss_val = loss.into_scalar();
-
     println!("Perfect match loss (MovingGivenFixed): {}", loss_val);
+
     // Correlation Ratio should be close to 1.0 for perfect functional dependence (Y = f(X))
     // Since we return negative CR, it should be close to -1.0
     assert!(
@@ -55,19 +62,22 @@ fn test_cr_shift_sensitivity() {
     let data2: Vec<f32> = (0..count)
         .map(|x| ((x + 5) % count) as f32 / (count as f32))
         .collect();
-
     let fixed = create_test_image(data1, [size, size, size]);
     let moving = create_test_image(data2, [size, size, size]);
 
     let device = Default::default();
     let transform = TranslationTransform::new(Tensor::zeros([3], &device));
 
-    let metric =
-        CorrelationRatio::<B>::new(32, 0.0, 1.0, 1.0, CorrelationDirection::MovingGivenFixed);
-
+    let metric = CorrelationRatio::<B>::new(
+        32,
+        0.0,
+        1.0,
+        0.03,
+        CorrelationDirection::MovingGivenFixed,
+        &device,
+    );
     let loss_shifted = metric.forward(&fixed, &moving, &transform);
     let loss_shifted_val = loss_shifted.into_scalar();
-
     println!("Shifted loss: {}", loss_shifted_val);
 
     // Compare with perfect match

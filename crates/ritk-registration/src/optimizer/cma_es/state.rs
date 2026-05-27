@@ -28,6 +28,11 @@ pub struct CmaEsConfig {
     pub ftol: f64,
     /// Deterministic explicitly injected seed.
     pub seed: u64,
+    /// Whether to evaluate the population in parallel using rayon.
+    /// When `true`, the λ candidates per generation are evaluated concurrently
+    /// across CPU cores. The objective function `f` must be `Sync`.
+    /// Default: `false` (sequential evaluation, backward-compatible).
+    pub parallel_population: bool,
     /// Deterministic vector flag.
     pub record_history: bool,
 }
@@ -41,6 +46,7 @@ impl Default for CmaEsConfig {
             sigma_tol: 1e-12,
             ftol: 1e-15,
             seed: 0xcafe_babe_dead_beef,
+            parallel_population: false,
             record_history: false,
         }
     }

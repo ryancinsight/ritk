@@ -405,6 +405,7 @@ fn cma_mi_register_rigid_with_mask_accepts_full_foreground_mask() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 42,
+            parallel_population: false,
             record_history: false,
         },
         coarse_shrink: 4,

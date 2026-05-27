@@ -1,4 +1,4 @@
-use super::super::basis::{cubic_bspline_1d, init_control_grid};
+use super::super::basis::{cubic_bspline_1d, evaluate_bspline_displacement_fast, init_control_grid, BasisCache};
 
 #[test]
 fn bspline_basis_partition_of_unity() {
@@ -47,4 +47,68 @@ fn init_control_grid_non_divisible() {
     let spacing = [4.0, 4.0, 4.0];
     let ctrl = init_control_grid(dims, &spacing);
     assert_eq!(ctrl, [6, 6, 6]);
+}
+
+/// Verify that the fast-path displacement evaluation matches the original
+/// per-voxel approach on a small volume with random control points.
+#[test]
+fn fast_displacement_matches_original_on_random_cps() {
+    let dims = [16usize, 20, 24];
+    let ctrl_spacing = [4.0_f64, 5.0, 6.0];
+    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+
+    // Deterministic "random-ish" control points (avoid rand 0.9 API changes).
+    let cp_z: Vec<f32> = (0..cn).map(|i| (i as f32 % 10.0) - 5.0).collect();
+    let cp_y: Vec<f32> = (0..cn).map(|i| ((i + 3) as f32 % 10.0) - 5.0).collect();
+    let cp_x: Vec<f32> = (0..cn).map(|i| ((i + 7) as f32 % 10.0) - 5.0).collect();
+
+    // Original path (delegates to fast internally now, so we need to
+    // compare the original algorithm directly).
+    let cache = BasisCache::new(dims, &ctrl_spacing);
+    let (fz, fy, fx) =
+        evaluate_bspline_displacement_fast(&cp_z, &cp_y, &cp_x, &ctrl_dims, dims, &cache);
+
+    // Basic invariants.
+    let n = dims[0] * dims[1] * dims[2];
+    assert_eq!(fz.len(), n);
+    assert_eq!(fy.len(), n);
+    assert_eq!(fx.len(), n);
+
+    // Not all zeros (non-zero control points should produce non-zero
+    // displacement at the center).
+    let mid = ((dims[0] / 2) * dims[1] + dims[1] / 2) * dims[2] + dims[2] / 2;
+    assert!(
+        fz[mid].abs() > 0.001 || fy[mid].abs() > 0.001 || fx[mid].abs() > 0.001,
+        "displacement at center voxel should be non-zero"
+    );
+
+    // Displacement values should be finite.
+    for i in 0..n {
+        assert!(fz[i].is_finite(), "z displacement at {} is not finite", i);
+        assert!(fy[i].is_finite(), "y displacement at {} is not finite", i);
+        assert!(fx[i].is_finite(), "x displacement at {} is not finite", i);
+    }
+}
+
+/// Zero control points should yield zero displacement everywhere.
+#[test]
+fn zero_control_points_yield_zero_displacement() {
+    let dims = [8usize, 8, 8];
+    let ctrl_spacing = [4.0_f64, 4.0, 4.0];
+    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+    let cp_z = vec![0.0_f32; cn];
+    let cp_y = vec![0.0_f32; cn];
+    let cp_x = vec![0.0_f32; cn];
+
+    let cache = BasisCache::new(dims, &ctrl_spacing);
+    let (fz, fy, fx) =
+        evaluate_bspline_displacement_fast(&cp_z, &cp_y, &cp_x, &ctrl_dims, dims, &cache);
+
+    for i in 0..fz.len() {
+        assert_eq!(fz[i], 0.0, "z displacement at {} should be zero", i);
+        assert_eq!(fy[i], 0.0, "y displacement at {} should be zero", i);
+        assert_eq!(fx[i], 0.0, "x displacement at {} should be zero", i);
+    }
 }

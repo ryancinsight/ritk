@@ -1,8 +1,8 @@
 //! B-Spline FFD registration engine.
 
-use super::basis::{evaluate_bspline_displacement, init_control_grid};
+use super::basis::{evaluate_bspline_displacement, evaluate_bspline_displacement_fast, init_control_grid, BasisCache};
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
-use super::metric::{compute_metric_gradient, compute_ncc};
+use super::metric::{compute_metric_gradient_fast, compute_ncc};
 use super::pyramid::refine_control_grid;
 use super::regularization::bending_energy_gradient;
 use crate::deformable_field_ops::warp_image;
@@ -89,17 +89,21 @@ impl BSplineFFDRegistration {
                 "BSpline FFD: starting level"
             );
 
+            // Pre-compute basis cache once per level (dims & ctrl_spacing
+            // are constant for all iterations at this level).
+            let basis_cache = BasisCache::new(dims, &ctrl_spacing);
+
             let mut prev_metric = f64::NEG_INFINITY;
 
             for iter in 0..config.max_iterations_per_level {
                 // 1. Evaluate dense displacement from current control points.
-                let (disp_z, disp_y, disp_x) = evaluate_bspline_displacement(
+                let (disp_z, disp_y, disp_x) = evaluate_bspline_displacement_fast(
                     &cp_z,
                     &cp_y,
                     &cp_x,
                     &ctrl_dims,
-                    &ctrl_spacing,
                     dims,
+                    &basis_cache,
                 );
 
                 // 2. Warp moving image.
@@ -125,13 +129,13 @@ impl BSplineFFDRegistration {
                 final_metric = ncc;
 
                 // 5. Compute metric gradient w.r.t. control points.
-                let (grad_z, grad_y, grad_x) = compute_metric_gradient(
+                let (grad_z, grad_y, grad_x) = compute_metric_gradient_fast(
                     fixed,
                     &warped,
                     &ctrl_dims,
-                    &ctrl_spacing,
                     dims,
                     spacing,
+                    &basis_cache,
                 );
 
                 // 6. Compute bending-energy gradient w.r.t. control points.

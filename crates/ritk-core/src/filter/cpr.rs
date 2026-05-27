@@ -49,6 +49,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 #[path = "cpr_helpers.rs"]
 pub(super) mod cpr_helpers;
 pub(super) use cpr_helpers::*;
+pub use cpr_helpers::{generate_path, generate_path_batch};
 
 /// Minimum number of control points required for CPR.
 pub const CPR_MIN_CONTROL_POINTS: usize = 2;
@@ -140,7 +141,7 @@ impl CprImageFilter {
         let half_width = self.config.cross_section_half_width;
 
         // ── 1. Generate arc-length-parameterised path ──────────────────────────
-        let dense_pts = generate_path(&self.control_points, num_path * CPR_DENSE_FACTOR);
+        let dense_pts = generate_path_batch(&self.control_points, num_path * CPR_DENSE_FACTOR);
 
         let mut arc_lengths = vec![0.0_f64; dense_pts.len()];
         for i in 1..dense_pts.len() {

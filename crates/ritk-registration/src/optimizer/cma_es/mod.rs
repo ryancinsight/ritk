@@ -55,6 +55,8 @@
 pub(crate) mod math;
 pub mod state;
 
+use rayon::prelude::*;
+
 use math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
 pub use state::{CmaEsConfig, CmaEsResult, StopReason};
 /// (μ/μ_w, λ)-CMA-ES optimizer.
@@ -112,7 +114,7 @@ impl CmaEsOptimizer {
     /// [`CmaEsResult`] containing the best solution and convergence diagnostics.
     pub fn run<F>(&self, f: F, x0: &[f64]) -> CmaEsResult
     where
-        F: Fn(&[f64]) -> f64,
+        F: Fn(&[f64]) -> f64 + Sync,
     {
         let n = x0.len();
         assert!(n >= 1, "Problem dimension must be ≥ 1");
@@ -170,7 +172,7 @@ impl CmaEsOptimizer {
         // Population buffers (pre-allocated 1D arrays to prevent inner-loop heap fragmentation)
         let mut zs = vec![0.0_f64; lambda * n];
         let mut xs = vec![0.0_f64; lambda * n];
-        let mut fvals = vec![(0.0_f64, 0usize); lambda];
+        let mut fvals = vec![(0.0_f64, 0_usize); lambda];
 
         let mut best_x = mean.clone();
         let mut best_f = f(&best_x);
@@ -230,9 +232,22 @@ impl CmaEsOptimizer {
             }
 
             // 2. Evaluate and rank
-            for k in 0..lambda {
-                let x_slice = &xs[k * n..(k + 1) * n];
-                fvals[k] = (f(x_slice), k);
+            if self.config.parallel_population {
+                // Parallel evaluation across rayon threads — each candidate
+                // evaluation is independent (read-only access to the objective
+                // closure's captured state).  The objective must be Sync.
+                fvals
+                    .par_iter_mut()
+                    .enumerate()
+                    .for_each(|(k, entry)| {
+                        let x_slice = &xs[k * n..(k + 1) * n];
+                        *entry = (f(x_slice), k);
+                    });
+            } else {
+                for k in 0..lambda {
+                    let x_slice = &xs[k * n..(k + 1) * n];
+                    fvals[k] = (f(x_slice), k);
+                }
             }
             fvals.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -399,7 +414,7 @@ impl CmaEsOptimizer {
     /// The best [`CmaEsResult`] found across all runs.
     pub fn run_ipop<F>(&self, f: F, x0: &[f64], max_restarts: usize) -> CmaEsResult
     where
-        F: Fn(&[f64]) -> f64,
+        F: Fn(&[f64]) -> f64 + Sync,
     {
         let n = x0.len();
         let base_lambda = if self.config.lambda > 0 {

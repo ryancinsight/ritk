@@ -1,3 +1,61 @@
+## Sprint 312 (0.50.74) — Parzen Benchmark Verification + Cache Dispatch Hardening
+
+- [x] PERF-312-01: Parallel sparse cache build with rayon in `direct/mod.rs`:
+  - [x] `par_iter_mut().enumerate().for_each()` replaces sequential loop
+  - [x] `Vec::with_capacity(7)` pre-allocation for sparse cache entries
+  - [x] Benchmark: 3.94 ms → 2.33 ms (41% improvement)
+- [x] MEM-312-01: Vec pre-allocation in `build_sparse_w_fixed_transposed`
+- [x] FIX-312-01: Eliminated 5 `non_snake_case` warnings
+  - [x] `compute_image.rs`: `if/else { None }` → `.then(|| ...).flatten()`
+  - [x] `compute.rs`: `None =>` → `_ =>`
+- [x] ARCH-312-01: Masked-path caching with caller-supplied cache key
+  - [x] New `MaskedHistogramCache<B>` struct in `cache.rs`
+  - [x] `compute_masked_joint_histogram` accepts `cache_key: Option<u64>`
+  - [x] Sparse cache lazily built for masked path (CMA-ES)
+  - [x] `mutual_information.rs` call site updated to pass `None`
+- [x] STR-312-01: `masked.rs` → `masked/mod.rs` + `masked/masked_chunked.rs`
+- [x] 3 new tests for masked-path caching
+- [x] Release-mode benchmarks verified with actual numbers
+- [x] CHANGELOG.md updated
+- [x] OPTIMIZATION.md updated (Sprint 312 section + architecture decision)
+- [x] gap_audit.md updated
+
+## Sprint 311 (0.50.73) — Direct Parzen Inner-Loop Optimization + Lazy Sparse Cache
+
+- [x] PERF-311-01: Inner-loop micro-optimizations in `direct/mod.rs`:
+  - [x] OPT-1: Row base pointers (`Vec<*mut f32>`) — replace `a * num_bins + b` multiply with pointer addition
+  - [x] OPT-2: Hoisted moving exp() — pre-compute moving weights before fixed-weight loop (49 → 14 exp() per sample for 7×7 window)
+  - [x] OPT-3: Unchecked histogram access (`get_unchecked_mut`) — bin indices already clamped, remove bounds check
+  - [x] OPT-4: Same OPT-2 hoisting applied to `compute_joint_histogram_from_cache_sparse` (CMA-ES hot loop)
+  - [x] OPT-5: Stack-allocated `StackWeights { weights: [f32; 7], len: usize }` — zero heap allocation per sample
+- [x] MEM-311-01: Lazy sparse W_fixed^T cache construction — `HistogramCache.fixed_norm` stores normalized values (~128 KB); sparse cache (~2 MB) built on first CMA-ES access; peak memory ~6.5 MB → ~4.1 MB
+- [x] STR-311-01: Cache-matching deduplication — `cache_matches_image()` shared helper replaces 3 copies
+- [x] TODO-311-01: Masked-path caching TODO comments at both `compute_joint_histogram_dispatch` call sites in `masked.rs`
+- [x] Fixed clippy `op_ref` and `unnecessary_unwrap` warnings in `compute_image.rs`
+- [x] 7 new tests: `direct_row_base_pointers_correct`, `stack_weights_correct`, `direct_large_volume_matches_dense`, `sparse_cache_large_volume_matches_direct`, `direct_oob_partial_mask`, `lazy_sparse_cache_built_on_first_access`, `chunked_sparse_path_matches_nonchunked`
+- [x] `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
+- [x] Structural violations: ZERO files > 500 lines
+- [x] CHANGELOG.md updated (0.50.73)
+- [x] OPTIMIZATION.md updated (Sprint 311 section + 2 architecture decisions)
+- [x] gap_audit.md updated
+- [x] checklist.md updated
+- [x] backlog.md updated
+
+## Sprint 310 (0.50.71) — RSGD Gradient Fix + Test Infrastructure Hardening
+- [x] FIX-310-01: `dispatch.rs` `compute_joint_histogram_from_cache_dispatch` — delegate to tensor path unconditionally (RSGD autodiff tape severed by `.into_data()`)
+- [x] TEST-310-01: `.config/nextest.toml` — all four heavy-test override groups unified to `period="600s", terminate-after=5` (→ 3000s); Run 1 had 14 timeouts (ta=2); Run 2 had 11 timeouts (ta=3, all groups hit ceiling simultaneously under CPU contention); Run 3 in progress (ta=5)
+- [x] TEST-310-02: `tests_clahe.rs` — remove dead `use super::*;` import
+- [x] `dispatch.rs` module-level docstring updated
+- [x] `cargo check --workspace`: 0 errors, 0 warnings
+- [x] `translation_recovery_shifted_gaussian`: 39 iterations, StepConvergence, loss −0.219 → −0.521
+- [x] `cargo nextest run --workspace --no-fail-fast`: 4492 passed, 4 timed out (environment-constrained, 0 logic failures), 24 skipped — Sprint 310 VERIFIED
+- [x] Structural violations: ZERO files > 500 lines (max 477 lines)
+- [x] CHANGELOG.md updated (0.50.71)
+- [x] backlog.md updated (Sprint 310 complete)
+- [x] gap_audit.md updated
+- [x] checklist.md updated
+
 ## Sprint 300 (0.50.70) — Structural Partitions + MI Inner-Loop Optimization + Bug Fix
 - [x] STR-300-01: Partition `dimse.rs` (516→437+130+124) into `dimse/mod.rs`, `factory.rs`, `tests.rs`
 - [x] STR-300-02: Partition 4 near-limit files: `atlas/mod.rs` (484→283), `parzen/compute.rs` (483→212+288), `tests_clahe.rs` (480→279+225), `dicom_rs.rs` (478→154+341)

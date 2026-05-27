@@ -1,6 +1,6 @@
 //! NCC similarity metric and its gradient w.r.t. control-point displacements.
 
-use super::basis::cubic_bspline_1d;
+use super::basis::BasisCache;
 use crate::deformable_field_ops::{compute_gradient, flat};
 
 /// Compute global normalized cross-correlation between two images.
@@ -64,6 +64,7 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
 /// ```text
 /// ∂NCC/∂φ_d(x) = (∂ρ/∂W(x)) · ∇_d M_warped(x)
 /// ```
+#[allow(dead_code)]
 pub(super) fn compute_metric_gradient(
     fixed: &[f32],
     warped: &[f32],
@@ -71,6 +72,22 @@ pub(super) fn compute_metric_gradient(
     ctrl_spacing: &[f64; 3],
     dims: [usize; 3],
     spacing: [f64; 3],
+) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    let cache = BasisCache::new(dims, ctrl_spacing);
+    compute_metric_gradient_fast(fixed, warped, ctrl_dims, dims, spacing, &cache)
+}
+
+/// Compute the gradient of NCC w.r.t. control-point displacements using a
+/// pre-computed [`BasisCache`].
+///
+/// See [`compute_metric_gradient`] for the mathematical derivation.
+pub(super) fn compute_metric_gradient_fast(
+    fixed: &[f32],
+    warped: &[f32],
+    ctrl_dims: &[usize; 3],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    cache: &BasisCache,
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
@@ -120,67 +137,89 @@ pub(super) fn compute_metric_gradient(
     };
     let inv_sigma_w = if sigma_w > 1e-12 { 1.0 / sigma_w } else { 0.0 };
 
+    // Interior ranges.
+    let (iz_lo, iz_hi) = cache.interior_z_range(cnz);
+    let (iy_lo, iy_hi) = cache.interior_y_range(cny);
+    let (ix_lo, ix_hi) = cache.interior_x_range(cnx);
+
     for iz in 0..nz {
-        let uz = iz as f64 / ctrl_spacing[0] + 1.0;
-        let kz = uz.floor() as isize - 1;
-        let tz = uz - (kz + 1) as f64;
-        let bz = cubic_bspline_1d(tz);
+        let kz = cache.z.k[iz];
+        let bz = &cache.z.b[iz];
 
         for iy in 0..ny {
-            let uy = iy as f64 / ctrl_spacing[1] + 1.0;
-            let ky = uy.floor() as isize - 1;
-            let ty = uy - (ky + 1) as f64;
-            let by = cubic_bspline_1d(ty);
+            let ky = cache.y.k[iy];
+            let by = &cache.y.b[iy];
 
             for ix in 0..nx {
-                let ux = ix as f64 / ctrl_spacing[2] + 1.0;
-                let kx = ux.floor() as isize - 1;
-                let tx = ux - (kx + 1) as f64;
-                let bx = cubic_bspline_1d(tx);
+                let kx = cache.x.k[ix];
+                let bx = &cache.x.b[ix];
 
                 let fi = flat(iz, iy, ix, ny, nx);
 
                 let f_tilde = fixed[fi] as f64 - mean_f;
                 let w_tilde = warped[fi] as f64 - mean_w;
 
-                // ∂ρ/∂W(x) for the global NCC.
                 let drho_dw =
                     inv_sigma_w * (f_tilde * inv_n_sigma_f - rho * w_tilde * inv_n_sigma_w);
 
-                // Voxel-wise displacement gradient = drho_dw * ∇(warped).
                 let vg_z = drho_dw * gw_z[fi] as f64;
                 let vg_y = drho_dw * gw_y[fi] as f64;
                 let vg_x = drho_dw * gw_x[fi] as f64;
 
-                // Splatting: accumulate onto control points weighted by basis.
-                for az in 0..4isize {
-                    let ciz = kz + az;
-                    if ciz < 0 || ciz >= cnz as isize {
-                        continue;
-                    }
-                    let ciz = ciz as usize;
-                    let wz = bz[az as usize];
+                // Interior: all three axes in-bounds → skip bounds checks.
+                let interior = iz >= iz_lo && iz < iz_hi
+                    && iy >= iy_lo && iy < iy_hi
+                    && ix >= ix_lo && ix < ix_hi;
 
-                    for ay in 0..4isize {
-                        let ciy = ky + ay;
-                        if ciy < 0 || ciy >= cny as isize {
-                            continue;
+                if interior {
+                    for az in 0..4usize {
+                        let ciz = (kz + az as isize) as usize;
+                        let wz = bz[az];
+                        for ay in 0..4usize {
+                            let ciy = (ky + ay as isize) as usize;
+                            let wzy = wz * by[ay];
+                            let ci_base = flat(ciz, ciy, 0, cny, cnx);
+                            let kxu = kx as usize;
+                            let w0 = wzy * bx[0];
+                            let w1 = wzy * bx[1];
+                            let w2 = wzy * bx[2];
+                            let w3 = wzy * bx[3];
+                            grad_cz[ci_base + kxu] += w0 * vg_z;
+                            grad_cz[ci_base + kxu + 1] += w1 * vg_z;
+                            grad_cz[ci_base + kxu + 2] += w2 * vg_z;
+                            grad_cz[ci_base + kxu + 3] += w3 * vg_z;
+                            grad_cy[ci_base + kxu] += w0 * vg_y;
+                            grad_cy[ci_base + kxu + 1] += w1 * vg_y;
+                            grad_cy[ci_base + kxu + 2] += w2 * vg_y;
+                            grad_cy[ci_base + kxu + 3] += w3 * vg_y;
+                            grad_cx[ci_base + kxu] += w0 * vg_x;
+                            grad_cx[ci_base + kxu + 1] += w1 * vg_x;
+                            grad_cx[ci_base + kxu + 2] += w2 * vg_x;
+                            grad_cx[ci_base + kxu + 3] += w3 * vg_x;
                         }
-                        let ciy = ciy as usize;
-                        let wzy = wz * by[ay as usize];
-
-                        for ax in 0..4isize {
-                            let cix = kx + ax;
-                            if cix < 0 || cix >= cnx as isize {
-                                continue;
+                    }
+                } else {
+                    // Boundary: bounds-check each control point.
+                    for az in 0..4isize {
+                        let ciz = kz + az;
+                        if ciz < 0 || ciz >= cnz as isize { continue; }
+                        let ciz = ciz as usize;
+                        let wz = bz[az as usize];
+                        for ay in 0..4isize {
+                            let ciy = ky + ay;
+                            if ciy < 0 || ciy >= cny as isize { continue; }
+                            let ciy = ciy as usize;
+                            let wzy = wz * by[ay as usize];
+                            for ax in 0..4isize {
+                                let cix = kx + ax;
+                                if cix < 0 || cix >= cnx as isize { continue; }
+                                let cix = cix as usize;
+                                let w = wzy * bx[ax as usize];
+                                let ci = flat(ciz, ciy, cix, cny, cnx);
+                                grad_cz[ci] += w * vg_z;
+                                grad_cy[ci] += w * vg_y;
+                                grad_cx[ci] += w * vg_x;
                             }
-                            let cix = cix as usize;
-                            let w = wzy * bx[ax as usize];
-
-                            let ci = flat(ciz, ciy, cix, cny, cnx);
-                            grad_cz[ci] += w * vg_z;
-                            grad_cy[ci] += w * vg_y;
-                            grad_cx[ci] += w * vg_x;
                         }
                     }
                 }

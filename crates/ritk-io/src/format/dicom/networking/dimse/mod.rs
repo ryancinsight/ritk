@@ -168,12 +168,76 @@ impl CommandVr {
 
 // ── Command element ───────────────────────────────────────────────────────────
 
+/// Value of a command element — small fixed-size values are stored inline
+/// without heap allocation (US=2 bytes, UL=4 bytes). Variable-length values
+/// (UI, AE, CS, etc.) use heap storage.
+#[derive(Debug, Clone)]
+pub enum CommandValue {
+    /// Inline storage for small fixed-size values.
+    /// Field 0 = bytes (only first `field 1` are valid), field 1 = actual length.
+    Inline([u8; 4], u8),
+    /// Variable-length values on the heap.
+    Heap(Vec<u8>),
+}
+
+impl CommandValue {
+    /// Create an inline US (unsigned short) value — zero allocation.
+    pub fn us(v: u16) -> Self {
+        let bytes = v.to_le_bytes();
+        Self::Inline([bytes[0], bytes[1], 0, 0], 2)
+    }
+
+    /// Create a UI (Unique Identifier) value: null-padded to even length.
+    pub fn ui(uid: &str) -> Self {
+        let len = uid.len();
+        let mut b = Vec::with_capacity(len + (len & 1));
+        b.extend_from_slice(uid.as_bytes());
+        if len % 2 != 0 {
+            b.push(0x00);
+        }
+        Self::Heap(b)
+    }
+
+    /// Create an AE (Application Entity) value: space-padded to even length.
+    pub fn ae(s: &str) -> Self {
+        let len = s.len();
+        let mut b = Vec::with_capacity(len + (len & 1));
+        b.extend_from_slice(s.as_bytes());
+        if len % 2 != 0 {
+            b.push(b' ');
+        }
+        Self::Heap(b)
+    }
+
+    /// View the value as a byte slice.
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Inline(bytes, len) => &bytes[..*len as usize],
+            Self::Heap(v) => v.as_slice(),
+        }
+    }
+
+    /// Length of the value in bytes.
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Inline(_, len) => *len as usize,
+            Self::Heap(v) => v.len(),
+        }
+    }
+}
+
+impl PartialEq for CommandValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
 /// A single command data element.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CommandElement {
     pub tag: (u16, u16),
     pub vr: CommandVr,
-    pub value: Vec<u8>,
+    pub value: CommandValue,
 }
 
 // ── DIMSE message ─────────────────────────────────────────────────────────────
@@ -187,31 +251,7 @@ pub struct DimseMessage {
     pub data_set: Option<Vec<u8>>,
 }
 
-// ── Value encoding helpers ────────────────────────────────────────────────────
-
-pub(crate) fn encode_us(v: u16) -> Vec<u8> {
-    v.to_le_bytes().to_vec()
-}
-
-pub(crate) fn encode_ui(uid: &str) -> Vec<u8> {
-    let mut b = uid.as_bytes().to_vec();
-    if b.len() % 2 != 0 {
-        b.push(0x00);
-    }
-    b
-}
-
-pub(crate) fn encode_ae(s: &str) -> Vec<u8> {
-    encode_str_pad(s)
-}
-
-pub(crate) fn encode_str_pad(s: &str) -> Vec<u8> {
-    let mut b = s.as_bytes().to_vec();
-    if b.len() % 2 != 0 {
-        b.push(b' ');
-    }
-    b
-}
+// ── Value decoding helpers ────────────────────────────────────────────────────
 
 pub(crate) fn decode_us(bytes: &[u8]) -> Option<u16> {
     (bytes.len() >= 2).then(|| u16::from_le_bytes([bytes[0], bytes[1]]))
@@ -291,7 +331,7 @@ impl DimseMessage {
             if elem.tag == TAG_CMD_GROUP_LENGTH {
                 continue;
             }
-            Self::encode_element_into(&mut body, elem.tag, elem.vr, &elem.value);
+            Self::encode_element_into(&mut body, elem.tag, elem.vr, elem.value.as_bytes());
         }
 
         // Encode the group-length element (always UL — long-form: 12 bytes overhead)
@@ -356,7 +396,7 @@ impl DimseMessage {
             elements.push(CommandElement {
                 tag: (group, element),
                 vr,
-                value: data[cursor..cursor + value_len].to_vec(),
+                value: CommandValue::Heap(data[cursor..cursor + value_len].to_vec()),
             });
             cursor += value_len;
         }
@@ -370,44 +410,44 @@ impl DimseMessage {
     /// CommandField from (0000,0100).
     pub fn command_field(&self) -> Option<CommandField> {
         self.find_element(TAG_COMMAND_FIELD)
-            .and_then(|e| decode_us(&e.value))
+            .and_then(|e| decode_us(e.value.as_bytes()))
             .and_then(CommandField::from_u16)
     }
 
     /// Message ID from (0000,0110).
     pub fn message_id(&self) -> Option<u16> {
         self.find_element(TAG_MESSAGE_ID)
-            .and_then(|e| decode_us(&e.value))
+            .and_then(|e| decode_us(e.value.as_bytes()))
     }
 
     /// Status from (0000,0900).
     pub fn status(&self) -> Option<u16> {
         self.find_element(TAG_STATUS)
-            .and_then(|e| decode_us(&e.value))
+            .and_then(|e| decode_us(e.value.as_bytes()))
     }
 
     /// Affected SOP Class UID from (0000,0002).
     pub fn affected_sop_class_uid(&self) -> Option<String> {
         self.find_element(TAG_AFFECTED_SOP_CLASS)
-            .map(|e| decode_ui(&e.value))
+            .map(|e| decode_ui(e.value.as_bytes()))
     }
 
     /// Move Destination AE title from (0000,0600).
     pub fn move_destination(&self) -> Option<String> {
         self.find_element(TAG_MOVE_DESTINATION)
-            .map(|e| decode_ae(&e.value))
+            .map(|e| decode_ae(e.value.as_bytes()))
     }
 
     /// Affected SOP Instance UID from (0000,1000).
     pub fn affected_sop_instance_uid(&self) -> Option<String> {
         self.find_element(TAG_AFFECTED_SOP_INSTANCE)
-            .map(|e| decode_ui(&e.value))
+            .map(|e| decode_ui(e.value.as_bytes()))
     }
 
     /// Command Data Set Type from (0000,0800).
     pub fn command_data_set_type(&self) -> Option<u16> {
         self.find_element(TAG_CMD_DATA_SET_TYPE)
-            .and_then(|e| decode_us(&e.value))
+            .and_then(|e| decode_us(e.value.as_bytes()))
     }
 
     pub fn find_element(&self, tag: (u16, u16)) -> Option<&CommandElement> {

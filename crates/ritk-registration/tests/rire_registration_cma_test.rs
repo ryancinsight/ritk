@@ -104,6 +104,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
+            parallel_population: false,
             record_history: false,
         },
         ..CmaMiConfig::default()
