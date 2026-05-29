@@ -77,7 +77,7 @@ fn test_neighborhood_rejects_noisy_voxel() {
     // Total admissible = 27 - 18 = 9 voxels (the z=2 plane).
     // But the seed (1,1,1) is in the affected zone → seed itself is NOT admissible.
     let mut values = vec![100.0_f32; 27];
-    values[0 * 9 + 1 * 3 + 1] = 5.0; // (0,1,1) = noise
+    values[3 + 1] = 5.0; // (0,1,1) = noise
     let image = make_image(values, [3, 3, 3]);
     let result = neighborhood_connected(&image, [1, 1, 1], 80.0, 120.0, [1, 1, 1]);
     // Seed's neighborhood includes (0,1,1) which has intensity 5.0 < 80.

@@ -3,6 +3,7 @@ use burn::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+use self::direct::HistogramPool;
 use super::cache::{HistogramCache, MaskedHistogramCache};
 
 pub(crate) mod compute;
@@ -10,7 +11,6 @@ pub(crate) mod compute_image;
 pub(crate) mod direct;
 pub(crate) mod dispatch;
 pub(crate) mod oob;
-#[allow(dead_code)]
 pub(crate) mod sparse;
 #[cfg(test)]
 mod tests;
@@ -56,6 +56,10 @@ pub struct ParzenJointHistogram<B: Backend> {
     pub(super) masked_cache: Arc<Mutex<Option<MaskedHistogramCache<B>>>>,
     /// Phantom data
     _phantom: PhantomData<B>,
+    /// Reusable histogram buffer pool, allocated once in `new()` and reused
+    /// across CMA-ES iterations to avoid repeated O(num_bins²) allocations.
+    /// Wrapped in `Arc<Mutex<...>>` so the `Clone` derive works.
+    pub(super) histogram_pool: Arc<Mutex<HistogramPool>>,
 }
 
 impl<B: Backend> ParzenJointHistogram<B> {
@@ -83,6 +87,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             cache: Arc::new(Mutex::new(None)),
             masked_cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
+            histogram_pool: Arc::new(Mutex::new(HistogramPool::new(num_bins * num_bins))),
         }
     }
 
@@ -102,10 +107,149 @@ impl<B: Backend> ParzenJointHistogram<B> {
         self
     }
 
+    /// Compute the [`ParzenConfig`] for the fixed-image axis (DRY-320-01).
+    ///
+    /// Encapsulates the repeated `ParzenConfig::from_intensity_sigma(
+    /// self.parzen_sigma, self.min_intensity, self.max_intensity, self.num_bins)`
+    /// pattern that appeared at 8 call sites across `compute.rs`,
+    /// `compute_image.rs`, and `masked/mod.rs`.
+    pub(super) fn fixed_sigma_cfg(&self) -> direct::ParzenConfig {
+        direct::ParzenConfig::from_intensity_sigma(
+            self.parzen_sigma,
+            self.min_intensity,
+            self.max_intensity,
+            self.num_bins,
+        )
+    }
+
+    /// Compute the [`ParzenConfig`] for the moving-image axis (DRY-320-01).
+    ///
+    /// Uses `moving_parzen_sigma`, `moving_min_intensity`, and
+    /// `moving_max_intensity` when set; falls back to the fixed-image
+    /// range (backward-compatible).
+    pub(super) fn moving_sigma_cfg(&self) -> direct::ParzenConfig {
+        let mov_min = self.moving_min_intensity.unwrap_or(self.min_intensity);
+        let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
+        let mov_sigma = self.moving_parzen_sigma.unwrap_or(self.parzen_sigma);
+        direct::ParzenConfig::from_intensity_sigma(mov_sigma, mov_min, mov_max, self.num_bins)
+    }
+
     /// Compute Entropy of a distribution P.
     pub fn compute_entropy(&self, p: Tensor<B, 1>) -> Tensor<B, 1> {
         let eps = 1e-10;
         let log_p = (p.clone() + eps).log();
         p.mul(log_p).sum().neg()
+    }
+
+    /// Invalidate the image-grid cache.
+    ///
+    /// Clears the cached fixed-image weights, points, and sparse data that
+    /// are reused across [`compute_image_joint_histogram`](Self::compute_image_joint_histogram)
+    /// calls for the same spatial metadata.  Call this:
+    ///
+    /// - when switching to a different fixed image mid-registration,
+    /// - between multi-resolution levels to free GPU/CPU memory, or
+    /// - any time you want to ensure the next histogram computation starts
+    ///   from scratch.
+    ///
+    /// The cache will be rebuilt on the next call to
+    /// [`compute_image_joint_histogram`](Self::compute_image_joint_histogram).
+    ///
+    /// Invalidation is idempotent: clearing an already-`None` cache is a
+    /// no-op.
+    pub fn invalidate_cache(&self) {
+        *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Invalidate the masked-path cache.
+    ///
+    /// Clears the cached `W_fixed^T`, sparse weights, and associated
+    /// metadata that are reused across
+    /// [`compute_masked_joint_histogram`](Self::compute_masked_joint_histogram)
+    /// calls with the same `cache_key`.  Call this:
+    ///
+    /// - when switching to a different fixed image or mask between
+    ///   registration stages,
+    /// - to release the `sparse_w_fixed` tensor (~2 MB for 32K samples) and
+    ///   other cached data between independent registration runs, or
+    /// - any time you want to ensure the next masked histogram computation
+    ///   starts from scratch.
+    ///
+    /// The cache will be rebuilt on the next call to
+    /// [`compute_masked_joint_histogram`](Self::compute_masked_joint_histogram)
+    /// with a `cache_key`.
+    ///
+    /// Invalidation is idempotent: clearing an already-`None` cache is a
+    /// no-op.
+    pub fn invalidate_masked_cache(&self) {
+        *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Invalidate both the image-grid cache and the masked-path cache.
+    ///
+    /// Convenience method that calls [`invalidate_cache`](Self::invalidate_cache)
+    /// and [`invalidate_masked_cache`](Self::invalidate_masked_cache) together.
+    /// Useful when fully resetting between registration stages or when
+    /// switching fixed images.
+    ///
+    /// Both caches will be rebuilt on their respective next computation
+    /// calls.
+    ///
+    /// Invalidation is idempotent: clearing already-`None` caches is a
+    /// no-op.
+    pub fn invalidate_all_caches(&self) {
+        self.invalidate_cache();
+        self.invalidate_masked_cache();
+    }
+
+    /// Validate that the masked cache still corresponds to the current data.
+    ///
+    /// Checks whether the stored `data_fingerprint` in the masked cache
+    /// matches the fingerprint computed from the provided normalized
+    /// fixed-image values. If they don't match (or the cache is empty),
+    /// the masked cache is invalidated and `false` is returned.
+    ///
+    /// This guards against **partial key collisions**: the scenario where
+    /// two different mask/point-sets share the same `cache_key` and point
+    /// count `n`, which would otherwise cause incorrect cache reuse.
+    ///
+    /// # Arguments
+    /// * `fixed_norm` — Normalized fixed-image values `[N]` in
+    ///   `[0, num_bins - 1]`, as returned by `normalize_and_extract`.
+    ///
+    /// # Returns
+    /// * `true` if the cache is valid (fingerprint matches, or no
+    ///   fingerprint was stored).
+    /// * `false` if the fingerprint mismatched (cache was invalidated).
+    ///
+    /// # Example
+    /// ```ignore
+    /// // Before reusing the cache with the same key but potentially different data:
+    /// if !hist.validate_masked_cache_fingerprint(&fixed_norm) {
+    ///     // Cache was invalidated — next compute call will rebuild it
+    /// }
+    /// ```
+    #[cfg(feature = "direct-parzen")]
+    pub fn validate_masked_cache_fingerprint(&self, fixed_norm: &[f32]) -> bool {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        for &v in fixed_norm {
+            v.to_bits().hash(&mut hasher);
+        }
+        let current_fp = hasher.finish();
+
+        let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(ref masked) = *cache {
+            if let Some(stored_fp) = masked.data_fingerprint {
+                if stored_fp != current_fp {
+                    // Fingerprint mismatch — invalidate
+                    *cache = None;
+                    return false;
+                }
+            }
+        }
+        true
     }
 }

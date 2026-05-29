@@ -298,6 +298,56 @@ mod tests {
     }
 
     #[test]
+    fn test_cr_gradient_non_zero() {
+        use burn::backend::Autodiff;
+        use burn::tensor::{Shape, TensorData};
+        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_core::transform::TranslationTransform;
+
+        type B = Autodiff<TestBackend>;
+
+        let device = Default::default();
+        let size = 5;
+        let count = size * size * size;
+
+        // Fixed: gradient ramp 0-255
+        let fixed_data: Vec<f32> = (0..count).map(|x| x as f32 * 255.0 / count as f32).collect();
+        // Moving: same ramp shifted by 1 along x
+        let moving_data: Vec<f32> = (1..count + 1).map(|x| {
+            let val = x as f32 * 255.0 / count as f32;
+            val.clamp(0.0, 255.0)
+        }).collect();
+
+        let fixed_t = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new([size, size, size])), &device);
+        let moving_t = Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new([size, size, size])), &device);
+
+        let spacing = Spacing::new([1.0, 1.0, 1.0]);
+        let origin = Point::new([0.0, 0.0, 0.0]);
+        let direction = Direction::identity();
+
+        let fixed = Image::new(fixed_t, origin, spacing, direction);
+        let moving = Image::new(moving_t, origin, spacing, direction);
+
+        let translation = Tensor::<B, 1>::zeros([3], &device).require_grad();
+        let transform = TranslationTransform::<B, 3>::new(translation.clone());
+
+        let metric = CorrelationRatio::<B>::default_params(&device);
+        let loss = metric.forward(&fixed, &moving, &transform);
+        let grads = loss.backward();
+
+        let translation_grad = translation.grad(&grads).unwrap();
+        let grad_data = translation_grad.into_data();
+        let grad_vals = grad_data.as_slice::<f32>().unwrap();
+
+        // Gradient should be non-zero (images are misaligned)
+        assert!(
+            grad_vals.iter().any(|&g| g.abs() > 1e-6),
+            "CR gradient should be non-zero for misaligned images, got {:?}",
+            grad_vals
+        );
+    }
+
+    #[test]
     fn test_cr_identical_images() {
         use burn::tensor::{Shape, TensorData};
         use ritk_core::spatial::{Direction, Point, Spacing};

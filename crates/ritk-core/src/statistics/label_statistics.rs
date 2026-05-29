@@ -300,7 +300,7 @@ mod tests {
     #[should_panic(expected = "equal length")]
     fn test_length_mismatch_panics() {
         let _ =
-            compute_label_intensity_statistics_from_slices(&vec![1.0_f32; 4], &vec![1.0_f32; 5]);
+            compute_label_intensity_statistics_from_slices(&[1.0_f32; 4], &[1.0_f32; 5]);
     }
 
     #[test]

@@ -184,7 +184,7 @@ mod tests {
             .apply(&marker, &mask)
             .unwrap();
         let v = voxels(&out);
-        let mv = vec![3.0f32, 3.0, 5.0, 3.0, 3.0];
+        let mv = [3.0f32, 3.0, 5.0, 3.0, 3.0];
         for (i, (&a, &b)) in v.iter().zip(mv.iter()).enumerate() {
             assert!(
                 (a - b).abs() < 1e-4,
@@ -241,7 +241,7 @@ mod tests {
             .apply(&marker, &mask)
             .unwrap();
         let v = voxels(&out);
-        let mask_v = vec![3.0f32, 3.0, 0.0, 3.0, 3.0];
+        let mask_v = [3.0f32, 3.0, 0.0, 3.0, 3.0];
         for (i, (&a, &b)) in v.iter().zip(mask_v.iter()).enumerate() {
             assert!(a >= b - 1e-4, "voxel {}: result {} below mask {}", i, a, b);
         }

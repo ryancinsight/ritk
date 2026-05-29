@@ -310,7 +310,7 @@ mod tests {
         // Verify no input name collision between dynamic inputs and initializers
         let input_names: std::collections::HashSet<_> =
             graph.inputs.iter().map(|i| i.name.clone()).collect();
-        for (init_name, _) in &graph.initializers {
+        for init_name in graph.initializers.keys() {
             assert!(
                 !input_names.contains(init_name),
                 "initializer '{}' should not also be a dynamic input",

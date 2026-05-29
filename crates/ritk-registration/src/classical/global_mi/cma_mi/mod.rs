@@ -16,7 +16,7 @@
 //!   resolution.
 //!
 //! Gradient-based methods such as RSGD / Adam are susceptible to local-maxima
-//! trapping and are highly sensitive to initialisation. The [`GlobalMiRegistration`]
+//! trapping and are highly sensitive to initialisation. The `GlobalMiRegistration`
 //! pipeline (RSGD) therefore benefits from a good starting point.
 //!
 //! # Solution: CMA-ES Global Search + RSGD Local Refinement

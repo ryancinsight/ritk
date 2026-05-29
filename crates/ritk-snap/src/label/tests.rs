@@ -178,7 +178,7 @@ fn from_label_map_preserves_voxel_data() {
     for z in 0..nz {
         for y in 0..ny {
             for x in 0..nx {
-                let expected = if flat % 2 == 0 { 1u32 } else { 0u32 };
+                let expected = if flat.is_multiple_of(2) { 1u32 } else { 0u32 };
                 assert_eq!(
                     editor.current_map().label_at([z, y, x]),
                     expected,

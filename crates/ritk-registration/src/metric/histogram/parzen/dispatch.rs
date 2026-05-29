@@ -29,6 +29,14 @@
 //! when a sparse W_fixed^T cache is available. It extracts moving values to
 //! host memory (safe for CMA-ES which uses `B::InnerBackend`) and calls the
 //! sparse inner loop.
+//!
+//! # SSOT
+//!
+//! All sigma² conversions now go through `ParzenConfig::from_intensity_sigma`
+//! (SSOT-319-02). The former `sigma_sq_in_bins` standalone function has been
+//! removed — its 10+ call sites across `dispatch.rs`, `compute.rs`,
+//! `compute_image.rs`, `masked/mod.rs`, and test files now call
+//! `ParzenConfig::from_intensity_sigma` directly.
 
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -55,20 +63,6 @@ pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
     data.as_slice::<f32>().expect("f32 data").to_vec()
 }
 
-/// Compute Parzen sigma² in bin-index units from intensity-space sigma.
-#[cfg(feature = "direct-parzen")]
-pub(in crate::metric::histogram) fn sigma_sq_in_bins(
-    sigma: f32,
-    min: f32,
-    max: f32,
-    num_bins: usize,
-) -> f32 {
-    let num_bins_f = (num_bins - 1) as f32;
-    let bin_width = (max - min) / num_bins_f.max(1.0);
-    let sigma_in_bins = sigma / bin_width.max(f32::EPSILON);
-    sigma_in_bins * sigma_in_bins
-}
-
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Compute joint histogram with backend-dispatched optimization.
     ///
@@ -91,22 +85,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let num_bins = self.num_bins;
         let device = fixed.device();
 
-        // Fixed-image normalization parameters
-        let fix_min = self.min_intensity;
-        let fix_max = self.max_intensity;
-        let fix_sigma = self.parzen_sigma;
-
-        // Moving-image normalization parameters
-        let mov_min = self.moving_min_intensity.unwrap_or(fix_min);
-        let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
-        let mov_sigma = self.moving_parzen_sigma.unwrap_or(fix_sigma);
-
-        let sigma_sq_fix = sigma_sq_in_bins(fix_sigma, fix_min, fix_max, num_bins);
-        let sigma_sq_mov = sigma_sq_in_bins(mov_sigma, mov_min, mov_max, num_bins);
+        let fix_cfg = self.fixed_sigma_cfg();
+        let mov_cfg = self.moving_sigma_cfg();
 
         // Extract normalized data for the direct path
-        let fixed_norm = normalize_and_extract(fixed, fix_min, fix_max, num_bins);
-        let moving_norm = normalize_and_extract(moving, mov_min, mov_max, num_bins);
+        let fixed_norm =
+            normalize_and_extract(fixed, self.min_intensity, self.max_intensity, num_bins);
+        let moving_norm = normalize_and_extract(
+            moving,
+            self.moving_min_intensity.unwrap_or(self.min_intensity),
+            self.moving_max_intensity.unwrap_or(self.max_intensity),
+            num_bins,
+        );
 
         // Extract OOB mask if present
         let oob_vec: Option<Vec<f32>> = oob_mask.map(|m| {
@@ -118,14 +108,17 @@ impl<B: Backend> ParzenJointHistogram<B> {
         });
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
+        let pool = self.histogram_pool.lock().unwrap();
         let hist_data = super::direct::compute_joint_histogram_direct(
             &fixed_norm,
             &moving_norm,
             num_bins,
-            sigma_sq_fix,
-            sigma_sq_mov,
+            fix_cfg.sigma_sq,
+            mov_cfg.sigma_sq,
             oob_slice,
+            Some(&pool),
         );
+
         Tensor::from_data(hist_data, &device)
     }
 
@@ -139,9 +132,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// severs the tape, causing zero gradients and preventing convergence. The
     /// fixed-image cache (`w_fixed_transposed`) already provides the key perf
     /// benefit: Parzen weights for the constant fixed image are computed only once.
-    /// The direct sparse-loop optimization (`compute_joint_histogram_from_cache_direct`)
-    /// is only safe for derivative-free backends (CMA-ES uses `B::InnerBackend`),
-    /// which take the `compute_joint_histogram_dispatch` path instead.
+    /// The sparse cache path (`compute_joint_histogram_from_cache_sparse`) is only safe
+    /// for derivative-free backends (CMA-ES uses `B::InnerBackend`), which take the
+    /// `compute_joint_histogram_from_cache_sparse_dispatch` path instead.
     #[cfg(feature = "direct-parzen")]
     pub(crate) fn compute_joint_histogram_from_cache_dispatch(
         &self,
@@ -179,7 +172,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
         let mov_sigma = self.moving_parzen_sigma.unwrap_or(self.parzen_sigma);
 
-        let sigma_sq_mov = sigma_sq_in_bins(mov_sigma, mov_min, mov_max, num_bins);
+        let mov_cfg = super::direct::ParzenConfig::from_intensity_sigma(
+            mov_sigma, mov_min, mov_max, num_bins,
+        );
 
         let moving_norm = normalize_and_extract(moving_values, mov_min, mov_max, num_bins);
 
@@ -192,13 +187,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
         });
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
+        let pool = self.histogram_pool.lock().unwrap();
         let hist_data = super::direct::compute_joint_histogram_from_cache_sparse(
             sparse_w_fixed,
             &moving_norm,
             num_bins,
-            sigma_sq_mov,
+            mov_cfg.sigma_sq,
             oob_slice,
+            Some(&pool),
         );
+
         Tensor::from_data(hist_data, &device)
     }
 

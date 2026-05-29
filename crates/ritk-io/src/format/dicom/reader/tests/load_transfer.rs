@@ -163,11 +163,12 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
     let gray = GrayImage::from_raw(width, height, original.clone()).expect("GrayImage::from_raw");
     let dyn_img = DynamicImage::ImageLuma8(gray);
     let mut jpeg_bytes: Vec<u8> = Vec::new();
-    let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
-    dyn_img
-        .write_to(&mut cursor, image::ImageFormat::Jpeg)
-        .expect("JPEG encode");
-    drop(cursor);
+    {
+        let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+        dyn_img
+            .write_to(&mut cursor, image::ImageFormat::Jpeg)
+            .expect("JPEG encode");
+    }
 
     // Build encapsulated pixel data.
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jpeg_bytes]);
@@ -251,7 +252,7 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
         )
         .expect("meta build");
     file_obj
-        .write_to_file(&series_dir.join("slice0001.dcm"))
+        .write_to_file(series_dir.join("slice0001.dcm"))
         .expect("write");
 
     let device = <B as burn::tensor::backend::Backend>::Device::default();

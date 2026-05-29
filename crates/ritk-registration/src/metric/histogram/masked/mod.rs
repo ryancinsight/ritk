@@ -5,9 +5,13 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 mod masked_chunked;
 
+#[cfg(feature = "direct-parzen")]
+use super::cache::SparseWFixedCache;
 #[cfg(feature = "direct-parzen")]
 use super::parzen::direct::SparseWFixedT;
 
@@ -46,20 +50,20 @@ fn get_masked_cached_sparse_w_fixed<B: Backend>(
     if cache.cache_key != cache_key || cache.n != n {
         return None;
     }
-    // Fast path: sparse cache already built.
-    if cache.sparse_w_fixed.is_some() {
-        return cache.sparse_w_fixed.clone();
+    cache.get_or_build_sparse_w_fixed(num_bins, sigma_sq_fix)
+}
+
+/// Compute a SipHash-1-3 fingerprint from normalized fixed-image values.
+///
+/// Uses `to_bits()` to convert each `f32` to a `u32` before hashing,
+/// providing deterministic hashing (NaN is not expected in normalized data).
+#[cfg(feature = "direct-parzen")]
+fn compute_fingerprint(fixed_norm: &[f32]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    for &v in fixed_norm {
+        v.to_bits().hash(&mut hasher);
     }
-    // Lazy build: construct sparse cache from stored fixed_norm.
-    let fixed_norm = cache.fixed_norm.take()?;
-    let sparse = super::parzen::direct::build_sparse_w_fixed_transposed(
-        &fixed_norm,
-        num_bins,
-        sigma_sq_fix,
-        None,
-    );
-    cache.sparse_w_fixed = Some(sparse);
-    cache.sparse_w_fixed.clone()
+    hasher.finish()
 }
 
 /// Construct a MaskedHistogramCache with dense representation and normalized fixed values.
@@ -68,6 +72,9 @@ fn get_masked_cached_sparse_w_fixed<B: Backend>(
 /// `MaskedHistogramCache.fixed_norm` are gated by `#[cfg(feature = "direct-parzen")]` on
 /// the struct fields. When that feature is off the fields simply do not exist, so a single
 /// function cannot construct both variants.
+///
+/// When `fixed_norm` is `Some`, a `data_fingerprint` is computed from the values and
+/// stored in the cache for collision detection.
 #[cfg(feature = "direct-parzen")]
 fn make_masked_cache<B: Backend>(
     cache_key: u64,
@@ -75,12 +82,14 @@ fn make_masked_cache<B: Backend>(
     n: usize,
     fixed_norm: Option<Vec<f32>>,
 ) -> MaskedHistogramCache<B> {
+    let data_fingerprint = fixed_norm.as_ref().map(|v| compute_fingerprint(v));
     MaskedHistogramCache {
         cache_key,
         w_fixed_transposed: Some(w_fixed_transposed),
         sparse_w_fixed: None,
         fixed_norm,
         n,
+        data_fingerprint,
     }
 }
 
@@ -96,6 +105,7 @@ fn make_masked_cache<B: Backend>(
         cache_key,
         w_fixed_transposed: Some(w_fixed_transposed),
         n,
+        data_fingerprint: None,
     }
 }
 
@@ -174,12 +184,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     #[cfg(feature = "direct-parzen")]
                     {
                         // Also try sparse cache for derivative-free backends.
-                        let sigma_sq_fix = super::parzen::dispatch::sigma_sq_in_bins(
-                            self.parzen_sigma,
-                            self.min_intensity,
-                            self.max_intensity,
-                            self.num_bins,
-                        );
+                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                         let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                         let cached_sparse = get_masked_cached_sparse_w_fixed(
                             &mut cache,
@@ -218,15 +223,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 let new_cache = make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
-
                 #[cfg(feature = "direct-parzen")]
                 {
-                    let sigma_sq_fix = super::parzen::dispatch::sigma_sq_in_bins(
-                        self.parzen_sigma,
-                        self.min_intensity,
-                        self.max_intensity,
-                        self.num_bins,
-                    );
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                     let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                     let cached_sparse = get_masked_cached_sparse_w_fixed(
                         &mut cache,
@@ -267,12 +266,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     // Cache hit — slice the cached W_fixed^T per chunk.
                     #[cfg(feature = "direct-parzen")]
                     {
-                        let sigma_sq_fix = super::parzen::dispatch::sigma_sq_in_bins(
-                            self.parzen_sigma,
-                            self.min_intensity,
-                            self.max_intensity,
-                            self.num_bins,
-                        );
+                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                         let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                         let cached_sparse = get_masked_cached_sparse_w_fixed(
                             &mut cache,
@@ -317,18 +311,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 ));
                 #[cfg(not(feature = "direct-parzen"))]
                 let fixed_norm: Option<()> = None;
-
                 let new_cache = make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
-
                 #[cfg(feature = "direct-parzen")]
                 {
-                    let sigma_sq_fix = super::parzen::dispatch::sigma_sq_in_bins(
-                        self.parzen_sigma,
-                        self.min_intensity,
-                        self.max_intensity,
-                        self.num_bins,
-                    );
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                     let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                     let cached_sparse = get_masked_cached_sparse_w_fixed(
                         &mut cache,

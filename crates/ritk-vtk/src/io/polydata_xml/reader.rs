@@ -274,7 +274,7 @@ mod tests {
         let dq = char::from(34u8);
         let mut s = String::from("<VTKFile><PolyData><Piece NumberOfPoints=");
         s.push(dq);
-        s.push_str("1");
+        s.push('1');
         s.push(dq);
         s.push_str("></Piece></PolyData></VTKFile>");
         assert!(parse_vtp(&s).is_err());

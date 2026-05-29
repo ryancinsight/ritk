@@ -210,7 +210,7 @@ fn recv_dimse_message(stream: &mut TcpStream) -> Result<ScpMessageResult, Networ
                 }
                 let mut msg = DimseMessage::decode_command_set(&cmd_buf)
                     .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
-                let has_ds = msg.command_data_set_type().map_or(false, |v| v != 0x0101);
+                let has_ds = msg.command_data_set_type().is_some_and(|v| v != 0x0101);
                 if !has_ds || data_last {
                     msg.data_set = if data_buf.is_empty() {
                         None

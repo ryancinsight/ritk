@@ -119,7 +119,7 @@ fn map_slice_index_between_volumes_maps_bounds_and_midpoint() {
     assert_eq!(SnapApp::map_slice_index_between_volumes(299, 300, 90), 89);
     let mapped = SnapApp::map_slice_index_between_volumes(150, 300, 90);
     assert!(
-        mapped >= 44 && mapped <= 45,
+        (44..=45).contains(&mapped),
         "midpoint mapping should stay near the secondary midpoint"
     );
 }

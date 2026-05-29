@@ -93,7 +93,7 @@ fn test_cylindrical_tube_detects_line() {
     let median_centre = centre_responses[N / 2];
 
     // Far background voxels (corner strip x=0..2, y=0..2).
-    let background: Vec<f32> = (0..N).map(|iz| out[iz * N * N + 0 * N + 0]).collect();
+    let background: Vec<f32> = (0..N).map(|iz| out[iz * N * N]).collect();
     let mut bg = background.clone();
     bg.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let median_bg = bg[N / 2];

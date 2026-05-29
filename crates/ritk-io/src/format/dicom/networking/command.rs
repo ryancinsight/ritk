@@ -73,7 +73,7 @@ pub const STATUS_PENDING_WARN: u16 = 0xFF01;
 /// Write a UID string as IVR-LE UI value into `buf`: null-padded to even length.
 pub fn encode_ui_into(buf: &mut Vec<u8>, uid: &str) {
     buf.extend_from_slice(uid.as_bytes());
-    if uid.len() % 2 != 0 {
+    if !uid.len().is_multiple_of(2) {
         buf.push(0x00);
     }
 }
@@ -81,7 +81,7 @@ pub fn encode_ui_into(buf: &mut Vec<u8>, uid: &str) {
 /// Write a string (AE/CS/LO/SH) as IVR-LE into `buf`: space-padded to even length.
 pub fn encode_str_into(buf: &mut Vec<u8>, s: &str) {
     buf.extend_from_slice(s.as_bytes());
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         buf.push(b' ');
     }
 }

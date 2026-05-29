@@ -121,6 +121,7 @@ fn main() -> anyhow::Result<()> {
         0.0,
         255.0,
         1.0,
+        &device,
     );
 
     // Schedule: 3 levels (4x, 2x, 1x)

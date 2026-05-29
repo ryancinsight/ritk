@@ -5,15 +5,47 @@
 # Default per-test timeout: abort tests that hang unexpectedly.
 slow-timeout = { period = "60s", terminate-after = 3 }
 
-# Give gradient-based registration integration tests extra time.
-# BSpline+autodiff tests on NdArray backend are CPU-bound and can run 90–180 s.
+# Gradient-based registration integration tests (single-test binaries).
+# NOTE: test() matches the test *function* name, not the binary name.
+# Function names use inverted prefix: test_registration_bspline_3d (not
+# test_bspline_registration_3d), so the filter uses the actual prefixes.
+# Also covers RSGD lib-integration tests that compete for NdArray CPU time.
 [[profile.default.overrides]]
-filter = 'test(bspline_registration) | test(bspline_cr) | test(multires_cr) | test(multires_registration) | test(affine_registration) | test(rigid_registration) | test(versor_registration)'
-slow-timeout = { period = "300s", terminate-after = 2 }
+filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+# B-Spline CR and multiscale CR tests: 5–10 min under CPU contention.
+[[profile.default.overrides]]
+filter = 'test(bspline_cr) | test(multires_cr)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+# SSMorph neural network forward-pass tests on CPU NdArray backend:
+# heavy conv3d stacks; allow up to 30 min under CPU contention.
+[[profile.default.overrides]]
+filter = 'test(test_encoder_forward) | test(test_encoder_stage_forward) | test(test_decoder_forward) | test(test_decoder_stage) | test(test_ssmmorph_forward) | test(test_nondiffeomorphic_mode) | test(test_ssmmorph_forward_combined)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+# DICOM full-scan tests over the 303-slice skull-CT fixture: I/O-heavy.
+[[profile.default.overrides]]
+filter = 'test(test_scan_skull_ct) | test(test_load_dicom_volume_shape)'
+slow-timeout = { period = "600s", terminate-after = 5 }
 
 [profile.ci]
 slow-timeout = { period = "60s", terminate-after = 2 }
 
 [[profile.ci.overrides]]
-filter = 'test(bspline_registration) | test(bspline_cr) | test(multires_cr) | test(multires_registration) | test(affine_registration) | test(rigid_registration) | test(versor_registration)'
-slow-timeout = { period = "300s", terminate-after = 2 }
+filter = 'test(test_registration_bspline) | test(test_registration_affine) | test(test_registration_rigid) | test(test_registration_versor) | test(test_multires_registration) | test(translation_recovery_shifted_gaussian) | test(multires_convergence_runs_all_levels) | test(rigid_recovery_identity_validates_pipeline) | test(sparse_sampling_produces_comparable_result)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+[[profile.ci.overrides]]
+filter = 'test(bspline_cr) | test(multires_cr)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+[[profile.ci.overrides]]
+filter = 'test(test_encoder_forward) | test(test_encoder_stage_forward) | test(test_decoder_forward) | test(test_decoder_stage) | test(test_ssmmorph_forward) | test(test_nondiffeomorphic_mode) | test(test_ssmmorph_forward_combined)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+
+[[profile.ci.overrides]]
+filter = 'test(test_scan_skull_ct) | test(test_load_dicom_volume_shape)'
+slow-timeout = { period = "600s", terminate-after = 5 }
+

@@ -122,7 +122,7 @@ mod tests {
         let img = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], [2, 2, 2]);
         let out = ShiftScaleImageFilter::new(0.0, 1.0).apply(&img).unwrap();
         let v = voxels(&out);
-        let expected = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+        let expected = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         for (i, (&a, &b)) in v.iter().zip(expected.iter()).enumerate() {
             assert!((a - b).abs() < 1e-5, "voxel {} expected {} got {}", i, b, a);
         }

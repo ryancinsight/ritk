@@ -95,7 +95,7 @@ mod tests {
         let img = make_image(vec![1.0, 1.0, 3.0, 3.0], [1, 2, 2]);
         let out = NormalizeImageFilter::new().apply(&img);
         let v = vals(&out);
-        let expected = vec![-1.0_f32, -1.0, 1.0, 1.0];
+        let expected = [-1.0_f32, -1.0, 1.0, 1.0];
         for (a, b) in v.iter().zip(expected.iter()) {
             assert!(
                 (a - b).abs() < 1e-5,
@@ -170,7 +170,7 @@ mod tests {
         let img = Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),
-            sp.clone(),
+            sp,
             Direction::identity(),
         );
         let out = NormalizeImageFilter::new().apply(&img);

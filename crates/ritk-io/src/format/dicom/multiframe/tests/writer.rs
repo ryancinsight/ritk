@@ -90,7 +90,7 @@ fn test_writer_config_instance_number_propagated() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_inst.dcm");
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![5.0_f32; 1 * 2 * 3], Shape::new([1_usize, 2, 3])),
+        TensorData::new(vec![5.0_f32; 2 * 3], Shape::new([1_usize, 2, 3])),
         &device,
     );
     let image = Image::new(
@@ -127,7 +127,7 @@ fn test_multiframe_has_conversion_type_wsd() {
     let out_path = tmp.path().join("conv_type.dcm");
 
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 1 * 2 * 2], Shape::new([1_usize, 2, 2])),
+        TensorData::new(vec![1.0_f32; 2 * 2], Shape::new([1_usize, 2, 2])),
         &device,
     );
     let image = Image::new(
@@ -158,7 +158,7 @@ fn test_multiframe_has_study_and_series_uids() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("uids.dcm");
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 1 * 2 * 2], Shape::new([1_usize, 2, 2])),
+        TensorData::new(vec![1.0_f32; 2 * 2], Shape::new([1_usize, 2, 2])),
         &device,
     );
     let image = Image::new(
@@ -200,7 +200,7 @@ fn test_multiframe_has_type2_patient_study_series_tags() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("type2.dcm");
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![5.0_f32; 1 * 3 * 3], Shape::new([1_usize, 3, 3])),
+        TensorData::new(vec![5.0_f32; 3 * 3], Shape::new([1_usize, 3, 3])),
         &device,
     );
     let image = Image::new(

@@ -297,7 +297,7 @@ fn main() -> anyhow::Result<()> {
     let ncc_slice_pre = ncc(&normalize_minmax(&ct_slice), &normalize_minmax(&pre_slice));
     let ncc_slice_post = ncc(&normalize_minmax(&ct_slice), &normalize_minmax(post_slice));
 
-    let output_dir = std::path::Path::new("data/output");
+    let output_dir = std::path::Path::new("output");
     std::fs::create_dir_all(output_dir)?;
     let png_path = output_dir.join("rire_registration_comparison.png");
     save_comparison_png(

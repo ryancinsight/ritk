@@ -271,8 +271,8 @@ mod tests {
         assert!(result.len() >= 3, "length = {}", result.len());
         // all points must be in the 2x2 block region
         for &(y, x) in &result {
-            assert!(y >= 1 && y <= 2, "y={} out of [1,2]", y);
-            assert!(x >= 1 && x <= 2, "x={} out of [1,2]", x);
+            assert!((1..=2).contains(&y), "y={} out of [1,2]", y);
+            assert!((1..=2).contains(&x), "x={} out of [1,2]", x);
         }
         // The contour is implicitly closed (no duplicate start at end)
         assert_ne!(result.first(), result.last());

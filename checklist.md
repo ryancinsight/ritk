@@ -1,3 +1,225 @@
+## Sprint 318 (0.50.80) — Cache Fingerprint Hardening + Cleanup
+
+- [x] CORRECT-318-01: Masked-cache fingerprint hardened to deterministic SipHash:
+  - [x] `data_fingerprint: Option<f32>` → `Option<u64>` in `MaskedHistogramCache`
+  - [x] `compute_fingerprint` uses `std::hash::DefaultHasher` + `f32::to_bits()` hash
+  - [x] `validate_masked_cache_fingerprint` uses `u64` equality (no tolerance)
+  - [x] 69 parzen tests pass (0 failures, 1 expected ignore)
+  - [x] 371 lib tests pass (0 failures, 1 expected ignore)
+- [x] FIX-318-02: Build break — `ParzenConfig` duplicate import (E0252 + E0603):
+  - [x] Removed `ParzenConfig` from private `use types::{...}` block
+  - [x] Only `pub(crate) use types::ParzenConfig;` re-export remains
+- [x] FIX-318-03: Dead-code cleanup:
+  - [x] `MAX_PARZEN_BINS` gated with `#[cfg(test)]`
+  - [x] Removed unused `ParzenConfig::support_bins()` method
+  - [x] Removed unused `#[cfg(test)] pub(crate) use types::MIN_HALF_WIDTH`
+- [x] Build: `cargo check -p ritk-registration --features direct-parzen`: 0 errors, 0 warnings
+- [x] Tests: `cargo test -p ritk-registration --features direct-parzen --lib`: 371 passed, 1 ignored
+- [x] CHANGELOG.md updated (0.50.80)
+- [x] backlog.md updated
+- [x] checklist.md updated
+
+## Sprint 317 (0.50.79) — Parzen Config & Pool Lifting
+
+- [x] ARCH-317-01: `ParzenConfig` value object:
+  - [x] `ParzenConfig` struct with `sigma_sq`, `half_width`, `inv_2sigma_sq` fields
+  - [x] `compute_half_width` canonical function in `types.rs`
+  - [x] `accumulate_sample_direct` monomorphized helper
+  - [x] `SampleWindow::mask_val` DRY helper
+  - [x] `SampleWindow` pre-computes both axes' `StackWeights`
+  - [x] `build_sparse_w_fixed_transposed` uses `StackWeights::new` + `iter()`
+- [x] MEM-317-02: `HistogramPool` lifted to `ParzenJointHistogram`:
+  - [x] `histogram_pool: Arc<Mutex<HistogramPool>>` field on `ParzenJointHistogram`
+  - [x] `Option<&HistogramPool>` parameter on both direct compute functions
+  - [x] Dispatch methods lock pool and pass to direct functions
+  - [x] `None` fallback = local pool per invocation
+  - [x] `HistogramPool` derives `Debug`; `Eq` removed from `ParzenConfig` derive
+  - [x] All test call sites pass `None`
+  - [x] Doc example updated
+- [x] TEST-317-06: 13 new tests:
+  - [x] 7 property tests in `direct_property_tests.rs`
+  - [x] 3 unit tests + 2 accumulate_sample tests + 1 SSOT test in `direct_types_tests.rs`
+- [x] Structural compliance:
+  - [x] `direct/mod.rs` → 408 lines
+  - [x] `direct/types.rs` → 397 lines
+  - [x] `direct/direct_tests.rs` → 340 lines
+  - [x] `direct/direct_property_tests.rs` → 275 lines (new)
+  - [x] `direct/direct_types_tests.rs` → 297 lines
+  - [x] `parzen/mod.rs` → 153 lines
+  - [x] `parzen/dispatch.rs` → 254 lines
+  - [x] `tests/cache_tests.rs` → 524 lines
+  - [x] `tests/cache_property_tests.rs` → 128 lines
+- [x] `cargo check -p ritk-registration --features direct-parzen`: 0 errors, 0 warnings
+- [x] `cargo clippy -p ritk-registration --features direct-parzen`: 0 new warnings
+- [x] All source files < 550 lines
+- [x] No `unsafe` in the Parzen direct path
+- [x] Parzen tests: 69 passed, 0 failed, 1 ignored (was 56/0/1)
+- [x] CHANGELOG.md updated (0.50.79)
+- [x] backlog.md updated
+- [x] checklist.md updated
+
+## Sprint 316 (0.50.78) — Parzen Cache Dispatch Phase Four
+
+- [x] MEM-316-01: `SampleWindow` precomputed bin ranges:
+  - [x] `BinRange` newtype with `new()`, `len()`, `is_empty()`, `iter()`
+  - [x] `SampleWindow::new()` returns `Option<Self>` (None for OOB)
+  - [x] `SampleWindow::new_moving_only()` for sparse-cache path
+  - [x] Both fold closures use `SampleWindow` instead of inline bin-range computation
+  - [x] `build_sparse_w_fixed_transposed` uses `BinRange::new()` + `BinRange::iter()`
+- [x] PERF-316-03: SIMD-aligned `StackWeights`:
+  - [x] `STACK_WEIGHTS_CAPACITY = 8` (was 7)
+  - [x] Weight array `[f32; 8]` = 32 bytes = one AVX2 `__m256`
+  - [x] 8th slot is zero-filled padding
+  - [x] 2 new tests: `stack_weights_array_size_is_simd_aligned`, `stack_weights_eighth_slot_is_zero`
+- [x] ARCH-316-04: `BinRange` newtype:
+  - [x] Named fields `lo`, `hi` prevent `(hi, lo)` swaps
+  - [x] Edge case: `primary > num_bins - 1` collapses to boundary bin
+  - [x] 6 new tests: interior, lower boundary, upper boundary, exceeds, negative, iter
+- [x] FIX-316-07: Branch-eliminated accumulate:
+  - [x] `accumulate_sample` takes `BinRange` instead of `(m_lo, m_hi)`
+  - [x] OOB check folded into `SampleWindow::new()` / `new_moving_only()`
+  - [x] Both fold closures simplified to `if let Some(window) = ...`
+- [x] DOC-316-06: Module documentation:
+  - [x] `# Safety` section in `direct/mod.rs`
+  - [x] `# Examples` section with usage snippet
+  - [x] Updated module doc to reflect `Vec<SparseWFixedEntry>` and new types
+- [x] TEST-316-05: 5 new property tests + 11 unit tests:
+  - [x] `sparse_w_fixed_deterministic` (parallel determinism)
+  - [x] `histogram_non_negative_all_entries`
+  - [x] `histogram_marginals_sum_correctly`
+  - [x] 6 `BinRange` tests + 5 `SampleWindow` tests + 2 SIMD tests
+- [x] Structural compliance:
+  - [x] `direct/mod.rs` → 362 lines (types extracted to `types.rs`)
+  - [x] `direct/types.rs` → 307 lines (new)
+  - [x] `direct/direct_tests.rs` → 386 lines
+  - [x] `direct/direct_types_tests.rs` → 206 lines (new)
+  - [x] `tests/cache_tests.rs` → 492 lines
+  - [x] `tests/cache_property_tests.rs` → 128 lines (new)
+- [x] `cargo check -p ritk-registration --features direct-parzen`: 0 errors, 0 warnings
+- [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
+- [x] Parzen clippy warnings: 0
+- [x] ritk-registration clippy warnings: 0
+- [x] All source files < 500 lines
+- [x] No `unsafe` in the Parzen direct path
+- [x] Parzen tests: 56 passed, 0 failed, 1 ignored (was 41/0/1)
+- [x] Total test count: 358 (was 342; +16)
+- [x] CHANGELOG.md updated (0.50.78)
+- [x] backlog.md updated
+- [x] checklist.md updated
+
+## Sprint 315 (0.50.77) — Parzen Cache Dispatch Phase Three
+
+- [x] MEM-315-01: `StackWeights` derives `Copy` + `iter()` method:
+  - [x] Added `Copy` derive to 32-byte `StackWeights` struct
+  - [x] Added `iter()` method for zero-cost iteration over active entries
+  - [x] 1 new test: `stack_weights_is_copy`
+- [x] ARCH-315-03: `HistogramPool` struct:
+  - [x] Extracted duplicated `Mutex<Vec<Vec<f32>>>` pool logic from both computation functions
+  - [x] `new()`, `checkout()`, `return_buffer()` methods
+  - [x] Both functions refactored to use `HistogramPool`
+- [x] PERF-315-02: `accumulate_sample` helper:
+  - [x] Monomorphized fold body shared by both direct and sparse paths
+  - [x] Takes `impl IntoIterator<Item = SparseWFixedEntry>`
+  - [x] 1 new test: `accumulate_sample_direct_vs_sparse_weights`
+- [x] ARCH-315-05: `SparseWFixedEntry` newtype:
+  - [x] Replaces bare `(usize, f32)` tuples in `SparseWFixedT`
+  - [x] Named field access (`bin`, `weight`) and `Copy` semantics
+  - [x] Added to pub use re-exports in `histogram/mod.rs`
+  - [x] Added to benchmark imports in `parzen_direct.rs`
+  - [x] Updated doc comment for `sparse_w_fixed` field in `cache.rs`
+  - [x] Updated existing tests for `SparseWFixedEntry` + `iter()`
+- [x] FIX-315-04: `sparse.rs` dead code cleanup:
+  - [x] Removed `#[allow(dead_code)]` from sparse module declaration in `parzen/mod.rs`
+  - [x] Gated test-only functions (`compute_sparse_parzen_weights`, `compute_half_width`, `MIN_HALF_WIDTH`) with `#[cfg(test)]`
+  - [x] Removed dead `compute_sparse_parzen_weights_transposed` wrapper
+- [x] TEST-315-06: 3 property-based histogram tests:
+  - [x] `histogram_symmetry_identical_images`
+  - [x] `histogram_normalization_total_weight`
+  - [x] `histogram_boundary_bins_populated`
+- [x] `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
+- [x] Parzen clippy warnings: 0
+- [x] ritk-registration clippy warnings: 0
+- [x] All source files < 500 lines
+- [x] No `unsafe` in the Parzen direct path
+- [x] CHANGELOG.md updated (0.50.77)
+- [x] OPTIMIZATION.md updated (Sprint 315)
+- [x] backlog.md updated
+- [x] checklist.md updated
+
+## Sprint 314 (0.50.76) — Parzen Cache Dispatch Hardening Phase Two
+
+- [x] FIX-314-01: Remove deprecated `compute_joint_histogram_from_cache_direct` + dead code:
+  - [x] Removed `compute_joint_histogram_from_cache_direct` function (deprecated since 0.50.75)
+  - [x] Removed `row_base_pointers` helper (only used by removed function)
+  - [x] Removed `direct_from_cache_matches_dense` test + `direct_row_base_pointers_correct` test
+  - [x] Removed `pub use` re-export and `#[allow(deprecated)]` annotations
+- [x] FIX-314-02: Fix 4 `bspline_ffd` clippy `needless_range_loop` warnings:
+  - [x] `basis.rs`: `for az in 0..4` and `for ay in 0..4` → `#[allow(clippy::needless_range_loop)]`
+  - [x] `metric.rs`: `for az in 0..4` and `for ay in 0..4` → `#[allow(clippy::needless_range_loop)]`
+- [x] ARCH-314-01: `SparseWFixedCache` trait for shared lazy-build logic:
+  - [x] Trait with `sparse_w_fixed()`, `sparse_w_fixed_mut()`, `take_fixed_norm()` accessors
+  - [x] Default `get_or_build_sparse_w_fixed()` implementation
+  - [x] Both `HistogramCache` and `MaskedHistogramCache` implement trait via accessors
+  - [x] Import trait in `compute_image.rs` and `masked/mod.rs`
+- [x] ARCH-314-02: Cache key collision guard for masked path:
+  - [x] `data_fingerprint: Option<f32>` field on `MaskedHistogramCache`
+  - [x] `compute_fingerprint()` helper in `masked/mod.rs`
+  - [x] `validate_masked_cache_fingerprint()` method on `ParzenJointHistogram`
+  - [x] 1 new test: `masked_cache_fingerprint_detects_collision`
+- [x] PERF-314-01: Parallelize `compute_joint_histogram_direct`:
+  - [x] Uses rayon `into_par_iter().fold().reduce()` with thread-local histograms
+  - [x] Removes last `unsafe` from direct Parzen path (safe indexing replaces OPT-1/OPT-3)
+  - [x] 1 new test: `direct_parallel_matches_sparse`
+- [x] MEM-314-01: Thread-local histogram buffer pool:
+  - [x] `Mutex<Vec<Vec<f32>>>` pool in both `compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse`
+  - [x] Buffers reused across fold/reduce calls
+- [x] `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
+- [x] Parzen clippy warnings: 0
+- [x] ritk-registration clippy warnings: 0 (was 4)
+- [x] All 16 source files < 500 lines
+- [x] CHANGELOG.md updated (0.50.76)
+- [x] OPTIMIZATION.md updated (Sprint 314)
+- [x] gap_audit.md updated
+- [x] checklist.md updated
+
+## Sprint 313 (0.50.75) — Parzen Cache Dispatch Hardening + Parallel Hot Loop + Structural Compliance
+- [x] PERF-313-01: Parallel sparse hot-loop histogram reduction in `direct/mod.rs`:
+  - [x] `compute_joint_histogram_from_cache_sparse` uses rayon `into_par_iter().fold().reduce()`
+  - [x] Thread-local histograms eliminate synchronization from the hot loop
+  - [x] Safe indexing replaces `unsafe` pointer arithmetic (OPT-1 row base pointers removed from this path)
+  - [x] Test tolerances relaxed from 1e-6/1e-5 to 1e-4 for parallel accumulation order
+- [x] FIX-313-01: Eliminated 4 clippy warnings:
+  - [x] `needless_range_loop` on OPT-1 hot loop → `#[allow(clippy::needless_range_loop)]`
+  - [x] `single_range_in_vec_init` on Burn 1-D `.slice()` → `#[allow(clippy::single_range_in_vec_init)]`
+  - [x] `doc_quote_line_without_gt_marker` in `sparse.rs` → escaped `\>`
+  - [x] `op_ref` in `lncc.rs` → removed unnecessary `&`
+- [x] FIX-313-02: Deprecated `compute_joint_histogram_from_cache_direct`:
+  - [x] `#[deprecated(since = "0.50.75")]` annotation
+  - [x] `#[allow(deprecated)]` on test and `pub use` re-export
+- [x] ARCH-313-01: Cache invalidation API on `ParzenJointHistogram`:
+  - [x] `invalidate_cache()` — clears image-grid cache
+  - [x] `invalidate_masked_cache()` — clears masked-path cache
+  - [x] `invalidate_all_caches()` — convenience method
+  - [x] 2 new tests: `cache_invalidate_clears_image_cache`, `cache_invalidate_clears_masked_cache`
+- [x] ARCH-313-02: Shared lazy-build logic for sparse W_fixed^T cache:
+  - [x] `get_or_build_sparse_w_fixed` method on `HistogramCache<B>`
+  - [x] `get_or_build_sparse_w_fixed` method on `MaskedHistogramCache<B>`
+  - [x] Callers in `compute_image.rs` and `masked/mod.rs` simplified to delegate
+- [x] STR-313-01: `tests.rs` (1054 lines) → `tests/` directory module:
+  - [x] `tests/mod.rs` (338 lines) — shared setup + basic + dispatch tests
+  - [x] `tests/cache_tests.rs` (238 lines) — cache integration tests
+  - [x] `tests/masked_cache_tests.rs` (457 lines) — masked + invalidation tests
+- [x] `cargo check -p ritk-registration`: 0 errors, 0 warnings
+- [x] `cargo check -p ritk-registration --no-default-features`: 0 errors, 0 warnings
+- [x] Parzen clippy warnings: 0 (was 4)
+- [x] All 16 source files < 500 lines
+- [x] CHANGELOG.md updated (0.50.75)
+- [x] OPTIMIZATION.md updated (Sprint 313 + architecture decision)
+- [x] gap_audit.md updated
+- [x] checklist.md updated
+
 ## Sprint 312 (0.50.74) — Parzen Benchmark Verification + Cache Dispatch Hardening
 
 - [x] PERF-312-01: Parallel sparse cache build with rayon in `direct/mod.rs`:

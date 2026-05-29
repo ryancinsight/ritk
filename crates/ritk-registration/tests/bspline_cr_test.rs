@@ -14,8 +14,8 @@ type B = Autodiff<NdArray<f32>>;
 fn test_bspline_cr_registration_small() {
     let device = Default::default();
 
-    // 1. Create small 3D images (20x20x20) for speed
-    let d = 20;
+    // 1. Create small 3D images (14x14x14) for speed
+    let d = 14;
     let shape = [d, d, d];
 
     // Helper to create a sphere
@@ -36,11 +36,11 @@ fn test_bspline_cr_registration_small() {
         data
     };
 
-    // Fixed Image: Sphere at (10, 10, 10)
-    let fixed_data = make_sphere([10.0, 10.0, 10.0], 4.0);
+    // Fixed Image: Sphere at (7, 7, 7)
+    let fixed_data = make_sphere([7.0, 7.0, 7.0], 4.0);
 
-    // Moving Image: Sphere at (11, 11, 10) (Shifted by +1, +1, 0)
-    let moving_data = make_sphere([11.0, 11.0, 10.0], 4.0);
+    // Moving Image: Sphere at (8, 8, 7) (Shifted by +1, +1, 0)
+    let moving_data = make_sphere([8.0, 8.0, 7.0], 4.0);
 
     let fixed_tensor = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, shape), &device);
     let moving_tensor = Tensor::<B, 3>::from_data(TensorData::new(moving_data, shape), &device);
@@ -59,8 +59,8 @@ fn test_bspline_cr_registration_small() {
     let num_control_points = 5 * 5 * 5;
     let coeffs = Tensor::<B, 2>::zeros([num_control_points, 3], &device).require_grad();
 
-    // The image domain is 20x20x20. For a 5x5x5 control grid to cover this, spacing must be 5.0
-    let bspline_spacing = Spacing::new([5.0, 5.0, 5.0]);
+    // The image domain is 14x14x14. For a 5x5x5 control grid to cover this, spacing must be 3.5
+    let bspline_spacing = Spacing::new([3.5, 3.5, 3.5]);
 
     // Use from_spatial for simpler API with spatial types
     let transform = BSplineTransform::<B, 3>::from_spatial(
@@ -90,14 +90,14 @@ fn test_bspline_cr_registration_small() {
     let mut registration = Registration::new(optimizer, metric);
 
     // 4. Execute Registration
-    // Adjusted to 100 iterations for convergence without causing CI timeouts.
+    // Adjusted to 150 iterations for convergence without causing CI timeouts.
     let result_transform = registration
-        .execute(&fixed, &moving, transform, 100, 0.1)
+        .execute(&fixed, &moving, transform, 150, 1.0)
         .unwrap();
 
     // 5. Verify Result
-    // Check deformation at the center (10, 10, 10)
-    let center_point = Tensor::<B, 2>::from_data(TensorData::from([[10.0, 10.0, 10.0]]), &device);
+    // Check deformation at the center (7, 7, 7)
+    let center_point = Tensor::<B, 2>::from_data(TensorData::from([[7.0, 7.0, 7.0]]), &device);
     let transformed_point = result_transform.transform_points(center_point);
 
     let transformed_data = transformed_point.into_data();
@@ -105,10 +105,10 @@ fn test_bspline_cr_registration_small() {
 
     println!("Transformed Center: {:?}", transformed_vals);
 
-    // We expect T(10,10,10) to be close to (11,11,10)
-    let err_x = (transformed_vals[0] - 11.0).abs();
-    let err_y = (transformed_vals[1] - 11.0).abs();
-    let err_z = (transformed_vals[2] - 10.0).abs();
+    // We expect T(7,7,7) to be close to (8,8,7)
+    let err_x = (transformed_vals[0] - 8.0).abs();
+    let err_y = (transformed_vals[1] - 8.0).abs();
+    let err_z = (transformed_vals[2] - 7.0).abs();
 
     println!("Errors: x={}, y={}, z={}", err_x, err_y, err_z);
 

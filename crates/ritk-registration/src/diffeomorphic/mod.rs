@@ -14,7 +14,7 @@
 //!
 //! **Local CC gradient** (Avants 2008, eq. 10) for force on φ₁:
 //!
-//!   fz[p] = [(J_w[p]−μ_J)/(σ_I·σ_J) − CC·(I_w[p]−μ_I)/σ_I²] · gIz[p]
+//!   `fz[p] = [(J_w[p]−μ_J)/(σ_I·σ_J) − CC·(I_w[p]−μ_I)/σ_I²] · gIz[p]`
 //!
 //! where cc_num = Σ_{q∈W}(I_w(q)-μ_I)(J_w(q)-μ_J), σ_I = sqrt(Σ_{q∈W}(I_w(q)-μ_I)²),
 //! σ_J = sqrt(Σ_{q∈W}(J_w(q)-μ_J)²), CC = cc_num / (σ_I·σ_J), and W is the local

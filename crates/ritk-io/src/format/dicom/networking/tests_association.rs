@@ -64,7 +64,7 @@ fn test_build_associate_rq() {
 
 #[test]
 fn test_fragment_pdv_single() {
-    let pdvs = Association::fragment_pdvs(&vec![0xABu8; 100], CommandType::Command, 16378);
+    let pdvs = Association::fragment_pdvs(&[0xABu8; 100], CommandType::Command, 16378);
     assert_eq!(pdvs.len(), 1);
     assert!(pdvs[0].message_control_header.last_fragment);
     assert_eq!(pdvs[0].data.len(), 100);

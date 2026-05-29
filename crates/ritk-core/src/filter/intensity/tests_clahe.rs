@@ -1,8 +1,6 @@
 //! Tests for clahe
 //! Extracted to keep the 500-line structural limit.
 
-use super::*;
-
 // ── Legacy allocating helpers (used by 2D unit tests) ─────────────────────
 //
 // These duplicate the original allocating logic from clahe.rs. They are

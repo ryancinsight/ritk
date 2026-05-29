@@ -61,7 +61,13 @@ fn sort_series_entries_is_deterministic() {
 /// - `pixels.len() == shape[0] * shape[1] * shape[2]`.
 #[test]
 fn test_load_nifti_volume_shape() {
-    let path = std::path::Path::new(r"D:\ritk\test_data\openneuro\sub-01_T1w.nii.gz");
+    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("test_data")
+        .join("openneuro")
+        .join("sub-01_T1w.nii.gz");
+    let path = path_buf.as_path();
     if !path.exists() {
         eprintln!(
             "SKIP test_load_nifti_volume_shape: test data absent at {:?}",
@@ -91,7 +97,7 @@ fn test_load_nifti_volume_shape() {
     // Source path must be recorded.
     assert_eq!(
         vol.source.as_deref(),
-        Some(path),
+        Some(path_buf.as_path()),
         "source path must be recorded in LoadedVolume"
     );
 }
@@ -121,7 +127,13 @@ fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
 
 #[test]
 fn test_load_dicom_series_from_named_bytes_batch() {
-    let dir = std::path::Path::new(r"D:\ritk\test_data\2_head_mri_t2\DICOM");
+    let dir_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("test_data")
+        .join("2_head_mri_t2")
+        .join("DICOM");
+    let dir = dir_buf.as_path();
     if !dir.exists() {
         eprintln!(
             "SKIP test_load_dicom_series_from_named_bytes_batch: fixture absent at {:?}",
@@ -169,7 +181,13 @@ fn test_load_dicom_series_from_named_bytes_batch() {
 /// - `data.len() == shape[0] * shape[1] * shape[2]`.
 #[test]
 fn test_load_dicom_volume_shape() {
-    let path = std::path::Path::new(r"D:\ritk\test_data\2_skull_ct\DICOM");
+    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("test_data")
+        .join("2_skull_ct")
+        .join("DICOM");
+    let path = path_buf.as_path();
     if !path.exists() {
         eprintln!(
             "SKIP test_load_dicom_volume_shape: test data absent at {:?}",
@@ -203,7 +221,13 @@ fn test_load_dicom_volume_shape() {
 /// - `data.len() == shape[0] * shape[1] * shape[2]`.
 #[test]
 fn test_load_head_mri_t2_volume_shape() {
-    let path = std::path::Path::new(r"D:\ritk\test_data\2_head_mri_t2\DICOM");
+    let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+        .join("test_data")
+        .join("2_head_mri_t2")
+        .join("DICOM");
+    let path = path_buf.as_path();
     if !path.exists() {
         eprintln!(
             "SKIP test_load_head_mri_t2_volume_shape: test data absent at {:?}",

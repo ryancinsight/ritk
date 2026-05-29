@@ -211,11 +211,10 @@ pub fn show_pacs_panel(
             let show_load_btn = !config.auto_load_received
                 || (config.auto_load_received
                     && pacs_pending_count > config.auto_load_limit as usize);
-            if show_load_btn && pacs_pending_count > 0 {
-                if ui.button("\u{25b6} Load Received").clicked() {
+            if show_load_btn && pacs_pending_count > 0
+                && ui.button("\u{25b6} Load Received").clicked() {
                     action = PacsPanelAction::LoadReceived;
                 }
-            }
             if let Some(n) = pacs_auto_loaded_this_frame {
                 ui.colored_label(
                     egui::Color32::from_rgb(100, 200, 100),
@@ -281,11 +280,10 @@ pub fn show_pacs_panel(
                 accession_number: accession_number.clone(),
             };
         }
-        if matches!(query_state, QueryState::Results(_) | QueryState::Error(_)) {
-            if ui.button("Clear").clicked() {
+        if matches!(query_state, QueryState::Results(_) | QueryState::Error(_))
+            && ui.button("Clear").clicked() {
                 action = PacsPanelAction::ClearResults;
             }
-        }
     });
 
     ui.separator();

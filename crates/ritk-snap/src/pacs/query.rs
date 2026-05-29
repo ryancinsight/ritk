@@ -58,7 +58,7 @@ impl FindResultRowSeries {
                 .get(&(group, element))
                 .map(|v| {
                     String::from_utf8_lossy(v)
-                        .trim_end_matches(|c: char| c == '\0' || c == ' ')
+                        .trim_end_matches(['\0', ' '])
                         .to_owned()
                 })
                 .unwrap_or_default()
@@ -153,7 +153,7 @@ impl FindResultRow {
                 .get(&(group, element))
                 .map(|v| {
                     String::from_utf8_lossy(v)
-                        .trim_end_matches(|c: char| c == '\0' || c == ' ')
+                        .trim_end_matches(['\0', ' '])
                         .to_owned()
                 })
                 .unwrap_or_default()

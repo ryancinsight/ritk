@@ -5,7 +5,7 @@ use std::f64::consts::PI;
 
 #[test]
 fn test_idx_clamped_interior() {
-    assert_eq!(idx_clamped(1, 2, 3, 4, 5, 6), 1 * 5 * 6 + 2 * 6 + 3);
+    assert_eq!(idx_clamped(1, 2, 3, 4, 5, 6),     5 * 6 + 2 * 6 + 3);
 }
 
 #[test]
@@ -242,7 +242,7 @@ fn test_gaussian_smooth_sigma_zero_is_identity() {
 fn test_gradient_magnitude_constant_is_zero() {
     let dims = [4, 5, 6];
     let n = 4 * 5 * 6;
-    let data = vec![3.14_f64; n];
+    let data = vec![std::f64::consts::PI; n];
     let grad = compute_gradient_magnitude(&data, dims);
     for (i, &g) in grad.iter().enumerate() {
         assert!(g.abs() < 1e-15, "grad[{i}] = {g} for constant field");

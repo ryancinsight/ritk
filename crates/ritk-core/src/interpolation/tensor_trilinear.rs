@@ -203,9 +203,9 @@ mod tests {
     fn constant_grid(z: f32, y: f32, x: f32) -> Tensor<B, 5> {
         let n = 8usize; // 2×2×2 spatial
         let mut vals = Vec::with_capacity(3 * n);
-        vals.extend(std::iter::repeat(z).take(n));
-        vals.extend(std::iter::repeat(y).take(n));
-        vals.extend(std::iter::repeat(x).take(n));
+        vals.extend(std::iter::repeat_n(z, n));
+        vals.extend(std::iter::repeat_n(y, n));
+        vals.extend(std::iter::repeat_n(x, n));
         Tensor::<B, 5>::from_data(
             TensorData::new(vals, Shape::new([1, 3, 2, 2, 2])),
             &Default::default(),
@@ -265,10 +265,9 @@ mod tests {
     fn multichannel_channels_interpolated_independently() {
         // Two-channel volume: ch0 constant 1.0, ch1 constant 2.0.
         // Any sampling point must preserve per-channel constant values.
-        let vals: Vec<f32> = std::iter::repeat(1.0f32)
-            .take(8)
-            .chain(std::iter::repeat(2.0f32).take(8))
-            .collect();
+        let ch0 = [1.0f32; 8];
+        let ch1 = [2.0f32; 8];
+        let vals: Vec<f32> = ch0.into_iter().chain(ch1).collect();
         let image = Tensor::<B, 5>::from_data(
             TensorData::new(vals, Shape::new([1, 2, 2, 2, 2])),
             &Default::default(),

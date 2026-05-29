@@ -315,7 +315,7 @@ mod tests {
         let mut data_vec = Vec::with_capacity(nz * pixels_per_slice);
         for z in 0..nz {
             let fill_value = (z + 1) as f32 * 100.0;
-            data_vec.extend(std::iter::repeat(fill_value).take(pixels_per_slice));
+            data_vec.extend(std::iter::repeat_n(fill_value, pixels_per_slice));
         }
 
         let image = make_image(data_vec.clone(), nz, ny, nx);

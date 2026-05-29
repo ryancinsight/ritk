@@ -6739,7 +6739,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-registration"
-version = "0.1.0"
+version = "0.50.84"
 dependencies = [
  "anyhow",
  "burn",

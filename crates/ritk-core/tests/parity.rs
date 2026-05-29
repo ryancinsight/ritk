@@ -185,7 +185,7 @@ fn parity_rescale_intensity_constant_image_in_range() {
     let out = RescaleIntensityFilter::new(0.0, 1.0).apply(&img).unwrap();
     for (i, &v) in vals(&out).iter().enumerate() {
         assert!(
-            v >= 0.0 && v <= 1.0,
+            (0.0..=1.0).contains(&v),
             "constant image rescale must be in [0,1] at voxel {i}: {v}"
         );
     }

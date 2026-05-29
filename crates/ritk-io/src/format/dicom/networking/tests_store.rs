@@ -155,7 +155,7 @@ fn scp_thread(listener: TcpListener) {
 
                     // Check if the command set indicates no data set (0x0101).
                     // C-STORE-RQ always has a data set, but guard defensively.
-                    let has_ds = msg.command_data_set_type().map_or(true, |v| v != 0x0101);
+                    let has_ds = msg.command_data_set_type() != Some(0x0101);
                     if !has_ds {
                         break;
                     }

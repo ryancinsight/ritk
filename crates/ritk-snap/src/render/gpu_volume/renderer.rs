@@ -301,7 +301,7 @@ impl GpuVolumeRenderer {
         if self
             .mip_cache
             .as_ref()
-            .map_or(true, |c| c.rows != rows || c.cols != cols)
+            .is_none_or(|c| c.rows != rows || c.cols != cols)
         {
             self.mip_pending = None;
             self.mip_last = None;
@@ -386,7 +386,7 @@ impl GpuVolumeRenderer {
         if self
             .vr_cache
             .as_ref()
-            .map_or(true, |c| c.rows != rows || c.cols != cols)
+            .is_none_or(|c| c.rows != rows || c.cols != cols)
         {
             self.vr_pending = None;
             self.vr_last = None;

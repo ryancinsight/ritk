@@ -272,7 +272,7 @@ fn identity_kernel_convolution_3d() {
 
     // 3×3×3 Dirac delta centred at (1, 1, 1).
     let mut delta = vec![0.0_f32; 27];
-    delta[1 * 9 + 1 * 3 + 1] = 1.0; // centre = flat index 13
+    delta[9 + 3 + 1] = 1.0; // centre = flat index 13
     let kernel = make_image_3d(delta, 3, 3, 3);
 
     let result = FftConvolution3DFilter::<B>::new(&kernel)

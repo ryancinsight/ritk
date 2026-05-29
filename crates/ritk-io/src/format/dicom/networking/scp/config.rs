@@ -29,7 +29,7 @@ pub struct StoredInstance {
 /// Pad a UID value to even length with a null byte, as required by PS3.5.
 pub(crate) fn pad_uid(uid: &str) -> Vec<u8> {
     let bytes = uid.as_bytes();
-    if bytes.len() % 2 == 0 {
+    if bytes.len().is_multiple_of(2) {
         bytes.to_vec()
     } else {
         let mut v = bytes.to_vec();

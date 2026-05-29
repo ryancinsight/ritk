@@ -192,7 +192,7 @@ impl CommandValue {
         let len = uid.len();
         let mut b = Vec::with_capacity(len + (len & 1));
         b.extend_from_slice(uid.as_bytes());
-        if len % 2 != 0 {
+        if !len.is_multiple_of(2) {
             b.push(0x00);
         }
         Self::Heap(b)
@@ -203,7 +203,7 @@ impl CommandValue {
         let len = s.len();
         let mut b = Vec::with_capacity(len + (len & 1));
         b.extend_from_slice(s.as_bytes());
-        if len % 2 != 0 {
+        if !len.is_multiple_of(2) {
             b.push(b' ');
         }
         Self::Heap(b)
@@ -259,7 +259,7 @@ pub(crate) fn decode_us(bytes: &[u8]) -> Option<u16> {
 
 pub(crate) fn decode_ui(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
-        .trim_end_matches(|c| c == '\0' || c == ' ')
+        .trim_end_matches(['\0', ' '])
         .to_owned()
 }
 

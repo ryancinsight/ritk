@@ -15,7 +15,7 @@ use crate::error::RegistrationError;
 pub struct InverseConsistentDemonsConfig {
     /// Shared Demons parameters.
     pub demons: DemonsConfig,
-    /// Weight of the backward (inverse) force. Range [0,1]. Default 0.5.
+    /// Weight of the backward (inverse) force. Range `[0, 1]`. Default 0.5.
     pub inverse_consistency_weight: f64,
     /// Scaling-and-squaring steps for exp(v). Default 6.
     pub n_squarings: usize,

@@ -31,7 +31,7 @@ impl FindResult {
                 .find(|((g, e), _)| *g == group && *e == element)
                 .map(|(_, v)| {
                     String::from_utf8_lossy(&v)
-                        .trim_end_matches(|c: char| c == '\0' || c == ' ')
+                        .trim_end_matches(['\0', ' '])
                         .to_owned()
                 })
         })
@@ -301,7 +301,7 @@ impl Association {
                     }
                     if cmd_last {
                         let mut msg = DimseMessage::decode_command_set(&cmd)?;
-                        let has_ds = msg.command_data_set_type().map_or(false, |v| v != 0x0101);
+                        let has_ds = msg.command_data_set_type().is_some_and(|v| v != 0x0101);
                         if has_ds && !last_data {
                             loop {
                                 match self.recv_pdu()? {

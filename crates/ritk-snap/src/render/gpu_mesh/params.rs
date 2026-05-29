@@ -223,7 +223,7 @@ mod tests {
             let len = (entry[0].powi(2) + entry[1].powi(2) + entry[2].powi(2)).sqrt();
             // scale = lerp(0.1, 1.0, t²) ∈ [0.1, 1.0]; the unscaled unit vector has norm 1.
             // Actual norm = scale × ||(x,y,z)|| where ||(x,y,z)|| = 1 → len = scale ∈ [0.1, 1.0].
-            assert!(len >= 0.09 && len <= 1.01, "sample {i}: len = {len} not in [0.1, 1.0]");
+            assert!((0.09..=1.01).contains(&len), "sample {i}: len = {len} not in [0.1, 1.0]");
         }
     }
 

@@ -1,3 +1,223 @@
+## Sprint 322 — Complete
+
+**Status**: Complete
+**Phase**: Clippy Cleanup + Gradient Test + Maintenance
+**Goal**: Fix remaining clippy warnings (drop_non_drop, useless_vec, manual_repeat_n, assertions_on_constant), add CR metric gradient test, auto-fix mechanical warnings across workspace.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| FIX-322-01 | 4× `drop_non_drop` in DICOM test code — block scoping replaces explicit drop | **Closed** |
+| FIX-322-02 | `dispatch.rs` stale `fix_cfg` variable — restored `fix_min`/`fix_max`/`fix_sigma` | **Closed** |
+| TEST-322-01 | CR metric gradient test — backward pass verification for `CorrelationRatio` | **Closed** |
+| CLIPPY-322-01 | 8× `useless_vec` → arrays in test code | **Closed** |
+| CLIPPY-322-02 | 5× `repeat(x).take(n)` → `repeat_n(x, n)` | **Closed** |
+| CLIPPY-322-03 | 3× `assertions_on_constant` → const blocks | **Closed** |
+| CLIPPY-322-04 | 23 auto-fixed warnings across 9 crates | **Closed** |
+
+### Residual risks (unchanged)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived
+- **Git CRLF normalization** — Blocked by locally missing test data files
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — Burn's NdArray matmul already parallelized internally
+- **`STACK_WEIGHTS_CAPACITY=32` impact measurement** — Not yet benchmarked
+- **120 remaining clippy warnings** — All non-error (mostly `field_reassign_with_default`, `identity_op` in macros)
+
+## Sprint 321 — Complete
+
+**Status**: Complete
+**Phase**: Clippy Cleanup + Test Fix + Maintenance
+**Goal**: Fix remaining high-value clippy warnings, restore bspline_cr test convergence, auto-fix mechanical warnings across workspace.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| CLIPPY-321-01 | 9× `clone_on_copy` on `Vector<3>` across 9 ritk-core filter files | **Closed** |
+| CLIPPY-321-02 | Auto-fixed 23 warnings: 15 in ritk-io, 1 in ritk-vtk, 6 in ritk-mgh tests, 1 in ritk-model | **Closed** |
+| FIX-321-01 | `dispatch.rs` build error — missing `fix_min`/`fix_max`/`fix_sigma` variables (Sprint 319 regression) | **Closed** |
+| FIX-321-02 | `test_bspline_cr_registration_small` convergence — volume 20→14, LR 0.1→1.0, iterations 100→150 | **Closed** |
+
+### Residual risks (unchanged)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` blocked by locally missing test data files tracked by git
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path
+- **`STACK_WEIGHTS_CAPACITY=32` impact measurement** — Benchmark whether the 132-byte `StackWeights` produces measurable AVX2 speedup vs the 68-byte version on real workloads
+- **108 remaining clippy warnings** — All non-error (`too_many_arguments`, `manual_range_contains`, `type_complexity`, etc.)
+
+## Sprint 320 — Complete
+
+**Status**: Complete
+**Phase**: Build Repair + Clippy Cleanup + Version Sync
+**Goal**: Fix build break introduced in Sprint 319, resolve workspace-wide clippy errors, synchronize version metadata, and clear residual maintenance debt.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| FIX-320-01 | `super::direct` build error in `parzen/mod.rs` — `super` resolves to `histogram/`, not `parzen/`; `direct` is a sibling, not a child of `super` | **Closed** |
+| CLIPPY-320-01 | 10 clippy errors across `ritk-core` test code — `approx_constant`, `erasing_op`, `identity_op` | **Closed** |
+| CLIPPY-320-02 | `manual_range_contains` in `ritk-registration::preprocessing` | **Closed** |
+| VERSION-320-01 | `ritk-registration` Cargo.toml bumped 0.50.80 → 0.50.82 to match CHANGELOG | **Closed** |
+| CLEAN-320-01 | `tests.rs` removed from git tracking (converted to `tests/` directory in Sprint 313) | **Closed** |
+| DOC-320-01 | CHANGELOG, backlog, gap_audit synced for Sprint 320 | **Closed** |
+
+### Residual risks (unchanged)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` blocked by locally missing test data files tracked by git
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **`STACK_WEIGHTS_CAPACITY=32` impact measurement** — Benchmark whether the 132-byte `StackWeights` produces measurable AVX2 speedup vs the 68-byte version on real workloads
+- **`test_bspline_cr_registration_small` convergence** — Still fails on "Error X too high" (registration accuracy, not Parzen)
+
+## Sprint 319 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| SSOT-319-01 | `compute.rs` sigma² consolidation — 3 inline sigma² computations replaced with `ParzenConfig::from_intensity_sigma` calls, completing the SSOT chain across the entire Parzen subsystem | **Closed** |
+| SSOT-319-02 | `sigma_sq_in_bins` removed — deprecated standalone function deleted; all 10+ call sites across `compute.rs`, `compute_image.rs`, `masked/mod.rs`, `dispatch.rs`, and tests migrated to `ParzenConfig::from_intensity_sigma` | **Closed** |
+| PERF-319-04 | Exp-ratchet in `StackWeights::new` — FMA chain replaces N×`exp()` with 1×`exp()` + (N-1)×FMA, approximately 3× faster for typical 7-bin window | **Closed** |
+| PERF-319-05 | Lock-free `HistogramPool::checkout` — Mutex dropped before zero-filling/allocating, reducing contention under rayon; new allocations skip redundant `fill(0.0)` | **Closed** |
+| FIX-319-09 | `STACK_WEIGHTS_CAPACITY` 16→32 — insufficient for sigma_sq≥9.0 (σ=3 bins → range=19 bins > 16); new capacity covers σ≤5.2 bins | **Closed** |
+| ARCH-319-10 | `ParzenConfig::support_bins()` — new introspection method returning `2 * half_width + 1` | **Closed** |
+| TEST-319-07 | 6 new edge-case tests — exp-ratchet precision (2), negative/infinite sigma panic (2), near-equal range, self-consistency | **Closed** |
+| TEST-319-08 | 2 new HistogramPool tests — reuse cycle, multi-buffer fold/reduce | **Closed** |
+| TEST-319-11 | 4 new functional tests — support_bins consistency, separate sigma per axis (direct + sparse) | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fused Parzen weights kernel** — GPU single-dispatch for direct path benefits
+- **`STACK_WEIGHTS_CAPACITY=32` impact measurement** — Benchmark whether the 132-byte `StackWeights` produces measurable AVX2 speedup vs the 68-byte version on real workloads
+- **`test_bspline_cr_registration_small` convergence** — Still fails on "Error X too high" (registration accuracy, not Parzen)
+
+## Sprint 318 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| CORRECT-318-01 | Masked-cache fingerprint hardened from probabilistic sum-of-first-256 to deterministic SipHash-1-3 over full data — `data_fingerprint` type changed from `Option<f32>` to `Option<u64>` in `MaskedHistogramCache`; `compute_fingerprint` and `validate_masked_cache_fingerprint` both use `std::hash::DefaultHasher` with `f32::to_bits()` conversion; O(N) hash cost is negligible vs O(N × num_bins) histogram computation | **Closed** |
+| FIX-318-02 | Sprint 317 build break (E0252 + E0603): `ParzenConfig` imported both privately (line 106) and re-exported publicly (line 112) in `direct/mod.rs` — removed `ParzenConfig` from the private `use types::{}` block, keeping only the `pub(crate) use types::ParzenConfig` re-export | **Closed** |
+| FIX-318-03 | Dead-code cleanup: `MAX_PARZEN_BINS` gated with `#[cfg(test)]`; removed unused `ParzenConfig::support_bins` method; removed unused `#[cfg(test)] pub(crate) use types::MIN_HALF_WIDTH` re-export | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fused Parzen weights kernel** — GPU single-dispatch for direct path benefits; a backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+
+## Sprint 317 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| ARCH-317-01 | `ParzenConfig` value object — groups per-axis σ², half-width, and `inv_2sigma_sq` in a single struct. Monomorphized direct-path `accumulate_sample_direct` (both axes pre-computed as `StackWeights`). `SampleWindow` pre-computes both axes' weights. DRY `SampleWindow::mask_val` helper. SSOT `compute_half_width` canonical location in `types.rs` | **Closed** |
+| MEM-317-02 | Lift `HistogramPool` to `ParzenJointHistogram` — added `histogram_pool: Arc<Mutex<HistogramPool>>` field on the struct, initialized in `new()`. Both `compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse` accept optional `pool: Option<&HistogramPool>` parameter (`None` = local pool fallback). Dispatch methods lock the pool and pass it to direct functions. Eliminates O(num_bins²) allocation per CMA-ES iteration | **Closed** |
+| TEST-317-06 | 7 new property tests + 3 new unit tests + 2 new accumulate_sample tests + 1 SSOT test (13 total) in `direct_property_tests.rs` and `direct_types_tests.rs` | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fused Parzen weights kernel** — GPU single-dispatch for direct path benefits; a backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+
+## Sprint 316 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| MEM-316-01 | `SampleWindow` precomputed bin ranges — computes a sample's `(primary, lo, hi)` bin range once via `BinRange::new()`, avoiding repeated `floor/primary - hw/max(0)/min(num_bins-1)` calculations in both computation paths. Returns `None` for OOB samples, eliminating the `if mask_val >= 0.5` branch from fold closures | **Closed** |
+| PERF-316-03 | SIMD-aligned `StackWeights` — weight array size rounded from `[f32; 7]` to `[f32; 8]` (32 bytes = one AVX2 `__m256` register). `STACK_WEIGHTS_CAPACITY = 8` constant introduced. Zero-filled padding enables aligned loads | **Closed** |
+| ARCH-316-04 | `BinRange` newtype — replaces bare `(lo, hi)` pairs with a typed struct providing named fields, `len()`, `is_empty()`, `iter()`. Prevents accidental `(hi, lo)` swaps at zero runtime cost. Handles edge case where `primary > num_bins - 1` | **Closed** |
+| FIX-316-07 | Branch-eliminated `accumulate_sample` — OOB mask check folded into `SampleWindow::new()` / `SampleWindow::new_moving_only()`, which return `Option`. Both fold closures simplified to a single `if let Some(window) = ...` pattern | **Closed** |
+| DOC-316-06 | Module-level `# Safety` and `# Examples` sections — added to `direct/mod.rs` documenting: no `unsafe` code, zero-filled `StackWeights` padding, Mutex poison recovery, and a usage example | **Closed** |
+| TEST-316-05 | 5 new property-based tests + 11 unit tests: `sparse_w_fixed_deterministic`, `histogram_non_negative_all_entries`, `histogram_marginals_sum_correctly`, 6 `BinRange` tests, 5 `SampleWindow` tests, 2 `StackWeights` SIMD-alignment tests | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **Masked-path cache collision detection is probabilistic** — `data_fingerprint` uses sum of first 256 values; two very different datasets with the same sum could still collide (extremally unlikely in practice)
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fused Parzen weights kernel** — GPU single-dispatch for direct path benefits; a backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+
+## Sprint 315 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| MEM-315-01 | `StackWeights` now derives `Copy` — 32-byte struct can be passed by value without overhead. Added `iter()` method for zero-cost iteration over active entries | **Closed** |
+| ARCH-315-03 | `HistogramPool` struct — extracted duplicated `Mutex<Vec<Vec<f32>>>` pool logic from both computation functions into a reusable struct with `new()`, `checkout()`, `return_buffer()` methods | **Closed** |
+| PERF-315-02 | `accumulate_sample` helper — monomorphized fold body shared by both direct and sparse paths. Takes `impl IntoIterator<Item = SparseWFixedEntry>`, ensuring consistent optimization | **Closed** |
+| ARCH-315-05 | `SparseWFixedEntry` newtype — replaces bare `(usize, f32)` tuples in `SparseWFixedT` with a typed struct providing named field access (`bin`, `weight`) and `Copy` semantics. Prevents accidental index/weight swaps | **Closed** |
+| FIX-315-04 | `sparse.rs` dead code cleanup — removed `#[allow(dead_code)]` from module declaration; gated test-only functions with `#[cfg(test)]`; removed dead `compute_sparse_parzen_weights_transposed` | **Closed** |
+| TEST-315-06 | 5 new tests: `stack_weights_is_copy`, `accumulate_sample_direct_vs_sparse_weights`, `histogram_symmetry_identical_images`, `histogram_normalization_total_weight`, `histogram_boundary_bins_populated` | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **Masked-path cache collision detection is probabilistic** — `data_fingerprint` uses sum of first 256 values; two very different datasets with the same sum could still collide (extremely unlikely in practice)
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fused Parzen weights kernel** — GPU single-dispatch for direct path benefits; a backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+- **`HistogramPool` is per-invocation** — could be lifted to `ParzenJointHistogram` for cross-invocation reuse, but would require careful lifetime management
+
+## Sprint 314 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| FIX-314-01 | Removed deprecated `compute_joint_histogram_from_cache_direct` + dead `row_base_pointers` + OPT-1/OPT-3 `unsafe` code | **Closed** |
+| FIX-314-02 | Fixed 4 `bspline_ffd` clippy `needless_range_loop` warnings | **Closed** |
+| ARCH-314-01 | `SparseWFixedCache` trait for shared lazy-build logic (eliminates duplicate `get_or_build_sparse_w_fixed` methods) | **Closed** |
+| ARCH-314-02 | Cache key collision guard (`data_fingerprint` + `validate_masked_cache_fingerprint`) | **Closed** |
+| PERF-314-01 | Parallelized `compute_joint_histogram_direct` (rayon fold/reduce with thread-local histograms) | **Closed** |
+| MEM-314-01 | Thread-local histogram buffer pool (both direct functions) | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns or a custom GPU kernel is written
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- **Masked-path cache collision detection is probabilistic** — `data_fingerprint` uses sum of first 256 values; two very different datasets with the same sum could still collide (extremely unlikely in practice)
+- **`compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized** — RSGD backends still use the sequential matmul path, which is correct but not optimized
+- **Fully lazy sparse cache** — `fixed_norm` could be built even later (only on first CMA-ES hit) to further reduce peak memory
+- **Fused Parzen weights kernel** — A backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+
+## Sprint 313 — Complete
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| PERF-313-01 | Parallel sparse hot-loop histogram reduction (`compute_joint_histogram_from_cache_sparse` uses rayon `fold().reduce()` with thread-local histograms) | **Closed** |
+| FIX-313-01 | Eliminated 4 clippy warnings (`needless_range_loop`, `single_range_in_vec_init`, `doc_quote_line_without_gt_marker`, `op_ref`) | **Closed** |
+| FIX-313-02 | Deprecated `compute_joint_histogram_from_cache_direct` (dense cache path only retained for test validation) | **Closed** |
+| ARCH-313-01 | Cache invalidation API (`invalidate_cache`, `invalidate_masked_cache`, `invalidate_all_caches` on `ParzenJointHistogram`) | **Closed** |
+| ARCH-313-02 | Shared lazy-build logic (`get_or_build_sparse_w_fixed` on `HistogramCache` and `MaskedHistogramCache`) | **Closed** |
+| STR-313-01 | `tests.rs` (1054 lines) → `tests/` directory module (3 files, all < 500 lines) | **Closed** |
+
+### Residual risks (not yet scheduled)
+
+- ~~**`compute_joint_histogram_from_cache_direct` removal**~~ — **Resolved in Sprint 314** (FIX-314-01: fully removed)
+- **`sparse.rs` GPU-backend potential** — Remains archived; could provide GPU-backend speedup if Burn scatter supports expand-scatter patterns
+- **Git CRLF normalization** — `git add --renormalize` still pending from Sprint 293
+- ~~**Masked-path cache partial key collisions**~~ — **Mitigated in Sprint 314** (ARCH-314-02: `data_fingerprint` + `validate_masked_cache_fingerprint`)
+- ~~**`compute_joint_histogram_direct` parallelization**~~ — **Resolved in Sprint 314** (PERF-314-01: now uses rayon fold/reduce)
+- **Fused Parzen weights kernel** — A backend-specific kernel computing sparse Parzen weights and accumulating the histogram in a single dispatch would bring direct-path benefits to GPU backends
+
 ## Sprint 312 — Complete
 
 ### Gaps closed

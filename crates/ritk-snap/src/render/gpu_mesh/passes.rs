@@ -249,8 +249,8 @@ fn encode_ssao_pass(
     });
     cpass.set_pipeline(&ctx.ssao_pipeline);
     cpass.set_bind_group(0, &bg, &[]);
-    let wx = (cache.cols as u32 + 7) / 8;
-    let wy = (cache.rows as u32 + 7) / 8;
+    let wx = (cache.cols as u32).div_ceil(8);
+    let wy = (cache.rows as u32).div_ceil(8);
     cpass.dispatch_workgroups(wx, wy, 1);
 }
 
@@ -283,7 +283,7 @@ fn encode_composite_pass(
     });
     cpass.set_pipeline(&ctx.composite_pipeline);
     cpass.set_bind_group(0, &bg, &[]);
-    let wx = (cache.cols as u32 + 7) / 8;
-    let wy = (cache.rows as u32 + 7) / 8;
+    let wx = (cache.cols as u32).div_ceil(8);
+    let wy = (cache.rows as u32).div_ceil(8);
     cpass.dispatch_workgroups(wx, wy, 1);
 }

@@ -122,7 +122,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 /// represent the same anatomy in different modalities and the objects occupy
 /// a similar fraction of the field of view. For strongly asymmetric images
 /// (e.g. whole-body CT vs. brain MRI) the estimate may be unreliable; in that
-/// case pass `use_com_init = false` in [`CmaMiConfig`] and supply an explicit
+/// case pass `use_com_init = false` in `CmaMiConfig` and supply an explicit
 /// initial translation.
 pub fn translation_from_centers_of_mass<B: Backend>(
     fixed: &Image<B, 3>,

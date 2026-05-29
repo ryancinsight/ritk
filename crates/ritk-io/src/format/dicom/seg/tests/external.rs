@@ -51,7 +51,7 @@ fn test_read_external_dcmqi_liver_seg_real_file() {
     let rebuilt = dicom_seg_to_label_map(&seg).expect("rebuild label map from external SEG");
     assert_eq!(rebuilt.shape, [3, 512, 512]);
     assert!(rebuilt.present_labels().contains(&1));
-    assert!(rebuilt.as_slice().iter().any(|&v| v == 1));
+    assert!(rebuilt.as_slice().contains(&1));
 }
 
 #[test]

@@ -43,7 +43,7 @@
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,
 /// field composition, scaling-and-squaring) live in
-/// [`crate::deformable_field_ops`] (crate-level SSOT).
+/// `crate::deformable_field_ops` (crate-level SSOT).
 pub mod config;
 pub mod diffeomorphic;
 pub mod exact_inverse_diffeomorphic;

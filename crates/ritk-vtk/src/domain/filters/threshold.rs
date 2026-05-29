@@ -291,7 +291,7 @@ mod tests {
         // Both passing scalars must be within [0.5, 0.8]
         for &v in values {
             assert!(
-                v >= 0.5 - 1e-5 && v <= 0.8 + 1e-5,
+                (0.5 - 1e-5..=0.8 + 1e-5).contains(&v),
                 "output scalar {} must be in [0.5, 0.8]",
                 v
             );

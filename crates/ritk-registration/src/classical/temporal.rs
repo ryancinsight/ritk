@@ -6,14 +6,14 @@
 //! # Theorem: Phase Correlation for Temporal Alignment
 //!
 //! Given two temporal signals S₁(t) and S₂(t) with a temporal offset Δt:
-//! ```
+//! ```text
 //! R(τ) = Σ S₁(i) · S₂(i + τ)
 //! τ* = argmax_τ R(τ)
 //! Δt = τ* · T_frame
 //! ```
 //!
 //! For sub-sample precision, a parabolic fit around the peak is used:
-//! ```
+//! ```text
 //! τ_peak = τ₀ + (R(τ₀-1) - R(τ₀+1)) / (2 · (R(τ₀-1) - 2·R(τ₀) + R(τ₀+1)))
 //! ```
 //!

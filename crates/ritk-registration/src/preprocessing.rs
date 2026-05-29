@@ -1,18 +1,18 @@
 //! ANTs-style preprocessing pipeline for volumetric images.
 //!
 //! Mathematical specification:
-//!   P = (steps: Vec<PreprocessingStep>) applied sequentially.
-//!   execute(P, I_0) = fold(steps, I_0, apply_step)
+//!   P = (`steps: Vec<PreprocessingStep>`) applied sequentially.
+//!   `execute(P, I_0) = fold(steps, I_0, apply_step)`
 //!
-//! Each step is a deterministic, pure transform Image<B,3> -> Result<Image<B,3>>.
+//! Each step is a deterministic, pure transform `Image<B,3> -> Result<Image<B,3>>`.
 //!
 //! Steps:
-//!   N4BiasCorrection  : I' = exp(ln(I) - B_spline_estimate)
-//!   IntensityNorm ZScore : I'[i] = (I[i] - mu) / sigma  (sigma=0 -> 0)
-//!   IntensityNorm MinMax : I'[i] = (I[i]-min)/(max-min) * (hi-lo) + lo
-//!   Clamp             : I'[i] = clamp(I[i], lower, upper)
-//!   Masking           : I'[i] = if mask[i]==0 { 0 } else { I[i] }
-//!   Smoothing         : I' = Gaussian_sigma(I)
+//!   N4BiasCorrection  : `I' = exp(ln(I) - B_spline_estimate)`
+//!   IntensityNorm ZScore : `I'[i] = (I[i] - mu) / sigma`  (sigma=0 -> 0)
+//!   IntensityNorm MinMax : `I'[i] = (I[i]-min)/(max-min) * (hi-lo) + lo`
+//!   Clamp             : `I'[i] = clamp(I[i], lower, upper)`
+//!   Masking           : `I'[i] = if mask[i]==0 { 0 } else { I[i] }`
+//!   Smoothing         : `I' = Gaussian_sigma(I)`
 
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
@@ -44,7 +44,7 @@ pub enum PreprocessingStep {
         lower: f32,
         upper: f32,
     },
-    /// Zero out voxels where mask[i] == 0.  mask.len() must equal voxel count.
+    /// Zero out voxels where `mask[i] == 0`.  `mask.len()` must equal voxel count.
     Masking {
         mask: Vec<u8>,
         dims: [usize; 3],
@@ -243,7 +243,7 @@ mod tests {
         });
         let out = extract(&pipeline.execute(img).unwrap());
         for &v in &out {
-            assert!(v >= 0.0 && v <= 1.0, "value {} outside [0,1]", v);
+            assert!((0.0..=1.0).contains(&v), "value {} outside [0,1]", v);
         }
         assert_eq!(out[0], 0.0f32);
         assert_eq!(out[4], 1.0f32);

@@ -33,7 +33,7 @@ pub fn store(config: &AssociationConfig, path: &Path) -> Result<StoreResponse, N
         .and_then(|e| e.to_str().ok().map(|s| s.to_string()))
         .ok_or_else(|| NetworkingError::Protocol("missing SOP Instance UID in file".to_owned()))?;
 
-    let inner: &dicom::object::InMemDicomObject = &*file_obj;
+    let inner: &dicom::object::InMemDicomObject = &file_obj;
     let ts = EXPLICIT_VR_LITTLE_ENDIAN.erased();
     let mut dataset_bytes = Vec::new();
     inner
@@ -44,7 +44,7 @@ pub fn store(config: &AssociationConfig, path: &Path) -> Result<StoreResponse, N
         .calling_ae_title(config.calling_ae_title.as_str())
         .called_ae_title(config.called_ae_title.as_str())
         .with_presentation_context(sop_class_uid.as_str(), vec![EXPLICIT_VR_LE_TS])
-        .establish(&format!("{}:{}", config.host, config.port))
+        .establish(format!("{}:{}", config.host, config.port))
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
     let ctx_id = find_ctx_id(&assoc)?;

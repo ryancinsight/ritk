@@ -243,7 +243,7 @@ mod tests {
     fn test_num_elements() {
         assert_eq!(
             shape_utils::num_elements(&[1, 3, 224, 224]),
-            1 * 3 * 224 * 224
+            3 * 224 * 224
         );
         assert_eq!(shape_utils::num_elements(&[64, 3, 7, 7]), 64 * 3 * 7 * 7);
         assert_eq!(shape_utils::num_elements(&[]), 1);

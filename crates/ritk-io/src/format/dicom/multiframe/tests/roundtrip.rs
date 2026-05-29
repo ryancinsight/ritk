@@ -131,7 +131,7 @@ fn test_read_multiframe_info_reports_scalar_defaults_for_single_frame() {
     let out_path = tmp.path().join("single_frame.dcm");
 
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![7.0_f32; 1 * 2 * 3], Shape::new([1_usize, 2, 3])),
+        TensorData::new(vec![7.0_f32; 2 * 3], Shape::new([1_usize, 2, 3])),
         &device,
     );
     let image = Image::new(

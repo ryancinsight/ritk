@@ -40,7 +40,7 @@ impl AeTitle {
                 "length must be 1-16 characters",
             ));
         }
-        if s.bytes().any(|b| b < 0x20 || b >= 0x7F || b == b'\\') {
+        if s.bytes().any(|b| !(0x20..0x7F).contains(&b) || b == b'\\') {
             return Err(NetworkingError::InvalidAeTitle(
                 s.to_owned(),
                 "must be printable ASCII excluding backslash",

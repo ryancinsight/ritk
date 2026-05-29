@@ -9,6 +9,15 @@
 //! The helpers `apply_ritk_m4_to_rire_point` and `resample_mri_into_ct_ritk`
 //! internally perform the dimension permutation so that TRE and NCC calculations
 //! use the standard RIRE `[x, y, z]` reference frame.
+//!
+//! # Dead-code allowance
+//!
+//! This module is compiled into every integration-test binary that does
+//! `mod common;`. Each binary uses a different subset of helpers, so almost
+//! every item is "dead" in some binaries. The `#[allow(dead_code)]` is a
+//! standard Rust idiom for shared test-utility modules.
+
+#![allow(dead_code)]
 
 use burn::backend::Autodiff;
 use burn_ndarray::NdArray;
@@ -109,9 +118,9 @@ pub fn ncc(a: &[f32], b: &[f32]) -> f64 {
 /// `shape = [nz, ny, nx]`. Returns `(downsampled_data, new_shape)`.
 pub fn downsample_stride(data: &[f32], shape: [usize; 3], stride: usize) -> (Vec<f32>, [usize; 3]) {
     let [nz, ny, nx] = shape;
-    let new_nz = (nz + stride - 1) / stride;
-    let new_ny = (ny + stride - 1) / stride;
-    let new_nx = (nx + stride - 1) / stride;
+    let new_nz = nz.div_ceil(stride);
+    let new_ny = ny.div_ceil(stride);
+    let new_nx = nx.div_ceil(stride);
     let mut out = Vec::with_capacity(new_nz * new_ny * new_nx);
     for iz in (0..nz).step_by(stride) {
         for iy in (0..ny).step_by(stride) {

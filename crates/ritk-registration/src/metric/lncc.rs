@@ -153,7 +153,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
             let mut cache_hit = false;
             if let Some(c) = cache.as_ref() {
                 let fs = fixed.shape();
-                if c.shape.as_slice() == &fs
+                if c.shape.as_slice() == fs
                     && c.origin.iter().eq(fixed.origin().0.iter())
                     && c.spacing.iter().eq(fixed.spacing().0.iter())
                     && c.direction.iter().eq(fixed.direction().0.iter())

@@ -101,7 +101,7 @@ pub struct CmaMiConfig {
     pub rotation_range_rad: f64,
 
     /// Optional RSGD fine-refinement configuration. When `Some`, a
-    /// [`GlobalMiRegistration`] run is started from the CMA-ES solution.
+    /// `GlobalMiRegistration` run is started from the CMA-ES solution.
     /// Default: **None** (CMA-ES result used directly).
     pub rsgd_refine: Option<GlobalMiConfig>,
 

@@ -138,7 +138,7 @@ mod tests {
         let img = Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),
-            sp.clone(),
+            sp,
             Direction::identity(),
         );
         let out = InvertIntensityFilter::new().apply(&img);

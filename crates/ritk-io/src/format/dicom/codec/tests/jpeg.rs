@@ -25,11 +25,12 @@ fn write_jpeg_dicom_file(path: &std::path::Path, width: u32, height: u32, pixels
         GrayImage::from_raw(width, height, pixels_u8.to_vec()).expect("GrayImage::from_raw failed");
     let dyn_img = DynamicImage::ImageLuma8(gray);
     let mut jpeg_bytes: Vec<u8> = Vec::new();
-    let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
-    dyn_img
-        .write_to(&mut cursor, image::ImageFormat::Jpeg)
-        .expect("JPEG encode failed");
-    drop(cursor);
+    {
+        let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+        dyn_img
+            .write_to(&mut cursor, image::ImageFormat::Jpeg)
+            .expect("JPEG encode failed");
+    }
 
     let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jpeg_bytes]);
     let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);
@@ -246,11 +247,12 @@ fn test_decode_compressed_frame_jpeg_extended_round_trip() {
             .expect("GrayImage::from_raw failed");
         let dyn_img = DynamicImage::ImageLuma8(gray);
         let mut jpeg_bytes: Vec<u8> = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
-        dyn_img
-            .write_to(&mut cursor, image::ImageFormat::Jpeg)
-            .expect("JPEG encode failed");
-        drop(cursor);
+        {
+            let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+            dyn_img
+                .write_to(&mut cursor, image::ImageFormat::Jpeg)
+                .expect("JPEG encode failed");
+        }
 
         let fragments: SmallVec<[Vec<u8>; 2]> = SmallVec::from_vec(vec![jpeg_bytes]);
         let pfs: PixelFragmentSequence<Vec<u8>> = PixelFragmentSequence::new_fragments(fragments);

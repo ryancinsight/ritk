@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
 
     let device = Default::default();
 
-    let data_root = std::path::Path::new("data/Paired MRI (T1, T2) and CT Scans Dataset");
+    let data_root = std::path::Path::new("test_data/paired_mri_ct");
     let ct_dir = data_root.join("CT/PNG/Patient_01");
     let mri_dir = data_root.join("T1-MRI/PNG/Patient_01");
 
@@ -58,7 +58,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     // Save intermediate NIfTI files for inspection
-    let output_dir = std::path::Path::new("data/output");
+    let output_dir = std::path::Path::new("output");
     std::fs::create_dir_all(output_dir)?;
 
     let ct_nifti_path = output_dir.join("patient01_ct.nii.gz");
@@ -92,6 +92,7 @@ fn main() -> anyhow::Result<()> {
         0.0,
         255.0,
         1.0,
+        &device,
     );
 
     let rigid_schedule = RegistrationSchedule::<3>::default(3)
@@ -125,6 +126,7 @@ fn main() -> anyhow::Result<()> {
         0.0,
         255.0,
         1.0,
+        &device,
     );
     let affine_schedule = RegistrationSchedule::<3>::default(3)
         .with_iterations(vec![30, 30, 15])

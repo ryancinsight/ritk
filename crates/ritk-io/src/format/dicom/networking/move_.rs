@@ -78,7 +78,7 @@ fn retrieve_impl(
         .calling_ae_title(config.calling_ae_title.as_str())
         .called_ae_title(config.called_ae_title.as_str())
         .with_presentation_context(STUDY_ROOT_MOVE_SOP_CLASS, vec![IMPLICIT_VR_LE_TS])
-        .establish(&format!("{}:{}", config.host, config.port))
+        .establish(format!("{}:{}", config.host, config.port))
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
     let ctx_id = find_ctx_id(&assoc)?;

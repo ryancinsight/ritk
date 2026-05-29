@@ -3,6 +3,8 @@
 //! Extracted from `compute.rs` to keep the 500-line structural limit.
 
 use super::super::cache::HistogramCache;
+#[cfg(feature = "direct-parzen")]
+use super::super::cache::SparseWFixedCache;
 use super::ParzenJointHistogram;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -54,16 +56,7 @@ fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
     if !cache_matches_image(cache, fixed) {
         return None;
     }
-    // Fast path: sparse cache already built.
-    if cache.sparse_w_fixed.is_some() {
-        return cache.sparse_w_fixed.clone();
-    }
-    // Lazy build: construct sparse cache from stored fixed_norm.
-    let fixed_norm = cache.fixed_norm.take()?;
-    let sparse =
-        super::direct::build_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
-    cache.sparse_w_fixed = Some(sparse);
-    cache.sparse_w_fixed.clone()
+    cache.get_or_build_sparse_w_fixed(num_bins, sigma_sq_fix)
 }
 
 /// Normalize fixed-image values for lazy sparse cache construction.
@@ -190,16 +183,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let cached_sparse = (!use_sampling)
                 .then(|| {
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    let sigma_sq_fix = super::dispatch::sigma_sq_in_bins(
-                        self.parzen_sigma,
-                        self.min_intensity,
-                        self.max_intensity,
-                        self.num_bins,
-                    );
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                     get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
                 })
                 .flatten();
-
             let fixed_points = if let Some(pts) = cached_points {
                 pts
             } else {
@@ -292,16 +279,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let cached_sparse = (!use_sampling)
                 .then(|| {
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    let sigma_sq_fix = super::dispatch::sigma_sq_in_bins(
-                        self.parzen_sigma,
-                        self.min_intensity,
-                        self.max_intensity,
-                        self.num_bins,
-                    );
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
                     get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
                 })
                 .flatten();
-
             let all_fixed_points = if let Some(pts) = cached_points {
                 pts
             } else if !use_sampling {

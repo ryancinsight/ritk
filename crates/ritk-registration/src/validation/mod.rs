@@ -17,9 +17,9 @@ pub use shape::*;
 /// Quality metrics for temporal synchronization.
 #[derive(Debug, Clone)]
 pub struct TemporalQualityMetrics {
-    /// Root mean square timing error [seconds]
+    /// Root mean square timing error (seconds)
     pub rms_timing_error: f64,
-    /// Maximum timing deviation [seconds]
+    /// Maximum timing deviation (seconds)
     pub max_timing_deviation: f64,
     /// Phase lock stability factor [0-1]
     pub phase_lock_stability: f64,
@@ -30,9 +30,9 @@ pub struct TemporalQualityMetrics {
 /// Comprehensive quality metrics for registration accuracy.
 #[derive(Debug, Clone)]
 pub struct RegistrationQualityMetrics {
-    /// Fiducial registration error [mm]
+    /// Fiducial registration error (mm)
     pub fre: Option<f64>,
-    /// Target registration error [mm]
+    /// Target registration error (mm)
     pub tre: Option<f64>,
     /// Mutual information between registered images
     pub mutual_information: f64,

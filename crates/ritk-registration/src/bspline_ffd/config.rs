@@ -34,8 +34,7 @@ impl Default for BSplineFFDConfig {
 #[derive(Debug, Clone)]
 pub struct BSplineFFDResult {
     /// Control-point displacements for each spatial component (dz, dy, dx).
-    /// Each `Vec<f32>` has length `control_grid_dims[0] * control_grid_dims[1]
-    /// * control_grid_dims[2]`.
+    /// Each `Vec<f32>` has length `control_grid_dims[0] * control_grid_dims[1] * control_grid_dims[2]`.
     pub control_points: (Vec<f32>, Vec<f32>, Vec<f32>),
     /// Control-lattice dimensions `[nz, ny, nx]`.
     pub control_grid_dims: [usize; 3],

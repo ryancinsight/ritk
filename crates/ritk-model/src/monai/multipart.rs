@@ -83,7 +83,7 @@ pub(crate) fn extract_part_name(headers: &[u8]) -> Option<String> {
         Some(stripped[..end].to_owned())
     } else {
         let end = rest
-            .find(|c: char| matches!(c, ';' | '\r' | '\n' | ' '))
+            .find([';', '\r', '\n', ' '])
             .unwrap_or(rest.len());
         Some(rest[..end].to_owned())
     }

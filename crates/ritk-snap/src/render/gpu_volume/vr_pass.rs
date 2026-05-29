@@ -105,8 +105,8 @@ pub(super) fn submit_vr_async(
         });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bg, &[]);
-        let wg_x = (cols as u32 + 7) / 8;
-        let wg_y = (rows as u32 + 7) / 8;
+        let wg_x = (cols as u32).div_ceil(8);
+        let wg_y = (rows as u32).div_ceil(8);
         pass.dispatch_workgroups(wg_x, wg_y, 1);
     }
     encoder.copy_buffer_to_buffer(&cache.output_buf, 0, &cache.staging_buf, 0, output_bytes);

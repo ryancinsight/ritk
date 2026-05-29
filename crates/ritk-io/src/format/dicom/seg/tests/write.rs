@@ -49,13 +49,11 @@ fn test_write_dicom_seg_binary_roundtrip() {
     assert_eq!(result.bits_allocated, 1, "bits_allocated");
     assert_eq!(result.segmentation_type, "BINARY", "segmentation_type");
     assert_eq!(result.pixel_data.len(), 2, "frame count");
-    let expected_f0: Vec<u8> = std::iter::repeat(1u8)
-        .take(8)
-        .chain(std::iter::repeat(0u8).take(8))
+    let expected_f0: Vec<u8> = std::iter::repeat_n(1u8, 8)
+        .chain(std::iter::repeat_n(0u8, 8))
         .collect();
-    let expected_f1: Vec<u8> = std::iter::repeat(0u8)
-        .take(8)
-        .chain(std::iter::repeat(1u8).take(8))
+    let expected_f1: Vec<u8> = std::iter::repeat_n(0u8, 8)
+        .chain(std::iter::repeat_n(1u8, 8))
         .collect();
     assert_eq!(result.pixel_data[0], expected_f0, "frame 0 must match");
     assert_eq!(result.pixel_data[1], expected_f1, "frame 1 must match");

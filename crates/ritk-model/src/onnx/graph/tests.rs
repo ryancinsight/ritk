@@ -56,7 +56,7 @@ fn test_tensor_creation() {
 fn test_value_info() {
     let info = OnnxValueInfo::new(OnnxElementType::Float, vec![1, 3, 224, 224]);
     assert!(info.is_static());
-    assert_eq!(info.num_elements(), Some(1 * 3 * 224 * 224));
+    assert_eq!(info.num_elements(), Some(3 * 224 * 224));
 
     let dynamic_info = OnnxValueInfo::new(OnnxElementType::Float, vec![-1, 3, 224, 224]);
     assert!(!dynamic_info.is_static());

@@ -196,7 +196,7 @@ fn planar_interface_produces_triangles() {
     let mut data = vec![0.0f32; nz * ny * nx];
     for iy in 0..ny {
         for ix in 0..nx {
-            data[0 * ny * nx + iy * nx + ix] = 1.0;
+            data[iy * nx + ix] = 1.0;
         }
     }
     let mesh = mc_default().extract(&data, [nz, ny, nx]);

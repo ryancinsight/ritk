@@ -9,7 +9,7 @@ fn gaussian_default_sigma_in_range() {
     let fk = FilterKind::Gaussian { sigma: 1.0 };
     if let FilterKind::Gaussian { sigma } = fk {
         assert!(
-            sigma >= 0.1 && sigma <= 20.0,
+            (0.1..=20.0).contains(&sigma),
             "default sigma {sigma} must lie in [0.1, 20.0]"
         );
     } else {
@@ -49,7 +49,7 @@ fn clahe_defaults_in_range() {
             tile_grid_size[1]
         );
         assert!(
-            clip_limit >= 1.0 && clip_limit <= 200.0,
+            (1.0..=200.0).contains(&clip_limit),
             "clip_limit={clip_limit} out of range"
         );
     } else {
@@ -61,7 +61,7 @@ fn clahe_defaults_in_range() {
 fn histeq_default_bins_in_range() {
     let fk = FilterKind::HistEq { bins: 256 };
     if let FilterKind::HistEq { bins } = fk {
-        assert!(bins >= 2 && bins <= 1024, "bins={bins} out of range");
+        assert!((2..=1024).contains(&bins), "bins={bins} out of range");
     } else {
         panic!("expected HistEq variant");
     }
@@ -88,15 +88,15 @@ fn unsharp_mask_defaults_in_range() {
     } = fk
     {
         assert!(
-            sigma >= 0.1 && sigma <= 10.0,
+            (0.1..=10.0).contains(&sigma),
             "default sigma {sigma} out of range [0.1, 10.0]"
         );
         assert!(
-            amount >= 0.0 && amount <= 5.0,
+            (0.0..=5.0).contains(&amount),
             "default amount {amount} out of range [0.0, 5.0]"
         );
         assert!(
-            threshold >= 0.0 && threshold <= 100.0,
+            (0.0..=100.0).contains(&threshold),
             "default threshold {threshold} out of range [0.0, 100.0]"
         );
         assert!(clamp, "default clamp should be true");
@@ -126,15 +126,15 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
     } = fk
     {
         assert!(
-            iterations >= 1 && iterations <= 50,
+            (1..=50).contains(&iterations),
             "default iterations {iterations} out of range [1, 50]"
         );
         assert!(
-            time_step >= 0.01 && time_step <= 0.1667,
+            (0.01..=0.1667).contains(&time_step),
             "default time_step {time_step} out of range [0.01, 0.1667] (stability bound)"
         );
         assert!(
-            conductance >= 0.1 && conductance <= 100.0,
+            (0.1..=100.0).contains(&conductance),
             "default conductance {conductance} out of range [0.1, 100.0]"
         );
     } else {

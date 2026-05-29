@@ -12,7 +12,7 @@ fn test_read_invalid_version() {
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
         [0.0, 0.0, 0.0],
-        &vec![0u8; 2 * 2 * 2 * 4],
+        &[0u8; 2 * 2 * 2 * 4],
     );
     std::fs::write(&path, &mgh).unwrap();
 
@@ -37,7 +37,7 @@ fn test_read_unsupported_type_code() {
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
         [0.0, 0.0, 0.0],
-        &vec![0u8; 2 * 2 * 2],
+        &[0u8; 2 * 2 * 2],
     );
     std::fs::write(&path, &mgh).unwrap();
 

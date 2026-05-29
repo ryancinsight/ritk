@@ -306,7 +306,7 @@ mod tests {
         let img = Image::new(
             t,
             Point::new([10.0, 20.0, 30.0]),
-            sp.clone(),
+            sp,
             Direction::identity(),
         );
         let out = filter.apply(&img);

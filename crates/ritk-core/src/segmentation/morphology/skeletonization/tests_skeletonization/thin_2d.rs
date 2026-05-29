@@ -66,7 +66,7 @@ fn test_2d_skeleton_is_subset() {
     // 5×5 filled square.
     let image = make_mask_2d(vec![1.0_f32; 25], [5, 5]);
     let result = Skeletonization::new().apply(&image);
-    let orig = vec![1.0_f32; 25];
+    let orig = [1.0_f32; 25];
     let skel = values_2d(&result);
     for (i, (&s, &o)) in skel.iter().zip(orig.iter()).enumerate() {
         if s > 0.5 {

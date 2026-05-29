@@ -121,7 +121,7 @@ fn test_scan_mixed_non_image_and_ct_retains_image_slice() {
                     .transfer_syntax("1.2.840.10008.1.2.1"),
             )
             .unwrap();
-        file_obj.write_to_file(&temp.path().join("ct.dcm")).unwrap();
+        file_obj.write_to_file(temp.path().join("ct.dcm")).unwrap();
     }
 
     let result = scan_dicom_directory(temp.path());
@@ -241,7 +241,7 @@ fn test_scan_private_sequence_is_preserved_in_object_model() {
         .unwrap();
     file_obj.write_to_file(&path).unwrap();
 
-    let info = scan_dicom_directory(&temp.path()).unwrap();
+    let info = scan_dicom_directory(temp.path()).unwrap();
     let preserved = info
         .metadata
         .slices

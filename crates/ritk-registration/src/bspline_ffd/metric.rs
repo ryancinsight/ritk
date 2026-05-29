@@ -167,14 +167,19 @@ pub(super) fn compute_metric_gradient_fast(
                 let vg_x = drho_dw * gw_x[fi] as f64;
 
                 // Interior: all three axes in-bounds → skip bounds checks.
-                let interior = iz >= iz_lo && iz < iz_hi
-                    && iy >= iy_lo && iy < iy_hi
-                    && ix >= ix_lo && ix < ix_hi;
+                let interior = iz >= iz_lo
+                    && iz < iz_hi
+                    && iy >= iy_lo
+                    && iy < iy_hi
+                    && ix >= ix_lo
+                    && ix < ix_hi;
 
                 if interior {
+                    #[allow(clippy::needless_range_loop)]
                     for az in 0..4usize {
                         let ciz = (kz + az as isize) as usize;
                         let wz = bz[az];
+                        #[allow(clippy::needless_range_loop)]
                         for ay in 0..4usize {
                             let ciy = (ky + ay as isize) as usize;
                             let wzy = wz * by[ay];
@@ -202,17 +207,23 @@ pub(super) fn compute_metric_gradient_fast(
                     // Boundary: bounds-check each control point.
                     for az in 0..4isize {
                         let ciz = kz + az;
-                        if ciz < 0 || ciz >= cnz as isize { continue; }
+                        if ciz < 0 || ciz >= cnz as isize {
+                            continue;
+                        }
                         let ciz = ciz as usize;
                         let wz = bz[az as usize];
                         for ay in 0..4isize {
                             let ciy = ky + ay;
-                            if ciy < 0 || ciy >= cny as isize { continue; }
+                            if ciy < 0 || ciy >= cny as isize {
+                                continue;
+                            }
                             let ciy = ciy as usize;
                             let wzy = wz * by[ay as usize];
                             for ax in 0..4isize {
                                 let cix = kx + ax;
-                                if cix < 0 || cix >= cnx as isize { continue; }
+                                if cix < 0 || cix >= cnx as isize {
+                                    continue;
+                                }
                                 let cix = cix as usize;
                                 let w = wzy * bx[ax as usize];
                                 let ci = flat(ciz, ciy, cix, cny, cnx);

@@ -1,0 +1,29 @@
+# Auto-detect text files and normalize line endings to LF on checkout
+* text=auto eol=lf
+
+# Rust source files — always LF
+*.rs text eol=lf
+
+# Configuration and documentation — always LF
+*.toml text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.lock text eol=lf
+
+# Shell scripts — must be LF
+*.sh text eol=lf
+
+# Binary files — no normalization
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.tif binary
+*.tiff binary
+*.nii binary
+*.nii.gz binary
+*.dcm binary
+*.Dicom binary

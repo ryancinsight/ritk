@@ -198,14 +198,14 @@ fn shape_preserved_3d() {
 /// Ideal low-pass preserves a constant volume.
 #[test]
 fn constant_volume_preserved_by_low_pass_3d() {
-    let vol = make_image_3d(vec![3.14_f32; 64], 4, 4, 4);
+    let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply_3d(&vol, FftFilterKind::IdealLowPass, 0.3, 2)
         .unwrap();
     let (out, _) = extract_vec(&result).unwrap();
     for (i, &v) in out.iter().enumerate() {
         assert!(
-            (v - 3.14).abs() < 1e-4,
+            (v - std::f32::consts::PI).abs() < 1e-4,
             "3-D low-pass must preserve constant at index {i}: expected 3.14, got {v:.6}"
         );
     }
@@ -214,7 +214,7 @@ fn constant_volume_preserved_by_low_pass_3d() {
 /// Ideal high-pass removes a constant volume.
 #[test]
 fn constant_volume_removed_by_high_pass_3d() {
-    let vol = make_image_3d(vec![3.14_f32; 64], 4, 4, 4);
+    let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply_3d(&vol, FftFilterKind::IdealHighPass, 0.3, 2)
         .unwrap();

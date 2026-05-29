@@ -189,11 +189,12 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
             GrayImage::from_raw(cols, rows, frame_pixels.clone()).expect("GrayImage::from_raw");
         let dyn_img = DynamicImage::ImageLuma8(gray);
         let mut jpeg_bytes: Vec<u8> = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
-        dyn_img
-            .write_to(&mut cursor, image::ImageFormat::Jpeg)
-            .expect("JPEG encode");
-        drop(cursor);
+        {
+            let mut cursor = std::io::Cursor::new(&mut jpeg_bytes);
+            dyn_img
+                .write_to(&mut cursor, image::ImageFormat::Jpeg)
+                .expect("JPEG encode");
+        }
         fragments.push(jpeg_bytes);
     }
 

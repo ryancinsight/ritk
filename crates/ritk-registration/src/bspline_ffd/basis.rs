@@ -333,9 +333,11 @@ pub fn evaluate_bspline_displacement_fast(
         // Unrolled 4×4×4 tensor product — all control points guaranteed
         // in-bounds. Structured so the compiler can auto-vectorize the
         // 4-wide x-axis accumulation.
+        #[allow(clippy::needless_range_loop)]
         for az in 0..4usize {
             let ciz = (kz + az as isize) as usize;
             let wz = bz[az];
+            #[allow(clippy::needless_range_loop)]
             for ay in 0..4usize {
                 let ciy = (ky + ay as isize) as usize;
                 let wzy = wz * by[ay];
@@ -386,8 +388,8 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_interior(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx,
-                        cp_z, cp_y, cp_x, cny, cnx, ny, nx,
+                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
+                        cp_x, cny, cnx, ny, nx,
                     );
                 }
                 // Boundary x-ranges: use bounds-check path.
@@ -395,16 +397,16 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx,
-                        cp_z, cp_y, cp_x, cnz, cny, cnx, ny, nx,
+                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
+                        cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
                 for ix in ix_hi..nx {
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx,
-                        cp_z, cp_y, cp_x, cnz, cny, cnx, ny, nx,
+                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
+                        cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
             } else {
@@ -413,8 +415,8 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx,
-                        cp_z, cp_y, cp_x, cnz, cny, cnx, ny, nx,
+                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
+                        cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
             }

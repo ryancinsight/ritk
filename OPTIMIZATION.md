@@ -1,14 +1,16 @@
 # RITK Performance Optimization Guide
 
-This document tracks performance characteristics, known bottlenecks, and optimization opportunities across the RITK codebase.
+This document tracks performance characteristics, known bottlenecks, and
+optimization opportunities across the RITK codebase.
 
-## Current State (v0.50.60)
+## Current State (v0.50.81)
 
 ### Test Suite Performance
+
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
 | ritk-core | 1395 | ~8s | ✅ All passing |
-| ritk-registration | 300 | ~15s | ✅ All passing |
+| ritk-registration | 398 | ~16s | ✅ All passing |
 | ritk-io | ~308 | ~30s | ✅ All passing |
 
 ### Known Optimizations Already Implemented
@@ -23,10 +25,82 @@ This document tracks performance characteristics, known bottlenecks, and optimiz
    - ✅ Fixed-image cache: `HistogramCache` stores `w_fixed_transposed` across iterations
    - ✅ Chunking for large datasets (CHUNK_SIZE = 32768)
    - ✅ Vectorized weight computation using broadcast operations
+   - ✅ Exp-ratchet in `StackWeights::new` (Sprint 319) - ~3× faster per-axis weight computation
+   - ✅ Lock-free `HistogramPool::checkout` (Sprint 319) - reduced contention under rayon
 
 3. **Multi-Resolution Pyramid**
    - ✅ Coarse-to-fine registration reduces computation at full resolution
    - ✅ Configurable shrink factors per axis
+
+---
+
+## Sprint 320 — Parzen Direct Path Phase Seven
+
+### DRY sigma² helpers (DRY-320-01)
+
+`ParzenJointHistogram::fixed_sigma_cfg()` and `moving_sigma_cfg()` encapsulate
+the repeated `ParzenConfig::from_intensity_sigma(self.parzen_sigma, ...)` pattern
+that appeared at 8 call sites across `compute.rs`, `compute_image.rs`,
+`masked/mod.rs`, and `dispatch.rs`. Each call site now uses
+`self.fixed_sigma_cfg().sigma_sq` (1 line) instead of the 5-line inline pattern.
+
+### ParzenConfig self-methods (ARCH-320-03, ARCH-320-06)
+
+`ParzenConfig::bin_range(val, num_bins)` and `compute_weights(val, num_bins)`
+encapsulate the `floor → BinRange::new → StackWeights::new` pattern that was
+previously inlined at 4 call sites. `sum_weights()` provides the discrete
+Gaussian weight sum for introspection and cross-validation.
+
+### Clippy zero-warning (CLIPPY-320-03/04/05)
+
+- `needless_range_loop`: `for slot in 0..len` → `for w in weights.iter_mut().take(len)`
+- `int_plus_one`: `hi - lo + 1 <= C` → `hi - lo < C` (equivalent for usize)
+- `doc_lazy_continuation`: 7 continuation lines indented with 3 spaces
+
+---
+
+## Sprint 319 — Parzen Direct Path Phase Six
+
+### Exp-ratchet optimisation (PERF-319-04)
+
+`StackWeights::new` now uses a FMA chain instead of N independent `exp()`
+calls. Adjacent integer bins differ by exactly 1 in the `diff` value, so
+the exponent changes by a constant increment with a constant second
+difference:
+
+```
+exponent[0] = diff₀² × inv_2sigma_sq
+Δ₀ = inv_2sigma_sq × (1 - 2 × diff₀)
+exponent[k+1] = exponent[k] + Δ_k
+Δ_{k+1} = Δ_k + 2 × inv_2sigma_sq
+```
+
+For a typical 7-bin window: 1× `exp()` + 6× FMA ≈ 3× faster than 7× `exp()`.
+Drift bounded by ~15 ULP for the maximum 15-bin window, well within the
+1e-4 test tolerance.
+
+### Lock-free checkout (PERF-319-05)
+
+`HistogramPool::checkout` drops the Mutex lock before zero-filling or
+allocating. Previously, the lock was held during the entire
+`fill(0.0)` / allocation, blocking other threads in the rayon fold.
+New allocations skip the redundant `fill(0.0)` since `vec![0.0; N]`
+already produces a zeroed buffer.
+
+### STACK_WEIGHTS_CAPACITY increased (FIX-319-09)
+
+From 16 (σ ≤ 4.5 bins) to 32 (σ ≤ 5.2 bins). The previous capacity
+was insufficient for `sigma_sq ≥ 9.0` (σ = 3 bins → half_width = 9 →
+range = 19 bins > 16). `StackWeights` is now 132 bytes (32×f32 + usize),
+still `Copy`-safe and cache-friendly.
+
+### SSOT completion (SSOT-319-01, SSOT-319-02)
+
+All sigma² conversions across the Parzen subsystem now go through
+`ParzenConfig::from_intensity_sigma`. The deprecated `sigma_sq_in_bins`
+function has been removed entirely. 10+ call sites across `compute.rs`,
+`compute_image.rs`, `masked/mod.rs`, `dispatch.rs`, and test files
+consolidated to a single SSOT path.
 
 ---
 
@@ -252,6 +326,32 @@ result += unsafe { *volume_slice.get_unchecked(idx) } * weight;
 
 ### Sprint 312: Parzen Benchmark Verification + Cache Dispatch Hardening + Memory + Architecture ✅ COMPLETE
 
+### Sprint 313: Parzen Cache Dispatch Hardening + Parallel Hot Loop + Structural Compliance
+
+✅ COMPLETE
+
+**Goal:** Parallelize the CMA-ES sparse hot loop, add cache invalidation API, extract shared lazy-build logic, fix remaining clippy warnings, deprecate the dense cache path, and achieve structural compliance.
+
+Key deliverables:
+
+1. **PERF-313-01: Parallel sparse hot-loop histogram reduction** — `compute_joint_histogram_from_cache_sparse` now uses rayon `into_par_iter().fold().reduce()` with thread-local histograms. Each thread accumulates into its own `[num_bins × num_bins]` buffer, eliminating all synchronization from the hot loop. The final reduction sums thread-local results into the output histogram. This also removes `unsafe` pointer arithmetic from this path (safe indexing replaces OPT-1 row base pointers + unchecked writes within each thread-local buffer).
+
+2. **FIX-313-01: Eliminated 4 remaining clippy warnings** — `needless_range_loop` on OPT-1 hot loop (suppressed: `a` used for both indexing and arithmetic), `single_range_in_vec_init` on Burn 1-D `.slice()` (suppressed: correct API), `doc_quote_line_without_gt_marker` in `sparse.rs` (escaped `\>`), `op_ref` in `lncc.rs` (removed unnecessary `&`).
+
+3. **FIX-313-02: Deprecated `compute_joint_histogram_from_cache_direct`** — the dense-cache path is slower than the sparse path and only retained for test validation. Marked `#[deprecated(since = "0.50.75")]`.
+
+4. **ARCH-313-01: Cache invalidation API** — `ParzenJointHistogram` now exposes `invalidate_cache()`, `invalidate_masked_cache()`, and `invalidate_all_caches()` for explicit cache clearing between registration stages, fixed-image switches, or memory reclamation.
+
+5. **ARCH-313-02: Shared lazy-build logic** — `get_or_build_sparse_w_fixed` method on both `HistogramCache` and `MaskedHistogramCache` eliminates the duplicated lazy-build pattern previously inlined in `compute_image.rs` and `masked/mod.rs`.
+
+6. **STR-313-01: `tests.rs` → `tests/` directory module** — the 1054-line test file was split into `tests/mod.rs` (338 lines), `tests/cache_tests.rs` (238 lines), and `tests/masked_cache_tests.rs` (457 lines), all compliant with the 500-line limit.
+
+**Files changed:** `direct/mod.rs`, `compute.rs`, `sparse.rs`, `lncc.rs`, `cache.rs`, `parzen/mod.rs`, `compute_image.rs`, `masked/mod.rs`, `mod.rs` (histogram), `tests/` (new directory module), `CHANGELOG.md`
+
+### Sprint 312: Parzen Benchmark Verification + Cache Dispatch Hardening + Memory + Architecture
+
+✅ COMPLETE
+
 **Goal:** Verify actual benchmark numbers (Sprint 311 had estimates), parallelize sparse cache build, implement masked-path caching, and fix remaining compiler warnings.
 
 Key deliverables:
@@ -339,6 +439,22 @@ The direct Parzen histogram inner loops accumulate into a `[num_bins, num_bins]`
 
 5. **Stack-allocated weights (OPT-5)**: The pre-computed moving weights span at most `2 * half_width + 1 = 7` entries. `StackWeights { weights: [f32; 7], len: usize }` avoids heap allocation entirely — the 28-byte array fits in a single cache line.
 
+### Why the Sparse Hot Loop Uses Parallel Reduction (PERF-313-01, Sprint 313)
+
+`compute_joint_histogram_from_cache_sparse` is called on every CMA-ES iteration and was previously sequential. The loop iterates over N samples, each computing ~7 moving Parzen weights and accumulating into the `[num_bins, num_bins]` histogram.
+
+The loop is not embarrassingly parallel because of the shared mutable histogram — concurrent writes would race. The standard parallel-reduction pattern solves this:
+
+1. **Thread-local histograms**: Each rayon thread allocates its own `vec![0.0f32; num_bins * num_bins]` in the `fold` initializer. All writes within a thread are to its local buffer — no synchronization needed.
+2. **Safe indexing**: With thread-local buffers, the `unsafe` pointer arithmetic (OPT-1 row base pointers + `get_unchecked_mut`) is replaced by safe `local_hist[row_base + m_lo + j]` indexing. The bounds check is negligible compared to the exp() calls.
+3. **Deterministic reduction**: The `reduce` phase sums all thread-local histograms into the final result. This is a simple element-wise addition.
+
+**Trade-off**: Parallel reduction changes the floating-point accumulation order, so results are no longer bit-identical to the sequential version. The differences are typically ~1e-5, well within the 1e-4 tolerance used in tests. This is inherent to any parallel summation over floats.
+
+**Memory**: Each thread allocates `num_bins² × 4` bytes. For 32 bins, that's 4 KB per thread — negligible. The total temporary memory is `num_threads × 4 KB`.
+
+The non-cached path (`compute_joint_histogram_direct`) was not parallelized because it's called only on the first CMA-ES iteration (or for RSGD) and is not on the hot loop. The deprecated dense-cache path (`compute_joint_histogram_from_cache_direct`) was also left sequential since it's deprecated.
+
 ### Why the Masked Path Uses a Caller-Supplied Cache Key (ARCH-312-01)
 
 The image-grid path caches via `(shape, origin, spacing, direction)` matching, but the masked path receives arbitrary world points, so that cache key doesn't apply. Three possible cache key strategies were identified in TODO-311-01:
@@ -410,6 +526,159 @@ let start = Instant::now();
 // Operation to measure
 let duration = start.elapsed();
 ```
+
+### Sprint 316 (0.50.78) — Parzen Cache Dispatch Phase Four
+
+#### MEM-316-01: `SampleWindow` precomputed bin ranges
+
+New `SampleWindow` struct computes a sample's `(primary, lo, hi)` bin range once, replacing the repeated `floor/primary - hw/max(0)/min(num_bins-1)` calculation that was duplicated in both `compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse`. Returns `None` for OOB samples, eliminating the `if mask_val >= 0.5` branch from fold closures (FIX-316-07).
+
+#### PERF-316-03: SIMD-aligned `StackWeights`
+
+Weight array size rounded from `[f32; 7]` to `[f32; 8]` (32 bytes = one AVX2 `__m256` register). `STACK_WEIGHTS_CAPACITY = 8` constant introduced. The 8th slot is zero-filled padding that never participates in any computation, enabling the compiler to emit aligned `vmovaps` instead of `vmovups` when auto-vectorizing the inner weight loop.
+
+#### ARCH-316-04: `BinRange` newtype
+
+Replaces bare `(lo, hi)` pairs with a typed struct providing named fields `lo`/`hi`, plus `len()`, `is_empty()`, and `iter()` methods. Handles edge case where `primary > num_bins - 1` by collapsing the range to a single boundary bin. Zero runtime cost.
+
+#### FIX-316-07: Branch-eliminated accumulate
+
+The OOB mask check is now folded into `SampleWindow::new()` / `SampleWindow::new_moving_only()`, which return `Option`. Both fold closures simplified from:
+```rust
+let mask_val = match oob_mask { ... };
+if mask_val >= 0.5 {
+    let m_val = ...; let m_primary = ...; let m_lo = ...; let m_hi = ...;
+    accumulate_sample(hist, num_bins, m_val, m_lo, m_hi, ...);
+}
+```
+to:
+```rust
+if let Some((m_val, m_range)) = SampleWindow::new_moving_only(i, ...) {
+    accumulate_sample(hist, num_bins, m_val, m_range, ...);
+}
+```
+
+#### DOC-316-06: Module-level Safety and Examples
+
+Added `# Safety` section (no `unsafe`, zero-filled padding, Mutex poison recovery) and `# Examples` section to `direct/mod.rs`.
+
+#### TEST-316-05: 16 new tests
+
+5 property tests: `sparse_w_fixed_deterministic`, `histogram_non_negative_all_entries`, `histogram_marginals_sum_correctly`, `bin_range_primary_exceeds_num_bins`, `bin_range_primary_negative`. Plus 11 unit tests: 6 `BinRange`, 5 `SampleWindow`, 2 SIMD-alignment.
+
+### Sprint 318 (0.50.80) — Parzen Cache Direct Path Phase Five
+
+#### FIX-318-01: MAX_PARZEN_BINS and STACK_WEIGHTS_CAPACITY increased
+Increased from 7/8 to 15/16, supporting σ up to ~4.5 bins (half_width ≤ 7,
+range ≤ 15). Previously, sigma_sq ≥ 4.0 caused a `debug_assert!` panic in
+`StackWeights::new`. Capacity check is now a runtime `assert!` (memory
+safety issue — must fire in release builds too).
+
+#### SSOT-318-03: ParzenConfig::from_intensity_sigma
+New SSOT constructor that converts intensity-space sigma to bin-index
+sigma², deriving half_width and inv_2sigma_sq in one step. `sigma_sq_in_bins`
+now delegates to this internally, eliminating duplicated computation across
+6+ call sites in `dispatch.rs` and `compute_image.rs`.
+
+#### SECURE-318-05: Input validation
+`ParzenConfig::new` asserts `sigma_sq > 0.0` and `sigma_sq.is_finite()`;
+all three public direct-path functions validate non-empty inputs, matching
+lengths, `num_bins > 0`, and OOB mask length consistency.
+
+#### ARCH-318-08: PartialEq on ParzenConfig
+Enables `assert_eq!` in tests and value comparison.
+
+#### TEST-318-06: 14 new tests
+8 unit tests in `direct_types_tests.rs`, 6 property/edge-case tests in
+`direct_property_tests.rs`. Includes broad-sigma StackWeights,
+from_intensity_sigma SSOT verification, input validation panic tests,
+single-bin histogram, and marginal consistency with OOB mask.
+
+| File | Lines | Notes |
+|------|-------|-------|
+| `direct/types.rs` | 487 | +`ParzenConfig::from_intensity_sigma`, `PartialEq`, input validation, `MAX_PARZEN_BINS=15`, `STACK_WEIGHTS_CAPACITY=16` |
+| `direct/mod.rs` | 421 | +input validation, +`ParzenConfig` re-export |
+| `direct/direct_types_tests.rs` | 447 | +8 new tests |
+| `direct/direct_property_tests.rs` | 451 | +6 new property tests |
+| `dispatch.rs` | 220 | `sigma_sq_in_bins` delegates to `ParzenConfig`; dispatch methods use `from_intensity_sigma` |
+
+### Sprint 317 (0.50.79) — Parzen Cache Dispatch Phase Four
+
+#### ARCH-317-01: ParzenConfig + Monomorphized direct path
+`ParzenConfig` groups per-axis σ², half-width, and `inv_2sigma_sq` into a single struct, replacing the scattered `compute_half_width_from_sigma_sq` / `-0.5 / sigma_sq` derivations. `SampleWindow` now pre-computes `StackWeights` for both axes, making the direct-path inner loop entirely heap-free — no `SparseWFixedEntry` construction per sample.
+
+#### ARCH-317-04: DRY SampleWindow::mask_val
+Shared inner OOB-filter method eliminates duplicated `match oob_mask` / `if mask_val < 0.5` blocks between `new` and `new_moving_only`.
+
+#### SSOT-317-03: Canonical compute_half_width
+Moved from `direct/mod.rs` to `direct/types.rs` with unified `sigma_sq` parameter. `sparse.rs` test module delegates when `direct-parzen` is enabled.
+
+#### TEST-317-06: 13 new tests
+7 property tests, 3 `ParzenConfig` unit tests, 2 `accumulate_sample` tests, 1 `compute_half_width` SSOT test.
+
+| File | Lines | Notes |
+|------|-------|-------|
+| `direct/mod.rs` | 353 | Replaced `compute_half_width_from_sigma_sq` with `ParzenConfig`; split `accumulate_sample` into direct/sparse variants |
+| `direct/types.rs` | 452 | Added `ParzenConfig`, `MIN_HALF_WIDTH`, `compute_half_width`, `SampleWindow` pre-computed weights |
+| `direct/direct_tests.rs` | 340 | Property tests moved out to `direct_property_tests.rs` |
+| `direct/direct_types_tests.rs` | 329 | Added `ParzenConfig`, `accumulate_sample`, SSOT tests |
+| `direct/direct_property_tests.rs` | 275 | **New** — 7 property tests |
+| `sparse.rs` | 418 | `compute_half_width` now takes `sigma_sq` for API consistency |
+
+### Sprint 315 (0.50.77) — Parzen Cache Dispatch Phase Three
+
+#### MEM-315-01: `StackWeights` derives `Copy`
+
+The 32-byte `StackWeights` struct now derives `Copy`, enabling pass-by-value without overhead. An `iter()` method provides zero-cost iteration over active entries, eliminating manual indexing.
+
+#### ARCH-315-03: `HistogramPool` struct
+
+Extracted the duplicated `Mutex<Vec<Vec<f32>>>` pool logic from both `compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse` into a reusable `HistogramPool` struct with `new()`, `checkout()`, and `return_buffer()` methods. Single point of maintenance for buffer pool semantics.
+
+#### PERF-315-02: `accumulate_sample` helper
+
+Monomorphized fold body shared by both direct and sparse paths. Takes `impl IntoIterator<Item = SparseWFixedEntry>`, ensuring consistent optimization across both computation functions without code duplication.
+
+#### ARCH-315-05: `SparseWFixedEntry` newtype
+
+Replaces bare `(usize, f32)` tuples in `SparseWFixedT` with a typed struct providing named field access (`bin`, `weight`) and `Copy` semantics. Prevents accidental index/weight swaps at the type level.
+
+#### FIX-315-04: `sparse.rs` dead code cleanup
+
+Removed `#[allow(dead_code)]` from module declaration; gated test-only functions (`compute_sparse_parzen_weights`, `compute_half_width`, `MIN_HALF_WIDTH`) with `#[cfg(test)]`; removed entirely dead `compute_sparse_parzen_weights_transposed` wrapper.
+
+#### TEST-315-06: 5 new property-based tests
+
+`stack_weights_is_copy`, `accumulate_sample_direct_vs_sparse_weights`, `histogram_symmetry_identical_images`, `histogram_normalization_total_weight`, `histogram_boundary_bins_populated`.
+
+### Sprint 314 (0.50.76) — Parzen Cache Dispatch Hardening Phase Two
+
+#### PERF-314-01: Parallel `compute_joint_histogram_direct`
+
+The non-cached direct path (called on the first CMA-ES iteration before the sparse cache is built) was the last sequential computation function in the direct Parzen module. Now uses the same rayon `into_par_iter().fold().reduce()` pattern with thread-local histograms that was applied to `compute_joint_histogram_from_cache_sparse` in Sprint 313.
+
+This also eliminates the last `unsafe` pointer arithmetic from the direct Parzen path. The OPT-1 `row_base_pointers` helper and OPT-3 unchecked writes have been replaced by safe indexing into thread-local buffers. Each thread accumulates into its own `[num_bins × num_bins]` buffer; the final reduction sums all thread-local results.
+
+Trade-off: floating-point accumulation order changes, producing ~1e-5 differences vs. the sequential version (within 1e-4 test tolerance).
+
+#### MEM-314-01: Thread-local histogram buffer pool
+
+Both parallel functions (`compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse`) now use a `Mutex<Vec<Vec<f32>>>` pool to reuse thread-local histogram buffers across fold/reduce calls. This avoids repeated `vec![0.0f32; num_bins²]` allocation + zeroing for each fold/reduce invocation.
+
+Pool mechanics:
+- On fold initialization: check out a buffer from the pool (or allocate a new one), zero-fill it
+- On reduction: sum the local buffer into the accumulator, return the local buffer to the pool
+- The pool is scoped to a single function call, so buffers are dropped after the function returns
+
+For 32 bins (1K histogram entries per buffer), this saves ~4 KB allocation per rayon worker per fold call. For 64 bins (4 KB), the savings scale quadratically.
+
+#### ARCH-314-01: SparseWFixedCache trait
+
+The duplicated `get_or_build_sparse_w_fixed` method on `HistogramCache` and `MaskedHistogramCache` was extracted into a `SparseWFixedCache` trait with a default implementation. Both structs implement the trait via accessor methods (`sparse_w_fixed()`, `sparse_w_fixed_mut()`, `take_fixed_norm()`), making the lazy-build logic a single point of maintenance.
+
+#### ARCH-314-02: Cache key collision guard
+
+`MaskedHistogramCache` now stores an optional `data_fingerprint: Option<f32>` — the sum of the first 256 normalized fixed-image values, computed at cache creation time. The public method `validate_masked_cache_fingerprint()` on `ParzenJointHistogram` compares this stored fingerprint against current data, invalidating the cache on mismatch. This provides probabilistic collision detection for partial key collisions.
 
 ### CI Integration
 Add to GitHub Actions:

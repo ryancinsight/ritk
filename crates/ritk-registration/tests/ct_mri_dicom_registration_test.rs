@@ -37,9 +37,9 @@ fn find_test_data_dir() -> Option<std::path::PathBuf> {
 /// `(downsampled_flat_vec, [new_nz, new_ny, new_nx])`
 fn downsample_stride(data: &[f32], dims: [usize; 3], stride: usize) -> (Vec<f32>, [usize; 3]) {
     let [nz, ny, nx] = dims;
-    let new_nz = (nz + stride - 1) / stride;
-    let new_ny = (ny + stride - 1) / stride;
-    let new_nx = (nx + stride - 1) / stride;
+    let new_nz = nz.div_ceil(stride);
+    let new_ny = ny.div_ceil(stride);
+    let new_nx = nx.div_ceil(stride);
     let mut out = Vec::with_capacity(new_nz * new_ny * new_nx);
     for iz in (0..nz).step_by(stride) {
         for iy in (0..ny).step_by(stride) {

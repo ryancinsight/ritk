@@ -60,7 +60,7 @@ mod tests {
         ImageWriter::<TestBackend, 3>::write(&writer, &path, &image)?;
 
         // Read via ImageReader adapter.
-        let reader = TiffReader::<TestBackend>::new(device.clone());
+        let reader = TiffReader::<TestBackend>::new(device);
         let loaded = ImageReader::<TestBackend, 3>::read(&reader, &path)?;
 
         assert_eq!(

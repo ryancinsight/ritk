@@ -289,8 +289,8 @@ mod tests {
             1.0e-38,
             std::f32::consts::PI,
             std::f32::consts::E,
-            123456.789,
-            -987654.321,
+            123_456.79,
+            -987_654.3,
         ];
         assert_eq!(values.len(), 12);
 

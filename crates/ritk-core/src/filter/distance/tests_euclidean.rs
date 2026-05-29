@@ -52,7 +52,7 @@ fn edt_3d_single_foreground_voxel_at_origin() {
         dt[idx]
     );
     // Voxel (1,1,1): distance sqrt(3) ≈ 1.732
-    let idx = 1 * 25 + 1 * 5 + 1;
+    let idx = 25 + 5 + 1;
     assert!(
         (dt[idx] - 3.0_f64.sqrt() as f32).abs() < 1e-4,
         "expected sqrt(3), got {}",

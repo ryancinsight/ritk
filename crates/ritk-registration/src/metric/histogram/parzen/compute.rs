@@ -26,11 +26,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
         fixed_values: &Tensor<B, 1>,
         n: usize,
     ) -> Tensor<B, 2> {
-        // Convert parzen_sigma from intensity units to bin-index units.
-        let bin_width_intensity =
-            (self.max_intensity - self.min_intensity) / (self.num_bins as f32 - 1.0).max(1.0);
-        let sigma_in_bins = self.parzen_sigma / bin_width_intensity.max(f32::EPSILON);
-        let sigma_sq = sigma_in_bins * sigma_in_bins;
+        // DRY-320-01: delegate to ParzenConfig via fixed_sigma_cfg()
+        let sigma_sq = self.fixed_sigma_cfg().sigma_sq;
 
         let fixed_num_bins_f = self.num_bins as f32 - 1.0;
         let fixed_scale = fixed_num_bins_f / (self.max_intensity - self.min_intensity);
@@ -90,19 +87,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let [n] = moving_values.dims();
         let num_bins = self.num_bins;
 
-        // Moving-image normalization parameters (fall back to fixed-image range when not set).
-        let mov_min = self.moving_min_intensity.unwrap_or(self.min_intensity);
-        let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
-        let mov_sigma = self.moving_parzen_sigma.unwrap_or(self.parzen_sigma);
-
-        // Express `mov_sigma` in bin-index units so the Parzen kernel is correctly
-        // scaled relative to the moving-image's own intensity range.
-        let bin_width_mov = (mov_max - mov_min) / (num_bins as f32 - 1.0).max(1.0);
-        let sigma_in_bins = mov_sigma / bin_width_mov.max(f32::EPSILON);
-        let sigma_sq = sigma_in_bins * sigma_in_bins;
+        // DRY-320-01: delegate to ParzenConfig via moving_sigma_cfg()
+        let sigma_sq = self.moving_sigma_cfg().sigma_sq;
 
         // Normalize moving values to [0, num_bins-1] using the moving-image range.
         let mov_num_bins_f = num_bins as f32 - 1.0;
+        let mov_min = self.moving_min_intensity.unwrap_or(self.min_intensity);
+        let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
         let mov_scale = mov_num_bins_f / (mov_max - mov_min);
         let mov_offset = -mov_min * mov_scale;
         let moving_norm =
@@ -126,6 +117,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
     /// Compute soft joint histogram between two images (vectorized).
     /// Uses Gaussian kernel for differentiability.
+    #[allow(clippy::single_range_in_vec_init)] // Burn's .slice() takes an array of ranges, one per dimension; [start..end] is correct for 1-D
     pub fn compute_joint_histogram(
         &self,
         fixed: &Tensor<B, 1>,
@@ -137,16 +129,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let num_bins = self.num_bins;
         let num_bins_f = num_bins as f32 - 1.0;
 
-        // Fixed-image normalization parameters.
         let fix_min = self.min_intensity;
         let fix_max = self.max_intensity;
-        let fix_sigma = self.parzen_sigma;
-
-        // Moving-image normalization parameters — independent when a separate range is set,
-        // otherwise fall back to the fixed-image range (backward-compatible).
+        // Moving-image range — fall back to fixed-image range (backward-compatible).
         let mov_min = self.moving_min_intensity.unwrap_or(fix_min);
         let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
-        let mov_sigma = self.moving_parzen_sigma.unwrap_or(fix_sigma);
 
         // Normalize intensities to [0, num_bins-1] using the supplied range.
         // Fused: (t - min) / (max - min) * num_bins_f → t * scale + offset
@@ -160,11 +147,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
         // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
 
-        // Convert sigma from intensity units → bin-index units for each image.
-        let bin_width_fix = (fix_max - fix_min) / num_bins_f.max(1.0);
-        let sigma_sq_fix = (fix_sigma / bin_width_fix.max(f32::EPSILON)).powi(2);
-        let bin_width_mov = (mov_max - mov_min) / num_bins_f.max(1.0);
-        let sigma_sq_mov = (mov_sigma / bin_width_mov.max(f32::EPSILON)).powi(2);
+        // DRY-320-01: delegate to ParzenConfig via helper methods
+        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+        let sigma_sq_mov = self.moving_sigma_cfg().sigma_sq;
 
         // WGPU dispatch limit workaround
         // The matmul (Bins, N) * (N, Bins) reduces along N.

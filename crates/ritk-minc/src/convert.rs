@@ -189,7 +189,7 @@ mod tests {
         };
         let result = convert_to_f32(&raw, &dtype).unwrap();
         assert_eq!(result.len(), 1);
-        assert!((result[0] - 1.23456789f32).abs() < 1e-5);
+        assert!((result[0] - 1.234_567_9_f32).abs() < 1e-5);
     }
 
     #[test]

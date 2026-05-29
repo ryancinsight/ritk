@@ -194,7 +194,7 @@ fn test_2d_plane_known_geometry() {
     let dims = [1, ny, nx];
     let mut data = vec![1.0f32; ny * nx];
     for y in 0..ny {
-        data[y * nx + 0] = 0.0; // x=0 column is background
+        data[y * nx] = 0.0; // x=0 column is background
     }
 
     let image = make_image_3d(data, dims);
