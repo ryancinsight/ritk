@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## [0.50.93] - 2026-06-01
+
+### Added
+- **ARCH-330-01: Deep vertical file hierarchy for `types/`** — Monolithic `types.rs` decomposed into `types/half_width.rs`, `types/stack_weights.rs`, `types/bin_range.rs`, `types/parzen_config.rs`, and `types/mod.rs` (re-exports + `CompactionSizes`). Each type now has its own SRP module.
+- **ARCH-330-02: Deep vertical file hierarchy for `sample/`** — Monolithic `sample.rs` decomposed into `sample/sample_window.rs`, `sample/sparse_entry.rs`, and `sample/mod.rs` (re-exports). `SampleWindow` and `SparseWFixedEntry`/`SparseWFixedT` each have dedicated modules.
+- **ARCH-330-03: `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted to production API** — Were `#[cfg(test)]`-gated; now available for downstream consumers (bin-range validation, capacity checks, custom weight computation).
+- **ARCH-330-04: Computation functions extracted into dedicated modules** — `accumulate.rs` (fold bodies + validation), `compute_direct.rs` (direct-path API), `compute_sparse.rs` (sparse-cache-path API). `mod.rs` is now a thin orchestrator with re-exports.
+- **ARCH-330-05: `compute_half_width` promoted to production API** — Was `#[cfg(test)]`-gated in re-exports; now `pub(crate)` for `sparse.rs` delegation and downstream use.
+- **DRY-330-06: Backward-compatible re-exports** — All public API paths (`direct::compute_joint_histogram_direct`, `direct::HistogramPool`, `direct::SparseWFixedEntry`, etc.) unchanged. Test files with `use super::*;` continue to work.
+- **MEM-330-07: Structural size regression tests (post-decomposition)** — Verify that decomposition did not change any struct sizes: `BinRange` (4), `SparseWFixedEntry` (8), `StackWeights` (128-136), `ParzenConfig` (12-32).
+- **TEST-330-08: Phase Fifteen test file** — 24 new tests: production API promotion (3), compute_half_width SSOT (2), types/ submodule accessibility (3), sample/ submodule accessibility (3), computation function accessibility (2), backward compatibility (3), size regression (4), weight correctness (2), end-to-end (1), support_bins (1).
+
+### Changed
+- `types.rs` → `types/` directory (ARCH-330-01). `sample.rs` → `sample/` directory (ARCH-330-02).
+- `mod.rs` reduced to orchestrator: module declarations, re-exports, doc comments, test registrations (ARCH-330-04).
+- `ParzenConfig::half_width()` removed `#[cfg(test)]` gate (ARCH-330-03).
+- `ParzenConfig::inv_2sigma_sq()` removed `#[cfg(test)]` gate (ARCH-330-03).
+- `compute_half_width` re-export in `types/mod.rs` and `direct/mod.rs` removed `#[cfg(test)]` gate (ARCH-330-05).
+- `MIN_HALF_WIDTH` re-export in `types/mod.rs` removed `#[cfg(test)]` gate (ARCH-330-05).
+- Direct-path test count: 211 (was 187; +24 new). Phase Fifteen test module: 24 tests.
+- Total: 547 with `--features direct-parzen --no-default-features` (was 523; +24 new).
+
 ## [0.50.92] - 2026-06-01
 
 ### Added

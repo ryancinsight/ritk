@@ -1,6 +1,6 @@
 [package]
 name = "ritk-registration"
-version = "0.50.91"
+version = "0.50.93"
 edition = "2021"
 
 [features]

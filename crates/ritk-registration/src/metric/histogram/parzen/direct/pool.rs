@@ -1,6 +1,7 @@
-//! Histogram buffer pool for the direct Parzen histogram computation path. //!
-//! This submodule contains [`HistogramPool`], factored out from `types.rs`
-//! to keep that file under the 500-line structural limit.
+//! Histogram buffer pool for the direct Parzen histogram computation path.
+//!
+//! [`HistogramPool`] provides thread-local buffer reuse across rayon
+//! fold/reduce calls, avoiding repeated O(num_bins²) allocations.
 
 use std::sync::Mutex;
 
