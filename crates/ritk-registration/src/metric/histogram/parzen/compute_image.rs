@@ -183,7 +183,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let cached_sparse = (!use_sampling)
                 .then(|| {
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                     get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
                 })
                 .flatten();
@@ -279,7 +279,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let cached_sparse = (!use_sampling)
                 .then(|| {
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                     get_cached_sparse_w_fixed(&mut cache, fixed, self.num_bins, sigma_sq_fix)
                 })
                 .flatten();

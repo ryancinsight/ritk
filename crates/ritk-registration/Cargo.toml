@@ -1,6 +1,6 @@
 [package]
 name = "ritk-registration"
-version = "0.50.84"
+version = "0.50.91"
 edition = "2021"
 
 [features]
@@ -32,6 +32,7 @@ walkdir = "2.4"
 image = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
+proptest = { workspace = true }
 
 [[bench]]
 name = "mi_histogram"

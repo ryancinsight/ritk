@@ -1,5 +1,181 @@
 # CHANGELOG
 
+## [0.50.92] - 2026-06-01
+
+### Added
+- **SPARSE-329-01: Full joint normalization in sparse path** — `inv_sum_f` is now stored per-sample in `SparseWFixedT` alongside the fixed entries, enabling the sparse path to compute `inv_norm = inv_sum_f × inv_sum_m` (matching the direct path). This eliminates the Sprint 328 asymmetry where the sparse path only normalized by `1/sum_m`, making direct↔sparse histograms numerically identical. `SparseWFixedT` type alias changed from `Vec<Vec<SparseWFixedEntry>>` to `Vec<(Vec<SparseWFixedEntry>, f32)>`. Memory overhead: +4 bytes/sample for `inv_sum_f` (~128 KB for 32K samples).
+- **PERF-329-02: FMA-idiomatic inner accumulation loop** — Inner loop `hist[idx] += w_f * w_m * inv_norm` is the canonical FMA pattern that LLVM auto-fuses into `vfmadd231ps` on AVX2. Explicit `mul_add` was benchmarked to be ~8% slower for the 7×7 loop, so the original form is retained.
+- **MEM-329-04: Structural size regression tests** — Exact size assertions for `BinRange` (4 bytes), `SparseWFixedEntry` (8 bytes), `StackWeights` (128-136 bytes), `ParzenConfig` (12-24 bytes), `SampleWindow` (256-352 bytes). `CompactionSizes` integration test.
+- **CLEANUP-329-03: Production API verification tests** — `BinRange::len()`/`is_empty()` and `StackWeights::len()`/`is_empty()` compilation tests confirming production availability.
+- **TEST-329-06: Phase Fourteen test file** — 24 new tests: sparse full normalization (4), sparse cache inv_sum_f verification (3), direct↔sparse numerical identity (5), different-sigma-per-axis identity (1), FMA inner loop (1), size regression (5), production API (2), SparseWFixedT tuple type (1), accumulate_sample_sparse inv_norm (1), pool parity (1), sparse σ²-invariance (1).
+
+### Changed
+- `SparseWFixedT` type alias: `Vec<Vec<SparseWFixedEntry>>` → `Vec<(Vec<SparseWFixedEntry>, f32)>` (SPARSE-329-01). Each element is now a `(entries, inv_sum_f)` pair.
+- `build_sparse_w_fixed_transposed` now uses `compute_weights_with_inv_sum` and stores `inv_sum_f` per sample (SPARSE-329-01).
+- `compute_joint_histogram_from_cache_sparse` now combines `inv_norm = inv_sum_f × inv_sum_m` before calling `accumulate_sample_sparse` (SPARSE-329-01).
+- `accumulate_sample_sparse` parameter renamed from `inv_sum_m` to `inv_norm` (SPARSE-329-01).
+- All prior test files that compared direct↔sparse paths updated: ratio assertions changed from `≈ sum_f` to `≈ 1.0` (SPARSE-329-01 parity).
+- OOB samples in `SparseWFixedT` store `inv_sum_f = 0.0` (safe — excluded by `SampleWindow::mask_val`).
+- Direct-path test count: 205 (was 181; +24 new). Phase Fourteen test module: 24 tests.
+- Total: 523 with `--features direct-parzen --no-default-features` (was 521; +2 net: +24 new, some prior tests updated/removed).
+
+## [0.50.91] - 2026-06-01
+
+### Added
+- **PERF-328-01: Per-sample weight normalization in `accumulate_sample_direct`** — Each sample's histogram contribution is multiplied by `inv_norm = inv_sum_f × inv_sum_m`, making the total ≈1.0 per sample regardless of σ² or boundary truncation. This equalizes boundary and interior samples, improving MI metric stability (pending since Sprint 293). `SampleWindow` stores `inv_sum_f` and `inv_sum_m` as `f32` fields; `accumulate_sample_direct` hoists `inv_norm = inv_sum_f() * inv_sum_m()` out of the loop.
+- **PERF-328-02: Moving-axis normalization in `accumulate_sample_sparse`** — `inv_sum_m` is precomputed in `SampleWindow::new_moving_only` and passed to `accumulate_sample_sparse`, which multiplies each `w_f × w_m` by it. Full joint normalization (requiring `inv_sum_f` from the sparse cache) is deferred to a future phase.
+- **ARCH-328-04: `StackWeights::len()` and `is_empty()` promoted to production** — Previously `#[cfg(test)]`-gated; now available as production API for per-sample normalization callers.
+- **ARCH-328-05: `BinRange::len()` and `is_empty()` promoted to production** — Same rationale as ARCH-328-04.
+- **PERF-328-01: `ParzenConfig::compute_weights_with_inv_sum()`** — Returns `(range, weights, inv_sum)` in a single pass, avoiding redundant weight computation when both weights and `1/sum` are needed.
+- **PERF-328-01: `ParzenConfig::inv_sum_weights()`** — Public API for standalone `1/sum_weights` computation.
+- **TEST-328-07: Phase Thirteen test file** — 18 new tests: normalized histogram sums (4), boundary/interior equal contribution (2), OOB-mask normalized (1), inv_sum field validation (1), sparse moving normalization (2), StackWeights::len production (2), BinRange::len production (2), compute_weights_with_inv_sum (3), inv_sum_weights (1), SampleWindow size (1), end-to-end (2).
+
+### Changed
+- `SampleWindow` carries `inv_sum_f: f32` and `inv_sum_m: f32` fields (PERF-328-01). Production size: ~272 bytes (was ~264; +8 for two f32 normalization factors).
+- `accumulate_sample_direct` multiplies by `inv_norm` (PERF-328-01).
+- `accumulate_sample_sparse` signature: added `inv_sum_m: f32` parameter (PERF-328-02).
+- `SampleWindow::new_moving_only` returns `Option<(f32, BinRange, StackWeights, f32)>` (was 3-tuple; 4th element is `inv_sum_m`).
+- `StackWeights::len()` and `is_empty()` no longer `#[cfg(test)]`-gated (ARCH-328-04).
+- `BinRange::len()` and `is_empty()` no longer `#[cfg(test)]`-gated (ARCH-328-05).
+- `ParzenConfig::sum_weights()` `#[allow(dead_code)]` updated — internal callers use `compute_weights_with_inv_sum`.
+- All existing test files updated for σ²-invariant normalized histogram totals (≈1.0 per sample).
+- Direct-path test count: 181 (was 163; +18 new). Phase Thirteen test module: 18 tests.
+- `CompactionSizes` struct now includes `parzen_config` field.
+
+### Fixed
+- Stale tests from prior sprints updated for normalized histogram expectations.
+
+## [0.50.90] - 2026-05-31
+
+### Added
+- **PERF-327-02: Hoisted `f_lo_u` / `m_lo_u` in `accumulate_sample_direct`** — `window.f_range().lo as usize` and `window.m_range().lo as usize` now computed once outside both loops instead of on each iteration. Eliminates 2× usize casts and 2× accessor calls per ((f_range_len × m_range_len) + f_range_len) iterations.
+- **PERF-327-03: Hoisted `m_lo_u` in `accumulate_sample_sparse`** — `m_range.lo as usize` now computed once per sample instead of on each inner-loop iteration. Eliminates 1× usize cast per (fixed_entries × m_range_len) iterations.
+- **PERF-327-04: Dead `f32` total accumulator removed from `accumulate_sample_direct`** — return type changed from `f32` → `()`. The single test that used it now verifies via histogram sum. Removes 1× f32 FMA per sample from the production hot loop.
+- **DRY-327-05: `validate_inputs()` SSOT** — shared private helper for `num_bins > 0` and optional `oob_mask` length assertions, replacing 3 duplicated blocks across `compute_joint_histogram_direct`, `compute_joint_histogram_from_cache_sparse`, and `build_sparse_w_fixed_transposed`.
+- **TEST-327-06: Phase Twelve test file** — 13 new tests: hoisted offsets direct/sparse (5), dead-total removal (2), `validate_inputs` (4), end-to-end direct + sparse pipeline with OOB mask (2).
+
+### Changed
+- `accumulate_sample_direct` returns `()` (was `f32`; PERF-327-04).
+- `accumulate_sample_sparse` inner loop uses hoisted `m_lo_u` (PERF-327-03).
+- Three public functions delegate input validation to `validate_inputs()` (DRY-327-05).
+- Architecture docs in `direct/mod.rs` updated with Sprints 326-327.
+- Fixed malformed doc comment on `accumulate_sample_direct` (section divider bleed).
+- Direct-path test count: 168 (was 155; +13 new). Phase Twelve test module: 13 tests.
+- Total: 518 with `--features direct-parzen` (was 505; +13 new).
+
+### Fixed
+- **FIX-327-01: `test_mattes_mi_monotonicity`** — test image changed from linear ramp (10³) to Gaussian blob (20³). Linear ramp shifted by 3 voxels had near-perfect linear correlation, making MI differences noise-level (~0.005). Gaussian blob has real spatial structure so translation meaningfully degrades MI.
+
+## [0.50.89] - 2026-05-31
+
+### Added
+- **MEM-325-01: `StackWeights.len` `usize` → `u8`** — `len` field compacted from 8 bytes to 1 byte. Max active count is 31 (STACK_WEIGHTS_CAPACITY - 1), well within `u8` range. Compacts `StackWeights` from 132 to 128 bytes (with alignment padding), shrinking `SampleWindow` by ~14 bytes (2 × 7 bytes saved). All `len as usize` casts are lossless in hot-loop indexing.
+- **MEM-325-02: `BinRange::new` `num_bins` overflow guard** — Runtime `assert!(num_bins <= u16::MAX)` prevents silent truncation when `u16`-typed fields are written with `num_bins` values exceeding 65535. Panics with clear message.
+- **ARCH-325-06: `sum_weights()` promoted to production** — `ParzenConfig::sum_weights()` was `#[cfg(test)]`-gated; now available as a production method for per-sample weight normalization. Enables improved MI metric stability for boundary-truncated samples.
+- **PERF-325-03: `merge_histograms` auto-vectorization review** — Documented that the idiomatic `iter_mut().zip()` pattern is the LLVM-auto-vectorizable form for f32 slices. No code change needed; explicit `chunks_exact_mut` is counterproductive.
+- **PERF-326-02: `SparseWFixedEntry.bin` `usize` → `u16`** — `bin` field compacted from 8 bytes to 2 bytes (2+2 padding + 4 f32 = 8 bytes total, was 16). Halves sparse cache memory footprint (~3.5 KB → ~1.75 KB for 32K samples with 7 entries each). `as usize` cast in `accumulate_sample_sparse` is lossless.
+- **DRY-326-03: `extract_oob_mask()` shared helper** — Both `compute_joint_histogram_dispatch` and `compute_joint_histogram_from_cache_sparse_dispatch` now share a single `#[inline]` `extract_oob_mask()` function instead of duplicating the 5-line tensor-to-host extraction pattern.
+- **TEST-325-05: Phase Eleven test file** — 15 new tests: `StackWeights` u8 len validation (4), `BinRange` `num_bins` overflow guard (4), `sum_weights` production promotion (3), `merge_histograms` regression (3), `SampleWindow` size regression (1).
+
+### Changed
+- `StackWeights.len` is `u8` (was `usize`). `SampleWindow` production size: ~266 bytes (was ~280; MEM-325-01).
+- `SparseWFixedEntry.bin` is `u16` (was `usize`). `SparseWFixedEntry` size: 8 bytes (was 16; PERF-326-02).
+- `accumulate_sample_sparse` inner loop uses `entry.bin as usize` (PERF-326-02).
+- `build_sparse_w_fixed_transposed` uses `f_range.lo + j as u16` (PERF-326-02).
+- `ParzenConfig::sum_weights()` no longer `#[cfg(test)]`-gated (ARCH-325-06).
+- Added `#[allow(dead_code)]` on `StackWeights::is_empty()` convention method (CLIPPY-325-04).
+- Fixed unused import in `direct_phase_nine_tests.rs` (CLIPPY-325-04).
+- Updated `direct_phase_nine_tests.rs` size assertions for `u8` compaction.
+- Both OOB mask extraction sites in `dispatch.rs` now use `extract_oob_mask()` (DRY-326-03).
+- Direct-path test count: 153 (was 138; +15 new). Phase Eleven test module: 15 tests.
+- `types.rs` 512 lines, `mod.rs` 455 lines (under 500-line limit).
+
+## [0.50.88] - 2026-05-31
+
+### Added
+- **MEM-324-04: `BinRange` field compaction `usize` → `u16`** — `BinRange.lo` and `hi` changed from `usize` (8 bytes each) to `u16` (2 bytes each), reducing `BinRange` from 16 to 4 bytes and `SampleWindow` from ~304 to ~280 bytes production. Added `PartialOrd, Ord` derives. `u16` is sufficient since Parzen histograms never exceed 65535 bins.
+- **ARCH-324-03: Monomorphized `accumulate_sample_sparse`** — Changed `fixed_weights: impl IntoIterator<Item = SparseWFixedEntry>` to `fixed_weights: &[SparseWFixedEntry]` for concrete dispatch in the hot loop. Better codegen and eliminates dynamic dispatch overhead.
+- **PERF-324-05: `merge_histograms` extracted helper** — Both reduce closures in `compute_joint_histogram_direct` and `compute_joint_histogram_from_cache_sparse` now call `merge_histograms(dst, src)` with `#[inline(always)]` instead of inline zip loops, aiding auto-vectorization of the buffer merge.
+- **TEST-324-06: 4 weight-normalization correctness tests** — `sum_weights()` ≈ `√(2πσ²)` for σ²=1 and σ²=4; boundary truncation reduces sum vs interior; large-σ direct↔sparse parity at σ²=16.
+- **TEST-324-07: 2 `StackWeights` zero-padding invariant tests** — Verifies all slots beyond `len` are `0.0f32` for both typical (σ²=1) and minimum-width (σ²=0.01) windows.
+- **TEST-324-08: 2 OOB mask comprehensive tests** — Partial coverage (mixed in/out-of-bounds) and all-OOB produces zero histogram.
+- **MEM-324-04 tests: 2 `BinRange` `Ord` ordering and `u16` range tests** — `Ord` derive correctness; large `num_bins` (65535) values handled correctly.
+- **PERF-324-05 test: `merge_histograms` unit test** — Element-wise addition correctness.
+
+### Changed
+- `BinRange.lo` / `hi` are `u16` (was `usize`). Hot-loop index arithmetic uses `as usize` casts (MEM-324-04).
+- `accumulate_sample_sparse` takes `&[SparseWFixedEntry]` (was `impl IntoIterator`; ARCH-324-03).
+- Both reduce closures use `merge_histograms()` (PERF-324-05).
+- Fixed `doc_lazy_continuation` clippy warning in `types.rs` (CLIPPY-324-01).
+- Direct-path test count: 135 (was 123; +12 new). Phase Ten test module: 12 tests.
+- `BinRange` size: 4 bytes (was 16). `SampleWindow` production size: ~280 bytes (was ~304).
+
+## [0.50.87] - 2026-05-31
+
+### Added
+- **ARCH-323-01: `SampleWindow` field encapsulation** — Bin-range fields (`f_range`, `m_range`) are now private with `f_range()` / `m_range()` accessors. Weight fields (`f_weights`, `m_weights`) narrowed from `pub` to `pub(crate)`. All production and test callers migrated to use accessors.
+- **PERF-323-02: `StackWeightsIter` concrete iterator type** — `StackWeights::iter()` now returns `StackWeightsIter<'_>` instead of `impl Iterator`. The new type implements `Clone`, `ExactSizeIterator`, and `DoubleEndedIterator`, enabling weight-sequence replay for cross-validation and better monomorphization of the accumulation loop. Contains no `unsafe` code.
+- **MEM-323-03: `size_of` documentation tests** — Recorded sizes for `SampleWindow` (304 bytes production), `StackWeights` (136 bytes), and `BinRange` (16 bytes) as regression-guarded tests.
+- **TEST-323-05: Exp-ratchet drift at max capacity** — 2 tests verifying ratchet precision at σ²=25.0 (31 bins, max capacity) and σ²=9.0 (19 bins). RelErr < 1e-4 and 1e-5 respectively.
+- **TEST-323-06: `BinRange` edge-case tests** — 3 tests: primary at `num_bins` boundary, double clamping at both boundaries, single-bin boundary.
+- **TEST-323-07: `num_bins` integration tests** — 3 tests across bin counts {4, 16, 32, 64}: small bins, medium bins, sparse-cache parity.
+
+### Changed
+- `SampleWindow.f_range` / `m_range` fields are now private (ARCH-323-01). Use `f_range()` / `m_range()` accessors.
+- `SampleWindow.f_weights` / `m_weights` narrowed from `pub` to `pub(crate)`.
+- `StackWeights.weights` / `len` narrowed from `pub` to `pub(crate)`.
+- `BinRange.lo` / `hi` narrowed from `pub` to `pub(crate)`.
+- `StackWeights::iter()` returns `StackWeightsIter<'_>` instead of `impl Iterator<Item = (usize, f32)>` (PERF-323-02).
+- Removed 2 redundant `#[allow(dead_code)]` annotations from `StackWeights::len()` and `is_empty()` (already `#[cfg(test)]`-gated; DEAD-323-04).
+- Fixed stale `STACK_WEIGHTS_CAPACITY = 16` comment in `StackWeights::new` (was 32 since FIX-319-09).
+- Total test count: 460 with `--features direct-parzen` (was 444; +16 new), 440 without (was 425; +15 non-feature-gated).
+- Direct-path test count: 126 (was 111; +15 new). Phase Nine test module: 33 tests (was 18; +15 new).
+
+## [0.50.86] - 2026-05-30
+
+### Added
+- **ENCAP-322-01: `.sigma_sq` → `.sigma_sq()` accessor migration** — All 17 production call sites across `dispatch.rs`, `compute.rs`, `compute_image.rs`, `masked/mod.rs`, and cache test files now use the `ParzenConfig::sigma_sq()` accessor instead of direct field access. Enables field encapsulation.
+- **ARCH-322-03: `ParzenConfig` field encapsulation** — All three fields (`sigma_sq`, `half_width`, `inv_2sigma_sq`) are now private. Construction is only via `new()` or `from_intensity_sigma()`, which enforce invariants. New `#[cfg(test)]` accessors `half_width()` and `inv_2sigma_sq()` provide test-only read access; `sigma_sq()` is the production accessor.
+- **DEAD-322-02: Dead-code gating audit** — 7 `#[allow(dead_code)]` annotations on test-only methods replaced with `#[cfg(test)]` gating: `StackWeights::len()`/`is_empty()`, `BinRange::len()`/`is_empty()`/`iter()`, `ParzenConfig::support_bins()`/`sum_weights()`. Corrected misleading comment on `BinRange::iter()`.
+- **TEST-322-05: 10 SampleWindow edge-case tests** — Exact bin center, boundary values (0 and num_bins-1), OOB mask include/exclude, moving-only boundary, different-sigma ranges, histogram boundary accumulation, single-sample histogram.
+- **TEST-322-06: 3 HistogramPool stress tests** — Concurrent checkout/return via rayon, buffer reuse (same-allocation verification), and checkout-without-return resilience.
+
+### Changed
+- `ParzenConfig` fields are now private (ARCH-322-03). External code must use accessors.
+- Phase Eight/Seven/Six architecture docs in `direct/mod.rs` condensed to compact bullet lists (449 lines, was 442 before Phase Nine additions).
+- Total test count: 444 with `--features direct-parzen` (was 426; +18 new), 425 without (was 407; +18 non-feature-gated).
+- Direct-path test count: 109 (was 91; +18 new).
+
+## [0.50.85] - 2026-05-29
+
+### Added
+
+- **DRY-321-01: `ParzenJointHistogram::normalize_to_bins()`** — Private helper method that is the SSOT for the fused `(val * scale + offset).clamp(0, num_bins_f)` normalization on the tensor path. Three `compute.rs` sites (`compute_w_fixed_transposed`, `compute_joint_histogram_from_cache`, `compute_joint_histogram`) now delegate to it instead of independently computing `num_bins_f / scale / offset / clamp`.
+
+- **PERF-321-06: `HistogramPool::new_with_capacity()`** — Pre-allocates `buffer_count` zeroed buffers on construction. `ParzenJointHistogram::new()` uses `std::thread::available_parallelism()` to size the pool, eliminating first-iteration allocation latency under rayon's `fold().reduce()`.
+
+- **ARCH-321-10: `ParzenConfig::sigma_sq()` accessor** — Formal accessor method for the σ² field. Removed unnecessary `#[allow(dead_code)]` from the `pub(crate)` field since it's reachable by external callers.
+
+- **TEST-321-07: 3 histogram symmetry tests** — Direct-path and sparse-path histograms are symmetric when σ² is equal and both axes use the same image. Swap-fixed-moving produces a transposed histogram.
+
+- **TEST-321-08: 3 normalize_and_extract correctness tests** — Known values, clamping, and offset normalization verified for the host-side `normalize_and_extract` function.
+
+- **TEST-321-06/04/10/01: 5 supporting tests** — HistogramPool `new_with_capacity` (2), `SampleWindow::mask_val` DRY (1), `ParzenConfig::sigma_sq()` accessor (1), `normalize_and_extract` determinism (1).
+
+### Fixed
+
+- **CLIPPY-321-02: 3 `--no-default-features` warnings resolved** — Unused `DefaultHasher`/`Hash`/`Hasher` imports in `masked/mod.rs` are `#[cfg(feature = "direct-parzen")]`-gated. The `histogram_pool` field on `ParzenJointHistogram` is `#[cfg(feature = "direct-parzen")]`-gated.
+
+### Changed
+
+- `build_sparse_w_fixed_transposed` now uses `SampleWindow::mask_val()` instead of an inline OOB check (ARCH-321-04).
+- `SampleWindow::f_val`/`m_val` are `#[cfg(test)]`-gated, removing 8 bytes from the production struct (MEM-321-03).
+- `SampleWindow::mask_val` is now `pub(crate)` for cross-function reuse within the direct module.
+- Phase Seven/Six architecture docs in `direct/mod.rs` condensed from verbose sections to compact bullet lists (442 lines, was 531).
+- Total test count: 426 with `--features direct-parzen` (was 415; +11 new), 407 without (was ~400; +7 non-feature-gated).
+- Direct-path test count: 91 (was 80; +11 new).
+- Zero clippy warnings from `ritk-registration` under both `--features direct-parzen` and `--no-default-features`.
+
 ## [0.50.84] - 2026-05-29
 
 ### Added

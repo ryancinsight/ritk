@@ -3,14 +3,14 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.50.81)
+## Current State (v0.50.91)
 
 ### Test Suite Performance
 
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
 | ritk-core | 1395 | ~8s | ✅ All passing |
-| ritk-registration | 398 | ~16s | ✅ All passing |
+| ritk-registration | 499 | ~16s | ✅ All passing (`--features direct-parzen`) |
 | ritk-io | ~308 | ~30s | ✅ All passing |
 
 ### Known Optimizations Already Implemented
@@ -650,6 +650,96 @@ Removed `#[allow(dead_code)]` from module declaration; gated test-only functions
 #### TEST-315-06: 5 new property-based tests
 
 `stack_weights_is_copy`, `accumulate_sample_direct_vs_sparse_weights`, `histogram_symmetry_identical_images`, `histogram_normalization_total_weight`, `histogram_boundary_bins_populated`.
+
+## Sprint 328 (0.50.91) — Per-Sample Weight Normalization
+
+### PERF-328-01: Per-sample weight normalization in direct path
+
+`accumulate_sample_direct` now multiplies each sample's contribution by
+`inv_sum_f × inv_sum_m`, where both factors are pre-computed in
+`SampleWindow::new` via `ParzenConfig::compute_weights_with_inv_sum()`. The
+per-sample total contribution to the histogram is therefore exactly `1.0`
+(interior samples; boundary-truncated samples contribute slightly less due
+to support clipping).
+
+**Performance characteristic**: histogram total is now σ²-invariant. A
+loss function computed from this histogram has a stable dynamic range
+across σ hyperparameter sweeps, eliminating the prior `n × 2π` scale factor
+that required downstream callers to compensate for σ dependence.
+
+**Code change**: hot-loop body is
+
+```rust
+let inv_norm = window.inv_sum_f() * window.inv_sum_m();
+for (fi, w_f) in window.f_weights.iter() {
+    let row_base = (f_lo_u + fi) * num_bins;
+    for (mj, w_m) in window.m_weights.iter() {
+        hist[row_base + m_lo_u + mj] += w_f * w_m * inv_norm;
+    }
+}
+```
+
+The `inv_norm` scalar is hoisted out of both inner loops (PERF-327-02/03
+already hoisted `f_lo_u` and `m_lo_u`; PERF-328-01 adds the third hoist).
+
+### PERF-328-02: Sparse-path moving-axis normalization
+
+`accumulate_sample_sparse` signature gained an `inv_sum_m: f32` parameter.
+Callers (currently `compute_joint_histogram_from_cache_sparse`) pass the
+combined `inv_sum_f × inv_sum_m` so the sparse path's per-sample
+contribution matches the direct path's `1.0` after normalization.
+
+**Code change**: sparse path is
+
+```rust
+fn accumulate_sample_sparse(
+    hist: &mut [f32],
+    num_bins: usize,
+    m_range: BinRange,
+    m_weights: &StackWeights,
+    inv_sum_m: f32,
+    fixed_weights: &[SparseWFixedEntry],
+) {
+    let m_lo_u = m_range.lo as usize;
+    for entry in fixed_weights {
+        let row_base = entry.bin as usize * num_bins;
+        for (j, w_m) in m_weights.iter() {
+            hist[row_base + m_lo_u + j] += entry.weight * w_m * inv_sum_m;
+        }
+    }
+}
+```
+
+The `m_lo_u` hoist (PERF-327-03) is preserved. The fixed-axis `1/sum_f` is
+folded into the caller's `inv_sum_m` argument via
+`SampleWindow::new_moving_only`'s returned factor.
+
+### ARCH-328-04/05: StackWeights/BinRange len() and is_empty() promoted to production
+
+`StackWeights::len()` and `BinRange::len()` are now production-visible
+(were `#[cfg(test)]`-gated in Sprints 322-325). Callers in `mod.rs` and
+`sample.rs` use them in size-assertion regression tests.
+
+### PERF-328-01: ParzenConfig::compute_weights_with_inv_sum() production API
+
+`ParzenConfig::compute_weights_with_inv_sum(val, num_bins) -> (BinRange, StackWeights, f32)`
+returns the bin range, weights, and `1/sum_weights` in one pass — avoiding
+the duplicated `StackWeights::new()` work that would be required to compute
+the inverse separately.
+
+### SampleWindow memory footprint
+
+`SampleWindow` now carries `inv_sum_f: f32` and `inv_sum_m: f32` (+8 bytes
+production). Total production size: ~272 bytes (was ~280; the prior
+estimate of ~266 in MEM-325-01 assumed 4 fewer bytes from alignment
+padding, which the new fields absorb without growing the struct).
+
+### Test count
+
+Direct path: 168 tests (was 155 in 0.50.90; +13 in `direct_phase_thirteen_tests.rs`).
+Total with `--features direct-parzen`: 499 (was 518 in 0.50.90; -19 from
+consolidating `direct_phase_twelve_tests.rs` stale tests with the new
+normalized expectations).
 
 ### Sprint 314 (0.50.76) — Parzen Cache Dispatch Hardening Phase Two
 

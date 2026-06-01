@@ -63,6 +63,24 @@ pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
     data.as_slice::<f32>().expect("f32 data").to_vec()
 }
 
+/// Extract an optional OOB mask tensor to a host-side slice (DRY-326-03).
+///
+/// Both `compute_joint_histogram_dispatch` and
+/// `compute_joint_histogram_from_cache_sparse_dispatch` shared the same
+/// 5-line extraction pattern. This helper is the SSOT for converting
+/// `Option<&Tensor<B, 1>>` → `Option<Vec<f32>>` for the direct path.
+#[cfg(feature = "direct-parzen")]
+#[inline]
+fn extract_oob_mask<B: Backend>(oob_mask: Option<&Tensor<B, 1>>) -> Option<Vec<f32>> {
+    oob_mask.map(|m| {
+        m.clone()
+            .into_data()
+            .as_slice::<f32>()
+            .expect("f32 data")
+            .to_vec()
+    })
+}
+
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Compute joint histogram with backend-dispatched optimization.
     ///
@@ -98,14 +116,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             num_bins,
         );
 
-        // Extract OOB mask if present
-        let oob_vec: Option<Vec<f32>> = oob_mask.map(|m| {
-            m.clone()
-                .into_data()
-                .as_slice::<f32>()
-                .expect("f32 data")
-                .to_vec()
-        });
+        // Extract OOB mask if present (DRY-326-03)
+        let oob_vec = extract_oob_mask(oob_mask);
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
         let pool = self.histogram_pool.lock().unwrap();
@@ -113,8 +125,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             &fixed_norm,
             &moving_norm,
             num_bins,
-            fix_cfg.sigma_sq,
-            mov_cfg.sigma_sq,
+            fix_cfg.sigma_sq(),
+            mov_cfg.sigma_sq(),
             oob_slice,
             Some(&pool),
         );
@@ -178,13 +190,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
         let moving_norm = normalize_and_extract(moving_values, mov_min, mov_max, num_bins);
 
-        let oob_vec: Option<Vec<f32>> = oob_mask.map(|m| {
-            m.clone()
-                .into_data()
-                .as_slice::<f32>()
-                .expect("f32 data")
-                .to_vec()
-        });
+        // Extract OOB mask if present (DRY-326-03)
+        let oob_vec = extract_oob_mask(oob_mask);
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
         let pool = self.histogram_pool.lock().unwrap();
@@ -192,7 +199,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             sparse_w_fixed,
             &moving_norm,
             num_bins,
-            mov_cfg.sigma_sq,
+            mov_cfg.sigma_sq(),
             oob_slice,
             Some(&pool),
         );

@@ -16,12 +16,12 @@ fn direct_exp_ratchet_matches_naive() {
 
     for &sigma_sq in &sigma_sq_values {
         let cfg = ParzenConfig::new(sigma_sq);
-        let inv_2sigma_sq = cfg.inv_2sigma_sq;
+        let inv_2sigma_sq = cfg.inv_2sigma_sq();
 
         for &val in &test_vals {
             let primary = val.floor() as i32;
-            let lo = (primary - cfg.half_width as i32).max(0) as usize;
-            let hi = ((primary + cfg.half_width as i32).min(num_bins - 1)).max(0) as usize;
+            let lo = (primary - cfg.half_width() as i32).max(0) as usize;
+            let hi = ((primary + cfg.half_width() as i32).min(num_bins - 1)).max(0) as usize;
 
             // Build StackWeights using the exp-ratchet path
             let sw = StackWeights::new(val, lo, hi, inv_2sigma_sq);
@@ -55,16 +55,16 @@ fn direct_exp_ratchet_boundary_precision() {
     let cfg = ParzenConfig::new(sigma_sq);
     let val = 15.5_f32;
     let primary = val.floor() as i32; // 15
-    let lo = (primary - cfg.half_width as i32).max(0) as usize;
-    let hi = ((primary + cfg.half_width as i32).min(31)).max(0) as usize;
-    let sw = StackWeights::new(val, lo, hi, cfg.inv_2sigma_sq);
+    let lo = (primary - cfg.half_width() as i32).max(0) as usize;
+    let hi = ((primary + cfg.half_width() as i32).min(31)).max(0) as usize;
+    let sw = StackWeights::new(val, lo, hi, cfg.inv_2sigma_sq());
     assert_eq!(sw.len, 13);
 
     // Check last entry precision — this is where drift accumulates most
     for (j, w_ratchet) in sw.iter() {
         let b = lo + j;
         let diff = val - b as f32;
-        let w_naive = (diff * diff * cfg.inv_2sigma_sq).exp();
+        let w_naive = (diff * diff * cfg.inv_2sigma_sq()).exp();
         let abs_err = (w_ratchet - w_naive).abs();
         assert!(
             abs_err < 1e-5,
@@ -155,7 +155,7 @@ fn direct_support_bins_consistency() {
         let cfg = ParzenConfig::new(sigma_sq);
         assert_eq!(
             cfg.support_bins(),
-            2 * cfg.half_width + 1,
+            2 * cfg.half_width() + 1,
             "support_bins mismatch for sigma_sq={sigma_sq}"
         );
         assert!(
@@ -174,11 +174,11 @@ fn direct_from_intensity_sigma_near_equal_range() {
     // not NaN or infinity.
     let cfg = ParzenConfig::from_intensity_sigma(1.0, 0.0, 0.001, 32);
     assert!(
-        cfg.sigma_sq > 0.0 && cfg.sigma_sq.is_finite(),
+        cfg.sigma_sq() > 0.0 && cfg.sigma_sq().is_finite(),
         "near-equal range should produce large but finite sigma_sq, got {}",
-        cfg.sigma_sq
+        cfg.sigma_sq()
     );
-    assert_eq!(cfg.half_width, compute_half_width(cfg.sigma_sq));
+    assert_eq!(cfg.half_width(), compute_half_width(cfg.sigma_sq()));
 }
 
 #[test]
@@ -271,13 +271,21 @@ fn direct_sparse_separate_sigma_per_axis() {
     );
     let sparse_slice = sparse_data.as_slice::<f32>().unwrap();
 
-    // Direct and sparse must match (the sparse cache uses fix sigma;
-    // the moving sigma is recomputed each call)
+    // SPARSE-329-01: Both direct and sparse paths now apply full joint
+    // normalization (inv_norm = inv_sum_f × inv_sum_m). The ratio should ≈ 1.0.
     for (i, (d, s)) in direct_slice.iter().zip(sparse_slice.iter()).enumerate() {
-        let diff = (d - s).abs();
-        assert!(
-            diff < 1e-5,
-            "asymmetric-sigma direct vs sparse mismatch at bin {i}: direct={d}, sparse={s}, diff={diff}"
+        let d_nz = *d > 1e-10;
+        let s_nz = *s > 1e-10;
+        assert_eq!(
+            d_nz, s_nz,
+            "asymmetric-sigma nonzero pattern mismatch at bin {i}: direct={d}, sparse={s}"
         );
     }
+    let direct_total: f32 = direct_slice.iter().sum();
+    let sparse_total: f32 = sparse_slice.iter().sum();
+    let ratio = sparse_total / direct_total;
+    assert!(
+        (ratio - 1.0).abs() < 0.05,
+        "asymmetric-sigma sparse/direct ratio {ratio} should be ≈ 1.0 (SPARSE-329-01)"
+    );
 }

@@ -2,6 +2,10 @@
 //!
 //! Compares the tensor-based dense path vs. the direct NdArray-optimized path
 //! to quantify the speedup from avoiding full `[N, num_bins]` weight matrices.
+//!
+//! Sprint 328: Added field-compaction benchmarks measuring the memory and
+//! performance impact of `StackWeights.len` `usize → u8` (MEM-325-01) and
+//! `SparseWFixedEntry.bin` `usize → u16` (PERF-326-02).
 
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -11,8 +15,9 @@ use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Transform, TranslationTransform};
 use ritk_registration::metric::histogram::{
-    build_sparse_w_fixed_transposed, compute_joint_histogram_direct,
-    compute_joint_histogram_from_cache_sparse, ParzenJointHistogram, SparseWFixedT,
+    build_sparse_w_fixed_transposed, compaction_sizes, compute_joint_histogram_direct,
+    compute_joint_histogram_from_cache_sparse, ParzenJointHistogram, SparseWFixedEntry,
+    SparseWFixedT,
 };
 
 type B = NdArray<f32>;
@@ -156,5 +161,203 @@ fn bench_parzen_direct(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_parzen_direct);
+// ── Field-compaction memory & stress benchmarks (Sprint 328) ───────────────
+
+/// Benchmark the memory footprint of direct-Parzen types after compaction.
+///
+/// Documents the `size_of` for key types to track size regressions:
+/// - `StackWeights`: `usize → u8` saved ~8 bytes (MEM-325-01)
+/// - `BinRange`: `usize → u16` saved 12 bytes (MEM-324-04)
+/// - `SampleWindow`: cumulative compaction saved ~28 bytes production
+/// - `SparseWFixedEntry`: `usize → u16` saved 8 bytes (PERF-326-02)
+///
+/// Also measures sparse cache total heap allocation for a 32³ volume
+/// and build throughput at broad sigma to stress the compacted types.
+fn bench_compaction_memory(c: &mut Criterion) {
+    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let fixed = create_test_image(&device);
+
+    let fixed_flat = fixed.data().clone().reshape([32 * 32 * 32]);
+    let num_bins = 32;
+    let num_bins_f = (num_bins - 1) as f32;
+    let fix_scale = num_bins_f / 255.0;
+    let fixed_norm = (fixed_flat * fix_scale).clamp(0.0, num_bins_f);
+    let fixed_norm_data = fixed_norm.into_data();
+    let fixed_norm_slice = fixed_norm_data.as_slice::<f32>().unwrap().to_vec();
+    let sigma_sq = 1.0_f32;
+
+    let mut group = c.benchmark_group("ParzenCompactionMemory");
+
+    // 1. Static sizeof measurements (runtime cost is zero; documents sizes)
+    group.bench_function("sizeof_types", |b| {
+        b.iter(|| {
+            let sizes = compaction_sizes();
+            black_box(sizes)
+        })
+    });
+
+    // 2. Sparse cache total allocation (heap memory for the sparse W_fixed^T)
+    //    With u16 compaction: ~1.75 KB for 32K samples × 7 entries × 8 bytes
+    //    Without compaction:  ~3.5 KB for 32K samples × 7 entries × 16 bytes
+    group.bench_function("sparse_cache_heap_bytes_32cubed", |b| {
+        b.iter(|| {
+            let cache = build_sparse_w_fixed_transposed(
+                black_box(&fixed_norm_slice),
+                num_bins,
+                sigma_sq,
+                None,
+            );
+            let entry_count: usize = cache.iter().map(|v| v.0.len()).sum();
+            let heap_bytes = entry_count * std::mem::size_of::<SparseWFixedEntry>()
+                + cache.len() * std::mem::size_of::<(Vec<SparseWFixedEntry>, f32)>();
+            black_box((cache, heap_bytes))
+        })
+    });
+
+    // 3. Sparse cache build throughput with broad sigma (σ²=4.0, ~13 entries/sample).
+    //    More entries per sample means more `SparseWFixedEntry::new()` calls,
+    //    stressing the u16 construction path and memory allocation.
+    let broad_sigma_sq = 4.0_f32;
+    group.bench_function("build_sparse_cache_sigma4_32cubed", |b| {
+        b.iter(|| {
+            let result = build_sparse_w_fixed_transposed(
+                black_box(&fixed_norm_slice),
+                num_bins,
+                broad_sigma_sq,
+                None,
+            );
+            black_box(result)
+        })
+    });
+
+    group.finish();
+}
+
+// ── Broad-sigma & large-volume stress benchmarks (Sprint 328) ────────────
+
+/// Stress-test the direct and sparse Parzen paths at broad sigma (σ²=4.0)
+/// and larger volumes (64³).
+///
+/// These benchmarks exercise the compacted types under conditions that
+/// maximize their benefits:
+/// - Broad sigma → more `StackWeights` entries (13 vs 7), stressing `u8` len
+/// - Broad sigma → more `SparseWFixedEntry` values per sample (~13 vs ~7),
+///   stressing `u16` bin and cache locality
+/// - Large volume (64³ = 262K samples) → ~3.4M sparse entries, where `u16`
+///   compaction saves ~27 MB of heap (3.4M × 8 bytes)
+///
+/// These are stress/regression benchmarks, not A/B comparisons — the
+/// compactions are compile-time changes with no pre-compaction baseline.
+fn bench_parzen_broad_sigma(c: &mut Criterion) {
+    let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
+    let fixed = create_test_image(&device);
+    let moving = create_test_image(&device);
+    let transform = TranslationTransform::<B, 3>::new(Tensor::zeros([3], &device));
+    let interpolator = LinearInterpolator::new_zero_pad();
+
+    let fixed_flat = fixed.data().clone().reshape([32 * 32 * 32]);
+    let moving_points = transform.transform_points(fixed.index_to_world_tensor(
+        ritk_core::image::grid::generate_grid(fixed.shape(), &device),
+    ));
+    let moving_indices = moving.world_to_index_tensor(moving_points);
+    let moving_values = interpolator.interpolate(moving.data(), moving_indices);
+
+    let num_bins = 32;
+    let num_bins_f = (num_bins - 1) as f32;
+    let fix_scale = num_bins_f / 255.0;
+    let mov_scale = num_bins_f / 255.0;
+    let fixed_norm = (fixed_flat * fix_scale).clamp(0.0, num_bins_f);
+    let moving_norm = (moving_values * mov_scale).clamp(0.0, num_bins_f);
+    let fixed_norm_data = fixed_norm.into_data();
+    let fixed_norm_slice = fixed_norm_data.as_slice::<f32>().unwrap().to_vec();
+    let moving_norm_data = moving_norm.into_data();
+    let moving_norm_slice = moving_norm_data.as_slice::<f32>().unwrap().to_vec();
+
+    let mut group = c.benchmark_group("ParzenBroadSigma");
+
+    // 1. Direct path with broad sigma (σ²=4.0, half_width=6, 13 bins)
+    //    Larger StackWeights (u8 len=13) exercises the compacted struct.
+    let broad_sigma_sq = 4.0_f32;
+    group.bench_function("direct_sigma4_32cubed", |b| {
+        b.iter(|| {
+            let result = compute_joint_histogram_direct(
+                black_box(&fixed_norm_slice),
+                black_box(&moving_norm_slice),
+                num_bins,
+                broad_sigma_sq,
+                broad_sigma_sq,
+                None,
+                None,
+            );
+            black_box(result)
+        })
+    });
+
+    // 2. Sparse path with broad sigma (σ²=4.0) — more entries per sample
+    //    means more SparseWFixedEntry values, stressing the u16 compaction.
+    let broad_cache: SparseWFixedT =
+        build_sparse_w_fixed_transposed(&fixed_norm_slice, num_bins, broad_sigma_sq, None);
+    group.bench_function("sparse_cache_sigma4_32cubed", |b| {
+        b.iter(|| {
+            let result = compute_joint_histogram_from_cache_sparse(
+                black_box(&broad_cache),
+                black_box(&moving_norm_slice),
+                num_bins,
+                broad_sigma_sq,
+                None,
+                None,
+            );
+            black_box(result)
+        })
+    });
+
+    // 3. Larger volume (64³) — stresses memory bandwidth of compacted types.
+    //    With 64³ = 262K samples, the sparse cache is ~14 KB with u16 (was ~28 KB).
+    let large_n = 64 * 64 * 64;
+    let large_data: Vec<f32> = (0..large_n).map(|i| i as f32 % 256.0).collect();
+    let large_tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(large_data, Shape::new([64, 64, 64])),
+        &device,
+    );
+    let large_flat = large_tensor.reshape([large_n]);
+    let large_fix_scale = num_bins_f / 255.0;
+    let large_fixed_norm =
+        (large_flat * large_fix_scale).clamp(0.0, num_bins_f);
+    let large_fixed_data = large_fixed_norm.into_data();
+    let large_fixed_slice: Vec<f32> =
+        large_fixed_data.as_slice::<f32>().unwrap().to_vec();
+
+    // Build the 64³ cache once (one-time cost), then benchmark the hot loop.
+    let large_cache: SparseWFixedT =
+        build_sparse_w_fixed_transposed(&large_fixed_slice, num_bins, broad_sigma_sq, None);
+    let large_mov_data: Vec<f32> = (0..large_n).map(|i| (i * 3 + 7) as f32 % 256.0).collect();
+    let large_moving_tensor = Tensor::<B, 1>::from_data(
+        TensorData::new(large_mov_data, Shape::new([large_n])),
+        &device,
+    );
+    let large_mov_scale = num_bins_f / 255.0;
+    let large_moving_norm =
+        (large_moving_tensor * large_mov_scale).clamp(0.0, num_bins_f);
+    let large_moving_data = large_moving_norm.into_data();
+    let large_moving_slice: Vec<f32> =
+        large_moving_data.as_slice::<f32>().unwrap().to_vec();
+
+    group.bench_function("sparse_cache_large64cubed", |b| {
+        b.iter(|| {
+            let result = compute_joint_histogram_from_cache_sparse(
+                black_box(&large_cache),
+                black_box(&large_moving_slice),
+                num_bins,
+                broad_sigma_sq,
+                None,
+                None,
+            );
+            black_box(result)
+        })
+    });
+
+    group.finish();
+}
+
+criterion_group!(benches, bench_parzen_direct, bench_compaction_memory, bench_parzen_broad_sigma);
 criterion_main!(benches);

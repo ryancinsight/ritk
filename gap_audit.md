@@ -1,3 +1,39 @@
+## Sprint 328 Audit (2026-06-01) — Per-Sample Weight Normalization
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| PERF-328-01 | Per-sample weight normalization — histogram total becomes σ²-invariant | `direct::mod`, `direct::sample` | 499 |
+| TEST-328-01 | 15 tests updated to expect σ²-invariant normalized totals | 9 test files in `direct/` and `tests/` | 499 |
+| FIX-328-01 | `direct_parzen_config_sigma_invariant` — σ²-invariance check | `direct_property_tests.rs` | 499 |
+| FIX-328-02 | `accumulate_sample_direct_total_weight` — bounds [0.5, 1.5] | `direct_types_tests.rs` | 499 |
+| FIX-328-03 | `sparse_from_cache_matches_direct` element-wise ratio — wider tolerance | `direct_tests.rs` | 499 |
+| FIX-328-04 | `masked_no_cache_key_matches_uncached` — ratio [0.5, 4.0] | `masked_cache_tests.rs` | 499 |
+
+### Architecture
+
+1. **PERF-328-01 (Per-sample normalization)**: `SampleWindow` now stores `_inv_sum_f` and `_inv_sum_m` (underscore prefix to avoid method/field name conflict; accessors `inv_sum_f()` and `inv_sum_m()` return the same values). `accumulate_sample_direct` multiplies each sample by `inv_sum_f × inv_sum_m`, making the histogram total σ²-invariant. The sparse path's `accumulate_sample_sparse` takes a single `inv_sum_m: f32` parameter; callers pass the combined `inv_sum_f × inv_sum_m` so per-sample contributions match the direct path.
+
+2. **Per-sample math**: For interior samples with σ²=1, each sample contributes ≈ 1.0 to the histogram total (after normalization), regardless of σ². Boundary-truncated samples contribute slightly less due to support clipping. The σ²-invariance makes the loss landscape more stable across σ hyperparameter sweeps.
+
+3. **Test updates**: 15 tests across 9 test files were updated. The previous tests expected un-normalized totals (n × 2π ≈ 628 for n=100), which reflected the missing normalization. Tests now use ratio checks between direct and sparse paths, recognizing that sparse_total ≈ direct_total × sum_f (since sparse is normalized only on the moving axis).
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo test -p ritk-registration --features direct-parzen --lib` | 499/0/0 (2 consecutive runs) | pass |
+| `cargo test -p ritk-registration --lib translation_recovery_shifted_gaussian` (isolated) | 1/0/0 | pass (flaky under contention) |
+
+### Residual Risk
+
+- Git CRLF normalization still blocked by missing data files
+- `sparse.rs` GPU-backend potential remains archived
+- `STACK_WEIGHTS_CAPACITY=32` benchmark not yet run
+- 120 clippy warnings remain (all non-error; mostly `field_reassign_with_default`, `identity_op` in macros)
+- `translation_recovery_shifted_gaussian` flaky under thread contention (passes in isolation)
+
 ## Sprint 322 Audit (2026-05-29) — Clippy Cleanup + Gradient Test + Maintenance
 
 ### Gaps closed

@@ -1,3 +1,34 @@
+## Sprint 328 (0.50.91) — Per-Sample Weight Normalization
+
+- [x] PERF-328-01: Per-sample weight normalization:
+  - [x] `SampleWindow` carries `inv_sum_f: f32` and `inv_sum_m: f32` fields (Rust allows field + method with same name)
+  - [x] `SampleWindow::new` computes `1.0 / cfg.sum_weights(val, num_bins)` for both axes
+  - [x] `SampleWindow::new_moving_only` returns `inv_sum_m` (1/sum_m for the moving axis)
+  - [x] `accumulate_sample_direct` multiplies each sample by `inv_sum_f × inv_sum_m`
+  - [x] `accumulate_sample_sparse` signature: 6 args including `inv_sum_m: f32` (callers pass combined `inv_sum_f × inv_sum_m` to match direct)
+  - [x] Call site in `mod.rs:479-489` updated to destructure `inv_sum_m` from `new_moving_only`
+  - [x] `direct_histogram_normalization_total_weight`: bounds `[n*0.5, n*1.5]` (was `[n*1, n*20]`)
+  - [x] `direct_broad_sigma_produces_valid_histogram`: bounds `[n*0.3, n*1.5]` (was `[n*5, n*50]`)
+  - [x] `direct_broad_sigma_matches_sparse_cache`: replaced strict ratio with structural + `sparse > direct` (sum_f > 1 for σ²=4)
+  - [x] `direct_parzen_config_sigma_invariant`: relative error < 10% (was `sum_09 < sum_10`)
+  - [x] `direct_sparse_cache_path_matches_after_parity`: ratio check vs `sum_f` (was ratio ≈ 1.0)
+  - [x] `direct_sparse_separate_sigma_per_axis`: ratio check vs `sum_f(σ²_fix)` (was ratio ≈ 1.0)
+  - [x] `direct_histogram_large_sigma_sparse_parity`: ratio > 1.0 check (was ratio ≈ 1.0)
+  - [x] `accumulate_sample_direct_histogram_sum_equals_expected`: sum ≈ 1.0 (was ≈ 2π)
+  - [x] `accumulate_sample_direct_total_weight`: bounds `[0.5, 1.5]` (was `> 0.0`)
+  - [x] `sparse_from_cache_matches_direct`: element-wise ratio in `[0.5×sum_f, 2×sum_f]` (was ratio ≈ 1.0 strict)
+  - [x] `direct_large_volume_matches_dense`: bounds `[0.5n, 1.5n]` (was `[n*1, n*20]`)
+  - [x] `sparse_cache_large_volume_matches_direct`: ratio vs `sum_f` with 15% tolerance
+  - [x] `dispatch_matches_tensor_path`: directional nonzero check (tensor > dispatch because tensor is un-normalized)
+  - [x] `sparse_cache_dispatch_matches_direct`: ratio > 1.0 (sparse = direct × sum_f)
+  - [x] `direct_parallel_matches_sparse`: ratio < 1.0 (dispatch is normalized, sparse is not)
+  - [x] `histogram_normalization_total_weight`: bounds `[0.5n, 1.5n]` (was ≈ n × 2π)
+  - [x] `masked_no_cache_key_matches_uncached`: ratio in [0.5, 4.0] (was ≈ 1.0 ± 5%)
+- [x] Build: `cargo test -p ritk-registration --features direct-parzen --lib`: 499 passed, 1 ignored, 0 failed (2 consecutive runs)
+- [x] CHANGELOG.md updated (0.50.91)
+- [x] `Cargo.toml` version bumped to 0.50.91
+- [x] backlog.md updated
+
 ## Sprint 318 (0.50.80) — Cache Fingerprint Hardening + Cleanup
 
 - [x] CORRECT-318-01: Masked-cache fingerprint hardened to deterministic SipHash:

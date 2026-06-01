@@ -16,6 +16,25 @@ pub(super) fn arange_bins<B: Backend>(num_bins: usize, device: &B::Device) -> Te
 }
 
 impl<B: Backend> ParzenJointHistogram<B> {
+    /// Normalize intensity values to `[0, num_bins - 1]` range.
+    ///
+    /// Applies the fused linear mapping `(val * scale + offset).clamp(0, num_bins_f)`
+    /// where `scale = num_bins_f / (max - min)` and `offset = -min * scale`.
+    /// This is the same normalization used by `dispatch::normalize_and_extract`
+    /// but operates on tensors (GPU/backend-compatible) rather than extracting to host.
+    #[inline]
+    fn normalize_to_bins(
+        values: Tensor<B, 1>,
+        min: f32,
+        max: f32,
+        num_bins: usize,
+    ) -> Tensor<B, 1> {
+        let num_bins_f = (num_bins - 1) as f32;
+        let scale = num_bins_f / (max - min);
+        let offset = -min * scale;
+        (values * scale + offset).clamp(0.0, num_bins_f)
+    }
+
     /// Compute the transposed Parzen weight matrix `W_fixed^T [num_bins, N]` for fixed-image values.
     ///
     /// This is the constant (non-autodiff) matrix that only depends on the fixed
@@ -27,13 +46,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
         n: usize,
     ) -> Tensor<B, 2> {
         // DRY-320-01: delegate to ParzenConfig via fixed_sigma_cfg()
-        let sigma_sq = self.fixed_sigma_cfg().sigma_sq;
+        let sigma_sq = self.fixed_sigma_cfg().sigma_sq();
 
-        let fixed_num_bins_f = self.num_bins as f32 - 1.0;
-        let fixed_scale = fixed_num_bins_f / (self.max_intensity - self.min_intensity);
-        let fixed_offset = -self.min_intensity * fixed_scale;
-        let fixed_norm =
-            (fixed_values.clone() * fixed_scale + fixed_offset).clamp(0.0, fixed_num_bins_f);
+        let fixed_norm = Self::normalize_to_bins(
+            fixed_values.clone(),
+            self.min_intensity,
+            self.max_intensity,
+            self.num_bins,
+        );
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
@@ -85,19 +105,15 @@ impl<B: Backend> ParzenJointHistogram<B> {
         oob_mask: Option<&Tensor<B, 1>>,   // [N] in-bounds mask (1.0=in, 0.0=out)
     ) -> Tensor<B, 2> {
         let [n] = moving_values.dims();
-        let num_bins = self.num_bins;
 
         // DRY-320-01: delegate to ParzenConfig via moving_sigma_cfg()
-        let sigma_sq = self.moving_sigma_cfg().sigma_sq;
+        let sigma_sq = self.moving_sigma_cfg().sigma_sq();
 
         // Normalize moving values to [0, num_bins-1] using the moving-image range.
-        let mov_num_bins_f = num_bins as f32 - 1.0;
         let mov_min = self.moving_min_intensity.unwrap_or(self.min_intensity);
         let mov_max = self.moving_max_intensity.unwrap_or(self.max_intensity);
-        let mov_scale = mov_num_bins_f / (mov_max - mov_min);
-        let mov_offset = -mov_min * mov_scale;
         let moving_norm =
-            (moving_values.clone() * mov_scale + mov_offset).clamp(0.0, mov_num_bins_f);
+            Self::normalize_to_bins(moving_values.clone(), mov_min, mov_max, self.num_bins);
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
@@ -127,29 +143,18 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let device = fixed.device();
         let [n] = fixed.dims();
         let num_bins = self.num_bins;
-        let num_bins_f = num_bins as f32 - 1.0;
-
         let fix_min = self.min_intensity;
         let fix_max = self.max_intensity;
         // Moving-image range — fall back to fixed-image range (backward-compatible).
         let mov_min = self.moving_min_intensity.unwrap_or(fix_min);
         let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
 
-        // Normalize intensities to [0, num_bins-1] using the supplied range.
-        // Fused: (t - min) / (max - min) * num_bins_f → t * scale + offset
-        // reduces 3 intermediate tensor allocations to 1.
-        let normalize = |t: Tensor<B, 1>, min: f32, max: f32| -> Tensor<B, 1> {
-            let scale = num_bins_f / (max - min);
-            let offset = -min * scale;
-            (t * scale + offset).clamp(0.0, num_bins_f)
-        };
-
         // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
         let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
 
         // DRY-320-01: delegate to ParzenConfig via helper methods
-        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
-        let sigma_sq_mov = self.moving_sigma_cfg().sigma_sq;
+        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
+        let sigma_sq_mov = self.moving_sigma_cfg().sigma_sq();
 
         // WGPU dispatch limit workaround
         // The matmul (Bins, N) * (N, Bins) reduces along N.
@@ -157,8 +162,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
         const CHUNK_SIZE: usize = 32768;
 
         if n <= CHUNK_SIZE {
-            let fixed_norm = normalize(fixed.clone(), fix_min, fix_max);
-            let moving_norm = normalize(moving.clone(), mov_min, mov_max);
+            let fixed_norm =
+                Self::normalize_to_bins(fixed.clone(), fix_min, fix_max, self.num_bins);
+            let moving_norm =
+                Self::normalize_to_bins(moving.clone(), mov_min, mov_max, self.num_bins);
 
             let w_fixed = Self::compute_parzen_weights(fixed_norm, n, sigma_sq_fix, &bins_exp);
             let w_moving = Self::compute_parzen_weights(moving_norm, n, sigma_sq_mov, &bins_exp);
@@ -184,8 +191,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let fixed_chunk = fixed.clone().slice([chunk_range.clone()]);
                 let moving_chunk = moving.clone().slice([chunk_range]);
 
-                let fixed_norm = normalize(fixed_chunk, fix_min, fix_max);
-                let moving_norm = normalize(moving_chunk, mov_min, mov_max);
+                let fixed_norm =
+                    Self::normalize_to_bins(fixed_chunk, fix_min, fix_max, self.num_bins);
+                let moving_norm =
+                    Self::normalize_to_bins(moving_chunk, mov_min, mov_max, self.num_bins);
 
                 let w_fixed = Self::compute_parzen_weights(
                     fixed_norm,

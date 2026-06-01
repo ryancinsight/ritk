@@ -5,7 +5,9 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
+#[cfg(feature = "direct-parzen")]
 use std::collections::hash_map::DefaultHasher;
+#[cfg(feature = "direct-parzen")]
 use std::hash::{Hash, Hasher};
 
 mod masked_chunked;
@@ -184,7 +186,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     #[cfg(feature = "direct-parzen")]
                     {
                         // Also try sparse cache for derivative-free backends.
-                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                         let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                         let cached_sparse = get_masked_cached_sparse_w_fixed(
                             &mut cache,
@@ -225,7 +227,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
                 #[cfg(feature = "direct-parzen")]
                 {
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                     let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                     let cached_sparse = get_masked_cached_sparse_w_fixed(
                         &mut cache,
@@ -266,7 +268,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     // Cache hit — slice the cached W_fixed^T per chunk.
                     #[cfg(feature = "direct-parzen")]
                     {
-                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                         let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                         let cached_sparse = get_masked_cached_sparse_w_fixed(
                             &mut cache,
@@ -315,7 +317,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
                 #[cfg(feature = "direct-parzen")]
                 {
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq;
+                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
                     let mut cache = self.masked_cache.lock().unwrap_or_else(|e| e.into_inner());
                     let cached_sparse = get_masked_cached_sparse_w_fixed(
                         &mut cache,

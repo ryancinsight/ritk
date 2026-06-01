@@ -22,7 +22,7 @@ fn sparse_w_fixed_deterministic() {
         hist.max_intensity,
         num_bins,
     )
-    .sigma_sq; // SSOT-319-02
+    .sigma_sq(); // SSOT-319-02
     let fixed_norm = dispatch::normalize_and_extract(
         &fixed_tensor,
         hist.min_intensity,
@@ -43,8 +43,15 @@ fn sparse_w_fixed_deterministic() {
         "sparse cache lengths must match"
     );
     for (i, (a, b)) in sparse1.iter().zip(sparse2.iter()).enumerate() {
-        assert_eq!(a.len(), b.len(), "sample {i}: entry count mismatch");
-        for (j, (ea, eb)) in a.iter().zip(b.iter()).enumerate() {
+        // SPARSE-329-01: cache entry is (entries, inv_sum_f) tuple
+        assert_eq!(a.0.len(), b.0.len(), "sample {i}: entry count mismatch");
+        assert!(
+            (a.1 - b.1).abs() < 1e-10,
+            "sample {i}: inv_sum_f mismatch a={} b={}",
+            a.1,
+            b.1
+        );
+        for (j, (ea, eb)) in a.0.iter().zip(b.0.iter()).enumerate() {
             assert_eq!(ea.bin, eb.bin, "sample {i} entry {j}: bin mismatch");
             let diff = (ea.weight - eb.weight).abs();
             assert!(diff < 1e-10, "sample {i} entry {j}: weight diff={diff}");

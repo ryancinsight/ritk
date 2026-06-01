@@ -3,6 +3,7 @@ use burn::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "direct-parzen")]
 use self::direct::HistogramPool;
 use super::cache::{HistogramCache, MaskedHistogramCache};
 
@@ -59,6 +60,7 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// Reusable histogram buffer pool, allocated once in `new()` and reused
     /// across CMA-ES iterations to avoid repeated O(num_bins²) allocations.
     /// Wrapped in `Arc<Mutex<...>>` so the `Clone` derive works.
+    #[cfg(feature = "direct-parzen")]
     pub(super) histogram_pool: Arc<Mutex<HistogramPool>>,
 }
 
@@ -87,7 +89,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             cache: Arc::new(Mutex::new(None)),
             masked_cache: Arc::new(Mutex::new(None)),
             _phantom: PhantomData,
-            histogram_pool: Arc::new(Mutex::new(HistogramPool::new(num_bins * num_bins))),
+            #[cfg(feature = "direct-parzen")]
+            histogram_pool: Arc::new(Mutex::new({
+                let buffer_count = std::thread::available_parallelism()
+                    .map(|n| n.get())
+                    .unwrap_or(1);
+                HistogramPool::new_with_capacity(num_bins * num_bins, buffer_count)
+            })),
         }
     }
 

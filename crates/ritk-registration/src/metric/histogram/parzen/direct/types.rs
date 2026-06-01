@@ -1,66 +1,41 @@
 //! Shared types for the direct Parzen histogram computation path.
-//! Data structures used by the hot-loop functions in `direct/mod.rs`, factored
-//! out to keep `mod.rs` under the 500-line structural limit and to provide a
-//! single point of definition for types shared across computation and test modules.
+//!
+//! Factored out of `direct/mod.rs` to keep it under the 500-line limit.
 //!
 //! # Design principles
 //!
-//! - **SSOT**: `compute_half_width` is the sole definition of the ±3σ rule;
-//!   `ParzenConfig` is the sole holder of per-axis σ parameters and their
-//!   precomputed derivatives.
+//! - **SSOT**: `compute_half_width` is the sole ±3σ definition; `ParzenConfig`
+//!   is the sole per-axis σ holder and precomputed derivatives.
 //! - **SRP**: `ParzenConfig` owns normalisation; `SampleWindow` owns
-//!   per-sample bin computation — the two concerns are no longer
-//!   conflated in a 7-parameter constructor.
-//! - **DRY**: `SampleWindow::new` and `new_moving_only` share an inner
-//!   OOB-filter helper.
-//! - **Monomorphization / zero-cost**: `SampleWindow` carries `StackWeights`
-//!   for *both* axes, so no heap allocation or `SparseWFixedEntry` construction
-//!   is needed per sample. The sparse-cache path uses `SparseWFixedEntry` for
-//!   the fixed axis.
+//!   per-sample bin computation.
+//! - **DRY**: `SampleWindow::new` / `new_moving_only` share an OOB-filter helper.
+//! - **Zero-cost**: `SampleWindow` carries `StackWeights` for both axes — no
+//!   heap allocation per sample. Sparse-cache path uses `SparseWFixedEntry`.
 
-/// Maximum number of Parzen bins that any single sample can touch on one axis.
+/// Maximum Parzen bins a single sample can touch on one axis.
 ///
-/// With the ±3σ rule, σ ≈ 5.2 bins produces half_width = 15, giving a range
-/// of up to 31 bins. The array size is rounded up to 32 for 128-byte SIMD
-/// alignment (32 × f32 = 128 bytes = four AVX2 `__m256` registers).
+/// ±3σ with σ≈5.2 bins → half_width=15 → range≤31. Rounded to 32 for
+/// 128-byte SIMD alignment (32×f32 = four AVX2 `__m256` registers).
 #[cfg(test)]
 pub(crate) const MAX_PARZEN_BINS: usize = 31;
 
-/// Aligned capacity of the stack-allocated weight array.
+/// Stack weight array capacity (32×f32 = 128 B, AVX2-aligned).
 ///
-/// 32 × f32 = 128 bytes, covering up to σ ≈ 5.2 bins (half_width ≤ 15,
-/// range ≤ 31). Slots beyond the active range are zero-filled padding that
-/// never participate in any computation. This alignment enables the compiler
-/// to emit aligned AVX2 load/store pairs when auto-vectorizing the inner
-/// weight loop, and ensures `StackWeights` is exactly 132 bytes (32×f32 +
-/// 1×usize) with no internal padding.
-///
-/// # FIX-319-09: increased from 16 to 32
-///
-/// The previous capacity of 16 (range ≤ 15, σ ≤ 4.5 bins) was insufficient
-/// for `sigma_sq ≥ 9.0` (σ ≥ 3 bins → half_width ≥ 9 → range ≥ 19 bins).
-/// The new capacity of 32 covers all practical medical imaging cases up to
-/// σ ≈ 5.2 bins while remaining cache-friendly (128 bytes = 2× L1 cache lines).
+/// Covers σ≈5.2 bins (half_width≤15, range≤31). Beyond-active slots
+/// are zero-filled. FIX-319-09: increased from 16 to 32.
 pub(crate) const STACK_WEIGHTS_CAPACITY: usize = 32;
 
-/// Minimum support half-width. Even for very narrow kernels (σ < 1 bin),
-/// we still evaluate at least 3 bins on each side of the primary bin
-/// to ensure B-spline-like continuity in the histogram.
+/// Minimum support half-width. Ensures ≥3 bins per side even for σ<1 bin
+/// (B-spline-like continuity).
 pub(crate) const MIN_HALF_WIDTH: usize = 3;
 
 // ── Half-width computation (SSOT) ─────────────────────────────────────────
 
-/// Compute the support half-width from sigma² using the ±3σ rule.
+/// Support half-width from sigma² via the ±3σ rule.
 ///
-/// Returns `ceil(3 * sqrt(sigma_sq)).max(MIN_HALF_WIDTH)` — this captures
-/// \>99.7% of the Gaussian mass while guaranteeing at least `MIN_HALF_WIDTH`
-/// bins on each side for numerical stability.
-///
-/// # Single source of truth
-///
-/// This is the canonical implementation. The duplicate in `sparse.rs` is
-/// `#[cfg(test)]`-only and delegates here when the `direct-parzen` feature
-/// is enabled.
+/// Returns `ceil(3*sqrt(sigma_sq)).max(MIN_HALF_WIDTH)` — captures >99.7%
+/// of Gaussian mass. SSOT: `sparse.rs` duplicate is `#[cfg(test)]`-only
+/// and delegates here.
 #[inline]
 pub fn compute_half_width(sigma_sq: f32) -> usize {
     let sigma = sigma_sq.sqrt();
@@ -70,122 +45,170 @@ pub fn compute_half_width(sigma_sq: f32) -> usize {
 
 // ── StackWeights ───────────────────────────────────────────────────────────
 
-/// Stack-allocated Parzen weights for a single sample on one axis (OPT-5).
+/// Stack-allocated Parzen weights for one axis (OPT-5).
 ///
-/// Avoids `Vec` heap allocation for the typically ≤ 31 weight values computed
-/// per sample. The `len` field tracks how many entries in `weights` are active;
-/// entries beyond `len` are zero-filled padding (never uninitialized).
-///
-/// The `weights` array has capacity `STACK_WEIGHTS_CAPACITY = 32` (not 31) to
-/// achieve 128-byte SIMD alignment. Slots beyond `len` are always `0.0f32` and
-/// are never accessed by `iter()`. This enables the compiler to emit aligned
-/// AVX2 load/store instructions when auto-vectorizing the weight-computation
-/// inner loop.
-///
-/// This type is `Copy` (32 × f32 + usize = 132 bytes), so it can be passed by
-/// value without overhead or borrowing. `Copy` is safe because all padding
-/// entries are explicitly zero-filled, never uninitialized.
+/// Avoids `Vec` heap allocation for ≤31 weights. `len` tracks active
+/// entries; beyond is zero-filled. `[f32; 32]` (not 31) for 128-byte SIMD
+/// alignment. `len` is `u8` (MEM-325-01): max=31 fits `u8`; `Copy` safe
+/// since padding is zero-filled.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct StackWeights {
-    pub weights: [f32; STACK_WEIGHTS_CAPACITY],
-    pub len: usize,
+    pub(crate) weights: [f32; STACK_WEIGHTS_CAPACITY],
+    /// Number of active weight entries. `u8` since max = 31 < 256.
+    pub(crate) len: u8,
+}
+
+/// Iterator over active `(bin_offset, weight)` pairs of [`StackWeights`].
+///
+/// Implements `Clone`/`ExactSizeIterator`/`DoubleEndedIterator`. Concrete
+/// type enables monomorphized accumulation and weight-sequence replay.
+///
+/// # Safety
+///
+/// No `unsafe`. Indexing uses safe `[]` on the pre-sliced active region,
+/// always in bounds by construction.
+#[derive(Clone, Debug)]
+pub(crate) struct StackWeightsIter<'a> {
+    slice: &'a [f32],
+    pos: usize,
+    remaining: usize,
+}
+
+impl<'a> Iterator for StackWeightsIter<'a> {
+    type Item = (usize, f32);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        let j = self.pos;
+        let w = self.slice[j];
+        self.pos += 1;
+        self.remaining -= 1;
+        Some((j, w))
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, Some(self.remaining))
+    }
+}
+
+impl<'a> ExactSizeIterator for StackWeightsIter<'a> {
+    #[inline]
+    fn len(&self) -> usize {
+        self.remaining
+    }
+}
+
+impl<'a> DoubleEndedIterator for StackWeightsIter<'a> {
+    #[inline]
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.remaining == 0 {
+            return None;
+        }
+        self.remaining -= 1;
+        let j = self.pos + self.remaining;
+        let w = self.slice[j];
+        Some((j, w))
+    }
 }
 
 impl StackWeights {
     /// Build Parzen weights for bins `[lo..=hi]` from a normalised value.
     ///
-    /// Each entry `j` stores `exp(-(val - (lo + j))² / (2σ²))`.
-    /// Entries beyond `hi - lo + 1` are zero-filled (never uninitialized).
+    /// Entry `j` = `exp(-(val-(lo+j))²/(2σ²))`. Beyond `hi-lo+1` is zero-filled.
     ///
-    /// # Performance (PERF-319-04)
+    /// # Performance (PERF-319-04, PERF-331-02)
     ///
-    /// Instead of computing `exp()` for each bin independently, this method
-    /// uses the **exp-ratchet trick**: adjacent bins differ by exactly 1 in
-    /// the `diff` value, so the exponent changes by a fixed increment:
+    /// **Exp-ratchet trick**: adjacent bins differ by 1 in `diff`, so exponent
+    /// changes by a fixed second-difference increment. Reduces cost from
+    /// `N×exp()` to `1×exp()+(N-1)×fma` (~3× faster for 7-bin window).
+    /// Drift ≤31 ULP at max capacity, within 1e-4 test tolerance.
     ///
-    /// ```text
-    /// diff[b+1] = diff[b] - 1
-    /// exponent[b+1] = (diff[b] - 1)² × inv_2sigma_sq
-    ///             = diff[b]² × inv_2sigma_sq - 2×diff[b]×inv_2sigma_sq + inv_2sigma_sq
-    ///             = exponent[b] - step + inv_2sigma_sq
-    /// ```
+    /// **Sum in same pass (PERF-331-02)**: accumulates the weight sum
+    /// during the exp-ratchet loop, avoiding a second pass over the
+    /// weights to compute `1/sum`. Used by
+    /// [`compute_weights_with_inv_sum`](ParzenConfig::compute_weights_with_inv_sum)
+    /// to skip the redundant `weights.iter().sum()` call.
     ///
-    /// However, the ratchet introduces floating-point drift for large
-    /// half-widths (≥10 bins). Since `STACK_WEIGHTS_CAPACITY = 16`, the
-    /// maximum range is 15 bins, and the drift is bounded by ~15 ULP —
-    /// well within the 1e-4 tolerance of the histogram comparison tests.
-    /// The ratchet reduces the inner-loop cost from `N × exp()` to
-    /// `1 × exp() + (N-1) × fma`, approximately 3× faster for the typical
-    /// 7-bin window.
+    /// # Returns
+    /// `(weights, sum)` tuple where `sum = Σ weights[0..len]`. The sum is
+    /// exact up to the same drift as the exp-ratchet itself.
     #[inline]
-    pub fn new(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> Self {
+    pub fn new_with_sum(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> (Self, f32) {
         debug_assert!(hi >= lo, "hi ({hi}) must be >= lo ({lo})");
         // FIX-319-09: range_len must fit within capacity.
-        // Clippy prefers `hi - lo < C` over `hi - lo + 1 <= C` (int_plus_one),
-        // but both are mathematically equivalent for non-negative integers.
-        // Using the clippy-preferred form.
         assert!(
             hi - lo < STACK_WEIGHTS_CAPACITY,
             "bin range {lo}..={hi} ({}) exceeds STACK_WEIGHTS_CAPACITY={STACK_WEIGHTS_CAPACITY}",
             hi - lo + 1
         );
         let mut weights = [0.0f32; STACK_WEIGHTS_CAPACITY];
-        let len = hi - lo + 1;
+        let len = (hi - lo + 1) as u8;
 
-        // PERF-319-04: Exp-ratchet — compute the first exp() exactly,
-        // then derive subsequent entries using the incremental exponent
-        // relationship between adjacent integer bins.
-        //
-        // For bins at integer positions, diff decreases by exactly 1
-        // per step: diff[b+1] = diff[b] - 1. The exponent changes by:
-        //   Δ = (diff-1)² × c - diff² × c
-        //     = c × (diff² - 2×diff + 1 - diff²)
-        //     = c × (1 - 2×diff)
-        //     = inv_2sigma_sq × (1 - 2×diff)
-        //
-        // But this Δ itself changes by -2×inv_2sigma_sq per step
-        // (second difference is constant), so we can use a FMA chain:
-        //   exponent[0] = diff₀² × inv_2sigma_sq
-        //   Δ₀ = inv_2sigma_sq × (1 - 2×diff₀)
-        //   exponent[k+1] = exponent[k] + Δ_k
-        //   Δ_{k+1} = Δ_k + 2×inv_2sigma_sq  (constant second difference)
+        // PERF-319-04: Exp-ratchet — see module docs for derivation.
         let diff0 = val - lo as f32;
         let mut exponent = diff0 * diff0 * inv_2sigma_sq;
-        // Δ₀ = inv_2sigma_sq × (1 - 2×diff0) = inv_2sigma_sq - 2×inv_2sigma_sq×diff0
         let two_inv_2sigma_sq = 2.0 * inv_2sigma_sq;
         let mut delta = inv_2sigma_sq - two_inv_2sigma_sq * diff0;
 
-        for w in weights.iter_mut().take(len) {
-            *w = exponent.exp();
+        // PERF-331-02: accumulate sum in same pass.
+        let mut sum = 0.0f32;
+        for w in weights.iter_mut().take(len as usize) {
+            let val = exponent.exp();
+            *w = val;
+            sum += val;
             exponent += delta;
             delta += two_inv_2sigma_sq;
         }
 
-        StackWeights { weights, len }
+        (StackWeights { weights, len }, sum)
     }
 
-    /// Iterate over the `(bin_offset, weight)` pairs for active entries only.
+    /// Build Parzen weights for bins `[lo..=hi]` from a normalised value.
     ///
-    /// Each pair yields `(j, weights[j])` where `j` is the offset within
-    /// `[lo..=hi]`, i.e. the actual bin index is `lo + j`.
+    /// Entry `j` = `exp(-(val-(lo+j))²/(2σ²))`. Beyond `hi-lo+1` is zero-filled.
+    ///
+    /// # Performance (PERF-319-04)
+    ///
+    /// **Exp-ratchet trick**: adjacent bins differ by 1 in `diff`, so exponent
+    /// changes by a fixed second-difference increment. Reduces cost from
+    /// `N×exp()` to `1×exp()+(N-1)×fma` (~3× faster for 7-bin window).
+    /// Drift ≤31 ULP at max capacity, within 1e-4 test tolerance.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = (usize, f32)> + use<'_> {
-        self.weights[..self.len]
-            .iter()
-            .enumerate()
-            .map(|(j, &w)| (j, w))
+    pub fn new(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> Self {
+        Self::new_with_sum(val, lo, hi, inv_2sigma_sq).0
     }
 
-    /// Number of active weight entries.
-    #[allow(dead_code)] // used by tests and potential future callers
+    /// Iterate over active `(bin_offset, weight)` pairs.
+    ///
+    /// Yields `(j, weights[j])` where actual bin index is `lo + j`.
+    /// Returns [`StackWeightsIter`] (`Clone`/`ExactSizeIterator`/`DoubleEndedIterator`).
     #[inline]
+    pub fn iter(&self) -> StackWeightsIter<'_> {
+        StackWeightsIter {
+            slice: &self.weights[..self.len as usize], // MEM-325-01: u8 → usize
+            pos: 0,
+            remaining: self.len as usize,
+        }
+    }
+
+    /// Number of active weight entries (`usize`).
+    ///
+    /// Production use (ARCH-328-04): per-sample weight normalization.
+    /// Returns `usize`; internal `u8` losslessly upcast (MEM-325-01).
+    #[inline]
+    #[allow(dead_code)] // Production API; current callers use StackWeightsIter::len()
     pub fn len(&self) -> usize {
-        self.len
+        self.len as usize
     }
 
-    /// Whether the weight array is empty (no active entries).
-    #[allow(dead_code)] // used by tests and potential future callers
+    /// Whether the weight array is empty. Convention companion to `len()`.
+    /// Production use (ARCH-328-04): gating on empty weights.
     #[inline]
+    #[allow(dead_code)] // Convention companion; no current production caller
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
@@ -195,28 +218,33 @@ impl StackWeights {
 
 /// Clamped bin range `[lo, hi]` for one axis of a single sample (ARCH-316-04).
 ///
-/// Newtype over `(usize, usize)` that prevents accidental `(hi, lo)` swaps.
-/// Produced by `SampleWindow` constructors; consumed by `accumulate_sample`
-/// and `build_sparse_w_fixed_transposed`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// Newtype over `(u16, u16)` — prevents `(hi, lo)` swaps. `u16` since Parzen
+/// histograms never exceed ~256 bins in practice, reducing size from 16→4 bytes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct BinRange {
     /// Lower bound of the support window (inclusive), clamped to `≥ 0`.
-    pub lo: usize,
+    pub(crate) lo: u16,
     /// Upper bound of the support window (inclusive), clamped to `< num_bins`.
-    pub hi: usize,
+    pub(crate) hi: u16,
 }
 
 impl BinRange {
-    /// Construct a `BinRange` from a primary bin index, half-width, and bin count.
+    /// Construct from primary bin, half-width, and bin count.
     ///
-    /// Clamps to `[0, num_bins - 1]` on both sides. If the primary bin is
-    /// entirely outside `[0, num_bins - 1]` (e.g. due to a normalized value
-    /// that exceeds the range), the range collapses to a single boundary
-    /// bin so that at least one bin is always covered.
+    /// Clamps to `[0, num_bins-1]`. If primary is entirely out of range,
+    /// collapses to a single boundary bin.
     #[inline]
     pub fn new(primary: i32, half_width: usize, num_bins: usize) -> Self {
-        let lo = (primary - half_width as i32).max(0) as usize;
-        let hi = ((primary + half_width as i32).min(num_bins as i32 - 1)).max(0) as usize;
+        // MEM-325-02: Guard against silent u16 truncation.
+        // Parzen histograms never exceed ~256 bins in practice,
+        // but a misconfigured caller could pass num_bins > 65535.
+        assert!(
+            num_bins <= u16::MAX as usize,
+            "num_bins={num_bins} exceeds u16::MAX={u16_max}, would truncate BinRange fields",
+            u16_max = u16::MAX
+        );
+        let lo = (primary - half_width as i32).max(0) as usize as u16;
+        let hi = ((primary + half_width as i32).min(num_bins as i32 - 1)).max(0) as usize as u16;
         // If primary is entirely beyond num_bins (e.g. primary=22, num_bins=16),
         // lo would exceed hi after clamping. Clamp lo down to hi so the range
         // covers at least the boundary bin.
@@ -225,62 +253,94 @@ impl BinRange {
         BinRange { lo, hi }
     }
 
-    /// Number of bins in the range (inclusive on both ends).
-    #[allow(dead_code)] // used by tests and potential future callers
+    /// Number of bins in the range (inclusive).
+    ///
+    /// Production use (ARCH-328-05): weight normalization and range validation.
     #[inline]
+    #[allow(dead_code)] // Production API; current callers use BinRange fields directly
     pub fn len(&self) -> usize {
-        self.hi - self.lo + 1
+        (self.hi - self.lo + 1) as usize
     }
 
     /// Whether the range is empty (should never be true after `new()`).
-    #[allow(dead_code)] // used by tests and potential future callers
+    /// Production use (ARCH-328-05).
     #[inline]
+    #[allow(dead_code)] // Convention companion; no current production caller
     pub fn is_empty(&self) -> bool {
         self.lo > self.hi
     }
 
-    /// Iterate over the bin indices in this range.
-    #[allow(dead_code)] // used by tests and build_sparse_w_fixed_transposed's threshold check
+    /// Iterate over bin indices in this range.
+    ///
+    /// Test-only: production code uses `StackWeights::iter()` offsets.
+    #[cfg(test)]
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = usize> + use<'_> {
-        self.lo..=self.hi
+        self.lo as usize..=self.hi as usize
     }
 }
 
 // ── ParzenConfig ───────────────────────────────────────────────────────────
 
-/// Precomputed Parzen-window parameters for one axis (SRP / SSOT).
+/// Precomputed Parzen-window parameters for one axis (SRP/SSOT).
 ///
-/// Groups the per-axis σ parameters and their derived values (half-width,
-/// `inv_2sigma_sq`) that were previously passed as separate function
-/// arguments or embedded in `SampleWindow`'s 7-parameter constructor.
-///
-/// `SampleWindow` now takes `&ParzenConfig` instead of raw
-/// `half_width_*` / `inv_2sigma_sq_*` values, reducing its parameter
-/// count and establishing a single point of definition for each axis's
-/// window configuration.
+/// Groups σ² and derived `half_width`/`inv_2sigma_sq`. `SampleWindow` takes
+/// `&ParzenConfig` instead of raw parameters.
 ///
 /// # Invariants
 ///
-/// - `half_width >= MIN_HALF_WIDTH` (enforced by `compute_half_width`).
-/// - `inv_2sigma_sq` is always `-0.5 / sigma_sq`.
+/// - `half_width >= MIN_HALF_WIDTH` (via `compute_half_width`).
+/// - `inv_2sigma_sq == -0.5 / sigma_sq`.
+///
+/// # Encapsulation (ARCH-322-03)
+///
+/// All fields private. Construct via [`new`](Self::new) or
+/// [`from_intensity_sigma`](Self::from_intensity_sigma). Access via
+/// [`sigma_sq()`](Self::sigma_sq) (production), [`half_width()`](Self::half_width)
+/// / [`inv_2sigma_sq()`](Self::inv_2sigma_sq) (test-only).
+///
+/// # Memory layout
+///
+/// `half_width` is `usize` (reverted from MEM-328-03 `u16`): `from_intensity_sigma`
+/// can produce σ²>10⁹ (near-equal range), yielding `half_width`>65535.
+/// `u16` truncation would corrupt bin-range. Saving is negligible since
+/// `ParzenConfig` is instantiated once per histogram.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ParzenConfig {
     /// Parzen σ² in bin-index units.
-    #[allow(dead_code)]
-    // kept for API completeness; half_width and inv_2sigma_sq are the hot-path fields
-    pub sigma_sq: f32,
-    /// Half-width in bins (from `compute_half_width`).
-    pub half_width: usize,
+    sigma_sq: f32,
+    /// Half-width in bins (`usize`, reverted MEM-328-03 — see struct doc).
+    half_width: usize,
     /// Precomputed `-0.5 / sigma_sq`.
-    pub inv_2sigma_sq: f32,
+    inv_2sigma_sq: f32,
 }
 
 impl ParzenConfig {
+    /// Return σ² in bin-index units.
+    ///
+    /// Raw parameter from which `half_width`/`inv_2sigma_sq` are derived.
+    #[inline]
+    pub fn sigma_sq(&self) -> f32 {
+        self.sigma_sq
+    }
+
+    /// Return the support half-width (always `>= MIN_HALF_WIDTH`).
+    #[cfg(test)]
+    #[inline]
+    pub fn half_width(&self) -> usize {
+        self.half_width as usize
+    }
+
+    /// Return `-0.5 / sigma_sq`. Used by `StackWeights::new` and test code.
+    #[cfg(test)]
+    #[inline]
+    pub fn inv_2sigma_sq(&self) -> f32 {
+        self.inv_2sigma_sq
+    }
+
     /// Construct from σ² in bin-index units.
     ///
-    /// Derives `half_width` (via `compute_half_width`) and
-    /// `inv_2sigma_sq` (`-0.5 / sigma_sq`) in a single step.
+    /// Derives `half_width` (via `compute_half_width`) and `inv_2sigma_sq`.
     #[inline]
     pub fn new(sigma_sq: f32) -> Self {
         assert!(sigma_sq > 0.0, "sigma_sq must be positive, got {sigma_sq}");
@@ -295,23 +355,11 @@ impl ParzenConfig {
         }
     }
 
-    /// Construct from an intensity-space sigma, intensity range, and bin count.
+    /// Construct from intensity-space sigma, range, and bin count.
     ///
-    /// Converts `sigma` from intensity units to bin-index units using
-    /// the formula `sigma_sq = (sigma / bin_width)²`, then delegates to
-    /// [`new`](Self::new). This is the SSOT constructor for all callers —
-    /// the former standalone `sigma_sq_in_bins` function has been removed
-    /// (SSOT-319-02).
-    ///
-    /// # Arguments
-    /// * `sigma` — Parzen sigma in intensity units (e.g., HU for CT)
-    /// * `min` — Minimum intensity of the image axis
-    /// * `max` — Maximum intensity of the image axis
-    /// * `num_bins` — Number of histogram bins
-    ///
-    /// # Panics
-    /// Panics if `sigma <= 0`, `sigma` is non-finite, `max <= min`, or
-    /// `num_bins == 0`.
+    /// Converts via `sigma_sq=(sigma/bin_width)²`, then delegates to [`new`](Self::new).
+    /// SSOT constructor (SSOT-319-02). Panics if `sigma<=0`, non-finite,
+    /// `max<=min`, or `num_bins==0`.
     #[inline]
     pub fn from_intensity_sigma(sigma: f32, min: f32, max: f32, num_bins: usize) -> Self {
         assert!(num_bins > 0, "num_bins must be > 0, got {num_bins}");
@@ -322,75 +370,103 @@ impl ParzenConfig {
         Self::new(sigma_in_bins * sigma_in_bins)
     }
 
-    /// Number of bins in the full support window on one axis.
+    /// Full support window size: `2 * half_width + 1`.
     ///
-    /// Returns `2 * half_width + 1`, i.e. the number of bins that any
-    /// single sample can contribute weight to on one axis. This is the
-    /// value that must fit within `STACK_WEIGHTS_CAPACITY`.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let cfg = ParzenConfig::new(1.0);  // half_width=3
-    /// assert_eq!(cfg.support_bins(), 7); // 2*3+1
-    /// ```
+    /// Must fit within `STACK_WEIGHTS_CAPACITY`.
+    #[cfg(test)]
     #[inline]
-    #[allow(dead_code)] // used by tests; kept for API introspection
     pub fn support_bins(&self) -> usize {
         2 * self.half_width + 1
     }
 
-    /// Compute the clamped bin range for a normalised value (ARCH-320-03).
+    /// Clamped bin range for a normalised value (ARCH-320-03).
     ///
-    /// Encapsulates the `floor → BinRange::new` pattern that was
-    /// previously inlined in `SampleWindow::new`, `new_moving_only`,
-    /// and `build_sparse_w_fixed_transposed`. Each of those callers
-    /// computed `primary = val.floor() as i32` then
-    /// `BinRange::new(primary, self.half_width, num_bins)`.
+    /// Encapsulates `floor → BinRange::new` (was inlined at multiple sites).
     ///
     /// # Arguments
-    /// * `val` — Normalised intensity value in `[0, num_bins - 1]`
-    /// * `num_bins` — Number of histogram bins per axis
+    /// * `val` — Normalised intensity in `[0, num_bins-1]`
+    /// * `num_bins` — Histogram bins per axis
     #[inline]
     pub fn bin_range(&self, val: f32, num_bins: usize) -> BinRange {
         let primary = val.floor() as i32;
         BinRange::new(primary, self.half_width, num_bins)
     }
 
-    /// Compute the Parzen weights for a normalised value (ARCH-320-03).
+    /// Compute Parzen weights for a normalised value (ARCH-320-03).
     ///
-    /// Encapsulates the `bin_range → StackWeights::new` pattern that
-    /// was previously inlined at every call site. Returns the weights
-    /// and the clamped bin range.
+    /// Encapsulates `bin_range → StackWeights::new` (was inlined).
     ///
     /// # Arguments
-    /// * `val` — Normalised intensity value in `[0, num_bins - 1]`
-    /// * `num_bins` — Number of histogram bins per axis
+    /// * `val` — Normalised intensity in `[0, num_bins-1]`
+    /// * `num_bins` — Histogram bins per axis
     #[inline]
     pub fn compute_weights(&self, val: f32, num_bins: usize) -> (BinRange, StackWeights) {
         let range = self.bin_range(val, num_bins);
-        let weights = StackWeights::new(val, range.lo, range.hi, self.inv_2sigma_sq);
+        let weights = StackWeights::new(
+            val,
+            range.lo as usize,
+            range.hi as usize,
+            self.inv_2sigma_sq,
+        );
         (range, weights)
     }
 
-    /// Sum of Parzen weights for a normalised value (ARCH-320-06).
+    /// Compute weights, range, and `1/sum` in one pass (PERF-328-01, PERF-331-02).
     ///
-    /// Returns `Σ exp(-(val - bin)² × inv_2sigma_sq)` for all bins
-    /// in the support window. For an interior value (far from
-    /// boundaries), this approximates `√(2πσ²)` — the discrete sum
-    /// of a Gaussian over integer-spaced bins.
-    ///
-    /// Useful for per-sample weight normalization and for
-    /// cross-validating the exp-ratchet against the continuous
-    /// Gaussian integral.
+    /// Returns `(range, weights, inv_sum)` where `inv_sum = 1/Σ weights[j]`.
+    /// Uses [`StackWeights::new_with_sum`] to compute the sum in the same
+    /// pass as the exp-ratchet, avoiding a redundant `weights.iter().sum()`
+    /// call. Production: `SampleWindow::new` and sparse-cache normalization.
     ///
     /// # Arguments
-    /// * `val` — Normalised intensity value in `[0, num_bins - 1]`
-    /// * `num_bins` — Number of histogram bins per axis
+    /// * `val` — Normalised intensity in `[0, num_bins-1]`
+    /// * `num_bins` — Histogram bins per axis
     #[inline]
-    #[allow(dead_code)] // used by tests; kept for API introspection
+    pub fn compute_weights_with_inv_sum(
+        &self,
+        val: f32,
+        num_bins: usize,
+    ) -> (BinRange, StackWeights, f32) {
+        let range = self.bin_range(val, num_bins);
+        let (weights, sum) = StackWeights::new_with_sum(
+            val,
+            range.lo as usize,
+            range.hi as usize,
+            self.inv_2sigma_sq,
+        );
+        let inv_sum = 1.0 / sum;
+        (range, weights, inv_sum)
+    }
+
+    /// Sum of Parzen weights (ARCH-320-06, ARCH-325-06).
+    ///
+    /// Returns `Σ exp(-(val-bin)²×inv_2sigma_sq)`. For interior values
+    /// approximates `√(2πσ²)`. Useful for cross-validating exp-ratchet.
+    ///
+    /// # Arguments
+    /// * `val` — Normalised intensity in `[0, num_bins-1]`
+    /// * `num_bins` — Histogram bins per axis
+    #[inline]
+    #[allow(dead_code)] // Public API; internal callers use compute_weights_with_inv_sum
     pub fn sum_weights(&self, val: f32, num_bins: usize) -> f32 {
         let (_, weights) = self.compute_weights(val, num_bins);
         weights.iter().map(|(_, w)| w).sum()
+    }
+
+    /// `1/sum_weights` — normalization factor (PERF-328-01).
+    ///
+    /// Computes weights once. Approximates `1/√(2πσ²)` for interior values;
+    /// larger near boundaries (compensating truncated tail) so normalized
+    /// weights sum to ~1.0.
+    ///
+    /// # Arguments
+    /// * `val` — Normalised intensity in `[0, num_bins-1]`
+    /// * `num_bins` — Histogram bins per axis
+    #[inline]
+    #[allow(dead_code)] // Public API; internal callers use compute_weights_with_inv_sum
+    pub fn inv_sum_weights(&self, val: f32, num_bins: usize) -> f32 {
+        let (_, weights) = self.compute_weights(val, num_bins);
+        let sum: f32 = weights.iter().map(|(_, w)| w).sum();
+        1.0 / sum
     }
 }

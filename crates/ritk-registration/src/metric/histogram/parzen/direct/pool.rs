@@ -39,6 +39,27 @@ impl HistogramPool {
         }
     }
 
+    /// Create a pool pre-allocated with `buffer_count` zeroed buffers.
+    ///
+    /// Pre-allocating avoids the first-iteration allocation latency when
+    /// using rayon's `fold().reduce()`: each thread can immediately
+    /// check out a buffer without hitting the allocator. The pool will
+    /// still grow beyond `buffer_count` if needed (subsequent checkouts
+    /// allocate new buffers as before).
+    ///
+    /// # Arguments
+    /// * `num_bins_sq` — Histogram buffer size (`num_bins²`)
+    /// * `buffer_count` — Number of buffers to pre-allocate
+    pub fn new_with_capacity(num_bins_sq: usize, buffer_count: usize) -> Self {
+        let buffers: Vec<Vec<f32>> = (0..buffer_count)
+            .map(|_| vec![0.0f32; num_bins_sq])
+            .collect();
+        Self {
+            buffers: Mutex::new(buffers),
+            num_bins_sq,
+        }
+    }
+
     /// Check out a zeroed buffer from the pool, or allocate a new one.
     ///
     /// # Performance (PERF-319-05)

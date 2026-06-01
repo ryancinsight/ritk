@@ -89,12 +89,14 @@ fn test_mattes_mi_perfect_alignment() {
 
 #[test]
 fn test_mattes_mi_monotonicity() {
-    let size = 10;
-    let count = size * size * size;
-    let data: Vec<f32> = (0..count).map(|i| (i as f32) / (count as f32)).collect();
-    let image = create_test_image(data, [size, size, size]);
+    // Use a Gaussian blob — a linear ramp shifted by a few voxels still has
+    // near-perfect linear correlation, making MI differences noise-level (~0.005).
+    // A Gaussian blob has actual spatial structure where translation meaningfully
+    // changes the joint distribution, producing clear monotonic MI degradation.
+    let size = 20;
+    let blob = create_gaussian_blob(size, 1.0);
+    let image = create_test_image(blob, [size, size, size]);
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
-
     let mattes = MutualInformation::<B>::new_mattes(32, 0.0, 1.0, &device);
 
     // Identity

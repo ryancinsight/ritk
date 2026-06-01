@@ -19,7 +19,7 @@ fn parzen_config_bin_range_matches_manual() {
     let val = 15.3_f32;
     let num_bins = 32;
     let primary = val.floor() as i32;
-    let expected = BinRange::new(primary, cfg.half_width, num_bins);
+    let expected = BinRange::new(primary, cfg.half_width(), num_bins);
     let actual = cfg.bin_range(val, num_bins);
     assert_eq!(actual.lo, expected.lo);
     assert_eq!(actual.hi, expected.hi);
@@ -32,7 +32,7 @@ fn parzen_config_bin_range_boundary() {
     let val = 0.5_f32;
     let num_bins = 16;
     let primary = val.floor() as i32;
-    let expected = BinRange::new(primary, cfg.half_width, num_bins);
+    let expected = BinRange::new(primary, cfg.half_width(), num_bins);
     let actual = cfg.bin_range(val, num_bins);
     assert_eq!(actual.lo, expected.lo);
     assert_eq!(actual.hi, expected.hi);
@@ -48,9 +48,13 @@ fn parzen_config_compute_weights_matches_manual() {
     let val = 15.3_f32;
     let num_bins = 32;
     let primary = val.floor() as i32;
-    let expected_range = BinRange::new(primary, cfg.half_width, num_bins);
-    let expected_weights =
-        StackWeights::new(val, expected_range.lo, expected_range.hi, cfg.inv_2sigma_sq);
+    let expected_range = BinRange::new(primary, cfg.half_width(), num_bins);
+    let expected_weights = StackWeights::new(
+        val,
+        expected_range.lo as usize,
+        expected_range.hi as usize,
+        cfg.inv_2sigma_sq(),
+    );
     let (actual_range, actual_weights) = cfg.compute_weights(val, num_bins);
     assert_eq!(actual_range.lo, expected_range.lo);
     assert_eq!(actual_range.hi, expected_range.hi);
@@ -77,8 +81,8 @@ fn parzen_config_compute_weights_broad_sigma() {
     let num_bins = 32;
     let (range, weights) = cfg.compute_weights(val, num_bins);
     assert_eq!(range.len(), 13); // half_width=6 → 13 bins
-    assert_eq!(weights.len, 13);
-    // All weights must be positive and finite
+    assert_eq!(weights.len, 13); // u8 comparison: 13 fits in u8
+                                 // All weights must be positive and finite
     for (j, w) in weights.iter() {
         assert!(w > 0.0, "weight at offset {j} must be positive, got {w}");
         assert!(
@@ -101,10 +105,10 @@ fn sample_window_uses_compute_weights() {
         .expect("in-bounds");
     let (expected_f_range, expected_f_weights) = fix_cfg.compute_weights(15.3, num_bins);
     let (expected_m_range, expected_m_weights) = mov_cfg.compute_weights(12.0, num_bins);
-    assert_eq!(window.f_range.lo, expected_f_range.lo);
-    assert_eq!(window.f_range.hi, expected_f_range.hi);
-    assert_eq!(window.m_range.lo, expected_m_range.lo);
-    assert_eq!(window.m_range.hi, expected_m_range.hi);
+    assert_eq!(window.f_range().lo, expected_f_range.lo);
+    assert_eq!(window.f_range().hi, expected_f_range.hi);
+    assert_eq!(window.m_range().lo, expected_m_range.lo);
+    assert_eq!(window.m_range().hi, expected_m_range.hi);
     for (j, (w_window, w_expected)) in window
         .f_weights
         .iter()
@@ -144,7 +148,7 @@ fn parzen_config_sum_weights_interior() {
     let num_bins = 64; // large enough to avoid boundary truncation
     let sum = cfg.sum_weights(val, num_bins);
     // For σ²=1.0, √(2π×1.0) ≈ 2.5066
-    let expected = (2.0 * std::f32::consts::PI * cfg.sigma_sq).sqrt();
+    let expected = (2.0 * std::f32::consts::PI * cfg.sigma_sq()).sqrt();
     let rel_err = (sum - expected).abs() / expected;
     assert!(
         rel_err < 0.02,
@@ -354,14 +358,14 @@ fn sparse_with_pool_matches_without() {
 fn parzen_config_from_intensity_sigma_edge_cases() {
     // Very small sigma → very small sigma_sq → half_width = MIN_HALF_WIDTH
     let cfg = ParzenConfig::from_intensity_sigma(0.001, 0.0, 255.0, 32);
-    assert_eq!(cfg.half_width, 3); // MIN_HALF_WIDTH
-    assert!(cfg.sigma_sq > 0.0 && cfg.sigma_sq.is_finite());
+    assert_eq!(cfg.half_width(), 3); // MIN_HALF_WIDTH
+    assert!(cfg.sigma_sq() > 0.0 && cfg.sigma_sq().is_finite());
 
     // Very large sigma → very large sigma_sq → large half_width
     // With sigma=100 and range 0..255/32 bins, the sigma_sq may exceed
     // STACK_WEIGHTS_CAPACITY support. Use a more moderate value.
     let cfg = ParzenConfig::from_intensity_sigma(10.0, 0.0, 255.0, 32);
-    assert!(cfg.half_width >= 3);
+    assert!(cfg.half_width() >= 3);
 }
 
 #[test]
