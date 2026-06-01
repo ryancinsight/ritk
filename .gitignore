@@ -1,8 +1,6 @@
 /target
 /target_check
 /target_test
-# gaia is tracked as a separate git repo cloned inside the workspace
-/gaia
 **/*.rs.bk
 .idea
 .vscode
