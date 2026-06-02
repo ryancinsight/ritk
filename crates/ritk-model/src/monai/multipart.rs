@@ -23,10 +23,7 @@
 ///
 /// Each part's body is the bytes between the double-CRLF header separator and the
 /// start of the next `--<boundary>` delimiter, with trailing CRLF stripped.
-pub(crate) fn split_multipart<'a>(
-    body: &'a [u8],
-    boundary: &[u8],
-) -> Vec<(&'a [u8], &'a [u8])> {
+pub(crate) fn split_multipart<'a>(body: &'a [u8], boundary: &[u8]) -> Vec<(&'a [u8], &'a [u8])> {
     // Build the `--<boundary>` delimiter.
     let mut delim: Vec<u8> = Vec::with_capacity(2 + boundary.len());
     delim.extend_from_slice(b"--");
@@ -82,9 +79,7 @@ pub(crate) fn extract_part_name(headers: &[u8]) -> Option<String> {
         let end = stripped.find('"')?;
         Some(stripped[..end].to_owned())
     } else {
-        let end = rest
-            .find([';', '\r', '\n', ' '])
-            .unwrap_or(rest.len());
+        let end = rest.find([';', '\r', '\n', ' ']).unwrap_or(rest.len());
         Some(rest[..end].to_owned())
     }
 }

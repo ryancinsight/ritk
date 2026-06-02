@@ -53,9 +53,16 @@ fn test_write_rt_struct_single_roi_round_trip() {
         Some("GTV".into()),
         "roi_interpreted_type preserved"
     );
-    assert_eq!(roi.display_color, Some([255, 0, 0]), "display_color preserved");
+    assert_eq!(
+        roi.display_color,
+        Some([255, 0, 0]),
+        "display_color preserved"
+    );
     assert_eq!(roi.contours.len(), 1, "contour count preserved");
-    assert_eq!(roi.contours[0].geometric_type, "CLOSED_PLANAR", "geometric_type");
+    assert_eq!(
+        roi.contours[0].geometric_type, "CLOSED_PLANAR",
+        "geometric_type"
+    );
     assert_eq!(roi.contours[0].points.len(), 4, "point count preserved");
     assert_eq!(roi.contours[0].points[0], [0.0, 0.0, 0.0], "point[0]");
     assert_eq!(roi.contours[0].points[2], [10.0, 10.0, 0.0], "point[2]");
@@ -109,14 +116,33 @@ fn test_write_rt_struct_multi_roi_round_trip() {
         Some("Primary PTV".into()),
         "description preserved"
     );
-    assert_eq!(result.rois[0].display_color, Some([255, 255, 0]), "color preserved");
-    assert_eq!(result.rois[0].contours[0].geometric_type, "OPEN_PLANAR", "geo type");
-    assert_eq!(result.rois[0].contours[0].points.len(), 2, "open planar points");
+    assert_eq!(
+        result.rois[0].display_color,
+        Some([255, 255, 0]),
+        "color preserved"
+    );
+    assert_eq!(
+        result.rois[0].contours[0].geometric_type, "OPEN_PLANAR",
+        "geo type"
+    );
+    assert_eq!(
+        result.rois[0].contours[0].points.len(),
+        2,
+        "open planar points"
+    );
 
     assert_eq!(result.rois[1].roi_number, 2, "second ROI must be number 2");
     assert_eq!(result.rois[1].roi_name, "PTV2", "second ROI name");
-    assert_eq!(result.rois[1].display_color, Some([0, 255, 0]), "second color");
-    assert_eq!(result.rois[1].contours[0].points.len(), 3, "triangular contour");
+    assert_eq!(
+        result.rois[1].display_color,
+        Some([0, 255, 0]),
+        "second color"
+    );
+    assert_eq!(
+        result.rois[1].contours[0].points.len(),
+        3,
+        "triangular contour"
+    );
 }
 
 /// Invariant: an empty structure set label round-trips as empty string.
@@ -134,7 +160,10 @@ fn test_write_rt_struct_empty_label_round_trip() {
     write_rt_struct(&path, &ss).expect("write_rt_struct empty");
     let result = read_rt_struct(&path).expect("read_rt_struct empty");
 
-    assert!(result.structure_set_label.is_empty(), "empty label preserved");
+    assert!(
+        result.structure_set_label.is_empty(),
+        "empty label preserved"
+    );
     assert!(result.rois.is_empty(), "no ROIs");
     assert!(result.structure_set_name.is_none(), "name is None");
 }
@@ -166,7 +195,10 @@ fn test_write_rt_struct_point_contour_round_trip() {
 
     assert_eq!(result.rois.len(), 1, "one ROI");
     assert_eq!(result.rois[0].contours.len(), 1, "one contour");
-    assert_eq!(result.rois[0].contours[0].geometric_type, "POINT", "geo type");
+    assert_eq!(
+        result.rois[0].contours[0].geometric_type, "POINT",
+        "geo type"
+    );
     assert_eq!(result.rois[0].contours[0].points.len(), 1, "one point");
     assert!(
         (result.rois[0].contours[0].points[0][0] - 42.5).abs() < 1e-6,

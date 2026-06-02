@@ -52,14 +52,16 @@ fn test_all_four_data_types_readable() -> Result<()> {
     std::fs::write(&path, &mgh)?;
     assert_read_values(&path, &device, &expected, "i32")?;
 
-    let vals = [std::f32::consts::PI,
+    let vals = [
+        std::f32::consts::PI,
         -std::f32::consts::E,
         0.0,
         f32::MIN_POSITIVE,
         1.0 / 7.0,
         std::f32::consts::SQRT_2,
         -123_456.79,
-        std::f32::consts::LN_2];
+        std::f32::consts::LN_2,
+    ];
     let data_bytes: Vec<u8> = vals.iter().flat_map(|v: &f32| v.to_be_bytes()).collect();
     let path = dir.path().join("types_f32.mgh");
     let mgh = build_mgh_bytes(

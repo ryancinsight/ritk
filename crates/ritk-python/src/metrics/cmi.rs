@@ -52,8 +52,7 @@ pub fn compute_conditional_mutual_information(
     if num_bins < 2 {
         return Err(RitkPyError::value("num_bins must be >= 2"));
     }
-    cmi_slices(&x, &y, &z, num_bins)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    cmi_slices(&x, &y, &z, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 /// Interaction Information II(X;Y;Z) between three images (McGill 1954).
@@ -89,8 +88,7 @@ pub fn compute_interaction_information(
     if num_bins < 2 {
         return Err(RitkPyError::value("num_bins must be >= 2"));
     }
-    ii_slices(&x, &y, &z, num_bins)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    ii_slices(&x, &y, &z, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]

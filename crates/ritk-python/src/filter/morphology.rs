@@ -32,7 +32,8 @@ pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply grayscale morphological dilation with a flat cubic structuring element.
@@ -58,7 +59,8 @@ pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> Rit
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Erode labeled regions in a 3-D label volume.
@@ -70,7 +72,8 @@ pub fn label_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
         LabelErosion::new(radius)
             .apply(img.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Opening on a 3-D label volume (erosion followed by dilation).
@@ -82,7 +85,8 @@ pub fn label_opening(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
         LabelOpening::new(radius)
             .apply(img.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Closing on a 3-D label volume (dilation followed by erosion).
@@ -94,7 +98,8 @@ pub fn label_closing(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
         LabelClosing::new(radius)
             .apply(img.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Dilate labeled regions in a 3-D label volume.
@@ -106,7 +111,8 @@ pub fn label_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> RitkRes
         LabelDilation::new(radius)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply white top-hat transform (image minus morphological opening).
@@ -118,7 +124,8 @@ pub fn white_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
         WhiteTopHatFilter::new(radius)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply black top-hat transform (morphological closing minus image).
@@ -130,7 +137,8 @@ pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
         BlackTopHatFilter::new(radius)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply hit-or-miss transform for shape detection in binary images.
@@ -152,7 +160,8 @@ pub fn hit_or_miss(
         HitOrMissTransform::new(fg_radius, bg_radius)
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Geodesic morphological reconstruction.
@@ -180,5 +189,6 @@ pub fn morphological_reconstruction(
         MorphologicalReconstruction::new(recon_mode)
             .apply(marker_arc.as_ref(), mask_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }

@@ -58,7 +58,9 @@ bytemuck = "1.0"
 nalgebra = { version = "0.33", features = ["serde-serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rayon = "1.9"
+# moirai: data-parallel runtime replacing rayon (default-features off avoids its
+# global allocator). ndarray keeps its internal `rayon` feature.
+moirai = { git = "https://github.com/ryancinsight/Moirai.git", default-features = false, features = ["parallel"] }
 ndarray = { version = "0.16", features = ["rayon"] }
 tempfile = "3.10" # For testing
 proptest = "1.0"

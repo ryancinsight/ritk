@@ -93,12 +93,7 @@ mod tests {
         let device: burn_ndarray::NdArrayDevice = Default::default();
         let td = TensorData::new(vec![2.0_f32], Shape::new([1usize, 1, 1]));
         let t = Tensor::<B, 3>::from_data(td, &device);
-        let img = Image::new(
-            t,
-            Point::new([0.0, 0.0, 0.0]),
-            sp,
-            Direction::identity(),
-        );
+        let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
         let out = SquareImageFilter::new().apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     }

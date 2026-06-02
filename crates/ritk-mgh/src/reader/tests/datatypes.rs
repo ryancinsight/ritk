@@ -5,14 +5,16 @@ fn test_read_f32_data() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("f32.mgh");
     let device: <TestBackend as Backend>::Device = Default::default();
-    let values = [std::f32::consts::PI,
+    let values = [
+        std::f32::consts::PI,
         std::f32::consts::E,
         std::f32::consts::SQRT_2,
         std::f32::consts::LN_2,
         1.0 / 7.0,
         -std::f32::consts::FRAC_PI_2,
         2.0 * std::f32::consts::E,
-        1.0 / 3.0];
+        1.0 / 3.0,
+    ];
     let data_bytes: Vec<u8> = values.iter().flat_map(|v: &f32| v.to_be_bytes()).collect();
     let mgh = build_mgh_bytes(
         1,

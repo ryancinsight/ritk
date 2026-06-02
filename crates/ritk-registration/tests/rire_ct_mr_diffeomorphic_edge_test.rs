@@ -22,8 +22,8 @@ use burn_ndarray::NdArray;
 mod common;
 
 use common::{
-    downsample_stride, find_rire_dir, ncc, normalize_minmax, resample_mri_into_ct_space,
-    GT_ROT, GT_TRANS,
+    downsample_stride, find_rire_dir, ncc, normalize_minmax, resample_mri_into_ct_space, GT_ROT,
+    GT_TRANS,
 };
 use ritk_io::read_metaimage;
 

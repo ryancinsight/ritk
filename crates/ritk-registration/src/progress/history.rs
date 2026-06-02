@@ -18,12 +18,18 @@ impl HistoryCallback {
 
     /// Get the recorded history.
     pub fn get_history(&self) -> Vec<ProgressInfo> {
-        self.history.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Clear the history.
     pub fn clear(&self) {
-        self.history.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 }
 
@@ -35,7 +41,10 @@ impl Default for HistoryCallback {
 
 impl ProgressCallback for HistoryCallback {
     fn on_progress(&self, info: &ProgressInfo) {
-        self.history.lock().unwrap_or_else(|e| e.into_inner()).push(info.clone());
+        self.history
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(info.clone());
     }
 }
 

@@ -42,7 +42,6 @@ use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 
 // ── Public structs ────────────────────────────────────────────────────────────
 
@@ -236,10 +235,10 @@ pub fn jacobian_determinant<B: Backend>(
     let mut det_vals = vec![0.0f32; total];
 
     // Parallelise over Z-slices; slices are independent and do not alias.
-    det_vals
-        .par_chunks_mut(ny * nx)
-        .enumerate()
-        .for_each(|(z, chunk)| {
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut det_vals,
+        ny * nx,
+        |z, chunk| {
             for y in 0..ny {
                 for x in 0..nx {
                     let gc = GridCoord {
@@ -280,7 +279,8 @@ pub fn jacobian_determinant<B: Backend>(
                     ]);
                 }
             }
-        });
+        },
+    );
 
     Ok(rebuild(det_vals, dims, disp_z))
 }
@@ -311,9 +311,9 @@ pub fn analyze_jacobian<B: Backend>(jac: &Image<B, 3>) -> Result<JacobianStats> 
     // Parallel reduction using rayon: each thread maintains a local accumulator
     // and the results are combined with `.reduce()`. This scales linearly with
     // available CPU cores for large volumes.
-    let (min, max, sum, num_folded, num_compressed, num_expanded) = vals
-        .par_iter()
-        .fold(
+    let (min, max, sum, num_folded, num_compressed, num_expanded) =
+        moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            vals.len(),
             || {
                 (
                     f32::INFINITY,
@@ -324,7 +324,8 @@ pub fn analyze_jacobian<B: Backend>(jac: &Image<B, 3>) -> Result<JacobianStats> 
                     0usize,
                 )
             },
-            |(min, max, sum, folded, compressed, expanded), &v| {
+            |(min, max, sum, folded, compressed, expanded), i| {
+                let v = vals[i];
                 let new_min = if v < min { v } else { min };
                 let new_max = if v > max { v } else { max };
                 let new_sum = sum + v as f64;
@@ -335,18 +336,6 @@ pub fn analyze_jacobian<B: Backend>(jac: &Image<B, 3>) -> Result<JacobianStats> 
                 } else {
                     (new_min, new_max, new_sum, folded, compressed, expanded + 1)
                 }
-            },
-        )
-        .reduce(
-            || {
-                (
-                    f32::INFINITY,
-                    f32::NEG_INFINITY,
-                    0.0f64,
-                    0usize,
-                    0usize,
-                    0usize,
-                )
             },
             |(min1, max1, sum1, f1, c1, e1), (min2, max2, sum2, f2, c2, e2)| {
                 (

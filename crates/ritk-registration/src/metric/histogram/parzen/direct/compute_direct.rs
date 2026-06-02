@@ -5,7 +5,6 @@
 //! iterates samples and accumulates directly into `[num_bins, num_bins]`.
 
 use burn::tensor::{Shape, TensorData};
-use rayon::prelude::*;
 
 use super::accumulate::{accumulate_sample_direct, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
@@ -69,33 +68,29 @@ pub fn compute_joint_histogram_direct(
         }
     };
 
-    let histogram: Vec<f32> = (0..n)
-        .into_par_iter()
-        .fold(
-            || pool.checkout(),
-            |mut local_hist, i| {
-                if let Some(window) = SampleWindow::new(
-                    i,
-                    fixed_norm,
-                    moving_norm,
-                    num_bins,
-                    &fix_cfg,
-                    &mov_cfg,
-                    oob_mask,
-                ) {
-                    accumulate_sample_direct(&mut local_hist, num_bins, &window);
-                }
-                local_hist
-            },
-        )
-        .reduce(
-            || pool.checkout(),
-            |mut acc, local| {
-                merge_histograms(&mut acc, &local);
-                pool.return_buffer(local);
-                acc
-            },
-        );
+    let histogram: Vec<f32> = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || pool.checkout(),
+        |mut local_hist, i| {
+            if let Some(window) = SampleWindow::new(
+                i,
+                fixed_norm,
+                moving_norm,
+                num_bins,
+                &fix_cfg,
+                &mov_cfg,
+                oob_mask,
+            ) {
+                accumulate_sample_direct(&mut local_hist, num_bins, &window);
+            }
+            local_hist
+        },
+        |mut acc, local| {
+            merge_histograms(&mut acc, &local);
+            pool.return_buffer(local);
+            acc
+        },
+    );
 
     TensorData::new(histogram, Shape::new([num_bins, num_bins]))
 }

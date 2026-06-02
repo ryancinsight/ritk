@@ -24,7 +24,6 @@
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Intensity statistics for a single label region.
@@ -94,33 +93,31 @@ pub fn compute_label_intensity_statistics_from_slices(
     // Accumulator: (min, max, sum_f64, sum_sq_f64, count)
     type Acc = (f32, f32, f64, f64, usize);
 
-    let combined: HashMap<u32, Acc> = label_slice
-        .par_iter()
-        .zip(intensity_slice.par_iter())
-        .fold(
-            HashMap::<u32, Acc>::new,
-            |mut acc, (&label_f, &intensity)| {
-                let label = label_f as u32;
-                if label == 0 {
-                    return acc;
-                }
-                let entry = acc.entry(label).or_insert((
-                    f32::INFINITY,
-                    f32::NEG_INFINITY,
-                    0.0_f64,
-                    0.0_f64,
-                    0_usize,
-                ));
-                let v_f64 = intensity as f64;
-                entry.0 = entry.0.min(intensity);
-                entry.1 = entry.1.max(intensity);
-                entry.2 += v_f64;
-                entry.3 += v_f64 * v_f64;
-                entry.4 += 1;
-                acc
-            },
-        )
-        .reduce(HashMap::<u32, Acc>::new, |mut a, b| {
+    let combined: HashMap<u32, Acc> = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        label_slice.len(),
+        HashMap::<u32, Acc>::new,
+        |mut acc, i| {
+            let label = label_slice[i] as u32;
+            let intensity = intensity_slice[i];
+            if label == 0 {
+                return acc;
+            }
+            let entry = acc.entry(label).or_insert((
+                f32::INFINITY,
+                f32::NEG_INFINITY,
+                0.0_f64,
+                0.0_f64,
+                0_usize,
+            ));
+            let v_f64 = intensity as f64;
+            entry.0 = entry.0.min(intensity);
+            entry.1 = entry.1.max(intensity);
+            entry.2 += v_f64;
+            entry.3 += v_f64 * v_f64;
+            entry.4 += 1;
+            acc
+        },
+        |mut a, b| {
             for (k, (bmin, bmax, bsum, bsumsq, bcnt)) in b {
                 let e = a
                     .entry(k)
@@ -132,7 +129,8 @@ pub fn compute_label_intensity_statistics_from_slices(
                 e.4 += bcnt;
             }
             a
-        });
+        },
+    );
 
     let mut result: Vec<LabelIntensityStatistics> = combined
         .into_iter()
@@ -299,8 +297,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "equal length")]
     fn test_length_mismatch_panics() {
-        let _ =
-            compute_label_intensity_statistics_from_slices(&[1.0_f32; 4], &[1.0_f32; 5]);
+        let _ = compute_label_intensity_statistics_from_slices(&[1.0_f32; 4], &[1.0_f32; 5]);
     }
 
     #[test]

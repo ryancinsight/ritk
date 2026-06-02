@@ -46,7 +46,6 @@ use crate::image::Image;
 use crate::spatial::Spacing;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use rayon::prelude::*;
 
 /// BinShrink image filter: integer sub-sampling by bin averaging.
 ///
@@ -160,9 +159,8 @@ fn shrink_along_dim<const D: usize>(
 
     // Collect (out_offset, value) pairs in parallel, then scatter.
     // This avoids FnMut borrow issues with rayon.
-    let results: Vec<(usize, f32)> = (0..n_slabs)
-        .into_par_iter()
-        .flat_map(|slab_idx| {
+    let results: Vec<(usize, f32)> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n_slabs, |slab_idx| {
             // Decode slab_idx into multi-index with dim fixed at 0.
             // We enumerate non-dim dimensions in order d₀, d₁, … (skipping `dim`).
             let mut in_base = 0usize;
@@ -190,6 +188,8 @@ fn shrink_along_dim<const D: usize>(
                 })
                 .collect::<Vec<_>>()
         })
+        .into_iter()
+        .flatten()
         .collect();
 
     for (offset, val) in results {

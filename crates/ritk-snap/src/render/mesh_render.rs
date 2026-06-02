@@ -370,10 +370,22 @@ pub fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
 
     // Column-major: column j is [r[j], u[j], -f[j], 0] for j<3, then translation
     [
-        r[0], u[0], -f[0], 0.0,
-        r[1], u[1], -f[1], 0.0,
-        r[2], u[2], -f[2], 0.0,
-        -dot3(r, eye), -dot3(u, eye), dot3(f, eye), 1.0,
+        r[0],
+        u[0],
+        -f[0],
+        0.0,
+        r[1],
+        u[1],
+        -f[1],
+        0.0,
+        r[2],
+        u[2],
+        -f[2],
+        0.0,
+        -dot3(r, eye),
+        -dot3(u, eye),
+        dot3(f, eye),
+        1.0,
     ]
 }
 

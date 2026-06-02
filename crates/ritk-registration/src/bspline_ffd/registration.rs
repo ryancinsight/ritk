@@ -1,6 +1,9 @@
 //! B-Spline FFD registration engine.
 
-use super::basis::{evaluate_bspline_displacement, evaluate_bspline_displacement_fast, init_control_grid, BasisCache};
+use super::basis::{
+    evaluate_bspline_displacement, evaluate_bspline_displacement_fast, init_control_grid,
+    BasisCache,
+};
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
 use super::metric::{compute_metric_gradient_fast, compute_ncc};
 use super::pyramid::refine_control_grid;

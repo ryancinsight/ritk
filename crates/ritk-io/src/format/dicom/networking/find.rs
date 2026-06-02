@@ -1,13 +1,13 @@
 //! C-FIND SCU — Study Root Query/Retrieve: FIND (PS3.4 §C.4.1).
 
 use super::association::{FindResult, NetworkingError};
-use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str,
-    parse_command_response, CommandElementValue, C_FIND_RQ, C_FIND_RSP, HAS_DATASET,
-    IMPLICIT_VR_LE_TS, NO_DATASET, PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
-    STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS,
+    build_command_pdu, build_dataset_ivr_le, encode_str, parse_command_response,
+    CommandElementValue, C_FIND_RQ, C_FIND_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS, NO_DATASET,
+    PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN, STATUS_SUCCESS,
+    STUDY_ROOT_FIND_SOP_CLASS,
 };
+use super::context::AssociationConfig;
 use super::echo::{find_ctx_id, receive_command_pdv, receive_data_pdv};
 use dicom_ul::association::client::ClientAssociationOptions;
 use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
@@ -41,7 +41,10 @@ pub struct FindQuery {
 
 impl FindQuery {
     pub fn new(level: FindLevel) -> Self {
-        Self { level, keys: Vec::new() }
+        Self {
+            level,
+            keys: Vec::new(),
+        }
     }
 
     pub fn with_key(mut self, group: u16, element: u16, value: impl Into<String>) -> Self {
@@ -65,7 +68,10 @@ pub fn find(
     let ctx_id = find_ctx_id(&assoc)?;
 
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+        (
+            0x0000_0002,
+            CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS),
+        ),
         (0x0000_0100, CommandElementValue::Us(C_FIND_RQ)),
         (0x0000_0110, CommandElementValue::Us(1u16)),
         (0x0000_0700, CommandElementValue::Us(PRIORITY_MEDIUM)),
@@ -123,7 +129,10 @@ pub fn find(
             STATUS_PENDING | STATUS_PENDING_WARN => {
                 if rsp.data_set_type != NO_DATASET {
                     let data_bytes = receive_data_pdv(&mut assoc, ctx_id)?;
-                    results.push(FindResult { matches: vec![data_bytes], status: rsp.status });
+                    results.push(FindResult {
+                        matches: vec![data_bytes],
+                        status: rsp.status,
+                    });
                 }
             }
             STATUS_SUCCESS | 0xA700 | 0xA900 | 0xC000..=0xCFFF => break,

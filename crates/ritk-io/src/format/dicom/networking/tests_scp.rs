@@ -43,8 +43,8 @@ fn synthetic_dataset() -> Vec<u8> {
     let mut buf = Vec::with_capacity(16);
     buf.extend_from_slice(&0x0008u16.to_le_bytes()); // group
     buf.extend_from_slice(&0x0020u16.to_le_bytes()); // element
-    buf.extend_from_slice(&8u32.to_le_bytes());       // length
-    buf.extend_from_slice(b"20240115");               // value
+    buf.extend_from_slice(&8u32.to_le_bytes()); // length
+    buf.extend_from_slice(b"20240115"); // value
     buf
 }
 
@@ -88,7 +88,10 @@ fn test_store_scp_single_instance_received() {
 
     assert_eq!(inst.sop_class_uid, CT_IMAGE_STORAGE, "sop_class_uid");
     assert_eq!(inst.sop_instance_uid, INSTANCE_UID, "sop_instance_uid");
-    assert_eq!(inst.dataset_bytes, dataset, "dataset_bytes must match exactly");
+    assert_eq!(
+        inst.dataset_bytes, dataset,
+        "dataset_bytes must match exactly"
+    );
     assert_eq!(
         inst.transfer_syntax_uid,
         transfer_syntax::IMPLICIT_VR_LE,
@@ -127,19 +130,27 @@ fn test_store_scp_multiple_instances_same_association() {
     let s1 = assoc
         .c_store(CT_IMAGE_STORAGE, UID_A, dataset_a.clone())
         .expect("c_store A");
-    assert_eq!(s1, DimseStatus::Success as u16, "first C-STORE-RSP must be Success");
+    assert_eq!(
+        s1,
+        DimseStatus::Success as u16,
+        "first C-STORE-RSP must be Success"
+    );
 
     let s2 = assoc
         .c_store(CT_IMAGE_STORAGE, UID_B, dataset_b.clone())
         .expect("c_store B");
-    assert_eq!(s2, DimseStatus::Success as u16, "second C-STORE-RSP must be Success");
+    assert_eq!(
+        s2,
+        DimseStatus::Success as u16,
+        "second C-STORE-RSP must be Success"
+    );
 
     assoc.release().expect("SCU release");
 
-    let inst_a = poll_instance(&handle, Duration::from_secs(2))
-        .expect("must receive first instance");
-    let inst_b = poll_instance(&handle, Duration::from_secs(2))
-        .expect("must receive second instance");
+    let inst_a =
+        poll_instance(&handle, Duration::from_secs(2)).expect("must receive first instance");
+    let inst_b =
+        poll_instance(&handle, Duration::from_secs(2)).expect("must receive second instance");
 
     // Order of arrival preserves send order.
     assert_eq!(inst_a.sop_instance_uid, UID_A, "first instance UID");
@@ -184,13 +195,25 @@ fn test_make_part10_bytes_produces_valid_dicom_preamble() {
     let bytes = inst.make_part10_bytes();
 
     // Preamble: 128 zero bytes
-    assert_eq!(&bytes[0..128], &[0u8; 128], "preamble must be 128 zero bytes");
+    assert_eq!(
+        &bytes[0..128],
+        &[0u8; 128],
+        "preamble must be 128 zero bytes"
+    );
 
     // DICM magic at offset 128
-    assert_eq!(&bytes[128..132], b"DICM", "DICM magic must be at offset 128");
+    assert_eq!(
+        &bytes[128..132],
+        b"DICM",
+        "DICM magic must be at offset 128"
+    );
 
     // File Meta Information Group Length tag (0002,0000)
-    assert_eq!(&bytes[132..136], &[0x00, 0x00, 0x02, 0x00], "first meta tag must be (0002,0000)");
+    assert_eq!(
+        &bytes[132..136],
+        &[0x00, 0x00, 0x02, 0x00],
+        "first meta tag must be (0002,0000)"
+    );
 
     // VR must be UL
     assert_eq!(&bytes[136..138], b"UL", "(0002,0000) VR must be UL");

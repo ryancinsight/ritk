@@ -9,8 +9,8 @@ use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::tools::interaction::ToolState;
 use crate::ui::LinkedCursor;
-use crate::ViewerState;
 use crate::LoadedVolume;
+use crate::ViewerState;
 
 impl SnapApp {
     /// Apply a newly loaded [`LoadedVolume`] to the viewer state.
@@ -60,9 +60,8 @@ impl SnapApp {
         self.zoom = 1.0;
         self.pointer_intensity = 0.0;
         self.pointer_suv = None;
-        self.colormap = Self::colormap_for_modality(
-            self.loaded.as_ref().and_then(|v| v.modality.as_deref()),
-        );
+        self.colormap =
+            Self::colormap_for_modality(self.loaded.as_ref().and_then(|v| v.modality.as_deref()));
         self.texture = None;
         self.texture_dirty = true;
         self.coronal_tex = None;

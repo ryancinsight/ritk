@@ -3,8 +3,8 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
 use dicom::object::{FileDicomObject, InMemDicomObject};
+use moirai::ParallelSlice;
 use nalgebra::{Matrix3, Point3 as NaPoint3, Vector3 as NaVector3};
-use rayon::prelude::*;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
@@ -60,16 +60,17 @@ pub use object_model::{
 };
 pub use reader::{
     load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
-    scan_dicom_instances,
-    scan_dicom_part10_bytes,
-    DicomReadMetadata, DicomSliceMetadata, PatientPosition,
-    ScannedDicomSeries,
+    scan_dicom_instances, scan_dicom_part10_bytes, DicomReadMetadata, DicomSliceMetadata,
+    PatientPosition, ScannedDicomSeries,
 };
 pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 pub use rt_plan::{
     read_rt_plan, write_rt_plan, RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID,
 };
-pub use rt_struct::{label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct, RtContour, RtRoiInfo, RtStructureSet};
+pub use rt_struct::{
+    label_map_to_rt_struct, read_rt_struct, rt_roi_to_polydata, write_rt_struct, RtContour,
+    RtRoiInfo, RtStructureSet,
+};
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
     DicomSegmentInfo, DicomSegmentation,
@@ -132,7 +133,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     // Parallel processing to read headers
     let series_map = Arc::new(Mutex::new(HashMap::<String, DicomSeriesInfo>::new()));
 
-    entries.par_iter().for_each(|file_path| {
+    entries.par().for_each(|file_path| {
         // Try to open as DICOM
         if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
             let uid = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
@@ -183,12 +184,13 @@ pub fn load_dicom_series<B: Backend>(
     // We read sequentially here or parallel? Parallel is better.
     let mut slices: Vec<(PathBuf, FileDicomObject<InMemDicomObject>)> = series
         .file_paths
-        .par_iter()
-        .map(|p| {
+        .par()
+        .map_collect(|p| {
             let obj =
                 parse_file_with::<DicomRsBackend, _>(p).context("Failed to open DICOM file")?;
             Ok((p.clone(), obj))
         })
+        .into_iter()
         .collect::<Result<Vec<_>>>()?;
 
     // 2. Determine Orientation from the first slice
@@ -297,8 +299,8 @@ pub fn load_dicom_series<B: Backend>(
     // We can't easily mutate a Vec in parallel without unsafe or splitting.
     // Using par_iter to decode and collect is better.
     let slice_pixels: Vec<Vec<f32>> = slices
-        .par_iter()
-        .map(|(_p, obj)| {
+        .par()
+        .map_collect(|(_p, obj)| {
             let slope = get_f64(obj, tags::RESCALE_SLOPE).unwrap_or(1.0);
             let intercept = get_f64(obj, tags::RESCALE_INTERCEPT).unwrap_or(0.0);
             let samples_per_pixel = get_u32(obj, tags::SAMPLES_PER_PIXEL).unwrap_or(1) as usize;
@@ -335,6 +337,7 @@ pub fn load_dicom_series<B: Backend>(
 
             Ok(rescaled)
         })
+        .into_iter()
         .collect::<Result<Vec<_>>>()?;
 
     // Flatten

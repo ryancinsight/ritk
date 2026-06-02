@@ -186,10 +186,7 @@ mod tests {
     fn iter_leaves_flat_dataset_visits_all_in_order() {
         let mut mb = VtkMultiBlockDataSet::new();
         for n in [1usize, 2, 3] {
-            mb.add_block(
-                None,
-                Block::Leaf(VtkDataObject::PolyData(poly_points(n))),
-            );
+            mb.add_block(None, Block::Leaf(VtkDataObject::PolyData(poly_points(n))));
         }
         let counts: Vec<usize> = mb
             .iter_leaves()

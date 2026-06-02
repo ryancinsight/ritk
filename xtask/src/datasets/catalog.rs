@@ -120,11 +120,7 @@ impl DatasetManager {
                         .and_then(|n| n.to_str())
                         .unwrap_or("<unknown>");
                     if let Err(err) = validate_nifti_payload(filename, &data) {
-                        invalid_nifti_files.push(format!(
-                            "{} ({})",
-                            nifti_path.display(),
-                            err
-                        ));
+                        invalid_nifti_files.push(format!("{} ({})", nifti_path.display(), err));
                     }
                 }
             }
@@ -161,8 +157,7 @@ pub(crate) fn validate_nifti_payload(filename: &str, data: &[u8]) -> Result<()> 
         if !looks_like_nifti_header(&header) {
             anyhow::bail!("{} does not contain a valid NIfTI header", filename);
         }
-    } else if filename.ends_with(".nii")
-        && (data.len() < 4 || !looks_like_nifti_header(&data[..4]))
+    } else if filename.ends_with(".nii") && (data.len() < 4 || !looks_like_nifti_header(&data[..4]))
     {
         anyhow::bail!("{} does not contain a valid NIfTI header", filename);
     }
@@ -308,7 +303,9 @@ mod tests {
     #[test]
     fn validate_nifti_payload_rejects_html_masquerade() {
         let html = b"<!doctype html><html><head></head><body>404</body></html>";
-        let err = validate_nifti_payload("bad.nii.gz", html).unwrap_err().to_string();
+        let err = validate_nifti_payload("bad.nii.gz", html)
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("appears to be HTML"));
     }
 

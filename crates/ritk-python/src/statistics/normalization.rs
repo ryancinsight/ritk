@@ -256,21 +256,20 @@ pub fn nyul_udupa_normalize(
         .collect();
     let input_arc = image.inner.clone();
 
-    py
-        .allow_threads(|| {
-            let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
-                training_arcs.iter().map(|a| a.as_ref()).collect();
-            let mut normalizer = match percentiles {
-                Some(p) => NyulUdupaNormalizer::with_percentiles(p),
-                None => NyulUdupaNormalizer::new(),
-            };
-            normalizer.learn_standard(&refs);
-            normalizer
-                .apply(input_arc.as_ref())
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
+            training_arcs.iter().map(|a| a.as_ref()).collect();
+        let mut normalizer = match percentiles {
+            Some(p) => NyulUdupaNormalizer::with_percentiles(p),
+            None => NyulUdupaNormalizer::new(),
+        };
+        normalizer.learn_standard(&refs);
+        normalizer
+            .apply(input_arc.as_ref())
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }
 
 #[cfg(test)]

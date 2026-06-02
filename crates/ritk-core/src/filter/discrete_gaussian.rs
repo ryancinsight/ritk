@@ -25,7 +25,6 @@
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use rayon::prelude::*;
 use std::marker::PhantomData;
 
 /// Discrete Gaussian smoothing filter (ITK DiscreteGaussianImageFilter parity).
@@ -225,9 +224,14 @@ fn convolve3d_dim(
     let nyx = ny * nx;
     match dim {
         2 => {
-            dst.par_chunks_mut(nx)
-                .zip(src.par_chunks(nx))
-                .for_each(|(o, i)| conv1d_replicate(i, kernel, o));
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                dst,
+                nx,
+                |ci, o| {
+                    let i = &src[ci * nx..ci * nx + o.len()];
+                    conv1d_replicate(i, kernel, o);
+                },
+            );
         }
         1 => {
             // Parallel over Z-slabs. Within each slab reorder loops to
@@ -237,9 +241,11 @@ fn convolve3d_dim(
             let ksz = kernel.len();
             let r = (ksz / 2) as isize;
             let ny_i = ny as isize;
-            dst.par_chunks_mut(nyx)
-                .zip(src.par_chunks(nyx))
-                .for_each(|(os, is)| {
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                dst,
+                nyx,
+                |ci, os| {
+                    let is = &src[ci * nyx..ci * nyx + os.len()];
                     os.fill(0.0);
                     for (kj, &w) in kernel.iter().enumerate() {
                         let r_offset = kj as isize - r;
@@ -252,7 +258,8 @@ fn convolve3d_dim(
                             }
                         }
                     }
-                });
+                },
+            );
         }
         0 => {
             // Parallel over output Z-slices. For each output slice iz, accumulate
@@ -261,9 +268,10 @@ fn convolve3d_dim(
             let ksz = kernel.len();
             let r = (ksz / 2) as isize;
             let nz_i = nz as isize;
-            dst.par_chunks_mut(nyx)
-                .enumerate()
-                .for_each(|(iz, out_slice)| {
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                dst,
+                nyx,
+                |iz, out_slice| {
                     out_slice.fill(0.0);
                     for (kj, &w) in kernel.iter().enumerate() {
                         let sz = ((iz as isize + kj as isize - r).clamp(0, nz_i - 1)) as usize;
@@ -272,7 +280,8 @@ fn convolve3d_dim(
                             *o += s * w;
                         }
                     }
-                });
+                },
+            );
         }
         _ => unreachable!(),
     }

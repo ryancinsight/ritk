@@ -63,15 +63,16 @@ pub fn lddmm_register(
             ..Default::default()
         };
         let reg = LddmmRegistration::new(config);
-        reg.register(&inputs.fixed_vals, &inputs.moving_vals, inputs.fixed_shape, [1.0, 1.0, 1.0])
-            .map_err(|e| e.to_string())
+        reg.register(
+            &inputs.fixed_vals,
+            &inputs.moving_vals,
+            inputs.fixed_shape,
+            [1.0, 1.0, 1.0],
+        )
+        .map_err(|e| e.to_string())
     })
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| {
-        to_py_warped_and_displacement(
-            result.warped_moving,
-            result.displacement_field,
-            &inputs,
-        )
+        to_py_warped_and_displacement(result.warped_moving, result.displacement_field, &inputs)
     })
 }

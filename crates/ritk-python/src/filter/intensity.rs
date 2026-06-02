@@ -33,7 +33,8 @@ pub fn rescale_intensity(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Clamp to [window_min, window_max] then rescale to [out_min, out_max].
@@ -62,7 +63,8 @@ pub fn intensity_windowing(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Set pixels strictly below threshold to outside_value; keep others unchanged.
@@ -80,7 +82,8 @@ pub fn threshold_below(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Set pixels strictly above threshold to outside_value; keep others unchanged.
@@ -98,7 +101,8 @@ pub fn threshold_above(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Set pixels outside [lower, upper] to outside_value; keep interior pixels unchanged.
@@ -117,7 +121,8 @@ pub fn threshold_outside(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Sigmoid intensity transform.
@@ -155,7 +160,8 @@ pub fn sigmoid_filter(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Binary threshold: foreground if I in [lower_threshold, upper_threshold], else background.
@@ -187,7 +193,8 @@ pub fn binary_threshold(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Linearly blend two co-registered images.
@@ -200,17 +207,13 @@ pub fn binary_threshold(
 /// ITK Parity: BlendImageFilter
 #[pyfunction]
 #[pyo3(signature = (a, b, alpha=0.5_f32))]
-pub fn blend_images(
-    py: Python<'_>,
-    a: &PyImage,
-    b: &PyImage,
-    alpha: f32,
-) -> RitkResult<PyImage> {
+pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> RitkResult<PyImage> {
     let a_arc = std::sync::Arc::clone(&a.inner);
     let b_arc = std::sync::Arc::clone(&b.inner);
     py.allow_threads(|| {
         BlendImageFilter::new(alpha)
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }

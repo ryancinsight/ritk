@@ -95,14 +95,19 @@ fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {
             study_instance_uid,
             move_destination,
         } => execute_retrieve(config, &study_instance_uid, &move_destination),
-        PacsRequest::FindSeries {
-            study_instance_uid,
-        } => execute_find_series(config, &study_instance_uid),
+        PacsRequest::FindSeries { study_instance_uid } => {
+            execute_find_series(config, &study_instance_uid)
+        }
         PacsRequest::RetrieveSeries {
             study_instance_uid,
             series_instance_uid,
             move_destination,
-        } => execute_retrieve_series(config, &study_instance_uid, &series_instance_uid, &move_destination),
+        } => execute_retrieve_series(
+            config,
+            &study_instance_uid,
+            &series_instance_uid,
+            &move_destination,
+        ),
     }
 }
 

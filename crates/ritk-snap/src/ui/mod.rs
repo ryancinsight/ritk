@@ -96,11 +96,10 @@ pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
 pub use tool_shortcuts::tool_kind_for_key;
 pub use toolbar::{ToolbarPanel, ToolbarState};
-pub use view_transform::{
-    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps,
-    ViewTransform,
-};
 pub(crate) use view_transform::apply_to_image_into;
+pub use view_transform::{
+    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
+};
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_level::MIN_WINDOW_WIDTH;
 pub use window_level::{

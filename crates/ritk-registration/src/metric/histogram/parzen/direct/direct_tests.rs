@@ -338,8 +338,14 @@ fn sparse_cache_large_volume_matches_direct() {
     // SPARSE-329-01: direct ≈ sparse (combined normalization). Ratio ≈ 1.0.
     let direct_total: f32 = direct_slice.iter().sum();
     let sparse_total: f32 = sparse_slice.iter().sum();
-    assert!(direct_total > 0.0, "direct histogram should have positive sum");
-    assert!(sparse_total > 0.0, "sparse histogram should have positive sum");
+    assert!(
+        direct_total > 0.0,
+        "direct histogram should have positive sum"
+    );
+    assert!(
+        sparse_total > 0.0,
+        "sparse histogram should have positive sum"
+    );
     let ratio = sparse_total / direct_total;
     assert!(
         (ratio - 1.0).abs() < 0.05,

@@ -91,8 +91,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         let mut tmpl_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
         for r in 0..tr {
             for c in 0..tc {
-                tmpl_buf[r * pad_c + c] =
-                    Complex::new(self.template_vals[r * tc + c], 0.0);
+                tmpl_buf[r * pad_c + c] = Complex::new(self.template_vals[r * tc + c], 0.0);
             }
         }
 
@@ -105,10 +104,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         for i in 0..pad_n {
             let a = img_buf[i];
             let b = tmpl_buf[i];
-            img_buf[i] = Complex::new(
-                a.re * b.re + a.im * b.im,
-                a.im * b.re - a.re * b.im,
-            );
+            img_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
         }
 
         fft2d(&mut img_buf, pad_r, pad_c, &mut planner, FftDir::Inverse);

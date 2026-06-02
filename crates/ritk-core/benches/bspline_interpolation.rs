@@ -32,13 +32,9 @@ fn bench_bspline_3d(c: &mut Criterion) {
     let interp = BSplineInterpolator::new();
 
     let mut group = c.benchmark_group("BSpline");
-    group.bench_with_input(
-        BenchmarkId::new("3d_64³_1000pts", ""),
-        &(),
-        |b, _| {
-            b.iter(|| interp.interpolate(&data, indices.clone()));
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("3d_64³_1000pts", ""), &(), |b, _| {
+        b.iter(|| interp.interpolate(&data, indices.clone()));
+    });
     group.finish();
 }
 
@@ -64,13 +60,9 @@ fn bench_bspline_2d(c: &mut Criterion) {
     let interp = BSplineInterpolator::new();
 
     let mut group = c.benchmark_group("BSpline");
-    group.bench_with_input(
-        BenchmarkId::new("2d_64²_1000pts", ""),
-        &(),
-        |b, _| {
-            b.iter(|| interp.interpolate(&data, indices.clone()));
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("2d_64²_1000pts", ""), &(), |b, _| {
+        b.iter(|| interp.interpolate(&data, indices.clone()));
+    });
     group.finish();
 }
 

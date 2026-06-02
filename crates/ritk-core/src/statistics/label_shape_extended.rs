@@ -34,7 +34,6 @@
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
@@ -220,26 +219,29 @@ pub fn compute_label_shape_statistics_extended_from_slices(
     let [spc_z, spc_y, spc_x] = spacing;
 
     // ── Step 1: parallel grouping of flat voxel indices per label ─────────────
-    let voxels_per_label: HashMap<u32, Vec<usize>> = label_slice
-        .par_iter()
-        .enumerate()
-        .fold(HashMap::<u32, Vec<usize>>::new, |mut map, (idx, &v)| {
-            let label = v as u32;
-            if label != 0 {
-                map.entry(label).or_default().push(idx);
-            }
-            map
-        })
-        .reduce(HashMap::<u32, Vec<usize>>::new, |mut a, b| {
-            for (k, mut v) in b {
-                a.entry(k).or_default().append(&mut v);
-            }
-            a
-        });
+    let voxels_per_label: HashMap<u32, Vec<usize>> =
+        moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            label_slice.len(),
+            HashMap::<u32, Vec<usize>>::new,
+            |mut map, idx| {
+                let label = label_slice[idx] as u32;
+                if label != 0 {
+                    map.entry(label).or_default().push(idx);
+                }
+                map
+            },
+            |mut a, b| {
+                for (k, mut v) in b {
+                    a.entry(k).or_default().append(&mut v);
+                }
+                a
+            },
+        );
 
     // ── Step 2: independent per-label computation (parallelised over labels) ──
+    // Sequential over labels (their count is far below any parallel threshold).
     let mut result: Vec<LabelShapeStatisticsExtended> = voxels_per_label
-        .into_par_iter()
+        .into_iter()
         .map(|(label, indices)| {
             let n = indices.len();
             let n_f = n as f64;

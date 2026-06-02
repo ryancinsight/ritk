@@ -366,7 +366,11 @@ fn python_parity_report(python: &str) -> Result<()> {
         );
     }
 
-    info!("Running Python API drift report: {} {}", python, script.display());
+    info!(
+        "Running Python API drift report: {} {}",
+        python,
+        script.display()
+    );
 
     let status = Command::new(python)
         .arg(&script)

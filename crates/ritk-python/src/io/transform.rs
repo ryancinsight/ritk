@@ -23,7 +23,10 @@ pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
                 d.set_item("type", "translation")?;
                 d.set_item("offset", offset.clone())?;
             }
-            TransformDescription::Rigid { rotation, translation } => {
+            TransformDescription::Rigid {
+                rotation,
+                translation,
+            } => {
                 d.set_item("type", "rigid")?;
                 d.set_item("rotation", rotation.clone())?;
                 d.set_item("translation", translation.clone())?;
@@ -32,7 +35,12 @@ pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
                 d.set_item("type", "affine")?;
                 d.set_item("matrix", matrix.clone())?;
             }
-            TransformDescription::DisplacementField { dims, origin, spacing, components } => {
+            TransformDescription::DisplacementField {
+                dims,
+                origin,
+                spacing,
+                components,
+            } => {
                 d.set_item("type", "displacement_field")?;
                 d.set_item("dims", dims.clone())?;
                 d.set_item("origin", origin.clone())?;
@@ -40,7 +48,10 @@ pub fn read_transform(py: Python<'_>, path: String) -> RitkResult<PyObject> {
                 d.set_item("components", components.clone())?;
             }
             TransformDescription::BSpline {
-                grid_dims, grid_origin, grid_spacing, components,
+                grid_dims,
+                grid_origin,
+                grid_spacing,
+                components,
             } => {
                 d.set_item("type", "bspline")?;
                 d.set_item("grid_dims", grid_dims.clone())?;
@@ -101,7 +112,10 @@ pub fn write_transform(
                     .get_item("translation")?
                     .ok_or_else(|| RitkPyError::io("rigid missing 'translation'"))?
                     .extract()?;
-                TransformDescription::Rigid { rotation, translation }
+                TransformDescription::Rigid {
+                    rotation,
+                    translation,
+                }
             }
             "affine" => {
                 let matrix: Vec<f64> = dict
@@ -127,7 +141,12 @@ pub fn write_transform(
                     .get_item("components")?
                     .ok_or_else(|| RitkPyError::io("displacement_field missing 'components'"))?
                     .extract()?;
-                TransformDescription::DisplacementField { dims, origin, spacing, components }
+                TransformDescription::DisplacementField {
+                    dims,
+                    origin,
+                    spacing,
+                    components,
+                }
             }
             "bspline" => {
                 let grid_dims: Vec<usize> = dict
@@ -147,7 +166,10 @@ pub fn write_transform(
                     .ok_or_else(|| RitkPyError::io("bspline missing 'components'"))?
                     .extract()?;
                 TransformDescription::BSpline {
-                    grid_dims, grid_origin, grid_spacing, components,
+                    grid_dims,
+                    grid_origin,
+                    grid_spacing,
+                    components,
                 }
             }
             other => {

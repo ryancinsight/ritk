@@ -71,43 +71,59 @@ pub(super) fn submit_mip_async(
     let output_bytes = rows as u64 * cols as u64 * std::mem::size_of::<u32>() as u64;
 
     let center = wl.center as f32;
-    let width  = (wl.width as f32).max(1.0);
-    let wl_lo  = center - 0.5 * width;
+    let width = (wl.width as f32).max(1.0);
+    let wl_lo = center - 0.5 * width;
 
     let params = RenderParams {
-        depth:    depth as u32,
-        rows:     rows as u32,
-        cols:     cols as u32,
-        _pad0:    0,
+        depth: depth as u32,
+        rows: rows as u32,
+        cols: cols as u32,
+        _pad0: 0,
         wl_lo,
         wl_range: width,
-        _pad2:    0.0,
-        _pad3:    0.0,
+        _pad2: 0.0,
+        _pad3: 0.0,
     };
 
     // Update cached uniform and LUT buffers without re-allocation.
     // write_buffer operations are ordered before the subsequent submit call.
-    ctx.queue.write_buffer(&cache.params_buf, 0, bytemuck::bytes_of(&params));
+    ctx.queue
+        .write_buffer(&cache.params_buf, 0, bytemuck::bytes_of(&params));
     let lut_data = build_colormap_lut(colormap);
-    ctx.queue.write_buffer(&cache.lut_buf, 0, bytemuck::cast_slice(&lut_data));
+    ctx.queue
+        .write_buffer(&cache.lut_buf, 0, bytemuck::cast_slice(&lut_data));
 
     let bg = ctx.device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label:   Some("gpu_mip_bg"),
-        layout:  bgl,
+        label: Some("gpu_mip_bg"),
+        layout: bgl,
         entries: &[
-            wgpu::BindGroupEntry { binding: 0, resource: vol_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 1, resource: cache.output_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 2, resource: cache.params_buf.as_entire_binding() },
-            wgpu::BindGroupEntry { binding: 3, resource: cache.lut_buf.as_entire_binding() },
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: vol_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: cache.output_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: cache.params_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: cache.lut_buf.as_entire_binding(),
+            },
         ],
     });
 
-    let mut encoder = ctx.device.create_command_encoder(
-        &wgpu::CommandEncoderDescriptor { label: Some("gpu_mip_enc") },
-    );
+    let mut encoder = ctx
+        .device
+        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("gpu_mip_enc"),
+        });
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label:            Some("gpu_mip_pass"),
+            label: Some("gpu_mip_pass"),
             timestamp_writes: None,
         });
         pass.set_pipeline(pipeline);

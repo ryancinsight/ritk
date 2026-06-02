@@ -14,7 +14,9 @@
 //! Bounds are inclusive: `lower ≤ S ≤ upper`.
 
 use crate::domain::mtime::{Modifiable, ModifiedTime};
-use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid};
+use crate::domain::vtk_data_object::{
+    AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid,
+};
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::{bail, Result};
 use std::any::Any;
@@ -141,12 +143,9 @@ impl VtkFilter for ThresholdFilter {
                             let flat = iz * ny * nx + iy * nx + ix;
                             let v = values[flat];
                             if v >= lo && v <= hi {
-                                let x = img.origin[0]
-                                    + (e[0] as f64 + ix as f64) * img.spacing[0];
-                                let y = img.origin[1]
-                                    + (e[2] as f64 + iy as f64) * img.spacing[1];
-                                let z = img.origin[2]
-                                    + (e[4] as f64 + iz as f64) * img.spacing[2];
+                                let x = img.origin[0] + (e[0] as f64 + ix as f64) * img.spacing[0];
+                                let y = img.origin[1] + (e[2] as f64 + iy as f64) * img.spacing[1];
+                                let z = img.origin[2] + (e[4] as f64 + iz as f64) * img.spacing[2];
                                 let pt_idx = out.points.len() as u32;
                                 out.points.push([x as f32, y as f32, z as f32]);
                                 out.cells.push(vec![pt_idx]);
@@ -192,9 +191,7 @@ impl VtkFilter for ThresholdFilter {
                 let lo = self.lower as f32;
                 let hi = self.upper as f32;
 
-                for (i, (cell, ctype)) in
-                    ug.cells.iter().zip(ug.cell_types.iter()).enumerate()
-                {
+                for (i, (cell, ctype)) in ug.cells.iter().zip(ug.cell_types.iter()).enumerate() {
                     let v = values[i];
                     if v >= lo && v <= hi {
                         out.cells.push(cell.clone());
@@ -249,7 +246,9 @@ mod tests {
         let f = ThresholdFilter::new("scalars", 10.0, 20.0);
         let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
         let out = f.execute(VtkDataObject::ImageData(img)).unwrap();
-        let VtkDataObject::UnstructuredGrid(ug) = out else { panic!() };
+        let VtkDataObject::UnstructuredGrid(ug) = out else {
+            panic!()
+        };
         assert_eq!(ug.points.len(), 0, "all values below lower → empty output");
         assert_eq!(ug.n_cells(), 0);
     }
@@ -259,7 +258,9 @@ mod tests {
         let f = ThresholdFilter::new("scalars", -20.0, -10.0);
         let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
         let out = f.execute(VtkDataObject::ImageData(img)).unwrap();
-        let VtkDataObject::UnstructuredGrid(ug) = out else { panic!() };
+        let VtkDataObject::UnstructuredGrid(ug) = out else {
+            panic!()
+        };
         assert_eq!(ug.points.len(), 0, "all values above upper → empty output");
     }
 
@@ -268,7 +269,9 @@ mod tests {
         let f = ThresholdFilter::new("scalars", 0.0, 1.0);
         let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
         let out = f.execute(VtkDataObject::ImageData(img)).unwrap();
-        let VtkDataObject::UnstructuredGrid(ug) = out else { panic!() };
+        let VtkDataObject::UnstructuredGrid(ug) = out else {
+            panic!()
+        };
         assert_eq!(ug.points.len(), 4, "all values in range → 4 points");
         assert_eq!(ug.n_cells(), 4);
     }
@@ -279,15 +282,18 @@ mod tests {
         let f = ThresholdFilter::new("scalars", 0.5, 0.8);
         let img = image_2x2x1([0.1, 0.5, 0.8, 1.2]);
         let out = f.execute(VtkDataObject::ImageData(img)).unwrap();
-        let VtkDataObject::UnstructuredGrid(ug) = out else { panic!() };
+        let VtkDataObject::UnstructuredGrid(ug) = out else {
+            panic!()
+        };
         assert_eq!(
             ug.points.len(),
             2,
             "exactly lower and upper boundary values pass: got {} points",
             ug.points.len()
         );
-        let AttributeArray::Scalars { values, .. } =
-            ug.cell_data.get("scalars").unwrap() else { panic!() };
+        let AttributeArray::Scalars { values, .. } = ug.cell_data.get("scalars").unwrap() else {
+            panic!()
+        };
         // Both passing scalars must be within [0.5, 0.8]
         for &v in values {
             assert!(
@@ -313,13 +319,15 @@ mod tests {
             },
         );
         let f = ThresholdFilter::new("pressure", 4.0, 6.0);
-        let out = f
-            .execute(VtkDataObject::UnstructuredGrid(ug))
-            .unwrap();
-        let VtkDataObject::UnstructuredGrid(result) = out else { panic!() };
+        let out = f.execute(VtkDataObject::UnstructuredGrid(ug)).unwrap();
+        let VtkDataObject::UnstructuredGrid(result) = out else {
+            panic!()
+        };
         assert_eq!(result.n_cells(), 1, "only cell with scalar=5.0 must pass");
-        let AttributeArray::Scalars { values, .. } =
-            result.cell_data.get("pressure").unwrap() else { panic!() };
+        let AttributeArray::Scalars { values, .. } = result.cell_data.get("pressure").unwrap()
+        else {
+            panic!()
+        };
         assert_eq!(values.len(), 1);
         assert!((values[0] - 5.0).abs() < 1e-5, "passing scalar must be 5.0");
     }

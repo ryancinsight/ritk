@@ -6,10 +6,9 @@
 
 use super::association::{AeTitle, DicomAddress};
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui,
-    parse_command_response, CommandElementValue, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP, HAS_DATASET,
-    NO_DATASET, STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS, STUDY_ROOT_MOVE_SOP_CLASS,
-    VERIFICATION_SOP_CLASS,
+    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, parse_command_response,
+    CommandElementValue, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP, HAS_DATASET, NO_DATASET,
+    STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS, STUDY_ROOT_MOVE_SOP_CLASS, VERIFICATION_SOP_CLASS,
 };
 use super::context::AssociationConfig;
 use super::echo::echo;
@@ -74,7 +73,10 @@ fn c_echo_loopback_returns_success_status() {
                     let rsp = build_command_pdu(&[
                         (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
                         (0x0000_0100, CommandElementValue::Us(C_ECHO_RSP)),
-                        (0x0000_0120, CommandElementValue::Us(cmd.message_id_responded)),
+                        (
+                            0x0000_0120,
+                            CommandElementValue::Us(cmd.message_id_responded),
+                        ),
                         (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
                         (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
                     ]);
@@ -158,11 +160,17 @@ fn c_find_loopback_returns_synthetic_study_result() {
 
                     // Send pending C-FIND-RSP with synthetic result dataset.
                     let pending_rsp = build_command_pdu(&[
-                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+                        (
+                            0x0000_0002,
+                            CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS),
+                        ),
                         (0x0000_0100, CommandElementValue::Us(C_FIND_RSP)),
                         (0x0000_0120, CommandElementValue::Us(1)),
                         (0x0000_0800, CommandElementValue::Us(HAS_DATASET)),
-                        (0x0000_0900, CommandElementValue::Us(super::command::STATUS_PENDING)),
+                        (
+                            0x0000_0900,
+                            CommandElementValue::Us(super::command::STATUS_PENDING),
+                        ),
                     ]);
 
                     assoc
@@ -197,7 +205,10 @@ fn c_find_loopback_returns_synthetic_study_result() {
 
                     // Send final SUCCESS C-FIND-RSP (no dataset).
                     let final_rsp = build_command_pdu(&[
-                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS)),
+                        (
+                            0x0000_0002,
+                            CommandElementValue::Ui(STUDY_ROOT_FIND_SOP_CLASS),
+                        ),
                         (0x0000_0100, CommandElementValue::Us(C_FIND_RSP)),
                         (0x0000_0120, CommandElementValue::Us(1)),
                         (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
@@ -285,11 +296,17 @@ fn c_move_loopback_returns_final_success_status() {
 
                     // Send pending progress response.
                     let pending = build_command_pdu(&[
-                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+                        (
+                            0x0000_0002,
+                            CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS),
+                        ),
                         (0x0000_0100, CommandElementValue::Us(C_MOVE_RSP)),
                         (0x0000_0120, CommandElementValue::Us(1)),
                         (0x0000_0800, CommandElementValue::Us(NO_DATASET)),
-                        (0x0000_0900, CommandElementValue::Us(super::command::STATUS_PENDING)),
+                        (
+                            0x0000_0900,
+                            CommandElementValue::Us(super::command::STATUS_PENDING),
+                        ),
                         (0x0000_1020, CommandElementValue::Us(1)), // remaining
                         (0x0000_1021, CommandElementValue::Us(0)), // completed
                         (0x0000_1022, CommandElementValue::Us(0)), // failed
@@ -309,7 +326,10 @@ fn c_move_loopback_returns_final_success_status() {
 
                     // Send final SUCCESS response.
                     let final_rsp = build_command_pdu(&[
-                        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+                        (
+                            0x0000_0002,
+                            CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS),
+                        ),
                         (0x0000_0100, CommandElementValue::Us(C_MOVE_RSP)),
                         (0x0000_0120, CommandElementValue::Us(1)),
                         (0x0000_0800, CommandElementValue::Us(NO_DATASET)),

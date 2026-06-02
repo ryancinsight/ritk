@@ -22,7 +22,6 @@
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 
 /// Filter that computes the gradient magnitude of a 3-D image.
 ///
@@ -58,9 +57,8 @@ impl GradientMagnitudeFilter {
         let sy = self.spacing[1] as f32;
         let sx = self.spacing[2] as f32;
 
-        let mag: Vec<f32> = (0..nz * ny * nx)
-            .into_par_iter()
-            .map(|flat| {
+        let mag: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
                 let iz = flat / (ny * nx);
                 let iy = (flat / nx) % ny;
                 let ix = flat % nx;
@@ -97,8 +95,7 @@ impl GradientMagnitudeFilter {
                 };
 
                 (gz * gz + gy * gy + gx * gx).sqrt()
-            })
-            .collect();
+            });
 
         Ok(rebuild(mag, dims, image))
     }
@@ -150,9 +147,8 @@ impl GradientMagnitudeFilter {
             "apply_from_slice: vals.len() != nz*ny*nx"
         );
 
-        let mag: Vec<f32> = (0..nz * ny * nx)
-            .into_par_iter()
-            .map(|flat| {
+        let mag: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
                 let iz = flat / (ny * nx);
                 let iy = (flat / nx) % ny;
                 let ix = flat % nx;
@@ -189,8 +185,7 @@ impl GradientMagnitudeFilter {
                 };
 
                 (gz * gz + gy * gy + gx * gx).sqrt()
-            })
-            .collect();
+            });
 
         Ok(rebuild(mag, dims, src))
     }

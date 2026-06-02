@@ -142,10 +142,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         for i in 0..pad_n {
             let a = vol_buf[i];
             let b = tmpl_buf[i];
-            vol_buf[i] = Complex::new(
-                a.re * b.re + a.im * b.im,
-                a.im * b.re - a.re * b.im,
-            );
+            vol_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
         }
 
         fft3d(

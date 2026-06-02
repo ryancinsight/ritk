@@ -141,11 +141,7 @@ pub(super) fn interpolate_point_2d<B: Backend, const D: usize>(
 
             // Check bounds and sample
             // Performance: use slice without clone to avoid O(image_size) allocation.
-            if xi >= 0
-                && xi < dims[0] as isize
-                && yi >= 0
-                && yi < dims[1] as isize
-            {
+            if xi >= 0 && xi < dims[0] as isize && yi >= 0 && yi < dims[1] as isize {
                 let sample = data
                     .clone()
                     .slice([xi as usize..xi as usize + 1, yi as usize..yi as usize + 1]);

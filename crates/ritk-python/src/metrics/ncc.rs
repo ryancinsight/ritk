@@ -52,8 +52,7 @@ pub fn compute_ncc(fixed: &PyImage, moving: &PyImage) -> RitkResult<f64> {
             shape_a, shape_b
         )));
     }
-    ncc_slices(&a, &b)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    ncc_slices(&a, &b).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]
@@ -64,7 +63,10 @@ mod tests {
     fn ncc_identical_images_returns_one() {
         let v: Vec<f32> = (1..=8).map(|x| x as f32).collect();
         let result = ncc_slices(&v, &v).unwrap();
-        assert!((result - 1.0).abs() < 1e-10, "NCC of identical must be 1.0, got {result}");
+        assert!(
+            (result - 1.0).abs() < 1e-10,
+            "NCC of identical must be 1.0, got {result}"
+        );
     }
 
     #[test]
@@ -72,7 +74,10 @@ mod tests {
         let a: Vec<f32> = (1..=8).map(|x| x as f32).collect();
         let b: Vec<f32> = (1..=8).rev().map(|x| x as f32).collect();
         let result = ncc_slices(&a, &b).unwrap();
-        assert!((result + 1.0).abs() < 1e-10, "NCC of anti-correlated must be −1, got {result}");
+        assert!(
+            (result + 1.0).abs() < 1e-10,
+            "NCC of anti-correlated must be −1, got {result}"
+        );
     }
 
     #[test]

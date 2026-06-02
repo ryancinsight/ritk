@@ -201,15 +201,27 @@ fn test_query_state_default_is_idle() {
 #[test]
 fn test_find_series_row_from_empty_bytes_all_fields_empty() {
     let row = FindResultRowSeries::from_raw_bytes(&[]);
-    assert!(row.study_instance_uid.is_empty(), "study_instance_uid must be empty for empty bytes");
-    assert!(row.series_instance_uid.is_empty(), "series_instance_uid must be empty");
+    assert!(
+        row.study_instance_uid.is_empty(),
+        "study_instance_uid must be empty for empty bytes"
+    );
+    assert!(
+        row.series_instance_uid.is_empty(),
+        "series_instance_uid must be empty"
+    );
     assert!(row.series_number.is_empty(), "series_number must be empty");
     assert!(row.modality.is_empty(), "modality must be empty");
-    assert!(row.series_description.is_empty(), "series_description must be empty");
+    assert!(
+        row.series_description.is_empty(),
+        "series_description must be empty"
+    );
     assert!(row.num_instances.is_empty(), "num_instances must be empty");
     assert!(row.series_date.is_empty(), "series_date must be empty");
     assert!(row.series_time.is_empty(), "series_time must be empty");
-    assert!(row.accession_number.is_empty(), "accession_number must be empty");
+    assert!(
+        row.accession_number.is_empty(),
+        "accession_number must be empty"
+    );
 }
 
 /// Positive: all 9 series-level attributes decoded from a synthetic IVR-LE dataset.
@@ -227,8 +239,14 @@ fn test_find_series_row_all_fields_parsed() {
     bytes.extend_from_slice(&encode_ivr_le_tag(0x0020, 0x000D, b"1.2.840.99.1"));
     let row = FindResultRowSeries::from_raw_bytes(&bytes);
     assert_eq!(row.modality, "CT", "modality");
-    assert_eq!(row.series_description, "CHEST ROUTINE", "series_description");
-    assert_eq!(row.series_instance_uid, "1.2.840.10008.200.1", "series_instance_uid");
+    assert_eq!(
+        row.series_description, "CHEST ROUTINE",
+        "series_description"
+    );
+    assert_eq!(
+        row.series_instance_uid, "1.2.840.10008.200.1",
+        "series_instance_uid"
+    );
     assert_eq!(row.series_number, "3", "series_number");
     assert_eq!(row.num_instances, "150", "num_instances");
     assert_eq!(row.series_date, "20240201", "series_date");
@@ -247,17 +265,43 @@ fn test_build_series_query_includes_all_return_keys() {
     let has_key = |group: u16, element: u16| -> bool {
         q.keys.iter().any(|(g, e, _)| *g == group && *e == element)
     };
-    assert!(has_key(0x0020, 0x000D), "StudyInstanceUID (0020,000D) must be the filter key");
-    let filter_val = q.keys.iter().find(|(g, e, _)| *g == 0x0020 && *e == 0x000D).map(|(_, _, v)| v.as_str());
-    assert_eq!(filter_val, Some("1.2.840.99.1"), "StudyInstanceUID filter value must match");
+    assert!(
+        has_key(0x0020, 0x000D),
+        "StudyInstanceUID (0020,000D) must be the filter key"
+    );
+    let filter_val = q
+        .keys
+        .iter()
+        .find(|(g, e, _)| *g == 0x0020 && *e == 0x000D)
+        .map(|(_, _, v)| v.as_str());
+    assert_eq!(
+        filter_val,
+        Some("1.2.840.99.1"),
+        "StudyInstanceUID filter value must match"
+    );
     assert!(has_key(0x0008, 0x0060), "Modality (0008,0060) return key");
-    assert!(has_key(0x0008, 0x103E), "SeriesDescription (0008,103E) return key");
-    assert!(has_key(0x0020, 0x000E), "SeriesInstanceUID (0020,000E) return key");
-    assert!(has_key(0x0020, 0x0011), "SeriesNumber (0020,0011) return key");
-    assert!(has_key(0x0020, 0x1209), "NumberOfSeriesRelatedInstances (0020,1209) return key");
+    assert!(
+        has_key(0x0008, 0x103E),
+        "SeriesDescription (0008,103E) return key"
+    );
+    assert!(
+        has_key(0x0020, 0x000E),
+        "SeriesInstanceUID (0020,000E) return key"
+    );
+    assert!(
+        has_key(0x0020, 0x0011),
+        "SeriesNumber (0020,0011) return key"
+    );
+    assert!(
+        has_key(0x0020, 0x1209),
+        "NumberOfSeriesRelatedInstances (0020,1209) return key"
+    );
     assert!(has_key(0x0008, 0x0021), "SeriesDate (0008,0021) return key");
     assert!(has_key(0x0008, 0x0031), "SeriesTime (0008,0031) return key");
-    assert!(has_key(0x0008, 0x0050), "AccessionNumber (0008,0050) return key");
+    assert!(
+        has_key(0x0008, 0x0050),
+        "AccessionNumber (0008,0050) return key"
+    );
 }
 
 // ── PacsResponse ────────────────────────────────────────────────────────────
@@ -287,7 +331,9 @@ fn test_pacs_response_retrieve_series_err_stores_message() {
     let err = "association rejected: no matching AE".to_owned();
     let rsp = PacsResponse::RetrieveSeriesErr(err.clone());
     match &rsp {
-        PacsResponse::RetrieveSeriesErr(msg) => assert_eq!(msg, &err, "error message must round-trip"),
+        PacsResponse::RetrieveSeriesErr(msg) => {
+            assert_eq!(msg, &err, "error message must round-trip")
+        }
         other => panic!("expected RetrieveSeriesErr, got {other:?}"),
     }
 }

@@ -198,10 +198,7 @@ mod tests {
     fn observer_count_reflects_additions_and_removals() {
         let mut h = EventHandlers::new();
         assert_eq!(h.observer_count(), 0);
-        let t1 = h.add_observer(
-            EventId::Modified,
-            counter_cb(Arc::new(AtomicUsize::new(0))),
-        );
+        let t1 = h.add_observer(EventId::Modified, counter_cb(Arc::new(AtomicUsize::new(0))));
         h.add_observer(
             EventId::RenderEvent,
             counter_cb(Arc::new(AtomicUsize::new(0))),

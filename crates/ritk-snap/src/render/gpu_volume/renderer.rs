@@ -7,7 +7,6 @@
 use std::sync::Arc;
 
 use egui::ColorImage;
-use rayon::prelude::*;
 use wgpu::util::DeviceExt as _;
 
 use crate::render::{Colormap, WindowLevel};
@@ -237,12 +236,10 @@ impl GpuVolumeRenderer {
         } else {
             // Multi-channel: extract first channel in parallel with Rayon.
             // Voxel at linear index `lin` has first-channel value at raw[lin * ch].
-            Some(
-                (0..n_voxels)
-                    .into_par_iter()
-                    .map(|lin| *raw.get(lin * ch).unwrap_or(&0.0))
-                    .collect(),
-            )
+            Some(moirai::map_collect_index_with::<moirai::Adaptive, _, _>(
+                n_voxels,
+                |lin| *raw.get(lin * ch).unwrap_or(&0.0),
+            ))
         };
 
         let slice: &[f32] = match extracted.as_deref() {

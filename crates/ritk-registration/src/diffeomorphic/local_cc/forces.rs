@@ -71,9 +71,8 @@ pub(crate) fn cc_forces(
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let r = radius as isize;
-    let forces: Vec<(f32, f32, f32)> = (0..n)
-        .into_par_iter()
-        .map(|fi| {
+    let forces: Vec<(f32, f32, f32)> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |fi| {
             let ix = fi % nx;
             let iy = (fi / nx) % ny;
             let iz = fi / (ny * nx);
@@ -93,8 +92,7 @@ pub(crate) fn cc_forces(
                 (force_scale * gi_y[fi] as f64) as f32,
                 (force_scale * gi_x[fi] as f64) as f32,
             )
-        })
-        .collect();
+        });
     let mut fz = Vec::with_capacity(n);
     let mut fy = Vec::with_capacity(n);
     let mut fx = Vec::with_capacity(n);
@@ -143,7 +141,7 @@ pub(crate) fn cc_forces_into(
     let fx = CellSlice::from_mut(fx);
     // Process in parallel by z-slice. Each z-slice writes to a disjoint
     // contiguous range in the output buffers.
-    (0..nz).into_par_iter().for_each(|iz| {
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
         let base = iz * slice_len;
         // SAFETY: fz, fy, fx have identical length and are split at the
         // same chunk boundaries. Each thread writes to a disjoint region.

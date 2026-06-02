@@ -373,7 +373,12 @@ pub fn fft_butterworth_low_pass(
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(img.as_ref(), FftFilterKind::ButterworthLowPass, cutoff, order)
+            .apply_3d(
+                img.as_ref(),
+                FftFilterKind::ButterworthLowPass,
+                cutoff,
+                order,
+            )
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -406,7 +411,12 @@ pub fn fft_butterworth_high_pass(
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(img.as_ref(), FftFilterKind::ButterworthHighPass, cutoff, order)
+            .apply_3d(
+                img.as_ref(),
+                FftFilterKind::ButterworthHighPass,
+                cutoff,
+                order,
+            )
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -445,9 +455,8 @@ pub fn fft_normalized_correlate_3d(
     let tmpl = Arc::clone(&template.inner);
 
     py.allow_threads(|| {
-        let filter =
-            FftNormalizedCorrelation3DFilter::<crate::image::Backend>::new(tmpl.as_ref())
-                .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+        let filter = FftNormalizedCorrelation3DFilter::<crate::image::Backend>::new(tmpl.as_ref())
+            .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         filter
             .apply(vol.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

@@ -8,8 +8,6 @@
 use super::coords::{decode_coords, encode_coords};
 use super::grid::Center;
 
-use rayon::prelude::*;
-
 /// Build a mapping from grid cell index to the list of center indices whose
 /// search region (±2S per axis) overlaps that cell.
 pub fn build_grid_map(
@@ -124,74 +122,61 @@ pub fn assign_voxels(
     let inv_m_s_sq = 1.0 / (m_s * m_s);
     let k = centers.len();
 
-    // Parallel assignment: partition by flat index, each thread writes
-    // distinct indices.
-    let chunk_size = (n / rayon::current_num_threads().max(1)).max(1024);
+    // Parallel assignment over flat voxel indices; each index is independent.
+    let results: Vec<(f64, u32)> =
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let coords = decode_coords(i, shape);
+            let intensity = intensities[i];
 
-    // Collect per-voxel results in a local buffer, then merge.
-    // Each thread produces (distance, label) pairs for its chunk.
-    let results: Vec<(f64, u32)> = (0..n)
-        .into_par_iter()
-        .chunks(chunk_size)
-        .flat_map(|chunk| {
-            chunk
-                .into_iter()
-                .map(|i| {
-                    let coords = decode_coords(i, shape);
-                    let intensity = intensities[i];
+            // Determine grid cell for this voxel.
+            let mut cell = vec![0usize; ndim];
+            for d in 0..ndim {
+                cell[d] = (coords[d] / grid_sizes[d].max(1)).min(n_cells_per_axis[d] - 1);
+            }
 
-                    // Determine grid cell for this voxel.
-                    let mut cell = vec![0usize; ndim];
-                    for d in 0..ndim {
-                        cell[d] = (coords[d] / grid_sizes[d].max(1)).min(n_cells_per_axis[d] - 1);
+            let cell_flat = encode_coords(&cell, &n_cells_per_axis);
+
+            let mut best_dist = distances[i];
+            let mut best_label = labels[i];
+
+            if cell_flat < grid_map.len() {
+                for &ci in &grid_map[cell_flat] {
+                    if ci >= k {
+                        continue;
                     }
+                    let center = &centers[ci];
 
-                    let cell_flat = encode_coords(&cell, &n_cells_per_axis);
-
-                    let mut best_dist = distances[i];
-                    let mut best_label = labels[i];
-
-                    if cell_flat < grid_map.len() {
-                        for &ci in &grid_map[cell_flat] {
-                            if ci >= k {
-                                continue;
-                            }
-                            let center = &centers[ci];
-
-                            // Check spatial proximity: each coordinate must be within 2*step.
-                            let mut in_range = true;
-                            for d in 0..ndim {
-                                let diff = coords[d] as f64 - center.pos[d];
-                                let step = grid_sizes[d] as f64;
-                                if diff.abs() > 2.0 * step + 0.5 {
-                                    in_range = false;
-                                    break;
-                                }
-                            }
-                            if !in_range {
-                                continue;
-                            }
-
-                            // Compute SLIC distance squared.
-                            let di = intensity - center.intensity;
-                            let mut d_sq = di * di * inv_m_c_sq;
-                            for d in 0..ndim {
-                                let dp = coords[d] as f64 - center.pos[d];
-                                d_sq += compactness_sq * dp * dp * inv_m_s_sq;
-                            }
-
-                            if d_sq < best_dist {
-                                best_dist = d_sq;
-                                best_label = ci as u32;
-                            }
+                    // Check spatial proximity: each coordinate must be within 2*step.
+                    let mut in_range = true;
+                    for d in 0..ndim {
+                        let diff = coords[d] as f64 - center.pos[d];
+                        let step = grid_sizes[d] as f64;
+                        if diff.abs() > 2.0 * step + 0.5 {
+                            in_range = false;
+                            break;
                         }
                     }
+                    if !in_range {
+                        continue;
+                    }
 
-                    (best_dist, best_label)
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
+                    // Compute SLIC distance squared.
+                    let di = intensity - center.intensity;
+                    let mut d_sq = di * di * inv_m_c_sq;
+                    for d in 0..ndim {
+                        let dp = coords[d] as f64 - center.pos[d];
+                        d_sq += compactness_sq * dp * dp * inv_m_s_sq;
+                    }
+
+                    if d_sq < best_dist {
+                        best_dist = d_sq;
+                        best_label = ci as u32;
+                    }
+                }
+            }
+
+            (best_dist, best_label)
+        });
 
     // Merge results back.
     for (i, (dist, label)) in results.into_iter().enumerate() {

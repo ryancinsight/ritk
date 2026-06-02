@@ -1,4 +1,4 @@
-use rayon::prelude::*;
+use moirai::ParallelSliceMut;
 
 use super::pde::{compute_divergence_into, gaussian_smooth_1d, make_gaussian_kernel_1d};
 
@@ -29,7 +29,7 @@ pub fn compute_structure_tensor_products(
     let mut st = StructureTensorProducts {
         data: vec![[0.0f64; 6]; n],
     };
-    st.data.par_iter_mut().enumerate().for_each(|(i, out)| {
+    st.data.par_mut().enumerate(|i, out| {
         let gz = grad.gz[i];
         let gy = grad.gy[i];
         let gx = grad.gx[i];

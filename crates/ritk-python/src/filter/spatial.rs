@@ -48,75 +48,74 @@ pub fn resample_image(
     let mode = mode.to_string();
     let inner = std::sync::Arc::clone(&image.inner);
 
-    py
-        .allow_threads(move || -> Result<_, String> {
-            let orig_dims = inner.shape();
-            let orig_sp = *inner.spacing();
-            let orig_orig = *inner.origin();
-            let orig_dir = *inner.direction();
+    py.allow_threads(move || -> Result<_, String> {
+        let orig_dims = inner.shape();
+        let orig_sp = *inner.spacing();
+        let orig_orig = *inner.origin();
+        let orig_dir = *inner.direction();
 
-            let new_nz = ((orig_dims[0] as f64 * orig_sp[0]) / spacing_z)
-                .round()
-                .max(1.0) as usize;
-            let new_ny = ((orig_dims[1] as f64 * orig_sp[1]) / spacing_y)
-                .round()
-                .max(1.0) as usize;
-            let new_nx = ((orig_dims[2] as f64 * orig_sp[2]) / spacing_x)
-                .round()
-                .max(1.0) as usize;
+        let new_nz = ((orig_dims[0] as f64 * orig_sp[0]) / spacing_z)
+            .round()
+            .max(1.0) as usize;
+        let new_ny = ((orig_dims[1] as f64 * orig_sp[1]) / spacing_y)
+            .round()
+            .max(1.0) as usize;
+        let new_nx = ((orig_dims[2] as f64 * orig_sp[2]) / spacing_x)
+            .round()
+            .max(1.0) as usize;
 
-            let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
-            let device: <Backend as BurnBackend>::Device = Default::default();
-            let zero_t = Tensor::<Backend, 1>::from_data(
-                TensorData::new(vec![0.0f32; 3], Shape::new([3])),
-                &device,
-            );
+        let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
+        let device: <Backend as BurnBackend>::Device = Default::default();
+        let zero_t = Tensor::<Backend, 1>::from_data(
+            TensorData::new(vec![0.0f32; 3], Shape::new([3])),
+            &device,
+        );
 
-            match mode.as_str() {
-                "nearest" => Ok(ResampleImageFilter::new(
-                    [new_nz, new_ny, new_nx],
-                    orig_orig,
-                    new_sp,
-                    orig_dir,
-                    TranslationTransform::<Backend, 3>::new(zero_t),
-                    NearestNeighborInterpolator::new(),
-                )
-                .apply(inner.as_ref())),
-                "linear" => Ok(ResampleImageFilter::new(
-                    [new_nz, new_ny, new_nx],
-                    orig_orig,
-                    new_sp,
-                    orig_dir,
-                    TranslationTransform::<Backend, 3>::new(zero_t),
-                    LinearInterpolator::new(),
-                )
-                .apply(inner.as_ref())),
-                "bspline" => Ok(ResampleImageFilter::new(
-                    [new_nz, new_ny, new_nx],
-                    orig_orig,
-                    new_sp,
-                    orig_dir,
-                    TranslationTransform::<Backend, 3>::new(zero_t),
-                    BSplineInterpolator::new(),
-                )
-                .apply(inner.as_ref())),
-                "lanczos4" => Ok(ResampleImageFilter::new(
-                    [new_nz, new_ny, new_nx],
-                    orig_orig,
-                    new_sp,
-                    orig_dir,
-                    TranslationTransform::<Backend, 3>::new(zero_t),
-                    Lanczos4Interpolator::new(),
-                )
-                .apply(inner.as_ref())),
-                other => Err(format!(
-                    "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos4",
-                    other
-                )),
-            }
-        })
-        .map_err(RitkPyError::value)
-        .map(into_py_image)
+        match mode.as_str() {
+            "nearest" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx],
+                orig_orig,
+                new_sp,
+                orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                NearestNeighborInterpolator::new(),
+            )
+            .apply(inner.as_ref())),
+            "linear" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx],
+                orig_orig,
+                new_sp,
+                orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                LinearInterpolator::new(),
+            )
+            .apply(inner.as_ref())),
+            "bspline" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx],
+                orig_orig,
+                new_sp,
+                orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                BSplineInterpolator::new(),
+            )
+            .apply(inner.as_ref())),
+            "lanczos4" => Ok(ResampleImageFilter::new(
+                [new_nz, new_ny, new_nx],
+                orig_orig,
+                new_sp,
+                orig_dir,
+                TranslationTransform::<Backend, 3>::new(zero_t),
+                Lanczos4Interpolator::new(),
+            )
+            .apply(inner.as_ref())),
+            other => Err(format!(
+                "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos4",
+                other
+            )),
+        }
+    })
+    .map_err(RitkPyError::value)
+    .map(into_py_image)
 }
 
 /// Compute the Euclidean (or squared Euclidean) distance transform of a binary image.

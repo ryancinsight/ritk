@@ -83,8 +83,13 @@ pub fn multires_syn_register(
             gradient_step: opts.gradient_step,
         };
         let reg = MultiResSyNRegistration::new(config);
-        reg.register(&inputs.fixed_vals, &inputs.moving_vals, inputs.fixed_shape, [1.0, 1.0, 1.0])
-            .map_err(|e| e.to_string())
+        reg.register(
+            &inputs.fixed_vals,
+            &inputs.moving_vals,
+            inputs.fixed_shape,
+            [1.0, 1.0, 1.0],
+        )
+        .map_err(|e| e.to_string())
     })
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))

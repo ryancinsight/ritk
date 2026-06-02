@@ -69,13 +69,10 @@ fn trace_closed_contour(mask: &[u8], ny: usize, nx: usize) -> Option<Vec<(usize,
     }
     let start = start_yx?;
 
-    let in_bounds = |y: i32, x: i32| -> bool {
-        y >= 0 && y < ny as i32 && x >= 0 && x < nx as i32
-    };
+    let in_bounds = |y: i32, x: i32| -> bool { y >= 0 && y < ny as i32 && x >= 0 && x < nx as i32 };
 
-    let is_foreground = |y: i32, x: i32| -> bool {
-        in_bounds(y, x) && mask[(y as usize) * nx + (x as usize)] != 0
-    };
+    let is_foreground =
+        |y: i32, x: i32| -> bool { in_bounds(y, x) && mask[(y as usize) * nx + (x as usize)] != 0 };
 
     let mut contour: Vec<(usize, usize)> = vec![start];
     let mut current = start;
@@ -129,7 +126,9 @@ fn trace_closed_contour(mask: &[u8], ny: usize, nx: usize) -> Option<Vec<(usize,
 ///   row_z  col_z  slice_z ]
 /// ```
 fn voxel_to_phys(
-    z: usize, y: usize, x: usize,
+    z: usize,
+    y: usize,
+    x: usize,
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
@@ -138,15 +137,18 @@ fn voxel_to_phys(
     let dy = spacing[1];
     let dz = spacing[0];
     [
-        origin[0] + direction[0] * x as f64 * dx
-                  + direction[1] * y as f64 * dy
-                  + direction[2] * z as f64 * dz,
-        origin[1] + direction[3] * x as f64 * dx
-                  + direction[4] * y as f64 * dy
-                  + direction[5] * z as f64 * dz,
-        origin[2] + direction[6] * x as f64 * dx
-                  + direction[7] * y as f64 * dy
-                  + direction[8] * z as f64 * dz,
+        origin[0]
+            + direction[0] * x as f64 * dx
+            + direction[1] * y as f64 * dy
+            + direction[2] * z as f64 * dz,
+        origin[1]
+            + direction[3] * x as f64 * dx
+            + direction[4] * y as f64 * dy
+            + direction[5] * z as f64 * dz,
+        origin[2]
+            + direction[6] * x as f64 * dx
+            + direction[7] * y as f64 * dy
+            + direction[8] * z as f64 * dz,
     ]
 }
 
@@ -284,10 +286,18 @@ mod tests {
         let nx = 5;
         let mut mask = vec![0u8; ny * nx];
         // Plus shape: center row and center column
-        for x in 0..5 { mask[2 * nx + x] = 1; }
-        for y in 0..5 { mask[y * nx + 2] = 1; }
+        for x in 0..5 {
+            mask[2 * nx + x] = 1;
+        }
+        for y in 0..5 {
+            mask[y * nx + 2] = 1;
+        }
         let result = trace_closed_contour(&mask, ny, nx).expect("contour");
-        assert!(result.len() >= 8, "plus should have >= 8 boundary points, got {}", result.len());
+        assert!(
+            result.len() >= 8,
+            "plus should have >= 8 boundary points, got {}",
+            result.len()
+        );
         // The contour is implicitly closed; start point appears only at index 0.
         assert_ne!(result.first(), result.last());
     }
@@ -315,17 +325,30 @@ mod tests {
         table.add_label(2, "Organ", [0, 255, 0, 255]).unwrap();
         let mut lm = ritk_core::annotation::LabelMap::new([2, 4, 4], table);
         // Label 1: voxels [z=0, y=1..2, x=1..2]
-        for y in 1..3 { for x in 1..3 { lm.set_label_at([0, y, x], 1); } }
+        for y in 1..3 {
+            for x in 1..3 {
+                lm.set_label_at([0, y, x], 1);
+            }
+        }
         // Label 2: voxels [z=1, y=1..2, x=1..2]
-        for y in 1..3 { for x in 1..3 { lm.set_label_at([1, y, x], 2); } }
+        for y in 1..3 {
+            for x in 1..3 {
+                lm.set_label_at([1, y, x], 2);
+            }
+        }
         lm
     }
 
     #[test]
     fn label_map_to_rt_struct_single_label() {
         let lm = make_small_label_map();
-        let rt = label_map_to_rt_struct(&lm, [0.0; 3], [1.0; 3], [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0])
-            .expect("conversion");
+        let rt = label_map_to_rt_struct(
+            &lm,
+            [0.0; 3],
+            [1.0; 3],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        )
+        .expect("conversion");
         assert_eq!(rt.rois.len(), 2, "two labels");
         assert_eq!(rt.rois[0].roi_name, "Tumor", "label 1 name");
         assert_eq!(rt.rois[1].roi_name, "Organ", "label 2 name");
@@ -338,7 +361,12 @@ mod tests {
     fn label_map_to_rt_struct_zero_dim_returns_err() {
         let table = ritk_core::annotation::LabelTable::new();
         let lm = ritk_core::annotation::LabelMap::new([0, 4, 4], table);
-        let result = label_map_to_rt_struct(&lm, [0.0; 3], [1.0; 3], [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let result = label_map_to_rt_struct(
+            &lm,
+            [0.0; 3],
+            [1.0; 3],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        );
         assert!(result.is_err());
     }
 
@@ -346,7 +374,12 @@ mod tests {
     fn label_map_to_rt_struct_no_foreground_returns_err() {
         let table = ritk_core::annotation::LabelTable::new();
         let lm = ritk_core::annotation::LabelMap::new([2, 4, 4], table);
-        let result = label_map_to_rt_struct(&lm, [0.0; 3], [1.0; 3], [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let result = label_map_to_rt_struct(
+            &lm,
+            [0.0; 3],
+            [1.0; 3],
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        );
         assert!(result.is_err());
     }
 
@@ -361,10 +394,8 @@ mod tests {
         // Write → read round-trip
         let tmp = tempfile::tempdir().unwrap();
         let path = tmp.path().join("rt_roundtrip.dcm");
-        crate::format::dicom::rt_struct::writer::write_rt_struct(&path, &rt)
-            .expect("write");
-        let loaded = crate::format::dicom::rt_struct::reader::read_rt_struct(&path)
-            .expect("read");
+        crate::format::dicom::rt_struct::writer::write_rt_struct(&path, &rt).expect("write");
+        let loaded = crate::format::dicom::rt_struct::reader::read_rt_struct(&path).expect("read");
 
         assert_eq!(loaded.rois.len(), 2);
         assert_eq!(loaded.rois[0].roi_name, "Tumor");

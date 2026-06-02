@@ -177,18 +177,16 @@ pub(crate) fn load_from_series<B: Backend>(
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
-            use rayon::prelude::*;
+            use moirai::ParallelSlice;
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
-                .par_iter()
-                .map(|slice| {
+                .par()
+                .map_collect(|slice| {
                     let data = if let Some(ref bytes) = slice.part10_bytes {
                         read_slice_pixels_from_bytes(bytes, slice)
                     } else {
                         read_slice_pixels(slice)
                     }
-                    .with_context(|| {
-                        format!("failed to decode DICOM slice {:?}", slice.path)
-                    })?;
+                    .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
                     if data.len() != frame_len {
                         bail!(
                             "DICOM slice size mismatch: expected {} pixels, got {}",
@@ -198,6 +196,7 @@ pub(crate) fn load_from_series<B: Backend>(
                     }
                     Ok(data)
                 })
+                .into_iter()
                 .collect();
             decoded?
         };
@@ -241,29 +240,30 @@ pub(crate) fn load_from_series<B: Backend>(
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            use rayon::prelude::*;
-            volume
-                .par_chunks_mut(frame_len)
-                .zip(slices.par_iter())
-                .try_for_each(|(dst, slice)| -> Result<()> {
-                    let data = if let Some(ref bytes) = slice.part10_bytes {
-                        read_slice_pixels_from_bytes(bytes, slice)
-                    } else {
-                        read_slice_pixels(slice)
-                    }
-                    .with_context(|| {
-                        format!("failed to decode DICOM slice {:?}", slice.path)
-                    })?;
-                    if data.len() != frame_len {
-                        bail!(
-                            "DICOM slice size mismatch: expected {} pixels, got {}",
-                            frame_len,
-                            data.len()
-                        );
-                    }
-                    dst.copy_from_slice(&data);
-                    Ok(())
-                })?;
+            use moirai::ParallelSlice;
+            // Decode slices in parallel (fallible), then write into the volume
+            // sequentially (cheap memcpy) so the first decode error propagates.
+            let decoded: Vec<Result<Vec<f32>>> = slices.par().map_collect(|slice| {
+                let data = if let Some(ref bytes) = slice.part10_bytes {
+                    read_slice_pixels_from_bytes(bytes, slice)
+                } else {
+                    read_slice_pixels(slice)
+                }
+                .with_context(|| format!("failed to decode DICOM slice {:?}", slice.path))?;
+                if data.len() != frame_len {
+                    bail!(
+                        "DICOM slice size mismatch: expected {} pixels, got {}",
+                        frame_len,
+                        data.len()
+                    );
+                }
+                Ok(data)
+            });
+            for (z, result) in decoded.into_iter().enumerate() {
+                let data = result?;
+                let offset = z * frame_len;
+                volume[offset..offset + frame_len].copy_from_slice(&data);
+            }
         }
 
         #[cfg(target_arch = "wasm32")]

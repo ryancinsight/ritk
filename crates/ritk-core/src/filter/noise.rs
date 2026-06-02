@@ -20,7 +20,6 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use rand::prelude::*;
 use rand::rngs::StdRng;
-use rayon::prelude::*;
 
 // ── AdditiveGaussianNoiseFilter ───────────────────────────────────────────────
 
@@ -89,11 +88,10 @@ impl AdditiveGaussianNoiseFilter {
                     * (2.0 * std::f64::consts::TAU * u2).cos()
             })
             .collect();
-        let out: Vec<f32> = vals
-            .par_iter()
-            .zip(gaussians.par_iter())
-            .map(|(&v, &n)| (v as f64 + n * self.std + self.mean) as f32)
-            .collect();
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |i| {
+                (vals[i] as f64 + gaussians[i] * self.std + self.mean) as f32
+            });
         Ok(rebuild(out, dims, image))
     }
 
@@ -159,10 +157,9 @@ impl SaltAndPepperNoiseFilter {
         let half_p = self.probability / 2.0;
         // Pre-generate random draws sequentially for deterministic ordering.
         let draws: Vec<f64> = vals.iter().map(|_| rng.random()).collect();
-        let out: Vec<f32> = vals
-            .par_iter()
-            .zip(draws.par_iter())
-            .map(|(&v, &r)| {
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |i| {
+                let (v, r) = (vals[i], draws[i]);
                 if r < half_p {
                     min_val // pepper
                 } else if r < self.probability {
@@ -170,8 +167,7 @@ impl SaltAndPepperNoiseFilter {
                 } else {
                     v // unchanged
                 }
-            })
-            .collect();
+            });
         Ok(rebuild(out, dims, image))
     }
 
@@ -248,11 +244,10 @@ impl ShotNoiseFilter {
                 poisson_sample(&mut rng, lambda)
             })
             .collect();
-        let out: Vec<f32> = vals
-            .par_iter()
-            .zip(samples.par_iter())
-            .map(|(&_v, &k)| (k / self.scale) as f32)
-            .collect();
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |i| {
+                (samples[i] / self.scale) as f32
+            });
         Ok(rebuild(out, dims, image))
     }
 
@@ -349,11 +344,10 @@ impl SpeckleNoiseFilter {
                     * self.std
             })
             .collect();
-        let out: Vec<f32> = vals
-            .par_iter()
-            .zip(gaussians.par_iter())
-            .map(|(&v, &n)| (v as f64 * (1.0 + n)) as f32)
-            .collect();
+        let out: Vec<f32> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |i| {
+                (vals[i] as f64 * (1.0 + gaussians[i])) as f32
+            });
         Ok(rebuild(out, dims, image))
     }
 

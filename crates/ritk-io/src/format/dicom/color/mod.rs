@@ -60,8 +60,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
         if samples != RGB_CHANNELS {
             return Ok(false);
         }
-        let photometric =
-            required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
+        let photometric = required_string(&obj, Tag(0x0028, 0x0004), "PhotometricInterpretation")?;
         return Ok(photometric.trim().eq_ignore_ascii_case("RGB"));
     }
 

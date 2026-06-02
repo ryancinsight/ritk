@@ -391,9 +391,11 @@ fn direct_parallel_matches_sparse() {
     let mov_max = hist.moving_max_intensity.unwrap_or(fix_max);
 
     let sigma_sq_fix =
-        direct::ParzenConfig::from_intensity_sigma(fix_sigma, fix_min, fix_max, num_bins).sigma_sq(); // SSOT-319-02
+        direct::ParzenConfig::from_intensity_sigma(fix_sigma, fix_min, fix_max, num_bins)
+            .sigma_sq(); // SSOT-319-02
     let sigma_sq_mov =
-        direct::ParzenConfig::from_intensity_sigma(mov_sigma, mov_min, mov_max, num_bins).sigma_sq(); // SSOT-319-02
+        direct::ParzenConfig::from_intensity_sigma(mov_sigma, mov_min, mov_max, num_bins)
+            .sigma_sq(); // SSOT-319-02
 
     let fixed_norm = dispatch::normalize_and_extract(&fixed_tensor, fix_min, fix_max, num_bins);
     let moving_norm = dispatch::normalize_and_extract(&moving_tensor, mov_min, mov_max, num_bins);

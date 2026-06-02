@@ -4,14 +4,14 @@
 //! association from the SCU side via `Association::connect`, sends a
 //! C-STORE-RQ, and asserts a Success (0x0000) C-STORE-RSP round-trip.
 
-use crate::format::dicom::networking::association::{Association, transfer_syntax};
+use crate::format::dicom::networking::association::{transfer_syntax, Association};
 use crate::format::dicom::networking::context::{AssociationConfig, RequestedPresentationContext};
 use crate::format::dicom::networking::dimse::{CommandField, DimseMessage, DimseStatus};
 use crate::format::dicom::networking::pdu::{
-    APPLICATION_CONTEXT_NAME, AssociateAcPdu, CommandType, ImplementationClassUidSubItem,
-    ImplementationVersionNameSubItem, MaximumLengthSubItem, MessageControlHeader,
-    PresentationContextItemAc, PresentationDataValueItem, Pdu, RITK_IMPLEMENTATION_CLASS_UID,
-    RITK_IMPLEMENTATION_VERSION, UserInformation,
+    AssociateAcPdu, CommandType, ImplementationClassUidSubItem, ImplementationVersionNameSubItem,
+    MaximumLengthSubItem, MessageControlHeader, Pdu, PresentationContextItemAc,
+    PresentationDataValueItem, UserInformation, APPLICATION_CONTEXT_NAME,
+    RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
 };
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -79,7 +79,9 @@ fn scp_thread(listener: TcpListener) {
         .map(|pc| PresentationContextItemAc {
             presentation_context_id: pc.presentation_context_id,
             result_reason: 0,
-            transfer_syntax_uid: pc.transfer_syntax_uids.first()
+            transfer_syntax_uid: pc
+                .transfer_syntax_uids
+                .first()
                 .cloned()
                 .unwrap_or_else(|| transfer_syntax::IMPLICIT_VR_LE.to_string()),
         })
@@ -140,8 +142,8 @@ fn scp_thread(listener: TcpListener) {
                     }
                 }
                 if cmd_complete {
-                    let msg = DimseMessage::decode_command_set(&cmd_buf)
-                        .expect("SCP decode command set");
+                    let msg =
+                        DimseMessage::decode_command_set(&cmd_buf).expect("SCP decode command set");
                     assert_eq!(
                         msg.command_field(),
                         Some(CommandField::CStoreRq),
@@ -180,7 +182,12 @@ fn scp_thread(listener: TcpListener) {
     }
 
     // 4. Send C-STORE-RSP with Success status
-    let rsp = DimseMessage::c_store_rsp(msg_id, &sop_class_uid, &sop_instance_uid, DimseStatus::Success as u16);
+    let rsp = DimseMessage::c_store_rsp(
+        msg_id,
+        &sop_class_uid,
+        &sop_instance_uid,
+        DimseStatus::Success as u16,
+    );
     let rsp_cmd_bytes = rsp.encode_command_set();
 
     let cmd_mch = MessageControlHeader {
@@ -210,8 +217,7 @@ fn test_c_store_loopback_success() {
 
     // Minimal synthetic dataset (not a valid DICOM object, but exercises
     // the transport layer — the SCP does not parse the data set bytes).
-    let dataset: Vec<u8> = vec![0x08, 0x00, 0x5A, 0x44, 0x04, 0x00, 0x54, 0x45,
-                                 0x53, 0x54]; // dummy tag+VR+value
+    let dataset: Vec<u8> = vec![0x08, 0x00, 0x5A, 0x44, 0x04, 0x00, 0x54, 0x45, 0x53, 0x54]; // dummy tag+VR+value
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
     let port = listener.local_addr().unwrap().port();
@@ -227,10 +233,7 @@ fn test_c_store_loopback_success() {
         port,
         max_pdu_length: 16384,
         timeout: Duration::from_secs(10),
-        presentation_contexts: vec![rpc(
-            CT_IMAGE_STORAGE,
-            &[transfer_syntax::IMPLICIT_VR_LE],
-        )],
+        presentation_contexts: vec![rpc(CT_IMAGE_STORAGE, &[transfer_syntax::IMPLICIT_VR_LE])],
         user_identity: None,
     };
 
@@ -240,8 +243,12 @@ fn test_c_store_loopback_success() {
     let status = assoc
         .c_store(CT_IMAGE_STORAGE, TEST_INSTANCE_UID, dataset)
         .expect("SCU c_store");
-    assert_eq!(status, DimseStatus::Success as u16,
-        "C-STORE-RSP status must be 0x0000 (Success), got 0x{:04X}", status);
+    assert_eq!(
+        status,
+        DimseStatus::Success as u16,
+        "C-STORE-RSP status must be 0x0000 (Success), got 0x{:04X}",
+        status
+    );
 
     assoc.release().expect("SCU release");
 
@@ -270,10 +277,7 @@ fn test_c_store_loopback_empty_dataset() {
         port,
         max_pdu_length: 16384,
         timeout: Duration::from_secs(10),
-        presentation_contexts: vec![rpc(
-            CT_IMAGE_STORAGE,
-            &[transfer_syntax::IMPLICIT_VR_LE],
-        )],
+        presentation_contexts: vec![rpc(CT_IMAGE_STORAGE, &[transfer_syntax::IMPLICIT_VR_LE])],
         user_identity: None,
     };
 
@@ -281,8 +285,12 @@ fn test_c_store_loopback_empty_dataset() {
     let status = assoc
         .c_store(CT_IMAGE_STORAGE, TEST_INSTANCE_UID, dataset)
         .expect("SCU c_store empty dataset");
-    assert_eq!(status, DimseStatus::Success as u16,
-        "C-STORE-RSP status must be 0x0000 (Success), got 0x{:04X}", status);
+    assert_eq!(
+        status,
+        DimseStatus::Success as u16,
+        "C-STORE-RSP status must be 0x0000 (Success), got 0x{:04X}",
+        status
+    );
 
     assoc.release().expect("SCU release");
     scp_handle.join().expect("SCP thread panicked");

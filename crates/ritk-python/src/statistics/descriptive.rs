@@ -61,7 +61,11 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage) -> RitkResult<Py<PyDi
 /// Raises:
 ///     RuntimeError: if image and mask shapes differ or mask has no foreground voxels.
 #[pyfunction]
-pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> RitkResult<Py<PyDict>> {
+pub fn masked_statistics(
+    py: Python<'_>,
+    image: &PyImage,
+    mask: &PyImage,
+) -> RitkResult<Py<PyDict>> {
     let stats = with_tensor_slice(image.inner.data(), |img_slice| {
         with_tensor_slice(mask.inner.data(), |mask_slice| {
             assert_eq!(
@@ -94,10 +98,7 @@ pub fn masked_statistics(py: Python<'_>, image: &PyImage, mask: &PyImage) -> Rit
 ///     Dice coefficient in [0, 1]. Returns 1.0 if both images have zero volume.
 #[pyfunction]
 pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
-    core_dice_coefficient(
-        image1.inner.as_ref(),
-        image2.inner.as_ref(),
-    )
+    core_dice_coefficient(image1.inner.as_ref(), image2.inner.as_ref())
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
@@ -155,11 +156,7 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    core_psnr(
-        image1.inner.as_ref(),
-        image2.inner.as_ref(),
-        max_val,
-    )
+    core_psnr(image1.inner.as_ref(), image2.inner.as_ref(), max_val)
 }
 
 /// Compute the Structural Similarity Index (SSIM) between two images.
@@ -177,11 +174,7 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    core_ssim(
-        image1.inner.as_ref(),
-        image2.inner.as_ref(),
-        max_val,
-    )
+    core_ssim(image1.inner.as_ref(), image2.inner.as_ref(), max_val)
 }
 
 /// Estimate additive Gaussian noise σ̂ via the Median Absolute Deviation (MAD).

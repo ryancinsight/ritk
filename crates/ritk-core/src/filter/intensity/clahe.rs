@@ -59,7 +59,6 @@ use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 
 /// Contrast Limited Adaptive Histogram Equalization (CLAHE) filter.
 ///
@@ -183,21 +182,25 @@ impl ClaheFilter {
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
 
-        let scratch_init = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, self.bins);
-
         let clip_limit = self.clip_limit;
         let bins = self.bins;
         let slice_size = rows * cols;
 
-        let out_slices: Vec<Vec<f32>> = (0..depth)
-            .into_par_iter()
-            .map_with(scratch_init, |scratch, d| {
+        let out_slices: Vec<Vec<f32>> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
+                let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
                 let slice = &vals[d * slice_size..(d + 1) * slice_size];
                 clahe_2d_with_scratch(
-                    slice, rows, cols, n_tiles_y, n_tiles_x, clip_limit, bins, scratch,
+                    slice,
+                    rows,
+                    cols,
+                    n_tiles_y,
+                    n_tiles_x,
+                    clip_limit,
+                    bins,
+                    &mut scratch,
                 )
-            })
-            .collect();
+            });
 
         let mut out = Vec::with_capacity(depth * slice_size);
         for s in out_slices {
@@ -233,15 +236,15 @@ impl ClaheFilter {
         let nty = n_tiles_y;
         let ntx = n_tiles_x;
         let bins = self.bins;
-        let scratch_init =
-            std::mem::replace(scratch, ClaheScratch::new(rows, cols, nty, ntx, bins));
+        // Re-initialize the caller's scratch to the correct dimensions for reuse.
+        *scratch = ClaheScratch::new(rows, cols, nty, ntx, bins);
 
         let clip_limit = self.clip_limit;
         let slice_size = rows * cols;
 
-        let out_slices: Vec<Vec<f32>> = (0..depth)
-            .into_par_iter()
-            .map_with(scratch_init, |thread_scratch, d| {
+        let out_slices: Vec<Vec<f32>> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
+                let mut thread_scratch = ClaheScratch::new(rows, cols, nty, ntx, bins);
                 let slice = &vals[d * slice_size..(d + 1) * slice_size];
                 clahe_2d_with_scratch(
                     slice,
@@ -251,10 +254,9 @@ impl ClaheFilter {
                     n_tiles_x,
                     clip_limit,
                     bins,
-                    thread_scratch,
+                    &mut thread_scratch,
                 )
-            })
-            .collect();
+            });
 
         let mut out = Vec::with_capacity(depth * slice_size);
         for s in out_slices {

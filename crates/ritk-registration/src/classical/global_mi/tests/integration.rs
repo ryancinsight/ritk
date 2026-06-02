@@ -19,8 +19,9 @@ fn translation_recovery_shifted_gaussian() {
         &device,
     );
 
-    let initial_transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device).require_grad());
+    let initial_transform = TranslationTransform::<TestBackend, 3>::new(
+        Tensor::<TestBackend, 1>::zeros([3], &device).require_grad(),
+    );
 
     let config = GlobalMiConfig {
         num_levels: 1,
@@ -49,9 +50,7 @@ fn translation_recovery_shifted_gaussian() {
 
     eprintln!(
         "DBG translation: conv={:?} iters={:?} loss={:?}",
-        result.convergence_history,
-        result.iterations_per_level,
-        result.loss_history,
+        result.convergence_history, result.iterations_per_level, result.loss_history,
     );
 
     let t_data = final_transform.translation().to_data();
@@ -207,8 +206,9 @@ fn sparse_sampling_produces_comparable_result() {
     let fixed = make_gaussian_blob([24, 24, 24], [12.0, 12.0, 12.0], 3.0, &device);
     let moving = make_gaussian_blob([24, 24, 24], [14.0, 13.0, 12.0], 3.0, &device);
 
-    let initial_transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device).require_grad());
+    let initial_transform = TranslationTransform::<TestBackend, 3>::new(
+        Tensor::<TestBackend, 1>::zeros([3], &device).require_grad(),
+    );
 
     let config_sparse = GlobalMiConfig {
         num_levels: 1,

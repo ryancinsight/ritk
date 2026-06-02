@@ -146,7 +146,13 @@ fn phong_back_light_no_diffuse() {
         direction: [0.0, 0.0, -1.0], // behind the surface
         color: [1.0, 1.0, 1.0],
     };
-    let color = phong_shade([0.0, 0.0, 1.0], [0.0, 0.0, 10.0], [0.0, 0.0, 0.0], &material, &[light]);
+    let color = phong_shade(
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 10.0],
+        [0.0, 0.0, 0.0],
+        &material,
+        &[light],
+    );
     // Only ambient contribution = 0.1
     for c in 0..3 {
         assert!(
@@ -171,7 +177,13 @@ fn phong_output_clamped_to_unit_range() {
         direction: [0.0, 0.0, 1.0],
         color: [1.0, 1.0, 1.0],
     };
-    let color = phong_shade([0.0, 0.0, 1.0], [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], &material, &[light]);
+    let color = phong_shade(
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, 0.0],
+        &material,
+        &[light],
+    );
     for c in 0..3 {
         assert!(color[c] >= 0.0, "channel {c} < 0");
         assert!(color[c] <= 1.0, "channel {c} > 1");
@@ -184,10 +196,7 @@ fn phong_output_clamped_to_unit_range() {
 #[test]
 fn mat4_mul_identity_times_identity() {
     let identity = [
-        1.0_f32, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0,
+        1.0_f32, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ];
     let result = mat4_mul(identity, identity);
     for i in 0..16 {
@@ -211,7 +220,10 @@ fn look_at_eye_to_origin_z_depth() {
     assert!(px.abs() < 1e-5, "view x of origin must be 0, got {px}");
     // In right-handed OpenGL convention, the camera looks along -Z,
     // so the origin (3 units in front of the eye) maps to view z = -3.
-    assert!((pz + 3.0).abs() < 1e-4, "view z of origin must be -3.0 (right-handed), got {pz}");
+    assert!(
+        (pz + 3.0).abs() < 1e-4,
+        "view z of origin must be -3.0 (right-handed), got {pz}"
+    );
 }
 
 /// perspective matrix diagonal: m[0] = f/aspect, m[5] = f.
@@ -235,11 +247,7 @@ fn perspective_diagonal_elements() {
 #[test]
 fn renderer_front_facing_triangle_produces_pixels() {
     let mut mesh = VtkPolyData::default();
-    mesh.points = vec![
-        [-0.5, -0.5, 0.0],
-        [ 0.5, -0.5, 0.0],
-        [ 0.0,  0.5, 0.0],
-    ];
+    mesh.points = vec![[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
     mesh.polygons = vec![vec![0, 1, 2]];
 
     let camera = MeshCamera {
@@ -261,7 +269,10 @@ fn renderer_front_facing_triangle_produces_pixels() {
 
     // At least one pixel must be non-transparent (alpha > 0)
     let lit = buf.chunks_exact(4).any(|px| px[3] > 0);
-    assert!(lit, "front-facing triangle must produce at least one lit pixel");
+    assert!(
+        lit,
+        "front-facing triangle must produce at least one lit pixel"
+    );
 }
 
 /// Empty mesh renders to all-zero (transparent) buffer.
@@ -275,7 +286,10 @@ fn renderer_empty_mesh_all_zero() {
         &PhongMaterial::default(),
         &[],
     );
-    assert!(buf.iter().all(|&v| v == 0), "empty mesh must produce all-zero buffer");
+    assert!(
+        buf.iter().all(|&v| v == 0),
+        "empty mesh must produce all-zero buffer"
+    );
 }
 
 /// Output buffer has correct length for the viewport dimensions.
@@ -285,8 +299,17 @@ fn renderer_output_buffer_length() {
     let w = 100;
     let h = 80;
     let renderer = MeshRenderer::new(w, h);
-    let buf = renderer.render(&mesh, &MeshCamera::default(), &PhongMaterial::default(), &[]);
-    assert_eq!(buf.len(), w * h * 4, "buffer length must equal width * height * 4");
+    let buf = renderer.render(
+        &mesh,
+        &MeshCamera::default(),
+        &PhongMaterial::default(),
+        &[],
+    );
+    assert_eq!(
+        buf.len(),
+        w * h * 4,
+        "buffer length must equal width * height * 4"
+    );
 }
 
 /// Z-ordering: a nearer triangle occludes a farther one at the same screen position.
@@ -300,9 +323,13 @@ fn renderer_z_buffer_nearer_occludes_farther() {
     let mut mesh = VtkPolyData::default();
     mesh.points = vec![
         // Near triangle at z=-1 (bright white material below)
-        [-0.5, -0.5, -1.0], [0.5, -0.5, -1.0], [0.0, 0.5, -1.0],
+        [-0.5, -0.5, -1.0],
+        [0.5, -0.5, -1.0],
+        [0.0, 0.5, -1.0],
         // Far triangle at z=-2 (same positions but farther back)
-        [-0.5, -0.5, -2.0], [0.5, -0.5, -2.0], [0.0, 0.5, -2.0],
+        [-0.5, -0.5, -2.0],
+        [0.5, -0.5, -2.0],
+        [0.0, 0.5, -2.0],
     ];
     mesh.polygons = vec![
         vec![0, 1, 2], // near (rendered first)
@@ -338,11 +365,7 @@ fn renderer_z_buffer_nearer_occludes_farther() {
 fn renderer_back_facing_triangle_culled() {
     let mut mesh = VtkPolyData::default();
     // Reversed winding: [0,2,1] instead of [0,1,2] — back-facing
-    mesh.points = vec![
-        [-0.5, -0.5, 0.0],
-        [ 0.5, -0.5, 0.0],
-        [ 0.0,  0.5, 0.0],
-    ];
+    mesh.points = vec![[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
     mesh.polygons = vec![vec![0, 2, 1]]; // reversed
 
     let camera = MeshCamera {
@@ -362,5 +385,8 @@ fn renderer_back_facing_triangle_culled() {
         &[DirectionalLight::default()],
     );
     let any_lit = buf.chunks_exact(4).any(|px| px[3] > 0);
-    assert!(!any_lit, "back-facing triangle must be culled (no lit pixels)");
+    assert!(
+        !any_lit,
+        "back-facing triangle must be culled (no lit pixels)"
+    );
 }

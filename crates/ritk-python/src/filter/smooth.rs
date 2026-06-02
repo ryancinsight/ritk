@@ -7,16 +7,9 @@ use ritk_core::filter::diffusion::{CoherenceConfig, CurvatureConfig};
 use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
 use ritk_core::filter::recursive_gaussian::DerivativeOrder;
 use ritk_core::filter::{
-    AnisotropicDiffusionFilter,
-    BilateralFilter,
-    BinShrinkImageFilter,
-    CoherenceEnhancingDiffusionFilter,
-    CurvatureAnisotropicDiffusionFilter,
-    DiscreteGaussianFilter,
-    GaussianFilter,
-    MedianFilter,
-    N4BiasFieldCorrectionFilter,
-    RecursiveGaussianFilter,
+    AnisotropicDiffusionFilter, BilateralFilter, BinShrinkImageFilter,
+    CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, DiscreteGaussianFilter,
+    GaussianFilter, MedianFilter, N4BiasFieldCorrectionFilter, RecursiveGaussianFilter,
 };
 
 /// Apply Gaussian smoothing to an image.

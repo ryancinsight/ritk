@@ -55,7 +55,7 @@
 pub(crate) mod math;
 pub mod state;
 
-use rayon::prelude::*;
+use moirai::ParallelSliceMut;
 
 use math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};
 pub use state::{CmaEsConfig, CmaEsResult, StopReason};
@@ -236,13 +236,10 @@ impl CmaEsOptimizer {
                 // Parallel evaluation across rayon threads — each candidate
                 // evaluation is independent (read-only access to the objective
                 // closure's captured state).  The objective must be Sync.
-                fvals
-                    .par_iter_mut()
-                    .enumerate()
-                    .for_each(|(k, entry)| {
-                        let x_slice = &xs[k * n..(k + 1) * n];
-                        *entry = (f(x_slice), k);
-                    });
+                fvals.par_mut().enumerate(|k, entry| {
+                    let x_slice = &xs[k * n..(k + 1) * n];
+                    *entry = (f(x_slice), k);
+                });
             } else {
                 for k in 0..lambda {
                     let x_slice = &xs[k * n..(k + 1) * n];

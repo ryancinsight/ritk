@@ -321,11 +321,9 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     );
     let large_flat = large_tensor.reshape([large_n]);
     let large_fix_scale = num_bins_f / 255.0;
-    let large_fixed_norm =
-        (large_flat * large_fix_scale).clamp(0.0, num_bins_f);
+    let large_fixed_norm = (large_flat * large_fix_scale).clamp(0.0, num_bins_f);
     let large_fixed_data = large_fixed_norm.into_data();
-    let large_fixed_slice: Vec<f32> =
-        large_fixed_data.as_slice::<f32>().unwrap().to_vec();
+    let large_fixed_slice: Vec<f32> = large_fixed_data.as_slice::<f32>().unwrap().to_vec();
 
     // Build the 64³ cache once (one-time cost), then benchmark the hot loop.
     let large_cache: SparseWFixedT =
@@ -336,11 +334,9 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
         &device,
     );
     let large_mov_scale = num_bins_f / 255.0;
-    let large_moving_norm =
-        (large_moving_tensor * large_mov_scale).clamp(0.0, num_bins_f);
+    let large_moving_norm = (large_moving_tensor * large_mov_scale).clamp(0.0, num_bins_f);
     let large_moving_data = large_moving_norm.into_data();
-    let large_moving_slice: Vec<f32> =
-        large_moving_data.as_slice::<f32>().unwrap().to_vec();
+    let large_moving_slice: Vec<f32> = large_moving_data.as_slice::<f32>().unwrap().to_vec();
 
     group.bench_function("sparse_cache_large64cubed", |b| {
         b.iter(|| {
@@ -359,5 +355,10 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_parzen_direct, bench_compaction_memory, bench_parzen_broad_sigma);
+criterion_group!(
+    benches,
+    bench_parzen_direct,
+    bench_compaction_memory,
+    bench_parzen_broad_sigma
+);
 criterion_main!(benches);

@@ -129,10 +129,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         for i in 0..pad_n {
             let a = vol_buf[i];
             let b = ker_buf[i];
-            vol_buf[i] = Complex::new(
-                a.re * b.re - a.im * b.im,
-                a.re * b.im + a.im * b.re,
-            );
+            vol_buf[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
         fft3d(
@@ -155,10 +152,8 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         for z in 0..d {
             for r in 0..h {
                 for c in 0..w {
-                    out[z * h * w + r * w + c] = vol_buf
-                        [(z + off_d) * slice + (r + off_h) * pad_w + (c + off_w)]
-                        .re
-                        * scale;
+                    out[z * h * w + r * w + c] =
+                        vol_buf[(z + off_d) * slice + (r + off_h) * pad_w + (c + off_w)].re * scale;
                 }
             }
         }

@@ -42,7 +42,10 @@ fn test_server_info_deserialize_all_fields() {
     assert_eq!(info.name, "monai");
     assert_eq!(info.description, "MONAI Label");
     assert_eq!(info.version, "0.5.0");
-    assert!(info.labels.is_object(), "labels must deserialise as a JSON object");
+    assert!(
+        info.labels.is_object(),
+        "labels must deserialise as a JSON object"
+    );
 }
 
 /// ServerInfo with missing optional fields falls back to defaults.
@@ -125,7 +128,10 @@ fn test_parse_infer_response_label_and_params() {
         "model field must round-trip"
     );
     let total = resp.params["latencies"]["total"].as_f64().unwrap();
-    assert!((total - 0.5).abs() < 1e-9, "latency must be 0.5; got {total}");
+    assert!(
+        (total - 0.5).abs() < 1e-9,
+        "latency must be 0.5; got {total}"
+    );
 }
 
 /// parse_infer_response returns ParseError when the label part is absent.
@@ -187,7 +193,10 @@ fn test_models_success_name_injected_from_key() {
     let models = client.models().unwrap();
     assert_eq!(models.len(), 1, "must return exactly one model");
     let m = &models[0];
-    assert_eq!(m.name, "seg_lung", "name must be injected from the JSON key");
+    assert_eq!(
+        m.name, "seg_lung",
+        "name must be injected from the JSON key"
+    );
     assert_eq!(m.model_type, ModelType::Segmentation);
     assert_eq!(m.labels, vec!["bg", "lung"]);
     assert_eq!(m.dimension, 3);
@@ -208,7 +217,10 @@ fn test_models_server_error_propagated() {
         panic!("expected ServerError, got: {err:?}");
     };
     assert_eq!(status, 500);
-    assert!(body.contains("Internal Server Error"), "body must contain error text");
+    assert!(
+        body.contains("Internal Server Error"),
+        "body must contain error text"
+    );
 }
 
 /// POST /infer/{model}?image={id} returns InferResponse with correct label and params.

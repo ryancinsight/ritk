@@ -121,7 +121,8 @@ fn test_rotate_90_cw_analytical_mapping() {
     assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)→(0,H-1)");
     // Original (0,2) → output (2, 1)
     assert_eq!(
-        px(&r, 2, 1), px(&img, 0, 2),
+        px(&r, 2, 1),
+        px(&img, 0, 2),
         "rotate_90_cw: (0,W-1)→(W-1,H-1)"
     );
     // Original (1,0) → output (0, 0)

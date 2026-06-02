@@ -12,7 +12,7 @@ tracing = { workspace = true }
 bytemuck = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-rayon = { workspace = true }
+moirai = { workspace = true }
 gaia = { workspace = true }
 rustfft = { workspace = true }
 rand = { workspace = true }

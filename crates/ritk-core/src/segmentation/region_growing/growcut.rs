@@ -24,7 +24,6 @@ use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use rayon::prelude::*;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -144,9 +143,8 @@ pub fn growcut_slice(
 
     for _ in 0..max_iter {
         // Parallel computation of (new_label, new_strength) per voxel.
-        let updates: Vec<(u32, f64)> = (0..n)
-            .into_par_iter()
-            .map(|idx| {
+        let updates: Vec<(u32, f64)> =
+            moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |idx| {
                 // If seed, keep immutable.
                 if is_seed[idx] {
                     return (labels[idx], strengths[idx]);
@@ -186,8 +184,7 @@ pub fn growcut_slice(
                     }
                 }
                 (best_label, best_strength)
-            })
-            .collect();
+            });
 
         // Check convergence and apply updates.
         let mut changed = false;

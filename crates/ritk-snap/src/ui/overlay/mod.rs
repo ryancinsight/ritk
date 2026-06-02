@@ -96,12 +96,7 @@ impl OverlayRenderer {
     /// - `cursor_value` — pixel value (HU) at the cursor position, or `None`.
     /// - `pointer_suv`  — SUVbw value under the pointer (PT only), or `None`.
     /// - `cursor_suv`   — SUVbw value at the linked-cursor voxel (PT only), or `None`.
-    pub fn draw(
-        painter: &Painter,
-        rect: Rect,
-        volume: &LoadedVolume,
-        ctx: OverlayContext,
-    ) {
+    pub fn draw(painter: &Painter, rect: Rect, volume: &LoadedVolume, ctx: OverlayContext) {
         let OverlayContext {
             axis,
             slice_index,

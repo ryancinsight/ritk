@@ -1,4 +1,4 @@
-use rayon::prelude::*;
+use moirai::ParallelSlice;
 use std::sync::Arc;
 
 use super::filter::CoherenceConfig;
@@ -187,9 +187,8 @@ pub fn smooth_structure_tensor(
 ) -> Vec<[f64; 6]> {
     let n = dims[0] * dims[1] * dims[2];
     // Process each component independently (embarrassingly parallel).
-    let smoothed_components: Vec<Vec<f64>> = (0..6)
-        .into_par_iter()
-        .map(|c| {
+    let smoothed_components: Vec<Vec<f64>> =
+        moirai::map_collect_index_with::<moirai::Parallel, _, _>(6, |c| {
             // Extract component c as a flat buffer.
             let mut buf: Vec<f64> = st.data.iter().map(|v| v[c]).collect();
             // Separable smoothing along z, y, x.
@@ -197,8 +196,7 @@ pub fn smooth_structure_tensor(
             buf = gaussian_smooth_1d(&buf, dims, 1, kernel);
             buf = gaussian_smooth_1d(&buf, dims, 2, kernel);
             buf
-        })
-        .collect();
+        });
     // Re-interleave into [f64; 6] per voxel.
     let mut out = vec![[0.0f64; 6]; n];
     for i in 0..n {
@@ -232,9 +230,8 @@ pub fn compute_divergence(
 
     // Compute diffusion tensor at every voxel (parallel).
     let d_tensors: Vec<[f64; 6]> = st_smooth
-        .par_iter()
-        .map(|&st| diffusion_tensor(st, alpha, contrast))
-        .collect();
+        .par()
+        .map_collect(|&st| diffusion_tensor(st, alpha, contrast));
 
     let mut div = vec![0.0f64; n];
 

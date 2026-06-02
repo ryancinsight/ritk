@@ -58,12 +58,7 @@ impl GpuFrameCache {
     /// | staging_buf | rows × cols × bytes_per_pixel |
     /// | params_buf  | 32 bytes (fixed)              |
     /// | lut_buf     | 4 096 bytes (fixed)           |
-    pub fn new(
-        device: &wgpu::Device,
-        rows: usize,
-        cols: usize,
-        bytes_per_pixel: u64,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, rows: usize, cols: usize, bytes_per_pixel: u64) -> Self {
         let pixel_bytes = rows as u64 * cols as u64 * bytes_per_pixel;
 
         let output_buf = device.create_buffer(&wgpu::BufferDescriptor {
@@ -97,6 +92,13 @@ impl GpuFrameCache {
             mapped_at_creation: false,
         });
 
-        Self { rows, cols, output_buf, staging_buf, params_buf, lut_buf }
+        Self {
+            rows,
+            cols,
+            output_buf,
+            staging_buf,
+            params_buf,
+            lut_buf,
+        }
     }
 }

@@ -6,7 +6,7 @@
 //! hot-path that reuses cached fixed-image weights.
 
 use burn::tensor::{Shape, TensorData};
-use rayon::prelude::*;
+use moirai::ParallelSliceMut;
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
@@ -40,7 +40,7 @@ pub fn build_sparse_w_fixed_transposed(
 
     // SPARSE-329-01: each element is (entries, inv_sum_f)
     let mut entries: SparseWFixedT = (0..n).map(|_| (Vec::with_capacity(7), 0.0f32)).collect();
-    entries.par_iter_mut().enumerate().for_each(|(i, entry)| {
+    entries.par_mut().enumerate(|i, entry| {
         // OOB check — reuse SampleWindow::mask_val (ARCH-321-04)
         if SampleWindow::mask_val(i, oob_mask).is_none() {
             return;
@@ -111,37 +111,33 @@ pub fn compute_joint_histogram_from_cache_sparse(
         }
     };
 
-    let histogram: Vec<f32> = (0..n)
-        .into_par_iter()
-        .fold(
-            || pool.checkout(),
-            |mut local_hist, i| {
-                if let Some((_m_val, m_range, m_weights, inv_sum_m)) =
-                    SampleWindow::new_moving_only(i, moving_norm, num_bins, &mov_cfg, oob_mask)
-                {
-                    // SPARSE-329-01: combine inv_sum_f from cache with inv_sum_m
-                    let inv_sum_f = sparse_w_fixed[i].1; // per-sample inv_sum_f
-                    let inv_norm = inv_sum_f * inv_sum_m; // full joint normalization
-                    accumulate_sample_sparse(
-                        &mut local_hist,
-                        num_bins,
-                        m_range,
-                        &m_weights,
-                        inv_norm,
-                        &sparse_w_fixed[i].0, // fixed entries
-                    );
-                }
-                local_hist
-            },
-        )
-        .reduce(
-            || pool.checkout(),
-            |mut acc, local| {
-                merge_histograms(&mut acc, &local);
-                pool.return_buffer(local);
-                acc
-            },
-        );
+    let histogram: Vec<f32> = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || pool.checkout(),
+        |mut local_hist, i| {
+            if let Some((_m_val, m_range, m_weights, inv_sum_m)) =
+                SampleWindow::new_moving_only(i, moving_norm, num_bins, &mov_cfg, oob_mask)
+            {
+                // SPARSE-329-01: combine inv_sum_f from cache with inv_sum_m
+                let inv_sum_f = sparse_w_fixed[i].1; // per-sample inv_sum_f
+                let inv_norm = inv_sum_f * inv_sum_m; // full joint normalization
+                accumulate_sample_sparse(
+                    &mut local_hist,
+                    num_bins,
+                    m_range,
+                    &m_weights,
+                    inv_norm,
+                    &sparse_w_fixed[i].0, // fixed entries
+                );
+            }
+            local_hist
+        },
+        |mut acc, local| {
+            merge_histograms(&mut acc, &local);
+            pool.return_buffer(local);
+            acc
+        },
+    );
 
     TensorData::new(histogram, Shape::new([num_bins, num_bins]))
 }

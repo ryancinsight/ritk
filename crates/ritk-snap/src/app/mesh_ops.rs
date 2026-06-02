@@ -9,7 +9,9 @@
 //!   [`egui::TextureHandle`] composited on the MIP viewport.
 
 use super::state::SnapApp;
-use crate::render::mesh_render::{normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial};
+use crate::render::mesh_render::{
+    normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial,
+};
 use ritk_io::VtkPolyData;
 use std::f32::consts::PI;
 use std::path::Path;

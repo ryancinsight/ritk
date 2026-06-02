@@ -30,7 +30,6 @@
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 use std::collections::HashMap;
 
 // ── Public types ──────────────────────────────────────────────────────────────
@@ -105,12 +104,12 @@ pub fn label_overlap_measures_from_slices(
     // HashMap<label, (tp: usize, fp: usize, fn_: usize)>
     type Acc = (usize, usize, usize); // (TP, FP, FN)
 
-    let combined: HashMap<u32, Acc> = pred_slice
-        .par_iter()
-        .zip(gt_slice.par_iter())
-        .fold(HashMap::<u32, Acc>::new, |mut acc, (&p_f, &g_f)| {
-            let p = p_f as u32;
-            let g = g_f as u32;
+    let combined: HashMap<u32, Acc> = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        pred_slice.len(),
+        HashMap::<u32, Acc>::new,
+        |mut acc, i| {
+            let p = pred_slice[i] as u32;
+            let g = gt_slice[i] as u32;
             // Contribution for predicted label (if non-background)
             if p != 0 {
                 let e = acc.entry(p).or_insert((0, 0, 0));
@@ -126,8 +125,8 @@ pub fn label_overlap_measures_from_slices(
                 e.2 += 1; // FN for g
             }
             acc
-        })
-        .reduce(HashMap::<u32, Acc>::new, |mut a, b| {
+        },
+        |mut a, b| {
             for (k, (btp, bfp, bfn)) in b {
                 let e = a.entry(k).or_insert((0, 0, 0));
                 e.0 += btp;
@@ -135,7 +134,8 @@ pub fn label_overlap_measures_from_slices(
                 e.2 += bfn;
             }
             a
-        });
+        },
+    );
 
     let mut result: Vec<LabelOverlapMeasures> = combined
         .into_iter()

@@ -33,7 +33,8 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage
                 .apply_from_slice(vals, dims, arc.as_ref())
                 .map_err(|e| RitkPyError::runtime(e.to_string()))
         })
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Compute the discrete Laplacian ∇²I = ∂²I/∂z² + ∂²I/∂y² + ∂²I/∂x².
@@ -58,7 +59,8 @@ pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply the Canny edge detector to an image.
@@ -93,7 +95,8 @@ pub fn canny_edge_detect(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply the Laplacian of Gaussian (LoG) filter.
@@ -121,7 +124,8 @@ pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> Rit
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Compute the Sobel gradient magnitude of an image.
@@ -148,5 +152,6 @@ pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }

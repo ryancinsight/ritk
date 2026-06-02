@@ -148,11 +148,7 @@ fn jet_color(t: f32) -> [f32; 3] {
     } else {
         0.0
     };
-    [
-        r.clamp(0.0, 1.0),
-        g.clamp(0.0, 1.0),
-        b.clamp(0.0, 1.0),
-    ]
+    [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)]
 }
 
 /// Moreland (2009) diverging blue–white–red colormap.
@@ -379,7 +375,11 @@ mod tests {
         let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Viridis);
         let c = lut.map_value(0.0);
         // viridis[0] = [0.267, 0.005, 0.329]; allow LUT quantisation
-        assert!(c[2] > c[0] && c[2] > c[1], "blue must dominate at t=0: {:?}", c);
+        assert!(
+            c[2] > c[0] && c[2] > c[1],
+            "blue must dominate at t=0: {:?}",
+            c
+        );
     }
 
     #[test]

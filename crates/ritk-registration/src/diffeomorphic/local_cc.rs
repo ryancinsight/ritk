@@ -18,7 +18,6 @@
 //! window reads are independent (read-only access, no data races).
 
 use crate::deformable_field_ops::flat;
-use rayon::prelude::*;
 
 mod forces;
 #[cfg(test)]
@@ -96,9 +95,10 @@ pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: 
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let r = radius as isize;
-    let (total_cc, count) = (0..n)
-        .into_par_iter()
-        .map(|fi| {
+    let (total_cc, count) = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
+        n,
+        (0.0_f64, 0usize),
+        |fi| {
             let ix = fi % nx;
             let iy = (fi / nx) % ny;
             let iz = fi / (ny * nx);
@@ -109,8 +109,9 @@ pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: 
             } else {
                 (0.0_f64, 0usize)
             }
-        })
-        .reduce(|| (0.0_f64, 0usize), |(a, b), (c, d)| (a + c, b + d));
+        },
+        |(a, b), (c, d)| (a + c, b + d),
+    );
     if count == 0 {
         0.0
     } else {

@@ -21,13 +21,12 @@
 //! ```
 
 use super::association::{AeTitle, MoveResponse, NetworkingError};
-use super::context::AssociationConfig;
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str,
-    parse_command_response, CommandElementValue, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET,
-    IMPLICIT_VR_LE_TS, PRIORITY_MEDIUM, STATUS_PENDING, STATUS_PENDING_WARN,
-    STUDY_ROOT_MOVE_SOP_CLASS,
+    build_command_pdu, build_dataset_ivr_le, encode_str, parse_command_response,
+    CommandElementValue, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS, PRIORITY_MEDIUM,
+    STATUS_PENDING, STATUS_PENDING_WARN, STUDY_ROOT_MOVE_SOP_CLASS,
 };
+use super::context::AssociationConfig;
 use super::echo::{find_ctx_id, receive_command_pdv};
 use dicom_ul::association::client::ClientAssociationOptions;
 use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
@@ -84,7 +83,10 @@ fn retrieve_impl(
     let ctx_id = find_ctx_id(&assoc)?;
 
     let cmd_bytes = build_command_pdu(&[
-        (0x0000_0002, CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS)),
+        (
+            0x0000_0002,
+            CommandElementValue::Ui(STUDY_ROOT_MOVE_SOP_CLASS),
+        ),
         (0x0000_0100, CommandElementValue::Us(C_MOVE_RQ)),
         (0x0000_0110, CommandElementValue::Us(1u16)),
         (0x0000_0600, CommandElementValue::Str(destination.as_str())),
@@ -183,7 +185,12 @@ pub fn retrieve(
     destination: &MoveDestination,
     study_instance_uid: &str,
 ) -> Result<MoveResponse, NetworkingError> {
-    retrieve_impl(config, destination, "STUDY", &[(0x0020, 0x000D, study_instance_uid)])
+    retrieve_impl(
+        config,
+        destination,
+        "STUDY",
+        &[(0x0020, 0x000D, study_instance_uid)],
+    )
 }
 
 /// Issue a Series-level C-MOVE request to the configured PACS.

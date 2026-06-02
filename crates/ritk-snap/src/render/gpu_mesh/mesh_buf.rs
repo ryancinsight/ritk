@@ -17,15 +17,15 @@
 //!   (always a multiple of 3).
 //! - Face normals for degenerate triangles (zero area) default to `[0, 0, 1]`.
 
+use super::params::MeshVertex;
 use ritk_io::VtkPolyData;
 use wgpu::util::DeviceExt as _;
-use super::params::MeshVertex;
 
 /// GPU vertex and index buffers for one mesh, plus a change-detection key.
 pub(super) struct GpuMeshBufs {
     pub vertex_buf: wgpu::Buffer,
-    pub index_buf:  wgpu::Buffer,
-    pub n_indices:  u32,
+    pub index_buf: wgpu::Buffer,
+    pub n_indices: u32,
     /// Raw pointer value of `mesh.points` data used for change detection.
     /// If this changes, the buffers must be rebuilt.
     pub points_ptr: usize,
@@ -43,15 +43,15 @@ impl GpuMeshBufs {
         }
 
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label:    Some("mesh_vertex_buf"),
+            label: Some("mesh_vertex_buf"),
             contents: bytemuck::cast_slice(&vertices),
-            usage:    wgpu::BufferUsages::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label:    Some("mesh_index_buf"),
+            label: Some("mesh_index_buf"),
             contents: bytemuck::cast_slice(&indices),
-            usage:    wgpu::BufferUsages::INDEX,
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         let points_ptr = mesh.points.as_ptr() as usize;
@@ -108,8 +108,15 @@ fn build_mesh_cpu(mesh: &VtkPolyData) -> (Vec<MeshVertex>, Vec<u32>) {
             };
             let (a, b, c) = (a as usize, b as usize, c as usize);
             if a < n_pts && b < n_pts && c < n_pts {
-                tris.push([strip[i], if i % 2 == 0 { strip[i+1] } else { strip[i] },
-                           if i % 2 == 0 { strip[i+2] } else { strip[i+1] }]);
+                tris.push([
+                    strip[i],
+                    if i % 2 == 0 { strip[i + 1] } else { strip[i] },
+                    if i % 2 == 0 {
+                        strip[i + 2]
+                    } else {
+                        strip[i + 1]
+                    },
+                ]);
                 let _ = c; // suppress unused warning; validation done above
                 let _ = b;
                 let _ = a;
@@ -142,24 +149,29 @@ fn build_mesh_cpu(mesh: &VtkPolyData) -> (Vec<MeshVertex>, Vec<u32>) {
     }
 
     // Build MeshVertex array.
-    let mut vertices: Vec<MeshVertex> = mesh.points.iter().enumerate().map(|(i, &p)| {
-        let n = match &precomputed_normals {
-            Some(normals) => normals[i],
-            None          => normalize3(normal_acc[i]),
-        };
-        MeshVertex {
-            position: p,
-            _pad0: 1.0,   // W = 1.0 for position (homogeneous point)
-            normal: n,
-            _pad1: 0.0,   // W = 0.0 for normal (direction vector)
-        }
-    }).collect();
+    let mut vertices: Vec<MeshVertex> = mesh
+        .points
+        .iter()
+        .enumerate()
+        .map(|(i, &p)| {
+            let n = match &precomputed_normals {
+                Some(normals) => normals[i],
+                None => normalize3(normal_acc[i]),
+            };
+            MeshVertex {
+                position: p,
+                _pad0: 1.0, // W = 1.0 for position (homogeneous point)
+                normal: n,
+                _pad1: 0.0, // W = 0.0 for normal (direction vector)
+            }
+        })
+        .collect();
 
     // Guard: if no normals were accumulated for a vertex (isolated vertex not
     // part of any triangle), assign a default up normal [0,0,1].
     if precomputed_normals.is_none() {
         for (i, acc) in normal_acc.iter().enumerate() {
-            let len2 = acc[0]*acc[0] + acc[1]*acc[1] + acc[2]*acc[2];
+            let len2 = acc[0] * acc[0] + acc[1] * acc[1] + acc[2] * acc[2];
             if len2 < 1e-24 {
                 vertices[i].normal = [0.0, 0.0, 1.0];
             }
@@ -186,20 +198,22 @@ fn get_precomputed_normals(mesh: &VtkPolyData) -> Option<Vec<[f32; 3]>> {
 // ── Vector math helpers ───────────────────────────────────────────────────────
 
 fn face_normal(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3]) -> [f32; 3] {
-    let e0 = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]];
-    let e1 = [p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]];
-    let n  = [
-        e0[1]*e1[2] - e0[2]*e1[1],
-        e0[2]*e1[0] - e0[0]*e1[2],
-        e0[0]*e1[1] - e0[1]*e1[0],
+    let e0 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+    let e1 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+    let n = [
+        e0[1] * e1[2] - e0[2] * e1[1],
+        e0[2] * e1[0] - e0[0] * e1[2],
+        e0[0] * e1[1] - e0[1] * e1[0],
     ];
     normalize3(n)
 }
 
 fn normalize3(v: [f32; 3]) -> [f32; 3] {
-    let len = (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt();
-    if len < 1e-12 { return [0.0, 0.0, 1.0]; }
-    [v[0]/len, v[1]/len, v[2]/len]
+    let len = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if len < 1e-12 {
+        return [0.0, 0.0, 1.0];
+    }
+    [v[0] / len, v[1] / len, v[2] / len]
 }
 
 #[cfg(test)]
@@ -210,8 +224,8 @@ mod tests {
     #[test]
     fn single_triangle_yields_three_indices() {
         let mut mesh = VtkPolyData::default();
-        mesh.points = vec![[0.0,0.0,0.0],[1.0,0.0,0.0],[0.0,1.0,0.0]];
-        mesh.polygons = vec![vec![0,1,2]];
+        mesh.points = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        mesh.polygons = vec![vec![0, 1, 2]];
         let (verts, idxs) = build_mesh_cpu(&mesh);
         assert_eq!(verts.len(), 3, "vertex count");
         assert_eq!(idxs.len(), 3, "index count");
@@ -220,7 +234,7 @@ mod tests {
     /// Face normal for XY-plane triangle is [0,0,1].
     #[test]
     fn face_normal_xy_plane() {
-        let n = face_normal([0.0,0.0,0.0],[1.0,0.0,0.0],[0.0,1.0,0.0]);
+        let n = face_normal([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
         assert!((n[0]).abs() < 1e-6);
         assert!((n[1]).abs() < 1e-6);
         assert!((n[2] - 1.0).abs() < 1e-6, "z = {}", n[2]);
@@ -240,10 +254,18 @@ mod tests {
     fn quad_fan_triangulates_to_two_triangles() {
         let mut mesh = VtkPolyData::default();
         mesh.points = vec![
-            [-1.0,-1.0,0.0],[1.0,-1.0,0.0],[1.0,1.0,0.0],[-1.0,1.0,0.0]
+            [-1.0, -1.0, 0.0],
+            [1.0, -1.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [-1.0, 1.0, 0.0],
         ];
-        mesh.polygons = vec![vec![0,1,2,3]];
+        mesh.polygons = vec![vec![0, 1, 2, 3]];
         let (_verts, idxs) = build_mesh_cpu(&mesh);
-        assert_eq!(idxs.len(), 6, "2 triangles × 3 indices = 6, got {}", idxs.len());
+        assert_eq!(
+            idxs.len(),
+            6,
+            "2 triangles × 3 indices = 6, got {}",
+            idxs.len()
+        );
     }
 }

@@ -61,13 +61,13 @@ pub(crate) fn to_py_pair(
         inputs.moving_spacing,
         inputs.moving_direction,
     );
-    (into_py_image(warped_fixed_img), into_py_image(warped_moving_img))
+    (
+        into_py_image(warped_fixed_img),
+        into_py_image(warped_moving_img),
+    )
 }
 
-pub(crate) fn to_py_moving(
-    warped_moving: Vec<f32>,
-    inputs: &MatchingImageInputs,
-) -> PyImage {
+pub(crate) fn to_py_moving(warped_moving: Vec<f32>, inputs: &MatchingImageInputs) -> PyImage {
     into_py_image(vec_to_image(
         warped_moving,
         inputs.fixed_shape,

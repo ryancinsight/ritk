@@ -7,8 +7,7 @@ use rfd::FileDialog;
 impl SnapApp {
     pub(super) fn save_rt_struct_dialog(&mut self) {
         let (Some(vol), Some(editor)) = (self.loaded.as_ref(), self.label_editor.as_ref()) else {
-            self.status_message =
-                "Save RT-STRUCT: no volume or segmentation loaded.".to_owned();
+            self.status_message = "Save RT-STRUCT: no volume or segmentation loaded.".to_owned();
             return;
         };
 
@@ -29,19 +28,20 @@ impl SnapApp {
         match ritk_io::label_map_to_rt_struct(map, origin, spacing, direction) {
             Ok(ss) => match ritk_io::write_rt_struct(&path, &ss) {
                 Ok(()) => {
-                    self.status_message =
-                        format!("Saved RT-STRUCT ({} ROIs) to {}", ss.rois.len(), path.display());
+                    self.status_message = format!(
+                        "Saved RT-STRUCT ({} ROIs) to {}",
+                        ss.rois.len(),
+                        path.display()
+                    );
                     info!("{}", self.status_message);
                 }
                 Err(e) => {
-                    self.status_message =
-                        format!("RT-STRUCT write failed: {e:#}");
+                    self.status_message = format!("RT-STRUCT write failed: {e:#}");
                     error!("{}", self.status_message);
                 }
             },
             Err(e) => {
-                self.status_message =
-                    format!("RT-STRUCT conversion failed: {e:#}");
+                self.status_message = format!("RT-STRUCT conversion failed: {e:#}");
                 error!("{}", self.status_message);
             }
         }
@@ -109,9 +109,8 @@ mod tests {
         let vol = app.loaded.as_ref().unwrap();
         let editor = app.label_editor.as_ref().unwrap();
         let map = editor.current_map();
-        let ss = ritk_io::label_map_to_rt_struct(
-            map, vol.origin, vol.spacing, vol.direction,
-        ).expect("convert");
+        let ss = ritk_io::label_map_to_rt_struct(map, vol.origin, vol.spacing, vol.direction)
+            .expect("convert");
 
         ritk_io::write_rt_struct(&path, &ss).expect("write");
 
@@ -127,7 +126,9 @@ mod tests {
     fn save_rt_struct_all_rois_preserved() {
         let mut app = volume_with_segmentation();
         let editor = app.label_editor.as_mut().unwrap();
-        let next_id = editor.add_label("Organ", [0, 255, 0, 255]).expect("add label");
+        let next_id = editor
+            .add_label("Organ", [0, 255, 0, 255])
+            .expect("add label");
         let map = editor.current_map();
         let mut lm = map.clone();
         for y in 2..4 {
@@ -140,9 +141,8 @@ mod tests {
         let vol = app.loaded.as_ref().unwrap();
         let editor = app.label_editor.as_ref().unwrap();
         let map = editor.current_map();
-        let ss = ritk_io::label_map_to_rt_struct(
-            map, vol.origin, vol.spacing, vol.direction,
-        ).expect("convert");
+        let ss = ritk_io::label_map_to_rt_struct(map, vol.origin, vol.spacing, vol.direction)
+            .expect("convert");
 
         assert_eq!(ss.rois.len(), 2);
         let names: Vec<&str> = ss.rois.iter().map(|r| r.roi_name.as_str()).collect();

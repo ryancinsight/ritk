@@ -249,7 +249,6 @@ fn histogram_pool_concurrent_checkout_return() {
     // a buffer, writes a unique marker, and returns it. After all
     // threads complete, every buffer should be returned and the
     // pool should be in a consistent state.
-    use rayon::prelude::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     let num_bins_sq = 256;
@@ -259,7 +258,7 @@ fn histogram_pool_concurrent_checkout_return() {
         .unwrap_or(4);
     let counter = AtomicUsize::new(0);
 
-    (0..thread_count * 3).into_par_iter().for_each(|_| {
+    moirai::for_each_index_with::<moirai::Adaptive, _>(thread_count * 3, |_| {
         let mut buf = pool.checkout();
         // Write a unique marker to verify the buffer is correctly zeroed
         let idx = counter.fetch_add(1, Ordering::Relaxed) % num_bins_sq;

@@ -14,16 +14,16 @@ use super::params::MeshVertex;
 
 pub(super) struct GpuMeshContext {
     pub device: wgpu::Device,
-    pub queue:  wgpu::Queue,
+    pub queue: wgpu::Queue,
 
     pub geom_base_pipeline: wgpu::RenderPipeline,
     pub geom_peel_pipeline: wgpu::RenderPipeline,
-    pub ssao_pipeline:      wgpu::ComputePipeline,
+    pub ssao_pipeline: wgpu::ComputePipeline,
     pub composite_pipeline: wgpu::ComputePipeline,
 
     pub geom_base_bgl: wgpu::BindGroupLayout,
     pub geom_peel_bgl: wgpu::BindGroupLayout,
-    pub ssao_bgl:      wgpu::BindGroupLayout,
+    pub ssao_bgl: wgpu::BindGroupLayout,
     pub composite_bgl: wgpu::BindGroupLayout,
 }
 
@@ -37,11 +37,13 @@ impl GpuMeshContext {
                 backends: wgpu::Backends::all(),
                 ..Default::default()
             });
-            let adapter = instance.request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            }).await?;
+            let adapter = instance
+                .request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                })
+                .await?;
             adapter
                 .request_device(&wgpu::DeviceDescriptor::default(), None)
                 .await
@@ -99,8 +101,8 @@ impl GpuMeshContext {
         };
 
         let vs_fs = wgpu::ShaderStages::VERTEX_FRAGMENT;
-        let fs    = wgpu::ShaderStages::FRAGMENT;
-        let cs    = wgpu::ShaderStages::COMPUTE;
+        let fs = wgpu::ShaderStages::FRAGMENT;
+        let cs = wgpu::ShaderStages::COMPUTE;
 
         // ── geom_base BGL: bindings 0=scene(VS+FS), 1=lights(FS), 2=material(FS) ─
         let geom_base_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -184,13 +186,13 @@ impl GpuMeshContext {
         };
 
         let primitive = wgpu::PrimitiveState {
-            topology:            wgpu::PrimitiveTopology::TriangleList,
-            strip_index_format:  None,
-            front_face:          wgpu::FrontFace::Ccw,
-            cull_mode:           Some(wgpu::Face::Back),
-            polygon_mode:        wgpu::PolygonMode::Fill,
-            unclipped_depth:     false,
-            conservative:        false,
+            topology: wgpu::PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: wgpu::FrontFace::Ccw,
+            cull_mode: Some(wgpu::Face::Back),
+            polygon_mode: wgpu::PolygonMode::Fill,
+            unclipped_depth: false,
+            conservative: false,
         };
 
         // Base pipeline: 2 color targets (Rgba8Unorm + Rgba16Float).
@@ -252,13 +254,11 @@ impl GpuMeshContext {
             fragment: Some(wgpu::FragmentState {
                 module: &peel_module,
                 entry_point: "fs_peel_main",
-                targets: &[
-                    Some(wgpu::ColorTargetState {
-                        format: wgpu::TextureFormat::Rgba8Unorm,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    }),
-                ],
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             }),
             multiview: None,
@@ -292,11 +292,16 @@ impl GpuMeshContext {
         });
 
         Some(Self {
-            device, queue,
-            geom_base_pipeline, geom_peel_pipeline,
-            ssao_pipeline, composite_pipeline,
-            geom_base_bgl, geom_peel_bgl,
-            ssao_bgl, composite_bgl,
+            device,
+            queue,
+            geom_base_pipeline,
+            geom_peel_pipeline,
+            ssao_pipeline,
+            composite_pipeline,
+            geom_base_bgl,
+            geom_peel_bgl,
+            ssao_bgl,
+            composite_bgl,
         })
     }
 }

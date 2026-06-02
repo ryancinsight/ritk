@@ -82,20 +82,31 @@ pub fn jacobian_determinant(
 /// Raises:
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
-pub fn analyze_jacobian<'a>(py: Python<'a>, jac: &PyImage) -> RitkResult<pyo3::Bound<'a, pyo3::types::PyDict>> {
+pub fn analyze_jacobian<'a>(
+    py: Python<'a>,
+    jac: &PyImage,
+) -> RitkResult<pyo3::Bound<'a, pyo3::types::PyDict>> {
     let jac_inner = std::sync::Arc::clone(&jac.inner);
     let stats = py.allow_threads(|| {
         jacobian::analyze_jacobian(jac_inner.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     let dict = pyo3::types::PyDict::new_bound(py);
-    dict.set_item("min", stats.min).map_err(RitkPyError::from_py)?;
-    dict.set_item("max", stats.max).map_err(RitkPyError::from_py)?;
-    dict.set_item("mean", stats.mean).map_err(RitkPyError::from_py)?;
-    dict.set_item("num_folded", stats.num_folded).map_err(RitkPyError::from_py)?;
-    dict.set_item("num_compressed", stats.num_compressed).map_err(RitkPyError::from_py)?;
-    dict.set_item("num_expanded", stats.num_expanded).map_err(RitkPyError::from_py)?;
-    dict.set_item("num_valid", stats.num_valid).map_err(RitkPyError::from_py)?;
-    dict.set_item("total_voxels", stats.total_voxels).map_err(RitkPyError::from_py)?;
+    dict.set_item("min", stats.min)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("max", stats.max)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("mean", stats.mean)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("num_folded", stats.num_folded)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("num_compressed", stats.num_compressed)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("num_expanded", stats.num_expanded)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("num_valid", stats.num_valid)
+        .map_err(RitkPyError::from_py)?;
+    dict.set_item("total_voxels", stats.total_voxels)
+        .map_err(RitkPyError::from_py)?;
     Ok(dict)
 }

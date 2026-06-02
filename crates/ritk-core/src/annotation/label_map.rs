@@ -64,7 +64,11 @@ impl LabelMap {
                 expected
             ));
         }
-        Ok(Self { shape, data: Arc::new(data), table })
+        Ok(Self {
+            shape,
+            data: Arc::new(data),
+            table,
+        })
     }
 
     /// Total number of voxels.

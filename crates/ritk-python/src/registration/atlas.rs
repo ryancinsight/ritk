@@ -119,40 +119,39 @@ pub fn build_atlas(
         subject_vecs.push(vals);
     }
 
-    py
-        .allow_threads(|| {
-            let subject_slices: Vec<&[f32]> = subject_vecs.iter().map(|v| v.as_slice()).collect();
-            let syn_config = MultiResSyNConfig {
-                num_levels: 3,
-                iterations_per_level: syn_iterations.unwrap_or_else(|| vec![100, 70, 20]),
-                sigma_smooth,
-                convergence_threshold: 1e-6,
-                convergence_window: 10,
-                n_squarings: 6,
-                cc_window_radius: cc_radius,
-                enforce_inverse_consistency: true,
-                gradient_step,
-            };
-            let config = AtlasConfig {
-                max_iterations,
-                convergence_threshold,
-                syn_config,
-            };
-            let reg = AtlasRegistration::new(config);
-            reg.build_atlas(&subject_slices, first_shape, [1.0, 1.0, 1.0])
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let template_image = vec_to_image(
-                result.template,
-                first_shape,
-                *subjects[0].borrow(py).inner.origin(),
-                *subjects[0].borrow(py).inner.spacing(),
-                *subjects[0].borrow(py).inner.direction(),
-            );
-            (into_py_image(template_image), result.convergence_history)
-        })
+    py.allow_threads(|| {
+        let subject_slices: Vec<&[f32]> = subject_vecs.iter().map(|v| v.as_slice()).collect();
+        let syn_config = MultiResSyNConfig {
+            num_levels: 3,
+            iterations_per_level: syn_iterations.unwrap_or_else(|| vec![100, 70, 20]),
+            sigma_smooth,
+            convergence_threshold: 1e-6,
+            convergence_window: 10,
+            n_squarings: 6,
+            cc_window_radius: cc_radius,
+            enforce_inverse_consistency: true,
+            gradient_step,
+        };
+        let config = AtlasConfig {
+            max_iterations,
+            convergence_threshold,
+            syn_config,
+        };
+        let reg = AtlasRegistration::new(config);
+        reg.build_atlas(&subject_slices, first_shape, [1.0, 1.0, 1.0])
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let template_image = vec_to_image(
+            result.template,
+            first_shape,
+            *subjects[0].borrow(py).inner.origin(),
+            *subjects[0].borrow(py).inner.spacing(),
+            *subjects[0].borrow(py).inner.direction(),
+        );
+        (into_py_image(template_image), result.convergence_history)
+    })
 }
 
 /// Fuse multiple atlas label maps via majority voting.
@@ -199,30 +198,29 @@ pub fn majority_vote_fusion(
         label_vecs.push(vals.iter().map(|&v| v.round() as u32).collect());
     }
 
-    py
-        .allow_threads(|| {
-            let label_slices: Vec<&[u32]> = label_vecs.iter().map(|v| v.as_slice()).collect();
-            majority_vote(&label_slices, first_shape).map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let labels_f32: Vec<f32> = result.labels.iter().map(|&l| l as f32).collect();
-            let labels_image = vec_to_image(
-                labels_f32,
-                first_shape,
-                *atlas_labels[0].borrow(py).inner.origin(),
-                *atlas_labels[0].borrow(py).inner.spacing(),
-                *atlas_labels[0].borrow(py).inner.direction(),
-            );
-            let confidence_image = vec_to_image(
-                result.confidence,
-                first_shape,
-                *atlas_labels[0].borrow(py).inner.origin(),
-                *atlas_labels[0].borrow(py).inner.spacing(),
-                *atlas_labels[0].borrow(py).inner.direction(),
-            );
-            (into_py_image(labels_image), into_py_image(confidence_image))
-        })
+    py.allow_threads(|| {
+        let label_slices: Vec<&[u32]> = label_vecs.iter().map(|v| v.as_slice()).collect();
+        majority_vote(&label_slices, first_shape).map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let labels_f32: Vec<f32> = result.labels.iter().map(|&l| l as f32).collect();
+        let labels_image = vec_to_image(
+            labels_f32,
+            first_shape,
+            *atlas_labels[0].borrow(py).inner.origin(),
+            *atlas_labels[0].borrow(py).inner.spacing(),
+            *atlas_labels[0].borrow(py).inner.direction(),
+        );
+        let confidence_image = vec_to_image(
+            result.confidence,
+            first_shape,
+            *atlas_labels[0].borrow(py).inner.origin(),
+            *atlas_labels[0].borrow(py).inner.spacing(),
+            *atlas_labels[0].borrow(py).inner.direction(),
+        );
+        (into_py_image(labels_image), into_py_image(confidence_image))
+    })
 }
 
 /// Fuse atlas label maps using the Joint Label Fusion (JLF) algorithm.
@@ -291,37 +289,36 @@ pub fn joint_label_fusion_py(
         lbl_vecs.push(lbl_vals.iter().map(|&v| v.round() as u32).collect());
     }
 
-    py
-        .allow_threads(|| {
-            let img_slices: Vec<&[f32]> = img_vecs.iter().map(|v| v.as_slice()).collect();
-            let lbl_slices: Vec<&[u32]> = lbl_vecs.iter().map(|v| v.as_slice()).collect();
-            let config = LabelFusionConfig { patch_radius, beta };
-            joint_label_fusion(
-                &target_vals,
-                &img_slices,
-                &lbl_slices,
-                target_shape,
-                &config,
-            )
-            .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let labels_f32: Vec<f32> = result.labels.iter().map(|&l| l as f32).collect();
-            let labels_image = vec_to_image(
-                labels_f32,
-                target_shape,
-                *target.inner.origin(),
-                *target.inner.spacing(),
-                *target.inner.direction(),
-            );
-            let confidence_image = vec_to_image(
-                result.confidence,
-                target_shape,
-                *target.inner.origin(),
-                *target.inner.spacing(),
-                *target.inner.direction(),
-            );
-            (into_py_image(labels_image), into_py_image(confidence_image))
-        })
+    py.allow_threads(|| {
+        let img_slices: Vec<&[f32]> = img_vecs.iter().map(|v| v.as_slice()).collect();
+        let lbl_slices: Vec<&[u32]> = lbl_vecs.iter().map(|v| v.as_slice()).collect();
+        let config = LabelFusionConfig { patch_radius, beta };
+        joint_label_fusion(
+            &target_vals,
+            &img_slices,
+            &lbl_slices,
+            target_shape,
+            &config,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let labels_f32: Vec<f32> = result.labels.iter().map(|&l| l as f32).collect();
+        let labels_image = vec_to_image(
+            labels_f32,
+            target_shape,
+            *target.inner.origin(),
+            *target.inner.spacing(),
+            *target.inner.direction(),
+        );
+        let confidence_image = vec_to_image(
+            result.confidence,
+            target_shape,
+            *target.inner.origin(),
+            *target.inner.spacing(),
+            *target.inner.direction(),
+        );
+        (into_py_image(labels_image), into_py_image(confidence_image))
+    })
 }

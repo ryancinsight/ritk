@@ -303,12 +303,7 @@ mod tests {
             TensorData::new(vec![1.0_f32; 2 * 2 * 2], Shape::new([2usize, 2, 2])),
             &device,
         );
-        let img = Image::new(
-            t,
-            Point::new([10.0, 20.0, 30.0]),
-            sp,
-            Direction::identity(),
-        );
+        let img = Image::new(t, Point::new([10.0, 20.0, 30.0]), sp, Direction::identity());
         let out = filter.apply(&img);
         assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
         assert_eq!(out.origin(), img.origin(), "origin must be preserved");

@@ -28,8 +28,8 @@ pub mod vesselness;
 pub use bias::N4BiasFieldCorrectionFilter;
 pub use bilateral::BilateralFilter;
 pub use bin_shrink::BinShrinkImageFilter;
-pub use cpr::{CprConfig, CprImageFilter};
 pub use cpr::{generate_path, generate_path_batch};
+pub use cpr::{CprConfig, CprImageFilter};
 pub use deconvolution::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };
@@ -56,8 +56,7 @@ pub use intensity::{
     AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
     BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, CosImageFilter,
-    DivideImageFilter,
-    ExpImageFilter, HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter,
+    DivideImageFilter, ExpImageFilter, HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter,
     IntensityWindowingFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
     MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter,
     SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter,

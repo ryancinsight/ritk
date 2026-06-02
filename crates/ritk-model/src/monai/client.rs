@@ -103,10 +103,7 @@ impl MonaiLabelClient {
                 // Inject the map key as "name" when the value object lacks the field.
                 if val.get("name").is_none() {
                     if let Some(obj) = val.as_object_mut() {
-                        obj.insert(
-                            "name".to_owned(),
-                            serde_json::Value::String(key),
-                        );
+                        obj.insert("name".to_owned(), serde_json::Value::String(key));
                     }
                 }
                 serde_json::from_value::<ModelInfo>(val).map_err(MonaiError::Json)

@@ -49,7 +49,8 @@ pub fn frangi_vesselness(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Apply the Sato multi-scale line filter for curvilinear structure detection.
@@ -87,5 +88,6 @@ pub fn sato_line_filter(
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }

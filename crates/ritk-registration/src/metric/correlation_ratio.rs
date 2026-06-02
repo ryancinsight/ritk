@@ -311,15 +311,25 @@ mod tests {
         let count = size * size * size;
 
         // Fixed: gradient ramp 0-255
-        let fixed_data: Vec<f32> = (0..count).map(|x| x as f32 * 255.0 / count as f32).collect();
+        let fixed_data: Vec<f32> = (0..count)
+            .map(|x| x as f32 * 255.0 / count as f32)
+            .collect();
         // Moving: same ramp shifted by 1 along x
-        let moving_data: Vec<f32> = (1..count + 1).map(|x| {
-            let val = x as f32 * 255.0 / count as f32;
-            val.clamp(0.0, 255.0)
-        }).collect();
+        let moving_data: Vec<f32> = (1..count + 1)
+            .map(|x| {
+                let val = x as f32 * 255.0 / count as f32;
+                val.clamp(0.0, 255.0)
+            })
+            .collect();
 
-        let fixed_t = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new([size, size, size])), &device);
-        let moving_t = Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new([size, size, size])), &device);
+        let fixed_t = Tensor::<B, 3>::from_data(
+            TensorData::new(fixed_data, Shape::new([size, size, size])),
+            &device,
+        );
+        let moving_t = Tensor::<B, 3>::from_data(
+            TensorData::new(moving_data, Shape::new([size, size, size])),
+            &device,
+        );
 
         let spacing = Spacing::new([1.0, 1.0, 1.0]);
         let origin = Point::new([0.0, 0.0, 0.0]);

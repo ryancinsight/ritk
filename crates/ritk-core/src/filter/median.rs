@@ -15,7 +15,6 @@ use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use rayon::prelude::*;
 
 /// Sliding-window median filter for 3-D volumes.
 ///
@@ -76,10 +75,10 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let cap = (2 * radius + 1).pow(3);
     let mut output = vec![0.0_f32; nz * ny * nx];
 
-    output
-        .par_chunks_mut(ny * nx)
-        .enumerate()
-        .for_each(|(iz, out_slice)| {
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+        &mut output,
+        ny * nx,
+        |iz, out_slice| {
             // Allocate once per z-slice (per Rayon thread); reused across all
             // voxels in the slice via clear() to avoid per-voxel heap allocation.
             let mut neighbors: Vec<f32> = Vec::with_capacity(cap);
@@ -111,7 +110,8 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
                     out_slice[iy * nx + ix] = neighbors[mid];
                 }
             }
-        });
+        },
+    );
 
     output
 }

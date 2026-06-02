@@ -26,7 +26,9 @@
 use egui::{Color32, Painter, Pos2, Rect, Stroke, Ui};
 
 use crate::render::histogram::{histogram_peak_count, Histogram};
-use crate::ui::histogram_interact::{wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry};
+use crate::ui::histogram_interact::{
+    wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry,
+};
 
 // ── visual constants ───────────────────────────────────────────────────────────
 

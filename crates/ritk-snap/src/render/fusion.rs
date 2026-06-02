@@ -170,8 +170,20 @@ mod tests {
         let s = test_volume([2, 3, 4], 2.0);
         let wl = WindowLevel::new(128.0, 256.0);
         let fused = render_fused_slice(
-            FusedSliceParams { volume: &p, axis: 0, slice: 1, wl, colormap: Colormap::Grayscale },
-            FusedSliceParams { volume: &s, axis: 0, slice: 1, wl, colormap: Colormap::Hot },
+            FusedSliceParams {
+                volume: &p,
+                axis: 0,
+                slice: 1,
+                wl,
+                colormap: Colormap::Grayscale,
+            },
+            FusedSliceParams {
+                volume: &s,
+                axis: 0,
+                slice: 1,
+                wl,
+                colormap: Colormap::Hot,
+            },
             0.0,
         );
         let primary = SliceRenderer::render(&p, 0, 1, wl, Colormap::Grayscale);
@@ -185,8 +197,20 @@ mod tests {
         let s = test_volume([3, 4, 6], 1.0);
         let wl = WindowLevel::new(64.0, 128.0);
         let fused = render_fused_slice(
-            FusedSliceParams { volume: &p, axis: 1, slice: 2, wl, colormap: Colormap::Grayscale },
-            FusedSliceParams { volume: &s, axis: 2, slice: 3, wl, colormap: Colormap::Jet },
+            FusedSliceParams {
+                volume: &p,
+                axis: 1,
+                slice: 2,
+                wl,
+                colormap: Colormap::Grayscale,
+            },
+            FusedSliceParams {
+                volume: &s,
+                axis: 2,
+                slice: 3,
+                wl,
+                colormap: Colormap::Jet,
+            },
             0.5,
         );
         // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], egui [width, height].
@@ -209,8 +233,20 @@ mod tests {
         pet.decay_correction = Some("START".to_owned());
 
         let fused = render_fused_slice(
-            FusedSliceParams { volume: &primary, axis: 0, slice: 0, wl: WindowLevel::new(40.0, 400.0), colormap: Colormap::Grayscale },
-            FusedSliceParams { volume: &pet, axis: 0, slice: 0, wl: WindowLevel::new(3.0, 6.0), colormap: Colormap::Hot },
+            FusedSliceParams {
+                volume: &primary,
+                axis: 0,
+                slice: 0,
+                wl: WindowLevel::new(40.0, 400.0),
+                colormap: Colormap::Grayscale,
+            },
+            FusedSliceParams {
+                volume: &pet,
+                axis: 0,
+                slice: 0,
+                wl: WindowLevel::new(3.0, 6.0),
+                colormap: Colormap::Hot,
+            },
             1.0,
         );
 
@@ -239,8 +275,20 @@ mod tests {
         secondary.decay_correction = Some("START".to_owned());
 
         let fused = render_fused_slice(
-            FusedSliceParams { volume: &primary, axis: 0, slice: 0, wl: WindowLevel::new(40.0, 400.0), colormap: Colormap::Grayscale },
-            FusedSliceParams { volume: &secondary, axis: 0, slice: 0, wl: WindowLevel::new(3.0, 6.0), colormap: Colormap::Hot },
+            FusedSliceParams {
+                volume: &primary,
+                axis: 0,
+                slice: 0,
+                wl: WindowLevel::new(40.0, 400.0),
+                colormap: Colormap::Grayscale,
+            },
+            FusedSliceParams {
+                volume: &secondary,
+                axis: 0,
+                slice: 0,
+                wl: WindowLevel::new(3.0, 6.0),
+                colormap: Colormap::Hot,
+            },
             1.0,
         );
 

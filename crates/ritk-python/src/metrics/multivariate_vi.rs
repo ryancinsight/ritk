@@ -41,8 +41,8 @@ pub fn compute_multivariate_variation_of_information(
             images.len()
         )));
     }
-    let (vectors, _) = collect_image_vectors(&images)
-        .map_err(|e| RitkPyError::value(e.to_string()))?;
+    let (vectors, _) =
+        collect_image_vectors(&images).map_err(|e| RitkPyError::value(e.to_string()))?;
     if !(2..=64).contains(&num_bins) {
         return Err(RitkPyError::value(format!(
             "num_bins must be in [2, 64], got {}",
@@ -51,8 +51,7 @@ pub fn compute_multivariate_variation_of_information(
     }
 
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
-    multivariate_vi_slices(&slices, num_bins)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    multivariate_vi_slices(&slices, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
 #[cfg(test)]

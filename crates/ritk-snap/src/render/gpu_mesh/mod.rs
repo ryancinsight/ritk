@@ -43,8 +43,8 @@ mod passes;
 use egui::ColorImage;
 use ritk_io::VtkPolyData;
 
-use crate::render::mesh_render::{DirectionalLight, MeshCamera, PhongMaterial};
 use crate::render::mesh_render::{look_at, mat4_mul, normalize, perspective};
+use crate::render::mesh_render::{DirectionalLight, MeshCamera, PhongMaterial};
 
 use context::GpuMeshContext;
 use frame_cache::{GpuMeshFrameCache, N_PEEL_LAYERS};
@@ -62,16 +62,20 @@ mod tests;
 #[derive(Debug, Clone)]
 pub struct SsaoConfig {
     /// Hemisphere sample radius in view space. Default: 0.5.
-    pub radius:   f32,
+    pub radius: f32,
     /// Depth bias to prevent self-occlusion artefacts. Default: 0.025.
-    pub bias:     f32,
+    pub bias: f32,
     /// AO blend strength [0.0, 1.0]. 0.0 disables SSAO. Default: 0.8.
     pub strength: f32,
 }
 
 impl Default for SsaoConfig {
     fn default() -> Self {
-        Self { radius: 0.5, bias: 0.025, strength: 0.8 }
+        Self {
+            radius: 0.5,
+            bias: 0.025,
+            strength: 0.8,
+        }
     }
 }
 
@@ -86,14 +90,17 @@ pub struct MeshRenderConfig {
 
 impl Default for MeshRenderConfig {
     fn default() -> Self {
-        Self { peel_layers: N_PEEL_LAYERS, ssao: SsaoConfig::default() }
+        Self {
+            peel_layers: N_PEEL_LAYERS,
+            ssao: SsaoConfig::default(),
+        }
     }
 }
 
 // ── Pending readback ──────────────────────────────────────────────────────────
 
 struct PendingMeshReadback {
-    rx:   std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
+    rx: std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
     rows: usize,
     cols: usize,
 }
@@ -102,11 +109,11 @@ struct PendingMeshReadback {
 
 /// GPU mesh renderer: OIT depth peeling + SSAO, non-blocking async readback.
 pub struct GpuMeshRenderer {
-    ctx:     GpuMeshContext,
-    cache:   Option<GpuMeshFrameCache>,
-    mesh:    Option<GpuMeshBufs>,
+    ctx: GpuMeshContext,
+    cache: Option<GpuMeshFrameCache>,
+    mesh: Option<GpuMeshBufs>,
     pending: Option<PendingMeshReadback>,
-    last:    Option<ColorImage>,
+    last: Option<ColorImage>,
 }
 
 impl GpuMeshRenderer {
@@ -115,7 +122,13 @@ impl GpuMeshRenderer {
     /// Returns `None` when no GPU is available.
     pub fn try_create() -> Option<Self> {
         let ctx = GpuMeshContext::try_new()?;
-        Some(Self { ctx, cache: None, mesh: None, pending: None, last: None })
+        Some(Self {
+            ctx,
+            cache: None,
+            mesh: None,
+            pending: None,
+            last: None,
+        })
     }
 
     /// Render `mesh` with the given camera, material, lights, and config.
@@ -127,11 +140,11 @@ impl GpuMeshRenderer {
     /// submitted.  Viewport resize clears pending state and restarts.
     pub fn render(
         &mut self,
-        mesh:   &VtkPolyData,
+        mesh: &VtkPolyData,
         camera: &MeshCamera,
-        mat:    &PhongMaterial,
+        mat: &PhongMaterial,
         lights: &[DirectionalLight],
-        width:  usize,
+        width: usize,
         height: usize,
         config: &MeshRenderConfig,
     ) -> Option<ColorImage> {
@@ -143,7 +156,9 @@ impl GpuMeshRenderer {
             if let Ok(Ok(())) = pending.rx.try_recv() {
                 let (rows, cols) = (pending.rows, pending.cols);
                 // Dimensions must match cache; if resize occurred, discard.
-                let collect = self.cache.as_ref()
+                let collect = self
+                    .cache
+                    .as_ref()
                     .map(|c| c.rows == rows && c.cols == cols)
                     .unwrap_or(false);
                 let image = if collect {
@@ -159,19 +174,21 @@ impl GpuMeshRenderer {
         }
 
         // Rebuild frame cache if viewport dimensions changed.
-        let needs_cache_rebuild = self.cache
+        let needs_cache_rebuild = self
+            .cache
             .as_ref()
             .map(|c| c.rows != height || c.cols != width)
             .unwrap_or(true);
 
         if needs_cache_rebuild {
-            self.cache   = Some(GpuMeshFrameCache::new(&self.ctx.device, height, width));
+            self.cache = Some(GpuMeshFrameCache::new(&self.ctx.device, height, width));
             self.pending = None;
-            self.last    = None;
+            self.last = None;
         }
 
         // Rebuild mesh buffers if the mesh changed (pointer-based change detection).
-        let needs_mesh_rebuild = self.mesh
+        let needs_mesh_rebuild = self
+            .mesh
             .as_ref()
             .map(|b| b.points_ptr != mesh.points.as_ptr() as usize)
             .unwrap_or(true);
@@ -187,8 +204,13 @@ impl GpuMeshRenderer {
                     build_uniforms(camera, mat, lights, config, height, width);
 
                 let rx = submit_mesh_async(
-                    &self.ctx, cache, gpu_mesh,
-                    scene, lights_block, material, ssao_u,
+                    &self.ctx,
+                    cache,
+                    gpu_mesh,
+                    scene,
+                    lights_block,
+                    material,
+                    ssao_u,
                     config.peel_layers,
                 );
                 self.pending = Some(PendingMeshReadback {
@@ -208,11 +230,11 @@ impl GpuMeshRenderer {
     #[cfg(test)]
     pub(super) fn render_sync(
         &mut self,
-        mesh:   &VtkPolyData,
+        mesh: &VtkPolyData,
         camera: &MeshCamera,
-        mat:    &PhongMaterial,
+        mat: &PhongMaterial,
         lights: &[DirectionalLight],
-        width:  usize,
+        width: usize,
         height: usize,
         config: &MeshRenderConfig,
     ) -> Option<ColorImage> {
@@ -236,29 +258,29 @@ impl GpuMeshRenderer {
 /// Build all uniform structs from public-API types.
 fn build_uniforms(
     camera: &MeshCamera,
-    mat:    &PhongMaterial,
+    mat: &PhongMaterial,
     lights: &[DirectionalLight],
     config: &MeshRenderConfig,
     height: usize,
-    width:  usize,
+    width: usize,
 ) -> (SceneUniforms, LightBlock, MaterialUniforms, SsaoUniforms) {
     let view = look_at(camera.eye, camera.target, camera.up);
     let proj = perspective(camera.fov_y, camera.aspect, camera.near, camera.far);
-    let mvp  = mat4_mul(proj, view);
+    let mvp = mat4_mul(proj, view);
 
     let scene = SceneUniforms {
         mvp,
-        mv:        view,
+        mv: view,
         peel_pass: 0,
-        _pad:      [0; 3],
+        _pad: [0; 3],
     };
 
     // Transform light directions to view space using the upper-left 3×3 of MV.
     let transform_dir = |d: [f32; 3]| -> [f32; 3] {
         let n = normalize(d);
-        let x = view[0]*n[0] + view[4]*n[1] + view[8]*n[2];
-        let y = view[1]*n[0] + view[5]*n[1] + view[9]*n[2];
-        let z = view[2]*n[0] + view[6]*n[1] + view[10]*n[2];
+        let x = view[0] * n[0] + view[4] * n[1] + view[8] * n[2];
+        let y = view[1] * n[0] + view[5] * n[1] + view[9] * n[2];
+        let z = view[2] * n[0] + view[6] * n[1] + view[10] * n[2];
         normalize([x, y, z])
     };
 
@@ -267,36 +289,41 @@ fn build_uniforms(
         lu[i] = LightUniform {
             direction_view: transform_dir(l.direction),
             _pad0: 0.0,
-            color:   l.color,
-            _pad1:   0.0,
+            color: l.color,
+            _pad1: 0.0,
             ambient: mat.ambient,
-            _pad2:   0.0,
+            _pad2: 0.0,
         };
     }
     // Fill unused light slots with zeroed entries (no contribution).
     let lights_block = LightBlock { lights: lu };
 
     let material = MaterialUniforms {
-        diffuse:        [mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1.0],
-        specular_shine: [mat.specular[0], mat.specular[1], mat.specular[2], mat.shininess],
-        opacity_pad:    [mat.opacity, 0.0, 0.0, 0.0],
+        diffuse: [mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1.0],
+        specular_shine: [
+            mat.specular[0],
+            mat.specular[1],
+            mat.specular[2],
+            mat.shininess,
+        ],
+        opacity_pad: [mat.opacity, 0.0, 0.0, 0.0],
     };
 
     // focal_x = proj[0] = f/aspect, focal_y = proj[5] = f  (column-major).
     let focal_x = proj[0];
     let focal_y = proj[5];
     let ssao_u = SsaoUniforms {
-        near:       camera.near,
-        far:        camera.far,
+        near: camera.near,
+        far: camera.far,
         focal_x,
         focal_y,
-        radius:     config.ssao.radius,
-        bias:       config.ssao.bias,
-        n_samples:  16,
-        strength:   config.ssao.strength,
-        viewport_w: width  as u32,
+        radius: config.ssao.radius,
+        bias: config.ssao.bias,
+        n_samples: 16,
+        strength: config.ssao.strength,
+        viewport_w: width as u32,
         viewport_h: height as u32,
-        _pad:       [0; 2],
+        _pad: [0; 2],
     };
 
     (scene, lights_block, material, ssao_u)

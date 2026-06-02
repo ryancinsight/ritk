@@ -19,7 +19,6 @@ use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 
 // ── ProjectionAxis ────────────────────────────────────────────────────────────
 
@@ -161,36 +160,30 @@ where
     let (vals, _) = extract_vec(image)?;
     match axis {
         ProjectionAxis::Z => {
-            let out: Vec<f32> = (0..ny * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
                     let y = idx / nx;
                     let x = idx % nx;
                     (0..nz).fold(init, |acc, z| combine(acc, vals[z * ny * nx + y * nx + x]))
-                })
-                .collect();
+                });
             Ok(rebuild(out, [1, ny, nx], image))
         }
         ProjectionAxis::Y => {
-            let out: Vec<f32> = (0..nz * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
                     let z = idx / nx;
                     let x = idx % nx;
                     (0..ny).fold(init, |acc, y| combine(acc, vals[z * ny * nx + y * nx + x]))
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, 1, nx], image))
         }
         ProjectionAxis::X => {
-            let out: Vec<f32> = (0..nz * ny)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
                     let z = idx / ny;
                     let y = idx % ny;
                     (0..nx).fold(init, |acc, x| combine(acc, vals[z * ny * nx + y * nx + x]))
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, ny, 1], image))
         }
     }
@@ -210,45 +203,39 @@ where
     let (vals, _) = extract_vec(image)?;
     match axis {
         ProjectionAxis::Z => {
-            let out: Vec<f32> = (0..ny * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
                     let y = idx / nx;
                     let x = idx % nx;
                     let s = (0..nz).fold(0.0_f64, |acc, z| {
                         acc + vals[z * ny * nx + y * nx + x] as f64
                     });
                     finalize(s, nz)
-                })
-                .collect();
+                });
             Ok(rebuild(out, [1, ny, nx], image))
         }
         ProjectionAxis::Y => {
-            let out: Vec<f32> = (0..nz * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
                     let z = idx / nx;
                     let x = idx % nx;
                     let s = (0..ny).fold(0.0_f64, |acc, y| {
                         acc + vals[z * ny * nx + y * nx + x] as f64
                     });
                     finalize(s, ny)
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, 1, nx], image))
         }
         ProjectionAxis::X => {
-            let out: Vec<f32> = (0..nz * ny)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
                     let z = idx / ny;
                     let y = idx % ny;
                     let s = (0..nx).fold(0.0_f64, |acc, x| {
                         acc + vals[z * ny * nx + y * nx + x] as f64
                     });
                     finalize(s, nx)
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, ny, 1], image))
         }
     }
@@ -262,9 +249,8 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
     let (vals, _) = extract_vec(image)?;
     match axis {
         ProjectionAxis::Z => {
-            let out: Vec<f32> = (0..ny * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
                     let y = idx / nx;
                     let x = idx % nx;
                     let mean = (0..nz).fold(0.0_f64, |acc, z| {
@@ -275,14 +261,12 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                         acc + d * d
                     }) / nz as f64;
                     var.sqrt() as f32
-                })
-                .collect();
+                });
             Ok(rebuild(out, [1, ny, nx], image))
         }
         ProjectionAxis::Y => {
-            let out: Vec<f32> = (0..nz * nx)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
                     let z = idx / nx;
                     let x = idx % nx;
                     let mean = (0..ny).fold(0.0_f64, |acc, y| {
@@ -293,14 +277,12 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                         acc + d * d
                     }) / ny as f64;
                     var.sqrt() as f32
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, 1, nx], image))
         }
         ProjectionAxis::X => {
-            let out: Vec<f32> = (0..nz * ny)
-                .into_par_iter()
-                .map(|idx| {
+            let out: Vec<f32> =
+                moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
                     let z = idx / ny;
                     let y = idx % ny;
                     let mean = (0..nx).fold(0.0_f64, |acc, x| {
@@ -311,8 +293,7 @@ fn project_stddev<B: Backend>(axis: ProjectionAxis, image: &Image<B, 3>) -> Resu
                         acc + d * d
                     }) / nx as f64;
                     var.sqrt() as f32
-                })
-                .collect();
+                });
             Ok(rebuild(out, [nz, ny, 1], image))
         }
     }

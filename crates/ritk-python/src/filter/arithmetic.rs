@@ -26,7 +26,8 @@ pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImag
         AddImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Pixelwise subtraction: out(x) = a(x) - b(x).
@@ -40,7 +41,8 @@ pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
         SubtractImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Pixelwise multiplication: out(x) = a(x) * b(x).
@@ -54,7 +56,8 @@ pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
         MultiplyImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Pixelwise division: out(x) = a(x) / b(x). Division by zero yields 0.
@@ -68,7 +71,8 @@ pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyI
         DivideImageFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Pixelwise minimum: out(x) = min(a(x), b(x)).
@@ -82,7 +86,8 @@ pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<Py
         ImageMinFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Pixelwise maximum: out(x) = max(a(x), b(x)).
@@ -96,5 +101,6 @@ pub fn maximum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<Py
         ImageMaxFilter::new()
             .apply(a_arc.as_ref(), b_arc.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }

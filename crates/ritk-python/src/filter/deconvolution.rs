@@ -8,8 +8,7 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
-    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution,
-    WienerDeconvolution,
+    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };
 
 /// Apply Wiener deconvolution to a 3-D image.

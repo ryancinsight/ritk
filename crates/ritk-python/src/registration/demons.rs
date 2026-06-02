@@ -53,41 +53,40 @@ pub fn demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py
-        .allow_threads(|| {
-            let config = DemonsConfig {
-                max_iterations,
-                sigma_diffusion,
-                sigma_fluid: 0.0,
-                max_step_length: 2.0,
-            };
-            let reg = ThirionDemonsRegistration::new(config);
-            reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let warped_image = vec_to_image(
-                result.warped,
-                fixed_shape,
-                fixed_origin,
-                fixed_spacing,
-                fixed_direction,
-            );
-            let n = nz * ny * nx;
-            let mut disp_packed = Vec::with_capacity(3 * n);
-            disp_packed.extend_from_slice(&result.disp_z);
-            disp_packed.extend_from_slice(&result.disp_y);
-            disp_packed.extend_from_slice(&result.disp_x);
-            let disp_image = vec_to_image(
-                disp_packed,
-                [3 * nz, ny, nx],
-                Point::new([0.0, 0.0, 0.0]),
-                Spacing::new([1.0, 1.0, 1.0]),
-                Direction::identity(),
-            );
-            (into_py_image(warped_image), into_py_image(disp_image))
-        })
+    py.allow_threads(|| {
+        let config = DemonsConfig {
+            max_iterations,
+            sigma_diffusion,
+            sigma_fluid: 0.0,
+            max_step_length: 2.0,
+        };
+        let reg = ThirionDemonsRegistration::new(config);
+        reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let warped_image = vec_to_image(
+            result.warped,
+            fixed_shape,
+            fixed_origin,
+            fixed_spacing,
+            fixed_direction,
+        );
+        let n = nz * ny * nx;
+        let mut disp_packed = Vec::with_capacity(3 * n);
+        disp_packed.extend_from_slice(&result.disp_z);
+        disp_packed.extend_from_slice(&result.disp_y);
+        disp_packed.extend_from_slice(&result.disp_x);
+        let disp_image = vec_to_image(
+            disp_packed,
+            [3 * nz, ny, nx],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+        (into_py_image(warped_image), into_py_image(disp_image))
+    })
 }
 
 /// Register a moving image to a fixed image using Diffeomorphic Demons.
@@ -135,44 +134,43 @@ pub fn diffeomorphic_demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py
-        .allow_threads(|| {
-            let config = DemonsConfig {
-                max_iterations,
-                sigma_diffusion,
-                sigma_fluid: 0.0,
-                max_step_length: 2.0,
-            };
-            let reg = DiffeomorphicDemonsRegistration {
-                config,
-                n_squarings,
-            };
-            reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let warped_image = vec_to_image(
-                result.warped,
-                fixed_shape,
-                fixed_origin,
-                fixed_spacing,
-                fixed_direction,
-            );
-            let n = nz * ny * nx;
-            let mut disp_packed = Vec::with_capacity(3 * n);
-            disp_packed.extend_from_slice(&result.disp_z);
-            disp_packed.extend_from_slice(&result.disp_y);
-            disp_packed.extend_from_slice(&result.disp_x);
-            let disp_image = vec_to_image(
-                disp_packed,
-                [3 * nz, ny, nx],
-                Point::new([0.0, 0.0, 0.0]),
-                Spacing::new([1.0, 1.0, 1.0]),
-                Direction::identity(),
-            );
-            (into_py_image(warped_image), into_py_image(disp_image))
-        })
+    py.allow_threads(|| {
+        let config = DemonsConfig {
+            max_iterations,
+            sigma_diffusion,
+            sigma_fluid: 0.0,
+            max_step_length: 2.0,
+        };
+        let reg = DiffeomorphicDemonsRegistration {
+            config,
+            n_squarings,
+        };
+        reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let warped_image = vec_to_image(
+            result.warped,
+            fixed_shape,
+            fixed_origin,
+            fixed_spacing,
+            fixed_direction,
+        );
+        let n = nz * ny * nx;
+        let mut disp_packed = Vec::with_capacity(3 * n);
+        disp_packed.extend_from_slice(&result.disp_z);
+        disp_packed.extend_from_slice(&result.disp_y);
+        disp_packed.extend_from_slice(&result.disp_x);
+        let disp_image = vec_to_image(
+            disp_packed,
+            [3 * nz, ny, nx],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+        (into_py_image(warped_image), into_py_image(disp_image))
+    })
 }
 
 /// Register a moving image to a fixed image using Symmetric Demons.
@@ -217,40 +215,38 @@ pub fn symmetric_demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
 
-    py
-        .allow_threads(|| {
-            let config = DemonsConfig {
-                max_iterations,
-                sigma_diffusion,
-                sigma_fluid: 0.0,
-                max_step_length: 2.0,
-            };
-            let reg = SymmetricDemonsRegistration::new(config);
-            reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(|result| {
-            let warped_image = vec_to_image(
-                result.warped,
-                fixed_shape,
-                fixed_origin,
-                fixed_spacing,
-                fixed_direction,
-            );
-            let n = nz * ny * nx;
-            let mut disp_packed = Vec::with_capacity(3 * n);
-            disp_packed.extend_from_slice(&result.disp_z);
-            disp_packed.extend_from_slice(&result.disp_y);
-            disp_packed.extend_from_slice(&result.disp_x);
-            let disp_image = vec_to_image(
-                disp_packed,
-                [3 * nz, ny, nx],
-                Point::new([0.0, 0.0, 0.0]),
-                Spacing::new([1.0, 1.0, 1.0]),
-                Direction::identity(),
-            );
-            (into_py_image(warped_image), into_py_image(disp_image))
-        })
+    py.allow_threads(|| {
+        let config = DemonsConfig {
+            max_iterations,
+            sigma_diffusion,
+            sigma_fluid: 0.0,
+            max_step_length: 2.0,
+        };
+        let reg = SymmetricDemonsRegistration::new(config);
+        reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(|result| {
+        let warped_image = vec_to_image(
+            result.warped,
+            fixed_shape,
+            fixed_origin,
+            fixed_spacing,
+            fixed_direction,
+        );
+        let n = nz * ny * nx;
+        let mut disp_packed = Vec::with_capacity(3 * n);
+        disp_packed.extend_from_slice(&result.disp_z);
+        disp_packed.extend_from_slice(&result.disp_y);
+        disp_packed.extend_from_slice(&result.disp_x);
+        let disp_image = vec_to_image(
+            disp_packed,
+            [3 * nz, ny, nx],
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([1.0, 1.0, 1.0]),
+            Direction::identity(),
+        );
+        (into_py_image(warped_image), into_py_image(disp_image))
+    })
 }
-

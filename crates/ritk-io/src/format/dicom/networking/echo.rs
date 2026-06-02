@@ -1,13 +1,13 @@
 //! C-ECHO SCU — DICOM Verification Service Class (PS3.4 §A.5).
 
 use super::association::{EchoResponse, NetworkingError};
-use super::context::AssociationConfig;
 use super::command::{
     build_command_pdu, parse_command_response, CommandElementValue, C_ECHO_RQ, C_ECHO_RSP,
     EXPLICIT_VR_LE_TS, NO_DATASET, VERIFICATION_SOP_CLASS,
 };
+use super::context::AssociationConfig;
 use dicom_ul::association::client::ClientAssociationOptions;
-use dicom_ul::pdu::{PDataValue, PDataValueType, PresentationContextResultReason, Pdu};
+use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu, PresentationContextResultReason};
 use std::net::TcpStream;
 
 /// Send a C-ECHO to the configured PACS endpoint and return the response.
@@ -70,9 +70,11 @@ pub(super) fn find_ctx_id(
         .iter()
         .find(|pc| pc.reason == PresentationContextResultReason::Acceptance)
         .map(|pc| pc.id)
-        .ok_or_else(|| NetworkingError::NoPresentationContext(
-            "no accepted presentation context in association".to_owned()
-        ))
+        .ok_or_else(|| {
+            NetworkingError::NoPresentationContext(
+                "no accepted presentation context in association".to_owned(),
+            )
+        })
 }
 
 /// Collect all command PDV fragments for one command message.

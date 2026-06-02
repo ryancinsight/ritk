@@ -44,7 +44,11 @@ impl GpuContext {
                 .request_device(&wgpu::DeviceDescriptor::default(), None)
                 .await
                 .ok()?;
-            Some(GpuContext { device, queue, adapter })
+            Some(GpuContext {
+                device,
+                queue,
+                adapter,
+            })
         })
     }
 }

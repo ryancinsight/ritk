@@ -67,11 +67,10 @@ pub fn anonymize_dicom_dir(
     let input_owned = input_dir.to_string();
     let output_owned = output_dir.to_string();
 
-    let stats = py
-        .allow_threads(move || {
-            anonymize_dicom_directory(&input_owned, &output_owned, &options)
-                .map_err(|e| RitkPyError::io(format!("Anonymization error: {e}")))
-        })?;
+    let stats = py.allow_threads(move || {
+        anonymize_dicom_directory(&input_owned, &output_owned, &options)
+            .map_err(|e| RitkPyError::io(format!("Anonymization error: {e}")))
+    })?;
 
     let dict = PyDict::new_bound(py);
     dict.set_item("file_count", stats.file_count)?;

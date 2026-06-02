@@ -34,8 +34,8 @@ pub(super) fn total_correlation_slices(channels: &[&[f32]], num_bins: usize) -> 
 #[pyfunction]
 #[pyo3(signature = (images, num_bins=32))]
 pub fn compute_total_correlation(images: Vec<PyRef<PyImage>>, num_bins: usize) -> RitkResult<f64> {
-    let (vectors, _) = collect_image_vectors(&images)
-        .map_err(|e| RitkPyError::value(e.to_string()))?;
+    let (vectors, _) =
+        collect_image_vectors(&images).map_err(|e| RitkPyError::value(e.to_string()))?;
     if !(2..=64).contains(&num_bins) {
         return Err(RitkPyError::value(format!(
             "num_bins must be in [2, 64], got {}",
@@ -44,6 +44,5 @@ pub fn compute_total_correlation(images: Vec<PyRef<PyImage>>, num_bins: usize) -
     }
 
     let slices: Vec<&[f32]> = vectors.iter().map(|v| v.as_slice()).collect();
-    total_correlation_slices(&slices, num_bins)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+    total_correlation_slices(&slices, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }

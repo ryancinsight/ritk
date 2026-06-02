@@ -56,10 +56,9 @@ fn create_ct_brain_mask<B: Backend>(ct: &Image<B, 3>) -> Image<B, 3> {
         .expect("no connected components in eroded mask");
 
     let lv = largest.label as f32;
-    let largest_only =
-        BinaryThresholdImageFilter::new(lv, lv, 1.0, 0.0)
-            .apply(&label_img)
-            .expect("largest-component threshold failed");
+    let largest_only = BinaryThresholdImageFilter::new(lv, lv, 1.0, 0.0)
+        .apply(&label_img)
+        .expect("largest-component threshold failed");
 
     let dilate = BinaryDilateFilter::new(2);
     let dilated = dilate.apply(&largest_only).expect("dilation failed");

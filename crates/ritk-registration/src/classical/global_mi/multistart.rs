@@ -47,7 +47,6 @@ use std::f64::consts::PI;
 
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Tensor, TensorData};
-use rayon::prelude::*;
 use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 
@@ -197,8 +196,10 @@ impl MultiStartMiRegistration {
         // ── Phase 2: run registrations in parallel ───────────────────────────
         // Each task owns its RigidTransform (moved, not shared). Only read-only
         // shared references to fixed/moving images are captured.
+        // Sequential over starts: each registration is GPU-bound (burn), so the
+        // GPU serializes the heavy work regardless of CPU-thread fan-out.
         let results: Vec<(usize, RigidTransform<B, 3>, f64, usize)> = start_transforms
-            .into_par_iter()
+            .into_iter()
             .map(|(start_idx, start_transform)| {
                 let (final_transform, result) = GlobalMiRegistration::register_rigid_full(
                     fixed,

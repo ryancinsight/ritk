@@ -6,9 +6,8 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_core::segmentation::{
     connected_components as core_connected_components, ConnectedComponentsFilter,
-    KMeansSegmentation, MarkerControlledWatershed, WatershedSegmentation,
-    SlicConfig,
-    SlicSuperpixelFilter,
+    KMeansSegmentation, MarkerControlledWatershed, SlicConfig, SlicSuperpixelFilter,
+    WatershedSegmentation,
 };
 use std::sync::Arc;
 
@@ -159,7 +158,8 @@ pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage>
         let seg = WatershedSegmentation::new();
         seg.apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-    }).map(into_py_image)
+    })
+    .map(into_py_image)
 }
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.
@@ -201,7 +201,6 @@ pub fn marker_watershed_segment(
         .map(into_py_image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
-
 
 /// Segment a 3D image via SLIC super-pixel clustering (Achanta et al. 2012).
 ///

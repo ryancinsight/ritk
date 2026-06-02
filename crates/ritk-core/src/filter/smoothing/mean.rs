@@ -40,7 +40,6 @@
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use rayon::prelude::*;
 use std::sync::Arc;
 
 /// Mean (box) smoothing filter.
@@ -84,36 +83,36 @@ impl MeanImageFilter {
 
         let vals: Arc<Vec<f32>> = Arc::new(vals_vec);
 
-        let out: Vec<f32> = (0..nz)
-            .into_par_iter()
-            .flat_map(|iz| {
-                let vals = Arc::clone(&vals);
-                let z0 = iz.saturating_sub(r);
-                let z1 = (iz + r).min(nz - 1);
-                (0..ny)
-                    .flat_map(move |iy| {
-                        let vals = Arc::clone(&vals);
-                        let y0 = iy.saturating_sub(r);
-                        let y1 = (iy + r).min(ny - 1);
-                        (0..nx).map(move |ix| {
-                            let x0 = ix.saturating_sub(r);
-                            let x1 = (ix + r).min(nx - 1);
-                            let mut sum = 0.0f64;
-                            let mut count = 0u64;
-                            for kz in z0..=z1 {
-                                for ky in y0..=y1 {
-                                    for kx in x0..=x1 {
-                                        sum += vals[kz * ny * nx + ky * nx + kx] as f64;
-                                        count += 1;
-                                    }
+        let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz, |iz| {
+            let vals = Arc::clone(&vals);
+            let z0 = iz.saturating_sub(r);
+            let z1 = (iz + r).min(nz - 1);
+            (0..ny)
+                .flat_map(move |iy| {
+                    let vals = Arc::clone(&vals);
+                    let y0 = iy.saturating_sub(r);
+                    let y1 = (iy + r).min(ny - 1);
+                    (0..nx).map(move |ix| {
+                        let x0 = ix.saturating_sub(r);
+                        let x1 = (ix + r).min(nx - 1);
+                        let mut sum = 0.0f64;
+                        let mut count = 0u64;
+                        for kz in z0..=z1 {
+                            for ky in y0..=y1 {
+                                for kx in x0..=x1 {
+                                    sum += vals[kz * ny * nx + ky * nx + kx] as f64;
+                                    count += 1;
                                 }
                             }
-                            (sum / count as f64) as f32
-                        })
+                        }
+                        (sum / count as f64) as f32
                     })
-                    .collect::<Vec<_>>()
-            })
-            .collect();
+                })
+                .collect::<Vec<_>>()
+        })
+        .into_iter()
+        .flatten()
+        .collect();
 
         Ok(rebuild(out, dims, image))
     }

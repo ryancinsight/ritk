@@ -195,13 +195,19 @@ fn test_pipeline_observable_fires_start_and_end_events() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
 
     let sc = Arc::clone(&start_count);
-    pipeline.add_observer(EventId::StartEvent, Arc::new(move |_| {
-        sc.fetch_add(1, Ordering::SeqCst);
-    }));
+    pipeline.add_observer(
+        EventId::StartEvent,
+        Arc::new(move |_| {
+            sc.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
     let ec = Arc::clone(&end_count);
-    pipeline.add_observer(EventId::EndEvent, Arc::new(move |_| {
-        ec.fetch_add(1, Ordering::SeqCst);
-    }));
+    pipeline.add_observer(
+        EventId::EndEvent,
+        Arc::new(move |_| {
+            ec.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
 
     pipeline.execute().unwrap();
 
@@ -225,17 +231,26 @@ fn test_pipeline_observable_fires_error_event_on_failure() {
     let mut pipeline = VtkPipeline::new(Box::new(FailingSource));
 
     let sc = Arc::clone(&start_count);
-    pipeline.add_observer(EventId::StartEvent, Arc::new(move |_| {
-        sc.fetch_add(1, Ordering::SeqCst);
-    }));
+    pipeline.add_observer(
+        EventId::StartEvent,
+        Arc::new(move |_| {
+            sc.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
     let ec = Arc::clone(&error_count);
-    pipeline.add_observer(EventId::ErrorEvent, Arc::new(move |_| {
-        ec.fetch_add(1, Ordering::SeqCst);
-    }));
+    pipeline.add_observer(
+        EventId::ErrorEvent,
+        Arc::new(move |_| {
+            ec.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
     let enc = Arc::clone(&end_count);
-    pipeline.add_observer(EventId::EndEvent, Arc::new(move |_| {
-        enc.fetch_add(1, Ordering::SeqCst);
-    }));
+    pipeline.add_observer(
+        EventId::EndEvent,
+        Arc::new(move |_| {
+            enc.fetch_add(1, Ordering::SeqCst);
+        }),
+    );
 
     let result = pipeline.execute();
     assert!(result.is_err(), "failing source must produce an error");

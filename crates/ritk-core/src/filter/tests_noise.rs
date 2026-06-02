@@ -289,16 +289,8 @@ fn shot_preserves_metadata() {
     );
     let filter = ShotNoiseFilter::new(5.0).with_seed(42);
     let result = filter.apply_3d(&img).unwrap();
-    assert_eq!(
-        result.origin(),
-        img.origin(),
-        "origin must be preserved"
-    );
-    assert_eq!(
-        result.spacing(),
-        img.spacing(),
-        "spacing must be preserved"
-    );
+    assert_eq!(result.origin(), img.origin(), "origin must be preserved");
+    assert_eq!(result.spacing(), img.spacing(), "spacing must be preserved");
     assert_eq!(
         result.direction(),
         img.direction(),
@@ -453,16 +445,8 @@ fn speckle_preserves_metadata() {
     );
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
     let result = filter.apply_3d(&img).unwrap();
-    assert_eq!(
-        result.origin(),
-        img.origin(),
-        "origin must be preserved"
-    );
-    assert_eq!(
-        result.spacing(),
-        img.spacing(),
-        "spacing must be preserved"
-    );
+    assert_eq!(result.origin(), img.origin(), "origin must be preserved");
+    assert_eq!(result.spacing(), img.spacing(), "spacing must be preserved");
     assert_eq!(
         result.direction(),
         img.direction(),

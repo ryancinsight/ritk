@@ -12,21 +12,21 @@ use std::time::Duration;
 /// DICOM standard transfer syntax UIDs (PS 3.6 Table A-1).
 pub mod transfer_syntax {
     /// Implicit VR Little Endian — default transfer syntax.
-    pub const IMPLICIT_VR_LE:     &str = "1.2.840.10008.1.2";
+    pub const IMPLICIT_VR_LE: &str = "1.2.840.10008.1.2";
     /// Explicit VR Little Endian.
-    pub const EXPLICIT_VR_LE:     &str = "1.2.840.10008.1.2.1";
+    pub const EXPLICIT_VR_LE: &str = "1.2.840.10008.1.2.1";
     /// Explicit VR Big Endian (retired; included for compatibility).
-    pub const EXPLICIT_VR_BE:     &str = "1.2.840.10008.1.2.2";
+    pub const EXPLICIT_VR_BE: &str = "1.2.840.10008.1.2.2";
     /// JPEG Baseline (Process 1) — lossy 8-bit.
-    pub const JPEG_BASELINE:      &str = "1.2.840.10008.1.2.4.50";
+    pub const JPEG_BASELINE: &str = "1.2.840.10008.1.2.4.50";
     /// JPEG Lossless (Process 14, SV1).
-    pub const JPEG_LOSSLESS:      &str = "1.2.840.10008.1.2.4.70";
+    pub const JPEG_LOSSLESS: &str = "1.2.840.10008.1.2.4.70";
     /// JPEG-LS Lossless.
-    pub const JPEG_LS_LOSSLESS:   &str = "1.2.840.10008.1.2.4.80";
+    pub const JPEG_LS_LOSSLESS: &str = "1.2.840.10008.1.2.4.80";
     /// JPEG 2000 Lossless.
     pub const JPEG_2000_LOSSLESS: &str = "1.2.840.10008.1.2.4.90";
     /// JPEG 2000 (lossy or lossless).
-    pub const JPEG_2000:          &str = "1.2.840.10008.1.2.4.91";
+    pub const JPEG_2000: &str = "1.2.840.10008.1.2.4.91";
 }
 
 // ── AssociationConfig ─────────────────────────────────────────────────────────
@@ -38,27 +38,27 @@ pub mod transfer_syntax {
 /// convenience functions (`echo`, `find`, `retrieve`, `store`).
 #[derive(Debug, Clone)]
 pub struct AssociationConfig {
-    pub called_ae_title:       String,
-    pub calling_ae_title:      String,
-    pub host:                  String,
-    pub port:                  u16,
-    pub max_pdu_length:        u32,
-    pub timeout:               Duration,
+    pub called_ae_title: String,
+    pub calling_ae_title: String,
+    pub host: String,
+    pub port: u16,
+    pub max_pdu_length: u32,
+    pub timeout: Duration,
     pub presentation_contexts: Vec<RequestedPresentationContext>,
-    pub user_identity:         Option<UserIdentity>,
+    pub user_identity: Option<UserIdentity>,
 }
 
 impl Default for AssociationConfig {
     fn default() -> Self {
         Self {
-            called_ae_title:       "ANYSCP".into(),
-            calling_ae_title:      "RITK".into(),
-            host:                  "127.0.0.1".into(),
-            port:                  104,
-            max_pdu_length:        DEFAULT_MAXIMUM_LENGTH,
-            timeout:               Duration::from_secs(30),
+            called_ae_title: "ANYSCP".into(),
+            calling_ae_title: "RITK".into(),
+            host: "127.0.0.1".into(),
+            port: 104,
+            max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
+            timeout: Duration::from_secs(30),
             presentation_contexts: Vec::new(),
-            user_identity:         None,
+            user_identity: None,
         }
     }
 }
@@ -67,19 +67,25 @@ impl AssociationConfig {
     /// Construct from a validated calling AE title and remote DICOM address.
     pub fn new(calling: AeTitle, remote: DicomAddress) -> Self {
         Self {
-            called_ae_title:  remote.ae_title.as_str().to_string(),
+            called_ae_title: remote.ae_title.as_str().to_string(),
             calling_ae_title: calling.as_str().to_string(),
-            host:             remote.host.clone(),
-            port:             remote.port,
+            host: remote.host.clone(),
+            port: remote.port,
             ..Default::default()
         }
     }
 
     /// Override the TCP connect and read timeout.
-    pub fn with_connect_timeout(mut self, t: Duration) -> Self { self.timeout = t; self }
+    pub fn with_connect_timeout(mut self, t: Duration) -> Self {
+        self.timeout = t;
+        self
+    }
 
     /// Override the TCP read timeout.
-    pub fn with_read_timeout(mut self, t: Duration) -> Self { self.timeout = t; self }
+    pub fn with_read_timeout(mut self, t: Duration) -> Self {
+        self.timeout = t;
+        self
+    }
 }
 
 // ── Presentation context types ────────────────────────────────────────────────
@@ -87,7 +93,7 @@ impl AssociationConfig {
 /// A requested presentation context sent in A-ASSOCIATE-RQ (PS 3.8 §9.3.2).
 #[derive(Debug, Clone)]
 pub struct RequestedPresentationContext {
-    pub abstract_syntax_uid:  String,
+    pub abstract_syntax_uid: String,
     pub transfer_syntax_uids: Vec<String>,
 }
 
@@ -95,6 +101,6 @@ pub struct RequestedPresentationContext {
 #[derive(Debug, Clone, PartialEq)]
 pub struct NegotiatedContext {
     pub presentation_context_id: u8,
-    pub abstract_syntax_uid:     String,
-    pub transfer_syntax_uid:     String,
+    pub abstract_syntax_uid: String,
+    pub transfer_syntax_uid: String,
 }

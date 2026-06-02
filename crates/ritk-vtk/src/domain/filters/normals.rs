@@ -54,8 +54,7 @@ impl VtkFilter for ComputeNormalsFilter {
                     }
                 }
 
-                let normals: Vec<[f32; 3]> =
-                    accum.into_iter().map(normalize3).collect();
+                let normals: Vec<[f32; 3]> = accum.into_iter().map(normalize3).collect();
                 poly.point_data.insert(
                     "Normals".to_string(),
                     AttributeArray::Normals { values: normals },
@@ -125,9 +124,7 @@ mod tests {
     #[test]
     fn flat_xy_triangle_normals_are_positive_z() {
         let f = ComputeNormalsFilter;
-        let out = f
-            .execute(VtkDataObject::PolyData(xy_triangle()))
-            .unwrap();
+        let out = f.execute(VtkDataObject::PolyData(xy_triangle())).unwrap();
         let VtkDataObject::PolyData(p) = out else {
             panic!("expected PolyData")
         };
@@ -144,9 +141,7 @@ mod tests {
     #[test]
     fn computed_normals_are_unit_length() {
         let f = ComputeNormalsFilter;
-        let out = f
-            .execute(VtkDataObject::PolyData(xy_triangle()))
-            .unwrap();
+        let out = f.execute(VtkDataObject::PolyData(xy_triangle())).unwrap();
         let VtkDataObject::PolyData(p) = out else {
             panic!("expected PolyData")
         };
@@ -190,7 +185,9 @@ mod tests {
         };
         let f = ComputeNormalsFilter;
         let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
             panic!()
         };
@@ -204,10 +201,7 @@ mod tests {
         use crate::domain::vtk_data_object::VtkImageData;
         let f = ComputeNormalsFilter;
         let result = f.execute(VtkDataObject::ImageData(VtkImageData::default()));
-        assert!(
-            result.is_err(),
-            "non-PolyData input must return Err"
-        );
+        assert!(result.is_err(), "non-PolyData input must return Err");
         let msg = result.unwrap_err().to_string();
         assert!(msg.contains("ImageData"), "error must name the actual type");
     }
@@ -222,7 +216,9 @@ mod tests {
         };
         let f = ComputeNormalsFilter;
         let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         // accumulator remains [0,0,0] → fallback [0,0,1]
         let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
             panic!()

@@ -91,10 +91,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
         for i in 0..pad_n {
             let a = img_buf[i];
             let b = ker_buf[i];
-            img_buf[i] = Complex::new(
-                a.re * b.re - a.im * b.im,
-                a.re * b.im + a.im * b.re,
-            );
+            img_buf[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
         fft2d(&mut img_buf, pad_r, pad_c, &mut planner, FftDir::Inverse);

@@ -65,7 +65,11 @@ pub fn bspline_syn_register(
     py.allow_threads(|| {
         let config = BSplineSyNConfig {
             max_iterations: opts.max_iterations,
-            control_spacing: [opts.control_spacing_z, opts.control_spacing_y, opts.control_spacing_x],
+            control_spacing: [
+                opts.control_spacing_z,
+                opts.control_spacing_y,
+                opts.control_spacing_x,
+            ],
             sigma_smooth: opts.sigma_smooth,
             convergence_threshold: 1e-6,
             convergence_window: 10,
@@ -75,8 +79,13 @@ pub fn bspline_syn_register(
             gradient_step: opts.gradient_step,
         };
         let reg = BSplineSyNRegistration::new(config);
-        reg.register(&inputs.fixed_vals, &inputs.moving_vals, inputs.fixed_shape, [1.0, 1.0, 1.0])
-            .map_err(|e| e.to_string())
+        reg.register(
+            &inputs.fixed_vals,
+            &inputs.moving_vals,
+            inputs.fixed_shape,
+            [1.0, 1.0, 1.0],
+        )
+        .map_err(|e| e.to_string())
     })
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))

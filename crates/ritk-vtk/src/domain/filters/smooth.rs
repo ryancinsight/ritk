@@ -199,7 +199,9 @@ mod tests {
         let out = f
             .execute(VtkDataObject::PolyData(original.clone()))
             .unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         for (orig, smoothed) in original.points.iter().zip(p.points.iter()) {
             assert_eq!(orig, smoothed, "zero iterations must not move any vertex");
         }
@@ -212,7 +214,9 @@ mod tests {
         // v0' = 0.5*[0,0,0] + 0.5*[0.75,0.5,0] = [0.375, 0.25, 0]
         let f = SmoothFilter::new(0.5, 1);
         let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         let v0 = p.points[0];
         assert!(
             (v0[0] - 0.375).abs() < 1e-5,
@@ -224,11 +228,7 @@ mod tests {
             "v0.y after 1 step: expected 0.25, got {}",
             v0[1]
         );
-        assert!(
-            v0[2].abs() < 1e-5,
-            "v0.z must stay 0: got {}",
-            v0[2]
-        );
+        assert!(v0[2].abs() < 1e-5, "v0.z must stay 0: got {}", v0[2]);
     }
 
     #[test]
@@ -236,7 +236,9 @@ mod tests {
         // λ=1 → v_i' = mean(neighbors(v_i)) after 1 iteration.
         let f = SmoothFilter::new(1.0, 1);
         let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         let v0 = p.points[0];
         // mean of neighbors {1=[1,0,0], 2=[0.5,1,0]} = [0.75, 0.5, 0]
         assert!(
@@ -257,7 +259,9 @@ mod tests {
         let original = triangle();
         let original_polygons = original.polygons.clone();
         let out = f.execute(VtkDataObject::PolyData(original)).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         assert_eq!(
             p.polygons, original_polygons,
             "polygon connectivity must be unchanged after smoothing"
@@ -288,7 +292,9 @@ mod tests {
         };
         let f = SmoothFilter::new(0.5, 50);
         let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
-        let VtkDataObject::PolyData(p) = out else { panic!() };
+        let VtkDataObject::PolyData(p) = out else {
+            panic!()
+        };
         let iso = p.points[0];
         assert!(
             (iso[0] - 5.0).abs() < 1e-5
@@ -296,30 +302,30 @@ mod tests {
                 && (iso[2] - 5.0).abs() < 1e-5,
             "isolated vertex must not move: got {:?}",
             iso
-            );
-            }
+        );
+    }
 
-            #[test]
-        fn test_smooth_filter_parameter_change_triggers_rerun() {
-            let mut sf = SmoothFilter::new(0.5, 20);
-            let mtime_before = sf.get_mtime();
+    #[test]
+    fn test_smooth_filter_parameter_change_triggers_rerun() {
+        let mut sf = SmoothFilter::new(0.5, 20);
+        let mtime_before = sf.get_mtime();
 
-            sf.set_relaxation_factor(0.8);
-            let mtime_after_relax = sf.get_mtime();
-            assert!(
-                mtime_after_relax > mtime_before,
-                "set_relaxation_factor must bump mtime: before={}, after={}",
-                mtime_before.value(),
-                mtime_after_relax.value()
-            );
+        sf.set_relaxation_factor(0.8);
+        let mtime_after_relax = sf.get_mtime();
+        assert!(
+            mtime_after_relax > mtime_before,
+            "set_relaxation_factor must bump mtime: before={}, after={}",
+            mtime_before.value(),
+            mtime_after_relax.value()
+        );
 
-            sf.set_iterations(5);
-            let mtime_after_iters = sf.get_mtime();
-            assert!(
-                mtime_after_iters > mtime_after_relax,
-                "set_iterations must bump mtime: before={}, after={}",
-                mtime_after_relax.value(),
-                mtime_after_iters.value()
-            );
-        }
+        sf.set_iterations(5);
+        let mtime_after_iters = sf.get_mtime();
+        assert!(
+            mtime_after_iters > mtime_after_relax,
+            "set_iterations must bump mtime: before={}, after={}",
+            mtime_after_relax.value(),
+            mtime_after_iters.value()
+        );
+    }
 }

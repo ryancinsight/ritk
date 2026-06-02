@@ -1,4 +1,6 @@
-use super::super::basis::{cubic_bspline_1d, evaluate_bspline_displacement_fast, init_control_grid, BasisCache};
+use super::super::basis::{
+    cubic_bspline_1d, evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
+};
 
 #[test]
 fn bspline_basis_partition_of_unity() {

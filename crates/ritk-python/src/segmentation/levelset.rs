@@ -41,8 +41,24 @@ pub struct PyChanVeseOptions {
 impl PyChanVeseOptions {
     #[new]
     #[pyo3(signature = (mu=0.25, nu=0.0, lambda1=1.0, lambda2=1.0, max_iterations=200, dt=0.1, tolerance=1e-3))]
-    pub fn new(mu: f64, nu: f64, lambda1: f64, lambda2: f64, max_iterations: usize, dt: f64, tolerance: f64) -> Self {
-        Self { mu, nu, lambda1, lambda2, max_iterations, dt, tolerance }
+    pub fn new(
+        mu: f64,
+        nu: f64,
+        lambda1: f64,
+        lambda2: f64,
+        max_iterations: usize,
+        dt: f64,
+        tolerance: f64,
+    ) -> Self {
+        Self {
+            mu,
+            nu,
+            lambda1,
+            lambda2,
+            max_iterations,
+            dt,
+            tolerance,
+        }
     }
 }
 
@@ -67,20 +83,19 @@ pub fn chan_vese_segment(
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_else(|| PyChanVeseOptions::new(0.25, 0.0, 1.0, 1.0, 200, 0.1, 1e-3));
     let image_arc = Arc::clone(&image.inner);
-    py
-        .allow_threads(|| {
-            let mut seg = ChanVeseSegmentation::new();
-            seg.mu = opts.mu;
-            seg.nu = opts.nu;
-            seg.lambda1 = opts.lambda1;
-            seg.lambda2 = opts.lambda2;
-            seg.max_iterations = opts.max_iterations;
-            seg.dt = opts.dt;
-            seg.tolerance = opts.tolerance;
-            seg.apply(image_arc.as_ref()).map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let mut seg = ChanVeseSegmentation::new();
+        seg.mu = opts.mu;
+        seg.nu = opts.nu;
+        seg.lambda1 = opts.lambda1;
+        seg.lambda2 = opts.lambda2;
+        seg.max_iterations = opts.max_iterations;
+        seg.dt = opts.dt;
+        seg.tolerance = opts.tolerance;
+        seg.apply(image_arc.as_ref()).map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }
 
 /// Configuration options for [`geodesic_active_contour_segment`].
@@ -114,8 +129,24 @@ pub struct PyGacOptions {
 impl PyGacOptions {
     #[new]
     #[pyo3(signature = (propagation_weight=1.0, curvature_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=200))]
-    pub fn new(propagation_weight: f64, curvature_weight: f64, advection_weight: f64, edge_k: f64, sigma: f64, dt: f64, max_iterations: usize) -> Self {
-        Self { propagation_weight, curvature_weight, advection_weight, edge_k, sigma, dt, max_iterations }
+    pub fn new(
+        propagation_weight: f64,
+        curvature_weight: f64,
+        advection_weight: f64,
+        edge_k: f64,
+        sigma: f64,
+        dt: f64,
+        max_iterations: usize,
+    ) -> Self {
+        Self {
+            propagation_weight,
+            curvature_weight,
+            advection_weight,
+            edge_k,
+            sigma,
+            dt,
+            max_iterations,
+        }
     }
 }
 
@@ -147,21 +178,20 @@ pub fn geodesic_active_contour_segment(
     let opts = opts.unwrap_or_else(|| PyGacOptions::new(1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 200));
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    py
-        .allow_threads(|| {
-            let mut seg = GeodesicActiveContourSegmentation::new();
-            seg.propagation_weight = opts.propagation_weight;
-            seg.curvature_weight = opts.curvature_weight;
-            seg.advection_weight = opts.advection_weight;
-            seg.edge_k = opts.edge_k;
-            seg.sigma = opts.sigma;
-            seg.dt = opts.dt;
-            seg.max_iterations = opts.max_iterations;
-            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let mut seg = GeodesicActiveContourSegmentation::new();
+        seg.propagation_weight = opts.propagation_weight;
+        seg.curvature_weight = opts.curvature_weight;
+        seg.advection_weight = opts.advection_weight;
+        seg.edge_k = opts.edge_k;
+        seg.sigma = opts.sigma;
+        seg.dt = opts.dt;
+        seg.max_iterations = opts.max_iterations;
+        seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }
 
 /// Configuration options for [`shape_detection_segment`].
@@ -243,22 +273,21 @@ pub fn shape_detection_segment(
     let opts = opts.unwrap_or_default();
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    py
-        .allow_threads(|| {
-            let mut seg = ShapeDetectionSegmentation::new();
-            seg.curvature_weight = opts.curvature_weight;
-            seg.propagation_weight = opts.propagation_weight;
-            seg.advection_weight = opts.advection_weight;
-            seg.edge_k = opts.edge_k;
-            seg.sigma = opts.sigma;
-            seg.dt = opts.dt;
-            seg.max_iterations = opts.max_iterations;
-            seg.tolerance = opts.tolerance;
-            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let mut seg = ShapeDetectionSegmentation::new();
+        seg.curvature_weight = opts.curvature_weight;
+        seg.propagation_weight = opts.propagation_weight;
+        seg.advection_weight = opts.advection_weight;
+        seg.edge_k = opts.edge_k;
+        seg.sigma = opts.sigma;
+        seg.dt = opts.dt;
+        seg.max_iterations = opts.max_iterations;
+        seg.tolerance = opts.tolerance;
+        seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }
 
 /// Configuration options for [`threshold_level_set_segment`].
@@ -292,8 +321,24 @@ pub struct PyThresholdLevelSetOptions {
 impl PyThresholdLevelSetOptions {
     #[new]
     #[pyo3(signature = (lower_threshold, upper_threshold, propagation_weight=1.0, curvature_weight=0.2, dt=0.05, max_iterations=200, tolerance=1e-3))]
-    pub fn new(lower_threshold: f64, upper_threshold: f64, propagation_weight: f64, curvature_weight: f64, dt: f64, max_iterations: usize, tolerance: f64) -> Self {
-        Self { lower_threshold, upper_threshold, propagation_weight, curvature_weight, dt, max_iterations, tolerance }
+    pub fn new(
+        lower_threshold: f64,
+        upper_threshold: f64,
+        propagation_weight: f64,
+        curvature_weight: f64,
+        dt: f64,
+        max_iterations: usize,
+        tolerance: f64,
+    ) -> Self {
+        Self {
+            lower_threshold,
+            upper_threshold,
+            propagation_weight,
+            curvature_weight,
+            dt,
+            max_iterations,
+            tolerance,
+        }
     }
 }
 
@@ -323,19 +368,18 @@ pub fn threshold_level_set_segment(
 ) -> RitkResult<PyImage> {
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    py
-        .allow_threads(|| {
-            let mut seg = ThresholdLevelSet::new(opts.lower_threshold, opts.upper_threshold);
-            seg.propagation_weight = opts.propagation_weight;
-            seg.curvature_weight = opts.curvature_weight;
-            seg.dt = opts.dt;
-            seg.max_iterations = opts.max_iterations;
-            seg.tolerance = opts.tolerance;
-            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let mut seg = ThresholdLevelSet::new(opts.lower_threshold, opts.upper_threshold);
+        seg.propagation_weight = opts.propagation_weight;
+        seg.curvature_weight = opts.curvature_weight;
+        seg.dt = opts.dt;
+        seg.max_iterations = opts.max_iterations;
+        seg.tolerance = opts.tolerance;
+        seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }
 
 /// Configuration options for [`laplacian_level_set_segment`].
@@ -366,8 +410,22 @@ pub struct PyLaplacianLevelSetOptions {
 impl PyLaplacianLevelSetOptions {
     #[new]
     #[pyo3(signature = (propagation_weight=1.0, curvature_weight=0.2, sigma=1.0, dt=0.05, max_iterations=200, tolerance=1e-3))]
-    pub fn new(propagation_weight: f64, curvature_weight: f64, sigma: f64, dt: f64, max_iterations: usize, tolerance: f64) -> Self {
-        Self { propagation_weight, curvature_weight, sigma, dt, max_iterations, tolerance }
+    pub fn new(
+        propagation_weight: f64,
+        curvature_weight: f64,
+        sigma: f64,
+        dt: f64,
+        max_iterations: usize,
+        tolerance: f64,
+    ) -> Self {
+        Self {
+            propagation_weight,
+            curvature_weight,
+            sigma,
+            dt,
+            max_iterations,
+            tolerance,
+        }
     }
 }
 
@@ -394,21 +452,21 @@ pub fn laplacian_level_set_segment(
     initial_phi: &PyImage,
     opts: Option<PyLaplacianLevelSetOptions>,
 ) -> RitkResult<PyImage> {
-    let opts = opts.unwrap_or_else(|| PyLaplacianLevelSetOptions::new(1.0, 0.2, 1.0, 0.05, 200, 1e-3));
+    let opts =
+        opts.unwrap_or_else(|| PyLaplacianLevelSetOptions::new(1.0, 0.2, 1.0, 0.05, 200, 1e-3));
     let image_arc = Arc::clone(&image.inner);
     let phi_arc = Arc::clone(&initial_phi.inner);
-    py
-        .allow_threads(|| {
-            let mut seg = LaplacianLevelSet::new();
-            seg.propagation_weight = opts.propagation_weight;
-            seg.curvature_weight = opts.curvature_weight;
-            seg.sigma = opts.sigma;
-            seg.dt = opts.dt;
-            seg.max_iterations = opts.max_iterations;
-            seg.tolerance = opts.tolerance;
-            seg.apply(image_arc.as_ref(), phi_arc.as_ref())
-                .map_err(|e| e.to_string())
-        })
-        .map_err(RitkPyError::runtime)
-        .map(into_py_image)
+    py.allow_threads(|| {
+        let mut seg = LaplacianLevelSet::new();
+        seg.propagation_weight = opts.propagation_weight;
+        seg.curvature_weight = opts.curvature_weight;
+        seg.sigma = opts.sigma;
+        seg.dt = opts.dt;
+        seg.max_iterations = opts.max_iterations;
+        seg.tolerance = opts.tolerance;
+        seg.apply(image_arc.as_ref(), phi_arc.as_ref())
+            .map_err(|e| e.to_string())
+    })
+    .map_err(RitkPyError::runtime)
+    .map(into_py_image)
 }

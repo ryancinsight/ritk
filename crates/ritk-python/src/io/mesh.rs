@@ -15,15 +15,11 @@
 use crate::errors::{RitkPyError, RitkResult};
 use numpy::{ndarray::Array2, IntoPyArray};
 use pyo3::prelude::*;
-use pyo3::types::{PyList};
+use pyo3::types::PyList;
 use ritk_io::{
-    VtkPolyData,
-    read_obj_mesh, write_obj_mesh,
-    read_stl_mesh, write_stl_binary, write_stl_ascii,
-    read_ply_mesh, write_ply_binary_le, write_ply_ascii,
-    write_gltf,
-    read_vtk_polydata, write_vtk_polydata,
-    read_vtp_polydata, write_vtp_polydata,
+    read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vtk_polydata, read_vtp_polydata, write_gltf,
+    write_obj_mesh, write_ply_ascii, write_ply_binary_le, write_stl_ascii, write_stl_binary,
+    write_vtk_polydata, write_vtp_polydata, VtkPolyData,
 };
 use std::path::Path;
 
@@ -184,21 +180,28 @@ pub fn write_mesh(py: Python<'_>, path: &str, mesh: &PyMesh) -> RitkResult<()> {
         let p = Path::new(&path_owned);
         let lower = path_owned.to_lowercase();
         if lower.ends_with(".obj") {
-            write_obj_mesh(p, &poly).map_err(|e| RitkPyError::io(format!("OBJ write error: {e}")))?;
+            write_obj_mesh(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("OBJ write error: {e}")))?;
         } else if lower.ends_with(".stl") {
-            write_stl_binary(p, &poly).map_err(|e| RitkPyError::io(format!("STL write error: {e}")))?;
+            write_stl_binary(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("STL write error: {e}")))?;
         } else if lower.ends_with(".stl.ascii") {
-            write_stl_ascii(p, &poly).map_err(|e| RitkPyError::io(format!("STL ASCII write error: {e}")))?;
+            write_stl_ascii(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("STL ASCII write error: {e}")))?;
         } else if lower.ends_with(".ply") {
-            write_ply_binary_le(p, &poly).map_err(|e| RitkPyError::io(format!("PLY write error: {e}")))?;
+            write_ply_binary_le(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("PLY write error: {e}")))?;
         } else if lower.ends_with(".ply.ascii") {
-            write_ply_ascii(p, &poly).map_err(|e| RitkPyError::io(format!("PLY ASCII write error: {e}")))?;
+            write_ply_ascii(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("PLY ASCII write error: {e}")))?;
         } else if lower.ends_with(".gltf") {
             write_gltf(p, &poly).map_err(|e| RitkPyError::io(format!("glTF write error: {e}")))?;
         } else if lower.ends_with(".vtk") {
-            write_vtk_polydata(p, &poly).map_err(|e| RitkPyError::io(format!("VTK write error: {e}")))?;
+            write_vtk_polydata(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("VTK write error: {e}")))?;
         } else if lower.ends_with(".vtp") {
-            write_vtp_polydata(p, &poly).map_err(|e| RitkPyError::io(format!("VTP write error: {e}")))?;
+            write_vtp_polydata(p, &poly)
+                .map_err(|e| RitkPyError::io(format!("VTP write error: {e}")))?;
         } else {
             return Err(RitkPyError::io(format!(
                 "Unsupported mesh write extension in '{}'. Supported: \

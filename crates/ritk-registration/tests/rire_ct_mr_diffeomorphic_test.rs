@@ -156,7 +156,8 @@ fn test_rire_mha_load_mri_t1_metadata() {
     }
 
     let device = Default::default();
-    let image = read_metaimage::<B, _>(&mri_path, &device).expect("MRI T1 .mha must load without error");
+    let image =
+        read_metaimage::<B, _>(&mri_path, &device).expect("MRI T1 .mha must load without error");
 
     // ── Shape [nz, ny, nx] ────────────────────────────────────────────────
     let shape = image.shape();

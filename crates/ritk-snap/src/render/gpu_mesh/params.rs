@@ -48,8 +48,16 @@ impl MeshVertex {
             array_stride: Self::STRIDE,
             step_mode: VertexStepMode::Vertex,
             attributes: &[
-                VertexAttribute { offset: 0,  shader_location: 0, format: VertexFormat::Float32x4 },
-                VertexAttribute { offset: 16, shader_location: 1, format: VertexFormat::Float32x4 },
+                VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: VertexFormat::Float32x4,
+                },
+                VertexAttribute {
+                    offset: 16,
+                    shader_location: 1,
+                    format: VertexFormat::Float32x4,
+                },
             ],
         }
     }
@@ -68,7 +76,7 @@ impl MeshVertex {
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct SceneUniforms {
     pub mvp: [f32; 16],
-    pub mv:  [f32; 16],
+    pub mv: [f32; 16],
     pub peel_pass: u32,
     pub _pad: [u32; 3],
 }
@@ -128,17 +136,17 @@ pub(super) struct MaterialUniforms {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct SsaoUniforms {
-    pub near:       f32,
-    pub far:        f32,
-    pub focal_x:    f32,
-    pub focal_y:    f32,
-    pub radius:     f32,
-    pub bias:       f32,
-    pub n_samples:  u32,
-    pub strength:   f32,
+    pub near: f32,
+    pub far: f32,
+    pub focal_x: f32,
+    pub focal_y: f32,
+    pub radius: f32,
+    pub bias: f32,
+    pub n_samples: u32,
+    pub strength: f32,
     pub viewport_w: u32,
     pub viewport_h: u32,
-    pub _pad:       [u32; 2],
+    pub _pad: [u32; 2],
 }
 
 // ── Composite uniforms ────────────────────────────────────────────────────────
@@ -223,7 +231,10 @@ mod tests {
             let len = (entry[0].powi(2) + entry[1].powi(2) + entry[2].powi(2)).sqrt();
             // scale = lerp(0.1, 1.0, t²) ∈ [0.1, 1.0]; the unscaled unit vector has norm 1.
             // Actual norm = scale × ||(x,y,z)|| where ||(x,y,z)|| = 1 → len = scale ∈ [0.1, 1.0].
-            assert!((0.09..=1.01).contains(&len), "sample {i}: len = {len} not in [0.1, 1.0]");
+            assert!(
+                (0.09..=1.01).contains(&len),
+                "sample {i}: len = {len} not in [0.1, 1.0]"
+            );
         }
     }
 
@@ -233,7 +244,11 @@ mod tests {
         let expected = [0.5f32, 0.25, 0.75, 0.125];
         for (i, &exp) in expected.iter().enumerate() {
             let got = halton((i + 1) as u32, 2);
-            assert!((got - exp).abs() < 1e-6, "halton({}, 2) = {got}, expected {exp}", i + 1);
+            assert!(
+                (got - exp).abs() < 1e-6,
+                "halton({}, 2) = {got}, expected {exp}",
+                i + 1
+            );
         }
     }
 }

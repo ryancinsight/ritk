@@ -41,8 +41,6 @@
 //! max_k( |p_k_new − p_k_old| + |q_k_new − q_k_old| ) < tol
 //! ```
 
-use rayon::prelude::*;
-
 /// Guard against log(0): clamping boundary for p_k and q_k.
 ///
 /// Chosen as 1e-6 rather than a smaller value so that the clamped f64 value `1 − EPS`
@@ -136,26 +134,28 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         let log_1mq: Vec<f64> = q.iter().map(|&qk| (1.0 - qk).ln()).collect();
 
         // ── E-step: voxels are independent → parallel ────────────────────────
-        w = (0..n)
-            .into_par_iter()
-            .map(|i| {
-                let mut log_alpha = log_f;
-                let mut log_beta = log_1mf;
-                for k_idx in 0..k {
-                    if d[k_idx][i] {
-                        log_alpha += log_p[k_idx];
-                        log_beta += log_1mq[k_idx];
-                    } else {
-                        log_alpha += log_1mp[k_idx];
-                        log_beta += log_q[k_idx];
-                    }
+        w = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let mut log_alpha = log_f;
+            let mut log_beta = log_1mf;
+            for k_idx in 0..k {
+                if d[k_idx][i] {
+                    log_alpha += log_p[k_idx];
+                    log_beta += log_1mq[k_idx];
+                } else {
+                    log_alpha += log_1mp[k_idx];
+                    log_beta += log_q[k_idx];
                 }
-                sigmoid_log_domain(log_alpha, log_beta)
-            })
-            .collect();
+            }
+            sigmoid_log_domain(log_alpha, log_beta)
+        });
 
         // ── M-step: update prevalence and per-rater parameters ───────────────
-        let w_sum: f64 = w.par_iter().sum();
+        let w_sum: f64 = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
+            w.len(),
+            0.0,
+            |i| w[i],
+            |a, b| a + b,
+        );
         // Epsilon guards prevent division by zero when W collapses to 0 or N.
         let denom_p = w_sum.max(EPS);
         let denom_q = (n as f64 - w_sum).max(EPS);
@@ -166,20 +166,19 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
 
         for k_idx in 0..k {
             // Parallel reduction over N voxels for both numerators simultaneously.
-            let (num_p, num_q): (f64, f64) = w
-                .par_iter()
-                .zip(d[k_idx].par_iter())
-                .map(|(&wi, &dki)| {
+            let (num_p, num_q): (f64, f64) = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
+                w.len(),
+                (0.0_f64, 0.0_f64),
+                |i| {
+                    let (wi, dki) = (w[i], d[k_idx][i]);
                     if dki {
                         (wi, 0.0_f64)
                     } else {
                         (0.0_f64, 1.0 - wi)
                     }
-                })
-                .reduce(
-                    || (0.0_f64, 0.0_f64),
-                    |(pa, qa), (pb, qb)| (pa + pb, qa + qb),
-                );
+                },
+                |(pa, qa), (pb, qb)| (pa + pb, qa + qb),
+            );
 
             p_new[k_idx] = (num_p / denom_p).clamp(EPS, 1.0 - EPS);
             q_new[k_idx] = (num_q / denom_q).clamp(EPS, 1.0 - EPS);

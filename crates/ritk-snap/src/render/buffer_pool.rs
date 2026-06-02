@@ -272,34 +272,41 @@ mod tests {
             actual.pixels, expected.pixels,
             "MIP scratch render must produce pixel-identical output"
         );
-        }
-
-        /// `resize_color32` must preserve monotone capacity invariant.
-        ///
-        /// Analytical: after resize(200), capacity ≥ 200 → subsequent resize(50)
-        /// must not shrink capacity.
-        #[test]
-        fn test_resize_color32_capacity_monotone() {
-            let mut pool = RenderBufferPool::default();
-            pool.resize_color32(200);
-            let cap_at_200 = pool.color32.capacity();
-            assert!(cap_at_200 >= 200, "capacity must be ≥ 200 after resize(200)");
-            pool.resize_color32(50);
-            assert!(
-                pool.color32.capacity() >= cap_at_200,
-                "capacity must not shrink when resize requests a smaller length"
-            );
-            assert_eq!(pool.color32.len(), 50, "len must equal the new requested size");
-        }
-
-        /// New elements added by `resize_color32` must be initialized to BLACK.
-        #[test]
-        fn test_resize_color32_new_elements_black() {
-            let mut pool = RenderBufferPool::default();
-            pool.resize_color32(4);
-            assert!(
-                pool.color32.iter().all(|&v| v == egui::Color32::BLACK),
-                "all newly allocated Color32 elements must be BLACK"
-            );
-        }
     }
+
+    /// `resize_color32` must preserve monotone capacity invariant.
+    ///
+    /// Analytical: after resize(200), capacity ≥ 200 → subsequent resize(50)
+    /// must not shrink capacity.
+    #[test]
+    fn test_resize_color32_capacity_monotone() {
+        let mut pool = RenderBufferPool::default();
+        pool.resize_color32(200);
+        let cap_at_200 = pool.color32.capacity();
+        assert!(
+            cap_at_200 >= 200,
+            "capacity must be ≥ 200 after resize(200)"
+        );
+        pool.resize_color32(50);
+        assert!(
+            pool.color32.capacity() >= cap_at_200,
+            "capacity must not shrink when resize requests a smaller length"
+        );
+        assert_eq!(
+            pool.color32.len(),
+            50,
+            "len must equal the new requested size"
+        );
+    }
+
+    /// New elements added by `resize_color32` must be initialized to BLACK.
+    #[test]
+    fn test_resize_color32_new_elements_black() {
+        let mut pool = RenderBufferPool::default();
+        pool.resize_color32(4);
+        assert!(
+            pool.color32.iter().all(|&v| v == egui::Color32::BLACK),
+            "all newly allocated Color32 elements must be BLACK"
+        );
+    }
+}
