@@ -59,6 +59,7 @@ pub fn build_grid_map(
 }
 
 /// Recursively enumerate grid cells in a hyper-rectangular range.
+#[allow(clippy::too_many_arguments)]
 fn enumerate_cells_range(
     cell_coords: &mut [usize],
     depth: usize,
@@ -96,6 +97,7 @@ fn enumerate_cells_range(
 ///
 /// Uses the grid-based index for O(2^D) amortized cost per voxel.
 /// Parallelized via rayon with safe per-voxel result collection.
+#[allow(clippy::too_many_arguments)]
 pub fn assign_voxels(
     intensities: &[f64],
     shape: &[usize],
@@ -163,8 +165,8 @@ pub fn assign_voxels(
                     // Compute SLIC distance squared.
                     let di = intensity - center.intensity;
                     let mut d_sq = di * di * inv_m_c_sq;
-                    for d in 0..ndim {
-                        let dp = coords[d] as f64 - center.pos[d];
+                    for (coord, pos) in coords.iter().zip(center.pos.iter()).take(ndim) {
+                        let dp = *coord as f64 - pos;
                         d_sq += compactness_sq * dp * dp * inv_m_s_sq;
                     }
 
@@ -225,11 +227,15 @@ pub fn update_centers(
             let new_intensity = sum_intensity[ci] / c;
 
             let mut shift_sq = 0.0_f64;
-            for d in 0..ndim {
-                let new_pos_d = sum_pos[ci][d] / c;
-                let dp = new_pos_d - centers[ci].pos[d];
+            for (sum_p, pos) in sum_pos[ci]
+                .iter()
+                .zip(centers[ci].pos.iter_mut())
+                .take(ndim)
+            {
+                let new_pos_d = *sum_p / c;
+                let dp = new_pos_d - *pos;
                 shift_sq += dp * dp;
-                centers[ci].pos[d] = new_pos_d;
+                *pos = new_pos_d;
             }
 
             let di = new_intensity - centers[ci].intensity;

@@ -9,40 +9,50 @@ Created a deep vertical hierarchical structure following the principles of SSOT,
 #### ritk-core Structure
 ```
 crates/ritk-core/src/
-├── spatial/              # Spatial types domain
-│   ├── mod.rs             # Shared accessor with type aliases
-│   ├── point.rs           # Point type with tests
-│   ├── vector.rs          # Vector type with tests
-│   ├── spacing.rs         # Spacing type with tests
-│   └── direction.rs       # Direction matrix with tests
-├── image/                # Image domain
-│   ├── mod.rs             # Shared accessor
-│   ├── image.rs           # Image struct with tests
-│   └── metadata.rs        # Image metadata with tests
-├── transform/             # Transform domain
-│   ├── mod.rs             # Shared accessor
-│   ├── trait_.rs          # Transform trait
-│   ├── translation.rs      # Translation transform with tests
-│   ├── rigid.rs           # Rigid transform with tests
-│   ├── affine.rs          # Affine transform with tests
-│   └── bspline.rs         # B-Spline transform with tests
-└── interpolation/         # Interpolation domain
-    ├── mod.rs             # Shared accessor
-    ├── trait_.rs          # Interpolator trait
-    ├── linear.rs          # Linear interpolation with tests
-    └── nearest.rs         # Nearest neighbor with tests
+├── spatial/                     # Spatial types domain
+│   ├── mod.rs                  # Shared accessor with type aliases
+│   ├── point.rs                # Point type with tests
+│   ├── vector.rs               # Vector type with tests
+│   ├── spacing.rs              # Spacing type with tests
+│   └── direction.rs            # Direction matrix with tests
+├── image/                      # Image domain
+│   ├── mod.rs                  # Shared accessor
+│   ├── image.rs                # Image struct with tests
+│   └── metadata.rs             # Image metadata with tests
+├── transform/                  # Transform domain
+│   ├── mod.rs                  # Shared accessor
+│   ├── trait_.rs               # Transform trait
+│   ├── translation.rs          # Translation transform with tests
+│   ├── rigid.rs                # Rigid transform with tests
+│   ├── affine.rs               # Affine transform with tests
+│   └── bspline.rs              # B-Spline transform with tests
+├── interpolation/              # Interpolation domain
+│   ├── mod.rs                  # Shared accessor
+│   ├── trait_.rs               # Interpolator trait
+│   ├── linear.rs               # Linear interpolation with tests
+│   └── nearest.rs              # Nearest neighbor with tests
+├── annotation/                 # Annotation domain
+├── filter/                     # Image filtering domain
+├── segmentation/               # Segmentation domain
+└── statistics/                 # Statistics domain
 ```
 
 #### ritk-registration Structure
 ```
 crates/ritk-registration/src/
-├── metric/               # Metric domain (existing)
-│   ├── metric.rs          # MSE metric implementation
-│   └── registration.rs    # Registration framework
-└── optimizer/             # Optimizer domain (new)
-    ├── mod.rs             # Shared accessor
-    ├── trait_.rs          # Optimizer trait
-    └── gradient_descent.rs # Gradient descent with tests
+├── atlas/                      # Atlas / groupwise registration
+├── bspline_ffd/                # B-Spline free-form deformation
+├── classical/                  # Classical (rigid/affine) registration
+├── deformable_field_ops/       # Deformation field operations
+├── demons/                     # Demons registration family
+├── diffeomorphic/              # Diffeomorphic (SyN) registration
+├── lddmm/                      # LDDMM registration
+├── metric/                     # Similarity metrics (MSE, MI, NCC)
+├── optimizer/                  # Optimization algorithms (GD, CMA-ES)
+├── progress/                   # Progress reporting
+├── registration/               # Registration framework / loop
+├── regularization/             # Regularization (diffusion, Gaussian)
+└── validation/                 # Registration validation & testing
 ```
 
 ### 2. Shared Accessors for SSOT
@@ -252,30 +262,57 @@ Created complete image type implementation:
 - All tensor operations use Burn framework
 - Backend abstraction (CPU/GPU)
 - Automatic differentiation support
-- Future AI model training capability
+- Deep-learning registration models (TransMorph, SSMMorph)
 
-### Medical Image Support
-- DICOM support via dicom-rs
-- NIfTI support via nifti-rs
-- Physical metadata handling
-- Coordinate system transformations
+### Medical Image I/O (11 formats)
+- DICOM read/write via dicom-rs (including compressed transfer syntaxes, PACS SCP/SCU)
+- NIfTI (.nii/.nii.gz) via nifti-rs
+- NRRD, MetaImage (.mha/.mhd), MGH/MGZ, Analyze (.hdr/.img)
+- PNG, JPEG, TIFF/BigTIFF, MINC, VTK image format
+- Physical metadata handling, coordinate system transformations
 
 ### Flexible Transforms
-- Translation
-- Rigid (rotation + translation)
-- Affine (linear + translation)
-- B-Spline (free-form deformation)
+- Translation, Rigid, Affine
+- B-Spline free-form deformation
+- Composite / multi-resolution transforms
 
-### Multiple Interpolation Methods
-- Linear (bilinear/trilinear)
-- Nearest neighbor
-- Extensible for more methods
+### Registration Suite
+- Classical: Rigid, Affine (gradient descent, L-BFGS)
+- Deformable: B-Spline FFD, Demons (Diffeomorphic, Fast), SyN, LDDMM
+- Atlas/Groupwise registration, Joint Label Fusion
+- CMA-ES optimizer with Mutual Information metric
+- Multi-resolution pyramid, Parzen direct/sparse histogram paths
+- Regularization: diffusion, Gaussian, curvature
 
-### Registration Framework
-- Metric trait for similarity measures
-- Optimizer trait for optimization algorithms
-- Iterative registration loop
-- Automatic differentiation support
+### Segmentation
+- Threshold-based, region growing, watershed, K-means
+- Level set: Chan-Vese, Geodesic Active Contour
+- GrowCut, STAPLE ensemble, connected components
+- Confidence / neighborhood connected, skeletonization
+
+### Filtering
+- Anisotropic diffusion (curvature, gradient), N4 bias field correction
+- Gaussian (discrete, recursive), Laplacian, Sobel, Canny, bilateral, median
+- Frangi vesselness, Sato line / Hessian blob, CLAHE
+- Morphological operations, bed separation
+
+### Statistics & Preprocessing
+- Histogram matching, Nyúl & Udupa equalization, intensity normalization
+- Image comparison metrics, noise estimation, label overlap measures
+- Deformation field Jacobian, extended label shape statistics
+
+### Interpolation Methods
+- Linear (bilinear/trilinear), nearest neighbor
+- Extensible for more methods (cubic, sinc)
+
+### Python Bindings & CLI
+- PyO3 + maturin with NumPy bridge, packaged type stubs
+- `ritk` CLI: convert, filter, register, segment, stats subcommands
+
+### Desktop Viewer (`ritk-snap`)
+- MPR viewports, overlay rendering, measurement tools
+- DICOM folder / DICOMDIR launch, tag inspection
+- PACS connectivity, ROI statistics
 
 ## Testing
 
@@ -287,36 +324,47 @@ All modules include comprehensive tests:
 ## Future Work
 
 ### High Priority
-- [ ] Fix Image tensor dimensionality issues
-- [ ] Add comprehensive error handling with thiserror
-- [ ] Complete B-Spline transform implementation
-- [ ] Implement Mutual Information metric
-- [ ] Implement Normalized Cross-Correlation metric
+- [ ] Diffeomorphic Demons exact inverse consistency
+- [ ] Longitudinal analysis pipeline
+- [ ] Expand Python bindings to cover model inference
+- [ ] Publish to crates.io and PyPI
 
 ### Medium Priority
-- [ ] Add multi-resolution registration
+- [ ] Sinc interpolation
+- [ ] WGSL/compute-shader kernels for critical filters
 - [ ] Implement more optimizers (Adam, L-BFGS)
-- [ ] Create resampling functionality
-- [ ] Add more interpolation methods (cubic, sinc)
+- [ ] Add more interpolation methods (cubic)
 
 ### Low Priority
-- [ ] Implement DICOM writing
-- [ ] Create example applications
-- [ ] Add Python bindings via PyO3
-- [ ] Performance benchmarks
+- [ ] Elastix / ITK-Elastix registration interface
+- [ ] Hosted-CI maturin matrix validation for Python bindings
+
+### Residual Risks
+- Git CRLF normalization blocked by missing test data files
+- `sparse.rs` GPU-backend potential remains archived
+- `STACK_WEIGHTS_CAPACITY=32` benchmark not yet run
+- ~28 clippy warnings (being fixed this sprint)
+- `translation_recovery_shifted_gaussian` flaky under thread contention
+- `compute_joint_histogram_from_cache_dispatch` tensor-path not parallelized (Burn's NdArray matmul already parallelized internally)
 
 ## Conclusion
 
-The RITK project now has:
-- ✅ Deep vertical hierarchical file tree
+The RITK project (v0.50.93, Sprint 330) now has:
+- ✅ Deep vertical hierarchical file tree across all crates
 - ✅ Shared accessors for SSOT
-- ✅ Domain-level naming
-- ✅ No namespace bleeding
-- ✅ No excess wrappers
+- ✅ Domain-level naming with no namespace bleeding
+- ✅ No excess wrappers (direct type aliases, zero overhead)
 - ✅ Comprehensive documentation
-- ✅ Complete transform implementations
-- ✅ Complete interpolation implementations
-- ✅ Complete spatial type implementations
-- ✅ Optimizer module implementation
+- ✅ Complete spatial, image, transform, and interpolation types
+- ✅ Full registration suite: rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise, CMA-ES MI
+- ✅ Multi-resolution registration pyramid
+- ✅ Mutual Information metric with Parzen direct/sparse paths (15 sprints of optimization)
+- ✅ DICOM read/write, NIfTI, NRRD, MetaImage, MGH, Analyze, PNG, JPEG, TIFF, MINC, VTK I/O
+- ✅ Python bindings via PyO3 + maturin
+- ✅ CLI (`ritk` binary with convert, filter, register, segment, stats subcommands)
+- ✅ Desktop viewer (`ritk-snap`) with MPR, overlays, measurements, PACS
+- ✅ Filtering, segmentation, statistics, and annotation modules
+- ✅ GPU acceleration via Burn framework
+- ✅ 21 workspace crates, 2,236+ tests across all packages
 
-The architecture is clean, maintainable, extensible, and follows best practices for Rust medical image registration.
+The architecture is clean, maintainable, extensible, and follows best practices for Rust medical image registration and analysis.

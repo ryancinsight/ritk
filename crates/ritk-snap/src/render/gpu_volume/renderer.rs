@@ -336,9 +336,8 @@ impl GpuVolumeRenderer {
         }
 
         // Submit new GPU work (only when no readback is in-flight).
-        if self.vol_buffer.is_some() {
+        if let Some(vol_buf) = &self.vol_buffer {
             let rx = {
-                let vol_buf = self.vol_buffer.as_ref().unwrap();
                 let cache = self.mip_cache.as_ref().unwrap();
                 submit_mip_async(
                     &self.ctx,
@@ -417,9 +416,8 @@ impl GpuVolumeRenderer {
         }
 
         // Submit new GPU work.
-        if self.vol_buffer.is_some() {
+        if let Some(vol_buf) = &self.vol_buffer {
             let rx = {
-                let vol_buf = self.vol_buffer.as_ref().unwrap();
                 let cache = self.vr_cache.as_ref().unwrap();
                 submit_vr_async(
                     &self.ctx,

@@ -122,8 +122,10 @@ fn parse_vec3(s: &str) -> Result<[f32; 3]> {
     Ok([x, y, z])
 }
 
+type ObjFaceVertex = (u32, Option<u32>, Option<u32>);
+
 /// Returns `Vec<(vertex_idx_0based, texcoord_idx_0based_opt, normal_idx_0based_opt)>`.
-fn parse_face_line(s: &str, line_no: usize) -> Result<Vec<(u32, Option<u32>, Option<u32>)>> {
+fn parse_face_line(s: &str, line_no: usize) -> Result<Vec<ObjFaceVertex>> {
     let tokens: Vec<&str> = s.split_whitespace().collect();
     if tokens.len() < 3 {
         bail!("line {}: face has fewer than 3 vertices", line_no);

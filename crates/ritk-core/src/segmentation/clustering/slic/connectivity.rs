@@ -75,10 +75,10 @@ pub fn enforce_connectivity(
         let mut comp_int_sum: std::collections::HashMap<usize, f64> =
             std::collections::HashMap::new();
 
-        for i in 0..n {
+        for (i, intensity) in intensities.iter().enumerate().take(n) {
             let root = uf.find(i);
             *comp_sizes.entry(root).or_insert(0) += 1;
-            *comp_int_sum.entry(root).or_insert(0.0) += intensities[i];
+            *comp_int_sum.entry(root).or_insert(0.0) += intensity;
         }
 
         let mut comp_mean: std::collections::HashMap<usize, f64> = std::collections::HashMap::new();
@@ -146,9 +146,9 @@ pub fn enforce_connectivity(
             }
 
             if best_label != small_label {
-                for i in 0..n {
+                for (i, label) in new_label.iter_mut().enumerate().take(n) {
                     if uf.find(i) == small_root {
-                        new_label[i] = best_label;
+                        *label = best_label;
                     }
                 }
                 changed = true;
@@ -159,8 +159,7 @@ pub fn enforce_connectivity(
     // Relabel to consecutive integers 0..actual_k-1.
     let mut label_map = std::collections::HashMap::new();
     let mut next = 0u32;
-    for i in 0..n {
-        let l = new_label[i];
+    for (i, &l) in new_label.iter().enumerate().take(n) {
         let entry = label_map.entry(l).or_insert_with(|| {
             let v = next;
             next += 1;

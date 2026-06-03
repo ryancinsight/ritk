@@ -19,6 +19,7 @@ mod tests;
 /// - (2/3) - |x|^2 + (1/2)|x|^3 for |x| < 1
 /// - (1/6)(2 - |x|)^3 for 1 <= |x| < 2
 /// - 0 otherwise
+///
 /// Inlined version of cubic B-spline basis function for performance.
 /// Uses multiplication instead of powi for better optimization.
 #[inline(always)]

@@ -1,61 +1,10 @@
-use super::sample::SampleWindow;
-use super::types::{BinRange, ParzenConfig, StackWeights, MAX_PARZEN_BINS, STACK_WEIGHTS_CAPACITY};
-use super::*;
+//! StackWeights, ParzenConfig, and accumulate-sample tests.
 
-// ─── BinRange tests (ARCH-316-04) ───────────────────────────────────────────
-
-#[test]
-fn bin_range_interior_value() {
-    // Interior value: no clamping needed.
-    let range = BinRange::new(10, 3, 32);
-    assert_eq!(range.lo, 7);
-    assert_eq!(range.hi, 13);
-    assert_eq!(range.len(), 7);
-    assert!(!range.is_empty());
-}
-
-#[test]
-fn bin_range_near_lower_boundary() {
-    // Value near 0: lo should clamp to 0.
-    let range = BinRange::new(1, 3, 32);
-    assert_eq!(range.lo, 0);
-    assert_eq!(range.hi, 4);
-    assert_eq!(range.len(), 5);
-}
-
-#[test]
-fn bin_range_near_upper_boundary() {
-    // Value near num_bins-1: hi should clamp to num_bins-1.
-    let range = BinRange::new(30, 3, 32);
-    assert_eq!(range.lo, 27);
-    assert_eq!(range.hi, 31);
-    assert_eq!(range.len(), 5);
-}
-
-#[test]
-fn bin_range_primary_exceeds_num_bins() {
-    // When primary > num_bins-1, both lo and hi clamp to the boundary.
-    let range = BinRange::new(22, 3, 16);
-    assert_eq!(range.lo, 15); // clamped from 19 to 15
-    assert_eq!(range.hi, 15);
-    assert_eq!(range.len(), 1);
-}
-
-#[test]
-fn bin_range_primary_negative() {
-    // When primary is negative, both lo and hi clamp to 0.
-    let range = BinRange::new(-5, 3, 32);
-    assert_eq!(range.lo, 0);
-    assert_eq!(range.hi, 0);
-    assert_eq!(range.len(), 1);
-}
-
-#[test]
-fn bin_range_iter_produces_correct_indices() {
-    let range = BinRange::new(5, 2, 32);
-    let indices: Vec<usize> = range.iter().collect();
-    assert_eq!(indices, vec![3, 4, 5, 6, 7]);
-}
+use super::super::sample::SampleWindow;
+use super::super::types::{
+    BinRange, ParzenConfig, StackWeights, MAX_PARZEN_BINS, STACK_WEIGHTS_CAPACITY,
+};
+use super::super::*;
 
 // ─── ParzenConfig tests (ARCH-317-01) ──────────────────────────────────────
 
@@ -77,74 +26,6 @@ fn parzen_config_broad_sigma() {
     let cfg = ParzenConfig::new(4.0); // sigma=2, half_width=ceil(6)=6
     assert_eq!(cfg.half_width(), 6);
     assert!((cfg.inv_2sigma_sq() - (-0.125)).abs() < 1e-7);
-}
-
-// ─── SampleWindow tests (MEM-316-01, FIX-316-07, ARCH-317-01) ─────────────
-
-#[test]
-fn sample_window_in_bounds() {
-    let fixed = vec![15.3, 20.7];
-    let moving = vec![12.0, 18.5];
-    let fix_cfg = ParzenConfig::new(1.0);
-    let mov_cfg = ParzenConfig::new(1.0);
-    let window = SampleWindow::new(0, &fixed, &moving, 32, &fix_cfg, &mov_cfg, None);
-    assert!(window.is_some());
-    let w = window.unwrap();
-    assert_eq!(w.f_val, 15.3);
-    assert_eq!(w.m_val, 12.0);
-    assert_eq!(w.f_range().lo, 12);
-    assert_eq!(w.f_range().hi, 18);
-    assert_eq!(w.m_range().lo, 9);
-    assert_eq!(w.m_range().hi, 15);
-    // Verify pre-computed weights
-    assert!(w.f_weights.len() > 0, "fixed weights should be populated");
-    assert!(w.m_weights.len() > 0, "moving weights should be populated");
-    assert_eq!(w.f_weights.len as usize, w.f_range().len());
-    assert_eq!(w.m_weights.len as usize, w.m_range().len());
-}
-
-#[test]
-fn sample_window_oob_mask_excludes() {
-    let fixed = vec![15.3];
-    let moving = vec![12.0];
-    let oob = vec![0.0f32]; // excluded
-    let fix_cfg = ParzenConfig::new(1.0);
-    let mov_cfg = ParzenConfig::new(1.0);
-    let window = SampleWindow::new(0, &fixed, &moving, 32, &fix_cfg, &mov_cfg, Some(&oob));
-    assert!(window.is_none());
-}
-
-#[test]
-fn sample_window_in_bounds_mask() {
-    let fixed = vec![15.3];
-    let moving = vec![12.0];
-    let oob = vec![1.0f32]; // in-bounds
-    let fix_cfg = ParzenConfig::new(1.0);
-    let mov_cfg = ParzenConfig::new(1.0);
-    let window = SampleWindow::new(0, &fixed, &moving, 32, &fix_cfg, &mov_cfg, Some(&oob));
-    assert!(window.is_some());
-}
-
-#[test]
-fn sample_window_moving_only_in_bounds() {
-    let moving = vec![12.0, 18.5];
-    let mov_cfg = ParzenConfig::new(1.0);
-    let result = SampleWindow::new_moving_only(1, &moving, 32, &mov_cfg, None);
-    assert!(result.is_some());
-    let (m_val, m_range, m_weights, _inv_sum_m) = result.unwrap();
-    assert_eq!(m_val, 18.5);
-    assert_eq!(m_range.lo, 15);
-    assert_eq!(m_range.hi, 21);
-    assert_eq!(m_weights.len(), m_range.len());
-}
-
-#[test]
-fn sample_window_moving_only_oob() {
-    let moving = vec![12.0];
-    let oob = vec![0.0f32];
-    let mov_cfg = ParzenConfig::new(1.0);
-    let result = SampleWindow::new_moving_only(0, &moving, 32, &mov_cfg, Some(&oob));
-    assert!(result.is_none());
 }
 
 // ─── StackWeights SIMD-alignment tests (PERF-316-03) ───────────────────────

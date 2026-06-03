@@ -116,7 +116,7 @@ fn encode_geometry_passes(
     encoder: &mut wgpu::CommandEncoder,
     peel_layers: usize,
 ) {
-    let layers = peel_layers.min(N_PEEL_LAYERS).max(1);
+    let layers = peel_layers.clamp(1, N_PEEL_LAYERS);
     let w = cache.cols as u32;
     let h = cache.rows as u32;
 

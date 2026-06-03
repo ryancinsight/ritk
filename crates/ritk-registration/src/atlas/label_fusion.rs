@@ -401,5 +401,5 @@ fn solve_linear_system(a: &mut [Vec<f64>], b: &mut [f64]) -> Option<Vec<f64>> {
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]
-#[path = "tests_label_fusion.rs"]
+#[path = "tests_label_fusion/mod.rs"]
 mod tests_label_fusion;

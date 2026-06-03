@@ -86,16 +86,21 @@ pub(crate) fn build_cma_config(opts: &PyCmaMiOptions) -> RitkResult<CmaMiConfig>
         "brain_multiscale_thin_slab" => Ok(CmaMiConfig::brain_rigid_multiscale_thin_slab()),
         "fast_exploratory" => Ok(CmaMiConfig::fast_exploratory()),
         "custom" => {
-            let mut cfg = CmaMiConfig::default();
-            cfg.coarse_shrink = opts.coarse_shrink;
-            cfg.num_mi_bins = opts.num_mi_bins;
-            cfg.sampling_percentage = opts.sampling_percentage;
-            cfg.translation_range_mm = opts.translation_range_mm;
-            cfg.rotation_range_rad = opts.rotation_range_rad;
-            cfg.cma_config.sigma0 = opts.sigma0;
-            cfg.cma_config.max_generations = opts.max_generations;
-            cfg.use_com_init = opts.use_com_init;
-            Ok(cfg)
+            let defaults = CmaMiConfig::default();
+            Ok(CmaMiConfig {
+                coarse_shrink: opts.coarse_shrink,
+                num_mi_bins: opts.num_mi_bins,
+                sampling_percentage: opts.sampling_percentage,
+                translation_range_mm: opts.translation_range_mm,
+                rotation_range_rad: opts.rotation_range_rad,
+                use_com_init: opts.use_com_init,
+                cma_config: ritk_registration::optimizer::CmaEsConfig {
+                    sigma0: opts.sigma0,
+                    max_generations: opts.max_generations,
+                    ..defaults.cma_config
+                },
+                ..defaults
+            })
         }
         other => Err(RitkPyError::value(format!(
             "CmaMiOptions.preset must be one of \

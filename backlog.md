@@ -1,3 +1,64 @@
+## Sprint 330 (0.50.93) — Architectural Decomposition: types/ and sample/ Vertical Hierarchy
+
+**Status**: Complete (v0.50.93)
+**Phase**: ARCH-330 — Deep vertical file hierarchy
+**Goal**: Decompose monolithic `types.rs` (522 lines) and `sample.rs` (380 lines) into focused, single-purpose submodules; promote gated production APIs; provide structural size regression tests.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| ARCH-330-01 | `types.rs` → `types/` directory (`half_width.rs`, `stack_weights.rs`, `bin_range.rs`, `parzen_config.rs`, `mod.rs`) — SRP per type | **Closed** |
+| ARCH-330-02 | `sample.rs` → `sample/` directory (`sample_window.rs`, `sparse_entry.rs`, `mod.rs`) | **Closed** |
+| ARCH-330-03 | `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted from `#[cfg(test)]` to production API | **Closed** |
+| ARCH-330-04 | Compute functions extracted: `accumulate.rs` (fold bodies + validation), `compute_direct.rs`, `compute_sparse.rs` | **Closed** |
+| ARCH-330-05 | `compute_half_width` promoted from `#[cfg(test)]` to `pub(crate)` | **Closed** |
+| DRY-330-06 | All public API paths preserved (backward-compatible re-exports) | **Closed** |
+| MEM-330-07 | Structural size regression tests verify decomposition preserved sizes | **Closed** |
+| TEST-330-08 | 24 new tests in `direct_phase_fifteen_tests.rs` | **Closed** |
+| FIX-330-09 | Build break: `clahe/mod.rs` `pub use` of `pub(crate)` items → `pub(crate) use` | **Closed** |
+| FIX-330-10 | `super::*` path resolution in `association/{helpers,scu}.rs` after directory split → `super::super::*` | **Closed** |
+| FIX-330-11 | `tests_label_fusion` path attribute `tests_label_fusion/mod.rs` (correct relative to `label_fusion.rs`) | **Closed** |
+| FIX-330-12 | `clahe_2d` and `build_tile_cdf` legacy functions gated `#[cfg(test)]` to eliminate dead-code warnings | **Closed** |
+| FIX-330-13 | `tests_label_fusion/mod.rs` re-exports removed (test files use `use super::super::*` directly) | **Closed** |
+
+### Deliverables
+
+| Artifact | Change |
+|----------|--------|
+| `direct/types/` | 4 leaf modules + `mod.rs` orchestrator |
+| `direct/sample/` | 2 leaf modules + `mod.rs` orchestrator |
+| `direct/accumulate.rs` | Fold body + validation SSOT |
+| `direct/compute_direct.rs` | Direct-path public API |
+| `direct/compute_sparse.rs` | Sparse-cache public API |
+| `direct/direct_phase_fifteen_tests.rs` | 24 new tests |
+| `dicom/networking/association/` | Split from monolithic `association.rs` |
+| `filter/fft/convolution/tests_convolution/` | 3-file test module split |
+| `filter/intensity/clahe/` | Split from monolithic `clahe.rs` |
+| `atlas/tests_label_fusion/` | 3-file test module split |
+| `direct/direct_property_tests/` | 3-file test module split |
+| `direct/direct_types_tests/` | 3-file test module split |
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `cargo check --workspace --all-targets` | 0/0 |
+| `cargo build --workspace --tests` | 0/0 |
+| `cargo test -p ritk-registration --lib` | 547 passed, 0 failed, 1 ignored |
+| `cargo test -p ritk-core --lib` | 1408 passed, 0 failed, 1 ignored |
+| `cargo test -p ritk-vtk --lib` | 241 passed, 0 failed, 0 ignored |
+| `cargo clippy -p ritk-registration --features direct-parzen` | 0 warnings |
+| `cargo clippy -p ritk-core` | 0 warnings |
+| `cargo clippy -p ritk-io` | 0 warnings |
+
+### Residual risks
+
+- `STACK_WEIGHTS_CAPACITY=32` impact measurement — Benchmark not yet run (Sprint 319 outstanding)
+- 120+ clippy warnings across `ritk-vtk`, `ritk-snap`, `ritk-core` (benches/tests) — non-error, mostly `field_reassign_with_default`, `needless_range_loop`, `unnecessary_cast`
+- `sparse.rs` GPU-backend potential — Remains archived
+- Git CRLF normalization — Blocked by missing test data files
+
 ## Sprint 328 — Complete
 
 **Status**: Complete

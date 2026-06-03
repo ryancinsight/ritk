@@ -119,6 +119,7 @@ fn perturb_center(center: &[usize], shape: &[usize], gradient: &[f64], ndim: usi
 }
 
 /// Recursively enumerate a 3^ndim neighbourhood, tracking the minimum gradient.
+#[allow(clippy::too_many_arguments)]
 fn find_min_gradient(
     offset: &mut [isize],
     depth: usize,

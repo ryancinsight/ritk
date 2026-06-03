@@ -370,19 +370,19 @@ cargo install --path crates/ritk-cli
 
 ## Development
 
-### Recent Sprints (ritk-snap)
+### Recent Sprints
+
+- **Sprint 330** (v0.50.93): Architectural decomposition — Monolithic `types.rs` → `types/` vertical hierarchy (half_width, stack_weights, bin_range, parzen_config). Monolithic `sample.rs` → `sample/` vertical hierarchy (sample_window, sparse_entry). `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted to production API. Computation functions extracted into `accumulate.rs`, `compute_direct.rs`, `compute_sparse.rs`. 24 new tests, 547 total ritk-registration tests.
+
+- **Sprint 329** (v0.50.92): Sparse full joint normalization — `inv_sum_f` stored per-sample in `SparseWFixedT`, making direct↔sparse histograms numerically identical. FMA-idiomatic inner accumulation loop retained (explicit `mul_add` ~8% slower). Structural size regression tests added. 24 new tests, 523 total ritk-registration tests.
+
+- **Sprint 328** (v0.50.91): Per-sample weight normalization — `accumulate_sample_direct` multiplies by `inv_sum_f × inv_sum_m` (σ²-invariant histogram total). Sparse-path moving-axis normalization. `StackWeights::len()`/`BinRange::len()` promoted to production. `ParzenConfig::compute_weights_with_inv_sum()` production API. 18 new tests, 499 total ritk-registration tests.
 
 - **Sprint 121**: Voxel intensity histogram — Added `compute_histogram` SSOT in `render/histogram.rs` (O(N) binning, exact min/max pass, clamp-at-bounds) and `draw_histogram` widget in `ui/histogram.rs` (log₁₊₁ bar scale, W/L range overlay, axis labels). `SnapApp` caches a 256-bin histogram on every volume load and renders it in the W/L sidebar panel. 16 new tests, 257 total ritk-snap lib tests passing.
 
 - **Sprint 120**: Live measurement preview labels — Added `live_length_mm` and `live_angle_deg` SSOT functions for real-time distance (mm) and angle (°) feedback during rubber-band gestures. `draw_in_progress` now renders live labels while dragging. Fixed `viewport.rs` ellipse ROI DRY violation (placeholder from Sprint 118). 10 new tests, 241 total ritk-snap lib tests passing.
 
 - **Sprint 119**: Continuous pointer HU intensity tracking — Added `intensity_at_voxel` SSOT for voxel intensity lookup, wired SnapApp pointer-motion handler to track pointer_intensity continuously, updated OverlayRenderer to display "Pointer HU" alongside linked-cursor HU in the 4-corner overlay. 5 new tests, 231 total ritk-snap lib tests passing.
-
-- **Sprint 118**: ROI Ellipse true pixel-mask statistics — Implemented exact ellipse membership evaluation per-pixel with proper physical area calculation, cardinal-point handles, and μ ± σ statistics. 5 new tests.
-
-- **Sprint 117**: Pan tool drag SSOT — Extracted pan offset calculation as testable pure function with 9 value-semantic unit tests and 3 app-level integration tests.
-
-- **Sprint 116**: Tool keyboard shortcuts SSOT — Added deterministic key-to-tool mapping with 11 comprehensive tests covering all shortcuts and edge cases.
 
 ## Testing
 

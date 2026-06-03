@@ -1,3 +1,40 @@
+## Sprint 330 (0.50.93) — Architectural Decomposition: types/ and sample/
+
+- [x] ARCH-330-01: `types.rs` → `types/` directory (4 leaf modules + mod.rs)
+  - [x] `types/half_width.rs` — `compute_half_width`, `MIN_HALF_WIDTH`
+  - [x] `types/stack_weights.rs` — `StackWeights`, `StackWeightsIter`
+  - [x] `types/bin_range.rs` — `BinRange`
+  - [x] `types/parzen_config.rs` — `ParzenConfig`
+  - [x] `types/mod.rs` — re-exports + `CompactionSizes`
+- [x] ARCH-330-02: `sample.rs` → `sample/` directory (2 leaf modules + mod.rs)
+  - [x] `sample/sample_window.rs` — `SampleWindow`
+  - [x] `sample/sparse_entry.rs` — `SparseWFixedEntry`, `SparseWFixedT`
+  - [x] `sample/mod.rs` — re-exports
+- [x] ARCH-330-03: `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted (removed `#[cfg(test)]`)
+- [x] ARCH-330-04: Compute functions extracted into `accumulate.rs`, `compute_direct.rs`, `compute_sparse.rs`
+- [x] ARCH-330-05: `compute_half_width` re-export promoted (removed `#[cfg(test)]`)
+- [x] DRY-330-06: Backward-compatible re-exports (all public API paths preserved)
+- [x] MEM-330-07: Structural size regression tests (BinRange=4, SparseWFixedEntry=8, StackWeights=128-136, ParzenConfig=12-32)
+- [x] TEST-330-08: 24 new tests in `direct_phase_fifteen_tests.rs` (production API, SSOT, types/sample access, computation functions, backward compat, size regression, weight correctness, end-to-end, support_bins)
+- [x] FIX-330-09: `clahe/mod.rs` `pub use` of `pub(crate)` items → `pub(crate) use`
+- [x] FIX-330-10: `super::*` → `super::super::*` in `association/{helpers,scu}.rs` for new directory split
+- [x] FIX-330-11: `tests_label_fusion` path attribute fixed (`tests_label_fusion/mod.rs` is correct)
+- [x] FIX-330-12: `clahe_2d` / `build_tile_cdf` legacy helpers gated `#[cfg(test)]`
+- [x] FIX-330-13: `tests_label_fusion/mod.rs` re-exports removed (child files use `super::super::*` directly)
+- [x] Build: `cargo check --workspace --all-targets` → 0 errors, 0 warnings
+- [x] Build: `cargo build --workspace --tests` → 0 errors, 0 warnings
+- [x] Tests: `cargo test -p ritk-registration --lib` → 547/0/1
+- [x] Tests: `cargo test -p ritk-core --lib` → 1408/0/1
+- [x] Tests: `cargo test -p ritk-vtk --lib` → 241/0/0
+- [x] Clippy: `cargo clippy -p ritk-registration --features direct-parzen` → 0 warnings
+- [x] Clippy: `cargo clippy -p ritk-core` → 0 warnings
+- [x] Clippy: `cargo clippy -p ritk-io` → 0 warnings
+- [x] CHANGELOG.md updated (0.50.93)
+- [x] `Cargo.toml` version bumped to 0.50.93
+- [x] backlog.md updated
+- [x] checklist.md updated
+- [x] gap_audit.md updated
+
 ## Sprint 328 (0.50.91) — Per-Sample Weight Normalization
 
 - [x] PERF-328-01: Per-sample weight normalization:

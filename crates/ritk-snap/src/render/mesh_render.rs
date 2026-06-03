@@ -324,16 +324,16 @@ pub fn phong_shade(
         let l = normalize(light.direction);
         let n_dot_l = dot3(n, l).max(0.0);
         // Diffuse
-        for c in 0..3 {
-            color[c] += material.diffuse[c] * n_dot_l * light.color[c];
+        for ((c, diff), lc) in color.iter_mut().zip(material.diffuse).zip(light.color) {
+            *c += diff * n_dot_l * lc;
         }
         // Specular (Phong reflection model)
         if n_dot_l > 0.0 {
             let r = sub3(scale3(n, 2.0 * dot3(n, l)), l);
             let r_dot_v = dot3(r, v).max(0.0);
             let spec = r_dot_v.powf(material.shininess);
-            for c in 0..3 {
-                color[c] += material.specular[c] * spec * light.color[c];
+            for ((c, spec_val), lc) in color.iter_mut().zip(material.specular).zip(light.color) {
+                *c += spec_val * spec * lc;
             }
         }
     }

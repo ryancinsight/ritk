@@ -1,3 +1,68 @@
+## Sprint 330 Audit (2026-06-03) — Architectural Decomposition: types/ and sample/
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| ARCH-330-01 | `types.rs` → `types/` directory (4 leaf modules + mod.rs) — SRP per type | `direct::types` | 547 |
+| ARCH-330-02 | `sample.rs` → `sample/` directory (2 leaf modules + mod.rs) | `direct::sample` | 547 |
+| ARCH-330-03 | `ParzenConfig::half_width()` / `inv_2sigma_sq()` production API promotion | `direct::types::parzen_config` | 547 |
+| ARCH-330-04 | Compute functions extracted: `accumulate.rs`, `compute_direct.rs`, `compute_sparse.rs` | `direct::mod` | 547 |
+| ARCH-330-05 | `compute_half_width` production API promotion | `direct::types` | 547 |
+| DRY-330-06 | Backward-compatible re-exports — all public API paths preserved | `direct::mod` | 547 |
+| MEM-330-07 | Structural size regression tests (4 type sizes) | `direct::tests::direct_phase_fifteen` | 547 |
+| TEST-330-08 | 24 new tests (Phase Fifteen module) | `direct::tests` | 547 (+24) |
+| FIX-330-09 | `clahe/mod.rs` `pub use` of `pub(crate)` items (E0364) | `clahe::mod` | 547 |
+| FIX-330-10 | `super::*` resolution in `association/{helpers,scu}.rs` (E0432) | `dicom::networking::association` | 547 |
+| FIX-330-11 | `tests_label_fusion` path attribute (E0583) | `atlas::label_fusion` | 547 |
+| FIX-330-12 | `clahe_2d` / `build_tile_cdf` dead-code warnings | `clahe::{interpolate,tile_cdf}` | 547 |
+| FIX-330-13 | `tests_label_fusion/mod.rs` re-exports (unused_imports) | `atlas::tests_label_fusion` | 547 |
+| STR-330-14 | `dicom/networking/association/` directory split (mod.rs + helpers.rs + scu.rs) | `dicom::networking::association` | 547 |
+| STR-330-15 | `filter/fft/convolution/tests_convolution/` 3-file split | `filter::fft::convolution` | 1408 |
+| STR-330-16 | `filter/intensity/clahe/` directory split (mod.rs + interpolate.rs + tile_cdf.rs) | `filter::intensity` | 1408 |
+| STR-330-17 | `atlas/tests_label_fusion/` 3-file split | `atlas` | 547 |
+| STR-330-18 | `direct/direct_property_tests/` 3-file split | `direct::tests` | 547 |
+| STR-330-19 | `direct/direct_types_tests/` 3-file split | `direct::tests` | 547 |
+
+### Architecture
+
+1. **types/ vertical hierarchy (ARCH-330-01)**: `types.rs` (522 lines) decomposed into 4 SRP leaf modules. Each type now owns its own file: `half_width.rs` (sigma→bin range derivation), `stack_weights.rs` (StackWeights + StackWeightsIter), `bin_range.rs` (bin range with u16 fields), `parzen_config.rs` (ParzenConfig with private fields + accessors). `types/mod.rs` is a thin orchestrator with re-exports and `CompactionSizes`.
+
+2. **sample/ vertical hierarchy (ARCH-330-02)**: `sample.rs` (380 lines) decomposed into `sample_window.rs` (SampleWindow with per-sample Parzen weights and bin ranges) and `sparse_entry.rs` (SparseWFixedEntry + SparseWFixedT). `sample/mod.rs` re-exports both.
+
+3. **Compute function extraction (ARCH-330-04)**: The `direct::mod.rs` was a 800+ line file containing fold bodies, public compute APIs, type definitions, and re-exports. Extracted `accumulate.rs` (fold bodies + `validate_inputs()` SSOT), `compute_direct.rs` (`compute_joint_histogram_direct` public API), `compute_sparse.rs` (`compute_joint_histogram_from_cache_sparse` public API). `mod.rs` is now a thin orchestrator with module declarations, re-exports, and test registrations.
+
+4. **Test directory modules**: 5 monolithic test files (`tests_convolution.rs`, `direct_property_tests.rs`, `direct_types_tests.rs`, `tests_label_fusion.rs`, plus the split `clahe.rs`) decomposed into directory modules with focused test files. The `clahe` and `association` source files also decomposed.
+
+5. **FIX-330-09 (visibility)**: E0364 errors arose from `pub use` of `pub(crate)` items in the new clahe directory. The original `clahe.rs` had functions as `fn` (file-private) and the test file used `use super::*;` from the same file. After the split, the functions were `pub(crate)` but the re-export was `pub use`, which is invalid Rust. Fixed by changing re-exports to `pub(crate) use`. For the legacy 2D test-only functions (`clahe_2d`, `build_tile_cdf`), gated with `#[cfg(test)]` to eliminate dead-code warnings.
+
+6. **FIX-330-10 (super::* path)**: E0432 errors arose when `association.rs` was split into a directory module. The `super::*` from `helpers.rs` and `scu.rs` resolved to `association::*` (the directory module) instead of `networking::*` (the parent). Fixed by using `super::super::*` to ascend one more level.
+
+7. **FIX-330-11 (path attribute)**: E0583 error: `tests_label_fusion/mod.rs` path was reported as missing. Investigation showed the path was correct (`tests_label_fusion/mod.rs` from `atlas/label_fusion.rs`). The issue was a transient build artifact issue. Verified the path is correct by reverting and rebuilding.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo check --workspace --all-targets` | 0 errors, 0 warnings | pass |
+| `cargo build --workspace --tests` | 0 errors, 0 warnings | pass |
+| `cargo test -p ritk-registration --lib` | 547/0/1 (1 pre-existing ignored) | pass |
+| `cargo test -p ritk-core --lib` | 1408/0/1 (1 pre-existing ignored) | pass |
+| `cargo test -p ritk-vtk --lib` | 241/0/0 | pass |
+| `cargo clippy -p ritk-registration --features direct-parzen` | 0 warnings | pass |
+| `cargo clippy -p ritk-core` | 0 warnings | pass |
+| `cargo clippy -p ritk-io` | 0 warnings | pass |
+| `ritk-registration` (lib test) | 0 errors | pass |
+| Zero `unsafe` in Parzen direct path | code audit | pass |
+| All `direct/` source files < 500 lines | structural audit | pass |
+
+### Residual Risk
+
+- 120+ clippy warnings across `ritk-vtk`, `ritk-snap`, `ritk-core` (benches/tests) — non-error, mostly `field_reassign_with_default`, `needless_range_loop`, `unnecessary_cast`
+- `STACK_WEIGHTS_CAPACITY=32` impact measurement — Benchmark not yet run
+- `sparse.rs` GPU-backend potential — Remains archived
+- Git CRLF normalization — Blocked by missing test data files
+
 ## Sprint 328 Audit (2026-06-01) — Per-Sample Weight Normalization
 
 ### Gaps closed

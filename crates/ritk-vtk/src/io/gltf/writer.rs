@@ -81,9 +81,7 @@ pub(crate) fn build_gltf_json(poly: &VtkPolyData) -> Result<Value> {
     let total_bytes = idx_byte_offset + idx_byte_len;
     let mut buf: Vec<u8> = Vec::with_capacity(total_bytes);
     buf.extend_from_slice(&vert_bytes);
-    for _ in 0..padding {
-        buf.push(0u8);
-    }
+    buf.resize(buf.len() + padding, 0u8);
     buf.extend_from_slice(&idx_bytes);
     let encoded = base64_encode(&buf);
     let data_uri = format!("data:application/octet-stream;base64,{encoded}");

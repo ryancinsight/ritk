@@ -96,7 +96,7 @@ pub fn show_pacs_panel(
     ui: &mut egui::Ui,
     config: &mut PacsConfig,
     query_state: &mut QueryState,
-    echo_display: &mut String,
+    echo_display: &mut str,
     patient_name: &mut String,
     modality: &mut String,
     study_date: &mut String,
@@ -172,7 +172,7 @@ pub fn show_pacs_panel(
             } else {
                 egui::Color32::from_rgb(220, 80, 80)
             };
-            ui.colored_label(color, echo_display.as_str());
+            ui.colored_label(color, &*echo_display);
         }
     });
 
@@ -208,9 +208,8 @@ pub fn show_pacs_panel(
                     config.auto_load_limit = limit as u32;
                 }
             }
-            let show_load_btn = !config.auto_load_received
-                || (config.auto_load_received
-                    && pacs_pending_count > config.auto_load_limit as usize);
+            let show_load_btn =
+                !config.auto_load_received || pacs_pending_count > config.auto_load_limit as usize;
             if show_load_btn
                 && pacs_pending_count > 0
                 && ui.button("\u{25b6} Load Received").clicked()

@@ -48,6 +48,7 @@ use super::geometry::{
 /// - `series_path`: path to use in the returned `DicomSeriesInfo`
 /// - `sort_tiebreaker`: final comparator for slice sorting (filename vs SOP UID)
 /// - `empty_error_context`: context string for empty-series error messages
+#[allow(clippy::too_many_arguments)]
 pub(super) fn finalize_scanned_series(
     mut slices: Vec<DicomSliceMetadata>,
     part10_bytes_vec: Option<Vec<Vec<u8>>>,

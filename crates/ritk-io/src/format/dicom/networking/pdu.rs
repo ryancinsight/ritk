@@ -362,11 +362,7 @@ fn dec_ui(data: &[u8]) -> Result<UserInformation> {
     Ok(ui)
 }
 fn enc_pc_rq(pc: &PresentationContextItemRq) -> Vec<u8> {
-    let mut b = Vec::new();
-    b.push(pc.presentation_context_id);
-    b.push(0x00);
-    b.push(0x00);
-    b.push(0x00);
+    let mut b = vec![pc.presentation_context_id, 0x00, 0x00, 0x00];
     let mut asb = Vec::new();
     asb.extend_from_slice(pc.abstract_syntax_uid.as_bytes());
     w_item(&mut b, IT_ABS_SYN, &asb);
@@ -401,11 +397,7 @@ fn dec_pc_rq(data: &[u8]) -> Result<PresentationContextItemRq> {
     })
 }
 fn enc_pc_ac(pc: &PresentationContextItemAc) -> Vec<u8> {
-    let mut b = Vec::new();
-    b.push(pc.presentation_context_id);
-    b.push(0x00);
-    b.push(pc.result_reason);
-    b.push(0x00);
+    let mut b = vec![pc.presentation_context_id, 0x00, pc.result_reason, 0x00];
     let mut tsb = Vec::new();
     tsb.extend_from_slice(pc.transfer_syntax_uid.as_bytes());
     w_item(&mut b, IT_XFER_SYN, &tsb);

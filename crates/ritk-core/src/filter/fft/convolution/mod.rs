@@ -46,5 +46,4 @@ pub use ncc2d::FftNormalizedCorrelationFilter;
 pub use ncc3d::FftNormalizedCorrelation3DFilter;
 
 #[cfg(test)]
-#[path = "tests_convolution.rs"]
-mod tests;
+mod tests_convolution;

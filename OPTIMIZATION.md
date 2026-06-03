@@ -3,15 +3,25 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.50.91)
+## Current State (v0.50.93)
 
 ### Test Suite Performance
 
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
-| ritk-core | 1395 | ~8s | ✅ All passing |
-| ritk-registration | 499 | ~16s | ✅ All passing (`--features direct-parzen`) |
-| ritk-io | ~308 | ~30s | ✅ All passing |
+| ritk-core | 1408 | ~8s | ✅ All passing |
+| ritk-registration | 547 | ~16s | ✅ All passing (`--features direct-parzen --no-default-features`) |
+| ritk-dicom | 16 | ~2s | ✅ All passing |
+| ritk-nifti | 13 | ~1s | ✅ All passing |
+| ritk-nrrd | 23 | ~2s | ✅ All passing |
+| ritk-codecs | 104 | ~4s | ✅ All passing |
+| ritk-minc | 40 | ~3s | ✅ All passing |
+| ritk-mgh | 30 | ~2s | ✅ All passing |
+| ritk-analyze | 2 | <1s | ✅ All passing |
+| ritk-png | 9 | ~1s | ✅ All passing |
+| ritk-jpeg | 9 | ~1s | ✅ All passing |
+| ritk-tiff | 16 | ~2s | ✅ All passing |
+| ritk-metaimage | 19 | ~2s | ✅ All passing |
 
 ### Known Optimizations Already Implemented
 
@@ -740,6 +750,62 @@ Direct path: 168 tests (was 155 in 0.50.90; +13 in `direct_phase_thirteen_tests.
 Total with `--features direct-parzen`: 499 (was 518 in 0.50.90; -19 from
 consolidating `direct_phase_twelve_tests.rs` stale tests with the new
 normalized expectations).
+
+## Sprint 330 (0.50.93) — Architectural Decomposition
+
+### ARCH-330-01: Deep vertical file hierarchy for `types/`
+
+Monolithic `types.rs` decomposed into `types/half_width.rs`, `types/stack_weights.rs`, `types/bin_range.rs`, `types/parzen_config.rs`, and `types/mod.rs` (re-exports + `CompactionSizes`). Each type now has its own SRP module, continuing the vertical-hierarchy pattern established in `ritk-core` and `ritk-registration`.
+
+### ARCH-330-02: Deep vertical file hierarchy for `sample/`
+
+Monolithic `sample.rs` decomposed into `sample/sample_window.rs`, `sample/sparse_entry.rs`, and `sample/mod.rs` (re-exports). `SampleWindow` and `SparseWFixedEntry`/`SparseWFixedT` each have dedicated modules.
+
+### ARCH-330-03: ParzenConfig production API promotion
+
+`ParzenConfig::half_width()` and `ParzenConfig::inv_2sigma_sq()` were `#[cfg(test)]`-gated; now available for downstream consumers (bin-range validation, capacity checks, custom weight computation).
+
+### ARCH-330-04: Computation function extraction
+
+`accumulate.rs` (fold bodies + validation), `compute_direct.rs` (direct-path API), `compute_sparse.rs` (sparse-cache-path API). `mod.rs` is now a thin orchestrator with re-exports.
+
+### MEM-330-07: Structural size regression tests
+
+Post-decomposition verification that no struct sizes changed: `BinRange` (4), `SparseWFixedEntry` (8), `StackWeights` (128–136), `ParzenConfig` (12–32).
+
+### Test count
+
+Direct path: 211 tests (was 187 in 0.50.92; +24 in `direct_phase_fifteen_tests.rs`).
+Total with `--features direct-parzen --no-default-features`: 547 (was 523; +24 new).
+
+## Sprint 329 (0.50.92) — Sparse Full Joint Normalization
+
+### SPARSE-329-01: Full joint normalization in sparse path
+
+`inv_sum_f` is now stored per-sample in `SparseWFixedT` alongside the fixed
+entries, enabling the sparse path to compute `inv_norm = inv_sum_f × inv_sum_m`
+(matching the direct path). This eliminates the Sprint 328 asymmetry where the
+sparse path only normalized by `1/sum_m`, making direct↔sparse histograms
+numerically identical.
+
+**Memory overhead**: +4 bytes/sample for `inv_sum_f` (~128 KB for 32K samples).
+
+### PERF-329-02: FMA-idiomatic inner accumulation loop
+
+Inner loop `hist[idx] += w_f * w_m * inv_norm` is the canonical FMA pattern
+that LLVM auto-fuses into `vfmadd231ps` on AVX2. Explicit `mul_add` was
+benchmarked to be ~8% slower for the 7×7 loop, so the original form is retained.
+
+### MEM-329-04: Structural size regression tests
+
+Exact size assertions for `BinRange` (4 bytes), `SparseWFixedEntry` (8 bytes),
+`StackWeights` (128–136 bytes), `ParzenConfig` (12–24 bytes), `SampleWindow`
+(256–352 bytes). `CompactionSizes` integration test.
+
+### Test count
+
+Direct path: 187 tests (was 181 in 0.50.91; +24 in `direct_phase_fourteen_tests.rs`).
+Total with `--features direct-parzen --no-default-features`: 523 (was 521; +2 net).
 
 ### Sprint 314 (0.50.76) — Parzen Cache Dispatch Hardening Phase Two
 

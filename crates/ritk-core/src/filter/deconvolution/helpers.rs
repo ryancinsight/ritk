@@ -90,6 +90,7 @@ pub(super) fn convolve_2d(
 ///
 /// # Invariant
 /// Output length equals `id * ih * iw`.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn convolve_3d(
     image: &[f32],
     id: usize,

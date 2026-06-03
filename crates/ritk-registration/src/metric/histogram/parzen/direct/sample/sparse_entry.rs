@@ -50,5 +50,6 @@ impl SparseWFixedEntry {
 ///
 /// Per sample: `Vec<SparseWFixedEntry>` (~56 bytes for 7 entries × 8 bytes)
 /// + `f32` inv_sum_f (4 bytes). Total ≈ 60 bytes/sample. For 32K samples:
+///
 /// ~1.875 MB, of which inv_sum_f adds only 128 KB overhead.
 pub type SparseWFixedT = Vec<(Vec<SparseWFixedEntry>, f32)>;

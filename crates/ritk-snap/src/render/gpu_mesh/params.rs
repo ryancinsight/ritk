@@ -2,15 +2,15 @@
 //!
 //! # Layout invariants (std140 / WebGPU alignment)
 //!
-//! | Struct              | Size (bytes) | Alignment |
+//! | Struct | Size (bytes) | Alignment |
 //! |---------------------|-------------|-----------|
-//! | `MeshVertex`        |          32 | 16        |
-//! | `SceneUniforms`     |         144 | 16        |
-//! | `LightUniform`      |          48 | 16        |
-//! | `LightBlock`        |          96 | 16        |
-//! | `MaterialUniforms`  |          48 | 16        |
-//! | `SsaoUniforms`      |          48 | 16        |
-//! | `CompositeUniforms` |          16 |  4        |
+//! | `MeshVertex` | 32 | 16 |
+//! | `SceneUniforms` | 144 | 16 |
+//! | `LightUniform` | 48 | 16 |
+//! | `LightBlock` | 96 | 16 |
+//! | `MaterialUniforms` | 48 | 16 |
+//! | `SsaoUniforms` | 48 | 16 |
+//! | `CompositeUniforms` | 16 | 4 |
 //!
 //! All structs are `#[repr(C)]` + `bytemuck::{Pod, Zeroable}` for safe
 //! byte-cast upload via `queue.write_buffer` / `create_buffer_init`.
@@ -41,7 +41,7 @@ impl MeshVertex {
     /// Vertex buffer layout for `wgpu::RenderPipeline`.
     ///
     /// Attribute 0 → `@location(0)` position vec4
-    /// Attribute 1 → `@location(1)` normal  vec4
+    /// Attribute 1 → `@location(1)` normal vec4
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use wgpu::{VertexAttribute, VertexFormat, VertexStepMode};
         wgpu::VertexBufferLayout {
@@ -68,7 +68,7 @@ impl MeshVertex {
 /// Model-view-projection and model-view matrices plus peel-pass index.
 ///
 /// `mvp` (column-major): world → clip
-/// `mv`  (column-major): world → view, used for normal transform
+/// `mv` (column-major): world → view, used for normal transform
 /// `peel_pass`: 0 = base pass (no depth discard), i>0 = peel layer i
 ///
 /// std140: 2 × 64 + 4 + 12 = 144 bytes, align 16.
@@ -113,9 +113,9 @@ pub(super) struct LightBlock {
 /// Phong material packed as three `vec4<f32>` (3 × 16 = 48 bytes).
 ///
 /// Layout:
-/// - `diffuse`        (16 bytes): RGBA diffuse color
+/// - `diffuse` (16 bytes): RGBA diffuse color
 /// - `specular_shine` (16 bytes): xyz = specular RGB, w = shininess exponent
-/// - `opacity_pad`    (16 bytes): x = opacity [0,1], yzw = padding
+/// - `opacity_pad` (16 bytes): x = opacity [0,1], yzw = padding
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct MaterialUniforms {
@@ -180,7 +180,7 @@ pub(super) struct CompositeUniforms {
 /// `z > 0` for all 16 samples (Halton(i,2) ∈ (0,1) for i ≥ 1).
 pub(super) fn build_ssao_kernel() -> [[f32; 4]; 16] {
     let mut k = [[0.0f32; 4]; 16];
-    for i in 0..16usize {
+    for (i, entry) in k.iter_mut().enumerate() {
         let h1 = halton((i + 1) as u32, 2);
         let h2 = halton((i + 1) as u32, 3);
         let phi = TAU * h2;
@@ -190,7 +190,7 @@ pub(super) fn build_ssao_kernel() -> [[f32; 4]; 16] {
         let z = h1; // z > 0 ∀ i ≥ 1
         let t = (i + 1) as f32 / 16.0;
         let scale = 0.1 + 0.9 * t * t; // lerp(0.1, 1.0, t²)
-        k[i] = [x * scale, y * scale, z * scale, 1.0];
+        *entry = [x * scale, y * scale, z * scale, 1.0];
     }
     k
 }
