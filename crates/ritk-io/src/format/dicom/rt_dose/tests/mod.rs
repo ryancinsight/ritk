@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use super::*;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;

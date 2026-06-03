@@ -1,5 +1,6 @@
 //! Tests for confidence_connected
 //! Extracted to keep the 500-line structural limit.
+#![allow(clippy::identity_op, clippy::erasing_op)]
 use super::*;
 use crate::image::Image;
 use crate::spatial::{Direction, Point, Spacing};

@@ -72,7 +72,7 @@ fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     });
     let threshold = KapurThreshold::new().compute(&make_bimodal_image());
     assert!(
-        threshold >= 20.0 && threshold <= 200.0,
+        (20.0..=200.0).contains(&threshold),
         "Kapur threshold {threshold} must lie within mode range [20, 200]"
     );
 }

@@ -47,7 +47,7 @@ fn test_segment_kmeans_creates_output_with_valid_labels() {
     let vals = labels.data_vec();
     for &v in &vals {
         assert!(
-            v >= 0.0 && v < 3.0 + 0.5,
+            (0.0..3.0 + 0.5).contains(&v),
             "kmeans label {v} must be in [0, 2]"
         );
     }
@@ -222,7 +222,7 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
             for ix in 0..nx {
                 let d2 = ((iz as i32 - 3).pow(2) + (iy as i32 - 3).pow(2) + (ix as i32 - 3).pow(2))
                     as f32;
-                if d2 >= 4.0 && d2 <= 9.0 {
+                if (4.0..=9.0).contains(&d2) {
                     vals[iz * ny * nx + iy * nx + ix] = 1.0;
                 }
             }
@@ -281,7 +281,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     result.with_data_slice(|vals| {
         assert_eq!(vals.len(), 125);
         assert!(
-            vals.iter().any(|&v| v == 1.0),
+            vals.contains(&1.0),
             "morphological gradient must contain boundary voxels"
         );
         assert!(
@@ -379,8 +379,8 @@ fn test_segment_connected_components_output_labels_are_valid() {
                 v
             );
         }
-        let has_label_1 = slice.iter().any(|&v| v == 1.0);
-        let has_label_2 = slice.iter().any(|&v| v == 2.0);
+        let has_label_1 = slice.contains(&1.0);
+        let has_label_2 = slice.contains(&2.0);
         assert!(has_label_1, "label 1 must be present");
         assert!(has_label_2, "label 2 must be present");
     });
@@ -403,7 +403,7 @@ fn test_segment_connected_components_connectivity_26() {
 
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     labels.with_data_slice(|slice| {
-        let has_label_1 = slice.iter().any(|&v| v == 1.0);
+        let has_label_1 = slice.contains(&1.0);
         assert!(
             has_label_1,
             "component must be labeled with 26-connectivity"

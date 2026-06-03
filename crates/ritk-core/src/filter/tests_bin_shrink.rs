@@ -211,7 +211,7 @@ fn truncation_of_remainder_voxels() {
     for bz in 0..2 {
         for by in 0..2 {
             for bx in 0..2 {
-                sum += data[flat3(in_shape, bz, by, bx)] as f32;
+                sum += data[flat3(in_shape, bz, by, bx)];
             }
         }
     }

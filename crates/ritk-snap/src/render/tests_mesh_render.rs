@@ -1,4 +1,5 @@
 //! Value-semantic tests for the CPU Phong mesh renderer (GAP-262-VIZ-02).
+#![allow(clippy::needless_range_loop)]
 //!
 //! Each test derives expected results analytically:
 //! - Phong shading equation is evaluated symbolically for known inputs.

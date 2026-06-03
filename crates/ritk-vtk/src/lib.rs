@@ -3,6 +3,7 @@
 //! Provides the authoritative VTK data model (domain types) and all VTK-format
 //! I/O free functions. Designed as a pure VTK-domain library with no
 //! dependency on `ritk-io` domain traits (no orphan-rule violations).
+#![allow(clippy::field_reassign_with_default)] // stylistic; test/code-init patterns
 
 pub mod domain;
 pub mod io;

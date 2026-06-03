@@ -149,6 +149,7 @@ fn hit_or_miss_3d(data: &[f32], dims: [usize; 3], fg_r: usize, bg_r: usize) -> V
 }
 
 #[cfg(test)]
+#[allow(clippy::needless_range_loop)]
 mod tests {
     use super::*;
     use crate::image::Image;

@@ -1,5 +1,6 @@
 //! Tests for distance_transform
 //! Extracted to keep the 500-line structural limit.
+#![allow(clippy::needless_range_loop)]
 use super::*;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};

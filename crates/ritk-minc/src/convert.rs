@@ -154,6 +154,7 @@ mod tests {
     use std::num::NonZeroUsize;
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn convert_f32_le_round_trips() {
         let val: f32 = 3.14;
         let raw = val.to_le_bytes().to_vec();

@@ -1,4 +1,7 @@
-#![allow(clippy::too_many_arguments)]
+#![allow(
+    clippy::too_many_arguments,
+    clippy::field_reassign_with_default, // stylistic; test code patterns
+)]
 
 //! `ritk-snap` viewer core.
 //!

@@ -1,4 +1,5 @@
 //! Value-semantic tests for extended label shape statistics (GAP-262-STA-03).
+#![allow(clippy::identity_op, clippy::erasing_op)]
 //!
 //! Verifies centroid, perimeter, elongation, flatness, roundness, Feret diameter,
 //! and principal moments for known geometries.

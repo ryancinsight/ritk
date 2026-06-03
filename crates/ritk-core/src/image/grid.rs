@@ -127,6 +127,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::single_range_in_vec_init)] // burn tensor slice() takes [Range; N] per rank
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;

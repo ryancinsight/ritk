@@ -9,9 +9,9 @@
 //! - **Zero-allocation** (`clahe_2d_with_scratch`): reads CDFs from the
 //!   flat scratch buffer, used by the production path.
 
-use super::tile_cdf::build_tile_cdf_into;
 #[cfg(test)]
 use super::tile_cdf::build_tile_cdf;
+use super::tile_cdf::build_tile_cdf_into;
 
 /// Apply CLAHE to a single 2D slice (flat row-major, `rows × cols`) using
 /// pre-allocated scratch buffers.

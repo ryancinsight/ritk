@@ -453,7 +453,7 @@ mod tests {
         // Extend file to at least 256 bytes so the write at offset 0 lands inside.
         f.write_all(&[0u8; 256]).unwrap();
         let msg = build_attr_msg_f64("start", 1.0);
-        let end = write_v1_oh(&mut f, 0, &[msg.clone()]).unwrap();
+        let end = write_v1_oh(&mut f, 0, std::slice::from_ref(&msg)).unwrap();
         // 12 (prefix) + msg.len()
         assert_eq!(end, (12 + msg.len()) as u64);
     }

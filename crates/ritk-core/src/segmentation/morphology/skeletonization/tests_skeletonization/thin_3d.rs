@@ -180,7 +180,7 @@ fn test_morphological_operation_trait() {
 
 #[test]
 fn test_default_impl() {
-    let s = Skeletonization::default();
+    let s = Skeletonization;
     let image = make_mask_2d(vec![1.0_f32; 9], [3, 3]);
     let result = s.apply(&image);
     assert_eq!(count_fg_2d(&result), 1);

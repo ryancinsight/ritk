@@ -254,7 +254,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let args = default_args(dir.path(), method, output_name);
         let output = args.output.clone();
-        run(args).expect(&format!("{method} must succeed"));
+        run(args).unwrap_or_else(|_| panic!("{method} must succeed"));
         (dir, output)
     }
 

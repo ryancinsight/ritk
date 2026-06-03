@@ -98,6 +98,7 @@ impl Default for BinaryMorphologicalOpening {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[allow(clippy::identity_op, clippy::erasing_op)]
 mod tests {
     use super::*;
     use crate::image::Image;
@@ -174,7 +175,7 @@ mod tests {
     ///    - iz: need iz±1 ∈ [0,2] → iz=1 only.
     ///    - iy: need iy±1 ∈ [0,2] → iy=1 only.
     ///    - ix: need ix±1 ∈ [2,6] → ix ∈ {3,4,5}.
-    ///    Surviving erode: (1,1,{3,4,5}).
+    ///      Surviving erode: (1,1,{3,4,5}).
     /// 2. Dilate {(1,1,3),(1,1,4),(1,1,5)} by r=1: expands back to the original
     ///    3×3×5 block (iz∈{0..2}, iy∈{0..2}, ix∈{2..6}).
     ///

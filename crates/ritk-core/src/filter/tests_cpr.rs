@@ -1,3 +1,5 @@
+#![allow(clippy::identity_op, clippy::erasing_op)]
+
 use super::*;
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;

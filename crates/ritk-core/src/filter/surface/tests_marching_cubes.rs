@@ -1,5 +1,6 @@
 //! Tests for marching_cubes
 //! Extracted to keep the 500-line structural limit.
+#![allow(clippy::identity_op, clippy::erasing_op)]
 use super::mc_tables::EDGE_TABLE;
 use super::*;
 use gaia::domain::core::index::VertexId;
@@ -178,9 +179,9 @@ fn origin_shifts_vertex_positions() {
     let verts_orig = collect_vertices(&mesh_orig);
     let verts_shift = collect_vertices(&mesh_shift);
     for (u, s) in verts_orig.iter().zip(verts_shift.iter()) {
-        assert!((s[0] - u[0] - origin[0] as f64).abs() < 1e-4);
-        assert!((s[1] - u[1] - origin[1] as f64).abs() < 1e-4);
-        assert!((s[2] - u[2] - origin[2] as f64).abs() < 1e-4);
+        assert!((s[0] - u[0] - origin[0]).abs() < 1e-4);
+        assert!((s[1] - u[1] - origin[1]).abs() < 1e-4);
+        assert!((s[2] - u[2] - origin[2]).abs() < 1e-4);
     }
 }
 

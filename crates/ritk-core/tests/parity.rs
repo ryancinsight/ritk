@@ -2,6 +2,7 @@
 //! reference values. Each expected value is derived from a closed-form formula,
 //! not from empirical RITK output observation. This documents and verifies that
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
+#![allow(clippy::needless_range_loop)]
 
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;

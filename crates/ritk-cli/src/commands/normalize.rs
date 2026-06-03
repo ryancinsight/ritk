@@ -201,7 +201,7 @@ mod tests {
             Spacing::new([1.0; 3]),
             Direction::identity(),
         );
-        ritk_io::write_nifti(&path, &image).unwrap();
+        ritk_io::write_nifti(path, &image).unwrap();
     }
 
     fn default_args(method: &str, input: PathBuf, output: PathBuf) -> NormalizeArgs {

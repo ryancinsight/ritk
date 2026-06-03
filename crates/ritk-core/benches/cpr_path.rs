@@ -80,7 +80,7 @@ fn bench_cpr_path(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("scalar", label),
             &(cps, *num_samples),
-            |b, &(ref cps, ns)| {
+            |b, &(cps, ns)| {
                 b.iter(|| generate_path(cps, ns));
             },
         );
@@ -88,7 +88,7 @@ fn bench_cpr_path(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("batch", label),
             &(cps, *num_samples),
-            |b, &(ref cps, ns)| {
+            |b, &(cps, ns)| {
                 b.iter(|| generate_path_batch(cps, ns));
             },
         );

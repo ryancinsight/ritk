@@ -229,10 +229,9 @@ fn test_response_all_finite() {
             let ix = fi % N;
             let iy = (fi / N) % N;
             let iz = fi / (N * N);
-            let v = (std::f32::consts::PI * ix as f32 / N as f32).sin()
+            (std::f32::consts::PI * ix as f32 / N as f32).sin()
                 * (std::f32::consts::PI * iy as f32 / N as f32).cos()
-                * (0.5 + iz as f32 / N as f32);
-            v
+                * (0.5 + iz as f32 / N as f32)
         })
         .collect();
 

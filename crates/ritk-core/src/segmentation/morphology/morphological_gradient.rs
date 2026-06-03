@@ -66,6 +66,7 @@ impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
 }
 
 #[cfg(test)]
+#[allow(clippy::needless_range_loop)]
 mod tests {
     use super::*;
     use crate::image::Image;

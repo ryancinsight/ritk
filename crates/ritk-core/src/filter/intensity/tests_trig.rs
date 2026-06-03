@@ -124,7 +124,7 @@ fn sin_range_bounded() {
     let (v, _) = extract_vec_infallible(&out);
     for &x in &v {
         assert!(
-            x >= -1.0 - 1e-6 && x <= 1.0 + 1e-6,
+            (-1.0 - 1e-6..=1.0 + 1e-6).contains(&x),
             "sin out of [−1,1]: {x}"
         );
     }

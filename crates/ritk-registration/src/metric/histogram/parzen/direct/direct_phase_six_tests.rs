@@ -56,7 +56,7 @@ fn direct_exp_ratchet_boundary_precision() {
     let val = 15.5_f32;
     let primary = val.floor() as i32; // 15
     let lo = (primary - cfg.half_width() as i32).max(0) as usize;
-    let hi = ((primary + cfg.half_width() as i32).min(31)).max(0) as usize;
+    let hi = (primary + cfg.half_width() as i32).clamp(0, 31) as usize;
     let sw = StackWeights::new(val, lo, hi, cfg.inv_2sigma_sq());
     assert_eq!(sw.len, 13);
 

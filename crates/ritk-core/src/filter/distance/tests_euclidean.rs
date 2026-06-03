@@ -29,6 +29,7 @@ fn voxels(img: &Image<B, 3>) -> Vec<f32> {
 // --- edt_3d unit tests ---------------------------------------------------
 
 #[test]
+#[allow(clippy::erasing_op, clippy::identity_op)]
 fn edt_3d_single_foreground_voxel_at_origin() {
     // 5x5x5 volume, single foreground at (0,0,0)
     let dims = [5usize, 5, 5];
@@ -37,15 +38,17 @@ fn edt_3d_single_foreground_voxel_at_origin() {
     let dt = edt_3d(&fg, dims, [1.0, 1.0, 1.0]);
     // Voxel (0,0,0): distance 0
     assert!((dt[0] - 0.0).abs() < 1e-5);
-    // Voxel (0,0,1): distance 1
-    let idx = 0 * 25 + 0 * 5 + 1;
+    // Voxel (0,0,1): distance 1 — index formula: iz * ny * nx + iy * nx + ix
+    let ny = dims[1];
+    let nx = dims[2];
+    let idx = 0 * ny * nx + 0 * nx + 1;
     assert!(
         (dt[idx] - 1.0).abs() < 1e-4,
         "expected 1.0, got {}",
         dt[idx]
     );
     // Voxel (0,1,0): distance 1
-    let idx = 0 * 25 + 1 * 5 + 0;
+    let idx = 0 * ny * nx + 1 * nx + 0;
     assert!(
         (dt[idx] - 1.0).abs() < 1e-4,
         "expected 1.0, got {}",

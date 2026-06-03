@@ -385,7 +385,7 @@ mod tests {
         result.with_data_slice(|vals| {
             for &v in vals {
                 assert!(
-                    v >= 0.0 && v <= 1.0,
+                    (0.0..=1.0).contains(&v),
                     "sigmoid output must be in [0,1], got {}",
                     v
                 );

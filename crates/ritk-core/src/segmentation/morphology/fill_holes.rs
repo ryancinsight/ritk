@@ -158,7 +158,7 @@ mod tests {
                     let d2 = ((iz as i32 - 3).pow(2)
                         + (iy as i32 - 3).pow(2)
                         + (ix as i32 - 3).pow(2)) as f32;
-                    if d2 >= 4.0 && d2 <= 9.0 {
+                    if (4.0..=9.0).contains(&d2) {
                         vals[iz * 49 + iy * 7 + ix] = 1.0;
                     }
                 }

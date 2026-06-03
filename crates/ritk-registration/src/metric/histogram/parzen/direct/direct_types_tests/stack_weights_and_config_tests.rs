@@ -33,7 +33,7 @@ fn parzen_config_broad_sigma() {
 fn stack_weights_array_size_is_simd_aligned() {
     // PERF-316-03: The weight array must be 32 elements (128 bytes = 4× AVX2 __m256).
     assert_eq!(STACK_WEIGHTS_CAPACITY, 32);
-    assert!(STACK_WEIGHTS_CAPACITY >= MAX_PARZEN_BINS);
+    const _: () = assert!(STACK_WEIGHTS_CAPACITY >= MAX_PARZEN_BINS);
 }
 
 #[test]
@@ -367,7 +367,7 @@ fn stack_weights_exp_ratchet_precision() {
         let val = 15.3_f32;
         let primary = val.floor() as i32;
         let lo = (primary - cfg.half_width() as i32).max(0) as usize as u16;
-        let hi = ((primary + cfg.half_width() as i32).min(31)).max(0) as usize as u16;
+        let hi = (primary + cfg.half_width() as i32).clamp(0, 31) as usize as u16;
 
         let sw = StackWeights::new(val, lo as usize, hi as usize, inv_2sigma_sq);
 

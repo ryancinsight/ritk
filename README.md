@@ -372,17 +372,15 @@ cargo install --path crates/ritk-cli
 
 ### Recent Sprints
 
+- **Sprint 332** (v0.50.95): Documentation audit, compaction, and cleanup — 4 stale files deleted, ARCHIVE.md created (18k lines), 3 root files compacted (18k→~400 lines). Structural audit — 3 violations partitioned into directory modules; ZERO files > 500 lines workspace-wide.
+
+- **Sprint 331** (v0.50.94): Clippy zero-warning — 28 + 110+ residual warnings eliminated across all 14 crates. 8 preemptive structural partitions (association, dimse, dicom, test modules). Flaky test hardening (`translation_recovery_shifted_gaussian`). Documentation overhaul (IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md).
+
 - **Sprint 330** (v0.50.93): Architectural decomposition — Monolithic `types.rs` → `types/` vertical hierarchy (half_width, stack_weights, bin_range, parzen_config). Monolithic `sample.rs` → `sample/` vertical hierarchy (sample_window, sparse_entry). `ParzenConfig::half_width()` and `inv_2sigma_sq()` promoted to production API. Computation functions extracted into `accumulate.rs`, `compute_direct.rs`, `compute_sparse.rs`. 24 new tests, 547 total ritk-registration tests.
 
-- **Sprint 329** (v0.50.92): Sparse full joint normalization — `inv_sum_f` stored per-sample in `SparseWFixedT`, making direct↔sparse histograms numerically identical. FMA-idiomatic inner accumulation loop retained (explicit `mul_add` ~8% slower). Structural size regression tests added. 24 new tests, 523 total ritk-registration tests.
+- **Sprint 329** (v0.50.92): Sparse full joint normalization — `inv_sum_f` stored per-sample in `SparseWFixedT`, making direct↔sparse histograms numerically identical. FMA-idiomatic inner accumulation loop retained. Structural size regression tests added. 24 new tests, 523 total ritk-registration tests.
 
-- **Sprint 328** (v0.50.91): Per-sample weight normalization — `accumulate_sample_direct` multiplies by `inv_sum_f × inv_sum_m` (σ²-invariant histogram total). Sparse-path moving-axis normalization. `StackWeights::len()`/`BinRange::len()` promoted to production. `ParzenConfig::compute_weights_with_inv_sum()` production API. 18 new tests, 499 total ritk-registration tests.
-
-- **Sprint 121**: Voxel intensity histogram — Added `compute_histogram` SSOT in `render/histogram.rs` (O(N) binning, exact min/max pass, clamp-at-bounds) and `draw_histogram` widget in `ui/histogram.rs` (log₁₊₁ bar scale, W/L range overlay, axis labels). `SnapApp` caches a 256-bin histogram on every volume load and renders it in the W/L sidebar panel. 16 new tests, 257 total ritk-snap lib tests passing.
-
-- **Sprint 120**: Live measurement preview labels — Added `live_length_mm` and `live_angle_deg` SSOT functions for real-time distance (mm) and angle (°) feedback during rubber-band gestures. `draw_in_progress` now renders live labels while dragging. Fixed `viewport.rs` ellipse ROI DRY violation (placeholder from Sprint 118). 10 new tests, 241 total ritk-snap lib tests passing.
-
-- **Sprint 119**: Continuous pointer HU intensity tracking — Added `intensity_at_voxel` SSOT for voxel intensity lookup, wired SnapApp pointer-motion handler to track pointer_intensity continuously, updated OverlayRenderer to display "Pointer HU" alongside linked-cursor HU in the 4-corner overlay. 5 new tests, 231 total ritk-snap lib tests passing.
+- **Sprint 328** (v0.50.91): Per-sample weight normalization — `accumulate_sample_direct` multiplies by `inv_sum_f × inv_sum_m` (σ²-invariant histogram total). Sparse-path moving-axis normalization. `StackWeights::len()`/`BinRange::len()` promoted to production. 18 new tests, 499 total ritk-registration tests.
 
 ## Testing
 

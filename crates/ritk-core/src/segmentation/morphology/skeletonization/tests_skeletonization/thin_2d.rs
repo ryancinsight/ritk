@@ -1,4 +1,5 @@
 //! 2-D Zhang-Suen thinning tests.
+#![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
 use crate::image::Image;

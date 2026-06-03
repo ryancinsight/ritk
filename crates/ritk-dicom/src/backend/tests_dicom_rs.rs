@@ -317,7 +317,7 @@ fn dicom_rs_backend_parse_bytes_round_trips_in_memory_object() {
         .value()
         .to_str()
         .expect("PatientName must be a string")
-        .trim_end_matches(|c: char| c == '\0' || c == ' ')
+        .trim_end_matches(['\0', ' '])
         .to_owned();
 
     assert_eq!(patient_name, "Test^Patient");

@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkStructuredGrid};
 use tempfile::NamedTempFile;

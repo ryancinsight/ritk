@@ -180,7 +180,7 @@ fn test_3d_sphere_neighborhood_erodes_boundary() {
                             }
                             let v =
                                 values[nzi as usize * ny * nx + nyi as usize * nx + nxi as usize];
-                            if v < 150.0 || v > 255.0 {
+                            if !(150.0..=255.0).contains(&v) {
                                 all_in_sphere = false;
                                 break 'outer;
                             }

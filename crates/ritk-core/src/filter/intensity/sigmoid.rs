@@ -130,7 +130,7 @@ mod tests {
             // In f32, exp(-50) < f32::EPSILON, so 1.0 + exp(-50) == 1.0 exactly.
             // The sigmoid is bounded in [0, 1] in f32; strict-open bound requires wider domain.
             assert!(
-                v >= 0.0 && v <= 1.0,
+                (0.0..=1.0).contains(&v),
                 "sigmoid output must be in [0, 1], got {}",
                 v
             );

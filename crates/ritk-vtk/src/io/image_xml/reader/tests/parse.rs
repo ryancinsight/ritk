@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::parse_vti;
 use crate::io::image_xml::writer::{write_vti_image_data, write_vti_str};

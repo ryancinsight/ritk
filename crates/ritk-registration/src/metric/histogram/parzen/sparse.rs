@@ -1,4 +1,5 @@
 //! Sparse Parzen weight computation — only evaluates Gaussian kernel within ±3σ support.
+#![allow(clippy::needless_range_loop)]
 //!
 //! The dense Parzen kernel computes `exp(-0.5 * ((val[i] - b) / σ)²)` for every
 //! sample-bin pair, producing a full `[N, num_bins]` weight matrix. For typical

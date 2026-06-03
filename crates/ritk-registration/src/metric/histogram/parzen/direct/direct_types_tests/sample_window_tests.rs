@@ -19,8 +19,11 @@ fn sample_window_in_bounds() {
     assert_eq!(w.m_range().lo, 9);
     assert_eq!(w.m_range().hi, 15);
     // Verify pre-computed weights
-    assert!(w.f_weights.len() > 0, "fixed weights should be populated");
-    assert!(w.m_weights.len() > 0, "moving weights should be populated");
+    assert!(!w.f_weights.is_empty(), "fixed weights should be populated");
+    assert!(
+        !w.m_weights.is_empty(),
+        "moving weights should be populated"
+    );
     assert_eq!(w.f_weights.len as usize, w.f_range().len());
     assert_eq!(w.m_weights.len as usize, w.m_range().len());
 }

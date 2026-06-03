@@ -152,8 +152,8 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
 
     let img = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
     img.with_data_slice(|vals| {
-        let has_label_1 = vals.iter().any(|&v| v == 1.0_f32);
-        let has_label_2 = vals.iter().any(|&v| v == 2.0_f32);
+        let has_label_1 = vals.contains(&1.0_f32);
+        let has_label_2 = vals.contains(&2.0_f32);
         assert!(
             has_label_1,
             "output must contain at least one voxel with label 1.0 (seed basin 1); \

@@ -156,8 +156,6 @@ fn test_cma_mi_rigid_on_rire_patient001() {
         sigma0,
     );
 
-    let rot = rot;
-    let trans = trans;
     let rot_limit = config.rotation_range_rad as f32;
     let trans_limit = config.translation_range_mm as f32;
     for (i, &r) in rot.iter().enumerate() {

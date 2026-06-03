@@ -165,6 +165,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn extract_f64_from_float() {
         let val = AttributeValue::Float(3.14);
         assert!((extract_f64(&val).unwrap() - 3.14).abs() < 1e-10);

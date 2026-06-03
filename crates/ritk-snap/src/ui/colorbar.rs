@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_colorbar_width_positive() {
-        assert!(COLORBAR_WIDTH > 0.0);
-        assert!(COLORBAR_PANEL_WIDTH > COLORBAR_WIDTH);
+        const _: () = assert!(COLORBAR_WIDTH > 0.0);
+        const _: () = assert!(COLORBAR_PANEL_WIDTH > COLORBAR_WIDTH);
     }
 }

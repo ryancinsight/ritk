@@ -1,5 +1,6 @@
 //! Tests for skeletonization
 //! Extracted from the main module to keep the 500-line structural limit.
+#![allow(clippy::needless_range_loop)]
 
 use super::*;
 use crate::image::Image;

@@ -1,5 +1,6 @@
 //! Tests for SLIC super-pixel segmentation.
 //! Extracted to keep the 500-line structural limit.
+#![allow(clippy::needless_range_loop)]
 
 use super::*;
 use crate::segmentation::clustering::slic::coords::decode_coords;
@@ -207,7 +208,7 @@ fn test_label_count_bounded() {
     // Labels must be consecutive from 0.
     let max_label = *distinct.iter().max().unwrap_or(&0);
     assert!(
-        max_label as usize + 1 <= distinct.len(),
+        (max_label as usize) < distinct.len(),
         "labels must be consecutive: max_label={}, distinct_count={}",
         max_label,
         distinct.len()

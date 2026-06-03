@@ -135,6 +135,9 @@ fn clahe_2d_contrast_enhanced_range_preserved() {
     let out = clahe_2d(&pixels, 4, 4, 2, 2, 40.0, 16);
     assert_eq!(out.len(), 16);
     for &o in &out {
-        assert!(o >= -1e-4 && o <= 15.0 + 1e-4, "output {o} out of range");
+        assert!(
+            (-1e-4..=15.0 + 1e-4).contains(&o),
+            "output {o} out of range"
+        );
     }
 }

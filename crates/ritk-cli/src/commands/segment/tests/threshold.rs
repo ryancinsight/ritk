@@ -137,7 +137,7 @@ fn test_segment_multi_otsu_returns_k_minus_1_thresholds() {
     );
     for &t in &thresholds {
         assert!(
-            t >= 30.0 && t <= 230.0,
+            (30.0..=230.0).contains(&t),
             "threshold {t} must lie within the image intensity range [30, 230]"
         );
     }

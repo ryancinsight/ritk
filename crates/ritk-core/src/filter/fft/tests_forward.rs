@@ -4,7 +4,7 @@
 //!
 //! 1. Shape contract: `[H, W]` input → `[H, 2*W]` output; `[D, H, W]` → `[D, H, 2*W]`.
 //! 2. DC component: for a constant image f(x,y) = v,
-//!      Re(F[0,0]) = H·W·v  and  Im(F[0,0]) = 0.
+//!    Re(F[0,0]) = H·W·v  and  Im(F[0,0]) = 0.
 //!    Proof: F(0,0) = Σ_{x,y} f(x,y)·e^{-2πi·0} = Σ f(x,y) = H·W·v.
 //! 3. Parseval (unnormalized DFT): Σ_{u,v} |F[u,v]|² = H·W · Σ_{x,y} |f[x,y]|².
 //!    Reference: DFT Parseval's theorem.

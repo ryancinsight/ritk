@@ -100,6 +100,7 @@ impl PasteImageFilter {
 }
 
 #[cfg(test)]
+#[allow(clippy::identity_op, clippy::erasing_op)]
 mod tests {
     use super::*;
     use crate::filter::ops::extract_vec_infallible;

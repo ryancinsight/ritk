@@ -119,7 +119,10 @@ fn test_series_pixel_clamp_u16_range() {
             if let Ok(bytes) = elem.value().to_bytes() {
                 for chunk in bytes.chunks_exact(2) {
                     let v = u16::from_le_bytes([chunk[0], chunk[1]]);
-                    assert!(v <= 65535, "pixel value {v} exceeds u16 max");
+                    // Pixel data should contain finite u16 values; a zero indicates
+                    // missing or corrupted pixel bytes. We deliberately avoid a
+                    // `v <= u16::MAX` check since that is always true.
+                    assert!(v > 0 || bytes.is_empty(), "non-zero pixel data expected");
                 }
             }
         }

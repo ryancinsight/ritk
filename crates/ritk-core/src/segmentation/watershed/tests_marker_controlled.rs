@@ -234,8 +234,8 @@ fn test_3d_two_sphere_seeds_produce_two_basins() {
     let labels = get_labels(&result);
 
     // Both labels must appear in the output.
-    let has_label_1 = labels.iter().any(|&v| v == 1.0);
-    let has_label_2 = labels.iter().any(|&v| v == 2.0);
+    let has_label_1 = labels.contains(&1.0);
+    let has_label_2 = labels.contains(&2.0);
     assert!(has_label_1, "output must contain label 1");
     assert!(has_label_2, "output must contain label 2");
 
