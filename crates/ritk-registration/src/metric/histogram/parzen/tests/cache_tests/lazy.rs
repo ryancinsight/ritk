@@ -43,7 +43,7 @@ fn lazy_sparse_cache_built_on_first_access() {
     let _first =
         hist.compute_image_joint_histogram(&fixed_img, &moving_img, &translation, &interp, None);
 
-    let sparse_built_after_first = {
+    let _sparse_built_after_first = {
         let cache = hist.cache.lock().unwrap();
         let cache_inner = cache.as_ref().expect("cache must exist after first call");
         cache_inner.sparse_w_fixed.is_some()
