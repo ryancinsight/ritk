@@ -154,3 +154,22 @@
 - [x] `Cargo.toml` version bumped to 0.50.91
 - [x] backlog.md updated
 
+
+---
+
+## Sprint 335 (2026-06-04) — Prewitt + Position-of-Extrema + Histogram
+
+- [x] GAP-SCI-03: PrewittFilter with magnitude and per-axis components
+- [x] GAP-SCI-03: 10 Prewitt tests (constant, x/y/z ramp, diagonal, anisotropic spacing, single voxel, orthogonality, shape preservation)
+- [x] GAP-SCI-07: maximum_position + minimum_position functions (generic B, const D)
+- [x] GAP-SCI-07: 15 position_extrema tests (1D, 3D, ties, last bin inclusive, single voxel, round-trip)
+- [x] GAP-SCI-09: histogram() standalone function with Histogram struct (total, bin_width helpers)
+- [x] GAP-SCI-09: 15 histogram tests (uniform, last-bin-inclusive, single bin, values-outside, negative range, edge cases)
+- [x] Wire prewitt into ilter::edge::mod and re-export from ilter module
+- [x] Wire position_extrema + histogram into statistics::mod with re-exports
+- [x] Fix single-voxel bug in convolve_1d_axis (degenerate dim_len=1 case)
+- [x] Build: cargo test -p ritk-core --lib: 1478 passed, 1 ignored, 0 failed
+- [x] Clippy: cargo clippy -p ritk-core --lib --all-features -- -D warnings: 0 warnings
+- [x] CHANGELOG.md updated (0.51.1)
+- [x] Cargo.toml version bumped to 0.3.0
+- [x] backlog.md updated

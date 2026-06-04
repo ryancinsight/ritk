@@ -233,3 +233,40 @@
 - 120 clippy warnings remain (all non-error; mostly `field_reassign_with_default`, `identity_op` in macros)
 - `translation_recovery_shifted_gaussian` flaky under thread contention (passes in isolation)
 
+
+
+---
+
+## Sprint 335 Audit (2026-06-04) — Prewitt + Position-of-Extrema + Histogram (GAP-SCI-03/07/09 closure)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| GAP-SCI-03 | 3-D Prewitt filter (separable, factor 18·h, replicate padding) | ilter::edge::prewitt | 10 |
+| GAP-SCI-07 | maximum_position / minimum_position (row-major tie-break, generic B, D) | statistics::position_extrema | 15 |
+| GAP-SCI-09 | histogram() standalone with [min, max] range, last bin inclusive of max | statistics::histogram | 15 |
+
+### Architecture
+
+1. **GAP-SCI-03 (Prewitt)**: Mirrors SobelFilter structure exactly. Key difference: uniform smoothing kernel [1, 1, 1] (sum=3) vs. Sobel's binomial [1, 2, 1] (sum=4). Normalization factor for gradient units: 2·h × 3 × 3 = 18·h (Sobel: 2·h × 4 × 4 = 32·h). Single-voxel OOB bug fix: added dim_len == 1 early return that applies (kernel[0] + kernel[1] + kernel[2]) * v (kernel sum applied to self, matching replicate-both-sides semantics).
+
+2. **GAP-SCI-07 (Position-of-extrema)**: Generic over B: Backend, const D: usize — same authoritative implementation serves 1-D, 2-D, 3-D, and arbitrary-D images. rgmin_position / rgmax_position are private generic helpers; public API is minimum_position(image) / maximum_position(image). Ties resolve to the lowest flat (row-major) index, matching scipy.ndimage and Iterator::position semantics. lat_to_multi helper verified by a 24-iteration round-trip test on a 2×3×4 volume.
+
+3. **GAP-SCI-09 (Histogram)**: Generic over B: Backend, const D: usize. Single multiplication inv_dw = bins/(max-min) outside the hot loop; per-voxel cost is 1 subtract, 1 multiply, 1 floor, 1 bounds check. Histogram struct exposes 	otal() and in_width() helpers. Last bin is inclusive of max per scipy.ndimage convention (numpy uses [..., max)). Values outside [min, max] are silently excluded; callers wanting the numpy behaviour should pass min = v_min, max = v_max from compute_statistics.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| cargo build -p ritk-core --lib | clean | ✓ |
+| cargo clippy -p ritk-core --lib --all-features -- -D warnings | 0 warnings | ✓ |
+| cargo test -p ritk-core --lib | 1478/0/1 (+42 from Sprint 335) | ✓ |
+| cargo test -p ritk-registration --lib --features direct-parzen --no-default-features | 547/0/1 | ✓ |
+
+### Updated parity
+
+- Coverage: 39/74 present (was 36/74), 6/74 partial, 29/74 missing (was 32/74 missing). 53% parity (was 49%).
+- Closed: GAP-SCI-03 (prewitt), GAP-SCI-07 (maximum_position/minimum_position), GAP-SCI-09 (histogram).
+- Open: GAP-SCI-01, 02, 05, 06, 08, 11, 12, 13, 14, 15 (10 remaining, target Sprints 336-337).
+- Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).

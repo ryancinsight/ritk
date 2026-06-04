@@ -94,3 +94,4 @@ consus-compression = { git = "https://github.com/ryancinsight/consus", features 
 consus-io = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
 jpeg-decoder = "0.3"
 openjpeg-sys = "1.0"
+arrayvec = "0.7"

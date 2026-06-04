@@ -1,3 +1,4 @@
+pub mod histogram;
 pub mod image_comparison;
 pub mod image_statistics;
 pub mod information;
@@ -7,7 +8,8 @@ pub mod label_shape_extended;
 pub mod label_statistics;
 pub mod noise_estimation;
 pub mod normalization;
-
+pub mod position_extrema;
+pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
     dice_coefficient, hausdorff_distance, mean_surface_distance, psnr, ssim,
 };
@@ -35,6 +37,7 @@ pub use normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
     WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,
 };
+pub use position_extrema::{maximum_position, minimum_position};
 
 #[cfg(test)]
 mod tests_label_overlap;

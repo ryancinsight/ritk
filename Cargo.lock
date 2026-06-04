@@ -6324,7 +6324,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6349,6 +6349,7 @@ name = "ritk-dicom"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "dicom",
  "dicom-pixeldata",
  "image 0.24.9",
@@ -6362,6 +6363,7 @@ name = "ritk-io"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "burn",
  "burn-ndarray",
  "charls",
@@ -6564,6 +6566,7 @@ name = "ritk-snap"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
  "burn",
  "burn-ndarray",
  "bytemuck",

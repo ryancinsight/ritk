@@ -18,6 +18,7 @@ pub mod noise;
 pub(crate) mod ops;
 pub mod projection;
 pub mod pyramid;
+pub mod rank;
 pub mod recursive_gaussian;
 pub mod resample;
 pub mod smoothing;
@@ -85,6 +86,7 @@ pub use projection::{
     ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
 pub use pyramid::MultiResolutionPyramid;
+pub use rank::{PercentileFilter, RankFilter};
 pub use recursive_gaussian::RecursiveGaussianFilter;
 pub use resample::ResampleImageFilter;
 pub use smoothing::MeanImageFilter;

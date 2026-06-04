@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [0.51.1] - 2026-06-04
+
+### Added
+- **GAP-SCI-03: `PrewittFilter`** — 3-D Prewitt gradient filter via separable convolution. Combines central-difference derivative `[-1, 0, 1]` along the target axis with uniform smoothing `[1, 1, 1]` along each orthogonal axis. Normalized by `18 · h_axis` (vs. Sobel's `32 · h_axis`). Returns magnitude or per-axis components. Lives at `crates/ritk-core/src/filter/edge/prewitt.rs`; re-exported as `PrewittFilter` from `filter::edge` and `filter` modules.
+- **GAP-SCI-07: `maximum_position` / `minimum_position`** — Position-of-extrema queries that return the multi-index `[iz, iy, ix]` of the lexicographically-first voxel achieving the maximum/minimum intensity. Generic over `B: Backend, const D: usize` — works on 1-D, 2-D, 3-D, and arbitrary-D images. Ties resolve to the lowest flat (row-major) index, matching `scipy.ndimage` convention. Lives at `crates/ritk-core/src/statistics/position_extrema.rs`; re-exported from `statistics` module.
+- **GAP-SCI-09: `histogram()` standalone function** — Intensity histogram with explicit `[min, max]` range and `bins` equal-width bins. Returns a `Histogram { min, max, bins, counts, total(), bin_width() }` struct. Last bin is half-open (inclusive of `max`) per scipy.ndimage convention. Values outside `[min, max]` are silently excluded. Generic over `B: Backend, const D: usize`. Lives at `crates/ritk-core/src/statistics/histogram.rs`; re-exported as `histogram`/`histogram_from_slice`/`Histogram` from `statistics` module.
+
+### Changed
+- `crates/ritk-core` version bump `0.2.0 → 0.3.0` (additive non-breaking new public API)
+- `crates/ritk-core/src/statistics/mod.rs` — added `histogram` and `position_extrema` submodules with re-exports
+- `crates/ritk-core/src/filter/edge/mod.rs` — added `prewitt` submodule with `PrewittFilter` re-export
+- `crates/ritk-core/src/filter/mod.rs` — added `rank` submodule with `PercentileFilter`/`RankFilter` re-exports (Sprint 334 carry-over)
+- `crates/ritk-core/src/lib.rs` — added `morphology` module + `Ball`/`Cross`/`Cube`/`Offset3D`/`SeShape`/`StructuringElement` re-exports (Sprint 334 carry-over)
+
+### Verified
+- `cargo build -p ritk-core --lib`: clean
+- `cargo clippy -p ritk-core --lib --all-features -- -D warnings`: **0 warnings**
+- `cargo test -p ritk-core --lib`: **1478 passed; 0 failed; 1 ignored** (+42 from Sprint 335: 10 Prewitt + 15 position_extrema + 15 histogram + 2 carry-over)
+- `cargo test -p ritk-registration --lib --features direct-parzen --no-default-features`: **547 passed; 0 failed; 1 ignored**
+
 ## [0.50.95] - 2026-06-03
 
 ### Added

@@ -197,3 +197,32 @@
 - **`STACK_WEIGHTS_CAPACITY=32` impact measurement** — Not yet benchmarked
 - **120 remaining clippy warnings** — All non-error (mostly `field_reassign_with_default`, `identity_op` in macros)
 
+
+---
+
+## Sprint 335 (2026-06-04) — Prewitt + Position-of-Extrema + Histogram
+
+### Closed
+
+| ID | Description | Module | Change-class |
+|----|-------------|--------|--------------|
+| GAP-SCI-03 | Prewitt filter (3-D, separable, factor 18·h) | ilter::edge::prewitt | [minor] |
+| GAP-SCI-07 | maximum_position + minimum_position (row-major tie-break) | statistics::position_extrema | [minor] |
+| GAP-SCI-09 | histogram() with [min, max] range and bins | statistics::histogram | [minor] |
+
+### Architecture
+
+1. **GAP-SCI-03 (Prewitt)**: Mirrors SobelFilter design (separable 1-D convolutions, replicate padding, boundary/interior split for SIMD). Difference is uniform [1, 1, 1] smoothing vs. Sobel's binomial [1, 2, 1]. Normalization factor 18·h (sum 3 × 3 × 2·h) vs. Sobel's 32·h (sum 4 × 4 × 2·h). Proof sketch documented in rustdoc for a linear ramp I(z,y,x) = x with unit spacing: derivative gives 2, smooth_y gives 6, smooth_z gives 18, normalize gives 1.0.
+
+2. **GAP-SCI-07 (Position-of-extrema)**: Generic over B: Backend, const D: usize. Single O(n) pass with running extremum and best index. Row-major flat→multi conversion via cumulative stride division. Tie-break to lowest flat index matches scipy.ndimage.minimum_position and Iterator::position. Bug fix: degenerate single-voxel images and axis dim_len=1 require replicate-both-sides handling in Prewitt to avoid OOB access.
+
+3. **GAP-SCI-09 (Histogram)**: Generic over B: Backend, const D: usize. Standalone function (does not require ImageStatistics). One multiplication inv_dw = bins/(max-min) outside the hot loop; per-voxel cost is one subtraction, one multiplication, one floor, one bounds check. Last bin is inclusive of max per scipy.ndimage convention; values outside [min, max] are silently excluded.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| cargo build -p ritk-core --lib | clean | ✓ |
+| cargo clippy -p ritk-core --lib --all-features -- -D warnings | 0 warnings | ✓ |
+| cargo test -p ritk-core --lib | 1478/0/1 (+42 from Sprint 335) | ✓ |
+| cargo test -p ritk-registration --lib --features direct-parzen --no-default-features | 547/0/1 | ✓ |
