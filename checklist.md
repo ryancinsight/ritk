@@ -173,3 +173,32 @@
 - [x] CHANGELOG.md updated (0.51.1)
 - [x] Cargo.toml version bumped to 0.3.0
 - [x] backlog.md updated
+
+---
+
+## Sprint 336 (0.51.2, ritk-core 0.4.0) — Chamfer Distance Transform + Structural Cleanup
+
+- [x] GAP-SCI-12: Chamfer distance transform (scipy.ndimage.distance_transform_cdt parity)
+- [x] GAP-SCI-12: chamfer::kernel — 7-tap half-mask offset tables, weight() const fn, cdt_3d two-pass algorithm
+- [x] GAP-SCI-12: chamfer::transform — ChamferDistanceTransform struct, threshold + metric builders, apply() generic over B: Backend, f32 output with -1.0 sentinel
+- [x] GAP-SCI-12: chamfer_distance_transform_3d free function with anisotropic spacing
+- [x] GAP-SCI-12: 18 differential tests (single fg, all-fg, all-bg, cube, two cubes, column, taxicab/chessboard parity, threshold semantics, hand-computed, scipy-verified)
+- [x] GAP-SCI-12: scipy.ndimage.distance_transform_cdt v1.17.1 differential verification — 4 shapes × 2 metrics exact match
+- [x] STR-336-01: rank.rs (567 lines) → rank/ directory
+  - [x] rank/mod.rs (69 lines) — re-exports
+  - [x] rank/percentile_filter.rs (152 lines)
+  - [x] rank/rank_filter.rs (144 lines)
+  - [x] rank/tests.rs (176 lines)
+- [x] STR-336-02: chamfer.rs (673 lines) → chamfer/ directory
+  - [x] chamfer/mod.rs (77 lines) — re-exports + module docs
+  - [x] chamfer/kernel.rs (193 lines) — cdt_3d + weight() const fn
+  - [x] chamfer/transform.rs (110 lines) — ChamferDistanceTransform
+  - [x] chamfer/tests.rs (217 lines) — 18 tests
+- [x] Build: cargo build -p ritk-core --lib: clean
+- [x] Clippy: cargo clippy -p ritk-core --lib --all-features -- -D warnings: 0 warnings
+- [x] Tests: cargo test -p ritk-core --lib: 1496 passed, 1 ignored, 0 failed
+- [x] Tests: cargo test -p ritk-registration --lib --features direct-parzen --no-default-features: 547/0/1
+- [x] CHANGELOG.md updated (0.51.2)
+- [x] Cargo.toml (ritk-core) version bumped to 0.4.0
+- [x] backlog.md updated
+- [x] gap_audit.md updated

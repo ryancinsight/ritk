@@ -6324,7 +6324,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6476,7 +6476,6 @@ dependencies = [
  "ritk-core",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 2.0.18",
  "tracing",
 ]
@@ -6529,13 +6528,11 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
- "nalgebra",
  "numpy",
  "pyo3",
  "ritk-core",
  "ritk-io",
  "ritk-registration",
- "thiserror 2.0.18",
 ]
 
 [[package]]

@@ -226,3 +226,37 @@
 | cargo clippy -p ritk-core --lib --all-features -- -D warnings | 0 warnings | ✓ |
 | cargo test -p ritk-core --lib | 1478/0/1 (+42 from Sprint 335) | ✓ |
 | cargo test -p ritk-registration --lib --features direct-parzen --no-default-features | 547/0/1 | ✓ |
+
+---
+
+## Sprint 336 (2026-06-04) — Chamfer Distance Transform + Structural Cleanup
+
+**Status**: Complete (v0.51.2, ritk-core 0.4.0)
+**Phase**: GAP-SCI-12 + STR-336
+**Goal**: Implement `scipy.ndimage.distance_transform_cdt` parity (chessboard L∞ + taxicab L1) with anisotropic spacing extension; partition `rank.rs` and `chamfer.rs` to comply with 500-line structural cap.
+
+### Closed
+
+| ID | Description | Module | Change-class |
+|----|-------------|--------|--------------|
+| GAP-SCI-12 | 3-D chamfer distance transform (chessboard L∞ + taxicab L1) with scipy parity + anisotropic extension | filter::distance::chamfer | [minor] |
+| STR-336-01 | rank.rs (567 lines) → rank/ directory (4 files, all < 200 lines) | filter::rank | [patch] |
+| STR-336-02 | chamfer.rs (673 lines) → chamfer/ directory (4 files, all < 250 lines) | filter::distance::chamfer | [patch] |
+
+### Architecture
+
+1. **GAP-SCI-12 (Chamfer)**: Two-pass raster scan with **full 7-tap half-mask** covering all 26 unique neighbours (S⁻ = {−1, 0}³ ∖ {(0,0,0)} predecessor + S⁺ = {0, +1}³ ∖ {(0,0,0)} successor). Per-neighbour weight `w(dz,dy,dx,W,metric)` is `max(wz,wy,wx)` for chessboard (L∞) and `wz+wy+wx` for taxicab (L1). Implements scipy's **interior distance** convention: bg voxels get 0, fg voxels get the chamfer distance to the nearest bg, all-fg volumes get the `−1.0` sentinel. Anisotropic spacing is an extension (scipy.cdt does not support `sampling`); weights are `w_a = round(s_a / s_min)` per axis. The output is `i32` internal, `f32` public (scaled by `s_min`).
+
+2. **STR-336-01 (rank partition)**: `crates/ritk-core/src/filter/rank.rs` (567 lines) → `rank/{mod.rs(69), percentile_filter.rs(152), rank_filter.rs(144), tests.rs(176)}.rs`. Follows established project pattern: `mod.rs` is a thin orchestrator with re-exports; each leaf module holds a single kernel and its tests are co-located in `tests.rs`.
+
+3. **STR-336-02 (chamfer partition)**: `crates/ritk-core/src/filter/distance/chamfer.rs` (673 lines) → `chamfer/{mod.rs(77), kernel.rs(193), transform.rs(110), tests.rs(217)}.rs`. `kernel.rs` holds the 7-tap offset tables, `weight()` const fn, and the two raster-scan passes. `transform.rs` holds the `ChamferDistanceTransform` struct, builder methods, and `apply()` generic over `B: Backend`. `tests.rs` holds 18 differential tests cross-validated against scipy v1.17.1.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| cargo build -p ritk-core --lib | clean | ✓ |
+| cargo clippy -p ritk-core --lib --all-features -- -D warnings | 0 warnings | ✓ |
+| cargo test -p ritk-core --lib | 1496/0/1 (+18 from Sprint 336 chamfer tests) | ✓ |
+| cargo test -p ritk-registration --lib --features direct-parzen --no-default-features | 547/0/1 | ✓ |
+| scipy.ndimage.distance_transform_cdt differential | 4 shapes × 2 metrics | ✓ exact match |

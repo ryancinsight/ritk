@@ -372,6 +372,9 @@ cargo install --path crates/ritk-cli
 
 ### Recent Sprints
 
+- **Sprint 336** (v0.51.4, `ritk-core` 0.4.0): Chamfer distance transform — implements `scipy.ndimage.distance_transform_cdt` (Chessboard L∞ + Taxicab L1) with two 3×3×3 raster scans over the 7-tap predecessor + 7-tap successor half-mask covering all 26 unique neighbours. Interior distance convention (bg=0, fg=chamfer distance, all-fg=−1.0 sentinel). Anisotropic spacing extension. 18 differential tests cross-validated against scipy v1.17.1. Plus structural partitions: `rank.rs` (567→4 files) and `chamfer.rs` (673→4 files). 1496/0/1 ritk-core tests.
+- **Sprint 335** (v0.51.1, `ritk-core` 0.3.0): Prewitt filter (3-D, separable, factor 18·h, replicate padding) + position-of-extrema (`maximum_position` / `minimum_position`, generic over B and D) + histogram with [min,max] range and bins. 1478/0/1 ritk-core tests.
+- **Sprint 334** (v0.51.0, `ritk-core` 0.2.0): Morphology foundation (Offset3D, StructuringElement, sealed SeShape trait, Cube/Cross/Ball ZSTs) + percentile filter + rank filter with O(n) `select_nth_unstable_by` introselect. 1431/0/1 ritk-core tests.
 - **Sprint 332** (v0.50.95): Documentation audit, compaction, and cleanup — 4 stale files deleted, ARCHIVE.md created (18k lines), 3 root files compacted (18k→~400 lines). Structural audit — 3 violations partitioned into directory modules; ZERO files > 500 lines workspace-wide.
 
 - **Sprint 331** (v0.50.94): Clippy zero-warning — 28 + 110+ residual warnings eliminated across all 14 crates. 8 preemptive structural partitions (association, dimse, dicom, test modules). Flaky test hardening (`translation_recovery_shifted_gaussian`). Documentation overhaul (IMPLEMENTATION_SUMMARY.md, OPTIMIZATION.md, README.md).

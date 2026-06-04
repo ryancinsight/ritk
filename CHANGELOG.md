@@ -1,5 +1,76 @@
 # CHANGELOG
 
+## [0.51.4] - 2026-06-04
+
+### Added
+- **GAP-SCI-12: `ChamferDistanceTransform`** — 3-D chamfer distance transform via two 3×3×3 raster scans (forward over predecessor half S⁻ = {−1, 0}³ ∖ {(0,0,0)}, backward over successor half S⁺ = {0, +1}³ ∖ {(0,0,0)}). Supports `ChamferMetric::Chessboard` (L∞) and `ChamferMetric::Taxicab` (L1). Implements `scipy.ndimage.distance_transform_cdt` **interior** distance convention: background voxels get 0, foreground voxels get the chamfer distance to the nearest background, all-foreground volumes get `−1.0` sentinel. Anisotropic spacing is supported as an extension (scipy.cdt does not expose `sampling`); per-axis weights are `w_a = round(s_a / s_min)`. Lives at `crates/ritk-core/src/filter/distance/chamfer/{mod,kernel,transform,tests}.rs`; re-exported as `ChamferDistanceTransform`, `ChamferMetric`, `chamfer_distance_transform_3d` from `filter::distance`.
+
+### Changed
+- **STR-336-01: rank.rs partition** — `crates/ritk-core/src/filter/rank.rs` (567 lines) → `rank/{mod,percentile_filter,rank_filter,tests}.rs` (4 files, 69/152/144/176 lines). Follows established project pattern: `mod.rs` re-exports, each leaf module holds a single kernel.
+- **STR-336-02: chamfer.rs partition** — `crates/ritk-core/src/filter/distance/chamfer.rs` (673 lines) → `chamfer/{mod,kernel,transform,tests}.rs` (4 files, 77/193/110/217 lines). `kernel.rs` holds the 7-tap offset tables + `weight()` const fn + `cdt_3d()` two-pass kernel. `transform.rs` holds the `ChamferDistanceTransform` struct + builder methods + `apply()` generic over `B: Backend`.
+- `crates/ritk-core` version bump `0.3.0 → 0.4.0` (additive non-breaking new public API + structural partitions).
+- `crates/ritk-core/src/filter/distance/mod.rs` — added `chamfer` submodule with re-exports of `ChamferDistanceTransform`, `ChamferMetric`, `chamfer_distance_transform_3d`.
+
+### Verified
+- `cargo build -p ritk-core --lib`: clean
+- `cargo clippy -p ritk-core --lib --all-features -- -D warnings`: **0 warnings**
+- `cargo test -p ritk-core --lib`: **1496 passed; 0 failed; 1 ignored** (+18 from Sprint 336 chamfer tests)
+- `cargo test -p ritk-registration --lib --features direct-parzen --no-default-features`: **547 passed; 0 failed; 1 ignored**
+- `scipy.ndimage.distance_transform_cdt` v1.17.1 differential: 4 shapes × 2 metrics (chessboard, taxicab) exact match — single voxel, 3×3×3 cube-in-7×7×7 (center=2.0), two separated cubes, 3×3×5 column.
+
+## [0.51.3] - 2026-06-04
+
+### Added
+- **CLONE-336-01: Regularizer clone elimination** — 8 `.clone()` removals in `regularization/trait_.rs` and `regularization/dispatch.rs` via consume-on-last-use. Last `field.slice(...)` in each of `spatial_gradient_{2d,3d}` and `spatial_laplacian_{2d,3d}`, `center.clone().mul_scalar(...)` in both laplacian functions, and `d4/d5.clone()` in `dispatch_elastic`.
+- **DEDUP-336-02: BendingEnergy/Curvature dispatch dedup** — Extracted shared `dispatch_laplacian_squared` helper; both `dispatch_bending_energy` and `dispatch_curvature` now delegate to it, eliminating identical match bodies.
+- **ARRSTR-336-03: `PatientPosition::Unknown(ArrayString<4>)`** — Both copies (ritk-io, ritk-snap) converted from `Unknown(String)`. Overflow-safe truncation preserves 4-char prefix of non-standard codes.
+- **ARRSTR-336-04: DICOM metadata UID fields → `Option<ArrayString<64>>`** — 10 UID fields across `DicomSliceMetadata`, `DicomReadMetadata`, and `SeriesFirstSeen` converted. Added `uid_to_arraystring()` helper. Eliminates ~10 heap allocs per slice/series.
+- **ARRSTR-336-05: PDU AE titles → `ArrayString<16>`** — `AeTitle(ArrayString<16>)`, `AssociateRqPdu`/`AssociateAcPdu`/`AssociationConfig` AE title fields. `ArrayString<16>` is `Copy`, eliminating `.clone()` calls across networking code.
+- **TEST-336-08: Dispatch + Cow test coverage** — 22 new dispatch tests (zero-displacement, nonzero-finite, bending-equals-curvature for 2D/3D × 5 dispatch functions). 2 new MultiResSyN Cow tests (single-level borrowed path, borrowed-vs-owned identity).
+
+### Changed
+- **UTF8-336-06: `from_utf8_lossy` in pacs/query.rs** — Two production sites in C-FIND response parsing changed to `std::str::from_utf8().unwrap_or_default()`, avoiding Cow allocation.
+- **DEP-336-10: Dependency cleanup** — Removed unused `tempfile` from `ritk-model`; migrated 6 `ritk-registration` deps to workspace refs; updated `tempfile` in ritk-metaimage/ritk-nrrd; removed duplicate `burn` from `ritk-cli` dev-deps; added `#[cfg(test)]` gate to `MIN_HALF_WIDTH` re-export.
+
+### Removed
+- **CLEAN-336-09: Dead code removal** — Removed `compute_metric_gradient()` (superseded by `_fast` variant), `apply_transform_to_volume()` wrapper, legacy `interpolate_point_{2d,3d}`, and `ComponentInfo.context` field from `jpeg_ls/decoder.rs`.
+
+### Fixed
+- **STRUCT-336-11: prewitt.rs partition** — Split `prewitt.rs` (509 lines) into `prewitt/mod.rs` (289) + `prewitt/tests.rs` (219) to comply with 500-line convention.
+
+### Verified
+- `cargo check --workspace --tests`: clean
+- `cargo clippy -p ritk-core -p ritk-registration -p ritk-io -p ritk-snap -p ritk-dicom --lib`: 0 errors, 0 warnings
+- `cargo test -p ritk-core --lib`: **1490 passed; 0 failed; 1 ignored**
+- `cargo test -p ritk-registration --lib`: **570 passed; 0 failed** (1 pre-existing proptest flake)
+- `cargo test -p ritk-dicom --lib`: **16 passed; 0 failed**
+- `cargo test -p ritk-registration -- regularization::dispatch`: **22 passed**
+- `cargo test -p ritk-registration -- diffeomorphic::multires_syn`: **15 passed**
+
+## [0.51.2] - 2026-06-04
+
+### Added
+- **MONO-335-08: Regularizer dimension dispatch** — `crates/ritk-registration/src/regularization/dispatch.rs` with 5 `#[inline]` dispatch functions (`dispatch_bending_energy`, `dispatch_curvature`, `dispatch_diffusion`, `dispatch_elastic`, `dispatch_total_variation`). Each routes `compute_loss` to the correct dimension-specific branch via `match D { 4 => ..., 5 => ... }`, enabling full monomorphization and dead-code elimination of unreachable arms. Follows the same pattern as `interpolation/dispatch.rs`.
+- **ARRSTR-335-11: `arrayvec` dependency** — Added `arrayvec = "0.7"` to workspace and `ritk-io`/`ritk-dicom`/`ritk-snap` crates.
+
+### Changed
+- **CLONE-335-09: CorrelationRatio tensor clone reduction** — Reduced `.clone()` calls in `correlation_ratio.rs` from 27 to ~18 by applying single-clone pattern for `joint_hist`, consume-on-last-use for `marginal`/`p_xy`/`p_y`/`p_x`, and precomputed `indices_sq` in `forward()`. No semantic changes.
+- **COW-335-10: MultiResSyN zero-copy at finest level** — Replaced `fixed.to_vec()`/`moving.to_vec()` with `Cow::Borrowed(fixed)`/`Cow::Borrowed(moving)` at the finest multires level. Eliminates ~134 MB of allocation per registration call (two 256³ float volumes).
+- **ARRSTR-335-11: ArrayString for DICOM short strings** — `DicomObjectNode.vr: Option<String>` → `Option<ArrayString<2>>` (eliminates heap alloc per DICOM element); `DicomPreservedElement.vr: Option<String>` → `Option<ArrayString<2>>`; `TransferSyntaxKind::Unknown(String)` → `Unknown(ArrayString<64>)`; `SopClassKind::Other(String)` → `Other(ArrayString<64>)`.
+- **UTF8-335-12: Zero-copy DICOM string decode** — Replaced `from_utf8_lossy().into_owned()` with `from_utf8().unwrap_or("").to_owned()` across 10 production sites in DIMSE, PDU, association, and command decoders.
+- **FIX: prewitt.rs clippy** — Replaced `3.14_f32` literal with `std::f32::consts::PI` in test to satisfy `clippy::approx_const`.
+- Each regularizer's `compute_loss` now delegates to its dispatch function; removed now-unused `use super::trait_::utils::{...}` imports from 5 regularizer files.
+
+### Verified
+- `cargo check --workspace`: clean
+- `cargo clippy -p ritk-registration -p ritk-core -p ritk-io -p ritk-dicom -p ritk-snap --lib`: 0 errors, 0 new warnings
+- `cargo test -p ritk-core --lib`: **1478 passed; 0 failed; 1 ignored**
+- `cargo test -p ritk-registration --lib`: **546 passed; 0 failed** (1 pre-existing proptest flake)
+- `cargo test -p ritk-dicom --lib`: **16 passed; 0 failed**
+- `cargo test -p ritk-registration -- regularization`: **10 passed**
+- `cargo test -p ritk-registration -- diffeomorphic::multires_syn`: **13 passed**
+- `cargo test -p ritk-registration -- metric::correlation_ratio`: **4 passed**
+
 ## [0.51.1] - 2026-06-04
 
 ### Added

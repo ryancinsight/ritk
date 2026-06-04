@@ -243,7 +243,7 @@
 
 | Gap ID | Description | Module | Tests |
 |--------|-------------|--------|-------|
-| GAP-SCI-03 | 3-D Prewitt filter (separable, factor 18·h, replicate padding) | ilter::edge::prewitt | 10 |
+| GAP-SCI-03 | 3-D Prewitt filter (separable, factor 18·h, replicate padding) | filter::edge::prewitt | 10 |
 | GAP-SCI-07 | maximum_position / minimum_position (row-major tie-break, generic B, D) | statistics::position_extrema | 15 |
 | GAP-SCI-09 | histogram() standalone with [min, max] range, last bin inclusive of max | statistics::histogram | 15 |
 
@@ -251,9 +251,9 @@
 
 1. **GAP-SCI-03 (Prewitt)**: Mirrors SobelFilter structure exactly. Key difference: uniform smoothing kernel [1, 1, 1] (sum=3) vs. Sobel's binomial [1, 2, 1] (sum=4). Normalization factor for gradient units: 2·h × 3 × 3 = 18·h (Sobel: 2·h × 4 × 4 = 32·h). Single-voxel OOB bug fix: added dim_len == 1 early return that applies (kernel[0] + kernel[1] + kernel[2]) * v (kernel sum applied to self, matching replicate-both-sides semantics).
 
-2. **GAP-SCI-07 (Position-of-extrema)**: Generic over B: Backend, const D: usize — same authoritative implementation serves 1-D, 2-D, 3-D, and arbitrary-D images. rgmin_position / rgmax_position are private generic helpers; public API is minimum_position(image) / maximum_position(image). Ties resolve to the lowest flat (row-major) index, matching scipy.ndimage and Iterator::position semantics. lat_to_multi helper verified by a 24-iteration round-trip test on a 2×3×4 volume.
+2. **GAP-SCI-07 (Position-of-extrema)**: Generic over B: Backend, const D: usize — same authoritative implementation serves 1-D, 2-D, 3-D, and arbitrary-D images. argmin_position / argmax_position are private generic helpers; public API is minimum_position(image) / maximum_position(image). Ties resolve to the lowest flat (row-major) index, matching scipy.ndimage and Iterator::position semantics. flat_to_multi helper verified by a 24-iteration round-trip test on a 2×3×4 volume.
 
-3. **GAP-SCI-09 (Histogram)**: Generic over B: Backend, const D: usize. Single multiplication inv_dw = bins/(max-min) outside the hot loop; per-voxel cost is 1 subtract, 1 multiply, 1 floor, 1 bounds check. Histogram struct exposes 	otal() and in_width() helpers. Last bin is inclusive of max per scipy.ndimage convention (numpy uses [..., max)). Values outside [min, max] are silently excluded; callers wanting the numpy behaviour should pass min = v_min, max = v_max from compute_statistics.
+3. **GAP-SCI-09 (Histogram)**: Generic over B: Backend, const D: usize. Single multiplication inv_dw = bins/(max-min) outside the hot loop; per-voxel cost is 1 subtract, 1 multiply, 1 floor, 1 bounds check. Histogram struct exposes total() and bin_width() helpers. Last bin is inclusive of max per scipy.ndimage convention (numpy uses [..., max)). Values outside [min, max] are silently excluded; callers wanting the numpy behaviour should pass min = v_min, max = v_max from compute_statistics.
 
 ### Verification
 
@@ -269,4 +269,40 @@
 - Coverage: 39/74 present (was 36/74), 6/74 partial, 29/74 missing (was 32/74 missing). 53% parity (was 49%).
 - Closed: GAP-SCI-03 (prewitt), GAP-SCI-07 (maximum_position/minimum_position), GAP-SCI-09 (histogram).
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 12, 13, 14, 15 (10 remaining, target Sprints 336-337).
+- Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
+
+---
+
+## Sprint 336 Audit (2026-06-04) — Chamfer Distance Transform + Structural Cleanup (GAP-SCI-12 closure)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| GAP-SCI-12 | 3-D chamfer distance transform (chessboard L∞ + taxicab L1) with scipy parity | filter::distance::chamfer | 18 |
+
+### Architecture
+
+1. **GAP-SCI-12 (Chamfer distance transform)**: Implements `scipy.ndimage.distance_transform_cdt` for `metric='chessboard'` (L∞) and `metric='taxicab'` (L1). Two-pass raster scan with **full 7-tap half-mask** (S⁻ = {−1, 0}³ ∖ {(0,0,0)} predecessor + S⁺ = {0, +1}³ ∖ {(0,0,0)} successor) covering all 26 unique neighbours. This is the **interior distance** (scipy convention): background voxels get `0.0`, foreground voxels get the chamfer distance to the nearest background; all-foreground volumes get the `−1.0` sentinel.
+   - **`chamfer::kernel`**: 7-tap predecessor + 7-tap successor offset tables, `weight(dz,dy,dx,w,metric)` const fn encoding `max(wz,wy,wx)` for chessboard and `wz+wy+wx` for taxicab. `i32` workspace with `i32::MAX` (= `INF`) sentinel.
+   - **`chamfer::transform`**: `ChamferDistanceTransform` struct + `apply()` method. Generic over `B: Backend`. Threshold semantics: `v > threshold` is foreground. Anisotropic spacing: weights `w_a = round(s_a / s_min)` per axis. Returns `f32` Image in physical units of `s_min`; `−1.0` for unreachable (all-foreground) volumes. **Extension over scipy**: `sampling` is supported (scipy.cdt does not expose it).
+   - **`chamfer::tests`**: 18 differential tests cross-validated against `scipy.ndimage.distance_transform_cdt` v1.17.1 on shapes including single-voxel, 3×3×3 cube, two separated cubes, 3×3×5 column, and the 7×7×7 cube-with-center-equals-2.0 L∞ case.
+
+2. **Structural cleanup**: `crates/ritk-core/src/filter/rank.rs` (567 lines) partitioned into `rank/{mod,percentile_filter,rank_filter,tests}.rs` (4 files, 152/144/176/69 lines — all < 200). `crates/ritk-core/src/filter/distance/chamfer.rs` (originally 673 lines) partitioned into `chamfer/{mod,kernel,transform,tests}.rs` (4 files, 77/193/110/217 lines — all < 250). Zero files > 500 lines workspace-wide.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo build -p ritk-core --lib` | clean | ✓ |
+| `cargo clippy -p ritk-core --lib --all-features -- -D warnings` | 0 warnings | ✓ |
+| `cargo test -p ritk-core --lib` | 1496/0/1 (+18 chamfer tests) | ✓ |
+| `cargo test -p ritk-registration --lib --features direct-parzen --no-default-features` | 547/0/1 | ✓ |
+| `scipy.ndimage.distance_transform_cdt` differential | 4 shapes × 2 metrics (chessboard, taxicab) | ✓ exact match |
+
+### Updated parity
+
+- Coverage: **40/74 present** (was 39/74), 6/74 partial, 28/74 missing (was 29/74 missing). **54% parity** (was 53%).
+- Closed: GAP-SCI-12 (chamfer distance transform).
+- Open: GAP-SCI-01, 02, 05, 06, 08, 11, 13, 14, 15 (9 remaining, target Sprints 337-339).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
