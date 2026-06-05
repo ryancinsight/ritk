@@ -22,7 +22,7 @@ fn test_read_external_dcmqi_liver_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 3);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_number, 1);
     assert_eq!(seg.segments[0].segment_label, "Liver");
@@ -75,7 +75,7 @@ fn test_read_external_dcmqi_partial_overlaps_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 7);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 5);
     assert_eq!(seg.frame_segment_numbers.len(), 7);
     assert!(seg
@@ -117,7 +117,7 @@ fn test_read_external_highdicom_overlap_seg_real_file() {
     assert_eq!(seg.cols, 16);
     assert_eq!(seg.n_frames, 8);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 2);
     assert_eq!(seg.segments[0].segment_label, "first segment");
     assert_eq!(seg.segments[1].segment_label, "second segment");
@@ -168,7 +168,7 @@ fn test_read_external_highdicom_binary_seg_real_file() {
     assert_eq!(seg.cols, 16);
     assert_eq!(seg.n_frames, 3);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_label, "first segment");
     assert_eq!(seg.segments[0].algorithm_type.as_deref(), Some("AUTOMATIC"));
@@ -205,7 +205,7 @@ fn test_read_external_rsna_dido_liver_seg_real_file() {
     assert_eq!(seg.cols, 512);
     assert_eq!(seg.n_frames, 34);
     assert_eq!(seg.bits_allocated, 1);
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1);
     assert_eq!(seg.segments[0].segment_number, 1);
     assert_eq!(seg.segments[0].segment_label, "liver");

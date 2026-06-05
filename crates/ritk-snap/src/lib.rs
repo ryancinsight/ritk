@@ -47,6 +47,7 @@ pub use viewer::{DefaultBackend, Study, ViewerBackend, ViewerCore, ViewerEvent, 
 
 #[cfg(test)]
 mod tests {
+    use arrayvec::ArrayString;
     use super::*;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
@@ -95,7 +96,7 @@ mod tests {
             study_instance_uid: None,
             frame_of_reference_uid: None,
             series_description: None,
-            modality: Some("CT".to_string()),
+            modality: Some(ArrayString::from("CT").unwrap()),
             patient_id: None,
             patient_name: None,
             study_date: None,
@@ -108,7 +109,7 @@ mod tests {
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),
-            photometric_interpretation: Some("MONOCHROME2".to_string()),
+            photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
             slices: Vec::new(),
             private_tags: std::collections::HashMap::new(),
             preservation: Default::default(),

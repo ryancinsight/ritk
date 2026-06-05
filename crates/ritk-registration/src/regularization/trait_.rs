@@ -116,11 +116,13 @@ pub mod utils {
         let laplacian_center = left + right + top + bottom - center.mul_scalar(4.0);
 
         // Pad back to original size
-        let zeros_h = Tensor::zeros([b, c, 1, w - 2], &device);
-        let laplacian = Tensor::cat(vec![zeros_h.clone(), laplacian_center, zeros_h], 2);
-        let zeros_w = Tensor::zeros([b, c, h, 1], &device);
+        let zeros_h_front = Tensor::zeros([b, c, 1, w - 2], &device);
+        let zeros_h_back = Tensor::zeros([b, c, 1, w - 2], &device);
+        let laplacian = Tensor::cat(vec![zeros_h_front, laplacian_center, zeros_h_back], 2);
+        let zeros_w_front = Tensor::zeros([b, c, h, 1], &device);
+        let zeros_w_back = Tensor::zeros([b, c, h, 1], &device);
 
-        Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 3)
+        Tensor::cat(vec![zeros_w_front, laplacian, zeros_w_back], 3)
     }
 
     /// Compute spatial Laplacian for 4D field.
@@ -165,12 +167,15 @@ pub mod utils {
             front + back + top + bottom + left + right - center.mul_scalar(6.0);
 
         // Pad back to original size
-        let zeros_d = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);
-        let laplacian = Tensor::cat(vec![zeros_d.clone(), laplacian_center, zeros_d], 2);
-        let zeros_h = Tensor::zeros([b, c, d, 1, w - 2], &device);
-        let laplacian = Tensor::cat(vec![zeros_h.clone(), laplacian, zeros_h.clone()], 3);
-        let zeros_w = Tensor::zeros([b, c, d, h, 1], &device);
+        let zeros_d_front = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);
+        let zeros_d_back = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);
+        let laplacian = Tensor::cat(vec![zeros_d_front, laplacian_center, zeros_d_back], 2);
+        let zeros_h_front = Tensor::zeros([b, c, d, 1, w - 2], &device);
+        let zeros_h_back = Tensor::zeros([b, c, d, 1, w - 2], &device);
+        let laplacian = Tensor::cat(vec![zeros_h_front, laplacian, zeros_h_back], 3);
+        let zeros_w_front = Tensor::zeros([b, c, d, h, 1], &device);
+        let zeros_w_back = Tensor::zeros([b, c, d, h, 1], &device);
 
-        Tensor::cat(vec![zeros_w.clone(), laplacian, zeros_w], 4)
+        Tensor::cat(vec![zeros_w_front, laplacian, zeros_w_back], 4)
     }
 }

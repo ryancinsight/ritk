@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use arrayvec::ArrayString;
+
 use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
@@ -119,10 +121,10 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
             study_instance_uid: Some("1.2.3.4.5.6.998".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
-        modality: Some("CT".to_string()),
-        patient_id: Some("E2E001".to_string()),
-        patient_name: Some("E2E^Patient".to_string()),
-        study_date: Some("20250101".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
+            patient_id: Some("E2E001".to_string()),
+            patient_name: Some("E2E^Patient".to_string()),
+        study_date: Some(ArrayString::from("20250101").unwrap()),
         series_date: None,
         series_time: None,
         dimensions: [rows, cols, depth],
@@ -133,7 +135,7 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
-        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),

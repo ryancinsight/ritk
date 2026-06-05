@@ -1,5 +1,6 @@
 //! RT Structure Set reader — parse a DICOM RT Structure Set file into [`RtStructureSet`].
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
 use dicom::core::Tag;
@@ -140,8 +141,17 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
                                 .element(Tag(0x3006, 0x0042))
                                 .ok()
                                 .and_then(|e| e.to_str().ok())
-                                .map(|s| s.trim().to_string())
-                                .unwrap_or_default();
+                                .map(|s| {
+                                    let trimmed = s.trim();
+                                    match ArrayString::<16>::from(trimmed) {
+                                        Ok(v) => v,
+                                        Err(_) => {
+                                            tracing::warn!("ContourGeometricType exceeds 16 chars, truncating: {}", &trimmed[..16]);
+                                            ArrayString::from(&trimmed[..16]).unwrap()
+                                        }
+                                    }
+                                })
+                                .unwrap_or_else(|| ArrayString::new());
 
                             let points = ci
                                 .element(Tag(0x3006, 0x0050))

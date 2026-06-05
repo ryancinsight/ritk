@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use dicom::core::Tag;
@@ -38,12 +39,12 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
             study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
             frame_of_reference_uid: Some("1.2.3.4.5.6.200".try_into().unwrap()),
         series_description: Some("Test Series".to_string()),
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: Some("PAT001".to_string()),
         patient_name: Some("Test^Patient".to_string()),
-        study_date: Some("20240101".to_string()),
-        series_date: Some("20240102".to_string()),
-        series_time: Some("123456".to_string()),
+        study_date: Some(ArrayString::from("20240101").unwrap()),
+        series_date: Some(ArrayString::from("20240102").unwrap()),
+        series_time: Some(ArrayString::from("123456").unwrap()),
         dimensions: [4, 4, 3],
         spacing: [2.5, 0.5, 0.5],
         origin: [10.0, 20.0, 30.0],
@@ -53,7 +54,7 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
-        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags,
         preservation: ritk_io::DicomPreservationSet::new(),

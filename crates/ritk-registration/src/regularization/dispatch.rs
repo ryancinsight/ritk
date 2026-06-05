@@ -103,6 +103,9 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
 ) -> Tensor<B, 1> {
     match D {
         4 => {
+            // NOTE: Each gradient tensor is consumed twice: once by powf_scalar (membrane)
+            // and once by narrow (divergence). The clones are mandatory until burn adds
+            // a borrow-based slice/narrow API (slice_ref/narrow_ref). See Sprint 338.
             let shape = displacement.shape();
             let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
             let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
@@ -113,6 +116,9 @@ pub fn dispatch_elastic<B: Backend, const D: usize>(
             membrane.mean() * alpha + volume_term.mean() * beta
         }
         5 => {
+            // NOTE: Each gradient tensor is consumed twice: once by powf_scalar (membrane)
+            // and once by narrow (divergence). The clones are mandatory until burn adds
+            // a borrow-based slice/narrow API (slice_ref/narrow_ref). See Sprint 338.
             let shape = displacement.shape();
             let [b, c, d, h, w] =
                 [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3], shape.dims[4]];

@@ -1,5 +1,7 @@
 //! Domain types for RT Plan Storage.
 
+use arrayvec::ArrayString;
+
 /// SOP Class UID for RT Plan Storage.
 pub const RT_PLAN_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.5";
 
@@ -13,9 +15,9 @@ pub struct RtBeamInfo {
     /// BeamDescription (300A,00C3).
     pub beam_description: String,
     /// RadiationType (300A,00C6): PHOTON, ELECTRON, NEUTRON, PROTON, etc.
-    pub radiation_type: String,
+    pub radiation_type: ArrayString<16>,
     /// TreatmentDeliveryType (300A,00CE): TREATMENT, DRR, CONTINUATION, etc.
-    pub treatment_delivery_type: String,
+    pub treatment_delivery_type: ArrayString<16>,
     /// NumberOfControlPoints (300A,0110).
     pub n_control_points: u32,
 }
@@ -40,7 +42,7 @@ pub struct RtFractionGroup {
 #[derive(Debug, Clone)]
 pub struct RtPlanInfo {
     /// SOPInstanceUID (0008,0018).
-    pub sop_instance_uid: String,
+    pub sop_instance_uid: ArrayString<64>,
     /// RTPlanLabel (300A,0002).
     pub rt_plan_label: String,
     /// RTPlanName (300A,0003).
@@ -48,7 +50,7 @@ pub struct RtPlanInfo {
     /// RTPlanDescription (300A,0004).
     pub rt_plan_description: String,
     /// PlanIntent (300A,000A): CURATIVE, PALLIATIVE, PROPHYLACTIC, VERIFICATION, etc.
-    pub plan_intent: String,
+    pub plan_intent: ArrayString<16>,
     /// Beams from BeamSequence (300A,00B0).
     pub beams: Vec<RtBeamInfo>,
     /// Fraction groups from FractionGroupSequence (300A,0070).

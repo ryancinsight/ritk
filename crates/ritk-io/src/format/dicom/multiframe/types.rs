@@ -1,5 +1,6 @@
 //! Public data types for multi-frame DICOM reader and writer.
 
+use arrayvec::ArrayString;
 use std::path::PathBuf;
 
 /// SOP Class UID for Multi-Frame Grayscale Word Secondary Capture Image Storage.
@@ -60,9 +61,9 @@ pub struct MultiFrameInfo {
     /// Frame thickness (SliceThickness) in mm.
     pub frame_thickness: Option<f64>,
     /// Modality string.
-    pub modality: Option<String>,
+    pub modality: Option<ArrayString<16>>,
     /// SOP Class UID.
-    pub sop_class_uid: Option<String>,
+    pub sop_class_uid: Option<ArrayString<64>>,
     /// ImagePositionPatient for frame 0: [x, y, z] in mm.
     pub image_position: Option<[f64; 3]>,
     /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
@@ -94,7 +95,7 @@ pub struct MultiFrameSpatialMetadata {
     /// ImageOrientationPatient: [row_x, row_y, row_z, col_x, col_y, col_z].
     pub image_orientation: [f64; 6],
     /// Modality string (e.g., "CT", "MR", "OT").
-    pub modality: String,
+    pub modality: ArrayString<16>,
 }
 
 /// Builder for multi-frame DICOM write options.
@@ -109,7 +110,7 @@ pub struct MultiFrameSpatialMetadata {
 #[derive(Debug, Clone)]
 pub struct MultiFrameWriterConfig {
     /// SOP Class UID (0008,0016). Defaults to Multi-Frame Grayscale Word SC UID.
-    pub sop_class_uid: String,
+    pub sop_class_uid: ArrayString<64>,
     /// Optional spatial metadata emitted as IPP/IOP/PixelSpacing/SliceThickness/Modality.
     pub spatial: Option<MultiFrameSpatialMetadata>,
     /// InstanceNumber (0020,0013). Defaults to 1.
@@ -119,7 +120,7 @@ pub struct MultiFrameWriterConfig {
 impl Default for MultiFrameWriterConfig {
     fn default() -> Self {
         Self {
-            sop_class_uid: MF_GRAYSCALE_WORD_SC_UID.to_string(),
+            sop_class_uid: ArrayString::from(MF_GRAYSCALE_WORD_SC_UID).unwrap(),
             spatial: None,
             instance_number: 1,
         }

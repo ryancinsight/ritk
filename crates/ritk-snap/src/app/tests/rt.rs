@@ -1,5 +1,6 @@
 //! RT dose/plan loading and viewer-core filter dispatch tests.
 
+use arrayvec::ArrayString;
 use super::*;
 
 // ── SnapApp RT plan/dose tests ──────────────────────────────────────────────
@@ -10,17 +11,17 @@ fn load_rt_plan_file_sets_plan_summary_state() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("plan.dcm");
     let plan = ritk_io::RtPlanInfo {
-        sop_instance_uid: String::new(),
+        sop_instance_uid: ArrayString::new(),
         rt_plan_label: "PLAN_A".to_owned(),
         rt_plan_name: "Plan A".to_owned(),
         rt_plan_description: "Synthetic plan".to_owned(),
-        plan_intent: "CURATIVE".to_owned(),
+        plan_intent: ArrayString::from("CURATIVE").unwrap(),
         beams: vec![ritk_io::RtBeamInfo {
             beam_number: 1,
             beam_name: "BEAM_1".to_owned(),
             beam_description: "Beam one".to_owned(),
-            radiation_type: "PHOTON".to_owned(),
-            treatment_delivery_type: "TREATMENT".to_owned(),
+            radiation_type: ArrayString::from("PHOTON").unwrap(),
+            treatment_delivery_type: ArrayString::from("TREATMENT").unwrap(),
             n_control_points: 2,
         }],
         fraction_groups: vec![ritk_io::RtFractionGroup {
@@ -46,11 +47,11 @@ fn load_rt_plan_file_sets_plan_summary_state() {
 fn rt_dose_plan_link_status_reports_linked_uid() {
     let mut app = SnapApp::default();
     app.rt_plan = Some(ritk_io::RtPlanInfo {
-        sop_instance_uid: "2.25.9001".to_owned(),
+        sop_instance_uid: ArrayString::from("2.25.9001").unwrap(),
         rt_plan_label: "PLAN_LINK".to_owned(),
         rt_plan_name: String::new(),
         rt_plan_description: String::new(),
-        plan_intent: String::new(),
+        plan_intent: ArrayString::new(),
         beams: vec![],
         fraction_groups: vec![],
     });
@@ -58,15 +59,15 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
         rows: 1,
         cols: 1,
         n_frames: 1,
-        dose_type: "PHYSICAL".to_owned(),
-        dose_summation_type: "PLAN".to_owned(),
+        dose_type: ArrayString::from("PHYSICAL").unwrap(),
+        dose_summation_type: ArrayString::from("PLAN").unwrap(),
         dose_grid_scaling: 1.0,
         frame_offsets: vec![0.0],
         dose_gy: vec![1.0],
         image_position: None,
         image_orientation: None,
         pixel_spacing: None,
-        referenced_rt_plan_sop_instance_uid: Some("2.25.9001".to_owned()),
+        referenced_rt_plan_sop_instance_uid: Some(ArrayString::from("2.25.9001").unwrap()),
     });
     let msg = app.rt_dose_plan_link_status().expect("link status present");
     assert!(
@@ -253,7 +254,7 @@ fn test_geometry_summary_from_dicom() {
         study_instance_uid: None,
         frame_of_reference_uid: None,
         series_description: None,
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: None,
         patient_name: None,
         study_date: None,
@@ -266,7 +267,7 @@ fn test_geometry_summary_from_dicom() {
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
-        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags: std::collections::HashMap::new(),
         preservation: Default::default(),

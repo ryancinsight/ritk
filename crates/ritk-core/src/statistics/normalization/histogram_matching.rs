@@ -154,7 +154,7 @@ impl HistogramMatcher {
             return lut[0];
         }
         if v >= src_max {
-            return *lut.last().unwrap();
+            return *lut.last().expect("LUT must not be empty")
         }
 
         // Continuous bin position in [0, num_bins − 1).

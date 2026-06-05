@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 use std::path::PathBuf;
 
@@ -211,10 +212,10 @@ fn test_series_entry_display_label_contains_slice_count() {
 #[test]
 fn test_series_entry_from_dicom_series_info_uses_file_parent_and_slice_count() {
     let info = DicomSeriesInfo {
-        series_instance_uid: "1.2.3".to_string(),
-        series_description: "Axial CT".to_string(),
-        modality: "CT".to_string(),
-        patient_id: "P001".to_string(),
+            series_instance_uid: ArrayString::from("1.2.3").unwrap(),
+            series_description: "Axial CT".to_string(),
+            modality: ArrayString::from("CT").unwrap(),
+            patient_id: "P001".to_string(),
         file_paths: vec![
             PathBuf::from("C:/study/series/slice_0001.dcm"),
             PathBuf::from("C:/study/series/slice_0002.dcm"),

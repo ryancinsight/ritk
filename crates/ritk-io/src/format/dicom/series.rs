@@ -1,5 +1,6 @@
 //! DICOM series scanning, loading, and the `DicomReader` facade.
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -22,9 +23,9 @@ use super::transfer_syntax::TransferSyntaxKind;
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]
 pub struct DicomSeriesInfo {
-    pub series_instance_uid: String,
+    pub series_instance_uid: ArrayString<64>,
     pub series_description: String,
-    pub modality: String,
+    pub modality: ArrayString<16>,
     pub patient_id: String,
     pub file_paths: Vec<PathBuf>,
 }
@@ -71,18 +72,37 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     }
 
     // Parallel processing to read headers
-    let series_map = Arc::new(Mutex::new(HashMap::<String, DicomSeriesInfo>::new()));
+    let series_map = Arc::new(Mutex::new(HashMap::<ArrayString<64>, DicomSeriesInfo>::new()));
 
     entries.par().for_each(|file_path| {
         // Try to open as DICOM
         if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
             let uid = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
-                Some(u) => u,
+                Some(u) => {
+                    match ArrayString::<64>::from(u.trim()) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            tracing::warn!("SeriesInstanceUID exceeds 64 chars, truncating: {}", &u.trim()[..64]);
+                            ArrayString::from(&u.trim()[..64]).unwrap()
+                        }
+                    }
+                }
                 None => return, // Skip files without SeriesUID
             };
 
             let description = get_string(&obj, tags::SERIES_DESCRIPTION).unwrap_or_default();
-            let modality = get_string(&obj, tags::MODALITY).unwrap_or_default();
+            let modality = get_string(&obj, tags::MODALITY)
+                .map(|s| {
+                    let trimmed = s.trim();
+                    match ArrayString::<16>::from(trimmed) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            tracing::warn!("Modality exceeds 16 chars, truncating: {}", &trimmed[..16]);
+                            ArrayString::from(&trimmed[..16]).unwrap()
+                        }
+                    }
+                })
+                .unwrap_or_else(|| ArrayString::from("OT").unwrap());
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
 
             let mut map = series_map.lock().unwrap();
@@ -381,23 +401,23 @@ mod tests {
     fn discovered_series_sort_is_deterministic() {
         let mut v = vec![
             DicomSeriesInfo {
-                series_instance_uid: "2".to_owned(),
+                series_instance_uid: ArrayString::from("2").unwrap(),
                 series_description: "B".to_owned(),
-                modality: "MR".to_owned(),
+                modality: ArrayString::from("MR").unwrap(),
                 patient_id: "P2".to_owned(),
                 file_paths: vec![PathBuf::from("z/2.dcm")],
             },
             DicomSeriesInfo {
-                series_instance_uid: "1".to_owned(),
+                series_instance_uid: ArrayString::from("1").unwrap(),
                 series_description: "A".to_owned(),
-                modality: "CT".to_owned(),
+                modality: ArrayString::from("CT").unwrap(),
                 patient_id: "P1".to_owned(),
                 file_paths: vec![PathBuf::from("a/1.dcm")],
             },
             DicomSeriesInfo {
-                series_instance_uid: "3".to_owned(),
+                series_instance_uid: ArrayString::from("3").unwrap(),
                 series_description: "A".to_owned(),
-                modality: "CT".to_owned(),
+                modality: ArrayString::from("CT").unwrap(),
                 patient_id: "P1".to_owned(),
                 file_paths: vec![PathBuf::from("b/1.dcm")],
             },

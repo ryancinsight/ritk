@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 use dicom::core::header::Length;
 use dicom::core::value::DataSetSequence;
@@ -206,17 +207,17 @@ fn test_read_rt_plan_synthetic_plan() {
     let plan = read_rt_plan(&path).expect("read_rt_plan synthetic");
 
     assert_eq!(plan.rt_plan_label, "PLAN_A", "rt_plan_label");
-    assert_eq!(plan.plan_intent, "CURATIVE", "plan_intent");
+    assert_eq!(plan.plan_intent.as_str(), "CURATIVE", "plan_intent");
     assert_eq!(plan.beams.len(), 2, "beam count");
 
     assert_eq!(plan.beams[0].beam_number, 1, "beam 0 number");
     assert_eq!(plan.beams[0].beam_name, "FIELD_1", "beam 0 name");
     assert_eq!(
-        plan.beams[0].radiation_type, "PHOTON",
+        plan.beams[0].radiation_type.as_str(), "PHOTON",
         "beam 0 radiation_type"
     );
     assert_eq!(
-        plan.beams[0].treatment_delivery_type, "TREATMENT",
+        plan.beams[0].treatment_delivery_type.as_str(), "TREATMENT",
         "beam 0 delivery type"
     );
     assert_eq!(plan.beams[0].n_control_points, 2, "beam 0 control points");
@@ -224,7 +225,7 @@ fn test_read_rt_plan_synthetic_plan() {
     assert_eq!(plan.beams[1].beam_number, 2, "beam 1 number");
     assert_eq!(plan.beams[1].beam_name, "FIELD_2", "beam 1 name");
     assert_eq!(
-        plan.beams[1].radiation_type, "PHOTON",
+        plan.beams[1].radiation_type.as_str(), "PHOTON",
         "beam 1 radiation_type"
     );
 
@@ -253,11 +254,11 @@ fn test_write_rt_plan_rejects_nothing_but_writes_empty() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("plan_empty.dcm");
     let plan = RtPlanInfo {
-        sop_instance_uid: String::new(),
+        sop_instance_uid: ArrayString::new(),
         rt_plan_label: "EMPTY_PLAN".to_owned(),
         rt_plan_name: "".to_owned(),
         rt_plan_description: "".to_owned(),
-        plan_intent: "".to_owned(),
+        plan_intent: ArrayString::new(),
         beams: vec![],
         fraction_groups: vec![],
     };
@@ -286,26 +287,26 @@ fn test_write_rt_plan_round_trip() {
     let path = tmp.path().join("plan_rt.dcm");
 
     let plan = RtPlanInfo {
-        sop_instance_uid: String::new(),
+        sop_instance_uid: ArrayString::new(),
         rt_plan_label: "PLAN_B".to_owned(),
         rt_plan_name: "Full Plan".to_owned(),
         rt_plan_description: "Test description".to_owned(),
-        plan_intent: "CURATIVE".to_owned(),
+        plan_intent: ArrayString::from("CURATIVE").unwrap(),
         beams: vec![
             RtBeamInfo {
                 beam_number: 10,
                 beam_name: "BEAM_A".to_owned(),
                 beam_description: "first beam".to_owned(),
-                radiation_type: "PHOTON".to_owned(),
-                treatment_delivery_type: "TREATMENT".to_owned(),
+                radiation_type: ArrayString::from("PHOTON").unwrap(),
+                treatment_delivery_type: ArrayString::from("TREATMENT").unwrap(),
                 n_control_points: 5,
             },
             RtBeamInfo {
                 beam_number: 20,
                 beam_name: "BEAM_B".to_owned(),
                 beam_description: "second beam".to_owned(),
-                radiation_type: "ELECTRON".to_owned(),
-                treatment_delivery_type: "TREATMENT".to_owned(),
+                radiation_type: ArrayString::from("ELECTRON").unwrap(),
+                treatment_delivery_type: ArrayString::from("TREATMENT").unwrap(),
                 n_control_points: 3,
             },
         ],
@@ -325,13 +326,13 @@ fn test_write_rt_plan_round_trip() {
     );
     assert_eq!(back.rt_plan_label, "PLAN_B", "rt_plan_label");
     assert_eq!(back.rt_plan_name, "Full Plan", "rt_plan_name");
-    assert_eq!(back.plan_intent, "CURATIVE", "plan_intent");
+    assert_eq!(back.plan_intent.as_str(), "CURATIVE", "plan_intent");
     assert_eq!(back.beams.len(), 2, "beams.len");
 
     assert_eq!(back.beams[0].beam_number, 10, "beam[0].beam_number");
     assert_eq!(back.beams[0].beam_name, "BEAM_A", "beam[0].beam_name");
     assert_eq!(
-        back.beams[0].radiation_type, "PHOTON",
+        back.beams[0].radiation_type.as_str(), "PHOTON",
         "beam[0].radiation_type"
     );
     assert_eq!(
@@ -342,7 +343,7 @@ fn test_write_rt_plan_round_trip() {
     assert_eq!(back.beams[1].beam_number, 20, "beam[1].beam_number");
     assert_eq!(back.beams[1].beam_name, "BEAM_B", "beam[1].beam_name");
     assert_eq!(
-        back.beams[1].radiation_type, "ELECTRON",
+        back.beams[1].radiation_type.as_str(), "ELECTRON",
         "beam[1].radiation_type"
     );
 

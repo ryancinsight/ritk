@@ -1,5 +1,6 @@
 //! RT ROI converters: [`RtRoiInfo`] ↔ [`VtkPolyData`] and label map → [`RtStructureSet`].
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Result};
 
 use crate::domain::vtk_data_object::VtkPolyData;
@@ -212,7 +213,7 @@ pub fn label_map_to_rt_struct(
                     .collect();
 
                 contours.push(RtContour {
-                    geometric_type: "CLOSED_PLANAR".into(),
+                    geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
                     points,
                 });
             }
@@ -403,7 +404,7 @@ mod tests {
         // Verify contour points are in physical coordinates
         for roi in &loaded.rois {
             for ct in &roi.contours {
-                assert_eq!(ct.geometric_type, "CLOSED_PLANAR");
+                assert_eq!(ct.geometric_type.as_str(), "CLOSED_PLANAR");
                 assert!(ct.points.len() >= 3);
                 for pt in &ct.points {
                     // Points should be in patient space around the origin

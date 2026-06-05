@@ -9,6 +9,7 @@ use super::super::loader::{
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
+use arrayvec::ArrayString;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
@@ -229,7 +230,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
             study_instance_uid: Some("2.25.61002".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: None,
         patient_name: None,
         study_date: None,
@@ -242,7 +243,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
-        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags: HashMap::new(),
         preservation: crate::format::dicom::DicomPreservationSet::new(),

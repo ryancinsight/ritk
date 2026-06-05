@@ -130,6 +130,8 @@ impl<B: Backend> SSMMorphIntegration<B> {
         let output = self.network.forward(fixed_tensor, moving_tensor);
 
         // Analyze displacement field statistics
+        // NOTE: disp_flat is cloned for each statistic because burn tensor ops
+        // consume self. This is an analysis/debug method, not a training hot path.
         let disp = output.displacement;
         let disp_flat = disp
             .clone()

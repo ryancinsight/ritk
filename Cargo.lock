@@ -1513,7 +1513,6 @@ source = "git+https://github.com/ryancinsight/consus#1e5cb6802a17a7256cc7ed19f46
 dependencies = [
  "byteorder",
  "consus-core",
- "flate2",
 ]
 
 [[package]]
@@ -6367,7 +6366,6 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "charls",
- "consus-compression",
  "consus-core",
  "consus-hdf5",
  "consus-io",

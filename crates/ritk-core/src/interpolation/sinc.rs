@@ -247,23 +247,23 @@ fn interpolate_point_3d<B: Backend, const A: usize>(
                     device,
                 );
                 let val_tensor: Tensor<B, 1> = flat_data.clone().gather(0, idx_tensor);
-                let val = val_tensor.into_data().as_slice::<f32>().unwrap()[0];
+                let val = val_tensor.into_data().as_slice::<f32>().expect("sinc interpolation result must be contiguous f32")[0];
 
-                result += w * val;
-                weight_sum += w;
-            }
-        }
-    }
+                        result += w * val;
+                        weight_sum += w;
+                      }
+                    }
+                  }
 
-    // Normalize by weight sum to handle boundary effects
-    // This ensures reconstruction fidelity even when some kernel samples
-    // fall outside the image bounds
-    if weight_sum.abs() > 1e-10 {
-        result / weight_sum
-    } else {
-        0.0
-    }
-}
+                  // Normalize by weight sum to handle boundary effects
+                  // This ensures reconstruction fidelity even when some kernel samples
+                  // fall outside the image bounds
+                  if weight_sum.abs() > 1e-10 {
+                    result / weight_sum
+                  } else {
+                    0.0
+                  }
+                }
 
 /// Interpolate a single point in a 2D image using Lanczos kernel.
 ///
@@ -313,19 +313,19 @@ fn interpolate_point_2d<B: Backend, const A: usize>(
                 device,
             );
             let val_tensor: Tensor<B, 1> = flat_data.clone().gather(0, idx_tensor);
-            let val = val_tensor.into_data().as_slice::<f32>().unwrap()[0];
+            let val = val_tensor.into_data().as_slice::<f32>().expect("sinc interpolation result must be contiguous f32")[0];
 
-            result += w * val;
-            weight_sum += w;
-        }
-    }
+                    result += w * val;
+                            weight_sum += w;
+                        }
+                        }
 
-    if weight_sum.abs() > 1e-10 {
-        result / weight_sum
-    } else {
-        0.0
-    }
-}
+                        if weight_sum.abs() > 1e-10 {
+                            result / weight_sum
+                        } else {
+                            0.0
+                        }
+                    }
 
 impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
     fn interpolate<const D: usize>(

@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 
 /// Invariant: a single CLOSED_PLANAR contour (unit square, 4 points) must
@@ -11,7 +12,7 @@ fn test_rt_roi_to_polydata_closed_planar() {
         roi_interpreted_type: None,
         display_color: None,
         contours: vec![RtContour {
-            geometric_type: "CLOSED_PLANAR".to_string(),
+            geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
             points: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
@@ -52,7 +53,7 @@ fn test_rt_roi_to_polydata_open_planar() {
         roi_interpreted_type: None,
         display_color: None,
         contours: vec![RtContour {
-            geometric_type: "OPEN_PLANAR".to_string(),
+            geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
             points: vec![[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.0, 3.0, 0.0]],
         }],
     };
@@ -79,16 +80,16 @@ fn test_rt_roi_to_polydata_mixed_contours() {
         display_color: None,
         contours: vec![
             RtContour {
-                geometric_type: "CLOSED_PLANAR".to_string(),
-                points: vec![
-                    [0.0, 0.0, 0.0],
-                    [1.0, 0.0, 0.0],
-                    [1.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                ],
-            },
-            RtContour {
-                geometric_type: "OPEN_PLANAR".to_string(),
+                    geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                    points: vec![
+                        [0.0, 0.0, 0.0],
+                        [1.0, 0.0, 0.0],
+                        [1.0, 1.0, 0.0],
+                        [0.0, 1.0, 0.0],
+                    ],
+                },
+                RtContour {
+                    geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
                 points: vec![[5.0, 0.0, 0.0], [6.0, 0.0, 0.0], [7.0, 1.0, 0.0]],
             },
         ],

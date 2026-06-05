@@ -1,5 +1,6 @@
 #![allow(clippy::needless_range_loop)]
 
+use arrayvec::ArrayString;
 use super::*;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -173,8 +174,8 @@ fn test_read_rt_dose_synthetic_grid() {
     }
 
     assert_eq!(grid.dose_grid_scaling, 0.001, "dose_grid_scaling");
-    assert_eq!(grid.dose_summation_type, "PLAN", "dose_summation_type");
-    assert_eq!(grid.dose_type, "PHYSICAL", "dose_type");
+    assert_eq!(grid.dose_summation_type.as_str(), "PLAN", "dose_summation_type");
+    assert_eq!(grid.dose_type.as_str(), "PHYSICAL", "dose_type");
 
     assert_eq!(grid.frame_offsets.len(), 2, "frame_offsets length");
     assert!(
@@ -200,8 +201,8 @@ fn test_write_rt_dose_rejects_mismatched_voxel_count() {
         rows: 2,
         cols: 2,
         n_frames: 1,
-        dose_type: "PHYSICAL".to_owned(),
-        dose_summation_type: "PLAN".to_owned(),
+        dose_type: ArrayString::from("PHYSICAL").unwrap(),
+        dose_summation_type: ArrayString::from("PLAN").unwrap(),
         dose_grid_scaling: 0.001,
         frame_offsets: vec![0.0],
         dose_gy: vec![0.0, 0.001, 0.002, 0.003, 0.004],
@@ -233,15 +234,15 @@ fn test_write_rt_dose_round_trip() {
         rows: 4,
         cols: 4,
         n_frames: 2,
-        dose_type: "PHYSICAL".to_owned(),
-        dose_summation_type: "BEAM".to_owned(),
+        dose_type: ArrayString::from("PHYSICAL").unwrap(),
+        dose_summation_type: ArrayString::from("BEAM").unwrap(),
         dose_grid_scaling: 0.001,
         frame_offsets: vec![0.0, 5.0],
         dose_gy: dose_gy.clone(),
         image_position: Some([10.0, 20.0, 30.0]),
         image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
         pixel_spacing: Some([2.5, 2.5]),
-        referenced_rt_plan_sop_instance_uid: Some("2.25.12345".to_owned()),
+        referenced_rt_plan_sop_instance_uid: Some(ArrayString::from("2.25.12345").unwrap()),
     };
 
     write_rt_dose(&path, &grid).expect("write_rt_dose round-trip");
@@ -262,7 +263,7 @@ fn test_write_rt_dose_round_trip() {
     }
 
     assert_eq!(back.dose_grid_scaling, 0.001, "dose_grid_scaling");
-    assert_eq!(back.dose_summation_type, "BEAM", "dose_summation_type");
+    assert_eq!(back.dose_summation_type.as_str(), "BEAM", "dose_summation_type");
 
     assert!(
         (back.frame_offsets[0] - 0.0).abs() < 1e-12,

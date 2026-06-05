@@ -127,6 +127,7 @@ pub fn render_fused_slice(
 
 #[cfg(test)]
 mod tests {
+    use arrayvec::ArrayString;
     use super::*;
     use crate::render::SliceRenderer;
     use egui::Color32;
@@ -226,11 +227,11 @@ mod tests {
         pet.data = std::sync::Arc::new(vec![
             (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32,
         ]);
-        pet.modality = Some("PT".to_owned());
+        pet.modality = Some(ArrayString::from("PT").unwrap());
         pet.patient_weight_kg = Some(patient_weight_kg);
         pet.injected_dose_bq = Some(injected_dose_bq);
         pet.radionuclide_half_life_s = Some(6_586.2);
-        pet.decay_correction = Some("START".to_owned());
+        pet.decay_correction = Some(ArrayString::from("START").unwrap());
 
         let fused = render_fused_slice(
             FusedSliceParams {
@@ -268,11 +269,11 @@ mod tests {
         let patient_weight_kg = 70.0;
         let raw_bqml = (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32;
         secondary.data = std::sync::Arc::new(vec![raw_bqml]);
-        secondary.modality = Some("CT".to_owned());
+        secondary.modality = Some(ArrayString::from("CT").unwrap());
         secondary.patient_weight_kg = Some(patient_weight_kg);
         secondary.injected_dose_bq = Some(injected_dose_bq);
         secondary.radionuclide_half_life_s = Some(6_586.2);
-        secondary.decay_correction = Some("START".to_owned());
+        secondary.decay_correction = Some(ArrayString::from("START").unwrap());
 
         let fused = render_fused_slice(
             FusedSliceParams {

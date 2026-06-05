@@ -201,7 +201,7 @@ fn kmeans_impl(
 
     for _ in 1..effective_k {
         // Update minimum distances to the most recently added centroid.
-        let last_centroid = *centroids.last().unwrap();
+        let last_centroid = *centroids.last().expect("centroids must not be empty");
         for i in 0..n {
             let d = data[i] as f64 - last_centroid;
             let d2 = d * d;

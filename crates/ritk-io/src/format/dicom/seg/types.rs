@@ -1,3 +1,5 @@
+use arrayvec::ArrayString;
+
 /// SOP Class UID for Segmentation Storage.
 pub const SEG_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.66.4";
 
@@ -11,7 +13,7 @@ pub struct DicomSegmentInfo {
     /// SegmentDescription (0062,0006) ST, optional.
     pub segment_description: Option<String>,
     /// AlgorithmType (0062,0008) CS, optional.
-    pub algorithm_type: Option<String>,
+    pub algorithm_type: Option<ArrayString<16>>,
 }
 
 /// Complete in-memory representation of a DICOM-SEG object.
@@ -33,7 +35,7 @@ pub struct DicomSegmentation {
     /// BitsAllocated (0028,0100): 1 for BINARY, 8 for FRACTIONAL.
     pub bits_allocated: u16,
     /// SegmentationType (0062,0001): "BINARY" or "FRACTIONAL".
-    pub segmentation_type: String,
+    pub segmentation_type: ArrayString<16>,
     /// One entry per segment defined in SegmentSequence (0062,0002).
     pub segments: Vec<DicomSegmentInfo>,
     /// ReferencedSegmentNumber per frame; length == n_frames.

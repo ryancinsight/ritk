@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
@@ -297,7 +298,7 @@ fn load_dicom_color_from_series_is_callable() {
         study_instance_uid: None,
         frame_of_reference_uid: None,
         series_description: None,
-        modality: Some("OT".to_string()),
+        modality: Some(ArrayString::from("OT").unwrap()),
         patient_id: None,
         patient_name: None,
         study_date: None,
@@ -310,7 +311,7 @@ fn load_dicom_color_from_series_is_callable() {
         bits_allocated: Some(8),
         bits_stored: Some(8),
         high_bit: Some(7),
-        photometric_interpretation: Some("RGB".to_string()),
+        photometric_interpretation: Some(ArrayString::from("RGB").unwrap()),
         slices: vec![slice],
         private_tags: Default::default(),
         preservation: Default::default(),

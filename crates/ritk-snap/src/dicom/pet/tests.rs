@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 use std::sync::Arc;
 
@@ -19,7 +20,7 @@ fn minimal_vol(
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         metadata: None,
         source: None,
-        modality: Some("PT".to_string()),
+        modality: Some(ArrayString::from("PT").unwrap()),
         patient_name: None,
         patient_id: None,
         study_date: None,
@@ -29,7 +30,7 @@ fn minimal_vol(
         injected_dose_bq,
         radionuclide_half_life_s,
         radiopharmaceutical_start_time: None,
-        decay_correction: decay_correction.map(str::to_string),
+        decay_correction: decay_correction.map(|s| ArrayString::from(s).unwrap()),
     }
 }
 
@@ -365,8 +366,8 @@ fn delta_t_s_from_vol_parses_both_fields() {
         Some(F18_HALF_LIFE_S),
         Some("START"),
     );
-    vol.radiopharmaceutical_start_time = Some("080000".to_string());
-    vol.series_time = Some("090000".to_string());
+    vol.radiopharmaceutical_start_time = Some(ArrayString::from("080000").unwrap());
+    vol.series_time = Some(ArrayString::from("090000").unwrap());
     let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
     assert!(
         (delta - 3_600.0).abs() < 1e-9,

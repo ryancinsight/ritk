@@ -134,6 +134,9 @@ impl<B: Backend> GradLoss<B> {
         }
     }
 
+    // NOTE: 5 clones required by burn's slice(self, ...) ownership model.
+    // Each clone feeds a separate finite-difference slice. Will be eliminable
+    // when burn adds slice_ref(&self, ...).
     pub fn forward(&self, flow: Tensor<B, 5>) -> Tensor<B, 1> {
         let [b, c, d, h, w] = flow.dims();
         let dy = flow.clone().slice([0..b, 0..c, 1..d, 0..h, 0..w])
@@ -214,6 +217,8 @@ impl<B: Backend> RegistrationLoss<B> {
         }
     }
 
+    // NOTE: fixed.clone() and warped.clone() because inner losses take ownership.
+    // The caller still needs fixed/warped for other computations.
     pub fn similarity_loss(&self, fixed: &Tensor<B, 5>, warped: &Tensor<B, 5>) -> Tensor<B, 1> {
         match self.config.similarity {
             SimilarityMetric::Ncc => self.ncc_loss.forward(fixed.clone(), warped.clone()),

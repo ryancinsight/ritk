@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::super::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
     DicomSegmentInfo, DicomSegmentation,
@@ -22,7 +23,7 @@ fn test_label_map_to_dicom_seg_identity_single_label() {
     assert_eq!(seg.cols, 2, "cols must equal nx");
     assert_eq!(seg.n_frames, 2, "nz=2 frames, one per Z-slice per segment");
     assert_eq!(seg.bits_allocated, 1, "use_binary=true → bits_allocated=1");
-    assert_eq!(seg.segmentation_type, "BINARY");
+    assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1, "one segment");
     assert_eq!(seg.segments[0].segment_label, "Label 1");
     assert_eq!(seg.segments[0].segment_number, 1);
@@ -230,7 +231,7 @@ fn test_dicom_seg_to_label_map_error_bad_frame_lengths() {
         cols: 2,
         n_frames: 1,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "A".to_owned(),
@@ -256,7 +257,7 @@ fn test_dicom_seg_to_label_map_sparse_uneven_frames_supported() {
         cols: 2,
         n_frames: 3,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![
             DicomSegmentInfo {
                 segment_number: 1,
@@ -298,7 +299,7 @@ fn test_dicom_seg_to_label_map_sorts_frames_by_physical_position() {
         cols: 2,
         n_frames: 2,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "A".to_owned(),

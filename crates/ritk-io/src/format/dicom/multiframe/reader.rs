@@ -16,6 +16,7 @@ use std::path::Path;
 
 use super::per_frame::extract_functional_groups;
 use super::types::MultiFrameInfo;
+use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 
 /// Parse a `\`-separated DICOM Decimal String (DS) field into a fixed-size array.
 ///
@@ -102,13 +103,13 @@ pub(crate) fn extract_multiframe_header(path: &Path, obj: &InMemDicomObject) -> 
     let modality = obj
         .element(Tag(0x0008, 0x0060))
         .ok()
-        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
+        .and_then(|e| e.to_str().ok().map(|s| cs_to_arraystring(s.trim())))
         .filter(|s| !s.is_empty());
 
     let sop_class_uid = obj
         .element(Tag(0x0008, 0x0016))
         .ok()
-        .and_then(|e| e.to_str().ok().map(|s| s.trim().to_string()))
+        .and_then(|e| e.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s)))
         .filter(|s| !s.is_empty());
 
     let image_position = obj

@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
 use dicom::core::Tag;
@@ -55,7 +56,16 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
         .element(Tag(0x0062, 0x0001))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .unwrap_or_else(|| "BINARY".to_owned());
+        .map(|s| {
+            match ArrayString::<16>::from(s.as_str()) {
+                Ok(v) => v,
+                Err(_) => {
+                    tracing::warn!("SegmentationType exceeds 16 chars, truncating: {}", &s[..16]);
+                    ArrayString::from(&s[..16]).unwrap()
+                }
+            }
+        })
+        .unwrap_or_else(|| ArrayString::from("BINARY").unwrap());
 
     tracing::debug!(
         "read_dicom_seg: header rows={} cols={} n_frames={} bits_allocated={} seg_type={}",
@@ -198,7 +208,16 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
                         .ok()
                         .map(|s: std::borrow::Cow<str>| s.trim().to_owned())
                 })
-                .filter(|s: &String| !s.is_empty());
+                .filter(|s: &String| !s.is_empty())
+                .and_then(|s| {
+                    match ArrayString::<16>::from(s.as_str()) {
+                        Ok(v) => Some(v),
+                        Err(_) => {
+                            tracing::warn!("AlgorithmType exceeds 16 chars, truncating: {}", &s[..16]);
+                            Some(ArrayString::from(&s[..16]).unwrap())
+                        }
+                    }
+                });
             DicomSegmentInfo {
                 segment_number,
                 segment_label,

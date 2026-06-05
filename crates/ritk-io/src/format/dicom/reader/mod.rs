@@ -21,7 +21,7 @@ mod parse;
 pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
-mod types;
+pub(crate) mod types;
 pub(super) mod utils;
 
 #[cfg(test)]

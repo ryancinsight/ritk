@@ -167,13 +167,13 @@ pub struct DicomReadMetadata {
         pub study_instance_uid: Option<ArrayString<64>>,
         pub frame_of_reference_uid: Option<ArrayString<64>>,
         pub series_description: Option<String>,
-        pub modality: Option<String>,
+        pub modality: Option<ArrayString<16>>,
         pub patient_id: Option<String>,
         pub patient_name: Option<String>,
-        pub study_date: Option<String>,
-        pub series_date: Option<String>,
-        pub series_time: Option<String>,
-    /// Image dimensions `[rows, cols, slices]`.
+        pub study_date: Option<ArrayString<8>>,
+        pub series_date: Option<ArrayString<8>>,
+        pub series_time: Option<ArrayString<16>>,
+        /// Image dimensions `[rows, cols, slices]`.
     pub dimensions: [usize; 3],
     /// Physical spacing `[Δz, ΔRow, ΔCol]`.
     pub spacing: [f64; 3],
@@ -183,18 +183,18 @@ pub struct DicomReadMetadata {
     pub bits_allocated: Option<u16>,
     pub bits_stored: Option<u16>,
     pub high_bit: Option<u16>,
-    pub photometric_interpretation: Option<String>,
+    pub photometric_interpretation: Option<ArrayString<16>>,
     pub slices: Vec<DicomSliceMetadata>,
     pub private_tags: HashMap<String, String>,
     pub preservation: DicomPreservationSet,
     /// (0010,1030) Patient Weight [kg].
     pub patient_weight_kg: Option<f64>,
     /// (0054,1102) Decay Correction: "NONE", "START", or "ADMIN".
-    pub decay_correction: Option<String>,
+    pub decay_correction: Option<ArrayString<16>>,
     /// (0054,0016)[0]/(0018,1074) Radionuclide Total Dose [Bq].
     pub radionuclide_total_dose_bq: Option<f64>,
     /// (0054,0016)[0]/(0018,1072) Radiopharmaceutical Start Time.
-    pub radiopharmaceutical_start_time: Option<String>,
+    pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     /// (0054,0016)[0]/(0018,1076) Radionuclide Half Life [s].
     pub radionuclide_half_life_s: Option<f64>,
 }
@@ -217,22 +217,22 @@ pub(super) struct SeriesFirstSeen {
     pub series_instance_uid: Option<ArrayString<64>>,
         pub study_instance_uid: Option<ArrayString<64>>,
         pub series_description: Option<String>,
-        pub modality: Option<String>,
+        pub modality: Option<ArrayString<16>>,
         pub patient_id: Option<String>,
         pub patient_name: Option<String>,
-        pub study_date: Option<String>,
-        pub series_date: Option<String>,
-        pub series_time: Option<String>,
+        pub study_date: Option<ArrayString<8>>,
+        pub series_date: Option<ArrayString<8>>,
+        pub series_time: Option<ArrayString<16>>,
         pub frame_of_reference_uid: Option<ArrayString<64>>,
         pub bits_allocated: Option<u16>,
         pub bits_stored: Option<u16>,
         pub high_bit: Option<u16>,
-        pub photometric_interpretation: Option<String>,
+        pub photometric_interpretation: Option<ArrayString<16>>,
         pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub patient_weight_kg: Option<f64>,
-    pub decay_correction: Option<String>,
+    pub decay_correction: Option<ArrayString<16>>,
     pub radionuclide_total_dose_bq: Option<f64>,
-    pub radiopharmaceutical_start_time: Option<String>,
+    pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     pub radionuclide_half_life_s: Option<f64>,
 }
 
@@ -265,6 +265,60 @@ pub(crate) fn uid_to_arraystring(s: &str) -> Option<ArrayString<64>> {
                 &s[..64]
             );
             Some(ArrayString::from(&s[..64]).unwrap())
+        }
+    }
+}
+
+/// Convert a CS (Code String) value to `ArrayString<16>`.
+///
+/// DICOM CS values are limited to 16 characters per the standard.
+/// If a value exceeds this length (non-conformant), a warning is emitted
+/// and the value is truncated to 16 chars.
+pub(crate) fn cs_to_arraystring(s: &str) -> ArrayString<16> {
+    match ArrayString::from(s) {
+        Ok(v) => v,
+        Err(_) => {
+            tracing::warn!(
+                "CS value exceeds 16 chars, truncating: {}",
+                &s[..16]
+            );
+            ArrayString::from(&s[..16]).unwrap()
+        }
+    }
+}
+
+/// Convert a DA (Date) value to `ArrayString<8>`.
+///
+/// DICOM DA values are exactly 8 characters (YYYYMMDD) per the standard.
+/// If a value exceeds this length (non-conformant), a warning is emitted
+/// and the value is truncated to 8 chars.
+pub(crate) fn da_to_arraystring(s: &str) -> ArrayString<8> {
+    match ArrayString::from(s) {
+        Ok(v) => v,
+        Err(_) => {
+            tracing::warn!(
+                "DA value exceeds 8 chars, truncating: {}",
+                &s[..8]
+            );
+            ArrayString::from(&s[..8]).unwrap()
+        }
+    }
+}
+
+/// Convert a TM (Time) value to `ArrayString<16>`.
+///
+/// DICOM TM values are limited to 16 characters per the standard.
+/// If a value exceeds this length (non-conformant), a warning is emitted
+/// and the value is truncated to 16 chars.
+pub(crate) fn tm_to_arraystring(s: &str) -> ArrayString<16> {
+    match ArrayString::from(s) {
+        Ok(v) => v,
+        Err(_) => {
+            tracing::warn!(
+                "TM value exceeds 16 chars, truncating: {}",
+                &s[..16]
+            );
+            ArrayString::from(&s[..16]).unwrap()
         }
     }
 }

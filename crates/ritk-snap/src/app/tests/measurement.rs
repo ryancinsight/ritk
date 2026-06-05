@@ -9,6 +9,7 @@
 //! | 1 coronal  | dz | dx |
 //! | 2 sagittal | dz | dy |
 
+use arrayvec::ArrayString;
 use super::*;
 
 /// Constructs an anisotropic volume with spacing [dz=2.0, dy=3.0, dx=5.0]
@@ -24,7 +25,7 @@ fn make_anisotropic_volume() -> LoadedVolume {
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         metadata: None,
         source: None,
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_name: None,
         patient_id: None,
         study_date: None,

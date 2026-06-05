@@ -1,5 +1,7 @@
 //! Domain types for RT Structure Set Storage.
 
+use arrayvec::ArrayString;
+
 /// SOP Class UID for RT Structure Set Storage.
 pub const RT_STRUCT_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.3";
 
@@ -16,7 +18,7 @@ pub const RT_STRUCT_SOP_CLASS_UID: &str = "1.2.840.10008.5.1.4.1.1.481.3";
 #[derive(Debug, Clone)]
 pub struct RtContour {
     /// Geometric type: `"POINT"` | `"OPEN_PLANAR"` | `"CLOSED_PLANAR"`.
-    pub geometric_type: String,
+    pub geometric_type: ArrayString<16>,
     /// Patient-coordinate points `[X, Y, Z]` in mm.
     pub points: Vec<[f64; 3]>,
 }

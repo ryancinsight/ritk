@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::*;
 
 // Helper to build a minimal RtDoseGrid for testing.
@@ -15,8 +16,8 @@ fn make_dose_grid(
         rows,
         cols,
         n_frames,
-        dose_type: "PHYSICAL".to_owned(),
-        dose_summation_type: "PLAN".to_owned(),
+        dose_type: ArrayString::from("PHYSICAL").unwrap(),
+            dose_summation_type: ArrayString::from("PLAN").unwrap(),
         dose_grid_scaling: 1.0,
         frame_offsets,
         dose_gy: dose_values,
@@ -159,8 +160,8 @@ fn extract_dose_no_spatial_metadata_returns_none() {
         rows: 4,
         cols: 4,
         n_frames: 1,
-        dose_type: "PHYSICAL".into(),
-        dose_summation_type: "PLAN".into(),
+        dose_type: ArrayString::from("PHYSICAL").unwrap(),
+            dose_summation_type: ArrayString::from("PLAN").unwrap(),
         dose_grid_scaling: 1.0,
         frame_offsets: vec![0.0],
         dose_gy: vec![1.0; 16],

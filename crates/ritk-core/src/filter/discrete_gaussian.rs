@@ -82,7 +82,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         if d < self.variance.len() {
             self.variance[d]
         } else {
-            *self.variance.last().unwrap()
+            *self.variance.last().expect("variance schedule must not be empty")
         }
     }
 

@@ -307,7 +307,7 @@ fn write_multiframe_impl<B: Backend>(
     let file_obj = obj
         .with_meta(
             FileMetaTableBuilder::new()
-                .media_storage_sop_class_uid(&config.sop_class_uid)
+                .media_storage_sop_class_uid(config.sop_class_uid.as_str())
                 .media_storage_sop_instance_uid(sop_instance_uid.as_str())
                 .transfer_syntax("1.2.840.10008.1.2.1"),
         )

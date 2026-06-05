@@ -1,5 +1,6 @@
 //! RT Dose reader — parse a DICOM RT Dose Storage file into [`RtDoseGrid`].
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
 use dicom::core::Tag;
@@ -56,17 +57,38 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .and_then(|e| e.to_str().ok().and_then(|s| s.trim().parse().ok()))
         .unwrap_or(1.0);
 
-    let dose_summation_type: String = obj
+    let dose_summation_type: ArrayString<16> = obj
         .element(Tag(0x3004, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .unwrap_or_default();
+        .map(|s| {
+            match ArrayString::<16>::from(s.as_str()) {
+                Ok(v) => v,
+                Err(_) => {
+                    tracing::warn!("DoseSummationType exceeds 16 chars, truncating: {}", &s[..16]);
+                    ArrayString::from(&s[..16]).unwrap()
+                }
+            }
+        })
+        .unwrap_or_else(|| ArrayString::new());
 
-    let dose_type: String = obj
+    let dose_type: ArrayString<16> = obj
         .element(Tag(0x3004, 0x0004))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .unwrap_or_else(|| "PHYSICAL".to_owned());
+        .map(|s| {
+            match ArrayString::<16>::from(s.as_str()) {
+                Ok(v) => v,
+                Err(_) => {
+                    tracing::warn!("DoseType exceeds 16 chars, truncating: {}", &s[..16]);
+                    ArrayString::from(&s[..16]).unwrap()
+                }
+            }
+        })
+        .unwrap_or_else(|| match ArrayString::<16>::from("PHYSICAL") {
+            Ok(v) => v,
+            Err(_) => ArrayString::new(),
+        });
 
     let frame_offsets: Vec<f64> = {
         let raw: Vec<f64> = obj
@@ -128,7 +150,7 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .and_then(|e| e.to_str().ok())
         .and_then(|s| parse_ds_backslash::<2>(&s));
 
-    let referenced_rt_plan_sop_instance_uid: Option<String> = obj
+    let referenced_rt_plan_sop_instance_uid: Option<ArrayString<64>> = obj
         .element(Tag(0x300C, 0x0002))
         .ok()
         .and_then(|e| match e.value() {
@@ -137,6 +159,15 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
                     .ok()
                     .and_then(|el| el.to_str().ok().map(|s| s.trim().to_owned()))
                     .filter(|s| !s.is_empty())
+                    .and_then(|s| {
+                        match ArrayString::<64>::from(s.as_str()) {
+                            Ok(v) => Some(v),
+                            Err(_) => {
+                                tracing::warn!("ReferencedRTPlanSOPInstanceUID exceeds 64 chars, truncating: {}", &s[..64]);
+                                Some(ArrayString::from(&s[..64]).unwrap())
+                            }
+                        }
+                    })
             }),
             _ => None,
         });

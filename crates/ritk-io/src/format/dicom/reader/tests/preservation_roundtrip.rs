@@ -1,5 +1,7 @@
 #![allow(unused_imports)]
 
+use arrayvec::ArrayString;
+
 use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
@@ -17,7 +19,6 @@ use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
-use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
@@ -59,12 +60,12 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
             study_instance_uid: Some("2.25.222".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: Some("TestSeries".to_string()),
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: Some("P001".to_string()),
         patient_name: Some("Test^Patient".to_string()),
-        study_date: Some("20240101".to_string()),
-        series_date: Some("20240101".to_string()),
-        series_time: Some("120000".to_string()),
+        study_date: Some(ArrayString::from("20240101").unwrap()),
+        series_date: Some(ArrayString::from("20240101").unwrap()),
+        series_time: Some(ArrayString::from("120000").unwrap()),
         dimensions: [4, 4, 1],
         spacing: [1.0, 1.0, 1.0],
         origin: [0.0, 0.0, 0.0],
@@ -72,7 +73,7 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
-        photometric_interpretation: Some("MONOCHROME2".to_string()),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
         slices: Vec::new(),
         private_tags: HashMap::new(),
         preservation,

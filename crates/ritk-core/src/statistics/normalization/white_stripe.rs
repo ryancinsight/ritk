@@ -171,7 +171,7 @@ impl WhiteStripeNormalizer {
         );
 
         let mut sorted_fg = foreground.clone();
-        sorted_fg.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        sorted_fg.sort_by(|a, b| a.partial_cmp(b).expect("foreground values must be comparable"));
 
         let n = sorted_fg.len();
         let fg_min = sorted_fg[0];
@@ -452,14 +452,14 @@ fn find_extreme_local_mode(
             .iter()
             .max_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|&(x, _)| x)
-            .unwrap()
+            .expect("at least one local maximum must exist after non-empty check")
     } else {
         // T2: pick the local maximum with the lowest intensity (leftmost).
         local_maxima
             .iter()
             .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal))
             .map(|&(x, _)| x)
-            .unwrap()
+            .expect("at least one local maximum must exist after non-empty check")
     }
 }
 

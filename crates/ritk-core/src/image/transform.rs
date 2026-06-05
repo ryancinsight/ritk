@@ -96,8 +96,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             let diff = points - origin_tensor;
             diff.matmul(t_tensor)
         } else {
-            let mut chunks = Vec::new();
             let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+            let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;
@@ -156,8 +156,8 @@ impl<B: Backend, const D: usize> Image<B, D> {
             let rotated = indices.matmul(m_tensor);
             rotated + origin_tensor
         } else {
-            let mut chunks = Vec::new();
             let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+            let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
                 let start = i * CHUNK_SIZE;

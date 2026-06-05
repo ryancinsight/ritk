@@ -64,11 +64,11 @@ impl SeriesEntry {
             .map(Path::to_path_buf)
             .unwrap_or_default();
         Self {
-            series_uid: info.series_instance_uid,
+            series_uid: info.series_instance_uid.to_string(),
             folder,
             patient_name: String::new(),
             patient_id: info.patient_id,
-            modality: info.modality,
+            modality: info.modality.to_string(),
             series_description: info.series_description,
             num_slices: info.file_paths.len(),
             study_date: None,

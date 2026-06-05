@@ -3,6 +3,7 @@
 //! Each submodule exercises one cohesive domain: cursor, navigation, session,
 //! tool, measurement, colormap, segmentation loading, and RT dose/plan.
 
+use arrayvec::ArrayString;
 use crate::app::state::SnapApp;
 use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
@@ -41,7 +42,7 @@ pub(crate) fn test_volume(shape: [usize; 3]) -> LoadedVolume {
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         metadata: None,
         source: None,
-        modality: Some("CT".to_string()),
+        modality: Some(ArrayString::from("CT").unwrap()),
         patient_name: None,
         patient_id: None,
         study_date: None,

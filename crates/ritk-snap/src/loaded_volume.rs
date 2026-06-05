@@ -1,3 +1,5 @@
+use arrayvec::ArrayString;
+
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
 ///
 /// Data is stored in row-major `[depth, rows, cols, channels]` order with
@@ -21,28 +23,28 @@ pub struct LoadedVolume {
     pub metadata: Option<Box<ritk_io::DicomReadMetadata>>,
     /// Source path.
     pub source: Option<std::path::PathBuf>,
-    /// DICOM modality string.
-    pub modality: Option<String>,
+    /// DICOM modality string (CS VR, max 16 chars).
+    pub modality: Option<ArrayString<16>>,
     /// Patient name from metadata.
     pub patient_name: Option<String>,
     /// Patient ID from metadata.
     pub patient_id: Option<String>,
-    /// Study date from metadata.
-    pub study_date: Option<String>,
+    /// Study date from metadata (DA VR, 8 chars).
+    pub study_date: Option<ArrayString<8>>,
     /// Series description from metadata.
     pub series_description: Option<String>,
-    /// Series time from metadata.
-    pub series_time: Option<String>,
+    /// Series time from metadata (TM VR, max 16 chars).
+    pub series_time: Option<ArrayString<16>>,
     /// Patient weight in kg (for PET SUV computation).
     pub patient_weight_kg: Option<f64>,
     /// Injected radionuclide total dose in Bq (for PET SUV computation).
     pub injected_dose_bq: Option<f64>,
     /// Radionuclide physical half-life in seconds (for PET SUV computation).
     pub radionuclide_half_life_s: Option<f64>,
-    /// Radiopharmaceutical start time (for PET SUV decay correction).
-    pub radiopharmaceutical_start_time: Option<String>,
-    /// Pixel decay-correction mode from (0054,1102).
-    pub decay_correction: Option<String>,
+    /// Radiopharmaceutical start time (TM VR, max 16 chars).
+    pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
+    /// Pixel decay-correction mode from (0054,1102) (CS VR, max 16 chars).
+    pub decay_correction: Option<ArrayString<16>>,
 }
 
 impl LoadedVolume {

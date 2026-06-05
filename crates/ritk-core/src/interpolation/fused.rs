@@ -202,8 +202,8 @@ fn compute_identity_indices_chunked<B: Backend>(
     if n_points <= CHUNK_SIZE {
         (world - origin) * inv_spacing
     } else {
-        let mut chunks = Vec::new();
         let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+        let mut chunks = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
             let end = std::cmp::min(start + CHUNK_SIZE, n_points);
@@ -231,8 +231,8 @@ fn compute_general_indices_chunked<B: Backend>(
         let diff = world - origin;
         diff.matmul(t)
     } else {
-        let mut chunks = Vec::new();
         let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+        let mut chunks = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
             let start = i * CHUNK_SIZE;
             let end = std::cmp::min(start + CHUNK_SIZE, n_points);

@@ -1,3 +1,4 @@
+use arrayvec::ArrayString;
 use super::super::{read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation};
 
 /// Invariant: write_dicom_seg packs BINARY frames MSB-first (inverse of unpack_pixel_data).
@@ -14,7 +15,7 @@ fn test_write_dicom_seg_binary_roundtrip() {
         cols: 4,
         n_frames: 2,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "body".to_owned(),
@@ -47,7 +48,7 @@ fn test_write_dicom_seg_binary_roundtrip() {
     assert_eq!(result.cols, 4, "cols");
     assert_eq!(result.n_frames, 2, "n_frames");
     assert_eq!(result.bits_allocated, 1, "bits_allocated");
-    assert_eq!(result.segmentation_type, "BINARY", "segmentation_type");
+    assert_eq!(result.segmentation_type.as_str(), "BINARY", "segmentation_type");
     assert_eq!(result.pixel_data.len(), 2, "frame count");
     let expected_f0: Vec<u8> = std::iter::repeat_n(1u8, 8)
         .chain(std::iter::repeat_n(0u8, 8))
@@ -69,7 +70,7 @@ fn test_write_dicom_seg_shared_functional_groups_roundtrip() {
         cols: 2,
         n_frames: 1,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "organ".to_owned(),
@@ -121,7 +122,7 @@ fn test_write_dicom_seg_fractional_roundtrip() {
         cols: 2,
         n_frames: 1,
         bits_allocated: 8,
-        segmentation_type: "FRACTIONAL".to_owned(),
+        segmentation_type: ArrayString::from("FRACTIONAL").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "prob".to_owned(),
@@ -160,7 +161,7 @@ fn test_write_dicom_seg_rejects_mismatched_frame_count() {
         cols: 4,
         n_frames: 2,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "x".to_owned(),
@@ -194,7 +195,7 @@ fn test_write_dicom_seg_rejects_mismatched_frame_segment_numbers() {
         cols: 2,
         n_frames: 2,
         bits_allocated: 1,
-        segmentation_type: "BINARY".to_owned(),
+        segmentation_type: ArrayString::from("BINARY").unwrap(),
         segments: vec![DicomSegmentInfo {
             segment_number: 1,
             segment_label: "x".to_owned(),
