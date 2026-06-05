@@ -4,6 +4,37 @@
 
 ---
 
+## Sprint 337 (Phase 17) — DICOM UID Stack Allocation Completion + Dead Code Sweep + Dependency Hygiene
+
+**Status**: Complete
+**Phase**: ARRSTR-337 + CLEAN-337 + DEP-337 + DEDUP-337
+**Goal**: Complete the PDU UID → ArrayString<64> migration, remove dead code, fix dependency hygiene, consolidate PatientPosition duplicate.
+
+### Gaps closed
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| ARRSTR-337-01 | 26 PDU/context/DIMSE UID fields → `ArrayString<64>` / `ArrayString<16>` | **Closed** |
+| CLEAN-337-02 | 9 dead code removals across 6 crates | **Closed** |
+| DEP-337-03 | Dependency cleanup: 3 workspace refs, 2 duplicate deps removed, 2 unused deps removed | **Closed** |
+| DEDUP-337-04 | PatientPosition SSOT consolidation (ritk-snap re-exports ritk-io) | **Closed** |
+| FIX-337-05 | Chamfer test unused-variable warning | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo test -p ritk-core --lib` | 1505/0/1 |
+| `cargo test -p ritk-registration --lib` | 570/1/1 (pre-existing proptest flake) |
+| `cargo test -p ritk-dicom --lib` | 16/0/0 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-io --lib -- networking` | 55/0/0 |
+| `cargo test -p ritk-minc --lib` | 39/0/0 |
+| `cargo clippy` (all modified crates) | 0 warnings |
+| `cargo check --workspace --tests` | Clean |
+
+---
+
 ## Sprint 332 (0.50.95) — Documentation Compaction + Structural Audit + Benchmark
 
 **Status**: In Progress
@@ -260,3 +291,47 @@
 | cargo test -p ritk-core --lib | 1496/0/1 (+18 from Sprint 336 chamfer tests) | ✓ |
 | cargo test -p ritk-registration --lib --features direct-parzen --no-default-features | 547/0/1 | ✓ |
 | scipy.ndimage.distance_transform_cdt differential | 4 shapes × 2 metrics | ✓ exact match |
+
+---
+
+## Sprint 337 (2026-06-04) — Morphological Laplacian + Structural Partition
+
+**Status**: Complete (v0.51.5, ritk-core 0.5.0)
+**Phase**: GAP-SCI-13 + STR-337
+**Goal**: Implement `scipy.ndimage.morphological_laplace` parity (D + E − 2f) with reflect-mode boundary handling; partition morphological_laplace.rs to comply with 500-line structural cap.
+
+### Closed
+
+| ID | Description | Module | Change-class |
+|----|-------------|--------|--------------|
+| GAP-SCI-13 | 3-D morphological Laplacian (D + E − 2f) with scipy parity | filter::morphology::morphological_laplace | [minor] |
+| STR-337-01 | morphological_laplace.rs (595 lines) → morphological_laplace/ directory (2 files, all < 500 lines) | filter::morphology | [patch] |
+
+### Architecture
+
+1. **GAP-SCI-13 (Morphological Laplacian)**: Implements `scipy.ndimage.morphological_laplace` with default arguments (`mode='reflect'`, `cval=0.0`). The operator is a thin composition `L_B(f) = D_B(f) + E_B(f) − 2 f` over a cubic structuring element of half-width `radius`. The struct re-uses the existing `Image<B, 3>` + `extract_vec` input/output cycle, identical to `GrayscaleDilation`/`GrayscaleErosion`. Reflect-mode kernel: half-sample symmetric reflection with period `2n` (scipy's `mode='reflect'`), edge value repeated once (no double repeat). For `n == 1` the only valid index is 0; the periodic formula degenerates and we return 0 unconditionally. Documented deviation from the existing replicate-mode `GrayscaleDilation`/`GrayscaleErosion` (intentional: byte-exact scipy parity for the default `mode='reflect'` boundary mode).
+
+2. **STR-337-01 (morphological_laplace partition)**: `crates/ritk-core/src/filter/morphology/morphological_laplace.rs` (595 lines) → `morphological_laplace/{mod.rs(215), tests.rs(254)}.rs`. `mod.rs` holds the filter struct, `apply()` method, and the `reflect_index` / `dilate_3d_reflect` / `erode_3d_reflect` helpers. `tests.rs` holds 9 differential tests cross-validated against scipy v1.17.1.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| cargo build -p ritk-core --lib | clean | ✓ |
+| cargo clippy -p ritk-core --all-targets | 0 new warnings (27 pre-existing in chamfer/prewitt/position_extrema unchanged) | ✓ |
+| cargo fmt --check -p ritk-core | clean | ✓ |
+| cargo test -p ritk-core --lib | 1505/0/1 (+9 from Sprint 337 morphological_laplace tests) | ✓ |
+| cargo build --workspace | clean | ✓ |
+| scipy.ndimage.morphological_laplace differential | 9 shapes, reflect mode (default) | ✓ byte-exact match |
+
+### Residual risks
+
+- 27 pre-existing clippy warnings in `chamfer/tests.rs` (12), `prewitt/tests.rs` (14), `position_extrema.rs` (2) — all test-only, no production impact
+- 8 GAP-SCI items remain: GAP-SCI-01 (rotate), 02 (shift spatial), 05 (1D variants ×7), 06 (fourier ×3), 08 (value_indices), 11 (iterate_structure), 14 (spline_filter), 15 (zoom) — target Sprints 338-339
+- 3 [arch] items (GAP-SCI-16/17/18) require callback-based plugin system, deferred indefinitely
+
+### Next-sprint candidates (ranked)
+
+- GAP-SCI-01 (rotate): thin composition of resample, low risk, high value
+- GAP-SCI-08 (value_indices): inverse of position_extrema, leverages Sprint 335 foundation
+- GAP-SCI-11 (iterate_structure): generator-based, requires `Iterator` plumbing

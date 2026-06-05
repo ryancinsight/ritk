@@ -68,6 +68,9 @@ pub use grayscale_opening::GrayscaleOpeningFilter;
 pub mod grayscale_geodesic;
 pub use grayscale_geodesic::{GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter};
 
+pub mod morphological_laplace;
+pub use morphological_laplace::MorphologicalLaplacian;
+
 pub mod binary_contour;
 pub mod label_contour;
 pub mod voting_binary;

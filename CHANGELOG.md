@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## [0.51.5] - 2026-06-04
+
+### Added
+- **GAP-SCI-13: `MorphologicalLaplacian`** — 3-D morphological Laplacian `L_B(f) = D_B(f) + E_B(f) − 2 f` with cubic structuring element of half-width `radius`. Implements `scipy.ndimage.morphological_laplace` with default arguments (`mode='reflect'`, `cval=0.0`). Re-uses the existing `Image<B, 3>` + `extract_vec` input/output cycle, identical to `GrayscaleDilation`/`GrayscaleErosion`. Lives at `crates/ritk-core/src/filter/morphology/morphological_laplace/{mod,tests}.rs` (215 + 254 = 469 lines, partitioned to comply with 500-line cap); re-exported as `MorphologicalLaplacian` from `filter::morphology`.
+
+### Changed
+- **STR-337-01: morphological_laplace.rs partition** — `crates/ritk-core/src/filter/morphology/morphological_laplace.rs` (595 lines) → `morphological_laplace/{mod,tests}.rs` (215 + 254 lines). `mod.rs` holds the filter struct + `apply()` + the `reflect_index` / `dilate_3d_reflect` / `erode_3d_reflect` helpers. `tests.rs` holds the 9 differential tests.
+- `crates/ritk-core` version bump `0.4.0 → 0.5.0` (additive non-breaking new public API + structural partition).
+- `crates/ritk-core/src/filter/morphology/mod.rs` — added `morphological_laplace` submodule with `MorphologicalLaplacian` re-export.
+
+### Verified
+- `cargo build -p ritk-core --lib`: clean
+- `cargo clippy -p ritk-core --all-targets`: 0 new warnings (27 pre-existing in chamfer/prewitt/position_extrema unchanged)
+- `cargo fmt --check -p ritk-core`: clean
+- `cargo test -p ritk-core --lib`: **1505 passed; 0 failed; 1 ignored** (+9 from Sprint 337 morphological_laplace tests)
+- `cargo build --workspace`: clean
+- `scipy.ndimage.morphological_laplace` v1.17.1 differential: 9 shapes, reflect mode (default) — byte-exact match (all-1s, constant, ramp, 5×5×5 single-voxel size 3, 5×5×5 single-voxel size 5, 1×3×3 degenerate axis, 3×3×3 single-voxel, 4×4×4 two-corner-voxels, not-identity sanity)
+
 ## [0.51.4] - 2026-06-04
 
 ### Added

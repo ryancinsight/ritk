@@ -3,13 +3,13 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.50.95)
+## Current State (v0.51.5)
 
 ### Test Suite Performance
 
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
-| ritk-core | 1408 | ~8s | ✅ All passing |
+| ritk-core | 1505 | ~9s | ✅ All passing |
 | ritk-registration | 547 | ~16s | ✅ All passing (`--features direct-parzen --no-default-features`) |
 | ritk-dicom | 16 | ~2s | ✅ All passing |
 | ritk-nifti | 13 | ~1s | ✅ All passing |
@@ -122,6 +122,53 @@ All 7 documentation files audited. 4 stale files deleted (`docs/backlog.md`,
 `backlog.md`, `checklist.md`, and `gap_audit.md`. Compacted 3 root files:
 `backlog.md` (6,378→140 lines), `checklist.md` (5,893→120 lines), `gap_audit.md`
 (6,200→155 lines). Updated `IMPLEMENTATION_SUMMARY.md` to v0.50.94.
+
+## Sprint 337 (0.51.5) — Morphological Laplacian
+
+### GAP-SCI-13: Morphological Laplacian
+
+`MorphologicalLaplacian` filter at `filter::morphology::morphological_laplace`
+implements `scipy.ndimage.morphological_laplace` with default arguments
+(`mode='reflect'`, `cval=0.0`). The operator is `L_B(f) = D_B(f) + E_B(f) − 2 f`
+over a cubic structuring element of half-width `radius`.
+
+**Complexity**: O(N · (2r+1)³) where N is the total voxel count, achieved
+through three separate passes:
+1. Reflect-mode dilation: O(N · (2r+1)³)
+2. Reflect-mode erosion: O(N · (2r+1)³)
+3. Elementwise combination: O(N)
+
+Total: 3N · (2r+1)³ operations. For typical 3-D images with radius=1
+(structuring element 3×3×3 = 27 voxels), this is 81N operations per voxel.
+
+**Reflect-mode kernel** (the boundary handling is the algorithmic novelty):
+- Period `2n` (verified against scipy's `mode='reflect'`)
+- For `n == 1`: degenerate case, always return 0
+- For `n >= 2`: `i.rem_euclid(2n)`; if `m < n`, return `m`; else return `2n - m - 1`
+
+**Comparison with replicate-mode `GrayscaleDilation`/`GrayscaleErosion`**:
+- Replicate mode: `i.clamp(0, n-1)` (1 op)
+- Reflect mode: `i.rem_euclid(2n)` + branch (3-4 ops)
+- Reflect mode is ~3× slower at the boundary, but required for byte-exact
+  scipy parity at the default `mode='reflect'`
+
+**Memory layout**: `f32` output, no internal allocation beyond the two
+intermediate dilation/erosion buffers (each `4 · N` bytes for `f32`).
+Peak memory: input + 2 intermediates + output = `4 · 4N` bytes total.
+
+## Sprint 336 (0.51.4) — Chamfer Distance Transform
+
+### GAP-SCI-12: Chamfer distance transform
+
+`ChamferDistanceTransform` filter at `filter::distance::chamfer` implements
+`scipy.ndimage.distance_transform_cdt` for chessboard (L∞) and taxicab (L1)
+metrics. Two-pass raster scan with full 7-tap half-mask (26 unique
+neighbours) over cubic structuring element.
+
+**Complexity**: O(N) per pass, total 2·O(N). Each pass scans all N voxels
+once, sampling 7 neighbours per voxel. 14 neighbour evaluations per voxel
+total — independent of volume size, only dependent on structuring element
+shape.
 
 ### STR-332-02: Structural audit
 
@@ -912,6 +959,92 @@ fn test_performance_regression() {
     assert!(duration.as_secs_f32() < TIMEOUT);
 }
 ```
+
+---
+
+## Sprint 337 (Phase 17) — DICOM UID Stack Allocation Completion + Dead Code Sweep + Dependency Hygiene
+
+### ARRSTR-337-01: PDU/context/DIMSE UID fields → ArrayString<64>
+
+Migrated 26 UID and short-string fields across the DICOM networking stack from `String` to `ArrayString<64>` or `ArrayString<16>`. DICOM UIDs are ≤64 chars per PS 3.5; implementation version names are ≤16 chars per PS 3.7. `ArrayString<N>` is `Copy`, eliminating `.clone()` calls and heap allocations on every A-ASSOCIATE exchange.
+
+| File | Field | Before → After |
+|------|-------|----------------|
+| `pdu/mod.rs` | `AssociateRqPdu::application_context_name` | `String` → `ArrayString<64>` |
+| `pdu/mod.rs` | `AssociateAcPdu::application_context_name` | `String` → `ArrayString<64>` |
+| `pdu/presentation_context.rs` | `PresentationContextItemRq::abstract_syntax_uid` | `String` → `ArrayString<64>` |
+| `pdu/presentation_context.rs` | `PresentationContextItemRq::transfer_syntax_uids` | `Vec<String>` → `Vec<ArrayString<64>>` |
+| `pdu/presentation_context.rs` | `PresentationContextItemAc::transfer_syntax_uid` | `String` → `ArrayString<64>` |
+| `pdu/user_info.rs` | `ExtendedNegotiation::sop_class_uid` | `String` → `ArrayString<64>` |
+| `pdu/user_info.rs` | `ImplementationClassUidSubItem::implementation_class_uid` | `String` → `ArrayString<64>` |
+| `pdu/user_info.rs` | `ImplementationVersionNameSubItem::implementation_version_name` | `String` → `ArrayString<16>` |
+| `pdu/user_info.rs` | `ScpScuRoleSelectionSubItem::sop_class_uid` | `String` → `ArrayString<64>` |
+| `pdu/user_info.rs` | `ApplicationContextItem::application_context_name` | `String` → `ArrayString<64>` |
+| `context.rs` | `RequestedPresentationContext::abstract_syntax_uid` | `String` → `ArrayString<64>` |
+| `context.rs` | `RequestedPresentationContext::transfer_syntax_uids` | `Vec<String>` → `Vec<ArrayString<64>>` |
+| `context.rs` | `NegotiatedContext::abstract_syntax_uid` | `String` → `ArrayString<64>` |
+| `context.rs` | `NegotiatedContext::transfer_syntax_uid` | `String` → `ArrayString<64>` |
+| `types.rs` | `StoreResponse::affected_sop_instance_uid` | `Option<String>` → `Option<ArrayString<64>>` |
+| `dimse/mod.rs` | `decode_ui()` return type | `String` → `ArrayString<64>` |
+| `dimse/mod.rs` | `decode_ae()` return type | `String` → `ArrayString<16>` |
+| `dimse/mod.rs` | `affected_sop_class_uid()`, `affected_sop_instance_uid()` | `Option<String>` → `Option<ArrayString<64>>` |
+| `dimse/mod.rs` | `move_destination()` | `Option<String>` → `Option<ArrayString<16>>` |
+| `command.rs` | `CommandResponse::affected_sop_instance_uid` | `Option<String>` → `Option<ArrayString<64>>` |
+| `scp/config.rs` | `StoredInstance::{sop_class_uid, sop_instance_uid, transfer_syntax_uid}` | `String` → `ArrayString<64>` |
+| `scp/config.rs` | `ScpConfig::ae_title`, `StoreScpHandle::ae_title` | `String` → `ArrayString<16>` |
+
+Shared `pub(crate) fn uid_from_bytes_64()` helper added to `pdu/mod.rs` (alongside existing `ae_from_bytes`). 10 `clone_on_copy` clippy warnings resolved by removing `.clone()` on `Copy` types.
+
+### CLEAN-337-02: Dead code removal (9 items across 6 crates)
+
+| File | Item | Reason |
+|------|------|--------|
+| `networking/command.rs` | `encode_ui()`, `encode_us()` | Superseded by `encode_ui_into()` and `v.to_le_bytes()` |
+| `jpeg_ls/decoder.rs` | `ComponentInfo.id`, `.mapping_table_selector`, `JpegLsDecoder.restart_interval` | Parsed but never consumed during decode |
+| `jpeg_ls/scan.rs` | `Predictor::from_u8()` | Zero callers; production uses adaptive predictor only |
+| `bspline_ffd/basis.rs` | `cubic_bspline_1d_deriv()` | Computed but never called |
+| `dicom/reader/loader.rs` | `read_dicom_series()`, `load_dicom_series()` | Convenience wrappers with zero callers |
+| `ritk-minc/lib.rs` | `IMAGE_MAX_PATH`, `IMAGE_MIN_PATH`, `MINC2_IDENT` | Public constants with zero imports |
+| `interpolation/tests_fused.rs` | `make_offset_image()` | Test helper never called |
+| `anonymize/tests_anonymize_stats.rs` | `find_action()` | Test helper never called |
+
+### DEP-337-03: Dependency cleanup
+
+| Crate | Change |
+|-------|--------|
+| `ritk-registration` | `burn-ndarray`, `tracing-subscriber`, `walkdir` → `workspace = true` in `[dev-dependencies]` |
+| `ritk-registration` | Removed duplicate `nalgebra` and `anyhow` from `[dev-dependencies]` (already in `[dependencies]`) |
+| `ritk-python` | Removed unused `thiserror` and `nalgebra` from `[dependencies]` |
+
+### DEDUP-337-04: PatientPosition SSOT consolidation
+
+Eliminated the duplicate `PatientPosition` enum in `ritk-snap/src/ui/coordinate_system.rs` (70 lines). The snap crate now re-exports `ritk_io::PatientPosition` via `pub use`. Added `from_dicom_code()` as a convenience alias in `ritk-io::PatientPosition` (delegates to `from_code()`).
+
+### FIX-337-05: Chamfer test unused-variable warning
+
+Prefixed `_i` in `chamfer/tests.rs` to silence `unused_variables` warning.
+
+### Test Results
+
+| Suite | Result |
+|-------|--------|
+| `cargo test -p ritk-core --lib` | 1505 passed, 0 failed, 1 ignored |
+| `cargo test -p ritk-registration --lib` | 570 passed, 1 failed (pre-existing proptest flake), 1 ignored |
+| `cargo test -p ritk-dicom --lib` | 16 passed |
+| `cargo test -p ritk-codecs --lib` | 102 passed |
+| `cargo test -p ritk-io --lib -- networking` | 55 passed |
+| `cargo test -p ritk-minc --lib` | 39 passed |
+| `cargo clippy` (all modified crates) | 0 errors, 0 warnings |
+| `cargo check --workspace --tests` | Clean |
+
+### Remaining Opportunities
+
+| Priority | Item | Status |
+|----------|------|--------|
+| Medium | `DicomValue::Text(String)` → stack allocation for short text VRs | Deferred (needs design RFC: ArrayString vs SmallVec vs CompactString) |
+| Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
+| Low | Arg-struct refactors for `too_many_arguments` | Monitor (14 instances, all justified) |
+| External | `slice_ref(&self)` API for burn tensor | Would eliminate 11 conditional clones in regularization |
 
 ---
 

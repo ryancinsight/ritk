@@ -202,3 +202,39 @@
 - [x] Cargo.toml (ritk-core) version bumped to 0.4.0
 - [x] backlog.md updated
 - [x] gap_audit.md updated
+
+---
+
+## Sprint 337 (0.51.5, ritk-core 0.5.0) — Morphological Laplacian + Structural Partition
+
+- [x] GAP-SCI-13: MorphologicalLaplacian (scipy.ndimage.morphological_laplace parity)
+  - [x] MorphologicalLaplacian struct with `new(radius)` constructor and `radius()` accessor
+  - [x] `apply()` method generic over `B: Backend` — composes D + E − 2f
+  - [x] `reflect_index(i, n)` const helper — half-sample symmetric reflect, period 2n
+  - [x] `dilate_3d_reflect(data, dims, radius)` — scipy-compatible reflect-mode dilation
+  - [x] `erode_3d_reflect(data, dims, radius)` — scipy-compatible reflect-mode erosion
+  - [x] 9 differential tests cross-validated against scipy v1.17.1:
+    - [x] `constant_field_is_zero` — constant field → zero Laplacian
+    - [x] `all_ones_is_zero` — all-1s 3×3×3 → zero
+    - [x] `linear_ramp_3x3x3` — ramp along x → [1, 0, -1] slice
+    - [x] `single_voxel_5x5x5_size_3` — single voxel with size 3 cube
+    - [x] `single_voxel_5x5x5_size_5` — single voxel with size 5 cube (radius=2)
+    - [x] `single_voxel_3x3x3` — single voxel, 26 neighbours
+    - [x] `degenerate_axis_size_1` — 1×3×3 plane (z=1)
+    - [x] `operator_is_not_identity` — sanity check
+    - [x] `differential_two_corner_voxels_4x4x4` — 4×4×4 with two corner voxels, full 64-voxel byte-exact scipy match
+  - [x] scipy.ndimage.morphological_laplace v1.17.1 differential verification — 9 shapes, reflect mode (default) byte-exact match
+- [x] STR-337-01: morphological_laplace.rs (595 lines) → morphological_laplace/ directory
+  - [x] morphological_laplace/mod.rs (215 lines) — struct + apply + reflect_index + dilate/erode helpers
+  - [x] morphological_laplace/tests.rs (254 lines) — 9 differential tests
+- [x] Wire morphological_laplace into filter::morphology::mod with re-export
+- [x] Build: cargo build -p ritk-core --lib: clean
+- [x] Build: cargo build --workspace: clean
+- [x] Clippy: cargo clippy -p ritk-core --all-targets: 0 new warnings (27 pre-existing in chamfer/prewitt/position_extrema unchanged)
+- [x] Fmt: cargo fmt --check -p ritk-core: clean
+- [x] Tests: cargo test -p ritk-core --lib: 1505 passed, 1 ignored, 0 failed (+9 from Sprint 337)
+- [x] CHANGELOG.md updated (0.51.5)
+- [x] Cargo.toml (ritk-core) version bumped to 0.5.0
+- [x] backlog.md updated
+- [x] gap_audit.md updated
+- [x] Coverage progression: 333: 36/74 (49%) → 335: 39/74 (53%) → 336: 40/74 (54%) → 337: 41/74 (55%)

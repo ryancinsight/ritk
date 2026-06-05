@@ -306,3 +306,40 @@
 - Closed: GAP-SCI-12 (chamfer distance transform).
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 13, 14, 15 (9 remaining, target Sprints 337-339).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
+
+---
+
+## Sprint 337 Audit (2026-06-04) — Morphological Laplacian (GAP-SCI-13 closure)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| GAP-SCI-13 | 3-D morphological Laplacian (`D + E − 2f`) with scipy parity | `filter::morphology::morphological_laplace` | 9 |
+
+### Architecture
+
+1. **GAP-SCI-13 (Morphological Laplacian)**: Implements `scipy.ndimage.morphological_laplace` with default arguments. The operator is a thin composition: `L_B(f) = D_B(f) + E_B(f) − 2 f`, where D is grayscale dilation and E is grayscale erosion, both over a cubic structuring element of half-width `radius`.
+   - **`morphological_laplace::mod`**: `MorphologicalLaplacian` struct (radius field) + `apply()` method generic over `B: Backend`. The struct re-uses `extract_vec` and `Image::new` for the standard input/output cycle, identical to `GrayscaleDilation`/`GrayscaleErosion`. Reflect-mode kernel: half-sample symmetric reflection with period `2n` (scipy's `mode='reflect'`), edge value repeated once (no double repeat). For `n == 1` the only valid index is 0; the periodic formula degenerates and we return 0 unconditionally.
+   - **`morphological_laplace::tests`**: 9 differential tests cross-validated against `scipy.ndimage.morphological_laplace` v1.17.1 on shapes including all-1s 3×3×3 (zero output), constant field (zero output), linear ramp along x (matches scipy [1, 0, -1] slice), 5×5×5 single voxel (size 3 and size 5), 1×3×3 degenerate-axis plane (z=1), 3×3×3 single voxel, and a 4×4×4 with two corner voxels (full 64-voxel byte-exact match against scipy).
+   - **Reflect mode note**: my existing `GrayscaleDilation` and `GrayscaleErosion` use replicate (clamp) padding for boundary handling. The reflect-mode kernel here is a **self-contained** inline re-implementation (`dilate_3d_reflect` + `erode_3d_reflect` with their own `reflect_index`) rather than a parameterised version of the existing filters. The docstring explicitly notes this deviation and the rationale (byte-exact scipy parity for `mode='reflect'`, the scipy default). The replicate-mode grayscale_dilation/erosion remain available for callers who prefer that boundary mode.
+
+2. **Partition**: `morphological_laplace.rs` (initially 595 lines) was partitioned into `morphological_laplace/{mod,tests}.rs` (215 + 254 = 469 lines, both < 500). This satisfies the project-wide zero-files-over-500-lines invariant.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo build -p ritk-core --lib` | clean | ✓ |
+| `cargo clippy -p ritk-core --all-targets` | 0 new warnings (27 pre-existing in chamfer/prewitt/position_extrema) | ✓ |
+| `cargo fmt --check -p ritk-core` | clean | ✓ |
+| `cargo test -p ritk-core --lib` | 1505/0/1 (+9 morphological_laplace tests) | ✓ |
+| `cargo test --workspace` | clean | ✓ |
+| `scipy.ndimage.morphological_laplace` differential | 9 shapes, reflect mode (default) | ✓ byte-exact |
+
+### Updated parity
+
+- Coverage: **41/74 present** (was 40/74), 6/74 partial, 27/74 missing (was 28/74). **55% parity** (was 54%).
+- Closed: GAP-SCI-13 (morphological_laplace).
+- Open: GAP-SCI-01, 02, 05, 06, 08, 11, 14, 15 (8 remaining, target Sprints 338-339).
+- Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
