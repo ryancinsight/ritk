@@ -44,6 +44,7 @@
 //!   Symmetric diffeomorphic image registration with cross-correlation.
 //!   *Medical Image Analysis* 12(1):26–41.
 
+use std::borrow::Cow;
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
@@ -176,15 +177,15 @@ impl MultiResSyNRegistration {
             let mut c2y = vec![0.0_f32; ln];
             let mut c2x = vec![0.0_f32; ln];
 
-            let f_ds = if factor > 1 {
-                downsample(fixed, dims, factor)
+            let f_ds: Cow<'_, [f32]> = if factor > 1 {
+                Cow::Owned(downsample(fixed, dims, factor))
             } else {
-                fixed.to_vec()
+                Cow::Borrowed(fixed)
             };
-            let m_ds = if factor > 1 {
-                downsample(moving, dims, factor)
+            let m_ds: Cow<'_, [f32]> = if factor > 1 {
+                Cow::Owned(downsample(moving, dims, factor))
             } else {
-                moving.to_vec()
+                Cow::Borrowed(moving)
             };
 
             let (mut v1z, mut v1y, mut v1x, mut v2z, mut v2y, mut v2x) =

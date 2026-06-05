@@ -2,21 +2,10 @@
 
 use super::bitstream::BitReader;
 use super::scan::{decode_scan, Predictor, ScanParams};
-use super::ContextState;
 use anyhow::{bail, Context, Result};
 
 /// Per-component decoder metadata populated during SOF55 header parsing.
-pub(crate) struct ComponentInfo {
-    /// Component identifier byte from SOF55.
-    #[allow(dead_code)]
-    pub(crate) id: u8,
-    /// Per-component mapping-table selector byte.
-    #[allow(dead_code)]
-    pub(crate) mapping_table_selector: u8,
-    /// Context states created fresh during decode.
-    #[allow(dead_code)]
-    pub(crate) context: [ContextState; 365],
-}
+pub(crate) struct ComponentInfo {}
 
 /// JPEG-LS decoder state populated by header parsing.
 pub(crate) struct JpegLsDecoder {
@@ -30,8 +19,6 @@ pub(crate) struct JpegLsDecoder {
     pub(crate) interleave_mode: u8,
     /// Point transform byte from the SOS header. DICOM lossless frames require zero.
     pub(crate) point_transform: u8,
-    #[allow(dead_code)]
-    pub(crate) restart_interval: u32,
     /// LSE-specified thresholds; zero values mean ISO defaults.
     pub(crate) t1: i32,
     pub(crate) t2: i32,
@@ -49,7 +36,6 @@ impl JpegLsDecoder {
             near: 0,
             interleave_mode: 0,
             point_transform: 0,
-            restart_interval: 0,
             t1: 0,
             t2: 0,
             t3: 0,

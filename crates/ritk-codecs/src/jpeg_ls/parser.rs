@@ -1,6 +1,6 @@
 //! JPEG-LS marker parser.
 
-use super::{ComponentInfo, ContextState, JpegLsDecoder, DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
+use super::{ComponentInfo, JpegLsDecoder, DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
 use anyhow::{bail, Result};
 
 /// Parse all JPEG-LS markers before scan data and populate `decoder`.
@@ -65,11 +65,7 @@ fn parse_sof55(decoder: &mut JpegLsDecoder, data: &[u8], pos: usize) -> Result<u
     for i in 0..(num_comp as usize) {
         let idx = pos + 10 + i * 3;
         if idx + 2 < data.len() {
-            decoder.components.push(ComponentInfo {
-                id: data[idx],
-                mapping_table_selector: data[idx + 2],
-                context: [ContextState::default(); 365],
-            });
+            decoder.components.push(ComponentInfo {});
         }
     }
     Ok(pos + 2 + length)
@@ -86,11 +82,11 @@ fn parse_dnl(decoder: &mut JpegLsDecoder, data: &[u8], pos: usize) -> Result<usi
     Ok(pos + 2 + length)
 }
 
-fn parse_dri(decoder: &mut JpegLsDecoder, data: &[u8], pos: usize) -> Result<usize> {
+fn parse_dri(_decoder: &mut JpegLsDecoder, data: &[u8], pos: usize) -> Result<usize> {
     if pos + 6 > data.len() {
         bail!("Truncated DRI marker at offset {}", pos);
     }
-    decoder.restart_interval = u16::from_be_bytes([data[pos + 4], data[pos + 5]]) as u32;
+    // DRI restart interval is parsed but no longer stored (not used for decode).
     Ok(pos + 6)
 }
 

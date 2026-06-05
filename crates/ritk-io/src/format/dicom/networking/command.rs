@@ -10,6 +10,8 @@
 //! The first element MUST be (0000,0000) UL = Command Group Length (byte count
 //! of all remaining elements in group 0000).
 
+use arrayvec::ArrayString;
+
 use super::association::NetworkingError;
 
 // ── SOP Class UIDs ────────────────────────────────────────────────────────────
@@ -90,20 +92,6 @@ pub fn encode_str_into(buf: &mut Vec<u8>, s: &str) {
 fn padded_len(s: &str) -> usize {
     let l = s.len();
     l + (l & 1)
-}
-
-/// Encode a UID string as IVR-LE UI value: null-padded to even length (PS3.5 §6.2).
-#[allow(dead_code)]
-pub fn encode_ui(uid: &str) -> Vec<u8> {
-    let mut b = Vec::with_capacity(padded_len(uid));
-    encode_ui_into(&mut b, uid);
-    b
-}
-
-/// Encode a US (unsigned short) as 2 little-endian bytes.
-#[allow(dead_code)]
-pub fn encode_us(v: u16) -> [u8; 2] {
-    v.to_le_bytes()
 }
 
 /// Encode a string (AE/CS/LO/SH) as IVR-LE: space-padded to even length (PS3.5 §6.2).
@@ -231,7 +219,7 @@ pub struct CommandResponse {
     /// (0000,1023) Number of Warning Sub-operations (C-MOVE).
     pub number_warning: Option<u16>,
     /// (0000,1000) Affected SOP Instance UID (C-STORE).
-    pub affected_sop_instance_uid: Option<String>,
+    pub affected_sop_instance_uid: Option<ArrayString<64>>,
 }
 
 /// Parse an IVR-LE encoded DIMSE command PDV body into a `CommandResponse`.
@@ -276,11 +264,16 @@ pub fn parse_command_response(data: &[u8]) -> Result<CommandResponse, Networking
                     resp.status = u16::from_le_bytes([value[0], value[1]]);
                 }
                 0x1000 if len > 0 => {
-                    resp.affected_sop_instance_uid = Some(
-                        String::from_utf8_lossy(value)
-                            .trim_end_matches(['\0', ' '])
-                            .to_owned(),
-                    );
+                    resp.affected_sop_instance_uid = Some({
+                        let s = std::str::from_utf8(value)
+                            .unwrap_or("")
+                            .trim_end_matches(['\0', ' ']);
+                        let mut arr = ArrayString::new();
+                        for ch in s.chars().take(64) {
+                            arr.try_push(ch).unwrap();
+                        }
+                        arr
+                    });
                 }
                 0x1020 if len >= 2 => {
                     resp.number_remaining = Some(u16::from_le_bytes([value[0], value[1]]));

@@ -3,6 +3,7 @@
 use super::super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
 use super::super::pdu::*;
 use super::Association;
+use arrayvec::ArrayString;
 use std::collections::HashMap;
 
 impl Association {
@@ -17,13 +18,13 @@ impl Association {
             .map(|rpc| {
                 let mut ts = rpc.transfer_syntax_uids.clone();
                 if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                    ts.push(transfer_syntax::IMPLICIT_VR_LE.to_string());
+                    ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
                 }
                 let id = nid;
                 nid += 2;
                 PresentationContextItemRq {
                     presentation_context_id: id,
-                    abstract_syntax_uid: rpc.abstract_syntax_uid.clone(),
+                    abstract_syntax_uid: rpc.abstract_syntax_uid,
                     transfer_syntax_uids: ts,
                 }
             })
@@ -31,19 +32,19 @@ impl Association {
 
         Pdu::AssociateRq(AssociateRqPdu {
             protocol_version: 1,
-            called_ae_title: config.called_ae_title.clone(),
-            calling_ae_title: config.calling_ae_title.clone(),
-            application_context_name: APPLICATION_CONTEXT_NAME.to_string(),
+            called_ae_title: config.called_ae_title,
+            calling_ae_title: config.calling_ae_title,
+            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
             presentation_contexts: pcs,
             user_information: UserInformation {
                 maximum_length: MaximumLengthSubItem {
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: RITK_IMPLEMENTATION_CLASS_UID.to_string(),
+                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: RITK_IMPLEMENTATION_VERSION.to_string(),
+                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
                 }),
                 user_identity: config.user_identity.clone(),
                 ..Default::default()
@@ -57,7 +58,7 @@ impl Association {
     /// abstract-syntax UIDs; the AC only carries the accepted transfer syntax.
     pub fn negotiated_contexts_from_ac(
         ac: &AssociateAcPdu,
-        rq_abstracts: &HashMap<u8, String>,
+        rq_abstracts: &HashMap<u8, ArrayString<64>>,
     ) -> Vec<NegotiatedContext> {
         ac.presentation_contexts
             .iter()
@@ -68,7 +69,7 @@ impl Association {
                     .get(&pc.presentation_context_id)
                     .cloned()
                     .unwrap_or_default(),
-                transfer_syntax_uid: pc.transfer_syntax_uid.clone(),
+                transfer_syntax_uid: pc.transfer_syntax_uid,
             })
             .collect()
     }
@@ -111,11 +112,11 @@ impl Association {
 }
 
 /// Build a map of presentation-context ID → abstract-syntax UID from an RQ PDU.
-pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, String> {
+pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
     let mut m = HashMap::new();
     if let Pdu::AssociateRq(rq) = pdu {
         for pc in &rq.presentation_contexts {
-            m.insert(pc.presentation_context_id, pc.abstract_syntax_uid.clone());
+            m.insert(pc.presentation_context_id, pc.abstract_syntax_uid);
         }
     }
     m

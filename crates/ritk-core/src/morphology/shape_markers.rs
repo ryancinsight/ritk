@@ -265,7 +265,11 @@ mod tests {
     #[test]
     fn ball_cardinality_matches_known_values() {
         assert_eq!(Ball::offsets(0).len(), 1, "ball(0) = origin");
-        assert_eq!(Ball::offsets(1).len(), 7, "ball(1) = origin + 6 face centres");
+        assert_eq!(
+            Ball::offsets(1).len(),
+            7,
+            "ball(1) = origin + 6 face centres"
+        );
         assert_eq!(
             Ball::offsets(2).len(),
             33,
@@ -286,9 +290,18 @@ mod tests {
     fn origin_is_included_in_every_shape() {
         let origin = Offset3D::new(0, 0, 0);
         for r in 0..=3usize {
-            assert!(Cube::offsets(r).contains(&origin), "cube r={r} must contain origin");
-            assert!(Cross::offsets(r).contains(&origin), "cross r={r} must contain origin");
-            assert!(Ball::offsets(r).contains(&origin), "ball r={r} must contain origin");
+            assert!(
+                Cube::offsets(r).contains(&origin),
+                "cube r={r} must contain origin"
+            );
+            assert!(
+                Cross::offsets(r).contains(&origin),
+                "cross r={r} must contain origin"
+            );
+            assert!(
+                Ball::offsets(r).contains(&origin),
+                "ball r={r} must contain origin"
+            );
         }
     }
 

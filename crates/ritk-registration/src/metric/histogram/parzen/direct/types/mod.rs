@@ -27,9 +27,8 @@ pub(crate) use bin_range::BinRange;
 pub(crate) use half_width::compute_half_width;
 #[cfg(test)]
 pub(crate) use half_width::MAX_PARZEN_BINS;
-// ARCH-330-05: promoted to production; used by compute_half_width internally
-// and by sparse.rs test code. Not directly used in production by other modules.
-#[allow(unused_imports)]
+// ARCH-330-05: used by sparse.rs test code (re-exported for cfg(test) consumers).
+#[cfg(test)]
 pub(crate) use half_width::MIN_HALF_WIDTH;
 pub(crate) use parzen_config::ParzenConfig;
 pub(crate) use stack_weights::StackWeights;

@@ -144,29 +144,6 @@ impl BasisCache {
     }
 }
 
-/// Evaluate the four cubic B-spline basis *derivatives* at parameter `t ∈ [0, 1]`.
-///
-/// Returns `d/dt [β₃₀(t), β₃₁(t), β₃₂(t), β₃₃(t)]`:
-///
-/// ```text
-/// β₃₀'(t) = −(1 − t)² / 2
-/// β₃₁'(t) = (3t² − 4t) / 2
-/// β₃₂'(t) = (−3t² + 2t + 1) / 2
-/// β₃₃'(t) = t² / 2
-/// ```
-#[inline]
-#[allow(dead_code)]
-pub(super) fn cubic_bspline_1d_deriv(t: f64) -> [f64; 4] {
-    let t2 = t * t;
-    let omt = 1.0 - t;
-    [
-        -omt * omt / 2.0,
-        (3.0 * t2 - 4.0 * t) / 2.0,
-        (-3.0 * t2 + 2.0 * t + 1.0) / 2.0,
-        t2 / 2.0,
-    ]
-}
-
 /// Compute control-grid dimensions from image dimensions and control spacing.
 ///
 /// The control lattice extends one extra control point beyond each boundary

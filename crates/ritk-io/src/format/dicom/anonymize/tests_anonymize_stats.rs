@@ -13,21 +13,11 @@
 //! 6. clean_private_tags_true_removes_private_elements
 //! 7. clean_private_tags_true_preserves_standard_elements
 
-use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions, TagAction};
+use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/// Return the action for `tag` within `actions`, or `None` if absent.
-#[allow(dead_code)]
-fn find_action(actions: &[(Tag, TagAction)], tag: Tag) -> Option<TagAction> {
-    actions
-        .iter()
-        .find(|(t, _)| *t == tag)
-        .copied()
-        .map(|(_, a)| a)
-}
 
 /// Build a minimal, self-consistent `FileDicomObject` with:
 /// - PatientName (0010,0010) PN "Doe^John"

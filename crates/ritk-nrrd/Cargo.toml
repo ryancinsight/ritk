@@ -14,4 +14,4 @@ bytemuck = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
-tempfile = "3.0"
+tempfile = { workspace = true }

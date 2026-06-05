@@ -2,7 +2,6 @@
 
 use crate::deformable_field_ops::{warp_image, VectorField3D, VectorFieldMut3D};
 
-#[allow(dead_code)]
 /// Compute MSE = mean((F(p) − M_w(p))²) where M_w = warp(M, D).
 pub(super) fn compute_mse(
     fixed: &[f32],

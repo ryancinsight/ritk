@@ -9,6 +9,7 @@ mod factory;
 
 pub use command_value::{CommandElement, CommandValue, CommandVr};
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 
 // ── DIMSE Command Field Values ────────────────────────────────────────────────
@@ -86,14 +87,24 @@ pub(crate) fn decode_us(bytes: &[u8]) -> Option<u16> {
     (bytes.len() >= 2).then(|| u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
-pub(crate) fn decode_ui(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes)
-        .trim_end_matches(['\0', ' '])
-        .to_owned()
+pub(crate) fn decode_ui(bytes: &[u8]) -> ArrayString<64> {
+    let s = std::str::from_utf8(bytes)
+        .unwrap_or("")
+        .trim_end_matches(['\0', ' ']);
+    let mut arr = ArrayString::new();
+    for ch in s.chars().take(64) {
+        arr.try_push(ch).unwrap();
+    }
+    arr
 }
 
-pub(crate) fn decode_ae(bytes: &[u8]) -> String {
-    String::from_utf8_lossy(bytes).trim_end().to_owned()
+pub(crate) fn decode_ae(bytes: &[u8]) -> ArrayString<16> {
+    let s = std::str::from_utf8(bytes).unwrap_or("").trim_end();
+    let mut arr = ArrayString::new();
+    for ch in s.chars().take(16) {
+        arr.try_push(ch).unwrap();
+    }
+    arr
 }
 
 // ── Command tag constants ─────────────────────────────────────────────────────
@@ -256,19 +267,19 @@ impl DimseMessage {
     }
 
     /// Affected SOP Class UID from (0000,0002).
-    pub fn affected_sop_class_uid(&self) -> Option<String> {
+    pub fn affected_sop_class_uid(&self) -> Option<ArrayString<64>> {
         self.find_element(TAG_AFFECTED_SOP_CLASS)
             .map(|e| decode_ui(e.value.as_bytes()))
     }
 
     /// Move Destination AE title from (0000,0600).
-    pub fn move_destination(&self) -> Option<String> {
+    pub fn move_destination(&self) -> Option<ArrayString<16>> {
         self.find_element(TAG_MOVE_DESTINATION)
             .map(|e| decode_ae(e.value.as_bytes()))
     }
 
     /// Affected SOP Instance UID from (0000,1000).
-    pub fn affected_sop_instance_uid(&self) -> Option<String> {
+    pub fn affected_sop_instance_uid(&self) -> Option<ArrayString<64>> {
         self.find_element(TAG_AFFECTED_SOP_INSTANCE)
             .map(|e| decode_ui(e.value.as_bytes()))
     }

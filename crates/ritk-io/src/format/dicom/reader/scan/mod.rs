@@ -203,11 +203,11 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
     let mut series_object = DicomObjectModel::with_source(path.to_path_buf());
     for slice in slices {
         if let Some(uid) = slice.sop_instance_uid.as_ref() {
-            series_object.insert(DicomObjectNode::text(
-                DicomTag::new(0x0008, 0x0018),
-                "UI",
-                uid.clone(),
-            ));
+                    series_object.insert(DicomObjectNode::text(
+                        DicomTag::new(0x0008, 0x0018),
+                        "UI",
+                        uid.as_str().to_string(),
+                    ));
         }
         if let Some(instance_number) = slice.instance_number {
             series_object.insert(DicomObjectNode::i32(
@@ -260,11 +260,11 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             ));
         }
         if let Some(sop_class_uid) = slice.sop_class_uid.as_ref() {
-            series_object.insert(DicomObjectNode::text(
-                DicomTag::new(0x0008, 0x0016),
-                "UI",
-                sop_class_uid.clone(),
-            ));
+                    series_object.insert(DicomObjectNode::text(
+                        DicomTag::new(0x0008, 0x0016),
+                        "UI",
+                        sop_class_uid.as_str().to_string(),
+                    ));
         }
     }
     series_object

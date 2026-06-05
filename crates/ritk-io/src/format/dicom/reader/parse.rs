@@ -17,11 +17,12 @@ use dicom_core::header::Header;
 use ritk_dicom::{parse_bytes_with, parse_file_with, DicomRsBackend};
 
 use super::preservation::{known_handled_tags, parse_sequence_item, tag_key};
-use super::types::{parse_patient_position, DicomSliceMetadata, SeriesFirstSeen};
+use super::types::{parse_patient_position, uid_to_arraystring, DicomSliceMetadata, SeriesFirstSeen};
 use crate::format::dicom::object_model::{
     is_private_tag, DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag,
     DicomValue,
 };
+use arrayvec::ArrayString;
 
 /// Parse a single DICOM Part-10 file, populating `first` with series-level
 /// first-seen fields and returning the per-slice metadata, per-file image
@@ -53,7 +54,7 @@ pub(crate) fn parse_dicom_bytes(
     let path_for_meta = PathBuf::from(format!("scp://{}", sop_instance_uid));
     let mut result = extract_dicom_metadata(&obj, path_for_meta, first);
     if let Some((ref mut slice_meta, _, _)) = result {
-        slice_meta.sop_instance_uid = Some(sop_instance_uid.to_string());
+        slice_meta.sop_instance_uid = uid_to_arraystring(sop_instance_uid);
     }
     result
 }
@@ -116,13 +117,13 @@ fn extract_dicom_metadata(
     // --- Per-slice fields ---
     if slice_meta.sop_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
-            slice_meta.sop_instance_uid = elem.to_str().ok().map(String::from);
-        }
+            slice_meta.sop_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
+                        }
     }
     let file_series_uid = obj
-        .element(Tag(0x0020, 0x000E))
-        .ok()
-        .and_then(|e| e.to_str().ok().map(String::from));
+            .element(Tag(0x0020, 0x000E))
+            .ok()
+            .and_then(|e| e.to_str().ok().map(String::from));
     if let Ok(elem) = obj.element(Tag(0x0020, 0x0013)) {
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
@@ -172,10 +173,10 @@ fn extract_dicom_metadata(
             .unwrap_or(0.0);
     }
     if let Ok(elem) = obj.element(Tag(0x0008, 0x0016)) {
-        slice_meta.sop_class_uid = elem.to_str().ok().map(String::from);
+        slice_meta.sop_class_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
     }
     // Transfer syntax from file meta (0002,0010), not main dataset.
-    slice_meta.transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
+    slice_meta.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
 
     if let Ok(elem) = obj.element(Tag(0x0028, 0x0103)) {
         slice_meta.pixel_representation = elem
@@ -257,12 +258,12 @@ fn extract_dicom_metadata(
     }
     if first.series_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x000E)) {
-            first.series_instance_uid = elem.to_str().ok().map(String::from);
+            first.series_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.study_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x000D)) {
-            first.study_instance_uid = elem.to_str().ok().map(String::from);
+            first.study_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.series_description.is_none() {
@@ -302,7 +303,7 @@ fn extract_dicom_metadata(
     }
     if first.frame_of_reference_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x0052)) {
-            first.frame_of_reference_uid = elem.to_str().ok().map(String::from);
+            first.frame_of_reference_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.bits_allocated.is_none() {
@@ -326,7 +327,7 @@ fn extract_dicom_metadata(
         }
     }
     if first.transfer_syntax_uid.is_none() {
-        first.transfer_syntax_uid = Some(obj.meta().transfer_syntax().to_string());
+        first.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
     }
     if first.patient_weight_kg.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0010, 0x1030)) {
@@ -390,7 +391,7 @@ fn extract_dicom_metadata(
                         .collect();
                     slice_meta.preservation.object.insert(DicomObjectNode {
                         tag: dicom_tag,
-                        vr: Some("SQ".to_string()),
+                        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
                         value: DicomValue::Sequence(parsed),
                         private,
                         source: None,
@@ -407,14 +408,14 @@ fn extract_dicom_metadata(
                     if let Ok(bytes) = element.to_bytes() {
                         slice_meta.preservation.preserve(DicomPreservedElement::new(
                             dicom_tag,
-                            Some(vr_str.to_string()),
+                            Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                             bytes.to_vec(),
                         ));
                     }
                 } else if let Ok(s) = element.to_str() {
                     slice_meta.preservation.object.insert(DicomObjectNode {
                         tag: dicom_tag,
-                        vr: Some(vr_str.to_string()),
+                        vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                         value: DicomValue::Text(s.to_string()),
                         private,
                         source: None,
@@ -422,7 +423,7 @@ fn extract_dicom_metadata(
                 } else if let Ok(bytes) = element.to_bytes() {
                     slice_meta.preservation.preserve(DicomPreservedElement::new(
                         dicom_tag,
-                        Some(vr_str.to_string()),
+                        Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                         bytes.to_vec(),
                     ));
                 }

@@ -1,5 +1,6 @@
 //! DicomPreservedElement and DicomPreservationSet.
 
+use arrayvec::ArrayString;
 use super::model::DicomObjectModel;
 use super::tag::DicomTag;
 
@@ -12,7 +13,7 @@ pub struct DicomPreservedElement {
     /// Tag of the preserved element.
     pub tag: DicomTag,
     /// Raw VR if known.
-    pub vr: Option<String>,
+    pub vr: Option<ArrayString<2>>,
     /// Raw bytes for lossless retention.
     pub bytes: Vec<u8>,
 }
@@ -20,7 +21,7 @@ pub struct DicomPreservedElement {
 impl DicomPreservedElement {
     /// Create a new preserved element.
     #[inline]
-    pub fn new(tag: DicomTag, vr: Option<String>, bytes: Vec<u8>) -> Self {
+    pub fn new(tag: DicomTag, vr: Option<ArrayString<2>>, bytes: Vec<u8>) -> Self {
         Self { tag, vr, bytes }
     }
 }

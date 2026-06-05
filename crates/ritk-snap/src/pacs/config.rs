@@ -4,6 +4,7 @@
 //! Conversion to [`AssociationConfig`] is performed at request submission time,
 //! keeping the UI layer free of DIMSE protocol details.
 
+use arrayvec::ArrayString;
 use ritk_io::AssociationConfig;
 
 // ── PacsConfig ────────────────────────────────────────────────────────────────
@@ -71,8 +72,8 @@ impl PacsConfig {
     /// empty so each SCU function can set the appropriate SOP class.
     pub fn to_association_config(&self) -> AssociationConfig {
         AssociationConfig {
-            calling_ae_title: self.calling_ae_title.clone(),
-            called_ae_title: self.called_ae_title.clone(),
+            calling_ae_title: self.calling_ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("RITKSNAP").unwrap()),
+            called_ae_title: self.called_ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("ORTHANC").unwrap()),
             host: self.host.clone(),
             port: self.port,
             timeout: std::time::Duration::from_secs(self.timeout_secs),

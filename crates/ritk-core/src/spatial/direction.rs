@@ -183,6 +183,17 @@ impl<const D: usize> Direction<D> {
             .collect()
     }
 
+    /// Get the axis directions as a fixed-size array (zero-allocation).
+    pub fn axis_directions_array(&self) -> [Vector<D>; D] {
+        std::array::from_fn(|i| {
+            let mut v = Vector::zeros();
+            for j in 0..D {
+                v[j] = self.0[(j, i)];
+            }
+            v
+        })
+    }
+
     /// Get the inner nalgebra matrix.
     pub fn inner(&self) -> &SMatrix<f64, D, D> {
         &self.0
@@ -268,6 +279,15 @@ mod tests {
         let mut reflection = Direction3::identity();
         reflection[(0, 0)] = -1.0;
         assert!(!reflection.is_proper_rotation());
+    }
+
+    #[test]
+    fn test_direction_axis_directions_array() {
+        let identity = Direction3::identity();
+        let axes = identity.axis_directions_array();
+        assert_eq!(axes[0], Vector3::new([1.0, 0.0, 0.0]));
+        assert_eq!(axes[1], Vector3::new([0.0, 1.0, 0.0]));
+        assert_eq!(axes[2], Vector3::new([0.0, 0.0, 1.0]));
     }
 
     #[test]

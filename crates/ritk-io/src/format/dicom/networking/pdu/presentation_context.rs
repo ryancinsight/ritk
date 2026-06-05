@@ -1,23 +1,24 @@
 //! Presentation context item types and codec for DICOM Upper Layer PDUs (PS 3.8).
 
+use arrayvec::ArrayString;
 use anyhow::Result;
 
-use super::{r16, r8, rbytes, w_item, IT_ABS_SYN, IT_XFER_SYN};
+use super::{uid_from_bytes_64, r16, r8, rbytes, w_item, IT_ABS_SYN, IT_XFER_SYN};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PresentationContextItemRq {
     pub presentation_context_id: u8,
-    pub abstract_syntax_uid: String,
-    pub transfer_syntax_uids: Vec<String>,
+    pub abstract_syntax_uid: ArrayString<64>,
+    pub transfer_syntax_uids: Vec<ArrayString<64>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PresentationContextItemAc {
     pub presentation_context_id: u8,
     pub result_reason: u8,
-    pub transfer_syntax_uid: String,
+    pub transfer_syntax_uid: ArrayString<64>,
 }
 
 // ── Encode / Decode ──────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ pub(crate) fn dec_pc_rq(data: &[u8]) -> Result<PresentationContextItemRq> {
     let mut o = 0usize;
     let id = r8(data, &mut o)?;
     o += 3;
-    let mut asyn = String::new();
+    let mut asyn = ArrayString::new();
     let mut tsyns = Vec::new();
     while o + 4 <= data.len() {
         let it = data[o];
@@ -47,8 +48,8 @@ pub(crate) fn dec_pc_rq(data: &[u8]) -> Result<PresentationContextItemRq> {
         let il = r16(data, &mut o)? as usize;
         let d = rbytes(data, &mut o, il)?;
         match it {
-            IT_ABS_SYN => asyn = String::from_utf8_lossy(d).into_owned(),
-            IT_XFER_SYN => tsyns.push(String::from_utf8_lossy(d).into_owned()),
+            IT_ABS_SYN => asyn = uid_from_bytes_64(d),
+            IT_XFER_SYN => tsyns.push(uid_from_bytes_64(d)),
             _ => {}
         }
     }
@@ -73,14 +74,14 @@ pub(crate) fn dec_pc_ac(data: &[u8]) -> Result<PresentationContextItemAc> {
     o += 1;
     let rr = r8(data, &mut o)?;
     o += 1;
-    let mut ts = String::new();
+    let mut ts = ArrayString::new();
     while o + 4 <= data.len() {
         let it = data[o];
         o += 2;
         let il = r16(data, &mut o)? as usize;
         let d = rbytes(data, &mut o, il)?;
         if it == IT_XFER_SYN {
-            ts = String::from_utf8_lossy(d).into_owned();
+            ts = uid_from_bytes_64(d);
         }
     }
     Ok(PresentationContextItemAc {

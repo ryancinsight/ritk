@@ -7,6 +7,8 @@
 //! - `is_external_backend_codec_candidate() -> is_backend_codec_candidate()`.
 //! - `is_codec_supported() -> is_compressed()`.
 
+use arrayvec::ArrayString;
+
 /// DICOM Transfer Syntax classification used by RITK decode dispatch.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TransferSyntaxKind {
@@ -26,7 +28,7 @@ pub enum TransferSyntaxKind {
     JpegXlLossless,
     JpegXlJpegRecompression,
     JpegXl,
-    Unknown(String),
+    Unknown(ArrayString<64>),
 }
 
 impl TransferSyntaxKind {
@@ -48,7 +50,9 @@ impl TransferSyntaxKind {
             "1.2.840.10008.1.2.4.110" => Self::JpegXlLossless,
             "1.2.840.10008.1.2.4.111" => Self::JpegXlJpegRecompression,
             "1.2.840.10008.1.2.4.112" => Self::JpegXl,
-            other => Self::Unknown(other.to_string()),
+            other => Self::Unknown(
+                ArrayString::<64>::try_from(other).unwrap_or_default(),
+            ),
         }
     }
 

@@ -107,6 +107,11 @@ impl<const D: usize> Vector<D> {
         (0..D).map(|i| self.0[i]).collect()
     }
 
+    /// Convert vector to a fixed-size array of components (zero-allocation).
+    pub fn to_array(&self) -> [f64; D] {
+        std::array::from_fn(|i| self.0[i])
+    }
+
     /// Create a unit vector along the x-axis.
     pub fn x_axis() -> Self {
         let mut v = Self::zeros();
@@ -222,6 +227,13 @@ mod tests {
         let v = Vector3::new([1.0, 2.0, 3.0]);
         let components = v.to_vec();
         assert_eq!(components, vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn test_vector_to_array() {
+        let v = Vector3::new([1.0, 2.0, 3.0]);
+        let components = v.to_array();
+        assert_eq!(components, [1.0, 2.0, 3.0]);
     }
 
     #[test]

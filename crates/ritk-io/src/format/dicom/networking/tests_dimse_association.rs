@@ -6,7 +6,7 @@
 
 use super::association::{AeTitle, DicomAddress};
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, parse_command_response,
+    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui_into, parse_command_response,
     CommandElementValue, C_ECHO_RSP, C_FIND_RSP, C_MOVE_RSP, HAS_DATASET, NO_DATASET,
     STATUS_SUCCESS, STUDY_ROOT_FIND_SOP_CLASS, STUDY_ROOT_MOVE_SOP_CLASS, VERIFICATION_SOP_CLASS,
 };
@@ -185,7 +185,8 @@ fn c_find_loopback_returns_synthetic_study_result() {
                         .unwrap();
 
                     // Send result dataset with StudyInstanceUID.
-                    let uid_bytes = encode_ui(EXPECTED_UID);
+                    let mut uid_bytes = Vec::new();
+                    encode_ui_into(&mut uid_bytes, EXPECTED_UID);
                     let level_bytes = encode_str("STUDY");
                     let dataset = build_dataset_ivr_le(&[
                         (0x0008_0052, level_bytes.as_slice()),

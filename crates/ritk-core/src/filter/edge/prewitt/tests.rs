@@ -215,5 +215,9 @@ fn prewitt_single_voxel_returns_zero() {
     let filt = PrewittFilter::unit();
     let out = filt.apply(&img).unwrap();
     let v = values(&out);
-    assert!(v[0].abs() < 1e-5, "single voxel should yield 0, got {}", v[0]);
+    assert!(
+        v[0].abs() < 1e-5,
+        "single voxel should yield 0, got {}",
+        v[0]
+    );
 }

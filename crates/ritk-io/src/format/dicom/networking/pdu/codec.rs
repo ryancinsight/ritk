@@ -135,7 +135,7 @@ impl Pdu {
     fn dec_assoc_rq(p: &[u8]) -> Result<Self> {
         let (ver, ca, cg) = Self::dec_assoc_hdr(p)?;
         let mut off = 68usize;
-        let mut app = String::new();
+        let mut app = ArrayString::new();
         let mut pcs = Vec::new();
         let mut ui = UserInformation::default();
         while off + 4 <= p.len() {
@@ -145,7 +145,7 @@ impl Pdu {
             off += 2;
             let d = &p[off..off + il];
             match it {
-                IT_APP_CTX => app = String::from_utf8_lossy(d).into_owned(),
+                IT_APP_CTX => app = uid_from_bytes_64(d),
                 IT_PC_RQ => pcs.push(presentation_context::dec_pc_rq(d)?),
                 IT_USER_INFO => ui = user_info::dec_ui(d)?,
                 _ => {}
@@ -154,8 +154,8 @@ impl Pdu {
         }
         Ok(Pdu::AssociateRq(AssociateRqPdu {
             protocol_version: ver,
-            called_ae_title: trim_ae(&ca),
-            calling_ae_title: trim_ae(&cg),
+            called_ae_title: ae_from_bytes(&ca),
+            calling_ae_title: ae_from_bytes(&cg),
             application_context_name: app,
             presentation_contexts: pcs,
             user_information: ui,
@@ -165,7 +165,7 @@ impl Pdu {
     fn dec_assoc_ac(p: &[u8]) -> Result<Self> {
         let (ver, ca, cg) = Self::dec_assoc_hdr(p)?;
         let mut off = 68usize;
-        let mut app = String::new();
+        let mut app = ArrayString::new();
         let mut pcs = Vec::new();
         let mut ui = UserInformation::default();
         while off + 4 <= p.len() {
@@ -175,7 +175,7 @@ impl Pdu {
             off += 2;
             let d = &p[off..off + il];
             match it {
-                IT_APP_CTX => app = String::from_utf8_lossy(d).into_owned(),
+                IT_APP_CTX => app = uid_from_bytes_64(d),
                 IT_PC_AC => pcs.push(presentation_context::dec_pc_ac(d)?),
                 IT_USER_INFO => ui = user_info::dec_ui(d)?,
                 _ => {}
@@ -184,8 +184,8 @@ impl Pdu {
         }
         Ok(Pdu::AssociateAc(AssociateAcPdu {
             protocol_version: ver,
-            called_ae_title: trim_ae(&ca),
-            calling_ae_title: trim_ae(&cg),
+            called_ae_title: ae_from_bytes(&ca),
+            calling_ae_title: ae_from_bytes(&cg),
             application_context_name: app,
             presentation_contexts: pcs,
             user_information: ui,

@@ -3,6 +3,7 @@
 //! These types are retained for sibling module (`echo`, `find`, `store`, `move_`)
 //! compatibility with the `dicom-ul`-based implementation.
 
+use arrayvec::ArrayString;
 use thiserror::Error;
 
 // ── Error type ────────────────────────────────────────────────────────────────
@@ -29,7 +30,7 @@ pub enum NetworkingError {
 
 /// Validated DICOM AE Title (1–16 printable ASCII characters, no backslash).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct AeTitle(String);
+pub struct AeTitle(ArrayString<16>);
 
 impl AeTitle {
     /// Construct an AE Title, validating length and character set per PS 3.8.
@@ -46,11 +47,15 @@ impl AeTitle {
                 "must be printable ASCII excluding backslash",
             ));
         }
-        Ok(Self(s.to_owned()))
+        let mut arr = ArrayString::new();
+        for ch in s.chars().take(16) {
+            arr.try_push(ch).unwrap();
+        }
+        Ok(Self(arr))
     }
 
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 }
 
@@ -101,7 +106,7 @@ pub struct EchoResponse {
 #[derive(Debug, Clone)]
 pub struct StoreResponse {
     pub status: u16,
-    pub affected_sop_instance_uid: Option<String>,
+    pub affected_sop_instance_uid: Option<ArrayString<64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

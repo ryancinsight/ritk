@@ -271,7 +271,7 @@ fn load_dicom_color_from_series_is_callable() {
     let slice = DicomSliceMetadata {
         path: path.clone(),
         preservation: Default::default(),
-        sop_instance_uid: Some("2.25.4101".to_string()),
+        sop_instance_uid: Some("2.25.4101".try_into().unwrap()),
         instance_number: Some(1),
         slice_location: None,
         image_position_patient: Some([0.0, 0.0, 0.0]),
@@ -281,7 +281,7 @@ fn load_dicom_color_from_series_is_callable() {
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
         sop_class_uid: None,
-        transfer_syntax_uid: Some("1.2.840.10008.1.2.1".to_string()),
+        transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().unwrap()),
         private_tags: Default::default(),
         pixel_representation: 0,
         bits_allocated: 8,
@@ -293,7 +293,7 @@ fn load_dicom_color_from_series_is_callable() {
     };
 
     let metadata = DicomReadMetadata {
-        series_instance_uid: Some("2.25.4001".to_string()),
+        series_instance_uid: Some("2.25.4001".try_into().unwrap()),
         study_instance_uid: None,
         frame_of_reference_uid: None,
         series_description: None,

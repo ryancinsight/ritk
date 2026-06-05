@@ -10,7 +10,5 @@
 pub mod chamfer;
 pub mod euclidean;
 
-pub use chamfer::{
-    chamfer_distance_transform_3d, ChamferDistanceTransform, ChamferMetric,
-};
+pub use chamfer::{chamfer_distance_transform_3d, ChamferDistanceTransform, ChamferMetric};
 pub use euclidean::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};

@@ -87,9 +87,9 @@ impl ChamferDistanceTransform {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td.into_vec::<f32>().map_err(|e| {
-            anyhow::anyhow!("ChamferDistanceTransform requires f32 data: {:?}", e)
-        })?;
+        let vals: Vec<f32> = td
+            .into_vec::<f32>()
+            .map_err(|e| anyhow::anyhow!("ChamferDistanceTransform requires f32 data: {:?}", e))?;
 
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let sp = image.spacing();

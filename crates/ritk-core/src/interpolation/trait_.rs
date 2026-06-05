@@ -12,6 +12,11 @@ use burn::tensor::Tensor;
 ///
 /// # Type Parameters
 /// * `B` - The Burn backend
+///
+/// # Dimension restriction
+/// Only `D ∈ {1, 2, 3, 4}` is supported. The dispatch layer enforces
+/// this at runtime (panicking for unsupported dimensions), while the
+/// compiler fully monomorphizes each supported dimension.
 pub trait Interpolator<B: Backend> {
     /// Interpolate values from a tensor at given continuous indices.
     ///

@@ -47,27 +47,6 @@ pub(super) enum Predictor {
     Adaptive = 7,
 }
 
-impl Predictor {
-    /// Convert a raw u8 value from the JPEG-LS SOS header into a `Predictor`.
-    ///
-    /// ISO 14495-1 §C.2.1 defines `ILV` / predictor in `[0, 7]`.
-    /// Returns `Err` for any value outside this range.
-    #[allow(dead_code)]
-    pub(super) fn from_u8(v: u8) -> anyhow::Result<Self> {
-        match v {
-            0 => Ok(Self::None),
-            1 => Ok(Self::Left),
-            2 => Ok(Self::Up),
-            3 => Ok(Self::UpLeft),
-            4 => Ok(Self::UpPlusLeftMinusUpLeft),
-            5 => Ok(Self::UpPlusHalfDiff),
-            6 => Ok(Self::LeftPlusHalfDiff),
-            7 => Ok(Self::Adaptive),
-            _ => anyhow::bail!("Invalid JPEG-LS predictor: {}", v),
-        }
-    }
-}
-
 /// ISO 14495-1 §6.3.1 edge-detecting predictor.
 ///
 /// Proof:
@@ -366,23 +345,6 @@ mod tests {
     fn predict_boundary_first_row() {
         // row=0, col>0 → LEFT = a
         assert_eq!(predict(4, 0, 0, 0, Predictor::Up, 0, 1), 4);
-    }
-
-    #[test]
-    fn predictor_from_u8_all_valid() {
-        for v in 0u8..=7 {
-            assert!(
-                Predictor::from_u8(v).is_ok(),
-                "predictor {} should be valid",
-                v
-            );
-        }
-    }
-
-    #[test]
-    fn predictor_from_u8_invalid() {
-        assert!(Predictor::from_u8(8).is_err());
-        assert!(Predictor::from_u8(255).is_err());
     }
 
     #[test]

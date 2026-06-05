@@ -25,7 +25,6 @@ pub mod structuring_element;
 
 pub use offset::Offset3D;
 pub use shape_markers::{
-    ball_cardinality_upper, cross_cardinality, cube_cardinality, sealed, Ball, Cross, Cube,
-    SeShape,
+    ball_cardinality_upper, cross_cardinality, cube_cardinality, sealed, Ball, Cross, Cube, SeShape,
 };
 pub use structuring_element::StructuringElement;

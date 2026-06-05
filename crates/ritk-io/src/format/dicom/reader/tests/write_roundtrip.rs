@@ -4,7 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series, load_dicom_series_with_metadata, load_from_series, read_dicom_series,
+    load_dicom_series_with_metadata, load_from_series,
     read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
@@ -50,7 +50,9 @@ fn test_write_series_load_series_intensity_roundtrip() {
         .expect("write_dicom_series must succeed");
 
     let loaded_image =
-        load_dicom_series::<B, _>(&series_path, &device).expect("load_dicom_series must succeed");
+        load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+            .expect("load_dicom_series_with_metadata must succeed")
+            .0;
 
     loaded_image.with_data_slice(|loaded_vals: &[f32]| {
         assert_eq!(
@@ -113,8 +115,8 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
     );
 
     let meta = DicomReadMetadata {
-        series_instance_uid: Some("1.2.3.4.5.6.999".to_string()),
-        study_instance_uid: Some("1.2.3.4.5.6.998".to_string()),
+        series_instance_uid: Some("1.2.3.4.5.6.999".try_into().unwrap()),
+            study_instance_uid: Some("1.2.3.4.5.6.998".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some("CT".to_string()),

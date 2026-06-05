@@ -31,12 +31,12 @@ pub const INF: i32 = i32::MAX;
 #[inline]
 const fn predecessor_offsets() -> [(i32, i32, i32); 7] {
     [
-        (-1,  0,  0),
-        ( 0, -1,  0),
-        ( 0,  0, -1),
-        (-1, -1,  0),
-        (-1,  0, -1),
-        ( 0, -1, -1),
+        (-1, 0, 0),
+        (0, -1, 0),
+        (0, 0, -1),
+        (-1, -1, 0),
+        (-1, 0, -1),
+        (0, -1, -1),
         (-1, -1, -1),
     ]
 }
@@ -47,13 +47,13 @@ const fn predecessor_offsets() -> [(i32, i32, i32); 7] {
 #[inline]
 const fn successor_offsets() -> [(i32, i32, i32); 7] {
     [
-        ( 1,  0,  0),
-        ( 0,  1,  0),
-        ( 0,  0,  1),
-        ( 1,  1,  0),
-        ( 1,  0,  1),
-        ( 0,  1,  1),
-        ( 1,  1,  1),
+        (1, 0, 0),
+        (0, 1, 0),
+        (0, 0, 1),
+        (1, 1, 0),
+        (1, 0, 1),
+        (0, 1, 1),
+        (1, 1, 1),
     ]
 }
 
@@ -100,12 +100,7 @@ const fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3], metric: ChamferMetric) -
 /// assignment, this gives the exact L∞ distance (chessboard); with the
 /// L1 weight assignment, this gives the exact L1 distance (taxicab) on a
 /// uniform grid.
-pub fn cdt_3d(
-    fg: &[bool],
-    dims: [usize; 3],
-    weights: [i32; 3],
-    metric: ChamferMetric,
-) -> Vec<i32> {
+pub fn cdt_3d(fg: &[bool], dims: [usize; 3], weights: [i32; 3], metric: ChamferMetric) -> Vec<i32> {
     let [nz, ny, nx] = dims;
     let stride = ny * nx;
     let pred = predecessor_offsets();

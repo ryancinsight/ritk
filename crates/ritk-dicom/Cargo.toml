@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+arrayvec = { workspace = true }
 dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 

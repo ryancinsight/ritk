@@ -51,7 +51,7 @@ pub struct FftNormalizedCorrelation3DFilter<B: Backend> {
     template_cols: usize,
     /// L₂ norm of the mean-centred template used for partial normalization.
     template_norm: f32,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
@@ -77,7 +77,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             template_rows: tr,
             template_cols: tc,
             template_norm,
-            _phantom: PhantomData,
+            _phantom: PhantomData::<fn() -> B>,
         })
     }
 

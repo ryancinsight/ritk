@@ -4,7 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series, load_dicom_series_with_metadata, load_from_series, read_dicom_series,
+    load_dicom_series_with_metadata, load_from_series,
     read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
@@ -36,8 +36,10 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
         info.metadata.dimensions[2], info.num_slices,
         "depth must match scanned slice count"
     );
-    let image = read_dicom_series::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
-        .expect("read_dicom_series must succeed");
+    let (image, _) = read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(
+        series_path, &device,
+    )
+    .expect("read_dicom_series_with_metadata must succeed");
     assert_eq!(
         image.shape()[0],
         info.num_slices,
@@ -57,8 +59,10 @@ fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
     let series_path = series_path.as_path();
     let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
-    let image = read_dicom_series::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
-        .expect("read_dicom_series must succeed");
+    let (image, _) = read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(
+        series_path, &device,
+    )
+    .expect("read_dicom_series_with_metadata must succeed");
     let spatial = image.spacing();
     assert!(
         spatial[0] > 0.0 && spatial[1] > 0.0 && spatial[2] > 0.0,

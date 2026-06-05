@@ -1,5 +1,7 @@
 //! Per-connection handler: association negotiation, C-STORE-RQ processing, and PDU I/O.
 
+use arrayvec::ArrayString;
+
 use super::super::association::NetworkingError;
 use super::super::context::transfer_syntax;
 use super::super::dimse::{CommandField, DimseMessage, DimseStatus};
@@ -43,7 +45,7 @@ pub(super) fn handle_connection(
     };
 
     // 2. Accept every offered presentation context with its first transfer syntax.
-    let mut ctx_map: HashMap<u8, (String, String)> = HashMap::new();
+    let mut ctx_map: HashMap<u8, (ArrayString<64>, ArrayString<64>)> = HashMap::new();
     let pc_acs: Vec<PresentationContextItemAc> = rq
         .presentation_contexts
         .iter()
@@ -52,10 +54,10 @@ pub(super) fn handle_connection(
                 .transfer_syntax_uids
                 .first()
                 .cloned()
-                .unwrap_or_else(|| transfer_syntax::IMPLICIT_VR_LE.to_string());
+                .unwrap_or_else(|| ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
             ctx_map.insert(
                 pc.presentation_context_id,
-                (pc.abstract_syntax_uid.clone(), ts.clone()),
+                (pc.abstract_syntax_uid, ts),
             );
             PresentationContextItemAc {
                 presentation_context_id: pc.presentation_context_id,
@@ -72,17 +74,17 @@ pub(super) fn handle_connection(
             protocol_version: 1,
             called_ae_title: rq.called_ae_title,
             calling_ae_title: rq.calling_ae_title,
-            application_context_name: APPLICATION_CONTEXT_NAME.to_string(),
+            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
             presentation_contexts: pc_acs,
             user_information: UserInformation {
                 maximum_length: MaximumLengthSubItem {
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: RITK_IMPLEMENTATION_CLASS_UID.to_string(),
+                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: RITK_IMPLEMENTATION_VERSION.to_string(),
+                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
                 }),
                 ..Default::default()
             },
@@ -123,7 +125,7 @@ fn handle_store_rq(
     stream: &mut TcpStream,
     cid: u8,
     msg: DimseMessage,
-    ctx_map: &HashMap<u8, (String, String)>,
+    ctx_map: &HashMap<u8, (ArrayString<64>, ArrayString<64>)>,
     tx: &mpsc::SyncSender<StoredInstance>,
     config: &ScpConfig,
 ) -> Result<(), NetworkingError> {
@@ -133,7 +135,7 @@ fn handle_store_rq(
     let dataset_bytes = msg.data_set.unwrap_or_default();
     let transfer_syntax_uid = ctx_map
         .get(&cid)
-        .map(|(_, ts)| ts.clone())
+        .map(|(_, ts)| *ts)
         .unwrap_or_default();
 
     // Always respond Success — protocol requires a response regardless of channel state.
@@ -147,7 +149,7 @@ fn handle_store_rq(
 
     let instance = StoredInstance {
         sop_class_uid,
-        sop_instance_uid: sop_instance_uid.clone(),
+        sop_instance_uid,
         dataset_bytes,
         transfer_syntax_uid,
     };

@@ -57,7 +57,8 @@ impl FindResultRowSeries {
             attr_map
                 .get(&(group, element))
                 .map(|v| {
-                    String::from_utf8_lossy(v)
+                    std::str::from_utf8(v)
+                        .unwrap_or_default()
                         .trim_end_matches(['\0', ' '])
                         .to_owned()
                 })
@@ -152,7 +153,8 @@ impl FindResultRow {
             attr_map
                 .get(&(group, element))
                 .map(|v| {
-                    String::from_utf8_lossy(v)
+                    std::str::from_utf8(v)
+                        .unwrap_or_default()
                         .trim_end_matches(['\0', ' '])
                         .to_owned()
                 })

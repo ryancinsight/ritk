@@ -4,6 +4,7 @@ use crate::format::dicom::object_model::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomSequenceItem, DicomTag,
     DicomValue,
 };
+use arrayvec::ArrayString;
 use dicom::core::Tag;
 use dicom::object::open_file;
 
@@ -46,7 +47,7 @@ fn test_preservation_sequence_round_trip() {
     ));
     preservation.object.insert(DicomObjectNode {
         tag: DicomTag::new(0x0008, 0x0096),
-        vr: Some("SQ".to_string()),
+        vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
         value: DicomValue::Sequence(vec![seq_item]),
         private: false,
         source: None,
@@ -87,7 +88,7 @@ fn test_preservation_raw_bytes_round_trip() {
     let mut preservation = DicomPreservationSet::new();
     preservation.preserve(DicomPreservedElement::new(
         DicomTag::new(0x0019, 0x1001),
-        Some("OB".to_string()),
+        Some(ArrayString::<2>::try_from("OB").unwrap_or_default()),
         vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
     ));
 

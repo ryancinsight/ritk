@@ -40,7 +40,7 @@ pub struct FftConvolution3DFilter<B: Backend> {
     kernel_depth: usize,
     kernel_rows: usize,
     kernel_cols: usize,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> FftConvolution3DFilter<B> {
@@ -58,7 +58,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
             kernel_depth: kd,
             kernel_rows: kh,
             kernel_cols: kw,
-            _phantom: PhantomData,
+            _phantom: PhantomData::<fn() -> B>,
         })
     }
 

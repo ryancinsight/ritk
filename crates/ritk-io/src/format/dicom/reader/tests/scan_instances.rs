@@ -1,6 +1,8 @@
 //! Tests for `scan_dicom_instances` and `scan_dicom_part10_bytes` — in-memory
 //! SCP-received instance scanning and Part 10 byte payload scanning.
 
+use arrayvec::ArrayString;
+
 use super::super::scan::{scan_dicom_instances, scan_dicom_part10_bytes};
 use crate::format::dicom::networking::scp::StoredInstance;
 
@@ -30,10 +32,10 @@ fn test_scan_dicom_instances_empty_input_errors() {
 #[test]
 fn test_scan_dicom_instances_garbage_dataset_errors() {
     let inst = StoredInstance {
-        sop_class_uid: "1.2.840.10008.5.1.4.1.1.2".to_string(),
-        sop_instance_uid: "1.2.3.4.5.6.7.999".to_string(),
+        sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").unwrap(),
+        sop_instance_uid: ArrayString::from("1.2.3.4.5.6.7.999").unwrap(),
         dataset_bytes: vec![0xDE, 0xAD, 0xBE, 0xEF],
-        transfer_syntax_uid: "1.2.840.10008.1.2.1".to_string(),
+        transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").unwrap(),
     };
 
     // `scan_dicom_instances` will call `make_part10_bytes` then try to parse.

@@ -190,10 +190,7 @@ mod tests {
     #[test]
     fn histogram_3d_uniform_distribution() {
         // 8 voxels, range [0, 8), 8 bins → exactly one per bin
-        let img = make_image_3d(
-            vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
-            [2, 2, 2],
-        );
+        let img = make_image_3d(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], [2, 2, 2]);
         let h = histogram(&img, 0.0, 8.0, 8);
         assert_eq!(h.counts, vec![1, 1, 1, 1, 1, 1, 1, 1]);
         assert_eq!(h.total(), 8);
@@ -211,10 +208,7 @@ mod tests {
     #[test]
     fn histogram_3d_single_bin_collects_all_in_range() {
         // 1 bin: [0, 10] → all 8 in-range voxels go into bin 0
-        let img = make_image_3d(
-            vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
-            [2, 2, 2],
-        );
+        let img = make_image_3d(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], [2, 2, 2]);
         let h = histogram(&img, 0.0, 10.0, 1);
         assert_eq!(h.counts, vec![8]);
     }
@@ -223,10 +217,7 @@ mod tests {
     fn histogram_3d_values_outside_range_excluded() {
         // Range [0, 5] excludes 5.0+ (last bin inclusive of 5.0 only).
         // v=5 → in (last) bin; v=6,7 → excluded.
-        let img = make_image_3d(
-            vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
-            [2, 2, 2],
-        );
+        let img = make_image_3d(vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], [2, 2, 2]);
         let h = histogram(&img, 0.0, 5.0, 5);
         // Bin 0 [0,1): {0.0} → 1
         // Bin 1 [1,2): {1.0} → 1
@@ -294,10 +285,7 @@ mod tests {
 
     #[test]
     fn histogram_total_equals_in_range_voxel_count() {
-        let img = make_image_3d(
-            vec![0.0, 1.0, 2.0, 100.0, -100.0, 5.0, 6.0, 7.0],
-            [2, 2, 2],
-        );
+        let img = make_image_3d(vec![0.0, 1.0, 2.0, 100.0, -100.0, 5.0, 6.0, 7.0], [2, 2, 2]);
         // Range [0, 10]: 100.0 and -100.0 excluded → 6 in-range
         let h = histogram(&img, 0.0, 10.0, 10);
         assert_eq!(h.total(), 6);

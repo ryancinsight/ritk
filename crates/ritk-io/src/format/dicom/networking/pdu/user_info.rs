@@ -3,11 +3,12 @@
 //! Contains all sub-item types that appear inside the User Information field
 //! of A-ASSOCIATE-RQ/AC PDUs, plus their encode/decode functions.
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Result};
 
 use super::{
-    w16, w32, w_item, SI_ASYNC, SI_EXT_NEG, SI_IMPL_UID, SI_IMPL_VER, SI_MAX_LEN, SI_ROLE,
-    SI_USER_ID,
+    uid_from_bytes_64, w16, w32, w_item, SI_ASYNC, SI_EXT_NEG, SI_IMPL_UID, SI_IMPL_VER,
+    SI_MAX_LEN, SI_ROLE, SI_USER_ID,
 };
 
 // ── Sub-item constants re-exported for internal use ──────────────────────────
@@ -26,7 +27,7 @@ pub enum UserIdentityType {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtendedNegotiation {
-    pub sop_class_uid: String,
+    pub sop_class_uid: ArrayString<64>,
     pub service_class_application_information: Vec<u8>,
 }
 
@@ -52,12 +53,12 @@ impl Default for MaximumLengthSubItem {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ImplementationClassUidSubItem {
-    pub implementation_class_uid: String,
+    pub implementation_class_uid: ArrayString<64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ImplementationVersionNameSubItem {
-    pub implementation_version_name: String,
+    pub implementation_version_name: ArrayString<16>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,14 +69,14 @@ pub struct AsynchronousOperationsWindowSubItem {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ScpScuRoleSelectionSubItem {
-    pub sop_class_uid: String,
+    pub sop_class_uid: ArrayString<64>,
     pub scu_role: bool,
     pub scp_role: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ApplicationContextItem {
-    pub application_context_name: String,
+    pub application_context_name: ArrayString<64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -87,6 +88,17 @@ pub struct UserInformation {
     pub role_selections: Vec<ScpScuRoleSelectionSubItem>,
     pub extended_negotiations: Vec<ExtendedNegotiation>,
     pub user_identity: Option<UserIdentity>,
+}
+
+// ── Helper constructors ──────────────────────────────────────────────────────
+
+fn ver_from_bytes(d: &[u8]) -> ArrayString<16> {
+    let s = std::str::from_utf8(d).unwrap_or("").trim_end();
+    let mut arr = ArrayString::new();
+    for ch in s.chars().take(16) {
+        arr.try_push(ch).unwrap();
+    }
+    arr
 }
 
 // ── Encode / Decode ──────────────────────────────────────────────────────────
@@ -161,12 +173,12 @@ pub(crate) fn dec_ui(data: &[u8]) -> Result<UserInformation> {
             }
             SI_IMPL_UID => {
                 ui.implementation_class_uid = ImplementationClassUidSubItem {
-                    implementation_class_uid: String::from_utf8_lossy(d).into_owned(),
+                    implementation_class_uid: uid_from_bytes_64(d),
                 }
             }
             SI_IMPL_VER => {
                 ui.implementation_version_name = Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: String::from_utf8_lossy(d).into_owned(),
+                    implementation_version_name: ver_from_bytes(d),
                 })
             }
             SI_ASYNC if d.len() >= 4 => {
@@ -178,7 +190,7 @@ pub(crate) fn dec_ui(data: &[u8]) -> Result<UserInformation> {
             SI_ROLE if d.len() >= 3 => {
                 let ue = d.len() - 3;
                 ui.role_selections.push(ScpScuRoleSelectionSubItem {
-                    sop_class_uid: String::from_utf8_lossy(&d[..ue]).into_owned(),
+                    sop_class_uid: uid_from_bytes_64(&d[..ue]),
                     scu_role: d[ue + 1] != 0,
                     scp_role: d[ue + 2] != 0,
                 })
@@ -186,7 +198,7 @@ pub(crate) fn dec_ui(data: &[u8]) -> Result<UserInformation> {
             SI_EXT_NEG => {
                 let ue = d.iter().position(|&b| b == 0).unwrap_or(d.len());
                 ui.extended_negotiations.push(ExtendedNegotiation {
-                    sop_class_uid: String::from_utf8_lossy(&d[..ue]).into_owned(),
+                    sop_class_uid: uid_from_bytes_64(&d[..ue]),
                     service_class_application_information: d[ue..].to_vec(),
                 })
             }

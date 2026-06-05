@@ -57,7 +57,13 @@ impl From<Offset3D> for [i32; 3] {
 
 impl fmt::Display for Offset3D {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Offset3D(Δz={}, Δy={}, Δx={})", self.iz(), self.iy(), self.ix())
+        write!(
+            f,
+            "Offset3D(Δz={}, Δy={}, Δx={})",
+            self.iz(),
+            self.iy(),
+            self.ix()
+        )
     }
 }
 

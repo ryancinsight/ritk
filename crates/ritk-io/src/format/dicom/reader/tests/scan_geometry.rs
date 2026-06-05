@@ -4,7 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series, load_dicom_series_with_metadata, load_from_series, read_dicom_series,
+    load_dicom_series_with_metadata, load_from_series,
     read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
@@ -51,8 +51,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             Direction::identity(),
         );
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.62001".to_string()),
-            study_instance_uid: Some("2.25.62002".to_string()),
+            series_instance_uid: Some("2.25.62001".try_into().unwrap()),
+                study_instance_uid: Some("2.25.62002".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,
             modality: Some("CT".to_string()),
@@ -97,8 +97,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             Direction::identity(),
         );
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.62003".to_string()),
-            study_instance_uid: Some("2.25.62004".to_string()),
+            series_instance_uid: Some("2.25.62003".try_into().unwrap()),
+                study_instance_uid: Some("2.25.62004".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,
             modality: Some("CT".to_string()),
@@ -197,8 +197,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             Direction::identity(),
         );
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.63001".to_string()),
-            study_instance_uid: Some("2.25.63002".to_string()),
+            series_instance_uid: Some("2.25.63001".try_into().unwrap()),
+                study_instance_uid: Some("2.25.63002".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,
             modality: Some("CT".to_string()),
@@ -242,8 +242,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             Direction::identity(),
         );
         let meta = DicomReadMetadata {
-            series_instance_uid: Some("2.25.63003".to_string()),
-            study_instance_uid: Some("2.25.63004".to_string()),
+            series_instance_uid: Some("2.25.63003".try_into().unwrap()),
+                study_instance_uid: Some("2.25.63004".try_into().unwrap()),
             frame_of_reference_uid: None,
             series_description: None,
             modality: Some("CT".to_string()),

@@ -1,5 +1,7 @@
 //! SCP configuration, stored-instance representation, and the public handle.
 
+use arrayvec::ArrayString;
+
 use super::super::pdu::DEFAULT_MAXIMUM_LENGTH;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -17,13 +19,13 @@ pub(super) const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(5);
 #[derive(Debug, Clone)]
 pub struct StoredInstance {
     /// Abstract SOP Class UID from the negotiated presentation context.
-    pub sop_class_uid: String,
+    pub sop_class_uid: ArrayString<64>,
     /// SOP Instance UID from C-STORE-RQ tag (0000,1000).
-    pub sop_instance_uid: String,
+    pub sop_instance_uid: ArrayString<64>,
     /// Raw dataset bytes in the negotiated transfer syntax.
     pub dataset_bytes: Vec<u8>,
     /// Transfer syntax UID negotiated for this presentation context.
-    pub transfer_syntax_uid: String,
+    pub transfer_syntax_uid: ArrayString<64>,
 }
 
 /// Pad a UID value to even length with a null byte, as required by PS3.5.
@@ -133,7 +135,7 @@ pub struct ScpConfig {
     ///
     /// The PACS must be configured to forward C-STORE sub-operations to this
     /// AE title at `0.0.0.0:port`.
-    pub ae_title: String,
+    pub ae_title: ArrayString<16>,
 
     /// TCP port to listen on.
     ///
@@ -159,7 +161,7 @@ pub struct ScpConfig {
 impl Default for ScpConfig {
     fn default() -> Self {
         Self {
-            ae_title: "RITKSNAP".to_string(),
+            ae_title: ArrayString::from("RITKSNAP").unwrap(),
             port: 11112,
             max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
             queue_capacity: 512,
@@ -178,7 +180,7 @@ pub struct StoreScpHandle {
     pub(super) rx: mpsc::Receiver<StoredInstance>,
     pub(super) shutdown: std::sync::Arc<AtomicBool>,
     pub(super) actual_port: u16,
-    pub(super) ae_title: String,
+    pub(super) ae_title: ArrayString<16>,
 }
 
 impl StoreScpHandle {

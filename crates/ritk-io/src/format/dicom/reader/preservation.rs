@@ -12,6 +12,7 @@ use dicom_core::header::Header;
 use crate::format::dicom::object_model::{
     is_private_tag, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
 };
+use arrayvec::ArrayString;
 
 /// Compute a compact key from a DICOM tag group+element pair.
 #[inline]
@@ -100,7 +101,7 @@ pub(super) fn parse_sequence_item(
                     .collect();
                 seq_item.insert(DicomObjectNode {
                     tag: dicom_tag,
-                    vr: Some("SQ".to_string()),
+                    vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
                     value: DicomValue::Sequence(parsed),
                     private: is_private_tag(dicom_tag),
                     source: None,
@@ -115,7 +116,7 @@ pub(super) fn parse_sequence_item(
                 if let Ok(bytes) = element.to_bytes() {
                     seq_item.insert(DicomObjectNode {
                         tag: dicom_tag,
-                        vr: Some(vr_str.to_string()),
+                        vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                         value: DicomValue::Bytes(bytes.to_vec()),
                         private: is_private_tag(dicom_tag),
                         source: None,
@@ -126,7 +127,7 @@ pub(super) fn parse_sequence_item(
             } else if let Ok(bytes) = element.to_bytes() {
                 seq_item.insert(DicomObjectNode {
                     tag: dicom_tag,
-                    vr: Some(vr_str.to_string()),
+                    vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                     value: DicomValue::Bytes(bytes.to_vec()),
                     private: is_private_tag(dicom_tag),
                     source: None,

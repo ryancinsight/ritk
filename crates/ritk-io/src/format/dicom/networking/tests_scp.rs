@@ -11,6 +11,7 @@ use crate::format::dicom::networking::context::transfer_syntax;
 use crate::format::dicom::networking::context::{AssociationConfig, RequestedPresentationContext};
 use crate::format::dicom::networking::dimse::DimseStatus;
 use crate::format::dicom::networking::scp::{ScpConfig, StoreScp};
+use arrayvec::ArrayString;
 use std::time::Duration;
 
 // ── SOP class constant ────────────────────────────────────────────────────────
@@ -21,15 +22,15 @@ const CT_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.2";
 
 fn scu_config(port: u16) -> AssociationConfig {
     AssociationConfig {
-        called_ae_title: "RITKSNAP".into(),
-        calling_ae_title: "RITK_TEST".into(),
+        called_ae_title: ArrayString::from("RITKSNAP").unwrap(),
+        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,
         timeout: Duration::from_secs(10),
         presentation_contexts: vec![RequestedPresentationContext {
-            abstract_syntax_uid: CT_IMAGE_STORAGE.to_string(),
-            transfer_syntax_uids: vec![transfer_syntax::IMPLICIT_VR_LE.to_string()],
+            abstract_syntax_uid: ArrayString::from(CT_IMAGE_STORAGE).unwrap(),
+            transfer_syntax_uids: vec![ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()],
         }],
         user_identity: None,
     }
@@ -86,17 +87,17 @@ fn test_store_scp_single_instance_received() {
     let inst = poll_instance(&handle, Duration::from_secs(2))
         .expect("SCP must deliver instance within 2s");
 
-    assert_eq!(inst.sop_class_uid, CT_IMAGE_STORAGE, "sop_class_uid");
-    assert_eq!(inst.sop_instance_uid, INSTANCE_UID, "sop_instance_uid");
+    assert_eq!(inst.sop_class_uid.as_str(), CT_IMAGE_STORAGE, "sop_class_uid");
+        assert_eq!(inst.sop_instance_uid.as_str(), INSTANCE_UID, "sop_instance_uid");
     assert_eq!(
         inst.dataset_bytes, dataset,
         "dataset_bytes must match exactly"
     );
     assert_eq!(
-        inst.transfer_syntax_uid,
-        transfer_syntax::IMPLICIT_VR_LE,
-        "transfer_syntax_uid must be the negotiated IVR-LE"
-    );
+            inst.transfer_syntax_uid.as_str(),
+            transfer_syntax::IMPLICIT_VR_LE,
+            "transfer_syntax_uid must be the negotiated IVR-LE"
+        );
 }
 
 /// Positive: SCP receives two C-STORE-RQs on the same association.
@@ -153,9 +154,9 @@ fn test_store_scp_multiple_instances_same_association() {
         poll_instance(&handle, Duration::from_secs(2)).expect("must receive second instance");
 
     // Order of arrival preserves send order.
-    assert_eq!(inst_a.sop_instance_uid, UID_A, "first instance UID");
+    assert_eq!(inst_a.sop_instance_uid.as_str(), UID_A, "first instance UID");
     assert_eq!(inst_a.dataset_bytes, dataset_a, "first instance dataset");
-    assert_eq!(inst_b.sop_instance_uid, UID_B, "second instance UID");
+    assert_eq!(inst_b.sop_instance_uid.as_str(), UID_B, "second instance UID");
     assert_eq!(inst_b.dataset_bytes, dataset_b, "second instance dataset");
 }
 
@@ -187,10 +188,10 @@ fn test_store_scp_ephemeral_port_is_nonzero() {
 #[test]
 fn test_make_part10_bytes_produces_valid_dicom_preamble() {
     let inst = super::StoredInstance {
-        sop_class_uid: "1.2.840.10008.5.1.4.1.1.2".to_string(),
-        sop_instance_uid: "1.2.3.4.5.6.7.8.9".to_string(),
+        sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").unwrap(),
+        sop_instance_uid: ArrayString::from("1.2.3.4.5.6.7.8.9").unwrap(),
         dataset_bytes: Vec::new(),
-        transfer_syntax_uid: "1.2.840.10008.1.2.1".to_string(),
+        transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").unwrap(),
     };
     let bytes = inst.make_part10_bytes();
 

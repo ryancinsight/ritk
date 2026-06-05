@@ -6,3 +6,4 @@
 # everyone who runs the test benefits from these saved cases.
 cc 1dd043097bc943741e511a6db285cc54e6f605837d30156be415fdf35c922ed2 # shrinks to n = 10, sigma_sq = 0.61042744, seed = 303
 cc 6c73b0f8b193b75363ab8192f5d87feb4e31fac68e9df71d43ab4196cc7e096c # shrinks to n = 14, sigma_sq = 3.9558382, seed = 84
+cc bc0ea76124c116fc60e921ee0afc14ed4a211cff3a080734aa947b4f91275b8f # shrinks to f_val = 0.5, m_val = 30.762394, sigma_sq = 0.5, num_bins = 16

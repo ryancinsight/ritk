@@ -43,7 +43,7 @@ impl StoreScp {
         let (tx, rx) = mpsc::sync_channel::<super::config::StoredInstance>(config.queue_capacity);
         let shutdown = Arc::new(AtomicBool::new(false));
         let shutdown_thread = Arc::clone(&shutdown);
-        let ae_title = config.ae_title.clone();
+        let ae_title = config.ae_title;
         std::thread::spawn(move || {
             scp_accept_loop(listener, config, tx, shutdown_thread);
         });

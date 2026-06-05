@@ -108,6 +108,11 @@ impl<const D: usize> Point<D> {
         (0..D).map(|i| self.0.coords[i]).collect()
     }
 
+    /// Convert point to a fixed-size array of coordinates (zero-allocation).
+    pub fn to_array(&self) -> [f64; D] {
+        std::array::from_fn(|i| self.0.coords[i])
+    }
+
     /// Get the inner nalgebra point.
     pub fn inner(&self) -> &NaPoint<f64, D> {
         &self.0
@@ -187,6 +192,13 @@ mod tests {
         let p = Point3::new([1.0, 2.0, 3.0]);
         let coords = p.to_vec();
         assert_eq!(coords, vec![1.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn test_point_to_array() {
+        let p = Point3::new([1.0, 2.0, 3.0]);
+        let coords = p.to_array();
+        assert_eq!(coords, [1.0, 2.0, 3.0]);
     }
 
     #[test]

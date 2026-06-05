@@ -36,17 +36,6 @@ fn make_identity_image(
     Image::new(data, origin, spacing, direction)
 }
 
-#[allow(dead_code)]
-fn make_offset_image(
-    device: &<Backend as burn::tensor::backend::Backend>::Device,
-) -> Image<Backend, 3> {
-    let data = Tensor::<Backend, 3>::zeros([4, 4, 4], device);
-    let origin = Point3::new([10.0, 20.0, 30.0]);
-    let spacing = Spacing3::new([2.0, 2.0, 2.0]);
-    let direction = Direction3::identity();
-    Image::new(data, origin, spacing, direction)
-}
-
 #[test]
 fn test_identity_direction_detection() {
     let identity = Direction3::identity();

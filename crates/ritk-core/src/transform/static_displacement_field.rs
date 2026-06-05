@@ -35,7 +35,6 @@ pub struct StaticDisplacementField<B: Backend, const D: usize> {
 }
 
 impl<B: Backend, const D: usize> StaticDisplacementField<B, D> {
-    /// Create a new displacement field.
     ///
     /// # Arguments
     /// * `components` - Vector components. Must have length D.

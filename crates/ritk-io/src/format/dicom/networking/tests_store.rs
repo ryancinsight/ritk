@@ -13,6 +13,7 @@ use crate::format::dicom::networking::pdu::{
     PresentationDataValueItem, UserInformation, APPLICATION_CONTEXT_NAME,
     RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
 };
+use arrayvec::ArrayString;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::time::Duration;
@@ -21,8 +22,8 @@ use std::time::Duration;
 
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
-        abstract_syntax_uid: uid.to_string(),
-        transfer_syntax_uids: ts.iter().map(|s| s.to_string()).collect(),
+        abstract_syntax_uid: ArrayString::from(uid).unwrap(),
+        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(*s).unwrap()).collect(),
     }
 }
 
@@ -83,24 +84,24 @@ fn scp_thread(listener: TcpListener) {
                 .transfer_syntax_uids
                 .first()
                 .cloned()
-                .unwrap_or_else(|| transfer_syntax::IMPLICIT_VR_LE.to_string()),
+                .unwrap_or_else(|| ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()),
         })
         .collect();
     let ac_pdu = Pdu::AssociateAc(AssociateAcPdu {
         protocol_version: 1,
-        called_ae_title: rq.called_ae_title.clone(),
-        calling_ae_title: rq.calling_ae_title.clone(),
-        application_context_name: APPLICATION_CONTEXT_NAME.to_string(),
+        called_ae_title: rq.called_ae_title,
+        calling_ae_title: rq.calling_ae_title,
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
         presentation_contexts: pc_acs,
         user_information: UserInformation {
             maximum_length: MaximumLengthSubItem {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: RITK_IMPLEMENTATION_CLASS_UID.to_string(),
+                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: RITK_IMPLEMENTATION_VERSION.to_string(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
             }),
             ..Default::default()
         },
@@ -113,8 +114,8 @@ fn scp_thread(listener: TcpListener) {
     let mut data_buf = Vec::new();
     let mut cid: u8 = 0;
     let mut msg_id: u16 = 0;
-    let mut sop_class_uid = String::new();
-    let mut sop_instance_uid = String::new();
+    let mut sop_class_uid = ArrayString::new();
+    let mut sop_instance_uid = ArrayString::new();
     let mut cmd_complete = false;
 
     loop {
@@ -227,8 +228,8 @@ fn test_c_store_loopback_success() {
 
     // SCU side
     let config = AssociationConfig {
-        called_ae_title: "TESTSCP".into(),
-        calling_ae_title: "RITK_TEST".into(),
+        called_ae_title: ArrayString::from("TESTSCP").unwrap(),
+        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,
@@ -271,8 +272,8 @@ fn test_c_store_loopback_empty_dataset() {
     });
 
     let config = AssociationConfig {
-        called_ae_title: "TESTSCP".into(),
-        calling_ae_title: "RITK_TEST".into(),
+        called_ae_title: ArrayString::from("TESTSCP").unwrap(),
+        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,

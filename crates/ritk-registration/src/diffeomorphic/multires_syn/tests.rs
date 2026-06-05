@@ -253,3 +253,79 @@ fn cc_forces_identical_images_bounded() {
         "CC forces on identical images should be bounded"
     );
 }
+
+// ── Cow::Borrowed path (factor == 1) ──────────────────────────────────────────
+
+/// Single-level registration (num_levels=1, factor=1 throughout) exercises the
+/// Cow::Borrowed path for both fixed and moving volumes, since the finest
+/// pyramid level skips downsampling. Verifies that the resulting displacement
+/// field is finite and the CC is high for identical images.
+#[test]
+fn single_level_cow_borrowed_produces_valid_displacement() {
+    let dims = [8, 8, 8];
+    let image = make_test_image(dims);
+    // num_levels=1 → factor = 2^(1-0-1) = 1 → Cow::Borrowed path
+    let reg = MultiResSyNRegistration::new(make_config(1, vec![10], false));
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+
+    // All displacement field components must be finite
+    for &v in result
+        .forward_field
+        .0
+        .iter()
+        .chain(result.forward_field.1.iter())
+        .chain(result.forward_field.2.iter())
+        .chain(result.inverse_field.0.iter())
+        .chain(result.inverse_field.1.iter())
+        .chain(result.inverse_field.2.iter())
+    {
+        assert!(v.is_finite(), "displacement field non-finite: {v}");
+    }
+
+    // High CC for identical images
+    assert!(
+        result.final_cc > 0.9,
+        "single-level Cow::Borrowed CC should be > 0.9, got {}",
+        result.final_cc
+    );
+}
+
+/// When factor == 1 the Cow optimisation borrows the original slice rather
+/// than cloning. This test verifies the output is *identical* whether we
+/// pass the original data directly (borrowed) or a cloned copy (owned),
+/// confirming the Cow path is transparent.
+#[test]
+fn cow_borrowed_vs_owned_produces_identical_result() {
+    let dims = [8, 8, 8];
+    let fixed = make_test_image(dims);
+    let moving = translate_x(&fixed, dims, 1);
+    let reg = MultiResSyNRegistration::new(make_config(1, vec![5], false));
+
+    // Run with the original slice (will be Cow::Borrowed at factor=1)
+    let result_borrowed = reg
+        .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
+        .unwrap();
+
+    // Run with an explicit clone (same data, different allocation)
+    let fixed_clone = fixed.clone();
+    let moving_clone = moving.clone();
+    let result_owned = reg
+        .register(&fixed_clone, &moving_clone, dims, [1.0, 1.0, 1.0])
+        .unwrap();
+
+    // Forward field z-component should match exactly (deterministic backend)
+    for (a, b) in result_borrowed
+        .forward_field
+        .0
+        .iter()
+        .zip(result_owned.forward_field.0.iter())
+    {
+        assert!((a - b).abs() < 1e-6, "borrowed vs owned mismatch: {a} vs {b}");
+    }
+    assert!(
+        (result_borrowed.final_cc - result_owned.final_cc).abs() < 1e-10,
+        "CC mismatch: borrowed={} owned={}",
+        result_borrowed.final_cc,
+        result_owned.final_cc
+    );
+}

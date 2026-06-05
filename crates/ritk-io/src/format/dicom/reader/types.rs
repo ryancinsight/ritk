@@ -4,6 +4,7 @@
 //! patient position enum, and associated helpers. These types carry no I/O
 //! logic — they are the typed output of the read path.
 
+use arrayvec::ArrayString;
 use std::collections::HashMap;
 use std::fmt;
 use std::path::PathBuf;
@@ -15,20 +16,20 @@ use crate::format::dicom::object_model::{DicomObjectModel, DicomPreservationSet}
 pub struct DicomSliceMetadata {
     pub path: PathBuf,
     pub preservation: DicomPreservationSet,
-    pub sop_instance_uid: Option<String>,
-    pub instance_number: Option<i32>,
-    pub slice_location: Option<f64>,
-    /// Image position patient (x, y, z) in mm.
-    pub image_position_patient: Option<[f64; 3]>,
-    /// Image orientation patient as two direction cosines.
-    pub image_orientation_patient: Option<[f64; 6]>,
-    /// Pixel spacing (row, column) in mm.
-    pub pixel_spacing: Option<[f64; 2]>,
-    pub slice_thickness: Option<f64>,
-    pub rescale_slope: f32,
-    pub rescale_intercept: f32,
-    pub sop_class_uid: Option<String>,
-    pub transfer_syntax_uid: Option<String>,
+    pub sop_instance_uid: Option<ArrayString<64>>,
+        pub instance_number: Option<i32>,
+        pub slice_location: Option<f64>,
+        /// Image position patient (x, y, z) in mm.
+        pub image_position_patient: Option<[f64; 3]>,
+        /// Image orientation patient as two direction cosines.
+        pub image_orientation_patient: Option<[f64; 6]>,
+        /// Pixel spacing (row, column) in mm.
+        pub pixel_spacing: Option<[f64; 2]>,
+        pub slice_thickness: Option<f64>,
+        pub rescale_slope: f32,
+        pub rescale_intercept: f32,
+        pub sop_class_uid: Option<ArrayString<64>>,
+        pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub private_tags: HashMap<String, String>,
     /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
     pub pixel_representation: u16,
@@ -82,10 +83,15 @@ pub enum PatientPosition {
     HeadFirstDecubitusLeft,
     FeetFirstDecubitusRight,
     FeetFirstDecubitusLeft,
-    Unknown(String),
+    Unknown(ArrayString<4>),
 }
 
 impl PatientPosition {
+    /// Alias for [`from_code`](Self::from_code) matching the DICOM naming convention.
+    pub fn from_dicom_code(code: &str) -> Self {
+        Self::from_code(code)
+    }
+
     pub fn from_code(code: &str) -> Self {
         let normalized = code.trim().to_uppercase();
         match normalized.as_str() {
@@ -97,8 +103,16 @@ impl PatientPosition {
             "HFDL" => Self::HeadFirstDecubitusLeft,
             "FFDR" => Self::FeetFirstDecubitusRight,
             "FFDL" => Self::FeetFirstDecubitusLeft,
-            _ if normalized.is_empty() => Self::Unknown(String::new()),
-            _ => Self::Unknown(normalized),
+            _ if normalized.is_empty() => Self::Unknown(ArrayString::new()),
+            _ => {
+                let mut arr = ArrayString::<4>::new();
+                for ch in normalized.chars() {
+                    if arr.try_push(ch).is_err() {
+                        break;
+                    }
+                }
+                Self::Unknown(arr)
+            }
         }
     }
 
@@ -149,16 +163,16 @@ pub(super) fn parse_patient_position(code: &str) -> Option<PatientPosition> {
 /// Series-level DICOM metadata.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DicomReadMetadata {
-    pub series_instance_uid: Option<String>,
-    pub study_instance_uid: Option<String>,
-    pub frame_of_reference_uid: Option<String>,
-    pub series_description: Option<String>,
-    pub modality: Option<String>,
-    pub patient_id: Option<String>,
-    pub patient_name: Option<String>,
-    pub study_date: Option<String>,
-    pub series_date: Option<String>,
-    pub series_time: Option<String>,
+    pub series_instance_uid: Option<ArrayString<64>>,
+        pub study_instance_uid: Option<ArrayString<64>>,
+        pub frame_of_reference_uid: Option<ArrayString<64>>,
+        pub series_description: Option<String>,
+        pub modality: Option<String>,
+        pub patient_id: Option<String>,
+        pub patient_name: Option<String>,
+        pub study_date: Option<String>,
+        pub series_date: Option<String>,
+        pub series_time: Option<String>,
     /// Image dimensions `[rows, cols, slices]`.
     pub dimensions: [usize; 3],
     /// Physical spacing `[Δz, ΔRow, ΔCol]`.
@@ -200,21 +214,21 @@ pub(super) struct SeriesFirstSeen {
     pub cols: Option<u32>,
     pub pixel_spacing: Option<[f64; 2]>,
     pub slice_thickness: Option<f64>,
-    pub series_instance_uid: Option<String>,
-    pub study_instance_uid: Option<String>,
-    pub series_description: Option<String>,
-    pub modality: Option<String>,
-    pub patient_id: Option<String>,
-    pub patient_name: Option<String>,
-    pub study_date: Option<String>,
-    pub series_date: Option<String>,
-    pub series_time: Option<String>,
-    pub frame_of_reference_uid: Option<String>,
-    pub bits_allocated: Option<u16>,
-    pub bits_stored: Option<u16>,
-    pub high_bit: Option<u16>,
-    pub photometric_interpretation: Option<String>,
-    pub transfer_syntax_uid: Option<String>,
+    pub series_instance_uid: Option<ArrayString<64>>,
+        pub study_instance_uid: Option<ArrayString<64>>,
+        pub series_description: Option<String>,
+        pub modality: Option<String>,
+        pub patient_id: Option<String>,
+        pub patient_name: Option<String>,
+        pub study_date: Option<String>,
+        pub series_date: Option<String>,
+        pub series_time: Option<String>,
+        pub frame_of_reference_uid: Option<ArrayString<64>>,
+        pub bits_allocated: Option<u16>,
+        pub bits_stored: Option<u16>,
+        pub high_bit: Option<u16>,
+        pub photometric_interpretation: Option<String>,
+        pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub patient_weight_kg: Option<f64>,
     pub decay_correction: Option<String>,
     pub radionuclide_total_dose_bq: Option<f64>,
@@ -235,6 +249,24 @@ pub(super) struct SeriesGeometry {
     pub origin: [f64; 3],
     /// 3×3 row-major direction cosine matrix (col 0 = normal, col 1 = F_c, col 2 = F_r).
     pub direction: [f64; 9],
+}
+
+/// Convert a UID string to `Option<ArrayString<64>>`.
+///
+/// DICOM UIDs are formally limited to 64 characters per the standard.
+/// If a UID exceeds this length (non-conformant), a warning is emitted
+/// and the value is truncated to 64 chars.
+pub(crate) fn uid_to_arraystring(s: &str) -> Option<ArrayString<64>> {
+    match ArrayString::from(s) {
+        Ok(v) => Some(v),
+        Err(_) => {
+            tracing::warn!(
+                "UID exceeds 64 chars, truncating: {}",
+                &s[..64]
+            );
+            Some(ArrayString::from(&s[..64]).unwrap())
+        }
+    }
 }
 
 /// Assemble a [`DicomReadMetadata`] from a [`SeriesFirstSeen`] accumulator, sorted slices,

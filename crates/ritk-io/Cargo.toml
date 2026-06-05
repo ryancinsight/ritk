@@ -38,6 +38,7 @@ consus-compression = { workspace = true }
 consus-io = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
+arrayvec = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 dicom-pixeldata = { workspace = true }

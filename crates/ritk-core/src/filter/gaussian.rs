@@ -11,7 +11,7 @@ use burn::tensor::{Shape, Tensor};
 pub struct GaussianFilter<B: Backend> {
     sigmas: Vec<f64>,
     max_kernel_width: usize,
-    _b: std::marker::PhantomData<B>,
+    _b: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> GaussianFilter<B> {

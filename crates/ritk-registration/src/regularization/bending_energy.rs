@@ -17,7 +17,6 @@
 //! - Curvature regularization (second-order)
 //! - L2 penalty on second derivatives
 
-use super::trait_::utils::{laplacian, spatial_laplacian_3d};
 use super::trait_::Regularizer;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -61,44 +60,7 @@ impl Default for BendingEnergyRegularizer {
 
 impl<B: Backend> Regularizer<B> for BendingEnergyRegularizer {
     fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1> {
-        match D {
-            4 => {
-                // 2D displacement field: [B, 2, H, W]
-                let shape = displacement.shape();
-                let batch = shape.dims[0];
-                let components = shape.dims[1];
-                let height = shape.dims[2];
-                let width = shape.dims[3];
-                let displacement_4d: Tensor<B, 4> =
-                    displacement.reshape([batch, components, height, width]);
-
-                // Compute second derivatives using Laplacian
-                let laplacian = laplacian(displacement_4d);
-
-                // Squared L2 norm of Laplacian
-                laplacian.powf_scalar(2.0).mean().mul_scalar(self.weight)
-            }
-            5 => {
-                // 3D displacement field: [B, 3, D, H, W]
-                let shape = displacement.shape();
-                let batch = shape.dims[0];
-                let components = shape.dims[1];
-                let depth = shape.dims[2];
-                let height = shape.dims[3];
-                let width = shape.dims[4];
-                let displacement_5d: Tensor<B, 5> =
-                    displacement.reshape([batch, components, depth, height, width]);
-
-                // Compute second derivatives using Laplacian
-                let laplacian = spatial_laplacian_3d(displacement_5d);
-
-                // Squared L2 norm of Laplacian
-                laplacian.powf_scalar(2.0).mean().mul_scalar(self.weight)
-            }
-            _ => panic!(
-                "BendingEnergyRegularizer only supports 4D (2D) or 5D (3D) displacement fields"
-            ),
-        }
+        super::dispatch::dispatch_bending_energy(displacement, self.weight)
     }
 
     fn weight(&self) -> f64 {

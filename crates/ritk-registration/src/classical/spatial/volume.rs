@@ -34,12 +34,3 @@ pub fn apply_transform(volume: &Array3<f64>, transform: &[f64; 16]) -> Array3<f6
     }
     result
 }
-
-/// Apply transform to volume (forwarding wrapper; preserved for engine compatibility).
-#[allow(dead_code)]
-pub(crate) fn apply_transform_to_volume(
-    volume: &Array3<f64>,
-    transform: &[f64; 16],
-) -> Array3<f64> {
-    apply_transform(volume, transform)
-}

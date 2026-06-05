@@ -35,7 +35,7 @@ pub struct DiscreteGaussianFilter<B: Backend> {
     variance: Vec<f64>,
     maximum_error: f64,
     use_image_spacing: bool,
-    _b: PhantomData<B>,
+    _b: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> DiscreteGaussianFilter<B> {

@@ -1,4 +1,5 @@
 use super::*;
+use arrayvec::ArrayString;
 use ritk_io::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
     DicomSliceMetadata, DicomTag, PatientPosition,
@@ -18,14 +19,14 @@ fn metadata_fixture() -> DicomReadMetadata {
     ));
     preservation.preserve(DicomPreservedElement::new(
         DicomTag::new(0x0019, 0x1001),
-        Some("OB".to_string()),
+        Some(ArrayString::<2>::try_from("OB").unwrap_or_default()),
         vec![1, 2, 3, 4],
     ));
 
     DicomReadMetadata {
-        series_instance_uid: Some("1.2.840.series".to_string()),
-        study_instance_uid: Some("1.2.840.study".to_string()),
-        frame_of_reference_uid: Some("1.2.840.frame".to_string()),
+        series_instance_uid: Some("1.2.840.series".try_into().unwrap()),
+        study_instance_uid: Some("1.2.840.study".try_into().unwrap()),
+        frame_of_reference_uid: Some("1.2.840.frame".try_into().unwrap()),
         series_description: Some("Axial CT".to_string()),
         modality: Some("CT".to_string()),
         patient_id: Some("P001".to_string()),
@@ -43,7 +44,7 @@ fn metadata_fixture() -> DicomReadMetadata {
         photometric_interpretation: Some("MONOCHROME2".to_string()),
         slices: vec![DicomSliceMetadata {
             path: PathBuf::from("slice001.dcm"),
-            sop_instance_uid: Some("1.2.840.slice".to_string()),
+            sop_instance_uid: Some("1.2.840.slice".try_into().unwrap()),
             instance_number: Some(7),
             slice_location: Some(42.25),
             image_position_patient: Some([1.0, 2.0, 3.0]),
@@ -53,8 +54,8 @@ fn metadata_fixture() -> DicomReadMetadata {
             slice_thickness: Some(1.5),
             rescale_slope: 2.0,
             rescale_intercept: -1024.0,
-            sop_class_uid: Some("1.2.840.sop".to_string()),
-            transfer_syntax_uid: Some("1.2.840.10008.1.2.1".to_string()),
+            sop_class_uid: Some("1.2.840.sop".try_into().unwrap()),
+            transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().unwrap()),
             pixel_representation: 1,
             bits_allocated: 16,
             window_center: Some(40.0),

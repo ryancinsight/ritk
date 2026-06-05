@@ -14,6 +14,7 @@ pub use super::types::{
     AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse,
 };
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -38,9 +39,10 @@ impl FindResult {
                 .into_iter()
                 .find(|((g, e), _)| *g == group && *e == element)
                 .map(|(_, v)| {
-                    String::from_utf8_lossy(&v)
-                        .trim_end_matches(['\0', ' '])
-                        .to_owned()
+                    std::str::from_utf8(&v)
+                                        .unwrap_or("")
+                                        .trim_end_matches(['\0', ' '])
+                                        .to_owned()
                 })
         })
     }
@@ -80,14 +82,14 @@ impl Association {
         let mut pc_items = Vec::new();
         for rpc in &config.presentation_contexts {
             let mut ts = rpc.transfer_syntax_uids.clone();
-            if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                ts.push(transfer_syntax::IMPLICIT_VR_LE.to_string());
-            }
-            pc_items.push(PresentationContextItemRq {
-                presentation_context_id: next_id,
-                abstract_syntax_uid: rpc.abstract_syntax_uid.clone(),
-                transfer_syntax_uids: ts,
-            });
+                if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
+                    ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
+                }
+                pc_items.push(PresentationContextItemRq {
+                    presentation_context_id: next_id,
+                    abstract_syntax_uid: rpc.abstract_syntax_uid,
+                    transfer_syntax_uids: ts,
+                });
             next_id = next_id
                 .checked_add(2)
                 .ok_or_else(|| anyhow::anyhow!("presentation context ID overflow"))?;
@@ -98,10 +100,10 @@ impl Association {
                 maximum_length_received: config.max_pdu_length,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: RITK_IMPLEMENTATION_CLASS_UID.to_string(),
+                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: RITK_IMPLEMENTATION_VERSION.to_string(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
             }),
             user_identity: config.user_identity.clone(),
             ..Default::default()
@@ -109,9 +111,9 @@ impl Association {
 
         let rq = Pdu::AssociateRq(AssociateRqPdu {
             protocol_version: 1,
-            called_ae_title: config.called_ae_title.clone(),
-            calling_ae_title: config.calling_ae_title.clone(),
-            application_context_name: APPLICATION_CONTEXT_NAME.to_string(),
+            called_ae_title: config.called_ae_title,
+            calling_ae_title: config.calling_ae_title,
+            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
             presentation_contexts: pc_items,
             user_information: ui,
         });
@@ -138,7 +140,7 @@ impl Association {
                                 .get(&pc.presentation_context_id)
                                 .cloned()
                                 .unwrap_or_default(),
-                            transfer_syntax_uid: pc.transfer_syntax_uid.clone(),
+                            transfer_syntax_uid: pc.transfer_syntax_uid,
                         });
                     }
                 }
@@ -313,7 +315,7 @@ impl Association {
     fn find_context(&self, uid: &str) -> Option<&NegotiatedContext> {
         self.negotiated_contexts
             .iter()
-            .find(|c| c.abstract_syntax_uid == uid)
+            .find(|c| c.abstract_syntax_uid.as_str() == uid)
     }
 
     fn context_for_sop_class(&mut self, uid: &str, _ts: &[&str]) -> Result<u8> {

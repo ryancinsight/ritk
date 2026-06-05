@@ -3,6 +3,7 @@
 //!
 //! Extracted from `association.rs` to satisfy the 500-line structural limit.
 
+use arrayvec::ArrayString;
 use super::pdu::{UserIdentity, DEFAULT_MAXIMUM_LENGTH};
 use super::types::{AeTitle, DicomAddress};
 use std::time::Duration;
@@ -38,8 +39,8 @@ pub mod transfer_syntax {
 /// convenience functions (`echo`, `find`, `retrieve`, `store`).
 #[derive(Debug, Clone)]
 pub struct AssociationConfig {
-    pub called_ae_title: String,
-    pub calling_ae_title: String,
+    pub called_ae_title: ArrayString<16>,
+    pub calling_ae_title: ArrayString<16>,
     pub host: String,
     pub port: u16,
     pub max_pdu_length: u32,
@@ -51,8 +52,8 @@ pub struct AssociationConfig {
 impl Default for AssociationConfig {
     fn default() -> Self {
         Self {
-            called_ae_title: "ANYSCP".into(),
-            calling_ae_title: "RITK".into(),
+            called_ae_title: ArrayString::from("ANYSCP").unwrap(),
+            calling_ae_title: ArrayString::from("RITK").unwrap(),
             host: "127.0.0.1".into(),
             port: 104,
             max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
@@ -67,8 +68,8 @@ impl AssociationConfig {
     /// Construct from a validated calling AE title and remote DICOM address.
     pub fn new(calling: AeTitle, remote: DicomAddress) -> Self {
         Self {
-            called_ae_title: remote.ae_title.as_str().to_string(),
-            calling_ae_title: calling.as_str().to_string(),
+            called_ae_title: remote.ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("ANYSCP").unwrap()),
+            calling_ae_title: calling.as_str().try_into().unwrap_or_else(|_| ArrayString::from("RITK").unwrap()),
             host: remote.host.clone(),
             port: remote.port,
             ..Default::default()
@@ -93,14 +94,14 @@ impl AssociationConfig {
 /// A requested presentation context sent in A-ASSOCIATE-RQ (PS 3.8 §9.3.2).
 #[derive(Debug, Clone)]
 pub struct RequestedPresentationContext {
-    pub abstract_syntax_uid: String,
-    pub transfer_syntax_uids: Vec<String>,
+    pub abstract_syntax_uid: ArrayString<64>,
+    pub transfer_syntax_uids: Vec<ArrayString<64>>,
 }
 
 /// A negotiated (accepted) presentation context from A-ASSOCIATE-AC (PS 3.8 §9.3.3).
 #[derive(Debug, Clone, PartialEq)]
 pub struct NegotiatedContext {
     pub presentation_context_id: u8,
-    pub abstract_syntax_uid: String,
-    pub transfer_syntax_uid: String,
+    pub abstract_syntax_uid: ArrayString<64>,
+    pub transfer_syntax_uid: ArrayString<64>,
 }

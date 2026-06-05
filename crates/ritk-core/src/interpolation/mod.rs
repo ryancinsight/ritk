@@ -4,6 +4,7 @@
 //! for sampling values at continuous coordinates.
 
 pub mod bspline;
+pub mod dispatch;
 pub mod fused;
 pub mod linear;
 pub mod nearest;
@@ -12,6 +13,7 @@ pub mod tensor_trilinear;
 pub mod trait_;
 
 pub use bspline::BSplineInterpolator;
+
 pub use fused::{transform_and_interpolate_3d, FusedInterpolationResult};
 pub use linear::LinearInterpolator;
 pub use nearest::NearestNeighborInterpolator;

@@ -9,13 +9,14 @@ use crate::format::dicom::networking::pdu::{
     AssociateAcPdu, CommandType, Pdu, PresentationContextItemAc, UserInformation,
     APPLICATION_CONTEXT_NAME,
 };
+use arrayvec::ArrayString;
 use std::net::TcpListener;
 use std::net::TcpStream;
 
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
-        abstract_syntax_uid: uid.to_string(),
-        transfer_syntax_uids: ts.iter().map(|s| s.to_string()).collect(),
+        abstract_syntax_uid: ArrayString::from(uid).unwrap(),
+        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(*s).unwrap()).collect(),
     }
 }
 
@@ -23,8 +24,8 @@ fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
 fn test_config_default() {
     let c = AssociationConfig::default();
     assert_eq!((c.port, c.max_pdu_length), (104, 16384));
-    assert_eq!(c.called_ae_title, "ANYSCP");
-    assert_eq!(c.calling_ae_title, "RITK");
+    assert_eq!(c.called_ae_title.as_str(), "ANYSCP");
+    assert_eq!(c.calling_ae_title.as_str(), "RITK");
 }
 
 #[test]
@@ -51,7 +52,7 @@ fn test_requested_context_odd_ids() {
 #[test]
 fn test_build_associate_rq() {
     let cfg = AssociationConfig {
-        called_ae_title: "TESTSCP".into(),
+        called_ae_title: ArrayString::from("TESTSCP").unwrap(),
         presentation_contexts: vec![rpc(
             sop_class::VERIFICATION,
             &[transfer_syntax::EXPLICIT_VR_LE],
@@ -61,10 +62,10 @@ fn test_build_associate_rq() {
     let pdu = Association::build_associate_rq(&cfg);
     if let Pdu::AssociateRq(ref rq) = pdu {
         assert_eq!(rq.presentation_contexts.len(), 1);
-        assert_eq!(rq.called_ae_title, "TESTSCP");
+        assert_eq!(rq.called_ae_title.as_str(), "TESTSCP");
         assert_eq!(rq.presentation_contexts[0].transfer_syntax_uids.len(), 2);
         assert_eq!(
-            rq.presentation_contexts[0].transfer_syntax_uids[1],
+            rq.presentation_contexts[0].transfer_syntax_uids[1].as_str(),
             transfer_syntax::IMPLICIT_VR_LE
         );
     }
@@ -98,13 +99,13 @@ fn test_find_context() {
         negotiated_contexts: vec![
             NegotiatedContext {
                 presentation_context_id: 1,
-                abstract_syntax_uid: sop_class::VERIFICATION.to_string(),
-                transfer_syntax_uid: transfer_syntax::IMPLICIT_VR_LE.to_string(),
+                abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION).unwrap(),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap(),
             },
             NegotiatedContext {
                 presentation_context_id: 3,
-                abstract_syntax_uid: sop_class::FIND_STUDY.to_string(),
-                transfer_syntax_uid: transfer_syntax::EXPLICIT_VR_LE.to_string(),
+                abstract_syntax_uid: ArrayString::from(sop_class::FIND_STUDY).unwrap(),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE).unwrap(),
             },
         ],
         next_context_id: 7,
@@ -124,34 +125,34 @@ fn test_find_context() {
 fn test_negotiated_context_from_ac() {
     let ac = AssociateAcPdu {
         protocol_version: 1,
-        called_ae_title: "SCP".into(),
-        calling_ae_title: "RITK".into(),
-        application_context_name: APPLICATION_CONTEXT_NAME.to_string(),
+        called_ae_title: ArrayString::from("SCP").unwrap(),
+        calling_ae_title: ArrayString::from("RITK").unwrap(),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
         presentation_contexts: vec![
             PresentationContextItemAc {
                 presentation_context_id: 1,
                 result_reason: 0,
-                transfer_syntax_uid: transfer_syntax::IMPLICIT_VR_LE.to_string(),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap(),
             },
             PresentationContextItemAc {
                 presentation_context_id: 3,
                 result_reason: 1,
-                transfer_syntax_uid: transfer_syntax::EXPLICIT_VR_LE.to_string(),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE).unwrap(),
             },
         ],
         user_information: UserInformation::default(),
     };
     let mut m = std::collections::HashMap::new();
-    m.insert(1u8, sop_class::VERIFICATION.to_string());
-    m.insert(3u8, sop_class::FIND_STUDY.to_string());
+    m.insert(1u8, ArrayString::from(sop_class::VERIFICATION).unwrap());
+    m.insert(3u8, ArrayString::from(sop_class::FIND_STUDY).unwrap());
     let n = Association::negotiated_contexts_from_ac(&ac, &m);
     assert_eq!(n.len(), 1);
     assert_eq!(
         n[0],
         NegotiatedContext {
             presentation_context_id: 1,
-            abstract_syntax_uid: sop_class::VERIFICATION.to_string(),
-            transfer_syntax_uid: transfer_syntax::IMPLICIT_VR_LE.to_string()
+            abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION).unwrap(),
+            transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()
         }
     );
 }

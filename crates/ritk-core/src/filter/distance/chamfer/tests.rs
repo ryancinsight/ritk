@@ -49,8 +49,7 @@ fn chessboard_single_voxel_foreground() {
     let mut data = vec![0.0_f32; 27];
     data[0] = 1.0;
     let img = make_image(data, [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Chessboard);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
@@ -101,8 +100,7 @@ fn taxicab_single_voxel_foreground() {
     let mut data = vec![0.0_f32; 27];
     data[0] = 1.0;
     let img = make_image(data, [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Taxicab);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
@@ -145,7 +143,9 @@ fn taxicab_exceeds_or_equals_chessboard_on_fg() {
         assert_eq!(vt[i], 1.0, "taxicab z=1 idx {i}");
     }
     // bg voxels: both 0.
-    for i in [0, 1, 2, 3, 4, 5, 6, 7, 8, 18, 19, 20, 21, 22, 23, 24, 25, 26] {
+    for i in [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+    ] {
         assert_eq!(vc[i], 0.0, "chess bg idx {i}");
         assert_eq!(vt[i], 0.0, "taxicab bg idx {i}");
     }
@@ -158,8 +158,7 @@ fn taxicab_l1_far_voxel() {
     let mut data = vec![0.0_f32; 125];
     data[2 * 25 + 2 * 5 + 2] = 1.0;
     let img = make_image(data, [5, 5, 5]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Taxicab);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     let center = 2 * 25 + 2 * 5 + 2;
@@ -187,7 +186,10 @@ fn chessboard_anisotropic_spacing() {
     let cdt = ChamferDistanceTransform::new();
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
-    assert_eq!(v[0], 1.0, "fg voxel (0,0,0) with anisotropic z-spacing should be 1.0 mm (y/x step is 1 mm)");
+    assert_eq!(
+        v[0], 1.0,
+        "fg voxel (0,0,0) with anisotropic z-spacing should be 1.0 mm (y/x step is 1 mm)"
+    );
     for (i, &x) in v.iter().enumerate().skip(1) {
         assert_eq!(x, 0.0, "bg voxel at idx {i} should be 0.0");
     }
@@ -201,10 +203,14 @@ fn free_function_matches_scipy_chessboard_2x2x2() {
     let mut data = vec![0.0_f32; 8];
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
-    let free = chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Chessboard);
+    let free =
+        chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Chessboard);
     assert_eq!(free[0], 1);
     for &x in &free[1..] {
-        assert_eq!(x, 0, "bg voxels must be 0 in scipy interior-distance convention");
+        assert_eq!(
+            x, 0,
+            "bg voxels must be 0 in scipy interior-distance convention"
+        );
     }
 }
 
@@ -213,7 +219,8 @@ fn free_function_matches_scipy_taxicab_2x2x2() {
     let mut data = vec![0.0_f32; 8];
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
-    let free = chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Taxicab);
+    let free =
+        chamfer_distance_transform_3d(&fg, [2, 2, 2], [1.0, 1.0, 1.0], ChamferMetric::Taxicab);
     assert_eq!(free[0], 1);
     for &x in &free[1..] {
         assert_eq!(x, 0);
@@ -226,8 +233,7 @@ fn free_function_matches_scipy_taxicab_2x2x2() {
 fn threshold_zero_means_below_or_equal_is_background() {
     // threshold=0.0 means v > 0 is fg. With data=0 everywhere, no fg.
     let img = make_image(vec![0.0_f32; 27], [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_threshold(0.0);
+    let cdt = ChamferDistanceTransform::new().with_threshold(0.0);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     for &x in &v {
@@ -241,8 +247,7 @@ fn threshold_picks_up_subunit_foreground() {
     let mut data = vec![0.4_f32; 27];
     data[0] = 0.6;
     let img = make_image(data, [3, 3, 3]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_threshold(0.5);
+    let cdt = ChamferDistanceTransform::new().with_threshold(0.5);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
@@ -286,8 +291,7 @@ fn chessboard_cube_3x3x3_center() {
         }
     }
     let img = make_image(data, [7, 7, 7]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Chessboard);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     // Cube center (3,3,3) → 2.0 (L∞ distance to nearest bg via cube boundary).
@@ -336,8 +340,7 @@ fn diff_vs_scipy_chessboard_3x3x3_cube() {
         }
     }
     let img = make_image(data, [7, 7, 7]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Chessboard);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     // z=3 (middle z plane) row-by-row expected from scipy:
@@ -372,8 +375,7 @@ fn diff_vs_scipy_chessboard_two_cubes() {
         }
     }
     let img = make_image(data, [10, 10, 10]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Chessboard);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     // Cube 1 center (2,2,2) → 2.0
@@ -439,8 +441,7 @@ fn diff_vs_scipy_taxicab_3x3x3_cube() {
         }
     }
     let img = make_image(data, [7, 7, 7]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Taxicab);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     let center = 3 * 49 + 3 * 7 + 3;
@@ -470,8 +471,7 @@ fn diff_vs_scipy_chessboard_column_3x3x5() {
         }
     }
     let img = make_image(data, [3, 3, 5]);
-    let cdt = ChamferDistanceTransform::new()
-        .with_metric(ChamferMetric::Chessboard);
+    let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
     let out = cdt.apply(&img).unwrap();
     let v = values_finite(&out);
     for z in 0..3 {

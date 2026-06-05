@@ -4,6 +4,7 @@ mod codec;
 mod presentation_context;
 mod user_info;
 
+use arrayvec::ArrayString;
 use anyhow::{bail, Result};
 
 // ── Public re-exports — preserves the original `pdu::*` API ──────────────────
@@ -80,9 +81,9 @@ pub enum AbortSource {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssociateRqPdu {
     pub protocol_version: u16,
-    pub called_ae_title: String,
-    pub calling_ae_title: String,
-    pub application_context_name: String,
+    pub called_ae_title: ArrayString<16>,
+    pub calling_ae_title: ArrayString<16>,
+    pub application_context_name: ArrayString<64>,
     pub presentation_contexts: Vec<PresentationContextItemRq>,
     pub user_information: UserInformation,
 }
@@ -90,9 +91,9 @@ pub struct AssociateRqPdu {
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssociateAcPdu {
     pub protocol_version: u16,
-    pub called_ae_title: String,
-    pub calling_ae_title: String,
-    pub application_context_name: String,
+    pub called_ae_title: ArrayString<16>,
+    pub calling_ae_title: ArrayString<16>,
+    pub application_context_name: ArrayString<64>,
     pub presentation_contexts: Vec<PresentationContextItemAc>,
     pub user_information: UserInformation,
 }
@@ -154,9 +155,22 @@ fn pad_ae(title: &str) -> [u8; 16] {
     b
 }
 
-fn trim_ae(b: &[u8; 16]) -> String {
-    let end = b.iter().rposition(|&c| c != b' ').map_or(0, |i| i + 1);
-    String::from_utf8_lossy(&b[..end]).into_owned()
+fn ae_from_bytes(bytes: &[u8]) -> ArrayString<16> {
+    let s = std::str::from_utf8(bytes).unwrap_or("").trim_end();
+    let mut arr = ArrayString::new();
+    for ch in s.chars().take(16) {
+        arr.try_push(ch).unwrap();
+    }
+    arr
+}
+
+pub(crate) fn uid_from_bytes_64(d: &[u8]) -> ArrayString<64> {
+    let s = std::str::from_utf8(d).unwrap_or("").trim_end_matches(['\0', ' ']);
+    let mut arr = ArrayString::new();
+    for ch in s.chars().take(64) {
+        arr.try_push(ch).unwrap();
+    }
+    arr
 }
 
 fn w16(buf: &mut Vec<u8>, v: u16) {

@@ -8,7 +8,7 @@ use burn::tensor::Tensor;
 /// Updates spacing to reflect the new resolution.
 pub struct DownsampleFilter<B: Backend> {
     factors: Vec<usize>,
-    _b: std::marker::PhantomData<B>,
+    _b: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> DownsampleFilter<B> {

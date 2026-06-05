@@ -4,7 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series, load_dicom_series_with_metadata, load_from_series, read_dicom_series,
+    load_dicom_series_with_metadata, load_from_series,
     read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
@@ -57,7 +57,7 @@ fn test_patient_position_parser_covers_known_codes() {
     assert_eq!(PatientPosition::from_code("hfs").to_string(), "HFS");
 
     match PatientPosition::from_code("mystery") {
-        PatientPosition::Unknown(code) => assert_eq!(code, "MYSTERY"),
+        PatientPosition::Unknown(code) => assert_eq!(code.as_str(), "MYST"),
         other => panic!("unexpected patient position variant: {:?}", other),
     }
 }

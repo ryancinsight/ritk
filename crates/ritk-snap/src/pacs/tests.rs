@@ -173,8 +173,8 @@ fn test_pacs_config_to_association_config_copies_fields() {
         auto_load_limit: 512,
     };
     let assoc = cfg.to_association_config();
-    assert_eq!(assoc.calling_ae_title, "CALLER");
-    assert_eq!(assoc.called_ae_title, "PACS01");
+    assert_eq!(assoc.calling_ae_title.as_str(), "CALLER");
+    assert_eq!(assoc.called_ae_title.as_str(), "PACS01");
     assert_eq!(assoc.host, "192.168.1.10");
     assert_eq!(assoc.port, 11112);
     assert_eq!(assoc.timeout, std::time::Duration::from_secs(60));

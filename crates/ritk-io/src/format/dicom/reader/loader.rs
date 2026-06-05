@@ -21,25 +21,6 @@ use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_directory;
 use super::types::{DicomReadMetadata, DicomSeriesInfo};
 
-/// Read a DICOM series and return the reconstructed 3-D image.
-#[allow(dead_code)]
-pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
-    path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
-    let (image, _) = read_dicom_series_with_metadata(path, device)?;
-    Ok(image)
-}
-
-/// Load a DICOM series, preserving metadata.
-#[allow(dead_code)]
-pub fn load_dicom_series<B: Backend, P: AsRef<Path>>(
-    path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
-    read_dicom_series(path, device)
-}
-
 /// Read a DICOM series and return both the image and metadata.
 pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,

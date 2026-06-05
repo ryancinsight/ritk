@@ -1,4 +1,5 @@
 use super::*;
+use arrayvec::ArrayString;
 
 #[test]
 fn private_tag_detection_uses_odd_groups() {
@@ -73,7 +74,7 @@ fn preservation_set_tracks_object_and_raw_elements() {
     ));
     set.preserve(DicomPreservedElement::new(
         DicomTag::new(0x0009, 0x1001),
-        Some("OB".to_string()),
+        Some(ArrayString::<2>::try_from("OB").unwrap_or_default()),
         vec![1, 2, 3, 4],
     ));
 

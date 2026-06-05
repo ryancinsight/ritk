@@ -1,7 +1,8 @@
 //! Nearest neighbor interpolation implementation.
 //!
-//! This module provides nearest neighbor interpolation for 2D and 3D data.
+//! This module provides nearest neighbor interpolation for 1D, 2D, 3D, and 4D data.
 
+use super::dispatch::dispatch_nearest;
 use super::trait_::Interpolator;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -11,7 +12,7 @@ use burn::tensor::Tensor;
 /// Performs nearest neighbor interpolation (rounds to nearest integer coordinate).
 pub struct NearestNeighborInterpolator {
     /// If `true`, samples outside the volume boundary return `0.0` instead of
-    /// the nearest-edge value.  Mirrors [`LinearInterpolator::zero_pad`].
+    /// the nearest-edge value. Mirrors [`LinearInterpolator::zero_pad`].
     pub zero_pad: bool,
 }
 
@@ -45,173 +46,167 @@ impl<B: Backend> Interpolator<B> for NearestNeighborInterpolator {
         data: &Tensor<B, D>,
         indices: Tensor<B, 2>,
     ) -> Tensor<B, 1> {
-        match D {
-            4 => self.interpolate_4d(data, indices),
-            3 => self.interpolate_3d(data, indices),
-            2 => self.interpolate_2d(data, indices),
-            1 => self.interpolate_1d(data, indices),
-            _ => panic!("NearestNeighborInterpolator only supports 1D, 2D, 3D and 4D tensors"),
-        }
+        dispatch_nearest(data, indices, self.zero_pad)
     }
 }
 
-impl NearestNeighborInterpolator {
-    fn interpolate_4d<B: Backend, const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1> {
-        let shape = data.shape();
-        let d0 = shape.dims[0]; // W
-        let d1 = shape.dims[1]; // Z
-        let d2 = shape.dims[2]; // Y
-        let d3 = shape.dims[3]; // X
+// ── Dimension-specific free functions ───────────────────────────────────
 
-        let n = indices.dims()[0];
-        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
-        let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
-        let z = indices.clone().slice([0..n, 2..3]).flatten::<1>(0, 1);
-        let w = indices.slice([0..n, 3..4]).flatten::<1>(0, 1);
+pub(crate) fn interpolate_1d<B: Backend, const D: usize>(
+    data: &Tensor<B, D>,
+    indices: Tensor<B, 2>,
+    zero_pad: bool,
+) -> Tensor<B, 1> {
+    let shape = data.shape();
+    let d0 = shape.dims[0]; // X
 
-        // floor(coord + 0.5) gives standard round-to-nearest behavior.
-        let x_f = (x + 0.5).floor();
-        let y_f = (y + 0.5).floor();
-        let z_f = (z + 0.5).floor();
-        let w_f = (w + 0.5).floor();
+    // indices: (x)
+    let n = indices.dims()[0];
+    let x = indices.slice([0..n, 0..1]).flatten::<1>(0, 1);
 
-        let x_i = x_f.clone().clamp(0.0, (d3 - 1) as f64).int();
-        let y_i = y_f.clone().clamp(0.0, (d2 - 1) as f64).int();
-        let z_i = z_f.clone().clamp(0.0, (d1 - 1) as f64).int();
-        let w_i = w_f.clone().clamp(0.0, (d0 - 1) as f64).int();
+    // floor(coord + 0.5) gives standard round-to-nearest behavior.
+    let x_f = (x + 0.5).floor();
+    let x_i = x_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
-        // Strides for [W, Z, Y, X]
-        let stride_w = (d1 * d2 * d3) as i32;
-        let stride_z = (d2 * d3) as i32;
-        let stride_y = d3 as i32;
-        let stride_x = 1;
+    let result = data.clone().reshape([d0]).gather(0, x_i);
 
-        let idx = w_i * stride_w + z_i * stride_z + y_i * stride_y + x_i * stride_x;
-        let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
-        let result = flat_data.gather(0, idx);
-
-        if self.zero_pad {
-            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d3 - 1) as f64)).float();
-            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d2 - 1) as f64)).float();
-            let z_in = z_f.clone().equal(z_f.clamp(0.0, (d1 - 1) as f64)).float();
-            let w_in = w_f.clone().equal(w_f.clamp(0.0, (d0 - 1) as f64)).float();
-            result * (x_in * y_in * z_in * w_in)
-        } else {
-            result
-        }
+    if zero_pad {
+        let x_in = x_f.clone().equal(x_f.clamp(0.0, (d0 - 1) as f64)).float();
+        result * x_in
+    } else {
+        result
     }
+}
 
-    fn interpolate_3d<B: Backend, const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1> {
-        let shape = data.shape();
-        let d0 = shape.dims[0]; // Z
-        let d1 = shape.dims[1]; // Y
-        let d2 = shape.dims[2]; // X
+pub(crate) fn interpolate_2d<B: Backend, const D: usize>(
+    data: &Tensor<B, D>,
+    indices: Tensor<B, 2>,
+    zero_pad: bool,
+) -> Tensor<B, 1> {
+    let shape = data.shape();
+    let d0 = shape.dims[0]; // Y
+    let d1 = shape.dims[1]; // X
 
-        // indices: (x, y, z)
-        let n = indices.dims()[0];
-        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
-        let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
-        let z = indices.slice([0..n, 2..3]).flatten::<1>(0, 1);
+    // indices: (x, y)
+    let n = indices.dims()[0];
+    let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+    let y = indices.slice([0..n, 1..2]).flatten::<1>(0, 1);
 
-        // floor(coord + 0.5) gives standard round-to-nearest behavior.
-        let x_f = (x + 0.5).floor();
-        let y_f = (y + 0.5).floor();
-        let z_f = (z + 0.5).floor();
+    // floor(coord + 0.5) gives standard round-to-nearest behavior.
+    let x_f = (x + 0.5).floor();
+    let y_f = (y + 0.5).floor();
 
-        let x_i = x_f.clone().clamp(0.0, (d2 - 1) as f64).int();
-        let y_i = y_f.clone().clamp(0.0, (d1 - 1) as f64).int();
-        let z_i = z_f.clone().clamp(0.0, (d0 - 1) as f64).int();
+    let x_i = x_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let y_i = y_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
-        // Strides for [Z, Y, X]
-        let stride_z = (d1 * d2) as i32;
-        let stride_y = d2 as i32;
-        let stride_x = 1;
+    // Strides for [Y, X]
+    let stride_y = d1 as i32;
+    let stride_x = 1;
 
-        let idx = z_i * stride_z + y_i * stride_y + x_i * stride_x;
-        let flat_data = data.clone().reshape([d0 * d1 * d2]);
-        let result = flat_data.gather(0, idx);
+    let idx = y_i * stride_y + x_i * stride_x;
+    let flat_data = data.clone().reshape([d0 * d1]);
+    let result = flat_data.gather(0, idx);
 
-        if self.zero_pad {
-            // x_f.clone().equal(x_f.clamp(...)).float() → 1.0 if coord was in-bounds, 0.0 otherwise
-            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d2 - 1) as f64)).float();
-            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d1 - 1) as f64)).float();
-            let z_in = z_f.clone().equal(z_f.clamp(0.0, (d0 - 1) as f64)).float();
-            result * (x_in * y_in * z_in)
-        } else {
-            result
-        }
+    if zero_pad {
+        let x_in = x_f.clone().equal(x_f.clamp(0.0, (d1 - 1) as f64)).float();
+        let y_in = y_f.clone().equal(y_f.clamp(0.0, (d0 - 1) as f64)).float();
+        result * (x_in * y_in)
+    } else {
+        result
     }
+}
 
-    fn interpolate_2d<B: Backend, const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1> {
-        let shape = data.shape();
-        let d0 = shape.dims[0]; // Y
-        let d1 = shape.dims[1]; // X
+pub(crate) fn interpolate_3d<B: Backend, const D: usize>(
+    data: &Tensor<B, D>,
+    indices: Tensor<B, 2>,
+    zero_pad: bool,
+) -> Tensor<B, 1> {
+    let shape = data.shape();
+    let d0 = shape.dims[0]; // Z
+    let d1 = shape.dims[1]; // Y
+    let d2 = shape.dims[2]; // X
 
-        // indices: (x, y)
-        let n = indices.dims()[0];
-        let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
-        let y = indices.slice([0..n, 1..2]).flatten::<1>(0, 1);
+    // indices: (x, y, z)
+    let n = indices.dims()[0];
+    let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+    let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
+    let z = indices.slice([0..n, 2..3]).flatten::<1>(0, 1);
 
-        // floor(coord + 0.5) gives standard round-to-nearest behavior.
-        let x_f = (x + 0.5).floor();
-        let y_f = (y + 0.5).floor();
+    // floor(coord + 0.5) gives standard round-to-nearest behavior.
+    let x_f = (x + 0.5).floor();
+    let y_f = (y + 0.5).floor();
+    let z_f = (z + 0.5).floor();
 
-        let x_i = x_f.clone().clamp(0.0, (d1 - 1) as f64).int();
-        let y_i = y_f.clone().clamp(0.0, (d0 - 1) as f64).int();
+    let x_i = x_f.clone().clamp(0.0, (d2 - 1) as f64).int();
+    let y_i = y_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let z_i = z_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
-        // Strides for [Y, X]
-        let stride_y = d1 as i32;
-        let stride_x = 1;
+    // Strides for [Z, Y, X]
+    let stride_z = (d1 * d2) as i32;
+    let stride_y = d2 as i32;
+    let stride_x = 1;
 
-        let idx = y_i * stride_y + x_i * stride_x;
-        let flat_data = data.clone().reshape([d0 * d1]);
-        let result = flat_data.gather(0, idx);
+    let idx = z_i * stride_z + y_i * stride_y + x_i * stride_x;
+    let flat_data = data.clone().reshape([d0 * d1 * d2]);
+    let result = flat_data.gather(0, idx);
 
-        if self.zero_pad {
-            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d1 - 1) as f64)).float();
-            let y_in = y_f.clone().equal(y_f.clamp(0.0, (d0 - 1) as f64)).float();
-            result * (x_in * y_in)
-        } else {
-            result
-        }
+    if zero_pad {
+        // x_f.clone().equal(x_f.clamp(...)).float() → 1.0 if coord was in-bounds, 0.0 otherwise
+        let x_in = x_f.clone().equal(x_f.clamp(0.0, (d2 - 1) as f64)).float();
+        let y_in = y_f.clone().equal(y_f.clamp(0.0, (d1 - 1) as f64)).float();
+        let z_in = z_f.clone().equal(z_f.clamp(0.0, (d0 - 1) as f64)).float();
+        result * (x_in * y_in * z_in)
+    } else {
+        result
     }
+}
 
-    fn interpolate_1d<B: Backend, const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1> {
-        let shape = data.shape();
-        let d0 = shape.dims[0]; // X
+pub(crate) fn interpolate_4d<B: Backend, const D: usize>(
+    data: &Tensor<B, D>,
+    indices: Tensor<B, 2>,
+    zero_pad: bool,
+) -> Tensor<B, 1> {
+    let shape = data.shape();
+    let d0 = shape.dims[0]; // W
+    let d1 = shape.dims[1]; // Z
+    let d2 = shape.dims[2]; // Y
+    let d3 = shape.dims[3]; // X
 
-        // indices: (x)
-        let n = indices.dims()[0];
-        let x = indices.slice([0..n, 0..1]).flatten::<1>(0, 1);
+    let n = indices.dims()[0];
+    let x = indices.clone().slice([0..n, 0..1]).flatten::<1>(0, 1);
+    let y = indices.clone().slice([0..n, 1..2]).flatten::<1>(0, 1);
+    let z = indices.clone().slice([0..n, 2..3]).flatten::<1>(0, 1);
+    let w = indices.slice([0..n, 3..4]).flatten::<1>(0, 1);
 
-        // floor(coord + 0.5) gives standard round-to-nearest behavior.
-        let x_f = (x + 0.5).floor();
-        let x_i = x_f.clone().clamp(0.0, (d0 - 1) as f64).int();
+    // floor(coord + 0.5) gives standard round-to-nearest behavior.
+    let x_f = (x + 0.5).floor();
+    let y_f = (y + 0.5).floor();
+    let z_f = (z + 0.5).floor();
+    let w_f = (w + 0.5).floor();
 
-        let result = data.clone().reshape([d0]).gather(0, x_i);
+    let x_i = x_f.clone().clamp(0.0, (d3 - 1) as f64).int();
+    let y_i = y_f.clone().clamp(0.0, (d2 - 1) as f64).int();
+    let z_i = z_f.clone().clamp(0.0, (d1 - 1) as f64).int();
+    let w_i = w_f.clone().clamp(0.0, (d0 - 1) as f64).int();
 
-        if self.zero_pad {
-            let x_in = x_f.clone().equal(x_f.clamp(0.0, (d0 - 1) as f64)).float();
-            result * x_in
-        } else {
-            result
-        }
+    // Strides for [W, Z, Y, X]
+    let stride_w = (d1 * d2 * d3) as i32;
+    let stride_z = (d2 * d3) as i32;
+    let stride_y = d3 as i32;
+    let stride_x = 1;
+
+    let idx = w_i * stride_w + z_i * stride_z + y_i * stride_y + x_i * stride_x;
+    let flat_data = data.clone().reshape([d0 * d1 * d2 * d3]);
+    let result = flat_data.gather(0, idx);
+
+    if zero_pad {
+        let x_in = x_f.clone().equal(x_f.clamp(0.0, (d3 - 1) as f64)).float();
+        let y_in = y_f.clone().equal(y_f.clamp(0.0, (d2 - 1) as f64)).float();
+        let z_in = z_f.clone().equal(z_f.clamp(0.0, (d1 - 1) as f64)).float();
+        let w_in = w_f.clone().equal(w_f.clamp(0.0, (d0 - 1) as f64)).float();
+        result * (x_in * y_in * z_in * w_in)
+    } else {
+        result
     }
 }
 

@@ -6,7 +6,7 @@
 
 use super::association::{AeTitle, NetworkingError};
 use super::command::{
-    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui, encode_us,
+    build_command_pdu, build_dataset_ivr_le, encode_str, encode_ui_into,
     parse_command_response, parse_dataset_ivr_le, CommandElementValue, C_ECHO_RSP, NO_DATASET,
     STATUS_SUCCESS, VERIFICATION_SOP_CLASS,
 };
@@ -75,35 +75,27 @@ fn ae_title_rejects_del() {
     ));
 }
 
-// ── encode_ui ─────────────────────────────────────────────────────────────────
+// ── encode_ui_into ───────────────────────────────────────────────────────────
 
 #[test]
-fn encode_ui_odd_length_uid_padded_with_null() {
+fn encode_ui_into_odd_length_uid_padded_with_null() {
     // "1.2.3.4" has 7 chars → padded to 8 with null byte.
     let uid = "1.2.3.4";
-    let enc = encode_ui(uid);
-    assert_eq!(enc.len() % 2, 0, "UI must be even-length");
-    assert_eq!(&enc[..7], uid.as_bytes());
-    assert_eq!(enc[7], 0x00, "null pad on odd-length UID");
+    let mut buf = Vec::new();
+    encode_ui_into(&mut buf, uid);
+    assert_eq!(buf.len() % 2, 0, "UI must be even-length");
+    assert_eq!(&buf[..7], uid.as_bytes());
+    assert_eq!(buf[7], 0x00, "null pad on odd-length UID");
 }
 
 #[test]
-fn encode_ui_verification_sop_class_odd_gets_null_pad() {
+fn encode_ui_into_verification_sop_class_odd_gets_null_pad() {
     // "1.2.840.10008.1.1" = 17 chars (odd) → null-padded to 18 bytes.
-    let enc = encode_ui(VERIFICATION_SOP_CLASS);
-    assert_eq!(enc.len() % 2, 0);
-    assert_eq!(enc.len(), 18);
-    assert_eq!(enc[17], 0x00, "null pad byte for odd-length UID");
-}
-
-// ── encode_us ─────────────────────────────────────────────────────────────────
-
-#[test]
-fn encode_us_little_endian() {
-    assert_eq!(encode_us(0x0030u16), [0x30, 0x00]);
-    assert_eq!(encode_us(0xFEFFu16), [0xFF, 0xFE]);
-    assert_eq!(encode_us(0x0000u16), [0x00, 0x00]);
-    assert_eq!(encode_us(0xFFFFu16), [0xFF, 0xFF]);
+    let mut buf = Vec::new();
+    encode_ui_into(&mut buf, VERIFICATION_SOP_CLASS);
+    assert_eq!(buf.len() % 2, 0);
+    assert_eq!(buf.len(), 18);
+    assert_eq!(buf[17], 0x00, "null pad byte for odd-length UID");
 }
 
 // ── encode_str ────────────────────────────────────────────────────────────────
@@ -216,7 +208,8 @@ fn parse_command_response_c_echo_rsp_from_synthetic_bytes() {
 
 #[test]
 fn parse_dataset_ivr_le_round_trips_two_elements() {
-    let uid = encode_ui("1.2.3.4.5");
+    let mut uid = Vec::new();
+    encode_ui_into(&mut uid, "1.2.3.4.5");
     let ds = build_dataset_ivr_le(&[
         (0x0008_0052, encode_str("STUDY").as_slice()),
         (0x0020_000D, uid.as_slice()),

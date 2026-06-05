@@ -49,7 +49,10 @@ fn percentile_hundred_is_maximum() {
     let out = filter.apply(&img).unwrap();
     let out_vec = to_vec(out.as_ref());
     for &v in &out_vec {
-        assert!(v <= 27.0, "percentile=100.0 must produce the maximum, got {v}");
+        assert!(
+            v <= 27.0,
+            "percentile=100.0 must produce the maximum, got {v}"
+        );
     }
 }
 
@@ -61,7 +64,10 @@ fn percentile_of_constant_image_is_constant() {
         let out = filter.apply(&img).unwrap();
         let out_vec = to_vec(out.as_ref());
         for &v in &out_vec {
-            assert!((v - 5.0).abs() < 1e-6, "percentile {p} of constant 5.0 must be 5.0");
+            assert!(
+                (v - 5.0).abs() < 1e-6,
+                "percentile {p} of constant 5.0 must be 5.0"
+            );
         }
     }
 }
@@ -171,6 +177,9 @@ fn rank_ball_se_succeeds() {
     let filter = RankFilter::ball(0, 1);
     let out = to_vec(filter.apply(&img).unwrap().as_ref());
     for &v in &out {
-        assert!((1.0..=27.0).contains(&v), "ball rank=0 must produce input value, got {v}");
+        assert!(
+            (1.0..=27.0).contains(&v),
+            "ball rank=0 must produce input value, got {v}"
+        );
     }
 }

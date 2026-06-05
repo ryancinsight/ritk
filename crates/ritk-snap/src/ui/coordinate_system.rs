@@ -4,6 +4,9 @@
 //! - Anatomical frame conversion (`LPS` <-> `RAS`)
 //! - DICOM patient position parsing (`(0018,5100)`)
 
+// Re-export PatientPosition from ritk-io (SSOT — eliminates duplicate enum).
+pub use ritk_io::PatientPosition;
+
 /// Anatomical coordinate frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnatomicalFrame {
@@ -28,7 +31,7 @@ impl AnatomicalFrame {
 /// Relation:
 /// - `R = -L`
 /// - `A = -P`
-/// - `S =  S`
+/// - `S = S`
 #[inline]
 pub fn lps_to_ras(lps: [f64; 3]) -> [f64; 3] {
     [-lps[0], -lps[1], lps[2]]
@@ -51,68 +54,6 @@ pub fn format_point_mm(point: [f64; 3], frame: AnatomicalFrame) -> String {
         point[1],
         point[2]
     )
-}
-
-/// DICOM patient position code (`(0018,5100)`) classification.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PatientPosition {
-    HeadFirstSupine,
-    HeadFirstProne,
-    FeetFirstSupine,
-    FeetFirstProne,
-    HeadFirstDecubitusRight,
-    HeadFirstDecubitusLeft,
-    FeetFirstDecubitusRight,
-    FeetFirstDecubitusLeft,
-    Unknown(String),
-}
-
-impl PatientPosition {
-    /// Parse a DICOM patient position code, e.g. `HFS`, `FFP`, `HFDL`.
-    pub fn from_dicom_code(code: &str) -> Self {
-        let c = code.trim().to_ascii_uppercase();
-        match c.as_str() {
-            "HFS" => Self::HeadFirstSupine,
-            "HFP" => Self::HeadFirstProne,
-            "FFS" => Self::FeetFirstSupine,
-            "FFP" => Self::FeetFirstProne,
-            "HFDR" => Self::HeadFirstDecubitusRight,
-            "HFDL" => Self::HeadFirstDecubitusLeft,
-            "FFDR" => Self::FeetFirstDecubitusRight,
-            "FFDL" => Self::FeetFirstDecubitusLeft,
-            _ => Self::Unknown(c),
-        }
-    }
-
-    /// Canonical code string.
-    pub fn code(&self) -> &str {
-        match self {
-            Self::HeadFirstSupine => "HFS",
-            Self::HeadFirstProne => "HFP",
-            Self::FeetFirstSupine => "FFS",
-            Self::FeetFirstProne => "FFP",
-            Self::HeadFirstDecubitusRight => "HFDR",
-            Self::HeadFirstDecubitusLeft => "HFDL",
-            Self::FeetFirstDecubitusRight => "FFDR",
-            Self::FeetFirstDecubitusLeft => "FFDL",
-            Self::Unknown(code) => code.as_str(),
-        }
-    }
-
-    /// Human-readable display label.
-    pub fn label(&self) -> &'static str {
-        match self {
-            Self::HeadFirstSupine => "Head-First Supine",
-            Self::HeadFirstProne => "Head-First Prone",
-            Self::FeetFirstSupine => "Feet-First Supine",
-            Self::FeetFirstProne => "Feet-First Prone",
-            Self::HeadFirstDecubitusRight => "Head-First Decubitus Right",
-            Self::HeadFirstDecubitusLeft => "Head-First Decubitus Left",
-            Self::FeetFirstDecubitusRight => "Feet-First Decubitus Right",
-            Self::FeetFirstDecubitusLeft => "Feet-First Decubitus Left",
-            Self::Unknown(_) => "Unknown Position",
-        }
-    }
 }
 
 #[cfg(test)]
@@ -144,9 +85,10 @@ mod tests {
 
     #[test]
     fn patient_position_parser_preserves_unknown_code() {
+        use arrayvec::ArrayString;
         assert_eq!(
             PatientPosition::from_dicom_code("XYZ"),
-            PatientPosition::Unknown("XYZ".to_string())
+            PatientPosition::Unknown(ArrayString::from("XYZ").unwrap())
         );
     }
 }

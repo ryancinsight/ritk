@@ -106,28 +106,30 @@ impl<B: Backend> CorrelationRatio<B> {
 
         if axis == 0 {
             // P(m|f) -> compute mean of m for each f
-            let marginal = joint_hist.clone().sum_dim(1).squeeze::<1>(); // [bins]
+            let jh = joint_hist.clone();
+            let marginal = jh.clone().sum_dim(1).squeeze::<1>(); // [bins]
 
             // Weighted sum: sum(hist * j)
             let indices_2d = indices.unsqueeze_dim(0).repeat(&[num_bins, 1]); // [bins, bins]
-            let weighted = joint_hist.clone().mul(indices_2d);
+            let weighted = jh.mul(indices_2d);
             let weighted_sum = weighted.sum_dim(1).squeeze::<1>(); // [bins]
 
             // Avoid division by zero
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal.clone() + mask;
+            let safe_marginal = marginal + mask;
 
             weighted_sum / safe_marginal
         } else {
             // Axis 1: Moving. E[X|Y=y].
-            let marginal = joint_hist.clone().sum_dim(0).squeeze::<1>(); // [bins]
+            let jh = joint_hist.clone();
+            let marginal = jh.clone().sum_dim(0).squeeze::<1>(); // [bins]
 
             let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]); // [bins, bins] (col vector repeated)
-            let weighted = joint_hist.clone().mul(indices_2d);
+            let weighted = jh.mul(indices_2d);
             let weighted_sum = weighted.sum_dim(0).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal.clone() + mask;
+            let safe_marginal = marginal + mask;
 
             weighted_sum / safe_marginal
         }
@@ -142,7 +144,8 @@ impl<B: Backend> CorrelationRatio<B> {
 
         if axis == 0 {
             // Var(Y|X=x) = E[(Y - E[Y|X])^2 | X=x]
-            let marginal = joint_hist.clone().sum_dim(1).squeeze::<1>();
+            let jh = joint_hist.clone();
+            let marginal = jh.clone().sum_dim(1).squeeze::<1>();
 
             // Expand mean to [bins, bins] (repeat across cols)
             let mean_2d = conditional_mean.unsqueeze_dim(1).repeat(&[1, num_bins]);
@@ -153,7 +156,7 @@ impl<B: Backend> CorrelationRatio<B> {
             let diff = indices_2d - mean_2d;
             let diff_sq = diff.powf_scalar(2.0);
 
-            let weighted = diff_sq.mul(joint_hist.clone());
+            let weighted = diff_sq.mul(jh);
             let sum_sq = weighted.sum_dim(1).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
@@ -161,7 +164,8 @@ impl<B: Backend> CorrelationRatio<B> {
 
             sum_sq / safe_marginal
         } else {
-            let marginal = joint_hist.clone().sum_dim(0).squeeze::<1>();
+            let jh = joint_hist.clone();
+            let marginal = jh.clone().sum_dim(0).squeeze::<1>();
 
             let mean_2d = conditional_mean.unsqueeze_dim(0).repeat(&[num_bins, 1]);
             let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]);
@@ -169,7 +173,7 @@ impl<B: Backend> CorrelationRatio<B> {
             let diff = indices_2d - mean_2d;
             let diff_sq = diff.powf_scalar(2.0);
 
-            let weighted = diff_sq.mul(joint_hist.clone());
+            let weighted = diff_sq.mul(jh);
             let sum_sq = weighted.sum_dim(0).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
@@ -219,14 +223,15 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
                         .float();
 
                 let mean_y = p_y.clone().mul(indices.clone()).sum();
-                let mean_y_sq = p_y.clone().mul(indices.clone().powf_scalar(2.0)).sum();
+                let indices_sq = indices.powf_scalar(2.0);
+                let mean_y_sq = p_y.mul(indices_sq).sum();
                 let var_y = mean_y_sq - mean_y.powf_scalar(2.0);
 
                 // Conditional Variance Var(Y|X)
                 let cond_var = self.compute_conditional_variance(&p_xy, 0);
 
                 // P(X)
-                let p_x = p_xy.clone().sum_dim(1).squeeze::<1>();
+                let p_x = p_xy.sum_dim(1).squeeze::<1>();
 
                 // Expected conditional variance
                 let expected_cond_var = p_x.mul(cond_var).sum();
@@ -248,14 +253,15 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
                         .float();
 
                 let mean_x = p_x.clone().mul(indices.clone()).sum();
-                let mean_x_sq = p_x.clone().mul(indices.clone().powf_scalar(2.0)).sum();
+                let indices_sq = indices.powf_scalar(2.0);
+                let mean_x_sq = p_x.mul(indices_sq).sum();
                 let var_x = mean_x_sq - mean_x.powf_scalar(2.0);
 
                 // Conditional Variance Var(X|Y)
                 let cond_var = self.compute_conditional_variance(&p_xy, 1);
 
                 // P(Y)
-                let p_y = p_xy.clone().sum_dim(0).squeeze::<1>();
+                let p_y = p_xy.sum_dim(0).squeeze::<1>();
 
                 // Expected conditional variance
                 let expected_cond_var = p_y.mul(cond_var).sum();

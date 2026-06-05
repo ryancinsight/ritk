@@ -37,7 +37,7 @@ where
     transform: T,
     interpolator: I,
     default_pixel_value: f64,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B, T, I, const D: usize> ResampleImageFilter<B, T, I, D>
@@ -71,7 +71,7 @@ where
             transform,
             interpolator,
             default_pixel_value: 0.0,
-            _phantom: PhantomData,
+            _phantom: PhantomData::<fn() -> B>,
         }
     }
 

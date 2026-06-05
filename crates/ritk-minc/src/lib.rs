@@ -76,18 +76,6 @@ pub const DIMENSIONS_PATH: &str = "minc-2.0/dimensions";
 /// MINC2 HDF5 path to the image dataset.
 pub const IMAGE_PATH: &str = "minc-2.0/image/0/image";
 
-/// MINC2 HDF5 path to the per-slice image maximum dataset.
-#[allow(dead_code)]
-pub const IMAGE_MAX_PATH: &str = "minc-2.0/image/0/image-max";
-
-/// MINC2 HDF5 path to the per-slice image minimum dataset.
-#[allow(dead_code)]
-pub const IMAGE_MIN_PATH: &str = "minc-2.0/image/0/image-min";
-
-/// MINC2 version identifier string.
-#[allow(dead_code)]
-pub const MINC2_IDENT: &str = "MINC Version    2.0";
-
 /// Recognized spatial dimension names in canonical order (x, y, z).
 pub const SPATIAL_DIM_NAMES: [&str; 3] = ["xspace", "yspace", "zspace"];
 
@@ -109,15 +97,6 @@ pub struct MincDimension {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn constants_are_consistent() {
-        assert_eq!(SPATIAL_DIM_NAMES.len(), 3);
-        assert!(DIMENSIONS_PATH.starts_with("minc-2.0/"));
-        assert!(IMAGE_PATH.starts_with("minc-2.0/"));
-        assert!(IMAGE_MAX_PATH.starts_with("minc-2.0/"));
-        assert!(IMAGE_MIN_PATH.starts_with("minc-2.0/"));
-    }
 
     #[test]
     fn minc_dimension_fields_accessible() {

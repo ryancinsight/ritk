@@ -39,7 +39,8 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
     sum_fw / denom
 }
 
-/// Compute the gradient of NCC w.r.t. control-point displacements.
+/// Compute the gradient of NCC w.r.t. control-point displacements using a
+/// pre-computed [`BasisCache`].
 ///
 /// Uses the chain rule:
 ///
@@ -64,23 +65,6 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
 /// ```text
 /// ∂NCC/∂φ_d(x) = (∂ρ/∂W(x)) · ∇_d M_warped(x)
 /// ```
-#[allow(dead_code)]
-pub(super) fn compute_metric_gradient(
-    fixed: &[f32],
-    warped: &[f32],
-    ctrl_dims: &[usize; 3],
-    ctrl_spacing: &[f64; 3],
-    dims: [usize; 3],
-    spacing: [f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let cache = BasisCache::new(dims, ctrl_spacing);
-    compute_metric_gradient_fast(fixed, warped, ctrl_dims, dims, spacing, &cache)
-}
-
-/// Compute the gradient of NCC w.r.t. control-point displacements using a
-/// pre-computed [`BasisCache`].
-///
-/// See [`compute_metric_gradient`] for the mathematical derivation.
 pub(super) fn compute_metric_gradient_fast(
     fixed: &[f32],
     warped: &[f32],

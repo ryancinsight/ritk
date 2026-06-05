@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 
-use super::super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen, SeriesGeometry};
+use super::super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen, SeriesGeometry, uid_to_arraystring};
 
 use crate::format::dicom::sop_class::{classify_sop_class, SopClassKind};
 
@@ -204,8 +204,8 @@ pub(super) fn finalize_scanned_series(
                     }
                 }
                 if best_uid.is_some() {
-                    first.series_instance_uid = best_uid;
-                }
+                                first.series_instance_uid = best_uid.as_deref().and_then(uid_to_arraystring);
+                            }
             }
         }
     }

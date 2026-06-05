@@ -7,6 +7,7 @@ pub mod dim2;
 pub mod dim3;
 pub mod dim4;
 
+use super::dispatch::dispatch_linear;
 use super::trait_::Interpolator;
 use burn::module::{
     AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, ModuleMapper,
@@ -120,13 +121,7 @@ impl<B: Backend> Interpolator<B> for LinearInterpolator {
         data: &Tensor<B, D>,
         indices: Tensor<B, 2>,
     ) -> Tensor<B, 1> {
-        match D {
-            4 => dim4::interpolate_4d(data, indices, self.zero_pad),
-            3 => dim3::interpolate_3d(data, indices, self.zero_pad),
-            2 => dim2::interpolate_2d(data, indices, self.zero_pad),
-            1 => dim1::interpolate_1d(data, indices, self.zero_pad),
-            _ => panic!("LinearInterpolator only supports 1D, 2D, 3D and 4D tensors"),
-        }
+        dispatch_linear(data, indices, self.zero_pad)
     }
 }
 

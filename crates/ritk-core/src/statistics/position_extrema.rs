@@ -40,9 +40,7 @@ use burn::tensor::backend::Backend;
 /// let img = Image::<f32, 3>::from_vec_f32([2, 2, 2], vec![1.0, 2.0, 3.0, 4.0, -1.0, 6.0, 7.0, 8.0])?;
 /// assert_eq!(minimum_position(&img), Some([1, 0, 0]));
 /// ```
-pub fn minimum_position<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-) -> Option<[usize; D]> {
+pub fn minimum_position<B: Backend, const D: usize>(image: &Image<B, D>) -> Option<[usize; D]> {
     let (vals, dims) = extract_vec_infallible(image);
     let slice: &[f32] = &vals;
     argmin_position(slice, dims)
@@ -55,9 +53,7 @@ pub fn minimum_position<B: Backend, const D: usize>(
 ///
 /// Ties resolve to the lowest flat (row-major) index, matching
 /// `scipy.ndimage.maximum_position` and `Iterator::position`.
-pub fn maximum_position<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-) -> Option<[usize; D]> {
+pub fn maximum_position<B: Backend, const D: usize>(image: &Image<B, D>) -> Option<[usize; D]> {
     let (vals, dims) = extract_vec_infallible(image);
     let slice: &[f32] = &vals;
     argmax_position(slice, dims)

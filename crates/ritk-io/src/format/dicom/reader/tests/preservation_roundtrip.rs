@@ -4,7 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series, load_dicom_series_with_metadata, load_from_series, read_dicom_series,
+    load_dicom_series_with_metadata, load_from_series,
     read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
@@ -17,6 +17,7 @@ use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
+use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
@@ -49,13 +50,13 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
     ));
     preservation.preserve(DicomPreservedElement::new(
         DicomTag::new(0x0019, 0x1001),
-        Some("OB".to_string()),
+        Some(ArrayString::<2>::try_from("OB").unwrap_or_default()),
         vec![0xAB_u8, 0xCD, 0xEF, 0x01],
     ));
 
     let meta = DicomReadMetadata {
-        series_instance_uid: Some("2.25.111".to_string()),
-        study_instance_uid: Some("2.25.222".to_string()),
+        series_instance_uid: Some("2.25.111".try_into().unwrap()),
+            study_instance_uid: Some("2.25.222".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: Some("TestSeries".to_string()),
         modality: Some("CT".to_string()),

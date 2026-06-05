@@ -4,9 +4,11 @@
 //! T(x) = T2(T1(x))
 
 use super::trait_::Transform;
-use burn::module::Module;
-use burn::tensor::backend::Backend;
+use burn::module::{AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault};
+use burn::record::{PrecisionSettings, Record};
+use burn::tensor::backend::{AutodiffBackend, Backend};
 use burn::tensor::Tensor;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// Chained Transform (T2 after T1).
@@ -15,11 +17,40 @@ use std::marker::PhantomData;
 /// y = T2(T1(x))
 ///
 /// This allows composing rigid, affine, and b-spline transforms.
-#[derive(Module, Debug)]
+#[derive(Clone, Debug)]
 pub struct ChainedTransform<B: Backend, T1, T2, const D: usize> {
     pub first: T1,
     pub second: T2,
-    pub _phantom: PhantomData<B>,
+    pub _phantom: PhantomData<fn() -> B>,
+}
+
+/// Record for [`ChainedTransform`].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChainedTransformRecord<T1R, T2R> {
+    first: T1R,
+    second: T2R,
+}
+
+impl<B: Backend, T1R, T2R> Record<B> for ChainedTransformRecord<T1R, T2R>
+where
+    T1R: Record<B> + Send,
+    T2R: Record<B> + Send,
+{
+    type Item<S: PrecisionSettings> = ChainedTransformRecord<T1R::Item<S>, T2R::Item<S>>;
+
+    fn into_item<S: PrecisionSettings>(self) -> Self::Item<S> {
+        ChainedTransformRecord {
+            first: self.first.into_item(),
+            second: self.second.into_item(),
+        }
+    }
+
+    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, device: &B::Device) -> Self {
+        ChainedTransformRecord {
+            first: Record::<B>::from_item(item.first, device),
+            second: Record::<B>::from_item(item.second, device),
+        }
+    }
 }
 
 impl<B: Backend, T1, T2, const D: usize> ChainedTransform<B, T1, T2, D> {
@@ -35,6 +66,94 @@ impl<B: Backend, T1, T2, const D: usize> ChainedTransform<B, T1, T2, D> {
             _phantom: PhantomData,
         }
     }
+}
+
+impl<B: Backend, T1: Module<B>, T2: Module<B>, const D: usize> Module<B>
+    for ChainedTransform<B, T1, T2, D>
+{
+    type Record = ChainedTransformRecord<T1::Record, T2::Record>;
+
+    fn visit<V: burn::module::ModuleVisitor<B>>(&self, visitor: &mut V) {
+        self.first.visit(visitor);
+        self.second.visit(visitor);
+    }
+
+    fn map<M: burn::module::ModuleMapper<B>>(self, mapper: &mut M) -> Self {
+        Self {
+            first: self.first.map(mapper),
+            second: self.second.map(mapper),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn into_record(self) -> Self::Record {
+        ChainedTransformRecord {
+            first: self.first.into_record(),
+            second: self.second.into_record(),
+        }
+    }
+
+    fn load_record(self, record: Self::Record) -> Self {
+        Self {
+            first: self.first.load_record(record.first),
+            second: self.second.load_record(record.second),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn collect_devices(&self, devices: Vec<B::Device>) -> Vec<B::Device> {
+        let devices = self.first.collect_devices(devices);
+        self.second.collect_devices(devices)
+    }
+
+    fn to_device(self, device: &B::Device) -> Self {
+        Self {
+            first: self.first.to_device(device),
+            second: self.second.to_device(device),
+            _phantom: PhantomData,
+        }
+    }
+
+    fn fork(self, device: &B::Device) -> Self {
+        Self {
+            first: self.first.fork(device),
+            second: self.second.fork(device),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<B: AutodiffBackend, T1, T2, const D: usize> AutodiffModule<B>
+    for ChainedTransform<B, T1, T2, D>
+where
+    T1: AutodiffModule<B>,
+    T2: AutodiffModule<B>,
+{
+    type InnerModule = ChainedTransform<B::InnerBackend, T1::InnerModule, T2::InnerModule, D>;
+
+    fn valid(&self) -> Self::InnerModule {
+        ChainedTransform {
+            first: self.first.valid(),
+            second: self.second.valid(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<B: Backend, T1: ModuleDisplay, T2: ModuleDisplay, const D: usize> ModuleDisplayDefault
+    for ChainedTransform<B, T1, T2, D>
+{
+    fn content(&self, content: Content) -> Option<Content> {
+        content
+            .add_single(&self.first)
+            .add_single(&self.second)
+            .optional()
+    }
+}
+
+impl<B: Backend, T1: ModuleDisplay, T2: ModuleDisplay, const D: usize> ModuleDisplay
+    for ChainedTransform<B, T1, T2, D>
+{
 }
 
 impl<B: Backend, T1, T2, const D: usize> Transform<B, D> for ChainedTransform<B, T1, T2, D>

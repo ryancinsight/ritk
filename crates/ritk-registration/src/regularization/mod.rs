@@ -19,6 +19,7 @@
 pub mod bending_energy;
 pub mod curvature;
 pub mod diffusion;
+pub mod dispatch;
 pub mod elastic;
 pub mod total_variation;
 pub mod trait_;

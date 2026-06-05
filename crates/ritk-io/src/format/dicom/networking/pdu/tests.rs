@@ -1,25 +1,26 @@
 use super::*;
+use arrayvec::ArrayString;
 
 fn sample_rq() -> AssociateRqPdu {
     AssociateRqPdu {
         protocol_version: 1,
-        called_ae_title: "SCP".into(),
-        calling_ae_title: "SCU".into(),
-        application_context_name: APPLICATION_CONTEXT_NAME.into(),
+        called_ae_title: ArrayString::from("SCP").unwrap(),
+        calling_ae_title: ArrayString::from("SCU").unwrap(),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
         presentation_contexts: vec![PresentationContextItemRq {
             presentation_context_id: 1,
-            abstract_syntax_uid: "1.2.840.10008.1.1".into(),
-            transfer_syntax_uids: vec!["1.2.840.10008.1.2".into()],
+            abstract_syntax_uid: ArrayString::from("1.2.840.10008.1.1").unwrap(),
+            transfer_syntax_uids: vec![ArrayString::from("1.2.840.10008.1.2").unwrap()],
         }],
         user_information: UserInformation {
             maximum_length: MaximumLengthSubItem {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: RITK_IMPLEMENTATION_CLASS_UID.into(),
+                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: RITK_IMPLEMENTATION_VERSION.into(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
             }),
             ..Default::default()
         },
@@ -42,13 +43,13 @@ fn test_pdu_type_byte() {
     check(Pdu::AssociateRq(sample_rq()), 0x01);
     let ac = AssociateAcPdu {
         protocol_version: 1,
-        called_ae_title: "SCP".into(),
-        calling_ae_title: "SCU".into(),
-        application_context_name: APPLICATION_CONTEXT_NAME.into(),
+        called_ae_title: ArrayString::from("SCP").unwrap(),
+        calling_ae_title: ArrayString::from("SCU").unwrap(),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
         presentation_contexts: vec![PresentationContextItemAc {
             presentation_context_id: 1,
             result_reason: 0,
-            transfer_syntax_uid: "1.2.840.10008.1.2".into(),
+            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2").unwrap(),
         }],
         user_information: UserInformation::default(),
     };
@@ -90,8 +91,8 @@ fn test_ae_title_padding() {
     assert!(calling[3..].iter().all(|&b| b == b' '));
     let dec = Pdu::decode(&enc).unwrap();
     if let Pdu::AssociateRq(rq) = dec {
-        assert_eq!(rq.called_ae_title, "SCP");
-        assert_eq!(rq.calling_ae_title, "SCU");
+        assert_eq!(rq.called_ae_title.as_str(), "SCP");
+        assert_eq!(rq.calling_ae_title.as_str(), "SCU");
     }
 }
 

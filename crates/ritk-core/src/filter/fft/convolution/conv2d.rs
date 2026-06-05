@@ -27,7 +27,7 @@ pub struct FftConvolutionFilter<B: Backend> {
     kernel_vals: Vec<f32>,
     kernel_rows: usize,
     kernel_cols: usize,
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> FftConvolutionFilter<B> {
@@ -44,7 +44,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
             kernel_vals: k_vals,
             kernel_rows: kr,
             kernel_cols: kc,
-            _phantom: PhantomData,
+            _phantom: PhantomData::<fn() -> B>,
         })
     }
 

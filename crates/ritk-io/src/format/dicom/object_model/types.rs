@@ -7,6 +7,7 @@
 //!
 //! They are co-located to satisfy Rust's type system without indirection.
 
+use arrayvec::ArrayString;
 use super::tag::{is_private_tag, DicomTag};
 
 /// DICOM value multiplicity container.
@@ -116,7 +117,7 @@ pub struct DicomObjectNode {
     /// Element tag.
     pub tag: DicomTag,
     /// Value representation string, when known.
-    pub vr: Option<String>,
+    pub vr: Option<ArrayString<2>>,
     /// Stored value.
     pub value: DicomValue,
     /// True when the element is private.
@@ -128,10 +129,10 @@ pub struct DicomObjectNode {
 impl DicomObjectNode {
     /// Create a text node.
     #[inline]
-    pub fn text(tag: DicomTag, vr: impl Into<String>, value: impl Into<String>) -> Self {
+    pub fn text(tag: DicomTag, vr: &str, value: impl Into<String>) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Text(value.into()),
             private: is_private_tag(tag),
             source: None,
@@ -140,10 +141,10 @@ impl DicomObjectNode {
 
     /// Create a raw-byte node.
     #[inline]
-    pub fn bytes(tag: DicomTag, vr: impl Into<String>, value: Vec<u8>) -> Self {
+    pub fn bytes(tag: DicomTag, vr: &str, value: Vec<u8>) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Bytes(value),
             private: is_private_tag(tag),
             source: None,
@@ -152,10 +153,10 @@ impl DicomObjectNode {
 
     /// Create a sequence node.
     #[inline]
-    pub fn sequence(tag: DicomTag, vr: impl Into<String>, items: Vec<DicomSequenceItem>) -> Self {
+    pub fn sequence(tag: DicomTag, vr: &str, items: Vec<DicomSequenceItem>) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Sequence(items),
             private: is_private_tag(tag),
             source: None,
@@ -164,10 +165,10 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a 16-bit unsigned value.
     #[inline]
-    pub fn u16(tag: DicomTag, vr: impl Into<String>, value: u16) -> Self {
+    pub fn u16(tag: DicomTag, vr: &str, value: u16) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::U16(value),
             private: is_private_tag(tag),
             source: None,
@@ -176,10 +177,10 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a signed 32-bit value.
     #[inline]
-    pub fn i32(tag: DicomTag, vr: impl Into<String>, value: i32) -> Self {
+    pub fn i32(tag: DicomTag, vr: &str, value: i32) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::I32(value),
             private: is_private_tag(tag),
             source: None,
@@ -188,10 +189,10 @@ impl DicomObjectNode {
 
     /// Create a numeric node from a 64-bit float.
     #[inline]
-    pub fn f64(tag: DicomTag, vr: impl Into<String>, value: f64) -> Self {
+    pub fn f64(tag: DicomTag, vr: &str, value: f64) -> Self {
         Self {
             tag,
-            vr: Some(vr.into()),
+            vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::F64(value),
             private: is_private_tag(tag),
             source: None,
