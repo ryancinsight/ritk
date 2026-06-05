@@ -343,3 +343,38 @@
 - Closed: GAP-SCI-13 (morphological_laplace).
 - Open: GAP-SCI-01, 02, 05, 06, 08, 11, 14, 15 (8 remaining, target Sprints 338-339).
 - Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).
+
+## Sprint 338 Audit (2026-06-04) — value_indices (GAP-SCI-08 closure)
+
+| ID | Function | Location | Tests |
+|----|----------|----------|-------|
+| GAP-SCI-08 | value_indices (per-value index map, ignore_value, generic B, D) | statistics::value_indices | 16 |
+
+### Architecture
+
+1. **GAP-SCI-08 (value_indices)**: Implements `scipy.ndimage.value_indices` (added in scipy 1.10.0) with the `ignore_value` keyword parameter. Generic over `B: Backend, const D: usize` — the same authoritative implementation serves 1-D, 2-D, 3-D, and arbitrary-D images. Algorithm: single O(n) pass, per-voxel cost is one `HashMap` lookup, one `flat_to_multi` conversion (O(D) where D is the rank, typically 2–4), and one `Vec::push`. Multi-indices for each distinct value are collected in **row-major** order, matching scipy's `np.unique`-based per-axis array layout and `Iterator::position` tie-breaking semantics.
+   - **`value_indices::F32Key`**: private newtype around `f32` with bit-equality and bit-hash (via `f32::to_bits()`). Required because `f32` cannot implement `Eq`/`Hash` directly (NaN), and `HashMap` requires both. ±0.0 are distinct keys; all NaN payloads collapse to one key — documented in the type's rustdoc. For categorical/segmentation inputs (the dominant use case, and the one scipy's `must be integer array` contract enforces), this is observationally identical to mathematical equality.
+   - **`value_indices::ValueIndices<const D: usize>`**: struct wrapping `HashMap<F32Key, Vec<[usize; D]>>`. Public methods: `total()`, `num_distinct()`, `len(value)`, `get(value)`, `is_empty()`. The `get` method returns `Option<&[[usize; D]]>` for slice-style consumption.
+   - **`value_indices::value_indices(image, ignore_value)`**: single-pass algorithm, O(n) time, O(n) space (worst case, one entry per distinct value). The `ignore_value` parameter (when `Some(v)`) is compared by bit pattern, so the user controls which single value is excluded.
+
+2. **Output format deviation from scipy** (documented, not a defect): scipy returns `dict[value, tuple[axis0_array, axis1_array, …]]` — one numpy array per axis. Rust returns `HashMap<F32Key, Vec<[usize; D]>>` — one multi-index tuple per occurrence. Both are information-equivalent; the Rust form is more compact (single `Vec` per value vs D `Vec`s) and avoids redundant memory for the per-axis split. The `k`-th multi-index in the Rust form equals the `k`-th row across the per-axis arrays in scipy's form.
+
+3. **Pre-existing typo fix (incidental)**: `crates/ritk-core/src/statistics/mod.rs:38` had `NyulUdapaNormalizer` (sic) in the `pub use normalization::{…}` re-export; the normalization module defines `NyulUdupaNormalizer`. This typo was breaking the `ritk-core` build in the working tree (one of many pre-existing uncommitted breaks). Fixed in the Sprint 338 commit because verification required a green build.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo build -p ritk-core --lib` | clean | ✓ |
+| `cargo clippy -p ritk-core --all-targets` | 0 new errors; +2 new warnings (mirror `position_extrema::flat_to_multi_round_trip` pattern) | ✓ |
+| `cargo fmt --check -p ritk-core` | clean for value_indices.rs | ✓ |
+| `cargo test -p ritk-core --lib` | 1521/0/1 (+16 value_indices tests) | ✓ |
+| `cargo build --workspace` | clean | ✓ |
+| `scipy.ndimage.value_indices` v1.17.1 differential | 16 tests: 1-D basic, 1-D constant, 1-D single-voxel, 1-D ignore; 2-D docstring example (6×6 with 4 distinct values), 2-D ignore; 3-D two-corner-voxels-and-center, 3-D all-same, 3-D single-voxel, 3-D ignore with 6 distinct non-zero, 3-D ignore-not-present, 3-D row-major ordering invariant, 3-D total-count invariant, 3-D total-after-ignore invariant, 2×3×4 round-trip, F32Key bit-equality | ✓ all match |
+
+### Updated parity
+
+- Coverage: **42/74 present** (was 41/74), 6/74 partial, 26/74 missing (was 27/74). **57% parity** (was 55%).
+- Closed: GAP-SCI-08 (value_indices).
+- Open: GAP-SCI-01, 02, 05, 06, 11, 14, 15 (7 remaining, target Sprints 339-340).
+- Out of scope [arch]: GAP-SCI-16/17/18 (5 functions requiring callback-based plugin system).

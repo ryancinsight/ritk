@@ -1,15 +1,13 @@
 [package]
 name = "ritk-core"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 
 [dependencies]
 burn = { workspace = true }
 nalgebra = { workspace = true }
 anyhow = { workspace = true }
-thiserror = { workspace = true }
-tracing = { workspace = true }
-bytemuck = { workspace = true }
+
 serde = { workspace = true }
 serde_json = { workspace = true }
 moirai = { workspace = true }

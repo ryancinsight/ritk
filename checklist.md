@@ -238,3 +238,47 @@
 - [x] backlog.md updated
 - [x] gap_audit.md updated
 - [x] Coverage progression: 333: 36/74 (49%) → 335: 39/74 (53%) → 336: 40/74 (54%) → 337: 41/74 (55%)
+
+---
+
+## Sprint 338 (0.51.6, ritk-core 0.6.0) — value_indices (GAP-SCI-08) + incidental typo fix
+
+- [x] GAP-SCI-08: value_indices / ValueIndices (scipy.ndimage.value_indices parity)
+  - [x] F32Key newtype (f32 bit-equality + bit-hash) — private to value_indices module
+  - [x] ValueIndices<const D: usize> struct wrapping HashMap<F32Key, Vec<[usize; D]>>
+  - [x] Public methods: total(), num_distinct(), len(value), get(value), is_empty()
+  - [x] `value_indices<B, D>(image, ignore_value: Option<f32>)` — single O(n) pass, row-major multi-indices
+  - [x] Re-uses `extract_vec_infallible` from filter::ops for the standard input cycle
+  - [x] Generic over `B: Backend, const D: usize` — same authoritative implementation serves 1-D/2-D/3-D/arbitrary-D
+  - [x] scipy.ndimage.value_indices v1.17.1 differential verification — 16 tests, integer arrays per scipy's `must be integer array` contract
+  - [x] 16 differential tests:
+    - [x] value_indices_1d_basic — [10,20,10,30,20] → three keys, row-major
+    - [x] value_indices_1d_constant — 4 voxels of 7.0 → single key, all 4 indices
+    - [x] value_indices_1d_single_voxel — [42.0] → single key, [[0]]
+    - [x] value_indices_1d_ignore_value — ignore 1.0 → 2 keys remain
+    - [x] value_indices_2d_docstring_example — 6×6 scipy docstring example
+    - [x] value_indices_2d_ignore_value — 6×6 ignore 0.0 → 2 keys remain
+    - [x] value_indices_3d_two_corner_voxels_and_center — 3×3×3 with 1.0 at corners and 5.0 at center
+    - [x] value_indices_3d_all_same_value — 2×2×2 of 7.0 → 8 row-major indices
+    - [x] value_indices_3d_single_voxel — 1×1×1 of 42.0
+    - [x] value_indices_3d_ignore_value_excludes_voxels — 2×3×4 with 6 distinct non-zero, ignore 0.0
+    - [x] value_indices_3d_ignore_value_not_present — ignore 999.0 has no effect
+    - [x] value_indices_3d_row_major_ordering — values 1..=8 in flat order, verify no reordering
+    - [x] value_indices_3d_total_equals_voxel_count_without_ignore — invariant
+    - [x] value_indices_3d_total_equals_n_minus_ignored_count — invariant
+    - [x] flat_to_multi_round_trip_3d — 24-iteration round-trip on 2×3×4
+    - [x] f32_key_bit_equality — F32Key bit-equality (0.0 vs -0.0 distinct)
+- [x] STR-338-01 (incidental): pre-existing typo `NyulUdapaNormalizer` → `NyulUdupaNormalizer` in statistics/mod.rs
+  - [x] Build was broken in working tree by this typo; fixed in same commit for verification
+  - [x] No behavioural change; pure rename
+- [x] Wire value_indices into statistics::mod with re-export
+- [x] Build: cargo build -p ritk-core --lib: clean
+- [x] Build: cargo build --workspace: clean
+- [x] Clippy: cargo clippy -p ritk-core --all-targets: 0 new errors; +2 new warnings (mirror pre-existing pattern in position_extrema); 30 total (was 27)
+- [x] Fmt: cargo fmt --check -p ritk-core value_indices.rs: clean
+- [x] Tests: cargo test -p ritk-core --lib: 1521 passed, 1 ignored, 0 failed (+16 from Sprint 338)
+- [x] CHANGELOG.md updated (0.51.6)
+- [x] Cargo.toml (ritk-core) version bumped to 0.6.0
+- [x] backlog.md updated
+- [x] gap_audit.md updated
+- [x] Coverage progression: 333: 36/74 (49%) → 335: 39/74 (53%) → 336: 40/74 (54%) → 337: 41/74 (55%) → 338: 42/74 (57%)

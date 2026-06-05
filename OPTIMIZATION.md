@@ -3,13 +3,13 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.51.5)
+## Current State (v0.51.6)
 
 ### Test Suite Performance
 
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
-| ritk-core | 1505 | ~9s | ✅ All passing |
+| ritk-core | 1521 | ~11s | ✅ All passing |
 | ritk-registration | 547 | ~16s | ✅ All passing (`--features direct-parzen --no-default-features`) |
 | ritk-dicom | 16 | ~2s | ✅ All passing |
 | ritk-nifti | 13 | ~1s | ✅ All passing |
@@ -155,6 +155,59 @@ Total: 3N · (2r+1)³ operations. For typical 3-D images with radius=1
 **Memory layout**: `f32` output, no internal allocation beyond the two
 intermediate dilation/erosion buffers (each `4 · N` bytes for `f32`).
 Peak memory: input + 2 intermediates + output = `4 · 4N` bytes total.
+
+## Sprint 338 (0.51.6) — value_indices
+
+### GAP-SCI-08: value_indices
+
+`value_indices<B, D>(image, ignore_value: Option<f32>) -> ValueIndices<D>`
+at `statistics::value_indices` implements `scipy.ndimage.value_indices`
+(added in scipy 1.10.0). For each distinct voxel value, returns the
+row-major list of multi-indices `[i_0, …, i_{D-1}]` where it occurs.
+
+**Complexity**: O(N) where N = total voxel count. Single pass, per-voxel
+cost is one `HashMap::entry` (O(1) amortized), one `flat_to_multi`
+conversion (O(D) where D is the rank, typically 2–4), and one
+`Vec::push`. Memory: O(N) worst case (one `usize` per multi-index, one
+entry per distinct value).
+
+**Key type — `F32Key` newtype**: bit-equality + bit-hash over
+`f32::to_bits()`. Required because `HashMap` needs `Eq + Hash` but
+`f32` cannot implement `Eq` (NaN). Operations:
+- `PartialEq::eq`: `self.0.to_bits() == other.0.to_bits()`
+- `Hash::hash`: `self.0.to_bits().hash(state)`
+
+This adds 1 `to_bits()` call per comparison / hash (negligible vs the
+`HashMap` overhead). For integer-valued f32 inputs (the dominant use
+case; scipy's `must be integer array` contract enforces this), the
+behaviour is observationally identical to mathematical equality.
+
+**Why the output form differs from scipy's per-axis arrays**:
+scipy returns `dict[value, tuple[axis0_array, axis1_array, …]]` — one
+numpy array per axis. Rust returns `HashMap<F32Key, Vec<[usize; D]>>` —
+one multi-index tuple per occurrence. Both are information-equivalent;
+the Rust form is more compact (single `Vec` per value vs D `Vec`s) and
+avoids redundant memory for the per-axis split. The k-th multi-index in
+the Rust form equals the k-th row across the per-axis arrays in scipy's
+form.
+
+**Comparison with `position_extrema`** (Sprint 335): `position_extrema`
+returns a single `[usize; D]` (argmin or argmax); `value_indices` returns
+the *complete* index set grouped by value. Both share the same
+`flat_to_multi` conversion helper and the same `extract_vec_infallible`
+input cycle, but `value_indices` is O(N) with a `HashMap` per voxel vs
+O(N) with O(1) running extremum. The asymptotic complexities are
+identical, but the constant factors differ by ~10–20× in favour of
+`position_extrema`.
+
+### STR-338-01: pre-existing typo fix (incidental)
+
+`crates/ritk-core/src/statistics/mod.rs:38` had `NyulUdapaNormalizer`
+(sic) in the `pub use normalization::{…}` re-export; the normalization
+module defines `NyulUdupaNormalizer`. This typo was breaking the
+`ritk-core` build in the working tree. Fixed in the Sprint 338 commit
+because verification required a green build. Pure rename, no
+behavioural change.
 
 ## Sprint 336 (0.51.4) — Chamfer Distance Transform
 
@@ -1028,7 +1081,7 @@ Prefixed `_i` in `chamfer/tests.rs` to silence `unused_variables` warning.
 
 | Suite | Result |
 |-------|--------|
-| `cargo test -p ritk-core --lib` | 1505 passed, 0 failed, 1 ignored |
+| `cargo test -p ritk-core --lib` | 1521 passed, 0 failed, 1 ignored |
 | `cargo test -p ritk-registration --lib` | 570 passed, 1 failed (pre-existing proptest flake), 1 ignored |
 | `cargo test -p ritk-dicom --lib` | 16 passed |
 | `cargo test -p ritk-codecs --lib` | 102 passed |

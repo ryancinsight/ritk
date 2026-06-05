@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## [0.51.6] - 2026-06-04
+
+### Added
+- **GAP-SCI-08: `value_indices` / `ValueIndices`** — Per-value index map: for each distinct voxel value in a D-dimensional image, returns the list of multi-indices `[i_0, …, i_{D-1}]` where it occurs, in row-major order. Implements `scipy.ndimage.value_indices` (added in scipy 1.10.0) with the `ignore_value` keyword parameter (drop-in: `Option<f32>` instead of `None`). The map is keyed by a private `F32Key` newtype over `f32` (bit-equality, since `f32` cannot implement `Eq` directly; `Hash` derived via `f32::to_bits()`). Lives at `crates/ritk-core/src/statistics/value_indices.rs` (single file, 597 lines including 16 tests); re-exported from `statistics`.
+
+### Changed
+- **STR-338-01: pre-existing typo fix (incidental)** — `crates/ritk-core/src/statistics/mod.rs`: `NyulUdapaNormalizer` → `NyulUdupaNormalizer` in the `pub use normalization::{…}` line. The pre-existing re-export typo was breaking the `ritk-core` build (the `normalization` module exposes `NyulUdupaNormalizer`); fixed in the same commit because Sprint 338 verification required a green build. Pure rename, no behavioural change.
+- `crates/ritk-core` version bump `0.5.0 → 0.6.0` (additive non-breaking new public API).
+
+### Verified
+- `cargo build -p ritk-core --lib`: clean
+- `cargo clippy -p ritk-core --all-targets`: 0 new errors; +2 new warnings (mirror the pre-existing `flat_to_multi_round_trip` pattern in `position_extrema`); 30 total (was 27)
+- `cargo fmt --check -p ritk-core`: clean for `value_indices.rs` (other pre-existing fmt diffs in untracked files unchanged)
+- `cargo test -p ritk-core --lib`: **1521 passed; 0 failed; 1 ignored** (+16 from Sprint 338 value_indices tests)
+- `cargo build --workspace`: clean
+- `scipy.ndimage.value_indices` v1.17.1 differential: 16 tests across 1-D/2-D/3-D including the docstring example, all-same-value, single-voxel, ignore_value present, ignore_value absent, row-major ordering invariant, total-count invariant, flat-to-multi round-trip; integer arrays (`int32`/`int64`) per scipy's `must be integer array` contract
+
 ## [0.51.5] - 2026-06-04
 
 ### Added

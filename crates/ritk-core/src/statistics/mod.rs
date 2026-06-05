@@ -9,6 +9,7 @@ pub mod label_statistics;
 pub mod noise_estimation;
 pub mod normalization;
 pub mod position_extrema;
+pub mod value_indices;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
     dice_coefficient, hausdorff_distance, mean_surface_distance, psnr, ssim,
@@ -38,6 +39,7 @@ pub use normalization::{
     WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,
 };
 pub use position_extrema::{maximum_position, minimum_position};
+pub use value_indices::{value_indices, ValueIndices};
 
 #[cfg(test)]
 mod tests_label_overlap;

@@ -335,3 +335,48 @@
 - GAP-SCI-01 (rotate): thin composition of resample, low risk, high value
 - GAP-SCI-08 (value_indices): inverse of position_extrema, leverages Sprint 335 foundation
 - GAP-SCI-11 (iterate_structure): generator-based, requires `Iterator` plumbing
+
+## Sprint 338 (0.51.6, ritk-core 0.6.0) — value_indices (GAP-SCI-08)
+
+### Goal
+
+Close GAP-SCI-08: add `scipy.ndimage.value_indices` parity to `ritk-core` with the same `Image<B, D>`-extracted-f32-slice pattern as `position_extrema` and `histogram` (Sprint 335). Generic over `B: Backend, const D: usize`; one authoritative implementation serves 1-D/2-D/3-D/arbitrary-D images.
+
+### Implementation summary
+
+- **New module** `crates/ritk-core/src/statistics/value_indices.rs` (single file, 597 lines including 16 tests).
+- **`F32Key` newtype**: bit-equality + bit-hash over `f32::to_bits()`. Required because `HashMap` needs `Eq + Hash` but `f32` cannot implement `Eq` (NaN). Documented behaviour: ±0.0 are distinct keys; all NaN payloads collapse to one key.
+- **`ValueIndices<const D: usize>` struct**: wraps `HashMap<F32Key, Vec<[usize; D]>>`. Public API: `total()`, `num_distinct()`, `len(value)`, `get(value)`, `is_empty()`. Compact alternative to scipy's per-axis `tuple[ndarray, ...]` return type — one multi-index per occurrence in row-major order.
+- **`value_indices<B, D>(image, ignore_value: Option<f32>) -> ValueIndices<D>`**: single O(n) pass with per-voxel cost ≈ 1 `HashMap::entry` + 1 `flat_to_multi` (O(D)) + 1 `Vec::push`. The `ignore_value` keyword matches scipy's `ignore_value=None` (drop-in: `Some(v)` instead of `v`).
+- **Pre-existing typo fix (incidental)**: `crates/ritk-core/src/statistics/mod.rs:38` had `NyulUdapaNormalizer` (sic) in the `pub use normalization::{…}` re-export; the normalization module defines `NyulUdupaNormalizer`. This typo was breaking the ritk-core build in the working tree (one of many pre-existing uncommitted breaks). Fixed in the Sprint 338 commit because verification required a green build.
+- **Module wiring**: `crates/ritk-core/src/statistics/mod.rs`: added `pub mod value_indices;` + `pub use value_indices::{value_indices, ValueIndices};`.
+
+### Tests (16 differential, all green)
+
+- 1-D: basic, constant, single-voxel, ignore
+- 2-D: docstring example (6×6, 4 distinct values), ignore
+- 3-D: two-corner-voxels-and-center, all-same (2×2×2 = 8 voxels of 7.0), single-voxel (1×1×1), ignore-excludes (2×3×4 with 6 distinct non-zero), ignore-not-present
+- Invariants: 3-D row-major ordering, 3-D total = n (no ignore), 3-D total = n - ignored count, 2×3×4 flat-to-multi round-trip, F32Key bit-equality
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo build -p ritk-core --lib` | clean ✓ |
+| `cargo clippy -p ritk-core --all-targets` | 0 new errors; +2 new warnings (mirror pre-existing pattern in `position_extrema`); 30 total (was 27) ✓ |
+| `cargo fmt --check -p ritk-core` | clean for value_indices.rs ✓ |
+| `cargo test -p ritk-core --lib` | **1521 passed; 0 failed; 1 ignored** (+16 from Sprint 338 value_indices tests) ✓ |
+| `cargo build --workspace` | clean ✓ |
+| `scipy.ndimage.value_indices` v1.17.1 differential | 16 tests, integer arrays per scipy's `must be integer array` contract ✓ all match |
+
+### Residual risks
+
+- 30 pre-existing clippy warnings (was 27; +2 from Sprint 338 mirror pattern), +0 from typo fix
+- 7 GAP-SCI items remain: GAP-SCI-01 (rotate), 02 (shift spatial), 05 (1D variants ×7), 06 (fourier ×3), 11 (iterate_structure), 14 (spline_filter), 15 (zoom) — target Sprints 339-340
+- 3 [arch] items (GAP-SCI-16/17/18) require callback-based plugin system, deferred indefinitely
+
+### Next-sprint candidates (ranked)
+
+- GAP-SCI-01 (rotate): thin composition of resample, low risk, high value
+- GAP-SCI-11 (iterate_structure): generator-based, requires `Iterator` plumbing
+- GAP-SCI-15 (zoom): scipy.ndimage.zoom with spline interpolation order parameter; same complexity bucket as rotate
