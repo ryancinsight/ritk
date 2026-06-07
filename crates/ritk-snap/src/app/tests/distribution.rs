@@ -1,4 +1,3 @@
-use arrayvec::ArrayString;
 use super::*;
 use crate::app::clinical_distribution::{
     build_clinical_distribution_report, report_path, summary_from_loaded_volume,
@@ -7,6 +6,7 @@ use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
 use crate::{LoadedVolume, ViewerState};
+use arrayvec::ArrayString;
 use image::GenericImageView;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -88,19 +88,19 @@ fn clinical_distribution_export_writes_report_and_media_with_expected_counts() {
     app.active_tool = ToolKind::WindowLevel;
     app.colormap = Colormap::Grayscale;
     app.loaded = Some(LoadedVolume {
-            data: Arc::new((0..24).map(|v| v as f32).collect()),
-            shape: [2, 3, 4],
-            channels: 1,
-            spacing: [1.5, 0.75, 0.5],
-            origin: [10.0, -2.0, 5.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            metadata: None,
-            source: Some(PathBuf::from("/secret/patient_a/study.dcm")),
-            modality: Some(ArrayString::from("CT").unwrap()),
-            patient_name: Some("Jane Roe".to_owned()),
-            patient_id: Some("ID-123".to_owned()),
-            study_date: Some(ArrayString::from("20240517").unwrap()),
-            series_description: Some("Abdomen".to_owned()),
+        data: Arc::new((0..24).map(|v| v as f32).collect()),
+        shape: [2, 3, 4],
+        channels: 1,
+        spacing: [1.5, 0.75, 0.5],
+        origin: [10.0, -2.0, 5.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        metadata: None,
+        source: Some(PathBuf::from("/secret/patient_a/study.dcm")),
+        modality: Some(ArrayString::from("CT").unwrap()),
+        patient_name: Some("Jane Roe".to_owned()),
+        patient_id: Some("ID-123".to_owned()),
+        study_date: Some(ArrayString::from("20240517").unwrap()),
+        series_description: Some("Abdomen".to_owned()),
         series_time: None,
         patient_weight_kg: None,
         injected_dose_bq: None,

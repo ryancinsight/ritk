@@ -117,7 +117,9 @@ impl<B: Backend, const D: usize> Image<B, D> {
     #[inline]
     pub fn with_data_slice<R>(&self, f: impl FnOnce(&[f32]) -> R) -> R {
         let data = self.data.clone().into_data();
-        let slice = data.as_slice::<f32>().expect("image data must be contiguous f32");
+        let slice = data
+            .as_slice::<f32>()
+            .expect("image data must be contiguous f32");
         f(slice)
     }
 }

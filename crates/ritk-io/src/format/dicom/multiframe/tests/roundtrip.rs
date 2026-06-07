@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 
 #[test]
 fn test_multiframe_info_and_roundtrip_writer_read_consistency() {
@@ -187,7 +187,7 @@ fn test_write_multiframe_with_spatial_metadata_round_trip() {
         image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
         modality: ArrayString::from("CT").unwrap(),
     };
-        write_dicom_multiframe_with_options(&out_path, &image, Some(&spatial))
+    write_dicom_multiframe_with_options(&out_path, &image, Some(&spatial))
         .expect("write_dicom_multiframe_with_options");
     assert!(out_path.exists(), "output file must exist");
 
@@ -386,7 +386,7 @@ fn test_load_multiframe_spacing_from_slice_thickness() {
         image_orientation: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
         modality: ArrayString::from("CT").unwrap(),
     };
-        write_dicom_multiframe_with_options(&path, &image, Some(&opts))
+    write_dicom_multiframe_with_options(&path, &image, Some(&opts))
         .expect("write_dicom_multiframe_with_options");
 
     let out: Image<NdArray, 3> =

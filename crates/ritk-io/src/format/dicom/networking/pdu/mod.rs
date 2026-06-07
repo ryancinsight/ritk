@@ -4,8 +4,8 @@ mod codec;
 mod presentation_context;
 mod user_info;
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Result};
+use arrayvec::ArrayString;
 
 // ── Public re-exports — preserves the original `pdu::*` API ──────────────────
 
@@ -165,7 +165,9 @@ fn ae_from_bytes(bytes: &[u8]) -> ArrayString<16> {
 }
 
 pub(crate) fn uid_from_bytes_64(d: &[u8]) -> ArrayString<64> {
-    let s = std::str::from_utf8(d).unwrap_or("").trim_end_matches(['\0', ' ']);
+    let s = std::str::from_utf8(d)
+        .unwrap_or("")
+        .trim_end_matches(['\0', ' ']);
     let mut arr = ArrayString::new();
     for ch in s.chars().take(64) {
         arr.try_push(ch).unwrap();

@@ -42,8 +42,14 @@ fn histogram_normalization_total_weight() {
     let sum: f32 = h.into_data().as_slice::<f32>().unwrap().iter().sum();
     let expected_min = n as f32 * 0.5;
     let expected_max = n as f32 * 1.5;
-    assert!(sum > expected_min, "normalized histogram total {sum} should be > {expected_min} (n × 0.5)");
-    assert!(sum < expected_max, "normalized histogram total {sum} should be < {expected_max} (n × 1.5)");
+    assert!(
+        sum > expected_min,
+        "normalized histogram total {sum} should be > {expected_min} (n × 0.5)"
+    );
+    assert!(
+        sum < expected_max,
+        "normalized histogram total {sum} should be < {expected_max} (n × 1.5)"
+    );
 }
 
 #[cfg(feature = "direct-parzen")]
@@ -57,10 +63,21 @@ fn histogram_boundary_bins_populated() {
     let data = h.into_data();
     let slice = data.as_slice::<f32>().unwrap();
     let num_bins = 32;
-    assert!(slice[0] > 0.1, "bin (0,0) must be populated for zero-valued samples, got {}", slice[0]);
+    assert!(
+        slice[0] > 0.1,
+        "bin (0,0) must be populated for zero-valued samples, got {}",
+        slice[0]
+    );
     let sum_first_4_rows: f32 = slice[0..4].iter().sum();
-    assert!(sum_first_4_rows > 0.5, "first 4 bins in row 0 should have weight, got {sum_first_4_rows}");
+    assert!(
+        sum_first_4_rows > 0.5,
+        "first 4 bins in row 0 should have weight, got {sum_first_4_rows}"
+    );
     for b in 5..num_bins {
-        assert!(slice[b] < 1e-6, "bin (0, {b}) should be ~0 beyond support, got {}", slice[b]);
+        assert!(
+            slice[b] < 1e-6,
+            "bin (0, {b}) should be ~0 beyond support, got {}",
+            slice[b]
+        );
     }
 }

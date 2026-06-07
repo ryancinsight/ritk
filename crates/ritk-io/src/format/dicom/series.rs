@@ -1,7 +1,7 @@
 //! DICOM series scanning, loading, and the `DicomReader` facade.
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::dictionary_std::tags;
@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::transfer_syntax::TransferSyntaxKind;
+use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]
@@ -72,21 +73,24 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     }
 
     // Parallel processing to read headers
-    let series_map = Arc::new(Mutex::new(HashMap::<ArrayString<64>, DicomSeriesInfo>::new()));
+    let series_map = Arc::new(Mutex::new(
+        HashMap::<ArrayString<64>, DicomSeriesInfo>::new(),
+    ));
 
     entries.par().for_each(|file_path| {
         // Try to open as DICOM
         if let Ok(obj) = parse_file_with::<DicomRsBackend, _>(file_path) {
             let uid = match get_string(&obj, tags::SERIES_INSTANCE_UID) {
-                Some(u) => {
-                    match ArrayString::<64>::from(u.trim()) {
-                        Ok(v) => v,
-                        Err(_) => {
-                            tracing::warn!("SeriesInstanceUID exceeds 64 chars, truncating: {}", &u.trim()[..64]);
-                            ArrayString::from(&u.trim()[..64]).unwrap()
-                        }
+                Some(u) => match ArrayString::<64>::from(u.trim()) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        tracing::warn!(
+                            "SeriesInstanceUID exceeds 64 chars, truncating: {}",
+                            &u.trim()[..64]
+                        );
+                        truncate_arraystring::<64>(u.trim())
                     }
-                }
+                },
                 None => return, // Skip files without SeriesUID
             };
 
@@ -97,16 +101,21 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                     match ArrayString::<16>::from(trimmed) {
                         Ok(v) => v,
                         Err(_) => {
-                            tracing::warn!("Modality exceeds 16 chars, truncating: {}", &trimmed[..16]);
-                            ArrayString::from(&trimmed[..16]).unwrap()
+                            tracing::warn!(
+                                "Modality exceeds 16 chars, truncating: {}",
+                                &trimmed[..16]
+                            );
+                            truncate_arraystring::<16>(trimmed)
                         }
                     }
                 })
                 .unwrap_or_else(|| ArrayString::from("OT").unwrap());
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
 
-            let mut map = series_map.lock().unwrap();
-            let entry = map.entry(uid.clone()).or_insert_with(|| DicomSeriesInfo {
+            let mut map = series_map.lock().expect(
+                "series map mutex poisoned — another thread panicked while holding the lock",
+            );
+            let entry = map.entry(uid).or_insert_with(|| DicomSeriesInfo {
                 series_instance_uid: uid,
                 series_description: description,
                 modality,
@@ -117,7 +126,10 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
         }
     });
 
-    let map = Arc::try_unwrap(series_map).unwrap().into_inner().unwrap();
+    let map = Arc::try_unwrap(series_map)
+        .expect("series map Arc still has multiple owners — parallel scan must be complete")
+        .into_inner()
+        .expect("series map mutex must be unlocked after parallel scan");
     let mut series_list: Vec<DicomSeriesInfo> = map.into_values().collect();
 
     // Sort file paths within each series for determinism (though load_series will re-sort spatially)
@@ -206,8 +218,10 @@ pub fn load_dicom_series<B: Backend>(
         let mut max_spacing = f64::MIN;
 
         for i in 0..slices.len() - 1 {
-            let p1 = get_position(&slices[i].1).unwrap();
-            let p2 = get_position(&slices[i + 1].1).unwrap();
+            let p1 = get_position(&slices[i].1)
+                .expect("slice ImagePositionPatient must be present after spatial sort validation");
+            let p2 = get_position(&slices[i + 1].1)
+                .expect("slice ImagePositionPatient must be present after spatial sort validation");
             let diff = p2 - p1;
             let spacing = diff.dot(&dir_z).abs(); // Projected distance
 

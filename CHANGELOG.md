@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## [0.51.8] - 2026-06-06
+
+### Added
+- **ARCH-341-01: `truncate_arraystring<const N>` DRY helper** — Added `pub(crate) fn truncate_arraystring<const N: usize>(s: &str) -> ArrayString<N>` in `reader/types.rs`. Replaces 11 `ArrayString::from(&s[..N]).unwrap()` call sites across `reader/types.rs`, `rt_dose/reader.rs`, `rt_plan/reader.rs`, `rt_struct/reader.rs`, `seg/reader.rs`, `series.rs`.
+
+### Changed
+- **CLIPPY-341-02: Clippy zero-warning workspace** — Eliminated all 21 clippy warnings across 3 crates: 7 `doc_lazy_continuation` (indented continuation lines), 8 `clone_on_copy` (removed `.clone()` on `Copy` types like `Option<ArrayString<N>>`), 3 `redundant_closure` (`|| ArrayString::new()` → `ArrayString::new`), 2 `bind_instead_of_map` (`.and_then(…Some(x))` → `.map(…x)`), 1 `map_flatten` (`.map().flatten()` → `.and_then()`), 1 `needless_range_loop` (iterator over `out_slice.iter_mut().enumerate()`).
+- **DOC-341-03: Doc warning elimination** — Fixed ~192 rustdoc warnings across 4 crates: escaped square brackets in inline code spans (`[0]` → `\[0\]`), fixed unclosed HTML tags, removed links to private items, resolved broken intra-doc links. Doc warnings: 192 → 0.
+- **SECURE-341-04: `.unwrap()` → `.expect()` hardening** — Hardened 4 production `.unwrap()` calls in `series.rs`: mutex poisoning, `Arc::try_unwrap`, `into_inner`, `get_position` missing spatial data.
+
+### Verified
+- `cargo clippy --workspace -- -D warnings`: **0 warnings**
+- `cargo doc -p ritk-{core,io,snap,registration} --no-deps`: **0 warnings**
+- `cargo fmt --check`: clean
+- `cargo test -p ritk-core --lib`: 1521 passed; 0 failed; 1 ignored
+- `cargo test -p ritk-registration --lib`: 570 passed; 1 failed (pre-existing proptest flake since Sprint 336); 1 ignored
+- `cargo test -p ritk-codecs --lib`: 102 passed
+- `cargo test -p ritk-nrrd --lib`: 23 passed
+- `cargo test -p ritk-io --lib` (rt_struct, seg subsets): 22 + 29 passed
+
 ## [0.51.6] - 2026-06-04
 
 ### Added

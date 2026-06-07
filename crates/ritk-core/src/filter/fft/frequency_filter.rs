@@ -29,7 +29,7 @@
 //!
 //! # References
 //!
-//! - ITK [`itk::FFTImageFilter`] implementations for ideal / Butterworth
+//! - ITK \[`itk::FFTImageFilter`\] implementations for ideal / Butterworth
 //! - Gonzalez & Woods, *Digital Image Processing*, 4th ed., ch. 4
 
 use crate::filter::fft::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};

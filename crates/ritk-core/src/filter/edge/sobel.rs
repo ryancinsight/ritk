@@ -33,8 +33,8 @@
 //!
 //! Let I(z, y, x) = x with unit spacing. At any interior voxel:
 //! 1. Derivative along x: I(x+1) − I(x−1) = 2
-//! 2. Smooth along y: [1,2,1] · [2,2,2] = 8
-//! 3. Smooth along z: [1,2,1] · [8,8,8] = 32
+//! 2. Smooth along y: \[1,2,1\] · \[2,2,2\] = 8
+//! 3. Smooth along z: \[1,2,1\] · \[8,8,8\] = 32
 //! 4. Normalize: 32 / (32 · 1.0) = 1.0 ✓ (true gradient of I = x is 1)
 //!
 //! ## Gradient Magnitude
@@ -88,8 +88,8 @@ use burn::tensor::backend::Backend;
 /// | Component        | Factor | Source                                       |
 /// |------------------|--------|----------------------------------------------|
 /// | Central diff     | 2·h   | [-1,0,1] spans 2 voxels of spacing h         |
-/// | Smoothing axis 1 | 4     | sum([1,2,1])                                 |
-/// | Smoothing axis 2 | 4     | sum([1,2,1])                                 |
+/// | Smoothing axis 1 | 4     | sum(\[1,2,1\])                                 |
+/// | Smoothing axis 2 | 4     | sum(\[1,2,1\])                                 |
 /// | **Total**        | 32·h  |                                              |
 #[derive(Debug, Clone)]
 pub struct SobelFilter {

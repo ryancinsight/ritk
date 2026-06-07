@@ -11,10 +11,10 @@
 //! For a D-dimensional image with voxel at spatial position **p** and
 //! intensity I(**p**):
 //!
-//! F(**p**) = [ I(**p**) / m_c , p₀ / m_s , … , p_{D-1} / m_s ]
+//! F(**p**) = \[ I(**p**) / m_c , p₀ / m_s , … , p_{D-1} / m_s \]
 //!
 //! where:
-//! - m_c = max intensity range (normalizes intensity to ~[0,1])
+//! - m_c = max intensity range (normalizes intensity to ~\[0,1\])
 //! - m_s = √(N / K), N = total voxels, K = desired superpixels
 //! - m (compactness, default 10.0) weights spatial vs. intensity proximity
 //!

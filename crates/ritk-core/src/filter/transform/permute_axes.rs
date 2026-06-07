@@ -24,7 +24,7 @@
 //!
 //! - `order` must be a permutation of `{0, 1, 2}`; validated at runtime.
 //! - Identity permutation `[0, 1, 2]` is a no-op.
-//! - Origin is unchanged (origin = physical position of voxel [0,0,0], unchanged).
+//! - Origin is unchanged (origin = physical position of voxel \[0,0,0\], unchanged).
 //!
 //! # ITK Parity
 //!

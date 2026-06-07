@@ -95,17 +95,17 @@ impl SnapApp {
                 state.window_width = Some(protocol.window_width);
                 state.slice_index = shape[0] / 2;
 
-                let modality = meta.modality.clone();
+                let modality = meta.modality;
                 let patient_name = meta.patient_name.clone();
                 let patient_id = meta.patient_id.clone();
-                let study_date = meta.study_date.clone();
+                let study_date = meta.study_date;
                 let series_description = meta.series_description.clone();
-                let series_time = meta.series_time.clone();
+                let series_time = meta.series_time;
                 let patient_weight_kg = meta.patient_weight_kg;
                 let injected_dose_bq = meta.radionuclide_total_dose_bq;
                 let radionuclide_half_life_s = meta.radionuclide_half_life_s;
-                let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time.clone();
-                let decay_correction = meta.decay_correction.clone();
+                let radiopharmaceutical_start_time = meta.radiopharmaceutical_start_time;
+                let decay_correction = meta.decay_correction;
 
                 self.loaded = Some(LoadedVolume {
                     data,
@@ -234,17 +234,17 @@ impl SnapApp {
                     direction,
                     metadata: Some(Box::new(meta.clone())),
                     source: Some(load_root.clone()),
-                    modality: meta.modality.clone(),
+                    modality: meta.modality,
                     patient_name: meta.patient_name.clone(),
                     patient_id: meta.patient_id.clone(),
-                    study_date: meta.study_date.clone(),
+                    study_date: meta.study_date,
                     series_description: meta.series_description.clone(),
-                    series_time: meta.series_time.clone(),
+                    series_time: meta.series_time,
                     patient_weight_kg: meta.patient_weight_kg,
                     injected_dose_bq: meta.radionuclide_total_dose_bq,
                     radionuclide_half_life_s: meta.radionuclide_half_life_s,
-                    radiopharmaceutical_start_time: meta.radiopharmaceutical_start_time.clone(),
-                    decay_correction: meta.decay_correction.clone(),
+                    radiopharmaceutical_start_time: meta.radiopharmaceutical_start_time,
+                    decay_correction: meta.decay_correction,
                 });
 
                 let protocol = select_hanging_protocol(

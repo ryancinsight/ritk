@@ -49,9 +49,18 @@ fn sparse_cache_dispatch_matches_direct() {
     let direct_total: f32 = direct_slice.iter().sum();
     let sparse_total: f32 = sparse_slice.iter().sum();
     let dense_total: f32 = dense_slice.iter().sum();
-    assert!(direct_total > 0.0, "direct_total {direct_total} must be positive");
-    assert!(sparse_total > 0.0, "sparse_total {sparse_total} must be positive");
-    assert!(dense_total > 0.0, "dense_total {dense_total} must be positive");
+    assert!(
+        direct_total > 0.0,
+        "direct_total {direct_total} must be positive"
+    );
+    assert!(
+        sparse_total > 0.0,
+        "sparse_total {sparse_total} must be positive"
+    );
+    assert!(
+        dense_total > 0.0,
+        "dense_total {dense_total} must be positive"
+    );
     let ds_ratio = sparse_total / direct_total;
     assert!(
         (ds_ratio - 1.0).abs() < 0.05,

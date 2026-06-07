@@ -21,7 +21,7 @@ pub struct DicomSegmentInfo {
 /// # Invariants
 /// - `pixel_data.len() == n_frames`
 /// - `pixel_data[f].len() == rows * cols` for all f
-/// - For BINARY: pixel_data[f][i] ∈ {0, 1}
+/// - For BINARY: pixel_data\[f\]\[i\] ∈ {0, 1}
 /// - `frame_segment_numbers.len() == n_frames`
 /// - `image_position_per_frame.len() == n_frames`
 #[derive(Debug, Clone)]
@@ -41,7 +41,7 @@ pub struct DicomSegmentation {
     /// ReferencedSegmentNumber per frame; length == n_frames.
     pub frame_segment_numbers: Vec<u16>,
     /// Decoded pixel values per frame; each inner vec length == rows*cols.
-    /// BINARY: 0 or 1. FRACTIONAL: raw byte values [0, 255].
+    /// BINARY: 0 or 1. FRACTIONAL: raw byte values \[0, 255\].
     pub pixel_data: Vec<Vec<u8>>,
     /// ImagePositionPatient per frame from (5200,9230) → (0020,9113) → (0020,0032).
     pub image_position_per_frame: Vec<Option<[f64; 3]>>,

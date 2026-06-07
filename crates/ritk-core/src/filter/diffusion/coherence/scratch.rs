@@ -48,7 +48,7 @@ pub fn compute_structure_tensor_products(
 /// Pre-allocated scratch buffers for the CED iteration loop.
 ///
 /// Reusing a `CedScratch` instance across calls to
-/// [`CoherenceEnhancingDiffusionFilter::apply_with_scratch`] avoids
+/// \[`CoherenceEnhancingDiffusionFilter::apply_with_scratch`\] avoids
 /// repeated per-call heap allocations for the gradient, structure-tensor,
 /// smoothed structure-tensor, and divergence buffers.
 pub struct CedScratch {

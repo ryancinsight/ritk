@@ -30,13 +30,13 @@
 //! Finite differences: central scheme at interior voxels, first-order one-sided
 //! at boundaries.  For a 1-D array f with spacing h:
 //!
-//!   Interior (0 < i < n−1):  ∂f/∂x ≈ (f[i+1] − f[i−1]) / (2h)
-//!   Left boundary (i = 0):   ∂f/∂x ≈ (f[1]   − f[0])   / h
-//!   Right boundary (i = n−1): ∂f/∂x ≈ (f[n−1] − f[n−2]) / h
+//! Interior (0 < i < n−1): ∂f/∂x ≈ (f\[i+1\] − f\[i−1\]) / (2h)
+//! Left boundary (i = 0): ∂f/∂x ≈ (f\[1\] − f\[0\]) / h
+//! Right boundary (i = n−1): ∂f/∂x ≈ (f\[n−1\] − f\[n−2\]) / h
 //!
 //! ## Parallelism
 //!
-//! The outer Z loop is parallelised with [`rayon`]; each Z-slice is independent.
+//! The outer Z loop is parallelised with \[`rayon`\]; each Z-slice is independent.
 
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;

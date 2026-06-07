@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use anyhow::{bail, Result};
+use arrayvec::ArrayString;
 use std::collections::HashMap;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation};
@@ -129,7 +129,7 @@ pub fn label_map_to_dicom_seg(
     })
 }
 
-/// Convert a [`DicomSegmentation`] into a dense `ritk_core` [`LabelMap`].
+/// Convert a [`DicomSegmentation`] into a dense `ritk_core` `LabelMap`.
 ///
 /// # Mathematical specification
 ///

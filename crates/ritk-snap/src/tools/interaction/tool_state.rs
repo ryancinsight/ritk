@@ -9,7 +9,7 @@ use egui::Pos2;
 ///
 /// Only one `ToolState` variant is active per viewport at a time. `Idle` is
 /// the resting state; every other variant represents a partially completed
-/// gesture that will either be confirmed (producing an [`Annotation`]) or
+/// gesture that will either be confirmed (producing an `Annotation`) or
 /// cancelled on the next interaction event.
 #[derive(Debug, Clone)]
 pub enum ToolState {

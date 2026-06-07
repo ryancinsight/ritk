@@ -6,8 +6,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
@@ -57,7 +56,7 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
 
     let meta = DicomReadMetadata {
         series_instance_uid: Some("2.25.111".try_into().unwrap()),
-            study_instance_uid: Some("2.25.222".try_into().unwrap()),
+        study_instance_uid: Some("2.25.222".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: Some("TestSeries".to_string()),
         modality: Some(ArrayString::from("CT").unwrap()),

@@ -8,8 +8,8 @@
 //! pass followed by an anticausal (backward) pass applied to the forward
 //! output:
 //!
-//!   Forward:  y_f[n] = B·x[n] + d₁·y_f[n−1] + d₂·y_f[n−2] + d₃·y_f[n−3]
-//!   Backward: y[n]   = B·y_f[n] + d₁·y[n+1] + d₂·y[n+2] + d₃·y[n+3]
+//! Forward: y_f\[n\] = B·x\[n\] + d₁·y_f\[n−1\] + d₂·y_f\[n−2\] + d₃·y_f\[n−3\]
+//! Backward: y\[n\] = B·y_f\[n\] + d₁·y\[n+1\] + d₂·y\[n+2\] + d₃·y\[n+3\]
 //!
 //! The cascade H(z)·H(z⁻¹) yields a zero-phase symmetric Gaussian
 //! approximation with unit DC gain.

@@ -243,9 +243,7 @@ pub fn classify_sop_class(uid: &str) -> SopClassKind {
         "1.2.840.10008.5.1.4.1.1.77.1.5.3" => SopClassKind::StereometricRelationshipStorage,
         "1.2.840.10008.5.1.4.1.1.79.1" => SopClassKind::MacularGridThicknessAndVolumeReportStorage,
         "1.2.840.10008.5.1.4.1.1.78.7" => SopClassKind::OphthalmicAxialMeasurementsStorage,
-        other => SopClassKind::Other(
-            ArrayString::<64>::try_from(other).unwrap_or_default(),
-        ),
+        other => SopClassKind::Other(ArrayString::<64>::try_from(other).unwrap_or_default()),
     }
 }
 

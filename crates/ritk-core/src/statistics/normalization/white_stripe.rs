@@ -171,7 +171,10 @@ impl WhiteStripeNormalizer {
         );
 
         let mut sorted_fg = foreground.clone();
-        sorted_fg.sort_by(|a, b| a.partial_cmp(b).expect("foreground values must be comparable"));
+        sorted_fg.sort_by(|a, b| {
+            a.partial_cmp(b)
+                .expect("foreground values must be comparable")
+        });
 
         let n = sorted_fg.len();
         let fg_min = sorted_fg[0];

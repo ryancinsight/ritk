@@ -24,7 +24,7 @@ use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 /// Binary erosion with a box structuring element of half-width `radius` voxels.
 ///
-/// For each voxel p, output[p] = 1.0 iff every voxel within the axis-aligned
+/// For each voxel p, output\[p\] = 1.0 iff every voxel within the axis-aligned
 /// hypercube of half-width `radius` centred at p is foreground (value > 0.5).
 ///
 /// Out-of-bounds neighbours are treated as background, so any foreground voxel

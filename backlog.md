@@ -4,6 +4,36 @@
 
 ---
 
+## Sprint 341 (Phase 19) — Clippy Zero-Warning + Doc Warning Elimination + DRY Helper + Expect Hardening
+
+**Status**: Complete
+**Phase**: CLIPPY-341 + DOC-341 + ARCH-341 + SECURE-341
+**Goal**: Achieve zero clippy warnings workspace-wide, eliminate all doc warnings, add `truncate_arraystring` DRY helper, harden production `.unwrap()` calls.
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| CLIPPY-341-02 | 21 clippy warnings eliminated across 3 crates | **Closed** |
+| DOC-341-03 | ~192 doc warnings eliminated across 4 crates (192 → 0) | **Closed** |
+| ARCH-341-01 | `truncate_arraystring<const N>` DRY helper (replaces 11 `.unwrap()` patterns) | **Closed** |
+| SECURE-341-04 | 4 `.unwrap()` → `.expect()` hardening in series.rs | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace -- -D warnings` | 0 warnings |
+| `cargo doc -p ritk-{core,io,snap,registration} --no-deps` | 0 warnings |
+| `cargo fmt --check` | Clean |
+| `cargo test -p ritk-core --lib` | 1521/0/1 |
+| `cargo test -p ritk-registration --lib` | 570/1/1 (pre-existing proptest flake) |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| `cargo test -p ritk-io --lib` (rt_struct, seg subsets) | 51/0/0 |
+
+---
+
 ## Sprint 337 (Phase 17) — DICOM UID Stack Allocation Completion + Dead Code Sweep + Dependency Hygiene
 
 **Status**: Complete

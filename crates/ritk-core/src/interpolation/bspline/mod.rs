@@ -44,13 +44,13 @@ pub(super) fn cubic_bspline(x: f32) -> f32 {
 /// which produces an edge-continuation effect at volume boundaries.
 /// When `zero_pad` is `true`, query coordinates that fall outside the valid
 /// voxel range `[0, dim-1]` for any dimension return `0.0` immediately,
-/// matching the behavior of [`LinearInterpolator`] and
-/// [`NearestNeighborInterpolator`] in zero-pad mode.
+/// matching the behavior of \[`LinearInterpolator`\] and
+/// \[`NearestNeighborInterpolator`\] in zero-pad mode.
 #[derive(Debug, Clone, Copy)]
 pub struct BSplineInterpolator {
     /// If `true`, samples outside the volume boundary return `0.0` instead of
-    /// the renormalized edge value. Mirrors [`LinearInterpolator::zero_pad`]
-    /// and [`NearestNeighborInterpolator::zero_pad`].
+    /// the renormalized edge value. Mirrors \[`LinearInterpolator::zero_pad`\]
+    /// and \[`NearestNeighborInterpolator::zero_pad`\].
     pub zero_pad: bool,
 }
 

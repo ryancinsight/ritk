@@ -68,5 +68,8 @@ fn lazy_sparse_cache_built_on_first_access() {
     let second_data = second.into_data();
     let second_slice = second_data.as_slice::<f32>().unwrap();
     let sum: f32 = second_slice.iter().sum();
-    assert!(sum > 0.0, "second-call histogram must be non-zero, got sum={sum}");
+    assert!(
+        sum > 0.0,
+        "second-call histogram must be non-zero, got sum={sum}"
+    );
 }

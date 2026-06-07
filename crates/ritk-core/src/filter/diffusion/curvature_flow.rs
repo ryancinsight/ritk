@@ -15,12 +15,12 @@
 //! # 3-D Finite-Difference Discretisation
 //!
 //! Let first derivatives (central differences at interior, one-sided at boundaries):
-//!   I_x = (I[p+x] − I[p−x]) / 2
-//!   I_y = (I[p+y] − I[p−y]) / 2
-//!   I_z = (I[p+z] − I[p−z]) / 2
+//! I_x = (I\[p+x\] − I\[p−x\]) / 2
+//! I_y = (I\[p+y\] − I\[p−y\]) / 2
+//! I_z = (I\[p+z\] − I\[p−z\]) / 2
 //!
 //! Let second derivatives (symmetric 3-point stencils):
-//!   I_xx = I[p+x] − 2·I[p] + I[p−x]
+//! I_xx = I\[p+x\] − 2·I\[p\] + I\[p−x\]
 //!   ... (similarly for yy, zz, xy, xz, yz)
 //!
 //! Mean curvature numerator (Caselles, Kimmel, Sapiro 1997):

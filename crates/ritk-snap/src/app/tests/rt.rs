@@ -1,7 +1,7 @@
 //! RT dose/plan loading and viewer-core filter dispatch tests.
 
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 
 // ── SnapApp RT plan/dose tests ──────────────────────────────────────────────
 

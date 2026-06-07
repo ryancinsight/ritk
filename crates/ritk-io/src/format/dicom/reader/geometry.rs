@@ -134,7 +134,9 @@ pub(in crate::format::dicom) fn resample_frames_linear(
         return decoded_frames.to_vec();
     }
     let first = src_positions[0];
-    let last = *src_positions.last().expect("source positions must not be empty");
+    let last = *src_positions
+        .last()
+        .expect("source positions must not be empty");
     let span = last - first;
     if span <= 0.0 || !span.is_finite() {
         return decoded_frames.to_vec();

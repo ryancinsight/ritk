@@ -39,7 +39,12 @@ fn direct_parallel_matches_sparse() {
 
     let sparse = direct::build_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
     let sparse_data = direct::compute_joint_histogram_from_cache_sparse(
-        &sparse, &moving_norm, num_bins, sigma_sq_mov, None, None,
+        &sparse,
+        &moving_norm,
+        num_bins,
+        sigma_sq_mov,
+        None,
+        None,
     );
     let sparse_slice = sparse_data.as_slice::<f32>().unwrap();
 
@@ -53,8 +58,14 @@ fn direct_parallel_matches_sparse() {
     }
     let dispatch_total: f32 = dispatch_slice.iter().sum();
     let sparse_total: f32 = sparse_slice.iter().sum();
-    assert!(dispatch_total > 0.0, "dispatch total {dispatch_total} must be positive");
-    assert!(sparse_total > 0.0, "sparse total {sparse_total} must be positive");
+    assert!(
+        dispatch_total > 0.0,
+        "dispatch total {dispatch_total} must be positive"
+    );
+    assert!(
+        sparse_total > 0.0,
+        "sparse total {sparse_total} must be positive"
+    );
     let ratio = dispatch_total / sparse_total;
     assert!(
         (ratio - 1.0).abs() < 0.05,

@@ -364,7 +364,7 @@ impl GpuVolumeRenderer {
     ///
     /// # Async readback behaviour
     ///
-    /// Same 1-frame latency model as [`render_mip`]. Returns `None` on the
+    /// Same 1-frame latency model as `render_mip`. Returns `None` on the
     /// first call; subsequent calls return the last completed frame.
     ///
     /// Returns `None` on GPU error or before any frame completes.

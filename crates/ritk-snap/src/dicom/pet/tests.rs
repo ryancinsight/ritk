@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 use std::sync::Arc;
 
 /// ¹⁸F physical half-life = 6 584.04 s. Source: NNDC Nuclear Data (2023).

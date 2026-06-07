@@ -53,10 +53,10 @@ use burn::tensor::{Shape, Tensor, TensorData};
 /// within each non-overlapping bin. This provides anti-aliasing compared
 /// to naive sub-sampling (which just takes every Nth voxel).
 ///
-/// Output shape[d] = floor(input_shape[d] / factor[d])
-/// Spacing[d] *= factor[d]
+/// Output shape\[d\] = floor(input_shape\[d\] / factor\[d\])
+/// Spacing\[d\] *= factor\[d\]
 pub struct BinShrinkImageFilter {
-    /// Shrink factors per dimension. If shorter than D, factors[0] is broadcast.
+    /// Shrink factors per dimension. If shorter than D, factors\[0\] is broadcast.
     pub factors: Vec<usize>,
 }
 
@@ -65,7 +65,7 @@ impl BinShrinkImageFilter {
     ///
     /// # Arguments
     /// * `factors` - Shrink factor for each dimension (must be >= 1).
-    ///   If the vector is shorter than the image dimensionality, `factors[0]`
+    ///   If the vector is shorter than the image dimensionality, `factors\[0\]`
     ///   is broadcast to all remaining dimensions.
     pub fn new(factors: Vec<usize>) -> Self {
         Self { factors }

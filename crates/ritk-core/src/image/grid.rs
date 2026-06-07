@@ -4,7 +4,7 @@ use burn::tensor::{Distribution, Shape, Tensor, TensorData};
 /// Generate random continuous indices for the given image shape.
 ///
 /// Returns a tensor of shape `[N, D]` where N is num_samples.
-/// Samples are drawn uniformly from the continuous index space [0, shape[i]-1].
+/// Samples are drawn uniformly from the continuous index space \[0, shape\[i\]-1\].
 ///
 /// # Arguments
 /// * `shape` - The image shape `[D0, D1, ...]`

@@ -45,7 +45,7 @@ use burn::tensor::backend::Backend;
 /// Reduces image dimensions by integer factors, computing the mean of each tile.
 #[derive(Debug, Clone)]
 pub struct ShrinkImageFilter {
-    /// Downsampling factors per axis `[fz, fy, fx]`. All must be ≥ 1. Default [1,1,1].
+    /// Downsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
     pub shrink_factors: [usize; 3],
 }
 

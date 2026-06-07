@@ -163,8 +163,7 @@ pub mod utils {
         let right = field.slice([0..b, 0..c, 1..(d - 1), 1..(h - 1), 2..w]);
 
         // 3D Laplacian: sum of second derivatives
-        let laplacian_center =
-            front + back + top + bottom + left + right - center.mul_scalar(6.0);
+        let laplacian_center = front + back + top + bottom + left + right - center.mul_scalar(6.0);
 
         // Pad back to original size
         let zeros_d_front = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);

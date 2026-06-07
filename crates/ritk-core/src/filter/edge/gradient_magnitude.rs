@@ -10,8 +10,8 @@
 //!   ∂I/∂x ≈ (I[iz, iy, ix+1] − I[iz, iy, ix−1]) / (2 · sx)
 //!
 //! At boundary voxels one-sided first-order differences are used:
-//!   forward:  (I[i+1] − I[i]) / s
-//!   backward: (I[i] − I[i−1]) / s
+//! forward: (I\[i+1\] − I\[i\]) / s
+//! backward: (I\[i\] − I\[i−1\]) / s
 //!
 //! Gradient magnitude: |∇I| = √(gz² + gy² + gx²)
 //!
@@ -119,7 +119,7 @@ impl GradientMagnitudeFilter {
 
     /// Compute the gradient magnitude image from a pre-extracted flat `&[f32]` slice.
     ///
-    /// Equivalent to [`apply`] but accepts input data already extracted from the
+    /// Equivalent to \[`apply`\] but accepts input data already extracted from the
     /// image tensor, enabling zero-copy extraction when the caller has obtained a
     /// slice via `NdArrayTensor::as_slice_memory_order()`.
     ///

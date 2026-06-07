@@ -191,8 +191,8 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
 /// # Allocation cost
 ///
 /// This function allocates a new `Vec<Color32>` per transform step.
-/// For zero-allocation hot-path usage, prefer [`apply_to_image_into`] which
-/// writes into pre-allocated scratch buffers from the [`RenderBufferPool`].
+/// For zero-allocation hot-path usage, prefer `apply_to_image_into` which
+/// writes into pre-allocated scratch buffers from the `RenderBufferPool`.
 pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage {
     if transform.is_identity() {
         return img.clone();

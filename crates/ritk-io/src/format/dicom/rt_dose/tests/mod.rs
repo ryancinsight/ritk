@@ -1,7 +1,7 @@
 #![allow(clippy::needless_range_loop)]
 
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
@@ -174,7 +174,11 @@ fn test_read_rt_dose_synthetic_grid() {
     }
 
     assert_eq!(grid.dose_grid_scaling, 0.001, "dose_grid_scaling");
-    assert_eq!(grid.dose_summation_type.as_str(), "PLAN", "dose_summation_type");
+    assert_eq!(
+        grid.dose_summation_type.as_str(),
+        "PLAN",
+        "dose_summation_type"
+    );
     assert_eq!(grid.dose_type.as_str(), "PHYSICAL", "dose_type");
 
     assert_eq!(grid.frame_offsets.len(), 2, "frame_offsets length");
@@ -263,7 +267,11 @@ fn test_write_rt_dose_round_trip() {
     }
 
     assert_eq!(back.dose_grid_scaling, 0.001, "dose_grid_scaling");
-    assert_eq!(back.dose_summation_type.as_str(), "BEAM", "dose_summation_type");
+    assert_eq!(
+        back.dose_summation_type.as_str(),
+        "BEAM",
+        "dose_summation_type"
+    );
 
     assert!(
         (back.frame_offsets[0] - 0.0).abs() < 1e-12,

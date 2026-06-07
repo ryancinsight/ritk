@@ -1,9 +1,9 @@
 //! Presentation context item types and codec for DICOM Upper Layer PDUs (PS 3.8).
 
-use arrayvec::ArrayString;
 use anyhow::Result;
+use arrayvec::ArrayString;
 
-use super::{uid_from_bytes_64, r16, r8, rbytes, w_item, IT_ABS_SYN, IT_XFER_SYN};
+use super::{r16, r8, rbytes, uid_from_bytes_64, w_item, IT_ABS_SYN, IT_XFER_SYN};
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

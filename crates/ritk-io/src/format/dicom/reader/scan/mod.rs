@@ -85,7 +85,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<DicomSeriesInfo> 
 /// Scan in-memory SCP-received [`StoredInstance`] values, extract metadata, and
 /// return a typed series descriptor.
 ///
-/// This is the zero-disk counterpart to [`scan_dicom_directory`]: instead of
+/// This is the zero-disk counterpart to `scan_dicom_directory`: instead of
 /// scanning a filesystem directory, it parses Part 10 bytes constructed from
 /// each `StoredInstance`, applies the same canonical-dimension filtering and
 /// SeriesInstanceUID grouping, sorts slices spatially, and assembles geometry.
@@ -138,7 +138,7 @@ pub fn scan_dicom_instances(instances: &[StoredInstance]) -> Result<DicomSeriesI
 /// Scan in-memory DICOM Part 10 byte payloads (e.g. from drag-and-drop),
 /// extract metadata, and return a typed series descriptor.
 ///
-/// This is the zero-disk counterpart to both [`scan_dicom_directory`] and
+/// This is the zero-disk counterpart to both `scan_dicom_directory` and
 /// [`scan_dicom_instances`]: instead of scanning a filesystem directory or
 /// constructing Part 10 bytes from `StoredInstance` values, it accepts
 /// pre-existing Part 10 DICOM byte payloads directly.
@@ -203,11 +203,11 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
     let mut series_object = DicomObjectModel::with_source(path.to_path_buf());
     for slice in slices {
         if let Some(uid) = slice.sop_instance_uid.as_ref() {
-                    series_object.insert(DicomObjectNode::text(
-                        DicomTag::new(0x0008, 0x0018),
-                        "UI",
-                        uid.as_str().to_string(),
-                    ));
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0008, 0x0018),
+                "UI",
+                uid.as_str().to_string(),
+            ));
         }
         if let Some(instance_number) = slice.instance_number {
             series_object.insert(DicomObjectNode::i32(
@@ -260,11 +260,11 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
             ));
         }
         if let Some(sop_class_uid) = slice.sop_class_uid.as_ref() {
-                    series_object.insert(DicomObjectNode::text(
-                        DicomTag::new(0x0008, 0x0016),
-                        "UI",
-                        sop_class_uid.as_str().to_string(),
-                    ));
+            series_object.insert(DicomObjectNode::text(
+                DicomTag::new(0x0008, 0x0016),
+                "UI",
+                sop_class_uid.as_str().to_string(),
+            ));
         }
     }
     series_object

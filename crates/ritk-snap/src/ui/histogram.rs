@@ -101,7 +101,7 @@ pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f
 
 /// Render an intensity histogram with a W/L range overlay into `ui`.
 ///
-/// Allocates a rectangle of height [`CANVAS_HEIGHT`] and full available
+/// Allocates a rectangle of height `CANVAS_HEIGHT` and full available
 /// width, then:
 ///
 /// 1. Fills the background.

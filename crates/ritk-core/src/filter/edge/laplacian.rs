@@ -8,14 +8,14 @@
 //!
 //! Each second-order partial derivative is approximated at interior voxel i by:
 //!
-//!   ∂²I/∂z² ≈ (I[iz+1,iy,ix] − 2·I[iz,iy,ix] + I[iz−1,iy,ix]) / sz²
+//! ∂²I/∂z² ≈ (I\[iz+1,iy,ix\] − 2·I\[iz,iy,ix\] + I\[iz−1,iy,ix\]) / sz²
 //!
 //! At boundary voxels the second-order one-sided (forward at iz=0, backward at
 //! iz=nz−1) formula is used, which maintains second-order accuracy for smooth
 //! fields while keeping the computation well-defined everywhere:
 //!
-//!   forward  (iz=0):    (I[2]−2·I[1]+I[0]) / sz²   (uses the first three points)
-//!   backward (iz=nz-1): (I[n-3]−2·I[n-2]+I[n-1]) / sz²
+//! forward (iz=0): (I\[2\]−2·I\[1\]+I\[0\]) / sz² (uses the first three points)
+//! backward (iz=nz-1): (I\[n-3\]−2·I\[n-2\]+I\[n-1\]) / sz²
 //!
 //! # Reference
 //! Press et al., *Numerical Recipes*, 3rd ed., §18.1.

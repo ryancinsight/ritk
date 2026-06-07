@@ -4,12 +4,10 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
-use arrayvec::ArrayString;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
@@ -18,6 +16,7 @@ use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
+use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
@@ -49,7 +48,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 
     let meta = DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.789".try_into().unwrap()),
-            study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
+        study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some(ArrayString::from("CT").unwrap()),
@@ -261,38 +260,38 @@ fn test_scan_metadata_round_trip_rescale_params() {
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some(ArrayString::from("CT").unwrap()),
-            patient_id: None,
-            patient_name: None,
-            study_date: None,
-            series_date: None,
-            series_time: None,
-            dimensions: [rows, cols, depth],
-            spacing: [1.0, 1.0, 1.0],
-            origin: [0.0, 0.0, 0.0],
-            // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        patient_id: None,
+        patient_name: None,
+        study_date: None,
+        series_date: None,
+        series_time: None,
+        dimensions: [rows, cols, depth],
+        spacing: [1.0, 1.0, 1.0],
+        origin: [0.0, 0.0, 0.0],
+        // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
         high_bit: Some(15),
         photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
-            slices: Vec::new(),
-            private_tags: HashMap::new(),
-            preservation: crate::format::dicom::DicomPreservationSet::new(),
-            patient_weight_kg: None,
-            decay_correction: None,
-            radionuclide_total_dose_bq: None,
-            radiopharmaceutical_start_time: None,
-            radionuclide_half_life_s: None,
-        };
+        slices: Vec::new(),
+        private_tags: HashMap::new(),
+        preservation: crate::format::dicom::DicomPreservationSet::new(),
+        patient_weight_kg: None,
+        decay_correction: None,
+        radionuclide_total_dose_bq: None,
+        radiopharmaceutical_start_time: None,
+        radionuclide_half_life_s: None,
+    };
 
-        crate::format::dicom::writer::write_dicom_series_with_metadata(
-            &series_path,
-            &image,
-            Some(&meta),
-        )
-        .expect("write must not fail");
+    crate::format::dicom::writer::write_dicom_series_with_metadata(
+        &series_path,
+        &image,
+        Some(&meta),
+    )
+    .expect("write must not fail");
 
-        let info = scan_dicom_directory(&series_path).expect("scan must not fail");
+    let info = scan_dicom_directory(&series_path).expect("scan must not fail");
 
     for (i, slice) in info.metadata.slices.iter().enumerate() {
         let slope = slice.rescale_slope;
@@ -354,37 +353,37 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some(ArrayString::from("OT").unwrap()),
-            patient_id: None,
-            patient_name: None,
-            study_date: None,
-            series_date: None,
-            series_time: None,
-            dimensions: [rows, cols, depth],
-            spacing: [1.0, 1.0, 1.0],
-            origin: [0.0, 0.0, 0.0],
-            direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            bits_allocated: Some(16),
-            bits_stored: Some(16),
-            high_bit: Some(15),
-            photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
-            slices: Vec::new(),
-            private_tags: HashMap::new(),
-            preservation: crate::format::dicom::DicomPreservationSet::new(),
-            patient_weight_kg: None,
-            decay_correction: None,
-            radionuclide_total_dose_bq: None,
-            radiopharmaceutical_start_time: None,
-            radionuclide_half_life_s: None,
-        };
+        patient_id: None,
+        patient_name: None,
+        study_date: None,
+        series_date: None,
+        series_time: None,
+        dimensions: [rows, cols, depth],
+        spacing: [1.0, 1.0, 1.0],
+        origin: [0.0, 0.0, 0.0],
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        bits_allocated: Some(16),
+        bits_stored: Some(16),
+        high_bit: Some(15),
+        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
+        slices: Vec::new(),
+        private_tags: HashMap::new(),
+        preservation: crate::format::dicom::DicomPreservationSet::new(),
+        patient_weight_kg: None,
+        decay_correction: None,
+        radionuclide_total_dose_bq: None,
+        radiopharmaceutical_start_time: None,
+        radionuclide_half_life_s: None,
+    };
 
-        crate::format::dicom::writer::write_dicom_series_with_metadata(
-            &series_path,
-            &image,
-            Some(&meta),
-        )
-        .expect("write must not fail");
+    crate::format::dicom::writer::write_dicom_series_with_metadata(
+        &series_path,
+        &image,
+        Some(&meta),
+    )
+    .expect("write must not fail");
 
-        let info = scan_dicom_directory(&series_path).expect("scan must not fail");
+    let info = scan_dicom_directory(&series_path).expect("scan must not fail");
 
     // The writer emits transfer_syntax("1.2.840.10008.1.2.1") = Explicit VR Little Endian.
     // The reader must extract this from the file meta, not from Tag(0x0008,0x0070).

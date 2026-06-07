@@ -1,8 +1,8 @@
-use arrayvec::ArrayString;
 use super::super::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
     DicomSegmentInfo, DicomSegmentation,
 };
+use arrayvec::ArrayString;
 
 #[test]
 fn test_label_map_to_dicom_seg_identity_single_label() {

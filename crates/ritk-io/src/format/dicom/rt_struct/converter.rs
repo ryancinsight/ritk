@@ -1,7 +1,7 @@
 //! RT ROI converters: [`RtRoiInfo`] ↔ [`VtkPolyData`] and label map → [`RtStructureSet`].
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Result};
+use arrayvec::ArrayString;
 
 use crate::domain::vtk_data_object::VtkPolyData;
 

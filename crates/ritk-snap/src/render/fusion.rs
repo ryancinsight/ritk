@@ -127,9 +127,9 @@ pub fn render_fused_slice(
 
 #[cfg(test)]
 mod tests {
-    use arrayvec::ArrayString;
     use super::*;
     use crate::render::SliceRenderer;
+    use arrayvec::ArrayString;
     use egui::Color32;
 
     fn test_volume(shape: [usize; 3], scale: f32) -> LoadedVolume {

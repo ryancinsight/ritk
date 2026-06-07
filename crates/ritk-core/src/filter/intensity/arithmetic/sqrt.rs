@@ -11,7 +11,7 @@ use burn::tensor::backend::Backend;
 /// For negative inputs, the IEEE 754 result is `NaN` — matching ITK behaviour.
 /// In medical image contexts, inputs are expected to be non-negative; callers
 /// requiring defined behaviour for negative inputs should precede this filter
-/// with [`AbsImageFilter`].
+/// with \[`AbsImageFilter`\].
 ///
 /// # References
 /// - ITK `itk::SqrtImageFilter<TInputImage, TOutputImage>`.

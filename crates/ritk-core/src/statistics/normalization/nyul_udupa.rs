@@ -36,7 +36,7 @@
 //!
 //!   rank = p / 100 · (n − 1)
 //!   lo   = ⌊rank⌋,  hi = ⌈rank⌉
-//!   Q    = V[lo] + (rank − lo) · (V[hi] − V[lo])
+//! Q = V\[lo\] + (rank − lo) · (V\[hi\] − V\[lo\])
 //!
 //! # References
 //!

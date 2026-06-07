@@ -51,7 +51,7 @@
 //!
 //! # SciPy Reference
 //!
-//! [`scipy.ndimage.value_indices`] (added in scipy 1.10.0). The default
+//! \[`scipy.ndimage.value_indices`\] (added in scipy 1.10.0). The default
 //! `ignore_value=None` includes every distinct value in the output.
 
 use crate::filter::ops::extract_vec_infallible;

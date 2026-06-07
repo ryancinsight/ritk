@@ -17,19 +17,19 @@ pub struct DicomSliceMetadata {
     pub path: PathBuf,
     pub preservation: DicomPreservationSet,
     pub sop_instance_uid: Option<ArrayString<64>>,
-        pub instance_number: Option<i32>,
-        pub slice_location: Option<f64>,
-        /// Image position patient (x, y, z) in mm.
-        pub image_position_patient: Option<[f64; 3]>,
-        /// Image orientation patient as two direction cosines.
-        pub image_orientation_patient: Option<[f64; 6]>,
-        /// Pixel spacing (row, column) in mm.
-        pub pixel_spacing: Option<[f64; 2]>,
-        pub slice_thickness: Option<f64>,
-        pub rescale_slope: f32,
-        pub rescale_intercept: f32,
-        pub sop_class_uid: Option<ArrayString<64>>,
-        pub transfer_syntax_uid: Option<ArrayString<64>>,
+    pub instance_number: Option<i32>,
+    pub slice_location: Option<f64>,
+    /// Image position patient (x, y, z) in mm.
+    pub image_position_patient: Option<[f64; 3]>,
+    /// Image orientation patient as two direction cosines.
+    pub image_orientation_patient: Option<[f64; 6]>,
+    /// Pixel spacing (row, column) in mm.
+    pub pixel_spacing: Option<[f64; 2]>,
+    pub slice_thickness: Option<f64>,
+    pub rescale_slope: f32,
+    pub rescale_intercept: f32,
+    pub sop_class_uid: Option<ArrayString<64>>,
+    pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub private_tags: HashMap<String, String>,
     /// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed two's complement.
     pub pixel_representation: u16,
@@ -164,18 +164,18 @@ pub(super) fn parse_patient_position(code: &str) -> Option<PatientPosition> {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct DicomReadMetadata {
     pub series_instance_uid: Option<ArrayString<64>>,
-        pub study_instance_uid: Option<ArrayString<64>>,
-        pub frame_of_reference_uid: Option<ArrayString<64>>,
-        pub series_description: Option<String>,
-        pub modality: Option<ArrayString<16>>,
-        pub patient_id: Option<String>,
-        pub patient_name: Option<String>,
-        pub study_date: Option<ArrayString<8>>,
-        pub series_date: Option<ArrayString<8>>,
-        pub series_time: Option<ArrayString<16>>,
-        /// Image dimensions `[rows, cols, slices]`.
+    pub study_instance_uid: Option<ArrayString<64>>,
+    pub frame_of_reference_uid: Option<ArrayString<64>>,
+    pub series_description: Option<String>,
+    pub modality: Option<ArrayString<16>>,
+    pub patient_id: Option<String>,
+    pub patient_name: Option<String>,
+    pub study_date: Option<ArrayString<8>>,
+    pub series_date: Option<ArrayString<8>>,
+    pub series_time: Option<ArrayString<16>>,
+    /// Image dimensions `\[rows, cols, slices\]`.
     pub dimensions: [usize; 3],
-    /// Physical spacing `[Δz, ΔRow, ΔCol]`.
+    /// Physical spacing `\[Δz, ΔRow, ΔCol\]`.
     pub spacing: [f64; 3],
     pub origin: [f64; 3],
     /// Direction cosines in row-major 3×3 order.
@@ -187,15 +187,15 @@ pub struct DicomReadMetadata {
     pub slices: Vec<DicomSliceMetadata>,
     pub private_tags: HashMap<String, String>,
     pub preservation: DicomPreservationSet,
-    /// (0010,1030) Patient Weight [kg].
+    /// (0010,1030) Patient Weight \[kg\].
     pub patient_weight_kg: Option<f64>,
     /// (0054,1102) Decay Correction: "NONE", "START", or "ADMIN".
     pub decay_correction: Option<ArrayString<16>>,
-    /// (0054,0016)[0]/(0018,1074) Radionuclide Total Dose [Bq].
+    /// (0054,0016)\[0\]/(0018,1074) Radionuclide Total Dose \[Bq\].
     pub radionuclide_total_dose_bq: Option<f64>,
-    /// (0054,0016)[0]/(0018,1072) Radiopharmaceutical Start Time.
+    /// (0054,0016)\[0\]/(0018,1072) Radiopharmaceutical Start Time.
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
-    /// (0054,0016)[0]/(0018,1076) Radionuclide Half Life [s].
+    /// (0054,0016)\[0\]/(0018,1076) Radionuclide Half Life \[s\].
     pub radionuclide_half_life_s: Option<f64>,
 }
 
@@ -215,20 +215,20 @@ pub(super) struct SeriesFirstSeen {
     pub pixel_spacing: Option<[f64; 2]>,
     pub slice_thickness: Option<f64>,
     pub series_instance_uid: Option<ArrayString<64>>,
-        pub study_instance_uid: Option<ArrayString<64>>,
-        pub series_description: Option<String>,
-        pub modality: Option<ArrayString<16>>,
-        pub patient_id: Option<String>,
-        pub patient_name: Option<String>,
-        pub study_date: Option<ArrayString<8>>,
-        pub series_date: Option<ArrayString<8>>,
-        pub series_time: Option<ArrayString<16>>,
-        pub frame_of_reference_uid: Option<ArrayString<64>>,
-        pub bits_allocated: Option<u16>,
-        pub bits_stored: Option<u16>,
-        pub high_bit: Option<u16>,
-        pub photometric_interpretation: Option<ArrayString<16>>,
-        pub transfer_syntax_uid: Option<ArrayString<64>>,
+    pub study_instance_uid: Option<ArrayString<64>>,
+    pub series_description: Option<String>,
+    pub modality: Option<ArrayString<16>>,
+    pub patient_id: Option<String>,
+    pub patient_name: Option<String>,
+    pub study_date: Option<ArrayString<8>>,
+    pub series_date: Option<ArrayString<8>>,
+    pub series_time: Option<ArrayString<16>>,
+    pub frame_of_reference_uid: Option<ArrayString<64>>,
+    pub bits_allocated: Option<u16>,
+    pub bits_stored: Option<u16>,
+    pub high_bit: Option<u16>,
+    pub photometric_interpretation: Option<ArrayString<16>>,
+    pub transfer_syntax_uid: Option<ArrayString<64>>,
     pub patient_weight_kg: Option<f64>,
     pub decay_correction: Option<ArrayString<16>>,
     pub radionuclide_total_dose_bq: Option<f64>,
@@ -251,7 +251,16 @@ pub(super) struct SeriesGeometry {
     pub direction: [f64; 9],
 }
 
-/// Convert a UID string to `Option<ArrayString<64>>`.
+/// Truncate a string to fit `ArrayString<N>`, emitting a warning if truncation occurs.
+///
+/// This is the DRY helper for the `ArrayString::from(s).unwrap_or_else(|_| ...)` pattern
+/// used when converting DICOM VR fields that may exceed their maximum length.
+pub(crate) fn truncate_arraystring<const N: usize>(s: &str) -> ArrayString<N> {
+    let truncated = &s[..N.min(s.len())];
+    ArrayString::from(truncated).expect("truncated string fits ArrayString by construction")
+}
+
+/// Convert a DICOM UID string to `Option<ArrayString<64>>`.
 ///
 /// DICOM UIDs are formally limited to 64 characters per the standard.
 /// If a UID exceeds this length (non-conformant), a warning is emitted
@@ -260,11 +269,8 @@ pub(crate) fn uid_to_arraystring(s: &str) -> Option<ArrayString<64>> {
     match ArrayString::from(s) {
         Ok(v) => Some(v),
         Err(_) => {
-            tracing::warn!(
-                "UID exceeds 64 chars, truncating: {}",
-                &s[..64]
-            );
-            Some(ArrayString::from(&s[..64]).unwrap())
+            tracing::warn!("UID exceeds 64 chars, truncating: {}", &s[..64]);
+            Some(truncate_arraystring::<64>(s))
         }
     }
 }
@@ -278,11 +284,8 @@ pub(crate) fn cs_to_arraystring(s: &str) -> ArrayString<16> {
     match ArrayString::from(s) {
         Ok(v) => v,
         Err(_) => {
-            tracing::warn!(
-                "CS value exceeds 16 chars, truncating: {}",
-                &s[..16]
-            );
-            ArrayString::from(&s[..16]).unwrap()
+            tracing::warn!("CS value exceeds 16 chars, truncating: {}", &s[..16]);
+            truncate_arraystring::<16>(s)
         }
     }
 }
@@ -296,11 +299,8 @@ pub(crate) fn da_to_arraystring(s: &str) -> ArrayString<8> {
     match ArrayString::from(s) {
         Ok(v) => v,
         Err(_) => {
-            tracing::warn!(
-                "DA value exceeds 8 chars, truncating: {}",
-                &s[..8]
-            );
-            ArrayString::from(&s[..8]).unwrap()
+            tracing::warn!("DA value exceeds 8 chars, truncating: {}", &s[..8]);
+            truncate_arraystring::<8>(s)
         }
     }
 }
@@ -314,11 +314,8 @@ pub(crate) fn tm_to_arraystring(s: &str) -> ArrayString<16> {
     match ArrayString::from(s) {
         Ok(v) => v,
         Err(_) => {
-            tracing::warn!(
-                "TM value exceeds 16 chars, truncating: {}",
-                &s[..16]
-            );
-            ArrayString::from(&s[..16]).unwrap()
+            tracing::warn!("TM value exceeds 16 chars, truncating: {}", &s[..16]);
+            truncate_arraystring::<16>(s)
         }
     }
 }

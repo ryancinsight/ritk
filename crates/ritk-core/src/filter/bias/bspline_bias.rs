@@ -16,13 +16,13 @@
 //!   B₂(u) = (−3u³ + 3u² + 3u + 1) / 6
 //!   B₃(u) = u³ / 6
 //!
-//!   Partition of unity proof (B₀+B₁+B₂+B₃ = 1 for all u ∈ [0,1]):
+//! Partition of unity proof (B₀+B₁+B₂+B₃ = 1 for all u ∈ \[0,1\]):
 //!     Sum = [(1−u)³ + 3u³−6u²+4 − 3u³+3u²+3u+1 + u³] / 6
 //!         = [1 − 3u + 3u² − u³ + 3u³ − 6u² + 4 − 3u³ + 3u² + 3u + 1 + u³] / 6
 //!         = [6 + 0·u + 0·u² + 0·u³] / 6 = 1. ∎
 //!
 //! **Trivariate surface value** at voxel (iz, iy, ix):
-//!   s = Σ_{a,b,c ∈ 0..4} Bz[a]·By[b]·Bx[c]·C[(kz+a)·cy·cx + (ky+b)·cx + (kx+c)]
+//! s = Σ_{a,b,c ∈ 0..4} Bz\[a\]·By\[b\]·Bx\[c\]·C\[(kz+a)·cy·cx + (ky+b)·cx + (kx+c)\]
 //!
 //! **Fitting**: minimise ‖Ac − r‖² + λ‖c‖² with λ = 1e-6 via Tikhonov-regularised
 //! normal equations solved by nalgebra full-pivoting LU decomposition.

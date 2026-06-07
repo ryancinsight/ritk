@@ -3,8 +3,8 @@
 //! Contains all sub-item types that appear inside the User Information field
 //! of A-ASSOCIATE-RQ/AC PDUs, plus their encode/decode functions.
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Result};
+use arrayvec::ArrayString;
 
 use super::{
     uid_from_bytes_64, w16, w32, w_item, SI_ASYNC, SI_EXT_NEG, SI_IMPL_UID, SI_IMPL_VER,

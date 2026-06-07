@@ -87,17 +87,25 @@ fn test_store_scp_single_instance_received() {
     let inst = poll_instance(&handle, Duration::from_secs(2))
         .expect("SCP must deliver instance within 2s");
 
-    assert_eq!(inst.sop_class_uid.as_str(), CT_IMAGE_STORAGE, "sop_class_uid");
-        assert_eq!(inst.sop_instance_uid.as_str(), INSTANCE_UID, "sop_instance_uid");
+    assert_eq!(
+        inst.sop_class_uid.as_str(),
+        CT_IMAGE_STORAGE,
+        "sop_class_uid"
+    );
+    assert_eq!(
+        inst.sop_instance_uid.as_str(),
+        INSTANCE_UID,
+        "sop_instance_uid"
+    );
     assert_eq!(
         inst.dataset_bytes, dataset,
         "dataset_bytes must match exactly"
     );
     assert_eq!(
-            inst.transfer_syntax_uid.as_str(),
-            transfer_syntax::IMPLICIT_VR_LE,
-            "transfer_syntax_uid must be the negotiated IVR-LE"
-        );
+        inst.transfer_syntax_uid.as_str(),
+        transfer_syntax::IMPLICIT_VR_LE,
+        "transfer_syntax_uid must be the negotiated IVR-LE"
+    );
 }
 
 /// Positive: SCP receives two C-STORE-RQs on the same association.
@@ -154,9 +162,17 @@ fn test_store_scp_multiple_instances_same_association() {
         poll_instance(&handle, Duration::from_secs(2)).expect("must receive second instance");
 
     // Order of arrival preserves send order.
-    assert_eq!(inst_a.sop_instance_uid.as_str(), UID_A, "first instance UID");
+    assert_eq!(
+        inst_a.sop_instance_uid.as_str(),
+        UID_A,
+        "first instance UID"
+    );
     assert_eq!(inst_a.dataset_bytes, dataset_a, "first instance dataset");
-    assert_eq!(inst_b.sop_instance_uid.as_str(), UID_B, "second instance UID");
+    assert_eq!(
+        inst_b.sop_instance_uid.as_str(),
+        UID_B,
+        "second instance UID"
+    );
     assert_eq!(inst_b.dataset_bytes, dataset_b, "second instance dataset");
 }
 

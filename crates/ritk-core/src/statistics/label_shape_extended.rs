@@ -2,7 +2,7 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given label map L[z,y,x] of shape [Z,Y,X] with voxel spacing s = [sz,sy,sx]:
+//! Given label map L\[z,y,x\] of shape \[Z,Y,X\] with voxel spacing s = \[sz,sy,sx\]:
 //!
 //! For each non-zero label k with voxel set V_k = { (z,y,x) : L=k }, |V_k|=N:
 //!
@@ -11,13 +11,13 @@
 //!
 //! **Inertia tensor** (second central moments, physical coordinates):
 //!   p = [(z−cz)·sz, (y−cy)·sy, (x−cx)·sx]
-//!   I[r,c] = (1/N) Σ_{V_k} p[r]·p[c]
+//!   I\[r,c\] = (1/N) Σ_{V_k} p\[r\]·p\[c\]
 //!
 //! **Principal moments** λ_0 ≤ λ_1 ≤ λ_2: eigenvalues of I, computed via the
 //! Cardano / characteristic-polynomial method (Kopp 2008, Eberly 2021 §2).
 //!
-//! **Elongation** = √(λ_1/λ_2) ∈ [0,1];  returns 1.0 when λ_2 ≤ 0.
-//! **Flatness**   = √(λ_0/λ_2) ∈ [0,1];  returns 1.0 when λ_2 ≤ 0.
+//! **Elongation** = √(λ_1/λ_2) ∈ \[0,1\];  returns 1.0 when λ_2 ≤ 0.
+//! **Flatness**   = √(λ_0/λ_2) ∈ \[0,1\];  returns 1.0 when λ_2 ≤ 0.
 //!
 //! **Feret diameter** (approximate): maximum Euclidean distance between the 8
 //! axis-aligned bounding-box corners in physical units.
@@ -25,7 +25,7 @@
 //! **Roundness** = clamp( V_phys / (π/6 · d³), 0, 1 );  0.0 when d = 0.
 //! where V_phys = N·sz·sy·sx  and  d = feret_diameter.
 //!
-//! **Perimeter** = |{ v ∈ V_k : ∃ 6-connected neighbour n with L[n] ≠ k }|.
+//! **Perimeter** = |{ v ∈ V_k : ∃ 6-connected neighbour n with L\[n\] ≠ k }|.
 //!
 //! # Complexity
 //! Two serial passes per label (centroid+bbox, then moments), one parallel fold
@@ -50,9 +50,9 @@ pub struct LabelShapeStatisticsExtended {
     pub perimeter: usize,
     /// V_phys / (π/6 · feret³): ∈ (0,1], 1.0 = sphere. 0.0 if feret = 0.
     pub roundness: f64,
-    /// √(λ_0/λ_2): smallest/largest principal moment ratio. ∈ [0,1].
+    /// √(λ_0/λ_2): smallest/largest principal moment ratio. ∈ \[0,1\].
     pub flatness: f64,
-    /// √(λ_1/λ_2): middle/largest principal moment ratio. ∈ [0,1].
+    /// √(λ_1/λ_2): middle/largest principal moment ratio. ∈ \[0,1\].
     pub elongation: f64,
     /// Approximate Feret diameter (bounding-box diagonal) in physical units.
     pub feret_diameter: f64,

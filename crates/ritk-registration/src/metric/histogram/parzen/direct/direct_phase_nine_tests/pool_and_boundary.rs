@@ -12,7 +12,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 fn histogram_pool_concurrent_checkout_return() {
     let num_bins_sq = 256;
     let pool = HistogramPool::new_with_capacity(num_bins_sq, 4);
-    let thread_count = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    let thread_count = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
     let counter = AtomicUsize::new(0);
 
     moirai::for_each_index_with::<moirai::Adaptive, _>(thread_count * 3, |_| {
@@ -23,7 +25,10 @@ fn histogram_pool_concurrent_checkout_return() {
     });
 
     let final_buf = pool.checkout();
-    assert!(final_buf.iter().all(|&v| v == 0.0), "buffer should be zeroed after checkout from pool");
+    assert!(
+        final_buf.iter().all(|&v| v == 0.0),
+        "buffer should be zeroed after checkout from pool"
+    );
 }
 
 #[test]
@@ -34,7 +39,10 @@ fn histogram_pool_reuse_reduces_allocations() {
     pool.return_buffer(buf1);
     let buf2 = pool.checkout();
     let ptr2 = buf2.as_ptr();
-    assert_eq!(ptr1, ptr2, "returned buffer should be reused (same allocation)");
+    assert_eq!(
+        ptr1, ptr2,
+        "returned buffer should be reused (same allocation)"
+    );
 }
 
 #[test]
@@ -55,11 +63,16 @@ fn direct_histogram_boundary_values_accumulate() {
     let fixed = vec![0.0, 15.0];
     let moving = vec![0.0, 15.0];
 
-    let hist_data = compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
+    let hist_data =
+        compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
     let hist = hist_data.as_slice::<f32>().unwrap();
 
     assert!(hist[0] > 0.0, "hist[0][0] should be > 0, got {}", hist[0]);
-    assert!(hist[15 * num_bins + 15] > 0.0, "hist[15][15] should be > 0, got {}", hist[15 * num_bins + 15]);
+    assert!(
+        hist[15 * num_bins + 15] > 0.0,
+        "hist[15][15] should be > 0, got {}",
+        hist[15 * num_bins + 15]
+    );
 }
 
 #[test]
@@ -69,7 +82,8 @@ fn direct_histogram_single_sample() {
     let fixed = vec![8.0];
     let moving = vec![8.0];
 
-    let hist_data = compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
+    let hist_data =
+        compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
     let hist = hist_data.as_slice::<f32>().unwrap();
 
     let total: f32 = hist.iter().sum();
@@ -90,14 +104,23 @@ fn exp_ratchet_drift_at_max_capacity() {
     let num_bins = 64;
     let (range, weights) = cfg.compute_weights(val, num_bins);
 
-    assert_eq!(range.len(), 31, "expected 31 bins for sigma_sq=25, got {}", range.len());
+    assert_eq!(
+        range.len(),
+        31,
+        "expected 31 bins for sigma_sq=25, got {}",
+        range.len()
+    );
 
     for (j, w_ratchet) in weights.iter() {
         let b = range.lo as usize + j;
         let diff = val - b as f32;
         let w_naive = (diff * diff * cfg.inv_2sigma_sq()).exp();
         let abs_err = (w_ratchet - w_naive).abs();
-        let rel_err = if w_naive.abs() > 1e-10 { abs_err / w_naive } else { abs_err };
+        let rel_err = if w_naive.abs() > 1e-10 {
+            abs_err / w_naive
+        } else {
+            abs_err
+        };
         assert!(rel_err < 1e-4, "exp-ratchet drift too large at sigma_sq={sigma_sq}, bin={b}: ratchet={w_ratchet}, naive={w_naive}, rel_err={rel_err}");
     }
 }
@@ -117,7 +140,11 @@ fn exp_ratchet_drift_sigma_sq_9() {
         let diff = val - b as f32;
         let w_naive = (diff * diff * cfg.inv_2sigma_sq()).exp();
         let abs_err = (w_ratchet - w_naive).abs();
-        let rel_err = if w_naive.abs() > 1e-10 { abs_err / w_naive } else { abs_err };
+        let rel_err = if w_naive.abs() > 1e-10 {
+            abs_err / w_naive
+        } else {
+            abs_err
+        };
         assert!(rel_err < 1e-5, "exp-ratchet drift at sigma_sq={sigma_sq}, bin={b}: ratchet={w_ratchet}, naive={w_naive}, rel_err={rel_err}");
     }
 }
@@ -155,7 +182,8 @@ fn direct_histogram_small_num_bins() {
     let sigma_sq = 1.0;
     let fixed = vec![1.5, 2.0, 0.5];
     let moving = vec![1.0, 2.5, 0.0];
-    let hist_data = compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
+    let hist_data =
+        compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
     let hist = hist_data.as_slice::<f32>().unwrap();
     let total: f32 = hist.iter().sum();
     assert!(total > 0.0, "histogram sum should be > 0, got {total}");
@@ -171,7 +199,8 @@ fn direct_histogram_medium_num_bins() {
     let n = 200;
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.15) % 63.0).collect();
     let moving: Vec<f32> = (0..n).map(|i| ((i * 3 + 1) as f32 * 0.08) % 63.0).collect();
-    let hist_data = compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
+    let hist_data =
+        compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
     let hist = hist_data.as_slice::<f32>().unwrap();
     let total: f32 = hist.iter().sum();
     assert!(total > 0.0 && total.is_finite(), "total={total}");
@@ -184,12 +213,25 @@ fn sparse_cache_various_num_bins() {
     for &num_bins in &[4, 16, 32, 64] {
         let sigma_sq = 1.0;
         let n = 100;
-        let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.3) % (num_bins as f32 - 1.0)).collect();
-        let moving: Vec<f32> = (0..n).map(|i| (i as f32 * 0.5 + 1.0) % (num_bins as f32 - 1.0)).collect();
+        let fixed: Vec<f32> = (0..n)
+            .map(|i| (i as f32 * 0.3) % (num_bins as f32 - 1.0))
+            .collect();
+        let moving: Vec<f32> = (0..n)
+            .map(|i| (i as f32 * 0.5 + 1.0) % (num_bins as f32 - 1.0))
+            .collect();
 
-        let direct_data = compute_joint_histogram_direct(&fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None);
+        let direct_data = compute_joint_histogram_direct(
+            &fixed, &moving, num_bins, sigma_sq, sigma_sq, None, None,
+        );
         let sparse_w_fixed = build_sparse_w_fixed_transposed(&fixed, num_bins, sigma_sq, None);
-        let sparse_data = compute_joint_histogram_from_cache_sparse(&sparse_w_fixed, &moving, num_bins, sigma_sq, None, None);
+        let sparse_data = compute_joint_histogram_from_cache_sparse(
+            &sparse_w_fixed,
+            &moving,
+            num_bins,
+            sigma_sq,
+            None,
+            None,
+        );
 
         let direct_slice = direct_data.as_slice::<f32>().unwrap();
         let sparse_slice = sparse_data.as_slice::<f32>().unwrap();
@@ -197,7 +239,10 @@ fn sparse_cache_various_num_bins() {
         for (i, (d, s)) in direct_slice.iter().zip(sparse_slice.iter()).enumerate() {
             let d_nz = *d > 1e-10;
             let s_nz = *s > 1e-10;
-            assert_eq!(d_nz, s_nz, "num_bins={num_bins}: nonzero pattern mismatch at bin {i}: direct={d}, sparse={s}");
+            assert_eq!(
+                d_nz, s_nz,
+                "num_bins={num_bins}: nonzero pattern mismatch at bin {i}: direct={d}, sparse={s}"
+            );
         }
     }
 }

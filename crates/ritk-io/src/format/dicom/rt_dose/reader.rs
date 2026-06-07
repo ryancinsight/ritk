@@ -1,7 +1,7 @@
 //! RT Dose reader — parse a DICOM RT Dose Storage file into [`RtDoseGrid`].
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
@@ -9,6 +9,7 @@ use std::path::Path;
 
 use super::types::{RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 use super::utils::parse_ds_backslash;
+use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read an RT Dose Storage DICOM file at `path` into an [`RtDoseGrid`].
 ///
@@ -61,28 +62,27 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         .element(Tag(0x3004, 0x0002))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| {
-            match ArrayString::<16>::from(s.as_str()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!("DoseSummationType exceeds 16 chars, truncating: {}", &s[..16]);
-                    ArrayString::from(&s[..16]).unwrap()
-                }
+        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::warn!(
+                    "DoseSummationType exceeds 16 chars, truncating: {}",
+                    &s[..16]
+                );
+                truncate_arraystring::<16>(s.as_str())
             }
         })
-        .unwrap_or_else(|| ArrayString::new());
+        .unwrap_or_else(ArrayString::new);
 
     let dose_type: ArrayString<16> = obj
         .element(Tag(0x3004, 0x0004))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| {
-            match ArrayString::<16>::from(s.as_str()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!("DoseType exceeds 16 chars, truncating: {}", &s[..16]);
-                    ArrayString::from(&s[..16]).unwrap()
-                }
+        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::warn!("DoseType exceeds 16 chars, truncating: {}", &s[..16]);
+                truncate_arraystring::<16>(s.as_str())
             }
         })
         .unwrap_or_else(|| match ArrayString::<16>::from("PHYSICAL") {
@@ -159,13 +159,14 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
                     .ok()
                     .and_then(|el| el.to_str().ok().map(|s| s.trim().to_owned()))
                     .filter(|s| !s.is_empty())
-                    .and_then(|s| {
-                        match ArrayString::<64>::from(s.as_str()) {
-                            Ok(v) => Some(v),
-                            Err(_) => {
-                                tracing::warn!("ReferencedRTPlanSOPInstanceUID exceeds 64 chars, truncating: {}", &s[..64]);
-                                Some(ArrayString::from(&s[..64]).unwrap())
-                            }
+                    .map(|s| match ArrayString::<64>::from(s.as_str()) {
+                        Ok(v) => v,
+                        Err(_) => {
+                            tracing::warn!(
+                                "ReferencedRTPlanSOPInstanceUID exceeds 64 chars, truncating: {}",
+                                &s[..64]
+                            );
+                            truncate_arraystring::<64>(s.as_str())
                         }
                     })
             }),

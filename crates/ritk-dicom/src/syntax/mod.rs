@@ -50,9 +50,7 @@ impl TransferSyntaxKind {
             "1.2.840.10008.1.2.4.110" => Self::JpegXlLossless,
             "1.2.840.10008.1.2.4.111" => Self::JpegXlJpegRecompression,
             "1.2.840.10008.1.2.4.112" => Self::JpegXl,
-            other => Self::Unknown(
-                ArrayString::<64>::try_from(other).unwrap_or_default(),
-            ),
+            other => Self::Unknown(ArrayString::<64>::try_from(other).unwrap_or_default()),
         }
     }
 

@@ -51,7 +51,11 @@ fn test_read_rt_struct_single_roi_closed_planar() {
     assert_eq!(roi.contours.len(), 1, "must contain 1 contour");
 
     let contour = &roi.contours[0];
-    assert_eq!(contour.geometric_type.as_str(), "CLOSED_PLANAR", "geometric_type");
+    assert_eq!(
+        contour.geometric_type.as_str(),
+        "CLOSED_PLANAR",
+        "geometric_type"
+    );
     assert_eq!(contour.points.len(), 4, "contour must contain 4 points");
     assert_eq!(contour.points[0], [0.0, 0.0, 0.0], "point[0]");
     assert_eq!(contour.points[1], [1.0, 0.0, 0.0], "point[1]");

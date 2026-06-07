@@ -57,11 +57,11 @@ use std::f64::consts::LN_2;
 /// - `decay_factor ∈ (0, 1]` — decay reduces activity; must be strictly positive.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SuvParams {
-    /// Injected activity at injection time [Bq].
+    /// Injected activity at injection time \[Bq\].
     pub injected_dose_bq: f64,
-    /// Patient body weight [g].
+    /// Patient body weight \[g\].
     pub patient_weight_g: f64,
-    /// Physical decay factor F(t) = exp(−λ · Δt) [dimensionless, ∈ (0, 1]].
+    /// Physical decay factor F(t) = exp(−λ · Δt) \[dimensionless, ∈ (0, 1\].
     ///
     /// Set to `1.0` when DICOM pixels are already decay-corrected to injection
     /// time (Decay Correction = "START").
@@ -101,7 +101,7 @@ impl SuvParams {
     ///
     /// # Common half-lives
     ///
-    /// | Radionuclide | T½ [s]   |
+    /// | Radionuclide | T½ \[s\] |
     /// |--------------|----------|
     /// | ¹⁸F          | 6 584.04 |
     /// | ¹¹C          | 1 223.4  |
@@ -152,9 +152,9 @@ impl SuvParams {
 ///
 /// # Returns
 ///
-/// SUVbw in [g/mL] (dimensionless at tissue density ≈ 1 g/mL).
+/// SUVbw in \[g/mL\] (dimensionless at tissue density ≈ 1 g/mL).
 /// Returns `0.0` when `pixel_bqml = 0.0`.
-/// Returns `+∞` when the normalisation denominator is zero (invalid `params`).
+/// Returns `+∞` when the normalisation denominator is zero (invalid `SuvParams`).
 #[inline]
 pub fn compute_suvbw(pixel_bqml: f64, params: &SuvParams) -> f64 {
     pixel_bqml / (params.injected_dose_bq * params.decay_factor / params.patient_weight_g)

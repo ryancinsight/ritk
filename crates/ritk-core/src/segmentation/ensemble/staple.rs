@@ -53,7 +53,7 @@ const EPS: f64 = 1e-6;
 /// Result of the STAPLE algorithm.
 #[derive(Debug, Clone)]
 pub struct StapleResult {
-    /// Probabilistic ground-truth estimate W ∈ [0,1]^N.
+    /// Probabilistic ground-truth estimate W ∈ \[0,1\]^N.
     pub probabilistic_truth: Vec<f32>,
     /// Per-rater sensitivity p_k ∈ (0,1). Length = K.
     pub sensitivity: Vec<f32>,

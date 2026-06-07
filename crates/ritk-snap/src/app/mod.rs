@@ -1,6 +1,6 @@
 //! ritk-snap native application shell (eframe/egui backend).
 //!
-//! Owns the top-level [`SnapApp`] struct and its [`eframe::App`]
+//! Owns the top-level `SnapApp` struct and its [`eframe::App`]
 //! implementation. All domain logic (intensity mapping, slice extraction,
 //! annotation computation) lives in the `render` and `tools` sub-modules;
 //! this module wires events, drives state transitions, and builds the egui

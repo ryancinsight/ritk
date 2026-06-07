@@ -48,7 +48,7 @@ mod tests_integrity;
 /// Returns `true` exactly when the user clicks the **Apply** button.
 ///
 /// # Parameters
-/// - `ui`: mutable reference to the egui [`Ui`] context.
+/// - `ui`: mutable reference to the egui `Ui` context.
 /// - `active_filter`: mutable reference to the currently configured
 ///   [`FilterKind`]. Updated in-place as the user changes controls.
 pub fn show_filter_panel(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool {

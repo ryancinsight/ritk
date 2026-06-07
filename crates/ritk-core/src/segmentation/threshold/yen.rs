@@ -11,7 +11,7 @@
 //! where:
 //! - A(t) = Σ_{i=0}^{t}   p(i)²
 //! - B(t) = Σ_{i=t+1}^{N−1} p(i)²
-//! - p(i) = h[i] / n_total   (normalised histogram probability)
+//! - p(i) = h\[i\] / n_total   (normalised histogram probability)
 //!
 //! The optimal threshold is:
 //!

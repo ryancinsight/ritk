@@ -203,7 +203,7 @@ impl StoreScpHandle {
 
     /// Signal the SCP to stop and consume the handle.
     ///
-    /// The accept thread exits on its next [`ACCEPT_POLL_INTERVAL`] poll.
+    /// The accept thread exits on its next `ACCEPT_POLL_INTERVAL` poll.
     /// In-progress connection threads run to completion.
     pub fn stop(self) {
         // Drop triggers the Drop impl which sets shutdown = true.

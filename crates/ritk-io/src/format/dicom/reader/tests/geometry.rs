@@ -4,12 +4,10 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
-use arrayvec::ArrayString;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
@@ -18,6 +16,7 @@ use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
+use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
@@ -227,7 +226,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     // RITK direction = from_column_slice([N̂, F_c, F_r]) = [0,1,0, 0,0,-1, 1,0,0].
     let meta = DicomReadMetadata {
         series_instance_uid: Some("2.25.61001".try_into().unwrap()),
-            study_instance_uid: Some("2.25.61002".try_into().unwrap()),
+        study_instance_uid: Some("2.25.61002".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some(ArrayString::from("CT").unwrap()),

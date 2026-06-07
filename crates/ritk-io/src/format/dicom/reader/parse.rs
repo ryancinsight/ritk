@@ -120,13 +120,17 @@ fn extract_dicom_metadata(
     // --- Per-slice fields ---
     if slice_meta.sop_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0008, 0x0018)) {
-            slice_meta.sop_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
-                        }
+            slice_meta.sop_instance_uid = elem
+                .to_str()
+                .ok()
+                .as_ref()
+                .and_then(|s| uid_to_arraystring(s));
+        }
     }
     let file_series_uid = obj
-            .element(Tag(0x0020, 0x000E))
-            .ok()
-            .and_then(|e| e.to_str().ok().map(String::from));
+        .element(Tag(0x0020, 0x000E))
+        .ok()
+        .and_then(|e| e.to_str().ok().map(String::from));
     if let Ok(elem) = obj.element(Tag(0x0020, 0x0013)) {
         slice_meta.instance_number = elem.to_str().ok().and_then(|s| s.parse().ok());
     }
@@ -176,7 +180,11 @@ fn extract_dicom_metadata(
             .unwrap_or(0.0);
     }
     if let Ok(elem) = obj.element(Tag(0x0008, 0x0016)) {
-        slice_meta.sop_class_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
+        slice_meta.sop_class_uid = elem
+            .to_str()
+            .ok()
+            .as_ref()
+            .and_then(|s| uid_to_arraystring(s));
     }
     // Transfer syntax from file meta (0002,0010), not main dataset.
     slice_meta.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
@@ -261,12 +269,20 @@ fn extract_dicom_metadata(
     }
     if first.series_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x000E)) {
-            first.series_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
+            first.series_instance_uid = elem
+                .to_str()
+                .ok()
+                .as_ref()
+                .and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.study_instance_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x000D)) {
-            first.study_instance_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
+            first.study_instance_uid = elem
+                .to_str()
+                .ok()
+                .as_ref()
+                .and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.series_description.is_none() {
@@ -275,10 +291,10 @@ fn extract_dicom_metadata(
         }
     }
     if first.modality.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0008, 0x0060)) {
-                    first.modality = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-                }
-            }
+        if let Ok(elem) = obj.element(Tag(0x0008, 0x0060)) {
+            first.modality = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
+        }
+    }
     if first.patient_id.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0010, 0x0020)) {
             first.patient_id = elem.to_str().ok().map(String::from);
@@ -290,23 +306,27 @@ fn extract_dicom_metadata(
         }
     }
     if first.study_date.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0008, 0x0020)) {
-                    first.study_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
-                }
-            }
-            if first.series_date.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0008, 0x0021)) {
-                    first.series_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
-                }
-            }
-            if first.series_time.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0008, 0x0031)) {
-                    first.series_time = elem.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
-                }
-            }
+        if let Ok(elem) = obj.element(Tag(0x0008, 0x0020)) {
+            first.study_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
+        }
+    }
+    if first.series_date.is_none() {
+        if let Ok(elem) = obj.element(Tag(0x0008, 0x0021)) {
+            first.series_date = elem.to_str().ok().map(|s| da_to_arraystring(s.trim()));
+        }
+    }
+    if first.series_time.is_none() {
+        if let Ok(elem) = obj.element(Tag(0x0008, 0x0031)) {
+            first.series_time = elem.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
+        }
+    }
     if first.frame_of_reference_uid.is_none() {
         if let Ok(elem) = obj.element(Tag(0x0020, 0x0052)) {
-            first.frame_of_reference_uid = elem.to_str().ok().as_ref().and_then(|s| uid_to_arraystring(s));
+            first.frame_of_reference_uid = elem
+                .to_str()
+                .ok()
+                .as_ref()
+                .and_then(|s| uid_to_arraystring(s));
         }
     }
     if first.bits_allocated.is_none() {
@@ -325,10 +345,11 @@ fn extract_dicom_metadata(
         }
     }
     if first.photometric_interpretation.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0028, 0x0004)) {
-                    first.photometric_interpretation = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-                }
-            }
+        if let Ok(elem) = obj.element(Tag(0x0028, 0x0004)) {
+            first.photometric_interpretation =
+                elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
+        }
+    }
     if first.transfer_syntax_uid.is_none() {
         first.transfer_syntax_uid = uid_to_arraystring(obj.meta().transfer_syntax());
     }
@@ -338,10 +359,10 @@ fn extract_dicom_metadata(
         }
     }
     if first.decay_correction.is_none() {
-                if let Ok(elem) = obj.element(Tag(0x0054, 0x1102)) {
-                    first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
-                }
-            }
+        if let Ok(elem) = obj.element(Tag(0x0054, 0x1102)) {
+            first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
+        }
+    }
     // RadiopharmaceuticalInformationSequence (0054,0016) → first item sub-fields.
     if first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
@@ -363,11 +384,11 @@ fn extract_dicom_metadata(
                         }
                     }
                     if first.radiopharmaceutical_start_time.is_none() {
-                                        if let Ok(e) = first_item.element(Tag(0x0018, 0x1072)) {
-                                            first.radiopharmaceutical_start_time =
-                                                e.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
-                                        }
-                                    }
+                        if let Ok(e) = first_item.element(Tag(0x0018, 0x1072)) {
+                            first.radiopharmaceutical_start_time =
+                                e.to_str().ok().map(|s| tm_to_arraystring(s.trim()));
+                        }
+                    }
                 }
             }
         }

@@ -188,7 +188,7 @@ pub fn confidence_connected<B: Backend>(
 
 /// Perform iterative confidence-connected region growing on flat `[nz × ny × nx]` data.
 ///
-/// Returns a flat binary Vec<f32> of the same length as `data`.
+/// Returns a flat binary `Vec<f32>` of the same length as `data`.
 fn grow_region(
     data: &[f32],
     dims: [usize; 3],

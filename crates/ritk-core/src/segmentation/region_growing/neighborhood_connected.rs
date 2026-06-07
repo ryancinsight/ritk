@@ -39,11 +39,11 @@
 //! ## Algorithm — BFS with Neighborhood Predicate
 //!
 //! 1. Validate seed bounds. If ¬P(s), return empty mask.
-//! 2. Initialize BFS queue Q ← {s}, visited[s] ← true, output[s] ← 1.
+//! 2. Initialize BFS queue Q ← {s}, visited\[s\] ← true, output\[s\] ← 1.
 //! 3. While Q ≠ ∅:
-//!    a. Dequeue p from Q.
-//!    b. For each q ∈ N₆(p) (6 face-adjacent neighbors):
-//!       - If q ∉ visited and P(q): visited[q] ← true, output[q] ← 1, enqueue q.
+//! a. Dequeue p from Q.
+//! b. For each q ∈ N₆(p) (6 face-adjacent neighbors):
+//! - If q ∉ visited and P(q): visited\[q\] ← true, output\[q\] ← 1, enqueue q.
 //! 4. Return binary mask.
 //!
 //! ## Distinction from Connected Threshold

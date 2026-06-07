@@ -1,8 +1,8 @@
 //! DicomPreservedElement and DicomPreservationSet.
 
-use arrayvec::ArrayString;
 use super::model::DicomObjectModel;
 use super::tag::DicomTag;
+use arrayvec::ArrayString;
 
 /// A shallow preservation record for unsupported elements.
 ///

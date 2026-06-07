@@ -10,7 +10,7 @@ pub struct AppLaunchOptions {
 
 /// Launch the `ritk-snap` native GUI application.
 ///
-/// Initialises `eframe` with a 1280×800 viewport, constructs a [`app::SnapApp`]
+/// Initialises `eframe` with a 1280×800 viewport, constructs a `app::SnapApp`,
 /// via [`Default`], and enters the platform event loop. This function blocks
 /// until the window is closed.
 ///

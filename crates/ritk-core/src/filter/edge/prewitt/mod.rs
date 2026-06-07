@@ -33,8 +33,8 @@
 //!
 //! Let I(z, y, x) = x with unit spacing. At any interior voxel:
 //! 1. Derivative along x: I(x+1) − I(x−1) = 2
-//! 2. Smooth along y: [1,1,1] · [2,2,2] = 6
-//! 3. Smooth along z: [1,1,1] · [6,6,6] = 18
+//! 2. Smooth along y: \[1,1,1\] · \[2,2,2\] = 6
+//! 3. Smooth along z: \[1,1,1\] · \[6,6,6\] = 18
 //! 4. Normalize: 18 / (18 · 1.0) = 1.0 ✓ (true gradient of I = x is 1)
 //!
 //! ## Sobel vs. Prewitt
@@ -96,8 +96,8 @@ use burn::tensor::backend::Backend;
 /// | Component        | Factor | Source                                       |
 /// |------------------|--------|----------------------------------------------|
 /// | Central diff     | 2·h    | [-1,0,1] spans 2 voxels of spacing h         |
-/// | Smoothing axis 1 | 3      | sum([1,1,1])                                 |
-/// | Smoothing axis 2 | 3      | sum([1,1,1])                                 |
+/// | Smoothing axis 1 | 3      | sum(\[1,1,1\])                                 |
+/// | Smoothing axis 2 | 3      | sum(\[1,1,1\])                                 |
 /// | **Total**        | 18·h   |                                              |
 #[derive(Debug, Clone)]
 pub struct PrewittFilter {

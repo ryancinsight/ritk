@@ -157,8 +157,8 @@ fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
 
 #[cfg(test)]
 mod tests {
-    use arrayvec::ArrayString;
     use super::*;
+    use arrayvec::ArrayString;
     use ritk_io::{RtContour, RtRoiInfo, RtStructureSet};
 
     fn make_rt() -> RtStructureSet {

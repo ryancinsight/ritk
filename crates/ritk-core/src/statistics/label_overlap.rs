@@ -12,7 +12,7 @@
 //!   V_P_k = TP_k + FP_k    (predicted volume for label k)
 //!   V_G_k = TP_k + FN_k    (ground-truth volume for label k)
 //!
-//! Metrics (all in [0,1]):
+//! Metrics (all in \[0,1\]):
 //!   dice_k             = 2·TP_k / (V_P_k + V_G_k);       1.0 when both empty
 //!   jaccard_k          = TP_k / (TP_k + FP_k + FN_k);    1.0 when both empty
 //!   volume_similarity_k = 1 − |V_P_k − V_G_k| / (V_P_k + V_G_k); 1.0 when both empty
@@ -39,19 +39,19 @@ use std::collections::HashMap;
 pub struct LabelOverlapMeasures {
     /// Label index (≥ 1; background 0 is excluded).
     pub label: u32,
-    /// Sørensen–Dice coefficient: 2·TP / (V_P + V_G). Range [0,1].
+    /// Sørensen–Dice coefficient: 2·TP / (V_P + V_G). Range \[0,1\].
     pub dice: f32,
-    /// Jaccard / Union Overlap: TP / (TP + FP + FN). Range [0,1].
+    /// Jaccard / Union Overlap: TP / (TP + FP + FN). Range \[0,1\].
     pub jaccard: f32,
-    /// Volumetric similarity: 1 − |V_P − V_G| / (V_P + V_G). Range [0,1].
+    /// Volumetric similarity: 1 − |V_P − V_G| / (V_P + V_G). Range \[0,1\].
     pub volume_similarity: f32,
-    /// False-negative rate: FN / V_G. Range [0,1].
+    /// False-negative rate: FN / V_G. Range \[0,1\].
     pub false_negative_rate: f32,
-    /// False-positive rate: FP / (FP + TN). Range [0,1].
+    /// False-positive rate: FP / (FP + TN). Range \[0,1\].
     pub false_positive_rate: f32,
-    /// Sensitivity / recall: TP / V_G. Range [0,1].
+    /// Sensitivity / recall: TP / V_G. Range \[0,1\].
     pub sensitivity: f32,
-    /// Specificity: TN / (TN + FP). Range [0,1].
+    /// Specificity: TN / (TN + FP). Range \[0,1\].
     pub specificity: f32,
     /// Predicted volume (voxel count) for this label.
     pub predicted_volume: usize,

@@ -36,8 +36,8 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
 
     ritk_io::DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.789".try_into().unwrap()),
-            study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
-            frame_of_reference_uid: Some("1.2.3.4.5.6.200".try_into().unwrap()),
+        study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
+        frame_of_reference_uid: Some("1.2.3.4.5.6.200".try_into().unwrap()),
         series_description: Some("Test Series".to_string()),
         modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: Some("PAT001".to_string()),

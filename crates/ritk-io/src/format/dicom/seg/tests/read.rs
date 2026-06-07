@@ -76,7 +76,11 @@ fn test_read_seg_binary_4x4_single_frame() {
     assert_eq!(seg.rows, 4, "rows");
     assert_eq!(seg.cols, 4, "cols");
     assert_eq!(seg.n_frames, 1, "n_frames");
-    assert_eq!(seg.segmentation_type.as_str(), "BINARY", "segmentation_type");
+    assert_eq!(
+        seg.segmentation_type.as_str(),
+        "BINARY",
+        "segmentation_type"
+    );
     assert_eq!(seg.segments.len(), 1, "segment count");
     assert_eq!(seg.segments[0].segment_label, "TUMOR", "segment label");
     assert_eq!(seg.segments[0].segment_number, 1, "segment number");

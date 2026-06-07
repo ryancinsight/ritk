@@ -34,10 +34,10 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     ///
     /// # Arguments
     /// * `grid_size` - Number of control points along each dimension
-    /// * `origin` - Physical origin of the grid (position of first control point) as tensor [D]
-    /// * `spacing` - Physical spacing between control points as tensor [D]
-    /// * `direction` - Physical direction matrix of the grid as tensor [D, D]
-    /// * `coefficients` - Initial control point displacements [num_control_points, D]
+    /// * `origin` - Physical origin of the grid (position of first control point) as tensor `\[D\]`
+    /// * `spacing` - Physical spacing between control points as tensor `\[D\]`
+    /// * `direction` - Physical direction matrix of the grid as tensor `\[D, D\]`
+    /// * `coefficients` - Initial control point displacements `\[num_control_points, D\]`
     pub fn new(
         grid_size: [usize; D],
         origin: Tensor<B, 1>,
@@ -63,10 +63,10 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     ///
     /// # Arguments
     /// * `grid_size` - Number of control points along each dimension
-    /// * `origin` - Physical origin as Point<D>
-    /// * `spacing` - Physical spacing as Spacing<D> (Vector<D>)
-    /// * `direction` - Physical direction as Direction<D>
-    /// * `coefficients` - Initial control point displacements [num_control_points, D]
+    /// * `origin` - Physical origin as `Point<D>`
+    /// * `spacing` - Physical spacing as `Spacing<D>` (`Vector<D>`)
+    /// * `direction` - Physical direction as `Direction<D>`
+    /// * `coefficients` - Initial control point displacements `\[num_control_points, D\]`
     /// * `device` - Device to create tensors on
     pub fn from_spatial(
         grid_size: [usize; D],
@@ -110,17 +110,17 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         self.grid_size
     }
 
-    /// Get the origin tensor [D].
+    /// Get the origin tensor `\[D\]`.
     pub fn origin(&self) -> Tensor<B, 1> {
         self.origin.clone()
     }
 
-    /// Get the spacing tensor [D].
+    /// Get the spacing tensor `\[D\]`.
     pub fn spacing(&self) -> Tensor<B, 1> {
         self.spacing.clone()
     }
 
-    /// Get the direction tensor [D, D].
+    /// Get the direction tensor `\[D, D\]`.
     pub fn direction(&self) -> Tensor<B, 2> {
         self.direction.clone()
     }

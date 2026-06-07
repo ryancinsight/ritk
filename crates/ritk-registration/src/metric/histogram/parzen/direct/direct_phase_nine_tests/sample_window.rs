@@ -64,7 +64,16 @@ fn sample_window_oob_mask_excludes_sample() {
     let mask = vec![0.0_f32; 1];
 
     assert!(
-        SampleWindow::new(0, &fixed, &moving, num_bins, &fix_cfg, &mov_cfg, Some(&mask)).is_none(),
+        SampleWindow::new(
+            0,
+            &fixed,
+            &moving,
+            num_bins,
+            &fix_cfg,
+            &mov_cfg,
+            Some(&mask)
+        )
+        .is_none(),
         "OOB mask 0.0 should exclude sample"
     );
 }
@@ -80,7 +89,16 @@ fn sample_window_oob_mask_includes_sample() {
     let mask = vec![1.0_f32; 1];
 
     assert!(
-        SampleWindow::new(0, &fixed, &moving, num_bins, &fix_cfg, &mov_cfg, Some(&mask)).is_some(),
+        SampleWindow::new(
+            0,
+            &fixed,
+            &moving,
+            num_bins,
+            &fix_cfg,
+            &mov_cfg,
+            Some(&mask)
+        )
+        .is_some(),
         "OOB mask 1.0 should include sample"
     );
 }

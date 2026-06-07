@@ -9,7 +9,7 @@
 //!    using the first offered transfer syntax per context.
 //! 2. Sends A-ASSOCIATE-AC.
 //! 3. Receives C-STORE-RQ messages; emits each as a [`StoredInstance`] on a
-//!    bounded [`mpsc::sync_channel`]; responds with C-STORE-RSP Success.
+//!    bounded `mpsc::sync_channel`; responds with C-STORE-RSP Success.
 //! 4. Sends A-RELEASE-RP on A-RELEASE-RQ and closes the connection.
 //!
 //! # Invariants
@@ -19,7 +19,7 @@
 //!   PACS but discarded with a `tracing::warn` event.
 //! - **No async contagion**: all I/O uses blocking `std::net::TcpStream` on
 //!   dedicated OS threads. The accept loop polls the shutdown flag every
-//!   [`ACCEPT_POLL_INTERVAL`] to support clean termination.
+//!   `ACCEPT_POLL_INTERVAL` to support clean termination.
 //! - **Send safety**: `StoredInstance` and `ScpConfig` are `Send + Sync`.
 //!   `StoreScpHandle` is `Send + !Sync` (contains `mpsc::Receiver`).
 

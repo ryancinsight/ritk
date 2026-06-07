@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 
 /// Invariant: write_rt_struct followed by read_rt_struct preserves all fields
 /// for a single ROI with one CLOSED_PLANAR contour, display_color, and
@@ -61,7 +61,8 @@ fn test_write_rt_struct_single_roi_round_trip() {
     );
     assert_eq!(roi.contours.len(), 1, "contour count preserved");
     assert_eq!(
-        roi.contours[0].geometric_type.as_str(), "CLOSED_PLANAR",
+        roi.contours[0].geometric_type.as_str(),
+        "CLOSED_PLANAR",
         "geometric_type"
     );
     assert_eq!(roi.contours[0].points.len(), 4, "point count preserved");
@@ -88,7 +89,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 display_color: Some([0, 255, 0]),
                 contours: vec![RtContour {
                     geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
-                        points: vec![[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [5.0, 5.0, 0.0]],
+                    points: vec![[0.0, 0.0, 0.0], [5.0, 0.0, 0.0], [5.0, 5.0, 0.0]],
                 }],
             },
             RtRoiInfo {
@@ -99,7 +100,7 @@ fn test_write_rt_struct_multi_roi_round_trip() {
                 display_color: Some([255, 255, 0]),
                 contours: vec![RtContour {
                     geometric_type: ArrayString::from("OPEN_PLANAR").unwrap(),
-                        points: vec![[1.0, 1.0, 0.0], [2.0, 1.0, 0.0]],
+                    points: vec![[1.0, 1.0, 0.0], [2.0, 1.0, 0.0]],
                 }],
             },
         ],
@@ -123,7 +124,8 @@ fn test_write_rt_struct_multi_roi_round_trip() {
         "color preserved"
     );
     assert_eq!(
-        result.rois[0].contours[0].geometric_type.as_str(), "OPEN_PLANAR",
+        result.rois[0].contours[0].geometric_type.as_str(),
+        "OPEN_PLANAR",
         "geo type"
     );
     assert_eq!(
@@ -197,7 +199,8 @@ fn test_write_rt_struct_point_contour_round_trip() {
     assert_eq!(result.rois.len(), 1, "one ROI");
     assert_eq!(result.rois[0].contours.len(), 1, "one contour");
     assert_eq!(
-        result.rois[0].contours[0].geometric_type.as_str(), "POINT",
+        result.rois[0].contours[0].geometric_type.as_str(),
+        "POINT",
         "geo type"
     );
     assert_eq!(result.rois[0].contours[0].points.len(), 1, "one point");

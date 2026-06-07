@@ -12,7 +12,7 @@ use burn::tensor::Tensor;
 /// Performs nearest neighbor interpolation (rounds to nearest integer coordinate).
 pub struct NearestNeighborInterpolator {
     /// If `true`, samples outside the volume boundary return `0.0` instead of
-    /// the nearest-edge value. Mirrors [`LinearInterpolator::zero_pad`].
+    /// the nearest-edge value. Mirrors \[`LinearInterpolator::zero_pad`\].
     pub zero_pad: bool,
 }
 

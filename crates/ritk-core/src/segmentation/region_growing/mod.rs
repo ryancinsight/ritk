@@ -8,8 +8,10 @@
 //! - [`confidence_connected`]: Adaptive statistics-based region growing.
 //! - [`neighborhood_connected`]: Neighborhood-admissibility-predicate region growing.
 
+#[doc(hidden)]
 pub mod confidence_connected;
 pub mod growcut;
+#[doc(hidden)]
 pub mod neighborhood_connected;
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;

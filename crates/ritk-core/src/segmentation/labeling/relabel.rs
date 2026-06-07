@@ -2,11 +2,11 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a label image L where L[v] ∈ {0, 1, …, K} (0 = background, 1…K are
+//! Given a label image L where L\[v\] ∈ {0, 1, …, K} (0 = background, 1…K are
 //! component indices from `ConnectedComponentsFilter`), the relabeling mapping
 //! ρ: {0…K} → {0…K'} is defined as:
 //!
-//! 1. For each component k ∈ {1…K}, compute size(k) = |{v : L[v] = k}|.
+//! 1. For each component k ∈ {1…K}, compute size(k) = |{v : L\[v\] = k}|.
 //! 2. Sort components by (size(k) descending, k ascending) to obtain a
 //!    permutation π of the non-background labels.
 //! 3. Let K' = |{k : size(k) ≥ τ}| where τ = `minimum_object_size`.
@@ -14,7 +14,7 @@
 //!    using 1-based indexing.  If size(k) < τ then ρ(k) = 0.
 //! 5. ρ(0) = 0 (background is preserved).
 //!
-//! The output O[v] = ρ(L[v]) has at most K' non-zero labels, each ≥ 1, with
+//! The output O\[v\] = ρ(L\[v\]) has at most K' non-zero labels, each ≥ 1, with
 //! label 1 assigned to the component with the most voxels.
 //!
 //! # ITK parity

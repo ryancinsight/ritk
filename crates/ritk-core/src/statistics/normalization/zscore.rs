@@ -5,7 +5,7 @@
 //!
 //!   Z(x) = (x − μ) / (σ + ε),   ε = 1e-8
 //!
-//! After normalization: E[Z] ≈ 0, Var[Z] ≈ 1.
+//! After normalization: E\[Z\] ≈ 0, Var\[Z\] ≈ 1.
 //! The ε term prevents division by zero on constant images.
 //!
 //! # Invariants
@@ -60,7 +60,7 @@ impl ZScoreNormalizer {
     ///
     /// μ_mask and σ_mask are population statistics computed from voxels where
     /// `mask > 0.5`. If the mask contains no foreground voxels the method falls
-    /// back to full-image population statistics (identical to [`normalize`]).
+    /// back to full-image population statistics (identical to \[`normalize`\]).
     ///
     /// All voxels — including background voxels — are transformed using the
     /// same μ_mask and σ_mask parameters. Spatial metadata is preserved exactly.

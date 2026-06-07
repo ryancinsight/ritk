@@ -19,15 +19,15 @@
 //!    - For each bin centre v, compute CDF_src(v) = |{x ∈ src : x ≤ v}| / n_src
 //!      via binary search (partition_point) on sorted_src.
 //!    - Map CDF_src(v) to a reference intensity via the empirical quantile:
-//!      ref_idx = ⌊CDF_src(v) · (n_ref − 1)⌋  →  lut[bin] = sorted_ref[ref_idx].
+//!   - ref_idx = ⌊CDF_src(v) · (n_ref − 1)⌋ → lut\[bin\] = sorted_ref\[ref_idx\].
 //! 3. For each source pixel value, look up its mapped intensity via the LUT
 //!    with linear interpolation between adjacent bin entries.
 //!
 //! # Invariants
 //! - Output image carries the same spatial metadata (origin, spacing, direction)
 //!   as the source input.
-//! - The LUT spans exclusively [src_min, src_max] of the source distribution.
-//!   Values ≤ src_min clamp to lut[0]; values ≥ src_max clamp to lut[last].
+//! - The LUT spans exclusively \[src_min, src_max\] of the source distribution.
+//!   Values ≤ src_min clamp to lut\[0\]; values ≥ src_max clamp to lut\[last\].
 //! - A constant source image (src_min == src_max) is returned unchanged because
 //!   no CDF slope can be estimated from a degenerate distribution.
 
@@ -154,7 +154,7 @@ impl HistogramMatcher {
             return lut[0];
         }
         if v >= src_max {
-            return *lut.last().expect("LUT must not be empty")
+            return *lut.last().expect("LUT must not be empty");
         }
 
         // Continuous bin position in [0, num_bins − 1).

@@ -149,7 +149,7 @@ impl WindowPreset {
 
     // ── PT (PET) presets ──────────────────────────────────────────────────────
 
-    /// Standard PET window/level presets expressed in SUVbw units [g/mL].
+    /// Standard PET window/level presets expressed in SUVbw units \[g/mL\].
     ///
     /// At tissue density ≈ 1 g/mL, SUVbw is effectively dimensionless.
     /// SUVbw = 1.0 ⟺ voxel uptake equals the whole-body average.

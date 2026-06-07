@@ -367,7 +367,11 @@ impl SnapApp {
             return;
         }
         let config = ScpConfig {
-            ae_title: self.pacs_config.scp_ae_title.as_str().try_into()
+            ae_title: self
+                .pacs_config
+                .scp_ae_title
+                .as_str()
+                .try_into()
                 .unwrap_or_else(|_| arrayvec::ArrayString::from("RITKSNAP").unwrap()),
             port: self.pacs_config.scp_port,
             ..ScpConfig::default()

@@ -75,7 +75,10 @@ fn masked_cache_fingerprint_detects_collision() {
 
     {
         let cache = hist.masked_cache.lock().unwrap();
-        assert!(cache.is_some(), "cache should still be populated after valid fingerprint");
+        assert!(
+            cache.is_some(),
+            "cache should still be populated after valid fingerprint"
+        );
     }
 
     let mut wrong_norm = fixed_norm.clone();
@@ -87,6 +90,9 @@ fn masked_cache_fingerprint_detects_collision() {
 
     {
         let cache = hist.masked_cache.lock().unwrap();
-        assert!(cache.is_none(), "cache should be invalidated after fingerprint mismatch");
+        assert!(
+            cache.is_none(),
+            "cache should be invalidated after fingerprint mismatch"
+        );
     }
 }

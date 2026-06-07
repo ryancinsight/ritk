@@ -3,11 +3,11 @@
 //! Each submodule exercises one cohesive domain: cursor, navigation, session,
 //! tool, measurement, colormap, segmentation loading, and RT dose/plan.
 
-use arrayvec::ArrayString;
 use crate::app::state::SnapApp;
 use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
 use crate::{LoadedVolume, ViewerState};
+use arrayvec::ArrayString;
 use std::sync::Arc;
 
 #[cfg(test)]

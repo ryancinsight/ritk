@@ -61,10 +61,10 @@ fn loaded_volume_from_scalar_image(
     let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
         anyhow::anyhow!("failed to extract f32 pixel data from DICOM tensor: {e:?}")
     })?;
-    let modality = meta.modality.clone();
+    let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
-    let study_date = meta.study_date.clone();
+    let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
     Ok(LoadedVolume {
         data: Arc::new(pixels),
@@ -125,10 +125,10 @@ fn load_dicom_color_volume_from_scanned_series(
         dir[(2, 2)],
     ];
     let pixels = rgb_vol.data_vec();
-    let modality = meta.modality.clone();
+    let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
-    let study_date = meta.study_date.clone();
+    let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
     Ok(LoadedVolume {
         data: Arc::new(pixels),
@@ -161,7 +161,7 @@ fn load_dicom_color_volume_from_scanned_series(
 ///    `RgbVolume<B>` into a [`LoadedVolume`] with `channels: 3`.
 /// 3. For scalar series: calls [`load_dicom_series_with_metadata`].
 /// 4. Extracts spatial metadata (spacing, origin, direction) from the image.
-/// 5. Populates optional DICOM-specific fields from [`DicomReadMetadata`].
+/// 5. Populates optional DICOM-specific fields from `DicomReadMetadata`.
 ///
 /// # Errors
 /// Propagates any error returned by `ritk_io`.
@@ -224,10 +224,10 @@ fn load_dicom_color_volume<B: burn::tensor::backend::Backend>(
 
     let pixels = rgb_vol.data_vec();
 
-    let modality = meta.modality.clone();
+    let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
-    let study_date = meta.study_date.clone();
+    let study_date = meta.study_date;
     let series_description = meta.series_description.clone();
 
     Ok(LoadedVolume {

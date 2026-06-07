@@ -2,7 +2,7 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a binary mask M where M[z,y,x] ∈ {0, 1}, a connected component C is
+//! Given a binary mask M where M\[z,y,x\] ∈ {0, 1}, a connected component C is
 //! the maximal set of voxels such that every pair (p, q) ∈ C × C is connected
 //! by a path through M where every step moves to an adjacent foreground voxel.
 //!

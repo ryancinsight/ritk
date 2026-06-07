@@ -6314,6 +6314,7 @@ dependencies = [
  "anyhow",
  "charls",
  "image 0.24.9",
+ "jpeg-decoder",
  "jpeg2k",
  "openjp2",
  "openjpeg-sys",
@@ -6322,7 +6323,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6362,11 +6363,15 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "charls",
+ "consus-core",
+ "consus-hdf5",
+ "consus-io",
  "dicom",
  "dicom-core",
  "dicom-pixeldata",
  "dicom-transfer-syntax-registry",
  "dicom-ul",
+ "flate2",
  "gaia",
  "image 0.24.9",
  "moirai",
@@ -6376,6 +6381,7 @@ dependencies = [
  "openjpeg-sys",
  "reqwest",
  "ritk-analyze",
+ "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
  "ritk-jpeg",
@@ -6491,6 +6497,7 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
+ "bytemuck",
  "nalgebra",
  "ritk-core",
  "tempfile",

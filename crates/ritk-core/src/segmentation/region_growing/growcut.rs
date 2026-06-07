@@ -4,13 +4,13 @@
 //! Vezhnevets & Konouchine (2005) "GrowCut — Interactive Multi-Label
 //! N-D Image Segmentation by Cellular Automata", GRAPHITE 2005.
 //!
-//! Each voxel i maintains a label L[i] ∈ {0,1,…,K} and a strength C[i] ∈ [0,1].
-//! Seeds are initialized with L[i] = seed, C[i] = 1.0. Unlabeled voxels start
-//! with L[i] = 0, C[i] = 0.0.  Seed voxels are immutable.
+//! Each voxel i maintains a label L\[i\] ∈ {0,1,…,K} and a strength C\[i\] ∈ \[0,1\].
+//! Seeds are initialized with L\[i\] = seed, C\[i\] = 1.0. Unlabeled voxels start
+//! with L\[i\] = 0, C\[i\] = 0.0. Seed voxels are immutable.
 //!
 //! At each iteration a labeled neighbor j "attacks" i if:
-//!   C[j] · g(j,i) > C[i]    where g(j,i) = 1 − |I[j]−I[i]| / max_diff
-//! On a successful attack L[i] ← L[j], C[i] ← C[j]·g(j,i).
+//! C\[j\] · g(j,i) > C\[i\] where g(j,i) = 1 − |I\[j\]−I\[i\]| / max_diff
+//! On a successful attack L\[i\] ← L\[j\], C\[i\] ← C\[j\]·g(j,i).
 //!
 //! Terminates when no voxel changes label or `max_iter` is reached.
 //!
@@ -97,7 +97,7 @@ pub fn growcut<B: Backend>(
 
 /// Run GrowCut automaton on flat slices.
 ///
-/// `image_slice`:  flat f32 voxel intensities [nz*ny*nx]
+/// `image_slice`: flat f32 voxel intensities \[nz\*ny\*nx\]
 /// `seed_slice`:   flat f32 label map (values cast to u32; 0 = unlabeled)
 /// Returns flat f32 label map after convergence or `max_iter` iterations.
 pub fn growcut_slice(

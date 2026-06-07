@@ -9,8 +9,8 @@
 //! | 1 coronal  | dz | dx |
 //! | 2 sagittal | dz | dy |
 
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 
 /// Constructs an anisotropic volume with spacing [dz=2.0, dy=3.0, dx=5.0]
 /// (prime distances, each uniquely identifiable) for spacing-dispatch tests.

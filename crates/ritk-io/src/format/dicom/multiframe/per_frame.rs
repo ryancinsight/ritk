@@ -1,7 +1,7 @@
 //! Per-frame functional group extraction for Enhanced (multi-frame) DICOM objects.
 //!
 //! Parses Shared Functional Groups (5200,9229) and Per-Frame Functional Groups
-//! (5200,9230) per DICOM PS3.3 C.7.6.16 into a Vec<PerFrameInfo>.
+//! (5200,9230) per DICOM PS3.3 C.7.6.16 into a `Vec<PerFrameInfo>`.
 
 use dicom::core::value::Value;
 use dicom::core::Tag;
@@ -10,7 +10,7 @@ use dicom::object::InMemDicomObject;
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
 
-/// Navigate item → seq_tag → items()[0] → inner_tag and parse as `[f64; N]` DS array.
+/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
 ///
 /// Returns None if either sequence is absent, has no items, or the DS value fails to
 /// parse with at least N components.
@@ -32,7 +32,7 @@ fn read_nested_ds<const N: usize>(
     }
 }
 
-/// Navigate item → seq_tag → items()[0] → inner_tag and parse as f64.
+/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as f64.
 ///
 /// Returns None if either sequence is absent, has no items, or the DS value fails to
 /// parse as a finite f64.
@@ -58,14 +58,14 @@ fn read_nested_f64(item: &InMemDicomObject, seq_tag: Tag, inner_tag: Tag) -> Opt
 /// # Algorithm
 ///
 /// 1. If neither (5200,9229) nor (5200,9230) is present, return `Vec::new()`.
-/// 2. Parse shared groups (5200,9229)[0] into a `PerFrameInfo` template.
-/// 3. For each frame index k in [0, n_frames):
+/// 2. Parse shared groups (5200,9229)\[0\] into a `PerFrameInfo` template.
+/// 3. For each frame index k in \[0, n_frames\):
 ///    a. Start from the shared template.
-///    b. If (5200,9230)[k] exists, override non-None fields.
+///    b. If (5200,9230)\[k\] exists, override non-None fields.
 ///    c. Push merged result.
 ///
 /// # Fallback chain per attribute A
-/// per_frame[k].A = per_frame_groups[k].A   // if Some(...)
+/// per_frame\[k\].A = per_frame_groups\[k\].A // if Some(...)
 ///               ?? shared_groups.A          // if Some(...)
 ///               ?? None
 pub(crate) fn extract_functional_groups(

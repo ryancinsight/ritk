@@ -189,7 +189,7 @@ pub fn estimate_noise_mad_from_slice(slice: &[f32]) -> f32 {
 ///
 /// # Formula
 /// sigma-hat = 1.4826 * median(|Xi - median(X)|)
-/// computed over the foreground set {i : mask_slice[i] > 0.5}.
+/// computed over the foreground set {i : mask_slice\[i\] > 0.5}.
 ///
 /// # Returns
 /// Estimated noise standard deviation over foreground voxels. Returns 0.0 if the

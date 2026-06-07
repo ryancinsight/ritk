@@ -3,9 +3,9 @@
 //! Mathematical specification:
 //!   O = (image_overlays, contour_overlays, mask_overlays)
 //! Invariants:
-//!   ImageOverlay  : data.len() == dims[0]*dims[1]*dims[2]
-//!   ContourOverlay: every contour >= 2 points
-//!   MaskOverlay   : data.len() == dims[0]*dims[1]*dims[2]
+//! ImageOverlay : data.len() == dims\[0\]\*dims\[1\]\*dims\[2\]
+//! ContourOverlay: every contour >= 2 points
+//! MaskOverlay : data.len() == dims\[0\]\*dims\[1\]\*dims\[2\]
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -32,8 +32,7 @@ pub struct ImageOverlay {
     pub visible: bool,
 }
 impl ImageOverlay {
-    /// # Panics
-    /// Panics when `data.len() != dims[0]*dims[1]*dims[2]`.
+    /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
     pub fn new(name: impl Into<String>, data: Vec<f32>, dims: [usize; 3]) -> Self {
         let expected = dims[0] * dims[1] * dims[2];
         assert_eq!(
@@ -116,8 +115,7 @@ pub struct MaskOverlay {
     pub visible: bool,
 }
 impl MaskOverlay {
-    /// # Panics
-    /// Panics when `data.len() != dims[0]*dims[1]*dims[2]`.
+    /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
     pub fn new(name: impl Into<String>, data: Vec<u32>, dims: [usize; 3]) -> Self {
         let expected = dims[0] * dims[1] * dims[2];
         assert_eq!(

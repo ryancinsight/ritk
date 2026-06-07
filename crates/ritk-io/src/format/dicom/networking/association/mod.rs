@@ -14,8 +14,8 @@ pub use super::types::{
     AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse,
 };
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
@@ -40,9 +40,9 @@ impl FindResult {
                 .find(|((g, e), _)| *g == group && *e == element)
                 .map(|(_, v)| {
                     std::str::from_utf8(&v)
-                                        .unwrap_or("")
-                                        .trim_end_matches(['\0', ' '])
-                                        .to_owned()
+                        .unwrap_or("")
+                        .trim_end_matches(['\0', ' '])
+                        .to_owned()
                 })
         })
     }
@@ -82,14 +82,14 @@ impl Association {
         let mut pc_items = Vec::new();
         for rpc in &config.presentation_contexts {
             let mut ts = rpc.transfer_syntax_uids.clone();
-                if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                    ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
-                }
-                pc_items.push(PresentationContextItemRq {
-                    presentation_context_id: next_id,
-                    abstract_syntax_uid: rpc.abstract_syntax_uid,
-                    transfer_syntax_uids: ts,
-                });
+            if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
+                ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
+            }
+            pc_items.push(PresentationContextItemRq {
+                presentation_context_id: next_id,
+                abstract_syntax_uid: rpc.abstract_syntax_uid,
+                transfer_syntax_uids: ts,
+            });
             next_id = next_id
                 .checked_add(2)
                 .ok_or_else(|| anyhow::anyhow!("presentation context ID overflow"))?;
@@ -103,7 +103,8 @@ impl Association {
                 implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
+                    .unwrap(),
             }),
             user_identity: config.user_identity.clone(),
             ..Default::default()

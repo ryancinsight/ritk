@@ -3,9 +3,9 @@
 //!
 //! Extracted from `association.rs` to satisfy the 500-line structural limit.
 
-use arrayvec::ArrayString;
 use super::pdu::{UserIdentity, DEFAULT_MAXIMUM_LENGTH};
 use super::types::{AeTitle, DicomAddress};
+use arrayvec::ArrayString;
 use std::time::Duration;
 
 // ── Transfer syntax UIDs (PS 3.6 Table A-1) ──────────────────────────────────
@@ -68,8 +68,15 @@ impl AssociationConfig {
     /// Construct from a validated calling AE title and remote DICOM address.
     pub fn new(calling: AeTitle, remote: DicomAddress) -> Self {
         Self {
-            called_ae_title: remote.ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("ANYSCP").unwrap()),
-            calling_ae_title: calling.as_str().try_into().unwrap_or_else(|_| ArrayString::from("RITK").unwrap()),
+            called_ae_title: remote
+                .ae_title
+                .as_str()
+                .try_into()
+                .unwrap_or_else(|_| ArrayString::from("ANYSCP").unwrap()),
+            calling_ae_title: calling
+                .as_str()
+                .try_into()
+                .unwrap_or_else(|_| ArrayString::from("RITK").unwrap()),
             host: remote.host.clone(),
             port: remote.port,
             ..Default::default()

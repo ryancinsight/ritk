@@ -16,8 +16,8 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
     ///
     /// # Arguments
     /// * `input` - The original high-resolution image.
-    /// * `shrink_factors` - Shrink factors for each level [level][dim].
-    /// * `smoothing_sigmas` - Smoothing sigmas for each level [level][dim].
+    /// * `shrink_factors` - Shrink factors for each level \[level\]\[dim\].
+    /// * `smoothing_sigmas` - Smoothing sigmas for each level \[level\]\[dim\].
     ///
     /// # Panics
     /// Panics if schedules have different lengths.

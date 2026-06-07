@@ -46,26 +46,22 @@ pub(super) fn handle_connection(
 
     // 2. Accept every offered presentation context with its first transfer syntax.
     let mut ctx_map: HashMap<u8, (ArrayString<64>, ArrayString<64>)> = HashMap::new();
-    let pc_acs: Vec<PresentationContextItemAc> = rq
-        .presentation_contexts
-        .iter()
-        .map(|pc| {
-            let ts = pc
-                .transfer_syntax_uids
-                .first()
-                .cloned()
-                .unwrap_or_else(|| ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
-            ctx_map.insert(
-                pc.presentation_context_id,
-                (pc.abstract_syntax_uid, ts),
-            );
-            PresentationContextItemAc {
-                presentation_context_id: pc.presentation_context_id,
-                result_reason: 0,
-                transfer_syntax_uid: ts,
-            }
-        })
-        .collect();
+    let pc_acs: Vec<PresentationContextItemAc> =
+        rq.presentation_contexts
+            .iter()
+            .map(|pc| {
+                let ts =
+                    pc.transfer_syntax_uids.first().cloned().unwrap_or_else(|| {
+                        ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()
+                    });
+                ctx_map.insert(pc.presentation_context_id, (pc.abstract_syntax_uid, ts));
+                PresentationContextItemAc {
+                    presentation_context_id: pc.presentation_context_id,
+                    result_reason: 0,
+                    transfer_syntax_uid: ts,
+                }
+            })
+            .collect();
 
     // 3. Send A-ASSOCIATE-AC.
     write_pdu_stream(
@@ -81,10 +77,12 @@ pub(super) fn handle_connection(
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
+                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
+                        .unwrap(),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
+                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
+                        .unwrap(),
                 }),
                 ..Default::default()
             },
@@ -133,10 +131,7 @@ fn handle_store_rq(
     let sop_instance_uid = msg.affected_sop_instance_uid().unwrap_or_default();
     let msg_id = msg.message_id().unwrap_or(1);
     let dataset_bytes = msg.data_set.unwrap_or_default();
-    let transfer_syntax_uid = ctx_map
-        .get(&cid)
-        .map(|(_, ts)| *ts)
-        .unwrap_or_default();
+    let transfer_syntax_uid = ctx_map.get(&cid).map(|(_, ts)| *ts).unwrap_or_default();
 
     // Always respond Success — protocol requires a response regardless of channel state.
     let rsp = DimseMessage::c_store_rsp(

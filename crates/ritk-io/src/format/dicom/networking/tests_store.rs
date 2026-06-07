@@ -101,7 +101,8 @@ fn scp_thread(listener: TcpListener) {
                 implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
+                    .unwrap(),
             }),
             ..Default::default()
         },

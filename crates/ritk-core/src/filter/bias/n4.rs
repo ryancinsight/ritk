@@ -22,7 +22,7 @@
 //! # Histogram Sharpening
 //! Models H_observed = H_true ∗ G_noise then recovers H_true via
 //! Wiener deconvolution:
-//!   Ĥ_sharp[k] = Ĥ[k] · Ĝ*[k] / (|Ĝ[k]|² + σ_noise²)
+//! Ĥ_sharp\[k\] = Ĥ\[k\] · Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise²)
 //! followed by CDF-based quantile transfer from H_observed to H_sharp.
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
@@ -45,7 +45,7 @@ pub struct N4Config {
     /// Number of histogram bins for Wiener-based sharpening.
     pub num_histogram_bins: usize,
     /// Initial control-point count per dimension at level 0.
-    /// Doubles each level: cg[d] = initial[d] * 2^level, clamped to [4, n/2+2].
+    /// Doubles each level: cg\[d\] = initial\[d\] * 2^level, clamped to \[4, n/2+2\].
     pub initial_control_points: [usize; 3],
     /// Noise fraction: σ_bins = max(0.5, noise_estimate · n_bins).
     pub noise_estimate: f64,
@@ -184,8 +184,8 @@ impl N4BiasFieldCorrectionFilter {
 /// 2. σ_bins = max(0.5, noise_fraction · n_bins).
 /// 3. Gaussian kernel G(σ_bins), zero-padded DFT of length N = next_pow2(n_bins).
 /// 4. Wiener deconvolution:
-///    Ĥ_sharp[k] = Ĥ[k]·Ĝ*[k] / (|Ĝ[k]|² + σ_noise)
-///    where σ_noise = 0.01 · max_k |Ĥ[k]|².
+///    Ĥ_sharp\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise)
+///    where σ_noise = 0.01 · max_k |Ĥ\[k\]|².
 /// 5. IDFT → H_sharp; clamp negatives to 0.
 /// 6. CDF transfer: each voxel intensity maps to the quantile bin in H_sharp
 ///    whose CDF matches the voxel's CDF rank in H.
@@ -238,7 +238,7 @@ fn histogram_sharpen(w: &[f32], n_bins: usize, noise_fraction: f64) -> anyhow::R
             .map(|(re, im)| re * re + im * im)
             .fold(0.0f64, f64::max);
 
-    // Ĥ_sharp[k] = Ĥ[k]·Ĝ*[k] / (|Ĝ[k]|² + σ_noise)
+    // Ĥ_sharp\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + σ_noise)
     // where Ĥ·Ĝ* = (hr + i·hi)·(gr − i·gi) = (hr·gr + hi·gi) + i·(hi·gr − hr·gi)
     let h_sharp_hat: Vec<(f64, f64)> = h_hat
         .iter()

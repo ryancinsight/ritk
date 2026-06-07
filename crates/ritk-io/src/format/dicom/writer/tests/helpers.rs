@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use crate::format::dicom::reader::DicomReadMetadata;
+use arrayvec::ArrayString;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
@@ -54,8 +54,8 @@ pub(super) fn make_test_metadata() -> DicomReadMetadata {
 
     DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.789".try_into().unwrap()),
-            study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
-            frame_of_reference_uid: Some("1.2.3.4.5.6.200".try_into().unwrap()),
+        study_instance_uid: Some("1.2.3.4.5.6.100".try_into().unwrap()),
+        frame_of_reference_uid: Some("1.2.3.4.5.6.200".try_into().unwrap()),
         series_description: Some("Test Series".to_string()),
         modality: Some(ArrayString::from("CT").unwrap()),
         patient_id: Some("PAT001".to_string()),

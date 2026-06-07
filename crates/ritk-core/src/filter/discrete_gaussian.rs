@@ -4,8 +4,8 @@
 //!
 //! Given variance v_d (physical units^2) and voxel spacing h_d:
 //!   sigma_pixel = sqrt(v_d) / h_d
-//!   w[k] = exp(-k^2 / (2*sigma_pixel^2))  for k in {-r,...,r}
-//!   W = Sum_k w[k]; w_bar[k] = w[k] / W
+//! w\[k\] = exp(-k^2 / (2\*sigma_pixel^2)) for k in {-r,...,r}
+//! W = Sum_k w\[k\]; w_bar\[k\] = w\[k\] / W
 //!   r_min = ceil(sqrt(-2*sigma_pixel^2 * ln(maximum_error)))
 //!
 //! # Boundary Conditions
@@ -82,7 +82,10 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         if d < self.variance.len() {
             self.variance[d]
         } else {
-            *self.variance.last().expect("variance schedule must not be empty")
+            *self
+                .variance
+                .last()
+                .expect("variance schedule must not be empty")
         }
     }
 

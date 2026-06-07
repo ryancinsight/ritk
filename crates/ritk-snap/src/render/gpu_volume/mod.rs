@@ -14,8 +14,8 @@
 //! # Rendering passes
 //!
 //! Internal dispatch logic lives in dedicated sub-modules:
-//! - [`mip_pass`] — MIP dispatch; WL+LUT applied in-shader; packed u32 RGBA output.
-//! - [`vr_pass`] — VR dispatch; packed u32 RGBA output.
+//! - `mip_pass` — MIP dispatch; WL+LUT applied in-shader; packed u32 RGBA output.
+//! - `vr_pass` — VR dispatch; packed u32 RGBA output.
 //!
 //! # Performance
 //!

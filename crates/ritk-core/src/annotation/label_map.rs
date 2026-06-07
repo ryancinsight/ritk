@@ -9,8 +9,8 @@
 //! Index mapping (ZYX order): flat(z, y, x) = z * ny * nx + y * nx + x.
 //!
 //! # Invariants
-//! - All label IDs are valid u32 values (backing storage is Vec<u32>).
-//! - shape[0] * shape[1] * shape[2] == data.len() exactly.
+//! - All label IDs are valid `u32` values (backing storage is `Vec<u32>`).
+//! - shape\[0\] * shape\[1\] * shape\[2\] == data.len() exactly.
 
 use std::collections::HashSet;
 use std::sync::Arc;

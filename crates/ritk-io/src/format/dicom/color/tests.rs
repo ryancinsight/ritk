@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 use dicom::core::smallvec::SmallVec;

@@ -72,8 +72,16 @@ impl PacsConfig {
     /// empty so each SCU function can set the appropriate SOP class.
     pub fn to_association_config(&self) -> AssociationConfig {
         AssociationConfig {
-            calling_ae_title: self.calling_ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("RITKSNAP").unwrap()),
-            called_ae_title: self.called_ae_title.as_str().try_into().unwrap_or_else(|_| ArrayString::from("ORTHANC").unwrap()),
+            calling_ae_title: self
+                .calling_ae_title
+                .as_str()
+                .try_into()
+                .unwrap_or_else(|_| ArrayString::from("RITKSNAP").unwrap()),
+            called_ae_title: self
+                .called_ae_title
+                .as_str()
+                .try_into()
+                .unwrap_or_else(|_| ArrayString::from("ORTHANC").unwrap()),
             host: self.host.clone(),
             port: self.port,
             timeout: std::time::Duration::from_secs(self.timeout_secs),

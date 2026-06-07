@@ -11,7 +11,9 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         // Get direction matrix data
         let dir_tensor = self.direction.clone();
         let dir_data_result = dir_tensor.to_data();
-        let dir_slice = dir_data_result.as_slice::<f32>().expect("direction data must be contiguous f32");
+        let dir_slice = dir_data_result
+            .as_slice::<f32>()
+            .expect("direction data must be contiguous f32");
 
         // Convert to SMatrix
         // nalgebra SMatrix uses column-major storage but indices are (row, col)
@@ -79,7 +81,12 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         // element T[r, c] = (D^-1)^T[r, c] * S^-1[c] = (D^-1)[c, r] / S[c]
 
         let mut t_data = Vec::with_capacity(D * D);
-        let spacing_data: Vec<f32> = self.spacing.to_data().as_slice::<f32>().expect("spacing data must be contiguous f32").to_vec();
+        let spacing_data: Vec<f32> = self
+            .spacing
+            .to_data()
+            .as_slice::<f32>()
+            .expect("spacing data must be contiguous f32")
+            .to_vec();
 
         for r in 0..D {
             for c in 0..D {

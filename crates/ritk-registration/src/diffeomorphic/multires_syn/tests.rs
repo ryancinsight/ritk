@@ -320,7 +320,10 @@ fn cow_borrowed_vs_owned_produces_identical_result() {
         .iter()
         .zip(result_owned.forward_field.0.iter())
     {
-        assert!((a - b).abs() < 1e-6, "borrowed vs owned mismatch: {a} vs {b}");
+        assert!(
+            (a - b).abs() < 1e-6,
+            "borrowed vs owned mismatch: {a} vs {b}"
+        );
     }
     assert!(
         (result_borrowed.final_cc - result_owned.final_cc).abs() < 1e-10,

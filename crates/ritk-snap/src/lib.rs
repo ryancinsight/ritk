@@ -47,8 +47,8 @@ pub use viewer::{DefaultBackend, Study, ViewerBackend, ViewerCore, ViewerEvent, 
 
 #[cfg(test)]
 mod tests {
-    use arrayvec::ArrayString;
     use super::*;
+    use arrayvec::ArrayString;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};

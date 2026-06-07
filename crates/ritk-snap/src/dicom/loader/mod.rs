@@ -6,7 +6,7 @@
 //! - [`load_nifti_volume`] — load a NIfTI `.nii` / `.nii.gz` file.
 //! - [`load_volume_from_path`] — auto-detect format and dispatch to the above.
 //! - [`load_volume_from_bytes`] — load a pathless in-memory medical file payload.
-//! - [`scan_folder_for_series`] — walk a directory tree and return a [`SeriesTree`].
+//! - [`scan_folder_for_series`] — walk a directory tree and return a `SeriesTree`.
 //!
 //! # Backend
 //!
@@ -144,7 +144,7 @@ pub fn load_dicom_series_from_named_bytes(files: &[(String, &[u8])]) -> Result<L
     dicom_load::load_volume_from_scanned_series(series)
 }
 
-/// Load a DICOM series from SCP-received [`StoredInstance`] values.
+/// Load a DICOM series from SCP-received `StoredInstance` values.
 ///
 /// Zero-disk implementation: instances are scanned in-memory via
 /// [`ritk_io::scan_dicom_instances`] and loaded via

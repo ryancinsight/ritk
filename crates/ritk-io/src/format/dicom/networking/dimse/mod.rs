@@ -9,8 +9,8 @@ mod factory;
 
 pub use command_value::{CommandElement, CommandValue, CommandVr};
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 
 // ── DIMSE Command Field Values ────────────────────────────────────────────────
 

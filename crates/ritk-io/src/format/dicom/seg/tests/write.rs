@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::super::{read_dicom_seg, write_dicom_seg, DicomSegmentInfo, DicomSegmentation};
+use arrayvec::ArrayString;
 
 /// Invariant: write_dicom_seg packs BINARY frames MSB-first (inverse of unpack_pixel_data).
 /// Frame 0: pixels 0-7 = 1 → byte 0 = 0xFF; pixels 8-15 = 0 → byte 1 = 0x00.
@@ -48,7 +48,11 @@ fn test_write_dicom_seg_binary_roundtrip() {
     assert_eq!(result.cols, 4, "cols");
     assert_eq!(result.n_frames, 2, "n_frames");
     assert_eq!(result.bits_allocated, 1, "bits_allocated");
-    assert_eq!(result.segmentation_type.as_str(), "BINARY", "segmentation_type");
+    assert_eq!(
+        result.segmentation_type.as_str(),
+        "BINARY",
+        "segmentation_type"
+    );
     assert_eq!(result.pixel_data.len(), 2, "frame count");
     let expected_f0: Vec<u8> = std::iter::repeat_n(1u8, 8)
         .chain(std::iter::repeat_n(0u8, 8))

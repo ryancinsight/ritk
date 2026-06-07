@@ -3,7 +3,7 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.51.6)
+## Current State (v0.51.8)
 
 ### Test Suite Performance
 
@@ -1098,6 +1098,65 @@ Prefixed `_i` in `chamfer/tests.rs` to silence `unused_variables` warning.
 | Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
 | Low | Arg-struct refactors for `too_many_arguments` | Monitor (14 instances, all justified) |
 | External | `slice_ref(&self)` API for burn tensor | Would eliminate 11 conditional clones in regularization |
+
+---
+
+## Sprint 341 — Clippy Zero-Warning + Doc Warning Elimination + DRY Helper + Expect Hardening
+
+### CLIPPY-341-02: Clippy zero-warning workspace
+
+Eliminated all 21 clippy warnings across 3 crates:
+
+| Warning Type | Count | Fix |
+|-------------|-------|-----|
+| `doc_lazy_continuation` | 7 | Indented continuation lines in doc comments (5 files in ritk-core, 1 in ritk-io) |
+| `clone_on_copy` | 8 | Removed `.clone()` on `Copy` types (`Option<ArrayString<N>>`) in ritk-snap (dicom_load.rs, volume_ops.rs) and ritk-io (series.rs) |
+| `redundant_closure` | 3 | `\|\| ArrayString::new()` → `ArrayString::new` in rt_dose, rt_plan, rt_struct readers |
+| `bind_instead_of_map` | 2 | `.and_then(…Some(x))` → `.map(…x)` in rt_dose and seg readers |
+| `map_flatten` | 1 | `.map().flatten()` → `.and_then()` in series.rs |
+| `needless_range_loop` | 1 | Iterator over `out_slice.iter_mut().enumerate()` in bin_shrink.rs |
+
+### DOC-341-03: Doc warning elimination
+
+Fixed ~192 rustdoc warnings across 4 crates (192 → 0):
+
+| Crate | Warnings Fixed | Primary Fix Pattern |
+|-------|---------------|---------------------|
+| ritk-core | ~143 | Escaped `[` → `\[` in inline code spans; fixed unclosed HTML tags (`Vec<u32>` → `` `Vec<u32>` ``); `#[doc(hidden)]` on duplicate module re-exports; removed broken intra-doc links |
+| ritk-io | ~15 | Escaped bracket notation in unit abbreviations (`[kg]`, `[Bq]`, `[s]`); removed links to private items |
+| ritk-snap | ~34 | Escaped bracket notation in PET/SUV units; removed links to private items; resolved broken type references |
+| ritk-registration | 0 | No warnings |
+
+Key lesson from Phase 18: Inside ` ```text ``` ` fenced code blocks, brackets must be left unescaped — they render literally.
+
+### ARCH-341-01: `truncate_arraystring<const N>` DRY helper
+
+Added `pub(crate) fn truncate_arraystring<const N: usize>(s: &str) -> ArrayString<N>` in
+`crates/ritk-io/src/format/dicom/reader/types.rs`. Replaces 11
+`ArrayString::from(&s[..N]).unwrap()` call sites across 6 files.
+The helper truncates the string to N characters and constructs an
+`ArrayString<N>` with a descriptive `.expect()` message.
+
+### SECURE-341-04: `.unwrap()` → `.expect()` hardening
+
+Hardened 4 production `.unwrap()` calls in `series.rs`:
+
+| Site | Message |
+|------|---------|
+| `series_map.lock().unwrap()` | "series map mutex poisoned — another thread panicked while holding the lock" |
+| `Arc::try_unwrap(series_map).unwrap()` | "series map Arc still has multiple owners — parallel scan must be complete" |
+| `.into_inner().unwrap()` | "series map mutex must be unlocked after parallel scan" |
+| `get_position(&slices[i].1).unwrap()` (×2) | "slice ImagePositionPatient must be present after spatial sort validation" |
+
+### Next-sprint candidates
+
+| Priority | Item | Notes |
+|----------|------|-------|
+| High | `burn` `slice_ref(&self)` / `narrow_ref(&self)` API | Would eliminate ~79 clones in regularization, interpolation, transforms; revisit each sprint |
+| Medium | Remaining `ArrayString::from(LITERAL).unwrap()` patterns | ~20+ sites across networking/association/context; safe by construction but noisy |
+| Medium | `iterate_structure` module (untracked) | Tests failing; needs debugging before registering in `mod.rs` |
+| Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
+| Low | Arg-struct refactors for `too_many_arguments` | 14 instances, all justified |
 
 ---
 

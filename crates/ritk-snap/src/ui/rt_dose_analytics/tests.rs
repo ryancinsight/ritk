@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use super::*;
+use arrayvec::ArrayString;
 use ritk_io::{RtContour, RtDoseGrid, RtRoiInfo, RtStructureSet};
 
 fn square_roi() -> RtStructureSet {
@@ -31,7 +31,7 @@ fn uniform_dose_3x3() -> RtDoseGrid {
         cols: 3,
         n_frames: 1,
         dose_type: ArrayString::from("PHYSICAL").unwrap(),
-            dose_summation_type: ArrayString::from("PLAN").unwrap(),
+        dose_summation_type: ArrayString::from("PLAN").unwrap(),
         dose_grid_scaling: 1.0,
         frame_offsets: vec![0.0],
         dose_gy: vec![2.0; 9],

@@ -12,7 +12,7 @@
 //! - P_f(t) = Σ_{i=t+1}^{N-1} p(i)                      (foreground probability mass)
 //! - H_b(t) = -Σ_{i=0}^{t} (p(i)/P_b) · ln(p(i)/P_b)   (background entropy)
 //! - H_f(t) = -Σ_{i=t+1}^{N-1} (p(i)/P_f) · ln(p(i)/P_f) (foreground entropy)
-//! - p(i)   = count[i] / n_total                          (normalised histogram)
+//! - p(i)   = count\[i\] / n_total                          (normalised histogram)
 //!
 //! The optimal threshold in original intensity units is:
 //!

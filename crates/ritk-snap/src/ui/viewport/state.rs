@@ -73,7 +73,7 @@ pub enum ViewportRenderMode {
 
 /// Persistent per-viewport display state, independent of the egui frame.
 ///
-/// One instance is stored per active viewport slot in [`crate::app::SnapApp`].
+/// One instance is stored per active viewport slot in `crate::app::SnapApp`.
 pub struct ViewportState {
     /// MPR axis: 0 = axial (fixed depth), 1 = coronal (fixed row),
     /// 2 = sagittal (fixed column).

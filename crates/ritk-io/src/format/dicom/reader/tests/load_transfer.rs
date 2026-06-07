@@ -4,8 +4,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
@@ -115,8 +114,8 @@ fn test_load_series_compressed_ts_errors() {
         );
 
         let device = <B as burn::tensor::backend::Backend>::Device::default();
-        let load_result = load_dicom_series_with_metadata::<B, _>(&series_dir, &device)
-            .map(|(img, _meta)| img);
+        let load_result =
+            load_dicom_series_with_metadata::<B, _>(&series_dir, &device).map(|(img, _meta)| img);
         // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
         // payload is intentionally minimal, so either a valid load or a JPEG-contextual
         // decode error preserves the boundary contract.

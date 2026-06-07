@@ -6,8 +6,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
@@ -51,10 +50,9 @@ fn test_write_series_load_series_intensity_roundtrip() {
     crate::format::dicom::writer::write_dicom_series(&series_path, &image)
         .expect("write_dicom_series must succeed");
 
-    let loaded_image =
-        load_dicom_series_with_metadata::<B, _>(&series_path, &device)
-            .expect("load_dicom_series_with_metadata must succeed")
-            .0;
+    let loaded_image = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+        .expect("load_dicom_series_with_metadata must succeed")
+        .0;
 
     loaded_image.with_data_slice(|loaded_vals: &[f32]| {
         assert_eq!(
@@ -118,12 +116,12 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
 
     let meta = DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.999".try_into().unwrap()),
-            study_instance_uid: Some("1.2.3.4.5.6.998".try_into().unwrap()),
+        study_instance_uid: Some("1.2.3.4.5.6.998".try_into().unwrap()),
         frame_of_reference_uid: None,
         series_description: None,
         modality: Some(ArrayString::from("CT").unwrap()),
-            patient_id: Some("E2E001".to_string()),
-            patient_name: Some("E2E^Patient".to_string()),
+        patient_id: Some("E2E001".to_string()),
+        patient_name: Some("E2E^Patient".to_string()),
         study_date: Some(ArrayString::from("20250101").unwrap()),
         series_date: None,
         series_time: None,

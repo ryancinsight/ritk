@@ -26,7 +26,7 @@ use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 /// Binary dilation with a box structuring element of half-width `radius` voxels.
 ///
-/// For each voxel p, output[p] = 1.0 iff at least one voxel within the
+/// For each voxel p, output\[p\] = 1.0 iff at least one voxel within the
 /// axis-aligned hypercube of half-width `radius` centred at p is foreground
 /// (value > 0.5).
 ///

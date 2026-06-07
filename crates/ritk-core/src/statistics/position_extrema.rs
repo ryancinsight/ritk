@@ -5,7 +5,7 @@
 //! For a D-dimensional image `I` of shape `[d_0, d_1, …, d_{D-1}]` stored in
 //! row-major order, the **argmin** is the unique (or first) index vector
 //!
-//!   p_min = argmin_{i ∈ [0, n)} I.flat[i]
+//! p_min = argmin_{i ∈ \[0, n\)} I.flat\[i\]
 //!
 //! which is then converted to multi-index coordinates via
 //!

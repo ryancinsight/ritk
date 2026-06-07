@@ -1,13 +1,14 @@
 //! RT Plan reader — parse a DICOM RT Plan Storage file into [`RtPlanInfo`].
 
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID};
+use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read an RT Plan Storage DICOM file at `path` into an [`RtPlanInfo`].
 ///
@@ -33,16 +34,14 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
         .element(Tag(0x0008, 0x0018))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| {
-            match ArrayString::<64>::from(s.as_str()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!("SOPInstanceUID exceeds 64 chars, truncating: {}", &s[..64]);
-                    ArrayString::from(&s[..64]).unwrap()
-                }
+        .map(|s| match ArrayString::<64>::from(s.as_str()) {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::warn!("SOPInstanceUID exceeds 64 chars, truncating: {}", &s[..64]);
+                truncate_arraystring::<64>(s.as_str())
             }
         })
-        .unwrap_or_else(|| ArrayString::new());
+        .unwrap_or_else(ArrayString::new);
 
     let rt_plan_label = obj
         .element(Tag(0x300A, 0x0002))
@@ -66,16 +65,14 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
         .element(Tag(0x300A, 0x000A))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| {
-            match ArrayString::<16>::from(s.as_str()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!("PlanIntent exceeds 16 chars, truncating: {}", &s[..16]);
-                    ArrayString::from(&s[..16]).unwrap()
-                }
+        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::warn!("PlanIntent exceeds 16 chars, truncating: {}", &s[..16]);
+                truncate_arraystring::<16>(s.as_str())
             }
         })
-        .unwrap_or_else(|| ArrayString::new());
+        .unwrap_or_else(ArrayString::new);
 
     let beams: Vec<RtBeamInfo> = match obj.element(Tag(0x300A, 0x00B0)) {
         Ok(elem) => match elem.value() {
@@ -102,30 +99,32 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
                         .element(Tag(0x300A, 0x00C6))
                         .ok()
                         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-                        .map(|s| {
-                            match ArrayString::<16>::from(s.as_str()) {
-                                Ok(v) => v,
-                                Err(_) => {
-                                    tracing::warn!("RadiationType exceeds 16 chars, truncating: {}", &s[..16]);
-                                    ArrayString::from(&s[..16]).unwrap()
-                                }
+                        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                tracing::warn!(
+                                    "RadiationType exceeds 16 chars, truncating: {}",
+                                    &s[..16]
+                                );
+                                truncate_arraystring::<16>(s.as_str())
                             }
                         })
-                        .unwrap_or_else(|| ArrayString::new());
+                        .unwrap_or_else(ArrayString::new);
                     let treatment_delivery_type = item
                         .element(Tag(0x300A, 0x00CE))
                         .ok()
                         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-                        .map(|s| {
-                            match ArrayString::<16>::from(s.as_str()) {
-                                Ok(v) => v,
-                                Err(_) => {
-                                    tracing::warn!("TreatmentDeliveryType exceeds 16 chars, truncating: {}", &s[..16]);
-                                    ArrayString::from(&s[..16]).unwrap()
-                                }
+                        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+                            Ok(v) => v,
+                            Err(_) => {
+                                tracing::warn!(
+                                    "TreatmentDeliveryType exceeds 16 chars, truncating: {}",
+                                    &s[..16]
+                                );
+                                truncate_arraystring::<16>(s.as_str())
                             }
                         })
-                        .unwrap_or_else(|| ArrayString::new());
+                        .unwrap_or_else(ArrayString::new);
                     let n_control_points: u32 = item
                         .element(Tag(0x300A, 0x0110))
                         .ok()

@@ -63,11 +63,11 @@ impl DecayCorrectionKind {
 /// any required field is absent or ≤ 0).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PetAcquisitionParams {
-    /// Patient body weight [kg]. Converted to [g] internally for `SuvParams`.
+    /// Patient body weight \[kg\]. Converted to \[g\] internally for `SuvParams`.
     pub patient_weight_kg: f64,
-    /// Injected radionuclide total dose at injection time [Bq].
+    /// Injected radionuclide total dose at injection time \[Bq\].
     pub injected_dose_bq: f64,
-    /// Radionuclide physical half-life [s].
+    /// Radionuclide physical half-life \[s\].
     pub radionuclide_half_life_s: f64,
     /// Pixel decay-correction mode from (0054,1102).
     pub decay_correction: DecayCorrectionKind,
@@ -102,7 +102,7 @@ impl PetAcquisitionParams {
 
     /// Convert to [`SuvParams`] for use with [`compute_suvbw`].
     ///
-    /// `delta_t_s` is the elapsed time from injection to scan start [s].
+    /// `delta_t_s` is the elapsed time from injection to scan start \[s\].
     /// Ignored (forced to 0) when `decay_correction` is
     /// [`Start`][DecayCorrectionKind::Start] or [`Admin`][DecayCorrectionKind::Admin].
     pub fn to_suv_params(&self, delta_t_s: f64) -> SuvParams {
@@ -120,16 +120,16 @@ impl PetAcquisitionParams {
         }
     }
 
-    /// Compute SUVbw for a single voxel expressed in [Bq/mL].
+    /// Compute SUVbw for a single voxel expressed in \[Bq/mL\].
     ///
-    /// `delta_t_s` is the elapsed time from injection to scan start [s];
+    /// `delta_t_s` is the elapsed time from injection to scan start \[s\];
     /// ignored for `Start` and `Admin` decay correction modes.
     #[inline]
     pub fn pixel_to_suvbw(&self, pixel_bqml: f64, delta_t_s: f64) -> f64 {
         compute_suvbw(pixel_bqml, &self.to_suv_params(delta_t_s))
     }
 
-    /// Compute elapsed time [s] from injection to scan using `LoadedVolume` time fields.
+    /// Compute elapsed time \[s\] from injection to scan using `LoadedVolume` time fields.
     ///
     /// Parses `vol.radiopharmaceutical_start_time` (0018,1072) and `vol.series_time`
     /// (0008,0031) as DICOM TM strings. Returns `0.0` when either field is absent or
@@ -200,7 +200,7 @@ pub fn parse_dicom_tm(s: &str) -> Option<f64> {
     Some(hh * 3600.0 + mm * 60.0 + ss + frac)
 }
 
-/// Compute elapsed time [s] from radiopharmaceutical injection to series acquisition.
+/// Compute elapsed time \[s\] from radiopharmaceutical injection to series acquisition.
 ///
 /// Handles midnight rollover: if `series_time_s < rph_start_s`, the scan crossed
 /// midnight and 86 400 s is added. Result ∈ [0, 86 400).

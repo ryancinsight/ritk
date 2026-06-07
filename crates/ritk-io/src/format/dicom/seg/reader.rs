@@ -1,5 +1,5 @@
-use arrayvec::ArrayString;
 use anyhow::{bail, Context, Result};
+use arrayvec::ArrayString;
 use dicom::core::value::Value;
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
@@ -7,6 +7,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID};
+use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
 ///
@@ -56,13 +57,14 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
         .element(Tag(0x0062, 0x0001))
         .ok()
         .and_then(|e| e.to_str().ok().map(|s| s.trim().to_owned()))
-        .map(|s| {
-            match ArrayString::<16>::from(s.as_str()) {
-                Ok(v) => v,
-                Err(_) => {
-                    tracing::warn!("SegmentationType exceeds 16 chars, truncating: {}", &s[..16]);
-                    ArrayString::from(&s[..16]).unwrap()
-                }
+        .map(|s| match ArrayString::<16>::from(s.as_str()) {
+            Ok(v) => v,
+            Err(_) => {
+                tracing::warn!(
+                    "SegmentationType exceeds 16 chars, truncating: {}",
+                    &s[..16]
+                );
+                truncate_arraystring::<16>(s.as_str())
             }
         })
         .unwrap_or_else(|| ArrayString::from("BINARY").unwrap());
@@ -209,13 +211,11 @@ fn parse_segment_sequence(obj: &InMemDicomObject) -> Vec<DicomSegmentInfo> {
                         .map(|s: std::borrow::Cow<str>| s.trim().to_owned())
                 })
                 .filter(|s: &String| !s.is_empty())
-                .and_then(|s| {
-                    match ArrayString::<16>::from(s.as_str()) {
-                        Ok(v) => Some(v),
-                        Err(_) => {
-                            tracing::warn!("AlgorithmType exceeds 16 chars, truncating: {}", &s[..16]);
-                            Some(ArrayString::from(&s[..16]).unwrap())
-                        }
+                .map(|s| match ArrayString::<16>::from(s.as_str()) {
+                    Ok(v) => v,
+                    Err(_) => {
+                        tracing::warn!("AlgorithmType exceeds 16 chars, truncating: {}", &s[..16]);
+                        truncate_arraystring::<16>(s.as_str())
                     }
                 });
             DicomSegmentInfo {
