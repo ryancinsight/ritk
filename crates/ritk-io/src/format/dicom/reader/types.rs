@@ -251,6 +251,29 @@ pub(super) struct SeriesGeometry {
     pub direction: [f64; 9],
 }
 
+/// Construct an `ArrayString<N>` from a string literal, panicking with a
+/// descriptive message if the literal exceeds capacity.
+///
+/// Replaces the `ArrayString::from(LITERAL).unwrap()` pattern for string
+/// literals that are known by construction to fit.
+///
+/// # Example
+/// ```ignore
+/// let val: ArrayString<64> = literal_arraystring("1.2.840.10008.1.1");
+/// ```
+#[inline]
+#[track_caller]
+pub fn literal_arraystring<const N: usize>(s: &'static str) -> ArrayString<N> {
+    ArrayString::from(s).unwrap_or_else(|_| {
+        panic!(
+            "literal \"{}\" ({} bytes) exceeds ArrayString<{}> capacity",
+            s,
+            s.len(),
+            N
+        )
+    })
+}
+
 /// Truncate a string to fit `ArrayString<N>`, emitting a warning if truncation occurs.
 ///
 /// This is the DRY helper for the `ArrayString::from(s).unwrap_or_else(|_| ...)` pattern

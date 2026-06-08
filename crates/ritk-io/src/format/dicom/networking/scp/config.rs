@@ -3,6 +3,7 @@
 use arrayvec::ArrayString;
 
 use super::super::pdu::DEFAULT_MAXIMUM_LENGTH;
+use crate::format::dicom::reader::types::literal_arraystring;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
@@ -161,7 +162,7 @@ pub struct ScpConfig {
 impl Default for ScpConfig {
     fn default() -> Self {
         Self {
-            ae_title: ArrayString::from("RITKSNAP").unwrap(),
+            ae_title: literal_arraystring("RITKSNAP"),
             port: 11112,
             max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
             queue_capacity: 512,

@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::transfer_syntax::TransferSyntaxKind;
-use crate::format::dicom::reader::types::truncate_arraystring;
+use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 /// Metadata for a discovered DICOM series
 #[derive(Debug, Clone)]
@@ -109,7 +109,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
                         }
                     }
                 })
-                .unwrap_or_else(|| ArrayString::from("OT").unwrap());
+                .unwrap_or_else(|| literal_arraystring("OT"));
             let patient_id = get_string(&obj, tags::PATIENT_ID).unwrap_or_default();
 
             let mut map = series_map.lock().expect(

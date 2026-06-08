@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## [0.51.9] - 2026-06-08
+
+### Added
+- **GAP-SCI-11: `iterate_structure` / `BoolStructure`** — `scipy.ndimage.iterate_structure` implementation with `BoolStructure<D>` (D-dimensional boolean structuring element) and `iterate_structure_with_origin`. Supports arbitrary-dimension structures, origin tracking, and `dilate` method. Implements scipy's `binary_dilation` with default `origin=0` (including even-sized kernel offset convention). Lives at `crates/ritk-core/src/filter/morphology/iterate_structure/`; re-exported from `morphology`.
+- **ARCH-343-01: `literal_arraystring<const N>` helper** — Added `pub fn literal_arraystring<const N: usize>(s: &'static str) -> ArrayString<N>` in `reader/types.rs`. Replaces 24 `ArrayString::from(LITERAL).unwrap()` call sites across 12 production code files with descriptive panic messages. Re-exported through `ritk-io`'s public API.
+
+### Changed
+- **FIX-343-02: `dilate_once` algorithm rewrite** — Rewrote `BoolStructure::dilate_once` from the buggy flipped-kernel gather approach to a correct scatter approach matching scipy's `binary_dilation` with `origin=0`. Fixed even-sized kernel offset convention (scipy applies an extra −1 origin for even axis sizes). Fixed 3 incorrect test expectations that were written to match the buggy dilation code.
+
+### Verified
+- `cargo clippy --workspace -- -D warnings`: **0 warnings**
+- `cargo doc -p ritk-{core,io,snap,registration} --no-deps`: **0 warnings**
+- `cargo fmt --check`: clean
+- `cargo test -p ritk-core --lib`: 1559 passed; 0 failed; 1 ignored
+- `cargo test -p ritk-registration --lib`: 570 passed; 1 failed (pre-existing proptest flake since Sprint 336); 1 ignored
+- `cargo test -p ritk-codecs --lib`: 102 passed
+- `cargo test -p ritk-nrrd --lib`: 23 passed
+- `cargo test -p ritk-io --lib` (rt_struct, seg subsets): 50 passed
+
 ## [0.51.8] - 2026-06-06
 
 ### Added

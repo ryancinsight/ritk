@@ -281,9 +281,7 @@ fn dilate_once<const D: usize>(
         .filter(|&i| kernel.as_slice()[i])
         .map(|i| {
             let multi = kernel.flat_to_multi(i);
-            std::array::from_fn(|k| {
-                multi[k] as isize - k_center[k] as isize - even_offset[k]
-            })
+            std::array::from_fn(|k| multi[k] as isize - k_center[k] as isize - even_offset[k])
         })
         .collect();
 

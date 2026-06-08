@@ -4,8 +4,7 @@
 //! Conversion to [`AssociationConfig`] is performed at request submission time,
 //! keeping the UI layer free of DIMSE protocol details.
 
-use arrayvec::ArrayString;
-use ritk_io::AssociationConfig;
+use ritk_io::{literal_arraystring, AssociationConfig};
 
 // ── PacsConfig ────────────────────────────────────────────────────────────────
 
@@ -76,12 +75,12 @@ impl PacsConfig {
                 .calling_ae_title
                 .as_str()
                 .try_into()
-                .unwrap_or_else(|_| ArrayString::from("RITKSNAP").unwrap()),
+                .unwrap_or_else(|_| literal_arraystring("RITKSNAP")),
             called_ae_title: self
                 .called_ae_title
                 .as_str()
                 .try_into()
-                .unwrap_or_else(|_| ArrayString::from("ORTHANC").unwrap()),
+                .unwrap_or_else(|_| literal_arraystring("ORTHANC")),
             host: self.host.clone(),
             port: self.port,
             timeout: std::time::Duration::from_secs(self.timeout_secs),

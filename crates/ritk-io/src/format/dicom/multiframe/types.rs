@@ -1,5 +1,6 @@
 //! Public data types for multi-frame DICOM reader and writer.
 
+use crate::format::dicom::reader::types::literal_arraystring;
 use arrayvec::ArrayString;
 use std::path::PathBuf;
 
@@ -120,7 +121,7 @@ pub struct MultiFrameWriterConfig {
 impl Default for MultiFrameWriterConfig {
     fn default() -> Self {
         Self {
-            sop_class_uid: ArrayString::from(MF_GRAYSCALE_WORD_SC_UID).unwrap(),
+            sop_class_uid: literal_arraystring(MF_GRAYSCALE_WORD_SC_UID),
             spatial: None,
             instance_number: 1,
         }

@@ -372,7 +372,7 @@ impl SnapApp {
                 .scp_ae_title
                 .as_str()
                 .try_into()
-                .unwrap_or_else(|_| arrayvec::ArrayString::from("RITKSNAP").unwrap()),
+                .unwrap_or_else(|_| ritk_io::literal_arraystring("RITKSNAP")),
             port: self.pacs_config.scp_port,
             ..ScpConfig::default()
         };

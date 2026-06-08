@@ -1,6 +1,7 @@
 use anyhow::{bail, Result};
-use arrayvec::ArrayString;
 use std::collections::HashMap;
+
+use crate::format::dicom::reader::types::literal_arraystring;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation};
 
@@ -98,9 +99,9 @@ pub fn label_map_to_dicom_seg(
 
     let bits_allocated = if use_binary { 1u16 } else { 8u16 };
     let segmentation_type = if use_binary {
-        ArrayString::from("BINARY").unwrap()
+        literal_arraystring("BINARY")
     } else {
-        ArrayString::from("FRACTIONAL").unwrap()
+        literal_arraystring("FRACTIONAL")
     };
 
     // Convert 3×3 direction matrix to 6-element image orientation (row, then column direction)

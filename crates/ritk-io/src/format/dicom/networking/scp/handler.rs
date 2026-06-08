@@ -12,6 +12,7 @@ use super::super::pdu::{
     APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
 };
 use super::config::{ScpConfig, StoredInstance};
+use crate::format::dicom::reader::types::literal_arraystring;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -46,22 +47,23 @@ pub(super) fn handle_connection(
 
     // 2. Accept every offered presentation context with its first transfer syntax.
     let mut ctx_map: HashMap<u8, (ArrayString<64>, ArrayString<64>)> = HashMap::new();
-    let pc_acs: Vec<PresentationContextItemAc> =
-        rq.presentation_contexts
-            .iter()
-            .map(|pc| {
-                let ts =
-                    pc.transfer_syntax_uids.first().cloned().unwrap_or_else(|| {
-                        ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()
-                    });
-                ctx_map.insert(pc.presentation_context_id, (pc.abstract_syntax_uid, ts));
-                PresentationContextItemAc {
-                    presentation_context_id: pc.presentation_context_id,
-                    result_reason: 0,
-                    transfer_syntax_uid: ts,
-                }
-            })
-            .collect();
+    let pc_acs: Vec<PresentationContextItemAc> = rq
+        .presentation_contexts
+        .iter()
+        .map(|pc| {
+            let ts = pc
+                .transfer_syntax_uids
+                .first()
+                .cloned()
+                .unwrap_or_else(|| literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
+            ctx_map.insert(pc.presentation_context_id, (pc.abstract_syntax_uid, ts));
+            PresentationContextItemAc {
+                presentation_context_id: pc.presentation_context_id,
+                result_reason: 0,
+                transfer_syntax_uid: ts,
+            }
+        })
+        .collect();
 
     // 3. Send A-ASSOCIATE-AC.
     write_pdu_stream(
@@ -70,19 +72,17 @@ pub(super) fn handle_connection(
             protocol_version: 1,
             called_ae_title: rq.called_ae_title,
             calling_ae_title: rq.calling_ae_title,
-            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
+            application_context_name: literal_arraystring(APPLICATION_CONTEXT_NAME),
             presentation_contexts: pc_acs,
             user_information: UserInformation {
                 maximum_length: MaximumLengthSubItem {
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
-                        .unwrap(),
+                    implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
-                        .unwrap(),
+                    implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),
                 }),
                 ..Default::default()
             },

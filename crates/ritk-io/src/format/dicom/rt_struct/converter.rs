@@ -1,9 +1,9 @@
 //! RT ROI converters: [`RtRoiInfo`] ↔ [`VtkPolyData`] and label map → [`RtStructureSet`].
 
 use anyhow::{bail, Result};
-use arrayvec::ArrayString;
 
 use crate::domain::vtk_data_object::VtkPolyData;
+use crate::format::dicom::reader::types::literal_arraystring;
 
 use super::types::{RtContour, RtRoiInfo, RtStructureSet};
 
@@ -213,7 +213,7 @@ pub fn label_map_to_rt_struct(
                     .collect();
 
                 contours.push(RtContour {
-                    geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                    geometric_type: literal_arraystring("CLOSED_PLANAR"),
                     points,
                 });
             }

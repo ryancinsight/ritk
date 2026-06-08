@@ -43,9 +43,9 @@ pub use object_model::{
     DicomSequenceItem, DicomTag, DicomValue,
 };
 pub use reader::{
-    load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
-    scan_dicom_instances, scan_dicom_part10_bytes, DicomReadMetadata, DicomSliceMetadata,
-    PatientPosition, ScannedDicomSeries,
+    literal_arraystring, load_dicom_from_series, load_dicom_series_with_metadata,
+    read_dicom_series_with_metadata, scan_dicom_instances, scan_dicom_part10_bytes,
+    DicomReadMetadata, DicomSliceMetadata, PatientPosition, ScannedDicomSeries,
 };
 pub use rt_dose::{read_rt_dose, write_rt_dose, RtDoseGrid, RT_DOSE_SOP_CLASS_UID};
 pub use rt_plan::{

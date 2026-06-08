@@ -5,6 +5,7 @@
 
 use super::pdu::{UserIdentity, DEFAULT_MAXIMUM_LENGTH};
 use super::types::{AeTitle, DicomAddress};
+use crate::format::dicom::reader::types::literal_arraystring;
 use arrayvec::ArrayString;
 use std::time::Duration;
 
@@ -52,8 +53,8 @@ pub struct AssociationConfig {
 impl Default for AssociationConfig {
     fn default() -> Self {
         Self {
-            called_ae_title: ArrayString::from("ANYSCP").unwrap(),
-            calling_ae_title: ArrayString::from("RITK").unwrap(),
+            called_ae_title: literal_arraystring("ANYSCP"),
+            calling_ae_title: literal_arraystring("RITK"),
             host: "127.0.0.1".into(),
             port: 104,
             max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
@@ -72,11 +73,11 @@ impl AssociationConfig {
                 .ae_title
                 .as_str()
                 .try_into()
-                .unwrap_or_else(|_| ArrayString::from("ANYSCP").unwrap()),
+                .unwrap_or_else(|_| literal_arraystring("ANYSCP")),
             calling_ae_title: calling
                 .as_str()
                 .try_into()
-                .unwrap_or_else(|_| ArrayString::from("RITK").unwrap()),
+                .unwrap_or_else(|_| literal_arraystring("RITK")),
             host: remote.host.clone(),
             port: remote.port,
             ..Default::default()

@@ -268,9 +268,9 @@ fn l_shape_3d_iterations_2() {
     assert_eq!(r.shape(), &[5, 5, 5]);
     // Three True voxels along the main diagonal.
     let mut exp_data = vec![false; 125];
-    exp_data[0] = true;                    // (0, 0, 0)
-    exp_data[2 * 25 + 2 * 5 + 2] = true;   // (2, 2, 2)
-    exp_data[4 * 25 + 4 * 5 + 4] = true;   // (4, 4, 4)
+    exp_data[0] = true; // (0, 0, 0)
+    exp_data[2 * 25 + 2 * 5 + 2] = true; // (2, 2, 2)
+    exp_data[4 * 25 + 4 * 5 + 4] = true; // (4, 4, 4)
     let expected = BoolStructure::<3>::from_data([5, 5, 5], exp_data);
     assert_eq!(r, expected);
 }
@@ -348,12 +348,7 @@ fn two_by_two_all_true_iterations_3() {
     let s = struct_2d(&[&[1, 1], &[1, 1]]);
     let r = iterate_structure(&s, 3);
     assert_eq!(r.shape(), &[4, 4]);
-    let expected = struct_2d(&[
-        &[1, 1, 0, 0],
-        &[1, 1, 0, 0],
-        &[0, 0, 0, 0],
-        &[0, 0, 0, 0],
-    ]);
+    let expected = struct_2d(&[&[1, 1, 0, 0], &[1, 1, 0, 0], &[0, 0, 0, 0], &[0, 0, 0, 0]]);
     assert_eq!(r, expected);
 }
 

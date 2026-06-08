@@ -3,13 +3,13 @@
 This document tracks performance characteristics, known bottlenecks, and
 optimization opportunities across the RITK codebase.
 
-## Current State (v0.51.8)
+## Current State (v0.51.9)
 
 ### Test Suite Performance
 
 | Package | Tests | Time (approx) | Status |
 |--------|-------|--------------|--------|
-| ritk-core | 1521 | ~11s | ✅ All passing |
+| ritk-core | 1559 | ~10s | ✅ All passing |
 | ritk-registration | 547 | ~16s | ✅ All passing (`--features direct-parzen --no-default-features`) |
 | ritk-dicom | 16 | ~2s | ✅ All passing |
 | ritk-nifti | 13 | ~1s | ✅ All passing |
@@ -1101,6 +1101,57 @@ Prefixed `_i` in `chamfer/tests.rs` to silence `unused_variables` warning.
 
 ---
 
+## Sprint 343 — iterate_structure + literal_arraystring + dilate_once Fix
+
+### GAP-SCI-11: `iterate_structure` / `BoolStructure<D>`
+
+Registered the previously untracked `iterate_structure` module in
+`crates/ritk-core/src/filter/morphology/mod.rs` and fixed the `dilate_once`
+algorithm. The module provides:
+
+- `BoolStructure<D>`: D-dimensional boolean structuring element with
+  `dilate`, `center`, `flat_to_multi`, `multi_to_flat`, `from_shape_fn`.
+- `iterate_structure(structure, iterations)`: scipy.ndimage.iterate_structure.
+- `iterate_structure_with_origin(structure, iterations, origin)`: returns
+  the iterated structure and scaled origin.
+
+38 tests pass (including cross-validation against scipy's diamond/cube
+shapes and edge cases).
+
+### FIX-342-02: `dilate_once` algorithm rewrite
+
+The original `dilate_once` used a flipped-kernel gather approach that
+produced incorrect results. Rewritten to a scatter approach:
+
+```
+for each True input voxel p:
+    for each True kernel voxel q:
+        output[p + q − center − even_offset] = True
+```
+
+where `center[k] = shape[k] // 2` and `even_offset[k] = 1` for even-sized
+axes (matching scipy's `binary_dilation` origin convention for `origin=0`).
+
+3 test expectations were corrected to match the actual scipy behavior.
+
+### ARCH-342-01: `literal_arraystring<const N>` DRY helper
+
+Added `pub fn literal_arraystring<const N: usize>(s: &'static str) -> ArrayString<N>`
+in `reader/types.rs`. Replaces 24 `ArrayString::from(LITERAL).unwrap()` call sites
+across 12 production code files with descriptive panic messages. Re-exported
+through `ritk-io`'s public API chain.
+
+### Next-sprint candidates
+
+| Priority | Item | Notes |
+|----------|------|-------|
+| High | `burn` `slice_ref(&self)` / `narrow_ref(&self)` API | Would eliminate ~79 clones in regularization, interpolation, transforms; revisit each sprint |
+| Medium | Remaining `ArrayString::from(LITERAL).unwrap()` in test code | ~25+ sites in test files; safe by construction but noisy |
+| Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
+| Low | Arg-struct refactors for `too_many_arguments` | 14 instances, all justified |
+
+---
+
 ## Sprint 341 — Clippy Zero-Warning + Doc Warning Elimination + DRY Helper + Expect Hardening
 
 ### CLIPPY-341-02: Clippy zero-warning workspace
@@ -1153,8 +1204,7 @@ Hardened 4 production `.unwrap()` calls in `series.rs`:
 | Priority | Item | Notes |
 |----------|------|-------|
 | High | `burn` `slice_ref(&self)` / `narrow_ref(&self)` API | Would eliminate ~79 clones in regularization, interpolation, transforms; revisit each sprint |
-| Medium | Remaining `ArrayString::from(LITERAL).unwrap()` patterns | ~20+ sites across networking/association/context; safe by construction but noisy |
-| Medium | `iterate_structure` module (untracked) | Tests failing; needs debugging before registering in `mod.rs` |
+| Medium | Remaining `ArrayString::from(LITERAL).unwrap()` in test code | ~25+ sites in test files; safe by construction but noisy |
 | Low | `inline_const_exprs` for `D*D` replacing `DD` workaround | Blocked on nightly stabilization |
 | Low | Arg-struct refactors for `too_many_arguments` | 14 instances, all justified |
 

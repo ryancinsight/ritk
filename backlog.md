@@ -4,6 +4,36 @@
 
 ---
 
+## Sprint 343 (Phase 20) — iterate_structure + literal_arraystring + dilate_once Fix
+
+**Status**: Complete
+**Phase**: GAP-SCI-11 + ARCH-343 + FIX-343
+**Goal**: Register and fix the `iterate_structure` module, add `literal_arraystring` DRY helper, fix the `dilate_once` algorithm.
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| GAP-SCI-11 | `iterate_structure` / `BoolStructure<D>` — scipy.ndimage.iterate_structure implementation | **Closed** |
+| ARCH-343-01 | `literal_arraystring<const N>` DRY helper (replaces 24 `.unwrap()` patterns) | **Closed** |
+| FIX-343-02 | `dilate_once` algorithm rewrite (flipped gather → scatter, even-offset fix) | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace -- -D warnings` | 0 warnings |
+| `cargo doc -p ritk-{core,io,snap,registration} --no-deps` | 0 warnings |
+| `cargo fmt --check` | Clean |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-registration --lib` | 570/1/1 (pre-existing proptest flake) |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| `cargo test -p ritk-io --lib` (rt_struct, seg subsets) | 50/0/0 |
+
+---
+
+## Sprint 341 (Phase 19) — Clippy Zero-Warning + Doc Warning Elimination + DRY Helper + Expect Hardening
 ## Sprint 342 (Phase 20) — Coeus Migration Readiness Audit
 
 **Status**: In Progress

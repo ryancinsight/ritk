@@ -3,6 +3,7 @@
 use super::super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
 use super::super::pdu::*;
 use super::Association;
+use crate::format::dicom::reader::types::literal_arraystring;
 use arrayvec::ArrayString;
 use std::collections::HashMap;
 
@@ -18,7 +19,7 @@ impl Association {
             .map(|rpc| {
                 let mut ts = rpc.transfer_syntax_uids.clone();
                 if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                    ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
+                    ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
                 }
                 let id = nid;
                 nid += 2;
@@ -34,19 +35,17 @@ impl Association {
             protocol_version: 1,
             called_ae_title: config.called_ae_title,
             calling_ae_title: config.calling_ae_title,
-            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
+            application_context_name: literal_arraystring(APPLICATION_CONTEXT_NAME),
             presentation_contexts: pcs,
             user_information: UserInformation {
                 maximum_length: MaximumLengthSubItem {
                     maximum_length_received: config.max_pdu_length,
                 },
                 implementation_class_uid: ImplementationClassUidSubItem {
-                    implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
-                        .unwrap(),
+                    implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
                 },
                 implementation_version_name: Some(ImplementationVersionNameSubItem {
-                    implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
-                        .unwrap(),
+                    implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),
                 }),
                 user_identity: config.user_identity.clone(),
                 ..Default::default()

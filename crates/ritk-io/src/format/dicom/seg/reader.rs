@@ -7,7 +7,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation, SEG_SOP_CLASS_UID};
-use crate::format::dicom::reader::types::truncate_arraystring;
+use crate::format::dicom::reader::types::{literal_arraystring, truncate_arraystring};
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
 ///
@@ -67,7 +67,7 @@ pub fn read_dicom_seg<P: AsRef<Path>>(path: P) -> Result<DicomSegmentation> {
                 truncate_arraystring::<16>(s.as_str())
             }
         })
-        .unwrap_or_else(|| ArrayString::from("BINARY").unwrap());
+        .unwrap_or_else(|| literal_arraystring("BINARY"));
 
     tracing::debug!(
         "read_dicom_seg: header rows={} cols={} n_frames={} bits_allocated={} seg_type={}",

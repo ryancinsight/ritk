@@ -14,8 +14,8 @@ pub use super::types::{
     AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse,
 };
 
+use crate::format::dicom::reader::types::literal_arraystring;
 use anyhow::{bail, Context, Result};
-use arrayvec::ArrayString;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 
@@ -83,7 +83,7 @@ impl Association {
         for rpc in &config.presentation_contexts {
             let mut ts = rpc.transfer_syntax_uids.clone();
             if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                ts.push(ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap());
+                ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
             }
             pc_items.push(PresentationContextItemRq {
                 presentation_context_id: next_id,
@@ -100,11 +100,10 @@ impl Association {
                 maximum_length_received: config.max_pdu_length,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
+                implementation_class_uid: literal_arraystring(RITK_IMPLEMENTATION_CLASS_UID),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
-                    .unwrap(),
+                implementation_version_name: literal_arraystring(RITK_IMPLEMENTATION_VERSION),
             }),
             user_identity: config.user_identity.clone(),
             ..Default::default()
@@ -114,7 +113,7 @@ impl Association {
             protocol_version: 1,
             called_ae_title: config.called_ae_title,
             calling_ae_title: config.calling_ae_title,
-            application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
+            application_context_name: literal_arraystring(APPLICATION_CONTEXT_NAME),
             presentation_contexts: pc_items,
             user_information: ui,
         });
