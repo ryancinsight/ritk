@@ -4,6 +4,56 @@
 
 ---
 
+## Sprint 342 (Phase 20) — Coeus Migration Readiness Audit
+
+**Status**: In Progress
+**Phase**: MIG-342 + GPU-342 + DOC-342
+**Goal**: Prepare the future Burn-to-Coeus migration without introducing a fake
+Coeus backend while Coeus remains incomplete for RITK production use.
+
+### Gaps
+
+| Gap ID | Description | Status |
+|--------|-------------|--------|
+| MIG-342-01 | Burn-to-Coeus replacement surface identified from manifests, source audit, and Coeus public capabilities | **Closed** |
+| MIG-342-02 | Repeatable `xtask burn-migration-audit` command with unit tests | **Closed** |
+| DOC-342-03 | `docs/coeus_migration.md` with required CPU/autograd/model/PyO3/GPU gates | **Closed** |
+| MIG-342-04 | RITK-owned tensor contract over Coeus CPU backend | **Open** |
+| GPU-342-05 | Coeus WGPU differential test harness for RITK operation subset | **Open** |
+| REG-342-06 | Registration autodiff tape continuity proof/test under Coeus | **Open** |
+| MODEL-342-07 | `ritk-model` Coeus module/parameter/3-D convolution migration design | **Open** |
+| PY-342-08 | Python binding conversion plan over Coeus-backed Rust core | **Open** |
+
+### Architecture
+
+RITK remains Burn-backed until Coeus satisfies the replacement contract. The
+current Burn surface spans `ritk-core`, format crates, `ritk-io`, `ritk-vtk`,
+`ritk-registration`, `ritk-model`, `ritk-python`, `ritk-cli`, and `ritk-snap`.
+The migration must proceed by crate boundary and keep CPU and GPU parity tests
+in lockstep.
+
+The next implementation stage is not a dependency swap. It is the RITK tensor
+contract once Coeus exposes the required CPU API surface. WGPU follows only
+after CPU Coeus parity exists.
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo test -p xtask migration_audit` | 2/0/0 |
+| `cargo run -p xtask -- burn-migration-audit` | 18 manifest dependency files; 490 source files with Burn-surface tokens |
+| `cargo fmt --check -p xtask` | Clean |
+
+### Residual risks
+
+- Coeus has active WGPU support but is not yet a RITK-compatible replacement.
+- Coeus CUDA files have unrelated local modifications in the atlas checkout.
+- RITK has unrelated local morphology edits; this sprint does not touch them.
+- Burn host extraction must remain prohibited on differentiable registration
+  paths during migration.
+
+---
+
 ## Sprint 341 (Phase 19) — Clippy Zero-Warning + Doc Warning Elimination + DRY Helper + Expect Hardening
 
 **Status**: Complete

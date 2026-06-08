@@ -4,6 +4,57 @@
 
 ---
 
+## Sprint 342 Audit (2026-06-08) — Coeus Migration Readiness
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| MIG-342-01 | Burn-to-Coeus replacement surface identified from manifests and source audit | workspace | N/A |
+| MIG-342-02 | Repeatable `xtask burn-migration-audit` command added | `xtask::migration_audit` | 2 |
+| DOC-342-03 | Migration design note with CPU/autograd/model/PyO3/GPU gates | `docs/coeus_migration.md` | N/A |
+
+### Architecture
+
+RITK cannot replace Burn with Coeus in one step. Burn currently owns the public
+and internal tensor boundary for images, I/O, registration, transforms, models,
+CLI commands, Python conversions, and GPU/autodiff-capable paths. Coeus is the
+target backend, but the migration requires a RITK tensor contract, CPU parity,
+WGPU parity, registration autodiff continuity, model-module parity, and Python
+conversion parity before Burn dependencies can be removed.
+
+The new `xtask burn-migration-audit` command makes this surface repeatable. It
+scans manifests for `burn` / `burn-ndarray`, scans Rust sources for Burn tensor
+and autodiff tokens, summarizes results by crate, and prints the Coeus
+capability gates needed for migration. The audit is lexical evidence, not a
+type-level proof.
+
+### Open Gaps
+
+- MIG-342-04: RITK-owned tensor contract over Coeus CPU backend
+- GPU-342-05: Coeus WGPU differential test harness for the RITK operation subset
+- REG-342-06: registration autodiff tape continuity under Coeus
+- MODEL-342-07: Coeus module/parameter/3-D convolution migration for `ritk-model`
+- PY-342-08: PyO3 conversion plan over Coeus-backed Rust core
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo test -p xtask migration_audit` | unit tests | 2/0/0 |
+| `cargo run -p xtask -- burn-migration-audit` | audit execution | 18 manifest dependency files; 490 source files with Burn-surface tokens |
+| `cargo fmt --check -p xtask` | formatting | clean |
+
+### Residual Risk
+
+- Coeus GPU support is active but not yet a RITK-compatible production backend.
+- RITK Burn call sites include differentiable registration paths where host
+  extraction would sever autodiff tape connectivity.
+- Existing unrelated edits in morphology files and Coeus CUDA files remain
+  outside this audit increment.
+
+---
+
 ## Sprint 332 Audit (2026-06-03) — Documentation Compaction + Structural Audit
 
 ### Gaps closed

@@ -226,71 +226,96 @@ fn increment_index<const D: usize>(idx: &mut [usize; D], shape: &[usize; D]) {
     }
 }
 
+/// Convert flat index to multi-index for a given shape (row-major).
+#[inline]
+fn flat_to_multi_generic<const D: usize>(flat: usize, shape: &[usize; D]) -> [usize; D] {
+    let mut idx = [0usize; D];
+    let mut remaining = flat;
+    for i in (0..D).rev() {
+        if shape[i] > 0 {
+            idx[i] = remaining % shape[i];
+            remaining /= shape[i];
+        }
+    }
+    idx
+}
+
+/// Convert multi-index to flat index for a given shape (row-major).
+#[inline]
+fn multi_to_flat_generic<const D: usize>(multi: &[usize; D], shape: &[usize; D]) -> usize {
+    let mut flat = 0;
+    let mut stride = 1;
+    for i in (0..D).rev() {
+        flat += multi[i] * stride;
+        stride *= shape[i];
+    }
+    flat
+}
+
 /// One iteration of binary dilation. Output has the same shape as input.
 ///
-/// Replicates scipy's gather formula: the kernel is conceptually flipped
-/// (axes reversed) and the origin negated before the gather. With default
-/// `origin = 0`, the negation is identity for odd axis sizes and `−1` for
-/// even axis sizes (matching scipy's `binary_dilation`).
+/// Implements scipy's `binary_dilation` with default `origin=0` and
+/// `border_value=0` (out-of-bounds positions treated as background).
 ///
-/// Gather: `out[i] = OR over q_flip in flipped_kernel of in[i + q_flip − c_flip − o_neg]`
+/// Scatter approach: for each True input voxel `p`, stamp the kernel
+/// centered at `p` into the output. The effective center is
+/// `center[k] = shape[k] // 2` per axis, with an additional `-1` offset
+/// for even-sized axes (matching scipy's `binary_dilation` origin
+/// convention for `origin=0`).
+///
+/// `for each p where input[p] is True:
+///     for each q where kernel[q] is True:
+///         output[p + q − center − even_offset] = True` (if in bounds)
 fn dilate_once<const D: usize>(
     input: &BoolStructure<D>,
     kernel: &BoolStructure<D>,
 ) -> BoolStructure<D> {
     let in_shape = *input.shape();
     let k_shape = *kernel.shape();
+    let k_center: [usize; D] = std::array::from_fn(|i| k_shape[i] / 2);
+    // scipy applies an extra −1 origin offset for even-sized axes.
+    let even_offset: [isize; D] = std::array::from_fn(|i| if k_shape[i] & 1 == 0 { 1 } else { 0 });
 
-    // Flipped centre (axes reversed). For shape S, c_flip[k] = S[k] − 1 − floor(S[k] / 2).
-    let k_flipped_center: [usize; D] = std::array::from_fn(|i| k_shape[i] - 1 - k_shape[i] / 2);
-    // Negated origin per axis for default origin=0. For even shape: −1; odd: 0.
-    let o_neg: [isize; D] = std::array::from_fn(|i| if k_shape[i] & 1 == 0 { -1 } else { 0 });
+    // Collect the per-voxel offsets of true voxels in the kernel.
+    let k_offsets: Vec<[isize; D]> = (0..kernel.as_slice().len())
+        .filter(|&i| kernel.as_slice()[i])
+        .map(|i| {
+            let multi = kernel.flat_to_multi(i);
+            std::array::from_fn(|k| {
+                multi[k] as isize - k_center[k] as isize - even_offset[k]
+            })
+        })
+        .collect();
+
+    if k_offsets.is_empty() {
+        return BoolStructure::from_data(in_shape, vec![false; in_shape.iter().product()]);
+    }
 
     let out_size: usize = in_shape.iter().product();
     let mut out = vec![false; out_size];
 
-    // Collect the absolute positions of the true voxels of the FLIPPED kernel.
-    // Flip: q_flip[k] = S[k] − 1 − q[k].
-    let k_flipped_true_positions: Vec<[usize; D]> = (0..kernel.as_slice().len())
-        .filter(|&i| kernel.as_slice()[i])
-        .map(|i| {
-            let multi = kernel.flat_to_multi(i);
-            std::array::from_fn(|k| k_shape[k] - 1 - multi[k])
-        })
-        .collect();
-
-    if k_flipped_true_positions.is_empty() {
-        // Kernel is empty → output is all false.
-        return BoolStructure::from_data(in_shape, out);
-    }
-
-    for (out_flat, out_slot) in out.iter_mut().enumerate() {
-        let out_multi = input.flat_to_multi(out_flat);
-
-        let mut any = false;
-        'kernel: for k_multi in &k_flipped_true_positions {
-            let mut in_multi = [0usize; D];
+    // Scatter: for each True input voxel, stamp the kernel offsets.
+    for (in_flat, &in_val) in input.as_slice().iter().enumerate() {
+        if !in_val {
+            continue;
+        }
+        let in_multi = flat_to_multi_generic(in_flat, &in_shape);
+        for offset in &k_offsets {
+            let mut out_multi = [0usize; D];
             let mut in_bounds = true;
             for i in 0..D {
-                let pos = out_multi[i] as isize + (k_multi[i] as isize)
-                    - (k_flipped_center[i] as isize)
-                    - o_neg[i];
+                let pos = in_multi[i] as isize + offset[i];
                 if pos < 0 || pos >= in_shape[i] as isize {
                     in_bounds = false;
                     break;
                 }
-                in_multi[i] = pos as usize;
+                out_multi[i] = pos as usize;
             }
-            if !in_bounds {
-                continue;
-            }
-            let in_flat = input.multi_to_flat(&in_multi);
-            if input.as_slice()[in_flat] {
-                any = true;
-                break 'kernel;
+            if in_bounds {
+                let out_flat = multi_to_flat_generic(&out_multi, &in_shape);
+                out[out_flat] = true;
             }
         }
-        *out_slot = any;
     }
 
     BoolStructure::from_data(in_shape, out)

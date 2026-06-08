@@ -78,3 +78,6 @@ pub mod voting_binary;
 pub use binary_contour::BinaryContourImageFilter;
 pub use label_contour::LabelContourImageFilter;
 pub use voting_binary::VotingBinaryImageFilter;
+
+pub mod iterate_structure;
+pub use iterate_structure::{iterate_structure, iterate_structure_with_origin, BoolStructure};

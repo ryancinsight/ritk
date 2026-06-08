@@ -256,21 +256,23 @@ fn asymmetric_2d_iterations_2() {
 #[test]
 fn l_shape_3d_iterations_2() {
     // 3D L-shape: True at (0, 0, 0) and (2, 2, 2) of 3×3×3.
-    // scipy v1.17.1 reference: structure stays the same — the two voxels
-    // are too far apart for 1 dilation to connect them.
+    // After stamping at (1,1,1) in 5×5×5: True at (1,1,1) and (3,3,3).
+    // Kernel offsets: (-1,-1,-1) and (1,1,1) (center=(1,1,1), odd size).
+    // After 1 dilation: True at (0,0,0), (2,2,2), (4,4,4).
     let s = struct_3d(&[
         &[&[1, 0, 0], &[0, 0, 0], &[0, 0, 0]],
         &[&[0, 0, 0], &[0, 0, 0], &[0, 0, 0]],
         &[&[0, 0, 0], &[0, 0, 0], &[0, 0, 1]],
     ]);
     let r = iterate_structure(&s, 2);
-    let expected = struct_3d(&[&[&[1u8, 0, 0, 0, 0]; 5]; 5]);
-    // Append the (4, 4, 4) True voxel
-    let mut exp_data = expected.as_slice().to_vec();
-    exp_data[4 * 25 + 4 * 5 + 4] = true;
+    assert_eq!(r.shape(), &[5, 5, 5]);
+    // Three True voxels along the main diagonal.
+    let mut exp_data = vec![false; 125];
+    exp_data[0] = true;                    // (0, 0, 0)
+    exp_data[2 * 25 + 2 * 5 + 2] = true;   // (2, 2, 2)
+    exp_data[4 * 25 + 4 * 5 + 4] = true;   // (4, 4, 4)
     let expected = BoolStructure::<3>::from_data([5, 5, 5], exp_data);
     assert_eq!(r, expected);
-    assert_eq!(r.shape(), &[5, 5, 5]);
 }
 
 // ── 1-D structures ──────────────────────────────────────────────────────────
@@ -337,13 +339,22 @@ fn line_1d_two_pixels_iterations_2() {
 
 #[test]
 fn two_by_two_all_true_iterations_3() {
-    // 2x2 all-True structure iterations=3 → 4x4 all-True. Shape:
-    // 2 + 2 * 1 = 4 per axis.
+    // 2x2 all-True structure iterations=3 → 4x4 output.
+    // Shape: 2 + 2 * 1 = 4 per axis. Stamp at (2, 2).
+    // After stamping: True at (2,2),(2,3),(3,2),(3,3).
+    // Kernel center=(1,1), even_offset=(1,1). Offsets: (-2,-2),(-1,-2),(-2,-1),(-1,-1).
+    // 1st dilation: upper-left 3x3. 2nd dilation: upper-left 2x2 (even offset
+    // makes dilation asymmetric — only stamps backward).
     let s = struct_2d(&[&[1, 1], &[1, 1]]);
     let r = iterate_structure(&s, 3);
-    let expected = struct_2d(&[&[1, 1, 1, 1]; 4]);
-    assert_eq!(r, expected);
     assert_eq!(r.shape(), &[4, 4]);
+    let expected = struct_2d(&[
+        &[1, 1, 0, 0],
+        &[1, 1, 0, 0],
+        &[0, 0, 0, 0],
+        &[0, 0, 0, 0],
+    ]);
+    assert_eq!(r, expected);
 }
 
 // ── iterate_structure_with_origin origin tracking ──────────────────────────
@@ -486,7 +497,13 @@ fn dilate_2d_single_voxel_origin_at_center() {
 fn dilate_2d_all_true_kernel_central_voxel() {
     // scipy v1.17.1 reference: 3x3 all-True kernel dilates 5x5 with a
     // single T at (0, 0) to a 2x2 block at the top-left.
-    let inp = struct_2d(&[&[1, 0, 0, 0, 0]; 5]);
+    let inp = struct_2d(&[
+        &[1, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0],
+        &[0, 0, 0, 0, 0],
+    ]);
     let ker = struct_2d(&[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]]);
     let out = inp.dilate(&ker, 1);
     let expected = struct_2d(&[

@@ -4,6 +4,31 @@
 
 ---
 
+## Sprint 342 (0.51.x) — Coeus Migration Readiness Audit
+
+- [x] MIG-342-01 [arch]: Identify Burn-to-Coeus replacement surface
+  - [x] Audit RITK manifests for `burn` / `burn-ndarray` dependencies
+  - [x] Audit source references to Burn tensor, shape, autodiff, parameter, and model APIs
+  - [x] Inspect Coeus CPU/autograd/WGPU capabilities from manifests, tests, and public source
+  - [x] Record required Coeus CPU, autodiff, model, PyO3, and GPU capabilities
+- [x] MIG-342-02 [patch]: Add repeatable `xtask burn-migration-audit`
+  - [x] Report manifest dependencies, source references, crate summary, and migration requirements
+  - [x] Unit-test manifest/source detection
+  - [x] Unit-test `target/` exclusion
+- [x] DOC-342-03 [patch]: Add `docs/coeus_migration.md`
+  - [x] Current Burn surface
+  - [x] Required Coeus capabilities
+  - [x] GPU migration gates
+  - [x] Staged development sequence
+- [ ] MIG-342-04 [arch]: Define RITK tensor contract after Coeus CPU API stabilizes
+- [ ] GPU-342-05 [arch]: Add Coeus WGPU differential harness after CPU Coeus parity exists
+- [ ] REG-342-06 [arch]: Prove registration autodiff tape continuity under Coeus
+- [x] Verification: `cargo test -p xtask migration_audit` → 2 passed
+- [x] Verification: `cargo run -p xtask -- burn-migration-audit` → 18 manifests, 490 source files
+- [x] Verification: `cargo fmt --check -p xtask` → clean
+
+---
+
 ## Sprint 332 (0.50.95) — Documentation Compaction + Structural Audit + Benchmarks
 
 - [x] DOC-332-01: Documentation compaction

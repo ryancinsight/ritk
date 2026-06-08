@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 mod datasets;
+mod migration_audit;
 
 use datasets::{Dataset, DatasetManager};
 
@@ -76,6 +77,9 @@ enum Commands {
         #[arg(short, long, default_value = "python")]
         python: String,
     },
+
+    /// Report the current Burn dependency surface for the future Coeus migration.
+    BurnMigrationAudit,
 }
 
 fn main() -> Result<()> {
@@ -110,6 +114,9 @@ fn main() -> Result<()> {
         }
         Commands::PythonParityReport { python } => {
             python_parity_report(&python)?;
+        }
+        Commands::BurnMigrationAudit => {
+            migration_audit::print_burn_migration_audit(Path::new("."))?;
         }
     }
 
