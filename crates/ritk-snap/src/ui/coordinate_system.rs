@@ -85,10 +85,10 @@ mod tests {
 
     #[test]
     fn patient_position_parser_preserves_unknown_code() {
-        use arrayvec::ArrayString;
+        use ritk_io::literal_arraystring;
         assert_eq!(
             PatientPosition::from_dicom_code("XYZ"),
-            PatientPosition::Unknown(ArrayString::from("XYZ").unwrap())
+            PatientPosition::Unknown(literal_arraystring::<4>("XYZ"))
         );
     }
 }

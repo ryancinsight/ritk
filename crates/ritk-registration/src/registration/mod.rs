@@ -149,7 +149,10 @@ where
 
             // Get loss value
             let loss_data = loss.to_data();
-            let loss_val = loss_data.as_slice::<f32>().unwrap()[0] as f64;
+            let loss_val = loss_data
+                .as_slice::<f32>()
+                .expect("loss value tensor data must be contiguous f32")[0]
+                as f64;
             loss_history.push(loss_val);
 
             // Update progress
@@ -238,7 +241,10 @@ where
 
             // Get loss value
             let loss_data = loss.to_data();
-            let loss_val = loss_data.as_slice::<f32>().unwrap()[0] as f64;
+            let loss_val = loss_data
+                .as_slice::<f32>()
+                .expect("loss value tensor data must be contiguous f32")[0]
+                as f64;
             loss_history.push(loss_val);
 
             // Update progress

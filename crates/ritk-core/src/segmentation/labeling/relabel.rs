@@ -159,7 +159,7 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
     // Maximum label value in the input — used to size the remap table.
     let max_old_label = sorted.iter().map(|&(l, _)| l).max().unwrap_or(0) as usize;
     let mut remap: Vec<u32> = vec![0u32; max_old_label + 1];
-    let mut stats: Vec<RelabelStatistics> = Vec::new();
+    let mut stats: Vec<RelabelStatistics> = Vec::with_capacity(sorted.len());
     let mut new_label: u32 = 0;
 
     for (old_label, count) in sorted {

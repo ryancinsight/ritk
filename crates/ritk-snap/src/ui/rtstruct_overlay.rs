@@ -158,7 +158,7 @@ fn invert_3x3(m: [f64; 9]) -> Option<[f64; 9]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrayvec::ArrayString;
+    use ritk_io::literal_arraystring;
     use ritk_io::{RtContour, RtRoiInfo, RtStructureSet};
 
     fn make_rt() -> RtStructureSet {
@@ -172,7 +172,7 @@ mod tests {
                 roi_interpreted_type: Some("PTV".to_string()),
                 display_color: Some([255, 0, 0]),
                 contours: vec![RtContour {
-                    geometric_type: ArrayString::from("CLOSED_PLANAR").unwrap(),
+                    geometric_type: literal_arraystring::<16>("CLOSED_PLANAR"),
                     points: vec![
                         [2.0, 3.0, 4.0],
                         [2.0, 5.0, 4.0],

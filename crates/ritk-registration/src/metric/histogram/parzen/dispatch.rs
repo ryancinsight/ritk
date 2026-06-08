@@ -120,7 +120,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let oob_vec = extract_oob_mask(oob_mask);
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
-        let pool = self.histogram_pool.lock().unwrap();
+        let pool = self
+            .histogram_pool
+            .lock()
+            .expect("histogram pool mutex must not be poisoned");
         let hist_data = super::direct::compute_joint_histogram_direct(
             &fixed_norm,
             &moving_norm,
@@ -194,7 +197,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let oob_vec = extract_oob_mask(oob_mask);
         let oob_slice: Option<&[f32]> = oob_vec.as_deref();
 
-        let pool = self.histogram_pool.lock().unwrap();
+        let pool = self
+            .histogram_pool
+            .lock()
+            .expect("histogram pool mutex must not be poisoned");
         let hist_data = super::direct::compute_joint_histogram_from_cache_sparse(
             sparse_w_fixed,
             &moving_norm,

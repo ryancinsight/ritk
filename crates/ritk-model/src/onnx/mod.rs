@@ -59,9 +59,9 @@
 //!
 //! # References
 //!
-//! - ONNX Specification: https://github.com/onnx/onnx/blob/main/docs/IR.md
-//! - ONNX Operator Schemas: https://github.com/onnx/onnx/blob/main/docs/Operators.md
-//! - Burn ONNX Import: https://github.com/tracel-ai/burn-onnx
+//! - ONNX Specification: <https://github.com/onnx/onnx/blob/main/docs/IR.md>
+//! - ONNX Operator Schemas: <https://github.com/onnx/onnx/blob/main/docs/Operators.md>
+//! - Burn ONNX Import: <https://github.com/tracel-ai/burn-onnx>
 
 pub mod error;
 pub mod graph;

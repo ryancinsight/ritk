@@ -93,7 +93,8 @@ pub(crate) fn decode_ui(bytes: &[u8]) -> ArrayString<64> {
         .trim_end_matches(['\0', ' ']);
     let mut arr = ArrayString::new();
     for ch in s.chars().take(64) {
-        arr.try_push(ch).unwrap();
+        arr.try_push(ch)
+            .expect("ArrayString capacity exceeded while building UID");
     }
     arr
 }
@@ -102,7 +103,8 @@ pub(crate) fn decode_ae(bytes: &[u8]) -> ArrayString<16> {
     let s = std::str::from_utf8(bytes).unwrap_or("").trim_end();
     let mut arr = ArrayString::new();
     for ch in s.chars().take(16) {
-        arr.try_push(ch).unwrap();
+        arr.try_push(ch)
+            .expect("ArrayString capacity exceeded while building AE title");
     }
     arr
 }

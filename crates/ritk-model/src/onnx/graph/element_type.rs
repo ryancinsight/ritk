@@ -2,7 +2,7 @@
 
 /// ONNX element data types.
 ///
-/// Reference: https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L484
+/// Reference: <https://github.com/onnx/onnx/blob/main/onnx/onnx.proto#L484>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnnxElementType {
     /// 32-bit float

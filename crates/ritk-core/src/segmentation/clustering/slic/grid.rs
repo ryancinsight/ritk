@@ -22,7 +22,7 @@ pub fn init_centers(
     gradient: &[f64],
     k: usize,
 ) -> Vec<Center> {
-    let mut grid_points: Vec<Vec<usize>> = Vec::new();
+    let mut grid_points: Vec<Vec<usize>> = Vec::with_capacity(k);
     let mut current = vec![0usize; ndim];
     generate_grid_points(shape, steps, &mut grid_points, &mut current, 0, ndim);
 

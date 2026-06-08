@@ -163,7 +163,9 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
             }
 
             if cache_hit {
-                let c = cache.as_ref().unwrap();
+                let c = cache
+                    .as_ref()
+                    .expect("LNCC cache must be initialized before computation");
                 let m_f = c
                     .mean_f_flat
                     .clone()

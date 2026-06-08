@@ -213,7 +213,9 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         let transform = RigidTransform::<B::InnerBackend, 3>::new(translation, rotation, center);
 
         let loss = metric.forward(&fixed_inner, &moving_inner, &transform);
-        loss.into_data().as_slice::<f32>().unwrap()[0] as f64
+        loss.into_data()
+            .as_slice::<f32>()
+            .expect("loss value tensor data must be contiguous")[0] as f64
     };
 
     // ── CMA-ES config for this level ──────────────────────────────────────────
@@ -268,7 +270,9 @@ pub(super) fn extract_foreground_world_points<IB: burn::tensor::backend::Backend
         .clone()
         .reshape([total_voxels])
         .into_data();
-    let mask_slice = mask_data.as_slice::<f32>().unwrap();
+    let mask_slice = mask_data
+        .as_slice::<f32>()
+        .expect("mask tensor data must be contiguous");
 
     // Collect foreground voxel (x, y, z) coordinates (grid convention: [x, y, z] per row).
     let mut fg_coords: Vec<f32> = Vec::new();

@@ -129,8 +129,8 @@ pub fn render_fused_slice(
 mod tests {
     use super::*;
     use crate::render::SliceRenderer;
-    use arrayvec::ArrayString;
     use egui::Color32;
+    use ritk_io::literal_arraystring;
 
     fn test_volume(shape: [usize; 3], scale: f32) -> LoadedVolume {
         let [d, r, c] = shape;
@@ -227,11 +227,11 @@ mod tests {
         pet.data = std::sync::Arc::new(vec![
             (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32,
         ]);
-        pet.modality = Some(ArrayString::from("PT").unwrap());
+        pet.modality = Some(literal_arraystring::<16>("PT"));
         pet.patient_weight_kg = Some(patient_weight_kg);
         pet.injected_dose_bq = Some(injected_dose_bq);
         pet.radionuclide_half_life_s = Some(6_586.2);
-        pet.decay_correction = Some(ArrayString::from("START").unwrap());
+        pet.decay_correction = Some(literal_arraystring::<16>("START"));
 
         let fused = render_fused_slice(
             FusedSliceParams {
@@ -269,11 +269,11 @@ mod tests {
         let patient_weight_kg = 70.0;
         let raw_bqml = (injected_dose_bq / (patient_weight_kg * 1_000.0)) as f32;
         secondary.data = std::sync::Arc::new(vec![raw_bqml]);
-        secondary.modality = Some(ArrayString::from("CT").unwrap());
+        secondary.modality = Some(literal_arraystring::<16>("CT"));
         secondary.patient_weight_kg = Some(patient_weight_kg);
         secondary.injected_dose_bq = Some(injected_dose_bq);
         secondary.radionuclide_half_life_s = Some(6_586.2);
-        secondary.decay_correction = Some(ArrayString::from("START").unwrap());
+        secondary.decay_correction = Some(literal_arraystring::<16>("START"));
 
         let fused = render_fused_slice(
             FusedSliceParams {

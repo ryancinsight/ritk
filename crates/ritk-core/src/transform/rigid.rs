@@ -86,75 +86,65 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Build the rotation matrix from Euler angles.
+    ///
+    /// Extracts angles as host scalars, computes the matrix entries on the CPU,
+    /// then uploads the result as a single `[D, D]` tensor. This avoids the
+    /// ~40 intermediate tensor allocations that the previous tensor-only
+    /// formulation required.
     pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
         let r = self.rotation.val();
+        let dev = r.device();
 
         if D == 3 {
             // Euler angles: x (alpha), y (beta), z (gamma)
             // R = R_z(gamma) * R_y(beta) * R_x(alpha)
-            let (r_x, r_y, r_z) = (0..1, 1..2, 2..3);
-            let alpha = r.clone().slice([r_x]); // x
-            let beta = r.clone().slice([r_y]); // y
-            let gamma = r.clone().slice([r_z]); // z
+            let r_data = r.into_data();
+            let r_slice = r_data
+                .as_slice::<f32>()
+                .expect("rotation tensor must be contiguous f32");
+            let alpha = r_slice[0] as f64;
+            let beta = r_slice[1] as f64;
+            let gamma = r_slice[2] as f64;
 
-            let cx = alpha.clone().cos();
-            let sx = alpha.sin();
-            let cy = beta.clone().cos();
-            let sy = beta.sin();
-            let cz = gamma.clone().cos();
-            let sz = gamma.sin();
+            let (cx, sx) = (alpha.cos(), alpha.sin());
+            let (cy, sy) = (beta.cos(), beta.sin());
+            let (cz, sz) = (gamma.cos(), gamma.sin());
 
-            // Row 1
-            let r11 = cz.clone().mul(cy.clone());
-            let r12 = cz
-                .clone()
-                .mul(sy.clone())
-                .mul(sx.clone())
-                .sub(sz.clone().mul(cx.clone()));
-            let r13 = cz
-                .clone()
-                .mul(sy.clone())
-                .mul(cx.clone())
-                .add(sz.clone().mul(sx.clone()));
-
+            // Row 1: R_z * R_y * R_x
+            let r11 = cz * cy;
+            let r12 = cz * sy * sx - sz * cx;
+            let r13 = cz * sy * cx + sz * sx;
             // Row 2
-            let r21 = sz.clone().mul(cy.clone());
-            let r22 = sz
-                .clone()
-                .mul(sy.clone())
-                .mul(sx.clone())
-                .add(cz.clone().mul(cx.clone()));
-            let r23 = sz
-                .clone()
-                .mul(sy.clone())
-                .mul(cx.clone())
-                .sub(cz.clone().mul(sx.clone()));
-
+            let r21 = sz * cy;
+            let r22 = sz * sy * sx + cz * cx;
+            let r23 = sz * sy * cx - cz * sx;
             // Row 3
-            let r31 = sy.clone().neg();
-            let r32 = cy.clone().mul(sx.clone());
-            let r33 = cy.clone().mul(cx.clone());
+            let r31 = -sy;
+            let r32 = cy * sx;
+            let r33 = cy * cx;
 
-            // Construct matrix [3, 3]
-            let row1 = Tensor::cat(vec![r11, r12, r13], 0).reshape([1, 3]);
-            let row2 = Tensor::cat(vec![r21, r22, r23], 0).reshape([1, 3]);
-            let row3 = Tensor::cat(vec![r31, r32, r33], 0).reshape([1, 3]);
-
-            Tensor::cat(vec![row1, row2, row3], 0)
+            Tensor::<B, 2>::from_floats(
+                [
+                    [r11 as f32, r12 as f32, r13 as f32],
+                    [r21 as f32, r22 as f32, r23 as f32],
+                    [r31 as f32, r32 as f32, r33 as f32],
+                ],
+                &dev,
+            )
         } else if D == 2 {
-            let theta_range = 0..1;
-            let theta = r.clone().slice([theta_range]);
-            let c = theta.clone().cos();
-            let s = theta.sin();
+            let r_data = r.into_data();
+            let r_slice = r_data
+                .as_slice::<f32>()
+                .expect("rotation tensor must be contiguous f32");
+            let theta = r_slice[0] as f64;
+            let c = theta.cos() as f32;
+            let s = theta.sin() as f32;
 
-            let row1 = Tensor::cat(vec![c.clone(), s.clone().neg()], 0).reshape([1, 2]);
-            let row2 = Tensor::cat(vec![s, c], 0).reshape([1, 2]);
-
-            Tensor::cat(vec![row1, row2], 0)
+            Tensor::<B, 2>::from_floats([[c, -s], [s, c]], &dev)
         } else if D == 1 || D == 4 {
             // For 1D and 4D, return identity rotation matrix.
             // 4D rotation optimization is not yet supported.
-            Tensor::eye(D, &r.device())
+            Tensor::eye(D, &dev)
         } else {
             panic!("RigidTransform only supports 1D, 2D, 3D, and 4D");
         }

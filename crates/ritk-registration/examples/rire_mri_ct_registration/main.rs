@@ -7,7 +7,7 @@
 //!
 //! # What RIRE is
 //!
-//! RIRE (https://rire.insight-journal.org/) is a classic benchmark for
+//! RIRE (<https://rire.insight-journal.org/>) is a classic benchmark for
 //! rigid inter-modality image registration. Fiducial markers implanted in
 //! cadaver skulls provide millimetre-accurate ground-truth transforms between
 //! CT, MRI-T1, MRI-T2, and PET modalities. The transforms are provided as

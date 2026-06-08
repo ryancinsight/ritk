@@ -145,7 +145,10 @@ impl TemporalSync {
         let (peak_idx, _peak_corr) = correlations
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .max_by(|(_, a), (_, b)| {
+                a.partial_cmp(b)
+                    .expect("NaN in metric comparison for max_by")
+            })
             .ok_or_else(|| {
                 RegistrationError::NumericalFailure("No correlation peak found".to_string())
             })?;

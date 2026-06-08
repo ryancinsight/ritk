@@ -28,7 +28,7 @@ pub fn enforce_connectivity(
     }
 
     // Adjacency offsets: +1 along each axis (face-connected).
-    let mut fwd_offsets: Vec<Vec<isize>> = Vec::new();
+    let mut fwd_offsets: Vec<Vec<isize>> = Vec::with_capacity(ndim);
     for d in 0..ndim {
         let mut fwd = vec![0isize; ndim];
         fwd[d] = 1;

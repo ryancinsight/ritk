@@ -251,11 +251,15 @@ impl MultiStartMiRegistration {
 
         // Extract rotation [α, β, γ] and translation [tz, ty, tx] from best.
         let rot_data = best_transform.rotation().into_data();
-        let rot_slice = rot_data.as_slice::<f32>().unwrap();
+        let rot_slice = rot_data
+            .as_slice::<f32>()
+            .expect("rotation angles tensor data must be contiguous");
         let best_rotation = [rot_slice[0], rot_slice[1], rot_slice[2]];
 
         let trans_data = best_transform.translation().into_data();
-        let trans_slice = trans_data.as_slice::<f32>().unwrap();
+        let trans_slice = trans_data
+            .as_slice::<f32>()
+            .expect("translation vector tensor data must be contiguous");
         let best_translation = [trans_slice[0], trans_slice[1], trans_slice[2]];
 
         let matrix = super::transforms::rigid_matrix_to_homogeneous(&best_transform);
@@ -317,11 +321,15 @@ fn perturb_rigid_transform<B: AutodiffBackend>(
 ) -> RigidTransform<B, 3> {
     // Read current rotation [α, β, γ].
     let rot_data = transform.rotation().into_data();
-    let rot_slice = rot_data.as_slice::<f32>().unwrap();
+    let rot_slice = rot_data
+        .as_slice::<f32>()
+        .expect("rotation angles tensor data must be contiguous");
 
     // Read current translation [tz, ty, tx].
     let trans_data = transform.translation().into_data();
-    let trans_slice = trans_data.as_slice::<f32>().unwrap();
+    let trans_slice = trans_data
+        .as_slice::<f32>()
+        .expect("translation vector tensor data must be contiguous");
 
     // Perturb rotation components.
     let new_rot: [f32; 3] = [

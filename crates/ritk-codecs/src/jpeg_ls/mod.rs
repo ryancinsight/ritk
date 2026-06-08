@@ -1,11 +1,11 @@
 //! Native JPEG-LS (ISO 14495-1) lossless decoder for DICOM encapsulated frames.
 //!
 //! # Architecture
-//! - [`bitstream`]: bit-level reader with JPEG-LS 0xFF/0x00 stuffing handling.
-//! - [`context`]: ISO 14495-1 context model and threshold computation.
-//! - [`scan`]: ISO 14495-1 regular-mode and run-mode scan decoder.
-//! - [`decoder`]: header-derived decoder state and scan-to-byte conversion.
-//! - [`parser`]: marker parsing for SOI, SOF55, SOS, LSE, DRI, DNL, and EOI.
+//! - `bitstream`: bit-level reader with JPEG-LS 0xFF/0x00 stuffing handling.
+//! - `context`: ISO 14495-1 context model and threshold computation.
+//! - `scan`: ISO 14495-1 regular-mode and run-mode scan decoder.
+//! - `decoder`: header-derived decoder state and scan-to-byte conversion.
+//! - `parser`: marker parsing for SOI, SOF55, SOS, LSE, DRI, DNL, and EOI.
 
 mod bitstream;
 mod context;

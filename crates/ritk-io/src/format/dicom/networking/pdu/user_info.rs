@@ -96,7 +96,8 @@ fn ver_from_bytes(d: &[u8]) -> ArrayString<16> {
     let s = std::str::from_utf8(d).unwrap_or("").trim_end();
     let mut arr = ArrayString::new();
     for ch in s.chars().take(16) {
-        arr.try_push(ch).unwrap();
+        arr.try_push(ch)
+            .expect("ArrayString capacity exceeded while building implementation version name");
     }
     arr
 }

@@ -50,61 +50,60 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     }
 
     /// Build the rotation matrix from Quaternion.
+    ///
+    /// Extracts the four quaternion components as host scalars, computes all nine
+    /// rotation-matrix entries on the CPU, then uploads the result as a single
+    /// `[3, 3]` tensor. This avoids the ~28 intermediate tensor allocations
+    /// (clones, element-wise products, scalar constants) that the previous
+    /// tensor-only formulation required.
     fn build_rotation_matrix(&self) -> Tensor<B, 2> {
-        // Normalize quaternion to ensure it represents a rotation
         let q = self.rotation.val();
-        let norm = q.clone().powf_scalar(2.0).sum().sqrt() + 1e-12; // Avoid div by zero
-        let q = q / norm;
+        let dev = q.device();
 
-        let (q0, q1, q2, q3) = (0..1, 1..2, 2..3, 3..4);
-        let x = q.clone().slice([q0]);
-        let y = q.clone().slice([q1]);
-        let z = q.clone().slice([q2]);
-        let w = q.clone().slice([q3]);
+        // Extract normalised quaternion components as host scalars.
+        let norm_data = q.clone().powf_scalar(2.0).sum().sqrt().into_data();
+        let norm_val = norm_data
+            .as_slice::<f32>()
+            .expect("norm tensor must be contiguous f32")[0];
+        let norm = norm_val + 1e-12; // Avoid div by zero
+        let q_data = (q / norm).into_data();
+        let q_slice = q_data
+            .as_slice::<f32>()
+            .expect("quaternion tensor must be contiguous f32");
+        let x = q_slice[0] as f64;
+        let y = q_slice[1] as f64;
+        let z = q_slice[2] as f64;
+        let w = q_slice[3] as f64;
 
-        let xx = x.clone().mul(x.clone());
-        let yy = y.clone().mul(y.clone());
-        let zz = z.clone().mul(z.clone());
-        let xy = x.clone().mul(y.clone());
-        let xz = x.clone().mul(z.clone());
-        let yz = y.clone().mul(z.clone());
-        let xw = x.clone().mul(w.clone());
-        let yw = y.clone().mul(w.clone());
-        let zw = z.clone().mul(w.clone());
+        // Pre-compute products (each used 1–3 times).
+        let xx = x * x;
+        let yy = y * y;
+        let zz = z * z;
+        let xy = x * y;
+        let xz = x * z;
+        let yz = y * z;
+        let xw = x * w;
+        let yw = y * w;
+        let zw = z * w;
 
-        let one = Tensor::<B, 1>::ones([1], &x.device());
-        let two = Tensor::<B, 1>::from_floats([2.0], &x.device());
+        let r11 = 1.0 - 2.0 * (yy + zz);
+        let r12 = 2.0 * (xy - zw);
+        let r13 = 2.0 * (xz + yw);
+        let r21 = 2.0 * (xy + zw);
+        let r22 = 1.0 - 2.0 * (xx + zz);
+        let r23 = 2.0 * (yz - xw);
+        let r31 = 2.0 * (xz - yw);
+        let r32 = 2.0 * (yz + xw);
+        let r33 = 1.0 - 2.0 * (xx + yy);
 
-        // Row 1
-        // 1 - 2(y^2 + z^2)
-        let r11 = one.clone() - two.clone() * (yy.clone() + zz.clone());
-        // 2(xy - zw)
-        let r12 = two.clone() * (xy.clone() - zw.clone());
-        // 2(xz + yw)
-        let r13 = two.clone() * (xz.clone() + yw.clone());
-
-        // Row 2
-        // 2(xy + zw)
-        let r21 = two.clone() * (xy.clone() + zw.clone());
-        // 1 - 2(x^2 + z^2)
-        let r22 = one.clone() - two.clone() * (xx.clone() + zz.clone());
-        // 2(yz - xw)
-        let r23 = two.clone() * (yz.clone() - xw.clone());
-
-        // Row 3
-        // 2(xz - yw)
-        let r31 = two.clone() * (xz.clone() - yw.clone());
-        // 2(yz + xw)
-        let r32 = two.clone() * (yz.clone() + xw.clone());
-        // 1 - 2(x^2 + y^2)
-        let r33 = one.clone() - two.clone() * (xx.clone() + yy.clone());
-
-        // Construct matrix [3, 3]
-        let row1 = Tensor::cat(vec![r11, r12, r13], 0).reshape([1, 3]);
-        let row2 = Tensor::cat(vec![r21, r22, r23], 0).reshape([1, 3]);
-        let row3 = Tensor::cat(vec![r31, r32, r33], 0).reshape([1, 3]);
-
-        Tensor::cat(vec![row1, row2, row3], 0)
+        Tensor::<B, 2>::from_floats(
+            [
+                [r11 as f32, r12 as f32, r13 as f32],
+                [r21 as f32, r22 as f32, r23 as f32],
+                [r31 as f32, r32 as f32, r33 as f32],
+            ],
+            &dev,
+        )
     }
 }
 

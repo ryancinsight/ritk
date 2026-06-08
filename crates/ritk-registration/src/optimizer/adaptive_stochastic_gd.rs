@@ -400,7 +400,9 @@ mod tests {
         fn loss_value(&self) -> f64 {
             let x = self.x.val();
             let data = x.to_data();
-            let slice = data.as_slice::<f32>().unwrap();
+            let slice = data
+                .as_slice::<f32>()
+                .expect("gradient tensor data must be contiguous f32");
             slice.iter().map(|&v| (v as f64) * (v as f64)).sum()
         }
     }

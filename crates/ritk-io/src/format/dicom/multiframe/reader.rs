@@ -321,7 +321,10 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
             break 'geometry (floats, actual_n, info.frame_thickness.unwrap_or(1.0));
         }
 
-        let src_positions: Vec<f64> = proj.into_iter().map(|p| p.unwrap()).collect();
+        let src_positions: Vec<f64> = proj
+            .into_iter()
+            .map(|p| p.expect("all frame positions verified non-None above"))
+            .collect();
         let report = super::super::reader::analyze_slice_spacing(&src_positions);
 
         if report.is_nonuniform {

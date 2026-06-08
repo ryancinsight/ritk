@@ -116,7 +116,10 @@ pub(crate) fn load_from_series<B: Backend>(
             );
         }
         if proj.iter().all(|p| p.is_some()) {
-            let positions: Vec<f64> = proj.into_iter().map(|p| p.unwrap()).collect();
+            let positions: Vec<f64> = proj
+                .into_iter()
+                .map(|p| p.expect("all slice positions verified non-None above"))
+                .collect();
             let report = analyze_slice_spacing(&positions);
             if report.is_nonuniform {
                 tracing::warn!(

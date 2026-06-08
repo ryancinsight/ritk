@@ -48,10 +48,10 @@ pub use viewer::{DefaultBackend, Study, ViewerBackend, ViewerCore, ViewerEvent, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arrayvec::ArrayString;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_io::literal_arraystring;
 
     type Backend = burn_ndarray::NdArray<f32>;
 
@@ -96,7 +96,7 @@ mod tests {
             study_instance_uid: None,
             frame_of_reference_uid: None,
             series_description: None,
-            modality: Some(ArrayString::from("CT").unwrap()),
+            modality: Some(literal_arraystring::<16>("CT")),
             patient_id: None,
             patient_name: None,
             study_date: None,
@@ -109,7 +109,7 @@ mod tests {
             bits_allocated: Some(16),
             bits_stored: Some(16),
             high_bit: Some(15),
-            photometric_interpretation: Some(ArrayString::from("MONOCHROME2").unwrap()),
+            photometric_interpretation: Some(literal_arraystring::<16>("MONOCHROME2")),
             slices: Vec::new(),
             private_tags: std::collections::HashMap::new(),
             preservation: Default::default(),

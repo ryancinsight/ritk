@@ -270,7 +270,7 @@ pub fn parse_command_response(data: &[u8]) -> Result<CommandResponse, Networking
                             .trim_end_matches(['\0', ' ']);
                         let mut arr = ArrayString::new();
                         for ch in s.chars().take(64) {
-                            arr.try_push(ch).unwrap();
+                            arr.try_push(ch).expect("ArrayString capacity exceeded while building affected SOP instance UID");
                         }
                         arr
                     });

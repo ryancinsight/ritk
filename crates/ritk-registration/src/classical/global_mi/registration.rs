@@ -243,7 +243,10 @@ impl GlobalMiRegistration {
 
                 let loss = metric.forward(fixed_level, moving_level, &transform);
                 let loss_data = loss.to_data();
-                let loss_val = loss_data.as_slice::<f32>().unwrap()[0] as f64;
+                let loss_val = loss_data
+                    .as_slice::<f32>()
+                    .expect("loss value tensor data must be contiguous")[0]
+                    as f64;
                 level_loss_history.push(loss_val);
 
                 optimizer.set_loss(loss_val);

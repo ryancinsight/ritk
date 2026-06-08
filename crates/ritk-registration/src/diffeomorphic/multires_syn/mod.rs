@@ -333,7 +333,8 @@ impl MultiResSyNRegistration {
             prev = Some((v1z, v1y, v1x, v2z, v2y, v2x, ld));
         }
 
-        let (v1z, v1y, v1x, v2z, v2y, v2x, _) = prev.unwrap();
+        let (v1z, v1y, v1x, v2z, v2y, v2x, _) =
+            prev.expect("at least one resolution level must succeed in multires SyN");
         let (p1z, p1y, p1x) = scaling_and_squaring(&v1z, &v1y, &v1x, dims, self.config.n_squarings);
         let (p2z, p2y, p2x) = scaling_and_squaring(&v2z, &v2y, &v2x, dims, self.config.n_squarings);
         Ok(SyNResult {

@@ -49,7 +49,8 @@ impl AeTitle {
         }
         let mut arr = ArrayString::new();
         for ch in s.chars().take(16) {
-            arr.try_push(ch).unwrap();
+            arr.try_push(ch)
+                .expect("ArrayString capacity exceeded while building AE title");
         }
         Ok(Self(arr))
     }

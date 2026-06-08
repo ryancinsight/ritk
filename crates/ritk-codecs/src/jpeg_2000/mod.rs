@@ -4,7 +4,7 @@
 //! - [`jpeg2k`] owns safe codestream decode.
 //! - `jpeg2k` is compiled with its `openjp2` backend, a Rust port of OpenJPEG,
 //!   not the `openjpeg-sys` C FFI backend.
-//! - [`image`] validates decoded component planes against DICOM pixel metadata
+//! - `image` validates decoded component planes against DICOM pixel metadata
 //!   and applies the DICOM modality LUT.
 //!
 //! # Specification (ISO 15444-1 / DICOM PS3.5)

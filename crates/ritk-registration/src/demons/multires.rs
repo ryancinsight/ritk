@@ -148,7 +148,8 @@ impl MultiResDemonsRegistration {
             prev_cdims = cdims;
         }
         // levels >= 1 guarantees prev_result is Some.
-        let final_result = prev_result.unwrap();
+        let final_result =
+            prev_result.expect("at least one resolution level must succeed in multires demons");
 
         // l=0 ran at factor=1: displacement is already at full resolution.
         // Compute warped image and final MSE against the original moving image.

@@ -56,7 +56,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
         );
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
-        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
+        let bins_exp = self
+            .bins_exp
+            .as_ref()
+            .cloned()
+            .expect("bins_exp must be initialized in ParzenJointHistogram::new()");
 
         Self::compute_parzen_weights(fixed_norm, n, sigma_sq, &bins_exp).transpose()
     }
@@ -116,7 +120,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
             Self::normalize_to_bins(moving_values.clone(), mov_min, mov_max, self.num_bins);
 
         // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
-        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
+        let bins_exp = self
+            .bins_exp
+            .as_ref()
+            .cloned()
+            .expect("bins_exp must be initialized in ParzenJointHistogram::new()");
 
         let w_moving = Self::compute_parzen_weights(moving_norm, n, sigma_sq, &bins_exp);
 
@@ -150,7 +158,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
 
         // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
-        let bins_exp = self.bins_exp.as_ref().cloned().unwrap();
+        let bins_exp = self
+            .bins_exp
+            .as_ref()
+            .cloned()
+            .expect("bins_exp must be initialized in ParzenJointHistogram::new()");
 
         // DRY-320-01: delegate to ParzenConfig via helper methods
         let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();

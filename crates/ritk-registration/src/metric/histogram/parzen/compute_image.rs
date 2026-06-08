@@ -190,7 +190,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let fixed_points = if let Some(pts) = cached_points {
                 pts
             } else {
-                fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone())
+                fixed.index_to_world_tensor(
+                    fixed_indices
+                        .as_ref()
+                        .expect("fixed_indices must be Some when no cached points exist")
+                        .clone(),
+                )
             };
 
             let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
@@ -230,7 +235,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 )
             } else {
                 let fixed_values = if use_sampling {
-                    interpolator.interpolate(fixed.data(), fixed_indices.clone().unwrap())
+                    interpolator.interpolate(
+                        fixed.data(),
+                        fixed_indices
+                            .clone()
+                            .expect("fixed_indices must be Some in sampling mode"),
+                    )
                 } else {
                     fixed.data().clone().reshape([n])
                 };
@@ -250,7 +260,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
                     *cache = Some(make_cache(
-                        fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone()),
+                        fixed.index_to_world_tensor(
+                            fixed_indices
+                                .as_ref()
+                                .expect("fixed_indices must be Some when storing cache")
+                                .clone(),
+                        ),
                         w_fixed_t.clone(),
                         fixed,
                         fixed_norm,
@@ -286,7 +301,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let all_fixed_points = if let Some(pts) = cached_points {
                 pts
             } else if !use_sampling {
-                let pts = fixed.index_to_world_tensor(fixed_indices.as_ref().unwrap().clone());
+                let pts = fixed.index_to_world_tensor(
+                    fixed_indices
+                        .as_ref()
+                        .expect("fixed_indices must be Some when no cached points exist")
+                        .clone(),
+                );
                 if let Some(w_fixed_t) = &cached_w_fixed_t {
                     // Cache hit for W_fixed^T — only update cache if points are missing or
                     // the cached tensor dimensions are stale.  The sparse cache is not
@@ -338,7 +358,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 } else {
                     let chunk_indices = fixed_indices
                         .as_ref()
-                        .unwrap()
+                        .expect("fixed_indices must be Some in sampling chunk path")
                         .clone()
                         .slice([chunk_range.clone()]);
                     fixed.index_to_world_tensor(chunk_indices)
@@ -390,7 +410,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let chunk_fixed_values = if use_sampling {
                         let chunk_indices = fixed_indices
                             .as_ref()
-                            .unwrap()
+                            .expect(
+                                "fixed_indices must be Some in sampling chunk path (direct-parzen)",
+                            )
                             .clone()
                             .slice([chunk_range.clone()]);
                         interpolator.interpolate(fixed.data(), chunk_indices)
@@ -416,7 +438,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let chunk_fixed_values = if use_sampling {
                         let chunk_indices = fixed_indices
                             .as_ref()
-                            .unwrap()
+                            .expect("fixed_indices must be Some in sampling chunk path (no direct-parzen)")
                             .clone()
                             .slice([chunk_range.clone()]);
                         interpolator.interpolate(fixed.data(), chunk_indices)

@@ -48,8 +48,12 @@ pub(crate) fn affine_matrix_to_homogeneous<B: Backend>(
     let t = transform.translation();
     let mat_data = mat.to_data();
     let t_data = t.to_data();
-    let mat_slice = mat_data.as_slice::<f32>().unwrap();
-    let t_slice = t_data.as_slice::<f32>().unwrap();
+    let mat_slice = mat_data
+        .as_slice::<f32>()
+        .expect("rotation matrix tensor data must be contiguous");
+    let t_slice = t_data
+        .as_slice::<f32>()
+        .expect("translation vector tensor data must be contiguous");
     let mut result = [0.0f64; 16];
     for r in 0..3 {
         for c in 0..3 {
@@ -67,7 +71,9 @@ pub(crate) fn translation_matrix_to_homogeneous<B: Backend, const D: usize>(
 ) -> [f64; 16] {
     let t = transform.translation();
     let t_data = t.to_data();
-    let t_slice = t_data.as_slice::<f32>().unwrap();
+    let t_slice = t_data
+        .as_slice::<f32>()
+        .expect("translation vector tensor data must be contiguous");
     let mut result = [0.0f64; 16];
     result[0] = 1.0;
     result[5] = 1.0;
@@ -95,6 +101,8 @@ pub(crate) fn compute_image_center<B: Backend, const D: usize>(image: &Image<B, 
     let physical = image.index_to_world_tensor(center_tensor.unsqueeze_dim(0));
     let physical_flat: Tensor<B, 1> = physical.squeeze();
     let data = physical_flat.into_data();
-    let slice = data.as_slice::<f32>().unwrap();
+    let slice = data
+        .as_slice::<f32>()
+        .expect("image center coordinates tensor data must be contiguous");
     [slice[0] as f64, slice[1] as f64, slice[2] as f64]
 }

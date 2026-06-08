@@ -47,7 +47,11 @@ impl ConvergenceChecker {
         }
 
         if let Some(min_loss) = self.min_loss {
-            if loss_history.last().unwrap() < &min_loss {
+            if loss_history
+                .last()
+                .expect("loss history must not be empty when checking convergence")
+                < &min_loss
+            {
                 return true;
             }
         }
@@ -60,7 +64,9 @@ impl ConvergenceChecker {
         let recent_losses = &loss_history[recent_start..];
 
         let best_loss = recent_losses.iter().cloned().fold(f64::INFINITY, f64::min);
-        let current_loss = *loss_history.last().unwrap();
+        let current_loss = *loss_history
+            .last()
+            .expect("loss history must not be empty when checking convergence");
 
         // Exact translation implementing analytic boundaries limits reliably.
         let relative_improvement = (best_loss - current_loss) / (best_loss.abs() + 1e-10);

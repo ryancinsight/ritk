@@ -402,6 +402,7 @@ impl<B: Backend> ImageReader<B, 3> for DicomReader<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::format::dicom::reader::types::literal_arraystring;
     use std::path::PathBuf;
 
     #[test]
@@ -415,23 +416,23 @@ mod tests {
     fn discovered_series_sort_is_deterministic() {
         let mut v = vec![
             DicomSeriesInfo {
-                series_instance_uid: ArrayString::from("2").unwrap(),
+                series_instance_uid: literal_arraystring::<64>("2"),
                 series_description: "B".to_owned(),
-                modality: ArrayString::from("MR").unwrap(),
+                modality: literal_arraystring::<16>("MR"),
                 patient_id: "P2".to_owned(),
                 file_paths: vec![PathBuf::from("z/2.dcm")],
             },
             DicomSeriesInfo {
-                series_instance_uid: ArrayString::from("1").unwrap(),
+                series_instance_uid: literal_arraystring::<64>("1"),
                 series_description: "A".to_owned(),
-                modality: ArrayString::from("CT").unwrap(),
+                modality: literal_arraystring::<16>("CT"),
                 patient_id: "P1".to_owned(),
                 file_paths: vec![PathBuf::from("a/1.dcm")],
             },
             DicomSeriesInfo {
-                series_instance_uid: ArrayString::from("3").unwrap(),
+                series_instance_uid: literal_arraystring::<64>("3"),
                 series_description: "A".to_owned(),
-                modality: ArrayString::from("CT").unwrap(),
+                modality: literal_arraystring::<16>("CT"),
                 patient_id: "P1".to_owned(),
                 file_paths: vec![PathBuf::from("b/1.dcm")],
             },
