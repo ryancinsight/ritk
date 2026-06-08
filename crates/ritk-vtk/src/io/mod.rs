@@ -34,6 +34,8 @@ pub use mesh_indexed::{
     write_indexed_ply, write_indexed_stl_ascii, write_indexed_stl_binary,
 };
 
+pub mod xml_write_attr;
+
 pub mod reader;
 pub mod writer;
 
