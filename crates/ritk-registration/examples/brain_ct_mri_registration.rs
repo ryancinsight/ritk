@@ -114,8 +114,11 @@ fn main() -> anyhow::Result<()> {
 
     // 3. Affine Registration
     println!("\n=== Affine Registration ===");
+    // Seed the affine from the rigid result's [D, D] rotation (NOT `matrix()`,
+    // which is the [D+1, D+1] homogeneous form). With A = R, t = t, c = c the
+    // affine reproduces the rigid transform exactly.
     let affine_transform = AffineTransform::<Backend, 3>::new(
-        rigid_result.matrix(),
+        rigid_result.build_rotation_matrix(),
         rigid_result.translation(),
         rigid_result.center(),
     );

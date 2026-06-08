@@ -32,6 +32,19 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
     /// * `center` - Tensor of shape `[D]` containing the fixed center
     pub fn new(matrix: Tensor<B, 2>, translation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+        // The linear part must be [D, D]. A common mistake is to seed an affine
+        // from `RigidTransform::matrix()`, which returns the [D+1, D+1]
+        // homogeneous form `[R, t'; 0, 1]`; `transform_points` would then
+        // mis-multiply `[N, D] @ [D+1, D+1]` and panic deep inside the backend.
+        // Use `RigidTransform::build_rotation_matrix()` (the [D, D] rotation) to
+        // seed instead. Fail here, loudly and actionably.
+        let [rows, cols] = matrix.dims();
+        assert!(
+            rows == D && cols == D,
+            "AffineTransform::new expects a [D, D] linear matrix (D = {D}), got [{rows}, {cols}]; \
+             if seeding from a RigidTransform use `build_rotation_matrix()` (the [D, D] rotation), \
+             not `matrix()` (the [D+1, D+1] homogeneous form)"
+        );
         Self {
             matrix: Param::from_tensor(matrix),
             translation: Param::from_tensor(translation),
@@ -225,5 +238,47 @@ mod tests {
 
         assert!((slice[0] - 3.0).abs() < 1e-6);
         assert!((slice[1] - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    #[should_panic(expected = "expects a [D, D] linear matrix")]
+    fn new_rejects_homogeneous_matrix() {
+        // Seeding a 3-D affine with a [D+1, D+1] = [4, 4] homogeneous matrix
+        // (the shape `RigidTransform::matrix()` returns) must fail loudly at
+        // construction, not with a cryptic backend matmul panic later.
+        let device = Default::default();
+        let matrix = Tensor::<TestBackend, 2>::eye(4, &device);
+        let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
+        let center = Tensor::<TestBackend, 1>::zeros([3], &device);
+        let _ = AffineTransform::<TestBackend, 3>::new(matrix, translation, center);
+    }
+
+    #[test]
+    fn affine_seeded_from_rigid_rotation_reproduces_rigid() {
+        use crate::transform::rigid::RigidTransform;
+        let device = Default::default();
+        // A rigid transform with a non-trivial rotation/translation/center.
+        let rigid = RigidTransform::<TestBackend, 3>::new(
+            Tensor::from_floats([2.0, -1.0, 3.0], &device), // translation
+            Tensor::from_floats([0.3, -0.2, 0.1], &device), // Euler angles
+            Tensor::from_floats([5.0, 6.0, 7.0], &device),  // center
+        );
+        // Correct seeding: A = R (the [D, D] rotation), not the homogeneous matrix.
+        let affine = AffineTransform::<TestBackend, 3>::new(
+            rigid.build_rotation_matrix(),
+            rigid.translation(),
+            rigid.center(),
+        );
+        let pts = Tensor::<TestBackend, 2>::from_floats(
+            [[1.0, 2.0, 3.0], [10.0, -4.0, 0.5]],
+            &device,
+        );
+        let r = rigid.transform_points(pts.clone()).to_data();
+        let a = affine.transform_points(pts).to_data();
+        let r = r.as_slice::<f32>().unwrap();
+        let a = a.as_slice::<f32>().unwrap();
+        for (ri, ai) in r.iter().zip(a.iter()) {
+            assert!((ri - ai).abs() < 1e-5, "affine {ai} != rigid {ri}");
+        }
     }
 }
