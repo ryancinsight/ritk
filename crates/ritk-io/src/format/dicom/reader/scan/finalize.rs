@@ -137,9 +137,9 @@ pub(super) fn finalize_scanned_series(
     // Select the most-populated series when multiple acquisitions share the same
     // row/col dimensions.  Skip filtering when two series tie.
     {
-        let mut uid_counts: HashMap<Option<String>, usize> = HashMap::new();
+        let mut uid_counts: HashMap<Option<&str>, usize> = HashMap::new();
         for uid in &per_file_series_uids {
-            *uid_counts.entry(uid.clone()).or_insert(0) += 1;
+            *uid_counts.entry(uid.as_deref()).or_insert(0) += 1;
         }
         let distinct_count = uid_counts.keys().filter(|k| k.is_some()).count();
         if distinct_count > 1 {
@@ -158,7 +158,7 @@ pub(super) fn finalize_scanned_series(
                     .iter()
                     .filter(|(k, _)| k.is_some())
                     .max_by(|(ka, &va), (kb, &vb)| va.cmp(&vb).then_with(|| kb.cmp(ka)))
-                    .and_then(|(k, _)| k.clone());
+                    .and_then(|(k, _)| k.map(|s| s.to_owned()));
                 if let Some(ref uid) = best_uid {
                     let uid_str: &str = uid.as_str();
                     let excluded = slices

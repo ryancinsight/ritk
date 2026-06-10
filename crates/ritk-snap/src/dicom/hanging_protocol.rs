@@ -3,6 +3,15 @@
 //! This module is the SSOT for translating study metadata into viewer
 //! presentation defaults. The decision is pure and side-effect free.
 
+/// Suggested viewer layout mode derived from DICOM modality/study metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutSuggestion {
+    /// Single-pane axial view.
+    SinglePane,
+    /// 2×2 multi-planar reformat (axial, coronal, sagittal + 3D).
+    MultiPlanarReformat,
+}
+
 /// Selected startup presentation policy for one loaded study.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HangingProtocolDecision {
@@ -14,8 +23,8 @@ pub struct HangingProtocolDecision {
     pub window_width: f32,
     /// Preferred primary axis: 0=axial, 1=coronal, 2=sagittal.
     pub preferred_axis: usize,
-    /// Whether 2x2 multi-planar layout should be enabled.
-    pub multi_planar: bool,
+    /// Suggested viewer layout mode.
+    pub layout: LayoutSuggestion,
 }
 
 /// Select a hanging protocol from modality and series description.
@@ -92,7 +101,7 @@ fn ct_brain_protocol() -> HangingProtocolDecision {
         window_center: 40.0,
         window_width: 80.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -102,7 +111,7 @@ fn ct_lung_protocol() -> HangingProtocolDecision {
         window_center: -400.0,
         window_width: 1500.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -112,7 +121,7 @@ fn ct_bone_protocol() -> HangingProtocolDecision {
         window_center: 400.0,
         window_width: 1000.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -122,7 +131,7 @@ fn ct_angio_protocol() -> HangingProtocolDecision {
         window_center: 300.0,
         window_width: 600.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -132,7 +141,7 @@ fn ct_soft_tissue_protocol() -> HangingProtocolDecision {
         window_center: 60.0,
         window_width: 400.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -142,7 +151,7 @@ fn mr_t1_protocol() -> HangingProtocolDecision {
         window_center: 500.0,
         window_width: 800.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -152,7 +161,7 @@ fn mr_t2_protocol() -> HangingProtocolDecision {
         window_center: 600.0,
         window_width: 1200.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -162,7 +171,7 @@ fn mr_flair_protocol() -> HangingProtocolDecision {
         window_center: 400.0,
         window_width: 800.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -172,7 +181,7 @@ fn mr_spine_protocol() -> HangingProtocolDecision {
         window_center: 600.0,
         window_width: 1200.0,
         preferred_axis: 1,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -182,7 +191,7 @@ fn generic_protocol() -> HangingProtocolDecision {
         window_center: 128.0,
         window_width: 256.0,
         preferred_axis: 0,
-        multi_planar: false,
+        layout: LayoutSuggestion::SinglePane,
     }
 }
 
@@ -192,7 +201,7 @@ fn pet_suv_protocol() -> HangingProtocolDecision {
         window_center: 3.0,
         window_width: 6.0,
         preferred_axis: 0,
-        multi_planar: true,
+        layout: LayoutSuggestion::MultiPlanarReformat,
     }
 }
 
@@ -207,7 +216,7 @@ mod tests {
         assert_eq!(decision.protocol_name, "CT Lung");
         assert_eq!(decision.window_center, -400.0);
         assert_eq!(decision.window_width, 1500.0);
-        assert!(decision.multi_planar);
+        assert!(decision.layout == LayoutSuggestion::MultiPlanarReformat);
     }
 
     #[test]
@@ -237,7 +246,7 @@ mod tests {
     fn unknown_modality_falls_back_to_generic() {
         let decision = select_hanging_protocol(Some("US"), Some("Abdomen"), [10, 100, 120]);
         assert_eq!(decision.protocol_name, "Generic");
-        assert!(!decision.multi_planar);
+        assert_eq!(decision.layout, LayoutSuggestion::SinglePane);
     }
 
     #[test]
@@ -247,7 +256,7 @@ mod tests {
         assert_eq!(decision.window_center, 3.0);
         assert_eq!(decision.window_width, 6.0);
         assert_eq!(decision.preferred_axis, 0);
-        assert!(decision.multi_planar);
+        assert_eq!(decision.layout, LayoutSuggestion::MultiPlanarReformat);
     }
 
     #[test]

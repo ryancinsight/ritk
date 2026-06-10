@@ -207,8 +207,9 @@ fn test_convergence_flag() {
     // High tolerance and generous iteration budget; must converge.
     let result = staple(&raters, 200, 1e-3);
 
-    assert!(
-        result.converged,
+    assert_eq!(
+        result.convergence,
+        StapleConvergence::Converged,
         "STAPLE must converge for identical perfect raters with tol=1e-3 (ran {} iterations)",
         result.iterations
     );

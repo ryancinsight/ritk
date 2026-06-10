@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_io::{anonymize_dicom_directory, AnonymizationProfile, AnonymizeOptions};
+use ritk_io::{anonymize_dicom_directory, AnonymizationProfile, AnonymizeOptions, CleaningPolicy};
 
 /// Anonymize all DICOM files in `input_dir`, writing results to `output_dir`.
 ///
@@ -60,8 +60,16 @@ pub fn anonymize_dicom_dir(
         patient_name: patient_name.to_owned(),
         patient_id: patient_id.to_owned(),
         uid_salt: uid_salt.to_owned(),
-        clean_pixel_data,
-        clean_private_tags,
+        clean_pixel_data: if clean_pixel_data {
+            CleaningPolicy::Clean
+        } else {
+            CleaningPolicy::Skip
+        },
+        clean_private_tags: if clean_private_tags {
+            CleaningPolicy::Clean
+        } else {
+            CleaningPolicy::Skip
+        },
     };
 
     let input_owned = input_dir.to_string();

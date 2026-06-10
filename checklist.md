@@ -4,9 +4,50 @@
 
 ---
 
+## Sprint 358 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×3)
+
+**Target version**: 0.55.0
+
+- [x] PERF-358-01: SLIC connectivity.rs stride arithmetic — `enforce_connectivity` eliminates all Vec<usize> per-voxel allocations via `compute_strides` + `neighbor_index`
+- [x] PERF-358-02: DICOM loader.rs double clone → move + mem::take [patch]
+- [x] PERF-358-03: geometry.rs `missing_between.clone()` → move (hoist booleans) [patch]
+- [x] PERF-358-04: finalize.rs `HashMap<Option<&str>>` — borrow UID keys, no String clone per DICOM file [patch]
+- [x] PERF-358-05: association DRY `build_ts_list` helper — consolidates duplicated clone-then-push in mod.rs + helpers.rs [patch]
+- [x] PERF-358-06: scp/accept.rs `Arc<ScpConfig>` — O(1) refcount per connection vs deep clone [patch]
+- [x] PERF-358-07: CLI filter scales clone reorder — move into config, ref from config in println [patch]
+- [x] PERF-358-08: ONNX `validate()` `HashSet<&str>` — all String clones eliminated from graph validation [patch]
+- [x] PERF-358-09: anonymize UID map entry API — 3 clones → 1 per absent-key branch [patch]
+- [x] PERF-358-10: JPEG encode `Vec::with_capacity` in ritk-codecs + ritk-dicom [patch]
+- [x] PERF-358-11: dim4.rs `gather_4d_owned` z1_i missing clone fix [patch]
+- [x] BOOL-358-12: `CleaningPolicy` enum for AnonymizeOptions (clean_pixel_data, clean_private_tags) [minor]
+- [x] BOOL-358-13: `AutoLoadPolicy` enum for PacsConfig (auto_load_received) [minor]
+- [x] BOOL-358-14: `LayoutSuggestion` enum for HangingProtocolDecision (multi_planar) [minor]
+- [x] BOOL-358-15: `FragmentPosition` enum for MessageControlHeader (last_fragment) [minor]
+- [x] BOOL-358-16: `DicomElementClass` enum for DicomObjectNode (private) [minor]
+- [x] BOOL-358-17: ONNX `ImportConfig` three bools → `BatchDimension`, `GraphValidation`, `ShapeInference` enums [minor]
+- [x] BOOL-358-18: `FilterKind::ConnectedComponents` connectivity_26 → `Connectivity` enum [minor]
+- [x] BOOL-358-19: `StapleConvergence` enum for StapleResult (converged) [minor]
+- [x] DOC-358-20: Python enum bridge docs (SpacingMode, ConductanceFunction mappings) [patch]
+- [x] VER-358-21: Verification gate passed (clippy 0, doc 0, all tests green)
+
+**Verification gate**:
+- [x] `cargo clippy --workspace --all-targets -- -D warnings` → 0 warnings
+- [x] `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core -p ritk-registration -p ritk-io -p ritk-snap --no-deps` → 0 warnings
+- [x] `cargo test -p ritk-core --lib` → 1581/0/1
+- [x] `cargo test -p ritk-registration --lib` → 583/0/1
+- [x] `cargo test -p ritk-codecs --lib` → 102/0/0
+- [x] `cargo test -p ritk-nrrd --lib` → 23/0/0
+- [x] `cargo test -p ritk-snap --lib bed_separation` → 2/0/0
+- [x] `cargo test -p ritk-snap --lib label` → 32/0/0
+- [x] CHANGELOG.md updated with [0.55.0] section
+
+---
+
+
 ## Sprint 357 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×2)
 
 **Target version**: 0.54.0
+
 
 - [x] ARCH-357-01: PhantomData<B> → PhantomData<fn() -> B> across 22 remaining backend-marker sites
 - [x] BOOL-357-02: `MorphOp` enum replaces `is_erosion: bool` in binary_closing.rs

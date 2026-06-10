@@ -105,10 +105,19 @@ pub struct AssociateRjPdu {
     pub reason: u8,
 }
 
+/// Position of a PDV item within a fragmented DIMSE message (PS 3.8 §9.3.5.1).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FragmentPosition {
+    /// This is the last (or only) fragment of the message.
+    Last,
+    /// More fragments follow.
+    More,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MessageControlHeader {
     pub message_type: CommandType,
-    pub last_fragment: bool,
+    pub fragment_position: FragmentPosition,
 }
 
 #[derive(Debug, Clone, PartialEq)]

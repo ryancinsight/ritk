@@ -17,10 +17,7 @@ impl Association {
             .presentation_contexts
             .iter()
             .map(|rpc| {
-                let mut ts = rpc.transfer_syntax_uids.clone();
-                if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                    ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
-                }
+                let ts = build_ts_list(&rpc.transfer_syntax_uids);
                 let id = nid;
                 nid += 2;
                 PresentationContextItemRq {
@@ -91,7 +88,7 @@ impl Association {
                 presentation_context_id: cid,
                 message_control_header: MessageControlHeader {
                     message_type: ct,
-                    last_fragment: true,
+                    fragment_position: FragmentPosition::Last,
                 },
                 data: Vec::new(),
             }];
@@ -104,7 +101,11 @@ impl Association {
                 presentation_context_id: cid,
                 message_control_header: MessageControlHeader {
                     message_type: ct,
-                    last_fragment: i == chunks.len() - 1,
+                    fragment_position: if i == chunks.len() - 1 {
+                        FragmentPosition::Last
+                    } else {
+                        FragmentPosition::More
+                    },
                 },
                 data: c.to_vec(),
             })
@@ -123,10 +124,27 @@ pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
     m
 }
 
+/// Build the transfer-syntax list for a presentation context, ensuring
+/// Implicit VR Little Endian (PS 3.7 §7.1.1.13) is always present as fallback.
+///
+/// If IVR-LE is already in `uids`, returns a clone of the slice directly.
+/// Otherwise appends IVR-LE to a copy. Using a slice reference avoids an
+/// unconditional clone when IVR-LE is already present.
+pub(super) fn build_ts_list(uids: &[arrayvec::ArrayString<64>]) -> Vec<arrayvec::ArrayString<64>> {
+    if uids.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
+        uids.to_vec()
+    } else {
+        let mut ts = Vec::with_capacity(uids.len() + 1);
+        ts.extend_from_slice(uids);
+        ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
+        ts
+    }
+}
+
 /// Return `true` if the P-Data-TF contains a last-fragment data-set PDV.
 pub(super) fn pdv_last_data(pd: &PDataTfPdu) -> bool {
     pd.presentation_data_value_items.iter().any(|p| {
         p.message_control_header.message_type == CommandType::DataSet
-            && p.message_control_header.last_fragment
+            && p.message_control_header.fragment_position == FragmentPosition::Last
     })
 }

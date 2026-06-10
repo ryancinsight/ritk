@@ -3,8 +3,45 @@
 //! Relabels connected components smaller than `min_component_size` into
 //! the nearest large neighbor by intensity distance, using union-find
 //! for connected-component detection and iterative merging.
+//!
+//! All neighbor lookups use precomputed C-contiguous strides for pure
+//! arithmetic O(1) neighbor-index computation — no per-voxel Vec allocation.
 
-use super::coords::{decode_coords, encode_coords};
+/// Compute C-contiguous (row-major) strides for the given shape.
+///
+/// `strides[d]` is the number of elements stepped when coordinate `d`
+/// increments by 1. For flat index `i`, coordinate in dimension `d` is
+/// `(i / strides[d]) % shape[d]`.
+fn compute_strides(shape: &[usize]) -> Vec<usize> {
+    let ndim = shape.len();
+    let mut strides = vec![1usize; ndim];
+    // Iterate over `shape` in reverse with `enumerate()`, using the
+    // index to write into `strides` and accumulating the stride
+    // product. This avoids `clippy::needless_range_loop` (the loop
+    // variable would otherwise only index into `strides`/`shape`).
+    let mut stride = 1usize;
+    for (i, &s) in shape.iter().enumerate().rev() {
+        strides[i] = stride;
+        stride *= s;
+    }
+    strides
+}
+
+/// Return the flat neighbor index at offset `delta` along dimension `d`.
+///
+/// Returns `None` when the neighbor is out of the array boundary.
+/// No heap allocation; uses the precomputed stride to compute the offset
+/// in O(1) with a single bounds check.
+#[inline]
+fn neighbor_index(i: usize, d: usize, delta: isize, shape: &[usize], stride: usize) -> Option<usize> {
+    let coord = (i / stride) % shape[d];
+    let nbr_coord = coord as isize + delta;
+    if nbr_coord < 0 || nbr_coord >= shape[d] as isize {
+        None
+    } else {
+        Some((i as isize + delta * stride as isize) as usize)
+    }
+}
 
 /// Relabel connected components smaller than `min_size` into the nearest
 /// large neighbor by intensity distance. Iterates until no more small
@@ -12,7 +49,7 @@ use super::coords::{decode_coords, encode_coords};
 pub fn enforce_connectivity(
     labels: &mut [u32],
     shape: &[usize],
-    ndim: usize,
+    _ndim: usize,
     intensities: &[f64],
     min_size: usize,
 ) {
@@ -27,13 +64,9 @@ pub fn enforce_connectivity(
         return;
     }
 
-    // Adjacency offsets: +1 along each axis (face-connected).
-    let mut fwd_offsets: Vec<Vec<isize>> = Vec::with_capacity(ndim);
-    for d in 0..ndim {
-        let mut fwd = vec![0isize; ndim];
-        fwd[d] = 1;
-        fwd_offsets.push(fwd);
-    }
+    // Precompute C-contiguous strides once — reused across all passes and
+    // both inner loops, eliminating per-voxel decode/encode allocations.
+    let strides = compute_strides(shape);
 
     let mut new_label = labels.to_vec();
     let mut changed = true;
@@ -47,24 +80,12 @@ pub fn enforce_connectivity(
         // Re-compute connected components with current labels.
         let mut uf = UnionFind::new(n);
         for i in 0..n {
-            let coords = decode_coords(i, shape);
-            for fwd in &fwd_offsets {
-                let mut nbr_coords = coords.clone();
-                let mut valid = true;
-                for d in 0..ndim {
-                    let c = coords[d] as isize + fwd[d];
-                    if c < 0 || c >= shape[d] as isize {
-                        valid = false;
-                        break;
+            // Forward adjacency: +1 along each axis (face-connected).
+            for (d, &stride) in strides.iter().enumerate() {
+                if let Some(nbr) = neighbor_index(i, d, 1, shape, stride) {
+                    if new_label[i] == new_label[nbr] {
+                        uf.union(i, nbr);
                     }
-                    nbr_coords[d] = c as usize;
-                }
-                if !valid {
-                    continue;
-                }
-                let nbr = encode_coords(&nbr_coords, shape);
-                if new_label[i] == new_label[nbr] {
-                    uf.union(i, nbr);
                 }
             }
         }
@@ -112,28 +133,21 @@ pub fn enforce_connectivity(
                     continue;
                 }
 
-                let coords = decode_coords(i, shape);
-
                 // Check all face-adjacent neighbors (±1 per axis).
-                for d in 0..ndim {
+                for (d, &stride) in strides.iter().enumerate() {
                     for &delta in &[-1isize, 1] {
-                        let mut nbr_coords = coords.clone();
-                        let c = coords[d] as isize + delta;
-                        if c < 0 || c >= shape[d] as isize {
-                            continue;
-                        }
-                        nbr_coords[d] = c as usize;
-                        let nbr = encode_coords(&nbr_coords, shape);
-                        let nbr_root = uf.find(nbr);
-
-                        if nbr_root != small_root {
-                            let nbr_label = new_label[nbr];
-                            if nbr_label != small_label {
-                                let nbr_mean = comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
-                                let dist = (small_mean - nbr_mean).abs();
-                                if dist < best_dist {
-                                    best_dist = dist;
-                                    best_label = nbr_label;
+                        if let Some(nbr) = neighbor_index(i, d, delta, shape, stride) {
+                            let nbr_root = uf.find(nbr);
+                            if nbr_root != small_root {
+                                let nbr_label = new_label[nbr];
+                                if nbr_label != small_label {
+                                    let nbr_mean =
+                                        comp_mean.get(&nbr_root).copied().unwrap_or(0.0);
+                                    let dist = (small_mean - nbr_mean).abs();
+                                    if dist < best_dist {
+                                        best_dist = dist;
+                                        best_label = nbr_label;
+                                    }
                                 }
                             }
                         }

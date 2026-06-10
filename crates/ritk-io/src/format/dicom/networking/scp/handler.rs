@@ -6,10 +6,11 @@ use super::super::association::NetworkingError;
 use super::super::context::transfer_syntax;
 use super::super::dimse::{CommandField, DimseMessage, DimseStatus};
 use super::super::pdu::{
-    AbortPdu, AbortSource, AssociateAcPdu, CommandType, ImplementationClassUidSubItem,
-    ImplementationVersionNameSubItem, MaximumLengthSubItem, MessageControlHeader, PDataTfPdu, Pdu,
-    PresentationContextItemAc, PresentationDataValueItem, ReleaseRpPdu, UserInformation,
-    APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
+    AbortPdu, AbortSource, AssociateAcPdu, CommandType, FragmentPosition,
+    ImplementationClassUidSubItem, ImplementationVersionNameSubItem, MaximumLengthSubItem,
+    MessageControlHeader, PDataTfPdu, Pdu, PresentationContextItemAc, PresentationDataValueItem,
+    ReleaseRpPdu, UserInformation, APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID,
+    RITK_IMPLEMENTATION_VERSION,
 };
 use super::config::{ScpConfig, StoredInstance};
 use crate::format::dicom::reader::types::literal_arraystring;
@@ -186,14 +187,16 @@ fn recv_dimse_message(stream: &mut TcpStream) -> Result<ScpMessageResult, Networ
             Pdu::PDataTf(pd) => {
                 let data_last = pd.presentation_data_value_items.iter().any(|p| {
                     p.message_control_header.message_type == CommandType::DataSet
-                        && p.message_control_header.last_fragment
+                        && p.message_control_header.fragment_position == FragmentPosition::Last
                 });
                 for pdv in &pd.presentation_data_value_items {
                     cid = pdv.presentation_context_id;
                     match pdv.message_control_header.message_type {
                         CommandType::Command => {
                             cmd_buf.extend_from_slice(&pdv.data);
-                            if pdv.message_control_header.last_fragment {
+                            if pdv.message_control_header.fragment_position
+                                == FragmentPosition::Last
+                            {
                                 cmd_complete = true;
                             }
                         }
@@ -242,7 +245,7 @@ fn recv_data_fragments(
                 for p in &pd.presentation_data_value_items {
                     if p.message_control_header.message_type == CommandType::DataSet {
                         data_buf.extend_from_slice(&p.data);
-                        if p.message_control_header.last_fragment {
+                        if p.message_control_header.fragment_position == FragmentPosition::Last {
                             msg.data_set = Some(data_buf);
                             return Ok(ScpMessageResult::Message { cid, msg });
                         }
@@ -302,7 +305,7 @@ pub(super) fn send_command_pdv(
                 presentation_context_id: cid,
                 message_control_header: MessageControlHeader {
                     message_type: CommandType::Command,
-                    last_fragment: true,
+                    fragment_position: FragmentPosition::Last,
                 },
                 data: cmd_bytes,
             }],

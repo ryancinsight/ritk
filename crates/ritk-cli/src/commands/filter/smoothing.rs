@@ -153,7 +153,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     };
 
     let config = SatoConfig {
-        scales: scales.clone(),
+        scales,
         alpha: args.alpha,
         polarity: ritk_core::filter::vesselness::VesselPolarity::Bright,
     };
@@ -164,7 +164,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
 
     println!(
         "Applied sato (scales={:?}, alpha={}) to {} -> {}",
-        scales,
+        filter.config.scales,
         args.alpha,
         args.input.display(),
         args.output.display()

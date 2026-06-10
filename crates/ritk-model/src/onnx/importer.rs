@@ -8,26 +8,53 @@ use onnx_ir::OnnxGraphBuilder;
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Dynamic batch dimension handling for ONNX model import.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BatchDimension {
+    /// Allow dynamic (unknown) batch sizes.
+    Dynamic,
+    /// Require static batch size at import time.
+    Static,
+}
+
+/// Graph structure validation during ONNX model import.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphValidation {
+    /// Validate that all node inputs/outputs are connected.
+    Enabled,
+    /// Skip graph validation (faster but may silently accept malformed graphs).
+    Disabled,
+}
+
+/// Shape inference during ONNX model import.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShapeInference {
+    /// Infer tensor shapes from the graph structure.
+    Enabled,
+    /// Skip shape inference.
+    Disabled,
+}
+
 /// Configuration for ONNX model import.
 #[derive(Debug, Clone)]
 pub struct ImportConfig {
     /// Maximum opset version to support
     pub max_opset_version: i64,
-    /// Allow dynamic batch dimension
-    pub allow_dynamic_batch: bool,
-    /// Validate graph structure before conversion
-    pub validate_graph: bool,
-    /// Enable shape inference
-    pub infer_shapes: bool,
+    /// Dynamic batch dimension handling
+    pub batch_dimension: BatchDimension,
+    /// Graph structure validation before conversion
+    pub graph_validation: GraphValidation,
+    /// Shape inference during import
+    pub shape_inference: ShapeInference,
 }
 
 impl Default for ImportConfig {
     fn default() -> Self {
         Self {
             max_opset_version: 17,
-            allow_dynamic_batch: true,
-            validate_graph: true,
-            infer_shapes: true,
+            batch_dimension: BatchDimension::Dynamic,
+            graph_validation: GraphValidation::Enabled,
+            shape_inference: ShapeInference::Enabled,
         }
     }
 }
@@ -58,7 +85,7 @@ impl OnnxImporter {
         let path = path.as_ref();
         let graph = self.parse_onnx_file(path)?;
 
-        if self.config.validate_graph {
+        if self.config.graph_validation == GraphValidation::Enabled {
             graph
                 .validate()
                 .map_err(|e| OnnxError::InvalidModel { message: e })?;
@@ -246,9 +273,9 @@ mod tests {
     fn test_import_config_default() {
         let config = ImportConfig::default();
         assert_eq!(config.max_opset_version, 17);
-        assert!(config.allow_dynamic_batch);
-        assert!(config.validate_graph);
-        assert!(config.infer_shapes);
+        assert_eq!(config.batch_dimension, BatchDimension::Dynamic);
+        assert_eq!(config.graph_validation, GraphValidation::Enabled);
+        assert_eq!(config.shape_inference, ShapeInference::Enabled);
     }
 
     #[test]

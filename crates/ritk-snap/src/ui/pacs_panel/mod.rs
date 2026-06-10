@@ -27,7 +27,7 @@
 //! └───────────────────────────────────────────────────────────────────┘
 //! ```
 
-use crate::pacs::{PacsConfig, QueryState};
+use crate::pacs::{AutoLoadPolicy, PacsConfig, QueryState};
 
 mod results;
 
@@ -193,8 +193,17 @@ pub fn show_pacs_panel(
             if pacs_received_count > 0 {
                 ui.label(format!("[{pacs_received_count} received]"));
             }
-            ui.checkbox(&mut config.auto_load_received, "Auto-load");
-            if config.auto_load_received {
+            let auto = config.auto_load_policy == AutoLoadPolicy::Automatic;
+            let mut auto_mut = auto;
+            ui.checkbox(&mut auto_mut, "Auto-load");
+            if auto_mut != auto {
+                config.auto_load_policy = if auto_mut {
+                    AutoLoadPolicy::Automatic
+                } else {
+                    AutoLoadPolicy::Manual
+                };
+            }
+            if config.auto_load_policy == AutoLoadPolicy::Automatic {
                 ui.label("Limit:");
                 let mut limit = config.auto_load_limit as i64;
                 if ui
@@ -208,8 +217,8 @@ pub fn show_pacs_panel(
                     config.auto_load_limit = limit as u32;
                 }
             }
-            let show_load_btn =
-                !config.auto_load_received || pacs_pending_count > config.auto_load_limit as usize;
+            let show_load_btn = config.auto_load_policy != AutoLoadPolicy::Automatic
+                || pacs_pending_count > config.auto_load_limit as usize;
             if show_load_btn
                 && pacs_pending_count > 0
                 && ui.button("\u{25b6} Load Received").clicked()

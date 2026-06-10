@@ -81,10 +81,7 @@ impl Association {
         let mut next_id: u8 = 1;
         let mut pc_items = Vec::with_capacity(config.presentation_contexts.len());
         for rpc in &config.presentation_contexts {
-            let mut ts = rpc.transfer_syntax_uids.clone();
-            if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
-                ts.push(literal_arraystring(transfer_syntax::IMPLICIT_VR_LE));
-            }
+            let ts = helpers::build_ts_list(&rpc.transfer_syntax_uids);
             pc_items.push(PresentationContextItemRq {
                 presentation_context_id: next_id,
                 abstract_syntax_uid: rpc.abstract_syntax_uid,
@@ -232,7 +229,11 @@ impl Association {
             presentation_context_id: cid,
             message_control_header: MessageControlHeader {
                 message_type: ct,
-                last_fragment: is_last,
+                fragment_position: if is_last {
+                    FragmentPosition::Last
+                } else {
+                    FragmentPosition::More
+                },
             },
             data: d.to_vec(),
         };
@@ -264,7 +265,9 @@ impl Association {
                         match pdv.message_control_header.message_type {
                             CommandType::Command => {
                                 cmd.extend_from_slice(&pdv.data);
-                                if pdv.message_control_header.last_fragment {
+                                if pdv.message_control_header.fragment_position
+                                    == FragmentPosition::Last
+                                {
                                     cmd_last = true;
                                 }
                             }
@@ -283,7 +286,9 @@ impl Association {
                                                 == CommandType::DataSet
                                             {
                                                 data.extend_from_slice(&p.data);
-                                                if p.message_control_header.last_fragment {
+                                                if p.message_control_header.fragment_position
+                                                    == FragmentPosition::Last
+                                                {
                                                     msg.data_set = Some(data);
                                                     return Ok((cid, msg));
                                                 }

@@ -46,8 +46,11 @@ pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyImage {
 ///     image: Input PyImage.
 ///     variance: Gaussian variance σ² in physical units².
 ///     maximum_error: Kernel truncation tolerance in (0, 1) (default 0.01).
-///     use_image_spacing: If True, convert physical σ to pixel σ using image
-///         spacing (default True).
+///     use_image_spacing: If `True`, convert physical σ to pixel σ using image
+///         spacing (default `True`). Maps to
+///         [`SpacingMode::Physical`][ritk_core::filter::SpacingMode::Physical];
+///         `False` maps to
+///         [`SpacingMode::Voxel`][ritk_core::filter::SpacingMode::Voxel].
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.
@@ -191,8 +194,11 @@ pub fn n4_bias_correction(
 ///     iterations: Number of explicit Euler time steps (default 20).
 ///     conductance: Edge-stopping parameter K (default 3.0; larger = more smoothing).
 ///     time_step: Euler step size Δt (default 0.0625; must be ≤ 1/6 for 3-D stability).
-///     exponential: If True, use exponential conductance c(s)=exp(-(s/K)²);
-///         if False, use quadratic c(s)=1/(1+(s/K)²) (default True).
+///     exponential: If `True`, use exponential conductance c(s) = exp(-(s/K)²)
+///         (maps to [`ConductanceFunction::Exponential`][ritk_core::filter::diffusion::ConductanceFunction::Exponential]);
+///         `False` uses quadratic c(s) = 1/(1+(s/K)²)
+///         (maps to [`ConductanceFunction::Quadratic`][ritk_core::filter::diffusion::ConductanceFunction::Quadratic]).
+///         Default `True`.
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.

@@ -103,12 +103,14 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
         }
     }
 
+    let has_missing_slices = !missing_between.is_empty();
+    let is_nonuniform = max_rel_dev > NONUNIFORM_SPACING_THRESHOLD;
     SliceGeometryReport {
         nominal_spacing: nominal,
         max_relative_deviation: max_rel_dev,
-        missing_between: missing_between.clone(),
-        is_nonuniform: max_rel_dev > NONUNIFORM_SPACING_THRESHOLD,
-        has_missing_slices: !missing_between.is_empty(),
+        missing_between,
+        is_nonuniform,
+        has_missing_slices,
     }
 }
 

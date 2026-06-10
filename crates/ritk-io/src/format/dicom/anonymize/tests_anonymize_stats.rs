@@ -13,7 +13,7 @@
 //! 6. clean_private_tags_true_removes_private_elements
 //! 7. clean_private_tags_true_preserves_standard_elements
 
-use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions};
+use super::{generate_uid_from_hash, AnonymizationProfile, AnonymizeOptions, CleaningPolicy};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::{meta::FileMetaTableBuilder, FileDicomObject, InMemDicomObject};
 
@@ -266,7 +266,7 @@ fn clean_private_tags_false_preserves_private_elements() {
     ));
     let opts = AnonymizeOptions {
         profile: AnonymizationProfile::Basic,
-        clean_private_tags: false,
+        clean_private_tags: CleaningPolicy::Skip,
         ..AnonymizeOptions::default()
     };
     let (anon, _result) =
@@ -293,18 +293,18 @@ fn clean_private_tags_true_removes_private_elements() {
     ));
     let opts = AnonymizeOptions {
         profile: AnonymizationProfile::Basic,
-        clean_private_tags: true,
+        clean_private_tags: CleaningPolicy::Clean,
         ..AnonymizeOptions::default()
     };
-    let (anon, result) =
-        super::anonymize_object(obj, &opts).expect("anonymize_object must succeed");
+    let (anon, result) = super::anonymize_object(obj, &opts).expect("anonymize_object");
+
     assert!(
         anon.element(Tag(0x0009, 0x0010)).is_err(),
-        "private tag (0009,0010) must be removed when clean_private_tags=true"
+        "private tag (0009,0010) must be removed when clean_private_tags=Clean"
     );
     assert!(
         anon.element(Tag(0x0019, 0x0010)).is_err(),
-        "private tag (0019,0010) must be removed when clean_private_tags=true"
+        "private tag (0019,0010) must be removed when clean_private_tags=Clean"
     );
     assert_eq!(
         result.private_tags_removed, 2,
@@ -318,7 +318,7 @@ fn clean_private_tags_true_preserves_standard_elements() {
     let obj = make_test_object();
     let opts = AnonymizeOptions {
         profile: AnonymizationProfile::Basic,
-        clean_private_tags: true,
+        clean_private_tags: CleaningPolicy::Clean,
         ..AnonymizeOptions::default()
     };
     let (anon, _result) =

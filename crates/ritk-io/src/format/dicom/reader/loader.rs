@@ -56,8 +56,8 @@ pub(crate) fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
     device: &B::Device,
 ) -> Result<(Image<B, 3>, DicomReadMetadata)> {
-    let mut metadata = series.metadata.clone();
-    let slices = metadata.slices.clone();
+    let mut metadata = series.metadata;
+    let slices = std::mem::take(&mut metadata.slices);
 
     slices
         .first()

@@ -11,7 +11,7 @@
 //! # Invariants
 //! - Non-DICOM files in directory mode are skipped silently.
 //! - File meta-header (transfer syntax, SOP class) is preserved unchanged.
-//! - `clean_pixel_data = false` (default) never touches pixel data.
+//! - `clean_pixel_data = CleaningPolicy::Skip` (default) never touches pixel data.
 //! - Same `(original_uid, salt)` always produces the same replacement UID.
 
 mod profile;
@@ -25,6 +25,16 @@ mod tests_anonymize_extended;
 mod tests_anonymize_stats;
 
 pub use profile::{AnonymizationProfile, TagAction};
+
+/// Controls whether an anonymization step is applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CleaningPolicy {
+    /// Do not clean this category.
+    #[default]
+    Skip,
+    /// Remove or zero-fill this category.
+    Clean,
+}
 
 use anyhow::{Context, Result};
 use dicom::core::header::Header;
@@ -48,16 +58,18 @@ pub struct AnonymizeOptions {
     /// Salt for deterministic UID remapping (SHA-256).
     /// Default: `"ritk-anon-salt"`.
     pub uid_salt: String,
-    /// When `true`, replace the pixel data element with an equal-length zero
-    /// buffer, suppressing visual content without altering file structure.
-    /// Defaults to `false`.
-    pub clean_pixel_data: bool,
-    /// When `true`, remove all private DICOM elements (those with an odd group
-    /// number, excluding the file meta-header group 0x0002). This achieves full
-    /// PS 3.15 Annex E compliance for attribute confidentiality by eliminating
-    /// any institutionally-specific private attributes that may carry PHI.
-    /// Defaults to `false`. The `Enhanced` profile overrides this to `true`.
-    pub clean_private_tags: bool,
+    /// When `CleaningPolicy::Clean`, replace the pixel data element with an
+    /// equal-length zero buffer, suppressing visual content without altering
+    /// file structure. Defaults to `CleaningPolicy::Skip`.
+    pub clean_pixel_data: CleaningPolicy,
+    /// When `CleaningPolicy::Clean`, remove all private DICOM elements (those
+    /// with an odd group number, excluding the file meta-header group 0x0002).
+    /// This achieves full PS 3.15 Annex E compliance for attribute
+    /// confidentiality by eliminating institutionally-specific private
+    /// attributes that may carry PHI.
+    /// Defaults to `CleaningPolicy::Skip`. The `Enhanced` profile sets this
+    /// to `CleaningPolicy::Clean` automatically.
+    pub clean_private_tags: CleaningPolicy,
 }
 
 impl Default for AnonymizeOptions {
@@ -67,8 +79,8 @@ impl Default for AnonymizeOptions {
             patient_name: "ANONYMOUS".to_owned(),
             patient_id: "ANON001".to_owned(),
             uid_salt: "ritk-anon-salt".to_owned(),
-            clean_pixel_data: false,
-            clean_private_tags: false,
+            clean_pixel_data: CleaningPolicy::Skip,
+            clean_private_tags: CleaningPolicy::Skip,
         }
     }
 }
@@ -234,14 +246,12 @@ fn apply_action(
                 return;
             }
 
-            // Deterministic UID: check existing map for cross-reference consistency.
-            let new_uid = if let Some(existing) = uid_map.get(&orig) {
-                existing.clone()
-            } else {
-                let generated = generate_uid_from_hash(&orig, &opts.uid_salt);
-                uid_map.insert(orig.clone(), generated.clone());
-                generated
-            };
+            // Deterministic UID: entry API avoids double-lookup and reduces clones
+            // to one key clone + one value clone on extraction.
+            let new_uid = uid_map
+                .entry(orig.clone())
+                .or_insert_with(|| generate_uid_from_hash(&orig, &opts.uid_salt))
+                .clone();
 
             obj.put(DataElement::new(
                 tag,
@@ -262,9 +272,9 @@ fn apply_action(
 /// `AnonymizeResult` with per-operation statistics and the UID cross-reference
 /// map.
 ///
-/// When `options.clean_pixel_data` is `true`, the `PixelData` element
-/// `(7FE0,0010)` is overwritten with an equal-length zero buffer if present
-/// and readable as a flat byte sequence.
+/// When `options.clean_pixel_data` is `CleaningPolicy::Clean`, the
+/// `PixelData` element `(7FE0,0010)` is overwritten with an equal-length
+/// zero buffer if present and readable as a flat byte sequence.
 pub fn anonymize_object(
     mut obj: FileDicomObject<InMemDicomObject>,
     options: &AnonymizeOptions,
@@ -278,7 +288,8 @@ pub fn anonymize_object(
 
     // Remove private tags before pixel data handling to avoid removing
     // private pixel data blocks after they have already been zeroed.
-    if options.clean_private_tags || options.profile.removes_private_tags() {
+    if options.clean_private_tags == CleaningPolicy::Clean || options.profile.removes_private_tags()
+    {
         // Collect private tag addresses first to avoid borrow conflicts.
         // DICOM private elements have odd group numbers.
         // Group 0x0002 (file meta-header) is always excluded.
@@ -293,7 +304,7 @@ pub fn anonymize_object(
         }
     }
 
-    if options.clean_pixel_data {
+    if options.clean_pixel_data == CleaningPolicy::Clean {
         let pixel_tag = Tag(0x7FE0, 0x0010);
         // Extract VR before the second element() call; VR is Copy.
         let vr = obj.element(pixel_tag).map(|e| e.vr()).unwrap_or(VR::OW);

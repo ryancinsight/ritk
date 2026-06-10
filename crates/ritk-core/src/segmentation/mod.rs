@@ -26,7 +26,7 @@ pub mod watershed;
 
 pub use clustering::{kmeans_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter};
 pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
-pub use ensemble::{staple, StapleResult};
+pub use ensemble::{staple, StapleConvergence, StapleResult};
 pub use labeling::{connected_components, ConnectedComponentsFilter, LabelStatistics};
 pub use level_set::{
     ChanVeseSegmentation, GeodesicActiveContourSegmentation, LaplacianLevelSet,

@@ -6,7 +6,7 @@ use crate::format::dicom::networking::context::{
 };
 use crate::format::dicom::networking::dimse::sop_class;
 use crate::format::dicom::networking::pdu::{
-    AssociateAcPdu, CommandType, Pdu, PresentationContextItemAc, UserInformation,
+    AssociateAcPdu, CommandType, FragmentPosition, Pdu, PresentationContextItemAc, UserInformation,
     APPLICATION_CONTEXT_NAME,
 };
 use arrayvec::ArrayString;
@@ -76,7 +76,7 @@ fn test_build_associate_rq() {
 fn test_fragment_pdv_single() {
     let pdvs = Association::fragment_pdvs(&[0xABu8; 100], CommandType::Command, 16378);
     assert_eq!(pdvs.len(), 1);
-    assert!(pdvs[0].message_control_header.last_fragment);
+    assert!(pdvs[0].message_control_header.fragment_position == FragmentPosition::Last);
     assert_eq!(pdvs[0].data.len(), 100);
 }
 
@@ -85,7 +85,10 @@ fn test_fragment_pdv_multiple() {
     let pdvs = Association::fragment_pdvs(&vec![0xCDu8; 40000], CommandType::DataSet, 8186);
     assert!(pdvs.len() >= 5);
     for (i, p) in pdvs.iter().enumerate() {
-        assert_eq!(p.message_control_header.last_fragment, i == pdvs.len() - 1);
+        assert_eq!(
+            p.message_control_header.fragment_position == FragmentPosition::Last,
+            i == pdvs.len() - 1
+        );
     }
     assert_eq!(pdvs.iter().map(|p| p.data.len()).sum::<usize>(), 40000);
 }

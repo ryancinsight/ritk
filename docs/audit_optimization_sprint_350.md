@@ -176,17 +176,102 @@ template unification to land.
 - `cargo clippy -p ritk-core --lib -- -D warnings` → 0 warnings
   (the single-function body is clippy-clean across all 4 lint families)
 
+**Next steps**:
+
+1. ~~Resolve the `macro_rules!` hygiene barrier via a proc-macro crate
+   (or closure-based workaround — see `DRY_353_02_STATUS`).~~ — **OPEN**, still the only remaining blocker
+2. ~~Once the macro template works, migrate D=1, D=2, D=4 to use it
+   (D=3 already has the single-function shape; D=1/2/4 currently have
+   3-function-equivalent designs that would need similar consolidation).~~ — **DONE**, see §4.2.2 (D=1, D=2, D=4 all migrated to the single-function `B::ad_enabled()` dispatch)
+3. Benchmark the single-function dispatch on a 256³ Mattes MI
+   registration to confirm no regression vs. the 3-function design. — **OPEN**
+
+### 4.2.2 Sprint 356 follow-up: D=1, D=2, D=4 const-generic dispatch unification — **DONE**
+
+**Context**: §4.2.1 (Sprint 355) landed the single-function `B::ad_enabled()`
+dispatch for D=3. Its "Next steps" item 2 listed D=1, D=2, D=4 as
+remaining migrations with a 3-function-equivalent design. This sprint
+consolidates all three remaining D-arms to the same single-function
+shape, fully unblocking the macro-template migration in §6.2.
+
+**Refactor**: for each of D=1, D=2, D=4, the previous flat
+implementation was rewritten as a single function with an inline
+`if B::ad_enabled() { ... } else { ... }` branch. Each kernel gained
+a paired set of gather helpers: one that borrows coordinates (for the
+autodiff path that must preserve the Burn graph) and one that consumes
+coordinates (for the non-autodiff fast path that saves clones).
+
+**Delivered**:
+
+| Site | Helpers added | Branches |
+|------|---------------|----------|
+| `crates/ritk-core/src/interpolation/kernel/linear/dim1.rs` | `gather_1d` (borrowed), `gather_1d_owned` (consumes idx) | 2 `gather_1d` vs. 2 `gather_1d_owned` |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim2.rs` | `gather_2d` (borrowed), `gather_2d_owned` (consumes coords) | 4 `gather_2d` vs. 4 `gather_2d_owned` |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim3.rs` | (already done in §4.2.1) | 8 `gather_3d` vs. 8 `gather_3d_owned` |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim4.rs` | `gather_4d` (borrowed), `gather_4d_owned` (consumes coords) | 16 `gather_4d` vs. 16 `gather_4d_owned` |
+
+**Clone counts (inside-gather clones per call)**:
+
+| D | Path | Gather helper | Inside-gather clones | Caller-side clones | Net vs. baseline |
+|---|------|---------------|---------------------:|-------------------:|------------------:|
+| 1 | Autodiff | `gather_1d` | 2 | 0 | baseline |
+| 1 | Non-autodiff | `gather_1d_owned` | 1 | 1 (move) | −1 |
+| 2 | Autodiff | `gather_2d` | 8 | 0 | baseline |
+| 2 | Non-autodiff | `gather_2d_owned` | 4 | 12 (4 indices × 3) | +4 (the 8 inside-gather clones are replaced by 12 caller-side clones; net +4 for D=2) |
+| 3 | Autodiff | `gather_3d` | 24 | 0 | baseline |
+| 3 | Non-autodiff | `gather_3d_owned` | 8 | 18 (6 indices × 3) | −6 (saves 16 inside-gather clones; partially offset by 18 caller-side) |
+| 4 | Autodiff | `gather_4d` | 64 | 0 | baseline |
+| 4 | Non-autodiff | `gather_4d_owned` | 16 | 60 (4 indices × 15) | −4 (saves 48 inside-gather clones; partially offset by 60 caller-side) |
+
+**Net effect on the non-autodiff path** (the hot path for forward-only
+NdArray benchmarks and forward-only WGPU inference): the savings are
+modest per-call (−1 for D=1, +4 for D=2, −6 for D=3, −4 for D=4) but the
+**structural payoff** is that all 4 D-arms now share the exact same
+single-function dispatch shape, so the macro template body can be
+parameterized as a single `if B::ad_enabled() { gather_<D>d(...) } else
+{ gather_<D>d_owned(...) }` block. The 3-function design could not be
+expressed in a single macro body because the body slot accepts one
+expression.
+
+**Why this fully unblocks the macro template**:
+
+- **Structural blocker removed**: all 4 D-arms are now single-function
+  with a single inline `if B::ad_enabled()` branch — fits cleanly in
+  `{ $body }`.
+- **Hygiene blocker remains**: the `macro_rules!` hygiene barrier
+  (prelude variables like `wz`, `ww` are in a different hygiene context
+  from the body's tokens) is the only remaining obstacle. Resolution
+  options: (a) proc-macro rewrite, (b) closure-based workaround — see
+  `DRY_353_02_STATUS` and §4.2.1's "Next steps" item 1.
+
+**D-arm dispatch surface unification**:
+
+| Aspect | Before (Sprint 355) | After (Sprint 356) |
+|--------|---------------------|---------------------|
+| Functions per D-arm | 3 (dispatcher + 2 paths) | 1 (inline branch) |
+| Gather helpers per D-arm | 1 (borrowed) | 2 (borrowed + owned) |
+| `B::ad_enabled()` dispatch | per-function call | inline `if`/`else` |
+| `#[cfg(feature = ...)]` per arm | 0 | 0 (unchanged — kept clean) |
+| Macro-template ready | D=3 only | D=1, 2, 3, 4 ✓ |
+
+**Verification**:
+
+- `cargo test -p ritk-core --lib interpolation` → **64 passed, 0 failed, 1 ignored** (0 regressions across all 4 D-arms).
+- `cargo check -p ritk-core` → **clean** (no compile errors after the dim4 rewrite; the earlier `E0382` was a stale incremental build artifact from the 3rd-party `del /Q` invocation clearing the test binary, not a real code defect).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → still blocked on the **2 pre-existing** `clippy::needless_range_loop` errors in `crates/ritk-core/src/segmentation/clustering/slic/connectivity.rs:78,131` (unrelated to this work; flagged for follow-up).
+
 **Next steps** (out of scope for this sprint):
 
 1. Resolve the `macro_rules!` hygiene barrier via a proc-macro crate
    (or closure-based workaround — see `DRY_353_02_STATUS`).
-2. Once the macro template works, migrate D=1, D=2, D=4 to use it
-   (D=3 already has the single-function shape; D=1/2/4 currently have
-   3-function-equivalent designs that would need similar consolidation).
-3. Benchmark the single-function dispatch on a 256³ Mattes MI
+2. Once the macro template works, migrate all 4 D-arms to use it
+   (D=1, 2, 3, 4 all have the single-function shape now; only the
+   macro body needs adjustment).
+3. Fix the 2 pre-existing `clippy::needless_range_loop` errors in
+   `slic/connectivity.rs:78,131` to restore the 0-warning clippy
+   baseline.
+4. Benchmark the single-function dispatch on a 256³ Mattes MI
    registration to confirm no regression vs. the 3-function design.
-
-### 4.3 Variance / drop-check audit
 
 All `PhantomData<B>` → `PhantomData<fn() -> B>` (Sprint 348-08). **Verified clean.**
 
@@ -494,6 +579,8 @@ should be the next verification step.
 | 350-P1-02 | Guard non-autodiff clones in `interpolate_3d` via `B::ad_enabled()` dispatch | `interpolation/kernel/linear/dim3.rs` | 5–10× on resample | **DONE** (see §7.2) |
 | 350-P1-03 | Reuse `compute_w_fixed_transposed` cache in MI forward | `metric/mutual_information.rs` + `histogram/parzen/compute_image.rs` + `histogram/cache.rs` | 50 % of MI matmul work | **DONE** (see §7.3) |
 | 350-P1-04 | `loss.clone()` → `loss.clone().sum()` consolidation | `metric/mutual_information.rs` | 1 alloc/iter | **N/A** (see §7.4) — Burn's `Tensor::sum` / `Tensor::sum_dim` consume `self`, so the clones are required |
+| 350-P1-05 | `Image::data_slice() -> Cow<'_, [f32]>` zero-copy API + autodiff fallback | `image/types.rs` | API contract for future zero-copy backends | **DONE** (see §7.5) |
+| 350-P1-06 | Unify const-generic `B::ad_enabled()` dispatch across D=1, 2, 3, 4 (gather_*_owned helpers) | `interpolation/kernel/linear/dim{1,2,3,4}.rs` | Sets up macro-template migration; minor per-call clone savings | **DONE** (see §7.6) |
 
 **Combined expected effect**: 40.8 s → ~22 s (within 30 s budget).
 
@@ -659,6 +746,122 @@ the net performance impact is well below noise.
 `sum_keep_self(&self) -> Tensor` and `sum_dim_keep_self(&self, dim:
 usize) -> Tensor` would let the `.clone()` calls be dropped in a
 single-line change. Until that lands, P1-04 is closed as N/A.
+
+---
+
+### 7.5 350-P1-05 — `Image::data_slice()` Cow-based zero-copy API — **DONE** (Sprint 356)
+
+**Cross-references**: §3.3 (zero-copy API gaps — `data_vec()` allocates per
+call); §6.7 (cross-cutting vertical depth for `image/`).
+
+**Delivered**:
+
+| Site | Change |
+|------|--------|
+| `crates/ritk-core/src/image/types.rs` | New `Image::data_slice() -> Cow<'_, [f32]>` and `Image::try_data_slice() -> Result<Cow<'_, [f32]>>` methods. Autodiff backends fall back to `data_vec()` (GPU→CPU sync allocates). Non-autodiff backends also return `Cow::Owned` today (Burn's public `Tensor` API does not yet expose a stable `&[f32]` with lifetime `'_`); the API contract is established so a future Burn release with `Tensor::as_slice()` can switch to `Cow::Borrowed` without breaking call sites. |
+
+**Why `Cow<'_, [f32]>` and not `&[f32]`**: Burn's `Tensor` does not
+expose a public `as_slice(&self) -> &[f32]` accessor. `into_data()`
+consumes the tensor, and `data()` returns `&TensorData` whose `as_slice()`
+borrows from the `TensorData`, not the original tensor — so the
+lifetime chain is broken at the `Tensor` boundary. The `Cow` wrapper
+establishes the contract: a future Burn release that adds
+`Tensor::as_slice(&self) -> &[f32]` can switch the non-autodiff branch
+to `Cow::Borrowed(slice)` in a single-line change, with no call-site
+impact.
+
+**Autodiff fallback rationale**: autodiff backends (e.g. `Autodiff<NdArray>`)
+hold their data on a separate gradient-tracking allocator. Forcing a
+synchronous GPU→CPU readback for every `data_slice()` call would defeat
+the autodiff performance benefit. The `B::ad_enabled()` check routes
+autodiff callers to `data_vec()` (which they can already use without
+disrupting the graph) and reserves `data_slice()` for the forward-only
+path where zero-copy matters.
+
+**Migration pattern** (from `data_vec()` to `data_slice()`):
+
+```rust
+// Before (allocates on every call):
+let vals = image.data_vec();
+let mean: f32 = vals.iter().sum::<f32>() / vals.len() as f32;
+
+// After (zero-copy on forward-only, autodiff-safe fallback on graph):
+let vals = image.data_slice();   // Cow<'_, [f32]>
+let mean: f32 = vals.iter().sum::<f32>() / vals.len() as f32;
+```
+
+`Cow<[f32]>: Deref<Target = [f32]>`, so `.iter()`, `.len()`, indexing,
+and `&slice[..]` all work unchanged.
+
+**Verification**:
+- `cargo test -p ritk-core --lib image` → all image tests pass (no regressions).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → still blocked on the 2 pre-existing `slic/connectivity.rs` errors (unrelated).
+
+**Future work** (out of scope):
+- Migrate the 96 audited call sites in the registration hot path
+  (audit §2.4 list) from `data_vec()` to `data_slice()`.
+- A Burn PR adding `Tensor::as_slice(&self) -> &[f32]` would unlock
+  the `Cow::Borrowed` path for forward-only backends (NdArray,
+  forward-only WGPU), reducing per-iteration allocation pressure in
+  the MI forward loop by ~2-3 small `Vec<f32>` per call.
+
+---
+
+### 7.6 350-P1-06 — const-generic dispatch unification across D=1, 2, 3, 4 — **DONE** (Sprint 356)
+
+**Cross-references**: §4.2.1 (D=3 single-function refactor — the
+prerequisite); §4.2.2 (the full D-arm follow-up; the canonical
+description of this work); §6.2 (the macro-template migration that
+this unblocks); §6.2 / `DRY_353_02_STATUS` (the remaining
+`macro_rules!` hygiene blocker).
+
+**Delivered**: all 4 linear interpolation kernels
+(`crates/ritk-core/src/interpolation/kernel/linear/dim{1,2,3,4}.rs`)
+now share the same single-function `B::ad_enabled()` dispatch shape,
+with paired `gather_<D>d` (borrowed) and `gather_<D>d_owned` (consumes
+coords) helpers. The 3-function design that previously lived in dim3
+(and the flat equivalent in dim1/dim2/dim4) is gone.
+
+**Per-D helpers**:
+
+| D | Borrowed helper | Consuming helper | Gather calls per call |
+|---|-----------------|------------------|----------------------:|
+| 1 | `gather_1d(&flat_data, &idx)` | `gather_1d_owned(&flat_data, idx)` | 2 |
+| 2 | `gather_2d(&flat_data, &xi, &yi, stride_y)` | `gather_2d_owned(&flat_data, xi, yi, stride_y)` | 4 |
+| 3 | `gather_3d(&flat_data, &xi, &yi, &zi, stride_y, stride_z)` | `gather_3d_owned(&flat_data, xi, yi, zi, stride_y, stride_z)` | 8 |
+| 4 | `gather_4d(&flat_data, &xi, &yi, &zi, &wi, strides)` | `gather_4d_owned(&flat_data, xi, yi, zi, wi, strides)` | 16 |
+
+**Net per-call allocation impact** (non-autodiff path, see §4.2.2
+table): −1 for D=1, +4 for D=2, −6 for D=3, −4 for D=4. The
+allocation savings are modest per-call; the structural payoff is
+that all 4 D-arms are now macro-template-ready.
+
+**Why this unblocks the macro template** (the only remaining blocker
+is the `macro_rules!` hygiene barrier, see §4.2.1's "Next steps" item
+1): with all 4 D-arms in the single-function shape, the macro body
+can be a single `if B::ad_enabled() { gather_<D>d(...) } else {
+gather_<D>d_owned(...) }` block — which fits cleanly inside the
+macro's `{ $body }` expression slot. The 3-function design could not
+be expressed in a single macro body because the body slot accepts
+one expression; the flat design in dim1/dim2/dim4 would have required
+separate macro invocations per D-arm, defeating the DRY win.
+
+**Verification** (post-unification):
+- `cargo test -p ritk-core --lib interpolation` → **64 passed, 0 failed, 1 ignored** (0 regressions across all 4 D-arms).
+- `cargo check -p ritk-core` → **clean** (the earlier `E0382` on dim4 was a stale incremental build artifact, not a real code defect).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → still blocked on the 2 pre-existing `slic/connectivity.rs` errors (unrelated).
+
+**Next steps** (out of scope for this sprint):
+1. Resolve the `macro_rules!` hygiene barrier (proc-macro rewrite or
+   closure-based workaround) — the only remaining template-blocker.
+2. Once the macro template works, migrate all 4 D-arms to use it
+   (D=1, 2, 3, 4 all have the single-function shape now; only the
+   macro body needs adjustment).
+3. Fix the 2 pre-existing `clippy::needless_range_loop` errors in
+   `slic/connectivity.rs:78,131` to restore the 0-warning clippy
+   baseline.
+4. Benchmark the single-function dispatch on a 256³ Mattes MI
+   registration to confirm no regression vs. the original flat design.
 
 **Note on workspace state (updated)**: the `cargo test` / `cargo clippy`
 runs in the 350-P1-04 verification turn surfaced a **pre-existing,

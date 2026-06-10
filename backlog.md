@@ -4,6 +4,75 @@
 
 ---
 
+## Sprint 358 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×3)
+
+**Status**: Complete
+**Version**: 0.55.0
+**Phase**: PERF + BOOL-ELIM + DRY + CAP
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| PERF-358-01 | SLIC connectivity stride arithmetic — ~40M heap allocs eliminated per enforce_connectivity call on 256³ [minor] | **Done** |
+| PERF-358-02 | DICOM loader.rs double clone → move + mem::take [patch] | **Done** |
+| PERF-358-03 | geometry.rs missing_between.clone() → move [patch] | **Done** |
+| PERF-358-04 | finalize.rs HashMap<Option<&str>> for UID grouping [patch] | **Done** |
+| PERF-358-05 | association DRY build_ts_list helper [patch] | **Done** |
+| PERF-358-06 | scp/accept.rs Arc<ScpConfig> per connection [patch] | **Done** |
+| PERF-358-07 | CLI filter scales clone reorder [patch] | **Done** |
+| PERF-358-08 | ONNX validate() HashSet<&str> [patch] | **Done** |
+| PERF-358-09 | anonymize UID map entry API [patch] | **Done** |
+| PERF-358-10 | JPEG encode Vec::with_capacity [patch] | **Done** |
+| PERF-358-11 | dim4.rs gather_4d_owned z1_i missing clone fix [patch] | **Done** |
+| BOOL-358-12 | CleaningPolicy enum (AnonymizeOptions) [minor] | **Done** |
+| BOOL-358-13 | AutoLoadPolicy enum (PacsConfig) [minor] | **Done** |
+| BOOL-358-14 | LayoutSuggestion enum (HangingProtocolDecision) [minor] | **Done** |
+| BOOL-358-15 | FragmentPosition enum (MessageControlHeader) [minor] | **Done** |
+| BOOL-358-16 | DicomElementClass enum (DicomObjectNode) [minor] | **Done** |
+| BOOL-358-17 | ONNX ImportConfig three bools → BatchDimension/GraphValidation/ShapeInference [minor] | **Done** |
+| BOOL-358-18 | FilterKind::ConnectedComponents connectivity_26 → Connectivity [minor] | **Done** |
+| BOOL-358-19 | StapleConvergence enum (StapleResult) [minor] | **Done** |
+| DOC-358-20 | Python enum bridge docs (SpacingMode, ConductanceFunction) [patch] | **Done** |
+
+### Architecture
+
+- `CleaningPolicy` is a public re-export from `ritk-io` (via `mod.rs` and `lib.rs`)
+- `AutoLoadPolicy` is a public re-export from `ritk-snap::pacs`
+- `LayoutSuggestion` is defined in `ritk-snap::dicom::hanging_protocol`
+- `FragmentPosition` is defined in `ritk-io`'s DICOM networking PDU layer
+- `DicomElementClass` is a public re-export from `ritk-io::format::dicom::object_model`
+- `StapleConvergence` is defined in `ritk-core::segmentation::ensemble`, re-exported from `ritk-core::segmentation`
+- SLIC `connectivity.rs` no longer imports `decode_coords`/`encode_coords` (pure arithmetic replaces all coordinate decomposition)
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PRIM-359-01 | VolumeDims call-site migration in bspline_ffd (basis, metric, pyramid, registration) | Medium |
+| PRIM-359-02 | GaussianSigma adoption in CoherenceFilter, RecursiveGaussian, level-set configs (10 more sites) | Medium |
+| PERF-359-03 | masked_chunked.rs + fused.rs clone-before-slice: still blocked by Burn 0.19 lacking slice_ref | UPSTREAM |
+| ARCH-359-04 | VolumeDims vs ControlGridDims: introduce ControlGridDims newtype for ctrl_dims [usize; 3] | Medium |
+| BOOL-359-05 | ScpScuRoleSelectionSubItem scu_role/scp_role: bool → DicomRole enum (4-state) | Low |
+| BOOL-359-06 | Register --inverse-consistency: bool + Python PyMultiresSynOptions | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc ...` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| `cargo test -p ritk-snap --lib bed_separation` | 2/0/0 |
+| `cargo test -p ritk-snap --lib label` | 32/0/0 |
+
+---
+
+
+
 ## Sprint 357 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×2)
 
 **Status**: Complete
@@ -48,7 +117,8 @@
 |----|-------------|----------|
 | PRIM-358-01 | VolumeDims call-site migration in bspline_ffd (basis, metric, pyramid, registration) | Medium |
 | PRIM-358-02 | GaussianSigma adoption in CoherenceFilter, RecursiveGaussian, level-set configs (10 more sites) | Medium |
-| BOOL-358-03 | `use_image_spacing` in Python smooth.rs binding still raw bool; convert internally | Low |
+| BOOL-358-03 | `use_image_spacing` in Python smooth.rs binding still raw bool; convert internally | **Done** |
+| BOOL-358-06 | `StapleResult.converged: bool` → `StapleConvergence` enum in ritk-core::segmentation::ensemble [minor] | **Done** |
 | PERF-358-04 | masked_chunked.rs + fused.rs clone-before-slice: still blocked by Burn 0.19 lacking slice_ref | UPSTREAM |
 | ARCH-358-05 | VolumeDims vs ControlGridDims distinction: introduce ControlGridDims newtype for ctrl_dims [usize; 3] | Medium |
 

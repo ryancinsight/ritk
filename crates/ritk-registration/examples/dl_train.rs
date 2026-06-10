@@ -148,6 +148,7 @@ fn run_training() {
             .mean();
         let loss_reg = grad_loss.forward(flow.clone());
 
+        // BURN-API: consuming ops require clone to retain loss_sim/loss_reg for reporting.
         let loss = loss_sim.clone() + loss_reg.clone() * lambda_reg;
 
         // Backward Pass

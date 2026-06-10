@@ -10,7 +10,7 @@ use dicom::core::VR;
 use dicom_core::header::Header;
 
 use crate::format::dicom::object_model::{
-    is_private_tag, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
+    is_private_tag, DicomElementClass, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
 
@@ -103,7 +103,11 @@ pub(super) fn parse_sequence_item(
                     tag: dicom_tag,
                     vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
                     value: DicomValue::Sequence(parsed),
-                    private: is_private_tag(dicom_tag),
+                    element_class: if is_private_tag(dicom_tag) {
+                        DicomElementClass::Private
+                    } else {
+                        DicomElementClass::Standard
+                    },
                     source: None,
                 });
             }
@@ -118,7 +122,11 @@ pub(super) fn parse_sequence_item(
                         tag: dicom_tag,
                         vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                         value: DicomValue::Bytes(bytes.to_vec()),
-                        private: is_private_tag(dicom_tag),
+                        element_class: if is_private_tag(dicom_tag) {
+                            DicomElementClass::Private
+                        } else {
+                            DicomElementClass::Standard
+                        },
                         source: None,
                     });
                 }
@@ -129,7 +137,11 @@ pub(super) fn parse_sequence_item(
                     tag: dicom_tag,
                     vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                     value: DicomValue::Bytes(bytes.to_vec()),
-                    private: is_private_tag(dicom_tag),
+                    element_class: if is_private_tag(dicom_tag) {
+                        DicomElementClass::Private
+                    } else {
+                        DicomElementClass::Standard
+                    },
                     source: None,
                 });
             }

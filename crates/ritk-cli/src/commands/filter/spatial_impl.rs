@@ -72,7 +72,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     };
 
     let config = FrangiConfig {
-        scales: scales.clone(),
+        scales,
         alpha: args.alpha,
         beta: args.beta,
         gamma: args.gamma,
@@ -84,7 +84,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
 
     println!(
         "Applied frangi (scales={:?}, \u{03b1}={}, \u{03b2}={}, \u{03b3}={}) to {} \u{2192} {}",
-        scales,
+        filter.config.scales,
         args.alpha,
         args.beta,
         args.gamma,

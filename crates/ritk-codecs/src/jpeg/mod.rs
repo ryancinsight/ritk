@@ -163,7 +163,7 @@ mod tests {
 
         let gray = GrayImage::from_raw(width, height, pixels.to_vec())
             .expect("test image dimensions must match sample count");
-        let mut jpeg = Vec::new();
+        let mut jpeg = Vec::with_capacity((width as usize * height as usize) / 8);
         DynamicImage::ImageLuma8(gray)
             .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg)
             .expect("test JPEG encode must succeed");
@@ -175,7 +175,7 @@ mod tests {
 
         let rgb = RgbImage::from_raw(width, height, pixels.to_vec())
             .expect("test RGB image dimensions must match sample count");
-        let mut jpeg = Vec::new();
+        let mut jpeg = Vec::with_capacity((width as usize * height as usize * 3) / 8);
         DynamicImage::ImageRgb8(rgb)
             .write_to(&mut Cursor::new(&mut jpeg), image::ImageFormat::Jpeg)
             .expect("test JPEG encode must succeed");

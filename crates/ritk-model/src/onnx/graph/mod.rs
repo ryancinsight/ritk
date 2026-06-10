@@ -119,18 +119,18 @@ impl OnnxGraph {
     /// - No cycles in the graph
     /// - All model outputs are produced by some node
     pub fn validate(&self) -> Result<(), String> {
-        let mut available: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut available: std::collections::HashSet<&str> = std::collections::HashSet::new();
 
         // Add model inputs and initializers
         for input in &self.inputs {
-            available.insert(input.name.clone());
+            available.insert(&input.name);
         }
         for name in self.initializers.keys() {
-            available.insert(name.clone());
+            available.insert(name.as_str());
         }
 
         // Track produced outputs
-        let mut produced: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut produced: std::collections::HashSet<&str> = std::collections::HashSet::new();
 
         // Check each node
         for node in &self.nodes {
@@ -142,7 +142,7 @@ impl OnnxGraph {
                 if input.is_empty() {
                     continue;
                 }
-                if !available.contains(input) {
+                if !available.contains(input.as_str()) {
                     return Err(format!(
                         "Node '{}' requires input '{}' which is not available",
                         node.name, input
@@ -152,20 +152,20 @@ impl OnnxGraph {
 
             // Add outputs to available set
             for output in &node.outputs {
-                if produced.contains(output) {
+                if produced.contains(output.as_str()) {
                     return Err(format!(
                         "Duplicate output '{}' from node '{}'",
                         output, node.name
                     ));
                 }
-                available.insert(output.clone());
-                produced.insert(output.clone());
+                available.insert(output.as_str());
+                produced.insert(output.as_str());
             }
         }
 
         // Check all model outputs are produced
         for output in &self.outputs {
-            if !available.contains(&output.name) {
+            if !available.contains(output.name.as_str()) {
                 return Err(format!(
                     "Model output '{}' is not produced by any node",
                     output.name

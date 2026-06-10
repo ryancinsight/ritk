@@ -6,6 +6,17 @@
 
 use ritk_io::{literal_arraystring, AssociationConfig};
 
+// ── AutoLoadPolicy ────────────────────────────────────────────────────────────
+
+/// Controls whether received DICOM objects are automatically loaded into the viewer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum AutoLoadPolicy {
+    /// Automatically load every received instance (up to `auto_load_limit`).
+    Automatic,
+    /// Require explicit user action to load.
+    Manual,
+}
+
 // ── PacsConfig ────────────────────────────────────────────────────────────────
 
 /// PACS server configuration (UI-facing).
@@ -35,7 +46,7 @@ pub struct PacsConfig {
     /// TCP connection + read timeout in seconds.
     pub timeout_secs: u64,
     /// Whether received DICOM objects are automatically loaded into the viewer.
-    pub auto_load_received: bool,
+    pub auto_load_policy: AutoLoadPolicy,
 
     /// Maximum number of pending instances that will be auto-loaded.
     ///
@@ -57,7 +68,7 @@ impl Default for PacsConfig {
             scp_ae_title: "RITKSNAP".to_owned(),
             scp_port: 11112,
             timeout_secs: 30,
-            auto_load_received: true,
+            auto_load_policy: AutoLoadPolicy::Automatic,
             auto_load_limit: 512,
         }
     }

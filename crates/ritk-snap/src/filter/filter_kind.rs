@@ -58,8 +58,8 @@ pub enum FilterKind {
 
     #[doc = include_str!("variant_docs/connected_components.md")]
     ConnectedComponents {
-        /// Use 26-connectivity instead of the default 6-connectivity.
-        connectivity_26: bool,
+        /// Voxel neighbourhood connectivity. Default: [`Connectivity::Face6`] (6-connected).
+        connectivity: Connectivity,
         /// Value designating background pixels. ITK default: 0.0.
         background_value: f32,
     },

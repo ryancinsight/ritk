@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::Connectivity;
 
 // Verify that the default `FilterKind` values exposed by the panel are
 // within the analytically valid clamped ranges — Smoothing, Segmentation,
@@ -147,7 +148,7 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
 
 /// ConnectedComponents defaults are valid.
 ///
-/// - connectivity_26 = false (6-connectivity is the ITK/medical default)
+/// - connectivity = Connectivity::Face6 (6-connectivity is the ITK/medical default)
 /// - background_value = 0.0 (ITK default)
 ///
 /// # Postcondition
@@ -156,17 +157,18 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
 #[test]
 fn connected_components_defaults_are_valid() {
     let fk = FilterKind::ConnectedComponents {
-        connectivity_26: false,
+        connectivity: Connectivity::Face6,
         background_value: 0.0,
     };
     if let FilterKind::ConnectedComponents {
-        connectivity_26,
+        connectivity,
         background_value,
     } = fk
     {
-        assert!(
-            !connectivity_26,
-            "default connectivity must be 6-connected (connectivity_26 = false)"
+        assert_eq!(
+            connectivity,
+            Connectivity::Face6,
+            "default connectivity must be Face6 (6-connected, ITK default)"
         );
         assert!(
             background_value.is_finite(),

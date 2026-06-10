@@ -20,7 +20,8 @@ fn sample_rq() -> AssociateRqPdu {
                 implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
-                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION).unwrap(),
+                implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
+                    .unwrap(),
             }),
             ..Default::default()
         },
@@ -104,7 +105,7 @@ fn test_p_data_tf_round_trip() {
                 presentation_context_id: 1,
                 message_control_header: MessageControlHeader {
                     message_type: CommandType::Command,
-                    last_fragment: true,
+                    fragment_position: FragmentPosition::Last,
                 },
                 data: vec![0x00, 0x00, 0x00, 0x01],
             },
@@ -112,7 +113,7 @@ fn test_p_data_tf_round_trip() {
                 presentation_context_id: 1,
                 message_control_header: MessageControlHeader {
                     message_type: CommandType::DataSet,
-                    last_fragment: false,
+                    fragment_position: FragmentPosition::More,
                 },
                 data: vec![0xDE, 0xAD, 0xBE, 0xEF],
             },
@@ -120,7 +121,7 @@ fn test_p_data_tf_round_trip() {
                 presentation_context_id: 3,
                 message_control_header: MessageControlHeader {
                     message_type: CommandType::DataSet,
-                    last_fragment: true,
+                    fragment_position: FragmentPosition::Last,
                 },
                 data: (0..128).map(|i| i as u8).collect(),
             },

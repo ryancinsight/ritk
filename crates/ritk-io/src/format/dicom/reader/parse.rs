@@ -22,8 +22,8 @@ use super::types::{
     uid_to_arraystring, DicomSliceMetadata, SeriesFirstSeen,
 };
 use crate::format::dicom::object_model::{
-    is_private_tag, DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag,
-    DicomValue,
+    is_private_tag, DicomElementClass, DicomObjectNode, DicomPreservationSet,
+    DicomPreservedElement, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
 
@@ -406,7 +406,11 @@ fn extract_dicom_metadata(
             }
             let dicom_tag = DicomTag::new(tag.group(), tag.element());
             let vr_str = element.vr().to_string();
-            let private = is_private_tag(dicom_tag);
+            let element_class = if is_private_tag(dicom_tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            };
             if element.vr() == VR::SQ {
                 if let Some(sub_items) = element.value().items() {
                     let parsed: Vec<_> = sub_items
@@ -417,7 +421,7 @@ fn extract_dicom_metadata(
                         tag: dicom_tag,
                         vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
                         value: DicomValue::Sequence(parsed),
-                        private,
+                        element_class,
                         source: None,
                     });
                 }
@@ -441,7 +445,7 @@ fn extract_dicom_metadata(
                         tag: dicom_tag,
                         vr: Some(ArrayString::<2>::try_from(vr_str).unwrap_or_default()),
                         value: DicomValue::Text(s.to_string()),
-                        private,
+                        element_class,
                         source: None,
                     });
                 } else if let Ok(bytes) = element.to_bytes() {

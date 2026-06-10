@@ -91,7 +91,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::ConnectedComponents {
-                connectivity_26: false,
+                connectivity: ritk_core::filter::Connectivity::Face6,
                 background_value: 0.0,
             },
             "Connected Components",
@@ -99,7 +99,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::ConnectedComponents {
-            connectivity_26: false,
+            connectivity: ritk_core::filter::Connectivity::Face6,
             background_value: 0.0,
         };
     }

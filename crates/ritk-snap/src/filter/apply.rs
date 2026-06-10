@@ -6,9 +6,9 @@ use ritk_core::filter::{
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BinaryThresholdImageFilter,
     BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConnectedComponentsFilter,
-    ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
-    CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter, FlipImageFilter,
-    GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
+    Connectivity, ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter,
+    CurvatureFlowConfig, CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter,
+    FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
     GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
@@ -84,11 +84,14 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             })
             .apply(&study.image),
             FilterKind::ConnectedComponents {
-                connectivity_26,
+                connectivity,
                 background_value,
             } => {
-                let connectivity = if *connectivity_26 { 26 } else { 6 };
-                let filter = ConnectedComponentsFilter::with_connectivity(connectivity)
+                let connectivity_n = match connectivity {
+                    Connectivity::Face6 => 6u32,
+                    Connectivity::Vertex26 => 26u32,
+                };
+                let filter = ConnectedComponentsFilter::with_connectivity(connectivity_n)
                     .with_background(*background_value);
                 let (label_image, _stats) = filter.apply(&study.image);
                 Ok(label_image)

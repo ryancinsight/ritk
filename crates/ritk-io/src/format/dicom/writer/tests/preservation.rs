@@ -1,8 +1,8 @@
 use super::super::write_dicom_series_with_metadata;
 use super::helpers::make_image;
 use crate::format::dicom::object_model::{
-    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomSequenceItem, DicomTag,
-    DicomValue,
+    DicomElementClass, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomSequenceItem, DicomTag, DicomValue,
 };
 use arrayvec::ArrayString;
 use dicom::core::Tag;
@@ -49,7 +49,7 @@ fn test_preservation_sequence_round_trip() {
         tag: DicomTag::new(0x0008, 0x0096),
         vr: Some(ArrayString::<2>::try_from("SQ").unwrap_or_default()),
         value: DicomValue::Sequence(vec![seq_item]),
-        private: false,
+        element_class: DicomElementClass::Standard,
         source: None,
     });
 

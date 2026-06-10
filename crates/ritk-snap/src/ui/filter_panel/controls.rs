@@ -103,7 +103,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Clamp:");
-                let mut clamp_bool = matches!(*clamp, ritk_core::filter::ClampPolicy::ClampToInputRange);
+                let mut clamp_bool =
+                    matches!(*clamp, ritk_core::filter::ClampPolicy::ClampToInputRange);
                 if ui.checkbox(&mut clamp_bool, "").changed() {
                     *clamp = if clamp_bool {
                         ritk_core::filter::ClampPolicy::ClampToInputRange
@@ -145,12 +146,28 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             true
         }
         FilterKind::ConnectedComponents {
-            connectivity_26,
+            connectivity,
             background_value,
         } => {
             ui.horizontal(|ui| {
-                ui.label("26-connectivity:");
-                ui.checkbox(connectivity_26, "");
+                ui.label("Connectivity:");
+                egui::ComboBox::from_id_source("connected_components_connectivity")
+                    .selected_text(match connectivity {
+                        ritk_core::filter::Connectivity::Face6 => "6-connected (default)",
+                        ritk_core::filter::Connectivity::Vertex26 => "26-connected",
+                    })
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(
+                            connectivity,
+                            ritk_core::filter::Connectivity::Face6,
+                            "6-connected (default)",
+                        );
+                        ui.selectable_value(
+                            connectivity,
+                            ritk_core::filter::Connectivity::Vertex26,
+                            "26-connected",
+                        );
+                    });
             });
             ui.horizontal(|ui| {
                 ui.label("Background value:");

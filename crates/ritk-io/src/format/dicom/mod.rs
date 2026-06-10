@@ -18,7 +18,7 @@ mod writer_object;
 
 pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
-    AnonymizeOptions, AnonymizeResult, AnonymizeStats, TagAction,
+    AnonymizeOptions, AnonymizeResult, AnonymizeStats, CleaningPolicy, TagAction,
 };
 pub use color::{
     is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,

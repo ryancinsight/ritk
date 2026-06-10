@@ -8,10 +8,10 @@ use crate::format::dicom::networking::association::{transfer_syntax, Association
 use crate::format::dicom::networking::context::{AssociationConfig, RequestedPresentationContext};
 use crate::format::dicom::networking::dimse::{CommandField, DimseMessage, DimseStatus};
 use crate::format::dicom::networking::pdu::{
-    AssociateAcPdu, CommandType, ImplementationClassUidSubItem, ImplementationVersionNameSubItem,
-    MaximumLengthSubItem, MessageControlHeader, Pdu, PresentationContextItemAc,
-    PresentationDataValueItem, UserInformation, APPLICATION_CONTEXT_NAME,
-    RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
+    AssociateAcPdu, CommandType, FragmentPosition, ImplementationClassUidSubItem,
+    ImplementationVersionNameSubItem, MaximumLengthSubItem, MessageControlHeader, Pdu,
+    PresentationContextItemAc, PresentationDataValueItem, UserInformation,
+    APPLICATION_CONTEXT_NAME, RITK_IMPLEMENTATION_CLASS_UID, RITK_IMPLEMENTATION_VERSION,
 };
 use arrayvec::ArrayString;
 use std::io::{Read, Write};
@@ -130,13 +130,17 @@ fn scp_thread(listener: TcpListener) {
                     match pdv.message_control_header.message_type {
                         CommandType::Command => {
                             cmd_buf.extend_from_slice(&pdv.data);
-                            if pdv.message_control_header.last_fragment {
+                            if pdv.message_control_header.fragment_position
+                                == FragmentPosition::Last
+                            {
                                 cmd_complete = true;
                             }
                         }
                         CommandType::DataSet => {
                             data_buf.extend_from_slice(&pdv.data);
-                            if pdv.message_control_header.last_fragment {
+                            if pdv.message_control_header.fragment_position
+                                == FragmentPosition::Last
+                            {
                                 // Data set fully received; break out to send response.
                                 break;
                             }
@@ -168,7 +172,7 @@ fn scp_thread(listener: TcpListener) {
                 // If we have collected a complete last-fragment DataSet PDV, break.
                 if pd.presentation_data_value_items.iter().any(|p| {
                     p.message_control_header.message_type == CommandType::DataSet
-                        && p.message_control_header.last_fragment
+                        && p.message_control_header.fragment_position == FragmentPosition::Last
                 }) {
                     break;
                 }
@@ -194,7 +198,7 @@ fn scp_thread(listener: TcpListener) {
 
     let cmd_mch = MessageControlHeader {
         message_type: CommandType::Command,
-        last_fragment: true,
+        fragment_position: FragmentPosition::Last,
     };
     let pdata_cmd = build_pdata_pdv(&[(cid, cmd_mch, &rsp_cmd_bytes)]);
     write_pdu(&mut stream, &pdata_cmd.encode()).expect("SCP write C-STORE-RSP");

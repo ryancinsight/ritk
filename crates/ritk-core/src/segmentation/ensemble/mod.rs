@@ -6,7 +6,7 @@
 
 mod staple;
 
-pub use staple::{staple, StapleResult};
+pub use staple::{staple, StapleConvergence, StapleResult};
 
 #[cfg(test)]
 mod tests_staple;

@@ -8,12 +8,13 @@ impl SnapApp {
         use ritk_core::filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, ConnectedComponentsFilter, CprConfig, CprImageFilter, ExpImageFilter,
-            GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-            GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
-            GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter,
-            LogImageFilter, MedianFilter, MultiOtsuThreshold, NormalizeImageFilter,
-            RelabelComponentFilter, SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
+            ClaheFilter, ConnectedComponentsFilter, Connectivity, CprConfig, CprImageFilter,
+            ExpImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
+            GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
+            GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
+            MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter, SqrtImageFilter,
+            SquareImageFilter, UnsharpMaskFilter,
         };
 
         let Some(vol) = self.loaded.as_ref() else {
@@ -81,11 +82,14 @@ impl SnapApp {
                 })
                 .apply(&image),
                 crate::FilterKind::ConnectedComponents {
-                    connectivity_26,
+                    connectivity,
                     background_value,
                 } => {
-                    let connectivity = if *connectivity_26 { 26 } else { 6 };
-                    let filter = ConnectedComponentsFilter::with_connectivity(connectivity)
+                    let connectivity_n = match connectivity {
+                        Connectivity::Face6 => 6u32,
+                        Connectivity::Vertex26 => 26u32,
+                    };
+                    let filter = ConnectedComponentsFilter::with_connectivity(connectivity_n)
                         .with_background(*background_value);
                     let (label_image, _stats) = filter.apply(&image);
                     Ok(label_image)

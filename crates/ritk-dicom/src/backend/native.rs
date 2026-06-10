@@ -103,7 +103,7 @@ mod tests {
 
         let image = GrayImage::from_raw(width, height, pixels.to_vec())
             .expect("test image dimensions must match pixel count");
-        let mut jpeg = Vec::new();
+        let mut jpeg = Vec::with_capacity((width as usize * height as usize) / 8);
         DynamicImage::ImageLuma8(image)
             .write_to(
                 &mut std::io::Cursor::new(&mut jpeg),
@@ -118,7 +118,7 @@ mod tests {
 
         let image = RgbImage::from_raw(width, height, samples.to_vec())
             .expect("test RGB image dimensions must match sample count");
-        let mut jpeg = Vec::new();
+        let mut jpeg = Vec::with_capacity((width as usize * height as usize * 3) / 8);
         DynamicImage::ImageRgb8(image)
             .write_to(
                 &mut std::io::Cursor::new(&mut jpeg),

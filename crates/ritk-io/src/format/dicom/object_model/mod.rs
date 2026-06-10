@@ -30,7 +30,7 @@ mod types;
 pub use model::DicomObjectModel;
 pub use preservation::{DicomPreservationSet, DicomPreservedElement};
 pub use tag::{is_private_tag, DicomTag};
-pub use types::{DicomObjectNode, DicomSequenceItem, DicomValue};
+pub use types::{DicomElementClass, DicomObjectNode, DicomSequenceItem, DicomValue};
 
 #[cfg(test)]
 mod tests;

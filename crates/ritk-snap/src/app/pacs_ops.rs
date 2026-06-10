@@ -318,9 +318,9 @@ impl SnapApp {
     /// Poll the embedded SCP for received instances on every egui frame.
     ///
     /// Drains all buffered instances from the bounded channel into
-    /// `pacs_pending_instances`. When `pacs_config.auto_load_received` is
-    /// enabled and instances were received this frame, automatically triggers
-    /// loading into the viewer.
+    /// `pacs_pending_instances`. When `pacs_config.auto_load_policy` is
+    /// [`AutoLoadPolicy::Automatic`] and instances were received this frame,
+    /// automatically triggers loading into the viewer.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn poll_pacs_scp(&mut self) {
         let Some(handle) = &self.pacs_scp_handle else {
@@ -338,7 +338,7 @@ impl SnapApp {
             self.pacs_pending_instances.push(inst);
         }
         let pending_count = self.pacs_pending_instances.len();
-        if self.pacs_config.auto_load_received
+        if self.pacs_config.auto_load_policy == crate::pacs::config::AutoLoadPolicy::Automatic
             && !had_pending
             && !self.pacs_pending_instances.is_empty()
         {

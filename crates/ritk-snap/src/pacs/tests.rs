@@ -169,7 +169,7 @@ fn test_pacs_config_to_association_config_copies_fields() {
         scp_ae_title: "STORE01".to_owned(),
         scp_port: 11112,
         timeout_secs: 60,
-        auto_load_received: true,
+        auto_load_policy: crate::pacs::config::AutoLoadPolicy::Automatic,
         auto_load_limit: 512,
     };
     let assoc = cfg.to_association_config();

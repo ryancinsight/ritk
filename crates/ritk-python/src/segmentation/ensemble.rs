@@ -4,7 +4,7 @@ use crate::errors::RitkResult;
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-use ritk_core::segmentation::{growcut as core_growcut, staple as core_staple};
+use ritk_core::segmentation::{growcut as core_growcut, staple as core_staple, StapleConvergence};
 use std::sync::Arc;
 
 /// Run the STAPLE algorithm on K binary rater segmentation masks.
@@ -86,7 +86,10 @@ pub fn staple_ensemble(
             .collect::<Vec<_>>(),
     )?;
     dict.set_item("iterations", result.iterations)?;
-    dict.set_item("converged", result.converged)?;
+    dict.set_item(
+        "converged",
+        result.convergence == StapleConvergence::Converged,
+    )?;
     Ok(dict.into())
 }
 

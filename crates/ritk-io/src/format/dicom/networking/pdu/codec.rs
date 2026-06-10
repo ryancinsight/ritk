@@ -108,7 +108,7 @@ impl Pdu {
         let mut b = Vec::with_capacity(capacity);
         for pdv in &pd.presentation_data_value_items {
             let mch = (pdv.message_control_header.message_type as u8)
-                | (if pdv.message_control_header.last_fragment {
+                | (if pdv.message_control_header.fragment_position == FragmentPosition::Last {
                     0x02
                 } else {
                     0x00
@@ -241,7 +241,11 @@ impl Pdu {
                 presentation_context_id: cid,
                 message_control_header: MessageControlHeader {
                     message_type: mt,
-                    last_fragment: lf,
+                    fragment_position: if lf {
+                        FragmentPosition::Last
+                    } else {
+                        FragmentPosition::More
+                    },
                 },
                 data: p[off + 2..off + pl].to_vec(),
             });

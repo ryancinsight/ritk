@@ -7,7 +7,7 @@
 //! - PacsPanelAction default
 //! - Sprint 283: AccessionNumber + StudyDate range filter propagation
 //! - Sprint 284: Embedded SCP configuration defaults
-//! - auto_load_received / auto_load_limit defaults
+//! - auto_load_policy / auto_load_limit defaults
 //!
 //! No network connections are required — all tests run fully offline.
 
@@ -326,18 +326,20 @@ fn test_pacs_config_scp_ae_matches_move_destination_default() {
     );
 }
 
-/// `PacsConfig::auto_load_received` defaults to `true`.
+/// `PacsConfig::auto_load_policy` defaults to `AutoLoadPolicy::Automatic`.
 ///
 /// Analytical basis: when the embedded SCP receives instances via C-STORE,
 /// the most common user intent is immediate loading into the viewer.
-/// Default-on eliminates the manual step while the opt-out checkbox remains
+/// Default-automatic eliminates the manual step while the opt-out checkbox remains
 /// available in the PACS panel for workflows that require deferred loading.
 #[test]
-fn test_pacs_config_auto_load_received_defaults_to_true() {
+fn test_pacs_config_auto_load_policy_defaults_to_automatic() {
+    use super::config::AutoLoadPolicy;
     let cfg = PacsConfig::default();
-    assert!(
-        cfg.auto_load_received,
-        "auto_load_received must default to true so SCP-received instances load automatically"
+    assert_eq!(
+        cfg.auto_load_policy,
+        AutoLoadPolicy::Automatic,
+        "auto_load_policy must default to Automatic so SCP-received instances load automatically"
     );
 }
 

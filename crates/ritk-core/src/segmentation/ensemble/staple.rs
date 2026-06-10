@@ -50,6 +50,15 @@
 /// (`log(1e-6) ≈ −13.8`, bounded).
 const EPS: f64 = 1e-6;
 
+/// Convergence outcome of the STAPLE algorithm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StapleConvergence {
+    /// Algorithm converged within the iteration limit.
+    Converged,
+    /// Maximum iteration count reached before convergence.
+    MaxIterationsReached,
+}
+
 /// Result of the STAPLE algorithm.
 #[derive(Debug, Clone)]
 pub struct StapleResult {
@@ -61,8 +70,8 @@ pub struct StapleResult {
     pub specificity: Vec<f32>,
     /// Number of EM iterations executed.
     pub iterations: usize,
-    /// True if converged before `max_iter`.
-    pub converged: bool,
+    /// Convergence outcome of the EM algorithm.
+    pub convergence: StapleConvergence,
 }
 
 /// Numerically stable log-domain sigmoid.
@@ -119,7 +128,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     // W: probabilistic ground truth; uniform initialisation.
     let mut w = vec![0.5_f64; n];
 
-    let mut converged = false;
+    let mut convergence = StapleConvergence::MaxIterationsReached;
     let mut iterations = 0usize;
 
     for _iter in 0..max_iter {
@@ -196,7 +205,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         q = q_new;
 
         if max_change < tol {
-            converged = true;
+            convergence = StapleConvergence::Converged;
             break;
         }
     }
@@ -206,6 +215,6 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         sensitivity: p.iter().map(|&pk| pk as f32).collect(),
         specificity: q.iter().map(|&qk| qk as f32).collect(),
         iterations,
-        converged,
+        convergence,
     }
 }

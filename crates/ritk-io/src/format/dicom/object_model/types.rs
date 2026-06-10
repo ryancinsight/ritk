@@ -111,6 +111,18 @@ impl Default for DicomSequenceItem {
     }
 }
 
+/// DICOM element classification: standard (even group) vs private (odd group).
+///
+/// Per DICOM PS3.5 §7.8: elements with odd group numbers are private elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DicomElementClass {
+    /// Standard DICOM element (even group number).
+    #[default]
+    Standard,
+    /// Private element (odd group number).
+    Private,
+}
+
 /// A recursive DICOM object node.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DicomObjectNode {
@@ -120,8 +132,8 @@ pub struct DicomObjectNode {
     pub vr: Option<ArrayString<2>>,
     /// Stored value.
     pub value: DicomValue,
-    /// True when the element is private.
-    pub private: bool,
+    /// DICOM element class: standard (even group) or private (odd group).
+    pub element_class: DicomElementClass,
     /// Free-form source note for preservation/debugging.
     pub source: Option<String>,
 }
@@ -134,7 +146,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Text(value.into()),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -146,7 +162,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Bytes(value),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -158,7 +178,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::Sequence(items),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -170,7 +194,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::U16(value),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -182,7 +210,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::I32(value),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -194,7 +226,11 @@ impl DicomObjectNode {
             tag,
             vr: Some(ArrayString::<2>::try_from(vr).unwrap_or_default()),
             value: DicomValue::F64(value),
-            private: is_private_tag(tag),
+            element_class: if is_private_tag(tag) {
+                DicomElementClass::Private
+            } else {
+                DicomElementClass::Standard
+            },
             source: None,
         }
     }
@@ -208,7 +244,7 @@ impl DicomObjectNode {
     /// Return true when the node is private.
     #[inline]
     pub fn is_private(&self) -> bool {
-        self.private
+        self.element_class == DicomElementClass::Private
     }
 
     /// Return true when the node stores nested items.

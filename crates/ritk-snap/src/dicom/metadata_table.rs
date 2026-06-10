@@ -253,7 +253,7 @@ fn row_from_node(scope: MetadataScope, node: &DicomObjectNode) -> MetadataRow {
     MetadataRow::new(
         scope,
         node.tag.canonical(),
-        if node.private {
+        if node.is_private() {
             "PrivateNode"
         } else {
             "PreservedNode"

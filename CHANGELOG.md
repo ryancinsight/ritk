@@ -1,5 +1,45 @@
 # CHANGELOG
 
+## [0.55.0] - 2026-06-10
+
+### Performance
+- **PERF-358-01: SLIC connectivity stride arithmetic** — `enforce_connectivity` in `slic/connectivity.rs` rewrote both inner neighbor loops using precomputed C-contiguous strides (`compute_strides`) and a zero-allocation `neighbor_index` helper. Eliminates all `decode_coords`/`coords.clone()`/`encode_coords` calls. For a 256³ image: ~40 M small `Vec<usize>` allocations per `enforce_connectivity` call removed.
+- **PERF-358-02: DICOM loader double-clone eliminated** — `load_from_series` moved `series.metadata` (instead of `.clone()`) and used `std::mem::take(&mut metadata.slices)` to extract slices; eliminates two `DicomReadMetadata` clones on every DICOM series load.
+- **PERF-358-03: `missing_between` move in `analyze_slice_spacing`** — hoisted `has_missing_slices`/`is_nonuniform` booleans before the struct literal so `missing_between: Vec<usize>` is moved (not cloned) into `SliceGeometryReport`.
+- **PERF-358-04: DICOM UID grouping `HashMap<Option<&str>>`** — `finalize_scanned_series` UID-grouping loop uses borrowed `Option<&str>` keys instead of cloning each `Option<String>` per DICOM file.
+- **PERF-358-05: DRY `build_ts_list` helper** — Consolidated the duplicated clone-then-maybe-push pattern in `association/mod.rs` and `association/helpers.rs` into a single `pub(super) fn build_ts_list`. Happy path (IVR-LE already present) avoids an unconditional clone.
+- **PERF-358-06: SCP `Arc<ScpConfig>` per connection** — `scp_accept_loop` wraps the config in `Arc::new` once; each accepted connection receives `Arc::clone` (O(1) atomic increment) instead of a deep `ScpConfig::clone`.
+- **PERF-358-07: CLI filter `scales` clone elimination** — `run_sato` and `run_frangi` reorder `println!` after config construction so `scales: Vec<f64>` is moved into the config struct rather than cloned.
+- **PERF-358-08: ONNX `validate()` borrow-based sets** — Changed `HashSet<String>` → `HashSet<&str>` in `OnnxGraph::validate()`; all `.clone()` calls on graph names eliminated.
+- **PERF-358-09: Anonymize UID map entry API** — `apply_action` ReplaceUid arm uses `.entry().or_insert_with()` instead of separate `.get().clone()` / `.insert(.clone(), .clone())` pattern; reduces 3 clone operations to 1 per absent-key branch.
+- **PERF-358-10: JPEG encode `Vec::with_capacity`** — Added capacity hints (`rows*cols/8` grayscale, `rows*cols*3/8` RGB) to JPEG encoder output buffers in `ritk-codecs` and `ritk-dicom`, reducing 3–5 reallocations per encode.
+- **PERF-358-11: dim4.rs `gather_4d_owned` z1_i clone fix** — Pre-existing missing `.clone()` on `z1_i` at second-to-last `gather_4d_owned` call in the non-autodiff path; corrected.
+
+### Added
+- **BOOL-358-12: `CleaningPolicy` enum** — `AnonymizeOptions.clean_pixel_data`/`clean_private_tags: bool` → `CleaningPolicy { Skip, Clean }`. Updated guards in `anonymize_object`; Python `bool` surface unchanged. Re-exported from `ritk-io`.
+- **BOOL-358-13: `AutoLoadPolicy` enum** — `PacsConfig.auto_load_received: bool` → `auto_load_policy: AutoLoadPolicy { Automatic, Manual }`. Updated `app/pacs_ops.rs`, `ui/pacs_panel/mod.rs`, and tests. Re-exported from `ritk-snap::pacs`.
+- **BOOL-358-14: `LayoutSuggestion` enum** — `HangingProtocolDecision.multi_planar: bool` → `layout: LayoutSuggestion { SinglePane, MultiPlanarReformat }`. All 10 protocol constructors updated; call sites in `volume_ops.rs`/`volume_state.rs` updated.
+- **BOOL-358-15: `FragmentPosition` enum** — `MessageControlHeader.last_fragment: bool` → `fragment_position: FragmentPosition { Last, More }`. Updated in `pdu/mod.rs`, `pdu/codec.rs`, `association/mod.rs`, `association/helpers.rs`, `scp/handler.rs`, and all test files.
+- **BOOL-358-16: `DicomElementClass` enum** — `DicomObjectNode.private: bool` → `element_class: DicomElementClass { Standard, Private }`. All 6 constructors updated; `is_private()` accessor preserved. Updated `reader/parse.rs`, `reader/preservation.rs`, `writer/tests/preservation.rs`, `ritk-snap/metadata_table.rs`.
+- **BOOL-358-17: ONNX `ImportConfig` enums** — Three `bool` config fields replaced with purpose-built enums: `allow_dynamic_batch` → `batch_dimension: BatchDimension { Dynamic, Static }`; `validate_graph` → `graph_validation: GraphValidation { Enabled, Disabled }`; `infer_shapes` → `shape_inference: ShapeInference { Enabled, Disabled }`. Defaults behaviour-equivalent to prior `true` values.
+- **BOOL-358-18: `FilterKind::ConnectedComponents` uses `Connectivity` enum** — `connectivity_26: bool` → `connectivity: Connectivity` (reusing the existing `Connectivity` enum from `ritk_core::filter`). Updated `filter/apply.rs`, `app/filter.rs`, `ui/filter_panel/controls.rs`, `ui/filter_panel/selector/selector_values.rs`, and tests.
+- **BOOL-358-19: `StapleConvergence` enum** — `StapleResult.converged: bool` → `convergence: StapleConvergence { Converged, MaxIterationsReached }`. Enum defined in `ritk-core::segmentation::ensemble`; re-exported from `ritk_core::segmentation`. Test assertion upgraded to value-semantic `assert_eq!`. Python binding surface unchanged.
+- **DOC-358-20: Python enum bridge documentation** — `discrete_gaussian` `use_image_spacing` and `anisotropic_diffusion` `exponential` Args entries now cite the corresponding Rust enum variants (`SpacingMode`, `ConductanceFunction`) and their `bool` mappings.
+- **ANNOT-358-21: BURN-API annotation on forced clones in `dl_train.rs`** — Added comment explaining clone necessity for `loss_sim`/`loss_reg` before `into_scalar()` consumption.
+
+### Breaking
+- `AnonymizeOptions.clean_pixel_data`/`clean_private_tags: bool` → `CleaningPolicy`
+- `PacsConfig.auto_load_received: bool` → `auto_load_policy: AutoLoadPolicy`
+- `HangingProtocolDecision.multi_planar: bool` → `layout: LayoutSuggestion`
+- `MessageControlHeader.last_fragment: bool` → `fragment_position: FragmentPosition`
+- `DicomObjectNode.private: bool` → `element_class: DicomElementClass`
+- `ImportConfig.allow_dynamic_batch`/`validate_graph`/`infer_shapes: bool` → typed enums
+- `FilterKind::ConnectedComponents { connectivity_26: bool }` → `{ connectivity: Connectivity }`
+- `StapleResult.converged: bool` → `convergence: StapleConvergence`
+
+---
+
+
 ## [0.54.0] - 2026-06-10
 
 ### Added

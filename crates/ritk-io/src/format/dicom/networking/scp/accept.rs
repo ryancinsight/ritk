@@ -66,6 +66,8 @@ fn scp_accept_loop(
 ) {
     use std::io::ErrorKind;
 
+    let config = Arc::new(config);
+
     loop {
         if shutdown.load(Ordering::Relaxed) {
             break;
@@ -73,10 +75,10 @@ fn scp_accept_loop(
         match listener.accept() {
             Ok((stream, peer)) => {
                 tracing::debug!("SCP: accepted connection from {peer}");
-                let cfg = config.clone();
+                let cfg = Arc::clone(&config);
                 let tx2 = tx.clone();
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_connection(stream, &cfg, &tx2) {
+                    if let Err(e) = handle_connection(stream, cfg.as_ref(), &tx2) {
                         tracing::warn!("SCP connection error: {e}");
                     }
                 });
