@@ -16,7 +16,7 @@ use burn::tensor::Tensor;
 /// # Type Parameters
 /// * `B` - The Burn backend
 /// * `D` - The spatial dimensionality (2 or 3)
-pub trait Transform<B: Backend, const D: usize> {
+pub trait Transform<B: Backend, const D: usize>: Sized {
     /// Apply transform to a batch of points.
     ///
     /// # Arguments
@@ -29,7 +29,9 @@ pub trait Transform<B: Backend, const D: usize> {
     /// Get the inverse transform (if available).
     ///
     /// Not all transforms are easily invertible, so this returns an Option.
-    fn inverse(&self) -> Option<Box<dyn Transform<B, D>>> {
+    /// The return type uses `Option<Self>` (not `Option<Box<dyn ...>>`)
+    /// because only one concrete transform type is invertible to itself.
+    fn inverse(&self) -> Option<Self> {
         None
     }
 }

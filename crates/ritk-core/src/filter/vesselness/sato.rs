@@ -37,12 +37,12 @@
 //!
 //! The final output is the **maximum** response over all scales σ.
 
+use super::frangi::gaussian_blur_vec;
+use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
+use super::VesselPolarity;
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-
-use super::frangi::gaussian_blur_vec;
-use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -50,15 +50,14 @@ use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
 #[derive(Debug, Clone)]
 pub struct SatoConfig {
     /// Gaussian scale values σ (physical units, e.g. mm) at which to evaluate
-    /// the filter.  The output is the per-voxel maximum over all scales.
+    /// the filter. The output is the per-voxel maximum over all scales.
     pub scales: Vec<f64>,
-    /// Cross-section anisotropy exponent.  Controls how strongly the ratio
-    /// `λ₂/λ₃` is penalised.  Typical range: [0.5, 2.0].  Default: 0.5.
+    /// Cross-section anisotropy exponent. Controls how strongly the ratio
+    /// `λ₂/λ₃` is penalised. Typical range: [0.5, 2.0]. Default: 0.5.
     pub alpha: f64,
-    /// When `true`, detect bright structures on a dark background
-    /// (requires `λ₂ < 0, λ₃ < 0`).  When `false`, detect dark structures
-    /// on a bright background (requires `λ₂ > 0, λ₃ > 0`).
-    pub bright_tubes: bool,
+    /// Vessel polarity: detect bright structures on a dark background
+    /// or dark structures on a bright background.
+    pub polarity: VesselPolarity,
 }
 
 impl Default for SatoConfig {
@@ -66,7 +65,7 @@ impl Default for SatoConfig {
         Self {
             scales: vec![1.0, 2.0, 4.0],
             alpha: 0.5,
-            bright_tubes: true,
+            polarity: VesselPolarity::Bright,
         }
     }
 }
@@ -146,7 +145,7 @@ fn compute_sato_multiscale(
                 h[5] * sigma2,
             ];
             let eigs = symmetric_3x3_eigenvalues(h_scaled);
-            let v = sato_response(eigs, config.alpha, config.bright_tubes);
+            let v = sato_response(eigs, config.alpha, config.polarity);
             if v > max_response[i] {
                 max_response[i] = v;
             }
@@ -166,7 +165,7 @@ fn compute_sato_multiscale(
 ///    Inversion for dark tubes: negate all eigenvalues before the test.
 /// 3. Compute `V = |λ₃| · (λ₂/λ₃)^α · f(λ₁,λ₂)`.
 #[inline]
-fn sato_response(eigenvalues: [f32; 3], alpha: f64, bright_tubes: bool) -> f32 {
+fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) -> f32 {
     // Sort by absolute value (bubble-sort on 3 elements; branchless-friendly).
     let mut e = eigenvalues;
     if e[0].abs() > e[1].abs() {
@@ -182,10 +181,9 @@ fn sato_response(eigenvalues: [f32; 3], alpha: f64, bright_tubes: bool) -> f32 {
     let [lam1, lam2, lam3] = e;
 
     // For dark tubes invert all signs so that the bright-tube gate applies.
-    let (l1, l2, l3) = if bright_tubes {
-        (lam1, lam2, lam3)
-    } else {
-        (-lam1, -lam2, -lam3)
+    let (l1, l2, l3) = match polarity {
+        VesselPolarity::Bright => (lam1, lam2, lam3),
+        VesselPolarity::Dark => (-lam1, -lam2, -lam3),
     };
 
     // Gate: both l2 and l3 must be strictly negative.

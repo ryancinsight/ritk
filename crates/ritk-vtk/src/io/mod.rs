@@ -70,7 +70,7 @@ impl<B: Backend> VtkReader<B> {
 /// Does not implement `ritk_io::ImageWriter`; that wrapper lives in `ritk-io`
 /// to avoid orphan-rule violations.
 pub struct VtkWriter<B: Backend> {
-    _marker: std::marker::PhantomData<B>,
+    _marker: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for VtkWriter<B> {

@@ -1,4 +1,5 @@
 use super::core::DisplacementField;
+use crate::wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
@@ -7,29 +8,13 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     ///
     /// Follows the mathematically verified mapping $ v^T = (w - O) T $.
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        let [n_points, _] = points.dims();
-
-        const CHUNK_SIZE: usize = 32768;
-
-        if n_points <= CHUNK_SIZE {
-            let diff = points - self.origin_tensor.clone();
-            diff.matmul(self.world_to_index_matrix.clone())
-        } else {
-            let mut chunks = Vec::new();
-            let num_chunks = n_points.div_ceil(CHUNK_SIZE);
-
-            for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n_points);
-                let chunk_range = start..end;
-                let chunk_points = points.clone().slice([chunk_range]);
-
+        apply_row_chunks(
+            points,
+            crate::wgpu_compat::WGPU_CHUNK_SIZE,
+            |chunk_points| {
                 let diff = chunk_points - self.origin_tensor.clone();
-                let result = diff.matmul(self.world_to_index_matrix.clone());
-                chunks.push(result);
-            }
-
-            Tensor::cat(chunks, 0)
-        }
+                diff.matmul(self.world_to_index_matrix.clone())
+            },
+        )
     }
 }

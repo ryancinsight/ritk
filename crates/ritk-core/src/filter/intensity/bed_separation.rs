@@ -36,7 +36,20 @@
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+
+/// Component retention policy for CT bed separation.
+///
+/// Selects which connected components are retained after intensity thresholding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ComponentPolicy {
+    /// Keep only the largest connected component (body) and discard all others.
+    #[default]
+    LargestOnly,
+    /// Retain all components that pass the threshold.
+    All,
+}
 
 /// Configuration for CT bed separation.
 ///
@@ -53,8 +66,8 @@ pub struct BedSeparationConfig {
     /// This is provided for future extension; the current implementation uses the
     /// lower threshold and connected-component analysis rather than a dual threshold.
     pub background_threshold: f32,
-    /// If `true`, keep only the largest connected component after thresholding.
-    pub keep_largest_component: bool,
+    /// Component retention policy after thresholding.
+    pub component_policy: ComponentPolicy,
     /// Radius used for binary closing of the foreground mask.
     pub closing_radius: usize,
     /// Radius used for binary opening of the foreground mask.
@@ -68,7 +81,7 @@ impl Default for BedSeparationConfig {
         Self {
             body_threshold: -350.0,
             background_threshold: -700.0,
-            keep_largest_component: true,
+            component_policy: ComponentPolicy::LargestOnly,
             closing_radius: 2,
             opening_radius: 1,
             outside_value: -1024.0,
@@ -96,7 +109,7 @@ impl BedSeparationFilter {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
         let binary = threshold_foreground(&vals, self.config.body_threshold);
-        let binary = if self.config.keep_largest_component {
+        let binary = if self.config.component_policy == ComponentPolicy::LargestOnly {
             keep_largest_component(&binary, dims)
         } else {
             binary
@@ -113,7 +126,7 @@ impl BedSeparationFilter {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
         let binary = threshold_foreground(&vals, self.config.body_threshold);
-        let binary = if self.config.keep_largest_component {
+        let binary = if self.config.component_policy == ComponentPolicy::LargestOnly {
             keep_largest_component(&binary, dims)
         } else {
             binary
@@ -153,7 +166,7 @@ fn keep_largest_component(mask: &[u8], dims: [usize; 3]) -> Vec<u8> {
             continue;
         }
 
-        let mut component = Vec::new();
+        let mut component = Vec::with_capacity(n / 4);
         visited[start] = true;
         queue.push_back(start);
 
@@ -338,7 +351,7 @@ mod tests {
         let img = make_image(values, dims);
         let filter = BedSeparationFilter::new(BedSeparationConfig::default());
         let out = filter.mask(&img).unwrap();
-        let vals = out.data_vec();
+        let vals = out.data_slice();
         assert_eq!(vals.len(), 8);
         assert_eq!(vals.iter().filter(|&&v| v > 0.5).count(), 8);
         assert_eq!(vals[0], 1.0);
@@ -359,7 +372,7 @@ mod tests {
         let config = BedSeparationConfig {
             body_threshold: -600.0,
             outside_value: -2048.0,
-            keep_largest_component: false,
+            component_policy: ComponentPolicy::All,
             closing_radius: 0,
             opening_radius: 0,
             ..Default::default()
@@ -367,9 +380,9 @@ mod tests {
 
         let filter = BedSeparationFilter::new(config);
         let out = filter.apply(&img).unwrap();
-        let vals = out.data_vec();
+        let vals = out.data_slice();
 
-        assert_eq!(vals, vec![-2048.0, -500.0, 50.0, 200.0]);
+        assert_eq!(&*vals, &[-2048.0, -500.0, 50.0, 200.0]);
     }
 
     #[test]

@@ -1,32 +1,224 @@
 //! Internal FFT-based convolution helpers for deconvolution filters.
-//!
+
 //! # Design
 //!
-//! `convolve_2d` and `convolve_3d` implement linear convolution via FFT with
-//! "same" output cropping. Both functions are identical in structure; the only
-//! variation is dimension (2D vs 3D), expressed through the function signature
-//! rather than a cloned body.
+//! The const-generic `convolve<const D: usize>` implements linear convolution
+//! via FFT with "same" output cropping for any dimensionality. `D=2` uses
+//! `fft2d`; `D=3` uses `fft3d`. The padding, FFT, pointwise multiply, IFFT,
+//! and crop logic is shared.
 //!
-//! # Complexity
-//!
-//! O(N log N) where N = total number of samples in the zero-padded buffer.
+//! Legacy `convolve_2d` / `convolve_3d` functions are thin wrappers delegating
+//! to `convolve<2>` / `convolve<3>` for backward compatibility.
 
-use crate::filter::fft::convolution::{fft2d, fft3d, FftDir};
+use crate::filter::fft::convolution::{fft2d, fft3d, ForwardFft, InverseFft};
 use rustfft::{num_complex::Complex, FftPlanner};
 
-// ── 2-D ──────────────────────────────────────────────────────────────────────
+// ── Padding & FFT ───────────────────────────────────────────────────────────
+
+/// Compute next-power-of-two padded dimensions for linear convolution.
+///
+/// Each axis is padded to `(img_dim + ker_dim - 1).next_power_of_two()`.
+pub(super) fn pad_dims<const D: usize>(img_dims: &[usize; D], ker_dims: &[usize; D]) -> [usize; D] {
+    let mut out = [0usize; D];
+    for (i, o) in out.iter_mut().enumerate() {
+        *o = (img_dims[i] + ker_dims[i] - 1).next_power_of_two();
+    }
+    out
+}
+
+/// Total number of elements in the padded buffer (product of all pad dims).
+pub(super) fn pad_total<const D: usize>(pad: &[usize; D]) -> usize {
+    pad.iter().product()
+}
+
+/// Row-major stride for the leading `D - d` dimensions of a padded array.
+///
+/// For a 3-D array with shape `[pd, ph, pw]`:
+/// - stride(0) = ph * pw (depth stride)
+/// - stride(1) = pw (row stride)
+/// - stride(2) = 1 (col stride)
+fn stride<const D: usize>(pad: &[usize; D], d: usize) -> usize {
+    pad[d + 1..D].iter().product()
+}
+
+/// Decode a flat row-major index into per-axis coordinates.
+///
+/// Returns a `[usize; D]` array where element `d` is the coordinate along
+/// axis `d` of an array with shape `dims`.
+pub(super) fn decode_coords<const D: usize>(flat: usize, dims: &[usize; D]) -> [usize; D] {
+    let mut rem = flat;
+    std::array::from_fn(|d| {
+        let s = stride::<D>(dims, d);
+        let coord = rem / s;
+        rem %= s;
+        coord
+    })
+}
+
+/// Encode per-axis coordinates into a flat row-major index.
+pub(super) fn encode_flat<const D: usize>(coords: &[usize; D], dims: &[usize; D]) -> usize {
+    coords
+        .iter()
+        .enumerate()
+        .map(|(d, &c)| c * stride::<D>(dims, d))
+        .sum()
+}
+
+/// Place a real-valued image/kernel into a zero-padded complex buffer at
+/// position (0, 0, …, 0) (corner placement, no centering).
+fn place_corner<const D: usize>(
+    buf: &mut [Complex<f32>],
+    vals: &[f32],
+    dims: &[usize; D],
+    pad: &[usize; D],
+) {
+    for (flat, &v) in vals.iter().enumerate() {
+        let coords = decode_coords::<D>(flat, dims);
+        let pflat = encode_flat::<D>(&coords, pad);
+        buf[pflat] = Complex::new(v, 0.0);
+    }
+}
+
+/// Place a kernel into a zero-padded complex buffer with zero-phase centering.
+///
+/// The kernel center `(kd/2, kd/2, …)` is shifted to padded origin `(0, 0, …)`
+/// via modular arithmetic (circular shift), eliminating linear-phase delay.
+fn place_centered<const D: usize>(
+    buf: &mut [Complex<f32>],
+    vals: &[f32],
+    dims: &[usize; D],
+    pad: &[usize; D],
+) {
+    for (flat, &v) in vals.iter().enumerate() {
+        let coords = decode_coords::<D>(flat, dims);
+        let pcoords: [usize; D] =
+            std::array::from_fn(|d| (coords[d] + pad[d] - dims[d] / 2) % pad[d]);
+        let pflat = encode_flat::<D>(&pcoords, pad);
+        buf[pflat] = Complex::new(v, 0.0);
+    }
+}
+
+/// Execute a forward or inverse FFT on a padded complex buffer.
+fn run_fft<const D: usize, Dir: crate::filter::fft::convolution::FftDirection>(
+    buf: &mut [Complex<f32>],
+    pad: &[usize; D],
+    planner: &mut FftPlanner<f32>,
+) {
+    match D {
+        2 => fft2d::<Dir>(buf, pad[0], pad[1], planner),
+        3 => fft3d::<Dir>(buf, pad[0], pad[1], pad[2], planner),
+        _ => unreachable!("only 2-D and 3-D deconvolution are supported"),
+    }
+}
+
+/// Pad two real-valued arrays into complex buffers, execute forward FFT on both.
+///
+/// The image is placed at the corner (no shift); the kernel is placed with
+/// zero-phase centering.
+pub(super) fn pad_and_fft<const D: usize>(
+    img_vals: &[f32],
+    img_dims: &[usize; D],
+    ker_vals: &[f32],
+    ker_dims: &[usize; D],
+    pad: &[usize; D],
+    pad_n: usize,
+) -> (Vec<Complex<f32>>, Vec<Complex<f32>>) {
+    let mut img_padded = vec![Complex::new(0.0_f32, 0.0); pad_n];
+    place_corner::<D>(&mut img_padded, img_vals, img_dims, pad);
+
+    let mut ker_padded = vec![Complex::new(0.0_f32, 0.0); pad_n];
+    place_centered::<D>(&mut ker_padded, ker_vals, ker_dims, pad);
+
+    let mut planner = FftPlanner::<f32>::new();
+    run_fft::<D, ForwardFft>(&mut img_padded, pad, &mut planner);
+    run_fft::<D, ForwardFft>(&mut ker_padded, pad, &mut planner);
+
+    (img_padded, ker_padded)
+}
+
+/// Execute inverse FFT on `buf` and crop to `out_dims`, returning real values.
+///
+/// The 1/N scaling factor for the inverse FFT is applied during cropping.
+pub(super) fn ifft_and_crop<const D: usize>(
+    buf: &mut [Complex<f32>],
+    out_dims: &[usize; D],
+    pad: &[usize; D],
+    pad_n: usize,
+) -> Vec<f32> {
+    let mut planner = FftPlanner::<f32>::new();
+    run_fft::<D, InverseFft>(buf, pad, &mut planner);
+
+    let scale = 1.0_f32 / pad_n as f32;
+    let out_n: usize = out_dims.iter().product();
+    let mut out = vec![0.0_f32; out_n];
+
+    for (flat, o) in out.iter_mut().enumerate() {
+        let coords = decode_coords::<D>(flat, out_dims);
+        let pflat = encode_flat::<D>(&coords, pad);
+        *o = buf[pflat].re * scale;
+    }
+    out
+}
+
+// ── Const-generic convolution ──────────────────────────────────────────────
+
+/// FFT-based linear convolution returning a "same"-sized output.
+///
+/// # Arguments
+/// - `image` — row-major image slice, shape `img_dims`
+/// - `kernel` — row-major kernel slice, shape `ker_dims`
+///
+/// # Output
+/// Row-major `Vec<f32>` of shape `img_dims` (same as input).
+///
+/// # Invariant
+/// Output length equals the product of `img_dims`.
+pub(super) fn convolve<const D: usize>(
+    image: &[f32],
+    img_dims: &[usize; D],
+    kernel: &[f32],
+    ker_dims: &[usize; D],
+) -> Vec<f32> {
+    let pad = pad_dims::<D>(img_dims, ker_dims);
+    let pad_n = pad_total::<D>(&pad);
+
+    let mut img_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
+    place_corner::<D>(&mut img_pad, image, img_dims, &pad);
+
+    let mut ker_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
+    place_corner::<D>(&mut ker_pad, kernel, ker_dims, &pad);
+
+    let mut planner = FftPlanner::<f32>::new();
+    run_fft::<D, ForwardFft>(&mut img_pad, &pad, &mut planner);
+    run_fft::<D, ForwardFft>(&mut ker_pad, &pad, &mut planner);
+
+    // Pointwise multiplication in frequency domain
+    for (a, b) in img_pad.iter_mut().zip(ker_pad.iter()) {
+        *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+    }
+
+    run_fft::<D, InverseFft>(&mut img_pad, &pad, &mut planner);
+
+    // Crop to "same" size with center offset for convolution alignment
+    let scale = 1.0_f32 / pad_n as f32;
+    let out_n: usize = img_dims.iter().product();
+    let mut result = vec![0.0_f32; out_n];
+
+    for (flat, r) in result.iter_mut().enumerate() {
+        let coords = decode_coords::<D>(flat, img_dims);
+        let pcoords: [usize; D] = std::array::from_fn(|d| coords[d] + ker_dims[d] / 2);
+        let pflat = encode_flat::<D>(&pcoords, &pad);
+        *r = img_pad[pflat].re * scale;
+    }
+    result
+}
+
+// ── Legacy wrappers ─────────────────────────────────────────────────────────
 
 /// FFT-based 2-D convolution returning a "same"-sized output.
 ///
-/// # Arguments
-/// - `image`  — row-major image slice, shape `[ih, iw]`
-/// - `kernel` — row-major kernel slice, shape `[kh, kw]`
-///
-/// # Output
-/// Row-major `Vec<f32>` of shape `[ih, iw]` (same as input).
-///
-/// # Invariant
-/// Output length equals `ih * iw`.
+/// Delegates to `convolve<2>`. Retained for backward compatibility.
+#[allow(dead_code)]
 pub(super) fn convolve_2d(
     image: &[f32],
     ih: usize,
@@ -35,62 +227,13 @@ pub(super) fn convolve_2d(
     kh: usize,
     kw: usize,
 ) -> Vec<f32> {
-    let pad_h = (ih + kh - 1).next_power_of_two();
-    let pad_w = (iw + kw - 1).next_power_of_two();
-    let pad_n = pad_h * pad_w;
-
-    let mut img_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
-    for y in 0..ih {
-        for x in 0..iw {
-            img_pad[y * pad_w + x] = Complex::new(image[y * iw + x], 0.0);
-        }
-    }
-
-    let mut ker_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
-    for ky in 0..kh {
-        for kx in 0..kw {
-            ker_pad[ky * pad_w + kx] = Complex::new(kernel[ky * kw + kx], 0.0);
-        }
-    }
-
-    let mut planner = FftPlanner::<f32>::new();
-    fft2d(&mut img_pad, pad_h, pad_w, &mut planner, FftDir::Forward);
-    fft2d(&mut ker_pad, pad_h, pad_w, &mut planner, FftDir::Forward);
-
-    for i in 0..pad_n {
-        let a = img_pad[i];
-        let b = ker_pad[i];
-        img_pad[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
-    }
-
-    fft2d(&mut img_pad, pad_h, pad_w, &mut planner, FftDir::Inverse);
-
-    let scale = 1.0_f32 / pad_n as f32;
-    let cy = kh / 2;
-    let cx = kw / 2;
-    let mut result = vec![0.0_f32; ih * iw];
-    for y in 0..ih {
-        for x in 0..iw {
-            result[y * iw + x] = img_pad[(y + cy) * pad_w + (x + cx)].re * scale;
-        }
-    }
-    result
+    convolve::<2>(image, &[ih, iw], kernel, &[kh, kw])
 }
-
-// ── 3-D ──────────────────────────────────────────────────────────────────────
 
 /// FFT-based 3-D convolution returning a "same"-sized output.
 ///
-/// # Arguments
-/// - `image`  — row-major image slice, shape `[id, ih, iw]`
-/// - `kernel` — row-major kernel slice, shape `[kd, kh, kw]`
-///
-/// # Output
-/// Row-major `Vec<f32>` of shape `[id, ih, iw]` (same as input).
-///
-/// # Invariant
-/// Output length equals `id * ih * iw`.
-#[allow(clippy::too_many_arguments)]
+/// Delegates to `convolve<3>`. Retained for backward compatibility.
+#[allow(dead_code, clippy::too_many_arguments)]
 pub(super) fn convolve_3d(
     image: &[f32],
     id: usize,
@@ -101,77 +244,5 @@ pub(super) fn convolve_3d(
     kh: usize,
     kw: usize,
 ) -> Vec<f32> {
-    let pad_d = (id + kd - 1).next_power_of_two();
-    let pad_h = (ih + kh - 1).next_power_of_two();
-    let pad_w = (iw + kw - 1).next_power_of_two();
-    let pad_n = pad_d * pad_h * pad_w;
-    let pad_slice = pad_h * pad_w;
-
-    let mut img_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
-    for z in 0..id {
-        for y in 0..ih {
-            for x in 0..iw {
-                img_pad[z * pad_slice + y * pad_w + x] =
-                    Complex::new(image[z * ih * iw + y * iw + x], 0.0);
-            }
-        }
-    }
-
-    let mut ker_pad = vec![Complex::new(0.0_f32, 0.0); pad_n];
-    for kz in 0..kd {
-        for ky in 0..kh {
-            for kx in 0..kw {
-                ker_pad[kz * pad_slice + ky * pad_w + kx] =
-                    Complex::new(kernel[kz * kh * kw + ky * kw + kx], 0.0);
-            }
-        }
-    }
-
-    let mut planner = FftPlanner::<f32>::new();
-    fft3d(
-        &mut img_pad,
-        pad_d,
-        pad_h,
-        pad_w,
-        &mut planner,
-        FftDir::Forward,
-    );
-    fft3d(
-        &mut ker_pad,
-        pad_d,
-        pad_h,
-        pad_w,
-        &mut planner,
-        FftDir::Forward,
-    );
-
-    for i in 0..pad_n {
-        let a = img_pad[i];
-        let b = ker_pad[i];
-        img_pad[i] = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
-    }
-
-    fft3d(
-        &mut img_pad,
-        pad_d,
-        pad_h,
-        pad_w,
-        &mut planner,
-        FftDir::Inverse,
-    );
-
-    let scale = 1.0_f32 / pad_n as f32;
-    let cz = kd / 2;
-    let cy = kh / 2;
-    let cx = kw / 2;
-    let mut result = vec![0.0_f32; id * ih * iw];
-    for z in 0..id {
-        for y in 0..ih {
-            for x in 0..iw {
-                result[z * ih * iw + y * iw + x] =
-                    img_pad[(z + cz) * pad_slice + (y + cy) * pad_w + (x + cx)].re * scale;
-            }
-        }
-    }
-    result
+    convolve::<3>(image, &[id, ih, iw], kernel, &[kd, kh, kw])
 }

@@ -1,6 +1,6 @@
 //! Numerical constraint evaluation bounding configurations for optimization solvers.
 
-use super::config::ValidationConfig;
+use super::config::{NumericalCheck, ValidationConfig};
 use crate::error::{RegistrationError, Result};
 use burn::tensor::{backend::Backend, ElementConversion, Tensor};
 
@@ -8,7 +8,7 @@ pub fn validate_tensor<B: Backend, const D: usize>(
     tensor: &Tensor<B, D>,
     config: &ValidationConfig,
 ) -> Result<()> {
-    if !config.check_numerical_stability {
+    if config.numerical_check == NumericalCheck::Disabled {
         return Ok(());
     }
 

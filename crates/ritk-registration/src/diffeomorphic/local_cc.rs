@@ -17,8 +17,6 @@
 //! All outer voxel loops are parallelized via Rayon, since each voxel's
 //! window reads are independent (read-only access, no data races).
 
-use crate::deformable_field_ops::flat;
-
 mod forces;
 #[cfg(test)]
 pub(crate) use forces::cc_forces;
@@ -33,8 +31,15 @@ pub(crate) use forces::field_rms;
 /// Returns `(mu_i, mu_j, cc_numerator, var_i, var_j, count)`.
 ///
 /// Two-pass computation: first pass computes window means, second pass
-/// computes covariance and variances using the means (numerically stable
-/// for the Avants 2008 formula).
+/// computes covariance and variances using the means.
+///
+/// The two-pass mean-subtracted form is numerically stable for the Avants 2008
+/// CC force, whose `1/var` term is hypersensitive near zero-variance windows.
+/// A single-pass raw-moment box-sum (`var = ΣI² − (ΣI)²/cnt`) was evaluated as
+/// an `O(N)` replacement but reverted: its cancellation error pushes
+/// small-variance windows across the force guard, diverging registration. A
+/// safe `O(N)` form would need a stable streaming variance, not separable
+/// box-sums.
 #[inline]
 pub(crate) fn window_cc_stats(
     i_w: &[f32],
@@ -50,7 +55,7 @@ pub(crate) fn window_cc_stats(
     for dz in -r..=r {
         for dy in -r..=r {
             for dx in -r..=r {
-                let qi = flat(
+                let qi = crate::deformable_field_ops::flat(
                     (iz as isize + dz).max(0).min(nz as isize - 1) as usize,
                     (iy as isize + dy).max(0).min(ny as isize - 1) as usize,
                     (ix as isize + dx).max(0).min(nx as isize - 1) as usize,
@@ -68,7 +73,7 @@ pub(crate) fn window_cc_stats(
     for dz in -r..=r {
         for dy in -r..=r {
             for dx in -r..=r {
-                let qi = flat(
+                let qi = crate::deformable_field_ops::flat(
                     (iz as isize + dz).max(0).min(nz as isize - 1) as usize,
                     (iy as isize + dy).max(0).min(ny as isize - 1) as usize,
                     (ix as isize + dx).max(0).min(nx as isize - 1) as usize,
@@ -90,7 +95,7 @@ pub(crate) fn window_cc_stats(
 
 /// Compute mean local CC over all voxels for convergence monitoring.
 ///
-/// Parallelized over voxels via Rayon; each voxel's reads are independent.
+/// Parallelized over voxels via moirai; each voxel's reads are independent.
 pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: usize) -> f64 {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;

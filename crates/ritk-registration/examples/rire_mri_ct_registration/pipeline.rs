@@ -12,7 +12,7 @@ use super::viz::{ncc_bar, save_comparison_png};
 use super::RireData;
 
 use ritk_io::read_metaimage;
-use ritk_registration::{CmaMiConfig, CmaMiRegistration};
+use ritk_registration::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
 // ── Step 5: Inverse transform ───────────────────────────────────────────────
 
@@ -204,7 +204,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
         sampling_percentage: 0.20,
         translation_range_mm: 80.0,
         rotation_range_rad: std::f64::consts::FRAC_PI_4,
-        use_com_init: true,
+        init_strategy: InitStrategy::CenterOfMass,
         rsgd_refine: None, // pure CMA-ES to isolate the global search
         ..CmaMiConfig::default()
     };
@@ -222,7 +222,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
         cma_config.translation_range_mm
     );
     println!("  Rotation range    : ±π/4 rad (±45°)");
-    println!("  CoM initialisation: {}", cma_config.use_com_init);
+    println!("  CoM initialisation: {:?}", cma_config.init_strategy);
     println!();
     println!(" Running CMA-ES — expect 2–5 min on a modern CPU …");
     println!();

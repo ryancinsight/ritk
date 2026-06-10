@@ -103,6 +103,10 @@ impl<const D: usize> Vector<D> {
     }
 
     /// Convert vector to a vector of components.
+    #[deprecated(
+        since = "0.7.0",
+        note = "use to_array() for zero-allocation, or .as_slice() for &[f64]"
+    )]
     pub fn to_vec(&self) -> Vec<f64> {
         (0..D).map(|i| self.0[i]).collect()
     }
@@ -110,6 +114,11 @@ impl<const D: usize> Vector<D> {
     /// Convert vector to a fixed-size array of components (zero-allocation).
     pub fn to_array(&self) -> [f64; D] {
         std::array::from_fn(|i| self.0[i])
+    }
+
+    /// Borrow the vector components as a slice without allocation.
+    pub fn as_slice(&self) -> &[f64] {
+        self.0.as_slice()
     }
 
     /// Create a unit vector along the x-axis.
@@ -225,6 +234,7 @@ mod tests {
     #[test]
     fn test_vector_to_vec() {
         let v = Vector3::new([1.0, 2.0, 3.0]);
+        #[allow(deprecated)] // explicitly testing the deprecated accessor
         let components = v.to_vec();
         assert_eq!(components, vec![1.0, 2.0, 3.0]);
     }

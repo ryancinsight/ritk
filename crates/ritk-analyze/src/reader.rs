@@ -269,7 +269,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 /// Read-side wrapper type implementing the `ImageReader` domain trait.
 pub struct AnalyzeReader<B: Backend> {
     pub(crate) _device: B::Device,
-    pub(crate) _phantom: PhantomData<B>,
+    pub(crate) _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> AnalyzeReader<B> {

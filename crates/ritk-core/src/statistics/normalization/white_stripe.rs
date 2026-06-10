@@ -51,6 +51,15 @@ use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
+/// Selects which extreme of the local-maxima set to return.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExtremeSide {
+    /// Pick the local maximum with the highest intensity (T1 WM peak).
+    Rightmost,
+    /// Pick the local maximum with the lowest intensity (T2 WM peak).
+    Leftmost,
+}
+
 /// MRI contrast type for white stripe peak detection.
 ///
 /// Determines the intensity range in which to search for the white matter peak.
@@ -199,8 +208,12 @@ impl WhiteStripeNormalizer {
             MriContrast::T2 => (fg_min, fg_median),
         };
 
-        let rightmost = matches!(config.contrast, MriContrast::T1);
-        let wm_peak = find_extreme_local_mode(&grid, &density, search_lo, search_hi, rightmost);
+        let side = if matches!(config.contrast, MriContrast::T1) {
+            ExtremeSide::Rightmost
+        } else {
+            ExtremeSide::Leftmost
+        };
+        let wm_peak = find_extreme_local_mode(&grid, &density, search_lo, search_hi, side);
 
         // Step 4: Define the white stripe.
         // Compute the empirical quantile rank of the WM peak.
@@ -410,9 +423,9 @@ fn find_mode_in_range(grid: &[f64], density: &[f64], range_lo: f64, range_hi: f6
 /// A local maximum at grid index `i` satisfies `density[i] > density[i-1]` and
 /// `density[i] > density[i+1]` (boundary indices are handled as one-sided).
 ///
-/// - `rightmost = true` (T1): return the local maximum with the **highest intensity**
+/// - `side = ExtremeSide::Rightmost` (T1): return the local maximum with the **highest intensity**
 ///   (rightmost in the grid). This selects the WM peak over the GM peak.
-/// - `rightmost = false` (T2): return the local maximum with the **lowest intensity**
+/// - `side = ExtremeSide::Leftmost` (T2): return the local maximum with the **lowest intensity**
 ///   (leftmost in the grid). This selects the WM peak over the CSF peak.
 ///
 /// Falls back to [`find_mode_in_range`] (global max density) if no local maximum exists.
@@ -421,7 +434,7 @@ fn find_extreme_local_mode(
     density: &[f64],
     range_lo: f64,
     range_hi: f64,
-    rightmost: bool,
+    side: ExtremeSide,
 ) -> f64 {
     let n = grid.len();
     if n < 2 {
@@ -429,7 +442,7 @@ fn find_extreme_local_mode(
     }
 
     // Collect all local maxima within the range.
-    let mut local_maxima: Vec<(f64, f64)> = Vec::new(); // (grid_val, density_val)
+    let mut local_maxima: Vec<(f64, f64)> = Vec::with_capacity(n / 4); // (grid_val, density_val)
 
     for i in 0..n {
         let x = grid[i];
@@ -449,7 +462,7 @@ fn find_extreme_local_mode(
         return find_mode_in_range(grid, density, range_lo, range_hi);
     }
 
-    if rightmost {
+    if side == ExtremeSide::Rightmost {
         // T1: pick the local maximum with the highest intensity (rightmost).
         local_maxima
             .iter()

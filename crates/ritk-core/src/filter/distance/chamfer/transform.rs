@@ -1,6 +1,6 @@
 //! Image-binding filter struct (see [`ChamferDistanceTransform`]).
 
-use super::kernel::{cdt_3d, ChamferMetric, INF};
+use super::kernel::{cdt_3d_dispatch, ChamferMetric, INF};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -102,7 +102,7 @@ impl ChamferDistanceTransform {
             (spacing[2] / s_min).round() as i32,
         ];
 
-        let result = cdt_3d(&fg, dims, weights, self.metric);
+        let result = cdt_3d_dispatch(&fg, dims, weights, self.metric);
 
         let s_min_f = s_min as f32;
         let result_f32: Vec<f32> = result

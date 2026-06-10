@@ -70,55 +70,14 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
             Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), &device)
                 .reshape([1, D]);
 
-        let inv_dir_vec = match D {
-            2 => {
-                let m = nalgebra::Matrix2::new(
-                    direction[(0, 0)],
-                    direction[(0, 1)],
-                    direction[(1, 0)],
-                    direction[(1, 1)],
-                );
-                let inv = m
-                    .try_inverse()
-                    .expect("Direction matrix mathematically non-invertible");
-                vec![inv[(0, 0)], inv[(0, 1)], inv[(1, 0)], inv[(1, 1)]]
-            }
-            3 => {
-                let m = nalgebra::Matrix3::new(
-                    direction[(0, 0)],
-                    direction[(0, 1)],
-                    direction[(0, 2)],
-                    direction[(1, 0)],
-                    direction[(1, 1)],
-                    direction[(1, 2)],
-                    direction[(2, 0)],
-                    direction[(2, 1)],
-                    direction[(2, 2)],
-                );
-                let inv = m
-                    .try_inverse()
-                    .expect("Direction matrix mathematically non-invertible");
-                vec![
-                    inv[(0, 0)],
-                    inv[(0, 1)],
-                    inv[(0, 2)],
-                    inv[(1, 0)],
-                    inv[(1, 1)],
-                    inv[(1, 2)],
-                    inv[(2, 0)],
-                    inv[(2, 1)],
-                    inv[(2, 2)],
-                ]
-            }
-            _ => panic!("DisplacementField restricted to verified topologies 2D and 3D"),
-        };
+        let inv_dir = direction
+            .try_inverse()
+            .expect("Direction matrix mathematically non-invertible");
 
         let mut t_data = Vec::with_capacity(D * D);
         for r in 0..D {
             for c in 0..D {
-                let inv_dir_val = inv_dir_vec[c * D + r];
-                let spacing_val = spacing[c];
-                let val = (inv_dir_val / spacing_val) as f32;
+                let val = (inv_dir[(c, r)] / spacing[c]) as f32;
                 t_data.push(val);
             }
         }
@@ -153,5 +112,5 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
     }
 }
 
-pub type DisplacementField2D<B> = DisplacementField<B, 2>;
-pub type DisplacementField3D<B> = DisplacementField<B, 3>;
+// Dimension-specific convenience aliases removed.
+// Use `DisplacementField<B, 2>` or `DisplacementField<B, 3>` directly.

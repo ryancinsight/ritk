@@ -1,6 +1,13 @@
 use crate::progress::{ProgressCallback, ProgressInfo};
 use std::sync::{Arc, Mutex};
 
+#[derive(Debug)]
+struct EarlyStoppingState {
+    counter: usize,
+    best_loss: f64,
+    should_stop: bool,
+}
+
 /// Early stopping callback.
 #[derive(Debug, Clone)]
 pub struct EarlyStoppingCallback {
@@ -10,12 +17,7 @@ pub struct EarlyStoppingCallback {
     pub patience: usize,
     /// Minimum loss threshold.
     pub min_loss: Option<f64>,
-    /// Counter for iterations without improvement.
-    counter: Arc<Mutex<usize>>,
-    /// Best loss seen so far.
-    best_loss: Arc<Mutex<f64>>,
-    /// Whether to stop.
-    should_stop: Arc<Mutex<bool>>,
+    state: Arc<Mutex<EarlyStoppingState>>,
 }
 
 impl EarlyStoppingCallback {
@@ -25,9 +27,11 @@ impl EarlyStoppingCallback {
             min_improvement,
             patience,
             min_loss: None,
-            counter: Arc::new(Mutex::new(0)),
-            best_loss: Arc::new(Mutex::new(f64::INFINITY)),
-            should_stop: Arc::new(Mutex::new(false)),
+            state: Arc::new(Mutex::new(EarlyStoppingState {
+                counter: 0,
+                best_loss: f64::INFINITY,
+                should_stop: false,
+            })),
         }
     }
 
@@ -39,26 +43,30 @@ impl EarlyStoppingCallback {
 
     /// Check if should stop.
     pub fn should_stop(&self) -> bool {
-        *self.should_stop.lock().unwrap_or_else(|e| e.into_inner())
+        self.state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .should_stop
     }
 
     /// Reset early stopping state.
     pub fn reset(&self) {
-        *self.counter.lock().unwrap_or_else(|e| e.into_inner()) = 0;
-        *self.best_loss.lock().unwrap_or_else(|e| e.into_inner()) = f64::INFINITY;
-        *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = false;
+        let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        s.counter = 0;
+        s.best_loss = f64::INFINITY;
+        s.should_stop = false;
     }
 }
 
 impl ProgressCallback for EarlyStoppingCallback {
     fn on_progress(&self, info: &ProgressInfo) {
-        let mut best_loss = self.best_loss.lock().unwrap_or_else(|e| e.into_inner());
-        let mut counter = self.counter.lock().unwrap_or_else(|e| e.into_inner());
-
-        // Check minimum loss threshold
+        // Check minimum loss threshold (self.min_loss is Copy, no lock needed)
         if let Some(min_loss) = self.min_loss {
             if info.loss <= min_loss {
-                *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = true;
+                self.state
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .should_stop = true;
                 tracing::info!(
                     "Early stopping: loss {} reached minimum threshold {}",
                     info.loss,
@@ -68,22 +76,21 @@ impl ProgressCallback for EarlyStoppingCallback {
             }
         }
 
-        // Check for improvement
-        let improvement = *best_loss - info.loss;
+        // Single lock covers the entire counter/best_loss/should_stop update atomically.
+        let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        let improvement = s.best_loss - info.loss;
         if improvement > self.min_improvement {
-            *best_loss = info.loss;
-            *counter = 0;
+            s.best_loss = info.loss;
+            s.counter = 0;
         } else {
-            *counter += 1;
+            s.counter += 1;
         }
-
-        // Check patience
-        if *counter >= self.patience {
-            *self.should_stop.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        if s.counter >= self.patience {
+            s.should_stop = true;
             tracing::info!(
                 "Early stopping: no improvement for {} iterations (best loss: {:.6}, current: {:.6})",
                 self.patience,
-                *best_loss,
+                s.best_loss,
                 info.loss
             );
         }

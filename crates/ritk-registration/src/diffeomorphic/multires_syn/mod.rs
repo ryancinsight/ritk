@@ -48,8 +48,9 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
-    compose_fields_into, compute_gradient, gaussian_smooth_inplace, scaling_and_squaring,
-    warp_image, VectorField3D, VectorFieldMut3D,
+    compose_fields_into, compute_gradient_into, gaussian_smooth_field_inplace,
+    normalize_forces_into, scaling_and_squaring, scaling_and_squaring_into, warp_image,
+    warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
 };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
@@ -59,18 +60,28 @@ use super::local_cc::{cc_forces_into, mean_local_cc};
 
 pub(crate) mod pyramid;
 
-/// Cached velocity fields and downsampled dims carried between resolution levels.
+/// Inverse-consistency enforcement policy for SyN velocity field updates.
 ///
-/// `(fwd_z, fwd_y, fwd_x, inv_z, inv_y, inv_x, dims)`
-type PrevLevelState = (
-    Vec<f32>,
-    Vec<f32>,
-    Vec<f32>,
-    Vec<f32>,
-    Vec<f32>,
-    Vec<f32>,
-    [usize; 3],
-);
+/// Replaces the former `enforce_inverse_consistency: bool` field, eliminating
+/// boolean blindness at call sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InverseConsistency {
+    /// No inverse-consistency enforcement (relaxed update).
+    #[default]
+    Relaxed,
+    /// Enforce inverse consistency via `v ← (v − compose(v₁,v₂)) / 2`.
+    Enforced,
+}
+
+/// Velocity fields and dimensions carried between resolution levels.
+struct PrevLevelState {
+    /// Forward velocity field v₁ (fixed→midpoint) from the previous level.
+    forward: VelocityField,
+    /// Inverse velocity field v₂ (moving→midpoint) from the previous level.
+    inverse: VelocityField,
+    /// Image dimensions `[nz, ny, nx]` at the previous level.
+    dims: [usize; 3],
+}
 #[cfg(test)]
 mod tests;
 
@@ -92,11 +103,12 @@ pub struct MultiResSyNConfig {
     /// Radius of local CC window (voxels).
     pub cc_window_radius: usize,
     /// Maximum per-step displacement (voxels) used to normalise the CC gradient
-    /// before accumulating into the velocity field.  Mirrors the ANTs
-    /// `gradientStep` parameter.  Default: 0.25.
+    /// before accumulating into the velocity field. Mirrors the ANTs
+    /// `gradientStep` parameter. Default: 0.25.
     pub gradient_step: f64,
-    /// Enforce inverse consistency via `v ← (v − compose(v₁,v₂)) / 2`.
-    pub enforce_inverse_consistency: bool,
+    /// Inverse-consistency enforcement policy.
+    /// Default: [`InverseConsistency::Relaxed`].
+    pub enforce_inverse_consistency: InverseConsistency,
 }
 
 /// Multi-resolution SyN registration engine.
@@ -189,14 +201,19 @@ impl MultiResSyNRegistration {
             };
 
             let (mut v1z, mut v1y, mut v1x, mut v2z, mut v2y, mut v2x) =
-                if let Some((pz, py, px, qz, qy, qx, pd)) = prev.take() {
+                if let Some(PrevLevelState {
+                    forward: fwd,
+                    inverse: inv,
+                    dims: pd,
+                }) = prev.take()
+                {
                     (
-                        upsample_field(&pz, pd, ld, 0),
-                        upsample_field(&py, pd, ld, 1),
-                        upsample_field(&px, pd, ld, 2),
-                        upsample_field(&qz, pd, ld, 0),
-                        upsample_field(&qy, pd, ld, 1),
-                        upsample_field(&qx, pd, ld, 2),
+                        upsample_field(&fwd.z, pd, ld, 0),
+                        upsample_field(&fwd.y, pd, ld, 1),
+                        upsample_field(&fwd.x, pd, ld, 2),
+                        upsample_field(&inv.z, pd, ld, 0),
+                        upsample_field(&inv.y, pd, ld, 1),
+                        upsample_field(&inv.x, pd, ld, 2),
                     )
                 } else {
                     (
@@ -212,47 +229,73 @@ impl MultiResSyNRegistration {
             let mut cc_hist: VecDeque<f64> = VecDeque::new();
             let r = self.config.cc_window_radius;
 
+            // ── Per-level scratch (zero alloc inside the inner loop) ─────────
+            let mut p1z = vec![0.0_f32; ln];
+            let mut p1y = vec![0.0_f32; ln];
+            let mut p1x = vec![0.0_f32; ln];
+            let mut p2z = vec![0.0_f32; ln];
+            let mut p2y = vec![0.0_f32; ln];
+            let mut p2x = vec![0.0_f32; ln];
+            let mut i_w_buf = vec![0.0_f32; ln];
+            let mut j_w_buf = vec![0.0_f32; ln];
+            let mut giz = vec![0.0_f32; ln];
+            let mut giy = vec![0.0_f32; ln];
+            let mut gix = vec![0.0_f32; ln];
+            let mut gjz = vec![0.0_f32; ln];
+            let mut gjy = vec![0.0_f32; ln];
+            let mut gjx = vec![0.0_f32; ln];
+            let mut scratch_ss_z = vec![0.0_f32; ln];
+            let mut scratch_ss_y = vec![0.0_f32; ln];
+            let mut scratch_ss_x = vec![0.0_f32; ln];
+
             for _ in 0..self.config.iterations_per_level[level] {
                 total_iter += 1;
-                let (p1z, p1y, p1x) =
-                    scaling_and_squaring(&v1z, &v1y, &v1x, ld, self.config.n_squarings);
-                let (p2z, p2y, p2x) =
-                    scaling_and_squaring(&v2z, &v2y, &v2x, ld, self.config.n_squarings);
-                let i_w = warp_image(&f_ds, ld, &p1z, &p1y, &p1x);
-                let j_w = warp_image(&m_ds, ld, &p2z, &p2y, &p2x);
-                let (giz, giy, gix) = compute_gradient(&i_w, ld, ls);
-                let (gjz, gjy, gjx) = compute_gradient(&j_w, ld, ls);
+                scaling_and_squaring_into(
+                    &v1z,
+                    &v1y,
+                    &v1x,
+                    ld,
+                    self.config.n_squarings,
+                    &mut p1z,
+                    &mut p1y,
+                    &mut p1x,
+                    &mut scratch_ss_z,
+                    &mut scratch_ss_y,
+                    &mut scratch_ss_x,
+                );
+                scaling_and_squaring_into(
+                    &v2z,
+                    &v2y,
+                    &v2x,
+                    ld,
+                    self.config.n_squarings,
+                    &mut p2z,
+                    &mut p2y,
+                    &mut p2x,
+                    &mut scratch_ss_z,
+                    &mut scratch_ss_y,
+                    &mut scratch_ss_x,
+                );
+                warp_image_into(&f_ds, ld, &p1z, &p1y, &p1x, &mut i_w_buf);
+                warp_image_into(&m_ds, ld, &p2z, &p2y, &p2x, &mut j_w_buf);
+                compute_gradient_into(&i_w_buf, ld, ls, &mut giz, &mut giy, &mut gix);
+                compute_gradient_into(&j_w_buf, ld, ls, &mut gjz, &mut gjy, &mut gjx);
                 cc_forces_into(
-                    &i_w, &j_w, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x,
+                    &i_w_buf, &j_w_buf, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x,
                 );
                 cc_forces_into(
-                    &j_w, &i_w, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x,
+                    &j_w_buf, &i_w_buf, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x,
                 );
 
-                let max_u1 = u1z
-                    .iter()
-                    .chain(u1y.iter())
-                    .chain(u1x.iter())
-                    .map(|&v| (v as f64).abs())
-                    .fold(0.0_f64, f64::max);
-                if max_u1 > 1e-10 {
-                    let s = (self.config.gradient_step / max_u1) as f32;
-                    u1z.iter_mut().for_each(|v| *v *= s);
-                    u1y.iter_mut().for_each(|v| *v *= s);
-                    u1x.iter_mut().for_each(|v| *v *= s);
-                }
-                let max_u2 = u2z
-                    .iter()
-                    .chain(u2y.iter())
-                    .chain(u2x.iter())
-                    .map(|&v| (v as f64).abs())
-                    .fold(0.0_f64, f64::max);
-                if max_u2 > 1e-10 {
-                    let s = (self.config.gradient_step / max_u2) as f32;
-                    u2z.iter_mut().for_each(|v| *v *= s);
-                    u2y.iter_mut().for_each(|v| *v *= s);
-                    u2x.iter_mut().for_each(|v| *v *= s);
-                }
+                normalize_forces_into(
+                    &mut u1z,
+                    &mut u1y,
+                    &mut u1x,
+                    &mut u2z,
+                    &mut u2y,
+                    &mut u2x,
+                    self.config.gradient_step,
+                );
 
                 for i in 0..ln {
                     v1z[i] += u1z[i];
@@ -263,14 +306,22 @@ impl MultiResSyNRegistration {
                     v2x[i] += u2x[i];
                 }
                 if self.config.sigma_smooth > 0.0 {
-                    gaussian_smooth_inplace(&mut v1z, ld, self.config.sigma_smooth);
-                    gaussian_smooth_inplace(&mut v1y, ld, self.config.sigma_smooth);
-                    gaussian_smooth_inplace(&mut v1x, ld, self.config.sigma_smooth);
-                    gaussian_smooth_inplace(&mut v2z, ld, self.config.sigma_smooth);
-                    gaussian_smooth_inplace(&mut v2y, ld, self.config.sigma_smooth);
-                    gaussian_smooth_inplace(&mut v2x, ld, self.config.sigma_smooth);
+                    gaussian_smooth_field_inplace(
+                        &mut v1z,
+                        &mut v1y,
+                        &mut v1x,
+                        ld,
+                        self.config.sigma_smooth,
+                    );
+                    gaussian_smooth_field_inplace(
+                        &mut v2z,
+                        &mut v2y,
+                        &mut v2x,
+                        ld,
+                        self.config.sigma_smooth,
+                    );
                 }
-                if self.config.enforce_inverse_consistency {
+                if self.config.enforce_inverse_consistency == InverseConsistency::Enforced {
                     compose_fields_into(
                         VectorField3D {
                             z: &v1z,
@@ -316,7 +367,7 @@ impl MultiResSyNRegistration {
                         v2x[i] = (v2x[i] - c2x[i]) * 0.5;
                     }
                 }
-                final_cc = mean_local_cc(&i_w, &j_w, ld, r);
+                final_cc = mean_local_cc(&i_w_buf, &j_w_buf, ld, r);
                 cc_hist.push_back(final_cc);
                 if cc_hist.len() > self.config.convergence_window {
                     cc_hist.pop_front();
@@ -330,18 +381,25 @@ impl MultiResSyNRegistration {
                     }
                 }
             }
-            prev = Some((v1z, v1y, v1x, v2z, v2y, v2x, ld));
+            prev = Some(PrevLevelState {
+                forward: VelocityField::new(v1z, v1y, v1x),
+                inverse: VelocityField::new(v2z, v2y, v2x),
+                dims: ld,
+            });
         }
 
-        let (v1z, v1y, v1x, v2z, v2y, v2x, _) =
-            prev.expect("at least one resolution level must succeed in multires SyN");
-        let (p1z, p1y, p1x) = scaling_and_squaring(&v1z, &v1y, &v1x, dims, self.config.n_squarings);
-        let (p2z, p2y, p2x) = scaling_and_squaring(&v2z, &v2y, &v2x, dims, self.config.n_squarings);
+        let PrevLevelState {
+            forward: fwd,
+            inverse: inv,
+            ..
+        } = prev.expect("at least one resolution level must succeed in multires SyN");
+        let p1 = scaling_and_squaring(&fwd.z, &fwd.y, &fwd.x, dims, self.config.n_squarings);
+        let p2 = scaling_and_squaring(&inv.z, &inv.y, &inv.x, dims, self.config.n_squarings);
         Ok(SyNResult {
-            forward_field: (v1z, v1y, v1x),
-            inverse_field: (v2z, v2y, v2x),
-            warped_fixed: warp_image(fixed, dims, &p1z, &p1y, &p1x),
-            warped_moving: warp_image(moving, dims, &p2z, &p2y, &p2x),
+            forward_field: fwd,
+            inverse_field: inv,
+            warped_fixed: warp_image(fixed, dims, &p1.z, &p1.y, &p1.x),
+            warped_moving: warp_image(moving, dims, &p2.z, &p2.y, &p2.x),
             final_cc,
             num_iterations: total_iter,
         })

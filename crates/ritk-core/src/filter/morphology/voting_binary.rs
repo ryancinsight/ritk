@@ -170,7 +170,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// All-background image with birth_threshold=1 and high survival_threshold=0:

@@ -1,9 +1,11 @@
 pub mod core;
 pub mod grid;
 pub mod resample;
+pub mod static_;
 pub mod transform;
 
-pub use core::{DisplacementField, DisplacementField2D, DisplacementField3D};
-pub use transform::{
-    DisplacementFieldTransform, DisplacementFieldTransform2D, DisplacementFieldTransform3D,
+pub use core::DisplacementField;
+pub use static_::field::{
+    StaticDisplacementField, StaticDisplacementFieldTransform,
 };
+pub use transform::DisplacementFieldTransform;

@@ -16,6 +16,16 @@ impl HistoryCallback {
         }
     }
 
+    /// Create a new history callback with a pre-allocated capacity.
+    ///
+    /// Use this when the total number of iterations is known upfront
+    /// to avoid repeated re-allocations during the optimization loop.
+    pub fn with_capacity(total_iterations: usize) -> Self {
+        Self {
+            history: Arc::new(Mutex::new(Vec::with_capacity(total_iterations))),
+        }
+    }
+
     /// Get the recorded history.
     pub fn get_history(&self) -> Vec<ProgressInfo> {
         self.history

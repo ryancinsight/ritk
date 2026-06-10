@@ -29,10 +29,10 @@ pub use arithmetic::{
     AbsImageFilter, ExpImageFilter, InvertIntensityFilter, LogImageFilter, NormalizeImageFilter,
     SqrtImageFilter, SquareImageFilter,
 };
-pub use bed_separation::{BedSeparationConfig, BedSeparationFilter};
+pub use bed_separation::{BedSeparationConfig, BedSeparationFilter, ComponentPolicy};
 pub use binary_ops::{
-    AddImageFilter, DivideImageFilter, ImageMaxFilter, ImageMinFilter, MultiplyImageFilter,
-    SubtractImageFilter,
+    AddImageFilter, AddOp, BinaryOp, BinaryOpFilter, DivideImageFilter, DivideOp, ImageMaxFilter,
+    ImageMinFilter, MaxOp, MinOp, MultiplyImageFilter, MultiplyOp, SubtractImageFilter, SubtractOp,
 };
 pub use binary_threshold::BinaryThresholdImageFilter;
 pub use blend::BlendImageFilter;
@@ -43,7 +43,7 @@ pub use mask::{MaskImageFilter, MaskNegatedImageFilter};
 pub use rescale::RescaleIntensityFilter;
 pub use sigmoid::SigmoidImageFilter;
 pub use threshold::{ThresholdImageFilter, ThresholdMode};
-pub use unsharp_mask::UnsharpMaskFilter;
+pub use unsharp_mask::{ClampPolicy, UnsharpMaskFilter};
 pub use windowing::IntensityWindowingFilter;
 
 pub mod shift_scale;

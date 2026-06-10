@@ -222,15 +222,15 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2]).apply(&study.image),
             FilterKind::Mean { radius } => MeanImageFilter::new(*radius).apply(&study.image),
             FilterKind::BinaryContour {
-                fully_connected,
+                connectivity,
                 foreground_value,
-            } => BinaryContourImageFilter::new(*fully_connected, *foreground_value)
-                .apply(&study.image),
+            } => {
+                BinaryContourImageFilter::new(*connectivity, *foreground_value).apply(&study.image)
+            }
             FilterKind::LabelContour {
-                fully_connected,
+                connectivity,
                 background_value,
-            } => LabelContourImageFilter::new(*fully_connected, *background_value)
-                .apply(&study.image),
+            } => LabelContourImageFilter::new(*connectivity, *background_value).apply(&study.image),
             FilterKind::VotingBinary {
                 radius,
                 birth_threshold,

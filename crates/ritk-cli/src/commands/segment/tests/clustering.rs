@@ -44,7 +44,7 @@ fn test_segment_kmeans_creates_output_with_valid_labels() {
     assert!(output.exists(), "kmeans output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(labels.shape(), [6, 6, 6]);
-    let vals = labels.data_vec();
+    let vals: Vec<f32> = labels.data_slice().into_owned();
     for &v in &vals {
         assert!(
             (0.0..3.0 + 0.5).contains(&v),
@@ -105,7 +105,7 @@ fn test_segment_kmeans_seed_produces_deterministic_output() {
     run(make_args(inp2, out2.clone())).unwrap();
     let read_vals = |p: &std::path::Path| -> Vec<f32> {
         let im: Image<Backend, 3> = ritk_io::read_nifti(p, &Default::default()).unwrap();
-        im.data_vec()
+        im.data_slice().into_owned()
     };
     assert_eq!(
         read_vals(&out1),

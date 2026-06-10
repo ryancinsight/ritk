@@ -14,6 +14,7 @@
 //!
 //! `itk::BlendImageFilter`
 
+use crate::annotation::overlay::Opacity;
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -28,24 +29,28 @@ use burn::tensor::backend::Backend;
 /// # ITK Parity: `BlendImageFilter`
 #[derive(Debug, Clone)]
 pub struct BlendImageFilter {
-    pub alpha: f32,
+    pub alpha: Opacity,
 }
 
 impl Default for BlendImageFilter {
     fn default() -> Self {
-        Self { alpha: 0.5 }
+        Self {
+            alpha: Opacity::new(0.5),
+        }
     }
 }
 
 impl BlendImageFilter {
     /// Create a new blend filter with the given alpha [0.0, 1.0].
     pub fn new(alpha: f32) -> Self {
-        Self { alpha }
+        Self {
+            alpha: Opacity::new(alpha),
+        }
     }
 
     /// Set the alpha blending weight.
     pub fn with_alpha(mut self, alpha: f32) -> Self {
-        self.alpha = alpha;
+        self.alpha = Opacity::new(alpha);
         self
     }
 
@@ -66,7 +71,7 @@ impl BlendImageFilter {
         let (bv_vec, _) = extract_vec_infallible(b);
         let bv = &bv_vec;
 
-        let alpha = self.alpha.clamp(0.0, 1.0);
+        let alpha = self.alpha.get();
         let one_minus_alpha = 1.0 - alpha;
 
         let out: Vec<f32> = av
@@ -101,7 +106,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     #[test]

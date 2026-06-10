@@ -16,7 +16,7 @@ use std::marker::PhantomData;
 pub(super) struct GradientNormVisitor<'a, B: AutodiffBackend> {
     pub(super) grads: &'a GradientsParams,
     pub(super) norm_sq: f64,
-    pub(super) _phantom: PhantomData<B>,
+    pub(super) _phantom: PhantomData<fn() -> B>,
 }
 
 impl<'a, B: AutodiffBackend> GradientNormVisitor<'a, B> {

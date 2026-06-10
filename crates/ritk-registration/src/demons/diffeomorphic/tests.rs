@@ -134,8 +134,8 @@ fn zero_velocity_zero_displacement() {
     let n = 4 * 4 * 4;
     let image = make_test_image(dims);
     let zero = vec![0.0_f32; n];
-    let (phi_z, phi_y, phi_x) = scaling_and_squaring(&zero, &zero, &zero, dims, 6);
-    let mse = compute_mse_streaming(&image, &image, dims, &phi_z, &phi_y, &phi_x);
+    let phi = scaling_and_squaring(&zero, &zero, &zero, dims, 6);
+    let mse = compute_mse_streaming(&image, &image, dims, &phi.z, &phi.y, &phi.x);
     assert!(mse < 1e-10, "zero velocity should give zero MSE, got {mse}");
 }
 
@@ -192,11 +192,11 @@ fn exact_inverse_composes_to_near_identity() {
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
         .unwrap();
-    let (inv_z, inv_y, inv_x) = reg.invert_result(&result, dims);
-    let (comp_z, comp_y, comp_x) = compose_fields(
-        &inv_z,
-        &inv_y,
-        &inv_x,
+    let inv = reg.invert_result(&result, dims);
+    let comp = compose_fields(
+        &inv.z,
+        &inv.y,
+        &inv.x,
         &result.disp_z,
         &result.disp_y,
         &result.disp_x,
@@ -208,7 +208,7 @@ fn exact_inverse_composes_to_near_identity() {
     let mut mean_err = 0.0_f64;
 
     for i in 0..n {
-        let err = (comp_z[i] * comp_z[i] + comp_y[i] * comp_y[i] + comp_x[i] * comp_x[i]).sqrt();
+        let err = (comp.z[i] * comp.z[i] + comp.y[i] * comp.y[i] + comp.x[i] * comp.x[i]).sqrt();
         max_err = max_err.max(err);
         mean_err += err as f64;
     }
@@ -242,7 +242,7 @@ fn invert_result_matches_negated_velocity_exponential() {
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
         .unwrap();
-    let (inv_z, inv_y, inv_x) = reg.invert_result(&result, dims);
+    let inv = reg.invert_result(&result, dims);
 
     let vel_z = result.vel_z.as_ref().expect("vel_z must be present");
     let vel_y = result.vel_y.as_ref().expect("vel_y must be present");
@@ -252,27 +252,26 @@ fn invert_result_matches_negated_velocity_exponential() {
     let neg_vel_y: Vec<f32> = vel_y.iter().map(|&v| -v).collect();
     let neg_vel_x: Vec<f32> = vel_x.iter().map(|&v| -v).collect();
 
-    let (expected_z, expected_y, expected_x) =
-        scaling_and_squaring(&neg_vel_z, &neg_vel_y, &neg_vel_x, dims, reg.n_squarings);
+    let expected = scaling_and_squaring(&neg_vel_z, &neg_vel_y, &neg_vel_x, dims, reg.n_squarings);
 
-    for i in 0..expected_z.len() {
+    for i in 0..expected.z.len() {
         assert!(
-            (inv_z[i] - expected_z[i]).abs() < 1e-5,
+            (inv.z[i] - expected.z[i]).abs() < 1e-5,
             "inv_z[{i}] mismatch: got {}, expected {}",
-            inv_z[i],
-            expected_z[i]
+            inv.z[i],
+            expected.z[i]
         );
         assert!(
-            (inv_y[i] - expected_y[i]).abs() < 1e-5,
+            (inv.y[i] - expected.y[i]).abs() < 1e-5,
             "inv_y[{i}] mismatch: got {}, expected {}",
-            inv_y[i],
-            expected_y[i]
+            inv.y[i],
+            expected.y[i]
         );
         assert!(
-            (inv_x[i] - expected_x[i]).abs() < 1e-5,
+            (inv.x[i] - expected.x[i]).abs() < 1e-5,
             "inv_x[{i}] mismatch: got {}, expected {}",
-            inv_x[i],
-            expected_x[i]
+            inv.x[i],
+            expected.x[i]
         );
     }
 }

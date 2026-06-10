@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::Connectivity;
 
 /// Second portion of the ComboBox selectable_value entries (FlipZ
 /// through ConstantPad).
@@ -135,7 +136,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::BinaryContour {
-                fully_connected: false,
+                connectivity: Connectivity::Face6,
                 foreground_value: 1.0,
             },
             "Binary Contour",
@@ -143,7 +144,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::BinaryContour {
-            fully_connected: false,
+            connectivity: Connectivity::Face6,
             foreground_value: 1.0,
         };
     }
@@ -151,7 +152,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::LabelContour {
-                fully_connected: false,
+                connectivity: Connectivity::Face6,
                 background_value: 0.0,
             },
             "Label Contour",
@@ -159,7 +160,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::LabelContour {
-            fully_connected: false,
+            connectivity: Connectivity::Face6,
             background_value: 0.0,
         };
     }

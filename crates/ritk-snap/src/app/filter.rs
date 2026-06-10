@@ -234,18 +234,18 @@ impl SnapApp {
                     ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
                 }
                 crate::FilterKind::BinaryContour {
-                    fully_connected,
+                    connectivity,
                     foreground_value,
                 } => ritk_core::filter::BinaryContourImageFilter::new(
-                    *fully_connected,
+                    *connectivity,
                     *foreground_value,
                 )
                 .apply(&image),
                 crate::FilterKind::LabelContour {
-                    fully_connected,
+                    connectivity,
                     background_value,
                 } => ritk_core::filter::LabelContourImageFilter::new(
-                    *fully_connected,
+                    *connectivity,
                     *background_value,
                 )
                 .apply(&image),

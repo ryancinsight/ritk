@@ -1,5 +1,6 @@
 use burn::tensor::{Distribution, Tensor};
 use burn_ndarray::NdArray;
+use ritk_model::transmorph::config::TransformIntegration;
 use ritk_model::transmorph::{TransMorph, TransMorphConfig};
 
 type Backend = NdArray<f32>;
@@ -14,7 +15,7 @@ fn test_transmorph_forward() {
         embed_dim: 12, // Small dim
         out_channels: 3,
         window_size: 4,
-        integrate: false,
+        integration: TransformIntegration::Direct,
         integration_steps: 7,
     };
 

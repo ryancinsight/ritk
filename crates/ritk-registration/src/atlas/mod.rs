@@ -29,7 +29,9 @@
 
 pub mod label_fusion;
 
-use crate::deformable_field_ops::{gaussian_smooth_inplace, scaling_and_squaring, warp_image};
+use crate::deformable_field_ops::{
+    gaussian_smooth_field_inplace, scaling_and_squaring, warp_image, VelocityField,
+};
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 use crate::error::RegistrationError;
 
@@ -58,10 +60,10 @@ pub struct AtlasConfig {
 /// Per-subject registration result retained from the final atlas iteration.
 #[derive(Debug, Clone)]
 pub struct SubjectResult {
-    /// Forward velocity field (vz, vy, vx) — template → midpoint.
-    pub forward_field: (Vec<f32>, Vec<f32>, Vec<f32>),
-    /// Inverse velocity field (vz, vy, vx) — subject → midpoint.
-    pub inverse_field: (Vec<f32>, Vec<f32>, Vec<f32>),
+    /// Forward velocity field (z, y, x) — template → midpoint.
+    pub forward_field: VelocityField,
+    /// Inverse velocity field (z, y, x) — subject → midpoint.
+    pub inverse_field: VelocityField,
     /// Final local CC value for this subject's registration.
     pub final_cc: f64,
 }
@@ -165,7 +167,8 @@ impl AtlasRegistration {
 
         let syn = MultiResSyNRegistration::new(self.config.syn_config.clone());
         let mut convergence_history = Vec::with_capacity(self.config.max_iterations);
-        let mut subject_results: Vec<SubjectResult> = Vec::new();
+        // Capacity: one result per atlas subject
+        let mut subject_results: Vec<SubjectResult> = Vec::with_capacity(n_subjects);
 
         // ── Step 2: Iterative refinement ──────────────────────────────────
         for k in 0..self.config.max_iterations {
@@ -193,9 +196,9 @@ impl AtlasRegistration {
             let mut mean_vx = vec![0.0f32; n_voxels];
             for res in &syn_results {
                 for i in 0..n_voxels {
-                    mean_vz[i] += res.forward_field.0[i];
-                    mean_vy[i] += res.forward_field.1[i];
-                    mean_vx[i] += res.forward_field.2[i];
+                    mean_vz[i] += res.forward_field.z[i];
+                    mean_vy[i] += res.forward_field.y[i];
+                    mean_vx[i] += res.forward_field.x[i];
                 }
             }
             for i in 0..n_voxels {
@@ -216,19 +219,23 @@ impl AtlasRegistration {
                 *v = -*v;
             }
             //     Smooth the negated velocity for diffeomorphism regularity.
-            gaussian_smooth_inplace(&mut mean_vz, dims, self.config.syn_config.sigma_smooth);
-            gaussian_smooth_inplace(&mut mean_vy, dims, self.config.syn_config.sigma_smooth);
-            gaussian_smooth_inplace(&mut mean_vx, dims, self.config.syn_config.sigma_smooth);
+            gaussian_smooth_field_inplace(
+                &mut mean_vz,
+                &mut mean_vy,
+                &mut mean_vx,
+                dims,
+                self.config.syn_config.sigma_smooth,
+            );
             //     Exponentiate via scaling-and-squaring → displacement field.
-            let (dz, dy, dx) = scaling_and_squaring(
+            let phi = scaling_and_squaring(
                 &mean_vz,
                 &mean_vy,
                 &mean_vx,
                 dims,
                 self.config.syn_config.n_squarings,
             );
-            //     Apply sharpening warp.
-            let sharpened = warp_image(&new_template, dims, &dz, &dy, &dx);
+            // Apply sharpening warp.
+            let sharpened = warp_image(&new_template, dims, &phi.z, &phi.y, &phi.x);
 
             // 2e. Convergence: RMS(T^k − T^{k−1}).
             let rms = {

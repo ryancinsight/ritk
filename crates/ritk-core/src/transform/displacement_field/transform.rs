@@ -61,5 +61,5 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for DisplacementFieldTransfo
     }
 }
 
-pub type DisplacementFieldTransform2D<B> = DisplacementFieldTransform<B, 2>;
-pub type DisplacementFieldTransform3D<B> = DisplacementFieldTransform<B, 3>;
+// Dimension-specific convenience aliases removed.
+// Use `DisplacementFieldTransform<B, 2>` or `DisplacementFieldTransform<B, 3>` directly.

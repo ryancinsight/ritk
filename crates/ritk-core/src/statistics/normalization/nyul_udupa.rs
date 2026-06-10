@@ -82,14 +82,6 @@ fn compute_percentile(sorted: &[f32], p: f64) -> f32 {
     sorted[lo] + frac * (sorted[hi] - sorted[lo])
 }
 
-// ── Sort Helper ───────────────────────────────────────────────────────────────
-
-/// Sort a mutable slice of f32, treating NaN as greater than all finite values.
-#[inline]
-fn sort_f32(values: &mut [f32]) {
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-}
-
 // ── Piecewise-Linear Mapping ──────────────────────────────────────────────────
 
 /// Apply piecewise-linear mapping from `source_landmarks` to `target_landmarks`.
@@ -216,7 +208,7 @@ impl NyulUdupaNormalizer {
         for image in images {
             let (values_vec, _) = extract_vec_infallible(*image);
             let mut values = values_vec;
-            sort_f32(&mut values);
+            crate::statistics::sort_floats(&mut values);
 
             for (j, &p) in self.percentiles.iter().enumerate() {
                 sum_landmarks[j] += compute_percentile(&values, p) as f64;
@@ -257,7 +249,7 @@ impl NyulUdupaNormalizer {
         // ── 1. Extract and sort voxel intensities ─────────────────────────────
         let (img_slice, dims) = extract_vec_infallible(image);
         let mut sorted: Vec<f32> = img_slice.clone();
-        sort_f32(&mut sorted);
+        crate::statistics::sort_floats(&mut sorted);
 
         // ── 2. Compute input image landmarks ──────────────────────────────────
         let source_landmarks: Vec<f32> = self

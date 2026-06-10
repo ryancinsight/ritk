@@ -1,40 +1,74 @@
-//! Exact mathematical state definitions bounding CMA-ES configurations and convergence stops natively.
+//! CMA-ES algorithm state types: configuration, result, and convergence reasons.
 
-/// Exact convergence Stop Reason definitions tracking mathematical iteration faults strictly.
+/// Population evaluation strategy for CMA-ES.
+///
+/// Replaces the former `parallel_population: bool` field, eliminating boolean
+/// blindness at call sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PopulationEval {
+    /// Evaluate candidates sequentially in the current thread.
+    #[default]
+    Sequential,
+    /// Evaluate candidates in parallel across rayon threads.
+    /// The objective function `f` must be `Sync`.
+    Parallel,
+}
+
+/// Per-generation history recording policy for CMA-ES.
+///
+/// Replaces the former `record_history: bool` field, eliminating boolean
+/// blindness at call sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HistoryPolicy {
+    /// Do not record per-generation best-f values.
+    #[default]
+    Discard,
+    /// Record the best function value at each generation in `CmaEsResult::best_history`.
+    Record,
+}
+
+/// Reason the CMA-ES run terminated.
 #[derive(Debug, Clone, PartialEq)]
 pub enum StopReason {
-    /// Step-size fell strictly below the exact scalar tolerance threshold natively.
+    /// Step-size σ fell below `CmaEsConfig::sigma_tol`.
     StepSizeTooSmall,
-    /// Exact generic hardbound iteration limit exceeded natively.
+    /// Generation count reached `CmaEsConfig::max_generations`.
     MaxGenerations,
-    /// Absolute numerical instability condition bounding convergence limits.
+    /// Cholesky condition number estimate exceeded 10¹⁴ (numerical ill-conditioning).
     ConditionTooLarge,
-    /// Best target function scalar natively superseded explicitly.
+    /// Best function value fell below `CmaEsConfig::ftol`.
     FunctionTolerance,
 }
 
-/// Rigid algorithmic bounds describing explicitly typed setup configurations for the solver.
+/// Configuration for a single CMA-ES run.
 #[derive(Debug, Clone)]
 pub struct CmaEsConfig {
-    /// Exact geometric boundary scale matching initial covariance generation step limits securely.
+    /// Initial global step-size σ₀. Calibrate to the expected search distance
+    /// (e.g., 0.3 for normalised parameters).
     pub sigma0: f64,
-    /// Exact population size per loop explicitly mapped securely. (0 sets native log math).
+    /// Population size λ (offspring per generation).
+    /// 0 = use the default formula λ = 4 + ⌊3 ln n⌋.
     pub lambda: usize,
-    /// Upper analytical cutoff iterations.
+    /// Maximum number of generations before the run is declared converged by
+    /// iteration limit.
     pub max_generations: usize,
-    /// Bottom step constraint.
+    /// Stop when the step-size σ falls below this threshold (convergence by
+    /// step-size shrinkage).
     pub sigma_tol: f64,
-    /// Minimal function tolerance difference strictly.
+    /// Stop when the best function value falls below this threshold (solution
+    /// quality gate).
     pub ftol: f64,
-    /// Deterministic explicitly injected seed.
+    /// LCG seed for the Box-Muller random normal generator. Different seeds
+    /// give independent runs.
     pub seed: u64,
     /// Whether to evaluate the population in parallel using rayon.
-    /// When `true`, the λ candidates per generation are evaluated concurrently
-    /// across CPU cores. The objective function `f` must be `Sync`.
-    /// Default: `false` (sequential evaluation, backward-compatible).
-    pub parallel_population: bool,
-    /// Deterministic vector flag.
-    pub record_history: bool,
+    /// When [`PopulationEval::Parallel`], the λ candidates per generation are
+    /// evaluated concurrently across CPU cores. The objective function `f`
+    /// must be `Sync`.
+    /// Default: [`PopulationEval::Sequential`] (backward-compatible).
+    pub parallel_population: PopulationEval,
+    /// Per-generation best-f recording policy.
+    pub record_history: HistoryPolicy,
 }
 
 impl Default for CmaEsConfig {
@@ -46,29 +80,30 @@ impl Default for CmaEsConfig {
             sigma_tol: 1e-12,
             ftol: 1e-15,
             seed: 0xcafe_babe_dead_beef,
-            parallel_population: false,
-            record_history: false,
+            parallel_population: PopulationEval::default(),
+            record_history: HistoryPolicy::default(),
         }
     }
 }
 
-/// Bounded struct validating strictly defined optimization returns exactly natively via fields.
+/// Result of a single CMA-ES run.
 #[derive(Debug, Clone)]
 pub struct CmaEsResult {
-    /// Explicit target output geometric points tracking exactly mapping minima limits securely.
+    /// Parameter vector achieving the lowest observed function value.
     pub best_x: Vec<f64>,
-    /// Precise objective function scalar mapping best vector minima natively.
+    /// Lowest observed function value f(best_x).
     pub best_f: f64,
-    /// Overall generation loop count rigorously natively bound securely.
+    /// Number of generations completed before termination.
     pub generations: usize,
-    /// Terminating structural fault or bounds matched securely natively.
+    /// Condition that triggered termination.
     pub stop_reason: StopReason,
-    /// Validated injection PRNG sequence hash securely matching reproducibility explicitly.
+    /// LCG seed actually used (equals `CmaEsConfig::seed`).
     pub seed_used: u64,
-    /// Exiting standard deviation step constraint tracking the final boundary length natively.
+    /// Step-size σ at termination.
     pub final_sigma: f64,
-    /// The ending conditioning limits bound native Cholesky conditioning faults exactly.
+    /// Cholesky-diagonal condition estimate (max dᵢ / min dᵢ)² at termination.
     pub condition_estimate: f64,
-    /// Iteration logging exactly native to generation loops selectively securely.
+    /// Per-generation best function values, populated when
+    /// `CmaEsConfig::record_history` is true.
     pub best_history: Option<Vec<f64>>,
 }

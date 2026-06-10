@@ -23,7 +23,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 }
 
 fn extract_vals(img: Image<B, 3>) -> Vec<f32> {
-    img.data_vec()
+    img.data_slice().into_owned()
 }
 
 /// Coefficient of variation (σ/μ) for a subset of voxels identified by indices.

@@ -40,7 +40,6 @@
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
-use std::sync::Arc;
 
 /// Mean (box) smoothing filter.
 ///
@@ -81,15 +80,13 @@ impl MeanImageFilter {
             return Ok(image.clone());
         }
 
-        let vals: Arc<Vec<f32>> = Arc::new(vals_vec);
+        let vals: &[f32] = &vals_vec;
 
         let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz, |iz| {
-            let vals = Arc::clone(&vals);
             let z0 = iz.saturating_sub(r);
             let z1 = (iz + r).min(nz - 1);
             (0..ny)
                 .flat_map(move |iy| {
-                    let vals = Arc::clone(&vals);
                     let y0 = iy.saturating_sub(r);
                     let y1 = (iy + r).min(ny - 1);
                     (0..nx).map(move |ix| {

@@ -15,6 +15,7 @@
 mod compose;
 mod gradient;
 mod integrate;
+mod normalize;
 mod smooth;
 mod warp;
 
@@ -25,7 +26,11 @@ pub(crate) use compose::compose_fields;
 pub(crate) use compose::compose_fields_into;
 pub(crate) use gradient::{compute_gradient, compute_gradient_into};
 pub(crate) use integrate::{scaling_and_squaring, scaling_and_squaring_into};
-pub(crate) use smooth::{gaussian_smooth_inplace, gaussian_smooth_with_scratch};
+pub(crate) use normalize::normalize_forces_into;
+pub(crate) use smooth::{
+    gaussian_smooth_field_inplace, gaussian_smooth_field_inplace_with_scratch,
+    gaussian_smooth_inplace, gaussian_smooth_with_scratch,
+};
 pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 
 // ── 3D vector field grouping structs ─────────────────────────────────────────
@@ -53,6 +58,52 @@ pub(crate) struct VectorFieldMut3D<'a> {
     pub y: &'a mut [f32],
     /// X-component.
     pub x: &'a mut [f32],
+}
+
+/// Owned 3-D velocity or displacement field: three flat `Vec<f32>` component buffers.
+///
+/// Component ordering is `(z, y, x)` matching the Z-major memory layout used
+/// throughout `deformable_field_ops`. Named fields eliminate positional ambiguity
+/// over the `.0`/`.1`/`.2` tuple access pattern.
+#[derive(Debug, Clone)]
+pub struct VelocityField {
+    /// Z-component buffer (flat, Z-major order).
+    pub z: Vec<f32>,
+    /// Y-component buffer.
+    pub y: Vec<f32>,
+    /// X-component buffer.
+    pub x: Vec<f32>,
+}
+
+impl VelocityField {
+    /// Construct from separate component buffers.
+    pub fn new(z: Vec<f32>, y: Vec<f32>, x: Vec<f32>) -> Self {
+        Self { z, y, x }
+    }
+
+    /// Zero-initialize all three components with `n` elements each.
+    pub fn zeros(n: usize) -> Self {
+        Self {
+            z: vec![0.0_f32; n],
+            y: vec![0.0_f32; n],
+            x: vec![0.0_f32; n],
+        }
+    }
+
+    /// Total number of voxels (length of each component buffer).
+    ///
+    /// # Panics
+    /// Panics (debug only) if the three component buffers have different lengths.
+    pub fn len(&self) -> usize {
+        debug_assert_eq!(self.z.len(), self.y.len());
+        debug_assert_eq!(self.y.len(), self.x.len());
+        self.z.len()
+    }
+
+    /// Returns `true` if all component buffers are empty.
+    pub fn is_empty(&self) -> bool {
+        self.z.is_empty()
+    }
 }
 
 // ── Indexing ──────────────────────────────────────────────────────────────────

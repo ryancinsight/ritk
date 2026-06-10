@@ -78,7 +78,7 @@ fn unsharp_mask_defaults_in_range() {
         sigma: 1.0,
         amount: 0.5,
         threshold: 0.0,
-        clamp: true,
+        clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
     };
     if let FilterKind::UnsharpMask {
         sigma,
@@ -99,7 +99,10 @@ fn unsharp_mask_defaults_in_range() {
             (0.0..=100.0).contains(&threshold),
             "default threshold {threshold} out of range [0.0, 100.0]"
         );
-        assert!(clamp, "default clamp should be true");
+        assert!(
+            matches!(clamp, ritk_core::filter::ClampPolicy::ClampToInputRange),
+            "default clamp should be ClampToInputRange"
+        );
     } else {
         panic!("expected UnsharpMask variant");
     }

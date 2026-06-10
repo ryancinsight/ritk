@@ -21,8 +21,9 @@ pub use engine::{ImageRegistration, RegistrationResult};
 pub use error::{RegistrationError, Result};
 pub use global_mi::{
     compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiLevelConfig,
-    CmaMiRegistration, CmaMiResult, GlobalMiConfig, GlobalMiRegistration, GlobalMiResult,
-    GlobalMiTransformType, MultiStartConfig, MultiStartMiRegistration, MultiStartResult,
+    CmaMiRegistration, CmaMiResult, ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration,
+    GlobalMiResult, GlobalMiTransformType, InitStrategy, MultiStartConfig,
+    MultiStartMiRegistration, MultiStartResult,
 };
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;

@@ -1,28 +1,13 @@
 use crate::transform::bspline::BSplineTransform;
+use crate::wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     pub(crate) fn transform_4d(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        let batch_size = points.shape().dims[0];
-        const CHUNK_SIZE: usize = 16384; // Smaller chunk for 4D
-
-        if batch_size <= CHUNK_SIZE {
-            self.transform_4d_chunk(points)
-        } else {
-            let num_chunks = batch_size.div_ceil(CHUNK_SIZE);
-            let mut chunks = Vec::with_capacity(num_chunks);
-
-            for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
-                let chunk_range = start..end;
-                let chunk_points = points.clone().slice([chunk_range]);
-                let chunk_result = self.transform_4d_chunk(chunk_points);
-                chunks.push(chunk_result);
-            }
-            Tensor::cat(chunks, 0)
-        }
+        apply_row_chunks(points, crate::wgpu_compat::WGPU_CHUNK_SIZE_4D, |chunk| {
+            self.transform_4d_chunk(chunk)
+        })
     }
 
     pub(crate) fn transform_4d_chunk(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {

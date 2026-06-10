@@ -86,8 +86,8 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
 
     let ct_shape = ct_img.shape(); // [29, 512, 512]
     let mri_shape = mri_img.shape(); // [26, 256, 256]
-    let ct_data = ct_img.data_vec();
-    let mri_data = mri_img.data_vec();
+    let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
+    let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
 
     // ── Downsample CT with stride=4 ────────────────────────────────────────
     let stride = 4_usize;
@@ -225,8 +225,8 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
 
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();
-    let ct_data = ct_img.data_vec();
-    let mri_data = mri_img.data_vec();
+    let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
+    let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
 
     // ── Downsample CT with stride=4 ────────────────────────────────────────
     let stride = 4_usize;

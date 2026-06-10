@@ -27,6 +27,16 @@ pub enum InterpolationMode {
     Linear,
 }
 
+/// Whether grid coordinates align to pixel corners or pixel centers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CornerAlignment {
+    /// Coordinates map ±1 to pixel centers; pixels are spaced `2/size`.
+    GridCenter,
+    /// Coordinates map ±1 to corner pixels; pixels are spaced `2/(size-1)`.
+    #[default]
+    GridCorner,
+}
+
 /// Configuration for grid sampling operations
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GridSamplerConfig {
@@ -34,8 +44,8 @@ pub struct GridSamplerConfig {
     pub padding_mode: GridPaddingMode,
     /// Interpolation mode
     pub interpolation: InterpolationMode,
-    /// Align corners (true: -1/1 align to corners, false: to pixel centers)
-    pub align_corners: bool,
+    /// Corner alignment for coordinate denormalization
+    pub corner_alignment: CornerAlignment,
 }
 
 impl Default for GridSamplerConfig {
@@ -43,7 +53,7 @@ impl Default for GridSamplerConfig {
         Self {
             padding_mode: GridPaddingMode::Border,
             interpolation: InterpolationMode::Linear,
-            align_corners: true,
+            corner_alignment: CornerAlignment::GridCorner,
         }
     }
 }
@@ -209,7 +219,7 @@ impl<B: Backend> GridSampler<B> {
             .slice([0..batch, 0..d_out, 0..h_out, 0..w_out, 2..3])
             .reshape([batch, d_out, h_out, w_out]);
 
-        if self.config.align_corners {
+        if self.config.corner_alignment == CornerAlignment::GridCorner {
             let ix = (x + 1.0) * ((w_in - 1) as f32) / 2.0;
             let iy = (y + 1.0) * ((h_in - 1) as f32) / 2.0;
             let iz = (z + 1.0) * ((d_in - 1) as f32) / 2.0;
@@ -254,7 +264,7 @@ impl<B: Backend> GridSampler<B> {
 
 /// Flow field composer for displacement field operations
 pub struct FlowComposer<B: Backend> {
-    _phantom: std::marker::PhantomData<B>,
+    _phantom: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> FlowComposer<B> {

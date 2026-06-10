@@ -14,6 +14,13 @@ use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
+/// Discriminates erosion from dilation in the shared morphological scan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum MorphOp {
+    Erosion,
+    Dilation,
+}
+
 /// Binary morphological closing filter.
 ///
 /// Applies dilation followed by erosion using a hypercube structuring element
@@ -46,8 +53,8 @@ impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryClosing 
     /// # Returns
     /// A new `Image<B, D>` with holes filled, preserving spatial metadata.
     fn apply(&self, mask: &Image<B, D>) -> Image<B, D> {
-        let dilated = apply_morphological_op(mask, self.radius, false);
-        apply_morphological_op(&dilated, self.radius, true)
+        let dilated = apply_morphological_op(mask, self.radius, MorphOp::Dilation);
+        apply_morphological_op(&dilated, self.radius, MorphOp::Erosion)
     }
 }
 
@@ -55,12 +62,12 @@ impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryClosing 
 
 /// Apply a binary morphological operation (erosion or dilation) in D dimensions.
 ///
-/// `is_erosion = true`  → erosion  (output = 1 iff ALL neighbours are 1)
-/// `is_erosion = false` → dilation (output = 1 iff ANY neighbour is 1)
+/// `op = MorphOp::Erosion`  → erosion  (output = 1 iff ALL neighbours are 1)
+/// `op = MorphOp::Dilation` → dilation (output = 1 iff ANY neighbour is 1)
 pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
     mask: &Image<B, D>,
     radius: usize,
-    is_erosion: bool,
+    op: MorphOp,
 ) -> Image<B, D> {
     let shape: [usize; D] = mask.shape();
     let total: usize = shape.iter().product();
@@ -85,7 +92,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
             rem %= strides[i];
         }
 
-        let result = scan_neighborhood::<D>(&input_vals, &coords, &shape, &strides, r, is_erosion);
+        let result = scan_neighborhood::<D>(&input_vals, &coords, &shape, &strides, r, op);
         *out = if result { 1.0 } else { 0.0 };
     }
 
@@ -106,7 +113,7 @@ fn scan_neighborhood<const D: usize>(
     shape: &[usize; D],
     strides: &[usize; D],
     r: isize,
-    is_erosion: bool,
+    op: MorphOp,
 ) -> bool {
     // D-dimensional counter, initialised to (−r, −r, …, −r).
     let mut offsets = [-r; D];
@@ -126,10 +133,10 @@ fn scan_neighborhood<const D: usize>(
 
         if in_bounds {
             let is_foreground = data[flat] >= 0.5;
-            if is_erosion && !is_foreground {
+            if op == MorphOp::Erosion && !is_foreground {
                 return false; // Found a background voxel → erosion output = 0.
             }
-            if !is_erosion && is_foreground {
+            if op == MorphOp::Dilation && is_foreground {
                 return true; // Found a foreground voxel → dilation output = 1.
             }
         }
@@ -154,5 +161,5 @@ fn scan_neighborhood<const D: usize>(
     // Exhausted all neighbours:
     // Erosion → all foreground (would have returned false on first background).
     // Dilation → all background (would have returned true on first foreground).
-    is_erosion
+    matches!(op, MorphOp::Erosion)
 }

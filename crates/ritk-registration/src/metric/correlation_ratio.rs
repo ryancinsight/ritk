@@ -27,8 +27,8 @@ pub struct CorrelationRatio<B: Backend> {
     sampling_percentage: Option<f32>,
     /// Interpolator for resampling
     interpolator: LinearInterpolator,
-    /// Phantom data for backend
-    _phantom: PhantomData<B>,
+    // Covariant over B: only used to drive tensor creation, never stored.
+    _phantom: PhantomData<fn() -> B>,
 }
 
 /// Direction of correlation ratio.
@@ -98,17 +98,26 @@ impl<B: Backend> CorrelationRatio<B> {
     }
 
     /// Compute conditional mean.
-    fn compute_conditional_mean(&self, joint_hist: &Tensor<B, 2>, axis: usize) -> Tensor<B, 1> {
+    ///
+    /// Accepts `joint_hist` by reference and a pre-computed `marginal` to
+    /// minimize tensor clones. A single `clone()` is unavoidable: Burn tensor
+    /// operations consume `self`, so the weighted-sum `.mul()` requires an
+    /// owned tensor.
+    fn compute_conditional_mean(
+        &self,
+        joint_hist: &Tensor<B, 2>,
+        axis: usize,
+        marginal: &Tensor<B, 1>,
+    ) -> Tensor<B, 1> {
         let device = joint_hist.device();
         let num_bins = self.histogram_calculator.num_bins;
-
         let indices = Tensor::arange(0..num_bins as i64, &device).float(); // [bins]
+
+        // Single clone: consumed by .mul below (Burn ops take ownership).
+        let jh = joint_hist.clone();
 
         if axis == 0 {
             // P(m|f) -> compute mean of m for each f
-            let jh = joint_hist.clone();
-            let marginal = jh.clone().sum_dim(1).squeeze::<1>(); // [bins]
-
             // Weighted sum: sum(hist * j)
             let indices_2d = indices.unsqueeze_dim(0).repeat(&[num_bins, 1]); // [bins, bins]
             let weighted = jh.mul(indices_2d);
@@ -116,37 +125,44 @@ impl<B: Backend> CorrelationRatio<B> {
 
             // Avoid division by zero
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal + mask;
+            let safe_marginal = marginal.clone() + mask;
 
             weighted_sum / safe_marginal
         } else {
             // Axis 1: Moving. E[X|Y=y].
-            let jh = joint_hist.clone();
-            let marginal = jh.clone().sum_dim(0).squeeze::<1>(); // [bins]
-
-            let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]); // [bins, bins] (col vector repeated)
+            let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]); // [bins, bins]
             let weighted = jh.mul(indices_2d);
             let weighted_sum = weighted.sum_dim(0).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal + mask;
+            let safe_marginal = marginal.clone() + mask;
 
             weighted_sum / safe_marginal
         }
     }
 
     /// Compute conditional variance.
-    fn compute_conditional_variance(&self, joint_hist: &Tensor<B, 2>, axis: usize) -> Tensor<B, 1> {
+    ///
+    /// Accepts `joint_hist` by reference and a pre-computed `marginal` to
+    /// minimize tensor clones. A single `clone()` is unavoidable: Burn tensor
+    /// operations consume `self`, so the weighted-sum `.mul()` requires an
+    /// owned tensor.
+    fn compute_conditional_variance(
+        &self,
+        joint_hist: &Tensor<B, 2>,
+        axis: usize,
+        marginal: &Tensor<B, 1>,
+    ) -> Tensor<B, 1> {
         let device = joint_hist.device();
         let num_bins = self.histogram_calculator.num_bins;
-        let conditional_mean = self.compute_conditional_mean(joint_hist, axis);
+        let conditional_mean = self.compute_conditional_mean(joint_hist, axis, marginal);
         let indices = Tensor::arange(0..num_bins as i64, &device).float();
+
+        // Single clone: consumed by .mul below (Burn ops take ownership).
+        let jh = joint_hist.clone();
 
         if axis == 0 {
             // Var(Y|X=x) = E[(Y - E[Y|X])^2 | X=x]
-            let jh = joint_hist.clone();
-            let marginal = jh.clone().sum_dim(1).squeeze::<1>();
-
             // Expand mean to [bins, bins] (repeat across cols)
             let mean_2d = conditional_mean.unsqueeze_dim(1).repeat(&[1, num_bins]);
 
@@ -160,13 +176,10 @@ impl<B: Backend> CorrelationRatio<B> {
             let sum_sq = weighted.sum_dim(1).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal + mask;
+            let safe_marginal = marginal.clone() + mask;
 
             sum_sq / safe_marginal
         } else {
-            let jh = joint_hist.clone();
-            let marginal = jh.clone().sum_dim(0).squeeze::<1>();
-
             let mean_2d = conditional_mean.unsqueeze_dim(0).repeat(&[num_bins, 1]);
             let indices_2d = indices.unsqueeze_dim(1).repeat(&[1, num_bins]);
 
@@ -177,7 +190,7 @@ impl<B: Backend> CorrelationRatio<B> {
             let sum_sq = weighted.sum_dim(0).squeeze::<1>();
 
             let mask = marginal.clone().equal_elem(0.0).float();
-            let safe_marginal = marginal + mask;
+            let safe_marginal = marginal.clone() + mask;
 
             sum_sq / safe_marginal
         }
@@ -207,31 +220,36 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
 
         // Let's use 1 - sum(p(x) * var(y|x)) / var(y)
 
-        // Normalize to PDF
-        let sum = joint_hist.clone().sum();
-        let p_xy = joint_hist / (sum.unsqueeze_dim(1) + 1e-10);
+        // Normalize to PDF: clone joint_hist once for sum,
+        // then consume original for division.
+        let total = joint_hist.clone().sum();
+        let p_xy = joint_hist / (total.unsqueeze_dim(1) + 1e-10);
+
+        // Pre-compute both marginal PDFs from p_xy once.
+        // p_xy.clone() feeds sum_dim which consumes self;
+        // each branch only uses one marginal as primary and
+        // the other for weighting, so clone twice total
+        // (once per marginal) instead of inside each branch.
+        let p_x = p_xy.clone().sum_dim(1).squeeze::<1>(); // rows  → P(X)
+        let p_y = p_xy.clone().sum_dim(0).squeeze::<1>(); // cols  → P(Y)
+
+        // Shared index vector for variance computation.
+        let num_bins = self.histogram_calculator.num_bins;
+        let indices = Tensor::arange(0..num_bins as i64, &p_xy.device()).float();
 
         match self.direction {
             CorrelationDirection::MovingGivenFixed => {
                 // Fixed is X (rows), Moving is Y (cols)
                 // We want CR(Y|X)
 
-                // Var(Y)
-                let p_y = p_xy.clone().sum_dim(0).squeeze::<1>();
-                let indices =
-                    Tensor::arange(0..self.histogram_calculator.num_bins as i64, &p_y.device())
-                        .float();
-
+                // Var(Y): E[Y^2] - (E[Y])^2
                 let mean_y = p_y.clone().mul(indices.clone()).sum();
                 let indices_sq = indices.powf_scalar(2.0);
                 let mean_y_sq = p_y.mul(indices_sq).sum();
                 let var_y = mean_y_sq - mean_y.powf_scalar(2.0);
 
                 // Conditional Variance Var(Y|X)
-                let cond_var = self.compute_conditional_variance(&p_xy, 0);
-
-                // P(X)
-                let p_x = p_xy.sum_dim(1).squeeze::<1>();
+                let cond_var = self.compute_conditional_variance(&p_xy, 0, &p_x);
 
                 // Expected conditional variance
                 let expected_cond_var = p_x.mul(cond_var).sum();
@@ -246,22 +264,14 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
                 // Fixed is X (rows), Moving is Y (cols)
                 // We want CR(X|Y)
 
-                // Var(X)
-                let p_x = p_xy.clone().sum_dim(1).squeeze::<1>();
-                let indices =
-                    Tensor::arange(0..self.histogram_calculator.num_bins as i64, &p_x.device())
-                        .float();
-
+                // Var(X): E[X^2] - (E[X])^2
                 let mean_x = p_x.clone().mul(indices.clone()).sum();
                 let indices_sq = indices.powf_scalar(2.0);
                 let mean_x_sq = p_x.mul(indices_sq).sum();
                 let var_x = mean_x_sq - mean_x.powf_scalar(2.0);
 
                 // Conditional Variance Var(X|Y)
-                let cond_var = self.compute_conditional_variance(&p_xy, 1);
-
-                // P(Y)
-                let p_y = p_xy.sum_dim(0).squeeze::<1>();
+                let cond_var = self.compute_conditional_variance(&p_xy, 1, &p_y);
 
                 // Expected conditional variance
                 let expected_cond_var = p_y.mul(cond_var).sum();

@@ -1,10 +1,14 @@
 //! Image-level joint histogram computation with spatial transform and caching.
 //!
 //! Extracted from `compute.rs` to keep the 500-line structural limit.
+//! Cache/normalization helpers live in [`super::image_cache_helpers`].
 
-use super::super::cache::HistogramCache;
+use super::super::cache::WFixedCache;
+use super::image_cache_helpers::{
+    cache_matches_image, extract_cached_points, get_cached_w_fixed_t,
+};
 #[cfg(feature = "direct-parzen")]
-use super::super::cache::SparseWFixedCache;
+use super::image_cache_helpers::{get_cached_sparse_w_fixed, normalize_fixed_values};
 use super::ParzenJointHistogram;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
@@ -12,122 +16,10 @@ use ritk_core::image::Image;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
 
-/// Check whether a cached histogram entry matches the given image's spatial metadata.
-fn cache_matches_image<B: Backend, const D: usize>(
-    cache: &HistogramCache<B>,
-    fixed: &Image<B, D>,
-) -> bool {
-    let fs = fixed.shape();
-    cache.shape.as_slice() == fs
-        && cache.origin.iter().eq(fixed.origin().0.iter())
-        && cache.spacing.iter().eq(fixed.spacing().0.iter())
-        && cache.direction.iter().eq(fixed.direction().0.iter())
-}
-
-/// Helper: read the dense W_fixed^T from the cache if it matches the fixed image.
-fn get_cached_w_fixed_t<B: Backend, const D: usize>(
-    cache_guard: &Option<HistogramCache<B>>,
-    fixed: &Image<B, D>,
-) -> Option<Tensor<B, 2>> {
-    cache_guard.as_ref().and_then(|c| {
-        cache_matches_image(c, fixed)
-            .then(|| c.w_fixed_transposed.clone())
-            .flatten()
-    })
-}
-
-/// Helper: read or lazily build the sparse W_fixed^T from the cache.
-///
-/// If the sparse cache already exists, returns a clone. Otherwise, if the
-/// cache contains `fixed_norm` (the normalized fixed-image values), builds
-/// the sparse cache from it, stores it in the cache for future use, and
-/// returns it. This lazy construction reduces peak memory: on the first
-/// cache-miss only the dense `w_fixed_transposed` tensor and the small
-/// `fixed_norm` Vec are allocated; the ~2 MB sparse cache is deferred until
-/// the sparse dispatch path is first requested.
-#[cfg(feature = "direct-parzen")]
-fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
-    cache_guard: &mut Option<HistogramCache<B>>,
-    fixed: &Image<B, D>,
-    num_bins: usize,
-    sigma_sq_fix: f32,
-) -> Option<super::direct::SparseWFixedT> {
-    let cache = cache_guard.as_mut()?;
-    if !cache_matches_image(cache, fixed) {
-        return None;
-    }
-    cache.get_or_build_sparse_w_fixed(num_bins, sigma_sq_fix)
-}
-
-/// Normalize fixed-image values for lazy sparse cache construction.
-///
-/// Returns the normalized `Vec<f32>` in `[0, num_bins - 1]` so it can be
-/// stored in the cache and later used by `get_cached_sparse_w_fixed` to
-/// build the sparse W_fixed^T on first access. This avoids eagerly
-/// constructing the sparse cache (~2 MB) on every cache-miss; only the
-/// ~128 KB `fixed_norm` Vec is stored up front.
-#[cfg(feature = "direct-parzen")]
-fn normalize_fixed_values<B: Backend>(
-    fixed_values: &Tensor<B, 1>,
-    min_intensity: f32,
-    max_intensity: f32,
-    num_bins: usize,
-) -> Vec<f32> {
-    super::dispatch::normalize_and_extract(fixed_values, min_intensity, max_intensity, num_bins)
-}
-
-/// Construct a HistogramCache with dense representation and normalized fixed values.
-///
-/// Two `make_cache` overloads exist because `HistogramCache.sparse_w_fixed` and
-/// `HistogramCache.fixed_norm` are gated by `#[cfg(feature = "direct-parzen")]` on
-/// the struct fields themselves. When that feature is off the fields simply do not
-/// exist, so a single function cannot construct both variants — the struct literal
-/// would fail to compile in one cfg or the other. The `not(direct-parzen)` overload
-/// accepts `_fixed_norm: Option<()>` so callers can write the same call-site under
-/// both cfgs without duplicating surrounding logic.
-///
-/// The sparse cache (`sparse_w_fixed`) is **not** built here — it is constructed
-/// lazily by `get_cached_sparse_w_fixed` on first access from `fixed_norm`. This
-/// reduces peak memory on the initial cache-miss from ~6.5 MB (dense + sparse)
-/// to ~4.1 MB (dense + ~128 KB `fixed_norm` Vec).
-#[cfg(feature = "direct-parzen")]
-fn make_cache<B: Backend, const D: usize>(
-    points: Tensor<B, 2>,
-    w_fixed_transposed: Tensor<B, 2>,
-    fixed: &Image<B, D>,
-    fixed_norm: Option<Vec<f32>>,
-) -> HistogramCache<B> {
-    HistogramCache {
-        points,
-        w_fixed_transposed: Some(w_fixed_transposed),
-        sparse_w_fixed: None,
-        fixed_norm,
-        shape: fixed.shape().to_vec(),
-        origin: fixed.origin().0.iter().cloned().collect(),
-        spacing: fixed.spacing().0.iter().cloned().collect(),
-        direction: fixed.direction().0.iter().cloned().collect(),
-    }
-}
-
-/// Construct a HistogramCache with only the dense representation.
-///
-/// See the `direct-parzen` overload doc-comment for why both versions must exist.
-#[cfg(not(feature = "direct-parzen"))]
-fn make_cache<B: Backend, const D: usize>(
-    points: Tensor<B, 2>,
-    w_fixed_transposed: Tensor<B, 2>,
-    fixed: &Image<B, D>,
-    _fixed_norm: Option<()>,
-) -> HistogramCache<B> {
-    HistogramCache {
-        points,
-        w_fixed_transposed: Some(w_fixed_transposed),
-        shape: fixed.shape().to_vec(),
-        origin: fixed.origin().0.iter().cloned().collect(),
-        spacing: fixed.spacing().0.iter().cloned().collect(),
-        direction: fixed.direction().0.iter().cloned().collect(),
-    }
-}
+// `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).
+// Both cfg-gated overloads (`#[cfg(feature = "direct-parzen")]` and
+// `#[cfg(not(feature = "direct-parzen"))]`) are consolidated there.
+// Call sites below use `super::super::cache::make_cache`.
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Compute joint histogram from images with transform and sampling.
@@ -168,9 +60,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             }
         };
 
-        const CHUNK_SIZE: usize = 32768;
-
-        if n <= CHUNK_SIZE {
+        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──
             let cached_w_fixed_t = (!use_sampling)
                 .then(|| {
@@ -259,7 +149,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let fixed_norm: Option<()> = None;
 
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    *cache = Some(make_cache(
+                    *cache = Some(super::super::cache::make_cache(
                         fixed.index_to_world_tensor(
                             fixed_indices
                                 .as_ref()
@@ -280,7 +170,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             }
         } else {
             // ── Chunked path ──
-            let num_chunks = n.div_ceil(CHUNK_SIZE);
+            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
             let cached_w_fixed_t = (!use_sampling)
@@ -317,7 +207,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                         let fixed_norm_for_cache: Option<Vec<f32>> = None;
                         #[cfg(not(feature = "direct-parzen"))]
                         let fixed_norm_for_cache: Option<()> = None;
-                        *cache = Some(make_cache(
+                        *cache = Some(super::super::cache::make_cache(
                             pts.clone(),
                             w_fixed_t.clone(),
                             fixed,
@@ -339,7 +229,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     let fixed_norm: Option<()> = None;
 
                     let mut cache = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-                    *cache = Some(make_cache(pts.clone(), w_fixed_t, fixed, fixed_norm));
+                    *cache = Some(super::super::cache::make_cache(
+                        pts.clone(),
+                        w_fixed_t,
+                        fixed,
+                        fixed_norm,
+                    ));
                 }
                 pts
             } else {
@@ -349,8 +244,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let have_all_points = !use_sampling;
 
             for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
                 let chunk_range = start..end;
 
                 let chunk_fixed_points = if have_all_points {
@@ -457,5 +352,148 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
             joint_hist_acc
         }
+    }
+
+    /// Compute joint histogram from images with transform, reusing a
+    /// caller-supplied `W_fixed^T [num_bins, N]` matrix (350-P1-03).
+    ///
+    /// This is the public cache-hit fast path: callers that have precomputed
+    /// the fixed-image Parzen weight matrix once (e.g. via the first iteration
+    /// of a registration level, then `extract_w_fixed_t_cache`) can pass the
+    /// matrix directly to avoid the O(N × num_bins) Parzen weight
+    /// recomputation on every iteration.
+    ///
+    /// # Arguments
+    /// * `fixed` — Fixed reference image (used for spatial transform, OOB mask, and cache key).
+    /// * `moving` — Moving image.
+    /// * `transform` — Current candidate transform.
+    /// * `interpolator` — Interpolator for sampling `moving`.
+    /// * `w_fixed_transposed` — Precomputed Parzen weight matrix `[num_bins, N]`.
+    ///   Treated as a constant — the autodiff path goes through the moving
+    ///   image's interpolation only.
+    /// * `n` — Number of points `N` in `w_fixed_transposed`. Must match the
+    ///   second dimension of `w_fixed_transposed`.
+    ///
+    /// # Returns
+    /// Joint histogram `[num_bins, num_bins]` on autodiff graph.
+    ///
+    /// # Performance
+    /// For a 256³ volume with Mattes MI (50 bins), the full-grid
+    /// `W_fixed^T` matrix is `[50, 16M]` = ~3.2 GB. Recomputing it every
+    /// iteration costs ~400 ms on a 16-core CPU; reusing it across iterations
+    /// of one level saves ~99 % of that on iteration 2+. See
+    /// `docs/audit_optimization_sprint_350.md` §2.3 for the breakdown.
+    pub fn compute_image_joint_histogram_with_w_fixed<const D: usize>(
+        &self,
+        fixed: &Image<B, D>,
+        moving: &Image<B, D>,
+        transform: &impl Transform<B, D>,
+        interpolator: &LinearInterpolator,
+        w_fixed_transposed: &Tensor<B, 2>,
+        n: usize,
+    ) -> Tensor<B, 2> {
+        let device = fixed.data().device();
+
+        // Reuse cached fixed_points if available, else build them on demand.
+        // We do NOT populate the internal HistogramCache here — the caller
+        // owns the W_fixed^T.
+        let fixed_points = if let Some(pts) = extract_cached_points(fixed, &self.cache) {
+            pts
+        } else {
+            let indices = ritk_core::image::grid::generate_grid(fixed.shape(), &device);
+            fixed.index_to_world_tensor(indices)
+        };
+
+        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
+            // ── Non-chunked path ──────────────────────────────────────────────
+            let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+                let moving_points = transform.transform_points(fixed_points);
+                let moving_indices = moving.world_to_index_tensor(moving_points);
+                let oob = if D == 3 {
+                    Some(super::compute_oob_mask_3d(
+                        &moving_indices,
+                        moving.shape().as_ref(),
+                    ))
+                } else {
+                    None
+                };
+                let values = interpolator.interpolate(moving.data(), moving_indices);
+                (values, oob)
+            };
+
+            // Skip the cache-miss path: use the caller's W_fixed^T directly.
+            self.compute_joint_histogram_from_cache_dispatch(
+                w_fixed_transposed,
+                &moving_values,
+                oob_mask.as_ref(),
+            )
+        } else {
+            // ── Chunked path ──────────────────────────────────────────────────
+            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+            let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+
+            for i in 0..num_chunks {
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+                let chunk_range = start..end;
+                #[allow(clippy::single_range_in_vec_init)]
+                let chunk_fixed_points = fixed_points.clone().slice([chunk_range.clone()]);
+
+                let (chunk_moving_values, chunk_oob): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+                    let chunk_moving_points = transform.transform_points(chunk_fixed_points);
+                    let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
+                    let oob = if D == 3 {
+                        Some(super::compute_oob_mask_3d(
+                            &chunk_moving_indices,
+                            moving.shape().as_ref(),
+                        ))
+                    } else {
+                        None
+                    };
+                    let values = interpolator.interpolate(moving.data(), chunk_moving_indices);
+                    (values, oob)
+                };
+
+                // Slice the caller's W_fixed^T per chunk. The dense tensor matmul
+                // path is autodiff-safe, so it works for both RSGD and CMA-ES.
+                let chunk_w_fixed_t = w_fixed_transposed
+                    .clone()
+                    .slice([0..self.num_bins, chunk_range]);
+                let chunk_hist = self.compute_joint_histogram_from_cache_dispatch(
+                    &chunk_w_fixed_t,
+                    &chunk_moving_values,
+                    chunk_oob.as_ref(),
+                );
+
+                joint_hist_acc = joint_hist_acc + chunk_hist;
+            }
+
+            joint_hist_acc
+        }
+    }
+
+    /// Extract a `WFixedCache` entry from the internal `HistogramCache` for
+    /// use by external callers (e.g. `MutualInformation`'s per-instance cache,
+    /// 350-P1-03). Returns `None` if the internal cache is empty, the cached
+    /// entry's spatial metadata does not match `fixed`, or the stored
+    /// W_fixed^T tensor is `None`.
+    ///
+    /// This is the public entry point to the per-call W_fixed^T reuse pattern:
+    /// `MutualInformation::forward` calls this once per registration level to
+    /// populate its per-instance cache after the first `compute_image_joint_histogram`
+    /// call, then `MutualInformation::forward_with_cache` reuses the cache
+    /// across subsequent iterations.
+    pub(crate) fn extract_w_fixed_t_cache<const D: usize>(
+        &self,
+        fixed: &Image<B, D>,
+        n: usize,
+    ) -> Option<WFixedCache<B>> {
+        let cache_guard = self.cache.lock().unwrap_or_else(|e| e.into_inner());
+        let cache = cache_guard.as_ref()?;
+        if !cache_matches_image(cache, fixed) {
+            return None;
+        }
+        let w_fixed_t = cache.w_fixed_transposed.clone()?;
+        Some(WFixedCache::from_image(fixed, n, w_fixed_t))
     }
 }

@@ -5,10 +5,6 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
-#[cfg(feature = "direct-parzen")]
-use std::collections::hash_map::DefaultHasher;
-#[cfg(feature = "direct-parzen")]
-use std::hash::{Hash, Hasher};
 
 mod masked_chunked;
 
@@ -55,61 +51,8 @@ fn get_masked_cached_sparse_w_fixed<B: Backend>(
     cache.get_or_build_sparse_w_fixed(num_bins, sigma_sq_fix)
 }
 
-/// Compute a SipHash-1-3 fingerprint from normalized fixed-image values.
-///
-/// Uses `to_bits()` to convert each `f32` to a `u32` before hashing,
-/// providing deterministic hashing (NaN is not expected in normalized data).
-#[cfg(feature = "direct-parzen")]
-fn compute_fingerprint(fixed_norm: &[f32]) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    for &v in fixed_norm {
-        v.to_bits().hash(&mut hasher);
-    }
-    hasher.finish()
-}
-
-/// Construct a MaskedHistogramCache with dense representation and normalized fixed values.
-///
-/// Two `make_masked_cache` overloads exist because `MaskedHistogramCache.sparse_w_fixed` and
-/// `MaskedHistogramCache.fixed_norm` are gated by `#[cfg(feature = "direct-parzen")]` on
-/// the struct fields. When that feature is off the fields simply do not exist, so a single
-/// function cannot construct both variants.
-///
-/// When `fixed_norm` is `Some`, a `data_fingerprint` is computed from the values and
-/// stored in the cache for collision detection.
-#[cfg(feature = "direct-parzen")]
-fn make_masked_cache<B: Backend>(
-    cache_key: u64,
-    w_fixed_transposed: Tensor<B, 2>,
-    n: usize,
-    fixed_norm: Option<Vec<f32>>,
-) -> MaskedHistogramCache<B> {
-    let data_fingerprint = fixed_norm.as_ref().map(|v| compute_fingerprint(v));
-    MaskedHistogramCache {
-        cache_key,
-        w_fixed_transposed: Some(w_fixed_transposed),
-        sparse_w_fixed: None,
-        fixed_norm,
-        n,
-        data_fingerprint,
-    }
-}
-
-/// Construct a MaskedHistogramCache with only the dense representation.
-#[cfg(not(feature = "direct-parzen"))]
-fn make_masked_cache<B: Backend>(
-    cache_key: u64,
-    w_fixed_transposed: Tensor<B, 2>,
-    n: usize,
-    _fixed_norm: Option<()>,
-) -> MaskedHistogramCache<B> {
-    MaskedHistogramCache {
-        cache_key,
-        w_fixed_transposed: Some(w_fixed_transposed),
-        n,
-        data_fingerprint: None,
-    }
-}
+// `compute_fingerprint` and `make_masked_cache` live in `super::cache`
+// (histogram/cache.rs). Call sites below use `super::cache::make_masked_cache`.
 
 impl<B: Backend> ParzenJointHistogram<B> {
     /// Compute joint histogram using a pre-selected set of fixed-image world coordinates.
@@ -149,9 +92,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             return Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
         }
 
-        const CHUNK_SIZE: usize = 32768;
-
-        if n <= CHUNK_SIZE {
+        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──────────────────────────────────────────────
 
             // Convert fixed world coords → fixed voxel indices, then sample.
@@ -214,16 +155,20 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let w_fixed_transposed = self.compute_w_fixed_transposed(&fixed_values, n);
 
                 #[cfg(feature = "direct-parzen")]
-                let fixed_norm = Some(super::parzen::dispatch::normalize_and_extract(
-                    &fixed_values,
-                    self.min_intensity,
-                    self.max_intensity,
-                    self.num_bins,
-                ));
+                let fixed_norm = Some(
+                    super::parzen::dispatch::normalize_and_extract(
+                        &fixed_values,
+                        self.min_intensity,
+                        self.max_intensity,
+                        self.num_bins,
+                    )
+                    .into_owned(),
+                );
                 #[cfg(not(feature = "direct-parzen"))]
                 let fixed_norm: Option<()> = None;
 
-                let new_cache = make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
+                let new_cache =
+                    super::cache::make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
                 #[cfg(feature = "direct-parzen")]
                 {
@@ -305,15 +250,19 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let w_fixed_transposed = self.compute_w_fixed_transposed(&fixed_values, n);
 
                 #[cfg(feature = "direct-parzen")]
-                let fixed_norm = Some(super::parzen::dispatch::normalize_and_extract(
-                    &fixed_values,
-                    self.min_intensity,
-                    self.max_intensity,
-                    self.num_bins,
-                ));
+                let fixed_norm = Some(
+                    super::parzen::dispatch::normalize_and_extract(
+                        &fixed_values,
+                        self.min_intensity,
+                        self.max_intensity,
+                        self.num_bins,
+                    )
+                    .into_owned(),
+                );
                 #[cfg(not(feature = "direct-parzen"))]
                 let fixed_norm: Option<()> = None;
-                let new_cache = make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
+                let new_cache =
+                    super::cache::make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 *self.masked_cache.lock().unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
                 #[cfg(feature = "direct-parzen")]
                 {
@@ -348,12 +297,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
             }
 
             // No cache key — fall through to the original uncached chunked path.
-            let num_chunks = n.div_ceil(CHUNK_SIZE);
+            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
             for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
                 #[allow(clippy::single_range_in_vec_init)]
                 let chunk_fixed_world = fixed_world_points.clone().slice([start..end]);
                 let chunk_fixed_idx = fixed.world_to_index_tensor(chunk_fixed_world.clone());

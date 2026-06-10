@@ -25,9 +25,19 @@ fn transitions(nb: &[u8; 8]) -> u8 {
     count
 }
 
+/// Sub-iteration selector for Zhang–Suen thinning.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ZhangSuenPass {
+    /// Sub-iteration 1: remove from south-east border pixels.
+    Pass1,
+    /// Sub-iteration 2: remove from north-west border pixels.
+    Pass2,
+}
+
 /// One sub-iteration of Zhang–Suen. Returns the number of pixels removed.
-fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, step1: bool) -> usize {
-    let mut to_remove: Vec<usize> = Vec::new();
+fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass) -> usize {
+    // Heuristic: thinning typically removes a fraction of border voxels per step.
+    let mut to_remove: Vec<usize> = Vec::with_capacity(ny * nx / 16);
     for iy in 0..ny {
         for ix in 0..nx {
             if !mask[iy * nx + ix] {
@@ -54,7 +64,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, step1: bool) -> usiz
                 continue;
             }
             let (p2, p4, p6, p8) = (nb[0], nb[2], nb[4], nb[6]);
-            if step1 {
+            if pass == ZhangSuenPass::Pass1 {
                 // Sub-iteration 1: P2·P4·P6 = 0 AND P4·P6·P8 = 0
                 if p2 * p4 * p6 != 0 {
                     continue;
@@ -85,8 +95,8 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, step1: bool) -> usiz
 pub(super) fn skeleton_2d(flat: &[f32], ny: usize, nx: usize) -> Vec<f32> {
     let mut mask: Vec<bool> = flat.iter().map(|&v| v > 0.5).collect();
     loop {
-        let removed1 = zhang_suen_step(&mut mask, ny, nx, true);
-        let removed2 = zhang_suen_step(&mut mask, ny, nx, false);
+        let removed1 = zhang_suen_step(&mut mask, ny, nx, ZhangSuenPass::Pass1);
+        let removed2 = zhang_suen_step(&mut mask, ny, nx, ZhangSuenPass::Pass2);
         if removed1 == 0 && removed2 == 0 {
             break;
         }

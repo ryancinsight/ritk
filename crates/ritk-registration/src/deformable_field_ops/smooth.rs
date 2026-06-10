@@ -1,6 +1,15 @@
 //! Separable 3-D Gaussian smoothing for displacement fields.
+//!
+//! The three per-axis convolution passes are unified into a single
+//! `convolve_axis<const AXIS: usize>` function.  Because `AXIS` is a
+//! compile-time constant, the compiler monomorphizes three distinct
+//! instantiations (0, 1, 2) and dead-code-eliminates the two unreachable
+//! `match` arms in each one, producing machine code identical to the
+//! former hand-written `convolve_z / convolve_y / convolve_x` trio while
+//! maintaining a single authoritative implementation.
 
 use super::flat;
+use crate::parallel::CellSlice;
 
 /// Build a normalised 1-D Gaussian kernel with radius `⌈3σ⌉`.
 ///
@@ -21,81 +30,65 @@ pub(super) fn gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
     k
 }
 
-/// Convolve `data` along the Z axis with `kernel`; write result into `output`.
-/// Uses replicate-border boundary condition.
-pub(super) fn convolve_z(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
+/// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
+/// write the result into `output`.  Uses a replicate-border boundary condition.
+///
+/// `AXIS` is a `const` generic: the compiler emits three fully inlined,
+/// optimised specialisations and eliminates the two unreachable `match` arms
+/// in each, so runtime overhead relative to the former per-axis functions is
+/// zero.
+pub(super) fn convolve_axis<const AXIS: usize>(
+    data: &[f32],
+    dims: [usize; 3],
+    kernel: &[f64],
+    output: &mut [f32],
+) {
     let [nz, ny, nx] = dims;
     let r = kernel.len() / 2;
-    for iz in 0..nz {
+    let max_coord = dims[AXIS];
+    // Parallelize over z-slices: each slice writes to a disjoint contiguous
+    // range in `output`; all reads are from the immutable `data` input
+    // (including cross-slice reads along the Z axis).
+    let slice_len = ny * nx;
+    let output = CellSlice::from_mut(output);
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        // SAFETY: `output` has length nz*ny*nx; each thread writes only to
+        // its own disjoint [base, base + slice_len) range.
+        let out_s = unsafe { output.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
+                let local = iy * nx + ix;
+                let coord = [iz, iy, ix][AXIS];
                 let mut acc = 0.0_f64;
                 for (ki, &kv) in kernel.iter().enumerate() {
-                    let src = (iz as isize + ki as isize - r as isize)
+                    let src_coord = (coord as isize + ki as isize - r as isize)
                         .max(0)
-                        .min(nz as isize - 1) as usize;
-                    acc += kv * data[flat(src, iy, ix, ny, nx)] as f64;
+                        .min(max_coord as isize - 1) as usize;
+                    let src_fi = match AXIS {
+                        0 => flat(src_coord, iy, ix, ny, nx),
+                        1 => flat(iz, src_coord, ix, ny, nx),
+                        _ => flat(iz, iy, src_coord, ny, nx),
+                    };
+                    acc += kv * data[src_fi] as f64;
                 }
-                output[fi] = acc as f32;
+                out_s[local] = acc as f32;
             }
         }
-    }
-}
-
-/// Convolve `data` along the Y axis with `kernel`; write result into `output`.
-pub(super) fn convolve_y(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
-    let [nz, ny, nx] = dims;
-    let r = kernel.len() / 2;
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
-                let mut acc = 0.0_f64;
-                for (ki, &kv) in kernel.iter().enumerate() {
-                    let src = (iy as isize + ki as isize - r as isize)
-                        .max(0)
-                        .min(ny as isize - 1) as usize;
-                    acc += kv * data[flat(iz, src, ix, ny, nx)] as f64;
-                }
-                output[fi] = acc as f32;
-            }
-        }
-    }
-}
-
-/// Convolve `data` along the X axis with `kernel`; write result into `output`.
-pub(super) fn convolve_x(data: &[f32], dims: [usize; 3], kernel: &[f64], output: &mut [f32]) {
-    let [nz, ny, nx] = dims;
-    let r = kernel.len() / 2;
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
-                let mut acc = 0.0_f64;
-                for (ki, &kv) in kernel.iter().enumerate() {
-                    let src = (ix as isize + ki as isize - r as isize)
-                        .max(0)
-                        .min(nx as isize - 1) as usize;
-                    acc += kv * data[flat(iz, iy, src, ny, nx)] as f64;
-                }
-                output[fi] = acc as f32;
-            }
-        }
-    }
+    });
 }
 
 /// Apply separable 3-D Gaussian smoothing to `data` **in place**.
 ///
 /// Convolves sequentially along Z, Y, then X. Uses a temporary buffer to
 /// avoid read-after-write aliasing. A `sigma ≤ 0` is a no-op.
-pub(crate) fn gaussian_smooth_inplace(data: &mut Vec<f32>, dims: [usize; 3], sigma: f64) {
+pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: [usize; 3], sigma: f64) {
     if sigma <= 0.0 {
         return;
     }
     let n = data.len();
     let mut tmp = vec![0.0_f32; n];
-    gaussian_smooth_with_scratch(data.as_mut_slice(), dims, sigma, &mut tmp);
+    gaussian_smooth_with_scratch(data, dims, sigma, &mut tmp);
 }
 
 /// Apply separable 3-D Gaussian smoothing to `data` **in place** using a
@@ -113,12 +106,42 @@ pub(crate) fn gaussian_smooth_with_scratch(
         return;
     }
     let kernel = gaussian_kernel_1d(sigma);
-    convolve_z(data, dims, &kernel, scratch);
+    convolve_axis::<0>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
-    convolve_y(data, dims, &kernel, scratch);
+    convolve_axis::<1>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
-    convolve_x(data, dims, &kernel, scratch);
+    convolve_axis::<2>(data, dims, &kernel, scratch);
     data.copy_from_slice(scratch);
+}
+
+/// Smooth all three components of a 3-D vector field in place.
+///
+/// Equivalent to calling [`gaussian_smooth_inplace`] on each component,
+/// but reuses the same scratch buffer across all three calls.
+pub(crate) fn gaussian_smooth_field_inplace(
+    fz: &mut [f32],
+    fy: &mut [f32],
+    fx: &mut [f32],
+    dims: [usize; 3],
+    sigma: f64,
+) {
+    gaussian_smooth_inplace(fz, dims, sigma);
+    gaussian_smooth_inplace(fy, dims, sigma);
+    gaussian_smooth_inplace(fx, dims, sigma);
+}
+
+/// Smooth all three components with caller-provided scratch buffer.
+pub(crate) fn gaussian_smooth_field_inplace_with_scratch(
+    fz: &mut [f32],
+    fy: &mut [f32],
+    fx: &mut [f32],
+    dims: [usize; 3],
+    sigma: f64,
+    scratch: &mut [f32],
+) {
+    gaussian_smooth_with_scratch(fz, dims, sigma, scratch);
+    gaussian_smooth_with_scratch(fy, dims, sigma, scratch);
+    gaussian_smooth_with_scratch(fx, dims, sigma, scratch);
 }
 
 #[cfg(test)]

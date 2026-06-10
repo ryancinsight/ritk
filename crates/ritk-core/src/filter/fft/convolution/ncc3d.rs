@@ -1,4 +1,4 @@
-use crate::filter::fft::convolution::helpers::{fft3d, FftDir};
+use crate::filter::fft::convolution::helpers::{fft3d, ForwardFft, InverseFft};
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::{anyhow, Result};
@@ -120,22 +120,8 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         }
 
         let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft3d(
-            &mut vol_buf,
-            pad_d,
-            pad_h,
-            pad_w,
-            &mut planner,
-            FftDir::Forward,
-        );
-        fft3d(
-            &mut tmpl_buf,
-            pad_d,
-            pad_h,
-            pad_w,
-            &mut planner,
-            FftDir::Forward,
-        );
+        fft3d::<ForwardFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
+        fft3d::<ForwardFft>(&mut tmpl_buf, pad_d, pad_h, pad_w, &mut planner);
 
         // Cross-correlation: multiply volume FFT by conjugate of template FFT.
         // (a + bi) · conj(c + di) = (a + bi)(c − di) = (ac + bd) + (bc − ad)i
@@ -145,14 +131,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             vol_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
         }
 
-        fft3d(
-            &mut vol_buf,
-            pad_d,
-            pad_h,
-            pad_w,
-            &mut planner,
-            FftDir::Inverse,
-        );
+        fft3d::<InverseFft>(&mut vol_buf, pad_d, pad_h, pad_w, &mut planner);
 
         // Partial normalization: divide by ‖T̂‖₂ · pad_n.
         let denom = if self.template_norm > 1e-10_f32 {

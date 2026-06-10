@@ -18,16 +18,25 @@
 //! | `recursive-gaussian`| `--sigma`, `--order`                                                |
 //! | `curvature`         | `--iterations`, `--time-step`                                       |
 //! | `sato`              | `--scales`, `--alpha`                                               |
-//! | `discrete-gaussian` | `--variance`, `--maximum-error`, `--use-image-spacing`              |
+//! | `discrete-gaussian` | `--variance`, `--maximum-error`, `--spacing-mode`              |
 //! | `bed-separation`    | `--body-threshold`, `--closing-radius`, `--opening-radius`, `--outside-value` |
 
 use anyhow::{anyhow, Result};
 use clap::Args;
+use ritk_core::filter::SpacingMode;
 use std::path::PathBuf;
 use tracing::info;
 
 pub(crate) use super::Backend;
 use super::{read_image, write_image_inferred};
+
+/// Parse a spacing-mode string for the `--spacing-mode` CLI argument.
+///
+/// Accepts `"physical"` (or legacy `"true"`) and `"voxel"` (or legacy `"false"`).
+fn parse_spacing_mode(s: &str) -> Result<SpacingMode, String> {
+    s.parse()
+}
+
 #[cfg(test)]
 use ritk_core::image::Image;
 
@@ -178,11 +187,18 @@ pub struct FilterArgs {
     #[arg(long, default_value = "0.01", value_name = "FLOAT")]
     pub maximum_error: f64,
 
-    /// Convert physical σ to pixel σ using image spacing.
+    /// Controls whether Gaussian variance is in physical or pixel units.
+    ///
+    /// `physical` (default): variance is in physical units; converted to pixel
+    /// sigma using image spacing (`sigma_pixel = sqrt(v) / spacing`).
+    /// `voxel`: treat variance as already in pixel units.
+    ///
+    /// Accepts `"physical"` / `"voxel"` or the legacy aliases `"true"` / `"false"`.
     ///
     /// Used by: `discrete-gaussian`.
-    #[arg(long, default_value = "true", value_name = "BOOL")]
-    pub use_image_spacing: bool,
+    #[arg(long = "spacing-mode", default_value = "physical", value_name = "MODE",
+          value_parser = parse_spacing_mode)]
+    pub spacing_mode: SpacingMode,
 
     /// Lower intensity threshold for the bed separation filter.
     ///
@@ -401,7 +417,7 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, filter: &str) -> Fil
         order: 0,
         variance: 1.0,
         maximum_error: 0.01,
-        use_image_spacing: true,
+        spacing_mode: SpacingMode::Physical,
         body_threshold: -350.0,
         bed_closing_radius: 2,
         bed_opening_radius: 1,

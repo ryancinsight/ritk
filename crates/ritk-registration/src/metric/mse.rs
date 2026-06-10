@@ -46,9 +46,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         let [n, _] = fixed_indices.dims();
 
         // 2. Transform and interpolate with chunking to avoid WGPU dispatch limits
-        const CHUNK_SIZE: usize = 32768;
-
-        let moving_values = if n <= CHUNK_SIZE {
+        let moving_values = if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             // Transform fixed indices to physical points
             let fixed_points = fixed.index_to_world_tensor(fixed_indices); // [N, D]
 
@@ -61,12 +59,12 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
             // Sample moving image at moving_indices
             self.interpolator.interpolate(moving.data(), moving_indices) // [N]
         } else {
-            let num_chunks = n.div_ceil(CHUNK_SIZE);
+            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
 
                 let chunk_range = start..end;
                 let chunk_indices = fixed_indices.clone().slice([chunk_range]);

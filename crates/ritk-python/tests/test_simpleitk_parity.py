@@ -1171,7 +1171,7 @@ def test_multires_demons_ncc_improves_on_shifted_sphere():
         max_iterations=50,
         sigma_diffusion=1.0,
         levels=3,
-        use_diffeomorphic=False,
+        variant="thirion",
     )
     warped_arr = warped.to_numpy()
     ncc_after = pearsonr(arr.ravel(), warped_arr.ravel()).statistic
@@ -1444,9 +1444,7 @@ def test_chan_vese_sphere_dice_vs_ground_truth():
     """
     arr = _make_noisy()
     sphere_gt = _make_sphere()
-    result = ritk.segmentation.chan_vese_segment(
-        _ritk(arr), mu=0.1, max_iterations=100
-    )
+    result = ritk.segmentation.chan_vese_segment(_ritk(arr), mu=0.1, max_iterations=100)
     rn = result.to_numpy()
     assert rn.shape == arr.shape
     assert np.isfinite(rn).all()
@@ -2125,7 +2123,7 @@ def test_global_mi_register_translation_parity_vs_sitk():
     assert matrix.shape == (4, 4), f"Matrix shape {matrix.shape} != (4, 4)"
     for i in range(3):
         assert abs(matrix[i, i] - 1.0) < 1e-4, (
-            f"matrix[{i},{i}]={matrix[i,i]:.6f} != 1.0; rotation block not identity"
+            f"matrix[{i},{i}]={matrix[i, i]:.6f} != 1.0; rotation block not identity"
         )
 
     # info dict must carry the expected diagnostic keys.
@@ -2187,7 +2185,9 @@ def _make_blob_arr(shift_x: int = 0) -> np.ndarray:
     c = (SIZE - 1) / 2.0
     z, y, x = np.mgrid[0:SIZE, 0:SIZE, 0:SIZE]
     sigma = SIZE / 8.0
-    arr = np.exp(-((z - c) ** 2 + (y - c) ** 2 + (x - c - shift_x) ** 2) / (2 * sigma ** 2))
+    arr = np.exp(
+        -((z - c) ** 2 + (y - c) ** 2 + (x - c - shift_x) ** 2) / (2 * sigma**2)
+    )
     return arr.astype(np.float32)
 
 
@@ -2208,7 +2208,9 @@ class TestTotalCorrelationParity:
         img_b = _ritk(arr_b)
 
         tc = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=32)
-        mi = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="standard")
+        mi = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="standard"
+        )
 
         assert abs(tc - mi) < 1e-10, (
             f"TC(X,Y) n=2 must equal MI(X,Y): TC={tc:.6f}, MI={mi:.6f}"
@@ -2318,12 +2320,16 @@ class TestVariationOfInformationParity:
 
         # Uniform [0,8) repeated pattern — easy to compute H analytically.
         arr_a = (np.arange(SIZE**3) % 8).reshape(SIZE, SIZE, SIZE).astype(np.float32)
-        arr_b = ((np.arange(SIZE**3) + 2) % 8).reshape(SIZE, SIZE, SIZE).astype(np.float32)
+        arr_b = (
+            ((np.arange(SIZE**3) + 2) % 8).reshape(SIZE, SIZE, SIZE).astype(np.float32)
+        )
 
         img_a = _ritk(arr_a)
         img_b = _ritk(arr_b)
 
-        vi_ritk = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=8)
+        vi_ritk = ritk.metrics.compute_variation_of_information(
+            img_a, img_b, num_bins=8
+        )
 
         # Reference: VI = H(A) + H(B) - 2*MI(A,B) via hard-bin histograms.
         # With 8 equi-probable values, H(A) = H(B) = ln(8).
@@ -2345,7 +2351,7 @@ class TestVariationOfInformationParity:
         vi_ref = h_a + h_b - 2.0 * mi_ref
 
         assert abs(vi_ritk - vi_ref) < 0.05, (
-            f"VI_ritk={vi_ritk:.6f} vs VI_ref={vi_ref:.6f}: absolute error {abs(vi_ritk-vi_ref):.6f}"
+            f"VI_ritk={vi_ritk:.6f} vs VI_ref={vi_ref:.6f}: absolute error {abs(vi_ritk - vi_ref):.6f}"
         )
 
     def test_vi_increases_with_shift(self):
@@ -2384,7 +2390,7 @@ def _sphere_mask(radius: int = SIZE // 4) -> np.ndarray:
     c = (SIZE - 1) / 2.0
     z, y, x = np.mgrid[0:SIZE, 0:SIZE, 0:SIZE]
     dist_sq = (z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2
-    return (dist_sq <= radius ** 2).astype(np.float32)
+    return (dist_sq <= radius**2).astype(np.float32)
 
 
 def _sphere_mask_shifted(shift: int, axis: int = 2) -> np.ndarray:
@@ -2412,8 +2418,12 @@ class TestImageComparisonParity:
         f = sitk.LabelOverlapMeasuresImageFilter()
         f.Execute(lbl, lbl)
         sitk_dice = f.GetDiceCoefficient()
-        assert abs(ritk_dice - 1.0) < 1e-5, f"RITK Dice(A,A) = {ritk_dice}, expected 1.0"
-        assert abs(sitk_dice - 1.0) < 1e-5, f"SITK Dice(A,A) = {sitk_dice}, expected 1.0"
+        assert abs(ritk_dice - 1.0) < 1e-5, (
+            f"RITK Dice(A,A) = {ritk_dice}, expected 1.0"
+        )
+        assert abs(sitk_dice - 1.0) < 1e-5, (
+            f"SITK Dice(A,A) = {sitk_dice}, expected 1.0"
+        )
         assert abs(ritk_dice - sitk_dice) < 1e-4, (
             f"RITK dice {ritk_dice:.6f} != SITK dice {sitk_dice:.6f}"
         )
@@ -2468,7 +2478,9 @@ class TestImageComparisonParity:
         f.Execute(lbl_a, lbl_b)
         sitk_hd = f.GetHausdorffDistance()
         # Both must be positive and agree within 1.5 voxels (boundary-voxel discretization).
-        assert ritk_hd > 0.0, f"RITK HD should be positive for shifted spheres, got {ritk_hd}"
+        assert ritk_hd > 0.0, (
+            f"RITK HD should be positive for shifted spheres, got {ritk_hd}"
+        )
         assert abs(ritk_hd - sitk_hd) < 1.5, (
             f"RITK HD {ritk_hd:.3f} vs SITK HD {sitk_hd:.3f}: diff > 1.5 voxels"
         )
@@ -2502,9 +2514,7 @@ class TestImageComparisonParity:
         arr_b = _sphere_mask_shifted(shift=4, axis=0)
         msd = ritk.statistics.mean_surface_distance(_ritk(arr_a), _ritk(arr_b))
         hd = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
-        assert msd <= hd + 1e-4, (
-            f"MSD ({msd:.4f}) must be <= HD ({hd:.4f})"
-        )
+        assert msd <= hd + 1e-4, f"MSD ({msd:.4f}) must be <= HD ({hd:.4f})"
 
     def test_msd_shifted_sphere_vs_sitk_avg_hd(self):
         """mean_surface_distance on shifted sphere is positive and bounded by HD."""
@@ -2515,7 +2525,9 @@ class TestImageComparisonParity:
         arr_b = _sphere_mask_shifted(shift=4, axis=2)
         ritk_msd = ritk.statistics.mean_surface_distance(_ritk(arr_a), _ritk(arr_b))
         ritk_hd = ritk.statistics.hausdorff_distance(_ritk(arr_a), _ritk(arr_b))
-        assert ritk_msd > 0.0, f"RITK MSD should be positive for shifted spheres, got {ritk_msd}"
+        assert ritk_msd > 0.0, (
+            f"RITK MSD should be positive for shifted spheres, got {ritk_msd}"
+        )
         assert ritk_msd <= ritk_hd + 1e-4, (
             f"RITK MSD {ritk_msd:.3f} must be <= RITK HD {ritk_hd:.3f}"
         )
@@ -2578,8 +2590,9 @@ class TestImageComparisonParity:
         c1 = (0.01 * max_val) ** 2
         c2 = (0.03 * max_val) ** 2
         numpy_ssim = (
-            (2.0 * mu_x * mu_y + c1) * (2.0 * sigma_xy + c2)
-            / ((mu_x ** 2 + mu_y ** 2 + c1) * (sigma_x_sq + sigma_y_sq + c2))
+            (2.0 * mu_x * mu_y + c1)
+            * (2.0 * sigma_xy + c2)
+            / ((mu_x**2 + mu_y**2 + c1) * (sigma_x_sq + sigma_y_sq + c2))
         )
         assert abs(ritk_ssim - numpy_ssim) < 1e-4, (
             f"RITK SSIM {ritk_ssim:.6f} != numpy SSIM {numpy_ssim:.6f}"
@@ -2613,7 +2626,9 @@ class TestImageComparisonParity:
 
 _BRAIN_MNI = (
     Path(__file__).resolve().parent.parent.parent.parent
-    / "test_data" / "registration" / "brain_mni"
+    / "test_data"
+    / "registration"
+    / "brain_mni"
 )
 _R16 = _BRAIN_MNI / "ants_r16.nii.gz"
 _R27 = _BRAIN_MNI / "ants_r27.nii.gz"
@@ -2646,7 +2661,11 @@ def _min_max(values: np.ndarray) -> tuple[float, float]:
 def _hard_histogram(values: np.ndarray, bins: int) -> np.ndarray:
     flat = np.asarray(values, dtype=np.float64).ravel()
     minimum, maximum = _min_max(flat)
-    scale = 0.0 if abs(maximum - minimum) < np.finfo(np.float64).eps else (bins - 1) / (maximum - minimum)
+    scale = (
+        0.0
+        if abs(maximum - minimum) < np.finfo(np.float64).eps
+        else (bins - 1) / (maximum - minimum)
+    )
     histogram = np.zeros(bins, dtype=np.float64)
     for value in flat:
         bin_index = int(np.clip((value - minimum) * scale, 0.0, bins - 1))
@@ -2664,7 +2683,9 @@ def _hard_joint_histogram(arrays: list[np.ndarray], bins: int) -> np.ndarray:
     flat_arrays = [np.asarray(arr, dtype=np.float64).ravel() for arr in arrays]
     ranges = [_min_max(arr) for arr in flat_arrays]
     scales = [
-        0.0 if abs(maximum - minimum) < np.finfo(np.float64).eps else (bins - 1) / (maximum - minimum)
+        0.0
+        if abs(maximum - minimum) < np.finfo(np.float64).eps
+        else (bins - 1) / (maximum - minimum)
         for minimum, maximum in ranges
     ]
     joint_size = bins ** len(arrays)
@@ -2672,7 +2693,9 @@ def _hard_joint_histogram(arrays: list[np.ndarray], bins: int) -> np.ndarray:
     for sample_index in range(flat_arrays[0].size):
         joint_index = 0
         for array, (minimum, _maximum), scale in zip(flat_arrays, ranges, scales):
-            bin_index = int(np.clip((array[sample_index] - minimum) * scale, 0.0, bins - 1))
+            bin_index = int(
+                np.clip((array[sample_index] - minimum) * scale, 0.0, bins - 1)
+            )
             joint_index = joint_index * bins + bin_index
         joint[joint_index] += 1.0
     joint /= flat_arrays[0].size
@@ -2691,7 +2714,9 @@ def _joint_entropy_from_histogram(arrays: list[np.ndarray], bins: int) -> float:
     return float(-(probs * np.log(probs)).sum())
 
 
-def _variation_of_information_reference(a: np.ndarray, b: np.ndarray, bins: int) -> float:
+def _variation_of_information_reference(
+    a: np.ndarray, b: np.ndarray, bins: int
+) -> float:
     h_a = _entropy_from_histogram(a, bins)
     h_b = _entropy_from_histogram(b, bins)
     joint = _joint_entropy_from_histogram([a, b], bins)
@@ -2739,7 +2764,7 @@ class TestStatisticsWithRealBrainData:
         )
 
         mse = float(np.mean((r16 - r27) ** 2))
-        numpy_psnr = 10.0 * np.log10(255.0 ** 2 / mse)
+        numpy_psnr = 10.0 * np.log10(255.0**2 / mse)
 
         assert abs(ritk_psnr - numpy_psnr) < 1e-3, (
             f"PSNR ritk={ritk_psnr:.4f} numpy={numpy_psnr:.4f}"
@@ -2777,9 +2802,7 @@ class TestStatisticsWithRealBrainData:
         val_cross = ritk.statistics.ssim(
             _brain_ritk(r16), _brain_ritk(r27), max_val=255.0
         )
-        assert val_cross < 1.0, (
-            f"Cross-subject SSIM must be < 1.0; got {val_cross}"
-        )
+        assert val_cross < 1.0, f"Cross-subject SSIM must be < 1.0; got {val_cross}"
 
     # ── Dice ─────────────────────────────────────────────────────────────────
 
@@ -2911,9 +2934,7 @@ class TestStatisticsWithRealBrainData:
         vi_cross = ritk.metrics.compute_variation_of_information(
             _brain_ritk(r16), _brain_ritk(r64), num_bins=32
         )
-        assert vi_cross > 0.0, (
-            f"VI(r16, r64) must be > 0; got {vi_cross}"
-        )
+        assert vi_cross > 0.0, f"VI(r16, r64) must be > 0; got {vi_cross}"
 
     def test_mvi_brain_trio_matches_pairwise_reference(self):
         """MVI(r16, r27, r64) must equal the average pairwise VI reference."""
@@ -2948,6 +2969,7 @@ class TestStatisticsWithRealBrainData:
 #   - NCC agreement between numpy and SimpleITK round-trip
 #   - Valid NCC range on multi-level registration
 #   - Real brain data (skip if absent)
+
 
 def _ncc_numpy(a: np.ndarray, b: np.ndarray) -> float:
     """Global NCC between two arrays using the SimpleITK Correlation metric formula."""
@@ -3011,7 +3033,9 @@ class TestBSplineFFDRegistrationParity:
         )
         warped = warped_img.to_numpy()
         ncc = _ncc_numpy(warped, fixed)
-        assert ncc >= 0.999, f"identity registration NCC should be ≥ 0.999; got {ncc:.6f}"
+        assert ncc >= 0.999, (
+            f"identity registration NCC should be ≥ 0.999; got {ncc:.6f}"
+        )
 
     # ── Shape and value sanity ────────────────────────────────────────────────
 
@@ -3184,11 +3208,12 @@ class TestBSplineFFDRegistrationParity:
         )
         warped = warped_img.to_numpy()
         moving_arr = moving.to_numpy()
-        assert np.any(warped != 0.0), "warped brain image is all zeros — registration failed"
+        assert np.any(warped != 0.0), (
+            "warped brain image is all zeros — registration failed"
+        )
         assert np.any(warped != moving_arr), (
             "warped == moving — no transformation was applied"
         )
-
 
 
 # Section 11 — LDDMM registration parity vs SimpleITK
@@ -3229,7 +3254,8 @@ def _make_shifted_sphere_lddmm(shift=2, size=16):
     g = np.indices(dims, dtype=np.float32)
     c = (size - 1) / 2.0
     sphere = np.exp(
-        -((g[0] - c) ** 2 + (g[1] - c) ** 2 + (g[2] - c) ** 2) / (2.0 * (size / 8.0) ** 2)
+        -((g[0] - c) ** 2 + (g[1] - c) ** 2 + (g[2] - c) ** 2)
+        / (2.0 * (size / 8.0) ** 2)
     ).astype(np.float32)
     shifted = np.roll(sphere, shift, axis=2)
     return sphere, shifted
@@ -3253,10 +3279,14 @@ def _sitk_demons_mse(sphere, shifted, n_iter=20):
     return float(np.mean((sphere - warped_arr) ** 2))
 
 
-_HAS_LDDMM = hasattr(ritk, "registration") and hasattr(ritk.registration, "lddmm_register")
+_HAS_LDDMM = hasattr(ritk, "registration") and hasattr(
+    ritk.registration, "lddmm_register"
+)
 
 
-@pytest.mark.skipif(not _HAS_LDDMM, reason="ritk.registration.lddmm_register not available")
+@pytest.mark.skipif(
+    not _HAS_LDDMM, reason="ritk.registration.lddmm_register not available"
+)
 class TestLddmmRegistrationParity:
     """Section 11: LDDMM registration analytical and SimpleITK direction parity tests."""
 
@@ -3288,7 +3318,9 @@ class TestLddmmRegistrationParity:
         nz, ny, nx = 8, 9, 10
         arr = np.zeros((nz, ny, nx), dtype=np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(img, img, max_iterations=2, num_time_steps=2)
+        _, disp = ritk.registration.lddmm_register(
+            img, img, max_iterations=2, num_time_steps=2
+        )
         expected = (3 * nz, ny, nx)
         actual = disp.to_numpy().shape
         assert actual == expected, f"displacement shape {actual} != expected {expected}"
@@ -3302,16 +3334,24 @@ class TestLddmmRegistrationParity:
         warped, disp = ritk.registration.lddmm_register(
             fixed, moving, max_iterations=5, num_time_steps=3
         )
-        assert np.all(np.isfinite(warped.to_numpy())), "non-finite values in warped output"
-        assert np.all(np.isfinite(disp.to_numpy())), "non-finite values in displacement field"
+        assert np.all(np.isfinite(warped.to_numpy())), (
+            "non-finite values in warped output"
+        )
+        assert np.all(np.isfinite(disp.to_numpy())), (
+            "non-finite values in displacement field"
+        )
 
     def test_zero_displacement_for_identical_images(self):
         """For fixed==moving the displacement field is identically zero."""
         arr = np.random.RandomState(2).rand(6, 6, 6).astype(np.float32)
         img = ritk.Image(np.ascontiguousarray(arr), spacing=[1.0, 1.0, 1.0])
-        _, disp = ritk.registration.lddmm_register(img, img, max_iterations=5, num_time_steps=2)
+        _, disp = ritk.registration.lddmm_register(
+            img, img, max_iterations=5, num_time_steps=2
+        )
         max_disp = float(np.max(np.abs(disp.to_numpy())))
-        assert max_disp < 1e-5, f"max displacement {max_disp} for identical images; expected 0"
+        assert max_disp < 1e-5, (
+            f"max displacement {max_disp} for identical images; expected 0"
+        )
 
     def test_mse_improves_after_lddmm_on_shifted_sphere(self):
         """MSE decreases after LDDMM registration on a 2-voxel shifted Gaussian sphere."""
@@ -3319,9 +3359,13 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            fixed,
+            moving,
+            max_iterations=20,
+            num_time_steps=5,
+            kernel_sigma=2.0,
+            learning_rate=0.05,
+            regularization_weight=0.01,
         )
         mse_before = float(np.mean((sphere - shifted) ** 2))
         mse_after = float(np.mean((sphere - warped.to_numpy()) ** 2))
@@ -3335,9 +3379,13 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            fixed,
+            moving,
+            max_iterations=20,
+            num_time_steps=5,
+            kernel_sigma=2.0,
+            learning_rate=0.05,
+            regularization_weight=0.01,
         )
         ncc_before = _ncc_lddmm(sphere, shifted)
         ncc_after = _ncc_lddmm(sphere, warped.to_numpy())
@@ -3353,9 +3401,13 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            fixed,
+            moving,
+            max_iterations=20,
+            num_time_steps=5,
+            kernel_sigma=2.0,
+            learning_rate=0.05,
+            regularization_weight=0.01,
         )
         mse_lddmm = float(np.mean((sphere - warped.to_numpy()) ** 2))
         mse_demons = _sitk_demons_mse(sphere, shifted, n_iter=20)
@@ -3384,12 +3436,18 @@ class TestLddmmRegistrationParity:
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(
-            fixed, moving,
-            max_iterations=20, num_time_steps=5,
-            kernel_sigma=2.0, learning_rate=0.05, regularization_weight=0.01,
+            fixed,
+            moving,
+            max_iterations=20,
+            num_time_steps=5,
+            kernel_sigma=2.0,
+            learning_rate=0.05,
+            regularization_weight=0.01,
         )
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
-        assert ncc > 0.0, f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
+        assert ncc > 0.0, (
+            f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
+        )
 
 
 # ── Section 12: Demons Registration PyO3 Parity Tests ────────────────────────
@@ -3404,9 +3462,8 @@ class TestLddmmRegistrationParity:
 
 import ritk
 
-_HAS_DEMONS = (
-    hasattr(ritk, "registration")
-    and hasattr(ritk.registration, "demons_register")
+_HAS_DEMONS = hasattr(ritk, "registration") and hasattr(
+    ritk.registration, "demons_register"
 )
 
 
@@ -3431,7 +3488,7 @@ def _gaussian_sphere(size: int, sigma: float = 2.5) -> np.ndarray:
     centre = (size - 1) / 2.0
     zz, yy, xx = np.mgrid[0:size, 0:size, 0:size]
     r2 = (zz - centre) ** 2 + (yy - centre) ** 2 + (xx - centre) ** 2
-    return np.exp(-r2 / (2.0 * sigma ** 2)).astype(np.float32)
+    return np.exp(-r2 / (2.0 * sigma**2)).astype(np.float32)
 
 
 def _shifted_sphere_pair(shift: int = 2, size: int = 16) -> tuple:
@@ -3442,7 +3499,9 @@ def _shifted_sphere_pair(shift: int = 2, size: int = 16) -> tuple:
     return fixed, moving
 
 
-def _sitk_demons_mse_demons(fixed_arr: np.ndarray, moving_arr: np.ndarray, n_iter: int = 20) -> float:
+def _sitk_demons_mse_demons(
+    fixed_arr: np.ndarray, moving_arr: np.ndarray, n_iter: int = 20
+) -> float:
     """Run SimpleITK Demons and return final MSE(fixed, warped_moving)."""
     fixed_sitk = sitk.GetImageFromArray(fixed_arr.astype(np.float32))
     moving_sitk = sitk.GetImageFromArray(moving_arr.astype(np.float32))
@@ -3460,7 +3519,9 @@ def _sitk_demons_mse_demons(fixed_arr: np.ndarray, moving_arr: np.ndarray, n_ite
     return float(((fixed_arr.astype(np.float64) - warped_arr) ** 2).mean())
 
 
-@pytest.mark.skipif(not _HAS_DEMONS, reason="ritk.registration.demons_register not available")
+@pytest.mark.skipif(
+    not _HAS_DEMONS, reason="ritk.registration.demons_register not available"
+)
 class TestDemonsRegistrationParity:
     """Section 12: Demons variants — analytical invariants and SimpleITK direction parity."""
 
@@ -3537,8 +3598,12 @@ class TestDemonsRegistrationParity:
             ritk.registration.symmetric_demons_register,
         ]:
             warped, disp = fn(fixed, moving, max_iterations=10)
-            assert np.all(np.isfinite(warped.to_numpy())), f"{fn.__name__}: warped has non-finite values"
-            assert np.all(np.isfinite(disp.to_numpy())), f"{fn.__name__}: disp has non-finite values"
+            assert np.all(np.isfinite(warped.to_numpy())), (
+                f"{fn.__name__}: warped has non-finite values"
+            )
+            assert np.all(np.isfinite(disp.to_numpy())), (
+                f"{fn.__name__}: disp has non-finite values"
+            )
 
     # ── Registration quality ───────────────────────────────────────────────
 
@@ -3651,6 +3716,7 @@ _HAS_METRICS = (
 
 # ── NumPy reference implementations ──────────────────────────────────────────
 
+
 def _hist_entropy(arr: np.ndarray, num_bins: int = 64) -> float:
     """Shannon entropy H(X) estimated via histogram."""
     counts, _ = np.histogram(arr.flatten().astype(np.float64), bins=num_bins)
@@ -3673,8 +3739,8 @@ def _hist_joint_entropy(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> flo
 
 def _numpy_vi(a: np.ndarray, b: np.ndarray, num_bins: int = 64) -> float:
     """VI(X,Y) = 2*H(X,Y) - H(X) - H(Y)  (Meilă 2003)."""
-    ha  = _hist_entropy(a, num_bins)
-    hb  = _hist_entropy(b, num_bins)
+    ha = _hist_entropy(a, num_bins)
+    hb = _hist_entropy(b, num_bins)
     hab = _hist_joint_entropy(a, b, num_bins)
     return float(2.0 * hab - ha - hb)
 
@@ -3702,7 +3768,9 @@ class TestVariationOfInformationSection13Parity:
     """
 
     def _make_image(self, arr: np.ndarray) -> "ritk.Image":
-        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+        return ritk.Image(
+            np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0]
+        )
 
     def _rng_image(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
         rng = np.random.default_rng(seed)
@@ -3744,11 +3812,13 @@ class TestVariationOfInformationSection13Parity:
         img_a = self._make_image(a)
         img_b = self._make_image(b)
 
-        vi_ritk  = ritk.metrics.compute_variation_of_information(img_a, img_b, num_bins=64)
+        vi_ritk = ritk.metrics.compute_variation_of_information(
+            img_a, img_b, num_bins=64
+        )
         vi_numpy = _numpy_vi(a, b, num_bins=64)
 
         assert vi_numpy >= 0.0, "NumPy VI reference is negative"
-        assert vi_ritk  >= 0.0, f"RITK VI={vi_ritk} is negative"
+        assert vi_ritk >= 0.0, f"RITK VI={vi_ritk} is negative"
         tol = max(0.05 * abs(vi_numpy), 0.01)
         assert abs(vi_ritk - vi_numpy) <= tol, (
             f"VI mismatch: ritk={vi_ritk:.4f} numpy={vi_numpy:.4f} tol={tol:.4f}"
@@ -3757,7 +3827,7 @@ class TestVariationOfInformationSection13Parity:
     def test_vi_increases_with_noise(self):
         """VI(X, X+noise_large) > VI(X, X+noise_small)."""
         rng = np.random.default_rng(7)
-        a           = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        a = rng.standard_normal((8, 8, 8)).astype(np.float32)
         noise_small = (0.05 * rng.standard_normal((8, 8, 8))).astype(np.float32)
         noise_large = (0.50 * rng.standard_normal((8, 8, 8))).astype(np.float32)
 
@@ -3765,43 +3835,55 @@ class TestVariationOfInformationSection13Parity:
         img_s = self._make_image(a + noise_small)
         img_l = self._make_image(a + noise_large)
 
-        vi_small = ritk.metrics.compute_variation_of_information(img_a, img_s, num_bins=32)
-        vi_large = ritk.metrics.compute_variation_of_information(img_a, img_l, num_bins=32)
+        vi_small = ritk.metrics.compute_variation_of_information(
+            img_a, img_s, num_bins=32
+        )
+        vi_large = ritk.metrics.compute_variation_of_information(
+            img_a, img_l, num_bins=32
+        )
         assert vi_large > vi_small, (
             f"VI_small={vi_small:.4f} VI_large={vi_large:.4f}: large-noise VI must be larger"
         )
 
     def test_vi_decreases_after_registration(self):
         """VI(fixed, warped) < VI(fixed, moving) after Thirion Demons registration."""
-        rng        = np.random.default_rng(11)
-        base       = rng.standard_normal((12, 12, 12)).astype(np.float32)
+        rng = np.random.default_rng(11)
+        base = rng.standard_normal((12, 12, 12)).astype(np.float32)
         moving_arr = np.roll(base, 2, axis=2)
-        fixed_arr  = base
+        fixed_arr = base
 
-        fixed  = self._make_image(fixed_arr)
+        fixed = self._make_image(fixed_arr)
         moving = self._make_image(moving_arr)
 
         warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
 
-        vi_before = ritk.metrics.compute_variation_of_information(fixed,  moving, num_bins=32)
-        vi_after  = ritk.metrics.compute_variation_of_information(fixed,  warped, num_bins=32)
+        vi_before = ritk.metrics.compute_variation_of_information(
+            fixed, moving, num_bins=32
+        )
+        vi_after = ritk.metrics.compute_variation_of_information(
+            fixed, warped, num_bins=32
+        )
         assert vi_after < vi_before, (
             f"VI before={vi_before:.4f} after={vi_after:.4f}: expected decrease"
         )
 
     def test_vi_independent_exceeds_correlated(self):
         """VI(X, independent) > VI(X, correlated)."""
-        rng       = np.random.default_rng(13)
-        x         = rng.standard_normal((8, 8, 8)).astype(np.float32)
-        y_corr    = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
-        y_indep   = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        rng = np.random.default_rng(13)
+        x = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y_corr = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        y_indep = rng.standard_normal((8, 8, 8)).astype(np.float32)
 
-        img_x     = self._make_image(x)
-        img_corr  = self._make_image(y_corr)
+        img_x = self._make_image(x)
+        img_corr = self._make_image(y_corr)
         img_indep = self._make_image(y_indep)
 
-        vi_corr  = ritk.metrics.compute_variation_of_information(img_x, img_corr,  num_bins=32)
-        vi_indep = ritk.metrics.compute_variation_of_information(img_x, img_indep, num_bins=32)
+        vi_corr = ritk.metrics.compute_variation_of_information(
+            img_x, img_corr, num_bins=32
+        )
+        vi_indep = ritk.metrics.compute_variation_of_information(
+            img_x, img_indep, num_bins=32
+        )
         assert vi_indep > vi_corr, (
             f"VI_indep={vi_indep:.4f} should exceed VI_corr={vi_corr:.4f}"
         )
@@ -3825,7 +3907,9 @@ class TestTotalCorrelationSection13Parity:
     """
 
     def _make_image(self, arr: np.ndarray) -> "ritk.Image":
-        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+        return ritk.Image(
+            np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0]
+        )
 
     def _rng_image(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
         rng = np.random.default_rng(seed)
@@ -3839,40 +3923,42 @@ class TestTotalCorrelationSection13Parity:
 
     def test_tc_identical_channels_exceeds_independent(self):
         """TC([X,X,X]) > TC([A,B,C]) for independent A,B,C."""
-        x      = self._rng_image(seed=5)
-        img_x  = self._make_image(x)
-        rng    = np.random.default_rng(6)
-        indep  = [self._make_image(rng.standard_normal((8, 8, 8)).astype(np.float32))
-                  for _ in range(3)]
+        x = self._rng_image(seed=5)
+        img_x = self._make_image(x)
+        rng = np.random.default_rng(6)
+        indep = [
+            self._make_image(rng.standard_normal((8, 8, 8)).astype(np.float32))
+            for _ in range(3)
+        ]
 
-        tc_identical = ritk.metrics.compute_total_correlation([img_x, img_x, img_x], num_bins=32)
-        tc_indep     = ritk.metrics.compute_total_correlation(indep, num_bins=32)
+        tc_identical = ritk.metrics.compute_total_correlation(
+            [img_x, img_x, img_x], num_bins=32
+        )
+        tc_indep = ritk.metrics.compute_total_correlation(indep, num_bins=32)
         assert tc_identical > tc_indep, (
             f"TC_identical={tc_identical:.4f} TC_indep={tc_indep:.4f}"
         )
 
     def test_tc_increases_with_correlation_strength(self):
         """TC([X, Y_strong]) > TC([X, Y_weak]) for rho_strong > rho_weak."""
-        rng      = np.random.default_rng(8)
-        x        = rng.standard_normal((8, 8, 8)).astype(np.float32)
-        y_weak   = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        rng = np.random.default_rng(8)
+        x = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y_weak = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
         y_strong = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
 
-        img_x  = self._make_image(x)
+        img_x = self._make_image(x)
         img_yw = self._make_image(y_weak)
         img_ys = self._make_image(y_strong)
 
-        tc_weak   = ritk.metrics.compute_total_correlation([img_x, img_yw], num_bins=32)
+        tc_weak = ritk.metrics.compute_total_correlation([img_x, img_yw], num_bins=32)
         tc_strong = ritk.metrics.compute_total_correlation([img_x, img_ys], num_bins=32)
-        assert tc_strong > tc_weak, (
-            f"TC_strong={tc_strong:.4f} TC_weak={tc_weak:.4f}"
-        )
+        assert tc_strong > tc_weak, f"TC_strong={tc_strong:.4f} TC_weak={tc_weak:.4f}"
 
     def test_tc_two_images_approximates_mutual_information(self):
         """For n=2: TC(X,Y) = I(X;Y). Verified against NumPy MI within 10%."""
-        rng   = np.random.default_rng(9)
-        a     = rng.uniform(0, 1, (10, 10, 10)).astype(np.float32)
-        b     = (0.7 * a + 0.3 * rng.standard_normal((10, 10, 10))).astype(np.float32)
+        rng = np.random.default_rng(9)
+        a = rng.uniform(0, 1, (10, 10, 10)).astype(np.float32)
+        b = (0.7 * a + 0.3 * rng.standard_normal((10, 10, 10))).astype(np.float32)
 
         img_a = self._make_image(a)
         img_b = self._make_image(b)
@@ -3889,29 +3975,30 @@ class TestTotalCorrelationSection13Parity:
 
     def test_tc_multivariate_exceeds_pairwise(self):
         """TC([X,Y,Z]) >= TC([X,Y]) when Z is correlated with X."""
-        rng   = np.random.default_rng(10)
-        x     = rng.standard_normal((8, 8, 8)).astype(np.float32)
-        y     = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
-        z     = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        rng = np.random.default_rng(10)
+        x = rng.standard_normal((8, 8, 8)).astype(np.float32)
+        y = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        z = (0.8 * x + 0.2 * rng.standard_normal((8, 8, 8))).astype(np.float32)
 
         img_x = self._make_image(x)
         img_y = self._make_image(y)
         img_z = self._make_image(z)
 
-        tc_pair = ritk.metrics.compute_total_correlation([img_x, img_y],        num_bins=32)
-        tc_tri  = ritk.metrics.compute_total_correlation([img_x, img_y, img_z], num_bins=32)
-        assert tc_tri >= tc_pair, (
-            f"TC([X,Y,Z])={tc_tri:.4f} TC([X,Y])={tc_pair:.4f}"
+        tc_pair = ritk.metrics.compute_total_correlation([img_x, img_y], num_bins=32)
+        tc_tri = ritk.metrics.compute_total_correlation(
+            [img_x, img_y, img_z], num_bins=32
         )
+        assert tc_tri >= tc_pair, f"TC([X,Y,Z])={tc_tri:.4f} TC([X,Y])={tc_pair:.4f}"
 
 
-_HAS_MI_VARIANTS = (
-    hasattr(ritk, "metrics")
-    and hasattr(ritk.metrics, "compute_mutual_information")
+_HAS_MI_VARIANTS = hasattr(ritk, "metrics") and hasattr(
+    ritk.metrics, "compute_mutual_information"
 )
 
 
-@pytest.mark.skipif(not _HAS_MI_VARIANTS, reason="ritk.metrics.compute_mutual_information not available")
+@pytest.mark.skipif(
+    not _HAS_MI_VARIANTS, reason="ritk.metrics.compute_mutual_information not available"
+)
 class TestMutualInformationVariantParity:
     """Mattes and normalized (symmetric-uncertainty) MI variant parity tests.
 
@@ -3928,7 +4015,9 @@ class TestMutualInformationVariantParity:
     """
 
     def _make_image(self, arr: np.ndarray) -> "ritk.Image":
-        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+        return ritk.Image(
+            np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0]
+        )
 
     def test_mattes_self_exceeds_zero(self):
         """I_mattes(X,X) > 0 for non-constant X.
@@ -3937,7 +4026,9 @@ class TestMutualInformationVariantParity:
         """
         arr = _make_blob_arr(0)
         img = self._make_image(arr)
-        mi = ritk.metrics.compute_mutual_information(img, img, num_bins=32, variant="mattes")
+        mi = ritk.metrics.compute_mutual_information(
+            img, img, num_bins=32, variant="mattes"
+        )
         assert mi > 0.0, f"Mattes MI(X,X) must be positive for non-constant X, got {mi}"
 
     def test_mattes_constant_approximates_zero(self):
@@ -3949,7 +4040,9 @@ class TestMutualInformationVariantParity:
         const = np.full_like(arr, 0.5)
         img = self._make_image(arr)
         img_const = self._make_image(const)
-        mi = ritk.metrics.compute_mutual_information(img, img_const, num_bins=32, variant="mattes")
+        mi = ritk.metrics.compute_mutual_information(
+            img, img_const, num_bins=32, variant="mattes"
+        )
         assert mi < 0.05, f"Mattes MI(X, constant) must be near 0, got {mi}"
 
     def test_mattes_non_negative(self):
@@ -3958,7 +4051,9 @@ class TestMutualInformationVariantParity:
         arr_b = _make_blob_arr(4)
         img_a = self._make_image(arr_a)
         img_b = self._make_image(arr_b)
-        mi = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="mattes")
+        mi = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="mattes"
+        )
         assert mi >= 0.0, f"Mattes MI must be non-negative, got {mi}"
 
     def test_mattes_higher_correlation_yields_higher_mi(self):
@@ -3966,15 +4061,19 @@ class TestMutualInformationVariantParity:
 
         Shifting the Gaussian blob further reduces overlap, reducing MI.
         """
-        arr_x   = _make_blob_arr(0)
+        arr_x = _make_blob_arr(0)
         arr_near = _make_blob_arr(1)
-        arr_far  = _make_blob_arr(5)
-        img_x    = self._make_image(arr_x)
+        arr_far = _make_blob_arr(5)
+        img_x = self._make_image(arr_x)
         img_near = self._make_image(arr_near)
-        img_far  = self._make_image(arr_far)
+        img_far = self._make_image(arr_far)
 
-        mi_near = ritk.metrics.compute_mutual_information(img_x, img_near, num_bins=32, variant="mattes")
-        mi_far  = ritk.metrics.compute_mutual_information(img_x, img_far,  num_bins=32, variant="mattes")
+        mi_near = ritk.metrics.compute_mutual_information(
+            img_x, img_near, num_bins=32, variant="mattes"
+        )
+        mi_far = ritk.metrics.compute_mutual_information(
+            img_x, img_far, num_bins=32, variant="mattes"
+        )
         assert mi_near > mi_far, (
             f"Mattes MI_near={mi_near:.4f} must exceed MI_far={mi_far:.4f}"
         )
@@ -3986,16 +4085,26 @@ class TestMutualInformationVariantParity:
         img_a = self._make_image(arr_a)
         img_b = self._make_image(arr_b)
 
-        mi_mattes   = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="mattes")
-        mi_standard = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="standard")
-        assert mi_mattes   > 0.0, f"Mattes MI must be positive for correlated inputs, got {mi_mattes}"
-        assert mi_standard > 0.0, f"Standard MI must be positive for correlated inputs, got {mi_standard}"
+        mi_mattes = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="mattes"
+        )
+        mi_standard = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="standard"
+        )
+        assert mi_mattes > 0.0, (
+            f"Mattes MI must be positive for correlated inputs, got {mi_mattes}"
+        )
+        assert mi_standard > 0.0, (
+            f"Standard MI must be positive for correlated inputs, got {mi_standard}"
+        )
 
     def test_normalized_identical_is_one(self):
         """SU(X,X) = 2·H(X)/(H(X)+H(X)) = 1.0."""
         arr = _make_blob_arr(0)
         img = self._make_image(arr)
-        su = ritk.metrics.compute_mutual_information(img, img, num_bins=32, variant="normalized")
+        su = ritk.metrics.compute_mutual_information(
+            img, img, num_bins=32, variant="normalized"
+        )
         assert abs(su - 1.0) < 1e-9, f"SU(X,X) must equal 1.0, got {su}"
 
     def test_normalized_in_zero_one(self):
@@ -4004,7 +4113,9 @@ class TestMutualInformationVariantParity:
         arr_b = _make_blob_arr(3)
         img_a = self._make_image(arr_a)
         img_b = self._make_image(arr_b)
-        su = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
+        su = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="normalized"
+        )
         assert 0.0 <= su <= 1.0, f"SU must be in [0,1], got {su}"
 
     def test_normalized_is_symmetric(self):
@@ -4013,21 +4124,29 @@ class TestMutualInformationVariantParity:
         arr_b = _make_blob_arr(2)
         img_a = self._make_image(arr_a)
         img_b = self._make_image(arr_b)
-        su_ab = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
-        su_ba = ritk.metrics.compute_mutual_information(img_b, img_a, num_bins=32, variant="normalized")
+        su_ab = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="normalized"
+        )
+        su_ba = ritk.metrics.compute_mutual_information(
+            img_b, img_a, num_bins=32, variant="normalized"
+        )
         assert abs(su_ab - su_ba) < 1e-12, f"SU(X,Y)={su_ab:.8f} ≠ SU(Y,X)={su_ba:.8f}"
 
     def test_normalized_decreases_with_shift(self):
         """SU(X, Y_far) < SU(X, Y_near): farther shift → less shared information."""
-        arr_x    = _make_blob_arr(0)
+        arr_x = _make_blob_arr(0)
         arr_near = _make_blob_arr(1)
-        arr_far  = _make_blob_arr(5)
-        img_x    = self._make_image(arr_x)
+        arr_far = _make_blob_arr(5)
+        img_x = self._make_image(arr_x)
         img_near = self._make_image(arr_near)
-        img_far  = self._make_image(arr_far)
+        img_far = self._make_image(arr_far)
 
-        su_near = ritk.metrics.compute_mutual_information(img_x, img_near, num_bins=32, variant="normalized")
-        su_far  = ritk.metrics.compute_mutual_information(img_x, img_far,  num_bins=32, variant="normalized")
+        su_near = ritk.metrics.compute_mutual_information(
+            img_x, img_near, num_bins=32, variant="normalized"
+        )
+        su_far = ritk.metrics.compute_mutual_information(
+            img_x, img_far, num_bins=32, variant="normalized"
+        )
         assert su_near > su_far, (
             f"SU(X, Y_near)={su_near:.4f} must exceed SU(X, Y_far)={su_far:.4f}"
         )
@@ -4043,12 +4162,14 @@ class TestMutualInformationVariantParity:
         img_a = self._make_image(arr_a)
         img_b = self._make_image(arr_b)
 
-        su_ritk = ritk.metrics.compute_mutual_information(img_a, img_b, num_bins=32, variant="normalized")
+        su_ritk = ritk.metrics.compute_mutual_information(
+            img_a, img_b, num_bins=32, variant="normalized"
+        )
 
         mi_ref = _numpy_mi(arr_a, arr_b, num_bins=32)
         ha_ref = _hist_entropy(arr_a, num_bins=32)
         hb_ref = _hist_entropy(arr_b, num_bins=32)
-        denom  = ha_ref + hb_ref
+        denom = ha_ref + hb_ref
         su_ref = (2.0 * mi_ref / denom) if denom > 1e-12 else 0.0
 
         assert abs(su_ritk - su_ref) < 0.05, (
@@ -4068,7 +4189,9 @@ _HAS_DTC_OI = (
 )
 
 
-@pytest.mark.skipif(not _HAS_DTC_OI, reason="ritk.metrics DTC/O-Information not available")
+@pytest.mark.skipif(
+    not _HAS_DTC_OI, reason="ritk.metrics DTC/O-Information not available"
+)
 class TestDualTotalCorrelationOInformationParity:
     """Section 13c — DTC and O-Information mathematical invariant tests.
 
@@ -4083,7 +4206,9 @@ class TestDualTotalCorrelationOInformationParity:
     """
 
     def _make_image(self, arr: np.ndarray) -> "ritk.Image":
-        return ritk.Image(np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0])
+        return ritk.Image(
+            np.ascontiguousarray(arr.astype(np.float32)), spacing=[1.0, 1.0, 1.0]
+        )
 
     def _rng(self, shape=(8, 8, 8), seed=0) -> np.ndarray:
         return np.random.default_rng(seed).standard_normal(shape).astype(np.float32)
@@ -4108,10 +4233,10 @@ class TestDualTotalCorrelationOInformationParity:
         img_b = self._make_image(b)
 
         dtc = ritk.metrics.compute_dual_total_correlation([img_a, img_b], num_bins=32)
-        mi  = _numpy_mi(a, b, num_bins=32)
+        mi = _numpy_mi(a, b, num_bins=32)
 
         assert dtc >= 0.0, f"DTC={dtc} is negative"
-        assert mi  >= 0.0, f"NumPy MI={mi} is negative"
+        assert mi >= 0.0, f"NumPy MI={mi} is negative"
         tol = max(0.10 * abs(mi), 0.01)
         assert abs(dtc - mi) <= tol, (
             f"DTC(X,Y)={dtc:.4f} vs I(X;Y)={mi:.4f}: diff={abs(dtc - mi):.4f} > tol={tol:.4f} "
@@ -4126,25 +4251,27 @@ class TestDualTotalCorrelationOInformationParity:
         img_a = self._make_image(a)
         img_b = self._make_image(b)
 
-        tc  = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=16)
+        tc = ritk.metrics.compute_total_correlation([img_a, img_b], num_bins=16)
         dtc = ritk.metrics.compute_dual_total_correlation([img_a, img_b], num_bins=16)
-        assert abs(tc - dtc) < 1e-9, (
-            f"TC(X,Y)={tc:.10f} != DTC(X,Y)={dtc:.10f} for n=2"
-        )
+        assert abs(tc - dtc) < 1e-9, f"TC(X,Y)={tc:.10f} != DTC(X,Y)={dtc:.10f} for n=2"
 
     def test_dtc_increases_with_correlation(self):
         """DTC([X, Y_strong]) > DTC([X, Y_weak]): more correlated = higher DTC."""
         rng = np.random.default_rng(22)
         x = rng.standard_normal((8, 8, 8)).astype(np.float32)
-        y_weak   = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
+        y_weak = (0.2 * x + 0.8 * rng.standard_normal((8, 8, 8))).astype(np.float32)
         y_strong = (0.9 * x + 0.1 * rng.standard_normal((8, 8, 8))).astype(np.float32)
 
-        img_x  = self._make_image(x)
+        img_x = self._make_image(x)
         img_yw = self._make_image(y_weak)
         img_ys = self._make_image(y_strong)
 
-        dtc_weak   = ritk.metrics.compute_dual_total_correlation([img_x, img_yw], num_bins=16)
-        dtc_strong = ritk.metrics.compute_dual_total_correlation([img_x, img_ys], num_bins=16)
+        dtc_weak = ritk.metrics.compute_dual_total_correlation(
+            [img_x, img_yw], num_bins=16
+        )
+        dtc_strong = ritk.metrics.compute_dual_total_correlation(
+            [img_x, img_ys], num_bins=16
+        )
         assert dtc_strong > dtc_weak, (
             f"DTC_strong={dtc_strong:.4f} DTC_weak={dtc_weak:.4f}"
         )
@@ -4190,7 +4317,9 @@ class TestDualTotalCorrelationOInformationParity:
         img_c = self._make_image(c)
 
         oi = ritk.metrics.compute_o_information([img_a, img_b, img_c], num_bins=16)
-        ii = ritk.metrics.compute_interaction_information(img_a, img_b, img_c, num_bins=16)
+        ii = ritk.metrics.compute_interaction_information(
+            img_a, img_b, img_c, num_bins=16
+        )
 
         assert abs(oi - ii) < 1e-9, (
             f"Omega(X,Y,Z)={oi:.10f} != II(X;Y;Z)={ii:.10f}: "
@@ -4200,13 +4329,19 @@ class TestDualTotalCorrelationOInformationParity:
     def test_oi_tc_dtc_decomposition(self):
         """Omega = TC - DTC: verify the decomposition identity holds."""
         rng = np.random.default_rng(33)
-        imgs = [self._make_image(
-            (0.5 * rng.standard_normal((8, 8, 8)) + 0.5 * rng.standard_normal((8, 8, 8))).astype(np.float32)
-        ) for _ in range(4)]
+        imgs = [
+            self._make_image(
+                (
+                    0.5 * rng.standard_normal((8, 8, 8))
+                    + 0.5 * rng.standard_normal((8, 8, 8))
+                ).astype(np.float32)
+            )
+            for _ in range(4)
+        ]
 
-        tc  = ritk.metrics.compute_total_correlation(imgs, num_bins=8)
+        tc = ritk.metrics.compute_total_correlation(imgs, num_bins=8)
         dtc = ritk.metrics.compute_dual_total_correlation(imgs, num_bins=8)
-        oi  = ritk.metrics.compute_o_information(imgs, num_bins=8)
+        oi = ritk.metrics.compute_o_information(imgs, num_bins=8)
 
         oi_from_decomp = tc - dtc
         assert abs(oi - oi_from_decomp) < 1e-9, (

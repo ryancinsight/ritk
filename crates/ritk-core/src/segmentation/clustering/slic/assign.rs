@@ -23,7 +23,9 @@ pub fn build_grid_map(
         .collect();
 
     let total_cells: usize = n_cells_per_axis.iter().copied().product::<usize>().max(1);
-    let mut grid_map: Vec<Vec<usize>> = vec![Vec::new(); total_cells];
+    // Each cell overlaps ~5^D / total_cells centers on average; add 1 to avoid zero.
+    let avg_per_cell = centers.len() / total_cells + 1;
+    let mut grid_map: Vec<Vec<usize>> = vec![Vec::with_capacity(avg_per_cell); total_cells];
 
     for (ci, center) in centers.iter().enumerate() {
         let mut lo_cell = vec![0usize; ndim];

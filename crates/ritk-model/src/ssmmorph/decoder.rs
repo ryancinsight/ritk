@@ -10,6 +10,16 @@ use burn::prelude::*;
 
 use super::vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
+/// Whether skip connections are active in the decoder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum SkipConnections {
+    /// Skip connections are not used.
+    Disabled,
+    /// Skip connections are forwarded from encoder stages.
+    #[default]
+    Enabled,
+}
+
 /// Configuration for decoder stage
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DecoderStageConfig {
@@ -35,8 +45,8 @@ pub struct SSMMorphDecoderConfig {
     #[config(default = "2")]
     pub blocks_per_stage: usize,
     /// Use skip connections
-    #[config(default = "true")]
-    pub use_skip_connections: bool,
+    #[config(default = "SkipConnections::Enabled")]
+    pub skip_connections: SkipConnections,
 }
 
 impl SSMMorphDecoderConfig {
@@ -50,7 +60,7 @@ impl SSMMorphDecoderConfig {
             out_channels,
             num_stages,
             blocks_per_stage: 2,
-            use_skip_connections: true,
+            skip_connections: SkipConnections::Enabled,
         }
     }
 

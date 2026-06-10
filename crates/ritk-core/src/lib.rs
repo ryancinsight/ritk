@@ -7,6 +7,7 @@ pub mod segmentation;
 pub mod spatial;
 pub mod statistics;
 pub mod transform;
+pub mod wgpu_compat;
 
 pub use filter::MultiResolutionPyramid;
 pub use image::{ColorVolume, Image, RgbVolume};

@@ -98,7 +98,7 @@ fn test_rire_mha_load_ct_metadata() {
     );
 
     // ── Intensity range ───────────────────────────────────────────────────
-    let voxels = image.data_vec();
+    let voxels: Vec<f32> = image.data_slice().into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -190,7 +190,7 @@ fn test_rire_mha_load_mri_t1_metadata() {
     );
 
     // ── Intensity range ───────────────────────────────────────────────────
-    let voxels = image.data_vec();
+    let voxels: Vec<f32> = image.data_slice().into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 

@@ -32,7 +32,7 @@ pub mod multires_syn;
 pub mod syn_core;
 
 pub use bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration, BSplineSyNResult};
-pub use multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
+pub use multires_syn::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};
 pub use syn_core::{SyNRegistration, SyNResult};
 
 // ── Configuration ─────────────────────────────────────────────────────────────

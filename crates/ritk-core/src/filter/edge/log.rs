@@ -39,6 +39,7 @@
 //!   of the Royal Society of London B*, 207(1167), pp. 187–217.
 //! - Lindeberg, T. (1994). *Scale-Space Theory in Computer Vision*. Springer.
 
+use super::GaussianSigma;
 use crate::filter::edge::LaplacianFilter;
 use crate::filter::GaussianFilter;
 use crate::image::Image;
@@ -54,18 +55,20 @@ use burn::tensor::backend::Backend;
 #[derive(Debug, Clone)]
 pub struct LaplacianOfGaussianFilter {
     /// Standard deviation of the Gaussian in physical units (mm).
-    sigma: f64,
+    sigma: GaussianSigma,
 }
 
 impl LaplacianOfGaussianFilter {
     /// Create a new LoG filter with the given sigma (physical units).
     pub fn new(sigma: f64) -> Self {
-        Self { sigma }
+        Self {
+            sigma: GaussianSigma::new_unchecked(sigma),
+        }
     }
 
     /// Set the Gaussian sigma.
     pub fn with_sigma(mut self, sigma: f64) -> Self {
-        self.sigma = sigma;
+        self.sigma = GaussianSigma::new_unchecked(sigma);
         self
     }
 
@@ -82,11 +85,11 @@ impl LaplacianOfGaussianFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as
     /// `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let spacing = image.spacing();
-        let sp = [spacing[0], spacing[1], spacing[2]];
+        let sp = *image.spacing();
 
         // Stage 1: Gaussian smoothing
-        let gauss = GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
+        let gauss =
+            GaussianFilter::<B>::new(vec![self.sigma.get(), self.sigma.get(), self.sigma.get()]);
         let smoothed = gauss.apply(image);
 
         // Stage 2: Laplacian via second-order finite differences
@@ -120,7 +123,7 @@ mod tests {
     }
 
     fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// LoG of a constant image is zero everywhere.

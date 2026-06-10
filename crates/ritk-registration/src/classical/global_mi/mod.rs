@@ -47,8 +47,8 @@ pub(crate) mod transforms;
 mod tests;
 
 pub use center_of_mass::{compute_center_of_mass, translation_from_centers_of_mass};
-pub use cma_mi::{CmaMiConfig, CmaMiLevelConfig, CmaMiRegistration, CmaMiResult};
+pub use cma_mi::{CmaMiConfig, CmaMiLevelConfig, CmaMiRegistration, CmaMiResult, InitStrategy};
 pub use config::{GlobalMiConfig, GlobalMiTransformType};
 pub use multistart::{MultiStartConfig, MultiStartMiRegistration, MultiStartResult};
 pub use registration::GlobalMiRegistration;
-pub use result::GlobalMiResult;
+pub use result::{ConvergenceStatus, GlobalMiResult};

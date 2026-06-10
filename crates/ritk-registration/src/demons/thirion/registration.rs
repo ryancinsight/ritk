@@ -1,10 +1,10 @@
 //! Thirion Demons registration struct and iteration loop.
 
 use super::super::config::{DemonsConfig, DemonsResult};
-use super::forces::{compute_mse, thirion_forces_into};
+use super::forces::thirion_forces_into;
 use crate::deformable_field_ops::{
-    compute_gradient, gaussian_smooth_inplace, warp_image, warp_image_into, VectorField3D,
-    VectorFieldMut3D,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace, warp_image_into,
+    VectorField3D, VectorFieldMut3D, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -65,9 +65,9 @@ impl ThirionDemonsRegistration {
         let mut disp_y = vec![0.0_f32; n];
         let mut disp_x = vec![0.0_f32; n];
 
-        let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
+        let grad = compute_gradient(fixed, dims, spacing);
 
-        let mut final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
+        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         let mut iter = 0usize;
         let mut m_warped = vec![0.0_f32; n];
         let mut fz = vec![0.0_f32; n];
@@ -83,9 +83,9 @@ impl ThirionDemonsRegistration {
                 fixed,
                 &m_warped,
                 VectorField3D {
-                    z: &grad_z,
-                    y: &grad_y,
-                    x: &grad_x,
+                    z: &grad.z,
+                    y: &grad.y,
+                    x: &grad.x,
                 },
                 self.config.max_step_length,
                 VectorFieldMut3D {
@@ -96,9 +96,13 @@ impl ThirionDemonsRegistration {
             );
 
             if self.config.sigma_fluid > 0.0 {
-                gaussian_smooth_inplace(&mut fz, dims, self.config.sigma_fluid);
-                gaussian_smooth_inplace(&mut fy, dims, self.config.sigma_fluid);
-                gaussian_smooth_inplace(&mut fx, dims, self.config.sigma_fluid);
+                gaussian_smooth_field_inplace(
+                    &mut fz,
+                    &mut fy,
+                    &mut fx,
+                    dims,
+                    self.config.sigma_fluid,
+                );
             }
 
             for i in 0..n {
@@ -108,18 +112,22 @@ impl ThirionDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_inplace(&mut disp_z, dims, self.config.sigma_diffusion);
-                gaussian_smooth_inplace(&mut disp_y, dims, self.config.sigma_diffusion);
-                gaussian_smooth_inplace(&mut disp_x, dims, self.config.sigma_diffusion);
+                gaussian_smooth_field_inplace(
+                    &mut disp_z,
+                    &mut disp_y,
+                    &mut disp_x,
+                    dims,
+                    self.config.sigma_diffusion,
+                );
             }
 
-            final_mse = compute_mse(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
+            final_mse = compute_mse_streaming(fixed, moving, dims, &disp_z, &disp_y, &disp_x);
         }
 
-        let warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
+        warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut m_warped);
 
         Ok(DemonsResult {
-            warped,
+            warped: m_warped,
             disp_z,
             disp_y,
             disp_x,
@@ -141,20 +149,16 @@ impl ThirionDemonsRegistration {
     ///
     ///   `u^{-1}_0(x)      = −u(x)`
     ///   `u^{-1}_{k+1}(x)  = −u(x + u^{-1}_k(x))`
-    pub fn invert_result(
-        &self,
-        result: &DemonsResult,
-        dims: [usize; 3],
-    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    pub fn invert_result(&self, result: &DemonsResult, dims: [usize; 3]) -> VelocityField {
         use crate::demons::inverse::{invert_displacement_field, InverseFieldConfig};
         let config = InverseFieldConfig::default();
-        let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
+        let (inv, _) = invert_displacement_field(
             &result.disp_z,
             &result.disp_y,
             &result.disp_x,
             dims,
             &config,
         );
-        (inv_z, inv_y, inv_x)
+        inv
     }
 }

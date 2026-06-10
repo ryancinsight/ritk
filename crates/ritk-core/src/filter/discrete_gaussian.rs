@@ -25,7 +25,47 @@
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+
+/// Controls whether Gaussian variance is specified in physical or pixel units.
+///
+/// - `Physical` (default): variance is in physical (world) units; converted to
+///   pixel units using image spacing (`sigma_pixel = sqrt(v) / h_d`).
+/// - `Voxel`: variance is already in pixel (voxel) units; no conversion applied.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum SpacingMode {
+    /// Ignore image spacing; treat variance as voxel-space variance.
+    Voxel,
+    /// Use physical spacing to convert variance to pixel sigma (ITK default).
+    #[default]
+    Physical,
+}
+
+impl std::fmt::Display for SpacingMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SpacingMode::Physical => f.write_str("physical"),
+            SpacingMode::Voxel => f.write_str("voxel"),
+        }
+    }
+}
+
+impl std::str::FromStr for SpacingMode {
+    type Err = String;
+
+    /// Parse a spacing mode string.
+    ///
+    /// Accepts `"physical"` / `"true"` (legacy) and `"voxel"` / `"pixel"` /
+    /// `"false"` (legacy).
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "physical" | "true" => Ok(SpacingMode::Physical),
+            "voxel" | "pixel" | "false" => Ok(SpacingMode::Voxel),
+            _ => Err(format!("expected 'physical' or 'voxel', got '{s}'")),
+        }
+    }
+}
 
 /// Discrete Gaussian smoothing filter (ITK DiscreteGaussianImageFilter parity).
 ///
@@ -34,7 +74,7 @@ use std::marker::PhantomData;
 pub struct DiscreteGaussianFilter<B: Backend> {
     variance: Vec<f64>,
     maximum_error: f64,
-    use_image_spacing: bool,
+    spacing_mode: SpacingMode,
     _b: PhantomData<fn() -> B>,
 }
 
@@ -46,7 +86,21 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         Self {
             variance,
             maximum_error: 0.01,
-            use_image_spacing: true,
+            spacing_mode: SpacingMode::Physical,
+            _b: PhantomData,
+        }
+    }
+
+    /// Create a filter with the same variance applied to all image dimensions.
+    ///
+    /// Equivalent to `new(vec![variance])` when the single variance value is
+    /// broadcast to every dimension by `variance_for_dim`.
+    pub fn new_isotropic(variance: f64) -> Self {
+        assert!(variance >= 0.0, "variance must be >= 0, got {variance}");
+        Self {
+            variance: vec![variance],
+            maximum_error: 0.01,
+            spacing_mode: SpacingMode::Physical,
             _b: PhantomData,
         }
     }
@@ -61,9 +115,9 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         self
     }
 
-    /// Set use_image_spacing (default true).
-    pub fn with_use_image_spacing(mut self, use_image_spacing: bool) -> Self {
-        self.use_image_spacing = use_image_spacing;
+    /// Set spacing mode (default `Physical`).
+    pub fn with_spacing_mode(mut self, mode: SpacingMode) -> Self {
+        self.spacing_mode = mode;
         self
     }
 
@@ -78,6 +132,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         )
     }
 
+    #[inline]
     fn variance_for_dim(&self, d: usize) -> f64 {
         if d < self.variance.len() {
             self.variance[d]
@@ -89,21 +144,24 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         }
     }
 
+    #[inline]
     fn pixel_sigma_for_dim<const D: usize>(
         &self,
         d: usize,
         spacing: &crate::spatial::Spacing<D>,
     ) -> f64 {
         let v = self.variance_for_dim(d);
-        if self.use_image_spacing {
-            let h = spacing[d];
-            v.max(0.0).sqrt() / h.max(1e-12)
-        } else {
-            v.max(0.0).sqrt()
+        match self.spacing_mode {
+            SpacingMode::Physical => {
+                let h = spacing[d];
+                v.max(0.0).sqrt() / h.max(1e-12)
+            }
+            SpacingMode::Voxel => v.max(0.0).sqrt(),
         }
     }
 
     /// r_min = ceil(sqrt(-2*sigma^2*ln(maximum_error))), minimum 1.
+    #[inline]
     fn kernel_radius(&self, sigma_pixel: f64) -> usize {
         if sigma_pixel < 1e-9 {
             return 0;
@@ -114,10 +172,12 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         r.max(1)
     }
 
+    #[inline]
     fn build_kernel(&self, sigma_pixel: f64, radius: usize) -> Vec<f32> {
         let width = 2 * radius + 1;
         let mut k = Vec::with_capacity(width);
         let two_s2 = 2.0 * sigma_pixel * sigma_pixel;
+        // ACCUMULATOR: f64 for normalization stability over f32 kernel weights.
         let mut sum = 0.0f64;
         for i in 0..width {
             let x = i as f64 - radius as f64;
@@ -130,6 +190,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         }
         k
     }
+    #[inline]
     fn apply_inner<const D: usize>(
         &self,
         data: Tensor<B, D>,

@@ -168,7 +168,7 @@ fn test_non_unit_spacing() {
     let [nz, ny, nx] = [4usize, 4, 8];
     let vals: Vec<f32> = (0..nz * ny * nx).map(|flat| (flat % nx) as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
-    let filter = GradientMagnitudeFilter::new([1.0, 1.0, 2.0]);
+    let filter = GradientMagnitudeFilter::new([1.0, 1.0, 2.0].into());
     let (_, _, gx) = filter.apply_components(&img).unwrap();
     let gx_data = gx.data().clone().into_data();
     let gx_vals = gx_data.as_slice::<f32>().unwrap();
@@ -205,7 +205,7 @@ fn test_apply_from_slice_matches_apply() {
         .collect();
     let spacing = [1.5, 2.0, 0.8];
     let img = make_image(vals.clone(), [nz, ny, nx], spacing);
-    let filter = GradientMagnitudeFilter::new(spacing);
+    let filter = GradientMagnitudeFilter::new(spacing.into());
 
     // Reference path: apply() extracts data internally via clone().into_data().
     let mag_ref = filter.apply(&img).unwrap();

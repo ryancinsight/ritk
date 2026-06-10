@@ -19,7 +19,7 @@ use pyo3::prelude::*;
 use ritk_core::image::Image;
 use ritk_core::transform::{AffineTransform, RigidTransform, TranslationTransform};
 use ritk_registration::classical::global_mi::{
-    GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType,
+    ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType,
 };
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;
 
@@ -197,8 +197,8 @@ fn run_global_mi_register(
     let moving_ad = py_image_to_autodiff_image(moving);
 
     // ── 5. Run registration inside allow_threads ─────────────────────────
-    let (matrix, final_mi, convergence_history, iterations_per_level, loss_history, converged) = py
-        .allow_threads(|| {
+    let (matrix, final_mi, convergence_history, iterations_per_level, loss_history, convergence) =
+        py.allow_threads(|| {
             let device = Default::default();
             match transform_type_enum {
                 GlobalMiTransformType::Translation => {
@@ -215,7 +215,7 @@ fn run_global_mi_register(
                         result.convergence_history,
                         result.iterations_per_level,
                         result.loss_history,
-                        result.converged,
+                        result.convergence,
                     )
                 }
                 GlobalMiTransformType::Rigid => {
@@ -231,7 +231,7 @@ fn run_global_mi_register(
                         result.convergence_history,
                         result.iterations_per_level,
                         result.loss_history,
-                        result.converged,
+                        result.convergence,
                     )
                 }
                 GlobalMiTransformType::Affine => {
@@ -247,7 +247,7 @@ fn run_global_mi_register(
                         result.convergence_history,
                         result.iterations_per_level,
                         result.loss_history,
-                        result.converged,
+                        result.convergence,
                     )
                 }
             }
@@ -275,7 +275,7 @@ fn run_global_mi_register(
     let info = pyo3::types::PyDict::new_bound(py);
     info.set_item("convergence_history", convergence_strs)?;
     info.set_item("iterations_per_level", iterations_per_level)?;
-    info.set_item("converged", converged)?;
+    info.set_item("converged", convergence == ConvergenceStatus::Converged)?;
     info.set_item("loss_history", loss_history)?;
 
     Ok((matrix_vec, final_mi, info.unbind().into()))

@@ -70,7 +70,10 @@
 pub mod kernel;
 pub mod transform;
 
-pub use kernel::{cdt_3d, chamfer_distance_transform_3d, ChamferMetric, INF};
+pub use kernel::{
+    cdt_3d, cdt_3d_dispatch, chamfer_distance_transform_3d, chamfer_distance_transform_3d_generic,
+    ChamferKernel, ChamferMetric, Chessboard, Taxicab, INF,
+};
 pub use transform::ChamferDistanceTransform;
 
 #[cfg(test)]

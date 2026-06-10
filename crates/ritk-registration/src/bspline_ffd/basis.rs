@@ -22,7 +22,7 @@
 //! and skips all bounds checks, eliminating ~1B branch instructions for a
 //! 256³ volume.
 
-use crate::deformable_field_ops::flat;
+use crate::deformable_field_ops::{flat, VelocityField};
 
 /// Evaluate the four cubic B-spline basis values at parameter `t ∈ [0, 1]`.
 ///
@@ -171,7 +171,7 @@ pub fn init_control_grid(dims: [usize; 3], ctrl_spacing: &[f64; 3]) -> [usize; 3
 /// neighborhood of control points.
 ///
 /// # Returns
-/// `(dz, dy, dx)` — displacement components in voxel units, each of length
+/// `VelocityField` — displacement components in voxel units, each of length
 /// `dims[0] * dims[1] * dims[2]`.
 pub(super) fn evaluate_bspline_displacement(
     cp_z: &[f32],
@@ -180,7 +180,7 @@ pub(super) fn evaluate_bspline_displacement(
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
     dims: [usize; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let cache = BasisCache::new(dims, ctrl_spacing);
     evaluate_bspline_displacement_fast(cp_z, cp_y, cp_x, ctrl_dims, dims, &cache)
 }
@@ -195,8 +195,12 @@ pub(super) fn evaluate_bspline_displacement(
 /// - The inner 4×4×4 tensor-product loop is structured for auto-vectorization
 ///   (consecutive memory accesses, loop-invariant weights).
 ///
+/// Allocates three `Vec<f32>` output buffers. Use
+/// [`evaluate_bspline_displacement_fast_into`] to write into caller-owned
+/// buffers without allocation.
+///
 /// # Returns
-/// `(dz, dy, dx)` — displacement components in voxel units, each of length
+/// `VelocityField` — displacement components in voxel units, each of length
 /// `dims[0] * dims[1] * dims[2]`.
 pub fn evaluate_bspline_displacement_fast(
     cp_z: &[f32],
@@ -205,14 +209,50 @@ pub fn evaluate_bspline_displacement_fast(
     ctrl_dims: &[usize; 3],
     dims: [usize; 3],
     cache: &BasisCache,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
+    let n = dims[0] * dims[1] * dims[2];
+    let mut dz = vec![0.0_f32; n];
+    let mut dy = vec![0.0_f32; n];
+    let mut dx = vec![0.0_f32; n];
+    evaluate_bspline_displacement_fast_into(
+        cp_z, cp_y, cp_x, ctrl_dims, dims, cache, &mut dz, &mut dy, &mut dx,
+    );
+    VelocityField {
+        z: dz,
+        y: dy,
+        x: dx,
+    }
+}
+
+/// Zero-allocation variant of [`evaluate_bspline_displacement_fast`].
+///
+/// Writes displacement components directly into caller-provided buffers,
+/// avoiding the three `Vec<f32>` allocations of the allocating version.
+/// Buffers are zeroed on entry; any prior contents are overwritten.
+///
+/// # Panics
+/// Panics if `dz`, `dy`, or `dx` are shorter than
+/// `dims[0] * dims[1] * dims[2]`.
+#[allow(clippy::too_many_arguments)]
+pub fn evaluate_bspline_displacement_fast_into(
+    cp_z: &[f32],
+    cp_y: &[f32],
+    cp_x: &[f32],
+    ctrl_dims: &[usize; 3],
+    dims: [usize; 3],
+    cache: &BasisCache,
+    dz: &mut [f32],
+    dy: &mut [f32],
+    dx: &mut [f32],
+) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let [cnz, cny, cnx] = *ctrl_dims;
 
-    let mut dz = vec![0.0_f32; n];
-    let mut dy = vec![0.0_f32; n];
-    let mut dx = vec![0.0_f32; n];
+    // Zero-fill output buffers before accumulation.
+    dz[..n].fill(0.0);
+    dy[..n].fill(0.0);
+    dx[..n].fill(0.0);
 
     // Determine interior ranges — voxels where ALL 64 control points are
     // in-bounds. For voxels outside these ranges, the per-voxel bounds-check
@@ -365,8 +405,8 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_interior(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
-                        cp_x, cny, cnx, ny, nx,
+                        &mut *dz, &mut *dy, &mut *dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z,
+                        cp_y, cp_x, cny, cnx, ny, nx,
                     );
                 }
                 // Boundary x-ranges: use bounds-check path.
@@ -374,16 +414,16 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
-                        cp_x, cnz, cny, cnx, ny, nx,
+                        &mut *dz, &mut *dy, &mut *dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z,
+                        cp_y, cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
                 for ix in ix_hi..nx {
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
-                        cp_x, cnz, cny, cnx, ny, nx,
+                        &mut *dz, &mut *dy, &mut *dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z,
+                        cp_y, cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
             } else {
@@ -392,13 +432,11 @@ pub fn evaluate_bspline_displacement_fast(
                     let kx = cache.x.k[ix];
                     let bx = &cache.x.b[ix];
                     eval_bounds(
-                        &mut dz, &mut dy, &mut dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z, cp_y,
-                        cp_x, cnz, cny, cnx, ny, nx,
+                        &mut *dz, &mut *dy, &mut *dx, iz, iy, ix, kz, ky, kx, bz, by, bx, cp_z,
+                        cp_y, cp_x, cnz, cny, cnx, ny, nx,
                     );
                 }
             }
         }
     }
-
-    (dz, dy, dx)
 }

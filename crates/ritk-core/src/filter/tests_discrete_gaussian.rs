@@ -50,12 +50,12 @@ fn test_larger_variance_produces_more_smoothing_on_step_edge() {
     let img = make_image(v, [1, 1, 16]);
     let sv = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 0.5])
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     let lv = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.5, 0.5, 4.0])
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     assert!((50.0 - lv[8]).abs() < (50.0 - sv[8]).abs());
@@ -78,7 +78,7 @@ fn test_zero_variance_produces_identity() {
     let v: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_image(v.clone(), [3, 3, 3]);
     let out = DiscreteGaussianFilter::<B>::new(vec![0.0])
-        .with_use_image_spacing(false)
+        .with_spacing_mode(SpacingMode::Voxel)
         .apply(&img);
     for (&e, &a) in v.iter().zip(vals(&out).iter()) {
         assert!((e - a).abs() < 1e-4);
@@ -110,13 +110,13 @@ fn test_maximum_error_smaller_produces_larger_kernel() {
     let loose = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
             .with_maximum_error(0.1)
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     let strict = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
             .with_maximum_error(0.001)
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     assert!((50.0 - strict[8]).abs() <= (50.0 - loose[8]).abs() + 1.0);
@@ -129,7 +129,7 @@ fn test_per_dimension_variance_applied_independently() {
     let img = make_image(v, [1, 8, 8]);
     let ov = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, 4.0])
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     assert!(ov[4 * 8 + 3] > 1.0);
@@ -149,7 +149,7 @@ fn test_impulse_response_matches_analytical_gaussian() {
     let img = make_image(imp, [1, 1, n]);
     let ov = vals(
         &DiscreteGaussianFilter::<B>::new(vec![0.0, 0.0, var])
-            .with_use_image_spacing(false)
+            .with_spacing_mode(SpacingMode::Voxel)
             .apply(&img),
     );
     let tv = 2.0 * var;

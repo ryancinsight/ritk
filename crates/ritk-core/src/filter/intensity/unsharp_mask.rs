@@ -55,6 +55,20 @@ use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use anyhow::Result;
 use burn::tensor::backend::Backend;
+use serde::{Deserialize, Serialize};
+
+/// Whether to clamp the unsharp mask output to the input intensity range.
+///
+/// - `NoClamp`: output may exceed `[min(I), max(I)]`.
+/// - `ClampToInputRange`: output is restricted to `[min(I), max(I)]` (ITK default).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ClampPolicy {
+    /// Do not clamp; sharpening can produce values outside the input range.
+    #[default]
+    NoClamp,
+    /// Clamp output to `[min(I), max(I)]`.
+    ClampToInputRange,
+}
 
 /// Unsharp mask sharpening filter for 3-D volumes.
 ///
@@ -80,8 +94,8 @@ pub struct UnsharpMaskFilter {
     pub amount: f64,
     /// Minimum absolute mask value to trigger sharpening. ITK default: 0.0.
     pub threshold: f64,
-    /// Whether to clamp output to the input's intensity range. ITK default: true.
-    pub clamp: bool,
+    /// Clamp policy for the output. ITK default: `ClampToInputRange`.
+    pub clamp: ClampPolicy,
 }
 
 impl Default for UnsharpMaskFilter {
@@ -90,7 +104,7 @@ impl Default for UnsharpMaskFilter {
             sigmas: vec![1.0],
             amount: 0.5,
             threshold: 0.0,
-            clamp: true,
+            clamp: ClampPolicy::ClampToInputRange,
         }
     }
 }
@@ -102,14 +116,20 @@ impl UnsharpMaskFilter {
     /// * `sigmas`    — per-dimension Gaussian sigma in physical units; broadcast if length 1.
     /// * `amount`    — sharpening strength (ITK default 0.5).
     /// * `threshold` — minimum |mask| to trigger sharpening (ITK default 0.0).
-    /// * `clamp`     — clamp output to input range (ITK default true).
-    pub fn new(sigmas: Vec<f64>, amount: f64, threshold: f64, clamp: bool) -> Self {
+    /// * `clamp` — clamp output to input range (ITK default `ClampToInputRange`).
+    pub fn new(sigmas: Vec<f64>, amount: f64, threshold: f64, clamp: ClampPolicy) -> Self {
         Self {
             sigmas,
             amount,
             threshold,
             clamp,
         }
+    }
+
+    /// Builder-style setter for the clamp policy.
+    pub fn with_clamp(mut self, clamp: ClampPolicy) -> Self {
+        self.clamp = clamp;
+        self
     }
 
     /// Apply the unsharp mask filter to a 3-D image.
@@ -135,18 +155,19 @@ impl UnsharpMaskFilter {
         let threshold = self.threshold as f32;
 
         // Derive input intensity range for optional clamping.
-        let (v_min, v_max) = if self.clamp {
-            let mut mn = f32::INFINITY;
-            let mut mx = f32::NEG_INFINITY;
-            for &v in &input {
-                if v.is_finite() {
-                    mn = mn.min(v);
-                    mx = mx.max(v);
+        let (v_min, v_max) = match self.clamp {
+            ClampPolicy::ClampToInputRange => {
+                let mut mn = f32::INFINITY;
+                let mut mx = f32::NEG_INFINITY;
+                for &v in &input {
+                    if v.is_finite() {
+                        mn = mn.min(v);
+                        mx = mx.max(v);
+                    }
                 }
+                (mn, mx)
             }
-            (mn, mx)
-        } else {
-            (f32::NEG_INFINITY, f32::INFINITY)
+            ClampPolicy::NoClamp => (f32::NEG_INFINITY, f32::INFINITY),
         };
 
         // Apply unsharp mask formula.
@@ -215,7 +236,7 @@ mod tests {
     #[test]
     fn uniform_input_is_identity() {
         let img = make_image(vec![3.0_f32; 2 * 4 * 4], 2, 4, 4);
-        let filter = UnsharpMaskFilter::new(vec![1.0], 2.0, 0.0, true);
+        let filter = UnsharpMaskFilter::new(vec![1.0], 2.0, 0.0, ClampPolicy::ClampToInputRange);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let vals = image_vals(&out);
         for (i, &v) in vals.iter().enumerate() {
@@ -234,7 +255,7 @@ mod tests {
         // Non-trivial image with gradient values.
         let vals: Vec<f32> = (0..32).map(|i| i as f32 * 0.1).collect();
         let img = make_image(vals.clone(), 2, 4, 4);
-        let filter = UnsharpMaskFilter::new(vec![1.0], 0.0, 0.0, false);
+        let filter = UnsharpMaskFilter::new(vec![1.0], 0.0, 0.0, ClampPolicy::NoClamp);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let out_vals = image_vals(&out);
         for (i, (&expected, &got)) in vals.iter().zip(out_vals.iter()).enumerate() {
@@ -253,7 +274,7 @@ mod tests {
     fn threshold_suppresses_all_sharpening() {
         // Constant image → mask = 0 < threshold = 100.0 everywhere.
         let img = make_image(vec![42.0_f32; 2 * 3 * 3], 2, 3, 3);
-        let filter = UnsharpMaskFilter::new(vec![1.0], 5.0, 100.0, false);
+        let filter = UnsharpMaskFilter::new(vec![1.0], 5.0, 100.0, ClampPolicy::NoClamp);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let out_vals = image_vals(&out);
         for (i, &v) in out_vals.iter().enumerate() {
@@ -274,7 +295,7 @@ mod tests {
         let vals: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
         let img = make_image(vals.clone(), 1, 1, 8);
         // Large amount to ensure edge overshoot without clamping.
-        let filter = UnsharpMaskFilter::new(vec![0.5], 5.0, 0.0, true);
+        let filter = UnsharpMaskFilter::new(vec![0.5], 5.0, 0.0, ClampPolicy::ClampToInputRange);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let out_vals = image_vals(&out);
         let input_max = 1.0_f32;
@@ -300,7 +321,7 @@ mod tests {
         // 1×1×8 step edge: [0,0,0,0,1,1,1,1]
         let vals: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
         let img = make_image(vals.clone(), 1, 1, 8);
-        let filter = UnsharpMaskFilter::new(vec![0.5], 5.0, 0.0, false);
+        let filter = UnsharpMaskFilter::new(vec![0.5], 5.0, 0.0, ClampPolicy::NoClamp);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let out_vals = image_vals(&out);
         // At the step boundary (positions 4–5), the sharpened output must exceed 1.0.
@@ -342,7 +363,7 @@ mod tests {
         let vals: Vec<f32> = vec![0.0, 0.0, 1.0, 1.0];
         let img = make_image(vals, 1, 1, 4);
         // amount=2.0, no clamping so we can observe the actual sharpened values.
-        let filter = UnsharpMaskFilter::new(vec![0.5], 2.0, 0.0, false);
+        let filter = UnsharpMaskFilter::new(vec![0.5], 2.0, 0.0, ClampPolicy::NoClamp);
         let out = filter.apply::<B>(&img).expect("apply failed");
         let out_vals = image_vals(&out);
         // The output step contrast (max − min) must be > input contrast (1.0 − 0.0 = 1.0).

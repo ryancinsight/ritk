@@ -40,7 +40,7 @@ mod tests {
     }
 
     fn tensor_values(image: &ritk_core::image::Image<TestBackend, 3>) -> Vec<f32> {
-        image.data_vec()
+        image.data_slice().into_owned()
     }
 
     #[test]

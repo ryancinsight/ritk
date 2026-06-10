@@ -79,7 +79,8 @@ pub fn find(
     ]);
 
     let level_bytes = encode_str(query.level.as_cs_str());
-    let mut dataset_elements: Vec<(u32, Vec<u8>)> = vec![(0x0008_0052, level_bytes)];
+    let mut dataset_elements: Vec<(u32, Vec<u8>)> = Vec::with_capacity(query.keys.len() + 1);
+    dataset_elements.push((0x0008_0052, level_bytes));
     for (group, element, value) in &query.keys {
         let tag = ((*group as u32) << 16) | (*element as u32);
         dataset_elements.push((tag, encode_str(value)));

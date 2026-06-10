@@ -1,6 +1,8 @@
 //! EPDiff coadjoint operator ad*_v(m).
 
 use crate::deformable_field_ops::{flat, VectorField3D, VectorFieldMut3D};
+#[cfg(test)]
+use crate::deformable_field_ops::VelocityField;
 
 /// Compute the EPDiff coadjoint operator ad\*\_v(m).
 ///
@@ -16,7 +18,7 @@ pub(super) fn epdiff_adjoint(
     m: VectorField3D<'_>,
     dims: [usize; 3],
     spacing: [f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut ad_z = vec![0.0_f32; n];
@@ -33,7 +35,11 @@ pub(super) fn epdiff_adjoint(
             x: &mut ad_x,
         },
     );
-    (ad_z, ad_y, ad_x)
+    VelocityField {
+        z: ad_z,
+        y: ad_y,
+        x: ad_x,
+    }
 }
 
 /// Zero-allocation variant of [`epdiff_adjoint`].

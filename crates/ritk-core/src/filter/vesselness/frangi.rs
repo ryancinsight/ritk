@@ -28,6 +28,7 @@
 //! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130–137.
 
 use super::hessian::{compute_hessian_3d, symmetric_3x3_eigenvalues};
+use super::VesselPolarity;
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -45,18 +46,15 @@ pub struct FrangiConfig {
     /// Plate-like vs. line-like anisotropy threshold (controls sensitivity of R_A).
     /// Typical value: 0.5.
     pub alpha: f64,
-    /// Blobness threshold (controls sensitivity of R_B).
-    /// Typical value: 0.5.
+    /// Blobness threshold (controls sensitivity of R_B). Typical value: 0.5.
     pub beta: f64,
     /// Noise / background structureness threshold (controls sensitivity of S).
     /// Typical value: 15.0 (half the maximum Frobenius norm of the Hessian for
     /// the application image intensity range).
     pub gamma: f64,
-    /// If `true`, detect bright structures on a dark background (e.g. vessels in
-    /// MRA); requires `λ₂ < 0` and `λ₃ < 0`.
-    /// If `false`, detect dark structures on a bright background; requires
-    /// `λ₂ > 0` and `λ₃ > 0`.
-    pub bright_vessels: bool,
+    /// Vessel polarity: detect bright structures on a dark background
+    /// (e.g. vessels in MRA) or dark structures on a bright background.
+    pub polarity: VesselPolarity,
 }
 
 impl Default for FrangiConfig {
@@ -66,7 +64,7 @@ impl Default for FrangiConfig {
             alpha: 0.5,
             beta: 0.5,
             gamma: 15.0,
-            bright_vessels: true,
+            polarity: VesselPolarity::Bright,
         }
     }
 }
@@ -140,16 +138,19 @@ impl FrangiVesselnessFilter {
     #[inline]
     fn voxel_vesselness(&self, lambda1: f32, lambda2: f32, lambda3: f32) -> f32 {
         // Vessel polarity gate.
-        if self.config.bright_vessels {
-            // Bright vessel on dark background: both transverse eigenvalues must
-            // be negative (concave in cross-sectional directions).
-            if lambda2 >= 0.0 || lambda3 >= 0.0 {
-                return 0.0;
+        match self.config.polarity {
+            VesselPolarity::Bright => {
+                // Bright vessel on dark background: both transverse eigenvalues must
+                // be negative (concave in cross-sectional directions).
+                if lambda2 >= 0.0 || lambda3 >= 0.0 {
+                    return 0.0;
+                }
             }
-        } else {
-            // Dark vessel on bright background: both must be positive.
-            if lambda2 <= 0.0 || lambda3 <= 0.0 {
-                return 0.0;
+            VesselPolarity::Dark => {
+                // Dark vessel on bright background: both must be positive.
+                if lambda2 <= 0.0 || lambda3 <= 0.0 {
+                    return 0.0;
+                }
             }
         }
 

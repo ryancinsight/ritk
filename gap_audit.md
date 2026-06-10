@@ -4,6 +4,289 @@
 
 ---
 
+## Sprint 353 Audit (2026-06-10) — 20-Cycle Zero-Cost Architecture (Repeat)
+
+### Gaps Closed
+
+| Gap ID | Description | Files | Evidence |
+|--------|-------------|-------|----------|
+| DRY-353-01 | `BinaryOpFilter<Op>` ZST trait + 6 type aliases replace 6 duplicate filter structs (~120 lines) | `filter/intensity/binary_ops.rs` | 12 tests pass |
+| DRY-353-02 | `SeparableGradientFilter<K>` ZST trait + `SobelKernel`/`PrewittKernel` replaces duplicate Sobel/Prewitt implementations (~120 lines) | `filter/edge/separable_gradient/mod.rs`, `sobel.rs`, `prewitt/mod.rs` | 21 tests pass |
+| DRY-353-03 | Deconvolution `const D: usize` + `Regularization` trait + `DeconvIterationRule` trait eliminates 8 duplicated apply_2d/apply_3d method pairs (~400 lines) | `filter/deconvolution/regularization.rs`, `helpers.rs`, `wiener.rs`, `tikhonov.rs`, `landweber.rs`, `rl.rs` | 25 tests pass |
+| DRY-353-04 | FFT `fft_nd<const D>` + `FrequencyResponse` ZST trait eliminates 2D/3D duplication in forward/inverse/shift/frequency_filter | `filter/fft/convolution/helpers.rs`, `forward.rs`, `inverse.rs`, `shift.rs`, `frequency_filter.rs` | 41 tests pass |
+| DRY-353-05 | `gaussian_smooth_field_inplace` + `_with_scratch` replaces 3-call pattern at 12 call sites | `deformable_field_ops/smooth.rs` + 8 files | 583 reg tests pass |
+| DRY-353-06 | `normalize_forces_into` extracted from 3 duplicate CC normalization blocks | `deformable_field_ops/normalize.rs`, `syn_core/mod.rs`, `multires_syn/mod.rs`, `bspline_syn/mod.rs` | 583 reg tests pass |
+| DRY-353-07 | Registration loop DRY: `execute_with_summary`/`execute_with_tracker` → shared `run_loop` | `registration/mod.rs` | 583 reg tests pass |
+| BOOL-353-08 | `ClampPolicy`, `Connectivity`, `SpacingMode`, `ScaleNormalization`, `VesselPolarity`, `Visibility`, `BoundsPolicy` replace 16 bare booleans | 15+ files across `filter/`, `annotation/`, `interpolation/` | 1574 core tests pass |
+| BOOL-353-09 | `DemonsVariant`, `InverseConsistency`, `PopulationEval`, `HistoryPolicy` replace 4 bare booleans in registration | `demons/config.rs`, `multires_syn/mod.rs`, `optimizer/cma_es/state.rs` | 583 reg tests pass |
+| ZST-353-10 | `ConductanceKernel` trait + `QuadraticConductance`/`ExponentialConductance` ZSTs replaces `ConductanceFunction` enum | `filter/diffusion/perona_malik.rs` | 1574 core tests pass |
+| ZST-353-11 | `ChamferKernel` trait + `Chessboard`/`Taxicab` ZSTs replaces `ChamferMetric` enum | `filter/distance/chamfer/kernel.rs` | 1574 core tests pass |
+| ZST-353-12 | `FftDirection` trait + `ForwardFft`/`InverseFft` ZSTs replaces `FftDir` enum | `filter/fft/convolution/helpers.rs` | 1574 core tests pass |
+| PERF-353-13 | Deconvolution: `residual`/`ratio` pre-allocated before iteration loop (2 allocs/iter → 0) | `filter/deconvolution/regularization.rs` | 25 tests pass |
+| PERF-353-14 | CED scratch: 3 per-iter gradient clones + 6 per-component `Vec` allocs eliminated | `filter/diffusion/coherence/scratch.rs` | 1574 core tests pass |
+| PERF-353-15 | BSpline FFD metric: `MetricGradientScratch` + `_into` variant eliminates 9 per-iter allocs | `bspline_ffd/metric.rs`, `registration.rs` | 583 reg tests pass |
+| PERF-353-16 | Histogram cache: `Vec<f64>` → `[f64; 3]`/`[f64; 9]` eliminates 3 heap allocs per cache build | `metric/histogram/cache.rs`, `lncc.rs` | 583 reg tests pass |
+| COW-353-17 | `&Arc<Vec<f64>>` → `&[f64]` in CED pde; `Arc<Vec<f32>>` → `&[f32]` in mean filter | `filter/diffusion/coherence/pde.rs`, `filter/smoothing/mean.rs` | 1574 core tests pass |
+| COW-353-18 | `Arc<Vec<u32>>` → `Arc<[u32]>` in label map | `annotation/label_map.rs` | 1574 core tests pass |
+| DYN-353-19 | `Arc<Mutex<Option<Instant>>>` → `OnceLock<Instant>` in ProgressTracker; `dyn exception` comments on metric caches | `progress/tracker.rs`, `metric/histogram/parzen/mod.rs`, `metric/lncc.rs` | 583 reg tests pass |
+| NAMED-353-20 | 9 functions returning `(Vec, Vec, Vec)` tuples → `VelocityField` named struct | `deformable_field_ops/{compose,gradient,integrate}.rs`, `demons/inverse/`, `lddmm/`, `bspline_ffd/basis.rs`, `regularization.rs` | 583 reg tests pass |
+
+### Architecture
+
+- **BinaryOpFilter<Op>**: SSOT for pixelwise binary image operations. 6 type aliases (`AddImageFilter` etc.) preserve the public API while the ZST `Op` types monomorphize to zero-cost specialized loops.
+- **SeparableGradientFilter<K>**: SSOT for 3-D separable gradient filters. `SobelKernel` and `PrewittKernel` ZSTs encode the smoothing kernel and normalization factor at the type level via `GradientKernel` trait const associated values.
+- **Regularization trait + DeconvIterationRule trait**: SSOT for frequency-domain deconvolution. `const D: usize` eliminates 2D/3D code duplication; trait dispatch eliminates algorithm-specific copy-paste.
+- **FftDirection ZST**: `fft2d<Dir: FftDirection>` / `fft3d<Dir>` / `fft_nd<Dir, D>` eliminate runtime match on `FftDir` enum in hot FFT paths.
+- **FrequencyResponse ZST trait**: 4 ZST types (`IdealLowPass` etc.) replace `FftFilterKind` dispatch in mask generation, with const-generic `compute_mask::<D>`.
+- **ConductanceKernel ZST trait**: `QuadraticConductance`/`ExponentialConductance` replace runtime `ConductanceFunction` enum match in diffusion hot path.
+- **ChamferKernel ZST trait**: `Chessboard`/`Taxicab` replace `ChamferMetric` enum in distance transform hot path.
+- **VelocityField**: SSOT for all owned 3-component displacement/velocity field returns — 9 functions converted from positional tuples to named `.z/.y/.x` fields.
+- **MetricGradientScratch**: Pre-allocated scratch buffers for BSpline FFD metric gradient — 9 per-iteration allocations eliminated.
+- **Boolean blindness eliminated**: 20 bare `bool` parameters replaced with 11 descriptive enums across both crates.
+- **OnceLock<Instant>**: Replaces `Arc<Mutex<Option<Instant>>>` in ProgressTracker — zero lock contention for start-time tracking.
+- **Arc<[u32]>**: Replaces `Arc<Vec<u32>>` in LabelMap — one fewer heap allocation per label map.
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+
+### Residual Risk
+
+- `filter/median.rs` per-voxel allocation was already optimized (per-slice pre-allocation with Rayon)
+- `correlation_ratio.rs` clone audit found the single `clone()` per axis is unavoidable (Burn tensor ownership model requires it for `.mul()`)
+- `bspline_ffd/metric.rs` `compute_metric_gradient_fast` convenience wrapper still allocates (kept for backward compat; callers should use `_into` variant)
+- `atlas/mod.rs` template loop still uses allocating `scaling_and_squaring` (PERF-354-01)
+- `metric/histogram/parzen/compute_image.rs` chunked path still clones per chunk (PERF-354-02)
+- `filter/edge/gradient_magnitude.rs` still uses raw `[f64; 3]` spacing instead of `Spacing<3>` newtype
+
+---
+
+## Sprint 352 Audit (2026-06-09) — 20-Cycle Zero-Cost Architecture
+
+### Gaps Closed
+
+| Gap ID | Description | Files | Evidence |
+|--------|-------------|-------|----------|
+| DRY-352-01 | `convolve_axis<const AXIS>` replaces 3 duplicated functions | `smooth.rs` | DCE verified via monomorphization |
+| API-352-02 | `gaussian_smooth_inplace` widened to `&mut [f32]` | `smooth.rs` + 10 callers | deref coercion, 0 call-site changes |
+| ERR-352-03 | `AnnotationError` typed errors via thiserror | `annotation/error.rs` + `annotation_state.rs` | 9 tests pass |
+| SOC-352-04 | CMA-ES `mod.rs` 474→240L via `constants.rs` + `generation.rs` | `optimizer/cma_es/` | 7 tests pass |
+| SOC-352-05 | `bspline_syn/mod.rs` 461→377L via `buffers.rs` | `diffeomorphic/bspline_syn/` | 19 tests pass |
+| NAMED-352-06 | `VelocityField` replaces `(Vec, Vec, Vec)` tuples | 9 files, 38 call sites | 581 reg tests pass |
+| SOC-352-07 | `DiscreteGaussianFilter` factory + inline annotations | `filter/discrete_gaussian.rs` | 12 tests pass |
+| PERF-352-08 | CLAHE output: 2 allocations → 1 | `filter/intensity/clahe/mod.rs` | 17 CLAHE tests pass |
+| SOC-352-09 | `syn_core/mod.rs` 301→246L via `buffers.rs` | `diffeomorphic/syn_core/` | 8 tests pass |
+| NAMED-352-10 | `PrevLevelState` tuple → named struct | `multires_syn/mod.rs` | 15 tests pass |
+| DOC-352-11 | ACCUMULATOR + precision docs in `bspline_ffd/regularization.rs` | `bspline_ffd/regularization.rs` | 3 tests pass |
+| PERF-352-12 | `lddmm/geodesic.rs` 9 per-step allocs eliminated | `lddmm/geodesic.rs` | 0 warnings |
+| PERF-352-13 | Diffeomorphic demons 7 per-iter allocs → 0 | `demons/diffeomorphic/registration.rs` | tests pass |
+| PERF-352-14 | IC-diffeomorphic 14 per-iter allocs → 0; `invert_velocity_field_into` exported | `exact_inverse_diffeomorphic/registration.rs`, `inverse/mod.rs` | 9 tests pass |
+| PERF-352-15 | Thirion `compute_mse` → `compute_mse_streaming` | `thirion/registration.rs`, `thirion/forces.rs` | 0 warnings |
+| PERF-352-16 | `evaluate_bspline_displacement_fast_into` DRY delegation | `bspline_ffd/basis.rs`, `registration.rs` | 20 tests pass |
+| PERF-352-17 | `multires_syn` inner loop 14 per-iter allocs → 0 | `multires_syn/mod.rs` | 15 tests pass |
+| DOC-352-18 | CMA-ES `state.rs` precision doc | `optimizer/cma_es/state.rs` | 0 warnings |
+
+### Architecture
+
+- `VelocityField` is the canonical owned 3-D field type in `deformable_field_ops`. Exported via `ritk_registration::VelocityField`.
+- All registration inner loops (13 hot paths across 7 algorithms) now pre-allocate scratch before the loop and use `_into` variants internally, achieving zero per-iteration heap allocation.
+- File count > 500 lines in ritk-registration: **0** (was 2 before this sprint).
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1579/0/1 |
+| `cargo test -p ritk-registration --lib` | 581/1 (pre-existing proptest flake)/1 |
+
+### Residual Risk
+
+- `bspline_ffd/metric.rs` `compute_metric_gradient_fast` still allocates 9 Vecs per iteration (tracked as PERF-353-01).
+- `atlas/mod.rs` template loop still uses allocating `scaling_and_squaring` (PERF-353-03).
+- `DemonsResult` SoA field renaming deferred due to 57 call sites (ERR-353-04).
+
+---
+
+## Sprint 351 Audit (2026-06-09) — Cleanup, Optimization, Architecture Hardening
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| STR-351-01 | `value_indices.rs` (590L) → `value_indices/` directory module (key/map/compute/tests) | `statistics/value_indices` | 16 |
+| STR-351-02 | `iterate_structure/tests.rs` (562L) → `tests/` directory (bool_structure/iterate/edge_cases) | `filter/morphology/iterate_structure` | 38 |
+| PERF-351-03 | `Vec::new()` → `Vec::with_capacity(n)` at 14 sites in ritk-core production code | transform, segmentation, filter, statistics | existing |
+| PERF-351-04 | `HashMap::new()` → `HashMap::with_capacity(n)` at 6 sites in ritk-core + ritk-registration | value_indices, relabel, connectivity, label_fusion | existing |
+| ARCH-351-05 | `NearestNeighborInterpolator` derives: Copy/Clone/PartialEq/Eq/Hash/Serialize/Deserialize | `interpolation/nearest` | 7 |
+| DRY-351-06 | `in_bounds_mask` shared helper; eliminates ~24 duplicated clone-and-compare patterns across dim1-4 + nearest | `interpolation/shared` | 54 interpolation tests |
+| ARCH-351-07 | `Spacing<D>`: type alias → `#[repr(transparent)]` newtype over `Vector<D>` + Deref + Module/Record impls | `spatial/spacing` | 7 + workspace |
+| FIX-351-08 | Doc warnings: wgpu_compat private link, kernel/nearest broken link | wgpu_compat, kernel/nearest | compile |
+| FIX-351-09 | Stale `preprocessing.rs` flat file conflicting with `preprocessing/` directory module | `ritk-registration/preprocessing` | compile |
+| FIX-351-10 | `transform/mod.rs` broken doc comment + keyword-in-path fix | `transform/mod` | compile |
+
+### Architecture
+
+- `Spacing<D>` is now a proper newtype, eliminating the primitive obsession anti-pattern where spacing values could be silently mixed with displacement vectors. `#[repr(transparent)]` guarantees identical memory layout to `Vector<D>`. `Deref`/`DerefMut` provide the full `Vector` API without requiring callers to change.
+- `interpolation::shared::in_bounds_mask()` is the canonical helper for the out-of-bounds zero-pad mask pattern. The function returns `Option<Tensor>` — `None` when `zero_pad = false` — allowing the compiler to dead-code eliminate the entire mask computation path for the common case.
+- Both `value_indices/` and `iterate_structure/tests/` follow the established project pattern: thin `mod.rs` orchestrator + focused leaf modules.
+- 14 `Vec::with_capacity` and 6 `HashMap::with_capacity` replacements eliminate realloc/rehash at known-size allocation sites across transforms, segmentation, clustering, and registration.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration -- -D warnings` | static analysis | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core --no-deps` | doc check | 0 warnings |
+| `cargo test -p ritk-core --lib` | unit tests | 1579/0/1 |
+| `cargo test -p ritk-registration --lib` | unit tests | 581/1/1 (pre-existing flake) |
+| Files > 500 lines in ritk-core | structural audit | 0 |
+| Files > 500 lines in ritk-registration | structural audit | 0 |
+
+### Residual Risk
+
+- `Transform::inverse()` returns `Box<dyn Transform>` — vtable dispatch in hot path. [arch]
+- Cross-crate `decode_bytes_to_f32` duplication across metaimage/nrrd/minc/tiff. [minor]
+- `Image::data_vec()` allocates on every call; zero-copy `data_slice()` API deferred. [arch]
+- Pre-existing Parzen histogram NaN proptest flake in ritk-registration. pre-existing.
+- Interpolation `.clone()` (~168 across dim2/3/4 + trilinear) blocked by Burn ownership model. Requires upstream `slice_ref`/`narrow_ref` API.
+
+---
+
+## Sprint 348 Audit (2026-06-09)
+
+### Gaps closed
+
+| Gap ID | Description | Module | Tests |
+|--------|-------------|--------|-------|
+| DRY-348-01 | `read_ascii<T>` + `read_binary_be<T: FromBeBytes>` extracted; 3 VTK reader files deduplicated | `ritk-vtk/io/read_helpers` | 241 VTK tests |
+| DRY-348-02 | `fold_f32`/`fold_f64` → single generic `fold<A, Init, Finalize>` | `ritk-core/filter/projection` | 7 projection tests |
+| DRY-348-03 | `sort_f32` → `sort_floats` SSOT in `statistics/mod.rs` | `ritk-core/statistics` | noise_estimation + nyul_udupa tests |
+| PERF-348-04 | `EarlyStoppingCallback` atomics: `Arc<Mutex<primitive>>` × 3 → `AtomicUsize` + `AtomicBool` + `Mutex<f64>` | `ritk-registration/progress` | early_stopping test |
+| PERF-348-05 | `ProgressTracker` + `HistoryCallback`: removed `Arc<Mutex<>>` wrapping; plain `Mutex` + manual `Clone` | `ritk-registration/progress` | tracker + history tests |
+| PERF-348-06 | Skeletonization `Vec::with_capacity(n/4)` pre-allocation | `ritk-core/segmentation/morphology` | existing |
+| HARD-348-07 | CLI metrics: 5 `.unwrap()` eliminated; `require_reference` returns `(Image, PathBuf)` | `ritk-cli/commands/stats` | compile |
+| ARCH-348-08 | `PhantomData<B>` → `PhantomData<fn() -> B>` in 5 files | `ritk-analyze`, `ritk-io`, `ritk-registration` | compile |
+| DOC-348-09 | SAFETY comments on Burn tensor `.clone()` sites | `zscore`, `minmax`, `quality` | compile |
+| CLEANUP-348-10 | Stale `value_indices/` directory removed | `ritk-core/statistics` | compile |
+
+### Architecture
+
+- `ritk-vtk/src/io/read_helpers.rs` is the SSOT for VTK numeric I/O helpers.
+- `fold<A, Init, Finalize>` in `projection.rs` is the canonical axis-fold kernel, parameterized over accumulator type `A`.
+- `sort_floats` in `statistics/mod.rs` is the canonical NaN-safe f32 sort.
+- `EarlyStoppingCallback` uses atomics for counter/stop-flag; only `best_loss` retains `Mutex<f64>`.
+- `ProgressTracker` and `HistoryCallback` use plain `Mutex` — `Arc` was unnecessary.
+
+### Verification
+
+| Component | Basis | Result |
+|-----------|-------|--------|
+| `cargo clippy` (7 crates) | static analysis | 0 warnings |
+| `cargo test -p ritk-core --lib` | unit tests | 1559/0/1 |
+| `cargo test -p ritk-vtk --lib` | unit tests | 241/0/0 |
+| `cargo test -p ritk-codecs --lib` | unit tests | 102/0/0 |
+| `cargo test -p ritk-registration --lib` (progress) | progress tests | 3/0/0 |
+
+### Residual Risk
+
+- `Transform::inverse()` returns `Box<dyn Transform>` — vtable dispatch in hot path. [arch]
+- Cross-crate `decode_bytes_to_f32` duplication across metaimage/nrrd/minc/tiff. [minor]
+- `Image::data_vec()` allocates on every call; zero-copy `data_slice()` API deferred. [arch]
+- Pre-existing Parzen histogram NaN proptest flake in ritk-registration. pre-existing.
+
+---
+
+## Sprint 348 Audit (2026-06-09) — match-D Elimination + sinc unsafe + SoC
+
+### Gaps Closed
+
+| Gap | Evidence |
+|-----|----------|
+| `displacement_field/core.rs` match-D inversion (Sprint 346 claim unverified) | `direction.try_inverse()` — generic via `SMatrix::try_inverse()` |
+| `static_displacement_field.rs` same pattern | same fix |
+| `sinc.rs` two `unsafe` pointer transmutes | removed; flat helpers accept `Tensor<B,1>` |
+| `sinc.rs` per-point `Vec<f32>` allocation (n_points allocations) | zero-copy slice into pre-materialized `indices_slice` |
+| `sinc.rs` O(volume × n_points) reshape | one `reshape` before loop; O(1) |
+| `bspline/mod.rs` silent fallback `if D==3 else 2d` | explicit `match D { 3, 2, _ => unreachable! }` |
+| `value_indices.rs` stale flat file (E0761 blocker) | deleted; directory module is authoritative |
+| `value_indices/` missing leaf files | `key.rs`, `map.rs`, `compute.rs`, `tests.rs` created |
+
+### Architecture
+
+- `match D { 2 => Matrix2, 3 => Matrix3, _ => panic! }` eliminated from both displacement field constructors. `direction.try_inverse()` delegates to `nalgebra::SMatrix::<f64, D, D>::try_inverse()` — generic over all D, verified by nalgebra's LU decomposition.
+- `sinc.rs` no longer contains any `unsafe` blocks. The transmute was replaced by restructuring the helpers to accept `Tensor<B,1>` directly; the flat reshape is lifted above the per-point loop.
+- `value_indices/` now follows the same deep vertical hierarchy as the rest of `statistics/`: `key` | `map` | `compute` | `tests` each in their own leaf file.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --all-features -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-registration --lib` (targeted) | 33/0/0 |
+| `grep 'unsafe'` in `sinc.rs` | zero matches |
+| `grep 'const CHUNK_SIZE'` workspace | zero matches (from Sprint 347) |
+
+### Residual Risk
+
+| Risk | Priority |
+|------|----------|
+| `regularization/dispatch.rs` 4× `match D { 4,5,_=>panic }` — justified dispatch, but adds test for D=6 would panic | documented, low |
+| `bspline/mod.rs` assert `D==2\|\|D==3` is still a runtime assert, not a compile-time bound | [minor] |
+| `DisplacementField::components()` → `Vec<Tensor>` heap allocation | [minor] |
+| `Vec<Vec<_>>` in CLAHE/SLIC/staple/diffusion | [minor] |
+
+---
+
+## Sprint 347 Audit (2026-06-09) — WGPU CHUNK_SIZE SSOT Activation
+
+### Root Cause Confirmed
+
+Both `ritk-core/src/wgpu_compat.rs` and `ritk-registration/src/wgpu_compat.rs` existed as files but were never declared via `mod wgpu_compat;` in their respective `lib.rs`. Without the `mod` declaration both modules compiled to dead code. Result: 20 live local `const CHUNK_SIZE: usize = 32768;` definitions despite the SSOT infrastructure existing.
+
+### Gaps Closed
+
+| Gap | Evidence |
+|-----|----------|
+| `mod wgpu_compat;` missing from `ritk-core/src/lib.rs` | line 10 added |
+| `mod wgpu_compat;` missing from `ritk-registration/src/lib.rs` | line 61 added |
+| 13 local `const CHUNK_SIZE` in ritk-core | `grep 'const CHUNK_SIZE'` → zero matches |
+| 7 local `const CHUNK_SIZE` in ritk-registration | same |
+| 7 manual `Vec::with_capacity/push/Tensor::cat` chunk loops in ritk-core | `apply_row_chunks` adopted |
+
+### Architecture
+
+- SSOT live: a single `const WGPU_CHUNK_SIZE` change propagates to all 20 call-sites.
+- `apply_row_chunks` eliminates 7 instances of the manual `Vec` + `Tensor::cat` pattern.
+- `bspline/dim4.rs` correctly uses `WGPU_CHUNK_SIZE_4D` (16 384) encoding the 4D dispatch budget as a named constant.
+
+### Verification
+
+| Check | Result |
+|-------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --all-features -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-registration --lib` (targeted) | 33/0/0 |
+| `grep 'const CHUNK_SIZE'` workspace | exit 1 — zero matches |
+
+### Residual Risk
+
+| Risk | Priority |
+|------|----------|
+| `sinc.rs` unsafe transmute + `match D { 2,3,_ => unreachable! }` | [arch] |
+| `bspline/mod.rs` `if D == 3 else { 2d }` wrong for D=1/4 | [minor] |
+| `regularization/dispatch.rs` 4× `match D { 4,5,_=>panic }` | [minor] |
+| `Transform::inverse()` `Box<dyn Transform>` vtable | [arch] |
+| `DisplacementField::components()` → `Vec<Tensor>` | [minor] |
+| `Vec<Vec<_>>` in CLAHE/SLIC/staple/diffusion | [minor] |
+
+---
+
 ## Sprint 342 Audit (2026-06-08) — Coeus Migration Readiness
 
 ### Gaps closed

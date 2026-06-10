@@ -1,24 +1,6 @@
 //! Optical-flow force computation and field clamping utilities.
 
-use crate::deformable_field_ops::{warp_image, VectorField3D, VectorFieldMut3D};
-
-/// Compute MSE = mean((F(p) − M_w(p))²) where M_w = warp(M, D).
-pub(super) fn compute_mse(
-    fixed: &[f32],
-    moving: &[f32],
-    dims: [usize; 3],
-    dz: &[f32],
-    dy: &[f32],
-    dx: &[f32],
-) -> f64 {
-    let warped = warp_image(moving, dims, dz, dy, dx);
-    fixed
-        .iter()
-        .zip(warped.iter())
-        .map(|(&f, &m)| ((f - m) as f64).powi(2))
-        .sum::<f64>()
-        / fixed.len() as f64
-}
+use crate::deformable_field_ops::{VectorField3D, VectorFieldMut3D};
 
 /// Compute optical-flow Thirion forces into caller-provided buffers.
 pub(crate) fn thirion_forces_into(

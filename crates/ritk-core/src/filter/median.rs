@@ -148,7 +148,7 @@ mod tests {
 
     /// Extract voxel data as `Vec<f32>` from an image.
     fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     // ── Test 1: Uniform image is unchanged ────────────────────────────────

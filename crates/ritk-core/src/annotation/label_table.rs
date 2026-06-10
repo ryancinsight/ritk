@@ -12,6 +12,7 @@
 //! -  returns min { k in N | k not in dom(T) }, guaranteed >= 1
 //!    (so auto-assigned IDs never collide with existing entries).
 
+use super::overlay::Visibility;
 use serde::{Deserialize, Serialize};
 
 /// A single entry in a label table.
@@ -24,7 +25,7 @@ pub struct LabelEntry {
     /// RGBA color \[R, G, B, A\] each in \[0, 255\].
     pub color: [u8; 4],
     /// Whether this label is currently visible in overlays.
-    pub visible: bool,
+    pub visible: Visibility,
 }
 
 impl LabelEntry {
@@ -34,7 +35,7 @@ impl LabelEntry {
             id,
             name: name.into(),
             color,
-            visible: true,
+            visible: Visibility::Visible,
         }
     }
 }
@@ -90,7 +91,7 @@ impl LabelTable {
     }
 
     /// Set the visibility of the label with id. Returns false if the ID is not present.
-    pub fn set_visibility(&mut self, id: u32, visible: bool) -> bool {
+    pub fn set_visibility(&mut self, id: u32, visible: Visibility) -> bool {
         match self.get_label_mut(id) {
             Some(e) => {
                 e.visible = visible;
@@ -129,6 +130,7 @@ impl LabelTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::annotation::overlay::Visibility;
 
     #[test]
     fn test_label_table_add_and_get() {
@@ -138,7 +140,7 @@ mod tests {
         assert_eq!(entry.id, 1);
         assert_eq!(entry.name, "Brain");
         assert_eq!(entry.color, [255, 0, 0, 255]);
-        assert!(entry.visible);
+        assert_eq!(entry.visible, Visibility::Visible);
     }
 
     #[test]
@@ -174,11 +176,12 @@ mod tests {
     fn test_label_table_set_visibility() {
         let mut table = LabelTable::new();
         table.add_label(2, "Kidney", [0, 0, 255, 255]).unwrap();
-        let ok = table.set_visibility(2, false);
+        let ok = table.set_visibility(2, Visibility::Hidden);
         assert!(ok, "set_visibility must return true for present label");
-        assert!(
-            !table.get_label(2).unwrap().visible,
-            "label must be invisible after set_visibility(false)"
+        assert_eq!(
+            table.get_label(2).unwrap().visible,
+            Visibility::Hidden,
+            "label must be invisible after set_visibility(Hidden)"
         );
     }
 

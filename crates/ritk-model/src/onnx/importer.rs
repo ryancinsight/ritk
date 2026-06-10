@@ -223,7 +223,7 @@ pub struct OnnxImportedModel<B: Backend> {
     /// Model metadata
     metadata: OnnxMetadata,
     /// Backend marker
-    _backend: std::marker::PhantomData<B>,
+    _backend: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> OnnxImportedModel<B> {

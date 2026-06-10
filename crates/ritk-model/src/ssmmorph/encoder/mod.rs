@@ -40,8 +40,8 @@
 pub mod config;
 pub mod stage;
 
-pub use config::{EncoderStageConfig, SSMMorphEncoderConfig};
-pub use stage::EncoderStage;
+pub use config::{DownsamplePolicy, DropPath, EncoderStageConfig, SSMMorphEncoderConfig};
+pub use stage::{DownsampleStage, EncoderStage};
 
 use burn::prelude::*;
 

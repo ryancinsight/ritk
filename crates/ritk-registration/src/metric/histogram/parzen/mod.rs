@@ -11,6 +11,7 @@ pub(crate) mod compute;
 pub(crate) mod compute_image;
 pub(crate) mod direct;
 pub(crate) mod dispatch;
+pub(crate) mod image_cache_helpers;
 pub(crate) mod oob;
 pub(crate) mod sparse;
 #[cfg(test)]
@@ -19,7 +20,7 @@ mod tests;
 pub(super) use oob::compute_oob_mask_3d;
 
 /// Joint Histogram Calculator using Parzen windowing.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ParzenJointHistogram<B: Backend> {
     /// Number of histogram bins
     pub num_bins: usize,
@@ -43,25 +44,91 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// GPU kernel dispatches (arange + int→float cast) per
     /// `compute_joint_histogram*` call.
     ///
-    /// Wrapped in `Option<Tensor<B, 2>>` rather than `Tensor<B, 2>` solely for
-    /// backward compatibility with the `Clone` derive: constructing a
-    /// `ParzenJointHistogram` before `new()` sets this field would require a
-    /// dummy tensor, but `Option` allows `None` as the default during struct
-    /// literal construction in test or deserialization contexts. In practice
-    /// the field is always `Some` after [`new()`](Self::new) initializes it,
-    /// so `.unwrap()` calls on this field are safe.
+    /// Wrapped in `Option<Tensor<B, 2>>` rather than `Tensor<B, 2>` so that
+    /// struct literals can set this field to `None` in test or deserialization
+    /// contexts without requiring a dummy tensor. In practice the field is always
+    /// `Some` after [`new()`](Self::new) initializes it, so `.unwrap()` calls on
+    /// this field are safe.
     bins_exp: Option<Tensor<B, 2>>,
-    /// Cache for fixed image points to avoid recomputation (image-grid path).
+    /// Cached fixed-image weights and precomputed grid data for the image-grid histogram path.
+    ///
+    /// # Why `Arc<Mutex<...>>`
+    ///
+    /// The cache is shared across all clones of this struct. In multi-resolution registration
+    /// pipelines the metric handle is cloned once per resolution level; `Arc` provides shared
+    /// ownership so every clone observes the same lazily-built cache without redundant
+    /// recomputation. `Mutex` provides interior mutability so the cache can be populated and
+    /// invalidated on the first [`Self::compute_image_joint_histogram`] call without requiring
+    /// `&mut self`.
+    ///
+    /// # Thread safety
+    ///
+    /// The lock is held only during cache lookup and update — never across tensor operations —
+    /// so lock contention is bounded to the setup phase and does not extend into convolution
+    /// or histogram accumulation.
+    ///
+    /// # Alternative considered
+    ///
+    /// A per-instance `RefCell<Option<...>>` would avoid the lock but would not satisfy `Sync`
+    /// and each clone would maintain an independent cache, forcing redundant fixed-image
+    /// preprocessing at every resolution level.
     pub(super) cache: Arc<Mutex<Option<HistogramCache<B>>>>,
-    /// Cache for the masked joint histogram path (Strategy 2: caller-supplied key).
+    /// Cached `W_fixed^T`, sparse weights, and associated metadata for the masked histogram
+    /// path (Strategy 2: caller-supplied cache key).
+    ///
+    /// # Why `Arc<Mutex<...>>`
+    ///
+    /// Shared across all clones of this struct for the same reason as [`Self::cache`]: `Arc`
+    /// provides shared ownership across multi-resolution clones so the cached masked
+    /// fixed-image data (up to ~2 MB of sparse weights) is computed once and reused.
+    /// `Mutex` provides interior mutability for cache population and invalidation without
+    /// `&mut self`.
+    ///
+    /// # Thread safety
+    ///
+    /// The lock is held only during cache lookup and update — never across tensor operations —
+    /// so lock contention is bounded to the setup phase.
+    ///
+    /// # Alternative considered
+    ///
+    /// A per-instance `RefCell<Option<...>>` would avoid the lock but would not satisfy `Sync`
+    /// and would force redundant preprocessing of the masked fixed-image data at each
+    /// resolution level.
     pub(super) masked_cache: Arc<Mutex<Option<MaskedHistogramCache<B>>>>,
     /// Phantom data
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
     /// Reusable histogram buffer pool, allocated once in `new()` and reused
     /// across CMA-ES iterations to avoid repeated O(num_bins²) allocations.
-    /// Wrapped in `Arc<Mutex<...>>` so the `Clone` derive works.
+    /// Wrapped in `Arc<Mutex<...>>` so that `Clone` shares the pool across
+    /// multi-resolution clones rather than deep-copying the buffer allocation.
     #[cfg(feature = "direct-parzen")]
     pub(super) histogram_pool: Arc<Mutex<HistogramPool>>,
+}
+
+/// Cloning a [`ParzenJointHistogram`] creates a new handle that **shares** the caches with
+/// the original — `Arc::clone` increments the reference count on `cache` and `masked_cache`
+/// rather than deep-copying the cached tensors. Both the original and the clone observe each
+/// other's cache updates and invalidations. This is the intended behavior in multi-resolution
+/// pipelines, where one metric handle per resolution level is created via `.clone()` and all
+/// levels share a single lazily-built fixed-image cache.
+impl<B: Backend> Clone for ParzenJointHistogram<B> {
+    fn clone(&self) -> Self {
+        Self {
+            num_bins: self.num_bins,
+            min_intensity: self.min_intensity,
+            max_intensity: self.max_intensity,
+            parzen_sigma: self.parzen_sigma,
+            moving_min_intensity: self.moving_min_intensity,
+            moving_max_intensity: self.moving_max_intensity,
+            moving_parzen_sigma: self.moving_parzen_sigma,
+            bins_exp: self.bins_exp.clone(),
+            cache: Arc::clone(&self.cache),
+            masked_cache: Arc::clone(&self.masked_cache),
+            _phantom: PhantomData,
+            #[cfg(feature = "direct-parzen")]
+            histogram_pool: Arc::clone(&self.histogram_pool),
+        }
+    }
 }
 
 impl<B: Backend> ParzenJointHistogram<B> {

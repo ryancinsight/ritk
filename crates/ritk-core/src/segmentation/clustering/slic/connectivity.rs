@@ -71,9 +71,9 @@ pub fn enforce_connectivity(
 
         // Compute component sizes and mean intensities.
         let mut comp_sizes: std::collections::HashMap<usize, usize> =
-            std::collections::HashMap::new();
+            std::collections::HashMap::with_capacity(n);
         let mut comp_int_sum: std::collections::HashMap<usize, f64> =
-            std::collections::HashMap::new();
+            std::collections::HashMap::with_capacity(n);
 
         for (i, intensity) in intensities.iter().enumerate().take(n) {
             let root = uf.find(i);
@@ -81,7 +81,8 @@ pub fn enforce_connectivity(
             *comp_int_sum.entry(root).or_insert(0.0) += intensity;
         }
 
-        let mut comp_mean: std::collections::HashMap<usize, f64> = std::collections::HashMap::new();
+        let mut comp_mean: std::collections::HashMap<usize, f64> =
+            std::collections::HashMap::with_capacity(n);
         for (&root, &size) in &comp_sizes {
             let sum = comp_int_sum.get(&root).copied().unwrap_or(0.0);
             comp_mean.insert(root, sum / size as f64);
@@ -157,7 +158,7 @@ pub fn enforce_connectivity(
     }
 
     // Relabel to consecutive integers 0..actual_k-1.
-    let mut label_map = std::collections::HashMap::new();
+    let mut label_map = std::collections::HashMap::with_capacity(n);
     let mut next = 0u32;
     for (i, &l) in new_label.iter().enumerate().take(n) {
         let entry = label_map.entry(l).or_insert_with(|| {

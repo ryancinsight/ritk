@@ -92,7 +92,7 @@ mod tests {
         )
     }
     fn vv(i: &Image<B, 3>) -> Vec<f32> {
-        i.data_vec()
+        i.data_slice().into_owned()
     }
 
     #[test]

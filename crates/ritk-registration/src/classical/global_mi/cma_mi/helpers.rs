@@ -97,14 +97,17 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     fixed_mask: Option<&Image<B, 3>>,
 ) -> crate::optimizer::CmaEsResult {
     // ── Build pyramid ─────────────────────────────────────────────────────────
-    let shrink_factors = vec![vec![per_axis[0], per_axis[1], per_axis[2]]];
+    // P1-01: stack-allocated per-axis arrays — no `Vec<usize>` / `Vec<f64>`
+    // per-level allocation, no `Vec<Vec<_>>` outer container.
+    let shrink_factors: Vec<[usize; 3]> = vec![[per_axis[0], per_axis[1], per_axis[2]]];
     // Zero smoothing for axes with no downsampling (shrink ≤ 1): applying sigma > 0
     // on an axis we are NOT downsampling wastes z-information that the thin-slab
     // preset specifically preserves via anisotropic shrink factors.
-    let smoothing_sigmas = vec![per_axis
-        .iter()
-        .map(|&s| if s <= 1 { 0.0 } else { sigma_mm })
-        .collect::<Vec<f64>>()];
+    let smoothing_sigmas: Vec<[f64; 3]> = vec![[
+        if per_axis[0] <= 1 { 0.0 } else { sigma_mm },
+        if per_axis[1] <= 1 { 0.0 } else { sigma_mm },
+        if per_axis[2] <= 1 { 0.0 } else { sigma_mm },
+    ]];
 
     let fixed_pyr = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);
     let moving_pyr = MultiResolutionPyramid::new(moving, &shrink_factors, &smoothing_sigmas);
@@ -142,8 +145,8 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     // We threshold at 0.5 to recover a clean binary mask after integer-factor
     // downsampling (majority-vote behaviour at boundaries).
     let mask_world_points: Option<Tensor<B::InnerBackend, 2>> = fixed_mask.map(|mask| {
-        let mask_shrink = vec![vec![per_axis[0], per_axis[1], per_axis[2]]];
-        let mask_smooth = vec![vec![0.0f64; 3]]; // no smoothing
+        let mask_shrink: Vec<[usize; 3]> = vec![[per_axis[0], per_axis[1], per_axis[2]]];
+        let mask_smooth: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0]]; // no smoothing
         let mask_pyr = MultiResolutionPyramid::new(mask, &mask_shrink, &mask_smooth);
         let mask_c = mask_pyr.get_level(0).clone();
         let mask_inner = strip_autodiff(&mask_c);
@@ -275,7 +278,8 @@ pub(super) fn extract_foreground_world_points<IB: burn::tensor::backend::Backend
         .expect("mask tensor data must be contiguous");
 
     // Collect foreground voxel (x, y, z) coordinates (grid convention: [x, y, z] per row).
-    let mut fg_coords: Vec<f32> = Vec::new();
+    // Capacity: at most total_voxels foreground entries × 3 coords
+    let mut fg_coords: Vec<f32> = Vec::with_capacity(total_voxels * 3);
     for (i, &v) in mask_slice.iter().enumerate() {
         if v > 0.5 {
             let z = (i / (ny * nx)) as f32;

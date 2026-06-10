@@ -122,7 +122,7 @@ fn taxicab_exceeds_or_equals_chessboard_on_fg() {
     // fg plane at z=1 (all y, all x)
     for iy in 0..3 {
         for ix in 0..3 {
-            data[1 * 9 + iy * 3 + ix] = 1.0;
+            data[9 + iy * 3 + ix] = 1.0;
         }
     }
     let img = make_image(data, [3, 3, 3]);
@@ -200,7 +200,7 @@ fn chessboard_anisotropic_spacing() {
 #[test]
 fn free_function_matches_scipy_chessboard_2x2x2() {
     // scipy.cdt on 2x2x2 with fg at (0,0,0): out[0]=1, out[1..]=0.
-    let mut data = vec![0.0_f32; 8];
+    let mut data = [0.0_f32; 8];
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
     let free =
@@ -216,7 +216,7 @@ fn free_function_matches_scipy_chessboard_2x2x2() {
 
 #[test]
 fn free_function_matches_scipy_taxicab_2x2x2() {
-    let mut data = vec![0.0_f32; 8];
+    let mut data = [0.0_f32; 8];
     data[0] = 1.0;
     let fg: Vec<bool> = data.iter().map(|&v| v > 0.5).collect();
     let free =
@@ -313,7 +313,7 @@ fn chessboard_cube_3x3x3_center() {
     for z in 0..7 {
         for y in 0..7 {
             for x in 0..7 {
-                if z >= 2 && z < 5 && y >= 2 && y < 5 && x >= 2 && x < 5 {
+                if (2..5).contains(&z) && (2..5).contains(&y) && (2..5).contains(&x) {
                     continue;
                 }
                 let i = z * 49 + y * 7 + x;
@@ -412,8 +412,8 @@ fn diff_vs_scipy_chessboard_two_cubes() {
     for z in 0..10 {
         for y in 0..10 {
             for x in 0..10 {
-                let in_cube_1 = z >= 1 && z < 4 && y >= 1 && y < 4 && x >= 1 && x < 4;
-                let in_cube_2 = z >= 6 && z < 9 && y >= 6 && y < 9 && x >= 6 && x < 9;
+                let in_cube_1 = (1..4).contains(&z) && (1..4).contains(&y) && (1..4).contains(&x);
+                let in_cube_2 = (6..9).contains(&z) && (6..9).contains(&y) && (6..9).contains(&x);
                 if in_cube_1 || in_cube_2 {
                     continue;
                 }

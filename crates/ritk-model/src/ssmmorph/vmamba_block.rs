@@ -32,6 +32,7 @@ use burn::nn::{Gelu, LayerNorm, Linear};
 use burn::prelude::*;
 
 use super::cross_scan::{CrossScan, CrossScanConfig, ScanDirection};
+use super::policy::ScanDimensionality;
 use super::state_space::{SelectiveStateSpace, SelectiveStateSpaceConfig};
 
 /// Configuration for VMamba Block
@@ -49,8 +50,8 @@ pub struct VMambaBlockConfig {
     #[config(default = "0.0")]
     pub dropout: f64,
     /// Use 3D cross-scan for volumetric data
-    #[config(default = "true")]
-    pub use_3d: bool,
+    #[config(default = "ScanDimensionality::Scan3d")]
+    pub dimensionality: ScanDimensionality,
     /// Drop path rate for stochastic depth
     #[config(default = "0.0")]
     pub drop_path_rate: f64,
@@ -64,7 +65,7 @@ impl VMambaBlockConfig {
             expand_factor: 2,
             state_dim: 16,
             dropout: 0.0,
-            use_3d: true,
+            dimensionality: ScanDimensionality::Scan3d,
             drop_path_rate: 0.0,
         }
     }
@@ -108,7 +109,7 @@ impl<B: Backend> VMambaBlock<B> {
             .with_expand_factor(config.expand_factor)
             .with_dropout(config.dropout);
 
-        let cross_scan_config = if config.use_3d {
+        let cross_scan_config = if config.dimensionality == ScanDimensionality::Scan3d {
             CrossScanConfig::new_3d()
         } else {
             CrossScanConfig::new_2d()
@@ -226,7 +227,7 @@ impl<B: Backend> VMambaBlock<B> {
         // Merge each sequence back to spatial
         let mut merged = Vec::new();
         for (seq, &dir) in sequences.into_iter().zip(directions.iter()) {
-            let spatial = if self.cross_scan.use_3d() {
+            let spatial = if self.cross_scan.is_3d() {
                 super::cross_scan::Scan3D::merge(seq, depth, height, width, dir)
             } else {
                 // For 2D case, we'd need different handling

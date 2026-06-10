@@ -11,7 +11,7 @@
 //! - Thirion (1998), Med. Image Anal. 2(3):243-260.
 //! - Vercauteren et al. (2009), NeuroImage 45(S1):S61-S72.
 
-use super::config::{DemonsConfig, DemonsResult};
+use super::config::{DemonsConfig, DemonsResult, DemonsVariant};
 use super::diffeomorphic::DiffeomorphicDemonsRegistration;
 use super::thirion::ThirionDemonsRegistration;
 use crate::error::RegistrationError;
@@ -25,10 +25,10 @@ pub struct MultiResDemonsConfig {
     /// Number of pyramid levels (>= 1). Level 0 = full resolution.
     /// Default: 3. With 3 levels, factors are [4, 2, 1].
     pub levels: usize,
-    /// When true, use DiffeomorphicDemons at each level.
-    /// When false, use ThirionDemons (default).
-    pub use_diffeomorphic: bool,
-    /// Number of scaling-and-squaring steps (only when use_diffeomorphic=true).
+    /// Demons variant used at each pyramid level.
+    /// Default: [`DemonsVariant::Classic`] (Thirion Demons).
+    pub variant: DemonsVariant,
+    /// Number of scaling-and-squaring steps (only when variant=Diffeomorphic).
     pub n_squarings: usize,
 }
 
@@ -37,9 +37,16 @@ impl Default for MultiResDemonsConfig {
         Self {
             base_config: DemonsConfig::default(),
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::default(),
             n_squarings: 6,
         }
+    }
+}
+
+impl MultiResDemonsConfig {
+    /// Returns `true` if the variant is [`DemonsVariant::Diffeomorphic`].
+    pub fn is_diffeomorphic(&self) -> bool {
+        self.variant.is_diffeomorphic()
     }
 }
 
@@ -102,19 +109,18 @@ impl MultiResDemonsRegistration {
             };
 
             // Run Demons on (fixed_c, warmed_moving).
-            let level_result = if self.config.use_diffeomorphic {
-                DiffeomorphicDemonsRegistration::with_squarings(
+            let level_result = match self.config.variant {
+                DemonsVariant::Diffeomorphic => DiffeomorphicDemonsRegistration::with_squarings(
                     level_config,
                     self.config.n_squarings,
                 )
-                .register(&fixed_c, &warmed_moving, cdims, coarse_spacing)?
-            } else {
-                ThirionDemonsRegistration::new(level_config).register(
+                .register(&fixed_c, &warmed_moving, cdims, coarse_spacing)?,
+                DemonsVariant::Classic => ThirionDemonsRegistration::new(level_config).register(
                     &fixed_c,
                     &warmed_moving,
                     cdims,
                     coarse_spacing,
-                )?
+                )?,
             };
 
             // First-order displacement composition: d_total = d_init + d_level.
@@ -135,7 +141,7 @@ impl MultiResDemonsRegistration {
                 .collect();
 
             prev_result = Some(DemonsResult {
-                warped: Vec::new(),
+                warped: Vec::with_capacity(cn),
                 disp_z: total_z,
                 disp_y: total_y,
                 disp_x: total_x,
@@ -256,6 +262,7 @@ fn upsample_displacement(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::demons::config::DemonsVariant;
     use crate::demons::DemonsConfig;
 
     fn make_sphere_image(dims: [usize; 3], center: [f32; 3], radius: f32) -> Vec<f32> {
@@ -287,7 +294,7 @@ mod tests {
                 ..DemonsConfig::default()
             },
             levels: 2,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
@@ -331,7 +338,7 @@ mod tests {
                 ..DemonsConfig::default()
             },
             levels: 2,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
@@ -356,7 +363,7 @@ mod tests {
                 ..DemonsConfig::default()
             },
             levels: 2,
-            use_diffeomorphic: true,
+            variant: DemonsVariant::Diffeomorphic,
             n_squarings: 6,
         };
         let reg = MultiResDemonsRegistration::new(config);
@@ -401,7 +408,7 @@ mod tests {
         let multi_config = MultiResDemonsConfig {
             base_config: base_config.clone(),
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             n_squarings: 6,
         };
         let multi_reg = MultiResDemonsRegistration::new(multi_config);

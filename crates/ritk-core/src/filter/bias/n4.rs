@@ -308,7 +308,8 @@ fn histogram_sharpen(w: &[f32], n_bins: usize, noise_fraction: f64) -> anyhow::R
 
     // ── Quantile transfer per voxel ────────────────────────────────────────
     // For each voxel: find its CDF rank in H, then find the matching bin in H_sharp.
-    let w_min_f64 = w_min as f64;
+    // Widen to f64 for accumulation precision; bin boundaries require sub-f32 precision.
+    let w_min_wide = w_min as f64;
     let w_sharp: Vec<f32> = w
         .iter()
         .map(|&wi| {
@@ -317,7 +318,7 @@ fn histogram_sharpen(w: &[f32], n_bins: usize, noise_fraction: f64) -> anyhow::R
             let q = cdf_h[bin_i];
             // First index in the monotone cdf_s where cdf_s[t] ≥ q.
             let target = cdf_s.partition_point(|&v| v < q).min(n_bins - 1);
-            (w_min_f64 + (target as f64 + 0.5) * bin_width) as f32
+            (w_min_wide + (target as f64 + 0.5) * bin_width) as f32
         })
         .collect();
 

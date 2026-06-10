@@ -41,7 +41,10 @@ mod ncc3d;
 
 pub use conv2d::FftConvolutionFilter;
 pub use conv3d::FftConvolution3DFilter;
-pub use helpers::{fft2d, fft3d, FftDir};
+pub use helpers::{
+    fft2d, fft2d_dispatch, fft3d, fft3d_dispatch, fft_nd, fft_nd_dispatch, FftDir, FftDirection,
+    ForwardFft, InverseFft,
+};
 pub use ncc2d::FftNormalizedCorrelationFilter;
 pub use ncc3d::FftNormalizedCorrelation3DFilter;
 

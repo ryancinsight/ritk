@@ -22,6 +22,7 @@
 
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
+use crate::spatial::Spacing;
 use burn::tensor::backend::Backend;
 
 /// Filter that computes the discrete Laplacian ∇²I of a 3-D image.
@@ -31,20 +32,20 @@ use burn::tensor::backend::Backend;
 /// spacing squared.
 #[derive(Debug, Clone)]
 pub struct LaplacianFilter {
-    /// Physical voxel spacing \[sz, sy, sx\] (same units as image origin).
-    pub spacing: [f64; 3],
+    /// Physical voxel spacing [sz, sy, sx] (same units as image origin).
+    pub spacing: Spacing<3>,
 }
 
 impl LaplacianFilter {
     /// Create a filter with the given physical spacing.
-    pub fn new(spacing: [f64; 3]) -> Self {
+    pub fn new(spacing: Spacing<3>) -> Self {
         Self { spacing }
     }
 
     /// Create a filter with unit spacing (1.0 in each direction).
     pub fn unit() -> Self {
         Self {
-            spacing: [1.0, 1.0, 1.0],
+            spacing: Spacing::uniform(1.0),
         }
     }
 
@@ -54,7 +55,7 @@ impl LaplacianFilter {
     /// The output has the same shape and physical metadata as `image`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let result = laplacian_vec(&vals, dims, self.spacing);
+        let result = laplacian_vec(&vals, dims, &self.spacing);
 
         Ok(rebuild(result, dims, image))
     }
@@ -68,7 +69,7 @@ impl LaplacianFilter {
 /// - Interior: central second-order differences, O(h²) accurate.
 /// - Boundary: one-sided second-order differences using the nearest three points.
 /// - Output length equals `nz * ny * nx`.
-fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
+fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut out = vec![0.0_f32; n];
@@ -237,7 +238,7 @@ mod tests {
             })
             .collect();
         let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
-        let filter = LaplacianFilter::new([1.0, 1.0, 2.0]);
+        let filter = LaplacianFilter::new([1.0, 1.0, 2.0].into());
         let lap = filter.apply(&img).unwrap();
 
         let (out, _) = extract_vec_infallible(&lap);

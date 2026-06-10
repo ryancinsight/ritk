@@ -39,17 +39,20 @@ pub(super) fn coords_to_flat(coords: &[usize], strides: &[usize]) -> usize {
 ///
 /// A voxel is a boundary voxel if it is foreground (`value > 0.5`) and at
 /// least one axis-aligned neighbor is background (`<= 0.5`) or out of bounds.
+///
+/// Returns `Vec<[f64; D]>` — one stack-sized array per boundary point — rather
+/// than `Vec<Vec<f64>>`, eliminating the inner heap allocation per point.
 fn extract_boundary_physical<B: Backend, const D: usize>(
     mask: &Image<B, D>,
     spacing: &[f64; D],
-) -> Vec<Vec<f64>> {
+) -> Vec<[f64; D]> {
     let shape: [usize; D] = mask.shape();
     let shape_slice: &[usize] = &shape;
     let flat_vec = extract_vec_infallible(mask).0;
     let flat: &[f32] = &flat_vec;
     let strides = compute_strides(shape_slice);
     let n_total: usize = shape_slice.iter().product();
-    let mut boundary: Vec<Vec<f64>> = Vec::new();
+    let mut boundary: Vec<[f64; D]> = Vec::with_capacity(n_total / 32);
 
     'voxel: for flat_idx in 0..n_total {
         if flat[flat_idx] <= 0.5 {
@@ -62,7 +65,7 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
             for &delta in &[-1i64, 1i64] {
                 let nb = coords[dim] as i64 + delta;
                 if nb < 0 || nb >= shape[dim] as i64 {
-                    let phys: Vec<f64> = (0..D).map(|d| coords[d] as f64 * spacing[d]).collect();
+                    let phys: [f64; D] = std::array::from_fn(|d| coords[d] as f64 * spacing[d]);
                     boundary.push(phys);
                     continue 'voxel;
                 }
@@ -70,7 +73,7 @@ fn extract_boundary_physical<B: Backend, const D: usize>(
                 nb_coords[dim] = nb as usize;
                 let nb_flat = coords_to_flat(&nb_coords, &strides);
                 if flat[nb_flat] <= 0.5 {
-                    let phys: Vec<f64> = (0..D).map(|d| coords[d] as f64 * spacing[d]).collect();
+                    let phys: [f64; D] = std::array::from_fn(|d| coords[d] as f64 * spacing[d]);
                     boundary.push(phys);
                     continue 'voxel;
                 }
@@ -95,14 +98,17 @@ pub(super) fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
 ///
 /// Returns `f64::INFINITY` when `set` is empty.
 #[inline]
-pub(super) fn min_distance_to_set(p: &[f64], set: &[Vec<f64>]) -> f64 {
+pub(super) fn min_distance_to_set<const D: usize>(p: &[f64; D], set: &[[f64; D]]) -> f64 {
     set.iter()
         .map(|q| euclidean_distance(p, q))
         .fold(f64::INFINITY, f64::min)
 }
 
 /// Directed Hausdorff distance from `from_set` to `to_set`.
-pub(super) fn directed_hausdorff(from_set: &[Vec<f64>], to_set: &[Vec<f64>]) -> f64 {
+pub(super) fn directed_hausdorff<const D: usize>(
+    from_set: &[[f64; D]],
+    to_set: &[[f64; D]],
+) -> f64 {
     if from_set.is_empty() {
         return 0.0;
     }
@@ -113,7 +119,7 @@ pub(super) fn directed_hausdorff(from_set: &[Vec<f64>], to_set: &[Vec<f64>]) -> 
 }
 
 /// Directed mean surface distance from `from_set` to `to_set`.
-fn directed_msd(from_set: &[Vec<f64>], to_set: &[Vec<f64>]) -> f64 {
+fn directed_msd<const D: usize>(from_set: &[[f64; D]], to_set: &[[f64; D]]) -> f64 {
     if from_set.is_empty() {
         return 0.0;
     }

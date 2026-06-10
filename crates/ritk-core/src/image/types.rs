@@ -3,6 +3,8 @@
 //! This module provides the Image struct which represents medical images
 //! with tensor data and physical space metadata (origin, spacing, direction).
 
+use std::borrow::Cow;
+
 use crate::spatial::{Direction, Point, Spacing};
 use anyhow::anyhow;
 use burn::tensor::backend::Backend;
@@ -88,6 +90,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     ///
     /// # Panics
     /// Panics if the tensor's internal scalar type is not `f32`.
+    #[deprecated(since = "0.7.0", note = "use data_as_cow() or data_slice() instead")]
     #[inline]
     pub fn data_vec(&self) -> Vec<f32> {
         self.data
@@ -98,6 +101,7 @@ impl<B: Backend, const D: usize> Image<B, D> {
     }
 
     /// Extract the underlying f32 tensor data, propagating dtype errors.
+    #[allow(deprecated)] // data_vec is deprecated but try_data_vec wraps it
     pub fn try_data_vec(&self) -> anyhow::Result<Vec<f32>> {
         self.data
             .clone()
@@ -121,6 +125,85 @@ impl<B: Backend, const D: usize> Image<B, D> {
             .as_slice::<f32>()
             .expect("image data must be contiguous f32");
         f(slice)
+    }
+
+    /// Read access to the image data as `Cow<'_, [f32]>`.
+    ///
+    /// Always returns `Cow::Owned` with the current backend API.
+    /// The API contract is established so callers handle both variants;
+    /// a future backend that exposes zero-copy host slices will switch
+    /// to returning `Cow::Borrowed` without breaking call sites.
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    #[inline]
+    #[allow(deprecated)] // data_vec is deprecated but data_as_cow wraps it intentionally
+    pub fn data_as_cow(&self) -> Cow<'_, [f32]> {
+        Cow::Owned(self.data_vec())
+    }
+
+    /// Zero-copy slice view of the image data (audit §3.3).
+    ///
+    /// Returns a `Cow<'_, [f32]>` borrowing from `self` when the backend
+    /// exposes a host-addressable buffer (currently none — see limitations
+    /// below), or owning a freshly-allocated `Vec<f32>` when the backend
+    /// requires a GPU→CPU sync (autodiff, wgpu, etc.).
+    ///
+    /// # Backend dispatch
+    /// - **Non-autodiff CPU backends** (e.g. `NdArray<f32>`): the tensor
+    ///   already lives on the host, so the slice could in principle borrow
+    ///   from `self.data` via `unsafe` lifetime extension. Burn's public
+    ///   `Tensor` API does not yet expose a stable `&[f32]` accessor, so
+    ///   this method currently allocates a `Vec` and returns
+    ///   `Cow::Owned`. The API contract is established so a future Burn
+    ///   release that exposes `Tensor::as_slice()` can switch to
+    ///   `Cow::Borrowed` without breaking call sites.
+    /// - **Autodiff backends** (e.g. `Autodiff<NdArray>`): the gradient
+    ///   tape wraps the tensor; accessing raw host data requires a sync
+    ///   that allocates. This method falls back to `data_vec()` and
+    ///   returns `Cow::Owned`.
+    ///
+    /// # Panics
+    /// Panics if the tensor's internal scalar type is not `f32`.
+    ///
+    /// # Migration
+    /// Call sites that currently do `let vals = image.data_vec();` can be
+    /// migrated to `let vals = image.data_slice();` — both yield a type
+    /// that derefs to `&[f32]` and supports `.iter()`, `.len()`, indexing,
+    /// etc. The `Cow` wrapper adds a single enum-discriminant check.
+    #[inline]
+    #[allow(deprecated)] // data_vec is deprecated but data_slice wraps it intentionally
+    pub fn data_slice(&self) -> Cow<'_, [f32]> {
+        if B::ad_enabled() {
+            // Autodiff backend: gradient tape wraps the tensor; raw host
+            // access requires a sync that allocates. Defer to data_vec().
+            Cow::Owned(self.data_vec())
+        } else {
+            // Non-autodiff backend: NdArray stores data on the host, but
+            // Burn's public Tensor API does not expose a stable &[f32]
+            // accessor. We must clone the tensor and extract the slice.
+            // For NdArray the clone is cheap (Arc clone of metadata), but
+            // the slice borrows from a local TensorData, so we must
+            // materialise a Vec to return a slice with lifetime '_.
+            //
+            // TODO(audit §3.3): when Burn exposes `Tensor::as_slice()`,
+            // switch to `Cow::Borrowed`.
+            Cow::Owned(self.data_vec())
+        }
+    }
+
+    /// Fallible variant of [`Self::data_slice`].
+    ///
+    /// Propagates dtype mismatch errors (non-`f32` backend) instead of
+    /// panicking. Returns `Cow::Owned` in all cases for the same reason
+    /// documented on `data_slice`.
+    #[allow(deprecated)] // data_vec is deprecated but try_data_slice wraps it
+    pub fn try_data_slice(&self) -> anyhow::Result<Cow<'_, [f32]>> {
+        // Both AD and non-AD paths require Owned because `try_data_vec` consumes
+        // the tensor's data into a new Vec. A Borrowed path would require a
+        // backend-specific buffer reference that the current Burn API does not
+        // expose for autodiff inner tensors.
+        Ok(Cow::Owned(self.try_data_vec()?))
     }
 }
 

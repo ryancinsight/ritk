@@ -6,9 +6,9 @@
 //! - `L(p) ≠ background_label`, AND
 //! - at least one neighbour `q ∈ N(p)` satisfies `L(q) ≠ L(p)`.
 //!
-//! The connectivity topology `N(p)` is determined by `fully_connected`:
-//! - `false` (default): 6-connected face neighbours (ITK default).
-//! - `true`: 26-connected neighbours.
+//! The connectivity topology `N(p)` is determined by [`Connectivity`]:
+//! - [`Connectivity::Face6`] (default): 6-connected face neighbours (ITK default).
+//! - [`Connectivity::Vertex26`]: 26-connected neighbours.
 //!
 //! # ITK Parity
 //!
@@ -22,6 +22,7 @@
 //!
 //! - Malandain, G. & Bertrand, G. (1992). Fast characterization of 3D simple points.
 
+use super::Connectivity;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -32,25 +33,36 @@ use burn::tensor::{Shape, Tensor, TensorData};
 /// Marks voxels that lie on the boundary between distinct labelled regions.
 #[derive(Debug, Clone)]
 pub struct LabelContourImageFilter {
-    /// Whether to use 26-connectivity (`true`) or 6-connectivity (`false`).
-    pub fully_connected: bool,
+    /// Neighbourhood connectivity topology (ITK default: `Face6`).
+    pub connectivity: Connectivity,
     /// Label value used for background. Default 0.
     pub background_value: f32,
 }
 
 impl LabelContourImageFilter {
     /// Construct with explicit parameters.
-    pub fn new(fully_connected: bool, background_value: f32) -> Self {
+    pub fn new(connectivity: Connectivity, background_value: f32) -> Self {
         Self {
-            fully_connected,
+            connectivity,
             background_value,
         }
+    }
+
+    /// Set connectivity.
+    pub fn with_connectivity(mut self, connectivity: Connectivity) -> Self {
+        self.connectivity = connectivity;
+        self
+    }
+
+    /// Backward-compatible accessor for the former `fully_connected: bool` field.
+    pub fn fully_connected(&self) -> bool {
+        self.connectivity.fully_connected()
     }
 }
 
 impl Default for LabelContourImageFilter {
     fn default() -> Self {
-        Self::new(false, 0.0)
+        Self::new(Connectivity::Face6, 0.0)
     }
 }
 
@@ -86,7 +98,6 @@ impl LabelContourImageFilter {
         let device = image.data().device();
 
         let bg = self.background_value;
-        let fully = self.fully_connected;
         let n26 = n26();
 
         let mut out = vec![bg; nz * ny * nx];
@@ -98,8 +109,8 @@ impl LabelContourImageFilter {
                     if (label - bg).abs() < 1e-5 {
                         continue; // background stays background
                     }
-                    let is_contour = if fully {
-                        n26.iter().any(|&(dz, dy, dx)| {
+                    let is_contour = match self.connectivity {
+                        Connectivity::Vertex26 => n26.iter().any(|&(dz, dy, dx)| {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
@@ -114,9 +125,8 @@ impl LabelContourImageFilter {
                             }
                             let nl = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nl - label).abs() > 1e-5
-                        })
-                    } else {
-                        N6.iter().any(|&(dz, dy, dx)| {
+                        }),
+                        Connectivity::Face6 => N6.iter().any(|&(dz, dy, dx)| {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
@@ -131,7 +141,7 @@ impl LabelContourImageFilter {
                             }
                             let nl = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nl - label).abs() > 1e-5
-                        })
+                        }),
                     };
                     if is_contour {
                         out[iz * ny * nx + iy * nx + ix] = label;
@@ -174,7 +184,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// All-background image → all background in output.

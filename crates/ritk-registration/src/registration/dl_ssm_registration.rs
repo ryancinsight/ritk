@@ -8,9 +8,7 @@ use burn::tensor::cast::ToElement;
 
 use ritk_core::image::Image;
 use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::transform::static_displacement_field::{
-    StaticDisplacementField, StaticDisplacementFieldTransform3D,
-};
+use ritk_core::transform::{StaticDisplacementField, StaticDisplacementFieldTransform};
 
 use crate::registration::dl_registration_loss::{RegistrationLoss, RegistrationLossConfig};
 use ritk_model::io::adapter::ImageToTensorAdapter;
@@ -50,7 +48,7 @@ impl<B: Backend> SSMMorphIntegration<B> {
         &self,
         fixed: &Image<B, 3>,
         moving: &Image<B, 3>,
-    ) -> anyhow::Result<StaticDisplacementFieldTransform3D<B>> {
+    ) -> anyhow::Result<StaticDisplacementFieldTransform<B, 3>> {
         // Convert images to tensors
         let fixed_tensor = self.adapter.image_to_tensor_3d(fixed)?;
         let moving_tensor = self.adapter.image_to_tensor_3d(moving)?;
@@ -65,7 +63,7 @@ impl<B: Backend> SSMMorphIntegration<B> {
 
         // Create transform from displacement field
         let interpolator = LinearInterpolator::new();
-        let transform = StaticDisplacementFieldTransform3D::new(displacement_field, interpolator);
+        let transform = StaticDisplacementFieldTransform::new(displacement_field, interpolator);
 
         Ok(transform)
     }
@@ -207,7 +205,7 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
         &self,
         fixed: &Image<B, 3>,
         moving: &Image<B, 3>,
-    ) -> anyhow::Result<StaticDisplacementFieldTransform3D<B>> {
+    ) -> anyhow::Result<StaticDisplacementFieldTransform<B, 3>> {
         // SSMMorph already outputs diffeomorphic transformations
         // when config.diffeomorphic is true
         self.integration.register(fixed, moving)
@@ -220,8 +218,8 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
     /// the velocity field.
     pub fn compute_inverse(
         &self,
-        forward_transform: &StaticDisplacementFieldTransform3D<B>,
-    ) -> StaticDisplacementFieldTransform3D<B> {
+        forward_transform: &StaticDisplacementFieldTransform<B, 3>,
+    ) -> StaticDisplacementFieldTransform<B, 3> {
         // Negate displacement field to approximate inverse
         // For exact inverse, would need to solve fixed-point equation
         let forward_disp = forward_transform.field();
@@ -236,14 +234,14 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
             forward_disp.direction(),
         );
 
-        StaticDisplacementFieldTransform3D::new(inverse_disp, *forward_transform.interpolator())
+        StaticDisplacementFieldTransform::new(inverse_disp, *forward_transform.interpolator())
     }
 
     /// Validate transformation quality (composition should be identity)
     pub fn validate_transform(
         &self,
-        forward: &StaticDisplacementFieldTransform3D<B>,
-        inverse: &StaticDisplacementFieldTransform3D<B>,
+        forward: &StaticDisplacementFieldTransform<B, 3>,
+        inverse: &StaticDisplacementFieldTransform<B, 3>,
     ) -> f64 {
         // Compute composition error
         // φ∘φ^{-1}(x) should equal x
@@ -256,9 +254,9 @@ impl<B: Backend> DiffeomorphicSSMMorph<B> {
 
     fn compose_transforms(
         &self,
-        t1: &StaticDisplacementFieldTransform3D<B>,
-        _t2: &StaticDisplacementFieldTransform3D<B>,
-    ) -> StaticDisplacementFieldTransform3D<B> {
+        t1: &StaticDisplacementFieldTransform<B, 3>,
+        _t2: &StaticDisplacementFieldTransform<B, 3>,
+    ) -> StaticDisplacementFieldTransform<B, 3> {
         // Simplified composition
         t1.clone()
     }

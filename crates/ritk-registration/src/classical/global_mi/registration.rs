@@ -1,7 +1,7 @@
 //! GlobalMiRegistration struct and multi-resolution optimization loop.
 
 use super::config::{GlobalMiConfig, GlobalMiTransformType};
-use super::result::GlobalMiResult;
+use super::result::{ConvergenceStatus, GlobalMiResult};
 use super::transforms::{
     affine_matrix_to_homogeneous, compute_image_center, estimate_intensity_range,
     rigid_matrix_to_homogeneous, translation_matrix_to_homogeneous,
@@ -154,13 +154,14 @@ impl GlobalMiRegistration {
         B: AutodiffBackend,
         T: Transform<B, 3> + AutodiffModule<B> + Resampleable<B, 3> + Clone + 'static,
     {
-        let shrink_factors: Vec<Vec<usize>> =
-            config.shrink_factors.iter().map(|&f| vec![f; 3]).collect();
-        let smoothing_sigmas: Vec<Vec<f64>> = config
-            .smoothing_sigmas
-            .iter()
-            .map(|&s| vec![s; 3])
-            .collect();
+        // P1-01: stack-allocated per-level arrays — no `Vec<Vec<T>>` container,
+        // no per-level inner Vec allocation. The factor/sigma config is a flat
+        // slice (one entry per level, broadcast across D=3 axes), so each level
+        // materialises to a 3-element array literal in a single mov.
+        let shrink_factors: Vec<[usize; 3]> =
+            config.shrink_factors.iter().map(|&f| [f; 3]).collect();
+        let smoothing_sigmas: Vec<[f64; 3]> =
+            config.smoothing_sigmas.iter().map(|&s| [s; 3]).collect();
 
         let fixed_pyramid = MultiResolutionPyramid::new(fixed, &shrink_factors, &smoothing_sigmas);
         let moving_pyramid =
@@ -169,7 +170,14 @@ impl GlobalMiRegistration {
         let num_levels = config.num_levels;
         let mut convergence_history: Vec<ConvergenceReason> = Vec::with_capacity(num_levels);
         let mut iterations_per_level: Vec<usize> = Vec::with_capacity(num_levels);
-        let mut final_loss_history: Vec<f64> = Vec::new();
+        // Capacity: worst case = sum of all per-level max iterations (conservative upper bound)
+        let mut final_loss_history: Vec<f64> = Vec::with_capacity(
+            config
+                .rsgd_configs
+                .iter()
+                .map(|c| c.maximum_iterations)
+                .sum(),
+        );
         let mut final_loss_val: f64 = f64::INFINITY;
 
         tracing::info!(
@@ -233,7 +241,8 @@ impl GlobalMiRegistration {
                 rsgd_max_iters,
             );
 
-            let mut level_loss_history: Vec<f64> = Vec::new();
+            // Capacity: bounded by this level's maximum_iterations
+            let mut level_loss_history: Vec<f64> = Vec::with_capacity(rsgd_max_iters);
             let mut level_iterations: usize = 0;
 
             loop {
@@ -305,7 +314,11 @@ impl GlobalMiRegistration {
             convergence_history,
             iterations_per_level,
             loss_history: final_loss_history,
-            converged: all_converged,
+            convergence: if all_converged {
+                ConvergenceStatus::Converged
+            } else {
+                ConvergenceStatus::MaxIterationsReached
+            },
         };
 
         (transform, result)

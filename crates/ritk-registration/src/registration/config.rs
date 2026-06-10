@@ -1,22 +1,30 @@
 use crate::progress::ConvergenceChecker;
 use crate::validation::ValidationConfig;
 
+/// Whether early stopping is enabled during iterative optimization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum EarlyStoppingPolicy {
+    /// Early stopping is disabled.
+    #[default]
+    Disabled,
+    /// Early stopping is enabled.
+    Enabled,
+}
+
 /// Configuration for registration.
 #[derive(Debug, Clone)]
 pub struct RegistrationConfig {
     /// Validation configuration.
     pub validation: ValidationConfig,
-    /// Enable early stopping.
-    pub enable_early_stopping: bool,
+    /// Early stopping policy.
+    pub early_stopping: EarlyStoppingPolicy,
     /// Early stopping patience.
     pub early_stopping_patience: usize,
     /// Early stopping minimum improvement.
     pub early_stopping_min_improvement: f64,
     /// Log interval for progress.
     pub log_interval: usize,
-    /// Enable convergence detection.
-    pub enable_convergence_detection: bool,
-    /// Convergence checker.
+    /// Convergence checker. When `Some`, convergence detection is enabled.
     pub convergence_checker: Option<ConvergenceChecker>,
 }
 
@@ -24,11 +32,10 @@ impl Default for RegistrationConfig {
     fn default() -> Self {
         Self {
             validation: ValidationConfig::default(),
-            enable_early_stopping: false,
+            early_stopping: EarlyStoppingPolicy::Disabled,
             early_stopping_patience: 50,
             early_stopping_min_improvement: 1e-6,
             log_interval: 50,
-            enable_convergence_detection: false,
             convergence_checker: None,
         }
     }
@@ -42,7 +49,7 @@ impl RegistrationConfig {
 
     /// Enable early stopping.
     pub fn with_early_stopping(mut self, patience: usize, min_improvement: f64) -> Self {
-        self.enable_early_stopping = true;
+        self.early_stopping = EarlyStoppingPolicy::Enabled;
         self.early_stopping_patience = patience;
         self.early_stopping_min_improvement = min_improvement;
         self
@@ -50,7 +57,7 @@ impl RegistrationConfig {
 
     /// Disable early stopping.
     pub fn without_early_stopping(mut self) -> Self {
-        self.enable_early_stopping = false;
+        self.early_stopping = EarlyStoppingPolicy::Disabled;
         self
     }
 
@@ -60,16 +67,14 @@ impl RegistrationConfig {
         self
     }
 
-    /// Enable convergence detection.
+    /// Enable convergence detection with the given checker.
     pub fn with_convergence_detection(mut self, checker: ConvergenceChecker) -> Self {
-        self.enable_convergence_detection = true;
         self.convergence_checker = Some(checker);
         self
     }
 
     /// Disable convergence detection.
     pub fn without_convergence_detection(mut self) -> Self {
-        self.enable_convergence_detection = false;
         self.convergence_checker = None;
         self
     }

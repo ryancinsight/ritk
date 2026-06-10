@@ -37,16 +37,20 @@
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_with_scratch, scaling_and_squaring_into, warp_image_into,
+    compute_gradient_into, gaussian_smooth_with_scratch, normalize_forces_into,
+    scaling_and_squaring_into, warp_image_into, VelocityField,
 };
 use crate::error::RegistrationError;
 
 use self::primitives::{accumulate_to_cp_into, cp_count, cp_laplacian_into, evaluate_dense_into};
 use super::local_cc::{cc_forces_into, mean_local_cc};
 
+mod buffers;
 pub(crate) mod primitives;
 #[cfg(test)]
 mod tests;
+
+use buffers::BSplineSyNBuffers;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -78,10 +82,10 @@ pub struct BSplineSyNConfig {
 /// Result returned by [`BSplineSyNRegistration::register`].
 #[derive(Debug, Clone)]
 pub struct BSplineSyNResult {
-    /// Forward dense velocity field `v₁` components (fixed→midpoint).
-    pub forward_field: (Vec<f32>, Vec<f32>, Vec<f32>),
-    /// Inverse dense velocity field `v₂` components (moving→midpoint).
-    pub inverse_field: (Vec<f32>, Vec<f32>, Vec<f32>),
+    /// Forward dense velocity field `v₁` components (fixed→midpoint), in (z, y, x) order.
+    pub forward_field: VelocityField,
+    /// Inverse dense velocity field `v₂` components (moving→midpoint), in (z, y, x) order.
+    pub inverse_field: VelocityField,
     /// Fixed image warped to the midpoint by `φ₁ = exp(v₁)`.
     pub warped_fixed: Vec<f32>,
     /// Moving image warped to the midpoint by `φ₂ = exp(v₂)`.
@@ -160,66 +164,7 @@ impl BSplineSyNRegistration {
         ];
         let cp_n = cp_d[0] * cp_d[1] * cp_d[2];
 
-        let mut cp1z = vec![0.0_f32; cp_n];
-        let mut cp1y = vec![0.0_f32; cp_n];
-        let mut cp1x = vec![0.0_f32; cp_n];
-        let mut cp2z = vec![0.0_f32; cp_n];
-        let mut cp2y = vec![0.0_f32; cp_n];
-        let mut cp2x = vec![0.0_f32; cp_n];
-
-        // ── Pre-allocated dense-field scratch buffers (zero alloc inside the loop) ──
-        let mut v1z = vec![0.0_f32; n];
-        let mut v1y = vec![0.0_f32; n];
-        let mut v1x = vec![0.0_f32; n];
-        let mut v2z = vec![0.0_f32; n];
-        let mut v2y = vec![0.0_f32; n];
-        let mut v2x = vec![0.0_f32; n];
-
-        let mut phi1_z = vec![0.0_f32; n];
-        let mut phi1_y = vec![0.0_f32; n];
-        let mut phi1_x = vec![0.0_f32; n];
-        let mut phi2_z = vec![0.0_f32; n];
-        let mut phi2_y = vec![0.0_f32; n];
-        let mut phi2_x = vec![0.0_f32; n];
-
-        let mut scratch_ss_z = vec![0.0_f32; n];
-        let mut scratch_ss_y = vec![0.0_f32; n];
-        let mut scratch_ss_x = vec![0.0_f32; n];
-
-        let mut i_w = vec![0.0_f32; n];
-        let mut j_w = vec![0.0_f32; n];
-
-        let mut gi_z = vec![0.0_f32; n];
-        let mut gi_y = vec![0.0_f32; n];
-        let mut gi_x = vec![0.0_f32; n];
-        let mut gj_z = vec![0.0_f32; n];
-        let mut gj_y = vec![0.0_f32; n];
-        let mut gj_x = vec![0.0_f32; n];
-
-        let mut u1z = vec![0.0_f32; n];
-        let mut u1y = vec![0.0_f32; n];
-        let mut u1x = vec![0.0_f32; n];
-        let mut u2z = vec![0.0_f32; n];
-        let mut u2y = vec![0.0_f32; n];
-        let mut u2x = vec![0.0_f32; n];
-
-        let mut smooth_tmp = vec![0.0_f32; n];
-
-        // ── Pre-allocated CP-space scratch buffers ──
-        let mut cp_accum = vec![0.0_f64; cp_n];
-        let mut cp_weight = vec![0.0_f64; cp_n];
-        let mut d1z = vec![0.0_f32; cp_n];
-        let mut d1y = vec![0.0_f32; cp_n];
-        let mut d1x = vec![0.0_f32; cp_n];
-        let mut d2z = vec![0.0_f32; cp_n];
-        let mut d2y = vec![0.0_f32; cp_n];
-        let mut d2x = vec![0.0_f32; cp_n];
-        let mut l1z = vec![0.0_f32; cp_n];
-        let mut l1y = vec![0.0_f32; cp_n];
-        let mut l1x = vec![0.0_f32; cp_n];
-        let mut l2z = vec![0.0_f32; cp_n];
-        let mut l2y = vec![0.0_f32; cp_n];
-        let mut l2x = vec![0.0_f32; cp_n];
+        let mut buf = BSplineSyNBuffers::new(n, cp_n);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
@@ -233,170 +178,199 @@ impl BSplineSyNRegistration {
             iter = it + 1;
 
             // Evaluate dense velocity fields from control points (zero alloc)
-            evaluate_dense_into(&cp1z, cp_d, dims, cs, &mut v1z);
-            evaluate_dense_into(&cp1y, cp_d, dims, cs, &mut v1y);
-            evaluate_dense_into(&cp1x, cp_d, dims, cs, &mut v1x);
-            evaluate_dense_into(&cp2z, cp_d, dims, cs, &mut v2z);
-            evaluate_dense_into(&cp2y, cp_d, dims, cs, &mut v2y);
-            evaluate_dense_into(&cp2x, cp_d, dims, cs, &mut v2x);
+            evaluate_dense_into(&buf.cp1z, cp_d, dims, cs, &mut buf.v1z);
+            evaluate_dense_into(&buf.cp1y, cp_d, dims, cs, &mut buf.v1y);
+            evaluate_dense_into(&buf.cp1x, cp_d, dims, cs, &mut buf.v1x);
+            evaluate_dense_into(&buf.cp2z, cp_d, dims, cs, &mut buf.v2z);
+            evaluate_dense_into(&buf.cp2y, cp_d, dims, cs, &mut buf.v2y);
+            evaluate_dense_into(&buf.cp2x, cp_d, dims, cs, &mut buf.v2x);
 
             // exp(v) via scaling-and-squaring (zero alloc, shared scratch)
             scaling_and_squaring_into(
-                &v1z,
-                &v1y,
-                &v1x,
+                &buf.v1z,
+                &buf.v1y,
+                &buf.v1x,
                 dims,
                 self.config.n_squarings,
-                &mut phi1_z,
-                &mut phi1_y,
-                &mut phi1_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
+                &mut buf.phi1_z,
+                &mut buf.phi1_y,
+                &mut buf.phi1_x,
+                &mut buf.scratch_ss_z,
+                &mut buf.scratch_ss_y,
+                &mut buf.scratch_ss_x,
             );
             scaling_and_squaring_into(
-                &v2z,
-                &v2y,
-                &v2x,
+                &buf.v2z,
+                &buf.v2y,
+                &buf.v2x,
                 dims,
                 self.config.n_squarings,
-                &mut phi2_z,
-                &mut phi2_y,
-                &mut phi2_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
+                &mut buf.phi2_z,
+                &mut buf.phi2_y,
+                &mut buf.phi2_x,
+                &mut buf.scratch_ss_z,
+                &mut buf.scratch_ss_y,
+                &mut buf.scratch_ss_x,
             );
 
             // Warp images (zero alloc)
-            warp_image_into(fixed, dims, &phi1_z, &phi1_y, &phi1_x, &mut i_w);
-            warp_image_into(moving, dims, &phi2_z, &phi2_y, &phi2_x, &mut j_w);
+            warp_image_into(
+                fixed,
+                dims,
+                &buf.phi1_z,
+                &buf.phi1_y,
+                &buf.phi1_x,
+                &mut buf.i_w,
+            );
+            warp_image_into(
+                moving,
+                dims,
+                &buf.phi2_z,
+                &buf.phi2_y,
+                &buf.phi2_x,
+                &mut buf.j_w,
+            );
 
             // Compute gradients (zero alloc)
-            compute_gradient_into(&i_w, dims, spacing, &mut gi_z, &mut gi_y, &mut gi_x);
-            compute_gradient_into(&j_w, dims, spacing, &mut gj_z, &mut gj_y, &mut gj_x);
+            compute_gradient_into(
+                &buf.i_w,
+                dims,
+                spacing,
+                &mut buf.gi_z,
+                &mut buf.gi_y,
+                &mut buf.gi_x,
+            );
+            compute_gradient_into(
+                &buf.j_w,
+                dims,
+                spacing,
+                &mut buf.gj_z,
+                &mut buf.gj_y,
+                &mut buf.gj_x,
+            );
 
             // CC forces (zero alloc)
             cc_forces_into(
-                &i_w, &j_w, &gi_z, &gi_y, &gi_x, dims, r, &mut u1z, &mut u1y, &mut u1x,
+                &buf.i_w,
+                &buf.j_w,
+                &buf.gi_z,
+                &buf.gi_y,
+                &buf.gi_x,
+                dims,
+                r,
+                &mut buf.u1z,
+                &mut buf.u1y,
+                &mut buf.u1x,
             );
             cc_forces_into(
-                &j_w, &i_w, &gj_z, &gj_y, &gj_x, dims, r, &mut u2z, &mut u2y, &mut u2x,
+                &buf.j_w,
+                &buf.i_w,
+                &buf.gj_z,
+                &buf.gj_y,
+                &buf.gj_x,
+                dims,
+                r,
+                &mut buf.u2z,
+                &mut buf.u2y,
+                &mut buf.u2x,
             );
 
-            // Normalise u₁ so max|u₁| = gradient_step
-            let max_u1 = u1z
-                .iter()
-                .chain(u1y.iter())
-                .chain(u1x.iter())
-                .map(|&v| (v as f64).abs())
-                .fold(0.0_f64, f64::max);
-            if max_u1 > 1e-10 {
-                let s = (self.config.gradient_step / max_u1) as f32;
-                u1z.iter_mut().for_each(|v| *v *= s);
-                u1y.iter_mut().for_each(|v| *v *= s);
-                u1x.iter_mut().for_each(|v| *v *= s);
-            }
-
-            // Normalise u₂ so max|u₂| = gradient_step
-            let max_u2 = u2z
-                .iter()
-                .chain(u2y.iter())
-                .chain(u2x.iter())
-                .map(|&v| (v as f64).abs())
-                .fold(0.0_f64, f64::max);
-            if max_u2 > 1e-10 {
-                let s = (self.config.gradient_step / max_u2) as f32;
-                u2z.iter_mut().for_each(|v| *v *= s);
-                u2y.iter_mut().for_each(|v| *v *= s);
-                u2x.iter_mut().for_each(|v| *v *= s);
-            }
+            // Normalise forces so max|u₁| = max|u₂| = gradient_step
+            normalize_forces_into(
+                &mut buf.u1z,
+                &mut buf.u1y,
+                &mut buf.u1x,
+                &mut buf.u2z,
+                &mut buf.u2y,
+                &mut buf.u2x,
+                self.config.gradient_step,
+            );
 
             // Gaussian smooth forces (zero alloc, shared scratch)
             if sigma > 0.0 {
-                gaussian_smooth_with_scratch(&mut u1z, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut u1y, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut u1x, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut u2z, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut u2y, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut u2x, dims, sigma, &mut smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1z, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1y, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u1x, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2z, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2y, dims, sigma, &mut buf.smooth_tmp);
+                gaussian_smooth_with_scratch(&mut buf.u2x, dims, sigma, &mut buf.smooth_tmp);
             }
 
             // Accumulate forces into CP-space (zero alloc, shared accum/weight)
             accumulate_to_cp_into(
-                &u1z,
+                &buf.u1z,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d1z,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d1z,
             );
             accumulate_to_cp_into(
-                &u1y,
+                &buf.u1y,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d1y,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d1y,
             );
             accumulate_to_cp_into(
-                &u1x,
+                &buf.u1x,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d1x,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d1x,
             );
             accumulate_to_cp_into(
-                &u2z,
+                &buf.u2z,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d2z,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d2z,
             );
             accumulate_to_cp_into(
-                &u2y,
+                &buf.u2y,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d2y,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d2y,
             );
             accumulate_to_cp_into(
-                &u2x,
+                &buf.u2x,
                 dims,
                 cp_d,
                 cs,
-                &mut cp_accum,
-                &mut cp_weight,
-                &mut d2x,
+                &mut buf.cp_accum,
+                &mut buf.cp_weight,
+                &mut buf.d2x,
             );
 
             // CP Laplacian regularisation (zero alloc)
-            cp_laplacian_into(&cp1z, cp_d, &mut l1z);
-            cp_laplacian_into(&cp1y, cp_d, &mut l1y);
-            cp_laplacian_into(&cp1x, cp_d, &mut l1x);
-            cp_laplacian_into(&cp2z, cp_d, &mut l2z);
-            cp_laplacian_into(&cp2y, cp_d, &mut l2y);
-            cp_laplacian_into(&cp2x, cp_d, &mut l2x);
+            cp_laplacian_into(&buf.cp1z, cp_d, &mut buf.l1z);
+            cp_laplacian_into(&buf.cp1y, cp_d, &mut buf.l1y);
+            cp_laplacian_into(&buf.cp1x, cp_d, &mut buf.l1x);
+            cp_laplacian_into(&buf.cp2z, cp_d, &mut buf.l2z);
+            cp_laplacian_into(&buf.cp2y, cp_d, &mut buf.l2y);
+            cp_laplacian_into(&buf.cp2x, cp_d, &mut buf.l2x);
 
             // Update control points
             for i in 0..cp_n {
-                cp1z[i] += d1z[i] + rw * l1z[i];
-                cp1y[i] += d1y[i] + rw * l1y[i];
-                cp1x[i] += d1x[i] + rw * l1x[i];
-                cp2z[i] += d2z[i] + rw * l2z[i];
-                cp2y[i] += d2y[i] + rw * l2y[i];
-                cp2x[i] += d2x[i] + rw * l2x[i];
+                buf.cp1z[i] += buf.d1z[i] + rw * buf.l1z[i];
+                buf.cp1y[i] += buf.d1y[i] + rw * buf.l1y[i];
+                buf.cp1x[i] += buf.d1x[i] + rw * buf.l1x[i];
+                buf.cp2z[i] += buf.d2z[i] + rw * buf.l2z[i];
+                buf.cp2y[i] += buf.d2y[i] + rw * buf.l2y[i];
+                buf.cp2x[i] += buf.d2x[i] + rw * buf.l2x[i];
             }
 
-            final_cc = mean_local_cc(&i_w, &j_w, dims, r);
+            final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
             cc_history.push_back(final_cc);
             if cc_history.len() > self.config.convergence_window {
                 cc_history.pop_front();
@@ -412,48 +386,62 @@ impl BSplineSyNRegistration {
         }
 
         // ── Final dense fields and warps (reusing pre-allocated scratch) ──
-        evaluate_dense_into(&cp1z, cp_d, dims, cs, &mut v1z);
-        evaluate_dense_into(&cp1y, cp_d, dims, cs, &mut v1y);
-        evaluate_dense_into(&cp1x, cp_d, dims, cs, &mut v1x);
-        evaluate_dense_into(&cp2z, cp_d, dims, cs, &mut v2z);
-        evaluate_dense_into(&cp2y, cp_d, dims, cs, &mut v2y);
-        evaluate_dense_into(&cp2x, cp_d, dims, cs, &mut v2x);
+        evaluate_dense_into(&buf.cp1z, cp_d, dims, cs, &mut buf.v1z);
+        evaluate_dense_into(&buf.cp1y, cp_d, dims, cs, &mut buf.v1y);
+        evaluate_dense_into(&buf.cp1x, cp_d, dims, cs, &mut buf.v1x);
+        evaluate_dense_into(&buf.cp2z, cp_d, dims, cs, &mut buf.v2z);
+        evaluate_dense_into(&buf.cp2y, cp_d, dims, cs, &mut buf.v2y);
+        evaluate_dense_into(&buf.cp2x, cp_d, dims, cs, &mut buf.v2x);
 
         scaling_and_squaring_into(
-            &v1z,
-            &v1y,
-            &v1x,
+            &buf.v1z,
+            &buf.v1y,
+            &buf.v1x,
             dims,
             self.config.n_squarings,
-            &mut phi1_z,
-            &mut phi1_y,
-            &mut phi1_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
+            &mut buf.phi1_z,
+            &mut buf.phi1_y,
+            &mut buf.phi1_x,
+            &mut buf.scratch_ss_z,
+            &mut buf.scratch_ss_y,
+            &mut buf.scratch_ss_x,
         );
         scaling_and_squaring_into(
-            &v2z,
-            &v2y,
-            &v2x,
+            &buf.v2z,
+            &buf.v2y,
+            &buf.v2x,
             dims,
             self.config.n_squarings,
-            &mut phi2_z,
-            &mut phi2_y,
-            &mut phi2_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
+            &mut buf.phi2_z,
+            &mut buf.phi2_y,
+            &mut buf.phi2_x,
+            &mut buf.scratch_ss_z,
+            &mut buf.scratch_ss_y,
+            &mut buf.scratch_ss_x,
         );
 
-        warp_image_into(fixed, dims, &phi1_z, &phi1_y, &phi1_x, &mut i_w);
-        warp_image_into(moving, dims, &phi2_z, &phi2_y, &phi2_x, &mut j_w);
+        warp_image_into(
+            fixed,
+            dims,
+            &buf.phi1_z,
+            &buf.phi1_y,
+            &buf.phi1_x,
+            &mut buf.i_w,
+        );
+        warp_image_into(
+            moving,
+            dims,
+            &buf.phi2_z,
+            &buf.phi2_y,
+            &buf.phi2_x,
+            &mut buf.j_w,
+        );
 
         Ok(BSplineSyNResult {
-            forward_field: (v1z, v1y, v1x),
-            inverse_field: (v2z, v2y, v2x),
-            warped_fixed: i_w,
-            warped_moving: j_w,
+            forward_field: VelocityField::new(buf.v1z, buf.v1y, buf.v1x),
+            inverse_field: VelocityField::new(buf.v2z, buf.v2y, buf.v2x),
+            warped_fixed: buf.i_w,
+            warped_moving: buf.j_w,
             final_cc,
             num_iterations: iter,
         })

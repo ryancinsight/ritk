@@ -95,7 +95,7 @@ fn test_frangi_cylindrical_tube() {
         alpha: 0.5,
         beta: 0.5,
         gamma: 15.0,
-        bright_vessels: true,
+        polarity: VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter::new(config);
     let out = filter.apply(&image).expect("frangi apply failed");
@@ -180,7 +180,7 @@ fn test_frangi_sphere_low_vesselness() {
         alpha: 0.5,
         beta: 0.5,
         gamma: 15.0,
-        bright_vessels: true,
+        polarity: VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter::new(config);
     let out = filter.apply(&image).expect("frangi apply failed");
@@ -243,7 +243,7 @@ fn test_frangi_tube_exceeds_sphere() {
         alpha: 0.5,
         beta: 0.5,
         gamma: 15.0,
-        bright_vessels: true,
+        polarity: VesselPolarity::Bright,
     };
 
     let tube_image = make_image(tube_vals, [N, N, N]);
@@ -290,7 +290,7 @@ fn test_frangi_dark_vessel_gate_rejects_bright_tube() {
     let image = make_image(vals, [N, N, N]);
     let config = FrangiConfig {
         scales: vec![1.5],
-        bright_vessels: false, // dark-vessel mode
+        polarity: VesselPolarity::Dark, // dark-vessel mode
         ..Default::default()
     };
     let filter = FrangiVesselnessFilter::new(config);

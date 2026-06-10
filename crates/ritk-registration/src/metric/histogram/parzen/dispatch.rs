@@ -40,27 +40,31 @@
 
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
+use std::borrow::Cow;
 
 use super::ParzenJointHistogram;
 
-/// Normalize intensities to `[0, num_bins - 1]` and extract as a `Vec<f32>`.
+/// Normalize intensities to `[0, num_bins - 1]` and extract as a `Cow<'_, [f32]>`.
 ///
 /// This is the data-extraction bridge: it applies the same normalization as
 /// the tensor path (`val * scale + offset`, clamped) but returns a host-side
-/// `Vec<f32>` suitable for the direct computation functions.
+/// slice suitable for the direct computation functions. Since normalization
+/// always creates new data, this always returns `Cow::Owned`. The API contract
+/// is established so a future Burn release exposing `Tensor::as_slice()` can
+/// return `Cow::Borrowed` on the no-normalization path.
 #[cfg(feature = "direct-parzen")]
 pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
     values: &Tensor<B, 1>,
     min_intensity: f32,
     max_intensity: f32,
     num_bins: usize,
-) -> Vec<f32> {
+) -> Cow<'static, [f32]> {
     let num_bins_f = (num_bins - 1) as f32;
     let scale = num_bins_f / (max_intensity - min_intensity);
     let offset = -min_intensity * scale;
     let normalized = (values.clone() * scale + offset).clamp(0.0, num_bins_f);
     let data = normalized.into_data();
-    data.as_slice::<f32>().expect("f32 data").to_vec()
+    Cow::Owned(data.as_slice::<f32>().expect("f32 data").to_vec())
 }
 
 /// Extract an optional OOB mask tensor to a host-side slice (DRY-326-03).
@@ -68,16 +72,22 @@ pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
 /// Both `compute_joint_histogram_dispatch` and
 /// `compute_joint_histogram_from_cache_sparse_dispatch` shared the same
 /// 5-line extraction pattern. This helper is the SSOT for converting
-/// `Option<&Tensor<B, 1>>` → `Option<Vec<f32>>` for the direct path.
+/// `Option<&Tensor<B, 1>>` → `Option<Cow<'_, [f32]>>` for the direct path.
+/// Always returns `Cow::Owned` today; can switch to `Cow::Borrowed` when
+/// Burn exposes stable slice accessors.
 #[cfg(feature = "direct-parzen")]
 #[inline]
-fn extract_oob_mask<B: Backend>(oob_mask: Option<&Tensor<B, 1>>) -> Option<Vec<f32>> {
+fn extract_oob_mask<B: Backend>(
+    oob_mask: Option<&Tensor<B, 1>>,
+) -> Option<Cow<'static, [f32]>> {
     oob_mask.map(|m| {
-        m.clone()
-            .into_data()
-            .as_slice::<f32>()
-            .expect("f32 data")
-            .to_vec()
+        Cow::Owned(
+            m.clone()
+                .into_data()
+                .as_slice::<f32>()
+                .expect("f32 data")
+                .to_vec(),
+        )
     })
 }
 

@@ -99,8 +99,8 @@ fn syn_registration_non_divergence_and_non_trivial_fields() {
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
         .unwrap();
 
-    let fwd_rms_x = field_rms(&result.forward_field.2);
-    let inv_rms_x = field_rms(&result.inverse_field.2);
+    let fwd_rms_x = field_rms(&result.forward_field.x);
+    let inv_rms_x = field_rms(&result.inverse_field.x);
     assert!(
         fwd_rms_x > 0.01 || inv_rms_x > 0.01,
         "at least one velocity field must be non-trivial in x: \
@@ -145,8 +145,8 @@ fn forward_inverse_field_symmetry() {
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
         .unwrap();
 
-    let fwd_rms = field_rms(&result.forward_field.2);
-    let inv_rms = field_rms(&result.inverse_field.2);
+    let fwd_rms = field_rms(&result.forward_field.x);
+    let inv_rms = field_rms(&result.inverse_field.x);
     assert!(
         fwd_rms > 0.01 || inv_rms > 0.01,
         "at least one field must be non-trivial: fwd={fwd_rms:.4} inv={inv_rms:.4}"
@@ -183,13 +183,13 @@ fn velocity_fields_finite() {
 
     for &v in result
         .forward_field
-        .0
+        .z
         .iter()
-        .chain(result.forward_field.1.iter())
-        .chain(result.forward_field.2.iter())
-        .chain(result.inverse_field.0.iter())
-        .chain(result.inverse_field.1.iter())
-        .chain(result.inverse_field.2.iter())
+        .chain(result.forward_field.y.iter())
+        .chain(result.forward_field.x.iter())
+        .chain(result.inverse_field.z.iter())
+        .chain(result.inverse_field.y.iter())
+        .chain(result.inverse_field.x.iter())
     {
         assert!(
             v.is_finite(),
@@ -220,11 +220,11 @@ fn zero_velocity_zero_displacement() {
     let n = 4 * 4 * 4;
     let z = vec![0.0_f32; n];
 
-    let (phiz, phiy, phix) = scaling_and_squaring(&z, &z, &z, dims, 6);
+    let phi = scaling_and_squaring(&z, &z, &z, dims, 6);
     for i in 0..n {
-        assert!(phiz[i].abs() < 1e-5, "phiz[{i}]={}", phiz[i]);
-        assert!(phiy[i].abs() < 1e-5, "phiy[{i}]={}", phiy[i]);
-        assert!(phix[i].abs() < 1e-5, "phix[{i}]={}", phix[i]);
+        assert!(phi.z[i].abs() < 1e-5, "phiz[{i}]={}", phi.z[i]);
+        assert!(phi.y[i].abs() < 1e-5, "phiy[{i}]={}", phi.y[i]);
+        assert!(phi.x[i].abs() < 1e-5, "phix[{i}]={}", phi.x[i]);
     }
 }
 

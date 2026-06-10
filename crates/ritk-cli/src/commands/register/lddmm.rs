@@ -51,6 +51,7 @@ pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::register::tests::make_ramp_image;
+    use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
     // ── LDDMM: output shape ────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ mod tests {
             iterations: 2,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -114,7 +115,7 @@ mod tests {
             iterations: 2,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -191,8 +192,8 @@ mod tests {
 
         // Round-trip.
         let reconstructed = flat_vec_to_image(data, shape, &image);
-        let recon_vals = reconstructed.data_vec();
-        let orig_vals = image.data_vec();
+        let recon_vals: Vec<f32> = reconstructed.data_slice().into_owned();
+        let orig_vals: Vec<f32> = image.data_slice().into_owned();
         for (i, (&o, &r)) in orig_vals.iter().zip(recon_vals.iter()).enumerate() {
             assert!(
                 (o - r).abs() < 1e-6,

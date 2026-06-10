@@ -3,8 +3,19 @@ use burn::nn::conv::{Conv3d, Conv3dConfig};
 use burn::nn::PaddingConfig3d;
 use burn::prelude::*;
 
-use super::config::EncoderStageConfig;
+use super::config::{DownsamplePolicy, EncoderStageConfig};
 use crate::ssmmorph::vmamba_block::{VMambaBlock, VMambaBlockConfig};
+use burn::module::Ignored;
+
+/// Whether this encoder stage has a downsampling layer attached.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DownsampleStage {
+    /// No downsampling at the end of this stage.
+    #[default]
+    NoDownsample,
+    /// Strided convolution halves spatial dimensions at the end.
+    WithDownsample,
+}
 
 /// Single encoder stage with VMamba blocks and optional downsampling
 #[derive(Module, Debug)]
@@ -18,7 +29,7 @@ pub struct EncoderStage<B: Backend> {
     /// Output channels
     pub out_channels: usize,
     /// Whether this stage downsamples
-    pub has_downsample: bool,
+    pub has_downsample: Ignored<DownsampleStage>,
 }
 
 impl<B: Backend> EncoderStage<B> {
@@ -43,15 +54,18 @@ impl<B: Backend> EncoderStage<B> {
             .collect();
 
         // Downsampling layer
-        let downsample = if config.downsample {
+        let (downsample, has_downsample) = if config.downsample == DownsamplePolicy::Downsample {
             let ds_config =
                 Conv3dConfig::new([config.out_channels, config.out_channels], [3, 3, 3])
                     .with_stride([2, 2, 2])
                     .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
                     .with_bias(false);
-            Some(ds_config.init(device))
+            (
+                Some(ds_config.init(device)),
+                Ignored(DownsampleStage::WithDownsample),
+            )
         } else {
-            None
+            (None, Ignored(DownsampleStage::NoDownsample))
         };
 
         Self {
@@ -59,7 +73,7 @@ impl<B: Backend> EncoderStage<B> {
             blocks,
             downsample,
             out_channels: config.out_channels,
-            has_downsample: config.downsample,
+            has_downsample,
         }
     }
 

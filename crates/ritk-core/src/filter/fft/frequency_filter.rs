@@ -53,12 +53,157 @@ pub enum FftFilterKind {
     ButterworthHighPass,
 }
 
+// ── Frequency response trait ──────────────────────────────────────────────────
+
+/// Trait for frequency-domain transfer functions.
+///
+/// Each implementor is a zero-sized type (ZST) encoding the filter variant
+/// at the type level. The trait provides the canonical `compute_mask` method
+/// that generates a real-valued frequency mask for any dimensionality `D`.
+pub trait FrequencyResponse: Default {
+    /// Evaluate the transfer function `H(r)` at a given normalised radius.
+    fn evaluate(radius: f64, cutoff: f64, order: usize) -> f32;
+
+    /// Generate a D-dimensional real-valued frequency mask.
+    ///
+    /// The mask has shape matching `spatial_dims`. After FFT shift, the DC
+    /// component is at the centre of the array; frequencies are mapped to
+    /// `[−0.5, +0.5]` per axis.
+    fn compute_mask<const D: usize>(
+        spatial_dims: &[usize; D],
+        cutoff: f64,
+        order: usize,
+    ) -> Vec<f32> {
+        let n: usize = spatial_dims.iter().product();
+        let mut mask = vec![0.0_f32; n];
+
+        // Centre coordinates in normalised frequency space.
+        let centers: [f64; D] = core::array::from_fn(|a| spatial_dims[a] as f64 / 2.0);
+
+        // Strides for row-major indexing into the mask buffer.
+        let mut strides = [0usize; D];
+        strides[D - 1] = 1;
+        for i in (0..D - 1).rev() {
+            strides[i] = strides[i + 1] * spatial_dims[i + 1];
+        }
+
+        for (flat, mask_val) in mask.iter_mut().enumerate() {
+            let mut remaining = flat;
+            let mut radius_sq = 0.0_f64;
+            for a in 0..D {
+                let coord = remaining / strides[a];
+                remaining %= strides[a];
+                let f = (coord as f64 - centers[a]) / spatial_dims[a] as f64;
+                radius_sq += f * f;
+            }
+            *mask_val = Self::evaluate(radius_sq.sqrt(), cutoff, order);
+        }
+
+        mask
+    }
+}
+
+/// Ideal low-pass transfer function: H(r) = 1 if r ≤ c, else 0.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IdealLowPass;
+
+/// Ideal high-pass transfer function: H(r) = 1 if r ≥ c, else 0.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IdealHighPass;
+
+/// Butterworth low-pass transfer function: H(r) = 1 / (1 + (r/c)^(2n)).
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ButterworthLowPass;
+
+/// Butterworth high-pass transfer function: H(r) = 1 − 1 / (1 + (r/c)^(2n)).
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ButterworthHighPass;
+
+impl FrequencyResponse for IdealLowPass {
+    fn evaluate(radius: f64, cutoff: f64, _order: usize) -> f32 {
+        if radius <= cutoff {
+            1.0
+        } else {
+            0.0
+        }
+    }
+}
+
+impl FrequencyResponse for IdealHighPass {
+    fn evaluate(radius: f64, cutoff: f64, _order: usize) -> f32 {
+        if radius >= cutoff {
+            1.0
+        } else {
+            0.0
+        }
+    }
+}
+
+impl FrequencyResponse for ButterworthLowPass {
+    fn evaluate(radius: f64, cutoff: f64, order: usize) -> f32 {
+        let n = order.max(1) as i32;
+        let ratio = radius / cutoff;
+        (1.0 / (1.0 + ratio.powi(2 * n))) as f32
+    }
+}
+
+impl FrequencyResponse for ButterworthHighPass {
+    fn evaluate(radius: f64, cutoff: f64, order: usize) -> f32 {
+        let n = order.max(1) as i32;
+        let ratio = radius / cutoff;
+        (1.0 - 1.0 / (1.0 + ratio.powi(2 * n))) as f32
+    }
+}
+
+// ── Mask generation (generic) ─────────────────────────────────────────────────
+
+fn generate_mask_2d_dispatch(
+    h: usize,
+    w: usize,
+    kind: FftFilterKind,
+    cutoff: f64,
+    order: usize,
+) -> Vec<f32> {
+    let dims = [h, w];
+    match kind {
+        FftFilterKind::IdealLowPass => IdealLowPass::compute_mask::<2>(&dims, cutoff, order),
+        FftFilterKind::IdealHighPass => IdealHighPass::compute_mask::<2>(&dims, cutoff, order),
+        FftFilterKind::ButterworthLowPass => {
+            ButterworthLowPass::compute_mask::<2>(&dims, cutoff, order)
+        }
+        FftFilterKind::ButterworthHighPass => {
+            ButterworthHighPass::compute_mask::<2>(&dims, cutoff, order)
+        }
+    }
+}
+
+fn generate_mask_3d_dispatch(
+    d: usize,
+    h: usize,
+    w: usize,
+    kind: FftFilterKind,
+    cutoff: f64,
+    order: usize,
+) -> Vec<f32> {
+    let dims = [d, h, w];
+    match kind {
+        FftFilterKind::IdealLowPass => IdealLowPass::compute_mask::<3>(&dims, cutoff, order),
+        FftFilterKind::IdealHighPass => IdealHighPass::compute_mask::<3>(&dims, cutoff, order),
+        FftFilterKind::ButterworthLowPass => {
+            ButterworthLowPass::compute_mask::<3>(&dims, cutoff, order)
+        }
+        FftFilterKind::ButterworthHighPass => {
+            ButterworthHighPass::compute_mask::<3>(&dims, cutoff, order)
+        }
+    }
+}
+
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Frequency-domain image filter.
 ///
 /// Applies a real-valued mask in the shifted frequency domain to a **real**
-/// input image.  The full FFT round-trip (forward → shift → mask → unshift →
+/// input image. The full FFT round-trip (forward → shift → mask → unshift →
 /// inverse) is handled internally.
 ///
 /// # Example
@@ -96,8 +241,8 @@ impl FrequencyDomainFilter {
         cutoff: f64,
         order: usize,
     ) -> Result<Image<B, 2>> {
-        let [h, w] = image.shape();
         Self::validate_cutoff(cutoff)?;
+        let [h, w] = image.shape();
 
         // Forward FFT → shift.
         let freq = ForwardFftFilter::new().apply_2d(image)?;
@@ -106,7 +251,7 @@ impl FrequencyDomainFilter {
 
         // Generate and apply mask.
         let (vals, dims) = extract_vec(&shifted)?;
-        let mask = Self::generate_mask_2d(h, w, kind, cutoff, order);
+        let mask = generate_mask_2d_dispatch(h, w, kind, cutoff, order);
         let mut out = Vec::with_capacity(vals.len());
         for r in 0..h {
             for c in 0..w {
@@ -138,8 +283,8 @@ impl FrequencyDomainFilter {
         cutoff: f64,
         order: usize,
     ) -> Result<Image<B, 3>> {
-        let [d, h, w] = image.shape();
         Self::validate_cutoff(cutoff)?;
+        let [d, h, w] = image.shape();
 
         // Forward FFT → shift.
         let freq = ForwardFftFilter::new().apply_3d(image)?;
@@ -148,7 +293,7 @@ impl FrequencyDomainFilter {
 
         // Generate and apply mask.
         let (vals, dims) = extract_vec(&shifted)?;
-        let mask = Self::generate_mask_3d(d, h, w, kind, cutoff, order);
+        let mask = generate_mask_3d_dispatch(d, h, w, kind, cutoff, order);
         let slice_size = h * cw;
         let mut out = Vec::with_capacity(vals.len());
         for z in 0..d {
@@ -168,7 +313,7 @@ impl FrequencyDomainFilter {
         InverseFftFilter::new().apply_3d(&unshifted)
     }
 
-    // ── Private helpers ────────────────────────────────────────────────────
+    // ── Private helpers ────────────────────────────────────────────────
 
     fn validate_cutoff(cutoff: f64) -> Result<()> {
         if cutoff <= 0.0 || cutoff > 0.5 {
@@ -177,82 +322,29 @@ impl FrequencyDomainFilter {
         Ok(())
     }
 
-    /// Generate a 2-D real-valued frequency mask of shape `[H, W]`.
-    fn generate_mask_2d(
-        h: usize,
-        w: usize,
+    /// Generate a D-dimensional frequency mask, dispatching on `FftFilterKind`.
+    ///
+    /// This is the const-generic entry point that delegates to the appropriate
+    /// [`FrequencyResponse`] implementor's [`compute_mask`] method.
+    #[allow(dead_code)]
+    pub(crate) fn generate_mask_generic<const D: usize>(
+        spatial_dims: &[usize; D],
         kind: FftFilterKind,
         cutoff: f64,
         order: usize,
     ) -> Vec<f32> {
-        let mut mask = vec![0.0_f32; h * w];
-        let h_center = h as f64 / 2.0;
-        let w_center = w as f64 / 2.0;
-
-        for r in 0..h {
-            for c in 0..w {
-                let fr = (r as f64 - h_center) / h as f64;
-                let fc = (c as f64 - w_center) / w as f64;
-                let radius = (fr * fr + fc * fc).sqrt();
-                mask[r * w + c] = Self::transfer(kind, radius, cutoff, order);
-            }
-        }
-        mask
-    }
-
-    /// Generate a 3-D real-valued frequency mask of shape `[D, H, W]`.
-    fn generate_mask_3d(
-        d: usize,
-        h: usize,
-        w: usize,
-        kind: FftFilterKind,
-        cutoff: f64,
-        order: usize,
-    ) -> Vec<f32> {
-        let mut mask = vec![0.0_f32; d * h * w];
-        let d_center = d as f64 / 2.0;
-        let h_center = h as f64 / 2.0;
-        let w_center = w as f64 / 2.0;
-
-        for z in 0..d {
-            for r in 0..h {
-                for c in 0..w {
-                    let fd = (z as f64 - d_center) / d as f64;
-                    let fr = (r as f64 - h_center) / h as f64;
-                    let fc = (c as f64 - w_center) / w as f64;
-                    let radius = (fd * fd + fr * fr + fc * fc).sqrt();
-                    mask[z * h * w + r * w + c] = Self::transfer(kind, radius, cutoff, order);
-                }
-            }
-        }
-        mask
-    }
-
-    /// Evaluate the transfer function `H(r)`.
-    fn transfer(kind: FftFilterKind, radius: f64, cutoff: f64, order: usize) -> f32 {
-        let n = order.max(1) as i32; // minimum order 1 for Butterworth
         match kind {
             FftFilterKind::IdealLowPass => {
-                if radius <= cutoff {
-                    1.0
-                } else {
-                    0.0
-                }
+                IdealLowPass::compute_mask::<D>(spatial_dims, cutoff, order)
             }
             FftFilterKind::IdealHighPass => {
-                if radius >= cutoff {
-                    1.0
-                } else {
-                    0.0
-                }
+                IdealHighPass::compute_mask::<D>(spatial_dims, cutoff, order)
             }
             FftFilterKind::ButterworthLowPass => {
-                let ratio = radius / cutoff;
-                (1.0 / (1.0 + ratio.powi(2 * n))) as f32
+                ButterworthLowPass::compute_mask::<D>(spatial_dims, cutoff, order)
             }
             FftFilterKind::ButterworthHighPass => {
-                let ratio = radius / cutoff;
-                (1.0 - 1.0 / (1.0 + ratio.powi(2 * n))) as f32
+                ButterworthHighPass::compute_mask::<D>(spatial_dims, cutoff, order)
             }
         }
     }

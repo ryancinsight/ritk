@@ -11,6 +11,8 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+use super::shared::OutOfBoundsMode;
+
 /// Linear interpolation dispatch.
 ///
 /// Delegates to the dimension-specific implementation for `D`.
@@ -19,13 +21,13 @@ use burn::tensor::Tensor;
 pub fn dispatch_linear<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     indices: Tensor<B, 2>,
-    zero_pad: bool,
+    mode: OutOfBoundsMode,
 ) -> Tensor<B, 1> {
     match D {
-        1 => super::linear::dim1::interpolate_1d(data, indices, zero_pad),
-        2 => super::linear::dim2::interpolate_2d(data, indices, zero_pad),
-        3 => super::linear::dim3::interpolate_3d(data, indices, zero_pad),
-        4 => super::linear::dim4::interpolate_4d(data, indices, zero_pad),
+        1 => super::kernel::linear::dim1::interpolate_1d(data, indices, mode),
+        2 => super::kernel::linear::dim2::interpolate_2d(data, indices, mode),
+        3 => super::kernel::linear::dim3::interpolate_3d(data, indices, mode),
+        4 => super::kernel::linear::dim4::interpolate_4d(data, indices, mode),
         _ => panic!("Linear interpolation only supports D ∈ {{1, 2, 3, 4}}, got D = {D}"),
     }
 }
@@ -38,13 +40,13 @@ pub fn dispatch_linear<B: Backend, const D: usize>(
 pub fn dispatch_nearest<B: Backend, const D: usize>(
     data: &Tensor<B, D>,
     indices: Tensor<B, 2>,
-    zero_pad: bool,
+    mode: OutOfBoundsMode,
 ) -> Tensor<B, 1> {
     match D {
-        1 => super::nearest::interpolate_1d(data, indices, zero_pad),
-        2 => super::nearest::interpolate_2d(data, indices, zero_pad),
-        3 => super::nearest::interpolate_3d(data, indices, zero_pad),
-        4 => super::nearest::interpolate_4d(data, indices, zero_pad),
+        1 => super::kernel::nearest::interpolate_1d(data, indices, mode),
+        2 => super::kernel::nearest::interpolate_2d(data, indices, mode),
+        3 => super::kernel::nearest::interpolate_3d(data, indices, mode),
+        4 => super::kernel::nearest::interpolate_4d(data, indices, mode),
         _ => panic!("Nearest-neighbor interpolation only supports D ∈ {{1, 2, 3, 4}}, got D = {D}"),
     }
 }

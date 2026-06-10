@@ -81,7 +81,9 @@ fn masked_cache_fingerprint_detects_collision() {
         );
     }
 
-    let mut wrong_norm = fixed_norm.clone();
+    // `normalize_and_extract` returns `Cow<[f32]>`; materialize an owned copy
+    // to mutate it for the fingerprint-mismatch assertion.
+    let mut wrong_norm = fixed_norm.to_vec();
     wrong_norm[0] += 100.0;
     assert!(
         !hist.validate_masked_cache_fingerprint(&wrong_norm),

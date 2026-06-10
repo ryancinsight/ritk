@@ -35,6 +35,9 @@ pub fn generate_random_points<B: Backend, const D: usize>(
 /// Returns a tensor of shape `[N, D]` where N is the total number of voxels
 /// and D is the dimensionality.
 ///
+/// The iteration order is row-major with dimension 0 varying fastest,
+/// matching the original `generate_grid_2d`/`generate_grid_3d` behavior.
+///
 /// # Arguments
 /// * `shape` - The image shape `[D0, D1, ...]`
 /// * `device` - The device to create the tensor on
@@ -49,81 +52,31 @@ pub fn generate_grid<B, const D: usize>(shape: [usize; D], device: &B::Device) -
 where
     B: Backend,
 {
-    match D {
-        3 => {
-            let s: &[usize] = shape.as_slice();
-            generate_grid_3d(s.try_into().expect("Shape must be 3D"), device)
-        }
-        2 => {
-            let s: &[usize] = shape.as_slice();
-            generate_grid_2d(s.try_into().expect("Shape must be 2D"), device)
-        }
-        _ => panic!("Only 2D and 3D grids are supported"),
-    }
-}
+    let total: usize = shape.iter().product();
+    let mut grid = Vec::with_capacity(total * D);
 
-/// Generate a grid of continuous indices for a 3D image shape.
-///
-/// Returns a tensor of shape `[N, 3]` where N is the total number of voxels.
-///
-/// # Arguments
-/// * `shape` - The image shape `[D, H, W]`
-/// * `device` - The device to create the tensor on
-///
-/// # Returns
-/// Tensor of shape `[N, 3]` containing continuous indices
-pub fn generate_grid_3d<B>(shape: [usize; 3], device: &B::Device) -> Tensor<B, 2>
-where
-    B: Backend,
-{
-    let d = shape[0];
-    let h = shape[1];
-    let w = shape[2];
-    let total = d * h * w;
+    // indices[D-1] = innermost (x), indices[0] = outermost (z).
+    // Increment innermost first so column 0 = x (matching generate_grid_3d/2d).
+    let mut indices = [0usize; D];
 
-    let mut grid = Vec::with_capacity(total * 3);
-    for z in 0..d {
-        for y in 0..h {
-            for x in 0..w {
-                grid.push(x as f32);
-                grid.push(y as f32);
-                grid.push(z as f32);
+    for _ in 0..total {
+        // Push innermost dimension first: col 0 = x = indices[D-1]
+        for d in (0..D).rev() {
+            grid.push(indices[d] as f32);
+        }
+
+        // Increment innermost first
+        for d in (0..D).rev() {
+            indices[d] += 1;
+            if indices[d] < shape[d] {
+                break;
             }
+            indices[d] = 0;
         }
     }
 
-    Tensor::<B, 1>::from_data(TensorData::new(grid, Shape::new([total * 3])), device)
-        .reshape([total, 3])
-}
-
-/// Generate a grid of continuous indices for a 2D image shape.
-///
-/// Returns a tensor of shape `[N, 2]` where N is the total number of pixels.
-///
-/// # Arguments
-/// * `shape` - The image shape `[H, W]`
-/// * `device` - The device to create the tensor on
-///
-/// # Returns
-/// Tensor of shape `[N, 2]` containing continuous indices
-pub fn generate_grid_2d<B>(shape: [usize; 2], device: &B::Device) -> Tensor<B, 2>
-where
-    B: Backend,
-{
-    let h = shape[0];
-    let w = shape[1];
-    let total = h * w;
-
-    let mut grid = Vec::with_capacity(total * 2);
-    for y in 0..h {
-        for x in 0..w {
-            grid.push(x as f32);
-            grid.push(y as f32);
-        }
-    }
-
-    Tensor::<B, 1>::from_data(TensorData::new(grid, Shape::new([total * 2])), device)
-        .reshape([total, 2])
+    Tensor::<B, 1>::from_data(TensorData::new(grid, Shape::new([total * D])), device)
+        .reshape([total, D])
 }
 
 #[cfg(test)]
@@ -134,13 +87,13 @@ mod tests {
 
     type B = NdArray<f32>;
 
-    // ── generate_grid_3d ─────────────────────────────────────────────────────
+    // ── generate_grid ────────────────────────────────────────────────────────
 
     /// Shape of a 3D grid is [D*H*W, 3].
     #[test]
     fn grid_3d_shape_is_n_by_3() {
         let device = Default::default();
-        let g = generate_grid_3d::<B>([2, 3, 4], &device);
+        let g = generate_grid::<B, 3>([2, 3, 4], &device);
         let [rows, cols] = g.dims();
         assert_eq!(rows, 2 * 3 * 4, "row count must equal D*H*W");
         assert_eq!(cols, 3, "column count must be 3 (x, y, z)");
@@ -150,10 +103,10 @@ mod tests {
     #[test]
     fn grid_3d_first_voxel_is_origin() {
         let device = Default::default();
-        let g = generate_grid_3d::<B>([3, 3, 3], &device);
+        let g = generate_grid::<B, 3>([3, 3, 3], &device);
         let first = g.clone().slice([0..1]).into_data();
         let vals = first.as_slice::<f32>().unwrap();
-        // column order in grid.rs: push(x), push(y), push(z)
+        // column order: push(x), push(y), push(z)
         assert_eq!(vals[0], 0.0, "x of first voxel");
         assert_eq!(vals[1], 0.0, "y of first voxel");
         assert_eq!(vals[2], 0.0, "z of first voxel");
@@ -170,7 +123,7 @@ mod tests {
         let d = 2usize;
         let h = 3usize;
         let w = 4usize;
-        let g = generate_grid_3d::<B>([d, h, w], &device);
+        let g = generate_grid::<B, 3>([d, h, w], &device);
         let n = d * h * w;
         let last = g.clone().slice([n - 1..n]).into_data();
         let vals = last.as_slice::<f32>().unwrap();
@@ -179,13 +132,11 @@ mod tests {
         assert_eq!(vals[2], (d - 1) as f32, "z of last voxel");
     }
 
-    // ── generate_grid_2d ─────────────────────────────────────────────────────
-
     /// Shape of a 2D grid is [H*W, 2].
     #[test]
     fn grid_2d_shape_is_n_by_2() {
         let device = Default::default();
-        let g = generate_grid_2d::<B>([5, 7], &device);
+        let g = generate_grid::<B, 2>([5, 7], &device);
         let [rows, cols] = g.dims();
         assert_eq!(rows, 5 * 7, "row count must equal H*W");
         assert_eq!(cols, 2, "column count must be 2 (x, y)");
@@ -195,27 +146,11 @@ mod tests {
     #[test]
     fn grid_2d_first_pixel_is_origin() {
         let device = Default::default();
-        let g = generate_grid_2d::<B>([4, 6], &device);
+        let g = generate_grid::<B, 2>([4, 6], &device);
         let first = g.clone().slice([0..1]).into_data();
         let vals = first.as_slice::<f32>().unwrap();
         assert_eq!(vals[0], 0.0, "x of first pixel");
         assert_eq!(vals[1], 0.0, "y of first pixel");
-    }
-
-    /// generate_grid dispatches correctly for 3D.
-    #[test]
-    fn generate_grid_3d_dispatch() {
-        let device = Default::default();
-        let g = generate_grid::<B, 3>([2, 2, 2], &device);
-        assert_eq!(g.dims(), [8, 3]);
-    }
-
-    /// generate_grid dispatches correctly for 2D.
-    #[test]
-    fn generate_grid_2d_dispatch() {
-        let device = Default::default();
-        let g = generate_grid::<B, 2>([3, 4], &device);
-        assert_eq!(g.dims(), [12, 2]);
     }
 
     // ── generate_random_points ───────────────────────────────────────────────

@@ -83,7 +83,7 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
 // as the backend.
 
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::filter::BedSeparationConfig;
+use ritk_core::filter::{BedSeparationConfig, ComponentPolicy};
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 
@@ -124,7 +124,7 @@ fn test_filter_kind_bed_separation_dispatch_replaces_study_image() {
     let config = BedSeparationConfig {
         body_threshold: -500.0,
         background_threshold: -700.0,
-        keep_largest_component: false,
+        component_policy: ComponentPolicy::All,
         closing_radius: 0,
         opening_radius: 0,
         outside_value: -2048.0,

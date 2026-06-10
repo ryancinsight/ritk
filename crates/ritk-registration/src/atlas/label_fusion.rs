@@ -125,7 +125,8 @@ pub fn majority_vote(
     let mut labels = vec![0u32; n_voxels];
     let mut confidence = vec![0.0f32; n_voxels];
 
-    let mut counts: HashMap<u32, usize> = HashMap::new();
+    // Capacity: bounded by the number of distinct labels across atlases (≤ n_atlases)
+    let mut counts: HashMap<u32, usize> = HashMap::with_capacity(n_atlases);
 
     for v in 0..n_voxels {
         counts.clear();
@@ -226,7 +227,8 @@ pub fn joint_label_fusion(
     let mut d = vec![0.0f64; n_atlases];
     let mut m_flat = vec![0.0f64; n_atlases * n_atlases];
     let mut rhs = vec![0.0f64; n_atlases];
-    let mut label_weights: HashMap<u32, f64> = HashMap::new();
+    // Capacity: bounded by the number of distinct labels across atlases (≤ n_atlases)
+    let mut label_weights: HashMap<u32, f64> = HashMap::with_capacity(n_atlases);
 
     for iz in 0..nz {
         for iy in 0..ny {
@@ -274,14 +276,10 @@ pub fn joint_label_fusion(
                 }
 
                 // ── Solve M w = 1 ───────────────────────────────────────
-                // Copy into row-major Vec<Vec<f64>> for the solver.
-                let mut mat: Vec<Vec<f64>> = (0..n)
-                    .map(|i| m_flat[i * n..(i + 1) * n].to_vec())
-                    .collect();
                 for v in rhs.iter_mut().take(n) {
                     *v = 1.0;
                 }
-                let raw_weights = solve_linear_system(&mut mat, &mut rhs[..n]);
+                let raw_weights = solve_linear_system(&mut m_flat[..n * n], n, &mut rhs[..n]);
 
                 let mut w: Vec<f64> = match raw_weights {
                     Some(ww) => ww,
@@ -340,44 +338,45 @@ pub fn joint_label_fusion(
 // ---------------------------------------------------------------------------
 
 /// Solve the N×N linear system Ax = b via Gaussian elimination with partial
-/// pivoting.
-///
-/// `a` is modified in place (row-echelon form).  `b` is modified in place
-/// (forward-eliminated RHS).  Returns `Some(x)` on success or `None` if the
-/// matrix is singular (pivot magnitude < 1e-15).
-fn solve_linear_system(a: &mut [Vec<f64>], b: &mut [f64]) -> Option<Vec<f64>> {
-    let n = b.len();
-    debug_assert!(a.len() == n);
+/// pivoting. `a` is a row-major flat buffer of length `n*n`, modified in
+/// place. `b` is the RHS of length `n`, modified in place. Returns `Some(x)`
+/// on success or `None` if singular (pivot < 1e-15).
+fn solve_linear_system(a: &mut [f64], n: usize, b: &mut [f64]) -> Option<Vec<f64>> {
+    debug_assert_eq!(a.len(), n * n);
+    debug_assert_eq!(b.len(), n);
 
     // Forward elimination with partial pivoting.
     for col in 0..n {
         // Find pivot row.
         let mut max_row = col;
-        let mut max_val = a[col][col].abs();
-        for (offset, row_data) in a[(col + 1)..].iter().enumerate() {
-            let v = row_data[col].abs();
+        let mut max_val = a[col * n + col].abs();
+        for row in (col + 1)..n {
+            let v = a[row * n + col].abs();
             if v > max_val {
                 max_val = v;
-                max_row = col + 1 + offset;
+                max_row = row;
             }
         }
         if max_val < 1e-15 {
             return None; // Singular.
         }
-        // Swap rows.
+        // Swap rows col and max_row in the flat slice.
         if max_row != col {
-            a.swap(col, max_row);
+            for k in 0..n {
+                a.swap(col * n + k, max_row * n + k);
+            }
             b.swap(col, max_row);
         }
-        // Eliminate below.
-        let pivot = a[col][col];
+        // Eliminate below. Split borrow so that the pivot row (above) and the
+        // current row (below) can be accessed simultaneously without aliasing.
+        let pivot = a[col * n + col];
         for row in (col + 1)..n {
-            let factor = a[row][col] / pivot;
-            // Split borrow: top = a[..row] (contains a[col]), bottom = a[row..].
-            // bottom[0] = a[row]; col < row always holds here.
-            let (top, bottom) = a.split_at_mut(row);
-            for (a_row_j, &a_col_j) in bottom[0][col..].iter_mut().zip(top[col][col..].iter()) {
-                *a_row_j -= factor * a_col_j;
+            let factor = a[row * n + col] / pivot;
+            let (above, below) = a.split_at_mut(row * n);
+            let pivot_row = &above[col * n..col * n + n];
+            let current_row = &mut below[..n];
+            for k in col..n {
+                current_row[k] -= factor * pivot_row[k];
             }
             b[row] -= factor * b[col];
         }
@@ -388,9 +387,9 @@ fn solve_linear_system(a: &mut [Vec<f64>], b: &mut [f64]) -> Option<Vec<f64>> {
     for i in (0..n).rev() {
         let mut s = b[i];
         for j in (i + 1)..n {
-            s -= a[i][j] * x[j];
+            s -= a[i * n + j] * x[j];
         }
-        x[i] = s / a[i][i];
+        x[i] = s / a[i * n + i];
     }
 
     Some(x)

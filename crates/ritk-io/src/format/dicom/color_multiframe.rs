@@ -399,7 +399,7 @@ mod tests {
         let volume = read_dicom_color_multiframe::<B, _>(&path, &device).expect("load RGB MF");
 
         assert_eq!(volume.shape(), [2, 1, 2, 3]);
-        assert_eq!(volume.origin().to_vec(), vec![1.0, 2.0, 3.0]);
+        assert_eq!(volume.origin().to_array(), [1.0, 2.0, 3.0]);
         assert_eq!(
             [
                 volume.spacing()[0],

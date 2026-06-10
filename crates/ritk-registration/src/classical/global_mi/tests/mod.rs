@@ -10,6 +10,7 @@ use super::transforms::{
     translation_matrix_to_homogeneous,
 };
 use crate::optimizer::RegularStepGdConfig;
+use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::backend::Autodiff;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -212,10 +213,11 @@ fn image_center_computation_is_correct() {
 #[test]
 fn cma_mi_brain_rigid_default_has_expected_fields() {
     use super::cma_mi::CmaMiConfig;
+    use super::cma_mi::InitStrategy;
     let cfg = CmaMiConfig::brain_rigid_default();
     assert_eq!(cfg.coarse_shrink, 8);
     assert!((cfg.sampling_percentage - 0.30).abs() < 1e-6);
-    assert!(!cfg.use_com_init);
+    assert_eq!(cfg.init_strategy, InitStrategy::Manual);
     assert_eq!(cfg.ipop_restarts, 0);
     assert!(cfg.shrink_per_axis.is_none());
     assert!((cfg.cma_config.sigma0 - 0.7).abs() < 1e-9);
@@ -287,6 +289,7 @@ fn cma_mi_default_uses_mattes_no_schedule() {
 #[test]
 fn cma_mi_multiscale_has_three_levels() {
     use super::cma_mi::CmaMiConfig;
+    use super::cma_mi::InitStrategy;
 
     let cfg = CmaMiConfig::brain_rigid_multiscale();
     assert_eq!(
@@ -319,7 +322,7 @@ fn cma_mi_multiscale_has_three_levels() {
     );
 
     // CoM init must be disabled for CT↔MRI.
-    assert!(!cfg.use_com_init);
+    assert_eq!(cfg.init_strategy, InitStrategy::Manual);
 }
 
 #[test]
@@ -405,8 +408,8 @@ fn cma_mi_register_rigid_with_mask_accepts_full_foreground_mask() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 42,
-            parallel_population: false,
-            record_history: false,
+            parallel_population: PopulationEval::Sequential,
+            record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 4,
         coarse_sigma_mm: 2.0,

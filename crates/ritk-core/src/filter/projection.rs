@@ -46,7 +46,7 @@ impl MaxIntensityProjectionFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        fold_f32(self.axis, image, f32::NEG_INFINITY, |a, b| {
+        fold_native(self.axis, image, f32::NEG_INFINITY, |a, b| {
             if b > a {
                 b
             } else {
@@ -69,7 +69,7 @@ impl MinIntensityProjectionFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        fold_f32(
+        fold_native(
             self.axis,
             image,
             f32::INFINITY,
@@ -97,7 +97,7 @@ impl MeanIntensityProjectionFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        fold_f64(self.axis, image, |sum, n| (sum / n as f64) as f32)
+        fold_wide(self.axis, image, |sum, n| (sum / n as f64) as f32)
     }
 }
 
@@ -114,7 +114,7 @@ impl SumIntensityProjectionFilter {
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        fold_f64(self.axis, image, |sum, _n| sum as f32)
+        fold_wide(self.axis, image, |sum, _n| sum as f32)
     }
 }
 
@@ -141,12 +141,12 @@ impl StdDevIntensityProjectionFilter {
     }
 }
 
-// ── Private: fold_f32 ─────────────────────────────────────────────────────────
+// ── Private: fold_native ──────────────────────────────────────────────────────
 
 /// Reduce the collapsed axis using a native-`f32` fold (max / min).
 ///
 /// `combine(accumulator, next_value) -> new_accumulator`
-fn fold_f32<B, F>(
+fn fold_native<B, F>(
     axis: ProjectionAxis,
     image: &Image<B, 3>,
     init: f32,
@@ -189,12 +189,12 @@ where
     }
 }
 
-// ── Private: fold_f64 ─────────────────────────────────────────────────────────
+// ── Private: fold_wide ───────────────────────────────────────────────────────
 
 /// Reduce the collapsed axis using `f64` accumulation then finalise to `f32`.
 ///
 /// `finalize(f64_sum, count) -> f32_output_pixel`
-fn fold_f64<B, F>(axis: ProjectionAxis, image: &Image<B, 3>, finalize: F) -> Result<Image<B, 3>>
+fn fold_wide<B, F>(axis: ProjectionAxis, image: &Image<B, 3>, finalize: F) -> Result<Image<B, 3>>
 where
     B: Backend,
     F: Fn(f64, usize) -> f32 + Sync,

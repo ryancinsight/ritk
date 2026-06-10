@@ -1,4 +1,4 @@
-use ritk_core::filter::BedSeparationConfig;
+use ritk_core::filter::{BedSeparationConfig, ComponentPolicy};
 use serde::{Deserialize, Serialize};
 
 // ── Remote serde helper ──────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct BedSeparationConfigSerde {
     pub body_threshold: f32,
     pub background_threshold: f32,
-    pub keep_largest_component: bool,
+    pub component_policy: ComponentPolicy,
     pub closing_radius: usize,
     pub opening_radius: usize,
     pub outside_value: f32,

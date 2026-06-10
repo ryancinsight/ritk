@@ -100,7 +100,12 @@ impl Pdu {
     }
 
     fn enc_pdata(pd: &PDataTfPdu) -> Vec<u8> {
-        let mut b = Vec::new();
+        let capacity: usize = pd
+            .presentation_data_value_items
+            .iter()
+            .map(|pdv| 6 + pdv.data.len())
+            .sum();
+        let mut b = Vec::with_capacity(capacity);
         for pdv in &pd.presentation_data_value_items {
             let mch = (pdv.message_control_header.message_type as u8)
                 | (if pdv.message_control_header.last_fragment {

@@ -1,7 +1,7 @@
 //! Scaling-and-squaring exponential map for stationary velocity fields.
 
 use super::compose::compose_fields_into;
-use super::{VectorField3D, VectorFieldMut3D};
+use super::{VectorField3D, VectorFieldMut3D, VelocityField};
 
 /// Compute the exponential map `exp(v)` of a stationary velocity field `v`
 /// via the scaling-and-squaring algorithm.
@@ -22,7 +22,7 @@ pub(crate) fn scaling_and_squaring(
     vx: &[f32],
     dims: [usize; 3],
     n_steps: usize,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let scale = 1.0_f32 / (1u32 << n_steps) as f32;
 
     let mut phiz: Vec<f32> = vz.iter().map(|&v| v * scale).collect();
@@ -58,7 +58,11 @@ pub(crate) fn scaling_and_squaring(
         std::mem::swap(&mut phix, &mut next_x);
     }
 
-    (phiz, phiy, phix)
+    VelocityField {
+        z: phiz,
+        y: phiy,
+        x: phix,
+    }
 }
 
 /// Zero-allocation variant: computes `exp(v)` into caller-provided buffers.
@@ -136,11 +140,11 @@ mod tests {
         let vz = vec![0.0_f32; n];
         let vy = vec![0.0_f32; n];
         let vx = vec![0.0_f32; n];
-        let (phiz, phiy, phix) = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
+        let phi = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
         for i in 0..n {
-            assert!(phiz[i].abs() < 1e-5, "phiz[{i}] = {} != 0", phiz[i]);
-            assert!(phiy[i].abs() < 1e-5, "phiy[{i}] = {} != 0", phiy[i]);
-            assert!(phix[i].abs() < 1e-5, "phix[{i}] = {} != 0", phix[i]);
+            assert!(phi.z[i].abs() < 1e-5, "phiz[{i}] = {} != 0", phi.z[i]);
+            assert!(phi.y[i].abs() < 1e-5, "phiy[{i}] = {} != 0", phi.y[i]);
+            assert!(phi.x[i].abs() < 1e-5, "phix[{i}] = {} != 0", phi.x[i]);
         }
     }
 
@@ -152,14 +156,14 @@ mod tests {
         let vz = vec![0.0_f32; n];
         let vy = vec![0.0_f32; n];
         let vx = vec![0.01_f32; n];
-        let (phiz, phiy, phix) = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
+        let phi = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
         for i in 0..n {
-            assert!(phiz[i].abs() < 1e-4, "phiz should be ~0, got {}", phiz[i]);
-            assert!(phiy[i].abs() < 1e-4, "phiy should be ~0, got {}", phiy[i]);
+            assert!(phi.z[i].abs() < 1e-4, "phiz should be ~0, got {}", phi.z[i]);
+            assert!(phi.y[i].abs() < 1e-4, "phiy should be ~0, got {}", phi.y[i]);
             assert!(
-                (phix[i] - 0.01).abs() < 0.002,
+                (phi.x[i] - 0.01).abs() < 0.002,
                 "phix should be ~0.01, got {}",
-                phix[i]
+                phi.x[i]
             );
         }
     }
@@ -173,7 +177,7 @@ mod tests {
         let vy: Vec<f32> = (0..n).map(|i| (i as f32) * -0.001).collect();
         let vx: Vec<f32> = (0..n).map(|i| ((i % 4) as f32) * 0.002).collect();
 
-        let (ref_z, ref_y, ref_x) = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
+        let ref_phi = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
 
         let mut out_z = vec![0.0_f32; n];
         let mut out_y = vec![0.0_f32; n];
@@ -188,22 +192,22 @@ mod tests {
 
         for i in 0..n {
             assert!(
-                (out_z[i] - ref_z[i]).abs() < 1e-6,
+                (out_z[i] - ref_phi.z[i]).abs() < 1e-6,
                 "z[{i}]: into={} ref={}",
                 out_z[i],
-                ref_z[i]
+                ref_phi.z[i]
             );
             assert!(
-                (out_y[i] - ref_y[i]).abs() < 1e-6,
+                (out_y[i] - ref_phi.y[i]).abs() < 1e-6,
                 "y[{i}]: into={} ref={}",
                 out_y[i],
-                ref_y[i]
+                ref_phi.y[i]
             );
             assert!(
-                (out_x[i] - ref_x[i]).abs() < 1e-6,
+                (out_x[i] - ref_phi.x[i]).abs() < 1e-6,
                 "x[{i}]: into={} ref={}",
                 out_x[i],
-                ref_x[i]
+                ref_phi.x[i]
             );
         }
     }

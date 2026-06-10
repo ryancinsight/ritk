@@ -49,6 +49,9 @@
 //! - "MambaBIR: Residual Pyramid Network for Brain Image Registration with State-Space Model"
 //! - "Mamba: Linear-Time Sequence Modeling with Selective State Spaces" (Gu & Dao, 2023)
 
+// Shared policy enums
+pub mod policy;
+
 // Core modules
 pub mod cross_scan;
 pub mod decoder;
@@ -62,17 +65,24 @@ pub mod network;
 // Re-export core types
 pub use state_space::{SelectiveStateSpace, SelectiveStateSpaceConfig, StateSpaceParameters};
 
+pub use policy::ScanDimensionality;
+
 pub use cross_scan::{CrossScan, CrossScanConfig, Scan2D, Scan3D, ScanDirection};
 
 pub use vmamba_block::{VMambaBlock, VMambaBlockConfig, VMambaStage};
 
-pub use encoder::{EncoderStage, EncoderStageConfig, SSMMorphEncoder, SSMMorphEncoderConfig};
+pub use encoder::{
+    DownsamplePolicy, DownsampleStage, DropPath, EncoderStage, EncoderStageConfig, SSMMorphEncoder,
+    SSMMorphEncoderConfig,
+};
 
-pub use decoder::{DecoderStage, DecoderStageConfig, SSMMorphDecoder, SSMMorphDecoderConfig};
+pub use decoder::{
+    DecoderStage, DecoderStageConfig, SSMMorphDecoder, SSMMorphDecoderConfig, SkipConnections,
+};
 
 // Network re-exports (primary API)
 pub use network::architecture::{
-    presets as network_presets, SSMMorph, SSMMorphConfig, SSMMorphOutput,
+    presets as network_presets, IntegrationMode, SSMMorph, SSMMorphConfig, SSMMorphOutput,
 };
 
 // Additional network components
@@ -81,5 +91,6 @@ pub use network::integration::{
 };
 
 pub use network::sampling::{
-    FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig, InterpolationMode,
+    CornerAlignment, FlowComposer, GridPaddingMode, GridSampler, GridSamplerConfig,
+    InterpolationMode,
 };

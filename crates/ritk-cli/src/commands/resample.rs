@@ -9,11 +9,10 @@ use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use clap;
 use ritk_core::filter::resample::ResampleImageFilter;
-use ritk_core::interpolation::linear::LinearInterpolator;
 use ritk_core::interpolation::{
-    BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator,
+    BSplineInterpolator, Lanczos4Interpolator, LinearInterpolator, NearestNeighborInterpolator,
 };
-use ritk_core::transform::translation::TranslationTransform;
+use ritk_core::transform::TranslationTransform;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -235,8 +234,8 @@ mod tests {
         run(args).unwrap();
         let dev: <Backend as BurnBackend>::Device = Default::default();
         let loaded = ritk_io::read_nifti::<Backend, _>(&output, &dev).unwrap();
-        let vals = loaded.data_vec();
-        for &v in &vals {
+        let vals = loaded.data_slice();
+        for &v in vals.iter() {
             assert!(
                 (v - 5.0).abs() < 1e-3,
                 "constant image must stay constant, got {v}"

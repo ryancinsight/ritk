@@ -1,6 +1,7 @@
 //! Core CrossScan algorithmic orchestration
 use burn::prelude::*;
 
+use super::super::policy::ScanDimensionality;
 use super::dim2::Scan2D;
 use super::dim3::Scan3D;
 use super::directions::ScanDirection;
@@ -9,8 +10,8 @@ use super::directions::ScanDirection;
 #[derive(Config, Debug, PartialEq, Eq)]
 pub struct CrossScanConfig {
     /// Whether to use 3D scanning (volumetric) or 2D
-    #[config(default = "true")]
-    pub use_3d: bool,
+    #[config(default = "ScanDimensionality::Scan3d")]
+    pub dimensionality: ScanDimensionality,
     /// Number of directions to scan
     #[config(default = "6")]
     pub num_directions: usize,
@@ -20,7 +21,7 @@ impl CrossScanConfig {
     /// Create new 2D cross-scan config
     pub fn new_2d() -> Self {
         Self {
-            use_3d: false,
+            dimensionality: ScanDimensionality::Scan2d,
             num_directions: 4,
         }
     }
@@ -28,7 +29,7 @@ impl CrossScanConfig {
     /// Create new 3D cross-scan config
     pub fn new_3d() -> Self {
         Self {
-            use_3d: true,
+            dimensionality: ScanDimensionality::Scan3d,
             num_directions: 6,
         }
     }
@@ -49,13 +50,13 @@ impl CrossScan {
     }
 
     /// Check if using 3D scanning
-    pub fn use_3d(&self) -> bool {
-        self.config.use_3d
+    pub fn is_3d(&self) -> bool {
+        self.config.dimensionality == ScanDimensionality::Scan3d
     }
 
     /// Get scan directions based on configuration
     pub fn directions(&self) -> &'static [ScanDirection] {
-        if self.config.use_3d {
+        if self.config.dimensionality == ScanDimensionality::Scan3d {
             ScanDirection::all_3d()
         } else {
             ScanDirection::all_2d()
@@ -68,7 +69,7 @@ impl CrossScan {
     pub fn apply<B: Backend, const D: usize>(&self, input: Tensor<B, D>) -> Vec<Tensor<B, 3>> {
         let directions = self.directions();
 
-        if self.config.use_3d {
+        if self.config.dimensionality == ScanDimensionality::Scan3d {
             // Handle 3D case
             if D != 5 {
                 panic!("3D cross-scan requires 5D input [B, C, D, H, W]");
@@ -114,7 +115,10 @@ impl CrossScan {
         directions: &[ScanDirection],
     ) -> Tensor<B, 4> {
         assert_eq!(sequences.len(), directions.len());
-        assert!(!self.config.use_3d, "Cannot use merge_2d with 3D config");
+        assert!(
+            self.config.dimensionality == ScanDimensionality::Scan2d,
+            "Cannot use merge_2d with 3D config"
+        );
 
         let merged: Vec<Tensor<B, 4>> = sequences
             .into_iter()
@@ -144,7 +148,10 @@ impl CrossScan {
         directions: &[ScanDirection],
     ) -> Tensor<B, 5> {
         assert_eq!(sequences.len(), directions.len());
-        assert!(self.config.use_3d, "Cannot use merge_3d with 2D config");
+        assert!(
+            self.config.dimensionality == ScanDimensionality::Scan3d,
+            "Cannot use merge_3d with 2D config"
+        );
 
         let merged: Vec<Tensor<B, 5>> = sequences
             .into_iter()

@@ -40,10 +40,13 @@ pub mod inverse;
 pub mod shift;
 
 pub use convolution::{
-    FftConvolution3DFilter, FftConvolutionFilter, FftNormalizedCorrelation3DFilter,
+    fft_nd, FftConvolution3DFilter, FftConvolutionFilter, FftNormalizedCorrelation3DFilter,
     FftNormalizedCorrelationFilter,
 };
 pub use forward::ForwardFftFilter;
-pub use frequency_filter::{FftFilterKind, FrequencyDomainFilter};
+pub use frequency_filter::{
+    ButterworthHighPass, ButterworthLowPass, FftFilterKind, FrequencyDomainFilter,
+    FrequencyResponse, IdealHighPass, IdealLowPass,
+};
 pub use inverse::InverseFftFilter;
 pub use shift::FftShiftFilter;

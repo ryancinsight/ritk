@@ -4,6 +4,525 @@
 
 ---
 
+## Sprint 357 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×2)
+
+**Status**: Complete
+**Version**: 0.54.0
+**Phase**: ARCH + BOOL-ELIM + PERF + PRIM-OBJ + CAP + SRP
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| ARCH-357-01 | PhantomData<B> → PhantomData<fn() -> B> across 22 backend-marker sites [patch] | **Done** |
+| BOOL-357-02 | `MorphOp` enum replaces `is_erosion: bool` in binary_closing.rs [patch] | **Done** |
+| BOOL-357-03 | `ExtremeSide` enum replaces `rightmost: bool` in white_stripe.rs [patch] | **Done** |
+| BOOL-357-04 | `ByteOrder` enum replaces `msb: bool` in metaimage + nrrd readers [patch] | **Done** |
+| BOOL-357-05 | `OutOfBoundsMode` enum replaces `zero_pad: bool` across interpolation subsystem [minor] | **Done** |
+| PERF-357-06 | DiffusionConfig::apply: 2 self.clone() eliminated via direct diffuse<K> call [patch] | **Done** |
+| PRIM-357-07 | `GaussianSigma(f64)` #[repr(transparent)] newtype for Canny + LOG [minor] | **Done** |
+| PRIM-357-08 | `VolumeDims([usize; 3])` newtype introduced in bspline_ffd (call-site migration deferred) [minor] | **Done** |
+| BOOL-357-09 | 9 model struct bools → enums in ssmmorph/transmorph; shared policy.rs [major] | **Done** |
+| BOOL-357-10 | `ConvergenceStatus` + `StopReason` for GlobalMiResult + RegistrationSummary [minor] | **Done** |
+| BOOL-357-11 | `SpacingMode` enum replaces `use_image_spacing: bool`; CLI arg migrated [minor] | **Done** |
+| CAP-357-12 | Vec::with_capacity at 6 DICOM networking hot-path sites [patch] | **Done** |
+| PERF-357-13 | Gaussian: input.clone().permute() → last-use move; kernel clone annotated BURN-API [patch] | **Done** |
+| ARCH-357-14 | parzen/mod.rs Arc<Mutex<>> cache fields fully doc-commented [patch] | **Done** |
+| SRP-357-15 | compute_image.rs 509L → 497L [patch] | **Done** |
+| SRP-357-16 | mutual_information/mod.rs 487L → 441L [patch] | **Done** |
+| SRP-357-17 | perona_malik.rs 478L → 302L [patch] | **Done** |
+| SRP-357-18 | regularization/dispatch.rs 468L → 186L [patch] | **Done** |
+| SRP-357-19 | adaptive_stochastic_gd.rs 459L → 376L [patch] | **Done** |
+
+### Architecture
+
+- `OutOfBoundsMode` is a new public type re-exported from `interpolation::OutOfBoundsMode`; callers that previously passed `true`/`false` now pass `ZeroPad`/`Clamp`
+- 9 model config bools replaced with semantically-named two-variant enums; `ssmmorph/policy.rs` holds shared enums (`ScanDimensionality`)
+- `VolumeDims` introduced for future incremental call-site migration; type and From impls are public
+- `GaussianSigma` is `#[repr(transparent)]` with positive-finite invariant; public API signatures still accept `f64` (newtype wrapping is internal)
+- 4 PhantomData fields in `#[derive(Module)]` structs kept as `PhantomData<B>` (Burn constraint)
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PRIM-358-01 | VolumeDims call-site migration in bspline_ffd (basis, metric, pyramid, registration) | Medium |
+| PRIM-358-02 | GaussianSigma adoption in CoherenceFilter, RecursiveGaussian, level-set configs (10 more sites) | Medium |
+| BOOL-358-03 | `use_image_spacing` in Python smooth.rs binding still raw bool; convert internally | Low |
+| PERF-358-04 | masked_chunked.rs + fused.rs clone-before-slice: still blocked by Burn 0.19 lacking slice_ref | UPSTREAM |
+| ARCH-358-05 | VolumeDims vs ControlGridDims distinction: introduce ControlGridDims newtype for ctrl_dims [usize; 3] | Medium |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core -p ritk-registration --no-deps` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| `cargo test -p ritk-snap --lib bed_separation` | 2/0/0 |
+| `cargo test -p ritk-snap --lib label` | 32/0/0 |
+
+---
+
+
+## Sprint 356 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat)
+
+**Status**: Complete
+**Version**: 0.53.0
+**Phase**: PERF + BOOL-ELIM + PRIM-OBJ + ARCH + CAP + SRP
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| PERF-356-01 | `lncc_loss`: Conv3dConfig hoisted out of `box_filter` closure (5 allocs → 1) [patch] | **Done** |
+| BOOL-356-02 | `ComponentPolicy` enum replaces `keep_largest_component: bool` in `BedSeparationConfig` [minor] | **Done** |
+| BOOL-356-03 | `ZhangSuenPass` enum replaces `step1: bool` in `zhang_suen_step` [patch] | **Done** |
+| BOOL-356-04 | `EarlyStoppingPolicy` enum replaces `enable_early_stopping: bool` in `RegistrationConfig` [minor] | **Done** |
+| BOOL-356-05 | `ProgressDisplay` enum replaces `show_progress_bar: bool` in `ConsoleProgressCallback` [minor] | **Done** |
+| BOOL-356-06 | `ShapeValidation` + `NumericalCheck` enums replace two bools in `ValidationConfig` [minor] | **Done** |
+| BOOL-356-07 | `InitStrategy` enum replaces `use_com_init: bool` in `CmaMiConfig` [minor] | **Done** |
+| CAP-356-08 | `with_capacity` at 2 sites: `cma_mi/registration.rs` + `demons/multires.rs` [patch] | **Done** |
+| PRIM-356-09 | `Opacity(f32)` validated newtype for ImageOverlay, MaskOverlay, BlendImageFilter [minor] | **Done** |
+| ARCH-356-10 | `LabelEntry.visible: bool` → `Visibility` enum (SSOT fix) [minor] | **Done** |
+| ARCH-356-11 | `PhantomData<B>` → `PhantomData<fn() -> B>` in CorrelationRatio + Lncc [patch] | **Done** |
+| PRIM-356-12 | `SpatialSigma(f64)` + `RangeSigma(f64)` newtypes for BilateralFilter [minor] | **Done** |
+| DOC-356-13 | `[usize; 3]` fields documented in `bspline_ffd/config.rs` [patch] | **Done** |
+| SRP-356-14 | `parzen/image_cache_helpers.rs` extracted from `compute_image.rs` (575L → 509L) [patch] | **Done** |
+| SRP-356-15 | `mutual_information/` directory module split (508L → variant 25L + mod 487L) [patch] | **Done** |
+| VER-356-16 | Verification: 0 clippy warnings, 0 doc warnings, all test suites pass [patch] | **Done** |
+
+### Architecture
+
+- 9 new type-safe domain types introduced: `ComponentPolicy`, `ZhangSuenPass`, `EarlyStoppingPolicy`, `ProgressDisplay`, `ShapeValidation`, `NumericalCheck`, `InitStrategy`, `Opacity`, `SpatialSigma`, `RangeSigma`
+- `Opacity(f32)` is `#[repr(transparent)]` with `[0.0, 1.0]` invariant enforced at construction; applied to 3 visual rendering sites
+- `SpatialSigma`/`RangeSigma` prevent spatial↔intensity sigma parameter mix-up in BilateralFilter at compile time
+- `LabelEntry.visible` SSOT violation resolved: single `Visibility` enum shared across `overlay.rs` and `label_table.rs`
+- `PhantomData<fn() -> B>` covariance pattern now consistent across all metric structs
+- SRP: `parzen/compute_image.rs` split brings it within 10L of the 500L structural limit; `mutual_information/` is a clean directory module
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PERF-357-01 | `masked_chunked.rs` + `fused.rs` clone-before-slice: blocked by Burn 0.19 lacking `slice_ref`/`narrow_ref` | UPSTREAM |
+| PRIM-357-02 | `GaussianSigma(f64)` newtype for Canny, LOG, RecursiveGaussian, CoherenceFilter, level-set configs (13 sites) | Medium |
+| PRIM-357-03 | `VolumeDims` newtype for `[usize; 3]` struct fields across bspline_ffd + atlas (15+ sites) | Medium |
+| ARCH-357-04 | `Arc<Mutex<>>` annotation in `parzen/mod.rs`: document `Send` requirement vs. clone-reset semantics | Low |
+| SRP-357-05 | `compute_image.rs` still 509L (9L over limit); minor additional split would bring under 500L | Low |
+| BOOL-357-06 | `GlobalMiResult.converged`, `RegistrationSummary.stopped_early` — output-status bools; lower risk than config bools | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core -p ritk-registration --no-deps` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| `cargo test -p ritk-snap --lib bed_separation` | 2/0/0 |
+| `cargo test -p ritk-snap --lib label` | 32/0/0 |
+
+---
+
+
+## Sprint 354 — Phase 21 Cleanup & Optimization Audit (20 Cycles)
+
+**Status**: Complete
+**Phase**: BOOL-ELIM + PRIM-OBJ + COW + PERF-CLONE + CAPACITY + CLIPPY + FIX
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| BOOL-354-01 | `Connectivity` enum replaces `fully_connected: bool` in 2 contour filters + 4 ritk-snap sites [minor] | **Done** |
+| BOOL-354-02 | `FlipPolicy` enum replaces `axes: [bool; 3]` in `FlipImageFilter` [minor] | **Done** |
+| BOOL-354-03 | `DemonsVariant` enum replaces `use_diffeomorphic: bool` in demons config [minor] | **Done** |
+| BOOL-354-04 | `IterativeAlgorithm` enum + `IterativeParams` struct replaces `is_landweber: bool` + 8-arg fn [minor] | **Done** |
+| BOOL-354-05 | `enable_convergence_detection: bool` removed (redundant with `Option<ConvergenceChecker>`) [patch] | **Done** |
+| PRIM-354-06 | `Spacing<3>` replaces `[f64; 3]` in 4 edge filters + canny + LOG + 4 CLI/Python call sites [minor] | **Done** |
+| PRIM-354-07 | `Spacing` newtype: `new()` validates positive-finite; `try_new()` returns `Result`; `new_unchecked()` for hot paths [patch] | **Done** |
+| COW-354-08 | `Point::as_slice()` + `Vector::as_slice()` added; `to_vec()` deprecated [patch] | **Done** |
+| COW-354-09 | `Image::data_vec()` deprecated; 16 call sites migrated to `data_slice()` [patch] | **Done** |
+| PERF-354-10 | Interpolation: 14 `.clone()` calls eliminated (gather, to_data, clamp-on-last-use, fused OOB mask) [minor] | **Done** |
+| PERF-354-11 | `CorrelationRatio`: 19 clones → 10 (marginal pre-compute, ref-passing) [patch] | **Done** |
+| PERF-354-12 | Capacity pre-allocation at 3 sites (white_stripe, HistoryCallback, ProgressTracker) [patch] | **Done** |
+| CLIPPY-354-13 | 30+ clippy errors fixed across 8 files (deconvolution, ConductanceFunction, if_same_then_else, etc.) [patch] | **Done** |
+| FIX-354-14 | Stale import paths fixed in ritk-python (3) and ritk-cli (2) from Sprint 350/351 refactoring [patch] | **Done** |
+| FIX-354-15 | Module duplication: `interpolation/tests/mod.rs` loaded `fused.rs` twice [patch] | **Done** |
+| FIX-354-16 | Doc link escape in `label_map.rs` [patch] | **Done** |
+
+### Architecture
+
+- 5 boolean-blindness sites replaced with descriptive enums (Connectivity, FlipPolicy, DemonsVariant, IterativeAlgorithm, convergence detection bool)
+- Primitive obsession: `Spacing<3>` domain separation enforced in edge detection pipeline
+- Spacing construction invariant enforced: panics on non-positive/non-finite
+- COW/zero-alloc: `as_slice()` on Point/Vector, `data_slice()` on Image; `to_vec()`/`data_vec()` deprecated
+- Clone elimination: 14 removed in interpolation, 9 removed in correlation_ratio — targeting Burn ownership-model waste
+- Deconvolution `apply_iterative`: 8 params → 3 (IterativeParams struct)
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PERF-355-01 | `lncc_loss`: 4 volume clones + 4 Conv3dConfig constructions per forward pass | High |
+| PERF-355-02 | `masked_chunked.rs` dense path: full-w_fixed-t clone per chunk | Medium |
+| PERF-355-03 | `fused.rs` chunked: `world.clone().slice()` per chunk (Burn 0.19 `slice` takes `self` by value) | Medium |
+| PRIM-355-04 | `Opacity` newtype (validated [0,1]) for overlay structs | Low |
+| PRIM-355-05 | `Sigma` newtype for positive-definite sigma parameters across 10+ filter structs | Low |
+| PRIM-355-06 | `VolumeDims` newtype for `[usize; 3]` dims across 20+ registration APIs | Medium |
+| BOOL-355-07 | `use_image_spacing: bool` → `SpacingMode` enum in Gaussian filters | Low |
+| BOOL-355-08 | `normalize_across_scale: bool` → `ScaleNormalization` enum | Low |
+| BOOL-355-09 | `clamp: bool` → `ClampPolicy` enum in unsharp mask | Low |
+| UPSTREAM-01 | Burn issue: `slice_ref`/`narrow_ref` (non-consuming views) for clone elimination | High |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core --no-deps` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+
+### Architecture
+
+- All 20 tracks delivered. See gap_audit.md Sprint 353 for full architecture notes.
+- 11 new ZST/enum types introduced across both crates.
+- 9 per-iteration allocation hot spots eliminated (deconvolution, CED, BSpline FFD metric).
+- 3 `Arc<Mutex<Option<>>>` patterns simplified or annotated.
+- 20 bare booleans replaced with descriptive enums.
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PERF-354-01 | `atlas/mod.rs` template loop: allocating `scaling_and_squaring` per iteration | Medium |
+| PERF-354-02 | `metric/histogram/parzen/compute_image.rs` chunked path clones per chunk | Medium |
+| PRIM-354-03 | `filter/edge/gradient_magnitude.rs` uses raw `[f64; 3]` instead of `Spacing<3>` newtype | Low |
+| PRIM-354-04 | `Sigma` newtype for positive-definite sigma parameters across 10+ filter structs | Low |
+| PRIM-354-05 | `VolumeDims` newtype for `[usize; 3]` dims across 20+ registration APIs | Medium |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+
+---
+
+## Sprint 352 — Zero-Cost Architecture (20 Cycles)
+
+**Status**: Complete
+**Phase**: DRY + SoC + PERF-MEM + NAMED-TYPES + TYPED-ERR + ZERO-ALLOC
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| DRY-352-01 | `smooth.rs`: `convolve_z/y/x` → single `convolve_axis<const AXIS: usize>` const-generic (monomorphizes, DCE eliminates dead match arms) [patch] | **Done** |
+| API-352-02 | `gaussian_smooth_inplace(&mut Vec<f32>)` → `(&mut [f32])` — wider type, deref coercion at all call sites [patch] | **Done** |
+| ERR-352-03 | `annotation_state.rs` `Result<(), String>` → typed `AnnotationError` with thiserror [minor] | **Done** |
+| SOC-352-04 | `optimizer/cma_es/mod.rs` (474L): extract `constants.rs` (`AdaptationConstants`) + `generation.rs` (`GenerationState`, `run_one_generation`) → mod.rs 457→240L [minor] | **Done** |
+| SOC-352-05 | `diffeomorphic/bspline_syn/mod.rs` (461L): extract `buffers.rs` (`BSplineSyNBuffers`) → mod.rs 461→377L [minor] | **Done** |
+| NAMED-352-06 | `VelocityField` struct added to `deformable_field_ops`; `SyNResult`, `BSplineSyNResult`, `SubjectResult`, `MultiResSyNResult` `forward_field/inverse_field: (Vec, Vec, Vec)` → `VelocityField` — eliminates positional tuple blindness [minor] | **Done** |
+| SOC-352-07 | `DiscreteGaussianFilter`: add `new_isotropic` factory, `#[inline]` hot-path methods, ACCUMULATOR doc [patch] | **Done** |
+| PERF-352-08 | `ClaheFilter::apply/apply_with_scratch`: `Vec<Vec<f32>>` + extend → `.into_iter().flatten().collect()` (one allocation instead of two) [patch] | **Done** |
+| SOC-352-09 | `diffeomorphic/syn_core/mod.rs` (301L): extract `buffers.rs` (`SyNBuffers`, 30 fields) → mod.rs 301→246L [minor] | **Done** |
+| NAMED-352-10 | `multires_syn/mod.rs` `PrevLevelState` tuple type alias → named struct with `forward/inverse: VelocityField` [patch] | **Done** |
+| DOC-352-11 | `bspline_ffd/regularization.rs`: ACCUMULATOR doc, squared-spacing precision comment, `#[inline]` [patch] | **Done** |
+| PERF-352-12 | `lddmm/geodesic.rs` `integrate_geodesic`: 9 per-step `Vec` allocations eliminated (clone→copy_from_slice, compose_fields→compose_fields_into) [minor] | **Done** |
+| PERF-352-13 | `demons/diffeomorphic/registration.rs`: 7 per-iteration `Vec` allocations eliminated; `scaling_and_squaring_into` + `warp_image_into` pre-allocated [minor] | **Done** |
+| PERF-352-14 | `demons/exact_inverse_diffeomorphic/registration.rs`: 14 per-iteration `Vec` allocations eliminated; `invert_velocity_field_into` exported, all `_into` variants used [minor] | **Done** |
+| PERF-352-15 | `demons/thirion/registration.rs`: `compute_mse` (warp_image inside) → `compute_mse_streaming`; post-loop `warp_image_into` [patch] | **Done** |
+| PERF-352-16 | `bspline_ffd/basis.rs`: `evaluate_bspline_displacement_fast_into` added (DRY delegation); `registration.rs` inner loop uses `_into` variant [minor] | **Done** |
+| PERF-352-17 | `diffeomorphic/multires_syn/mod.rs` inner loop: 14 per-iteration `Vec` allocations eliminated via `scaling_and_squaring_into`, `warp_image_into`, `compute_gradient_into` [minor] | **Done** |
+| DOC-352-18 | `state.rs` CMA-ES doc: vague language → precise mathematical descriptions [patch] | **Done** |
+| VER-352-19 | `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` → 0 warnings | **Done** |
+| VER-352-20 | `cargo test -p ritk-core --lib` → 1579/0/1; `cargo test -p ritk-registration --lib` → 581/1/1 | **Done** |
+
+### Architecture
+
+- `VelocityField` is the SSOT for owned 3-component displacement/velocity buffers in `deformable_field_ops`. All SyN/BSplineSyN/Atlas result types now use named `.z/.y/.x` fields instead of positional `.0/.1/.2` tuple access.
+- `convolve_axis<const AXIS: usize>` monomorphizes to three separate code paths identical to the hand-written `convolve_z/y/x`; LLVM DCE eliminates the unreachable match arms.
+- Pre-allocation pattern: all demons and SyN registration inner loops now pre-allocate scratch buffers before the iteration loop and use `_into` variants, achieving zero heap allocation per iteration.
+- SoC splits (CMA-ES, BSplineSyN, SyNCore) bring all files under the 500-line structural limit.
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PERF-353-01 | `bspline_ffd/metric.rs` `compute_metric_gradient_fast`: 9 per-iteration `Vec` allocations (3×f64 accumulator + 3×f32 output + 3 from `compute_gradient`) — needs `_into` refactor [minor] | High |
+| SOC-353-02 | `demons/exact_inverse_diffeomorphic/registration.rs` (305L, post-refactor): still growing; further SoC extraction possible [minor] | Medium |
+| PERF-353-03 | `atlas/mod.rs` template-building loop: `scaling_and_squaring` + `warp_image` per atlas iteration [minor] | Medium |
+| ERR-353-04 | `DemonsResult.disp_z/y/x` SoA → `displacement: VelocityField` grouping (57 call sites; deferred due to blast radius) [major] | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1579/0/1 |
+| `cargo test -p ritk-registration --lib` | 581/1 pre-existing proptest flake/1 |
+
+---
+
+## Sprint 351 (Phase 21) — Cleanup, Optimization, Testing
+
+**Status**: Complete
+**Phase**: STR + PERF + MEM + ARCH + DRY + ZST + COW
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| STR-351-01 | `value_indices.rs` (590L) → `value_indices/` directory (mod/key/map/compute/tests) [patch] | **Closed** |
+| STR-351-02 | `iterate_structure/tests.rs` (562L) → `tests/` directory (bool_structure/iterate/edge_cases) [patch] | **Closed** |
+| PERF-351-03 | `Vec::new()` → `Vec::with_capacity(n)` at 14 known-size sites across ritk-core [patch] | **Closed** |
+| PERF-351-04 | `HashMap::new()` → `HashMap::with_capacity(n)` at 6 sites across ritk-core and ritk-registration [patch] | **Closed** |
+| ARCH-351-05 | `NearestNeighborInterpolator`: add `Copy/Clone/PartialEq/Eq/Hash/Serialize/Deserialize` derives [patch] | **Closed** |
+| DRY-351-06 | `in_bounds_mask` shared helper — eliminates repeated `x0.clone().equal(x0.clamp(...)).float()` across linear/nearest interpolation [minor] | **Closed** |
+| ARCH-351-07 | `Spacing<D>`: type alias → `#[repr(transparent)]` newtype with `Deref` to `Vector<D>`, domain separation [arch] | **Closed** |
+| FIX-351-08 | Doc warnings: `wgpu_compat.rs` private intra-doc link, `kernel/nearest.rs` broken intra-doc link [patch] | **Closed** |
+| FIX-351-09 | Stale `preprocessing.rs` flat file conflicting with `preprocessing/` directory module [patch] | **Closed** |
+| FIX-351-10 | `transform/mod.rs` broken doc comment + `r#static` path → `static_` path [patch] | **Closed** |
+
+### Architecture
+
+- `Spacing<D>` is now a `#[repr(transparent)]` newtype over `Vector<D>`, providing type-level domain separation while maintaining zero-cost ABI compatibility. `Deref`/`DerefMut` to `Vector<D>` provides the full `Vector` API (indexing, arithmetic, `to_array()`). Burn `Module`/`Record`/`AutodiffModule` impls delegate to inner `Vector`.
+- `interpolation::shared::in_bounds_mask()` centralizes the out-of-bounds mask computation pattern. Returns `Option<Tensor>` — `None` when `zero_pad` is `false` (compiler dead-code eliminates mask logic for the non-zero-pad path).
+- `value_indices/` and `iterate_structure/tests/` follow the established project pattern for directory modules.
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc -p ritk-core --no-deps` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1579/0/1 |
+| `cargo test -p ritk-registration --lib` | 581/1/1 (pre-existing proptest flake) |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+| Files > 500 lines in ritk-core | 0 |
+| Files > 500 lines in ritk-registration | 0 |
+
+---
+
+## Sprint 350 — Zero-Cost Architecture (10 Cycles)
+
+**Status**: Complete
+**Phase**: NAMING + DRY + PERF + ARCH + SoC + SSOT + BUILD-FIX
+
+### Architecture / Zero-Cost / Naming
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| NAMING-350-01 | `fold_f32`→`fold_native`, `fold_f64`→`fold_wide` in `filter/projection.rs` [patch] | **DONE Sprint 350** |
+| NAMING-350-02 | `div_floor_i64`→`div_floor` in `segmentation/distance_transform/mod.rs` [patch] | **DONE Sprint 350** |
+| NAMING-350-03 | `next_f64`→`sample_unit` on `Xorshift64` in `segmentation/clustering/kmeans.rs` [patch] | **DONE Sprint 350** |
+| NAMING-350-04 | `otsu_threshold_f64`→`local_otsu_threshold` in `segmentation/level_set/chan_vese.rs` [patch] | **DONE Sprint 350** |
+| DRY-350-05 | `sort_f32` dedup → `pub(crate) fn sort_floats` in `statistics/mod.rs`; 2 callers updated [patch] | **DONE Sprint 350** |
+| PERF-350-06 | `Spacing::uniform()`: `vec![value; D]`→`std::array::from_fn(\|_\| value)` — zero heap alloc [patch] | **DONE Sprint 350** |
+| ARCH-350-07 | Remove `Direction::axis_directions()` allocating API; callers migrated to `axis_directions_array()` [minor] | **DONE Sprint 350** |
+| SSOT-350-08 | `ritk-registration/wgpu_compat.rs`: re-export `ritk_core::wgpu_compat::WGPU_CHUNK_SIZE` instead of duplicating; `ritk-core::wgpu_compat` made `pub` [minor] | **DONE Sprint 350** |
+| ARCH-350-09 | `classical/engine/mod.rs` (433 L) → `config.rs` + `metric.rs` + `result.rs` + `mod.rs` SoC split [minor] | **DONE Sprint 350** |
+| ARCH-350-10 | `classical/temporal/mod.rs` magic literals → named constants (`STABILITY_EXCELLENT` etc.); dead `_n` binding removed [patch] | **DONE Sprint 350** |
+| PERF-350-11 | `compute_statistics_from_slice` double-allocation removed; delegates directly to `compute_from_values` [patch] | **DONE Sprint 350** |
+| ARCH-350-12 | `atlas/label_fusion.rs` `Vec<Vec<f64>>`→flat `Vec<f64>` + stride in `solve_linear_system`; call site simplified [minor] | **DONE Sprint 350** |
+| BUILD-350-13 | Fix pre-existing interpolation module path errors (Sprint 353 refactor partially broken): `interpolation/kernel/`, `dispatch.rs`, `tests/`, `fused.rs`, `sinc.rs`, `resample.rs`, `transform/displacement_field/static_/` [patch] | **DONE Sprint 350** |
+| BUILD-350-14 | Stub missing test files: `tests_fused.rs`, `tests_sinc.rs`, `tests_composite_io.rs` (Sprint 353 test stubs) [patch] | **DONE Sprint 350** |
+
+### Open Items (Prioritized)
+
+| Track ID | Description | Priority |
+|----------|-------------|----------|
+| ARCH-351-01 | `optimizer/cma_es/mod.rs` (474 L) — SoC split: extract `population.rs`, `adaptation.rs`, `stopping.rs` [minor] | High |
+| ARCH-351-02 | `diffeomorphic/bspline_syn/mod.rs` (461 L) — SoC split: extract `forces.rs`, `update.rs` [minor] | High |
+| ARCH-351-03 | `DemonsResult`/`LddmmResult`/`BSplineFFDResult` SoA `disp_z/y/x` fields → `VectorField3D` in public API [minor] | Medium |
+| ARCH-351-04 | `bspline_ffd/metric.rs` + `regularization.rs` hidden `f32→f64→f32` widen-accumulate — requires `Accumulator` assoc type [arch] | Medium |
+| ARCH-351-05 | `GaussianFilter::sigmas: Vec<f64>` → `[f64; D]` (eliminates runtime guard `if d < self.sigmas.len()`) [minor] | Medium |
+| ARCH-351-06 | `annotation/` stringly-typed `Result<(), String>` → `thiserror` typed errors [minor] | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1573 passed / 0 failed / 1 ignored |
+| `cargo test -p ritk-registration --lib` | 581 passed / 1 failed (pre-existing) / 1 ignored |
+
+---
+
+## Sprint 349 — Zero-Cost Architecture (5 Cycles)
+
+**Status**: Complete
+**Phase**: ARCH + PERF + NAMING + ZST
+
+### Architecture / Zero-Cost
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| ARCH-349-01 | `sinc.rs` O(A^D) tensor clones per query point — extract `flat_slice` once before point loop [arch] | **DONE Sprint 349** |
+| ARCH-349-02 | `EarlyStoppingCallback` `Arc<Mutex>×3` consolidation → `Arc<Mutex<EarlyStoppingState>>` [minor] | **DONE Sprint 349** |
+| ARCH-349-03 | `preprocessing.rs` SoC split into `step/pipeline/executor` sub-modules [minor] | **DONE Sprint 349** |
+| ARCH-349-04 | `coherence/pde.rs` `Vec<Vec<f64>>` pointer scatter → named struct fields; `surface.rs` pointer scatter [minor] | **DONE Sprint 349** |
+| NAMING-349-05 | `n4.rs`: `w_min_f64` → `w_min_wide` (naming prohibition: type names in identifiers) [patch] | **DONE Sprint 349** |
+| ARCH-349-06 | `bspline/mod.rs`: `_ =>` arm already `unreachable!()` — confirmed correct, no change [patch] | **DONE Sprint 349** |
+| ARCH-349-07 | `filter/resample.rs`: else arm already `unreachable!()` — confirmed correct, no change [patch] | **DONE Sprint 349** |
+
+### Open Items (Prioritized)
+
+| Track ID | Description | Priority |
+|----------|-------------|----------|
+| ARCH-350-01 | `RegistrationSchedule<D>`: `Vec<Vec<usize/f64>>` → `Vec<[T; D]>` with matching pyramid API update [minor] | High |
+| ARCH-350-02 | `atlas/label_fusion.rs`: JLF linear solver extraction [minor] | High |
+| ARCH-350-03 | `classical/engine/mod.rs`: metric impls belong in `metric/` bounded context [minor] | Medium |
+| ARCH-350-04 | `classical/temporal.rs` (460L): SoC split needed [minor] | Medium |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core --lib -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib -- interpolation::bspline` | pass |
+| `cargo test -p ritk-core --lib -- filter::bias` | pass |
+
+---
+
+## Sprint 348 (Phase 22) — Cleanup, Optimization, Architecture Hardening
+
+**Status**: Complete
+**Phase**: DRY + PERF + ARCH + ZST + HARD
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| DRY-348-01 | VTK generic `read_ascii<T>` + `read_binary_be<T: FromBeBytes>` — 3 files, ~120 lines eliminated | **Closed** |
+| DRY-348-02 | `fold_f32`/`fold_f64` → generic `fold<A, Init, Finalize>` in `projection.rs` | **Closed** |
+| DRY-348-03 | `sort_f32` → `sort_floats` shared helper in `statistics/mod.rs`; 2 call sites updated | **Closed** |
+| PERF-348-04 | `EarlyStoppingCallback`: `Arc<Mutex<primitive>>` × 3 → `AtomicUsize` + `AtomicBool` + `Mutex<f64>` | **Closed** |
+| PERF-348-05 | `ProgressTracker` / `HistoryCallback`: remove unnecessary `Arc<Mutex<>>` wrapping | **Closed** |
+| PERF-348-06 | Skeletonization `Vec::new()` → `Vec::with_capacity(n/4)` in thin_2d and thin_3d | **Closed** |
+| HARD-348-07 | CLI `metrics.rs`: 5 `.unwrap()` calls eliminated via `require_reference` returning `PathBuf` | **Closed** |
+| ARCH-348-08 | `PhantomData<B>` → `PhantomData<fn() -> B>` in 5 files (variance/drop-check correction) | **Closed** |
+| DOC-348-09 | `sub_scalar`/`div_scalar`/`Sub` clone sites annotated with SAFETY comments (Burn ownership API) | **Closed** |
+| CLEANUP-348-10 | Stale `value_indices/` directory removed (ambiguous with canonical `value_indices.rs`) | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-vtk -p ritk-registration -p ritk-cli -p ritk-analyze -p ritk-io -p ritk-snap -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-vtk --lib` | 241/0/0 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-registration --lib` (early_stopping, history, tracker) | 3/0/0 |
+
+### Residual Risk
+
+| Risk | Classification |
+|------|----------------|
+| Pre-existing NaN in `prop_normalized_single_sample_contributes_one` (direct/ unchanged) | pre-existing |
+| `Transform::inverse()` returns `Box<dyn Transform>` — vtable overhead on inverse path | [arch] |
+| `Spacing<D>` is a type alias for `Vector<D>` (primitive obsession) | [arch] |
+| Cross-crate `decode_bytes_to_f32` duplication (metaimage/nrrd/minc/tiff) | [minor] |
+| `rgb_pixels_to_f32` duplicated across ritk-jpeg and ritk-png (naming violation) | [patch] |
+| `Image::data_vec()` allocates on every call — zero-copy `data_slice()` API deferred | [arch] |
+
+---
+
+## Sprint 347 (patch) — WGPU CHUNK_SIZE SSOT Activation + apply_row_chunks Adoption
+
+**Status**: Complete  
+**Phase**: DRY + SSOT + PERF
+
+### Root Cause
+
+Sprints 344–346 created `wgpu_compat.rs` in both `ritk-core` and `ritk-registration` as crate-local SSOT modules, but never declared `mod wgpu_compat;` in either `lib.rs`. Both SSOT modules compiled to dead code. All 20 files that were supposed to reference the SSOT still held live local `const CHUNK_SIZE: usize = 32768;` definitions.
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| SSOT-347-01 | `mod wgpu_compat;` declared in `ritk-core/src/lib.rs` | **Closed** |
+| SSOT-347-02 | `mod wgpu_compat;` declared in `ritk-registration/src/lib.rs` | **Closed** |
+| DRY-347-03 | ritk-core: 13 local `const CHUNK_SIZE` removed; references updated to `WGPU_CHUNK_SIZE` | **Closed** |
+| DRY-347-04 | ritk-registration: 7 local `const CHUNK_SIZE` removed; references updated to `WGPU_CHUNK_SIZE` | **Closed** |
+| PERF-347-05 | `apply_row_chunks` adopted in 7 ritk-core sites: `gaussian.rs`, `image/transform.rs` (×2), `affine.rs`, `rigid.rs`, `bspline/dim2.rs`, `bspline/dim3.rs`, `displacement_field/grid.rs` | **Closed** |
+| PERF-347-06 | `bspline/dim4.rs` uses `WGPU_CHUNK_SIZE_4D` (16 384) via `apply_row_chunks` | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration --all-features -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-registration --lib -- metric::ncc metric::mse metric::lncc multires` | 33/0/0 |
+| `grep 'const CHUNK_SIZE'` workspace-wide | exit 1 — zero matches |
+
+### Residual Risk
+
+| Risk | Classification |
+|------|----------------|
+| Pre-existing NaN in `prop_normalized_single_sample_contributes_one` (direct/ unchanged) | pre-existing |
+| `Transform::inverse()` returns `Box<dyn Transform>` — vtable overhead on inverse path | [arch] |
+| `sinc.rs`: unsafe pointer transmute + `match D { 2,3,_ => unreachable! }` | [arch] |
+| `filter/resample.rs`: `if D == 2 / if D == 3` in `generate_grid_indices` | [patch] |
+| `interpolation/bspline/mod.rs`: `if D == 3 { 3d } else { 2d }` silently wrong for D=1/4 | [minor] |
+| `regularization/dispatch.rs` (ritk-registration): 4× `match D { 4,5,_=>panic }` | [minor] |
+| `DisplacementField::components()` returns `Vec<Tensor>` (heap alloc) | [minor] |
+| `Vec<Vec<_>>` nested heap allocations in CLAHE/SLIC/staple/diffusion | [minor] |
+
+---
+
+## Sprint 346 (Phase 23) — SSOT + `Spacing<D>` Newtype + Metric CHUNK_SIZE SSOT
+
+**Status**: Complete  
+**Phase**: ARCH + DRY + PERF
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| ARCH-346-01 | `DisplacementField::new` `match D{2,3,_=>panic}` → `Direction::try_inverse()` | **Closed** |
+| ARCH-346-02 | `Spacing<D>` newtype: `Record<B>`, `Module<B>`, `AutodiffModule<B>`, `ModuleDisplayDefault`/`ModuleDisplay` impls | **Closed** |
+| ARCH-346-03 | `generate_grid` push/increment order corrected (col 0 = innermost x) | **Closed** |
+| ARCH-346-04 | `static_displacement_field`: 2 local `CHUNK_SIZE` + `world_to_index_tensor` loop → `apply_row_chunks` | **Closed** |
+| ARCH-346-05 | `filter/resample`: `generate_grid_indices` (60-LOC, D=2/3/panic) deleted; `generate_grid::<B,D>` | **Closed** |
+| ARCH-346-06 | `interpolation/fused`: `compute_*_chunked` helpers → `apply_row_chunks`; `n_points` param removed | **Closed** |
+| DRY-346-07 | `ritk-registration/src/wgpu_compat.rs` SSOT; 6 metric files updated | **Closed** |
+| DRY-346-08 | `mse.rs` / `lncc.rs` if/else chunk → single loop | **Closed** |
+| FIX-346-09 | `ritk-vtk::read_helpers`: missing `'static` on `FromStr::Err` | **Closed** |
+| FIX-346-10 | `lncc.rs` `spacing().0.iter()` → `spacing().to_array().iter()` | **Closed** |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy -p ritk-core -p ritk-registration -- -D warnings` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1559/0/1 |
+| `cargo test -p ritk-registration --lib -- multires metric::ncc metric::mse metric::lncc` | 33/0/0 |
+| `grep "const CHUNK_SIZE" crates/ritk-core/src/` | exit 1 — zero matches |
+
+### Residual Risk
+
+| Risk | Classification |
+|------|----------------|
+| Pre-existing NaN in `prop_normalized_single_sample_contributes_one` (unrelated, `direct/` unchanged) | pre-existing |
+| `Transform::inverse()` returns `Box<dyn Transform>` | [arch] |
+
+---
+
 ## Sprint 343 (Phase 20) — iterate_structure + literal_arraystring + dilate_once Fix
 
 **Status**: Complete

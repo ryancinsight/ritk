@@ -31,8 +31,10 @@
 //!   Transactions on Pattern Analysis and Machine Intelligence*, 8(6),
 //!   pp. 679–698.
 
+use super::GaussianSigma;
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
+use crate::spatial::Spacing;
 use burn::tensor::backend::Backend;
 use std::collections::VecDeque;
 
@@ -47,7 +49,7 @@ use std::collections::VecDeque;
 #[derive(Debug, Clone)]
 pub struct CannyEdgeDetector {
     /// Standard deviation of the pre-smoothing Gaussian (physical units, mm).
-    sigma: f64,
+    sigma: GaussianSigma,
     /// Lower hysteresis threshold applied to gradient magnitude.
     low_threshold: f64,
     /// Upper hysteresis threshold applied to gradient magnitude.
@@ -73,7 +75,7 @@ impl CannyEdgeDetector {
             "CannyEdgeDetector: low_threshold ({low_threshold}) must be <= high_threshold ({high_threshold})"
         );
         Self {
-            sigma,
+            sigma: GaussianSigma::new_unchecked(sigma),
             low_threshold,
             high_threshold,
         }
@@ -81,7 +83,7 @@ impl CannyEdgeDetector {
 
     /// Set the Gaussian sigma.
     pub fn with_sigma(mut self, sigma: f64) -> Self {
-        self.sigma = sigma;
+        self.sigma = GaussianSigma::new_unchecked(sigma);
         self
     }
 
@@ -119,13 +121,15 @@ impl CannyEdgeDetector {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
-        let spacing = image.spacing();
-        let sp = [spacing[0], spacing[1], spacing[2]];
+        let sp = *image.spacing();
 
         // ── Stage 1: Gaussian smoothing ───────────────────────────────────
         let smoothed = {
-            let gauss =
-                crate::filter::GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
+            let gauss = crate::filter::GaussianFilter::<B>::new(vec![
+                self.sigma.get(),
+                self.sigma.get(),
+                self.sigma.get(),
+            ]);
             gauss.apply(image)
         };
 
@@ -171,7 +175,7 @@ impl CannyEdgeDetector {
 fn gradient_3d(
     data: &[f32],
     dims: [usize; 3],
-    spacing: [f64; 3],
+    spacing: Spacing<3>,
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;

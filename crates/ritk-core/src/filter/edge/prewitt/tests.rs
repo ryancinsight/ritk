@@ -1,5 +1,6 @@
 use super::*;
 use crate::spatial::{Direction, Point, Spacing};
+use crate::Image;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 
@@ -50,7 +51,7 @@ fn prewitt_x_ramp_recovers_unit_gradient() {
     let (_gz, _gy, gx) = filt.apply_components(&img).unwrap();
     let gx_v = values(&gx);
     // Interior voxel (iz=1, iy=1, ix=1): dI/dx = 1
-    let interior_idx = 1 * 9 + 1 * 3 + 1;
+    let interior_idx = 9 + 3 + 1;
     assert!(
         (gx_v[interior_idx] - 1.0).abs() < 1e-5,
         "interior x-gradient should be 1.0, got {}",
@@ -59,7 +60,7 @@ fn prewitt_x_ramp_recovers_unit_gradient() {
     // Boundary voxel at ix=0 with replicate padding yields a one-sided
     // difference: raw = I[1] − I[0] = 1, smoothed twice by [1,1,1] gives
     // 9, normalized to 9/18 = 0.5.
-    let boundary_idx = 1 * 9 + 1 * 3 + 0;
+    let boundary_idx = 9 + 3;
     assert!(
         (gx_v[boundary_idx] - 0.5).abs() < 1e-5,
         "boundary x-gradient (one-sided) should be 0.5, got {}",
@@ -82,7 +83,7 @@ fn prewitt_y_ramp_recovers_unit_gradient() {
     let filt = PrewittFilter::unit();
     let (_gz, gy, _gx) = filt.apply_components(&img).unwrap();
     let gy_v = values(&gy);
-    let interior_idx = 1 * 9 + 1 * 3 + 1;
+    let interior_idx = 9 + 3 + 1;
     assert!(
         (gy_v[interior_idx] - 1.0).abs() < 1e-5,
         "interior y-gradient should be 1.0, got {}",
@@ -105,7 +106,7 @@ fn prewitt_z_ramp_recovers_unit_gradient() {
     let filt = PrewittFilter::unit();
     let (gz, _gy, _gx) = filt.apply_components(&img).unwrap();
     let gz_v = values(&gz);
-    let interior_idx = 1 * 9 + 1 * 3 + 1;
+    let interior_idx = 9 + 3 + 1;
     assert!(
         (gz_v[interior_idx] - 1.0).abs() < 1e-5,
         "interior z-gradient should be 1.0, got {}",
@@ -138,7 +139,7 @@ fn prewitt_magnitude_isotropic_for_diagonal_ramp() {
     let filt = PrewittFilter::unit();
     let out = filt.apply(&img).unwrap();
     let v = values(&out);
-    let interior_idx = 1 * 9 + 1 * 3 + 1;
+    let interior_idx = 9 + 3 + 1;
     let expected = (3.0_f32).sqrt();
     assert!(
         (v[interior_idx] - expected).abs() < 1e-4,
@@ -160,10 +161,10 @@ fn prewitt_anisotropic_spacing() {
         }
     }
     let img = make_image(vals, [3, 3, 3]);
-    let filt = PrewittFilter::new([1.0, 1.0, 0.5]);
+    let filt = PrewittFilter::new([1.0, 1.0, 0.5].into());
     let (_gz, _gy, gx) = filt.apply_components(&img).unwrap();
     let gx_v = values(&gx);
-    let interior_idx = 1 * 9 + 1 * 3 + 1;
+    let interior_idx = 9 + 3 + 1;
     assert!(
         (gx_v[interior_idx] - 2.0).abs() < 1e-5,
         "anisotropic gradient should be 2.0, got {}",

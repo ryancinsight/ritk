@@ -10,7 +10,7 @@ pub mod history;
 pub mod info;
 pub mod tracker;
 
-pub use console::ConsoleProgressCallback;
+pub use console::{ConsoleProgressCallback, ProgressDisplay};
 pub use convergence::ConvergenceChecker;
 pub use early_stopping::EarlyStoppingCallback;
 pub use history::HistoryCallback;

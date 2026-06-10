@@ -7,7 +7,7 @@ use ritk_registration::atlas::label_fusion::{
     joint_label_fusion, majority_vote, LabelFusionConfig,
 };
 use ritk_registration::atlas::{AtlasConfig, AtlasRegistration};
-use ritk_registration::diffeomorphic::multires_syn::MultiResSyNConfig;
+use ritk_registration::diffeomorphic::multires_syn::{InverseConsistency, MultiResSyNConfig};
 
 /// Configuration options for [`build_atlas`].
 ///
@@ -129,7 +129,7 @@ pub fn build_atlas(
             convergence_window: 10,
             n_squarings: 6,
             cc_window_radius: cc_radius,
-            enforce_inverse_consistency: true,
+            enforce_inverse_consistency: InverseConsistency::Enforced,
             gradient_step,
         };
         let config = AtlasConfig {

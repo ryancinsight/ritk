@@ -16,7 +16,7 @@ use std::net::TcpStream;
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
         abstract_syntax_uid: ArrayString::from(uid).unwrap(),
-        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(*s).unwrap()).collect(),
+        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(s).unwrap()).collect(),
     }
 }
 

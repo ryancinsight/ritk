@@ -7,7 +7,7 @@ use ritk_core::transform::RigidTransform;
 
 use super::super::registration::GlobalMiRegistration;
 use super::super::transforms::rigid_matrix_to_homogeneous;
-use super::config::{CmaMiConfig, CmaMiResult};
+use super::config::{CmaMiConfig, CmaMiResult, InitStrategy};
 use super::helpers::run_cma_level;
 
 /// CMA-ES → RSGD cascade rigid registration pipeline.
@@ -61,7 +61,7 @@ impl CmaMiRegistration {
     ///   radians (ZYX convention). Pass `[0,0,0]` for no prior knowledge.
     /// * `initial_translation` — Starting translation `[tz, ty, tx]` in mm
     ///   (RITK `[z, y, x]` order). `None` → center-of-mass estimate when
-    ///   `config.use_com_init = true`.
+    ///   `config.init_strategy == InitStrategy::CenterOfMass`.
     /// * `config` — Pipeline configuration; see [`CmaMiConfig`].
     /// * `fixed_mask` — Optional binary brain mask in fixed-image space. When
     ///   `Some`, only voxels where `mask > 0.5` contribute to MI estimation at
@@ -85,7 +85,7 @@ impl CmaMiRegistration {
         let t_init: [f64; 3] = match initial_translation {
             Some(t) => t,
             None => {
-                if config.use_com_init {
+                if config.init_strategy == InitStrategy::CenterOfMass {
                     super::super::center_of_mass::translation_from_centers_of_mass(fixed, moving)
                 } else {
                     [0.0; 3]
@@ -98,7 +98,7 @@ impl CmaMiRegistration {
             t_init[0],
             t_init[1],
             t_init[2],
-            initial_translation.is_none() && config.use_com_init,
+            initial_translation.is_none() && config.init_strategy == InitStrategy::CenterOfMass,
         );
 
         // ── Normalised parameter space ────────────────────────────────────────
@@ -248,7 +248,11 @@ impl CmaMiRegistration {
 
             (rsgd_transform, iters, rsgd_result.loss_history)
         } else {
-            (cma_transform, 0_usize, Vec::new())
+            (
+                cma_transform,
+                0_usize,
+                Vec::with_capacity(config.cma_config.max_generations),
+            )
         };
 
         // ── Assemble result ───────────────────────────────────────────────────

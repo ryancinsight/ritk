@@ -2,8 +2,8 @@
 //!
 //! # Mathematical Specification
 //!
-//! For a 3-D image `I : ℤ³ → ℝ` with shape `[nz, ny, nx]` and flip flags
-//! `flip = [fz, fy, fx]`:
+//! For a 3-D image `I : ℤ³ → ℝ` with shape `[nz, ny, nx]` and flip policies
+//! `flip = [fz, fy, fx]` where each `f*` is [`FlipPolicy::Keep`] or [`FlipPolicy::Flip`]:
 //!
 //! `out(iz, iy, ix) = I(iz', iy', ix')`
 //!
@@ -16,7 +16,7 @@
 //!
 //! - Involutory: applying the same flip twice returns the original image.
 //! - Preserves shape and all spatial metadata.
-//! - `flip = [false, false, false]` is the identity transform.
+//! - `flip = [Keep, Keep, Keep]` is the identity transform.
 //! - O(N) time and O(N) output space.
 //!
 //! # ITK / ImageJ Parity
@@ -28,6 +28,33 @@
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
+use serde::{Deserialize, Serialize};
+
+/// Per-axis flip policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum FlipPolicy {
+    /// Keep the axis as-is.
+    #[default]
+    Keep,
+    /// Flip this axis.
+    Flip,
+}
+
+impl From<bool> for FlipPolicy {
+    fn from(flip: bool) -> Self {
+        if flip {
+            FlipPolicy::Flip
+        } else {
+            FlipPolicy::Keep
+        }
+    }
+}
+
+impl From<FlipPolicy> for bool {
+    fn from(policy: FlipPolicy) -> Self {
+        matches!(policy, FlipPolicy::Flip)
+    }
+}
 
 /// Flip a 3-D image along any combination of the Z, Y, and X axes.
 ///
@@ -35,32 +62,40 @@ use burn::tensor::backend::Backend;
 ///
 /// ```rust,ignore
 /// // Flip along the Z axis only
-/// let out = FlipImageFilter::new([true, false, false]).apply(&image)?;
+/// let out = FlipImageFilter::new([FlipPolicy::Flip, FlipPolicy::Keep, FlipPolicy::Keep])
+///     .apply(&image)?;
 /// ```
 #[derive(Debug, Clone)]
 pub struct FlipImageFilter {
     /// Which axes to flip: `[flip_z, flip_y, flip_x]`.
-    pub axes: [bool; 3],
+    pub axes: [FlipPolicy; 3],
 }
 
 impl FlipImageFilter {
-    pub fn new(axes: [bool; 3]) -> Self {
+    pub fn new(axes: [FlipPolicy; 3]) -> Self {
         Self { axes }
+    }
+
+    /// Construct from a boolean array (`true` = flip, `false` = keep).
+    pub fn from_bools(axes: [bool; 3]) -> Self {
+        Self {
+            axes: axes.map(FlipPolicy::from),
+        }
     }
 
     /// Convenience constructor: flip Z axis only.
     pub fn flip_z() -> Self {
-        Self::new([true, false, false])
+        Self::new([FlipPolicy::Flip, FlipPolicy::Keep, FlipPolicy::Keep])
     }
 
     /// Convenience constructor: flip Y axis only.
     pub fn flip_y() -> Self {
-        Self::new([false, true, false])
+        Self::new([FlipPolicy::Keep, FlipPolicy::Flip, FlipPolicy::Keep])
     }
 
     /// Convenience constructor: flip X axis only.
     pub fn flip_x() -> Self {
-        Self::new([false, false, true])
+        Self::new([FlipPolicy::Keep, FlipPolicy::Keep, FlipPolicy::Flip])
     }
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
@@ -72,11 +107,23 @@ impl FlipImageFilter {
         let mut out = vec![0.0f32; nz * ny * nx];
 
         for iz in 0..nz {
-            let iz_src = if fz { nz - 1 - iz } else { iz };
+            let iz_src = if matches!(fz, FlipPolicy::Flip) {
+                nz - 1 - iz
+            } else {
+                iz
+            };
             for iy in 0..ny {
-                let iy_src = if fy { ny - 1 - iy } else { iy };
+                let iy_src = if matches!(fy, FlipPolicy::Flip) {
+                    ny - 1 - iy
+                } else {
+                    iy
+                };
                 for ix in 0..nx {
-                    let ix_src = if fx { nx - 1 - ix } else { ix };
+                    let ix_src = if matches!(fx, FlipPolicy::Flip) {
+                        nx - 1 - ix
+                    } else {
+                        ix
+                    };
                     let dst = iz * ny * nx + iy * nx + ix;
                     let src = iz_src * ny * nx + iy_src * nx + ix_src;
                     out[dst] = vals[src];
@@ -123,7 +170,7 @@ mod tests {
     fn flip_none_is_identity() {
         let vals = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let img = make_image(vals.clone(), [2, 2, 2]);
-        let out = FlipImageFilter::new([false, false, false])
+        let out = FlipImageFilter::new([FlipPolicy::Keep; 3])
             .apply(&img)
             .unwrap();
         let v = voxels(&out);
@@ -173,7 +220,7 @@ mod tests {
     fn flip_twice_returns_original() {
         let vals = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let img = make_image(vals.clone(), [2, 2, 2]);
-        let flip = FlipImageFilter::new([true, true, false]);
+        let flip = FlipImageFilter::new([FlipPolicy::Flip, FlipPolicy::Flip, FlipPolicy::Keep]);
         let out1 = flip.apply(&img).unwrap();
         let out2 = flip.apply(&out1).unwrap();
         let v = voxels(&out2);
@@ -212,7 +259,7 @@ mod tests {
             }
         }
         let img = make_image(vals, dims);
-        let out = FlipImageFilter::new([true, true, true])
+        let out = FlipImageFilter::new([FlipPolicy::Flip; 3])
             .apply(&img)
             .unwrap();
         let v = voxels(&out);

@@ -1,10 +1,11 @@
 use super::*;
 use crate::optimizer::OptimizerTelemetry;
+use crate::registration::summary::StopReason;
 
 #[test]
 fn test_registration_config_default() {
     let config = RegistrationConfig::default();
-    assert!(!config.enable_early_stopping);
+    assert_eq!(config.early_stopping, EarlyStoppingPolicy::Disabled);
     assert_eq!(config.log_interval, 50);
 }
 
@@ -14,7 +15,7 @@ fn test_registration_config_builder() {
         .with_early_stopping(10, 1e-5)
         .with_log_interval(25);
 
-    assert!(config.enable_early_stopping);
+    assert_eq!(config.early_stopping, EarlyStoppingPolicy::Enabled);
     assert_eq!(config.early_stopping_patience, 10);
     assert_eq!(config.log_interval, 25);
 }
@@ -31,7 +32,7 @@ fn registration_summary_holds_execution_diagnostics() {
         },
         iterations_completed: 2,
         final_loss: 1.0,
-        stopped_early: false,
+        stop_reason: StopReason::Completed,
     };
 
     assert_eq!(summary.transform, 3);

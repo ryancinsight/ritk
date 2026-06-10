@@ -103,7 +103,14 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.horizontal(|ui| {
                 ui.label("Clamp:");
-                ui.checkbox(clamp, "");
+                let mut clamp_bool = matches!(*clamp, ritk_core::filter::ClampPolicy::ClampToInputRange);
+                if ui.checkbox(&mut clamp_bool, "").changed() {
+                    *clamp = if clamp_bool {
+                        ritk_core::filter::ClampPolicy::ClampToInputRange
+                    } else {
+                        ritk_core::filter::ClampPolicy::NoClamp
+                    };
+                }
             });
             true
         }

@@ -154,12 +154,12 @@ fn geodesic_shooting_zero_velocity_produces_identity() {
     let dims = [4, 4, 4];
     let n = 4 * 4 * 4;
     let zeros = vec![0.0_f32; n];
-    let (dz, dy, dx) = integrate_geodesic(&zeros, &zeros, &zeros, dims, [1.0; 3], 5, 1.0);
+    let d = integrate_geodesic(&zeros, &zeros, &zeros, dims, [1.0; 3], 5, 1.0);
 
     for i in 0..n {
-        assert_eq!(dz[i], 0.0, "dz[{}] = {} != 0", i, dz[i]);
-        assert_eq!(dy[i], 0.0, "dy[{}] = {} != 0", i, dy[i]);
-        assert_eq!(dx[i], 0.0, "dx[{}] = {} != 0", i, dx[i]);
+        assert_eq!(d.z[i], 0.0, "dz[{}] = {} != 0", i, d.z[i]);
+        assert_eq!(d.y[i], 0.0, "dy[{}] = {} != 0", i, d.y[i]);
+        assert_eq!(d.x[i], 0.0, "dx[{}] = {} != 0", i, d.x[i]);
     }
 }
 
@@ -169,7 +169,7 @@ fn epdiff_adjoint_zero_momentum_is_zero() {
     let n = 4 * 4 * 4;
     let v: Vec<f32> = (0..n).map(|i| 0.01 * i as f32).collect();
     let zeros = vec![0.0_f32; n];
-    let (az, ay, ax) = epdiff_adjoint(
+    let ad = epdiff_adjoint(
         VectorField3D {
             z: &v,
             y: &v,
@@ -185,8 +185,8 @@ fn epdiff_adjoint_zero_momentum_is_zero() {
     );
 
     for i in 0..n {
-        assert_eq!(az[i], 0.0, "ad_z[{}] = {} != 0", i, az[i]);
-        assert_eq!(ay[i], 0.0, "ad_y[{}] = {} != 0", i, ay[i]);
-        assert_eq!(ax[i], 0.0, "ad_x[{}] = {} != 0", i, ax[i]);
+        assert_eq!(ad.z[i], 0.0, "ad_z[{}] = {} != 0", i, ad.z[i]);
+        assert_eq!(ad.y[i], 0.0, "ad_y[{}] = {} != 0", i, ad.y[i]);
+        assert_eq!(ad.x[i], 0.0, "ad_x[{}] = {} != 0", i, ad.x[i]);
     }
 }

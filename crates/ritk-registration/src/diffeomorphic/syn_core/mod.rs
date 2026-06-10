@@ -19,27 +19,31 @@
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
 //! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~27n f32
+//! write into caller-provided buffers. Total pre-allocation: ~30n f32
 //! (6 velocity + 6 displacement + 3 scaling-and-squaring scratch +
 //!  2 warped images + 6 gradient + 6 CC forces + 1 smooth scratch = 30n).
+
+mod buffers;
 
 use std::collections::VecDeque;
 
 use super::local_cc::{cc_forces_into, mean_local_cc};
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_with_scratch, scaling_and_squaring_into, warp_image_into,
+    compute_gradient_into, gaussian_smooth_field_inplace_with_scratch, normalize_forces_into,
+    scaling_and_squaring_into, warp_image_into, VelocityField,
 };
 use crate::error::RegistrationError;
+use buffers::SyNBuffers;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
 /// Result returned by [`SyNRegistration::register`].
 #[derive(Debug, Clone)]
 pub struct SyNResult {
-    /// Forward velocity field `v₁` components (fixed→midpoint).
-    pub forward_field: (Vec<f32>, Vec<f32>, Vec<f32>),
-    /// Inverse velocity field `v₂` components (moving→midpoint).
-    pub inverse_field: (Vec<f32>, Vec<f32>, Vec<f32>),
+    /// Forward velocity field `v₁` components (fixed→midpoint), in (z, y, x) order.
+    pub forward_field: VelocityField,
+    /// Inverse velocity field `v₂` components (moving→midpoint), in (z, y, x) order.
+    pub inverse_field: VelocityField,
     /// Fixed image warped to the midpoint by φ₁ = exp(v₁).
     pub warped_fixed: Vec<f32>,
     /// Moving image warped to the midpoint by φ₂ = exp(v₂).
@@ -102,39 +106,7 @@ impl SyNRegistration {
             )));
         }
 
-        // ── Velocity fields (output) ────────────────────────────────────────
-        let mut v1z = vec![0.0_f32; n];
-        let mut v1y = vec![0.0_f32; n];
-        let mut v1x = vec![0.0_f32; n];
-        let mut v2z = vec![0.0_f32; n];
-        let mut v2y = vec![0.0_f32; n];
-        let mut v2x = vec![0.0_f32; n];
-
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──────
-        let mut phi1_z = vec![0.0_f32; n];
-        let mut phi1_y = vec![0.0_f32; n];
-        let mut phi1_x = vec![0.0_f32; n];
-        let mut phi2_z = vec![0.0_f32; n];
-        let mut phi2_y = vec![0.0_f32; n];
-        let mut phi2_x = vec![0.0_f32; n];
-        let mut scratch_ss_z = vec![0.0_f32; n];
-        let mut scratch_ss_y = vec![0.0_f32; n];
-        let mut scratch_ss_x = vec![0.0_f32; n];
-        let mut i_w = vec![0.0_f32; n];
-        let mut j_w = vec![0.0_f32; n];
-        let mut gi_z = vec![0.0_f32; n];
-        let mut gi_y = vec![0.0_f32; n];
-        let mut gi_x = vec![0.0_f32; n];
-        let mut gj_z = vec![0.0_f32; n];
-        let mut gj_y = vec![0.0_f32; n];
-        let mut gj_x = vec![0.0_f32; n];
-        let mut u1z = vec![0.0_f32; n];
-        let mut u1y = vec![0.0_f32; n];
-        let mut u1x = vec![0.0_f32; n];
-        let mut u2z = vec![0.0_f32; n];
-        let mut u2y = vec![0.0_f32; n];
-        let mut u2x = vec![0.0_f32; n];
-        let mut smooth_tmp = vec![0.0_f32; n];
+        let mut buf = SyNBuffers::new(n);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
@@ -146,98 +118,137 @@ impl SyNRegistration {
 
             // exp(v) via scaling-and-squaring (zero alloc)
             scaling_and_squaring_into(
-                &v1z,
-                &v1y,
-                &v1x,
+                &buf.v1z,
+                &buf.v1y,
+                &buf.v1x,
                 dims,
                 self.config.n_squarings,
-                &mut phi1_z,
-                &mut phi1_y,
-                &mut phi1_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
+                &mut buf.phi1_z,
+                &mut buf.phi1_y,
+                &mut buf.phi1_x,
+                &mut buf.scratch_ss_z,
+                &mut buf.scratch_ss_y,
+                &mut buf.scratch_ss_x,
             );
             scaling_and_squaring_into(
-                &v2z,
-                &v2y,
-                &v2x,
+                &buf.v2z,
+                &buf.v2y,
+                &buf.v2x,
                 dims,
                 self.config.n_squarings,
-                &mut phi2_z,
-                &mut phi2_y,
-                &mut phi2_x,
-                &mut scratch_ss_z,
-                &mut scratch_ss_y,
-                &mut scratch_ss_x,
+                &mut buf.phi2_z,
+                &mut buf.phi2_y,
+                &mut buf.phi2_x,
+                &mut buf.scratch_ss_z,
+                &mut buf.scratch_ss_y,
+                &mut buf.scratch_ss_x,
             );
 
             // Warp images (zero alloc)
-            warp_image_into(fixed, dims, &phi1_z, &phi1_y, &phi1_x, &mut i_w);
-            warp_image_into(moving, dims, &phi2_z, &phi2_y, &phi2_x, &mut j_w);
+            warp_image_into(
+                fixed,
+                dims,
+                &buf.phi1_z,
+                &buf.phi1_y,
+                &buf.phi1_x,
+                &mut buf.i_w,
+            );
+            warp_image_into(
+                moving,
+                dims,
+                &buf.phi2_z,
+                &buf.phi2_y,
+                &buf.phi2_x,
+                &mut buf.j_w,
+            );
 
             // Compute gradients (zero alloc)
-            compute_gradient_into(&i_w, dims, spacing, &mut gi_z, &mut gi_y, &mut gi_x);
-            compute_gradient_into(&j_w, dims, spacing, &mut gj_z, &mut gj_y, &mut gj_x);
+            compute_gradient_into(
+                &buf.i_w,
+                dims,
+                spacing,
+                &mut buf.gi_z,
+                &mut buf.gi_y,
+                &mut buf.gi_x,
+            );
+            compute_gradient_into(
+                &buf.j_w,
+                dims,
+                spacing,
+                &mut buf.gj_z,
+                &mut buf.gj_y,
+                &mut buf.gj_x,
+            );
 
             // CC forces (zero alloc)
             cc_forces_into(
-                &i_w, &j_w, &gi_z, &gi_y, &gi_x, dims, r, &mut u1z, &mut u1y, &mut u1x,
+                &buf.i_w,
+                &buf.j_w,
+                &buf.gi_z,
+                &buf.gi_y,
+                &buf.gi_x,
+                dims,
+                r,
+                &mut buf.u1z,
+                &mut buf.u1y,
+                &mut buf.u1x,
             );
             cc_forces_into(
-                &j_w, &i_w, &gj_z, &gj_y, &gj_x, dims, r, &mut u2z, &mut u2y, &mut u2x,
+                &buf.j_w,
+                &buf.i_w,
+                &buf.gj_z,
+                &buf.gj_y,
+                &buf.gj_x,
+                dims,
+                r,
+                &mut buf.u2z,
+                &mut buf.u2y,
+                &mut buf.u2x,
             );
 
-            // Normalise u₁ so max|u₁| = gradient_step
-            let max_u1 = u1z
-                .iter()
-                .chain(u1y.iter())
-                .chain(u1x.iter())
-                .map(|&v| (v as f64).abs())
-                .fold(0.0_f64, f64::max);
-            if max_u1 > 1e-10 {
-                let s = (self.config.gradient_step / max_u1) as f32;
-                u1z.iter_mut().for_each(|v| *v *= s);
-                u1y.iter_mut().for_each(|v| *v *= s);
-                u1x.iter_mut().for_each(|v| *v *= s);
-            }
-
-            // Normalise u₂ so max|u₂| = gradient_step
-            let max_u2 = u2z
-                .iter()
-                .chain(u2y.iter())
-                .chain(u2x.iter())
-                .map(|&v| (v as f64).abs())
-                .fold(0.0_f64, f64::max);
-            if max_u2 > 1e-10 {
-                let s = (self.config.gradient_step / max_u2) as f32;
-                u2z.iter_mut().for_each(|v| *v *= s);
-                u2y.iter_mut().for_each(|v| *v *= s);
-                u2x.iter_mut().for_each(|v| *v *= s);
-            }
+            // Normalise forces so max|u₁| = max|u₂| = gradient_step
+            normalize_forces_into(
+                &mut buf.u1z,
+                &mut buf.u1y,
+                &mut buf.u1x,
+                &mut buf.u2z,
+                &mut buf.u2y,
+                &mut buf.u2x,
+                self.config.gradient_step,
+            );
 
             // Accumulate forces into velocity fields
             for i in 0..n {
-                v1z[i] += u1z[i];
-                v1y[i] += u1y[i];
-                v1x[i] += u1x[i];
-                v2z[i] += u2z[i];
-                v2y[i] += u2y[i];
-                v2x[i] += u2x[i];
+                buf.v1z[i] += buf.u1z[i];
+                buf.v1y[i] += buf.u1y[i];
+                buf.v1x[i] += buf.u1x[i];
+                buf.v2z[i] += buf.u2z[i];
+                buf.v2y[i] += buf.u2y[i];
+                buf.v2x[i] += buf.u2x[i];
             }
 
             // Gaussian smooth (zero alloc with shared scratch)
             if self.config.sigma_smooth > 0.0 {
                 let sigma = self.config.sigma_smooth;
-                gaussian_smooth_with_scratch(&mut v1z, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut v1y, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut v1x, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut v2z, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut v2y, dims, sigma, &mut smooth_tmp);
-                gaussian_smooth_with_scratch(&mut v2x, dims, sigma, &mut smooth_tmp);
+                gaussian_smooth_field_inplace_with_scratch(
+                    &mut buf.v1z,
+                    &mut buf.v1y,
+                    &mut buf.v1x,
+                    dims,
+                    sigma,
+                    &mut buf.smooth_tmp,
+                );
+                gaussian_smooth_field_inplace_with_scratch(
+                    &mut buf.v2z,
+                    &mut buf.v2y,
+                    &mut buf.v2x,
+                    dims,
+                    sigma,
+                    &mut buf.smooth_tmp,
+                );
             }
 
-            final_cc = mean_local_cc(&i_w, &j_w, dims, r);
+            final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
             cc_history.push_back(final_cc);
             if cc_history.len() > self.config.convergence_window {
                 cc_history.pop_front();
@@ -257,39 +268,53 @@ impl SyNRegistration {
 
         // Final displacement fields (zero alloc, reuse scratch)
         scaling_and_squaring_into(
-            &v1z,
-            &v1y,
-            &v1x,
+            &buf.v1z,
+            &buf.v1y,
+            &buf.v1x,
             dims,
             self.config.n_squarings,
-            &mut phi1_z,
-            &mut phi1_y,
-            &mut phi1_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
+            &mut buf.phi1_z,
+            &mut buf.phi1_y,
+            &mut buf.phi1_x,
+            &mut buf.scratch_ss_z,
+            &mut buf.scratch_ss_y,
+            &mut buf.scratch_ss_x,
         );
         scaling_and_squaring_into(
-            &v2z,
-            &v2y,
-            &v2x,
+            &buf.v2z,
+            &buf.v2y,
+            &buf.v2x,
             dims,
             self.config.n_squarings,
-            &mut phi2_z,
-            &mut phi2_y,
-            &mut phi2_x,
-            &mut scratch_ss_z,
-            &mut scratch_ss_y,
-            &mut scratch_ss_x,
+            &mut buf.phi2_z,
+            &mut buf.phi2_y,
+            &mut buf.phi2_x,
+            &mut buf.scratch_ss_z,
+            &mut buf.scratch_ss_y,
+            &mut buf.scratch_ss_x,
         );
-        warp_image_into(fixed, dims, &phi1_z, &phi1_y, &phi1_x, &mut i_w);
-        warp_image_into(moving, dims, &phi2_z, &phi2_y, &phi2_x, &mut j_w);
+        warp_image_into(
+            fixed,
+            dims,
+            &buf.phi1_z,
+            &buf.phi1_y,
+            &buf.phi1_x,
+            &mut buf.i_w,
+        );
+        warp_image_into(
+            moving,
+            dims,
+            &buf.phi2_z,
+            &buf.phi2_y,
+            &buf.phi2_x,
+            &mut buf.j_w,
+        );
 
         Ok(SyNResult {
-            forward_field: (v1z, v1y, v1x),
-            inverse_field: (v2z, v2y, v2x),
-            warped_fixed: i_w,
-            warped_moving: j_w,
+            forward_field: VelocityField::new(buf.v1z, buf.v1y, buf.v1x),
+            inverse_field: VelocityField::new(buf.v2z, buf.v2y, buf.v2x),
+            warped_fixed: buf.i_w,
+            warped_moving: buf.j_w,
             final_cc,
             num_iterations: iter,
         })

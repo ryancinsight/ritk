@@ -2,7 +2,9 @@ use burn::{
     backend::wgpu::{Wgpu, WgpuDevice},
     tensor::{Distribution, Tensor},
 };
-use ritk_model::transmorph::{spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig};
+use ritk_model::transmorph::{
+    spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig, TransformIntegration,
+};
 use std::time::Instant;
 
 fn main() {
@@ -23,7 +25,7 @@ fn run_registration_wgpu() {
     // 1. Configuration
     let config_reg = TransMorphConfig::new(2, 48, 3)
         .with_window_size(4) // Small window for example
-        .with_integrate(false);
+        .with_integration(TransformIntegration::Direct);
 
     println!("Initializing model...");
     let model_reg: TransMorph<Backend> = config_reg.init(&device);

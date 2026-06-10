@@ -18,6 +18,7 @@
 //! - A no-op paint/erase does not create a new undo history entry.
 //! - Out-of-bounds brush centers are rejected before touching the label map.
 
+use ritk_core::annotation::Visibility;
 use ritk_core::annotation::{LabelMap, LabelTable, UndoRedoStack};
 
 const DEFAULT_LABEL_ID: u32 = 1;
@@ -109,7 +110,11 @@ impl LabelEditor {
     }
 
     /// Set label visibility in the current table.
-    pub fn set_label_visibility(&mut self, label_id: u32, visible: bool) -> Result<(), String> {
+    pub fn set_label_visibility(
+        &mut self,
+        label_id: u32,
+        visible: Visibility,
+    ) -> Result<(), String> {
         let mut next = self.current_map().clone();
         if !next.table.set_visibility(label_id, visible) {
             return Err(format!("label id {label_id} is not present"));

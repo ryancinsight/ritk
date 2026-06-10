@@ -27,7 +27,7 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage
     let dims = arc.shape();
     let spacing = *arc.spacing();
     with_tensor_slice(arc.data(), |vals| {
-        let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
+        let filter = GradientMagnitudeFilter::new(spacing);
         py.allow_threads(|| {
             filter
                 .apply_from_slice(vals, dims, arc.as_ref())
@@ -55,7 +55,7 @@ pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         let spacing = image.spacing();
-        let filter = LaplacianFilter::new([spacing[0], spacing[1], spacing[2]]);
+        let filter = LaplacianFilter::new(*spacing);
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -148,7 +148,7 @@ pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         let spacing = image.spacing();
-        let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
+        let filter = SobelFilter::new(*spacing);
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

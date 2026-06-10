@@ -3,7 +3,7 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_model::ssmmorph::SSMMorphConfig;
+use ritk_model::ssmmorph::{IntegrationMode, SSMMorphConfig};
 use ritk_registration::registration::dl_ssm_registration::DiffeomorphicSSMMorph;
 
 type B = Autodiff<NdArray<f32>>;
@@ -22,7 +22,7 @@ fn test_diffeomorphic_ssmmorph_integration() {
     config.encoder.blocks_per_stage = 1;
     config.encoder.in_channels = 2; // Fixed (1) + Moving (1) = 2
                                     // Ensure diffeomorphic integration is enabled
-    config.diffeomorphic = true;
+    config.integration = IntegrationMode::Diffeomorphic;
     config.integration_steps = 5;
 
     // 2. Initialize Model

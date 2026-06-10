@@ -77,13 +77,13 @@ impl Xorshift64 {
     }
 
     /// Return a pseudo-random `f64` in [0, 1).
-    fn next_f64(&mut self) -> f64 {
+    fn sample_unit(&mut self) -> f64 {
         (self.next_u64() >> 11) as f64 / ((1u64 << 53) as f64)
     }
 
     /// Return a pseudo-random index in [0, n).
     fn next_index(&mut self, n: usize) -> usize {
-        (self.next_f64() * n as f64) as usize % n
+        (self.sample_unit() * n as f64) as usize % n
     }
 }
 
@@ -218,7 +218,7 @@ fn kmeans_impl(
             continue;
         }
 
-        let target = rng.next_f64() * total;
+        let target = rng.sample_unit() * total;
         let mut cumulative = 0.0_f64;
         let mut chosen = n - 1;
         for (i, &d) in dist_sq.iter().enumerate() {

@@ -215,7 +215,8 @@ fn grow_region(
     // BFS frontier.
     let mut queue: VecDeque<usize> = VecDeque::with_capacity(1024);
     // Track region voxels for statistics recomputation: stores flat indices.
-    let mut region_voxels: Vec<usize> = Vec::new();
+    // Heuristic: region typically covers a small fraction of the volume.
+    let mut region_voxels: Vec<usize> = Vec::with_capacity(n / 16);
 
     let seed_flat = flat(seed[0], seed[1], seed[2]);
     visited[seed_flat] = true;
@@ -254,7 +255,8 @@ fn grow_region(
         };
 
         // Collect new voxels to add this iteration.
-        let mut new_voxels: Vec<usize> = Vec::new();
+        // Pre-allocate to current frontier size as a reasonable estimate.
+        let mut new_voxels: Vec<usize> = Vec::with_capacity(queue.capacity().min(n / 16));
         // Process BFS queue with current interval criteria.
         let mut _frontier_processed = false;
 

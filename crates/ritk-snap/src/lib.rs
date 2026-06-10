@@ -179,7 +179,7 @@ mod tests {
         let config = ritk_core::filter::BedSeparationConfig {
             body_threshold: -500.0,
             background_threshold: -700.0,
-            keep_largest_component: false,
+            component_policy: ritk_core::filter::ComponentPolicy::All,
             closing_radius: 0,
             opening_radius: 0,
             outside_value: -2048.0,

@@ -1,6 +1,9 @@
 //! Displacement field composition φ₁ ∘ φ₂.
 
-use super::{flat, trilinear_interpolate, VectorField3D, VectorFieldMut3D};
+#[cfg(test)]
+use super::VelocityField;
+use super::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
+use crate::parallel::CellSlice;
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
 ///
@@ -32,10 +35,24 @@ pub(crate) fn compose_fields_into(
         x: out_x,
     } = out;
 
-    for iz in 0..nz {
+    // Parallelize over z-slices: each slice writes to a disjoint contiguous
+    // range in the output buffers; all reads are from immutable inputs.
+    let slice_len = ny * nx;
+    let out_z = CellSlice::from_mut(out_z);
+    let out_y = CellSlice::from_mut(out_y);
+    let out_x = CellSlice::from_mut(out_x);
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        // SAFETY: out_z/out_y/out_x each have length nz*ny*nx and are split
+        // at identical disjoint z-slice boundaries; each thread writes only
+        // to its own [base, base + slice_len) range.
+        let out_z_s = unsafe { out_z.slice_mut(base, slice_len) };
+        let out_y_s = unsafe { out_y.slice_mut(base, slice_len) };
+        let out_x_s = unsafe { out_x.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
+                let local = iy * nx + ix;
+                let fi = base + local;
 
                 // Displaced position x + φ₂(x).
                 let wz = iz as f32 + phi2_z[fi];
@@ -43,12 +60,12 @@ pub(crate) fn compose_fields_into(
                 let wx = ix as f32 + phi2_x[fi];
 
                 // Sample φ₁ at the displaced position.
-                out_z[fi] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
-                out_y[fi] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
-                out_x[fi] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
+                out_z_s[local] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
+                out_y_s[local] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
+                out_x_s[local] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
             }
         }
-    }
+    });
 }
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂`.
@@ -61,7 +78,7 @@ pub(crate) fn compose_fields(
     phi2_y: &[f32],
     phi2_x: &[f32],
     dims: [usize; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 
@@ -88,7 +105,11 @@ pub(crate) fn compose_fields(
         },
     );
 
-    (cz, cy, cx)
+    VelocityField {
+        z: cz,
+        y: cy,
+        x: cx,
+    }
 }
 
 #[cfg(test)]
@@ -105,26 +126,26 @@ mod tests {
         let phix = vec![0.5_f32; n];
         let zero = vec![0.0_f32; n];
 
-        let (cz, cy, cx) = compose_fields(&phiz, &phiy, &phix, &zero, &zero, &zero, dims);
+        let comp = compose_fields(&phiz, &phiy, &phix, &zero, &zero, &zero, dims);
 
         for i in 0..n {
             assert!(
-                (cz[i] - phiz[i]).abs() < 1e-4,
+                (comp.z[i] - phiz[i]).abs() < 1e-4,
                 "cz[{i}]: expected {}, got {}",
                 phiz[i],
-                cz[i]
+                comp.z[i]
             );
             assert!(
-                (cy[i] - phiy[i]).abs() < 1e-4,
+                (comp.y[i] - phiy[i]).abs() < 1e-4,
                 "cy[{i}]: expected {}, got {}",
                 phiy[i],
-                cy[i]
+                comp.y[i]
             );
             assert!(
-                (cx[i] - phix[i]).abs() < 1e-4,
+                (comp.x[i] - phix[i]).abs() < 1e-4,
                 "cx[{i}]: expected {}, got {}",
                 phix[i],
-                cx[i]
+                comp.x[i]
             );
         }
     }
@@ -137,24 +158,12 @@ mod tests {
         let phi: Vec<f32> = (0..n).map(|i| i as f32 * 0.01).collect();
         let zero = vec![0.0_f32; n];
 
-        let (cz, cy, cx) = compose_fields(&zero, &zero, &zero, &phi, &phi, &phi, dims);
+        let comp = compose_fields(&zero, &zero, &zero, &phi, &phi, &phi, dims);
 
-        for i in 0..n {
-            assert!(
-                (cz[i] - phi[i]).abs() < 1e-4,
-                "cz[{i}]: expected {}",
-                phi[i]
-            );
-            assert!(
-                (cy[i] - phi[i]).abs() < 1e-4,
-                "cy[{i}]: expected {}",
-                phi[i]
-            );
-            assert!(
-                (cx[i] - phi[i]).abs() < 1e-4,
-                "cx[{i}]: expected {}",
-                phi[i]
-            );
+        for (i, p) in phi.iter().copied().enumerate() {
+            assert!((comp.z[i] - p).abs() < 1e-4, "cz[{i}]: expected {p}");
+            assert!((comp.y[i] - p).abs() < 1e-4, "cy[{i}]: expected {p}");
+            assert!((comp.x[i] - p).abs() < 1e-4, "cx[{i}]: expected {p}");
         }
     }
 }

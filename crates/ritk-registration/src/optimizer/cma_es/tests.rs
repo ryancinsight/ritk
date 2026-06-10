@@ -131,7 +131,7 @@ fn test_seed_reproducibility() {
         sigma0: 0.75,
         max_generations: 40,
         seed: 12345,
-        record_history: true,
+        record_history: HistoryPolicy::Record,
         ..Default::default()
     };
 

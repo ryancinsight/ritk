@@ -36,11 +36,20 @@ pub(crate) fn accumulate_sample_direct(hist: &mut [f32], num_bins: usize, window
     let f_lo_u = window.f_range().lo as usize; // PERF-327-02: hoisted
     let m_lo_u = window.m_range().lo as usize; // PERF-327-02: hoisted
     let inv_norm = window.inv_sum_f() * window.inv_sum_m(); // PERF-328-01
-                                                            // The `hist[idx] += w_f * w_m * inv_norm` form is the canonical FMA
-                                                            // pattern that LLVM auto-fuses into `vfmadd231ps` on AVX2 (PERF-329-02
-                                                            // docs). Explicit `mul_add` form with hoisted `w_f * inv_norm` was
-                                                            // benchmarked to be ~8% slower (less register-efficient for the
-                                                            // 7-outer / 7-inner loop), so the original form is retained.
+                                                            // FIX-PROP-NAN-355: skip the sample when `inv_norm` is non-finite
+                                                            // (e.g. `+inf * 0.0 = NaN` or `+inf * +inf = +inf`). The contribution
+                                                            // is effectively zero for a fully out-of-support sample, and propagating
+                                                            // NaN poisons every downstream histogram bin and the entropy
+                                                            // computation in `metric::entropy::entropy`. Branch is predicted
+                                                            // never-taken in the hot loop, so it costs ~0 cycles in normal use.
+    if !inv_norm.is_finite() {
+        return;
+    }
+    // The `hist[idx] += w_f * w_m * inv_norm` form is the canonical FMA
+    // pattern that LLVM auto-fuses into `vfmadd231ps` on AVX2 (PERF-329-02
+    // docs). Explicit `mul_add` form with hoisted `w_f * inv_norm` was
+    // benchmarked to be ~8% slower (less register-efficient for the
+    // 7-outer / 7-inner loop), so the original form is retained.
     for (fi, w_f) in window.f_weights.iter() {
         let row_base = (f_lo_u + fi) * num_bins;
         for (mj, w_m) in window.m_weights.iter() {

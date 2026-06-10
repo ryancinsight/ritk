@@ -1,7 +1,7 @@
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 use crate::metric::{MutualInformationVariant, NormalizationMethod};
-use crate::optimizer::StopReason;
+use crate::optimizer::{HistoryPolicy, PopulationEval, StopReason};
 
 use super::super::config::GlobalMiConfig;
 
@@ -60,6 +60,17 @@ impl CmaMiLevelConfig {
 
 // ── Main config ───────────────────────────────────────────────────────────────
 
+/// Center-of-mass pre-alignment strategy for CMA-ES registration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InitStrategy {
+    /// Automatically compute a center-of-mass translation for pre-alignment (default).
+    /// Note: unreliable for CT↔MRI T1 (HU vs T1 signal). Use `Manual` for cross-modal.
+    #[default]
+    CenterOfMass,
+    /// Skip automatic pre-alignment; use the provided initial transform or identity.
+    Manual,
+}
+
 /// Configuration for the CMA-ES → RSGD cascade registration pipeline.
 ///
 /// Tune `coarse_shrink` first: a factor of 8 on a typical 256³ brain image
@@ -105,13 +116,12 @@ pub struct CmaMiConfig {
     /// Default: **None** (CMA-ES result used directly).
     pub rsgd_refine: Option<GlobalMiConfig>,
 
-    /// When `true` and `initial_translation` is `None`, automatically compute
-    /// a center-of-mass translation to pre-align the images. Default: **true**.
+    /// Center-of-mass pre-alignment strategy. Default: [`InitStrategy::CenterOfMass`].
     ///
     /// Note: CoM initialisation is unreliable for CT↔MRI T1 because HU
     /// densities are bone-dominated while T1 reflects tissue water content.
-    /// Set `false` for cross-modal registration.
-    pub use_com_init: bool,
+    /// Use [`InitStrategy::Manual`] for cross-modal registration.
+    pub init_strategy: InitStrategy,
 
     /// Per-axis shrink factors `[sz, sy, sx]` for the single-level CMA-ES
     /// pyramid. Overrides `coarse_shrink` when `Some`. Used only when
@@ -161,8 +171,8 @@ impl Default for CmaMiConfig {
                 // terminates via max_generations or sigma_tol instead.
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
-                parallel_population: true,
-                record_history: false,
+                parallel_population: PopulationEval::Parallel,
+                record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 8,
             coarse_sigma_mm: 4.0,
@@ -171,7 +181,7 @@ impl Default for CmaMiConfig {
             translation_range_mm: 60.0,
             rotation_range_rad: std::f64::consts::FRAC_PI_4,
             rsgd_refine: None,
-            use_com_init: true,
+            init_strategy: InitStrategy::CenterOfMass,
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
@@ -189,7 +199,7 @@ impl CmaMiConfig {
     ///   images; each MI evaluation ≈ 5 ms in release.
     /// - `sampling_percentage = 0.30`: ~4,900 samples at shrink=8 (4.8/bin).
     /// - `sigma0 = 0.7`: covers ~42 mm from the 60 mm search range.
-    /// - `use_com_init = false`: CoM is unreliable for CT/MRI (HU vs T1).
+    /// - `init_strategy = Manual`: CoM is unreliable for CT/MRI (HU vs T1).
     /// - `mi_variant = Normalized(AverageEntropy)`: 2·MI/(H(X)+H(Y)) is immune
     ///   to the OOB zero-pad artefact that inflates JointEntropy NMI when the
     ///   transform maps many voxels outside the moving image field of view.
@@ -202,8 +212,8 @@ impl CmaMiConfig {
                 sigma_tol: 1e-8,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
-                parallel_population: true,
-                record_history: false,
+                parallel_population: PopulationEval::Parallel,
+                record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 8,
             coarse_sigma_mm: 4.0,
@@ -212,7 +222,7 @@ impl CmaMiConfig {
             translation_range_mm: 60.0,
             rotation_range_rad: std::f64::consts::FRAC_PI_4,
             rsgd_refine: None,
-            use_com_init: false,
+            init_strategy: InitStrategy::Manual,
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
@@ -234,8 +244,8 @@ impl CmaMiConfig {
                 sigma_tol: 1e-6,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
-                parallel_population: true,
-                record_history: false,
+                parallel_population: PopulationEval::Parallel,
+                record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 16,
             coarse_sigma_mm: 8.0,
@@ -244,7 +254,7 @@ impl CmaMiConfig {
             translation_range_mm: 100.0,
             rotation_range_rad: std::f64::consts::FRAC_PI_2,
             rsgd_refine: None,
-            use_com_init: false,
+            init_strategy: InitStrategy::Manual,
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
@@ -298,8 +308,8 @@ impl CmaMiConfig {
                 sigma_tol: 1e-8,
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
-                parallel_population: true,
-                record_history: false,
+                parallel_population: PopulationEval::Parallel,
+                record_history: HistoryPolicy::Discard,
             },
             coarse_shrink: 8,     // unused when pyramid_schedule is non-empty
             coarse_sigma_mm: 4.0, // unused when pyramid_schedule is non-empty
@@ -308,7 +318,7 @@ impl CmaMiConfig {
             translation_range_mm: 60.0,
             rotation_range_rad: std::f64::consts::FRAC_PI_4,
             rsgd_refine: None,
-            use_com_init: false,
+            init_strategy: InitStrategy::Manual,
             shrink_per_axis: None,
             ipop_restarts: 0,
             // AverageEntropy NMI = 2·MI/(H(X)+H(Y)) is immune to the OOB zero-pad

@@ -3,6 +3,7 @@
 use super::super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::super::registration::GlobalMiRegistration;
 use crate::optimizer::RegularStepGdConfig;
+use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::tensor::Tensor;
 use ritk_core::transform::TranslationTransform;
 
@@ -93,8 +94,8 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
-            parallel_population: false,
-            record_history: false,
+            parallel_population: PopulationEval::Sequential,
+            record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 4,
         coarse_sigma_mm: 2.0,
@@ -122,7 +123,7 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
 fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
     // A mask covering only the central 4×4×4 voxels of an 8×8×8 volume.
     // The masked MI should still converge (fewer samples — faster).
-    use super::super::cma_mi::{CmaMiConfig, CmaMiRegistration};
+    use super::super::cma_mi::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
     let device = Default::default();
     let shape = [8, 8, 8];
@@ -140,13 +141,13 @@ fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 42,
-            parallel_population: false,
-            record_history: false,
+            parallel_population: PopulationEval::Sequential,
+            record_history: HistoryPolicy::Discard,
         },
         coarse_shrink: 2, // mild shrink so 8×8×8 → 4×4×4 (mask still has foreground)
         coarse_sigma_mm: 1.0,
         sampling_percentage: 1.0, // use all foreground
-        use_com_init: false,
+        init_strategy: InitStrategy::Manual,
         ..CmaMiConfig::default()
     };
 

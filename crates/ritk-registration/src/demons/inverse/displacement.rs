@@ -20,7 +20,9 @@
 //! - Christensen, G. E. & Johnson, H. J. (2001). Consistent image registration.
 //!   *IEEE Trans. Med. Imaging* 20(7):568–582.
 
-use crate::deformable_field_ops::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
+use crate::deformable_field_ops::{
+    trilinear_interpolate, VectorField3D, VectorFieldMut3D, VelocityField,
+};
 
 /// Configuration for iterative inverse computation (used for non-SVF fields).
 ///
@@ -52,14 +54,14 @@ impl Default for InverseFieldConfig {
 /// Compute an approximate inverse of a general displacement field using
 /// fixed-point iteration (Christensen & Johnson 2001).
 ///
-/// Returns `(inv_z, inv_y, inv_x, num_iterations_performed)`.
+/// Returns `(VelocityField, num_iterations_performed)`.
 pub fn invert_displacement_field(
     disp_z: &[f32],
     disp_y: &[f32],
     disp_x: &[f32],
     dims: [usize; 3],
     config: &InverseFieldConfig,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>, usize) {
+) -> (VelocityField, usize) {
     let n = dims[0] * dims[1] * dims[2];
 
     let mut inv_z: Vec<f32> = disp_z.iter().map(|&v| -v).collect();
@@ -112,7 +114,14 @@ pub fn invert_displacement_field(
         }
     }
 
-    (inv_z, inv_y, inv_x, iters)
+    (
+        VelocityField {
+            z: inv_z,
+            y: inv_y,
+            x: inv_x,
+        },
+        iters,
+    )
 }
 
 /// Warp a displacement field by a query displacement field via trilinear

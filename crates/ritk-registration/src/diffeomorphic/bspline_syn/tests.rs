@@ -221,7 +221,7 @@ fn bspline_registration_non_divergence() {
     // Velocity fields must have non-trivial x-magnitude.
     let fwd_rms_x: f64 = (result
         .forward_field
-        .2
+        .x
         .iter()
         .map(|&v| (v as f64).powi(2))
         .sum::<f64>()
@@ -229,7 +229,7 @@ fn bspline_registration_non_divergence() {
         .sqrt();
     let inv_rms_x: f64 = (result
         .inverse_field
-        .2
+        .x
         .iter()
         .map(|&v| (v as f64).powi(2))
         .sum::<f64>()
@@ -250,13 +250,13 @@ fn bspline_registration_non_divergence() {
     // All field values must be finite.
     for &v in result
         .forward_field
-        .0
+        .z
         .iter()
-        .chain(result.forward_field.1.iter())
-        .chain(result.forward_field.2.iter())
-        .chain(result.inverse_field.0.iter())
-        .chain(result.inverse_field.1.iter())
-        .chain(result.inverse_field.2.iter())
+        .chain(result.forward_field.y.iter())
+        .chain(result.forward_field.x.iter())
+        .chain(result.inverse_field.z.iter())
+        .chain(result.inverse_field.y.iter())
+        .chain(result.inverse_field.x.iter())
     {
         assert!(v.is_finite(), "field contains non-finite value: {v}");
     }
@@ -279,7 +279,7 @@ fn bspline_field_smoothness() {
         .unwrap();
 
     // Compute discrete Laplacian of the dense forward x-field.
-    let vx = &result.forward_field.2;
+    let vx = &result.forward_field.x;
     let [nz, ny, nx] = dims;
     let mut lap_ss = 0.0_f64;
     let mut field_ss = 0.0_f64;

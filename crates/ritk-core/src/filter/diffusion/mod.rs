@@ -8,4 +8,7 @@ pub use coherence::{CoherenceConfig, CoherenceEnhancingDiffusionFilter};
 pub use curvature::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
 pub use curvature_flow::{CurvatureFlowConfig, CurvatureFlowImageFilter};
 pub use gradient_anisotropic::{GradientAnisotropicDiffusionFilter, GradientDiffusionConfig};
-pub use perona_malik::{AnisotropicDiffusionFilter, ConductanceFunction, DiffusionConfig};
+pub use perona_malik::{
+    AnisotropicDiffusionFilter, ConductanceFunction, ConductanceKernel, DiffusionConfig,
+    ExponentialConductance, QuadraticConductance,
+};

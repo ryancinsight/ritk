@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::vesselness::{FrangiConfig, SatoConfig};
+use ritk_core::filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
 use ritk_core::filter::{FrangiVesselnessFilter, SatoLineFilter};
 
 /// Apply the Frangi multiscale vesselness filter.
@@ -43,7 +43,11 @@ pub fn frangi_vesselness(
             alpha,
             beta,
             gamma,
-            bright_vessels,
+            polarity: if bright_vessels {
+                VesselPolarity::Bright
+            } else {
+                VesselPolarity::Dark
+            },
         };
         let filter = FrangiVesselnessFilter::new(config);
         filter
@@ -83,7 +87,11 @@ pub fn sato_line_filter(
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
             alpha,
-            bright_tubes,
+            polarity: if bright_tubes {
+                VesselPolarity::Bright
+            } else {
+                VesselPolarity::Dark
+            },
         });
         filter
             .apply(image.as_ref())

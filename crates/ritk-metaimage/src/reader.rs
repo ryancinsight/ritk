@@ -8,6 +8,13 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
+/// Byte order for multi-byte pixel data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ByteOrder {
+    MostSignificantByteFirst,
+    LeastSignificantByteFirst,
+}
+
 /// Read a MetaImage (.mha or .mhd) file into a 3-D `Image`.
 ///
 /// # Axis convention
@@ -132,10 +139,15 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         .clone();
 
     // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
-    let msb = headers
+    let byte_order = if headers
         .get("BinaryDataByteOrderMSB")
         .map(|s| s.to_uppercase() == "TRUE")
-        .unwrap_or(false);
+        .unwrap_or(false)
+    {
+        ByteOrder::MostSignificantByteFirst
+    } else {
+        ByteOrder::LeastSignificantByteFirst
+    };
 
     let element_data_file = headers
         .get("ElementDataFile")
@@ -156,7 +168,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
         reader
             .read_to_end(&mut raw_bytes)
             .context("Failed to read binary voxel data from .mha file")?;
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, msb)?
+        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
     } else {
         // External .raw file: resolve relative to the header file's directory.
         let raw_path = path
@@ -165,7 +177,7 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
             .join(&element_data_file);
         let raw_bytes = std::fs::read(&raw_path)
             .with_context(|| format!("Cannot read raw data file {:?}", raw_path))?;
-        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, msb)?
+        decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
     };
 
     if f32_data.len() != total_voxels {
@@ -210,7 +222,7 @@ fn decode_bytes_to_f32(
     bytes: &[u8],
     element_type: &str,
     count: usize,
-    msb: bool,
+    byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
     match element_type {
         "MET_UCHAR" => {
@@ -224,7 +236,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         i16::from_be_bytes(b)
                     } else {
                         i16::from_le_bytes(b)
@@ -239,7 +251,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         u16::from_be_bytes(b)
                     } else {
                         u16::from_le_bytes(b)
@@ -254,7 +266,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         i32::from_be_bytes(b)
                     } else {
                         i32::from_le_bytes(b)
@@ -269,7 +281,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         u32::from_be_bytes(b)
                     } else {
                         u32::from_le_bytes(b)
@@ -284,7 +296,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    if msb {
+                    if byte_order == ByteOrder::MostSignificantByteFirst {
                         f32::from_be_bytes(b)
                     } else {
                         f32::from_le_bytes(b)
@@ -299,7 +311,7 @@ fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         f64::from_be_bytes(b)
                     } else {
                         f64::from_le_bytes(b)

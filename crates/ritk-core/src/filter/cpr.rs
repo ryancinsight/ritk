@@ -241,12 +241,12 @@ impl CprImageFilter {
         let cs_step = if num_cross > 1 {
             2.0 * half_width / (num_cross - 1) as f64
         } else {
-            0.0
+            1.0 // degenerate 1-sample cross-section: use dummy spacing
         };
         let path_step = if num_path > 1 {
             total_length / (num_path - 1) as f64
         } else {
-            0.0
+            1.0 // degenerate 1-sample path: use dummy spacing
         };
 
         Ok(Image::new(

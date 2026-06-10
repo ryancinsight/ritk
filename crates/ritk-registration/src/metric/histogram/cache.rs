@@ -1,8 +1,88 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+/// Collect exactly 3 elements from an iterator into `[f64; 3]`.
+///
+/// Panics if fewer than 3 elements are available.
+pub(crate) fn collect_vec_3(iter: impl Iterator<Item = f64>) -> [f64; 3] {
+    let mut arr = [0.0; 3];
+    for (i, v) in iter.take(3).enumerate() {
+        arr[i] = v;
+    }
+    arr
+}
+
+/// Collect exactly 9 elements from an iterator into `[f64; 9]`.
+///
+/// Panics if fewer than 9 elements are available.
+pub(crate) fn collect_vec_9(iter: impl Iterator<Item = f64>) -> [f64; 9] {
+    let mut arr = [0.0; 9];
+    for (i, v) in iter.take(9).enumerate() {
+        arr[i] = v;
+    }
+    arr
+}
+
 #[cfg(feature = "direct-parzen")]
 use super::parzen::direct::SparseWFixedT;
+
+/// Cache entry for the per-`MutualInformation` W_fixed^T reuse (350-P1-03).
+///
+/// Stores the precomputed Parzen weight matrix `W_fixed^T [num_bins, N]` keyed
+/// on the fixed image's spatial fingerprint (shape, origin, spacing, direction)
+/// and the point count `n`. Subsequent `forward_with_cache` calls with the same
+/// (fingerprint, n) pair reuse the cached `W_fixed^T` instead of recomputing
+/// the O(N × num_bins) Parzen weight matrix every iteration.
+///
+/// This is the public cache exposed via
+/// `ParzenJointHistogram::compute_image_joint_histogram_with_w_fixed`. The
+/// internal `HistogramCache` (private to `parzen::compute_image`) is the build
+/// site; `WFixedCache` is the lightweight struct `MutualInformation` owns for
+/// cross-call state.
+#[derive(Debug)]
+pub(crate) struct WFixedCache<B: Backend> {
+    /// Fixed image shape (cloned from `fixed.shape()` at first build).
+    pub shape: Vec<usize>,
+    /// Fixed image origin `[3]` (stack-allocated to avoid heap for 24 bytes).
+    pub origin: [f64; 3],
+    /// Fixed image spacing `[3]`.
+    pub spacing: [f64; 3],
+    /// Fixed image direction `[9]` (column-major 3×3 matrix, flattened).
+    pub direction: [f64; 9],
+    /// Number of points `N` in the W_fixed^T matrix.
+    pub n: usize,
+    /// Cached W_fixed^T `[num_bins, N]`.
+    pub w_fixed_t: Tensor<B, 2>,
+}
+
+impl<B: Backend> WFixedCache<B> {
+    /// Build a `WFixedCache` from a fixed image and its computed W_fixed^T.
+    pub fn from_image<const D: usize>(
+        fixed: &ritk_core::image::Image<B, D>,
+        n: usize,
+        w_fixed_t: Tensor<B, 2>,
+    ) -> Self {
+        Self {
+            shape: fixed.shape().to_vec(),
+            origin: collect_vec_3(fixed.origin().0.iter().copied()),
+            spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
+            direction: collect_vec_9(fixed.direction().0.iter().copied()),
+            n,
+            w_fixed_t,
+        }
+    }
+
+    /// Return `true` iff this cache entry matches the given fixed image and
+    /// point count. Used by `MutualInformation` to detect cache hits without
+    /// re-running the full `cache_matches_image` flow.
+    pub fn matches<const D: usize>(&self, fixed: &ritk_core::image::Image<B, D>, n: usize) -> bool {
+        self.n == n
+            && self.shape.as_slice() == fixed.shape()
+            && self.origin.iter().eq(fixed.origin().0.iter())
+            && self.spacing.iter().eq(fixed.spacing().0.iter())
+            && self.direction.iter().eq(fixed.direction().0.iter())
+    }
+}
 
 /// Trait for cache entries that can lazily build a sparse W_fixed^T representation.
 ///
@@ -95,9 +175,9 @@ pub(crate) struct HistogramCache<B: Backend> {
     pub fixed_norm: Option<Vec<f32>>,
 
     pub shape: Vec<usize>,
-    pub origin: Vec<f64>,
-    pub spacing: Vec<f64>,
-    pub direction: Vec<f64>,
+    pub origin: [f64; 3],
+    pub spacing: [f64; 3],
+    pub direction: [f64; 9],
 }
 
 /// Cache for the masked joint histogram path.
@@ -187,4 +267,121 @@ impl<B: Backend> SparseWFixedCache for MaskedHistogramCache<B> {
     fn take_fixed_norm(&mut self) -> Option<Vec<f32>> {
         self.fixed_norm.take()
     }
+}
+
+// ============================================================================
+// Cache constructors (Sprint 354, DRY-354-03)
+// ============================================================================
+//
+// The `HistogramCache` and `MaskedHistogramCache` structs have fields gated by
+// `#[cfg(feature = "direct-parzen")]` (`sparse_w_fixed`, `fixed_norm`,
+// `data_fingerprint`). A single function cannot construct both variants because
+// the struct literal would fail to compile in one cfg or the other. We provide
+// two cfg-gated overloads of `make_cache` and `make_masked_cache` that share
+// the same call signature, so the caller in `compute_image.rs` /
+// `masked/mod.rs` does not need to duplicate surrounding logic under both cfgs.
+//
+// The sparse cache (`sparse_w_fixed`) is **not** built here — it is constructed
+// lazily by `get_cached_sparse_w_fixed` / `get_masked_cached_sparse_w_fixed` on
+// first access from `fixed_norm`. This reduces peak memory on the initial
+// cache-miss.
+
+/// Construct a `HistogramCache` with dense representation and normalized fixed values.
+///
+/// `fixed_norm` carries the normalized `[0, num_bins - 1]` values used to
+/// lazily build the sparse W_fixed^T on first access. When the
+/// `direct-parzen` feature is off, this parameter must be `None::<()>`.
+#[cfg(feature = "direct-parzen")]
+#[allow(dead_code)]
+pub(crate) fn make_cache<B: Backend, const D: usize>(
+    points: Tensor<B, 2>,
+    w_fixed_transposed: Tensor<B, 2>,
+    fixed: &ritk_core::image::Image<B, D>,
+    fixed_norm: Option<Vec<f32>>,
+) -> HistogramCache<B> {
+    HistogramCache {
+        points,
+        w_fixed_transposed: Some(w_fixed_transposed),
+        sparse_w_fixed: None,
+        fixed_norm,
+        shape: fixed.shape().to_vec(),
+        origin: collect_vec_3(fixed.origin().0.iter().copied()),
+        spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
+        direction: collect_vec_9(fixed.direction().0.iter().copied()),
+    }
+}
+
+/// Construct a `HistogramCache` with only the dense representation
+/// (non-`direct-parzen` overload).
+#[cfg(not(feature = "direct-parzen"))]
+pub(crate) fn make_cache<B: Backend, const D: usize>(
+    points: Tensor<B, 2>,
+    w_fixed_transposed: Tensor<B, 2>,
+    fixed: &ritk_core::image::Image<B, D>,
+    _fixed_norm: Option<()>,
+) -> HistogramCache<B> {
+    HistogramCache {
+        points,
+        w_fixed_transposed: Some(w_fixed_transposed),
+        shape: fixed.shape().to_vec(),
+        origin: collect_vec_3(fixed.origin().0.iter().copied()),
+        spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
+        direction: collect_vec_9(fixed.direction().0.iter().copied()),
+    }
+}
+
+/// Construct a `MaskedHistogramCache` with dense representation and normalized
+/// fixed values. When `fixed_norm` is `Some`, a `data_fingerprint` is computed
+/// from the values and stored for collision detection.
+#[cfg(feature = "direct-parzen")]
+#[allow(dead_code)]
+pub(crate) fn make_masked_cache<B: Backend>(
+    cache_key: u64,
+    w_fixed_transposed: Tensor<B, 2>,
+    n: usize,
+    fixed_norm: Option<Vec<f32>>,
+) -> MaskedHistogramCache<B> {
+    let data_fingerprint = fixed_norm.as_ref().map(|v| compute_fingerprint(v));
+    MaskedHistogramCache {
+        cache_key,
+        w_fixed_transposed: Some(w_fixed_transposed),
+        sparse_w_fixed: None,
+        fixed_norm,
+        n,
+        data_fingerprint,
+    }
+}
+
+/// Construct a `MaskedHistogramCache` with only the dense representation
+/// (non-`direct-parzen` overload).
+#[cfg(not(feature = "direct-parzen"))]
+pub(crate) fn make_masked_cache<B: Backend>(
+    cache_key: u64,
+    w_fixed_transposed: Tensor<B, 2>,
+    n: usize,
+    _fixed_norm: Option<()>,
+) -> MaskedHistogramCache<B> {
+    MaskedHistogramCache {
+        cache_key,
+        w_fixed_transposed: Some(w_fixed_transposed),
+        n,
+        data_fingerprint: None,
+    }
+}
+
+/// Compute a SipHash-1-3 fingerprint from normalized fixed-image values.
+///
+/// Uses `to_bits()` to convert each `f32` to a `u32` before hashing,
+/// providing deterministic hashing (NaN is not expected in normalized data).
+#[cfg(feature = "direct-parzen")]
+#[allow(dead_code)]
+fn compute_fingerprint(fixed_norm: &[f32]) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    for &v in fixed_norm {
+        v.to_bits().hash(&mut hasher);
+    }
+    hasher.finish()
 }

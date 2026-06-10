@@ -7,7 +7,7 @@
 //! pre-allocated scratch set (8n + 3 per-step reuse).
 
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_with_scratch, warp_image_into,
+    compute_gradient_into, gaussian_smooth_field_inplace_with_scratch, warp_image_into,
 };
 use crate::error::RegistrationError;
 
@@ -139,6 +139,7 @@ impl LddmmRegistration {
             );
             warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
 
+            // ACCUMULATOR: f64 — sum over n voxels; f32 would lose precision.
             let mse: f64 = warped
                 .iter()
                 .zip(fixed.iter())
@@ -168,9 +169,14 @@ impl LddmmRegistration {
                 bf_y[i] = residual * gw_y[i];
                 bf_x[i] = residual * gw_x[i];
             }
-            gaussian_smooth_with_scratch(&mut bf_z, dims, cfg.kernel_sigma, &mut smooth_tmp);
-            gaussian_smooth_with_scratch(&mut bf_y, dims, cfg.kernel_sigma, &mut smooth_tmp);
-            gaussian_smooth_with_scratch(&mut bf_x, dims, cfg.kernel_sigma, &mut smooth_tmp);
+            gaussian_smooth_field_inplace_with_scratch(
+                &mut bf_z,
+                &mut bf_y,
+                &mut bf_x,
+                dims,
+                cfg.kernel_sigma,
+                &mut smooth_tmp,
+            );
 
             for i in 0..n {
                 v0z[i] -= lr * (2.0 * lam * v0z[i] + bf_z[i]);
@@ -206,6 +212,7 @@ impl LddmmRegistration {
             &mut gs_comp_x,
         );
         warp_image_into(moving, dims, &dz, &dy, &dx, &mut warped);
+        // ACCUMULATOR: f64 — sum over n voxels; f32 would lose precision.
         let final_mse: f64 = warped
             .iter()
             .zip(fixed.iter())

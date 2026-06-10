@@ -5,7 +5,7 @@
 //! Grayscale morphology extends binary morphology to scalar-valued images by
 //! replacing set union/intersection with max/min over a structuring element B:
 //!
-//! - **Erosion**:  `(E_B f)(x) = min_{b ∈ B} f(x + b)`
+//! - **Erosion**: `(E_B f)(x) = min_{b ∈ B} f(x + b)`
 //! - **Dilation**: `(D_B f)(x) = max_{b ∈ B} f(x - b)`
 //!
 //! The structuring element used here is a cubic neighbourhood of half-width
@@ -14,8 +14,8 @@
 //!
 //! # Derived Operations
 //!
-//! - **Opening**:  `O_B = D_B ∘ E_B` — removes bright features smaller than B.
-//! - **Closing**:  `C_B = E_B ∘ D_B` — removes dark features smaller than B.
+//! - **Opening**: `O_B = D_B ∘ E_B` — removes bright features smaller than B.
+//! - **Closing**: `C_B = E_B ∘ D_B` — removes dark features smaller than B.
 //!
 //! # Complexity
 //!
@@ -72,10 +72,12 @@ pub mod morphological_laplace;
 pub use morphological_laplace::MorphologicalLaplacian;
 
 pub mod binary_contour;
+pub mod connectivity;
 pub mod label_contour;
 pub mod voting_binary;
 
 pub use binary_contour::BinaryContourImageFilter;
+pub use connectivity::Connectivity;
 pub use label_contour::LabelContourImageFilter;
 pub use voting_binary::VotingBinaryImageFilter;
 

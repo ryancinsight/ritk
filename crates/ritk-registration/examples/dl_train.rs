@@ -16,7 +16,10 @@ use ritk_core::{
 use ritk_model::{
     affine::{AffineNetwork, AffineNetworkConfig, AffineTransform},
     io::adapter::images_to_batch,
-    transmorph::{spatial_transform::SpatialTransformer, TransMorph, TransMorphConfig},
+    transmorph::{
+        config::TransformIntegration, spatial_transform::SpatialTransformer, TransMorph,
+        TransMorphConfig,
+    },
 };
 use ritk_registration::registration::dl_registration_loss::{
     GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss,
@@ -42,7 +45,7 @@ impl<B: Backend> CombinedModel<B> {
             embed_dim: 48,
             out_channels: 3,
             window_size: 4,
-            integrate: true,
+            integration: TransformIntegration::Integrated,
             integration_steps: 5,
         };
         let transmorph = transmorph_config.init(device);

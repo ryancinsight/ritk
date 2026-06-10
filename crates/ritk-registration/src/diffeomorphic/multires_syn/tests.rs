@@ -1,6 +1,6 @@
 use super::super::local_cc::{cc_forces, mean_local_cc};
 use super::pyramid::{downsample, upsample_field};
-use super::{MultiResSyNConfig, MultiResSyNRegistration};
+use super::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};
 
 /// `I[z,y,x] = sin(π·z/nz) · cos(π·y/ny) · (x + 1)`.
 /// Analytically non-trivial gradients in all three axes.
@@ -41,7 +41,11 @@ fn make_config(num_levels: usize, iters: Vec<usize>, ic: bool) -> MultiResSyNCon
         n_squarings: 6,
         cc_window_radius: 2,
         gradient_step: 0.25,
-        enforce_inverse_consistency: ic,
+        enforce_inverse_consistency: if ic {
+            InverseConsistency::Enforced
+        } else {
+            InverseConsistency::Relaxed
+        },
     }
 }
 
@@ -118,8 +122,8 @@ fn multires_registration_non_divergence() {
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()
     };
-    let fwd_x = rms(&result.forward_field.2);
-    let inv_x = rms(&result.inverse_field.2);
+    let fwd_x = rms(&result.forward_field.x);
+    let inv_x = rms(&result.inverse_field.x);
     assert!(
         fwd_x > 0.001 || inv_x > 0.001,
         "x-field must be non-trivial: fwd={fwd_x:.6} inv={inv_x:.6}"
@@ -131,13 +135,13 @@ fn multires_registration_non_divergence() {
     );
     for &v in result
         .forward_field
-        .0
+        .z
         .iter()
-        .chain(result.forward_field.1.iter())
-        .chain(result.forward_field.2.iter())
-        .chain(result.inverse_field.0.iter())
-        .chain(result.inverse_field.1.iter())
-        .chain(result.inverse_field.2.iter())
+        .chain(result.forward_field.y.iter())
+        .chain(result.forward_field.x.iter())
+        .chain(result.inverse_field.z.iter())
+        .chain(result.inverse_field.y.iter())
+        .chain(result.inverse_field.x.iter())
     {
         assert!(v.is_finite(), "non-finite value: {v}");
     }
@@ -155,13 +159,13 @@ fn inverse_consistency_produces_finite_fields() {
         .unwrap();
     for &v in result
         .forward_field
-        .0
+        .z
         .iter()
-        .chain(result.forward_field.1.iter())
-        .chain(result.forward_field.2.iter())
-        .chain(result.inverse_field.0.iter())
-        .chain(result.inverse_field.1.iter())
-        .chain(result.inverse_field.2.iter())
+        .chain(result.forward_field.y.iter())
+        .chain(result.forward_field.x.iter())
+        .chain(result.inverse_field.z.iter())
+        .chain(result.inverse_field.y.iter())
+        .chain(result.inverse_field.x.iter())
     {
         assert!(v.is_finite(), "IC field non-finite: {v}");
     }
@@ -243,8 +247,8 @@ fn cc_forces_identical_images_bounded() {
     let dims = [6, 6, 6];
     let n = 216;
     let image = make_test_image(dims);
-    let (gz, gy, gx) = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
-    let (fz, fy, fx) = cc_forces(&image, &image, &gz, &gy, &gx, dims, 1);
+    let grad = crate::deformable_field_ops::compute_gradient(&image, dims, [1.0, 1.0, 1.0]);
+    let (fz, fy, fx) = cc_forces(&image, &image, &grad.z, &grad.y, &grad.x, dims, 1);
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()
     };
@@ -271,13 +275,13 @@ fn single_level_cow_borrowed_produces_valid_displacement() {
     // All displacement field components must be finite
     for &v in result
         .forward_field
-        .0
+        .z
         .iter()
-        .chain(result.forward_field.1.iter())
-        .chain(result.forward_field.2.iter())
-        .chain(result.inverse_field.0.iter())
-        .chain(result.inverse_field.1.iter())
-        .chain(result.inverse_field.2.iter())
+        .chain(result.forward_field.y.iter())
+        .chain(result.forward_field.x.iter())
+        .chain(result.inverse_field.z.iter())
+        .chain(result.inverse_field.y.iter())
+        .chain(result.inverse_field.x.iter())
     {
         assert!(v.is_finite(), "displacement field non-finite: {v}");
     }
@@ -316,9 +320,9 @@ fn cow_borrowed_vs_owned_produces_identical_result() {
     // Forward field z-component should match exactly (deterministic backend)
     for (a, b) in result_borrowed
         .forward_field
-        .0
+        .z
         .iter()
-        .zip(result_owned.forward_field.0.iter())
+        .zip(result_owned.forward_field.z.iter())
     {
         assert!(
             (a - b).abs() < 1e-6,

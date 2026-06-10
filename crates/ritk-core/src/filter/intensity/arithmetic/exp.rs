@@ -57,7 +57,7 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// exp(0) = 1.

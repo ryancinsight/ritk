@@ -40,14 +40,13 @@ impl<B: Backend, const D: usize> DisplacementField<B, D> {
                 .reshape([1, D]);
 
         let [n_points, _] = new_indices.dims();
-        const CHUNK_SIZE: usize = 32768;
+        let num_chunks = n_points.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
 
-        let mut component_chunks: Vec<Vec<Tensor<B, 1>>> = vec![Vec::new(); D];
-        let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+        let mut component_chunks: Vec<Vec<Tensor<B, 1>>> = vec![Vec::with_capacity(num_chunks); D];
 
         for i in 0..num_chunks {
-            let start = i * CHUNK_SIZE;
-            let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n_points);
             let chunk_range = start..end;
             let chunk_indices = new_indices.clone().slice([chunk_range]);
 

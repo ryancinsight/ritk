@@ -1,6 +1,7 @@
 //! Tests for atlas registration.
 
 use super::*;
+use crate::diffeomorphic::multires_syn::InverseConsistency;
 
 /// Minimal SyN config for fast tests on small images.
 fn test_syn_config() -> MultiResSyNConfig {
@@ -13,7 +14,7 @@ fn test_syn_config() -> MultiResSyNConfig {
         n_squarings: 2,
         cc_window_radius: 1,
         gradient_step: 0.25,
-        enforce_inverse_consistency: false,
+        enforce_inverse_consistency: InverseConsistency::Relaxed,
     }
 }
 

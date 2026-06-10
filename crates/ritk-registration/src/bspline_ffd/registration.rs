@@ -1,14 +1,14 @@
 //! B-Spline FFD registration engine.
 
 use super::basis::{
-    evaluate_bspline_displacement, evaluate_bspline_displacement_fast, init_control_grid,
+    evaluate_bspline_displacement, evaluate_bspline_displacement_fast_into, init_control_grid,
     BasisCache,
 };
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
-use super::metric::{compute_metric_gradient_fast, compute_ncc};
+use super::metric::{compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch};
 use super::pyramid::refine_control_grid;
 use super::regularization::bending_energy_gradient;
-use crate::deformable_field_ops::warp_image;
+use crate::deformable_field_ops::{warp_image, warp_image_into};
 use crate::error::RegistrationError;
 
 /// B-Spline FFD registration engine.
@@ -83,6 +83,14 @@ impl BSplineFFDRegistration {
         let mut total_iters = 0usize;
         let mut final_metric = 0.0_f64;
 
+        // Pre-allocate image-sized buffers reused across all levels and iterations
+        // to eliminate 4 heap allocations per inner-loop iteration.
+        let mut disp_z = vec![0.0_f32; n];
+        let mut disp_y = vec![0.0_f32; n];
+        let mut disp_x = vec![0.0_f32; n];
+        let mut warped = vec![0.0_f32; n];
+        let mut metric_scratch = MetricGradientScratch::new(dims, ctrl_dims);
+
         // ── Multi-resolution loop ─────────────────────────────────────────
         for level in 0..config.num_levels {
             tracing::info!(
@@ -96,21 +104,27 @@ impl BSplineFFDRegistration {
             // are constant for all iterations at this level).
             let basis_cache = BasisCache::new(dims, &ctrl_spacing);
 
+            // Re-size scratch buffers when the control grid changed at a level boundary.
+            metric_scratch.resize(dims, ctrl_dims);
+
             let mut prev_metric = f64::NEG_INFINITY;
 
             for iter in 0..config.max_iterations_per_level {
                 // 1. Evaluate dense displacement from current control points.
-                let (disp_z, disp_y, disp_x) = evaluate_bspline_displacement_fast(
+                evaluate_bspline_displacement_fast_into(
                     &cp_z,
                     &cp_y,
                     &cp_x,
                     &ctrl_dims,
                     dims,
                     &basis_cache,
+                    &mut disp_z,
+                    &mut disp_y,
+                    &mut disp_x,
                 );
 
                 // 2. Warp moving image.
-                let warped = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
+                warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut warped);
 
                 // 3. Compute NCC metric.
                 let ncc = compute_ncc(fixed, &warped);
@@ -131,18 +145,19 @@ impl BSplineFFDRegistration {
                 prev_metric = ncc;
                 final_metric = ncc;
 
-                // 5. Compute metric gradient w.r.t. control points.
-                let (grad_z, grad_y, grad_x) = compute_metric_gradient_fast(
+                // 5. Compute metric gradient w.r.t. control points (zero-alloc path).
+                compute_metric_gradient_fast_into(
                     fixed,
                     &warped,
                     &ctrl_dims,
                     dims,
                     spacing,
                     &basis_cache,
+                    &mut metric_scratch,
                 );
 
-                // 6. Compute bending-energy gradient w.r.t. control points.
-                let (be_gz, be_gy, be_gx) =
+                // 6. Compute bending-energy gradients w.r.t. control points.
+                let be_grad =
                     bending_energy_gradient(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
 
                 // 7. Gradient descent update.
@@ -151,9 +166,9 @@ impl BSplineFFDRegistration {
                 let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
                 for i in 0..cn {
                     // Ascend NCC (maximize), descend bending energy (minimize).
-                    cp_z[i] += lr * (grad_z[i] - lambda * be_gz[i]);
-                    cp_y[i] += lr * (grad_y[i] - lambda * be_gy[i]);
-                    cp_x[i] += lr * (grad_x[i] - lambda * be_gx[i]);
+                    cp_z[i] += lr * (metric_scratch.grad_z[i] - lambda * be_grad.z[i]);
+                    cp_y[i] += lr * (metric_scratch.grad_y[i] - lambda * be_grad.y[i]);
+                    cp_x[i] += lr * (metric_scratch.grad_x[i] - lambda * be_grad.x[i]);
                 }
 
                 if iter == config.max_iterations_per_level - 1 {
@@ -174,9 +189,9 @@ impl BSplineFFDRegistration {
         }
 
         // ── Final warp ───────────────────────────────────────────────────
-        let (disp_z, disp_y, disp_x) =
+        let disp =
             evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
-        let warped_moving = warp_image(moving, dims, &disp_z, &disp_y, &disp_x);
+        let warped_moving = warp_image(moving, dims, &disp.z, &disp.y, &disp.x);
 
         Ok(BSplineFFDResult {
             control_points: (cp_z, cp_y, cp_x),

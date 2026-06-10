@@ -1,5 +1,6 @@
 use crate::image::Image;
 use crate::spatial::Spacing;
+use crate::wgpu_compat::apply_row_chunks;
 use burn::tensor::backend::Backend;
 use burn::tensor::ops::ConvOptions;
 use burn::tensor::{Shape, Tensor};
@@ -128,7 +129,7 @@ impl<B: Backend> GaussianFilter<B> {
         }
         permute_indices[D - 1] = dim as isize;
 
-        let input_permuted = input.clone().permute(permute_indices);
+        let input_permuted = input.permute(permute_indices);
 
         // 2. Flatten other dimensions into batch
         let last_dim_size = dims[dim];
@@ -153,35 +154,14 @@ impl<B: Backend> GaussianFilter<B> {
         // Perform convolution
         let options = ConvOptions::new([1], [padding], [1], 1);
 
-        // Chunking for large batches to avoid WGPU dispatch limits
-        const CHUNK_SIZE: usize = 32768;
-        let output_reshaped = if batch_size <= CHUNK_SIZE {
-            burn::tensor::module::conv1d(
-                input_reshaped,
-                kernel_reshaped,
-                None, // bias
-                options,
-            )
-        } else {
-            let num_chunks = batch_size.div_ceil(CHUNK_SIZE);
-            let mut chunks = Vec::with_capacity(num_chunks);
-
-            for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, batch_size);
-
-                let chunk_range = start..end;
-                let chunk_input = input_reshaped.clone().slice([chunk_range]);
-                let chunk_output = burn::tensor::module::conv1d(
-                    chunk_input,
-                    kernel_reshaped.clone(),
-                    None,
-                    options.clone(),
-                );
-                chunks.push(chunk_output);
-            }
-            Tensor::cat(chunks, 0)
-        };
+        let output_reshaped = apply_row_chunks(
+            input_reshaped,
+            crate::wgpu_compat::WGPU_CHUNK_SIZE,
+            |chunk| {
+                // BURN-API: conv1d consumes kernel_reshaped; clone required until upstream adds non-consuming variant
+                burn::tensor::module::conv1d(chunk, kernel_reshaped.clone(), None, options.clone())
+            },
+        );
 
         // 3. Reshape back and inverse permute
         // Output shape matches input_permuted shape since we used padding

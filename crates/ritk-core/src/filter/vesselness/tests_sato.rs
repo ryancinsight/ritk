@@ -73,7 +73,7 @@ fn test_cylindrical_tube_detects_line() {
     let config = SatoConfig {
         scales: vec![1.5, 3.0],
         alpha: 0.5,
-        bright_tubes: true,
+        polarity: VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&image).expect("apply failed");
@@ -119,7 +119,7 @@ fn test_sphere_lower_response_than_tube() {
     let config = SatoConfig {
         scales: vec![1.5, 3.0],
         alpha: 0.5,
-        bright_tubes: true,
+        polarity: VesselPolarity::Bright,
     };
     let tube_data = make_tube(N, N, N, 16.0, 16.0, 3.0);
     let sphere_data = make_sphere(N, N, N, 16.0, 16.0, 16.0, 4.0);
@@ -171,7 +171,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
     let config = SatoConfig {
         scales: vec![1.5],
         alpha: 0.5,
-        bright_tubes: true, // bright gate — should reject the dark tube
+        polarity: VesselPolarity::Bright, // bright gate — should reject the dark tube
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(dark_tube, [N, N, N])).unwrap();
@@ -238,7 +238,7 @@ fn test_response_all_finite() {
     let config = SatoConfig {
         scales: vec![1.0, 2.0],
         alpha: 1.0,
-        bright_tubes: true,
+        polarity: VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(data, [N, N, N])).unwrap();

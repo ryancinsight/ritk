@@ -40,6 +40,7 @@ mod metric;
 mod pyramid;
 mod registration;
 mod regularization;
+pub mod volume_dims;
 mod warp;
 
 #[cfg(test)]
@@ -48,4 +49,5 @@ mod tests;
 pub use config::{BSplineFFDConfig, BSplineFFDResult};
 pub use registration::BSplineFFDRegistration;
 pub use regularization::bending_energy;
+pub use volume_dims::VolumeDims;
 pub use warp::warp_image_bspline;

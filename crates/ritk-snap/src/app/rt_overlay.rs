@@ -5,6 +5,7 @@ use crate::ui::{
     axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
     project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry,
 };
+use ritk_core::annotation::Visibility;
 use tracing::{error, info};
 
 impl SnapApp {
@@ -276,7 +277,7 @@ impl SnapApp {
                 let Some(entry) = editor.current_map().table.get_label(label_id) else {
                     continue;
                 };
-                if !entry.visible {
+                if entry.visible == Visibility::Hidden {
                     continue;
                 }
                 let x0 = rect.min.x + col as f32 * cell_w;

@@ -1,9 +1,12 @@
 //! Geodesic integration via forward Euler for LDDMM.
 
 #[cfg(test)]
-use crate::deformable_field_ops::{compose_fields, gaussian_smooth_inplace};
+use crate::deformable_field_ops::gaussian_smooth_field_inplace;
+#[cfg(test)]
+use crate::deformable_field_ops::VelocityField;
 use crate::deformable_field_ops::{
-    compose_fields_into, gaussian_smooth_with_scratch, VectorField3D, VectorFieldMut3D,
+    compose_fields_into, gaussian_smooth_field_inplace_with_scratch, VectorField3D,
+    VectorFieldMut3D,
 };
 
 use super::adjoint::epdiff_adjoint_into;
@@ -18,7 +21,10 @@ use super::adjoint::epdiff_adjoint_into;
 /// 3. v ← v − dt · a
 /// 4. φ ← (id + v·dt) ∘ φ   (compose incremental step)
 ///
-/// This is the allocating reference implementation used in tests.
+/// All scratch buffers are pre-allocated once before the integration loop;
+/// no per-step heap allocations occur. Returns owned displacement `Vec`s for
+/// test convenience. For zero-allocation production paths use
+/// [`integrate_geodesic_into`].
 #[cfg(test)]
 pub(super) fn integrate_geodesic(
     v0z: &[f32],
@@ -28,7 +34,7 @@ pub(super) fn integrate_geodesic(
     spacing: [f64; 3],
     num_steps: usize,
     kernel_sigma: f64,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let n = dims[0] * dims[1] * dims[2];
     let dt = 1.0 / num_steps as f32;
 
@@ -40,19 +46,25 @@ pub(super) fn integrate_geodesic(
     let mut dy = vec![0.0_f32; n];
     let mut dx = vec![0.0_f32; n];
 
+    // Pre-allocated scratch buffers — no per-step heap allocations.
+    let mut mz = vec![0.0_f32; n];
+    let mut my = vec![0.0_f32; n];
+    let mut mx = vec![0.0_f32; n];
+    let mut adz = vec![0.0_f32; n];
+    let mut ady = vec![0.0_f32; n];
+    let mut adx = vec![0.0_f32; n];
+    let mut comp_z = vec![0.0_f32; n];
+    let mut comp_y = vec![0.0_f32; n];
+    let mut comp_x = vec![0.0_f32; n];
+
     for _ in 0..num_steps {
         // 1. Momentum: m = K_σ ∗ v.
-        let mut mz = vz.clone();
-        let mut my = vy.clone();
-        let mut mx = vx.clone();
-        gaussian_smooth_inplace(&mut mz, dims, kernel_sigma);
-        gaussian_smooth_inplace(&mut my, dims, kernel_sigma);
-        gaussian_smooth_inplace(&mut mx, dims, kernel_sigma);
+        mz.copy_from_slice(&vz);
+        my.copy_from_slice(&vy);
+        mx.copy_from_slice(&vx);
+        gaussian_smooth_field_inplace(&mut mz, &mut my, &mut mx, dims, kernel_sigma);
 
         // 2. EPDiff adjoint ad*_v(m), then smooth.
-        let mut adz = vec![0.0_f32; n];
-        let mut ady = vec![0.0_f32; n];
-        let mut adx = vec![0.0_f32; n];
         epdiff_adjoint_into(
             VectorField3D {
                 z: &vz,
@@ -72,9 +84,7 @@ pub(super) fn integrate_geodesic(
                 x: &mut adx,
             },
         );
-        gaussian_smooth_inplace(&mut adz, dims, kernel_sigma);
-        gaussian_smooth_inplace(&mut ady, dims, kernel_sigma);
-        gaussian_smooth_inplace(&mut adx, dims, kernel_sigma);
+        gaussian_smooth_field_inplace(&mut adz, &mut ady, &mut adx, dims, kernel_sigma);
 
         // 3. Velocity update: v ← v − dt · K_σ ∗ ad*_v(m).
         for i in 0..n {
@@ -83,18 +93,42 @@ pub(super) fn integrate_geodesic(
             vx[i] -= dt * adx[i];
         }
 
-        // 4. Compose displacement: φ ← (v·dt) ∘ φ.
-        let step_z: Vec<f32> = vz.iter().map(|&v| v * dt).collect();
-        let step_y: Vec<f32> = vy.iter().map(|&v| v * dt).collect();
-        let step_x: Vec<f32> = vx.iter().map(|&v| v * dt).collect();
+        // 4. Step: adj ← v · dt (reuse adj buffers — adjoint no longer needed).
+        for i in 0..n {
+            adz[i] = vz[i] * dt;
+            ady[i] = vy[i] * dt;
+            adx[i] = vx[i] * dt;
+        }
 
-        let composed = compose_fields(&step_z, &step_y, &step_x, &dz, &dy, &dx, dims);
-        dz = composed.0;
-        dy = composed.1;
-        dx = composed.2;
+        // 5. Compose: φ ← (v·dt) ∘ φ.
+        compose_fields_into(
+            VectorField3D {
+                z: &adz,
+                y: &ady,
+                x: &adx,
+            },
+            VectorField3D {
+                z: &dz,
+                y: &dy,
+                x: &dx,
+            },
+            dims,
+            VectorFieldMut3D {
+                z: &mut comp_z,
+                y: &mut comp_y,
+                x: &mut comp_x,
+            },
+        );
+        dz.copy_from_slice(&comp_z);
+        dy.copy_from_slice(&comp_y);
+        dx.copy_from_slice(&comp_x);
     }
 
-    (dz, dy, dx)
+    VelocityField {
+        z: dz,
+        y: dy,
+        x: dx,
+    }
 }
 
 /// Zero-allocation variant of [`integrate_geodesic`].
@@ -161,9 +195,14 @@ pub(super) fn integrate_geodesic_into(
         mom_z.copy_from_slice(vel_z);
         mom_y.copy_from_slice(vel_y);
         mom_x.copy_from_slice(vel_x);
-        gaussian_smooth_with_scratch(mom_z, dims, kernel_sigma, smooth_tmp);
-        gaussian_smooth_with_scratch(mom_y, dims, kernel_sigma, smooth_tmp);
-        gaussian_smooth_with_scratch(mom_x, dims, kernel_sigma, smooth_tmp);
+        gaussian_smooth_field_inplace_with_scratch(
+            mom_z,
+            mom_y,
+            mom_x,
+            dims,
+            kernel_sigma,
+            smooth_tmp,
+        );
 
         // 2. EPDiff adjoint ad*_v(m) → adj.
         epdiff_adjoint_into(
@@ -186,9 +225,14 @@ pub(super) fn integrate_geodesic_into(
             },
         );
         // Smooth adjoint: K_σ ∗ ad*_v(m).
-        gaussian_smooth_with_scratch(adj_z, dims, kernel_sigma, smooth_tmp);
-        gaussian_smooth_with_scratch(adj_y, dims, kernel_sigma, smooth_tmp);
-        gaussian_smooth_with_scratch(adj_x, dims, kernel_sigma, smooth_tmp);
+        gaussian_smooth_field_inplace_with_scratch(
+            adj_z,
+            adj_y,
+            adj_x,
+            dims,
+            kernel_sigma,
+            smooth_tmp,
+        );
 
         // 3. Velocity update: v ← v − dt · (K_σ ∗ ad*_v(m)).
         for i in 0..n {

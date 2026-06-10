@@ -21,12 +21,10 @@ use crate::image::Image;
 use crate::interpolation::{Interpolator, LinearInterpolator};
 use crate::transform::Transform;
 
-/// WGPU dispatch limit workaround — same chunk size used in
-/// `Image::world_to_index_tensor` and `Image::index_to_world_tensor`.
-const CHUNK_SIZE: usize = 32768;
-
 /// Check whether a direction matrix is the identity (within tolerance).
-fn is_identity_direction<const D: usize>(direction: &crate::spatial::Direction<D>) -> bool {
+pub(crate) fn is_identity_direction<const D: usize>(
+    direction: &crate::spatial::Direction<D>,
+) -> bool {
     let id: crate::spatial::Direction<D> = crate::spatial::Direction::identity();
     for r in 0..D {
         for c in 0..D {
@@ -171,13 +169,18 @@ fn compute_oob_mask_3d<B: Backend>(
     let d1 = shape[1]; // Y
     let d2 = shape[2]; // X
 
+    // narrow() consumes self, so we must clone once per column — but we
+    // can clone the full [N,3] tensor three times (cheap vs the per-element
+    // compute below) rather than cloning per intermediate.
     let x = indices.clone().narrow(1, 0, 1).squeeze_dims(&[1]);
     let y = indices.clone().narrow(1, 1, 1).squeeze_dims(&[1]);
     let z = indices.clone().narrow(1, 2, 1).squeeze_dims(&[1]);
 
-    let x0 = x.clone().floor();
-    let y0 = y.clone().floor();
-    let z0 = z.clone().floor();
+    // floor() consumes self, clamp() consumes self, equal() consumes self.
+    // Clone floor results once each so we can feed them into both clamp and equal.
+    let x0 = x.floor();
+    let y0 = y.floor();
+    let z0 = z.floor();
 
     let x_in = x0.clone().equal(x0.clamp(0.0, (d2 - 1) as f64)).float();
     let y_in = y0.clone().equal(y0.clamp(0.0, (d1 - 1) as f64)).float();
@@ -199,15 +202,18 @@ fn compute_identity_indices_chunked<B: Backend>(
     let origin = origin.reshape([1usize, 3]);
     let inv_spacing = inv_spacing.reshape([1usize, 3]);
 
-    if n_points <= CHUNK_SIZE {
+    if n_points <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
         (world - origin) * inv_spacing
     } else {
-        let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+        let num_chunks = n_points.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
         let mut chunks = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
-            let start = i * CHUNK_SIZE;
-            let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n_points);
             let chunk_range = start..end;
+            // slice() consumes self; tensor clones are refcounted handle
+            // copies, not data copies, so cloning `world` per chunk is cheap.
+            // The [1,3] broadcast tensors are likewise cheap to clone.
             let chunk_world = world.clone().slice([chunk_range]);
             let result = (chunk_world - origin.clone()) * inv_spacing.clone();
             chunks.push(result);
@@ -227,16 +233,18 @@ fn compute_general_indices_chunked<B: Backend>(
 ) -> Tensor<B, 2> {
     let origin = origin.reshape([1usize, 3]);
 
-    if n_points <= CHUNK_SIZE {
+    if n_points <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
         let diff = world - origin;
         diff.matmul(t)
     } else {
-        let num_chunks = n_points.div_ceil(CHUNK_SIZE);
+        let num_chunks = n_points.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
         let mut chunks = Vec::with_capacity(num_chunks);
         for i in 0..num_chunks {
-            let start = i * CHUNK_SIZE;
-            let end = std::cmp::min(start + CHUNK_SIZE, n_points);
+            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n_points);
             let chunk_range = start..end;
+            // slice() consumes self; tensor clones are refcounted handle
+            // copies, not data copies. t is [3,3] — cheap to clone.
             let chunk_world = world.clone().slice([chunk_range]);
             let diff = chunk_world - origin.clone();
             let result = diff.matmul(t.clone());
@@ -247,5 +255,5 @@ fn compute_general_indices_chunked<B: Backend>(
 }
 
 #[cfg(test)]
-#[path = "tests_fused.rs"]
+#[path = "tests/fused.rs"]
 mod tests;

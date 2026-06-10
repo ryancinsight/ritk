@@ -1,4 +1,5 @@
 use crate::FilterKind;
+use ritk_core::filter::Connectivity;
 
 /// Render parameter controls for Binary + Grayscale Morphology + Pad/Geometry
 /// filter variants.
@@ -115,12 +116,22 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             true
         }
         FilterKind::BinaryContour {
-            fully_connected,
+            connectivity,
             foreground_value,
         } => {
             ui.horizontal(|ui| {
-                ui.label("26-connected:");
-                ui.checkbox(fully_connected, "");
+                ui.label("Connectivity:");
+                let mut fully = connectivity.fully_connected();
+                if ui
+                    .checkbox(&mut fully, "Fully connected (26-conn)")
+                    .changed()
+                {
+                    *connectivity = if fully {
+                        Connectivity::Vertex26
+                    } else {
+                        Connectivity::Face6
+                    };
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Foreground value:");
@@ -135,12 +146,22 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             true
         }
         FilterKind::LabelContour {
-            fully_connected,
+            connectivity,
             background_value,
         } => {
             ui.horizontal(|ui| {
-                ui.label("26-connected:");
-                ui.checkbox(fully_connected, "");
+                ui.label("Connectivity:");
+                let mut fully = connectivity.fully_connected();
+                if ui
+                    .checkbox(&mut fully, "Fully connected (26-conn)")
+                    .changed()
+                {
+                    *connectivity = if fully {
+                        Connectivity::Vertex26
+                    } else {
+                        Connectivity::Face6
+                    };
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Background value:");

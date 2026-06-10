@@ -62,28 +62,7 @@ impl FftShiftFilter {
     /// # Errors
     /// Returns `Err` when the tensor data cannot be extracted as `f32`.
     pub fn apply_2d<B: Backend>(&self, image: &Image<B, 2>) -> Result<Image<B, 2>> {
-        let [h, cw] = image.shape();
-        let w = cw / 2;
-
-        let (vals, _) = extract_vec(image)?;
-
-        let h_shift = h / 2;
-        let w_shift = w / 2;
-
-        let mut out = vec![0.0_f32; h * cw];
-
-        for r in 0..h {
-            let src_r = (r + h_shift) % h;
-            for c in 0..w {
-                let src_c = (c + w_shift) % w;
-                let src_idx = src_r * cw + 2 * src_c;
-                let tgt_idx = r * cw + 2 * c;
-                out[tgt_idx] = vals[src_idx];
-                out[tgt_idx + 1] = vals[src_idx + 1];
-            }
-        }
-
-        Ok(rebuild(out, [h, cw], image))
+        Self::apply::<B, 2>(image)
     }
 
     /// Apply FFT shift to a 3-D complex (frequency-domain) image.
@@ -103,32 +82,68 @@ impl FftShiftFilter {
     /// # Errors
     /// Returns `Err` when the tensor data cannot be extracted as `f32`.
     pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let [depth, h, cw] = image.shape();
+        Self::apply::<B, 3>(image)
+    }
+
+    /// Dimension-generic FFT shift.
+    ///
+    /// For each spatial axis (all axes except the last interleaved one),
+    /// computes a cyclic shift of `dim / 2`. For the innermost complex
+    /// dimension `[2·W]`, shifts by `W / 2` in complex-pixel space, which
+    /// corresponds to `2 · ((c + W/2) % W)` in the interleaved f32 layout.
+    fn apply<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
+        let dims = image.shape();
+        let cw = dims[D - 1]; // complex width = 2 * W
         let w = cw / 2;
 
         let (vals, _) = extract_vec(image)?;
 
-        let d_shift = depth / 2;
-        let h_shift = h / 2;
+        // Shift amounts for the D-1 outer spatial axes.
+        let shifts: [usize; D] = core::array::from_fn(|a| dims[a] / 2);
         let w_shift = w / 2;
 
-        let mut out = vec![0.0_f32; depth * h * cw];
+        // Row strides: stride[a] = number of *rows* (not f32 elements)
+        // spanned by one step along axis a. The last outer axis (D-2)
+        // has stride 1; earlier axes multiply by subsequent dims.
+        let mut row_strides = [0usize; D];
+        row_strides[D - 2] = 1;
+        for i in (0..D - 2).rev() {
+            row_strides[i] = row_strides[i + 1] * dims[i + 1];
+        }
 
-        for d in 0..depth {
-            let src_d = (d + d_shift) % depth;
-            for r in 0..h {
-                let src_r = (r + h_shift) % h;
-                for c in 0..w {
-                    let src_c = (c + w_shift) % w;
-                    let src_idx = src_d * h * cw + src_r * cw + 2 * src_c;
-                    let tgt_idx = d * h * cw + r * cw + 2 * c;
-                    out[tgt_idx] = vals[src_idx];
-                    out[tgt_idx + 1] = vals[src_idx + 1];
-                }
+        // Total number of rows (outer index space).
+        let row_count: usize = dims[..D - 1].iter().product();
+        let mut out = vec![0.0_f32; row_count * cw];
+
+        for flat_row in 0..row_count {
+            // Decompose the row-major flat index into per-axis coordinates.
+            let mut coords = [0usize; D];
+            let mut remaining = flat_row;
+            for a in 0..D - 1 {
+                coords[a] = remaining / row_strides[a];
+                remaining %= row_strides[a];
+            }
+
+            // Compute the source row-major flat index with cyclic shifts.
+            let mut src_row = 0usize;
+            for a in 0..D - 1 {
+                let src_a = (coords[a] + shifts[a]) % dims[a];
+                src_row += src_a * row_strides[a];
+            }
+
+            // Copy w complex pixels with cyclic shift in the inner dimension.
+            let src_base = src_row * cw;
+            let tgt_base = flat_row * cw;
+            for c in 0..w {
+                let src_c = (c + w_shift) % w;
+                let src_idx = src_base + 2 * src_c;
+                let tgt_idx = tgt_base + 2 * c;
+                out[tgt_idx] = vals[src_idx];
+                out[tgt_idx + 1] = vals[src_idx + 1];
             }
         }
 
-        Ok(rebuild(out, [depth, h, cw], image))
+        Ok(rebuild(out, dims, image))
     }
 }
 

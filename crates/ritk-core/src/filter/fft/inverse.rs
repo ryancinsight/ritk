@@ -21,7 +21,7 @@
 //! ```
 //!
 //! All IFFT passes are completed first; a single normalization by `1/N`
-//! (N = product of all spatial dimensions) is applied afterwards.  This
+//! (N = product of all spatial dimensions) is applied afterwards. This
 //! satisfies the round-trip identity `inverse(forward(f)) ≈ f` to within
 //! f32 rounding error.
 //!
@@ -35,6 +35,7 @@
 //! - 3-D input shape `[D, H, 2·W]`:
 //!   Re at `d·H·2W + r·2W + 2c`, Im at `+1`
 
+use crate::filter::fft::convolution::{fft_nd, InverseFft};
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::{anyhow, Result};
@@ -85,55 +86,7 @@ impl InverseFftFilter {
     /// interleaved layout) or when the backend tensor cannot be converted to
     /// `f32`.
     pub fn apply_2d<B: Backend>(&self, image: &Image<B, 2>) -> Result<Image<B, 2>> {
-        let [h, cw] = image.shape();
-        if cw % 2 != 0 {
-            return Err(anyhow!(
-                "InverseFftFilter: 2D input last dimension must be even \
-                 (got cw={}); expected interleaved complex layout [H, 2*W]",
-                cw
-            ));
-        }
-        let w = cw / 2;
-
-        let (vals, _) = extract_vec(image)?;
-        // vals has length h * cw = h * 2 * w, row-major.
-
-        // Build complex buffer: buf[r*w + c] = F[r, c].
-        let mut buf: Vec<Complex<f32>> = Vec::with_capacity(h * w);
-        for r in 0..h {
-            for c in 0..w {
-                buf.push(Complex::new(vals[r * cw + 2 * c], vals[r * cw + 2 * c + 1]));
-            }
-        }
-
-        let mut planner = FftPlanner::<f32>::new();
-
-        // Row-wise IFFT along the W axis (length w per row).
-        let ifft_row = planner.plan_fft_inverse(w);
-        for r in 0..h {
-            ifft_row.process(&mut buf[r * w..(r + 1) * w]);
-        }
-
-        // Column-wise IFFT along the H axis (length h per column).
-        let ifft_col = planner.plan_fft_inverse(h);
-        let mut col_buf: Vec<Complex<f32>> = vec![Complex::new(0.0, 0.0); h];
-        for c in 0..w {
-            for r in 0..h {
-                col_buf[r] = buf[r * w + c];
-            }
-            ifft_col.process(&mut col_buf);
-            for r in 0..h {
-                buf[r * w + c] = col_buf[r];
-            }
-        }
-
-        // Normalize after all IFFT passes.
-        // rustfft's IFFT is unnormalized; the factor 1/(H*W) accounts for
-        // both the row pass (factor W) and column pass (factor H).
-        let scale = 1.0 / (h * w) as f32;
-        let out: Vec<f32> = buf.iter().map(|z| z.re * scale).collect();
-
-        Ok(rebuild(out, [h, w], image))
+        Self::apply::<B, 2>(image)
     }
 
     /// Apply inverse FFT to a 3-D complex image.
@@ -152,76 +105,62 @@ impl InverseFftFilter {
     /// Returns `Err` when the last dimension is odd or the backend tensor
     /// cannot be converted to `f32`.
     pub fn apply_3d<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let [depth, h, cw] = image.shape();
-        if cw % 2 != 0 {
+        Self::apply::<B, 3>(image)
+    }
+
+    /// Dimension-generic inverse FFT.
+    ///
+    /// Deinterleaves (Re, Im) pairs into a complex buffer, applies a
+    /// separable N-D inverse FFT via [`fft_nd`], normalizes by `1/N`
+    /// where N = product of spatial dimensions, and returns the real part.
+    fn apply<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
+        let dims = image.shape();
+        let cw = dims[D - 1];
+        if !cw.is_multiple_of(2) {
             return Err(anyhow!(
-                "InverseFftFilter: 3D input last dimension must be even \
-                 (got cw={}); expected interleaved complex layout [D, H, 2*W]",
+                "InverseFftFilter: {}D input last dimension must be even \
+                 (got {}); expected interleaved complex layout",
+                D,
                 cw
             ));
         }
         let w = cw / 2;
 
-        let (vals, _) = extract_vec(image)?;
-        // vals has length depth * h * cw = depth * h * 2 * w.
+        // Output spatial dimensions: same as input but last dim = W (not 2*W).
+        let mut out_dims = dims;
+        out_dims[D - 1] = w;
 
-        // Build complex buffer: buf[d*h*w + r*w + c] = F[d, r, c].
-        let mut buf: Vec<Complex<f32>> = Vec::with_capacity(depth * h * w);
-        for d in 0..depth {
-            for r in 0..h {
-                for c in 0..w {
-                    let src = d * h * cw + r * cw + 2 * c;
-                    buf.push(Complex::new(vals[src], vals[src + 1]));
-                }
+        let n_spatial: usize = out_dims.iter().product();
+        let (vals, _) = extract_vec(image)?;
+
+        // Deinterleave (Re, Im) pairs into a complex buffer of shape `out_dims`.
+        let mut buf: Vec<Complex<f32>> = Vec::with_capacity(n_spatial);
+
+        // For 2D: iterate over h rows × w complex cols.
+        // For 3D: iterate over d × h rows × w complex cols.
+        // The general pattern: outer_dims = out_dims[..D-1], each outer slice
+        // contains `cw` interleaved f32 values encoding `w` complex numbers.
+        let outer_count: usize = out_dims[..D - 1].iter().product();
+        for outer in 0..outer_count {
+            let row_start = outer * cw;
+            for c in 0..w {
+                buf.push(Complex::new(
+                    vals[row_start + 2 * c],
+                    vals[row_start + 2 * c + 1],
+                ));
             }
         }
 
         let mut planner = FftPlanner::<f32>::new();
+        fft_nd::<D, InverseFft>(&mut buf, &out_dims, &mut planner);
 
-        // Row-wise IFFT per depth slice (along the W axis, length w).
-        let ifft_row = planner.plan_fft_inverse(w);
-        for d in 0..depth {
-            for r in 0..h {
-                let start = d * h * w + r * w;
-                ifft_row.process(&mut buf[start..start + w]);
-            }
-        }
-
-        // Column-wise IFFT per depth slice (along the H axis, length h).
-        let ifft_col = planner.plan_fft_inverse(h);
-        let mut col_buf: Vec<Complex<f32>> = vec![Complex::new(0.0, 0.0); h];
-        for d in 0..depth {
-            for c in 0..w {
-                for r in 0..h {
-                    col_buf[r] = buf[d * h * w + r * w + c];
-                }
-                ifft_col.process(&mut col_buf);
-                for r in 0..h {
-                    buf[d * h * w + r * w + c] = col_buf[r];
-                }
-            }
-        }
-
-        // Depth-wise IFFT for each (r, c) pair (along the D axis, length depth).
-        let ifft_depth = planner.plan_fft_inverse(depth);
-        let mut depth_buf: Vec<Complex<f32>> = vec![Complex::new(0.0, 0.0); depth];
-        for r in 0..h {
-            for c in 0..w {
-                for d in 0..depth {
-                    depth_buf[d] = buf[d * h * w + r * w + c];
-                }
-                ifft_depth.process(&mut depth_buf);
-                for d in 0..depth {
-                    buf[d * h * w + r * w + c] = depth_buf[d];
-                }
-            }
-        }
-
-        // Normalize after all IFFT passes: 1/(D*H*W).
-        let scale = 1.0 / (depth * h * w) as f32;
+        // Normalize after all IFFT passes.
+        // rustfft's IFFT is unnormalized; the factor 1/N accounts for
+        // every axis pass combined.
+        let scale = 1.0 / n_spatial as f32;
         let out: Vec<f32> = buf.iter().map(|z| z.re * scale).collect();
 
-        Ok(rebuild(out, [depth, h, w], image))
+        Ok(rebuild(out, out_dims, image))
     }
 }
 

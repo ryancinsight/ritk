@@ -1,4 +1,5 @@
 use super::*;
+use ritk_core::annotation::Visibility;
 
 #[test]
 fn new_editor_has_default_foreground_label_and_background_volume() {
@@ -16,7 +17,7 @@ fn new_editor_has_default_foreground_label_and_background_volume() {
         .expect("default label must be present");
     assert_eq!(entry.name, "Label 1");
     assert_eq!(entry.color, [255, 0, 0, 180]);
-    assert!(entry.visible);
+    assert_eq!(entry.visible, Visibility::Visible);
 }
 
 #[test]
@@ -99,14 +100,14 @@ fn add_label_uses_next_free_id_sets_active_and_updates_visibility() {
     assert_eq!(editor.label_counts(), vec![(0, 5), (2, 1)]);
 
     editor
-        .set_label_visibility(2, false)
+        .set_label_visibility(2, Visibility::Hidden)
         .expect("visibility update must succeed");
     let entry = editor
         .current_map()
         .table
         .get_label(2)
         .expect("label 2 must remain present");
-    assert!(!entry.visible);
+    assert_eq!(entry.visible, Visibility::Hidden);
 }
 
 #[test]

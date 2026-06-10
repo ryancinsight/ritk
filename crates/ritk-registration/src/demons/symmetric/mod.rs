@@ -56,7 +56,7 @@
 
 use super::config::{DemonsConfig, DemonsResult};
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_with_scratch, warp_image_into,
+    compute_gradient_into, gaussian_smooth_field_inplace_with_scratch, warp_image_into,
 };
 use crate::error::RegistrationError;
 
@@ -190,19 +190,9 @@ impl SymmetricDemonsRegistration {
 
             // 4. Optional fluid regularisation (smooth forces before accumulation).
             if self.config.sigma_fluid > 0.0 {
-                gaussian_smooth_with_scratch(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut fz,
-                    dims,
-                    self.config.sigma_fluid,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
                     &mut fy,
-                    dims,
-                    self.config.sigma_fluid,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
                     &mut fx,
                     dims,
                     self.config.sigma_fluid,
@@ -219,19 +209,9 @@ impl SymmetricDemonsRegistration {
 
             // 6. Diffusive regularisation (smooth total field).
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_with_scratch(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut disp_z,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
                     &mut disp_y,
-                    dims,
-                    self.config.sigma_diffusion,
-                    &mut smooth_tmp,
-                );
-                gaussian_smooth_with_scratch(
                     &mut disp_x,
                     dims,
                     self.config.sigma_diffusion,

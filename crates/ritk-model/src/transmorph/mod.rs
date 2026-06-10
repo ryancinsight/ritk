@@ -43,7 +43,7 @@ pub mod model;
 pub mod spatial_transform;
 pub mod swin;
 
-pub use config::TransMorphConfig;
+pub use config::{TransMorphConfig, TransformIntegration};
 pub use model::{TransMorph, TransMorphOutput};
 
 #[cfg(test)]

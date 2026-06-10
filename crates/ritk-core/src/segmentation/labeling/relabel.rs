@@ -139,7 +139,8 @@ impl Default for RelabelComponentFilter {
 fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatistics>) {
     // Step 1 — Count voxels per label.
     // Labels are stored as f32 integers; convert via round then clamp to u32.
-    let mut counts: std::collections::HashMap<u32, usize> = std::collections::HashMap::new();
+    let mut counts: std::collections::HashMap<u32, usize> =
+        std::collections::HashMap::with_capacity(flat.len() / 4 + 1);
     for &v in flat {
         let label = v as u32;
         if label != 0 {
@@ -216,7 +217,7 @@ mod tests {
     }
 
     fn flat(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// Single component, no size threshold → relabeled as 1, count preserved.

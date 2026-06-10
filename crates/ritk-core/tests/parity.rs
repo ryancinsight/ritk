@@ -27,7 +27,7 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
 }
 
 fn vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_vec()
+    img.data_slice().into_owned()
 }
 
 /// Formula: v_out = (v - v_min) / (v_max - v_min) * (out_max - out_min) + out_min
@@ -108,7 +108,7 @@ fn parity_sigmoid_midpoint_and_asymptotes() {
 fn parity_gradient_magnitude_constant_image_is_zero() {
     use ritk_core::filter::edge::GradientMagnitudeFilter;
     let img = make_image(vec![5.0f32; 27], [3, 3, 3]);
-    let out = GradientMagnitudeFilter::new([1.0, 1.0, 1.0])
+    let out = GradientMagnitudeFilter::new([1.0, 1.0, 1.0].into())
         .apply(&img)
         .unwrap();
     for (i, &v) in vals(&out).iter().enumerate() {
@@ -125,7 +125,9 @@ fn parity_laplacian_linear_ramp_is_zero_at_interior() {
     use ritk_core::filter::edge::LaplacianFilter;
     let data: Vec<f32> = (0..7).map(|i| i as f32).collect();
     let img = make_image(data, [1, 1, 7]);
-    let out = LaplacianFilter::new([1.0, 1.0, 1.0]).apply(&img).unwrap();
+    let out = LaplacianFilter::new([1.0, 1.0, 1.0].into())
+        .apply(&img)
+        .unwrap();
     let v = vals(&out);
     for i in 1..6 {
         assert!(

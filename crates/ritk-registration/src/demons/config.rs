@@ -1,5 +1,25 @@
 //! Shared configuration and result types for Demons-family registration.
 
+/// Variant selector for Demons registration algorithms.
+///
+/// Replaces the former `use_diffeomorphic: bool` field, eliminating boolean
+/// blindness at call sites.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum DemonsVariant {
+    /// Classic Thirion Demons (displacement-based, non-diffeomorphic).
+    #[default]
+    Classic,
+    /// Diffeomorphic Demons via stationary velocity field exponentiation.
+    Diffeomorphic,
+}
+
+impl DemonsVariant {
+    /// Returns `true` if this variant is [`Diffeomorphic`](DemonsVariant::Diffeomorphic).
+    pub fn is_diffeomorphic(self) -> bool {
+        matches!(self, Self::Diffeomorphic)
+    }
+}
+
 /// Configuration for Demons-family registration algorithms.
 #[derive(Debug, Clone)]
 pub struct DemonsConfig {

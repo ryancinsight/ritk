@@ -31,11 +31,11 @@ fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
 }
 
 fn values_3d(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image.data_vec()
+    image.data_slice().into_owned()
 }
 
 fn values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image.data_vec()
+    image.data_slice().into_owned()
 }
 
 fn count_fg_3d(image: &Image<TestBackend, 3>) -> usize {

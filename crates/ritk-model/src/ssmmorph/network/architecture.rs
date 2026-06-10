@@ -54,6 +54,16 @@ use crate::ssmmorph::encoder::{SSMMorphEncoder, SSMMorphEncoderConfig};
 use super::integration::{IntegrationConfig, VelocityFieldIntegrator};
 use burn::module::Ignored;
 
+/// Whether the network applies diffeomorphic (topology-preserving) integration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum IntegrationMode {
+    /// Direct displacement output without integration (affine-style).
+    Affine,
+    /// Velocity field is integrated to produce a diffeomorphic displacement.
+    #[default]
+    Diffeomorphic,
+}
+
 /// Output from SSMMorph forward pass
 #[derive(Debug, Clone)]
 pub struct SSMMorphOutput<B: Backend> {
@@ -75,9 +85,9 @@ pub struct SSMMorphConfig {
     /// Output channels (3 for 3D displacement field)
     #[config(default = "3")]
     pub out_channels: usize,
-    /// Use diffeomorphic integration
-    #[config(default = "true")]
-    pub diffeomorphic: bool,
+    /// Integration mode
+    #[config(default = "IntegrationMode::Diffeomorphic")]
+    pub integration: IntegrationMode,
     /// Integration steps for diffeomorphic transformation
     #[config(default = "7")]
     pub integration_steps: usize,
@@ -91,7 +101,7 @@ impl SSMMorphConfig {
             encoder,
             decoder: None,
             out_channels: 3,
-            diffeomorphic: true,
+            integration: IntegrationMode::Diffeomorphic,
             integration_steps: 7,
         }
     }
@@ -103,7 +113,7 @@ impl SSMMorphConfig {
             encoder,
             decoder: None,
             out_channels: 3,
-            diffeomorphic: true,
+            integration: IntegrationMode::Diffeomorphic,
             integration_steps: 7,
         }
     }
@@ -115,14 +125,14 @@ impl SSMMorphConfig {
             encoder,
             decoder: None,
             out_channels: 3,
-            diffeomorphic: true,
+            integration: IntegrationMode::Diffeomorphic,
             integration_steps: 10,
         }
     }
 
     /// Disable diffeomorphic integration
     pub fn without_diffeomorphic(mut self) -> Self {
-        self.diffeomorphic = false;
+        self.integration = IntegrationMode::Affine;
         self
     }
 
@@ -144,7 +154,7 @@ pub struct SSMMorph<B: Backend> {
     /// Hierarchical decoder with skip connections
     pub decoder: SSMMorphDecoder<B>,
     /// Use diffeomorphic integration
-    diffeomorphic: Ignored<bool>,
+    integration: Ignored<IntegrationMode>,
     /// Integration steps
     integration_steps: Ignored<usize>,
 }
@@ -166,7 +176,7 @@ impl<B: Backend> SSMMorph<B> {
         Self {
             encoder,
             decoder,
-            diffeomorphic: Ignored(config.diffeomorphic),
+            integration: Ignored(config.integration),
             integration_steps: Ignored(config.integration_steps),
         }
     }
@@ -198,7 +208,7 @@ impl<B: Backend> SSMMorph<B> {
             self.decoder.forward(bottleneck.clone(), &encoder_features);
 
         // Apply diffeomorphic integration if enabled
-        let displacement = if *self.diffeomorphic {
+        let displacement = if *self.integration == IntegrationMode::Diffeomorphic {
             let integrator = VelocityFieldIntegrator::new(
                 IntegrationConfig::with_steps(*self.integration_steps),
                 displacement.device(),
@@ -227,7 +237,7 @@ impl<B: Backend> SSMMorph<B> {
 
     /// Check if network uses diffeomorphic integration
     pub fn is_diffeomorphic(&self) -> bool {
-        *self.diffeomorphic
+        *self.integration == IntegrationMode::Diffeomorphic
     }
 }
 
@@ -259,11 +269,11 @@ pub mod presets {
                 channel_mult: 2,
                 num_stages: 5,
                 blocks_per_stage: 2,
-                use_drop_path: false,
+                drop_path: crate::ssmmorph::encoder::config::DropPath::Disabled,
             },
             decoder: None,
             out_channels: 3,
-            diffeomorphic: true,
+            integration: IntegrationMode::Diffeomorphic,
             integration_steps: 7,
         }
     }

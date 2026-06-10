@@ -57,22 +57,22 @@ fn test_velocity_field_negation_is_exact_inverse() {
     let vel_y = vec![0.0_f32; n];
     let vel_x = vec![0.0_f32; n];
 
-    let (inv_z, inv_y, inv_x) = invert_velocity_field(&vel_z, &vel_y, &vel_x);
+    let inv = invert_velocity_field(&vel_z, &vel_y, &vel_x);
 
-    assert_eq!(inv_z.len(), n, "inv_z length mismatch");
-    assert_eq!(inv_y.len(), n, "inv_y length mismatch");
-    assert_eq!(inv_x.len(), n, "inv_x length mismatch");
+    assert_eq!(inv.z.len(), n, "inv_z length mismatch");
+    assert_eq!(inv.y.len(), n, "inv_y length mismatch");
+    assert_eq!(inv.x.len(), n, "inv_x length mismatch");
 
     assert!(
-        inv_z.iter().all(|&v| v == 0.0),
+        inv.z.iter().all(|&v| v == 0.0),
         "inv_z must be identically zero for the zero velocity field"
     );
     assert!(
-        inv_y.iter().all(|&v| v == 0.0),
+        inv.y.iter().all(|&v| v == 0.0),
         "inv_y must be identically zero for the zero velocity field"
     );
     assert!(
-        inv_x.iter().all(|&v| v == 0.0),
+        inv.x.iter().all(|&v| v == 0.0),
         "inv_x must be identically zero for the zero velocity field"
     );
 }
@@ -88,8 +88,7 @@ fn test_invert_displacement_identity_field_is_zero() {
     let disp_x = vec![0.0_f32; n];
 
     let config = InverseFieldConfig::default();
-    let (inv_z, inv_y, inv_x, iters) =
-        invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
+    let (inv, iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 
     assert!(iters >= 1, "at least one iteration must be performed");
     assert!(
@@ -101,19 +100,19 @@ fn test_invert_displacement_identity_field_is_zero() {
     let bound = 1e-5_f32;
     for i in 0..n {
         assert!(
-            inv_z[i].abs() <= bound,
+            inv.z[i].abs() <= bound,
             "inv_z[{i}] = {} exceeds {bound}",
-            inv_z[i]
+            inv.z[i]
         );
         assert!(
-            inv_y[i].abs() <= bound,
+            inv.y[i].abs() <= bound,
             "inv_y[{i}] = {} exceeds {bound}",
-            inv_y[i]
+            inv.y[i]
         );
         assert!(
-            inv_x[i].abs() <= bound,
+            inv.x[i].abs() <= bound,
             "inv_x[{i}] = {} exceeds {bound}",
-            inv_x[i]
+            inv.x[i]
         );
     }
 }
@@ -130,17 +129,16 @@ fn test_invert_small_translation() {
     let disp_x = vec![2.0_f32; n];
 
     let config = InverseFieldConfig::default();
-    let (inv_z, inv_y, inv_x, _iters) =
-        invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
+    let (inv, _iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 
-    let mean_inv_x: f64 = inv_x.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
+    let mean_inv_x: f64 = inv.x.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
     assert!(
         (-2.1..=-1.9).contains(&mean_inv_x),
         "mean(inv_x) = {mean_inv_x:.6}, expected in [−2.1, −1.9]"
     );
 
-    let mean_inv_z: f64 = inv_z.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
-    let mean_inv_y: f64 = inv_y.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
+    let mean_inv_z: f64 = inv.z.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
+    let mean_inv_y: f64 = inv.y.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
     assert!(
         mean_inv_z.abs() < 1e-5,
         "mean(inv_z) = {mean_inv_z:.6}, expected near 0"
@@ -180,11 +178,10 @@ fn test_invert_result_composition_near_identity() {
         max_iterations: 20,
         tolerance: 1e-6,
     };
-    let (inv_z, inv_y, inv_x, _iters) =
-        invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
+    let (inv, _iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 
     let (comp_z, comp_y, comp_x) =
-        warp_displacement(&inv_z, &inv_y, &inv_x, &disp_z, &disp_y, &disp_x, dims);
+        warp_displacement(&inv.z, &inv.y, &inv.x, &disp_z, &disp_y, &disp_x, dims);
 
     let mut max_err = 0.0_f32;
     for i in 0..n {
@@ -229,7 +226,7 @@ fn test_max_iterations_bound() {
         tolerance: 1e-30,
     };
 
-    let (_, _, _, iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
+    let (_, iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 
     assert!(
         iters <= max_iter,

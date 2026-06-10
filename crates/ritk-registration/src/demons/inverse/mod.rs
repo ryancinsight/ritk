@@ -23,4 +23,4 @@ mod svf;
 mod tests;
 
 pub use displacement::{invert_displacement_field, InverseFieldConfig};
-pub use svf::invert_velocity_field;
+pub use svf::{invert_velocity_field, invert_velocity_field_into};

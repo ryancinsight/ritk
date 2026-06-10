@@ -3,6 +3,13 @@
 use anyhow::{anyhow, Context, Result};
 use ritk_core::spatial::Point;
 
+/// Byte order for multi-byte pixel data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ByteOrder {
+    MostSignificantByteFirst,
+    LeastSignificantByteFirst,
+}
+
 /// Parse a `space directions` field into three NRRD file-axis vectors.
 ///
 /// Each direction vector `v_i` encodes the physical displacement per voxel
@@ -85,7 +92,7 @@ pub(super) fn decode_bytes_to_f32(
     bytes: &[u8],
     element_type: &str,
     count: usize,
-    msb: bool,
+    byte_order: ByteOrder,
 ) -> Result<Vec<f32>> {
     match element_type.to_lowercase().as_str() {
         "uchar" | "unsigned char" | "uint8" => {
@@ -103,7 +110,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         i16::from_be_bytes(b)
                     } else {
                         i16::from_le_bytes(b)
@@ -118,7 +125,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         u16::from_be_bytes(b)
                     } else {
                         u16::from_le_bytes(b)
@@ -133,7 +140,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         i32::from_be_bytes(b)
                     } else {
                         i32::from_le_bytes(b)
@@ -148,7 +155,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         u32::from_be_bytes(b)
                     } else {
                         u32::from_le_bytes(b)
@@ -163,7 +170,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3]];
-                    if msb {
+                    if byte_order == ByteOrder::MostSignificantByteFirst {
                         f32::from_be_bytes(b)
                     } else {
                         f32::from_le_bytes(b)
@@ -178,7 +185,7 @@ pub(super) fn decode_bytes_to_f32(
                 .take(count)
                 .map(|c| {
                     let b = [c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]];
-                    (if msb {
+                    (if byte_order == ByteOrder::MostSignificantByteFirst {
                         f64::from_be_bytes(b)
                     } else {
                         f64::from_le_bytes(b)

@@ -35,7 +35,7 @@ impl ProgressInfo {
             elapsed,
             estimated_remaining: None,
             learning_rate,
-            metrics: Vec::new(),
+            metrics: Vec::with_capacity(8),
         }
     }
 

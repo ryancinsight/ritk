@@ -56,7 +56,7 @@ impl<B: Backend> NiftiReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
 pub struct NiftiWriter<B: Backend> {
-    _marker: std::marker::PhantomData<B>,
+    _marker: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for NiftiWriter<B> {

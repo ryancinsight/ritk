@@ -81,7 +81,7 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// [1,1,3,3] → mean=2, std=1 → [-1,-1,1,1] exactly.

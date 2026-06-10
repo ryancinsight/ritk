@@ -79,7 +79,7 @@ impl Association {
         stream.set_write_timeout(Some(config.timeout))?;
 
         let mut next_id: u8 = 1;
-        let mut pc_items = Vec::new();
+        let mut pc_items = Vec::with_capacity(config.presentation_contexts.len());
         for rpc in &config.presentation_contexts {
             let mut ts = rpc.transfer_syntax_uids.clone();
             if !ts.iter().any(|t| t == transfer_syntax::IMPLICIT_VR_LE) {
@@ -118,10 +118,11 @@ impl Association {
             user_information: ui,
         });
 
+        let num_contexts = config.presentation_contexts.len();
         let mut assoc = Self {
             stream,
             config,
-            negotiated_contexts: Vec::new(),
+            negotiated_contexts: Vec::with_capacity(num_contexts),
             next_context_id: next_id,
             remote_max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
             active: false,
@@ -251,7 +252,7 @@ impl Association {
     }
 
     fn recv_message(&mut self) -> Result<(u8, DimseMessage)> {
-        let (mut cmd, mut data) = (Vec::new(), Vec::new());
+        let (mut cmd, mut data) = (Vec::with_capacity(256), Vec::new());
         let mut cid: u8 = 0;
         let mut cmd_last = false;
         loop {

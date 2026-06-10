@@ -145,7 +145,7 @@ pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -
 
 /// Write-side type implementing the `ImageWriter` domain trait.
 pub struct AnalyzeWriter<B> {
-    pub(crate) _phantom: PhantomData<B>,
+    pub(crate) _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> AnalyzeWriter<B> {

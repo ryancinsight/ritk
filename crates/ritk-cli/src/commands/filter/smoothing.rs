@@ -75,6 +75,7 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
     use ritk_core::filter::AnisotropicDiffusionFilter;
+    use ritk_core::filter::ExponentialConductance;
 
     let image = read_image(&args.input)?;
 
@@ -84,7 +85,7 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
         time_step: 0.0625,
         function: ConductanceFunction::Exponential,
     };
-    let filter = AnisotropicDiffusionFilter::new(config);
+    let filter = AnisotropicDiffusionFilter::<ExponentialConductance>::new(config);
     let filtered = filter.apply(&image)?;
 
     write_image_inferred(&args.output, &filtered)?;
@@ -154,7 +155,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     let config = SatoConfig {
         scales: scales.clone(),
         alpha: args.alpha,
-        bright_tubes: true,
+        polarity: ritk_core::filter::vesselness::VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
     let filtered = filter.apply(&image)?;
@@ -180,16 +181,16 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
 
     let filter = DiscreteGaussianFilter::<Backend>::new(vec![args.variance])
         .with_maximum_error(args.maximum_error)
-        .with_use_image_spacing(args.use_image_spacing);
+        .with_spacing_mode(args.spacing_mode);
     let filtered = filter.apply(&image);
 
     write_image_inferred(&args.output, &filtered)?;
 
     println!(
-        "Applied discrete-gaussian (variance={}, maximum_error={}, use_image_spacing={}) to {} -> {}",
+        "Applied discrete-gaussian (variance={}, maximum_error={}, spacing_mode={}) to {} -> {}",
         args.variance,
         args.maximum_error,
-        args.use_image_spacing,
+        args.spacing_mode,
         args.input.display(),
         args.output.display()
     );
@@ -203,6 +204,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image};
+    use ritk_core::filter::SpacingMode;
     use tempfile::tempdir;
 
     // ── Positive: Gaussian creates output file ────────────────────────────
@@ -347,7 +349,7 @@ mod tests {
         let mut args = default_args(input, output.clone(), "discrete-gaussian");
         args.variance = 1.0;
         args.maximum_error = 0.01;
-        args.use_image_spacing = true;
+        args.spacing_mode = SpacingMode::Physical;
         let result = run_discrete_gaussian(&args);
         assert!(
             result.is_ok(),

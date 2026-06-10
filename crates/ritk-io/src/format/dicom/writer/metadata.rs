@@ -359,7 +359,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 }
 
 pub struct DicomWriter<B> {
-    _phantom: PhantomData<B>,
+    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B> DicomWriter<B> {

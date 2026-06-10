@@ -26,7 +26,7 @@ impl IntegrationConfig {
 /// Velocity field integrator using scaling and squaring
 pub struct VelocityFieldIntegrator<B: Backend> {
     num_steps: usize,
-    _phantom: std::marker::PhantomData<B>,
+    _phantom: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> VelocityFieldIntegrator<B> {
@@ -58,7 +58,7 @@ impl<B: Backend> VelocityFieldIntegrator<B> {
 /// Flow composer for transformations
 pub struct TransformationComposer<B: Backend> {
     num_steps: usize,
-    _phantom: std::marker::PhantomData<B>,
+    _phantom: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> TransformationComposer<B> {

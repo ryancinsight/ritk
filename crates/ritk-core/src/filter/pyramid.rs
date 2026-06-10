@@ -16,15 +16,22 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
     ///
     /// # Arguments
     /// * `input` - The original high-resolution image.
-    /// * `shrink_factors` - Shrink factors for each level \[level\]\[dim\].
-    /// * `smoothing_sigmas` - Smoothing sigmas for each level \[level\]\[dim\].
+    /// * `shrink_factors` - Shrink factors for each level `[level][dim]`, as
+    ///   stack-allocated `[usize; D]` arrays (one allocation per level, no
+    ///   inner `Vec<usize>` indirection).
+    /// * `smoothing_sigmas` - Smoothing sigmas for each level `[level][dim]`,
+    ///   as stack-allocated `[f64; D]` arrays.
     ///
     /// # Panics
     /// Panics if schedules have different lengths.
+    ///
+    /// P1-01 (Sprint 350): API consumes `[T; D]` arrays directly, removing
+    /// the `Vec<Vec<T>>` outer + inner heap allocations that the legacy shape
+    /// imposed on every pyramid build.
     pub fn new(
         input: &Image<B, D>,
-        shrink_factors: &[Vec<usize>],
-        smoothing_sigmas: &[Vec<f64>],
+        shrink_factors: &[[usize; D]],
+        smoothing_sigmas: &[[f64; D]],
     ) -> Self {
         assert_eq!(
             shrink_factors.len(),
@@ -45,9 +52,12 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             }
 
             // 1. Smooth
-            // Only smooth if sigmas are significant
+            // Only smooth if sigmas are significant. GaussianFilter::new takes
+            // a `Vec<f64>`, so we materialise the per-axis sigmas into a small
+            // D-entry Vec here — one allocation per pyramid level, not a hot
+            // path. Future Sprint could plumb `[f64; D]` through the filter API.
             let smoothed = if !is_identity_smooth {
-                let smoother = GaussianFilter::new(sigmas.clone());
+                let smoother = GaussianFilter::new(sigmas.to_vec());
                 smoother.apply(input)
             } else {
                 input.clone()
@@ -55,7 +65,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
 
             // 2. Downsample
             let result = if !is_identity_shrink {
-                let downsampler = DownsampleFilter::new(factors.clone());
+                let downsampler = DownsampleFilter::new(factors.to_vec());
                 downsampler.apply(&smoothed)
             } else {
                 smoothed
@@ -79,10 +89,11 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
 
     /// Create a default schedule for N levels with power-of-2 shrinking.
     ///
-    /// Returns (shrink_factors, smoothing_sigmas)
+    /// Returns `(shrink_factors, smoothing_sigmas)` as `Vec<[usize; D]>` and
+    /// `Vec<[f64; D]>` respectively (stack arrays per level, no inner Vec).
     /// Levels are ordered from coarsest to finest.
-    /// E.g. levels=3 -> factors [4, 2, 1], sigmas [2.0, 1.0, 0.0]
-    pub fn default_schedule(levels: usize) -> (Vec<Vec<usize>>, Vec<Vec<f64>>) {
+    /// E.g. `levels=3` -> factors `[4, 2, 1]`, sigmas `[2.0, 1.0, 0.0]`
+    pub fn default_schedule(levels: usize) -> (Vec<[usize; D]>, Vec<[f64; D]>) {
         let mut shrink_factors = Vec::with_capacity(levels);
         let mut smoothing_sigmas = Vec::with_capacity(levels);
 
@@ -95,8 +106,8 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
                 0.0
             };
 
-            shrink_factors.push(vec![factor; D]);
-            smoothing_sigmas.push(vec![sigma; D]);
+            shrink_factors.push([factor; D]);
+            smoothing_sigmas.push([sigma; D]);
         }
 
         (shrink_factors, smoothing_sigmas)
@@ -132,12 +143,8 @@ mod tests {
     #[test]
     fn pyramid_level_count_matches_schedule() {
         let img = make_image([8, 8, 8]);
-        let shrink = vec![vec![4, 4, 4], vec![2, 2, 2], vec![1, 1, 1]];
-        let sigmas = vec![
-            vec![2.0, 2.0, 2.0],
-            vec![1.0, 1.0, 1.0],
-            vec![0.0, 0.0, 0.0],
-        ];
+        let shrink: Vec<[usize; 3]> = vec![[4, 4, 4], [2, 2, 2], [1, 1, 1]];
+        let sigmas: Vec<[f64; 3]> = vec![[2.0, 2.0, 2.0], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]];
         let pyr = MultiResolutionPyramid::<B, 3>::new(&img, &shrink, &sigmas);
         assert_eq!(pyr.levels(), 3, "pyramid must have 3 levels");
     }
@@ -146,8 +153,8 @@ mod tests {
     #[test]
     fn pyramid_identity_schedule_clones_image() {
         let img = make_image([6, 6, 6]);
-        let shrink = vec![vec![1, 1, 1]];
-        let sigmas = vec![vec![0.0, 0.0, 0.0]];
+        let shrink: Vec<[usize; 3]> = vec![[1, 1, 1]];
+        let sigmas: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0]];
         let pyr = MultiResolutionPyramid::<B, 3>::new(&img, &shrink, &sigmas);
         assert_eq!(pyr.levels(), 1);
         assert_eq!(
@@ -192,9 +199,9 @@ mod tests {
     fn default_schedule_3_levels_correct_factors_and_sigmas() {
         let (shrink, sigmas) = MultiResolutionPyramid::<B, 3>::default_schedule(3);
         assert_eq!(shrink.len(), 3);
-        assert_eq!(shrink[0], vec![4, 4, 4], "level 0 factor must be 4");
-        assert_eq!(shrink[1], vec![2, 2, 2], "level 1 factor must be 2");
-        assert_eq!(shrink[2], vec![1, 1, 1], "level 2 factor must be 1");
+        assert_eq!(shrink[0], [4, 4, 4], "level 0 factor must be 4");
+        assert_eq!(shrink[1], [2, 2, 2], "level 1 factor must be 2");
+        assert_eq!(shrink[2], [1, 1, 1], "level 2 factor must be 1");
         assert!(
             (sigmas[0][0] - 2.0).abs() < 1e-9,
             "level 0 sigma must be 2.0"
@@ -213,7 +220,7 @@ mod tests {
     #[test]
     fn default_schedule_single_level_is_identity() {
         let (shrink, sigmas) = MultiResolutionPyramid::<B, 3>::default_schedule(1);
-        assert_eq!(shrink[0], vec![1, 1, 1]);
+        assert_eq!(shrink[0], [1, 1, 1]);
         assert!((sigmas[0][0] - 0.0).abs() < 1e-9);
     }
 }

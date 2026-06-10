@@ -4,7 +4,7 @@ pub mod config;
 pub mod numerical;
 pub mod shape;
 
-pub use config::ValidationConfig;
+pub use config::{NumericalCheck, ShapeValidation, ValidationConfig};
 pub use numerical::*;
 pub use shape::*;
 

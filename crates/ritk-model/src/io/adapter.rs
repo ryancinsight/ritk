@@ -3,7 +3,7 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 // use ritk_core::spatial::{Point, Spacing, Direction};
 use anyhow::{ensure, Result};
-use ritk_core::transform::static_displacement_field::StaticDisplacementField;
+use ritk_core::transform::StaticDisplacementField;
 
 /// Adapter for converting between ritk Images and Burn tensors
 pub struct ImageToTensorAdapter<B: Backend> {

@@ -164,8 +164,8 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
         let kw = kernel_shape[2];
 
         // Extract raw voxel data.
-        let img_vals = img.data_vec();
-        let k_vals = kern.data_vec();
+        let img_vals: Vec<f32> = img.data_slice().into_owned();
+        let k_vals: Vec<f32> = kern.data_slice().into_owned();
 
         // Build 2-D kernel image from the first (only) Z-slice of the kernel.
         let k_slice: Vec<f32> = k_vals[..kh * kw].to_vec();
@@ -182,7 +182,7 @@ pub fn fft_convolve(py: Python<'_>, image: &PyImage, kernel: &PyImage) -> RitkRe
             let result = filter
                 .apply(&slice_img)
                 .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-            let result_vals = result.data_vec();
+            let result_vals: Vec<f32> = result.data_slice().into_owned();
             out_vals.extend(result_vals);
         }
 
@@ -266,8 +266,8 @@ pub fn fft_normalized_correlate(
         let th = tmpl_shape[1];
         let tw = tmpl_shape[2];
 
-        let img_vals = img.data_vec();
-        let t_vals = tmpl.data_vec();
+        let img_vals: Vec<f32> = img.data_slice().into_owned();
+        let t_vals: Vec<f32> = tmpl.data_slice().into_owned();
 
         // Build 2-D template image from the first (only) Z-slice.
         let t_slice: Vec<f32> = t_vals[..th * tw].to_vec();
@@ -284,7 +284,7 @@ pub fn fft_normalized_correlate(
             let result = filter
                 .apply(&slice_img)
                 .map_err(|e| RitkPyError::runtime(e.to_string()))?;
-            let result_vals = result.data_vec();
+            let result_vals: Vec<f32> = result.data_slice().into_owned();
             out_vals.extend(result_vals);
         }
 

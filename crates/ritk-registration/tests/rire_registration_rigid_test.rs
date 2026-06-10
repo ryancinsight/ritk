@@ -325,8 +325,8 @@ fn test_global_mi_translation_only_on_rire_patient001() {
     let mri_sz = mri_img.spacing()[0] as f64;
     let mri_sy = mri_img.spacing()[1] as f64;
     let mri_sx = mri_img.spacing()[2] as f64;
-    let ct_raw = ct_img.data_vec();
-    let mri_raw = mri_img.data_vec();
+    let ct_raw: Vec<f32> = ct_img.data_slice().into_owned();
+    let mri_raw: Vec<f32> = mri_img.data_slice().into_owned();
     let (ct_ds, ct_ds_shape) = downsample_stride(&ct_raw, ct_img.shape(), stride);
     let (mri_ds, mri_ds_shape) = downsample_stride(&mri_raw, mri_img.shape(), stride);
     let ct_norm = normalize_minmax(&ct_ds);

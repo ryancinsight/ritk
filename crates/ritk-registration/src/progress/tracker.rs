@@ -1,5 +1,5 @@
 use crate::progress::{ProgressCallback, ProgressInfo};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
 /// Progress tracker that manages multiple callbacks.
@@ -8,14 +8,14 @@ pub struct ProgressTracker {
     /// Registered callbacks.
     callbacks: Vec<Arc<dyn ProgressCallback>>,
     /// Start time.
-    start_time: Arc<Mutex<Option<Instant>>>,
+    start_time: OnceLock<Instant>,
 }
 
 impl Default for ProgressTracker {
     fn default() -> Self {
         Self {
             callbacks: Vec::new(),
-            start_time: Arc::new(Mutex::new(None)),
+            start_time: OnceLock::new(),
         }
     }
 }
@@ -33,7 +33,7 @@ impl ProgressTracker {
 
     /// Start tracking.
     pub fn start(&self) {
-        *self.start_time.lock().unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+        let _ = self.start_time.set(Instant::now());
         for callback in &self.callbacks {
             callback.on_start();
         }
@@ -47,7 +47,7 @@ impl ProgressTracker {
         loss: f64,
         learning_rate: f64,
     ) {
-        let start_time = *self.start_time.lock().unwrap_or_else(|e| e.into_inner());
+        let start_time = self.start_time.get();
         let elapsed = start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO);
 
         let mut info = ProgressInfo::new(iteration, total_iterations, loss, elapsed, learning_rate);
@@ -60,11 +60,11 @@ impl ProgressTracker {
 
     /// Complete tracking.
     pub fn complete(&self, final_loss: f64, learning_rate: f64) {
-        let start_time = *self.start_time.lock().unwrap_or_else(|e| e.into_inner());
+        let start_time = self.start_time.get();
         let elapsed = start_time.map(|t| t.elapsed()).unwrap_or(Duration::ZERO);
 
         let info = ProgressInfo::new(
-            start_time.as_ref().map(|_| 0).unwrap_or(0),
+            start_time.map(|_| 0).unwrap_or(0),
             Some(0),
             final_loss,
             elapsed,

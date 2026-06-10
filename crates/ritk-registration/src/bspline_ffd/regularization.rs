@@ -9,7 +9,7 @@
 //!
 //! Approximated via finite differences on the control-point lattice.
 
-use crate::deformable_field_ops::flat;
+use crate::deformable_field_ops::{flat, VelocityField};
 
 /// Compute the bending energy of the displacement field defined by the control
 /// points.
@@ -24,6 +24,7 @@ use crate::deformable_field_ops::flat;
 ///
 /// where `Δ²_d` denotes the second-order central difference along axis `d`
 /// and `Δ_ab` denotes the cross second difference.
+#[inline]
 pub fn bending_energy(
     cp_z: &[f32],
     cp_y: &[f32],
@@ -32,9 +33,13 @@ pub fn bending_energy(
     ctrl_spacing: &[f64; 3],
 ) -> f64 {
     let [cnz, cny, cnx] = *ctrl_dims;
+    // ACCUMULATOR: f64 prevents catastrophic cancellation when summing many small
+    // f32² second-derivative terms. The f32→f64 widening is intentional here.
     let mut energy = 0.0_f64;
     let mut count = 0usize;
 
+    // Compute squared spacings in f64 then cast to f32: this order (rather than
+    // casting first, squaring second) minimises rounding in the coefficient.
     let sz2 = (ctrl_spacing[0] * ctrl_spacing[0]) as f32;
     let sy2 = (ctrl_spacing[1] * ctrl_spacing[1]) as f32;
     let sx2 = (ctrl_spacing[2] * ctrl_spacing[2]) as f32;
@@ -101,13 +106,14 @@ pub fn bending_energy(
 /// computed via the chain rule on the finite-difference operators.
 /// Applies the discretized biharmonic operator (Laplacian of Laplacian) to
 /// each control point as an efficient approximation.
+#[inline]
 pub(super) fn bending_energy_gradient(
     cp_z: &[f32],
     cp_y: &[f32],
     cp_x: &[f32],
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+) -> VelocityField {
     let [cnz, cny, cnx] = *ctrl_dims;
     let cn = cnz * cny * cnx;
     let count = count_interior(ctrl_dims);
@@ -165,11 +171,16 @@ pub(super) fn bending_energy_gradient(
         }
     }
 
-    (out_z, out_y, out_x)
+    VelocityField {
+        z: out_z,
+        y: out_y,
+        x: out_x,
+    }
 }
 
 /// Count interior control points (those with at least 1 neighbor in each
 /// direction).
+#[inline]
 fn count_interior(ctrl_dims: &[usize; 3]) -> usize {
     let w = |d: usize| if d >= 3 { d - 2 } else { 0 };
     w(ctrl_dims[0]) * w(ctrl_dims[1]) * w(ctrl_dims[2])

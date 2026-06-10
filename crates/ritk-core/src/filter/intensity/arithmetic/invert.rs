@@ -78,7 +78,7 @@ mod tests {
     }
 
     fn vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// Auto maximum: [1,2,3] → max=3, out=[2,1,0].

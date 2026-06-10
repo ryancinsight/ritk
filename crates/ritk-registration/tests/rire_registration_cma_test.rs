@@ -20,10 +20,12 @@ use burn_ndarray::NdArray;
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_core::transform::RigidTransform;
 use ritk_io::read_metaimage;
-use ritk_registration::optimizer::{CmaEsConfig, RegularStepGdConfig};
+use ritk_registration::optimizer::{
+    CmaEsConfig, HistoryPolicy, PopulationEval, RegularStepGdConfig,
+};
 use ritk_registration::{
-    CmaMiConfig, CmaMiRegistration, GlobalMiConfig, GlobalMiTransformType, MultiStartConfig,
-    MultiStartMiRegistration,
+    CmaMiConfig, CmaMiRegistration, GlobalMiConfig, GlobalMiTransformType, InitStrategy,
+    MultiStartConfig, MultiStartMiRegistration,
 };
 
 /// Run CMA-ES global rigid registration on the RIRE Patient-001 dataset.
@@ -95,7 +97,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
         sampling_percentage: 0.30,
         translation_range_mm: 60.0,
         rotation_range_rad: std::f64::consts::FRAC_PI_4,
-        use_com_init: false,
+        init_strategy: InitStrategy::Manual,
         rsgd_refine: None,
         cma_config: CmaEsConfig {
             sigma0: 0.7,
@@ -104,8 +106,8 @@ fn test_cma_mi_rigid_on_rire_patient001() {
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
-            parallel_population: false,
-            record_history: false,
+            parallel_population: PopulationEval::Sequential,
+            record_history: HistoryPolicy::Discard,
         },
         ..CmaMiConfig::default()
     };

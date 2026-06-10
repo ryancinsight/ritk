@@ -6,9 +6,9 @@
 //! - `I(p) = fg` (is foreground), AND
 //! - at least one neighbour `q ∈ N(p)` satisfies `I(q) ≠ fg`.
 //!
-//! The connectivity topology `N(p)` is determined by `fully_connected`:
-//! - `false` (default): 6-connected — 6 face-neighbours in ℤ³ (ITK default).
-//! - `true`: 26-connected — all 26 neighbours within the unit cube.
+//! The connectivity topology `N(p)` is determined by [`Connectivity`]:
+//! - [`Connectivity::Face6`] (default): 6-connected — 6 face-neighbours in ℤ³ (ITK default).
+//! - [`Connectivity::Vertex26`]: 26-connected — all 26 neighbours within the unit cube.
 //!
 //! # ITK Parity
 //!
@@ -22,6 +22,7 @@
 //! - Malandain, G. & Bertrand, G. (1992). Fast characterization of 3D simple points.
 //!   *ICPR 1992*.
 
+use super::Connectivity;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -33,25 +34,36 @@ use burn::tensor::{Shape, Tensor, TensorData};
 /// Interior foreground voxels (fully surrounded by foreground) are set to 0.
 #[derive(Debug, Clone)]
 pub struct BinaryContourImageFilter {
-    /// Whether to use 26-connectivity (`true`) or 6-connectivity (`false`, ITK default).
-    pub fully_connected: bool,
+    /// Neighbourhood connectivity topology (ITK default: `Face6`).
+    pub connectivity: Connectivity,
     /// Foreground intensity value. Default 1.0.
     pub foreground_value: f32,
 }
 
 impl BinaryContourImageFilter {
     /// Construct with explicit parameters.
-    pub fn new(fully_connected: bool, foreground_value: f32) -> Self {
+    pub fn new(connectivity: Connectivity, foreground_value: f32) -> Self {
         Self {
-            fully_connected,
+            connectivity,
             foreground_value,
         }
+    }
+
+    /// Set connectivity.
+    pub fn with_connectivity(mut self, connectivity: Connectivity) -> Self {
+        self.connectivity = connectivity;
+        self
+    }
+
+    /// Backward-compatible accessor for the former `fully_connected: bool` field.
+    pub fn fully_connected(&self) -> bool {
+        self.connectivity.fully_connected()
     }
 }
 
 impl Default for BinaryContourImageFilter {
     fn default() -> Self {
-        Self::new(false, 1.0)
+        Self::new(Connectivity::Face6, 1.0)
     }
 }
 
@@ -88,7 +100,6 @@ impl BinaryContourImageFilter {
         let device = image.data().device();
 
         let fg = self.foreground_value;
-        let fully = self.fully_connected;
         let n26 = n26();
 
         let mut out = vec![0.0f32; nz * ny * nx];
@@ -100,8 +111,8 @@ impl BinaryContourImageFilter {
                     if (v - fg).abs() > 1e-5 {
                         continue; // background
                     }
-                    let is_border = if fully {
-                        n26.iter().any(|&(dz, dy, dx)| {
+                    let is_border = match self.connectivity {
+                        Connectivity::Vertex26 => n26.iter().any(|&(dz, dy, dx)| {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
@@ -116,9 +127,8 @@ impl BinaryContourImageFilter {
                             }
                             let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nv - fg).abs() > 1e-5
-                        })
-                    } else {
-                        N6.iter().any(|&(dz, dy, dx)| {
+                        }),
+                        Connectivity::Face6 => N6.iter().any(|&(dz, dy, dx)| {
                             let qz = iz as i32 + dz;
                             let qy = iy as i32 + dy;
                             let qx = ix as i32 + dx;
@@ -133,7 +143,7 @@ impl BinaryContourImageFilter {
                             }
                             let nv = vals[qz as usize * ny * nx + qy as usize * nx + qx as usize];
                             (nv - fg).abs() > 1e-5
-                        })
+                        }),
                     };
                     if is_border {
                         out[iz * ny * nx + iy * nx + ix] = fg;
@@ -176,7 +186,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     /// All-background → all-zero output.
@@ -210,7 +220,7 @@ mod tests {
     #[test]
     fn five_cube_center_is_interior_6conn() {
         let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
-        let out = BinaryContourImageFilter::new(false, 1.0)
+        let out = BinaryContourImageFilter::new(Connectivity::Face6, 1.0)
             .apply(&img)
             .unwrap();
         let v = voxels(&out);
@@ -250,7 +260,7 @@ mod tests {
     #[test]
     fn five_cube_center_interior_26conn() {
         let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
-        let out = BinaryContourImageFilter::new(true, 1.0)
+        let out = BinaryContourImageFilter::new(Connectivity::Vertex26, 1.0)
             .apply(&img)
             .unwrap();
         let v = voxels(&out);

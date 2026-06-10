@@ -7,9 +7,9 @@ use ritk_core::filter::diffusion::{CoherenceConfig, CurvatureConfig};
 use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
 use ritk_core::filter::recursive_gaussian::DerivativeOrder;
 use ritk_core::filter::{
-    AnisotropicDiffusionFilter, BilateralFilter, BinShrinkImageFilter,
-    CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter, DiscreteGaussianFilter,
-    GaussianFilter, MedianFilter, N4BiasFieldCorrectionFilter, RecursiveGaussianFilter,
+    BilateralFilter, BinShrinkImageFilter, CoherenceEnhancingDiffusionFilter,
+    CurvatureAnisotropicDiffusionFilter, DiscreteGaussianFilter, GaussianFilter, MedianFilter,
+    N4BiasFieldCorrectionFilter, RecursiveGaussianFilter,
 };
 
 /// Apply Gaussian smoothing to an image.
@@ -64,7 +64,11 @@ pub fn discrete_gaussian(
     let result = py.allow_threads(|| {
         let filter = DiscreteGaussianFilter::<Backend>::new(vec![variance])
             .with_maximum_error(maximum_error)
-            .with_use_image_spacing(use_image_spacing);
+            .with_spacing_mode(if use_image_spacing {
+                ritk_core::filter::discrete_gaussian::SpacingMode::Physical
+            } else {
+                ritk_core::filter::discrete_gaussian::SpacingMode::Voxel
+            });
         filter.apply(image.as_ref())
     });
     into_py_image(result)
@@ -207,19 +211,17 @@ pub fn anisotropic_diffusion(
 ) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
-        let function = if exponential {
-            ConductanceFunction::Exponential
-        } else {
-            ConductanceFunction::Quadratic
-        };
         let config = DiffusionConfig {
             num_iterations: iterations,
             conductance: conductance as f32,
             time_step: time_step as f32,
-            function,
+            function: if exponential {
+                ConductanceFunction::Exponential
+            } else {
+                ConductanceFunction::Quadratic
+            },
         };
-        let filter = AnisotropicDiffusionFilter::new(config);
-        filter
+        config
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

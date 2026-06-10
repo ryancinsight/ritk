@@ -9,10 +9,12 @@
 //!
 //! This is a zero-cost O(n) operation — no integration, no iteration.
 
+use crate::deformable_field_ops::VelocityField;
+
 /// Write the exact inverse of a stationary velocity field into caller buffers.
 ///
 /// Performs zero heap allocation: `inv_z[i] = -vel_z[i]` for each component.
-pub(crate) fn invert_velocity_field_into(
+pub fn invert_velocity_field_into(
     vel_z: &[f32],
     vel_y: &[f32],
     vel_x: &[f32],
@@ -29,16 +31,16 @@ pub(crate) fn invert_velocity_field_into(
 
 /// Compute the exact inverse of a stationary velocity field.
 ///
-/// Returns `(inv_z, inv_y, inv_x)` — negated velocity components as new `Vec<f32>`.
-pub fn invert_velocity_field(
-    vel_z: &[f32],
-    vel_y: &[f32],
-    vel_x: &[f32],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+/// Returns `VelocityField { z, y, x }` — negated velocity components as new `Vec<f32>`.
+pub fn invert_velocity_field(vel_z: &[f32], vel_y: &[f32], vel_x: &[f32]) -> VelocityField {
     let n = vel_z.len();
     let mut inv_z = vec![0.0_f32; n];
     let mut inv_y = vec![0.0_f32; n];
     let mut inv_x = vec![0.0_f32; n];
     invert_velocity_field_into(vel_z, vel_y, vel_x, &mut inv_z, &mut inv_y, &mut inv_x);
-    (inv_z, inv_y, inv_x)
+    VelocityField {
+        z: inv_z,
+        y: inv_y,
+        x: inv_x,
+    }
 }

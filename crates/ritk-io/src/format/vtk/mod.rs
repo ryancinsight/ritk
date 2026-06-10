@@ -74,7 +74,7 @@ impl<B: Backend> ImageReader<B, 3> for VtkReader<B> {
 
 /// DIP boundary implementing `ImageWriter` for VTK legacy structured points.
 pub struct VtkWriter<B: Backend> {
-    _marker: std::marker::PhantomData<B>,
+    _marker: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for VtkWriter<B> {

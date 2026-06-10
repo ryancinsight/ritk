@@ -2,6 +2,15 @@
 
 use crate::optimizer::ConvergenceReason;
 
+/// Whether the multi-resolution MI registration converged at every level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConvergenceStatus {
+    /// All levels converged before reaching the maximum iteration count.
+    Converged,
+    /// At least one level exhausted the maximum iteration count without converging.
+    MaxIterationsReached,
+}
+
 /// Result of global MI registration.
 #[derive(Debug, Clone)]
 pub struct GlobalMiResult<const D: usize> {
@@ -16,5 +25,5 @@ pub struct GlobalMiResult<const D: usize> {
     /// Loss history at the final level.
     pub loss_history: Vec<f64>,
     /// Whether overall registration converged at every level.
-    pub converged: bool,
+    pub convergence: ConvergenceStatus,
 }

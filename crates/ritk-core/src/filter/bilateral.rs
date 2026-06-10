@@ -24,6 +24,53 @@
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
+use serde::{Deserialize, Serialize};
+
+/// Spatial-domain sigma for bilateral filtering (σ_s > 0).
+///
+/// Controls the spatial extent of influence: larger values → smoother edges.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct SpatialSigma(f64);
+
+impl SpatialSigma {
+    /// Construct with validation. Panics if `v <= 0.0` or not finite.
+    pub fn new(v: f64) -> Self {
+        assert!(
+            v.is_finite() && v > 0.0,
+            "SpatialSigma must be positive finite, got {v}"
+        );
+        Self(v)
+    }
+    /// Raw value.
+    #[inline]
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
+
+/// Intensity-domain sigma for bilateral filtering (σ_r > 0).
+///
+/// Controls the intensity extent of influence: larger values → less edge-preserving.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct RangeSigma(f64);
+
+impl RangeSigma {
+    /// Construct with validation. Panics if `v <= 0.0` or not finite.
+    pub fn new(v: f64) -> Self {
+        assert!(
+            v.is_finite() && v > 0.0,
+            "RangeSigma must be positive finite, got {v}"
+        );
+        Self(v)
+    }
+    /// Raw value.
+    #[inline]
+    pub fn get(self) -> f64 {
+        self.0
+    }
+}
 
 /// Edge-preserving bilateral filter for 3-D volumes.
 ///
@@ -37,9 +84,9 @@ use burn::tensor::backend::Backend;
 /// - Accumulation uses `f64` arithmetic.
 pub struct BilateralFilter {
     /// Spatial Gaussian sigma in voxels.
-    pub spatial_sigma: f64,
+    pub spatial_sigma: SpatialSigma,
     /// Intensity-range Gaussian sigma (same units as voxel values).
-    pub range_sigma: f64,
+    pub range_sigma: RangeSigma,
 }
 
 impl BilateralFilter {
@@ -50,8 +97,8 @@ impl BilateralFilter {
     /// * `range_sigma`   — standard deviation of the intensity Gaussian.
     pub fn new(spatial_sigma: f64, range_sigma: f64) -> Self {
         Self {
-            spatial_sigma,
-            range_sigma,
+            spatial_sigma: SpatialSigma::new(spatial_sigma),
+            range_sigma: RangeSigma::new(range_sigma),
         }
     }
 
@@ -64,7 +111,12 @@ impl BilateralFilter {
     /// Returns `Err` if the tensor data cannot be read as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (data, dims) = extract_vec(image)?;
-        let filtered = bilateral_3d(&data, dims, self.spatial_sigma, self.range_sigma);
+        let filtered = bilateral_3d(
+            &data,
+            dims,
+            self.spatial_sigma.get(),
+            self.range_sigma.get(),
+        );
         Ok(rebuild(filtered, dims, image))
     }
 }
@@ -175,7 +227,7 @@ mod tests {
 
     /// Extract flat `Vec<f32>` from an image (test utility).
     fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     // ── 1. Uniform image → unchanged ─────────────────────────────────────

@@ -140,7 +140,7 @@ fn main() -> anyhow::Result<()> {
         let sz = img.spacing()[0]; // z / slice
         let sy = img.spacing()[1]; // y / row
         let sx = img.spacing()[2]; // x / col
-        let vox = img.data_vec();
+        let vox = img.data_slice();
         let vmin = vox.iter().cloned().fold(f32::INFINITY, f32::min);
         let vmax = vox.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let phys_x = sh[2] as f64 * sx;
@@ -209,8 +209,8 @@ fn main() -> anyhow::Result<()> {
     println!("── Resampling MRI into CT space (stride-4 downsample for speed) ───");
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();
-    let ct_data = ct_img.data_vec();
-    let mri_data = mri_img.data_vec();
+    let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
+    let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
 
     // Spacing in (x/col, y/row, z/slice) order — note spacing()[0]=z, [2]=x.
     let ct_sx = ct_img.spacing()[2] as f64;

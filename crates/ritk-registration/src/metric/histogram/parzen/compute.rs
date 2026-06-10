@@ -171,9 +171,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
         // WGPU dispatch limit workaround
         // The matmul (Bins, N) * (N, Bins) reduces along N.
         // If N is too large, it exceeds dispatch limits.
-        const CHUNK_SIZE: usize = 32768;
 
-        if n <= CHUNK_SIZE {
+        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             let fixed_norm =
                 Self::normalize_to_bins(fixed.clone(), fix_min, fix_max, self.num_bins);
             let moving_norm =
@@ -192,11 +191,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
             w_fixed.transpose().matmul(w_moving)
         } else {
             let mut joint_hist = Tensor::<B, 2>::zeros([num_bins, num_bins], &device);
-            let num_chunks = n.div_ceil(CHUNK_SIZE);
+            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
 
             for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n);
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
                 let current_chunk_size = end - start;
                 let chunk_range = start..end;
 

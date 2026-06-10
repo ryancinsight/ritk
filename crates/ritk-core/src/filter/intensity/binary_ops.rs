@@ -7,140 +7,148 @@
 //!
 //! Let `A, B : ℤ³ → ℝ` be two images with identical shape `[nz, ny, nx]`:
 //!
-//! - `AddImageFilter`:      `out(x) = A(x) + B(x)`
+//! - `AddImageFilter`: `out(x) = A(x) + B(x)`
 //! - `SubtractImageFilter`: `out(x) = A(x) − B(x)`
 //! - `MultiplyImageFilter`: `out(x) = A(x) × B(x)`
-//! - `DivideImageFilter`:   `out(x) = A(x) / B(x)`  (division by zero yields 0)
-//! - `ImageMinFilter`:      `out(x) = min(A(x), B(x))`
-//! - `ImageMaxFilter`:      `out(x) = max(A(x), B(x))`
+//! - `DivideImageFilter`: `out(x) = A(x) / B(x)` (division by zero yields 0)
+//! - `ImageMinFilter`: `out(x) = min(A(x), B(x))`
+//! - `ImageMaxFilter`: `out(x) = max(A(x), B(x))`
 //!
 //! Spatial metadata (origin, spacing, direction) is taken from the **first** input image.
 //! Both images must have identical shapes; a shape mismatch returns `Err`.
 //!
+//! # Architecture
+//!
+//! All six filters share a single generic [`BinaryOpFilter<Op>`] implementation
+//! parameterized by a ZST operation type implementing [`BinaryOp`]. This
+//! eliminates ~120 lines of duplicated `apply` bodies while producing
+//! monomorphized, zero-cost specializations per operation.
+//!
 //! # ITK / SimpleITK / ImageJ Parity
 //!
-//! | Filter                 | ITK class              | ImageJ (Process > Image Calculator) |
+//! | Filter | ITK class | ImageJ (Process > Image Calculator) |
 //! |------------------------|------------------------|--------------------------------------|
-//! | `AddImageFilter`       | `AddImageFilter`       | Add                                  |
-//! | `SubtractImageFilter`  | `SubtractImageFilter`  | Subtract                             |
-//! | `MultiplyImageFilter`  | `MultiplyImageFilter`  | Multiply                             |
-//! | `DivideImageFilter`    | `DivideImageFilter`    | Divide                               |
-//! | `ImageMinFilter`       | `MinimumImageFilter`   | Min                                  |
-//! | `ImageMaxFilter`       | `MaximumImageFilter`   | Max                                  |
+//! | `AddImageFilter` | `AddImageFilter` | Add |
+//! | `SubtractImageFilter` | `SubtractImageFilter` | Subtract |
+//! | `MultiplyImageFilter` | `MultiplyImageFilter` | Multiply |
+//! | `DivideImageFilter` | `DivideImageFilter` | Divide |
+//! | `ImageMinFilter` | `MinimumImageFilter` | Min |
+//! | `ImageMaxFilter` | `MaximumImageFilter` | Max |
 
 use crate::filter::ops::{extract_vec as extract, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
-fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        a == b,
-        "binary image filter: shape mismatch {:?} vs {:?}",
-        a,
-        b
-    );
-    Ok(())
+// ── Trait ─────────────────────────────────────────────────────────────────────
+
+/// Trait for pointwise binary operations on voxel pairs.
+///
+/// Each implementor is a zero-sized type (ZST) that encodes the operation
+/// in the type system. The compiler monomorphizes `BinaryOpFilter<Op>::apply`
+/// into a specialized, branch-free loop identical to a hand-written version.
+pub trait BinaryOp: Default {
+    /// Apply the binary operation to a single voxel pair.
+    fn apply(a: f32, b: f32) -> f32;
 }
 
-// ── AddImageFilter ────────────────────────────────────────────────────────────
+// ── ZST operation types ───────────────────────────────────────────────────────
 
-/// Pixelwise addition of two images.
-///
-/// `out(x) = a(x) + b(x)`
-///
-/// # ITK Parity: `AddImageFilter`
-#[derive(Debug, Clone, Default)]
-pub struct AddImageFilter;
+/// Addition: `a + b`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct AddOp;
 
-impl AddImageFilter {
-    pub fn new() -> Self {
-        Self
-    }
+/// Subtraction: `a − b`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SubtractOp;
 
-    pub fn apply<B: Backend>(
-        &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
-        check_shapes(a.shape(), b.shape())?;
-        let (av, dims) = extract(a)?;
-        let (bv, _) = extract(b)?;
-        let out: Vec<f32> = av.iter().zip(bv.iter()).map(|(&x, &y)| x + y).collect();
-        Ok(rebuild(out, dims, a))
-    }
-}
+/// Multiplication: `a × b`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MultiplyOp;
 
-// ── SubtractImageFilter ───────────────────────────────────────────────────────
+/// Division: `a / b` (returns 0 where `b = 0`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct DivideOp;
 
-/// Pixelwise subtraction of two images.
-///
-/// `out(x) = a(x) − b(x)`
-///
-/// # ITK Parity: `SubtractImageFilter`
-#[derive(Debug, Clone, Default)]
-pub struct SubtractImageFilter;
+/// Elementwise minimum: `min(a, b)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MinOp;
 
-impl SubtractImageFilter {
-    pub fn new() -> Self {
-        Self
-    }
+/// Elementwise maximum: `max(a, b)`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MaxOp;
 
-    pub fn apply<B: Backend>(
-        &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
-        check_shapes(a.shape(), b.shape())?;
-        let (av, dims) = extract(a)?;
-        let (bv, _) = extract(b)?;
-        let out: Vec<f32> = av.iter().zip(bv.iter()).map(|(&x, &y)| x - y).collect();
-        Ok(rebuild(out, dims, a))
+impl BinaryOp for AddOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a + b
     }
 }
 
-// ── MultiplyImageFilter ───────────────────────────────────────────────────────
-
-/// Pixelwise multiplication of two images.
-///
-/// `out(x) = a(x) × b(x)`
-///
-/// # ITK Parity: `MultiplyImageFilter`
-#[derive(Debug, Clone, Default)]
-pub struct MultiplyImageFilter;
-
-impl MultiplyImageFilter {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn apply<B: Backend>(
-        &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
-        check_shapes(a.shape(), b.shape())?;
-        let (av, dims) = extract(a)?;
-        let (bv, _) = extract(b)?;
-        let out: Vec<f32> = av.iter().zip(bv.iter()).map(|(&x, &y)| x * y).collect();
-        Ok(rebuild(out, dims, a))
+impl BinaryOp for SubtractOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a - b
     }
 }
 
-// ── DivideImageFilter ─────────────────────────────────────────────────────────
+impl BinaryOp for MultiplyOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a * b
+    }
+}
 
-/// Pixelwise division of two images; division by zero yields 0.
+impl BinaryOp for DivideOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        if b == 0.0 {
+            0.0
+        } else {
+            a / b
+        }
+    }
+}
+
+impl BinaryOp for MinOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a.min(b)
+    }
+}
+
+impl BinaryOp for MaxOp {
+    #[inline]
+    fn apply(a: f32, b: f32) -> f32 {
+        a.max(b)
+    }
+}
+
+// ── Generic filter ────────────────────────────────────────────────────────────
+
+/// Generic pixelwise binary image filter parameterized by operation type.
 ///
-/// `out(x) = a(x) / b(x)`   (returns 0 where `b(x) = 0`)
+/// `Op` is a ZST implementing [`BinaryOp`]. The filter monomorphizes to a
+/// specialized loop with zero runtime overhead compared to a hand-written
+/// per-operation implementation.
 ///
-/// # ITK Parity: `DivideImageFilter`
+/// # Invariants
+///
+/// - Both input images must have identical shapes.
+/// - Spatial metadata (origin, spacing, direction) is taken from `a`.
 #[derive(Debug, Clone, Default)]
-pub struct DivideImageFilter;
+pub struct BinaryOpFilter<Op: BinaryOp> {
+    _op: core::marker::PhantomData<Op>,
+}
 
-impl DivideImageFilter {
+impl<Op: BinaryOp> BinaryOpFilter<Op> {
+    /// Create a new filter.
     pub fn new() -> Self {
-        Self
+        Self {
+            _op: core::marker::PhantomData,
+        }
     }
 
+    /// Apply the binary operation to two co-registered images.
     pub fn apply<B: Backend>(
         &self,
         a: &Image<B, 3>,
@@ -152,67 +160,67 @@ impl DivideImageFilter {
         let out: Vec<f32> = av
             .iter()
             .zip(bv.iter())
-            .map(|(&x, &y)| if y == 0.0 { 0.0 } else { x / y })
+            .map(|(&x, &y)| Op::apply(x, y))
             .collect();
         Ok(rebuild(out, dims, a))
     }
 }
 
-// ── ImageMinFilter ────────────────────────────────────────────────────────────
+// ── Shape validation ──────────────────────────────────────────────────────────
+
+fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        a == b,
+        "binary image filter: shape mismatch {:?} vs {:?}",
+        a,
+        b
+    );
+    Ok(())
+}
+
+// ── Type aliases preserving public API ────────────────────────────────────────
+
+/// Pixelwise addition of two images.
+///
+/// `out(x) = a(x) + b(x)`
+///
+/// # ITK Parity: `AddImageFilter`
+pub type AddImageFilter = BinaryOpFilter<AddOp>;
+
+/// Pixelwise subtraction of two images.
+///
+/// `out(x) = a(x) − b(x)`
+///
+/// # ITK Parity: `SubtractImageFilter`
+pub type SubtractImageFilter = BinaryOpFilter<SubtractOp>;
+
+/// Pixelwise multiplication of two images.
+///
+/// `out(x) = a(x) × b(x)`
+///
+/// # ITK Parity: `MultiplyImageFilter`
+pub type MultiplyImageFilter = BinaryOpFilter<MultiplyOp>;
+
+/// Pixelwise division of two images; division by zero yields 0.
+///
+/// `out(x) = a(x) / b(x)` (returns 0 where `b(x) = 0`)
+///
+/// # ITK Parity: `DivideImageFilter`
+pub type DivideImageFilter = BinaryOpFilter<DivideOp>;
 
 /// Pixelwise minimum of two images.
 ///
 /// `out(x) = min(a(x), b(x))`
 ///
 /// # ITK Parity: `MinimumImageFilter`
-#[derive(Debug, Clone, Default)]
-pub struct ImageMinFilter;
-
-impl ImageMinFilter {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn apply<B: Backend>(
-        &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
-        check_shapes(a.shape(), b.shape())?;
-        let (av, dims) = extract(a)?;
-        let (bv, _) = extract(b)?;
-        let out: Vec<f32> = av.iter().zip(bv.iter()).map(|(&x, &y)| x.min(y)).collect();
-        Ok(rebuild(out, dims, a))
-    }
-}
-
-// ── ImageMaxFilter ────────────────────────────────────────────────────────────
+pub type ImageMinFilter = BinaryOpFilter<MinOp>;
 
 /// Pixelwise maximum of two images.
 ///
 /// `out(x) = max(a(x), b(x))`
 ///
 /// # ITK Parity: `MaximumImageFilter`
-#[derive(Debug, Clone, Default)]
-pub struct ImageMaxFilter;
-
-impl ImageMaxFilter {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn apply<B: Backend>(
-        &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
-        check_shapes(a.shape(), b.shape())?;
-        let (av, dims) = extract(a)?;
-        let (bv, _) = extract(b)?;
-        let out: Vec<f32> = av.iter().zip(bv.iter()).map(|(&x, &y)| x.max(y)).collect();
-        Ok(rebuild(out, dims, a))
-    }
-}
+pub type ImageMaxFilter = BinaryOpFilter<MaxOp>;
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -239,7 +247,7 @@ mod tests {
     }
 
     fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_vec()
+        img.data_slice().into_owned()
     }
 
     // --- AddImageFilter ------------------------------------------------------
@@ -415,5 +423,45 @@ mod tests {
                 got
             );
         }
+    }
+
+    // --- Generic BinaryOpFilter directly ------------------------------------
+
+    #[test]
+    fn generic_binary_op_filter_matches_specialized() {
+        let a = make_image(vec![3.0, 7.0, 2.0, 9.0], [1, 2, 2]);
+        let b = make_image(vec![1.0, 4.0, 6.0, 3.0], [1, 2, 2]);
+
+        // Verify the generic path produces the same results as the type aliases
+        let add_out = BinaryOpFilter::<AddOp>::new().apply(&a, &b).unwrap();
+        let sub_out = BinaryOpFilter::<SubtractOp>::new().apply(&a, &b).unwrap();
+        let mul_out = BinaryOpFilter::<MultiplyOp>::new().apply(&a, &b).unwrap();
+        let div_out = BinaryOpFilter::<DivideOp>::new().apply(&a, &b).unwrap();
+        let min_out = BinaryOpFilter::<MinOp>::new().apply(&a, &b).unwrap();
+        let max_out = BinaryOpFilter::<MaxOp>::new().apply(&a, &b).unwrap();
+
+        let add_v = voxels(&add_out);
+        assert!((add_v[0] - 4.0).abs() < 1e-5);
+        assert!((add_v[1] - 11.0).abs() < 1e-5);
+
+        let sub_v = voxels(&sub_out);
+        assert!((sub_v[0] - 2.0).abs() < 1e-5);
+        assert!((sub_v[1] - 3.0).abs() < 1e-5);
+
+        let mul_v = voxels(&mul_out);
+        assert!((mul_v[0] - 3.0).abs() < 1e-5);
+        assert!((mul_v[1] - 28.0).abs() < 1e-5);
+
+        let div_v = voxels(&div_out);
+        assert!((div_v[0] - 3.0).abs() < 1e-5);
+        assert!((div_v[1] - 1.75).abs() < 1e-4);
+
+        let min_v = voxels(&min_out);
+        assert!((min_v[0] - 1.0).abs() < 1e-5);
+        assert!((min_v[1] - 4.0).abs() < 1e-5);
+
+        let max_v = voxels(&max_out);
+        assert!((max_v[0] - 3.0).abs() < 1e-5);
+        assert!((max_v[1] - 7.0).abs() < 1e-5);
     }
 }

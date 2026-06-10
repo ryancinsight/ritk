@@ -138,10 +138,15 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
 
     // ── Endianness ────────────────────────────────────────────────────────
     // True ⟹ big-endian.  Default is little-endian for multi-byte types.
-    let msb = headers
+    let byte_order = if headers
         .get("endian")
         .map(|s| s.to_lowercase() == "big")
-        .unwrap_or(false);
+        .unwrap_or(false)
+    {
+        ByteOrder::MostSignificantByteFirst
+    } else {
+        ByteOrder::LeastSignificantByteFirst
+    };
 
     // ── Spacing and direction ─────────────────────────────────────────────
     let spatial = if let Some(sd_str) = headers.get("space directions") {
@@ -172,21 +177,21 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
             reader
                 .read_to_end(&mut raw_bytes)
                 .context("Failed to read inline NRRD binary data")?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, msb)?
+            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
         }
         Some(df) if df.to_uppercase() == "INTERNAL" => {
             let mut raw_bytes = Vec::new();
             reader
                 .read_to_end(&mut raw_bytes)
                 .context("Failed to read inline NRRD binary data (INTERNAL)")?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, msb)?
+            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
         }
         // Detached: data is in an external file.
         Some(df) => {
             let raw_path = path.parent().unwrap_or_else(|| Path::new(".")).join(df);
             let raw_bytes = std::fs::read(&raw_path)
                 .with_context(|| format!("Cannot read NRRD data file {:?}", raw_path))?;
-            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, msb)?
+            decode_bytes_to_f32(&raw_bytes, &element_type, total_voxels, byte_order)?
         }
     };
 

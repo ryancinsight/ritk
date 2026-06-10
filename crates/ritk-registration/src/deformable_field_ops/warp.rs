@@ -1,6 +1,7 @@
 //! Image warping and streaming MSE under displacement fields.
 
-use super::{flat, trilinear_interpolate};
+use super::trilinear_interpolate;
+use crate::parallel::CellSlice;
 
 /// Warp `moving` by the displacement field into a caller-provided buffer.
 ///
@@ -17,17 +18,26 @@ pub(crate) fn warp_image_into(
     output: &mut [f32],
 ) {
     let [nz, ny, nx] = dims;
-    for iz in 0..nz {
+    // Parallelize over z-slices: each slice writes to a disjoint contiguous
+    // range in `output`; all reads are from immutable inputs.
+    let slice_len = ny * nx;
+    let output = CellSlice::from_mut(output);
+    moirai::for_each_index_with::<moirai::Adaptive, _>(nz, |iz| {
+        let base = iz * slice_len;
+        // SAFETY: `output` has length nz*ny*nx; each thread writes only to
+        // its own disjoint [base, base + slice_len) range.
+        let out_s = unsafe { output.slice_mut(base, slice_len) };
         for iy in 0..ny {
             for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
+                let local = iy * nx + ix;
+                let fi = base + local;
                 let wz = iz as f32 + dz[fi];
                 let wy = iy as f32 + dy[fi];
                 let wx = ix as f32 + dx[fi];
-                output[fi] = trilinear_interpolate(moving, dims, wz, wy, wx);
+                out_s[local] = trilinear_interpolate(moving, dims, wz, wy, wx);
             }
         }
-    }
+    });
 }
 
 /// Warp `moving` by the displacement field `(dz, dy, dx)`.
@@ -63,20 +73,32 @@ pub(crate) fn compute_mse_streaming(
     dx: &[f32],
 ) -> f64 {
     let [nz, ny, nx] = dims;
-    let mut sum = 0.0_f64;
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
-                let wz = iz as f32 + dz[fi];
-                let wy = iy as f32 + dy[fi];
-                let wx = ix as f32 + dx[fi];
-                let warped = trilinear_interpolate(moving, dims, wz, wy, wx);
-                let diff = (fixed[fi] - warped) as f64;
-                sum += diff * diff;
+    // Parallel reduction over z-slices; each slice accumulates its own
+    // partial sum from immutable inputs only. Per-slice sequential summation
+    // order is preserved, so results match the sequential implementation up
+    // to the associativity of the cross-slice combine (f64 accumulator).
+    let slice_len = ny * nx;
+    let sum = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
+        nz,
+        0.0_f64,
+        |iz| {
+            let base = iz * slice_len;
+            let mut s = 0.0_f64;
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let fi = base + iy * nx + ix;
+                    let wz = iz as f32 + dz[fi];
+                    let wy = iy as f32 + dy[fi];
+                    let wx = ix as f32 + dx[fi];
+                    let warped = trilinear_interpolate(moving, dims, wz, wy, wx);
+                    let diff = (fixed[fi] - warped) as f64;
+                    s += diff * diff;
+                }
             }
-        }
-    }
+            s
+        },
+        |a, b| a + b,
+    );
     sum / fixed.len() as f64
 }
 

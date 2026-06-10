@@ -40,7 +40,7 @@ def multires_demons_register(
     max_iterations: int = 50,
     sigma_diffusion: float = 1.0,
     levels: int = 3,
-    use_diffeomorphic: bool = False,
+    variant: str = "thirion",
     n_squarings: int = 6,
 ) -> tuple[Image, Image]: ...
 def syn_register(

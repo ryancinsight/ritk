@@ -1,7 +1,9 @@
 use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
-use ritk_registration::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
+use ritk_registration::diffeomorphic::multires_syn::{
+    InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
+};
 
 use super::shared::{load_matching_inputs, to_py_pair};
 
@@ -79,7 +81,11 @@ pub fn multires_syn_register(
             convergence_window: 10,
             n_squarings: 6,
             cc_window_radius: opts.cc_radius,
-            enforce_inverse_consistency: opts.inverse_consistency,
+            enforce_inverse_consistency: if opts.inverse_consistency {
+                InverseConsistency::Enforced
+            } else {
+                InverseConsistency::Relaxed
+            },
             gradient_step: opts.gradient_step,
         };
         let reg = MultiResSyNRegistration::new(config);

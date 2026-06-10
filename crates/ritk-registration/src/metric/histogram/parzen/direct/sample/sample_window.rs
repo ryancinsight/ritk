@@ -7,6 +7,24 @@ use super::super::types::{BinRange, ParzenConfig, StackWeights};
 
 // ── SampleWindow ───────────────────────────────────────────────────────────
 
+/// FIX-PROP-NAN-355: minimum non-zero value for the per-axis Parzen weight sum.
+///
+/// When a sample falls outside all Parzen support (e.g. far-OOB or numerical
+/// edge cases), `sum_weights == 0` and the raw `1.0 / sum_weights` is `+inf`.
+/// In `accumulate_sample_direct` we form `inv_norm = inv_sum_f × inv_sum_m`;
+/// `inf × inf = inf` and `inf × 0 = NaN`, both of which poison the histogram.
+/// Clamping `sum_weights` to be at least `INV_SUM_EPS` (or equivalently,
+/// capping `inv_sum` at `1.0 / INV_SUM_EPS = 1e10`) keeps the result finite
+/// and contributes a negligible (~zero) mass to the histogram in the
+/// pathological case — the sample is OOB and would have been excluded in
+/// masked configurations. Chosen to match `metric::entropy::DEFAULT_ENTROPY_EPS`
+/// for symmetry across the SoC-split modules.
+pub(crate) const INV_SUM_EPS: f32 = 1e-10;
+/// Pre-computed `1.0 / INV_SUM_EPS` (10¹⁰) returned by the guarded getters
+/// when the underlying weight sum is zero. Cached at compile-time for
+/// zero-cost hot-loop access.
+pub(crate) const INV_SUM_MAX: f32 = 1.0 / INV_SUM_EPS;
+
 /// Precomputed bin-range, weights, and context for a single sample's
 /// contribution to the joint histogram (MEM-316-01, ARCH-317-01).
 ///
@@ -75,15 +93,34 @@ impl SampleWindow {
     }
 
     /// Return `1 / sum_f` for this sample (PERF-328-01).
+    ///
+    /// **FIX-PROP-NAN-355**: when the stored value is non-finite (i.e.
+    /// `sum_f == 0.0` produced `+inf`, or a `0.0/0.0` produced `NaN`),
+    /// returns `1.0 / INV_SUM_EPS = 1e10` instead. This keeps the
+    /// downstream `inv_norm = inv_sum_f() × inv_sum_m()` product finite,
+    /// preventing the pre-existing
+    /// `prop_normalized_single_sample_contributes_one` NaN failure
+    /// (audit §11) when both axes have zero Parzen support.
     #[inline]
     pub fn inv_sum_f(&self) -> f32 {
-        self.inv_sum_f
+        if self.inv_sum_f.is_finite() {
+            self.inv_sum_f
+        } else {
+            INV_SUM_MAX
+        }
     }
 
     /// Return `1 / sum_m` for this sample (PERF-328-01).
+    ///
+    /// **FIX-PROP-NAN-355**: same guard as [`inv_sum_f`](Self::inv_sum_f) —
+    /// clamps `sum_m == 0.0` (which would yield `+inf`) to `1.0 / INV_SUM_EPS = 1e10`.
     #[inline]
     pub fn inv_sum_m(&self) -> f32 {
-        self.inv_sum_m
+        if self.inv_sum_m.is_finite() {
+            self.inv_sum_m
+        } else {
+            INV_SUM_MAX
+        }
     }
 
     /// Compute the `SampleWindow` for sample `i` (direct path — both axes).

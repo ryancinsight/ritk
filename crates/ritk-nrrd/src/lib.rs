@@ -56,7 +56,7 @@ impl<B: Backend> NrrdDipReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
 pub struct NrrdDipWriter<B: Backend> {
-    _marker: std::marker::PhantomData<B>,
+    _marker: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for NrrdDipWriter<B> {

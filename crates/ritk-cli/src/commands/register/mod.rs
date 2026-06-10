@@ -43,13 +43,23 @@ use clap::Args;
 use std::path::PathBuf;
 use tracing::info;
 
+use super::Backend;
 use ritk_core::filter::GaussianFilter;
 use ritk_core::image::Image;
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
 use ritk_registration::classical::spatial;
 use ritk_registration::ImageRegistration;
 
-use super::Backend;
+/// CLI-visible Demons variant string, parsed into [`DemonsVariant`] at dispatch.
+fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVariant, String> {
+    match s.to_lowercase().as_str() {
+        "thirion" | "classic" => Ok(ritk_registration::demons::DemonsVariant::Classic),
+        "diffeomorphic" => Ok(ritk_registration::demons::DemonsVariant::Diffeomorphic),
+        other => Err(format!(
+            "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
+        )),
+    }
+}
 
 // ── CLI arguments ─────────────────────────────────────────────────────────────
 
@@ -94,9 +104,11 @@ pub struct RegisterArgs {
     #[arg(long, default_value = "3", value_name = "INT")]
     pub levels: usize,
 
-    /// Use Diffeomorphic Demons at each pyramid level (default: Thirion Demons).
-    #[arg(long, default_value = "false", value_name = "BOOL")]
-    pub use_diffeomorphic: bool,
+    /// Demons variant for multi-resolution registration (default: thirion).
+    ///
+    /// Accepted values: `thirion`, `diffeomorphic`.
+    #[arg(long, default_value = "thirion", value_name = "VARIANT", value_parser = parse_demons_variant)]
+    pub variant: ritk_registration::demons::DemonsVariant,
 
     /// Regularization weight for BSpline FFD and BSpline SyN bending energy (default 0.001).
     #[arg(long, default_value = "0.001", value_name = "FLOAT")]
@@ -151,7 +163,7 @@ pub struct RegisterArgs {
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(super) fn image_to_array3(image: &Image<Backend, 3>) -> ndarray::Array3<f64> {
     let shape = image.shape();
-    let slice = image.data_vec();
+    let slice = image.data_slice();
     let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
     ndarray::Array3::from_shape_vec((shape[0], shape[1], shape[2]), f64_vec)
         .expect("shape derived from image must be consistent with data length")
@@ -187,7 +199,7 @@ pub(super) fn array3_to_image(
 /// Panics if the tensor data cannot be extracted as `f32`.
 pub(super) fn image_to_flat_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let data = image.data_vec();
+    let data: Vec<f32> = image.data_slice().into_owned();
     (data, [shape[0], shape[1], shape[2]])
 }
 
@@ -260,6 +272,7 @@ mod tests {
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
     /// Build a deterministic 4×4×4 image from a ramp of intensities.
@@ -302,7 +315,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -344,7 +357,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,

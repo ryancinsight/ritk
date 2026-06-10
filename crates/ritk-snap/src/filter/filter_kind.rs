@@ -1,5 +1,5 @@
 use crate::filter::serde_helper::BedSeparationConfigSerde;
-use ritk_core::filter::BedSeparationConfig;
+use ritk_core::filter::{BedSeparationConfig, ClampPolicy, Connectivity};
 use serde::{Deserialize, Serialize};
 
 #[doc = include_str!("variant_docs/enum_level.md")]
@@ -42,8 +42,8 @@ pub enum FilterKind {
         amount: f32,
         /// Minimum absolute mask value to trigger sharpening. Default: 0.0.
         threshold: f32,
-        /// Whether to clamp output to the input intensity range. Default: true.
-        clamp: bool,
+        /// Clamp policy for the output. ITK default: `ClampToInputRange`.
+        clamp: ClampPolicy,
     },
 
     #[doc = include_str!("variant_docs/gradient_aniso_diff.md")]
@@ -240,16 +240,16 @@ pub enum FilterKind {
 
     /// Extract border voxels of binary objects (ITK `BinaryContourImageFilter`).
     BinaryContour {
-        /// Use 26-connectivity; false = 6-connectivity.
-        fully_connected: bool,
+        /// Voxel neighborhood connectivity.
+        connectivity: Connectivity,
         /// Foreground voxel value. Default: 1.0.
         foreground_value: f32,
     },
 
     /// Extract boundaries between label regions (ITK `LabelContourImageFilter`).
     LabelContour {
-        /// Use 26-connectivity; false = 6-connectivity.
-        fully_connected: bool,
+        /// Voxel neighborhood connectivity.
+        connectivity: Connectivity,
         /// Background voxel value. Default: 0.0.
         background_value: f32,
     },

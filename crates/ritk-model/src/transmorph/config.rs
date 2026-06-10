@@ -7,13 +7,23 @@ use crate::transmorph::{
     swin::SwinTransformerBlockConfig,
 };
 
+/// Whether the flow field is numerically integrated (diffeomorphic) or used directly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TransformIntegration {
+    /// Flow field is used directly as a displacement without integration.
+    Direct,
+    /// Flow field is integrated via scaling-and-squaring to produce a diffeomorphic warp.
+    #[default]
+    Integrated,
+}
+
 #[derive(Debug, Clone)]
 pub struct TransMorphConfig {
     pub in_channels: usize,
     pub embed_dim: usize,
     pub out_channels: usize,
     pub window_size: usize,
-    pub integrate: bool,
+    pub integration: TransformIntegration,
     pub integration_steps: usize,
 }
 
@@ -24,7 +34,7 @@ impl TransMorphConfig {
             embed_dim,
             out_channels,
             window_size: 4,
-            integrate: true,
+            integration: TransformIntegration::Integrated,
             integration_steps: 7,
         }
     }
@@ -34,8 +44,8 @@ impl TransMorphConfig {
         self
     }
 
-    pub fn with_integrate(mut self, integrate: bool) -> Self {
-        self.integrate = integrate;
+    pub fn with_integration(mut self, integration: TransformIntegration) -> Self {
+        self.integration = integration;
         self
     }
 
@@ -134,7 +144,7 @@ impl TransMorphConfig {
             .with_padding(PaddingConfig3d::Explicit(1, 1, 1))
             .init(device);
 
-        let integration = if self.integrate {
+        let integration = if self.integration == TransformIntegration::Integrated {
             Some(VecInt::new(self.integration_steps))
         } else {
             None

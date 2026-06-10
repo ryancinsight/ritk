@@ -6338,6 +6338,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -6532,7 +6533,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-registration"
-version = "0.50.94"
+version = "0.50.95"
 dependencies = [
  "anyhow",
  "burn",

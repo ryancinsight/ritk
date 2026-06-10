@@ -19,53 +19,11 @@
 //! Runtime: ~10–15 min on CPU (masked and unmasked runs each ~3–7 min).
 mod common;
 
-use burn::tensor::backend::Backend;
 use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
-use ritk_core::filter::{
-    BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryThresholdImageFilter,
-};
-use ritk_core::segmentation::ConnectedComponentsFilter;
-use ritk_core::Image;
 use ritk_io::read_metaimage;
-use ritk_registration::{CmaMiConfig, CmaMiRegistration};
-
-/// Generate a brain mask from a CT volume using threshold + morphology.
-///
-/// Pipeline:
-/// 1. Threshold CT intensity to soft-tissue range [0, 100] HU.
-/// 2. Erode (radius 2) — break thin connections (skull, meninges, neck muscle).
-/// 3. Label connected components (26-connectivity).
-/// 4. Keep the largest component (brain).
-/// 5. Dilate (radius 2) — restore eroded brain boundary.
-/// 6. Fill internal holes.
-fn create_ct_brain_mask<B: Backend>(ct: &Image<B, 3>) -> Image<B, 3> {
-    let threshold = BinaryThresholdImageFilter::new(0.0, 100.0, 1.0, 0.0);
-    let mask = threshold.apply(ct).expect("threshold failed");
-
-    let erode = BinaryErodeFilter::new(2);
-    let eroded = erode.apply(&mask).expect("erosion failed");
-
-    let cc = ConnectedComponentsFilter::with_connectivity(26);
-    let (label_img, stats) = cc.apply(&eroded);
-
-    let largest = stats
-        .iter()
-        .max_by_key(|s| s.voxel_count)
-        .expect("no connected components in eroded mask");
-
-    let lv = largest.label as f32;
-    let largest_only = BinaryThresholdImageFilter::new(lv, lv, 1.0, 0.0)
-        .apply(&label_img)
-        .expect("largest-component threshold failed");
-
-    let dilate = BinaryDilateFilter::new(2);
-    let dilated = dilate.apply(&largest_only).expect("dilation failed");
-
-    let fill = BinaryFillholeFilter::new();
-    fill.apply(&dilated).expect("hole-fill failed")
-}
+use ritk_registration::{ct_brain_mask, CmaMiConfig, CmaMiRegistration, CtBrainMaskConfig};
 
 #[test]
 #[ignore = "requires test_data/registration/rire; takes ~10-15 min on CPU"]
@@ -96,9 +54,9 @@ fn test_brain_masked_registration_tre_on_rire_patient001() {
 
     // ── Generate brain mask ───────────────────────────────────────────────────
     println!("\n── Generating brain mask from CT ──");
-    let brain_mask = create_ct_brain_mask(&ct_img);
+    let brain_mask = ct_brain_mask(&ct_img, &CtBrainMaskConfig::default());
     let total_voxels: usize = brain_mask.shape().iter().product();
-    let fg_voxels = brain_mask.data_vec().iter().filter(|&&v| v > 0.5).count();
+    let fg_voxels = brain_mask.data_slice().iter().filter(|&&v| v > 0.5).count();
     println!(
         "  Shape: {:?}, foreground: {}/{} ({:.1}%)",
         brain_mask.shape(),

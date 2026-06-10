@@ -10,7 +10,7 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
-    let filter = GradientMagnitudeFilter::new([spacing[0], spacing[1], spacing[2]]);
+    let filter = GradientMagnitudeFilter::new(*spacing);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
@@ -34,7 +34,7 @@ pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
-    let filter = LaplacianFilter::new([spacing[0], spacing[1], spacing[2]]);
+    let filter = LaplacianFilter::new(*spacing);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
@@ -76,7 +76,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         alpha: args.alpha,
         beta: args.beta,
         gamma: args.gamma,
-        bright_vessels: true,
+        polarity: ritk_core::filter::VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter { config };
     let filtered = filter.apply(&image)?;
@@ -204,7 +204,7 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
-    let filter = SobelFilter::new([spacing[0], spacing[1], spacing[2]]);
+    let filter = SobelFilter::new(*spacing);
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 

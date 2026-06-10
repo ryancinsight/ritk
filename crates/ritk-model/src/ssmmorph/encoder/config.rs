@@ -1,6 +1,26 @@
 //! Configuration mappings for hierarchical encodings
 use burn::prelude::*;
 
+/// Whether an encoder stage performs spatial downsampling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DownsamplePolicy {
+    /// Preserve spatial resolution through this stage.
+    KeepResolution,
+    /// Apply strided convolution to halve spatial dimensions.
+    #[default]
+    Downsample,
+}
+
+/// Whether stochastic depth (drop-path) is applied during training.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum DropPath {
+    /// Drop-path is not applied.
+    #[default]
+    Disabled,
+    /// Drop-path is applied at the configured rate.
+    Enabled,
+}
+
 /// Configuration for encoder stage
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EncoderStageConfig {
@@ -11,7 +31,7 @@ pub struct EncoderStageConfig {
     /// Number of VMamba blocks in this stage
     pub depth: usize,
     /// Whether to downsample at the end of this stage
-    pub downsample: bool,
+    pub downsample: DownsamplePolicy,
 }
 
 /// Configuration for SSMMorph encoder
@@ -33,8 +53,8 @@ pub struct SSMMorphEncoderConfig {
     #[config(default = "2")]
     pub blocks_per_stage: usize,
     /// Use drop path (stochastic depth)
-    #[config(default = "false")]
-    pub use_drop_path: bool,
+    #[config(default = "DropPath::Disabled")]
+    pub drop_path: DropPath,
 }
 
 impl SSMMorphEncoderConfig {
@@ -46,7 +66,7 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 4,
             blocks_per_stage: 2,
-            use_drop_path: false,
+            drop_path: DropPath::Disabled,
         }
     }
 
@@ -58,7 +78,7 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 3,
             blocks_per_stage: 1,
-            use_drop_path: false,
+            drop_path: DropPath::Disabled,
         }
     }
 
@@ -70,7 +90,7 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 4,
             blocks_per_stage: 3,
-            use_drop_path: true,
+            drop_path: DropPath::Enabled,
         }
     }
 
@@ -84,7 +104,7 @@ impl SSMMorphEncoderConfig {
             // We downsample at every stage to produce a bottleneck that is
             // smaller than the last feature map. This ensures the decoder
             // can upsample the bottleneck to match the last skip connection.
-            let downsample = true;
+            let downsample = DownsamplePolicy::Downsample;
 
             configs.push(EncoderStageConfig {
                 in_channels: in_ch,

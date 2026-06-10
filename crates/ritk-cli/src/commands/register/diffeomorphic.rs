@@ -111,7 +111,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
 /// level-doubling velocity fields and optional inverse consistency enforcement.
 pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::diffeomorphic::multires_syn::{
-        MultiResSyNConfig, MultiResSyNRegistration,
+        InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
     };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
@@ -128,7 +128,11 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         convergence_window: 10,
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
-        enforce_inverse_consistency: args.inverse_consistency,
+        enforce_inverse_consistency: if args.inverse_consistency {
+            InverseConsistency::Enforced
+        } else {
+            InverseConsistency::Relaxed
+        },
         gradient_step: 0.25,
     };
     let reg = MultiResSyNRegistration::new(config);
@@ -213,6 +217,7 @@ pub(super) fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::register::tests::make_ramp_image;
+    use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
     /// Build default `RegisterArgs` for diffeomorphic-family tests.
@@ -233,7 +238,7 @@ mod tests {
             iterations: 2,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,

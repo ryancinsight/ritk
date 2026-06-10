@@ -41,6 +41,12 @@ pub use normalization::{
 pub use position_extrema::{maximum_position, minimum_position};
 pub use value_indices::{value_indices, ValueIndices};
 
+/// Sort a mutable slice of `f32` values using total ordering (NaN sorted last).
+#[inline]
+pub(crate) fn sort_floats(values: &mut [f32]) {
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+}
+
 #[cfg(test)]
 mod tests_label_overlap;
 

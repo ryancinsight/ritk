@@ -54,10 +54,12 @@ pub mod lddmm;
 pub mod metric;
 pub mod multires;
 pub mod optimizer;
+pub(crate) mod parallel;
 pub mod progress;
 pub mod registration;
 pub mod regularization;
 pub mod validation;
+pub(crate) mod wgpu_compat;
 
 // ============================================================================
 // Re-exports — SSOT for quality metrics
@@ -65,9 +67,9 @@ pub mod validation;
 pub use error::{RegistrationError, Result};
 pub use progress::{
     ConsoleProgressCallback, ConvergenceChecker, EarlyStoppingCallback, HistoryCallback,
-    ProgressCallback, ProgressInfo, ProgressTracker,
+    ProgressCallback, ProgressDisplay, ProgressInfo, ProgressTracker,
 };
-pub use validation::ValidationConfig;
+pub use validation::{NumericalCheck, ShapeValidation, ValidationConfig};
 
 // ============================================================================
 // Re-exports — Demons-family deformable registration
@@ -87,6 +89,7 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // ============================================================================
 // Re-exports — SyN diffeomorphic registration
 // ============================================================================
+pub use deformable_field_ops::VelocityField;
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 
 // ============================================================================
@@ -113,19 +116,23 @@ pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 // ============================================================================
 pub use classical::{
     compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiLevelConfig,
-    CmaMiRegistration, CmaMiResult, GlobalMiConfig, GlobalMiRegistration, GlobalMiResult,
-    GlobalMiTransformType, ImageRegistration, MultiStartConfig, MultiStartMiRegistration,
-    MultiStartResult, RegistrationQualityMetrics, RegistrationResult, SpatialTransform,
-    TemporalQualityMetrics, TemporalSync,
+    CmaMiRegistration, CmaMiResult, ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration,
+    GlobalMiResult, GlobalMiTransformType, ImageRegistration, InitStrategy, MultiStartConfig,
+    MultiStartMiRegistration, MultiStartResult, RegistrationQualityMetrics, RegistrationResult,
+    SpatialTransform, TemporalQualityMetrics, TemporalSync,
 };
 
 // ============================================================================
 // Re-exports — ML-based registration
 // ============================================================================
-pub use registration::{Registration, RegistrationConfig, RegistrationSummary};
+pub use registration::{
+    EarlyStoppingPolicy, Registration, RegistrationConfig, RegistrationSummary, StopReason,
+};
 
 // ============================================================================
 // Re-exports — ANTs preprocessing pipeline
 // ============================================================================
 pub mod preprocessing;
-pub use preprocessing::{NormalizationMode, PreprocessingPipeline, PreprocessingStep};
+pub use preprocessing::{
+    ct_brain_mask, CtBrainMaskConfig, NormalizationMode, PreprocessingPipeline, PreprocessingStep,
+};

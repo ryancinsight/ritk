@@ -20,7 +20,7 @@ fn test_encoder_stage_creation() {
         in_channels: 2,
         out_channels: 32,
         depth: 2,
-        downsample: true,
+        downsample: DownsamplePolicy::Downsample,
     };
 
     let stage = EncoderStage::<TestBackend>::new(&config, &device);
@@ -36,7 +36,7 @@ fn test_encoder_stage_forward() {
         in_channels: 2,
         out_channels: 32,
         depth: 1,
-        downsample: true,
+        downsample: DownsamplePolicy::Downsample,
     };
 
     let stage = EncoderStage::<TestBackend>::new(&config, &device);
@@ -99,5 +99,5 @@ fn test_encoder_presets() {
     let hq_config = SSMMorphEncoderConfig::high_quality();
     assert_eq!(hq_config.num_stages, 4);
     assert_eq!(hq_config.base_channels, 48);
-    assert!(hq_config.use_drop_path);
+    assert_eq!(hq_config.drop_path, DropPath::Enabled);
 }

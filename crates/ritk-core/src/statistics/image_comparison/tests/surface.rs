@@ -164,15 +164,15 @@ fn test_euclidean_distance_known() {
 
 #[test]
 fn test_min_distance_to_empty_set_is_infinity() {
-    let p = vec![1.0f64, 2.0];
-    let empty: Vec<Vec<f64>> = vec![];
+    let p = [1.0f64, 2.0];
+    let empty: Vec<[f64; 2]> = vec![];
     let d = min_distance_to_set(&p, &empty);
     assert!(d.is_infinite() && d > 0.0, "empty set -> +inf");
 }
 
 #[test]
 fn test_directed_hausdorff_empty_from_is_zero() {
-    let from: Vec<Vec<f64>> = vec![];
-    let to = vec![vec![1.0f64, 0.0], vec![2.0, 0.0]];
+    let from: Vec<[f64; 2]> = vec![];
+    let to: Vec<[f64; 2]> = vec![[1.0, 0.0], [2.0, 0.0]];
     assert_eq!(directed_hausdorff(&from, &to), 0.0);
 }

@@ -1,96 +1,52 @@
+// ── Internal ────────────────────────────────────────────────────────────────
+pub(crate) mod ops;
+
+// ── Bias correction ──────────────────────────────────────────────────────────
 pub mod bias;
+pub use bias::N4BiasFieldCorrectionFilter;
+
+// ── Denoising & smoothing ────────────────────────────────────────────────────
 pub mod bilateral;
-pub mod bin_shrink;
-pub mod cpr;
-pub mod deconvolution;
 pub mod diffusion;
 pub mod discrete_gaussian;
-pub mod distance;
-pub mod downsample;
-pub mod edge;
-pub mod fft;
 pub mod gaussian;
-pub mod intensity;
-pub mod labeling;
 pub mod median;
-pub mod morphology;
 pub mod noise;
-pub(crate) mod ops;
-pub mod projection;
-pub mod pyramid;
-pub mod rank;
 pub mod recursive_gaussian;
-pub mod resample;
 pub mod smoothing;
-pub mod surface;
-pub mod threshold;
-pub mod transform;
-pub mod vesselness;
-pub use bias::N4BiasFieldCorrectionFilter;
-pub use bilateral::BilateralFilter;
-pub use bin_shrink::BinShrinkImageFilter;
-pub use cpr::{generate_path, generate_path_batch};
-pub use cpr::{CprConfig, CprImageFilter};
-pub use deconvolution::{
-    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
-};
+
+pub use bilateral::{BilateralFilter, RangeSigma, SpatialSigma};
 pub use diffusion::{
     AnisotropicDiffusionFilter, CoherenceConfig, CoherenceEnhancingDiffusionFilter,
-    ConductanceFunction, CurvatureAnisotropicDiffusionFilter, CurvatureConfig, CurvatureFlowConfig,
-    CurvatureFlowImageFilter, DiffusionConfig, GradientAnisotropicDiffusionFilter,
-    GradientDiffusionConfig,
+    ConductanceFunction, ConductanceKernel, CurvatureAnisotropicDiffusionFilter, CurvatureConfig,
+    CurvatureFlowConfig, CurvatureFlowImageFilter, DiffusionConfig, ExponentialConductance,
+    GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, QuadraticConductance,
 };
-pub use discrete_gaussian::DiscreteGaussianFilter;
-pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
-pub use downsample::DownsampleFilter;
-pub use edge::{
-    CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
-    SobelFilter,
-};
-pub use fft::{
-    FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,
-    FftNormalizedCorrelationFilter, FftShiftFilter, ForwardFftFilter, FrequencyDomainFilter,
-    InverseFftFilter,
-};
+pub use discrete_gaussian::{DiscreteGaussianFilter, SpacingMode};
 pub use gaussian::GaussianFilter;
-pub use intensity::{
-    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
-    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
-    BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, CosImageFilter,
-    DivideImageFilter, ExpImageFilter, HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter,
-    IntensityWindowingFilter, InvertIntensityFilter, LogImageFilter, MaskImageFilter,
-    MaskNegatedImageFilter, MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter,
-    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter,
-    TanImageFilter, ThresholdImageFilter, ThresholdMode, UnsharpMaskFilter,
-};
-pub use intensity::{ShiftScaleImageFilter, SuvBodyWeightImageFilter, ZeroCrossingImageFilter};
-pub use labeling::{
-    connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter,
-    RelabelStatistics,
-};
 pub use median::MedianFilter;
-pub use morphology::{
-    BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
-    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter,
-    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
-    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
-    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform, LabelClosing,
-    LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
-    MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
-};
 pub use noise::{
     AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
 };
-pub use projection::{
-    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
-    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
-};
-pub use pyramid::MultiResolutionPyramid;
-pub use rank::{PercentileFilter, RankFilter};
-pub use recursive_gaussian::RecursiveGaussianFilter;
-pub use resample::ResampleImageFilter;
+pub use recursive_gaussian::{DerivativeOrder, RecursiveGaussianFilter, ScaleNormalization};
 pub use smoothing::MeanImageFilter;
-pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};
+
+// ── Intensity & histogram ────────────────────────────────────────────────────
+pub mod intensity;
+pub mod threshold;
+
+pub use intensity::{
+    AbsImageFilter, AcosImageFilter, AddImageFilter, AsinImageFilter, AtanImageFilter,
+    BedSeparationConfig, BedSeparationFilter, BinaryThresholdImageFilter, BlendImageFilter,
+    BoundedReciprocalImageFilter, ClaheFilter, ClaheScratch, ClampImageFilter, ClampPolicy,
+    ComponentPolicy, CosImageFilter, DivideImageFilter, ExpImageFilter,
+    HistogramEqualizationFilter, ImageMaxFilter, ImageMinFilter, IntensityWindowingFilter,
+    InvertIntensityFilter, LogImageFilter, MaskImageFilter, MaskNegatedImageFilter,
+    MultiplyImageFilter, NormalizeImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    SigmoidImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter, SubtractImageFilter,
+    SuvBodyWeightImageFilter, TanImageFilter, ThresholdImageFilter, ThresholdMode,
+    UnsharpMaskFilter, ZeroCrossingImageFilter,
+};
 pub use threshold::{
     apply_binary_threshold_to_slice, binary_threshold, compute_kapur_threshold_from_slice,
     compute_li_threshold_from_slice, compute_multi_otsu_thresholds_from_slice,
@@ -99,8 +55,79 @@ pub use threshold::{
     BinaryThreshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
     TriangleThreshold, YenThreshold,
 };
+
+// ── Morphology & labeling ────────────────────────────────────────────────────
+pub mod labeling;
+pub mod morphology;
+
+pub use labeling::{
+    connected_components, ConnectedComponentsFilter, LabelStatistics, RelabelComponentFilter,
+    RelabelStatistics,
+};
+pub use morphology::{
+    BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
+    BinaryMorphologicalClosing, BinaryMorphologicalOpening, BlackTopHatFilter, Connectivity,
+    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
+    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HitOrMissTransform, LabelClosing,
+    LabelContourImageFilter, LabelDilation, LabelErosion, LabelOpening,
+    MorphologicalReconstruction, ReconstructionMode, VotingBinaryImageFilter, WhiteTopHatFilter,
+};
+
+// ── Edge detection & vesselness ──────────────────────────────────────────────
+pub mod edge;
+pub mod vesselness;
+
+pub use edge::{
+    CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
+    SobelFilter,
+};
+pub use vesselness::{
+    FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter, VesselPolarity,
+};
+
+// ── Frequency domain & deconvolution ─────────────────────────────────────────
+pub mod deconvolution;
+pub mod fft;
+
+pub use deconvolution::{
+    LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
+};
+pub use fft::{
+    FftConvolution3DFilter, FftConvolutionFilter, FftFilterKind, FftNormalizedCorrelation3DFilter,
+    FftNormalizedCorrelationFilter, FftShiftFilter, ForwardFftFilter, FrequencyDomainFilter,
+    InverseFftFilter,
+};
+
+// ── Spatial transforms & grid operations ─────────────────────────────────────
+pub mod bin_shrink;
+pub mod cpr;
+pub mod downsample;
+pub mod projection;
+pub mod pyramid;
+pub mod resample;
+pub mod transform;
+
+pub use bin_shrink::BinShrinkImageFilter;
+pub use cpr::{generate_path, generate_path_batch};
+pub use cpr::{CprConfig, CprImageFilter};
+pub use downsample::DownsampleFilter;
+pub use projection::{
+    MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
+};
+pub use pyramid::MultiResolutionPyramid;
+pub use resample::ResampleImageFilter;
 pub use transform::{
-    ConstantPadImageFilter, FlipImageFilter, MirrorPadImageFilter, PasteImageFilter,
+    ConstantPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter, PasteImageFilter,
     PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
 };
-pub use vesselness::{FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter};
+
+// ── Surface & distance ───────────────────────────────────────────────────────
+pub mod distance;
+pub mod rank;
+pub mod surface;
+
+pub use distance::{DistanceTransformImageFilter, SignedDistanceTransformImageFilter};
+pub use rank::{PercentileFilter, RankFilter};
+pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};

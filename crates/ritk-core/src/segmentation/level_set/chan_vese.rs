@@ -198,7 +198,7 @@ impl ChanVeseSegmentation {
         // c₁ ≈ mean of bright class and c₂ ≈ mean of dark class from iteration 1,
         // so the data-fidelity terms immediately drive the contour toward the correct
         // bimodal boundary.
-        let otsu_t = otsu_threshold_f64(&img_f64);
+        let otsu_t = local_otsu_threshold(&img_f64);
         let mut phi: Vec<f64> = img_f64.iter().map(|&v| v - otsu_t).collect();
         let eps = self.epsilon;
 
@@ -294,7 +294,7 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
 /// ```
 ///
 /// For a constant image returns the uniform intensity. Complexity: O(n + 256).
-fn otsu_threshold_f64(img: &[f64]) -> f64 {
+fn local_otsu_threshold(img: &[f64]) -> f64 {
     const NUM_BINS: usize = 256;
     let n = img.len();
     if n == 0 {

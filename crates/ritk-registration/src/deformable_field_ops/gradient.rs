@@ -1,6 +1,6 @@
 //! Image gradient computation via finite differences.
 
-use super::flat;
+use super::{flat, VelocityField};
 
 /// Write the gradient of `data` into caller-provided buffers.
 ///
@@ -70,17 +70,17 @@ pub(crate) fn compute_gradient_into(
 ///
 /// # Returns
 /// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
-pub(crate) fn compute_gradient(
-    data: &[f32],
-    dims: [usize; 3],
-    spacing: [f64; 3],
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+pub(crate) fn compute_gradient(data: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> VelocityField {
     let n = dims[0] * dims[1] * dims[2];
     let mut gz = vec![0.0_f32; n];
     let mut gy = vec![0.0_f32; n];
     let mut gx = vec![0.0_f32; n];
     compute_gradient_into(data, dims, spacing, &mut gz, &mut gy, &mut gx);
-    (gz, gy, gx)
+    VelocityField {
+        z: gz,
+        y: gy,
+        x: gx,
+    }
 }
 
 #[cfg(test)]
@@ -95,18 +95,26 @@ mod tests {
         let [nz, ny, nx] = dims;
         let data: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
         let spacing = [1.0, 1.0, 1.0];
-        let (gz, gy, gx) = compute_gradient(&data, dims, spacing);
+        let grad = compute_gradient(&data, dims, spacing);
 
         for iz in 1..nz - 1 {
             for iy in 1..ny - 1 {
                 for ix in 1..nx - 1 {
                     let fi = flat(iz, iy, ix, ny, nx);
-                    assert!((gz[fi]).abs() < 1e-5, "gz should be 0, got {}", gz[fi]);
-                    assert!((gy[fi]).abs() < 1e-5, "gy should be 0, got {}", gy[fi]);
                     assert!(
-                        (gx[fi] - 1.0).abs() < 1e-5,
+                        (grad.z[fi]).abs() < 1e-5,
+                        "gz should be 0, got {}",
+                        grad.z[fi]
+                    );
+                    assert!(
+                        (grad.y[fi]).abs() < 1e-5,
+                        "gy should be 0, got {}",
+                        grad.y[fi]
+                    );
+                    assert!(
+                        (grad.x[fi] - 1.0).abs() < 1e-5,
                         "gx should be 1, got {}",
-                        gx[fi]
+                        grad.x[fi]
                     );
                 }
             }
@@ -119,11 +127,11 @@ mod tests {
         let dims = [4usize, 4, 4];
         let [nz, ny, nx] = dims;
         let data = vec![5.0_f32; nz * ny * nx];
-        let (gz, gy, gx) = compute_gradient(&data, dims, [1.0; 3]);
+        let grad = compute_gradient(&data, dims, [1.0; 3]);
         for i in 0..nz * ny * nx {
-            assert_eq!(gz[i], 0.0, "gz[{i}] should be 0");
-            assert_eq!(gy[i], 0.0, "gy[{i}] should be 0");
-            assert_eq!(gx[i], 0.0, "gx[{i}] should be 0");
+            assert_eq!(grad.z[i], 0.0, "gz[{i}] should be 0");
+            assert_eq!(grad.y[i], 0.0, "gy[{i}] should be 0");
+            assert_eq!(grad.x[i], 0.0, "gx[{i}] should be 0");
         }
     }
 }

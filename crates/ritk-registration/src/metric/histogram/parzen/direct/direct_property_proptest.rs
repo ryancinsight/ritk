@@ -14,8 +14,15 @@ use super::types::ParzenConfig;
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(64))]
 
-    /// Per-sample contribution to histogram total is always ≈ 1.0 (PERF-328-01),
-    /// for arbitrary sample values in [0, num_bins - 1].
+    /// Per-sample contribution to histogram total is always ≈ 1.0 (PERF-328-01)
+    /// for in-support samples, and exactly 0 for fully out-of-support samples
+    /// (FIX-PROP-NAN-355: the `is_finite()` guard in `accumulate_sample_direct`
+    /// short-circuits when both Parzen windows are empty, e.g. m far outside
+    /// `[0, num_bins - 1]`).
+    ///
+    /// `f_val` / `m_val` are sampled from `[0.5, 31.5)` so a few percent of
+    /// generated cases are intentionally OOB — this exercises the guard path
+    /// and prevents silent regressions if the guard is removed.
     #[test]
     fn prop_normalized_single_sample_contributes_one(
         f_val in 0.5f32..31.5,
@@ -31,13 +38,25 @@ proptest! {
         let mut hist = vec![0.0f32; num_bins * num_bins];
         super::accumulate_sample_direct(&mut hist, num_bins, &window);
         let sum: f32 = hist.iter().sum();
-        // Per-sample sum should be ≈ 1.0 (interior samples exactly; boundary
-        // samples slightly less due to support clipping, but still in [0.5, 1.05]).
+        // FIX-PROP-NAN-355: lower bound widened from 0.5 to 0.0 to allow the
+        // OOB-guard path (sum=0) for samples outside both Parzen supports.
+        // In-support samples still hit [0.5, 1.05] as before.
         prop_assert!(
-            sum > 0.5 && sum < 1.05,
-            "sigma_sq={} num_bins={} f={} m={}: sum={} should be in [0.5, 1.05]",
+            (0.0..1.05).contains(&sum),
+            "sigma_sq={} num_bins={} f={} m={}: sum={} should be in [0.0, 1.05] (0.0=fully OOB)",
             sigma_sq, num_bins, f_val, m_val, sum
         );
+        // If the sample is in-support on at least one axis, the sum must be
+        // strictly positive — guards against accidental full-zeroing.
+        let f_in_support = f_val >= 0.0 && f_val <= (num_bins - 1) as f32;
+        let m_in_support = m_val >= 0.0 && m_val <= (num_bins - 1) as f32;
+        if f_in_support && m_in_support {
+            prop_assert!(
+                sum > 0.5,
+                "in-support sample (f={}, m={}, num_bins={}) should have sum > 0.5, got {}",
+                f_val, m_val, num_bins, sum
+            );
+        }
     }
 
     /// Direct-path histogram total equals number of in-bounds samples (PERF-328-01).

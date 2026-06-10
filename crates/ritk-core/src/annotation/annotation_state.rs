@@ -12,6 +12,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::error::AnnotationError;
+
 /// A single 3-D point annotation with an optional label association.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PointAnnotation {
@@ -62,24 +64,24 @@ impl AnnotationState {
     }
 
     /// Add a closed contour. Returns `Err` if the contour has fewer than 2 points.
-    pub fn add_contour(&mut self, points: Vec<[f64; 3]>) -> Result<(), String> {
+    pub fn add_contour(&mut self, points: Vec<[f64; 3]>) -> Result<(), AnnotationError> {
         if points.len() < 2 {
-            return Err(format!(
-                "contour requires >= 2 points, got {}",
-                points.len()
-            ));
+            return Err(AnnotationError::TooFewPoints {
+                kind: "contour",
+                count: points.len(),
+            });
         }
         self.contours.push(points);
         Ok(())
     }
 
     /// Add an open polyline. Returns `Err` if the polyline has fewer than 2 points.
-    pub fn add_polyline(&mut self, points: Vec<[f64; 3]>) -> Result<(), String> {
+    pub fn add_polyline(&mut self, points: Vec<[f64; 3]>) -> Result<(), AnnotationError> {
         if points.len() < 2 {
-            return Err(format!(
-                "polyline requires >= 2 points, got {}",
-                points.len()
-            ));
+            return Err(AnnotationError::TooFewPoints {
+                kind: "polyline",
+                count: points.len(),
+            });
         }
         self.polylines.push(points);
         Ok(())
@@ -169,8 +171,18 @@ mod tests {
         let mut state = AnnotationState::new();
         let result = state.add_contour(vec![[0.0, 0.0, 0.0]]);
         assert!(result.is_err());
-        let msg = result.unwrap_err();
-        assert!(msg.contains("1"), "error must mention point count: {}", msg);
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                AnnotationError::TooFewPoints {
+                    kind: "contour",
+                    count: 1
+                }
+            ),
+            "unexpected error variant: {:?}",
+            err
+        );
     }
 
     #[test]
@@ -192,8 +204,18 @@ mod tests {
         let mut state = AnnotationState::new();
         let result = state.add_polyline(vec![[0.0, 0.0, 0.0]]);
         assert!(result.is_err());
-        let msg = result.unwrap_err();
-        assert!(msg.contains("1"), "error must mention point count: {}", msg);
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                AnnotationError::TooFewPoints {
+                    kind: "polyline",
+                    count: 1
+                }
+            ),
+            "unexpected error variant: {:?}",
+            err
+        );
     }
 
     #[test]

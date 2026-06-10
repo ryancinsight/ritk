@@ -3,7 +3,7 @@ use burn_ndarray::NdArray;
 use ritk_core::interpolation::LinearInterpolator;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{
-    DisplacementField, DisplacementFieldTransform2D, RigidTransform, Transform,
+    DisplacementField, DisplacementFieldTransform, RigidTransform, Transform,
 };
 use std::f32::consts::PI;
 
@@ -116,7 +116,7 @@ fn test_displacement_field_transform_2d() {
 
     let field = DisplacementField::new(vec![x_tensor, y_tensor], origin, spacing, direction);
 
-    let transform = DisplacementFieldTransform2D::new(field, LinearInterpolator::new());
+    let transform = DisplacementFieldTransform::<B, 2>::new(field, LinearInterpolator::new());
 
     // Test point (0.5, 0.5)
     // Physical (0.5, 0.5) -> Index (0.5, 0.5)

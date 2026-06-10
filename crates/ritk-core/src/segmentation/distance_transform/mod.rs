@@ -160,7 +160,7 @@ fn lower_envelope_transform(
                 // Integer division rounding: we want ceil-like behavior for the
                 // boundary, but floor is fine because we scan left-to-right and
                 // check `q >= z_buf[k]` below.
-                z_buf[k] = div_floor_i64(num, den);
+                z_buf[k] = div_floor(num, den);
                 z_buf[k + 1] = i64::MAX;
                 break;
             }
@@ -179,7 +179,7 @@ fn lower_envelope_transform(
 }
 
 /// Integer floor division (towards negative infinity) for signed integers.
-fn div_floor_i64(a: i64, b: i64) -> i64 {
+fn div_floor(a: i64, b: i64) -> i64 {
     let d = a / b;
     let r = a % b;
     if (r != 0) && ((r ^ b) < 0) {

@@ -48,7 +48,7 @@ pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> R
 
 /// Stateless JPEG writer.
 pub struct JpegWriter<B: Backend> {
-    _marker: PhantomData<B>,
+    _marker: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for JpegWriter<B> {

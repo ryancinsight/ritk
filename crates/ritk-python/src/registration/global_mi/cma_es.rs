@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;
 use ritk_core::image::Image;
-use ritk_registration::{CmaMiConfig, CmaMiRegistration};
+use ritk_registration::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
 use super::{py_image_to_autodiff_image, AutodiffBackend};
 
@@ -93,7 +93,11 @@ pub(crate) fn build_cma_config(opts: &PyCmaMiOptions) -> RitkResult<CmaMiConfig>
                 sampling_percentage: opts.sampling_percentage,
                 translation_range_mm: opts.translation_range_mm,
                 rotation_range_rad: opts.rotation_range_rad,
-                use_com_init: opts.use_com_init,
+                init_strategy: if opts.use_com_init {
+                    InitStrategy::CenterOfMass
+                } else {
+                    InitStrategy::Manual
+                },
                 cma_config: ritk_registration::optimizer::CmaEsConfig {
                     sigma0: opts.sigma0,
                     max_generations: opts.max_generations,

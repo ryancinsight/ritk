@@ -1,4 +1,4 @@
-use crate::filter::fft::convolution::helpers::{fft2d, FftDir};
+use crate::filter::fft::convolution::helpers::{fft2d, ForwardFft, InverseFft};
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
 use anyhow::{anyhow, Result};
@@ -96,8 +96,8 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         }
 
         let mut planner = rustfft::FftPlanner::<f32>::new();
-        fft2d(&mut img_buf, pad_r, pad_c, &mut planner, FftDir::Forward);
-        fft2d(&mut tmpl_buf, pad_r, pad_c, &mut planner, FftDir::Forward);
+        fft2d::<ForwardFft>(&mut img_buf, pad_r, pad_c, &mut planner);
+        fft2d::<ForwardFft>(&mut tmpl_buf, pad_r, pad_c, &mut planner);
 
         // Cross-correlation: multiply image FFT by conjugate of template FFT.
         // (a + bi) · conj(c + di) = (a + bi)(c − di) = (ac + bd) + (bc − ad)i
@@ -107,7 +107,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
             img_buf[i] = Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im);
         }
 
-        fft2d(&mut img_buf, pad_r, pad_c, &mut planner, FftDir::Inverse);
+        fft2d::<InverseFft>(&mut img_buf, pad_r, pad_c, &mut planner);
 
         // Partial normalization: divide by ‖T̂‖₂ · pad_n.
         let denom = if self.template_norm > 1e-10_f32 {

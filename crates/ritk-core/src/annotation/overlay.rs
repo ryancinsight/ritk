@@ -10,6 +10,59 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+/// Display visibility for overlay layers.
+///
+/// - `Hidden`: overlay is not rendered.
+/// - `Visible`: overlay is rendered (default).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum Visibility {
+    /// Overlay is not rendered.
+    Hidden,
+    /// Overlay is rendered.
+    #[default]
+    Visible,
+}
+
+/// Normalized opacity value in the closed interval `[0.0, 1.0]`.
+///
+/// # Panics
+/// [`Opacity::new`] panics if `v` is not in `[0.0, 1.0]` (including NaN).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct Opacity(f32);
+
+impl Opacity {
+    /// Construct a valid opacity. Panics if `v < 0.0`, `v > 1.0`, or `v` is NaN.
+    pub fn new(v: f32) -> Self {
+        assert!(
+            v.is_finite() && (0.0..=1.0).contains(&v),
+            "Opacity must be in [0.0, 1.0], got {v}"
+        );
+        Self(v)
+    }
+
+    /// Construct without validation. Caller must guarantee `v ∈ [0.0, 1.0]`.
+    ///
+    /// # Safety contract (invariant)
+    /// This function is safe; "unchecked" refers to domain invariant only.
+    #[inline]
+    pub fn new_unchecked(v: f32) -> Self {
+        Self(v)
+    }
+
+    /// Raw `f32` value.
+    #[inline]
+    pub fn get(self) -> f32 {
+        self.0
+    }
+}
+
+impl Default for Opacity {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
 /// Display colormap for image overlays.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum Colormap {
@@ -21,15 +74,15 @@ pub enum Colormap {
     Custom(Vec<[f32; 4]>),
 }
 
-/// Secondary image overlay.  Invariant: data.len() == dims product.
+/// Secondary image overlay. Invariant: data.len() == dims product.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageOverlay {
     pub name: String,
     pub data: Vec<f32>,
     pub dims: [usize; 3],
-    pub opacity: f32,
+    pub opacity: Opacity,
     pub colormap: Colormap,
-    pub visible: bool,
+    pub visible: Visibility,
 }
 impl ImageOverlay {
     /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
@@ -47,20 +100,20 @@ impl ImageOverlay {
             name: name.into(),
             data,
             dims,
-            opacity: 1.0,
+            opacity: Opacity::new(1.0),
             colormap: Colormap::Grayscale,
-            visible: true,
+            visible: Visibility::Visible,
         }
     }
     pub fn with_opacity(mut self, v: f32) -> Self {
-        self.opacity = v;
+        self.opacity = Opacity::new(v);
         self
     }
     pub fn with_colormap(mut self, v: Colormap) -> Self {
         self.colormap = v;
         self
     }
-    pub fn with_visible(mut self, v: bool) -> Self {
+    pub fn with_visible(mut self, v: Visibility) -> Self {
         self.visible = v;
         self
     }
@@ -74,7 +127,7 @@ pub struct ContourOverlay {
     pub contours: Vec<Vec<[f64; 3]>>,
     pub color: [f32; 4],
     pub line_width: f32,
-    pub visible: bool,
+    pub visible: Visibility,
 }
 impl ContourOverlay {
     pub fn new(name: impl Into<String>, label_id: u32) -> Self {
@@ -84,7 +137,7 @@ impl ContourOverlay {
             contours: Vec::new(),
             color: [1.0, 1.0, 1.0, 1.0],
             line_width: 1.0,
-            visible: true,
+            visible: Visibility::Visible,
         }
     }
     /// Returns `Err` when `pts.len() < 2`.
@@ -99,7 +152,7 @@ impl ContourOverlay {
         self.color = v;
         self
     }
-    pub fn with_visible(mut self, v: bool) -> Self {
+    pub fn with_visible(mut self, v: Visibility) -> Self {
         self.visible = v;
         self
     }
@@ -111,8 +164,8 @@ pub struct MaskOverlay {
     pub name: String,
     pub data: Vec<u32>,
     pub dims: [usize; 3],
-    pub opacity: f32,
-    pub visible: bool,
+    pub opacity: Opacity,
+    pub visible: Visibility,
 }
 impl MaskOverlay {
     /// Panics when `data.len() != dims\[0\]\*dims\[1\]\*dims\[2\]`.
@@ -130,12 +183,12 @@ impl MaskOverlay {
             name: name.into(),
             data,
             dims,
-            opacity: 0.5,
-            visible: true,
+            opacity: Opacity::new(0.5),
+            visible: Visibility::Visible,
         }
     }
     pub fn with_opacity(mut self, v: f32) -> Self {
-        self.opacity = v;
+        self.opacity = Opacity::new(v);
         self
     }
     /// Theorem: label_count = |{ v : v in data, v != 0 }|
@@ -189,10 +242,16 @@ impl OverlayState {
         }
     }
     pub fn visible_image_overlays(&self) -> Vec<&ImageOverlay> {
-        self.image_overlays.iter().filter(|o| o.visible).collect()
+        self.image_overlays
+            .iter()
+            .filter(|o| o.visible == Visibility::Visible)
+            .collect()
     }
     pub fn visible_mask_overlays(&self) -> Vec<&MaskOverlay> {
-        self.mask_overlays.iter().filter(|o| o.visible).collect()
+        self.mask_overlays
+            .iter()
+            .filter(|o| o.visible == Visibility::Visible)
+            .collect()
     }
 }
 
@@ -207,8 +266,8 @@ mod tests {
         assert_eq!(o.data.len(), 24);
         assert_eq!(o.dims, [2, 3, 4]);
         assert_eq!(o.name, "layer");
-        assert!(o.visible);
-        assert_eq!(o.opacity, 1.0);
+        assert_eq!(o.visible, Visibility::Visible);
+        assert_eq!(o.opacity.get(), 1.0);
         assert_eq!(o.colormap, Colormap::Grayscale);
     }
 
@@ -272,10 +331,10 @@ mod tests {
     fn test_overlay_state_visible_image_overlays() {
         let mut s = OverlayState::new();
         s.add_image_overlay(
-            ImageOverlay::new("vis", vec![1.0f32; 4], [1, 2, 2]).with_visible(true),
+            ImageOverlay::new("vis", vec![1.0f32; 4], [1, 2, 2]).with_visible(Visibility::Visible),
         );
         s.add_image_overlay(
-            ImageOverlay::new("hid", vec![1.0f32; 4], [1, 2, 2]).with_visible(false),
+            ImageOverlay::new("hid", vec![1.0f32; 4], [1, 2, 2]).with_visible(Visibility::Hidden),
         );
         let r = s.visible_image_overlays();
         assert_eq!(r.len(), 1);
@@ -293,7 +352,7 @@ mod tests {
     fn test_overlay_state_serde_round_trip() {
         let mut s = OverlayState::new();
         let mut img = ImageOverlay::new("img", vec![0.5f32, 0.75], [1, 1, 2]);
-        img.opacity = 0.8;
+        img.opacity = Opacity::new(0.8);
         img.colormap = Colormap::Hot;
         s.add_image_overlay(img);
         let mut cnt = ContourOverlay::new("cnt", 42);
@@ -306,7 +365,7 @@ mod tests {
         let r: OverlayState = serde_json::from_str(&json).unwrap();
         assert_eq!(r.image_overlays.len(), 1);
         assert_eq!(r.image_overlays[0].name, "img");
-        assert!((r.image_overlays[0].opacity - 0.8).abs() < 1e-6);
+        assert!((r.image_overlays[0].opacity.get() - 0.8).abs() < 1e-6);
         assert_eq!(r.image_overlays[0].colormap, Colormap::Hot);
         assert_eq!(r.image_overlays[0].data, vec![0.5f32, 0.75]);
         assert_eq!(r.contour_overlays.len(), 1);
@@ -314,7 +373,7 @@ mod tests {
         assert_eq!(r.contour_overlays[0].contours[0].len(), 2);
         assert_eq!(r.mask_overlays.len(), 1);
         assert_eq!(r.mask_overlays[0].name, "msk");
-        assert!((r.mask_overlays[0].opacity - 0.6).abs() < 1e-6);
+        assert!((r.mask_overlays[0].opacity.get() - 0.6).abs() < 1e-6);
         assert_eq!(r.mask_overlays[0].data, vec![0u32, 1, 2, 0]);
     }
 }

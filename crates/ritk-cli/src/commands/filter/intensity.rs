@@ -243,7 +243,7 @@ mod tests {
         super::run_bed_separation(&args).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-        let result_data = result.data_vec();
+        let result_data = result.data_slice();
         assert_eq!(result_data[0], -2048.0);
         assert_eq!(result_data[1], -2048.0);
         assert_eq!(result_data[4], -200.0);

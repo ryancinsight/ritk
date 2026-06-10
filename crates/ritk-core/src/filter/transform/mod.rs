@@ -14,7 +14,7 @@ pub mod permute_axes;
 pub mod roi;
 pub mod shrink;
 
-pub use flip::FlipImageFilter;
+pub use flip::{FlipImageFilter, FlipPolicy};
 pub use pad::{ConstantPadImageFilter, MirrorPadImageFilter, WrapPadImageFilter};
 pub use paste::PasteImageFilter;
 pub use permute_axes::PermuteAxesImageFilter;

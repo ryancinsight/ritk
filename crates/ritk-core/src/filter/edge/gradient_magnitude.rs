@@ -21,6 +21,7 @@
 
 use crate::filter::ops::{extract_vec, rebuild};
 use crate::image::Image;
+use crate::spatial::Spacing;
 use burn::tensor::backend::Backend;
 
 /// Filter that computes the gradient magnitude of a 3-D image.
@@ -31,19 +32,19 @@ use burn::tensor::backend::Backend;
 #[derive(Debug, Clone)]
 pub struct GradientMagnitudeFilter {
     /// Physical voxel spacing [sz, sy, sx] in each axis direction.
-    pub spacing: [f64; 3],
+    pub spacing: Spacing<3>,
 }
 
 impl GradientMagnitudeFilter {
     /// Create a filter with the given physical spacing.
-    pub fn new(spacing: [f64; 3]) -> Self {
+    pub fn new(spacing: Spacing<3>) -> Self {
         Self { spacing }
     }
 
     /// Create a filter with unit spacing (1.0 in each direction).
     pub fn unit() -> Self {
         Self {
-            spacing: [1.0, 1.0, 1.0],
+            spacing: Spacing::uniform(1.0),
         }
     }
 
@@ -109,7 +110,7 @@ impl GradientMagnitudeFilter {
         image: &Image<B, 3>,
     ) -> anyhow::Result<(Image<B, 3>, Image<B, 3>, Image<B, 3>)> {
         let (vals, dims) = extract_vec(image)?;
-        let (gz, gy, gx) = gradient_vecs(&vals, dims, self.spacing);
+        let (gz, gy, gx) = gradient_vecs(&vals, dims, &self.spacing);
         Ok((
             rebuild(gz, dims, image),
             rebuild(gy, dims, image),
@@ -202,7 +203,7 @@ impl GradientMagnitudeFilter {
 fn gradient_vecs(
     data: &[f32],
     dims: [usize; 3],
-    spacing: [f64; 3],
+    spacing: &Spacing<3>,
 ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;

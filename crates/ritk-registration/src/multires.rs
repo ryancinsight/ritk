@@ -9,9 +9,15 @@ use ritk_core::transform::{Resampleable, Transform};
 use std::marker::PhantomData;
 
 /// Configuration for multi-resolution registration.
+///
+/// P1-01: `shrink_factors` and `smoothing_sigmas` use stack-allocated `[T; D]`
+/// arrays rather than `Vec<Vec<T>>`, eliminating one heap allocation per level
+/// and one level of indirection on the hot path. The `[T; D]` representation is
+/// also SIMD-friendly and enables the compiler to keep the per-dimension
+/// factors in registers across the pyramid build.
 pub struct RegistrationSchedule<const D: usize> {
-    pub shrink_factors: Vec<Vec<usize>>,
-    pub smoothing_sigmas: Vec<Vec<f64>>,
+    pub shrink_factors: Vec<[usize; D]>,
+    pub smoothing_sigmas: Vec<[f64; D]>,
     pub iterations: Vec<usize>,
     pub learning_rates: Vec<f64>,
 }
@@ -33,8 +39,9 @@ impl<const D: usize> RegistrationSchedule<D> {
                 0.0
             };
 
-            shrink_factors.push(vec![factor; D]);
-            smoothing_sigmas.push(vec![sigma; D]);
+            // P1-01: stack array per level — no inner Vec allocation.
+            shrink_factors.push([factor; D]);
+            smoothing_sigmas.push([sigma; D]);
             iterations.push(100); // Default iterations
             learning_rates.push(1e-2); // Default LR
         }
@@ -44,6 +51,23 @@ impl<const D: usize> RegistrationSchedule<D> {
             smoothing_sigmas,
             iterations,
             learning_rates,
+        }
+    }
+
+    /// Build a schedule from parallel `Vec<[T; D]>` inputs. Use this when
+    /// constructing a schedule from external configuration (e.g. user-supplied
+    /// per-level factors). The arrays are stored directly — no inner Vec.
+    pub fn from_per_level(
+        shrink_factors: Vec<[usize; D]>,
+        smoothing_sigmas: Vec<[f64; D]>,
+    ) -> Self {
+        assert_eq!(shrink_factors.len(), smoothing_sigmas.len());
+        let n = shrink_factors.len();
+        Self {
+            shrink_factors,
+            smoothing_sigmas,
+            iterations: vec![100; n],
+            learning_rates: vec![1e-2; n],
         }
     }
 
@@ -104,6 +128,9 @@ where
         O: Optimizer<T, B>,
     {
         // 1. Create Pyramids
+        // P1-01: schedule already stores `Vec<[usize; D]>` and `Vec<[f64; D]>`,
+        // so the pyramid API consumes the arrays directly — no `Vec<Vec<T>>`
+        // re-materialisation, no per-level inner allocation.
         let fixed_pyramid = MultiResolutionPyramid::new(
             fixed,
             &schedule.shrink_factors,

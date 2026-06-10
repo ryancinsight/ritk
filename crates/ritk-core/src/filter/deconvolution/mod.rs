@@ -31,6 +31,7 @@
 
 mod helpers;
 mod landweber;
+mod regularization;
 mod rl;
 mod tikhonov;
 mod wiener;

@@ -25,14 +25,28 @@ pub fn compute_structure_tensor_products(
     grad: &Gradient,
     dims: [usize; 3],
 ) -> StructureTensorProducts {
+    compute_structure_tensor_products_from_slices(&grad.gz, &grad.gy, &grad.gx, dims)
+}
+
+/// Compute the 6 outer-product components from gradient slices.
+///
+/// Accepts `(&[f64], &[f64], &[f64])` instead of `&Gradient` so callers
+/// that already hold separate gradient buffers (e.g. `CedScratch`) can
+/// pass them directly without cloning into a `Gradient` struct.
+pub fn compute_structure_tensor_products_from_slices(
+    gz: &[f64],
+    gy: &[f64],
+    gx: &[f64],
+    dims: [usize; 3],
+) -> StructureTensorProducts {
     let n = dims[0] * dims[1] * dims[2];
     let mut st = StructureTensorProducts {
         data: vec![[0.0f64; 6]; n],
     };
     st.data.par_mut().enumerate(|i, out| {
-        let gz = grad.gz[i];
-        let gy = grad.gy[i];
-        let gx = grad.gx[i];
+        let gz = gz[i];
+        let gy = gy[i];
+        let gx = gx[i];
         out[0] = gz * gz; // J_11 = I_z²
         out[1] = gz * gy; // J_12 = I_z·I_y
         out[2] = gz * gx; // J_13 = I_z·I_x
@@ -72,6 +86,10 @@ pub struct CedScratch {
     /// Gaussian kernel (shared across smoothing passes).
     kernel: Vec<f64>,
 
+    /// Scratch buffer reused across the 6 component smoothing passes
+    /// in `smooth_structure_tensor_into` to avoid per-component allocation.
+    smooth_buf: Vec<f64>,
+
     /// Previously configured sigma (to detect when kernel must be rebuilt).
     sigma: f64,
 }
@@ -95,6 +113,9 @@ impl CedScratch {
         }
         if self.current.len() != n {
             self.current = vec![0.0; n];
+        }
+        if self.smooth_buf.len() != n {
+            self.smooth_buf = vec![0.0; n];
         }
         if (self.sigma - sigma).abs() > f64::EPSILON || self.kernel.is_empty() {
             self.kernel = make_gaussian_kernel_1d(sigma);
@@ -126,20 +147,21 @@ impl CedScratch {
                 &mut self.grad_x,
             );
 
-            // Step 2: structure tensor products
-            let grad = Gradient {
-                gz: self.grad_z.clone(),
-                gy: self.grad_y.clone(),
-                gx: self.grad_x.clone(),
-            };
-            let st_products = compute_structure_tensor_products(&grad, dims);
-            self.st_products[..n].copy_from_slice(&st_products.data[..n]);
+            // Step 2: structure tensor products (zero-copy via slices)
+            compute_structure_tensor_products_into(
+                &self.grad_z,
+                &self.grad_y,
+                &self.grad_x,
+                dims,
+                &mut self.st_products,
+            );
 
             // Step 3: smooth structure tensor
             smooth_structure_tensor_into(
                 &self.st_products,
                 dims,
                 &self.kernel,
+                &mut self.smooth_buf,
                 &mut self.st_smooth,
             );
 
@@ -166,15 +188,19 @@ impl CedScratch {
 
 impl Default for CedScratch {
     fn default() -> Self {
+        // Delayed-init pattern: ensure_capacity reallocates to exact voxel count
+        // on first call. with_capacity(0) avoids a wasted initial grow(0)
+        // allocation inside ensure_capacity's vec![0.0; n] replacement path.
         Self {
-            grad_z: Vec::new(),
-            grad_y: Vec::new(),
-            grad_x: Vec::new(),
-            st_products: Vec::new(),
-            st_smooth: Vec::new(),
-            divergence: Vec::new(),
-            current: Vec::new(),
-            kernel: Vec::new(),
+            grad_z: Vec::with_capacity(0),
+            grad_y: Vec::with_capacity(0),
+            grad_x: Vec::with_capacity(0),
+            st_products: Vec::with_capacity(0),
+            st_smooth: Vec::with_capacity(0),
+            divergence: Vec::with_capacity(0),
+            current: Vec::with_capacity(0),
+            smooth_buf: Vec::with_capacity(0),
+            kernel: Vec::with_capacity(0),
             sigma: -1.0,
         }
     }
@@ -226,26 +252,52 @@ fn compute_gradient_into(
     }
 }
 
+/// Compute structure tensor products directly into a pre-allocated buffer.
+///
+/// Accepts gradient slices so callers with separate buffers (e.g. `CedScratch`)
+/// can avoid cloning into a `Gradient` struct.
+fn compute_structure_tensor_products_into(
+    gz: &[f64],
+    gy: &[f64],
+    gx: &[f64],
+    dims: [usize; 3],
+    out: &mut [[f64; 6]],
+) {
+    let n = dims[0] * dims[1] * dims[2];
+    out[..n].par_mut().enumerate(|i, row| {
+        let gzi = gz[i];
+        let gyi = gy[i];
+        let gxi = gx[i];
+        row[0] = gzi * gzi;
+        row[1] = gzi * gyi;
+        row[2] = gzi * gxi;
+        row[3] = gyi * gyi;
+        row[4] = gyi * gxi;
+        row[5] = gxi * gxi;
+    });
+}
+
 /// Smooth structure tensor into a pre-allocated buffer.
+///
+/// Processes each of the 6 components sequentially, writing directly into
+/// `out` to avoid allocating an outer container (`Vec<Vec<f64>>`). The
+/// caller-provided `buf` is reused across components to avoid per-component
+/// heap allocation.
 fn smooth_structure_tensor_into(
     st_products: &[[f64; 6]],
     dims: [usize; 3],
     kernel: &[f64],
+    buf: &mut Vec<f64>,
     out: &mut [[f64; 6]],
 ) {
-    let n = dims[0] * dims[1] * dims[2];
-    let smoothed_components: Vec<Vec<f64>> = (0..6)
-        .map(|c| {
-            let mut buf: Vec<f64> = st_products.iter().map(|v| v[c]).collect();
-            buf = gaussian_smooth_1d(&buf, dims, 0, kernel);
-            buf = gaussian_smooth_1d(&buf, dims, 1, kernel);
-            buf = gaussian_smooth_1d(&buf, dims, 2, kernel);
-            buf
-        })
-        .collect();
-    for i in 0..n {
-        for c in 0..6 {
-            out[i][c] = smoothed_components[c][i];
+    for c in 0..6 {
+        buf.clear();
+        buf.extend(st_products.iter().map(|v| v[c]));
+        *buf = gaussian_smooth_1d(buf, dims, 0, kernel);
+        *buf = gaussian_smooth_1d(buf, dims, 1, kernel);
+        *buf = gaussian_smooth_1d(buf, dims, 2, kernel);
+        for (i, &v) in buf.iter().enumerate() {
+            out[i][c] = v;
         }
     }
 }

@@ -168,7 +168,7 @@ mod tests {
     }
 
     fn volume_values(volume: &RgbVolume<TestBackend>) -> Vec<f32> {
-        volume.data_vec()
+        volume.with_data_slice(|s| s.to_vec())
     }
 
     #[test]
@@ -186,7 +186,7 @@ mod tests {
             volume_values(&volume),
             vec![255.0, 0.0, 0.0, 0.0, 128.0, 255.0]
         );
-        assert_eq!(volume.origin().to_vec(), vec![0.0, 0.0, 0.0]);
+        assert_eq!(volume.origin().to_array(), [0.0, 0.0, 0.0]);
         assert_eq!(
             [
                 volume.spacing()[0],

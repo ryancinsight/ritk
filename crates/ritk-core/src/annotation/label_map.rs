@@ -9,7 +9,7 @@
 //! Index mapping (ZYX order): flat(z, y, x) = z * ny * nx + y * nx + x.
 //!
 //! # Invariants
-//! - All label IDs are valid `u32` values (backing storage is `Vec<u32>`).
+//! - All label IDs are valid `u32` values (backing storage is `Arc<[u32]>`).
 //! - shape\[0\] * shape\[1\] * shape\[2\] == data.len() exactly.
 
 use std::collections::HashSet;
@@ -24,11 +24,11 @@ use super::label_table::LabelTable;
 ///
 /// # Memory model (Copy-on-Write)
 ///
-/// The flat label buffer is wrapped in `Arc<Vec<u32>>` so that `clone()` (used
+/// The flat label buffer is wrapped in `Arc<[u32]>` so that `clone()` (used
 /// by the label editor before each edit) increments a reference count instead of
-/// deep-copying every voxel.  The deep copy is deferred to the first `set_label_at`
+/// deep-copying every voxel. The deep copy is deferred to the first `set_label_at`
 /// call via `Arc::make_mut`, which materializes a new buffer only when the `Arc`
-/// has multiple references.  Read-only operations (`label_at`, `as_slice`,
+/// has multiple references. Read-only operations (`label_at`, `as_slice`,
 /// `present_labels`, etc.) incur zero copy overhead regardless of the reference
 /// count.
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ pub struct LabelMap {
     /// Volume dimensions [nz, ny, nx].
     pub shape: [usize; 3],
     /// Flat label buffer in ZYX layout. Label 0 denotes background.
-    data: Arc<Vec<u32>>,
+    data: Arc<[u32]>,
     /// Label-to-display-properties table.
     pub table: LabelTable,
 }
@@ -47,7 +47,7 @@ impl LabelMap {
         let n = shape[0] * shape[1] * shape[2];
         Self {
             shape,
-            data: Arc::new(vec![0u32; n]),
+            data: Arc::from(vec![0u32; n]),
             table,
         }
     }
@@ -66,7 +66,7 @@ impl LabelMap {
         }
         Ok(Self {
             shape,
-            data: Arc::new(data),
+            data: Arc::from(data),
             table,
         })
     }

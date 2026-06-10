@@ -192,7 +192,7 @@ mod tests {
     }
 
     fn volume_values(volume: &RgbVolume<TestBackend>) -> Vec<f32> {
-        volume.data_vec()
+        volume.with_data_slice(|s| s.to_vec())
     }
 
     #[test]

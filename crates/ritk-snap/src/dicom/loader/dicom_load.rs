@@ -124,7 +124,7 @@ fn load_dicom_color_volume_from_scanned_series(
         dir[(2, 1)],
         dir[(2, 2)],
     ];
-    let pixels = rgb_vol.data_vec();
+    let pixels: Vec<f32> = rgb_vol.with_data_slice(|s| s.to_vec());
     let modality = meta.modality;
     let patient_name = meta.patient_name.clone();
     let patient_id = meta.patient_id.clone();
@@ -222,7 +222,7 @@ fn load_dicom_color_volume<B: burn::tensor::backend::Backend>(
         dir[(2, 2)],
     ];
 
-    let pixels = rgb_vol.data_vec();
+    let pixels: Vec<f32> = rgb_vol.with_data_slice(|s| s.to_vec());
 
     let modality = meta.modality;
     let patient_name = meta.patient_name.clone();

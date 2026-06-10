@@ -54,7 +54,7 @@ use ritk_core::image::Image;
 /// println!("CoM [z, y, x] = [{:.1}, {:.1}, {:.1}] mm", com[0], com[1], com[2]);
 /// ```
 pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
-    let data = image.data_vec();
+    let data = image.data_slice();
     let shape = image.shape();
     let origin = image.origin();
     let spacing = image.spacing();
@@ -122,7 +122,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 /// represent the same anatomy in different modalities and the objects occupy
 /// a similar fraction of the field of view. For strongly asymmetric images
 /// (e.g. whole-body CT vs. brain MRI) the estimate may be unreliable; in that
-/// case pass `use_com_init = false` in `CmaMiConfig` and supply an explicit
+/// case use `init_strategy = InitStrategy::Manual` in `CmaMiConfig` and supply an explicit
 /// initial translation.
 pub fn translation_from_centers_of_mass<B: Backend>(
     fixed: &Image<B, 3>,

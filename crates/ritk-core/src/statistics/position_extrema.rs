@@ -267,12 +267,12 @@ mod tests {
         for flat in 0..(2 * 3 * 4) {
             let m = flat_to_multi(flat, dims);
             let mut recovered = 0_usize;
-            for k in 0..3 {
+            for (k, &mk) in m.iter().enumerate() {
                 let mut stride = 1;
-                for j in (k + 1)..3 {
-                    stride *= dims[j];
+                for &d in dims.iter().skip(k + 1) {
+                    stride *= d;
                 }
-                recovered += m[k] * stride;
+                recovered += mk * stride;
             }
             assert_eq!(recovered, flat, "flat={} → {:?} → {}", flat, m, recovered);
         }

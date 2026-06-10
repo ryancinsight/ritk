@@ -56,7 +56,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 sigma: 1.0,
                 amount: 0.5,
                 threshold: 0.0,
-                clamp: true,
+                clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
             },
             "Unsharp Mask",
         )
@@ -66,7 +66,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             sigma: 1.0,
             amount: 0.5,
             threshold: 0.0,
-            clamp: true,
+            clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
         };
     }
     if ui

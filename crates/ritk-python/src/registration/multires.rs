@@ -5,8 +5,9 @@ use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_registration::demons::{
-    DemonsConfig, InverseConsistentDemonsConfig, InverseConsistentDiffeomorphicDemonsRegistration,
-    MultiResDemonsConfig, MultiResDemonsRegistration,
+    DemonsConfig, DemonsVariant, InverseConsistentDemonsConfig,
+    InverseConsistentDiffeomorphicDemonsRegistration, MultiResDemonsConfig,
+    MultiResDemonsRegistration,
 };
 
 /// Configuration options for [`multires_demons_register`].
@@ -22,10 +23,10 @@ pub struct PyMultiresDemonsOptions {
     /// Number of pyramid levels >= 1.
     #[pyo3(get, set)]
     pub levels: usize,
-    /// When true, use DiffeomorphicDemons at each level.
+    /// Demons variant: "thirion" (classic) or "diffeomorphic".
     #[pyo3(get, set)]
-    pub use_diffeomorphic: bool,
-    /// Scaling-and-squaring steps when use_diffeomorphic=True.
+    pub variant: String,
+    /// Scaling-and-squaring steps when variant=diffeomorphic.
     #[pyo3(get, set)]
     pub n_squarings: usize,
 }
@@ -37,23 +38,32 @@ impl PyMultiresDemonsOptions {
         max_iterations = 50,
         sigma_diffusion = 1.0,
         levels = 3,
-        use_diffeomorphic = false,
+        variant = "thirion",
         n_squarings = 6,
     ))]
     pub fn new(
         max_iterations: usize,
         sigma_diffusion: f64,
         levels: usize,
-        use_diffeomorphic: bool,
+        variant: &str,
         n_squarings: usize,
-    ) -> Self {
-        Self {
+    ) -> PyResult<Self> {
+        let normalized = variant.to_lowercase();
+        match normalized.as_str() {
+            "thirion" | "classic" | "diffeomorphic" => {}
+            other => {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(format!(
+                    "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
+                )))
+            }
+        };
+        Ok(Self {
             max_iterations,
             sigma_diffusion,
             levels,
-            use_diffeomorphic,
+            variant: normalized,
             n_squarings,
-        }
+        })
     }
 }
 
@@ -81,11 +91,11 @@ pub fn multires_demons_register(
     moving: &PyImage,
     opts: Option<PyMultiresDemonsOptions>,
 ) -> RitkResult<(PyImage, PyImage)> {
-    let opts = opts.unwrap_or_else(|| PyMultiresDemonsOptions::new(50, 1.0, 3, false, 6));
+    let opts =
+        opts.unwrap_or_else(|| PyMultiresDemonsOptions::new(50, 1.0, 3, "thirion", 6).unwrap());
     let max_iterations = opts.max_iterations;
     let sigma_diffusion = opts.sigma_diffusion;
     let levels = opts.levels;
-    let use_diffeomorphic = opts.use_diffeomorphic;
     let n_squarings = opts.n_squarings;
     let (fixed_vals, fixed_shape) = image_to_vec(fixed.inner.as_ref());
     let (moving_vals, moving_shape) = image_to_vec(moving.inner.as_ref());
@@ -100,6 +110,10 @@ pub fn multires_demons_register(
     let fixed_direction = *fixed.inner.direction();
     let [nz, ny, nx] = fixed_shape;
     py.allow_threads(|| {
+        let variant = match opts.variant.as_str() {
+            "diffeomorphic" => DemonsVariant::Diffeomorphic,
+            _ => DemonsVariant::Classic,
+        };
         let config = MultiResDemonsConfig {
             base_config: DemonsConfig {
                 max_iterations,
@@ -108,7 +122,7 @@ pub fn multires_demons_register(
                 max_step_length: 2.0,
             },
             levels,
-            use_diffeomorphic,
+            variant,
             n_squarings,
         };
         MultiResDemonsRegistration::new(config)

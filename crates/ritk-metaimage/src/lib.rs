@@ -54,7 +54,7 @@ impl<B: Backend> MetaImageDipReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
 pub struct MetaImageDipWriter<B: Backend> {
-    _marker: std::marker::PhantomData<B>,
+    _marker: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> Default for MetaImageDipWriter<B> {

@@ -10,7 +10,7 @@ pub mod vector;
 
 pub use direction::Direction;
 pub use point::Point;
-pub use spacing::Spacing;
+pub use spacing::{InvalidSpacing, Spacing};
 pub use vector::Vector;
 
 // Common type aliases for 2D and 3D

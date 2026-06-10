@@ -22,7 +22,7 @@ use std::marker::PhantomData;
 pub(super) struct RsgdStepMapper<'a, B: AutodiffBackend> {
     pub(super) grads: &'a mut GradientsParams,
     pub(super) effective_lr: f64,
-    pub(super) _phantom: PhantomData<B>,
+    pub(super) _phantom: PhantomData<fn() -> B>,
 }
 
 impl<'a, B: AutodiffBackend> RsgdStepMapper<'a, B> {

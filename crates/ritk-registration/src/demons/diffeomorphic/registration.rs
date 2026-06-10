@@ -4,8 +4,8 @@ use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
 use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
-    compute_gradient, compute_mse_streaming, gaussian_smooth_inplace, scaling_and_squaring,
-    warp_image, VectorField3D, VectorFieldMut3D,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace, scaling_and_squaring,
+    scaling_and_squaring_into, warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -83,34 +83,58 @@ impl DiffeomorphicDemonsRegistration {
         let mut fy = vec![0.0_f32; n];
         let mut fx = vec![0.0_f32; n];
 
-        let (grad_z, grad_y, grad_x) = compute_gradient(fixed, dims, spacing);
+        // ── Pre-allocated scratch for zero-allocation inner loop ──────────────────
+        let mut phi_z = vec![0.0_f32; n];
+        let mut phi_y = vec![0.0_f32; n];
+        let mut phi_x = vec![0.0_f32; n];
+        let mut scratch_ss_z = vec![0.0_f32; n];
+        let mut scratch_ss_y = vec![0.0_f32; n];
+        let mut scratch_ss_x = vec![0.0_f32; n];
+        let mut m_warped = vec![0.0_f32; n];
 
-        let mut final_mse = compute_mse_direct(
-            fixed,
-            moving,
+        let grad = compute_gradient(fixed, dims, spacing);
+
+        scaling_and_squaring_into(
             &vel_z,
             &vel_y,
             &vel_x,
             dims,
             self.n_squarings,
+            &mut phi_z,
+            &mut phi_y,
+            &mut phi_x,
+            &mut scratch_ss_z,
+            &mut scratch_ss_y,
+            &mut scratch_ss_x,
         );
+        let mut final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
         let mut iter = 0usize;
 
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
-            let (phi_z, phi_y, phi_x) =
-                scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, self.n_squarings);
-
-            let m_warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
+            scaling_and_squaring_into(
+                &vel_z,
+                &vel_y,
+                &vel_x,
+                dims,
+                self.n_squarings,
+                &mut phi_z,
+                &mut phi_y,
+                &mut phi_x,
+                &mut scratch_ss_z,
+                &mut scratch_ss_y,
+                &mut scratch_ss_x,
+            );
+            warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
 
             thirion_forces_into(
                 fixed,
                 &m_warped,
                 VectorField3D {
-                    z: &grad_z,
-                    y: &grad_y,
-                    x: &grad_x,
+                    z: &grad.z,
+                    y: &grad.y,
+                    x: &grad.x,
                 },
                 self.config.max_step_length,
                 VectorFieldMut3D {
@@ -127,28 +151,37 @@ impl DiffeomorphicDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_inplace(&mut vel_z, dims, self.config.sigma_diffusion);
-                gaussian_smooth_inplace(&mut vel_y, dims, self.config.sigma_diffusion);
-                gaussian_smooth_inplace(&mut vel_x, dims, self.config.sigma_diffusion);
+                gaussian_smooth_field_inplace(
+                    &mut vel_z,
+                    &mut vel_y,
+                    &mut vel_x,
+                    dims,
+                    self.config.sigma_diffusion,
+                );
             }
 
-            final_mse = compute_mse_direct(
-                fixed,
-                moving,
+            scaling_and_squaring_into(
                 &vel_z,
                 &vel_y,
                 &vel_x,
                 dims,
                 self.n_squarings,
+                &mut phi_z,
+                &mut phi_y,
+                &mut phi_x,
+                &mut scratch_ss_z,
+                &mut scratch_ss_y,
+                &mut scratch_ss_x,
             );
+            final_mse = compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x);
         }
 
-        let (phi_z, phi_y, phi_x) =
-            scaling_and_squaring(&vel_z, &vel_y, &vel_x, dims, self.n_squarings);
-        let warped = warp_image(moving, dims, &phi_z, &phi_y, &phi_x);
+        // phi_z/y/x already holds exp(vel) from the last MSE computation in the loop
+        // (or exp(0) = identity if max_iterations = 0). Compute the final warped image.
+        warp_image_into(moving, dims, &phi_z, &phi_y, &phi_x, &mut m_warped);
 
         Ok(DemonsResult {
-            warped,
+            warped: m_warped,
             disp_z: phi_z,
             disp_y: phi_y,
             disp_x: phi_x,
@@ -164,41 +197,24 @@ impl DiffeomorphicDemonsRegistration {
     ///
     /// Uses `exp(−v)` when the SVF is available; falls back to fixed-point
     /// inversion of the displacement field otherwise.
-    pub fn invert_result(
-        &self,
-        result: &DemonsResult,
-        dims: [usize; 3],
-    ) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
+    pub fn invert_result(&self, result: &DemonsResult, dims: [usize; 3]) -> VelocityField {
         match (&result.vel_z, &result.vel_y, &result.vel_x) {
             (Some(vel_z), Some(vel_y), Some(vel_x)) => {
-                let (inv_vel_z, inv_vel_y, inv_vel_x) = invert_velocity_field(vel_z, vel_y, vel_x);
-                scaling_and_squaring(&inv_vel_z, &inv_vel_y, &inv_vel_x, dims, self.n_squarings)
+                let inv_vel = invert_velocity_field(vel_z, vel_y, vel_x);
+                scaling_and_squaring(&inv_vel.z, &inv_vel.y, &inv_vel.x, dims, self.n_squarings)
             }
             _ => {
                 use crate::demons::inverse::{invert_displacement_field, InverseFieldConfig};
                 let config = InverseFieldConfig::default();
-                let (inv_z, inv_y, inv_x, _) = invert_displacement_field(
+                let (inv, _) = invert_displacement_field(
                     &result.disp_z,
                     &result.disp_y,
                     &result.disp_x,
                     dims,
                     &config,
                 );
-                (inv_z, inv_y, inv_x)
+                inv
             }
         }
     }
-}
-
-fn compute_mse_direct(
-    fixed: &[f32],
-    moving: &[f32],
-    vel_z: &[f32],
-    vel_y: &[f32],
-    vel_x: &[f32],
-    dims: [usize; 3],
-    n_squarings: usize,
-) -> f64 {
-    let (phi_z, phi_y, phi_x) = scaling_and_squaring(vel_z, vel_y, vel_x, dims, n_squarings);
-    compute_mse_streaming(fixed, moving, dims, &phi_z, &phi_y, &phi_x)
 }

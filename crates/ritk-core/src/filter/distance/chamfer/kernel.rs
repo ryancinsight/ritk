@@ -1,7 +1,67 @@
 //! Low-level chamfer distance transform kernel: two raster scans over a
 //! 3×3×3 mask.
 
+// ── ZST chamfer strategy ────────────────────────────────────────────────────
+
+/// Trait for chamfer distance weight computation.
+///
+/// Each implementation is a zero-sized type so that the compiler monomorphises
+/// the two-pass raster scan with the weight call fully inlined and the match
+/// branch eliminated — zero runtime overhead versus a hand-written variant.
+pub trait ChamferKernel: Default {
+    /// Compute the chamfer weight for an offset `(dz, dy, dx)` with per-axis
+    /// physical weights `w = [wz, wy, wx]`.
+    ///
+    /// Caller must pass `(dz, dy, dx) ∈ {−1, 0, +1}³ ∖ {(0, 0, 0)}`;
+    /// behaviour is unspecified for any other input.
+    fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3]) -> i32;
+}
+
+/// L∞ (chessboard) metric: distance is the maximum absolute voxel offset
+/// along any axis. Matches `scipy.ndimage.distance_transform_cdt` default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Chessboard;
+
+impl ChamferKernel for Chessboard {
+    #[inline(always)]
+    fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3]) -> i32 {
+        let wz = if dz != 0 { w[0] } else { 0 };
+        let wy = if dy != 0 { w[1] } else { 0 };
+        let wx = if dx != 0 { w[2] } else { 0 };
+        // L∞ — max weighted axis delta (manual ternary since `Ord::max`
+        // is not yet stable in `const fn`).
+        if wz >= wy && wz >= wx {
+            wz
+        } else if wy >= wx {
+            wy
+        } else {
+            wx
+        }
+    }
+}
+
+/// L1 (taxicab) metric: distance is the sum of absolute voxel offsets
+/// along all axes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Taxicab;
+
+impl ChamferKernel for Taxicab {
+    #[inline(always)]
+    fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3]) -> i32 {
+        let wz = if dz != 0 { w[0] } else { 0 };
+        let wy = if dy != 0 { w[1] } else { 0 };
+        let wx = if dx != 0 { w[2] } else { 0 };
+        // L1 — sum of weighted axis deltas.
+        wz + wy + wx
+    }
+}
+
+// ── Backward-compatible enum ─────────────────────────────────────────────────
+
 /// Chamfer distance metric.
+///
+/// Preserved for API compatibility. Internally converted to the
+/// corresponding ZST strategy type before computation.
 ///
 /// `Chessboard` matches the L∞ norm; `Taxicab` matches the L1 norm. Both
 /// produce an integer-valued distance map.
@@ -57,37 +117,6 @@ const fn successor_offsets() -> [(i32, i32, i32); 7] {
     ]
 }
 
-/// Returns the chamfer weight for an offset (dz, dy, dx) under the given
-/// metric, in units of `s_min` (the minimum physical spacing). This is the
-/// `L_p` length of the offset, with `p = ∞` for chessboard and `p = 1` for
-/// taxicab, multiplied by `[wz, wy, wx]` (per-axis physical weights).
-///
-/// Caller must pass `(dz, dy, dx) ∈ {−1, 0, +1}³ ∖ {(0, 0, 0)}`; behaviour
-/// is unspecified for any other input.
-#[inline]
-const fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3], metric: ChamferMetric) -> i32 {
-    let wz = if dz != 0 { w[0] } else { 0 };
-    let wy = if dy != 0 { w[1] } else { 0 };
-    let wx = if dx != 0 { w[2] } else { 0 };
-    match metric {
-        ChamferMetric::Chessboard => {
-            // L∞ — max weighted axis delta (manual ternary since `Ord::max`
-            // is not yet stable in `const fn`).
-            if wz >= wy && wz >= wx {
-                wz
-            } else if wy >= wx {
-                wy
-            } else {
-                wx
-            }
-        }
-        ChamferMetric::Taxicab => {
-            // L1 — sum of weighted axis deltas.
-            wz + wy + wx
-        }
-    }
-}
-
 /// Compute the chamfer distance transform via two 3-D raster scans.
 ///
 /// `weights = [wz, wy, wx]` is the integer weight per axis (face-neighbour
@@ -100,7 +129,7 @@ const fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3], metric: ChamferMetric) -
 /// assignment, this gives the exact L∞ distance (chessboard); with the
 /// L1 weight assignment, this gives the exact L1 distance (taxicab) on a
 /// uniform grid.
-pub fn cdt_3d(fg: &[bool], dims: [usize; 3], weights: [i32; 3], metric: ChamferMetric) -> Vec<i32> {
+pub fn cdt_3d<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]) -> Vec<i32> {
     let [nz, ny, nx] = dims;
     let stride = ny * nx;
     let pred = predecessor_offsets();
@@ -129,7 +158,7 @@ pub fn cdt_3d(fg: &[bool], dims: [usize; 3], weights: [i32; 3], metric: ChamferM
                         continue;
                     }
                     let p = pz as usize * stride + py as usize * nx + px as usize;
-                    let w = weight(dz, dy, dx, weights, metric);
+                    let w = K::weight(dz, dy, dx, weights);
                     let c = buf[p].saturating_add(w);
                     if c < best {
                         best = c;
@@ -157,7 +186,7 @@ pub fn cdt_3d(fg: &[bool], dims: [usize; 3], weights: [i32; 3], metric: ChamferM
                         continue;
                     }
                     let p = pz as usize * stride + py as usize * nx + px as usize;
-                    let w = weight(dz, dy, dx, weights, metric);
+                    let w = K::weight(dz, dy, dx, weights);
                     let c = buf[p].saturating_add(w);
                     if c < best {
                         best = c;
@@ -169,6 +198,20 @@ pub fn cdt_3d(fg: &[bool], dims: [usize; 3], weights: [i32; 3], metric: ChamferM
     }
 
     buf
+}
+
+/// Backward-compatible non-generic entry point: dispatches to the
+/// monomorphised `cdt_3d` based on the runtime `ChamferMetric` enum.
+pub fn cdt_3d_dispatch(
+    fg: &[bool],
+    dims: [usize; 3],
+    weights: [i32; 3],
+    metric: ChamferMetric,
+) -> Vec<i32> {
+    match metric {
+        ChamferMetric::Chessboard => cdt_3d::<Chessboard>(fg, dims, weights),
+        ChamferMetric::Taxicab => cdt_3d::<Taxicab>(fg, dims, weights),
+    }
 }
 
 /// Free-function form (no Image<B, 3> binding) for callers that already have
@@ -188,5 +231,20 @@ pub fn chamfer_distance_transform_3d(
         (spacing[1] / s_min).round() as i32,
         (spacing[2] / s_min).round() as i32,
     ];
-    cdt_3d(fg, dims, weights, metric)
+    cdt_3d_dispatch(fg, dims, weights, metric)
+}
+
+/// Generic free-function form parameterised by `K: ChamferKernel`.
+pub fn chamfer_distance_transform_3d_generic<K: ChamferKernel>(
+    fg: &[bool],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+) -> Vec<i32> {
+    let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+    let weights: [i32; 3] = [
+        (spacing[0] / s_min).round() as i32,
+        (spacing[1] / s_min).round() as i32,
+        (spacing[2] / s_min).round() as i32,
+    ];
+    cdt_3d::<K>(fg, dims, weights)
 }

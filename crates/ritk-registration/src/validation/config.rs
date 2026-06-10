@@ -1,5 +1,25 @@
 //! Validation configuration bounding properties.
 
+/// Whether tensor shape validation is performed before operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ShapeValidation {
+    /// Validate tensor shapes (default).
+    #[default]
+    Enabled,
+    /// Skip shape validation.
+    Disabled,
+}
+
+/// Whether numerical stability (NaN/Inf) checks are performed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NumericalCheck {
+    /// Check for NaN/Inf (default).
+    #[default]
+    Enabled,
+    /// Skip numerical checks.
+    Disabled,
+}
+
 /// Validation configuration limits enforcing runtime bounds over coordinate operations.
 #[derive(Debug, Clone)]
 pub struct ValidationConfig {
@@ -7,8 +27,8 @@ pub struct ValidationConfig {
     pub min_value: Option<f32>,
     pub max_value: Option<f32>,
     pub nan_inf_tolerance: f32,
-    pub validate_shapes: bool,
-    pub check_numerical_stability: bool,
+    pub shape_validation: ShapeValidation,
+    pub numerical_check: NumericalCheck,
 }
 
 impl Default for ValidationConfig {
@@ -18,8 +38,8 @@ impl Default for ValidationConfig {
             min_value: Some(-1e6),
             max_value: Some(1e6),
             nan_inf_tolerance: 1e-6,
-            validate_shapes: true,
-            check_numerical_stability: true,
+            shape_validation: ShapeValidation::Enabled,
+            numerical_check: NumericalCheck::Enabled,
         }
     }
 }
@@ -46,12 +66,12 @@ impl ValidationConfig {
     }
 
     pub fn without_shape_validation(mut self) -> Self {
-        self.validate_shapes = false;
+        self.shape_validation = ShapeValidation::Disabled;
         self
     }
 
     pub fn without_numerical_checks(mut self) -> Self {
-        self.check_numerical_stability = false;
+        self.numerical_check = NumericalCheck::Disabled;
         self
     }
 }

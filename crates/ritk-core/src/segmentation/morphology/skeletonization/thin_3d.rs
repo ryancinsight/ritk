@@ -163,7 +163,8 @@ pub(super) fn skeleton_3d(flat: &[f32], nz: usize, ny: usize, nx: usize) -> Vec<
         let mut any_removed = false;
         for &(dz, dy, dx) in &directions {
             // Collect candidate border voxels for this direction.
-            let mut candidates: Vec<usize> = Vec::new();
+            // Heuristic: each direction targets a fraction of the volume surface.
+            let mut candidates: Vec<usize> = Vec::with_capacity(n / 16);
             for iz in 0..nz {
                 for iy in 0..ny {
                     for ix in 0..nx {

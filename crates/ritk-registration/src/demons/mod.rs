@@ -52,7 +52,7 @@ pub mod multires;
 pub mod symmetric;
 pub mod thirion;
 
-pub use config::{DemonsConfig, DemonsResult};
+pub use config::{DemonsConfig, DemonsResult, DemonsVariant};
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
 pub use exact_inverse_diffeomorphic::{
     InverseConsistentDemonsConfig, InverseConsistentDemonsResult,

@@ -1,4 +1,5 @@
 use super::*;
+use crate::transmorph::config::TransformIntegration;
 use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
 
@@ -17,7 +18,7 @@ fn test_transmorph_forward() {
         embed_dim: 12,
         out_channels: 3,
         window_size: 4,
-        integrate: true,
+        integration: TransformIntegration::Integrated,
         integration_steps: 4,
     };
 

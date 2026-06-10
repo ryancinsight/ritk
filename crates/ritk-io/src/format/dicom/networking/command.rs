@@ -185,7 +185,8 @@ pub fn build_command_pdu_into(buf: &mut Vec<u8>, elements: &[(u32, CommandElemen
 /// Used for C-FIND query datasets and C-MOVE query datasets.
 /// Does NOT prepend a group-length element (deprecated in modern DICOM).
 pub fn build_dataset_ivr_le(elements: &[(u32, &[u8])]) -> Vec<u8> {
-    let mut buf = Vec::new();
+    let capacity: usize = elements.iter().map(|&(_, v)| 8 + v.len()).sum();
+    let mut buf = Vec::with_capacity(capacity);
     for &(tag, value) in elements {
         let group = (tag >> 16) as u16;
         let elem = (tag & 0xFFFF) as u16;

@@ -3,7 +3,7 @@
 //! This module provides shared implementations for differentiable soft histogramming
 //! using Parzen windowing.
 
-mod cache;
+pub(crate) mod cache;
 mod masked;
 mod parzen;
 

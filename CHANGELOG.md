@@ -1,5 +1,113 @@
 # CHANGELOG
 
+## [0.54.0] - 2026-06-10
+
+### Added
+- **ARCH-357-01: `PhantomData<fn() -> B>` covariance (22 sites)** — All remaining backend phantom-marker fields corrected from invariant `PhantomData<B>` to covariant `PhantomData<fn() -> B>` across ritk-analyze (reader, writer), ritk-io (vtk, dicom-writer/metadata), ritk-jpeg (writer), ritk-metaimage, ritk-nifti, ritk-nrrd, ritk-vtk, ritk-model (onnx/importer, ssmmorph/integration ×2, ssmmorph/sampling), and ritk-registration (parzen, mutual_information, adaptive_stochastic_gd ×2, grad_norm, step_mapper). Note: 4 fields inside `#[derive(Module)]` structs kept as `PhantomData<B>` (burn requires this specific form for Module derivation).
+- **BOOL-357-02: `MorphOp` enum** — `MorphOp::Erosion`/`Dilation` replaces `is_erosion: bool` in `apply_morphological_op` and `scan_neighborhood`. Call sites in `BinaryClosing::apply` updated.
+- **BOOL-357-03: `ExtremeSide` enum** — `ExtremeSide::Rightmost`/`Leftmost` replaces `rightmost: bool` in `find_extreme_local_mode` in `white_stripe.rs`. Mapped from `MriContrast` at the single call site.
+- **BOOL-357-04: `ByteOrder` enum** — `ByteOrder::MostSignificantByteFirst`/`LeastSignificantByteFirst` replaces `msb: bool` in `ritk-metaimage/reader.rs` and `ritk-nrrd/reader/decode.rs`.
+- **BOOL-357-05: `OutOfBoundsMode` enum** — `OutOfBoundsMode::ZeroPad`/`Clamp` replaces `zero_pad: bool` across the entire interpolation subsystem: `dispatch.rs`, `shared/in_bounds.rs`, `kernel/linear/dim{1,2,3,4}.rs`, `kernel/nearest.rs`, `kernel/macros.rs`, `kernel/bspline/flat.rs`. Re-exported from `interpolation::OutOfBoundsMode`.
+- **PERF-357-06: `DiffusionConfig::apply` clone elimination** — `self.clone()` removed from both `ConductanceFunction::Exponential` and `Quadratic` arms. The method now calls `extract_vec`/`diffuse::<K>`/`rebuild` directly, bypassing intermediate struct allocation.
+- **PRIM-357-07: `GaussianSigma(f64)` newtype** — Validated sigma (> 0.0) for `CannyEdgeDetector` and `LogEdgeFilter`. `new_unchecked` for internal construction; `get()` for value extraction. Public API (`sigma: f64` parameters) unchanged.
+- **PRIM-357-08: `VolumeDims([usize; 3])` newtype** — Introduced in `ritk-registration/bspline_ffd/volume_dims.rs`. `From<[usize; 3]>` / `From<VolumeDims>` impls. `total_voxels()` convenience. Exported from `bspline_ffd` for incremental call-site adoption.
+- **BOOL-357-09: Model struct bools → enums** — 9 boolean config fields in ritk-model replaced with descriptive two-variant enums: `ScanDimensionality` (use_3d ×2), `SkipConnections` (use_skip_connections), `DownsamplePolicy` (downsample), `DropPath` (use_drop_path), `DownsampleStage` (has_downsample), `IntegrationMode` (diffeomorphic), `CornerAlignment` (align_corners), `TransformIntegration` (integrate). Shared enums live in new `ssmmorph/policy.rs`.
+- **BOOL-357-10: `ConvergenceStatus` + `StopReason` enums** — `GlobalMiResult.converged: bool` → `convergence: ConvergenceStatus`; `RegistrationSummary.stopped_early: bool` → `stop_reason: StopReason`. Python boundary preserves bool surface.
+- **BOOL-357-11: `SpacingMode` enum** — `SpacingMode::Physical`/`Pixel` replaces `use_image_spacing: bool` in `DiscreteGaussianFilter`. CLI `--spacing-mode` clap arg with `FromStr`. Python binding unchanged.
+- **CAP-357-12: DICOM networking `with_capacity`** — Pre-allocated 6 hot-path `Vec::new()` sites in DICOM networking (command encoding buffers, association negotiation, find results, PDU codec).
+- **PERF-357-13: Gaussian filter clone reduction** — Eliminated `input.clone().permute()` (last-use move). Annotated `kernel_reshaped.clone()` with `// BURN-API:` comment (burn `conv1d` consumes kernel by value; non-consuming variant not yet available).
+
+### Changed
+- **ARCH-357-14: `parzen/mod.rs` cache field docs** — `cache` and `masked_cache` `Arc<Mutex<>>` fields have full `///` doc comments documenting: shared-ownership rationale, thread-safety bound, `Mutex` hold duration, and `RefCell` alternative considered. Manual `Clone` impl documented as arc-sharing, not deep-copy.
+
+### SRP
+- **SRP-357-15: `compute_image.rs`** — 509L → 497L by extracting `extract_cached_points` to `image_cache_helpers.rs`.
+- **SRP-357-16: `mutual_information/mod.rs`** — 487L → 441L by extracting `tests` to `mutual_information/tests.rs`.
+- **SRP-357-17: `perona_malik.rs`** — 478L → 302L by extracting `tests` to `filter/diffusion/tests_perona_malik.rs`.
+- **SRP-357-18: `regularization/dispatch.rs`** — 468L → 186L dispatch + 282L tests in `regularization/tests_dispatch.rs`.
+- **SRP-357-19: `optimizer/adaptive_stochastic_gd.rs`** — 459L → 376L impl + 83L tests in `optimizer/tests_adaptive_stochastic_gd.rs`.
+
+### Breaking
+- `SSMMorphConfig.diffeomorphic: bool` renamed to `integration: IntegrationMode`
+- `VMambaBlockConfig.use_3d: bool` renamed to `dimensionality: ScanDimensionality`
+- `CrossScanConfig.use_3d: bool` renamed to `dimensionality: ScanDimensionality`
+- `SSMMorphDecoderConfig.use_skip_connections: bool` renamed to `skip_connections: SkipConnections`
+- `EncoderStageConfig.downsample: bool` renamed to `DownsamplePolicy`
+- `SSMMorphEncoderConfig.use_drop_path: bool` renamed to `drop_path: DropPath`
+- `EncoderStage.has_downsample: bool` type changed to `Ignored<DownsampleStage>`
+- `GridSamplerConfig.align_corners: bool` renamed to `corner_alignment: CornerAlignment`
+- `TransMorphConfig.integrate: bool` renamed to `integration: TransformIntegration`; `with_integrate(bool)` renamed to `with_integration(TransformIntegration)`
+- `GlobalMiResult.converged: bool` renamed to `convergence: ConvergenceStatus`
+- `RegistrationSummary.stopped_early: bool` renamed to `stop_reason: StopReason`
+- `DiscreteGaussianFilter` (CLI): `--use-image-spacing` flag renamed to `--spacing-mode`
+- Interpolation: `dispatch_linear` and `dispatch_nearest` now take `OutOfBoundsMode` instead of `bool`
+
+---
+
+## [0.53.0] - 2026-06-10
+
+### Added
+- **PERF-356-01: `lncc_loss` Conv3d hoisting** — Depthwise box-filter conv was constructed inside a closure and called 5× per forward pass (5 alloc/init ops). Hoisted to one construction before the call sequence. Conv3d::forward(&self) is reused without cloning; 4 redundant module allocs eliminated. Tensor clones (4 fixed/moving + 2 mean clones) are irreducible under the Burn 0.19 ownership model.
+- **BOOL-356-02: `ComponentPolicy` enum** — `LargestOnly`/`All` replaces `keep_largest_component: bool` in `BedSeparationConfig`. Updated ritk-core filter module, ritk-snap serde helper, and 3 test sites. `ComponentPolicy` derives `Serialize, Deserialize`.
+- **BOOL-356-03: `ZhangSuenPass` enum** — `Pass1`/`Pass2` replaces `step1: bool` in the private `zhang_suen_step` function in `thin_2d.rs`. Call sites in `skeleton_2d` updated.
+- **BOOL-356-04: `EarlyStoppingPolicy` enum** — `Disabled`/`Enabled` replaces `enable_early_stopping: bool` in `RegistrationConfig`. Updated `with_early_stopping`, `without_early_stopping`, call sites in `registration/mod.rs`, tests, and `lib.rs` re-exports.
+- **BOOL-356-05: `ProgressDisplay` enum** — `WithBar`/`Silent` replaces `show_progress_bar: bool` in `ConsoleProgressCallback`. Re-exported through `progress/mod.rs` and `lib.rs`.
+- **BOOL-356-06: `ShapeValidation` + `NumericalCheck` enums** — Replace `validate_shapes: bool` and `check_numerical_stability: bool` in `ValidationConfig`. Updated `without_shape_validation`, `without_numerical_checks`, and `validation/numerical.rs` guard condition.
+- **BOOL-356-07: `InitStrategy` enum** — `CenterOfMass`/`Manual` replaces `use_com_init: bool` in `CmaMiConfig`. Updated 4 named constructors, `cma_mi/registration.rs` guard, ritk-python `cma_es.rs`, pipeline example, and test files. Python API (`use_com_init: bool` in `PyCmaMiOptions`) preserved for boundary compatibility.
+- **PRIM-356-09: `Opacity(f32)` newtype** — `#[repr(transparent)]` validating newtype enforces `[0.0, 1.0]` at construction. Replaces `opacity: f32` in `ImageOverlay` and `MaskOverlay`, and `alpha: f32` in `BlendImageFilter`. Exported from `annotation` module.
+- **PRIM-356-12: `SpatialSigma(f64)` + `RangeSigma(f64)` newtypes** — Two dimensionally-distinct sigma types for `BilateralFilter`. Positive-finite validation in `::new()`. `BilateralFilter::new(f64, f64)` API preserved (wraps internally). Both exported from `filter` module.
+- **SRP-356-14: `parzen/image_cache_helpers.rs`** — 4 cache/normalization helpers extracted from `compute_image.rs` (575L → 509L): `cache_matches_image`, `get_cached_w_fixed_t`, `get_cached_sparse_w_fixed`, `normalize_fixed_values`. Marked `pub(crate)`. Pre-existing `Spacing<D>::0` private-field bug surfaced and fixed (`as_slice()` replaces `.0.iter()`).
+- **SRP-356-15: `mutual_information/` directory module** — `mutual_information.rs` (508L) split into `variant.rs` (25L: `NormalizationMethod`, `MutualInformationVariant`) + `mod.rs` (487L: struct + impls). Downstream imports unchanged via re-exports.
+
+### Changed
+- **ARCH-356-10: `LabelEntry.visible: bool` → `Visibility`** — Eliminates SSOT violation with `Visibility` enum already defined in `annotation/overlay.rs`. Updated `LabelTable::set_visibility`, ritk-snap `rt_overlay.rs`, `label/mod.rs`, and label tests.
+- **ARCH-356-11: `PhantomData<B>` covariance** — `PhantomData<B>` (invariant) → `PhantomData<fn() -> B>` (covariant) in `CorrelationRatio` and `Lncc` structs. `B: Backend` is never stored by value; covariant is the correct form consistent with all other backend-parameterized structs.
+- **CAP-356-08: `with_capacity` pre-allocations** — `Vec::new()` → `Vec::with_capacity(max_generations)` in `cma_mi/registration.rs` trajectory accumulator; `warped: Vec::new()` → `Vec::with_capacity(ncz*ncy*ncx)` in `demons/multires.rs` result struct.
+- **DOC-356-13: `bspline_ffd/config.rs` field docs** — `[usize; 3]` fields documented with axis ordering (`[depth, rows, cols]`) and semantic role. Preparation for `VolumeDims` newtype in a future sprint.
+
+### Breaking
+- `BedSeparationConfig.keep_largest_component: bool` renamed to `component_policy: ComponentPolicy`
+- `ConsoleProgressCallback.show_progress_bar: bool` renamed to `progress_display: ProgressDisplay`
+- `ValidationConfig.validate_shapes: bool` renamed to `shape_validation: ShapeValidation`
+- `ValidationConfig.check_numerical_stability: bool` renamed to `numerical_check: NumericalCheck`
+- `CmaMiConfig.use_com_init: bool` renamed to `init_strategy: InitStrategy`
+- `RegistrationConfig.enable_early_stopping: bool` renamed to `early_stopping: EarlyStoppingPolicy`
+- `LabelEntry.visible: bool` type changed to `Visibility` (use `Visibility::Visible`/`Hidden`)
+- `ImageOverlay.opacity: f32` and `MaskOverlay.opacity: f32` type changed to `Opacity` (use `.get()` for raw value)
+- `BlendImageFilter.alpha: f32` type changed to `Opacity`
+- `BilateralFilter.spatial_sigma: f64` type changed to `SpatialSigma` (use `.get()`)
+- `BilateralFilter.range_sigma: f64` type changed to `RangeSigma` (use `.get()`)
+
+
+### Added
+- **BOOL-354-01: `Connectivity` enum** — `Face6`/`Vertex26` replaces `fully_connected: bool` in `BinaryContourImageFilter` and `LabelContourImageFilter`. Eliminates boolean blindness at 2 filter call sites + 4 ritk-snap UI sites.
+- **BOOL-354-02: `FlipPolicy` enum** — `Keep`/`Flip` replaces `axes: [bool; 3]` in `FlipImageFilter`. `new([FlipPolicy::Flip, FlipPolicy::Keep, FlipPolicy::Flip])` is readable; `[true, false, true]` was not.
+- **BOOL-354-03: `DemonsVariant` enum** — `Thirion`/`Diffeomorphic` replaces `use_diffeomorphic: bool` in `MultiResDemonsConfig`. Updated CLI clap parser and Python binding to accept string variant names.
+- **BOOL-354-04: `IterativeAlgorithm` enum** — `Landweber { step_size }`/`RichardsonLucy` replaces `is_landweber: bool` + separate step_size arg in deconvolution. `IterativeParams<D>` struct groups kernel/config params, reducing `apply_iterative` from 8 args to 3.
+- **PRIM-354-05: `Spacing<3>` replaces `[f64; 3]`** — Edge detection filters (`GradientMagnitudeFilter`, `SobelFilter`, `PrewittFilter`, `LaplacianFilter`, `CannyEdgeDetector`) now use the domain-separated `Spacing<3>` newtype instead of raw `[f64; 3]`.
+- **PRIM-354-06: `Spacing` validation** — `Spacing::new()` now panics on non-positive/non-finite components. `Spacing::try_new()` returns `Result<Spacing<D>, InvalidSpacing>`. `Spacing::new_unchecked()` for perf-critical paths.
+- **COW-354-07: Deprecated `to_vec()` on Point/Vector** — `Point::as_slice()` and `Vector::as_slice()` provide zero-allocation slice views. `to_vec()` deprecated in favor of `to_array()` or `as_slice()`.
+- **COW-354-08: Deprecated `Image::data_vec()`** — `data_slice()` (returning `Cow<[f32]>`) is the preferred zero-alloc path. 16 call sites updated.
+- **PERF-354-09: Interpolation clone elimination** — Removed 14 unnecessary `.clone()` calls in linear interpolation (dim1–dim4), nearest-neighbor, BSpline, and fused resample paths. Key wins: `.clone()` before `.gather()` (gather takes `&self`), `.clone()` before `.to_data()`, and consuming `.clamp()` on last-use tensors.
+- **PERF-354-10: `CorrelationRatio` clone reduction** — Pre-compute marginal PDFs once, pass by reference to `compute_conditional_mean`/`compute_conditional_variance`. 19 clones → 10 (47% reduction), with eliminated clones being the most expensive 2D histogram tensors.
+- **PERF-354-11: Capacity pre-allocation** — `Vec::new()` → `Vec::with_capacity(n)` at 3 sites: `white_stripe::local_maxima`, `HistoryCallback::with_capacity`, `ProgressTracker::callbacks`.
+- **CLIPPY-354-12: Full workspace clippy clean** — Fixed 30+ clippy errors across 8 files: deconvolution iterator patterns, `ConductanceFunction` derivable Default, `if_same_then_else` in `Image::try_data_slice`, `manual_range_contains` in registration proptests, `explicit_auto_deref` in ritk-io tests, `useless_vec` in chamfer tests, `field_reassign_with_default` in example.
+- **FIX-354-13: Stale import paths** — Fixed `ritk-python` and `ritk-cli` broken imports from Sprint 350/351 refactoring (interpolation, transform module moves).
+- **FIX-354-14: Module duplication** — `interpolation/tests/mod.rs` loaded `fused.rs` twice; removed duplicate declaration.
+- **FIX-354-15: Doc link escape** — `label_map.rs` doc `shape[0]` escaped to `shape\[0\]` for rustdoc.
+
+### Changed
+- **BOOL-354-16: Removed `enable_convergence_detection: bool`** — Redundant with `Option<ConvergenceChecker>`; `is_some()` replaces the separate bool.
+- **DRY-354-17: Deconvolution helpers** — `helpers.rs` needless_range_loop: 6 `#[allow]` suppressions removed, replaced with `std::array::from_fn` and iterator patterns.
+
+### Breaking
+- `BinaryContourImageFilter::new` and `LabelContourImageFilter::new` now take `Connectivity` instead of `bool`
+- `FlipImageFilter::new` now takes `[FlipPolicy; 3]` instead of `[bool; 3]` (use `FlipImageFilter::from_bools([bool; 3])` for backward compat)
+- `MultiResDemonsConfig.use_diffeomorphic` replaced by `variant: DemonsVariant`
+- `apply_iterative` signature changed (use `IterativeParams` struct)
+- `Spacing::new()` now panics on non-positive values; use `Spacing::try_new()` for fallible construction
+- Edge filter `new(spacing)` now takes `Spacing<3>` instead of `[f64; 3]` (use `.into()` conversion)
+
 ## [0.51.9] - 2026-06-08
 
 ### Added

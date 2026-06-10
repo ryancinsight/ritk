@@ -188,7 +188,7 @@ fn test_non_unit_spacing() {
     let [nz, ny, nx] = [6usize, 6, 10];
     let vals: Vec<f32> = (0..nz * ny * nx).map(|flat| (flat % nx) as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
-    let filter = SobelFilter::new([1.0, 1.0, 2.0]);
+    let filter = SobelFilter::new([1.0, 1.0, 2.0].into());
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
@@ -254,7 +254,7 @@ fn test_metadata_preserved() {
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let img = Image::new(tensor, origin, spacing_val, direction);
 
-    let filter = SobelFilter::new([0.5, 1.5, 2.5]);
+    let filter = SobelFilter::new([0.5, 1.5, 2.5].into());
 
     // Check apply (magnitude).
     let mag = filter.apply(&img).unwrap();
@@ -389,7 +389,7 @@ fn test_anisotropic_spacing_diagonal() {
         .collect();
     let sp = [0.5, 1.0, 2.0];
     let img = make_image(vals, [nz, ny, nx], sp);
-    let filter = SobelFilter::new(sp);
+    let filter = SobelFilter::new(sp.into());
     let (gz, gy, gx) = filter.apply_components(&img).unwrap();
 
     let (gz_vals, _) = extract_vec_infallible(&gz);

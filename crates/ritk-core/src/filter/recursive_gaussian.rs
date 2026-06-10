@@ -44,10 +44,27 @@ use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
+use serde::{Deserialize, Serialize};
 
 #[path = "iir.rs"]
 mod iir;
 use iir::*;
+
+// ── Scale normalization enum ─────────────────────────────────────────────────
+
+/// Whether to multiply the output by σ^order for comparable cross-scale magnitudes.
+///
+/// - `Skip`: no scale normalization (default for `RecursiveGaussianFilter::new`).
+/// - `Normalize`: multiply output by σ^order so that responses are comparable
+///   across scales.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ScaleNormalization {
+    /// No scale normalization.
+    #[default]
+    Skip,
+    /// Multiply output by σ^order for cross-scale comparability.
+    Normalize,
+}
 
 // ── Derivative order enum ─────────────────────────────────────────────────────
 
@@ -80,8 +97,8 @@ pub struct RecursiveGaussianFilter {
     sigma: f64,
     /// Which derivative order to approximate.
     derivative_order: DerivativeOrder,
-    /// When true, multiply output by σ^order for comparable cross-scale magnitudes.
-    normalize_across_scale: bool,
+    /// Scale normalization policy.
+    scale_normalization: ScaleNormalization,
 }
 
 impl RecursiveGaussianFilter {
@@ -93,7 +110,7 @@ impl RecursiveGaussianFilter {
         Self {
             sigma,
             derivative_order: DerivativeOrder::Zero,
-            normalize_across_scale: false,
+            scale_normalization: ScaleNormalization::Skip,
         }
     }
 
@@ -103,9 +120,9 @@ impl RecursiveGaussianFilter {
         self
     }
 
-    /// Enable or disable normalization across scale.
-    pub fn with_normalize_across_scale(mut self, normalize: bool) -> Self {
-        self.normalize_across_scale = normalize;
+    /// Set scale normalization policy.
+    pub fn with_scale_normalization(mut self, policy: ScaleNormalization) -> Self {
+        self.scale_normalization = policy;
         self
     }
 
@@ -148,7 +165,7 @@ impl RecursiveGaussianFilter {
         }
 
         // Scale normalization: multiply by σ^order
-        if self.normalize_across_scale {
+        if let ScaleNormalization::Normalize = self.scale_normalization {
             let scale_factor = match self.derivative_order {
                 DerivativeOrder::Zero => 1.0,
                 DerivativeOrder::First => self.sigma,

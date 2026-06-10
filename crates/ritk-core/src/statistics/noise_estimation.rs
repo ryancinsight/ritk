@@ -62,12 +62,6 @@ fn median_sorted(sorted: &[f32]) -> f32 {
     }
 }
 
-/// Sort a mutable slice of f32 values, treating NaN as greater than all finite values.
-#[inline]
-fn sort_f32(values: &mut [f32]) {
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-}
-
 /// Compute σ̂ = 1.4826 · median(|Xᵢ − median(X)|) from a mutable slice of values.
 ///
 /// Returns 0.0 for empty or single-element inputs and for constant-valued inputs.
@@ -77,12 +71,12 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
         return 0.0;
     }
 
-    sort_f32(values);
+    crate::statistics::sort_floats(values);
     let med = median_sorted(values);
 
     // Compute absolute deviations from the median.
     let mut abs_devs: Vec<f32> = values.iter().map(|&x| (x - med).abs()).collect();
-    sort_f32(&mut abs_devs);
+    crate::statistics::sort_floats(&mut abs_devs);
 
     let mad = median_sorted(&abs_devs);
 

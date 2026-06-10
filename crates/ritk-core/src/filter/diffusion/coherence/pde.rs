@@ -1,5 +1,4 @@
 use moirai::ParallelSlice;
-use std::sync::Arc;
 
 use super::filter::CoherenceConfig;
 use super::scratch::{compute_structure_tensor_products, Gradient, StructureTensorProducts};
@@ -17,8 +16,6 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
 
     // Pre-build the 1-D Gaussian kernel for structure-tensor smoothing.
     let kernel = make_gaussian_kernel_1d(config.sigma);
-    let kern = Arc::new(kernel);
-
     for _ in 0..config.n_iterations {
         // ── Step 1: gradient via central differences ────────────────────
         let grad = compute_gradient(&cur, dims);
@@ -27,7 +24,7 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
         let st_products = compute_structure_tensor_products(&grad, dims);
 
         // ── Step 3: Gaussian smoothing of structure tensor ──────────────
-        let st_smooth = smooth_structure_tensor(&st_products, dims, &kern);
+        let st_smooth = smooth_structure_tensor(&st_products, dims, &kernel);
 
         // ── Step 4: eigenvalue decomposition + diffusion tensor + divergence
         let div = compute_divergence(&cur, &st_smooth, dims, config.alpha, config.contrast);
@@ -89,6 +86,12 @@ pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
 /// Build a normalised 1-D Gaussian kernel of radius ⌈3·σ⌉.
 ///
 /// The kernel is symmetric and sums to 1.0.
+///
+/// # Note
+/// Similar construction to `filter::gaussian::GaussianFilter::generate_kernel`
+/// (returns `Vec<f32>`, limits max width). When a shared generic kernel builder
+/// is introduced, deduplicate both sites.
+// TODO: deduplicate with filter::gaussian::GaussianFilter::generate_kernel
 pub fn make_gaussian_kernel_1d(sigma: f64) -> Vec<f64> {
     if sigma <= 0.0 {
         return vec![1.0];
@@ -183,11 +186,14 @@ pub fn gaussian_smooth_1d(
 pub fn smooth_structure_tensor(
     st: &StructureTensorProducts,
     dims: [usize; 3],
-    kernel: &Arc<Vec<f64>>,
+    kernel: &[f64],
 ) -> Vec<[f64; 6]> {
     let n = dims[0] * dims[1] * dims[2];
     // Process each component independently (embarrassingly parallel).
-    let smoothed_components: Vec<Vec<f64>> =
+    // Collect into [Vec<f64>; 6] — stack-resident array of 6 independent heap
+    // buffers — rather than Vec<Vec<f64>>, which would add an outer heap
+    // allocation for the container itself.
+    let smoothed_components: [Vec<f64>; 6] =
         moirai::map_collect_index_with::<moirai::Parallel, _, _>(6, |c| {
             // Extract component c as a flat buffer.
             let mut buf: Vec<f64> = st.data.iter().map(|v| v[c]).collect();
@@ -196,7 +202,9 @@ pub fn smooth_structure_tensor(
             buf = gaussian_smooth_1d(&buf, dims, 1, kernel);
             buf = gaussian_smooth_1d(&buf, dims, 2, kernel);
             buf
-        });
+        })
+        .try_into()
+        .expect("map_collect_index_with(6) yields exactly 6 elements");
     // Re-interleave into [f64; 6] per voxel.
     let mut out = vec![[0.0f64; 6]; n];
     for i in 0..n {

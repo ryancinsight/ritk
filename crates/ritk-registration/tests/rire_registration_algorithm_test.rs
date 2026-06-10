@@ -100,7 +100,7 @@ fn test_resampling_helper_self_consistency() {
     let device: <NdArray<f32> as burn::tensor::backend::Backend>::Device = Default::default();
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
 
-    let mri_raw = mri_img.data_vec();
+    let mri_raw: Vec<f32> = mri_img.data_slice().into_owned();
     let mri_shape = mri_img.shape(); // [nz, ny, nx]
     let mri_sz = mri_img.spacing()[0] as f64;
     let mri_sy = mri_img.spacing()[1] as f64;

@@ -6,7 +6,7 @@
 use crate::image::Image;
 use crate::interpolation::trait_::Interpolator;
 use crate::spatial::{Direction, Point, Spacing};
-use crate::transform::trait_::Transform;
+use crate::transform::Transform;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use std::marker::PhantomData;
@@ -103,10 +103,7 @@ where
         let output_indices = self.generate_grid_indices(&device);
         let [n_pixels, _] = output_indices.dims();
 
-        // WGPU dispatch limit workaround
-        const CHUNK_SIZE: usize = 32768;
-
-        let output_flat = if n_pixels <= CHUNK_SIZE {
+        let output_flat = if n_pixels <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
             // Process all at once
 
             // 2. Convert output indices to output physical points
@@ -122,12 +119,12 @@ where
             self.interpolator.interpolate(input.data(), input_indices)
         } else {
             // Process in chunks
-            let num_chunks = n_pixels.div_ceil(CHUNK_SIZE);
+            let num_chunks = n_pixels.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
             for i in 0..num_chunks {
-                let start = i * CHUNK_SIZE;
-                let end = std::cmp::min(start + CHUNK_SIZE, n_pixels);
+                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n_pixels);
 
                 let chunk_range = start..end;
                 let chunk_indices = output_indices.clone().slice([chunk_range]);
@@ -204,7 +201,9 @@ where
                 1,
             )
         } else {
-            panic!("Unsupported dimensionality");
+            unreachable!(
+                "D is const-generic and callers are only instantiated for D ∈ {{2, 3}}; D = {D}"
+            );
         }
     }
 
@@ -260,9 +259,9 @@ where
 mod tests {
     use super::*;
     use crate::filter::ops::extract_vec_infallible;
-    use crate::interpolation::linear::LinearInterpolator;
+    use crate::interpolation::LinearInterpolator;
     use crate::spatial::{Direction2, Point2, Spacing2};
-    use crate::transform::translation::TranslationTransform;
+    use crate::transform::affine::translation::TranslationTransform;
     use burn_ndarray::NdArray;
 
     type TestBackend = NdArray<f32>;

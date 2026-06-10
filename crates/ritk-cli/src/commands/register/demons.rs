@@ -69,7 +69,7 @@ pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
             max_step_length: 2.0,
         },
         levels: args.levels,
-        use_diffeomorphic: args.use_diffeomorphic,
+        variant: args.variant,
         n_squarings: 6,
     };
     let reg = MultiResDemonsRegistration::new(config);
@@ -152,6 +152,7 @@ pub(super) fn run_inverse_consistent_demons(args: &RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::register::tests::make_ramp_image;
+    use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
     // ── Positive: demons creates output file ──────────────────────────────
@@ -178,7 +179,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -227,7 +228,7 @@ mod tests {
             iterations: 5,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -277,7 +278,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -326,7 +327,7 @@ mod tests {
             iterations: 5,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -374,7 +375,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -420,7 +421,7 @@ mod tests {
             iterations: 5,
             sigma_fixed: 0.0,
             levels: 1,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,

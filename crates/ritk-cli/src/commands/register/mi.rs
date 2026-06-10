@@ -96,6 +96,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::register::tests::make_ramp_image;
+    use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
     // ── Positive: rigid-mi creates output file ────────────────────────────
@@ -123,7 +124,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -169,7 +170,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -214,7 +215,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
@@ -280,7 +281,7 @@ mod tests {
             iterations: 3,
             sigma_fixed: 0.0,
             levels: 3,
-            use_diffeomorphic: false,
+            variant: DemonsVariant::Classic,
             regularization_weight: 0.001,
             control_spacing: 4,
             cc_radius: 2,
