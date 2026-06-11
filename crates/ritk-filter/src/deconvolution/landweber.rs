@@ -1,0 +1,130 @@
+//! Landweber iterative deconvolution — 2-D and 3-D.
+//!
+//! # Theory
+//!
+//! Minimizes `||g − h ∗ u||²` via steepest descent:
+//!
+//! ```text
+//! u₀ = g
+//! uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
+//! ```
+//!
+//! # Convergence condition
+//! α must satisfy `0 < α < 2 / σ_max²` where σ_max is the largest singular
+//! value of the convolution operator H (≈ max|H(ω)| in frequency domain).
+//!
+//! # Properties
+//! - Guaranteed convergence for sufficiently small α
+//! - Slower than conjugate-gradient methods but simple and analyzable
+
+use super::regularization::{apply_iterative, IterativeAlgorithm, IterativeParams};
+use ritk_core::filter::ops::{extract_vec, rebuild};
+use ritk_image::Image;
+use anyhow::Result;
+use burn::tensor::backend::Backend;
+
+/// Landweber iterative deconvolution (gradient descent).
+///
+/// Minimizes `||g − h ∗ u||²` via steepest descent:
+///
+/// ```text
+/// u₀ = g
+/// uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
+/// ```
+///
+/// where α must satisfy `0 < α < 2 / σ_max²` for convergence.
+///
+/// # Properties
+/// - Simple to implement and analyze
+/// - Slower convergence than conjugate gradient methods
+/// - Guaranteed convergence for small enough α
+///
+/// # Complexity
+/// O(iterations · N log N).
+pub struct LandweberDeconvolution {
+    /// Step size α (default: 0.1).
+    pub step_size: f32,
+    /// Maximum number of iterations (default: 100).
+    pub max_iterations: usize,
+    /// Convergence tolerance (default: 1e-6).
+    pub tolerance: f32,
+}
+
+impl LandweberDeconvolution {
+    /// Create a new Landweber filter with default parameters.
+    pub fn new() -> Self {
+        Self {
+            step_size: 0.1,
+            max_iterations: 100,
+            tolerance: 1e-6,
+        }
+    }
+
+    /// Set the gradient descent step size α.
+    pub fn with_step_size(mut self, alpha: f32) -> Self {
+        self.step_size = alpha;
+        self
+    }
+
+    /// Set the maximum number of iterations.
+    pub fn with_max_iterations(mut self, n: usize) -> Self {
+        self.max_iterations = n;
+        self
+    }
+
+    /// Set the convergence tolerance (max absolute residual).
+    pub fn with_tolerance(mut self, tol: f32) -> Self {
+        self.tolerance = tol;
+        self
+    }
+
+    /// Apply Landweber deconvolution to a D-dimensional image.
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<B, D>,
+        kernel: &Image<B, D>,
+    ) -> Result<Image<B, D>> {
+        let (img_vals, img_dims) = extract_vec(image)?;
+        let (ker_vals, ker_dims) = extract_vec(kernel)?;
+        let out_vals = apply_iterative::<D>(
+            &img_vals,
+            &img_dims,
+            &IterativeParams {
+                ker_vals: &ker_vals,
+                ker_dims: &ker_dims,
+                max_iterations: self.max_iterations,
+                tolerance: self.tolerance,
+                algorithm: IterativeAlgorithm::Landweber {
+                    step_size: self.step_size,
+                },
+            },
+        );
+        Ok(rebuild(out_vals, img_dims, image))
+    }
+
+    /// Apply Landweber deconvolution to a 2-D image.
+    #[deprecated(since = "0.57.0", note = "use `apply::<2>` instead")]
+    pub fn apply_2d<B: Backend>(
+        &self,
+        image: &Image<B, 2>,
+        kernel: &Image<B, 2>,
+    ) -> Result<Image<B, 2>> {
+        self.apply(image, kernel)
+    }
+
+    /// Apply Landweber deconvolution to a 3-D image.
+    #[deprecated(since = "0.57.0", note = "use `apply::<3>` instead")]
+    pub fn apply_3d<B: Backend>(
+        &self,
+        image: &Image<B, 3>,
+        kernel: &Image<B, 3>,
+    ) -> Result<Image<B, 3>> {
+        self.apply(image, kernel)
+    }
+}
+
+impl Default for LandweberDeconvolution {
+    fn default() -> Self {
+        Self::new()
+    }
+}

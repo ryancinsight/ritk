@@ -2,11 +2,11 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::diffusion::{
+use ritk_filter::diffusion::{
     CoherenceConfig, ConductanceFunction, CurvatureConfig, DiffusionConfig,
 };
-use ritk_core::filter::edge::GaussianSigma;
-use ritk_core::filter::{CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter};
+use ritk_filter::edge::GaussianSigma;
+use ritk_filter::{CoherenceEnhancingDiffusionFilter, CurvatureAnisotropicDiffusionFilter};
 
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

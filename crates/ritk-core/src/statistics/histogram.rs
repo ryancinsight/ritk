@@ -34,7 +34,7 @@
 //! `dyn Trait`, no vtable indirection.
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 
 /// Histogram counts over a fixed `[min, max]` range.

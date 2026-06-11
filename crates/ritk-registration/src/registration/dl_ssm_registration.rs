@@ -6,11 +6,11 @@
 use burn::prelude::*;
 use burn::tensor::cast::ToElement;
 
-use ritk_core::image::Image;
-use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::transform::{StaticDisplacementField, StaticDisplacementFieldTransform};
+use ritk_image::Image;
+use ritk_interpolation::LinearInterpolator;
+use ritk_transform::{StaticDisplacementField, StaticDisplacementFieldTransform};
 
-use crate::registration::dl_registration_loss::{RegistrationLoss, RegistrationLossConfig};
+use crate::registration::dl::{RegistrationLoss, RegistrationLossConfig};
 use ritk_model::io::adapter::ImageToTensorAdapter;
 use ritk_model::ssmmorph::FlowComposer;
 use ritk_model::ssmmorph::{SSMMorph, SSMMorphConfig};

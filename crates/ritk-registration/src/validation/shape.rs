@@ -2,7 +2,7 @@
 
 use crate::error::{RegistrationError, Result};
 use burn::tensor::backend::Backend;
-use ritk_core::image::Image;
+use ritk_image::Image;
 
 /// Validate that two images strictly mirror shape geometry sizes precisely avoiding structural scaling shifts internally.
 pub fn validate_image_shapes<B: Backend, const D: usize>(

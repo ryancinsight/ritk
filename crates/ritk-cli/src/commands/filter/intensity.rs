@@ -6,7 +6,7 @@ use super::Backend;
 use super::{read_image, write_image_inferred, FilterArgs};
 
 pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::{BedSeparationConfig, BedSeparationFilter};
+    use ritk_filter::{BedSeparationConfig, BedSeparationFilter};
 
     let image = read_image(&args.input)?;
 
@@ -36,7 +36,7 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::RescaleIntensityFilter;
+    use ritk_filter::RescaleIntensityFilter;
 
     let image = read_image(&args.input)?;
     let filtered = RescaleIntensityFilter::new(args.out_min, args.out_max).apply(&image)?;
@@ -56,7 +56,7 @@ pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::IntensityWindowingFilter;
+    use ritk_filter::IntensityWindowingFilter;
 
     let image = read_image(&args.input)?;
     let filtered =
@@ -80,7 +80,7 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::ThresholdImageFilter;
+    use ritk_filter::ThresholdImageFilter;
 
     let image = read_image(&args.input)?;
     let filtered =
@@ -101,7 +101,7 @@ pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::ThresholdImageFilter;
+    use ritk_filter::ThresholdImageFilter;
 
     let image = read_image(&args.input)?;
     let filtered =
@@ -122,7 +122,7 @@ pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::ThresholdImageFilter;
+    use ritk_filter::ThresholdImageFilter;
 
     let image = read_image(&args.input)?;
     let filtered = ThresholdImageFilter::outside(
@@ -148,7 +148,7 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::SigmoidImageFilter;
+    use ritk_filter::SigmoidImageFilter;
 
     let image = read_image(&args.input)?;
     let filtered = SigmoidImageFilter::new(
@@ -176,7 +176,7 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::BinaryThresholdImageFilter;
+    use ritk_filter::BinaryThresholdImageFilter;
 
     let image = read_image(&args.input)?;
     let filtered = BinaryThresholdImageFilter::new(
@@ -211,7 +211,7 @@ mod tests {
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     #[test]

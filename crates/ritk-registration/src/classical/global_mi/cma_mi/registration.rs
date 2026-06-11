@@ -3,7 +3,7 @@
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_core::transform::RigidTransform;
+use ritk_transform::RigidTransform;
 
 use super::super::registration::GlobalMiRegistration;
 use super::super::transforms::rigid_matrix_to_homogeneous;

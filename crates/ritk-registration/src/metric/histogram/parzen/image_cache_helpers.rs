@@ -17,8 +17,7 @@ pub(crate) fn cache_matches_image<B: Backend, const D: usize>(
     let fs = fixed.shape();
     cache.shape.as_slice() == fs
         && cache.origin.iter().eq(fixed.origin().0.iter())
-        && cache.spacing.iter().eq(fixed.spacing().as_slice().iter())
-        && cache.direction.iter().eq(fixed.direction().0.iter())
+        && cache.spacing.iter().eq(fixed.spacing().as_slice().iter())            && cache.direction.0.iter().eq(fixed.direction().0.iter())
 }
 
 /// Helper: read the dense W_fixed^T from the cache if it matches the fixed image.

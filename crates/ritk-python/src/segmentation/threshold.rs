@@ -3,18 +3,18 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, vec_to_image_like, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
-use ritk_core::segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
-use ritk_core::segmentation::threshold::li::compute_li_threshold_from_slice;
-use ritk_core::segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
-use ritk_core::segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
-use ritk_core::segmentation::threshold::triangle::compute_triangle_threshold_from_slice;
-use ritk_core::segmentation::threshold::yen::compute_yen_threshold_from_slice;
-use ritk_core::segmentation::BinaryThreshold;
+use ritk_segmentation::threshold::kapur::compute_kapur_threshold_from_slice;
+use ritk_segmentation::threshold::li::compute_li_threshold_from_slice;
+use ritk_segmentation::threshold::multi_otsu::compute_multi_otsu_thresholds_from_slice;
+use ritk_segmentation::threshold::otsu::compute_otsu_threshold_from_slice;
+use ritk_segmentation::threshold::triangle::compute_triangle_threshold_from_slice;
+use ritk_segmentation::threshold::yen::compute_yen_threshold_from_slice;
+use ritk_segmentation::BinaryThreshold;
 use std::sync::Arc;
 
 /// Compute the Otsu threshold and produce a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::OtsuThreshold` (256-bin histogram,
+/// Delegates to `ritk_segmentation::OtsuThreshold` (256-bin histogram,
 /// maximises between-class variance σ²_B).
 ///
 /// Args:
@@ -42,7 +42,7 @@ pub fn otsu_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 
 /// Compute the Li minimum cross-entropy threshold and produce a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::LiThreshold` (256-bin histogram,
+/// Delegates to `ritk_segmentation::LiThreshold` (256-bin histogram,
 /// iterative cross-entropy minimisation, Li & Tam 1998).
 ///
 /// Args:
@@ -70,7 +70,7 @@ pub fn li_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 
 /// Compute the Yen maximum correlation threshold and produce a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::YenThreshold` (256-bin histogram,
+/// Delegates to `ritk_segmentation::YenThreshold` (256-bin histogram,
 /// Yen, Chang & Chang 1995).
 ///
 /// Args:
@@ -98,7 +98,7 @@ pub fn yen_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 
 /// Compute the Kapur maximum entropy threshold and produce a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::KapurThreshold` (256-bin histogram,
+/// Delegates to `ritk_segmentation::KapurThreshold` (256-bin histogram,
 /// Kapur, Sahoo & Wong 1985).
 ///
 /// Args:
@@ -126,7 +126,7 @@ pub fn kapur_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 
 /// Compute the Triangle (Zack) threshold and produce a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::TriangleThreshold` (256-bin histogram,
+/// Delegates to `ritk_segmentation::TriangleThreshold` (256-bin histogram,
 /// Zack, Rogers & Latt 1977).
 ///
 /// Args:
@@ -154,7 +154,7 @@ pub fn triangle_threshold(py: Python<'_>, image: &PyImage) -> (f32, PyImage) {
 
 /// Compute multi-class Otsu thresholds and produce a labeled image.
 ///
-/// Delegates to `ritk_core::segmentation::MultiOtsuThreshold`. Returns K−1
+/// Delegates to `ritk_segmentation::MultiOtsuThreshold`. Returns K−1
 /// thresholds and a label image with class indices {0, 1, …, K−1} as f32.
 ///
 /// Args:
@@ -194,7 +194,7 @@ pub fn multi_otsu_threshold(
 /// Classifies voxels in `[lower, upper]` as `inside_value` (default 1.0)
 /// and all others as `outside_value` (default 0.0).
 ///
-/// Delegates to `ritk_core::segmentation::BinaryThreshold`.
+/// Delegates to `ritk_segmentation::BinaryThreshold`.
 ///
 /// Args:
 ///     image:         Input PyImage.

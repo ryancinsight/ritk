@@ -18,8 +18,8 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
-use ritk_core::filter::GaussianSigma;
-use ritk_core::transform::RigidTransform;
+use ritk_filter::GaussianSigma;
+use ritk_transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::{
     CmaEsConfig, HistoryPolicy, PopulationEval, RegularStepGdConfig,

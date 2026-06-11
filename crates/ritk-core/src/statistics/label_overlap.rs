@@ -28,7 +28,7 @@
 //! `itk::LabelOverlapMeasuresImageFilter` (ITK 5.x).
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use std::collections::HashMap;
 

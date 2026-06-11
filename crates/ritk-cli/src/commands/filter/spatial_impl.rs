@@ -6,7 +6,7 @@ use super::{read_image, write_image_inferred, FilterArgs};
 // ── Gradient magnitude ────────────────────────────────────────────────────────
 
 pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::GradientMagnitudeFilter;
+    use ritk_filter::GradientMagnitudeFilter;
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
@@ -30,7 +30,7 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
 // ── Laplacian ─────────────────────────────────────────────────────────────────
 
 pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::LaplacianFilter;
+    use ritk_filter::LaplacianFilter;
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
@@ -54,17 +54,13 @@ pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
 // ── Frangi vesselness ─────────────────────────────────────────────────────────
 
 pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::vesselness::FrangiConfig;
-    use ritk_core::filter::FrangiVesselnessFilter;
+    use ritk_filter::vesselness::FrangiConfig;
+    use ritk_filter::FrangiVesselnessFilter;
 
     let image = read_image(&args.input)?;
 
     // Parse comma-separated scale list (e.g. "0.5,1.0,2.0").
-    let scales: Vec<f64> = args
-        .scales
-        .split(',')
-        .filter_map(|s| s.trim().parse::<f64>().ok())
-        .collect();
+    let scales = args.scales.clone();
     let scales = if scales.is_empty() {
         vec![0.5, 1.0, 2.0]
     } else {
@@ -76,7 +72,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         alpha: args.alpha,
         beta: args.beta,
         gamma: args.gamma,
-        polarity: ritk_core::filter::VesselPolarity::Bright,
+        polarity: ritk_filter::VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter { config };
     let filtered = filter.apply(&image)?;
@@ -108,7 +104,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
 ///
 /// Radius 1 → 3×3×3 kernel (27 samples per voxel).
 pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::MedianFilter;
+    use ritk_filter::MedianFilter;
 
     let image = read_image(&args.input)?;
     let filter = MedianFilter::new(args.radius);
@@ -137,7 +133,7 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
 /// `--sigma-spatial` controls the spatial Gaussian (voxels),
 /// `--sigma-range` controls the intensity Gaussian.
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::BilateralFilter;
+    use ritk_filter::BilateralFilter;
 
     let image = read_image(&args.input)?;
     let filter = BilateralFilter::new(args.sigma_spatial, args.sigma_range);
@@ -168,8 +164,8 @@ pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
 /// `--sigma` controls pre-smoothing, `--low` and `--high` set the
 /// hysteresis thresholds on gradient magnitude.
 pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::edge::GaussianSigma;
-    use ritk_core::filter::CannyEdgeDetector;
+    use ritk_filter::edge::GaussianSigma;
+    use ritk_filter::CannyEdgeDetector;
 
     let image = read_image(&args.input)?;
     let sigma = GaussianSigma::new(args.sigma)
@@ -203,7 +199,7 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
 ///
 /// Uses the image's physical spacing to compute properly scaled gradients.
 pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::SobelFilter;
+    use ritk_filter::SobelFilter;
 
     let image = read_image(&args.input)?;
     let spacing = image.spacing();
@@ -231,8 +227,8 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
 /// Computes G_σ * ∇²I by smoothing with Gaussian of standard deviation σ
 /// then computing the discrete Laplacian.
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::edge::GaussianSigma;
-    use ritk_core::filter::LaplacianOfGaussianFilter;
+    use ritk_filter::edge::GaussianSigma;
+    use ritk_filter::LaplacianOfGaussianFilter;
 
     let image = read_image(&args.input)?;
     let sigma = GaussianSigma::new(args.sigma)
@@ -262,8 +258,8 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
 ///
 /// `--order` selects the derivative: 0 = smooth, 1 = first, 2 = second.
 pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::recursive_gaussian::DerivativeOrder;
-    use ritk_core::filter::RecursiveGaussianFilter;
+    use ritk_filter::recursive_gaussian::DerivativeOrder;
+    use ritk_filter::RecursiveGaussianFilter;
 
     let order = match args.order {
         0 => DerivativeOrder::Zero,
@@ -301,9 +297,9 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
 
 // ── CPR (Curved Planar Reformation) ────────────────────────────────────────
 pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::{CprConfig, CprImageFilter};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_filter::{CprConfig, CprImageFilter};
+    use ritk_spatial::{Direction, Point, Spacing};
 
     if args.cpr_points.len() < 2 {
         return Err(anyhow!(

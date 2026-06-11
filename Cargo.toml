@@ -1,5 +1,7 @@
 [workspace]
 members = [
+  "crates/ritk-filter",
+  "crates/ritk-segmentation",
   "crates/ritk-vtk",
   "crates/ritk-macros",
   "crates/ritk-core",
@@ -20,11 +22,18 @@ members = [
   "crates/ritk-python",
   "crates/ritk-cli",
   "crates/ritk-snap",
+  "crates/ritk-transform",
+  "crates/ritk-interpolation",
+  "crates/ritk-spatial",
+  "crates/ritk-image",
+  "crates/ritk-wgpu-compat",
   "xtask",
 ]
 resolver = "2"
 
 [workspace.dependencies]
+ritk-filter = { path = "crates/ritk-filter" }
+ritk-segmentation = { path = "crates/ritk-segmentation" }
 ritk-core = { path = "crates/ritk-core" }
 ritk-dicom = { path = "crates/ritk-dicom" }
 ritk-codecs = { path = "crates/ritk-codecs" }
@@ -41,6 +50,11 @@ ritk-vtk = { path = "crates/ritk-vtk" }
 ritk-io = { path = "crates/ritk-io" }
 ritk-model = { path = "crates/ritk-model" }
 ritk-registration = { path = "crates/ritk-registration" }
+ritk-transform = { path = "crates/ritk-transform" }
+ritk-interpolation = { path = "crates/ritk-interpolation" }
+ritk-spatial = { path = "crates/ritk-spatial" }
+ritk-image = { path = "crates/ritk-image" }
+ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat" }
 gaia = { git = "https://github.com/ryancinsight/gaia.git", default-features = false }
 
 criterion = { version = "0.5", features = ["html_reports"] }
@@ -59,9 +73,9 @@ bytemuck = "1.0"
 nalgebra = { version = "0.33", features = ["serde-serialize"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# moirai: data-parallel runtime replacing rayon (default-features off avoids its
-# global allocator). ndarray keeps its internal `rayon` feature.
-moirai = { git = "https://github.com/ryancinsight/Moirai.git", default-features = false, features = ["parallel"] }
+# moirai: data-parallel runtime replacing rayon. Moirai defaults carry parallel
+# execution, Mnemosyne memory integration, and Mellinoe branded partitioning.
+moirai = { git = "https://github.com/ryancinsight/Moirai.git" }
 ndarray = { version = "0.16", features = ["rayon"] }
 tempfile = "3.10" # For testing
 proptest = "1.0"

@@ -1,7 +1,7 @@
 //! Spatial metadata transforms between MGH RAS header fields and RITK images.
 
 use nalgebra::{SMatrix, Vector3};
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Whether the RAS (Right-Anterior-Superior) spatial metadata in the MGH
 /// header is valid and should be used to derive image geometry.

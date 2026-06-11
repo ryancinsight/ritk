@@ -44,7 +44,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::Backend;
-use ritk_core::filter::{GaussianFilter, GaussianSigma};
+use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_core::image::Image;
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
 use ritk_registration::classical::spatial;
@@ -283,7 +283,7 @@ mod tests {
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 

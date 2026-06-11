@@ -16,7 +16,7 @@ pub mod viewer;
 use anyhow::{anyhow, bail, Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn_ndarray::NdArray;
-use ritk_core::image::Image;
+use ritk_image::Image;
 use ritk_io::{is_rgb_dicom_series, read_dicom_series};
 use std::path::Path;
 
@@ -32,32 +32,9 @@ pub(crate) type Backend = NdArray<f32>;
 
 /// Infer the image format string from a file-system path.
 ///
-/// Returns one of `"nifti"`, `"metaimage"`, `"nrrd"`, `"png"`, `"dicom"`,
-/// `"mgh"`, `"tiff"`, `"vtk"`, `"jpeg"`, or `None` when the extension is
-/// not recognised.
-///
-/// `.nii.gz` is detected before the generic extension check so that the
-/// compound suffix is handled correctly.
+/// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extension→format mapping.
 pub(crate) fn infer_format(path: &Path) -> Option<&'static str> {
-    let name = path.file_name()?.to_str()?;
-
-    // Compound suffix must be tested before the single-extension fallback.
-    if name.ends_with(".nii.gz") || name.ends_with(".nii") {
-        return Some("nifti");
-    }
-
-    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
-    match ext.as_str() {
-        "mha" | "mhd" => Some("metaimage"),
-        "nrrd" | "nhdr" => Some("nrrd"),
-        "png" => Some("png"),
-        "dcm" | "dicom" => Some("dicom"),
-        "mgz" | "mgh" => Some("mgh"),
-        "tif" | "tiff" => Some("tiff"),
-        "vtk" => Some("vtk"),
-        "jpg" | "jpeg" => Some("jpeg"),
-        _ => None,
-    }
+    ritk_io::ImageFormat::from_path(path).map(ritk_io::ImageFormat::as_str)
 }
 
 // ── Read helper ───────────────────────────────────────────────────────────────
@@ -252,8 +229,8 @@ mod tests {
     #[test]
     fn test_write_image_png_returns_err() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
@@ -276,8 +253,8 @@ mod tests {
     #[test]
     fn test_write_image_dicom_creates_directory() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("dicom_series");
         let device: <Backend as BurnBackend>::Device = Default::default();
@@ -301,8 +278,8 @@ mod tests {
     #[test]
     fn test_write_image_vtk_succeeds() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
 
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("out.vtk");
@@ -328,8 +305,8 @@ mod tests {
     #[test]
     fn test_write_image_jpeg_nz_gt_1_returns_err() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
         // nz=2 is invalid for JPEG — must be 1
@@ -356,8 +333,8 @@ mod tests {
     #[test]
     fn test_write_image_jpeg_2d_succeeds() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
 
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("out.jpg");
@@ -388,8 +365,8 @@ mod tests {
     #[test]
     fn test_write_image_unknown_format_returns_err() {
         use burn::tensor::{Shape, Tensor, TensorData};
-        use ritk_core::image::Image;
-        use ritk_core::spatial::{Direction, Point, Spacing};
+        use ritk_image::Image;
+        use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
         let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));

@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
 /// Read a JPEG file into a 3-D grayscale `Image` with shape `[1, height, width]`.

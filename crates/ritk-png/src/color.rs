@@ -5,7 +5,7 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use image::{ColorType, RgbImage};
 use ritk_core::image::RgbVolume;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::sorted_png_files;
 

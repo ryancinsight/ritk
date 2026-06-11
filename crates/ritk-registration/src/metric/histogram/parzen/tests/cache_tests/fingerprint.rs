@@ -7,9 +7,9 @@ use super::super::*;
 fn masked_cache_fingerprint_detects_collision() {
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();

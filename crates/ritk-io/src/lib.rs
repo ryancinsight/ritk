@@ -53,3 +53,71 @@ pub use format::vtk::{
     write_vtk_polydata, write_vtp_polydata,
 };
 pub use format::vtk::{read_vtk, write_vtk, VtkReader, VtkWriter};
+
+// ── Image format enumeration ──────────────────────────────────────────────────
+
+/// Canonical medical image format.
+///
+/// Used as the single source of truth for path-to-format inference, shared by
+/// the CLI, Python bindings, and any other consumer that needs to infer a format
+/// from a file path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ImageFormat {
+    NIfTI,
+    MetaImage,
+    Nrrd,
+    Png,
+    Dicom,
+    Mgh,
+    Tiff,
+    Vtk,
+    Jpeg,
+}
+
+impl ImageFormat {
+    /// Infer the image format from a file-system path.
+    ///
+    /// Returns `Some(format)` when the extension is recognised, `None` otherwise.
+    ///
+    /// `.nii.gz` is detected before the generic extension check so that the
+    /// compound suffix is handled correctly.
+    pub fn from_path(path: &std::path::Path) -> Option<Self> {
+        let name = path.file_name()?.to_str()?;
+
+        // Compound suffix must be tested before the single-extension fallback.
+        if name.ends_with(".nii.gz") || name.ends_with(".nii") {
+            return Some(Self::NIfTI);
+        }
+
+        let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+        match ext.as_str() {
+            "mha" | "mhd" => Some(Self::MetaImage),
+            "nrrd" | "nhdr" => Some(Self::Nrrd),
+            "png" => Some(Self::Png),
+            "dcm" | "dicom" => Some(Self::Dicom),
+            "mgz" | "mgh" => Some(Self::Mgh),
+            "tif" | "tiff" => Some(Self::Tiff),
+            "vtk" => Some(Self::Vtk),
+            "jpg" | "jpeg" => Some(Self::Jpeg),
+            _ => None,
+        }
+    }
+
+    /// The canonical string name of this format.
+    ///
+    /// The returned string matches the format strings expected by
+    /// `ritk-io` reader/writer dispatch in the CLI and Python bindings.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NIfTI => "nifti",
+            Self::MetaImage => "metaimage",
+            Self::Nrrd => "nrrd",
+            Self::Png => "png",
+            Self::Dicom => "dicom",
+            Self::Mgh => "mgh",
+            Self::Tiff => "tiff",
+            Self::Vtk => "vtk",
+            Self::Jpeg => "jpeg",
+        }
+    }
+}

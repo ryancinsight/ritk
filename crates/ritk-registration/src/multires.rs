@@ -3,7 +3,7 @@ use crate::optimizer::Optimizer;
 use crate::registration::Registration;
 use burn::module::AutodiffModule;
 use burn::tensor::backend::AutodiffBackend;
-use ritk_core::filter::pyramid::MultiResolutionPyramid;
+use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_core::image::Image;
 use ritk_core::transform::{Resampleable, Transform};
 use std::marker::PhantomData;

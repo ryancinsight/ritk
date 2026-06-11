@@ -2,7 +2,7 @@
 
 use super::trilinear_interpolate;
 use crate::parallel::CellSlice;
-use ritk_core::spatial::VolumeDims;
+use ritk_spatial::VolumeDims;
 
 /// Warp `moving` by the displacement field into a caller-provided buffer.
 ///

@@ -7,6 +7,8 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 ritk-core = { workspace = true }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }

@@ -1,6 +1,8 @@
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 
+use crate::types::DirectionFingerprint;
+
 /// Collect exactly 3 elements from an iterator into `[f64; 3]`.
 ///
 /// Panics if fewer than 3 elements are available.
@@ -39,7 +41,7 @@ use super::parzen::direct::SparseWFixedT;
 /// internal `HistogramCache` (private to `parzen::compute_image`) is the build
 /// site; `WFixedCache` is the lightweight struct `MutualInformation` owns for
 /// cross-call state.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct WFixedCache<B: Backend> {
     /// Fixed image shape (cloned from `fixed.shape()` at first build).
     pub shape: Vec<usize>,
@@ -47,8 +49,8 @@ pub(crate) struct WFixedCache<B: Backend> {
     pub origin: [f64; 3],
     /// Fixed image spacing `[3]`.
     pub spacing: [f64; 3],
-    /// Fixed image direction `[9]` (column-major 3×3 matrix, flattened).
-    pub direction: [f64; 9],
+    /// Fixed image direction (column-major 3×3 matrix, flattened).
+    pub direction: DirectionFingerprint,
     /// Number of points `N` in the W_fixed^T matrix.
     pub n: usize,
     /// Cached W_fixed^T `[num_bins, N]`.
@@ -66,7 +68,7 @@ impl<B: Backend> WFixedCache<B> {
             shape: fixed.shape().to_vec(),
             origin: collect_vec_3(fixed.origin().0.iter().copied()),
             spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-            direction: collect_vec_9(fixed.direction().0.iter().copied()),
+            direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
             n,
             w_fixed_t,
         }
@@ -80,7 +82,7 @@ impl<B: Backend> WFixedCache<B> {
             && self.shape.as_slice() == fixed.shape()
             && self.origin.iter().eq(fixed.origin().0.iter())
             && self.spacing.iter().eq(fixed.spacing().0.iter())
-            && self.direction.iter().eq(fixed.direction().0.iter())
+            && self.direction.0.iter().eq(fixed.direction().0.iter())
     }
 }
 
@@ -177,7 +179,7 @@ pub(crate) struct HistogramCache<B: Backend> {
     pub shape: Vec<usize>,
     pub origin: [f64; 3],
     pub spacing: [f64; 3],
-    pub direction: [f64; 9],
+    pub direction: DirectionFingerprint,
 }
 
 /// Cache for the masked joint histogram path.
@@ -307,7 +309,7 @@ pub(crate) fn make_cache<B: Backend, const D: usize>(
         shape: fixed.shape().to_vec(),
         origin: collect_vec_3(fixed.origin().0.iter().copied()),
         spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-        direction: collect_vec_9(fixed.direction().0.iter().copied()),
+        direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
     }
 }
 
@@ -326,7 +328,7 @@ pub(crate) fn make_cache<B: Backend, const D: usize>(
         shape: fixed.shape().to_vec(),
         origin: collect_vec_3(fixed.origin().0.iter().copied()),
         spacing: collect_vec_3(fixed.spacing().0.iter().copied()),
-        direction: collect_vec_9(fixed.direction().0.iter().copied()),
+        direction: DirectionFingerprint(collect_vec_9(fixed.direction().0.iter().copied())),
     }
 }
 

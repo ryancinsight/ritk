@@ -3,8 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::edge::GaussianSigma;
-use ritk_core::segmentation::ShapeDetectionSegmentation;
+use ritk_filter::edge::GaussianSigma;
+use ritk_segmentation::ShapeDetectionSegmentation;
 use std::sync::Arc;
 
 /// Configuration options for [`shape_detection_segment`].

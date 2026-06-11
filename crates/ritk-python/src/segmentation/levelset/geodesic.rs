@@ -3,8 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::edge::GaussianSigma;
-use ritk_core::segmentation::GeodesicActiveContourSegmentation;
+use ritk_filter::edge::GaussianSigma;
+use ritk_segmentation::GeodesicActiveContourSegmentation;
 use std::sync::Arc;
 
 /// Configuration options for [`geodesic_active_contour_segment`].
@@ -61,7 +61,7 @@ impl PyGacOptions {
 
 /// Segment a 3D image via Geodesic Active Contour level set evolution.
 ///
-/// Delegates to `ritk_core::segmentation::GeodesicActiveContourSegmentation`
+/// Delegates to `ritk_segmentation::GeodesicActiveContourSegmentation`
 /// (Caselles, Kimmel & Sapiro 1997). Evolves an initial level set function
 /// toward image edges using the GAC PDE.
 ///

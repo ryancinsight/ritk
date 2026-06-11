@@ -11,7 +11,7 @@ use nalgebra::SMatrix;
 use std::path::Path;
 
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
 
 use super::geometry::{
@@ -167,7 +167,7 @@ pub(crate) fn load_from_series<B: Backend>(
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
             println!("load_from_series: before resample parallel map_collect");
-            use moirai::ParallelSlice;
+            use moirai::prelude::ParallelSlice;
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
                 .par()
                 .map_collect(|slice| {
@@ -233,7 +233,7 @@ pub(crate) fn load_from_series<B: Backend>(
         #[cfg(not(target_arch = "wasm32"))]
         {
             println!("load_from_series: before direct parallel map_collect, slices.len() = {}", slices.len());
-            use moirai::ParallelSlice;
+            use moirai::prelude::ParallelSlice;
             // Decode slices in parallel (fallible), then write into the volume
             // sequentially (cheap memcpy) so the first decode error propagates.
             let decoded: Vec<Result<Vec<f32>>> = slices.par().map_collect(|slice| {

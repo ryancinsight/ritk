@@ -2,7 +2,7 @@ use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
 use nalgebra::{Rotation3, Vector3};
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::f64::consts::PI;
 
 type Backend = NdArray<f32>;

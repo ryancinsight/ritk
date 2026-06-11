@@ -1,6 +1,6 @@
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 use crate::metric::{MutualInformationVariant, NormalizationMethod};
 use crate::optimizer::{HistoryPolicy, PopulationEval};

@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::ForegroundValue;
+use ritk_filter::ForegroundValue;
 
 /// Third portion of the ComboBox selectable_value entries (MirrorPad
 /// through CurvatureFlow).

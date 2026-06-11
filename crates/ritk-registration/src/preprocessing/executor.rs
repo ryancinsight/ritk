@@ -3,12 +3,12 @@
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::filter::bias::N4Config;
-use ritk_core::filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
-use ritk_core::image::Image;
+use ritk_image::Image;
+use ritk_filter::bias::N4Config;
+use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
 
 use super::pipeline::PreprocessingPipeline;
-use super::step::{NormalizationMode, PreprocessingStep};
+use super::step::{IntensityRescaleMode, PreprocessingStep};
 
 impl PreprocessingPipeline {
     /// Execute all steps sequentially.
@@ -35,7 +35,7 @@ impl PreprocessingPipeline {
                         .context("IntensityNormalization requires f32 image data")?;
                     let n = vals.len();
                     let result = match mode {
-                        NormalizationMode::ZScore => {
+                        IntensityRescaleMode::ZScore => {
                             let mean = vals.iter().sum::<f32>() / n as f32;
                             let variance =
                                 vals.iter().map(|&v| (v - mean).powi(2)).sum::<f32>() / n as f32;
@@ -46,7 +46,7 @@ impl PreprocessingPipeline {
                                 vals.iter().map(|&v| (v - mean) / std).collect()
                             }
                         }
-                        NormalizationMode::MinMax { out_min, out_max } => {
+                        IntensityRescaleMode::MinMax { out_min, out_max } => {
                             let min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
                             let max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
                             let range = (max - min).max(1e-8);
@@ -129,11 +129,11 @@ fn rebuild_image<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<
 #[cfg(test)]
 mod tests {
     use super::super::pipeline::PreprocessingPipeline;
-    use crate::preprocessing::{NormalizationMode, PreprocessingStep};
+    use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 
@@ -213,7 +213,7 @@ mod tests {
         let img = make_image(vec![5.0f32; 8], [2, 2, 2]);
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::IntensityNormalization {
-                mode: NormalizationMode::ZScore,
+                mode: IntensityRescaleMode::ZScore,
             });
         let out = extract(&pipeline.execute(img).unwrap());
         for &v in &out {
@@ -233,7 +233,7 @@ mod tests {
         let img = make_image(vals, [2, 2, 2]);
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::IntensityNormalization {
-                mode: NormalizationMode::MinMax {
+                mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
                     out_max: 1.0,
                 },

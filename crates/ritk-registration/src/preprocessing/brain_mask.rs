@@ -22,10 +22,10 @@
 //! it.
 
 use burn::tensor::backend::Backend;
-use ritk_core::filter::{
+use ritk_filter::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryThresholdImageFilter,
 };
-use ritk_core::segmentation::ConnectedComponentsFilter;
+use ritk_segmentation::{Connectivity, ConnectedComponentsFilter};
 use ritk_core::Image;
 
 /// Parameters for [`ct_brain_mask`].
@@ -69,7 +69,7 @@ pub fn ct_brain_mask<B: Backend>(ct: &Image<B, 3>, config: &CtBrainMaskConfig) -
         .apply(&mask)
         .expect("brain-mask erosion failed");
 
-    let cc = ConnectedComponentsFilter::with_connectivity(26);
+    let cc = ConnectedComponentsFilter::with_connectivity(Connectivity::TwentySix);
     let (label_img, stats) = cc.apply(&eroded);
     let largest = stats
         .iter()

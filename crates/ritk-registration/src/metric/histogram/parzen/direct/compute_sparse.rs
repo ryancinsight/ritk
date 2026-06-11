@@ -6,7 +6,7 @@
 //! hot-path that reuses cached fixed-image weights.
 
 use burn::tensor::{Shape, TensorData};
-use moirai::ParallelSliceMut;
+use moirai::prelude::ParallelSliceMut;
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;

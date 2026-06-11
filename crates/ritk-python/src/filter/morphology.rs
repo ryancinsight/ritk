@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{
+use ritk_filter::{
     BlackTopHatFilter, GrayscaleDilation, GrayscaleErosion, HitOrMissTransform, LabelClosing,
     LabelDilation, LabelErosion, LabelOpening, MorphologicalReconstruction, ReconstructionMode,
     WhiteTopHatFilter,

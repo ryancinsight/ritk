@@ -5,8 +5,8 @@ use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spa
 use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
-use ritk_core::spatial::Point;
+use ritk_image::Image;
+use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;

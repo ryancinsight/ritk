@@ -23,7 +23,7 @@
 
 use anyhow::{anyhow, Result};
 use clap::Args;
-use ritk_core::filter::SpacingMode;
+use ritk_filter::SpacingMode;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -111,8 +111,8 @@ pub struct FilterArgs {
     /// vesselness enhancement.
     ///
     /// Used by: `frangi`.
-    #[arg(long, default_value = "0.5,1.0,2.0", value_name = "FLOATS")]
-    pub scales: String,
+    #[arg(long, value_name = "FLOATS", value_delimiter = ',', default_values = ["0.5", "1.0", "2.0"])]
+    pub scales: Vec<f64>,
 
     /// Frangi α parameter (controls sensitivity to plate-like structures).
     ///
@@ -405,7 +405,7 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, filter: &str) -> Fil
         iterations: 50,
         conductance: 3.0,
         time_step: 0.0625,
-        scales: "0.5,1.0,2.0".to_string(),
+        scales: vec![0.5, 1.0, 2.0],
         alpha: 0.5,
         beta: 0.5,
         gamma: 15.0,
@@ -447,7 +447,7 @@ pub(crate) fn make_test_image() -> Image<Backend, 3> {
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
 
     let device: <Backend as BurnBackend>::Device = Default::default();
     let values: Vec<f32> = (0..125).map(|i| i as f32).collect();

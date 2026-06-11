@@ -1,0 +1,9 @@
+[package]
+name = "ritk-spatial"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+burn = { workspace = true }
+nalgebra = { workspace = true }
+serde = { workspace = true }

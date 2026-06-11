@@ -35,26 +35,13 @@
 //!   "Adaptive stochastic gradient descent optimisation for image registration."
 //!   International Journal of Computer Vision, 81(3), 227-239.
 
-use crate::optimizer::{ConvergenceReason, Optimizer, OptimizerTelemetry};
+use crate::optimizer::{ConvergenceFlag, ConvergenceReason, Optimizer, OptimizerTelemetry};
 use burn::module::{AutodiffModule, Param};
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{ElementConversion, Tensor};
 use std::marker::PhantomData;
-
-// ─── Convergence State ───────────────────────────────────────────────────────
-
-/// Internal convergence state for the adaptive step-size gradient descent optimizer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum ConvergenceFlag {
-    /// Optimizer is still iterating.
-    #[default]
-    Iterating,
-    /// Convergence criterion was satisfied.
-    Converged,
-}
-
-// ─── Configuration ───────────────────────────────────────────────────────────
+// ─── Configuration ─────────────────────────────────────────────────────────────────────────────────
 
 /// Configuration for [`AdaptiveStochasticGradientDescent`].
 #[derive(Debug, Clone)]
@@ -177,7 +164,7 @@ impl<B: AutodiffBackend> burn::module::ModuleVisitor<B> for GradientExtractVisit
     }
 }
 
-// ─── Mapper ──────────────────────────────────────────────────────────────────
+// ─── Mapper// ─── Configuration ────────────────────────────────────────────────────────────────────────────────────────
 
 /// `ModuleMapper` that applies the standard SGD update rule:
 ///
@@ -381,7 +368,7 @@ where
     }
 }
 
-// ─── Tests ───────────────────────────────────────────────────────────────────
+// ─── Tests// ─── Configuration ─────────────────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_adaptive_stochastic_gd.rs"]

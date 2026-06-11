@@ -1,0 +1,13 @@
+[package]
+name = "ritk-image"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
+burn = { workspace = true }
+anyhow = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }

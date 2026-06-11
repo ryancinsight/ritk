@@ -10,14 +10,14 @@
 
 use super::flat;
 use crate::parallel::CellSlice;
-use ritk_core::filter::gaussian_kernel_1d;
-use ritk_core::spatial::VolumeDims;
+use ritk_filter::gaussian_kernel_1d;
+use ritk_spatial::VolumeDims;
 
 /// Build a normalised 1-D Gaussian kernel with radius `⌈3σ⌉`.
 ///
 /// The kernel sums to exactly 1.0 (probability-preserving convolution).
 ///
-/// Delegates to [`ritk_core::filter::gaussian_kernel_1d`].
+/// Delegates to [`ritk_filter::gaussian_kernel_1d`].
 pub(super) fn gaussian_kernel_1d_f64(sigma: f64) -> Vec<f64> {
     gaussian_kernel_1d(sigma, None)
 }

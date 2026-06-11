@@ -13,7 +13,7 @@ use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use nalgebra::SMatrix;
 use ritk_core::image::RgbVolume;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,

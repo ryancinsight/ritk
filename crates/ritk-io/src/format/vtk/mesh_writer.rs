@@ -1,4 +1,4 @@
-//! Convert a [`ritk_core::filter::surface::Mesh`] (`gaia::IndexedMesh<f64>`) to
+//! Convert a [`ritk_filter::surface::Mesh`] (`gaia::IndexedMesh<f64>`) to
 //! VTK legacy ASCII POLYDATA format.
 //!
 //! # Format
@@ -11,7 +11,7 @@
 
 use anyhow::{Context, Result};
 use gaia::domain::core::index::VertexId;
-use ritk_core::filter::surface::Mesh;
+use ritk_filter::surface::Mesh;
 use std::path::Path;
 
 /// Write a [`Mesh`] (`gaia::IndexedMesh<f64>`) to a VTK legacy ASCII POLYDATA file.

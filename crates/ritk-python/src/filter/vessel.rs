@@ -3,8 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
-use ritk_core::filter::{FrangiVesselnessFilter, SatoLineFilter};
+use ritk_filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
+use ritk_filter::{FrangiVesselnessFilter, SatoLineFilter};
 
 /// Vessel/brightness polarity for vesselness filters, replacing `bright_vessels: bool`.
 ///

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::info;
 
-use ritk_core::segmentation::{
+use ritk_segmentation::{
     BinaryFillHoles, ConnectedComponentsFilter, KMeansSegmentation, MorphologicalGradient,
     MorphologicalOperation, Skeletonization,
 };
@@ -57,7 +57,7 @@ pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
 /// Euclidean distance (in voxel units) to the nearest background voxel.
 /// Background voxels have value 0.0.
 pub(super) fn run_distance_transform(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::distance_transform;
+    use ritk_segmentation::distance_transform;
 
     let image = read_image(&args.input)?;
 
@@ -134,7 +134,11 @@ pub(super) fn run_morphological_gradient(args: &SegmentArgs) -> Result<()> {
 pub(super) fn run_connected_components(args: &SegmentArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let mut filter = ConnectedComponentsFilter::new();
-    filter.connectivity = args.connectivity;
+    filter.connectivity = if args.connectivity == 6 {
+        ritk_segmentation::labeling::Connectivity::Six
+    } else {
+        ritk_segmentation::labeling::Connectivity::TwentySix
+    };
     let (labels, stats) = filter.apply(&image);
     write_image_inferred(&args.output, &labels)?;
 

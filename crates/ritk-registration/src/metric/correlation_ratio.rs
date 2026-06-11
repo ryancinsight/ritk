@@ -3,12 +3,13 @@
 //! This module provides correlation ratio
 //! based on elastix implementations.
 
+use crate::metric::sampling::SamplingConfig;
 use crate::metric::{histogram::ParzenJointHistogram, Metric};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
-use ritk_core::image::Image;
-use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::transform::Transform;
+use ritk_image::Image;
+use ritk_interpolation::LinearInterpolator;
+use ritk_transform::Transform;
 
 /// Correlation Ratio Metric.
 ///
@@ -22,8 +23,8 @@ pub struct CorrelationRatio<B: Backend> {
     histogram_calculator: ParzenJointHistogram<B>,
     /// Direction of correlation
     direction: CorrelationDirection,
-    /// Sampling percentage (0.0 to 1.0)
-    sampling_percentage: Option<f32>,
+    /// Sampling configuration
+    sampling: SamplingConfig,
     /// Interpolator for resampling
     interpolator: LinearInterpolator,
 }
@@ -63,7 +64,7 @@ impl<B: Backend> CorrelationRatio<B> {
                 device,
             ),
             direction,
-            sampling_percentage: None,
+            sampling: SamplingConfig::uniform(1.0),
             interpolator: LinearInterpolator::new_zero_pad(),
         }
     }
@@ -73,11 +74,7 @@ impl<B: Backend> CorrelationRatio<B> {
     /// # Arguments
     /// * `percentage` - Percentage of pixels to sample (0.0 to 1.0)
     pub fn with_sampling(mut self, percentage: f32) -> Self {
-        if percentage > 0.0 && percentage < 1.0 {
-            self.sampling_percentage = Some(percentage);
-        } else {
-            self.sampling_percentage = None;
-        }
+        self.sampling = SamplingConfig::uniform(percentage);
         self
     }
 
@@ -204,7 +201,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
             moving,
             transform,
             &self.interpolator,
-            self.sampling_percentage,
+            self.sampling.percentage(),
         );
 
         // 2. Compute Correlation Ratio
@@ -316,8 +313,8 @@ mod tests {
     fn test_cr_gradient_non_zero() {
         use burn::backend::Autodiff;
         use burn::tensor::{Shape, TensorData};
-        use ritk_core::spatial::{Direction, Point, Spacing};
-        use ritk_core::transform::TranslationTransform;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use ritk_transform::TranslationTransform;
 
         type B = Autodiff<TestBackend>;
 
@@ -375,8 +372,8 @@ mod tests {
     #[test]
     fn test_cr_identical_images() {
         use burn::tensor::{Shape, TensorData};
-        use ritk_core::spatial::{Direction, Point, Spacing};
-        use ritk_core::transform::TranslationTransform;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use ritk_transform::TranslationTransform;
 
         let size = 5;
         let count = size * size * size;

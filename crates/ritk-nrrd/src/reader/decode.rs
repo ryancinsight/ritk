@@ -1,7 +1,7 @@
 //! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
-use ritk_core::spatial::Point;
+use ritk_spatial::Point;
 
 /// Byte order for multi-byte pixel data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

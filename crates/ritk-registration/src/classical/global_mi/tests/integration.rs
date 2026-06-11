@@ -1,7 +1,7 @@
 //! Registration integration tests: translation recovery, multires, rigid, sparse.
 
 use super::*;
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 #[test]
 fn translation_recovery_shifted_gaussian() {

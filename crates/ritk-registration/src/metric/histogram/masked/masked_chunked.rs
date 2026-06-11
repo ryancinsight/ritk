@@ -8,7 +8,7 @@ use crate::metric::histogram::parzen::ParzenJointHistogram;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
 
 #[cfg(feature = "direct-parzen")]
@@ -30,12 +30,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
     ) -> Tensor<B, 2> {
         let n = fixed_world_points.dims()[0];
         let device = fixed_world_points.device();
-        let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+        let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
         let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
-            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
             let chunk_w_fixed_t = full_w_fixed_t.clone().slice([0..self.num_bins, start..end]);
             #[allow(clippy::single_range_in_vec_init)]
             let chunk_fixed_world = fixed_world_points.clone().slice([start..end]);
@@ -67,12 +67,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
     ) -> Tensor<B, 2> {
         let n = fixed_world_points.dims()[0];
         let device = fixed_world_points.device();
-        let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+        let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
         let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
-            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
             let chunk_sparse: SparseWFixedT = sparse_w_fixed[start..end].to_vec();
             #[allow(clippy::single_range_in_vec_init)]
             let chunk_fixed_world = fixed_world_points.clone().slice([start..end]);

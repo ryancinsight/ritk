@@ -4,11 +4,11 @@ pub use super::{run, SegmentArgs};
 pub use burn::tensor::backend::Backend as BurnBackend;
 pub use burn::tensor::{Shape, Tensor, TensorData};
 pub use ritk_core::image::Image;
-pub use ritk_core::segmentation::{
+pub use ritk_segmentation::{
     multi_otsu_threshold, otsu_threshold, KapurThreshold, LiThreshold, TriangleThreshold,
     YenThreshold,
 };
-pub use ritk_core::spatial::{Direction, Point, Spacing};
+pub use ritk_spatial::{Direction, Point, Spacing};
 pub use tempfile::tempdir;
 
 mod clustering;

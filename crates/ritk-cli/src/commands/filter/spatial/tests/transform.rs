@@ -10,7 +10,7 @@ fn test_filter_frangi_creates_output() {
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
     let mut args = default_args(input, output.clone(), "frangi");
-    args.scales = "1.0,2.0".to_string();
+    args.scales = vec![1.0, 2.0];
 
     let result = run_frangi(&args);
     assert!(result.is_ok(), "frangi must succeed: {:?}", result.err());

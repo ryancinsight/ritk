@@ -1,15 +1,3 @@
-//! Image types and operations.
-//!
-//! This module provides the Image type and related functionality
-//! for representing medical images with physical metadata.
+//! Image types re-exported from the `ritk-image` crate.
 
-pub mod color;
-pub mod grid;
-pub mod metadata;
-pub mod transform;
-pub mod types;
-
-pub use color::{ColorVolume, RgbVolume};
-pub use grid::generate_grid;
-pub use metadata::ImageMetadata;
-pub use types::Image;
+pub use ritk_image::*;

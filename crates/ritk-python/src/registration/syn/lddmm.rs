@@ -1,7 +1,7 @@
 use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 
 use super::shared::{load_matching_inputs, to_py_warped_and_displacement};

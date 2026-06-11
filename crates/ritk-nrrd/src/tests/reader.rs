@@ -3,8 +3,8 @@ use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use nalgebra::SMatrix;
-use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 use crate::read_nrrd;

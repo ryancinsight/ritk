@@ -1,20 +1,23 @@
 use super::state::{LoadBackend, SnapApp};
 use burn::tensor::{Shape, TensorData};
-use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 impl SnapApp {
     pub(crate) fn apply_filter_to_loaded_volume(&mut self) {
-        use ritk_core::filter::{
+        use ritk_filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, ConnectedComponentsFilter, Connectivity, CprConfig, CprImageFilter,
+            ClaheFilter, Connectivity, CprConfig, CprImageFilter,
             ExpImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
             GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
             GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
             HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
-            MultiOtsuThreshold, NormalizeImageFilter, RelabelComponentFilter, SqrtImageFilter,
+            NormalizeImageFilter, SqrtImageFilter,
             SquareImageFilter, UnsharpMaskFilter,
+        };
+        use ritk_segmentation::{
+            ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter,
         };
 
         let Some(vol) = self.loaded.as_ref() else {
@@ -87,11 +90,11 @@ impl SnapApp {
                     connectivity,
                     background_value,
                 } => {
-                    let connectivity_n = match connectivity {
-                        Connectivity::Face6 => 6u32,
-                        Connectivity::Vertex26 => 26u32,
+                    let seg_connectivity = match connectivity {
+                        Connectivity::Face6 => ritk_segmentation::labeling::Connectivity::Six,
+                        Connectivity::Vertex26 => ritk_segmentation::labeling::Connectivity::TwentySix,
                     };
-                    let filter = ConnectedComponentsFilter::with_connectivity(connectivity_n)
+                    let filter = ConnectedComponentsFilter::with_connectivity(seg_connectivity)
                         .with_background(*background_value);
                     let (label_image, _stats) = filter.apply(&image);
                     Ok(label_image)
@@ -162,23 +165,23 @@ impl SnapApp {
                     GrayscaleMorphologicalGradientFilter::new(*radius).apply(&image)
                 }
                 crate::FilterKind::DistanceTransform { threshold } => {
-                    ritk_core::filter::DistanceTransformImageFilter::new()
+                    ritk_filter::DistanceTransformImageFilter::new()
                         .with_threshold(*threshold)
                         .apply(&image)
                 }
                 crate::FilterKind::SignedDistanceTransform { threshold } => {
-                    ritk_core::filter::SignedDistanceTransformImageFilter::new()
+                    ritk_filter::SignedDistanceTransformImageFilter::new()
                         .with_threshold(*threshold)
                         .apply(&image)
                 }
                 crate::FilterKind::FlipZ => {
-                    ritk_core::filter::FlipImageFilter::flip_z().apply(&image)
+                    ritk_filter::FlipImageFilter::flip_z().apply(&image)
                 }
                 crate::FilterKind::FlipY => {
-                    ritk_core::filter::FlipImageFilter::flip_y().apply(&image)
+                    ritk_filter::FlipImageFilter::flip_y().apply(&image)
                 }
                 crate::FilterKind::FlipX => {
-                    ritk_core::filter::FlipImageFilter::flip_x().apply(&image)
+                    ritk_filter::FlipImageFilter::flip_x().apply(&image)
                 }
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
@@ -200,27 +203,27 @@ impl SnapApp {
                         burn::tensor::TensorData::new(mask_vals, burn::tensor::Shape::new(dims));
                     let mask_tensor =
                         burn::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
-                    let mask_image = ritk_core::image::Image::new(
+                    let mask_image = ritk_image::Image::new(
                         mask_tensor,
                         *image.origin(),
                         *image.spacing(),
                         *image.direction(),
                     );
-                    ritk_core::filter::MaskImageFilter::new().apply(&image, &mask_image)
+                    ritk_filter::MaskImageFilter::new().apply(&image, &mask_image)
                 }
                 crate::FilterKind::GeodesicDilationSelf => {
-                    ritk_core::filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)
+                    ritk_filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)
                 }
                 crate::FilterKind::GeodesicErosionSelf => {
-                    ritk_core::filter::GrayscaleGeodesicErosionFilter::new().apply(&image, &image)
+                    ritk_filter::GrayscaleGeodesicErosionFilter::new().apply(&image, &image)
                 }
                 crate::FilterKind::ShiftScale { shift, scale } => {
-                    ritk_core::filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
+                    ritk_filter::ShiftScaleImageFilter::new(*shift, *scale).apply(&image)
                 }
                 crate::FilterKind::ZeroCrossing {
                     foreground_value,
                     background_value,
-                } => ritk_core::filter::ZeroCrossingImageFilter::new()
+                } => ritk_filter::ZeroCrossingImageFilter::new()
                     .with_foreground(*foreground_value)
                     .with_background(*background_value)
                     .apply(&image),
@@ -231,7 +234,7 @@ impl SnapApp {
                     size_z,
                     size_y,
                     size_x,
-                } => ritk_core::filter::RegionOfInterestImageFilter::new(
+                } => ritk_filter::RegionOfInterestImageFilter::new(
                     [*start_z, *start_y, *start_x],
                     [*size_z, *size_y, *size_x],
                 )
@@ -240,15 +243,15 @@ impl SnapApp {
                     order_0,
                     order_1,
                     order_2,
-                } => ritk_core::filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+                } => ritk_filter::PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
                     .apply(&image),
                 crate::FilterKind::Mean { radius } => {
-                    ritk_core::filter::MeanImageFilter::new(*radius).apply(&image)
+                    ritk_filter::MeanImageFilter::new(*radius).apply(&image)
                 }
                 crate::FilterKind::BinaryContour {
                     connectivity,
                     foreground_value,
-                } => ritk_core::filter::BinaryContourImageFilter::new(
+                } => ritk_filter::BinaryContourImageFilter::new(
                     *connectivity,
                     *foreground_value,
                 )
@@ -256,7 +259,7 @@ impl SnapApp {
                 crate::FilterKind::LabelContour {
                     connectivity,
                     background_value,
-                } => ritk_core::filter::LabelContourImageFilter::new(
+                } => ritk_filter::LabelContourImageFilter::new(
                     *connectivity,
                     *background_value,
                 )
@@ -267,7 +270,7 @@ impl SnapApp {
                     survival_threshold,
                     foreground_value,
                     background_value,
-                } => ritk_core::filter::VotingBinaryImageFilter::new(
+                } => ritk_filter::VotingBinaryImageFilter::new(
                     *radius,
                     *birth_threshold,
                     *survival_threshold,
@@ -279,7 +282,7 @@ impl SnapApp {
                     factor_z,
                     factor_y,
                     factor_x,
-                } => ritk_core::filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
+                } => ritk_filter::ShrinkImageFilter::new([*factor_z, *factor_y, *factor_x])
                     .apply(&image),
                 crate::FilterKind::ConstantPad {
                     pad_lower_z,
@@ -289,9 +292,9 @@ impl SnapApp {
                     pad_upper_y,
                     pad_upper_x,
                     constant,
-                } => ritk_core::filter::ConstantPadImageFilter::new(
-                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
-                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
+                } => ritk_filter::ConstantPadImageFilter::new(
+                    ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                     *constant,
                 )
                 .apply(&image),
@@ -302,9 +305,9 @@ impl SnapApp {
                     pad_upper_z,
                     pad_upper_y,
                     pad_upper_x,
-                } => ritk_core::filter::MirrorPadImageFilter::new(
-                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
-                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
+                } => ritk_filter::MirrorPadImageFilter::new(
+                    ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                 )
                 .apply(&image),
                 crate::FilterKind::WrapPad {
@@ -314,23 +317,23 @@ impl SnapApp {
                     pad_upper_z,
                     pad_upper_y,
                     pad_upper_x,
-                } => ritk_core::filter::WrapPadImageFilter::new(
-                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
-                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
+                } => ritk_filter::WrapPadImageFilter::new(
+                    ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                 )
                 .apply(&image),
                 crate::FilterKind::GrayscaleErode { radius } => {
-                    ritk_core::filter::GrayscaleErosion::new(*radius).apply(&image)
+                    ritk_filter::GrayscaleErosion::new(*radius).apply(&image)
                 }
                 crate::FilterKind::GrayscaleDilate { radius } => {
-                    ritk_core::filter::GrayscaleDilation::new(*radius).apply(&image)
+                    ritk_filter::GrayscaleDilation::new(*radius).apply(&image)
                 }
                 crate::FilterKind::BinaryThreshold {
                     lower,
                     upper,
                     foreground,
                     background,
-                } => ritk_core::filter::BinaryThresholdImageFilter::new(
+                } => ritk_filter::BinaryThresholdImageFilter::new(
                     *lower,
                     *upper,
                     *foreground,
@@ -338,10 +341,10 @@ impl SnapApp {
                 )
                 .apply(&image),
                 crate::FilterKind::RescaleIntensity { out_min, out_max } => {
-                    ritk_core::filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
+                    ritk_filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
                 }
                 crate::FilterKind::Clamp { lower, upper } => {
-                    ritk_core::filter::ClampImageFilter::new(*lower, *upper).apply(&image)
+                    ritk_filter::ClampImageFilter::new(*lower, *upper).apply(&image)
                 }
                 crate::FilterKind::ConnectedThreshold {
                     seed_z,
@@ -350,7 +353,7 @@ impl SnapApp {
                     lower,
                     upper,
                 } => Ok(
-                    ritk_core::segmentation::region_growing::ConnectedThresholdFilter::new(
+                    ritk_segmentation::region_growing::ConnectedThresholdFilter::new(
                         [*seed_z, *seed_y, *seed_x],
                         *lower,
                         *upper,
@@ -366,7 +369,7 @@ impl SnapApp {
                     multiplier,
                     max_iterations,
                 } => Ok(
-                    ritk_core::segmentation::region_growing::ConfidenceConnectedFilter::new(
+                    ritk_segmentation::region_growing::ConfidenceConnectedFilter::new(
                         [*seed_z, *seed_y, *seed_x],
                         *initial_lower,
                         *initial_upper,
@@ -385,7 +388,7 @@ impl SnapApp {
                     radius_y,
                     radius_x,
                 } => Ok(
-                    ritk_core::segmentation::region_growing::NeighborhoodConnectedFilter::new(
+                    ritk_segmentation::region_growing::NeighborhoodConnectedFilter::new(
                         [*seed_z, *seed_y, *seed_x],
                         *lower,
                         *upper,
@@ -394,31 +397,31 @@ impl SnapApp {
                     .apply(&image),
                 ),
                 crate::FilterKind::Atan => {
-                    Ok(ritk_core::filter::AtanImageFilter::new().apply(&image))
+                    Ok(ritk_filter::AtanImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::Sin => {
-                    Ok(ritk_core::filter::SinImageFilter::new().apply(&image))
+                    Ok(ritk_filter::SinImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::Cos => {
-                    Ok(ritk_core::filter::CosImageFilter::new().apply(&image))
+                    Ok(ritk_filter::CosImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::Tan => {
-                    Ok(ritk_core::filter::TanImageFilter::new().apply(&image))
+                    Ok(ritk_filter::TanImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::Asin => {
-                    Ok(ritk_core::filter::AsinImageFilter::new().apply(&image))
+                    Ok(ritk_filter::AsinImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::Acos => {
-                    Ok(ritk_core::filter::AcosImageFilter::new().apply(&image))
+                    Ok(ritk_filter::AcosImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::BoundedReciprocal => {
-                    Ok(ritk_core::filter::BoundedReciprocalImageFilter::new().apply(&image))
+                    Ok(ritk_filter::BoundedReciprocalImageFilter::new().apply(&image))
                 }
                 crate::FilterKind::CurvatureFlow {
                     iterations,
                     time_step,
-                } => ritk_core::filter::CurvatureFlowImageFilter::new(
-                    ritk_core::filter::CurvatureFlowConfig {
+                } => ritk_filter::CurvatureFlowImageFilter::new(
+                    ritk_filter::CurvatureFlowConfig {
                         num_iterations: *iterations as usize,
                         time_step: *time_step,
                     },

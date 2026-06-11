@@ -5,6 +5,9 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-filter = { path = "../ritk-filter" }
 ritk-dicom = { workspace = true }
 ritk-codecs = { workspace = true }
 ritk-nifti = { workspace = true }

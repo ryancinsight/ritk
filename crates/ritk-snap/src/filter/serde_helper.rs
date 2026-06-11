@@ -1,4 +1,4 @@
-use ritk_core::filter::{BedSeparationConfig, ComponentPolicy};
+use ritk_filter::{BedSeparationConfig, ComponentPolicy};
 use serde::{Deserialize, Serialize};
 
 // ── Remote serde helper ──────────────────────────────────────────────────────

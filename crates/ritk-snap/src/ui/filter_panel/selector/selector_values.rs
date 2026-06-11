@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::BinarizationThreshold;
+use ritk_filter::BinarizationThreshold;
 
 /// First half of the ComboBox selectable_value entries (Gaussian through
 /// MorphologicalGradient).
@@ -57,7 +57,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 sigma: 1.0,
                 amount: 0.5,
                 threshold: 0.0,
-                clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
+                clamp: ritk_filter::ClampPolicy::ClampToInputRange,
             },
             "Unsharp Mask",
         )
@@ -67,7 +67,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             sigma: 1.0,
             amount: 0.5,
             threshold: 0.0,
-            clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
+            clamp: ritk_filter::ClampPolicy::ClampToInputRange,
         };
     }
     if ui
@@ -92,7 +92,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::ConnectedComponents {
-                connectivity: ritk_core::filter::Connectivity::Face6,
+                connectivity: ritk_filter::Connectivity::Face6,
                 background_value: 0.0,
             },
             "Connected Components",
@@ -100,7 +100,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::ConnectedComponents {
-            connectivity: ritk_core::filter::Connectivity::Face6,
+            connectivity: ritk_filter::Connectivity::Face6,
             background_value: 0.0,
         };
     }
@@ -133,7 +133,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryErode {
                 radius: 1,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Erode",
         )
@@ -141,7 +141,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryErode {
             radius: 1,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -149,7 +149,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryDilate {
                 radius: 1,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Dilate",
         )
@@ -157,7 +157,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryDilate {
             radius: 1,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -165,7 +165,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryClosing {
                 radius: 1,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Closing",
         )
@@ -173,7 +173,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryClosing {
             radius: 1,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -181,7 +181,7 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryOpening {
                 radius: 1,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Opening",
         )
@@ -189,21 +189,21 @@ pub fn show_first_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryOpening {
             radius: 1,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::BinaryFillhole {
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Fill Holes",
         )
         .clicked()
     {
         *active_filter = FilterKind::BinaryFillhole {
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui

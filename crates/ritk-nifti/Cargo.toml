@@ -5,10 +5,12 @@ edition = "2021"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
+burn = { workspace = true }
+anyhow = { workspace = true }
 nifti = { workspace = true }
 ndarray = { workspace = true }
-anyhow = { workspace = true }
-burn = { workspace = true }
 nalgebra = { workspace = true }
 tracing = { workspace = true }
 

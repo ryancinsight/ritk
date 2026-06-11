@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::segmentation::ThresholdLevelSet;
+use ritk_segmentation::ThresholdLevelSet;
 use std::sync::Arc;
 
 /// Configuration options for [`threshold_level_set_segment`].

@@ -1,5 +1,5 @@
 use burn::tensor::backend::Backend;
-use ritk_core::image::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 // VTK domain types are authoritative in ritk-vtk.

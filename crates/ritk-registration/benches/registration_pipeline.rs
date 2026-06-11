@@ -12,9 +12,9 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use ritk_core::image::grid;
 use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
-use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_core::transform::{Transform, TranslationTransform};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_transform::{Transform, TranslationTransform};
 use ritk_registration::metric::histogram::ParzenJointHistogram;
 use ritk_registration::metric::{Metric, MutualInformation};
 

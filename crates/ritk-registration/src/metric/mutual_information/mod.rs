@@ -34,15 +34,15 @@
 //! - Viola, P., & Wells, W. M. (1997). Alignment by maximization of mutual
 //!   information. *Int. J. Comput. Vis.* 24(2):137–154.
 
+use crate::metric::cache_slot::CacheSlot;
+use crate::metric::histogram::cache::WFixedCache;
+use crate::metric::sampling::SamplingConfig;
+use crate::metric::{histogram::ParzenJointHistogram, Metric};
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::interpolation::LinearInterpolator;
 use ritk_core::transform::Transform;
-use std::sync::{Arc, Mutex};
-
-use crate::metric::histogram::cache::WFixedCache;
-use crate::metric::{histogram::ParzenJointHistogram, Metric};
+use ritk_interpolation::LinearInterpolator;
 
 mod variant;
 pub use variant::{MutualInformationVariant, NormalizationMethod};
@@ -59,7 +59,7 @@ pub use variant::{MutualInformationVariant, NormalizationMethod};
 pub struct MutualInformation<B: Backend> {
     variant: MutualInformationVariant,
     histogram_calculator: ParzenJointHistogram<B>,
-    sampling_percentage: Option<f32>,
+    sampling: SamplingConfig,
     interpolator: LinearInterpolator,
     fixed_mask_points: Option<Tensor<B, 2>>,
     /// 350-P1-03: per-`MutualInformation` cache for the fixed-image Parzen weight
@@ -70,8 +70,9 @@ pub struct MutualInformation<B: Backend> {
     /// this via [`ParzenJointHistogram::compute_image_joint_histogram`] +
     /// `extract_w_fixed_t_cache`. Subsequent [`Metric::forward_with_cache`]
     /// calls hit the cache and skip the O(N × num_bins) Parzen weight
-    /// recomputation. Shared across clones via `Arc`.
-    cached_w_fixed_t: Arc<Mutex<Option<WFixedCache<B>>>>,
+    /// recomputation. `CacheSlot` performs a shallow `Arc`-clone so all
+    /// `MutualInformation` clones share the same slot.
+    cached_w_fixed_t: CacheSlot<WFixedCache<B>>,
 }
 
 impl<B: Backend> MutualInformation<B> {
@@ -101,10 +102,10 @@ impl<B: Backend> MutualInformation<B> {
                 parzen_sigma,
                 device,
             ),
-            sampling_percentage: None,
+            sampling: SamplingConfig::uniform(1.0),
             interpolator: LinearInterpolator::new_zero_pad(),
             fixed_mask_points: None,
-            cached_w_fixed_t: Arc::new(Mutex::new(None)),
+            cached_w_fixed_t: CacheSlot::empty(),
         }
     }
 
@@ -208,12 +209,7 @@ impl<B: Backend> MutualInformation<B> {
 
     /// Set stochastic sampling fraction ∈ (0, 1].
     pub fn with_sampling(mut self, percentage: f32) -> Self {
-        let clamped = percentage.clamp(1e-4, 1.0);
-        if clamped < 1.0 {
-            self.sampling_percentage = Some(clamped);
-        } else {
-            self.sampling_percentage = None;
-        }
+        self.sampling = SamplingConfig::uniform(percentage);
         self
     }
 
@@ -328,7 +324,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 moving,
                 transform,
                 &self.interpolator,
-                self.sampling_percentage,
+                self.sampling.percentage(),
             )
         };
 
@@ -342,25 +338,15 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         //    (the sampling and mask paths use different point sets per call,
         //    so the matrix is not actually constant). For these paths, the
         //    cache stays empty and `forward_with_cache` falls back to `forward`.
-        if self.fixed_mask_points.is_none() && self.sampling_percentage.is_none() {
+        if self.fixed_mask_points.is_none() && !self.sampling.is_active() {
             let n = fixed.shape().iter().product::<usize>();
-            let already_populated = {
-                let cache_guard = self
-                    .cached_w_fixed_t
-                    .lock()
-                    .unwrap_or_else(|e| e.into_inner());
-                cache_guard
-                    .as_ref()
-                    .map(|c| c.matches(fixed, n))
-                    .unwrap_or(false)
-            };
-            if !already_populated {
+            // Populate once per level.  Staleness (fixed image change) is
+            // detected in `forward_with_cache`, which calls `invalidate()`
+            // before falling back here, leaving the slot empty for this check.
+            if !self.cached_w_fixed_t.is_populated() {
                 if let Some(new_cache) = self.histogram_calculator.extract_w_fixed_t_cache(fixed, n)
                 {
-                    *self
-                        .cached_w_fixed_t
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner()) = Some(new_cache);
+                    self.cached_w_fixed_t.get_or_init(|| new_cache);
                 }
             }
         }
@@ -386,22 +372,30 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         transform: &impl Transform<B, D>,
     ) -> Tensor<B, 1> {
         // Only the non-mask, non-sampling path supports W_fixed^T cache reuse.
-        if self.fixed_mask_points.is_some() || self.sampling_percentage.is_some() {
+        if self.fixed_mask_points.is_some() || self.sampling.is_active() {
             return self.forward(fixed, moving, transform);
         }
 
         let n = fixed.shape().iter().product::<usize>();
 
         // Check the per-instance cache.
-        let cached_w_fixed_t = {
-            let cache_guard = self
-                .cached_w_fixed_t
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            cache_guard
-                .as_ref()
-                .filter(|c| c.matches(fixed, n))
-                .map(|c| c.w_fixed_t.clone())
+        //
+        // `is_populated()` releases its lock before `get_or_init` re-acquires
+        // it; concurrent invalidation is not possible in this usage, so the
+        // panic closure is a defensive sentinel for unexpected TOCTOU.
+        let cached_w_fixed_t = if self.cached_w_fixed_t.is_populated() {
+            let entry = self.cached_w_fixed_t.get_or_init(|| {
+                panic!("invariant: CacheSlot was populated when checked (unexpected TOCTOU)")
+            });
+            if entry.matches(fixed, n) {
+                Some(entry.w_fixed_t.clone())
+            } else {
+                // Stale entry (fixed image changed): clear so `forward()` repopulates.
+                self.cached_w_fixed_t.invalidate();
+                None
+            }
+        } else {
+            None
         };
 
         if let Some(w_fixed_t) = cached_w_fixed_t {

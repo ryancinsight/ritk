@@ -22,8 +22,8 @@
 use anyhow::{bail, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 

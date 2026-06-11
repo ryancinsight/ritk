@@ -1,5 +1,5 @@
 use crate::filter::serde_helper::BedSeparationConfigSerde;
-use ritk_core::filter::{
+use ritk_filter::{
     BedSeparationConfig, BinarizationThreshold, ClampPolicy, Connectivity, ForegroundValue,
 };
 use serde::{Deserialize, Serialize};

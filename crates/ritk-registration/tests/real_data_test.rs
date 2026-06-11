@@ -151,8 +151,8 @@ fn test_image_metadata_consistency() {
 #[test]
 #[ignore = "requires test data"]
 fn test_image_resampling() {
-    use ritk_core::interpolation::{Interpolator, LinearInterpolator};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_interpolation::{Interpolator, LinearInterpolator};
+    use ritk_transform::TranslationTransform;
 
     let data_dir = get_test_data_dir()
         .expect("Test data directory not found. Run: cargo xtask download-datasets");

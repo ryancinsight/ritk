@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{
+use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter,
     LaplacianOfGaussianFilter, SobelFilter,
 };

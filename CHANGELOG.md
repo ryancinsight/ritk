@@ -1,5 +1,55 @@
 # CHANGELOG
 
+## [0.59.0] — 2026-06-11 (Sprint 362: Architecture Hardening — SSOT · DRY · SRP · DIP)
+
+### Fixed
+- `interpolation/dispatch/mod.rs`: `#[path = "../tests_dispatch"]` pointed at a directory; changed to `#[path = "../tests_dispatch/mod.rs"]` (Windows "Access denied" when opening directory as file).
+- `statistics/normalization/tests_white_stripe/behavior.rs`: `result.sigma.get()` → `result.sigma` — `sigma` is `f64`, not a newtype; stale `.get()` call was a compile error.
+- `interpolation/dispatch/linear.rs`: doc-list continuation lines not indented (clippy `doc_lazy_continuation`).
+- `ritk-filter` tests + `ritk-python`: `apply_2d` / `apply_3d` deprecated calls replaced with `apply` (both `B` and `D` inferred from image arguments).
+- `ritk-cli/commands/viewer.rs`: removed now-redundant `use burn_ndarray::NdArray` (superseded by `use super::Backend`).
+- `.config/nextest.toml`: added `recovers_known_translation_cross_modal` to the 600 s slow-test override; the test reliably exceeds the 10 s default under CPU contention.
+
+### Added (ritk-io 0.2.0 → 0.3.0)
+- `ImageFormat` enum + `from_path(p: &Path) -> Option<ImageFormat>` + `as_str() -> &'static str` in `ritk-io::lib`. Centralises path → format resolution previously duplicated in CLI and Python.
+
+### Added (ritk-segmentation 0.1.0 → 0.2.0)
+- `AutoThreshold` sealed trait in `threshold/auto_threshold.rs` with blanket `compute<B,D>` + `apply<B,D>` backed by a shared histogram builder. `OtsuThreshold`, `LiThreshold`, `YenThreshold`, `KapurThreshold`, `TriangleThreshold` implement the required `compute_threshold` kernel; ~150 lines of duplicated scaffold removed. `AutoThreshold` re-exported from `threshold` module.
+- `Connectivity { Six, TwentySix }` enum in `labeling/mod.rs`; runtime `assert!(connectivity == 6 || connectivity == 26)` eliminated. `connected_components` free function and `ConnectedComponentsFilter` updated.
+- `UnionFind` extracted from `labeling/mod.rs` → `labeling/union_find.rs`.
+
+### Added (ritk-registration 0.53.0 → 0.54.0)
+- `CacheSlot<T>` newtype in `metric/cache_slot.rs` wraps `Arc<Mutex<Option<T>>>` with `empty`, `get_or_init`, `invalidate`, `is_populated` methods. `MutualInformation.cached_w_fixed_t` migrated from raw `Arc<Mutex<Option<_>>>` to `CacheSlot`.
+- `SamplingConfig` adoption complete: `MutualInformation.sampling_percentage: Option<f32>` → `sampling: SamplingConfig`; `CorrelationRatio` same.
+
+### Added (ritk-registration — internal)
+- `wgpu_compat.rs` module in `ritk-registration/src/`: declares local `WGPU_CHUNK_SIZE` constant, replacing the cross-crate `pub use ritk_core::wgpu_compat::WGPU_CHUNK_SIZE`. Forwards comment noting future `ExecutionPolicy::max_batch_size()` migration.
+
+### Changed (ritk-core 0.9.0)
+- `filter/intensity/arithmetic.rs` (`NormalizeImageFilter`): added `// PRECISION: f64 accumulation required` justification comment before the f64 mean/variance path per `numerical_discipline`.
+- `statistics/normalization/tests_dispatch/` integration smoke tests added for `dispatch_linear<B,1>`, `dispatch_linear<B,3>`, and `dispatch_nearest<B,3>`.
+
+### Changed (structural — SRP)
+- `bspline_ffd/basis.rs` (445L) split → `basis/{scalar,cache,evaluate,mod}.rs`.
+- `dl_registration_loss.rs` → `registration/dl/{mod,lncc,ncc,grad,combined}.rs`.
+- `regularization/trait_::utils` extracted → `regularization/spatial_ops.rs` (`pub(crate)`).
+- `level_set/helpers.rs`: added `smooth_or_borrow<'a>` helper; adopted in `geodesic_active_contour.rs` + `shape_detection.rs`.
+- `ritk-cli/commands/filter/mod.rs`: `FilterArgs.scales: String` → `Vec<f64>` with `value_delimiter = ','`. Callers in `spatial_impl.rs` and `smoothing.rs` no longer split/parse the string.
+
+### Changed (SSOT / deduplication)
+- `ConvergenceFlag` enum consolidated into `optimizer/regular_step_gd/convergence.rs`; duplicate definition removed from `adaptive_stochastic_gd.rs`.
+- `preprocessing::NormalizationMode` renamed → `IntensityRescaleMode` (resolves collision with `metric::NormalizationMode`).
+- `ritk-cli/commands/viewer.rs`: local `type Backend = NdArray<f32>` replaced with `use super::Backend` (SSOT).
+
+### Removed
+- `ritk-core/src/wgpu_compat.rs` re-export module removed — nothing inside `ritk-core` consumes `WGPU_CHUNK_SIZE`; infrastructure crates import `ritk_wgpu_compat` directly.
+- Deprecated `FftDir` compatibility enum and `fft2d_dispatch`/`fft3d_dispatch`/`fft_nd_dispatch` helper shims in `filter/fft/convolution/helpers.rs`.
+
+### Residual (filed for next sprint)
+- `NAMING-362-23`: `transform_1d/_2d/_3d/_4d` renaming **blocked** — duplicate method names across impl blocks on same type; requires `[arch]` dispatch-table refactor.
+- `ARCH-362-29`: `Image<B,T,D>` scalar phantom `PhantomData<T>` — filed as `[arch]` item.
+
+
 ## [0.58.0] — 2026-06-11 (Sprint 361: 20-Cycle Phase 21 Optimization ×6)
 
 ### Fixed

@@ -36,5 +36,5 @@ mod step_mapper;
 mod tests;
 
 pub use config::RegularStepGdConfig;
-pub use convergence::ConvergenceReason;
+pub use convergence::{ConvergenceFlag, ConvergenceReason};
 pub use optimizer::RegularStepGradientDescent;

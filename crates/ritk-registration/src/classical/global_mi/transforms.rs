@@ -4,7 +4,7 @@ use crate::types::AffineTransform;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::transform::{
+use ritk_transform::{
     AffineTransform as CoreAffineTransform, RigidTransform, TranslationTransform,
 };
 

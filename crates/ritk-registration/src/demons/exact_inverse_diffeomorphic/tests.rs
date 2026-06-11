@@ -4,7 +4,7 @@ use super::engine::InverseConsistentDiffeomorphicDemonsRegistration;
 use super::types::InverseConsistentDemonsConfig;
 use crate::demons::config::DemonsConfig;
 use crate::demons::diffeomorphic::DiffeomorphicDemonsRegistration;
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 fn default_config() -> InverseConsistentDemonsConfig {
     InverseConsistentDemonsConfig {

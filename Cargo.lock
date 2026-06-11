@@ -90,6 +90,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "addr2line"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b5d307320b3181d6d7954e663bd7c774a838b8220fe0593c86d9fb09f498b4b"
+dependencies = [
+ "gimli",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -703,6 +712,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47c8fbc0f831f4519fe8b810b6a7a91410ec83031b8233f730a0480029f6a23f"
 dependencies = [
  "arrayvec",
+]
+
+[[package]]
+name = "backtrace"
+version = "0.3.76"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bb531853791a215d7c62a30daf0dde835f381ab5de4589cfe7c649d2cbe92bd6"
+dependencies = [
+ "addr2line",
+ "cfg-if",
+ "libc",
+ "miniz_oxide",
+ "object",
+ "rustc-demangle",
+ "windows-link",
 ]
 
 [[package]]
@@ -3017,12 +3041,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -3030,6 +3070,17 @@ name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
 
 [[package]]
 name = "futures-io"
@@ -3094,6 +3145,7 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -3188,6 +3240,12 @@ dependencies = [
  "color_quant",
  "weezl",
 ]
+
+[[package]]
+name = "gimli"
+version = "0.32.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e629b9b98ef3dd8afe6ca2bd0f89306cec16d43d907889945bc5d6687f2f13c7"
 
 [[package]]
 name = "gl_generator"
@@ -4458,6 +4516,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
 
 [[package]]
+name = "melinoe"
+version = "0.6.0"
+source = "git+https://github.com/ryancinsight/melinoe.git#cb4e371c38dac53a33bb72c726c98178a6430842"
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4548,6 +4611,96 @@ dependencies = [
 ]
 
 [[package]]
+name = "mnemosyne"
+version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-arena",
+ "mnemosyne-backend",
+ "mnemosyne-core",
+ "mnemosyne-decay",
+ "mnemosyne-hardened",
+ "mnemosyne-heap",
+ "mnemosyne-local",
+ "mnemosyne-prof",
+]
+
+[[package]]
+name = "mnemosyne-arena"
+version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-backend",
+ "mnemosyne-core",
+ "themis",
+]
+
+[[package]]
+name = "mnemosyne-backend"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-core",
+]
+
+[[package]]
+name = "mnemosyne-core"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+
+[[package]]
+name = "mnemosyne-decay"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-arena",
+ "mnemosyne-backend",
+ "mnemosyne-core",
+]
+
+[[package]]
+name = "mnemosyne-hardened"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-core",
+]
+
+[[package]]
+name = "mnemosyne-heap"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "melinoe",
+ "mnemosyne-arena",
+ "mnemosyne-backend",
+ "mnemosyne-core",
+ "mnemosyne-local",
+ "mnemosyne-prof",
+]
+
+[[package]]
+name = "mnemosyne-local"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "mnemosyne-arena",
+ "mnemosyne-backend",
+ "mnemosyne-core",
+ "mnemosyne-decay",
+ "mnemosyne-prof",
+]
+
+[[package]]
+name = "mnemosyne-prof"
+version = "0.1.0"
+source = "git+https://github.com/ryancinsight/Mnemosyne#e0ffdf9aa0c571a90ec3961ae758ef2379347983"
+dependencies = [
+ "backtrace",
+ "mnemosyne-core",
+]
+
+[[package]]
 name = "mockito"
 version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4583,13 +4736,31 @@ name = "moirai"
 version = "0.2.0"
 source = "git+https://github.com/ryancinsight/Moirai.git#f57fae45e45ad46e733042fed0e3e014e65e3102"
 dependencies = [
+ "mnemosyne",
+ "moirai-async",
  "moirai-core",
  "moirai-executor",
+ "moirai-iter",
  "moirai-parallel",
  "moirai-scheduler",
  "moirai-sync",
  "moirai-transport",
  "moirai-utils",
+]
+
+[[package]]
+name = "moirai-async"
+version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#f57fae45e45ad46e733042fed0e3e014e65e3102"
+dependencies = [
+ "futures",
+ "libc",
+ "moirai-core",
+ "moirai-executor",
+ "moirai-pal",
+ "moirai-transport",
+ "moirai-utils",
+ "socket2 0.5.10",
 ]
 
 [[package]]
@@ -4610,6 +4781,21 @@ dependencies = [
  "moirai-pal",
  "moirai-scheduler",
  "moirai-utils",
+]
+
+[[package]]
+name = "moirai-iter"
+version = "0.2.0"
+source = "git+https://github.com/ryancinsight/Moirai.git#f57fae45e45ad46e733042fed0e3e014e65e3102"
+dependencies = [
+ "futures",
+ "libc",
+ "moirai-core",
+ "moirai-executor",
+ "moirai-scheduler",
+ "moirai-utils",
+ "num_cpus",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -5286,6 +5472,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c92d4ddb4bd7b50d730c215ff871754d0da6b2178849f8a2a2ab69712d0c073b"
 dependencies = [
  "objc",
+]
+
+[[package]]
+name = "object"
+version = "0.37.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff76201f031d8863c38aa7f905eca4f53abbfa15f609db4277d44cd8938f33fe"
+dependencies = [
+ "memchr",
 ]
 
 [[package]]
@@ -6284,6 +6479,8 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
  "tracing",
 ]
@@ -6298,9 +6495,15 @@ dependencies = [
  "clap",
  "ndarray 0.16.1",
  "ritk-core",
+ "ritk-filter",
+ "ritk-image",
+ "ritk-interpolation",
  "ritk-io",
  "ritk-registration",
+ "ritk-segmentation",
  "ritk-snap",
+ "ritk-spatial",
+ "ritk-transform",
  "serde_json",
  "tempfile",
  "tracing",
@@ -6328,18 +6531,15 @@ dependencies = [
  "anyhow",
  "burn",
  "burn-ndarray",
- "criterion",
- "gaia",
  "moirai",
  "nalgebra",
  "num-traits",
  "proptest",
- "rand 0.9.2",
- "ritk-macros",
- "rustfft",
+ "ritk-image",
+ "ritk-spatial",
+ "ritk-wgpu-compat",
  "serde",
  "serde_json",
- "tempfile",
  "thiserror 2.0.18",
 ]
 
@@ -6355,6 +6555,57 @@ dependencies = [
  "proptest",
  "ritk-codecs",
  "tempfile",
+]
+
+[[package]]
+name = "ritk-filter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "criterion",
+ "gaia",
+ "moirai",
+ "nalgebra",
+ "num-traits",
+ "rand 0.9.2",
+ "ritk-core",
+ "ritk-image",
+ "ritk-interpolation",
+ "ritk-spatial",
+ "ritk-transform",
+ "ritk-wgpu-compat",
+ "rustfft",
+ "serde",
+]
+
+[[package]]
+name = "ritk-image"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "ritk-spatial",
+ "ritk-wgpu-compat",
+]
+
+[[package]]
+name = "ritk-interpolation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "criterion",
+ "rand 0.9.2",
+ "ritk-core",
+ "ritk-image",
+ "ritk-macros",
+ "ritk-spatial",
+ "ritk-wgpu-compat",
+ "serde",
 ]
 
 [[package]]
@@ -6387,6 +6638,8 @@ dependencies = [
  "ritk-codecs",
  "ritk-core",
  "ritk-dicom",
+ "ritk-filter",
+ "ritk-image",
  "ritk-jpeg",
  "ritk-metaimage",
  "ritk-mgh",
@@ -6394,6 +6647,7 @@ dependencies = [
  "ritk-nifti",
  "ritk-nrrd",
  "ritk-png",
+ "ritk-spatial",
  "ritk-tiff",
  "ritk-vtk",
  "serde_json",
@@ -6415,6 +6669,8 @@ dependencies = [
  "burn-ndarray",
  "image 0.24.9",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
  "tracing",
 ]
@@ -6437,6 +6693,8 @@ dependencies = [
  "burn-ndarray",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
 ]
 
@@ -6450,6 +6708,8 @@ dependencies = [
  "flate2",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
  "tracing",
 ]
@@ -6466,6 +6726,8 @@ dependencies = [
  "consus-io",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
 ]
 
@@ -6481,6 +6743,10 @@ dependencies = [
  "onnx-ir",
  "reqwest",
  "ritk-core",
+ "ritk-image",
+ "ritk-interpolation",
+ "ritk-spatial",
+ "ritk-transform",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -6498,6 +6764,8 @@ dependencies = [
  "ndarray 0.16.1",
  "nifti",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
  "tracing",
 ]
@@ -6512,6 +6780,8 @@ dependencies = [
  "bytemuck",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
 ]
 
@@ -6525,6 +6795,8 @@ dependencies = [
  "image 0.24.9",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
 ]
 
@@ -6538,8 +6810,14 @@ dependencies = [
  "numpy",
  "pyo3",
  "ritk-core",
+ "ritk-filter",
+ "ritk-image",
+ "ritk-interpolation",
  "ritk-io",
  "ritk-registration",
+ "ritk-segmentation",
+ "ritk-spatial",
+ "ritk-transform",
 ]
 
 [[package]]
@@ -6557,13 +6835,34 @@ dependencies = [
  "proptest",
  "rand 0.9.2",
  "ritk-core",
+ "ritk-filter",
+ "ritk-image",
+ "ritk-interpolation",
  "ritk-io",
  "ritk-model",
+ "ritk-segmentation",
+ "ritk-spatial",
+ "ritk-transform",
+ "ritk-wgpu-compat",
  "serde",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
  "walkdir",
+]
+
+[[package]]
+name = "ritk-segmentation"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "burn",
+ "burn-ndarray",
+ "moirai",
+ "ritk-core",
+ "ritk-filter",
+ "ritk-image",
+ "tracing",
 ]
 
 [[package]]
@@ -6588,7 +6887,11 @@ dependencies = [
  "pollster",
  "rfd",
  "ritk-core",
+ "ritk-filter",
+ "ritk-image",
  "ritk-io",
+ "ritk-segmentation",
+ "ritk-spatial",
  "serde",
  "serde_json",
  "tempfile",
@@ -6601,6 +6904,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-spatial"
+version = "0.1.0"
+dependencies = [
+ "burn",
+ "nalgebra",
+ "serde",
+]
+
+[[package]]
 name = "ritk-tiff"
 version = "0.1.0"
 dependencies = [
@@ -6608,8 +6920,26 @@ dependencies = [
  "burn",
  "burn-ndarray",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "tempfile",
  "tiff 0.9.1",
+]
+
+[[package]]
+name = "ritk-transform"
+version = "0.1.0"
+dependencies = [
+ "burn",
+ "burn-ndarray",
+ "ritk-core",
+ "ritk-image",
+ "ritk-interpolation",
+ "ritk-spatial",
+ "ritk-wgpu-compat",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -6622,10 +6952,26 @@ dependencies = [
  "gaia",
  "nalgebra",
  "ritk-core",
+ "ritk-image",
+ "ritk-spatial",
  "serde_json",
  "tempfile",
  "tracing",
 ]
+
+[[package]]
+name = "ritk-wgpu-compat"
+version = "0.1.0"
+dependencies = [
+ "burn",
+ "burn-ndarray",
+]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b50b8869d9fc858ce7266cce0194bd74df58b9d0e3f6df3a9fc8eb470d95c09d"
 
 [[package]]
 name = "rustc-hash"
@@ -7377,6 +7723,14 @@ dependencies = [
  "hashbrown 0.13.2",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "themis"
+version = "0.6.0"
+source = "git+https://github.com/ryancinsight/themis#bdcddfe294f941ef2f84fd4ce38537906b0fec23"
+dependencies = [
+ "melinoe",
 ]
 
 [[package]]

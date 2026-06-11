@@ -16,6 +16,10 @@ clap = { workspace = true, features = ["derive"] }
 burn = { workspace = true }
 burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-filter = { workspace = true }
+ritk-segmentation = { workspace = true }
 ritk-io = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

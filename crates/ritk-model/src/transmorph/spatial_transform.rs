@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     tensor::{backend::Backend, Tensor},
 };
-use ritk_core::interpolation::tensor_trilinear::trilinear_interpolation;
+use ritk_interpolation::tensor_trilinear::trilinear_interpolation;
 use std::marker::PhantomData;
 
 #[derive(Module, Debug)]

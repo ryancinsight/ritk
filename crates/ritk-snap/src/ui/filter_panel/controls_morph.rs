@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::{Connectivity, ForegroundValue};
+use ritk_filter::{Connectivity, ForegroundValue};
 
 /// Render parameter controls for Binary + Grayscale Morphology + Pad/Geometry
 /// filter variants.

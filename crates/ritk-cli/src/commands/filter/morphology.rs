@@ -6,7 +6,7 @@ use super::Backend;
 use super::{read_image, write_image_inferred, FilterArgs};
 
 pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::GrayscaleErosion;
+    use ritk_filter::GrayscaleErosion;
 
     let image = read_image(&args.input)?;
     let filtered = GrayscaleErosion::new(args.radius).apply(&image)?;
@@ -18,7 +18,7 @@ pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::GrayscaleDilation;
+    use ritk_filter::GrayscaleDilation;
 
     let image = read_image(&args.input)?;
     let filtered = GrayscaleDilation::new(args.radius).apply(&image)?;
@@ -30,7 +30,7 @@ pub(super) fn run_grayscale_dilation(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::WhiteTopHatFilter;
+    use ritk_filter::WhiteTopHatFilter;
 
     let image = read_image(&args.input)?;
     let filtered = WhiteTopHatFilter::new(args.radius).apply(&image)?;
@@ -42,7 +42,7 @@ pub(super) fn run_white_top_hat(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::BlackTopHatFilter;
+    use ritk_filter::BlackTopHatFilter;
 
     let image = read_image(&args.input)?;
     let filtered = BlackTopHatFilter::new(args.radius).apply(&image)?;
@@ -54,7 +54,7 @@ pub(super) fn run_black_top_hat(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::HitOrMissTransform;
+    use ritk_filter::HitOrMissTransform;
 
     let image = read_image(&args.input)?;
     let filtered = HitOrMissTransform::new(args.radius, args.radius).apply(&image)?;
@@ -66,7 +66,7 @@ pub(super) fn run_hit_or_miss(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_label_dilation(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::LabelDilation;
+    use ritk_filter::LabelDilation;
 
     let image = read_image(&args.input)?;
     let filtered = LabelDilation::new(args.radius).apply(&image)?;
@@ -83,7 +83,7 @@ pub(super) fn run_label_dilation(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_label_erosion(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::LabelErosion;
+    use ritk_filter::LabelErosion;
 
     let image = read_image(&args.input)?;
     let filtered = LabelErosion::new(args.radius).apply(&image)?;
@@ -95,7 +95,7 @@ pub(super) fn run_label_erosion(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_label_opening(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::LabelOpening;
+    use ritk_filter::LabelOpening;
 
     let image = read_image(&args.input)?;
     let filtered = LabelOpening::new(args.radius).apply(&image)?;
@@ -107,7 +107,7 @@ pub(super) fn run_label_opening(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_label_closing(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::LabelClosing;
+    use ritk_filter::LabelClosing;
 
     let image = read_image(&args.input)?;
     let filtered = LabelClosing::new(args.radius).apply(&image)?;
@@ -119,7 +119,7 @@ pub(super) fn run_label_closing(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::{MorphologicalReconstruction, ReconstructionMode};
+    use ritk_filter::{MorphologicalReconstruction, ReconstructionMode};
 
     let marker = read_image(&args.input)?;
     let mask_path = args
@@ -145,7 +145,7 @@ mod tests {
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     #[test]

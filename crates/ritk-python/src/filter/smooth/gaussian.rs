@@ -2,9 +2,9 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, Backend, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::edge::GaussianSigma;
-use ritk_core::filter::recursive_gaussian::DerivativeOrder;
-use ritk_core::filter::{DiscreteGaussianFilter, GaussianFilter, RecursiveGaussianFilter};
+use ritk_filter::edge::GaussianSigma;
+use ritk_filter::recursive_gaussian::DerivativeOrder;
+use ritk_filter::{DiscreteGaussianFilter, GaussianFilter, RecursiveGaussianFilter};
 
 /// Whether spatial filtering uses physical image spacing or voxel spacing.
 #[pyclass(eq, eq_int)]
@@ -16,7 +16,7 @@ pub enum PySpacingMode {
 
 /// Apply Gaussian smoothing to an image.
 ///
-/// Uses `ritk_core::filter::GaussianFilter` (separable 1-D convolutions,
+/// Uses `ritk_filter::GaussianFilter` (separable 1-D convolutions,
 /// NdArray backend, CPU-only). The same sigma is applied along all three
 /// axes (isotropic smoothing).
 ///
@@ -40,7 +40,7 @@ pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyImage {
 
 /// Apply ITK-style discrete Gaussian smoothing parameterized by variance.
 ///
-/// Uses `ritk_core::filter::DiscreteGaussianFilter` with separable 1-D
+/// Uses `ritk_filter::DiscreteGaussianFilter` with separable 1-D
 /// convolution, replicate padding, analytic kernel truncation from
 /// `maximum_error`, and optional spacing-aware sigma conversion.
 ///
@@ -67,8 +67,8 @@ pub fn discrete_gaussian(
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         let spacing_mode = match spacing_mode {
-            PySpacingMode::Physical => ritk_core::filter::discrete_gaussian::SpacingMode::Physical,
-            PySpacingMode::Voxel => ritk_core::filter::discrete_gaussian::SpacingMode::Voxel,
+            PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
+            PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
         let filter = DiscreteGaussianFilter::<Backend>::new(vec![variance])
             .with_maximum_error(maximum_error)

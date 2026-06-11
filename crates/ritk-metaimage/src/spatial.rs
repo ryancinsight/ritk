@@ -12,7 +12,7 @@
 //! ```
 
 use nalgebra::{SMatrix, Vector3};
-use ritk_core::spatial::{Direction, Spacing};
+use ritk_spatial::{Direction, Spacing};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {

@@ -2,7 +2,7 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction3, Point3, Spacing3};
-use ritk_core::transform::TranslationTransform;
+use ritk_transform::TranslationTransform;
 use ritk_registration::metric::{MeanSquaredError, Metric};
 
 type B = NdArray<f32>;

@@ -9,6 +9,13 @@ path = "src/main.rs"
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-interpolation = { path = "../ritk-interpolation" }
+serde_json = { workspace = true }
+ritk-transform = { path = "../ritk-transform" }
+ritk-filter = { path = "../ritk-filter" }
+ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-io = { path = "../ritk-io" }
 ritk-registration = { path = "../ritk-registration" }
 ritk-snap = { path = "../ritk-snap" }
@@ -19,7 +26,6 @@ tracing-subscriber = { workspace = true }
 burn = { workspace = true, features = ["ndarray"] }
 burn-ndarray = { workspace = true }
 ndarray = { workspace = true }
-serde_json = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

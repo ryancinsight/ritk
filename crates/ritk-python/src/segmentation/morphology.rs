@@ -3,7 +3,7 @@
 
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::segmentation::{
+use ritk_segmentation::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
     MorphologicalGradient, MorphologicalOperation, Skeletonization,
 };
@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 /// Apply binary erosion with a box structuring element.
 ///
-/// Delegates to `ritk_core::segmentation::BinaryErosion`. For each voxel p,
+/// Delegates to `ritk_segmentation::BinaryErosion`. For each voxel p,
 /// output[p] = 1.0 iff all voxels within the axis-aligned hypercube of
 /// half-width `radius` centred at p are foreground.
 ///
@@ -34,7 +34,7 @@ pub fn binary_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 
 /// Apply binary dilation with a box structuring element.
 ///
-/// Delegates to `ritk_core::segmentation::BinaryDilation`. For each voxel p,
+/// Delegates to `ritk_segmentation::BinaryDilation`. For each voxel p,
 /// output[p] = 1.0 iff any voxel within the axis-aligned hypercube of
 /// half-width `radius` centred at p is foreground.
 ///
@@ -57,7 +57,7 @@ pub fn binary_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> PyImag
 
 /// Apply binary opening (erosion followed by dilation).
 ///
-/// Delegates to `ritk_core::segmentation::BinaryOpening`. Removes small
+/// Delegates to `ritk_segmentation::BinaryOpening`. Removes small
 /// foreground regions while preserving the shape of larger structures.
 ///
 /// Args:
@@ -79,7 +79,7 @@ pub fn binary_opening(py: Python<'_>, image: &PyImage, radius: usize) -> PyImage
 
 /// Apply binary closing (dilation followed by erosion).
 ///
-/// Delegates to `ritk_core::segmentation::BinaryClosing`. Fills small
+/// Delegates to `ritk_segmentation::BinaryClosing`. Fills small
 /// background holes while preserving the shape of the foreground.
 ///
 /// Args:

@@ -16,10 +16,10 @@
 use burn::backend::Autodiff;
 use burn::tensor::Tensor;
 use burn_ndarray::NdArray;
-use ritk_core::filter::ResampleImageFilter;
+use ritk_filter::ResampleImageFilter;
 use ritk_core::image::Image;
-use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::transform::RigidTransform;
+use ritk_interpolation::LinearInterpolator;
+use ritk_transform::RigidTransform;
 use ritk_io::{read_nifti, write_nifti};
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};

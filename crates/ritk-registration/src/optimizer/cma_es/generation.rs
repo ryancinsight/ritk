@@ -4,7 +4,7 @@
 //! advances it by exactly one generation.  Separating this from the outer loop
 //! control in `mod.rs` keeps each file focused and below the 500-line limit.
 
-use moirai::ParallelSliceMut;
+use moirai::prelude::ParallelSliceMut;
 
 use super::constants::AdaptationConstants;
 use super::math::{chol_mul, chol_solve_lower, cholesky, identity, vec_norm};

@@ -48,7 +48,7 @@ use std::f64::consts::PI;
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_core::transform::RigidTransform;
+use ritk_transform::RigidTransform;
 
 use super::registration::GlobalMiRegistration;
 use crate::types::AffineTransform;

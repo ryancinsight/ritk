@@ -1,7 +1,7 @@
-//! Python-exposed segmentation functions delegating to `ritk_core::segmentation`.
+//! Python-exposed segmentation functions delegating to `ritk_segmentation`.
 //!
 //! All algorithmic work is performed by the authoritative implementations in
-//! `ritk_core::segmentation`.  No algorithm logic is duplicated here; SSOT is
+//! `ritk_segmentation`.  No algorithm logic is duplicated here; SSOT is
 //! maintained in `ritk-core`.
 //!
 //! # Submodules

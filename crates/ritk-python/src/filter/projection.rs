@@ -1,6 +1,6 @@
 //! Python-exposed intensity projection filters.
 //!
-//! All filters delegate to `ritk_core::filter::projection` (SSOT).
+//! All filters delegate to `ritk_filter::projection` (SSOT).
 //!
 //! # Output convention
 //!
@@ -11,7 +11,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::projection::{
+use ritk_filter::projection::{
     MaxIntensityProjectionFilter, MeanIntensityProjectionFilter, MinIntensityProjectionFilter,
     ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };

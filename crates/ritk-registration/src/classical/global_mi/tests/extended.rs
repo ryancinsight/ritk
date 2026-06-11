@@ -5,8 +5,8 @@ use super::super::registration::GlobalMiRegistration;
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn::tensor::Tensor;
-use ritk_core::filter::GaussianSigma;
-use ritk_core::transform::TranslationTransform;
+use ritk_filter::GaussianSigma;
+use ritk_transform::TranslationTransform;
 
 use super::{make_box_mask, make_gaussian_blob, TestBackend};
 

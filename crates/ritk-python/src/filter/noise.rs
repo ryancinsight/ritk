@@ -3,7 +3,7 @@
 use crate::errors::RitkResult;
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{
+use ritk_filter::{
     AdditiveGaussianNoiseFilter, SaltAndPepperNoiseFilter, ShotNoiseFilter, SpeckleNoiseFilter,
 };
 use std::sync::Arc;
@@ -37,7 +37,7 @@ pub fn additive_gaussian_noise(
             AdditiveGaussianNoiseFilter::new(std)
                 .with_mean(mean)
                 .with_seed(seed)
-                .apply_3d(img.as_ref())
+                .apply(img.as_ref())
         })
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
     Ok(into_py_image(result))
@@ -67,7 +67,7 @@ pub fn salt_and_pepper_noise(
         .allow_threads(|| {
             SaltAndPepperNoiseFilter::new(probability)
                 .with_seed(seed)
-                .apply_3d(img.as_ref())
+                .apply(img.as_ref())
         })
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
     Ok(into_py_image(result))
@@ -94,7 +94,7 @@ pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u64) -> Rit
         .allow_threads(|| {
             ShotNoiseFilter::new(scale)
                 .with_seed(seed)
-                .apply_3d(img.as_ref())
+                .apply(img.as_ref())
         })
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
     Ok(into_py_image(result))
@@ -123,7 +123,7 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u64) -> Ri
         .allow_threads(|| {
             SpeckleNoiseFilter::new(std)
                 .with_seed(seed)
-                .apply_3d(img.as_ref())
+                .apply(img.as_ref())
         })
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
     Ok(into_py_image(result))

@@ -208,7 +208,7 @@ pub fn white_stripe_normalize(
     Ok((
         into_py_image(result.normalized),
         result.mu,
-        result.sigma.get(),
+        result.sigma,
         result.wm_peak,
         result.stripe_size,
     ))
@@ -257,7 +257,7 @@ pub fn nyul_udupa_normalize(
     let input_arc = image.inner.clone();
 
     py.allow_threads(|| {
-        let refs: Vec<&ritk_core::image::Image<crate::image::Backend, 3>> =
+        let refs: Vec<&ritk_image::Image<crate::image::Backend, 3>> =
             training_arcs.iter().map(|a| a.as_ref()).collect();
         let mut normalizer = match percentiles {
             Some(p) => NyulUdupaNormalizer::with_percentiles(p),

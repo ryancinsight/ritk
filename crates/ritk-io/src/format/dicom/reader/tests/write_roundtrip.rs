@@ -19,13 +19,13 @@ use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
 
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -86,7 +86,7 @@ fn test_write_series_load_series_intensity_roundtrip() {
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
 

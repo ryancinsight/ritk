@@ -2,7 +2,7 @@ use anyhow::Result;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 use crate::{read_analyze, write_analyze};

@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_core::transform::composition::io::{CompositeTransform, TransformDescription};
+use ritk_transform::composition::io::{CompositeTransform, TransformDescription};
 
 // ── read_transform ────────────────────────────────────────────────────────────
 

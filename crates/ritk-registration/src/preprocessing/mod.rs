@@ -21,4 +21,4 @@ pub(crate) mod step;
 
 pub use brain_mask::{ct_brain_mask, CtBrainMaskConfig};
 pub use pipeline::PreprocessingPipeline;
-pub use step::{NormalizationMode, PreprocessingStep};
+pub use step::{IntensityRescaleMode, PreprocessingStep};

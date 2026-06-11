@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
-use ritk_core::filter::edge::GaussianSigma;
+use ritk_filter::edge::GaussianSigma;
 use tracing::info;
 
-use ritk_core::segmentation::{ChanVeseSegmentation, LaplacianLevelSet};
+use ritk_segmentation::{ChanVeseSegmentation, LaplacianLevelSet};
 
 use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
@@ -11,7 +11,7 @@ use super::helpers::count_foreground;
 // -- Shape-detection level set ------------------------------------------
 
 pub(super) fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::ShapeDetectionSegmentation;
+    use ritk_segmentation::ShapeDetectionSegmentation;
 
     let phi_path = args
         .initial_phi
@@ -56,7 +56,7 @@ pub(super) fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
 // -- Threshold level set --------------------------------------------------
 
 pub(super) fn run_threshold_level_set(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::ThresholdLevelSet;
+    use ritk_segmentation::ThresholdLevelSet;
 
     let phi_path = args
         .initial_phi
@@ -179,7 +179,7 @@ pub(super) fn run_chan_vese(args: &SegmentArgs) -> Result<()> {
 // -- Geodesic active contour ----------------------------------------------
 
 pub(super) fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::GeodesicActiveContourSegmentation;
+    use ritk_segmentation::GeodesicActiveContourSegmentation;
 
     let phi_path = args
         .initial_phi

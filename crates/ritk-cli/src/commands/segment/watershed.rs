@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use std::path::PathBuf;
 use tracing::info;
 
-use ritk_core::segmentation::{MarkerControlledWatershed, WatershedSegmentation};
+use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
 use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;

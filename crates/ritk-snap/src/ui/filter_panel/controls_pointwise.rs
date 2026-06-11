@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::BinarizationThreshold;
+use ritk_filter::BinarizationThreshold;
 
 /// Render parameter controls for Pointwise + Geometry + Threshold filter variants.
 ///

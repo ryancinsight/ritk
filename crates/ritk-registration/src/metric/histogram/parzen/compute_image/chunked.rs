@@ -1,6 +1,6 @@
 //! Chunked iteration strategy for image-level joint histogram computation.
 //!
-//! When the number of voxels `N` exceeds [`WGPU_CHUNK_SIZE`](crate::wgpu_compat::WGPU_CHUNK_SIZE),
+//! When the number of voxels `N` exceeds [`WGPU_CHUNK_SIZE`](ritk_wgpu_compat::WGPU_CHUNK_SIZE),
 //! the spatial domain is split into chunks so each batch fits within GPU dispatch
 //! and memory limits. Each chunk independently computes its histogram contribution,
 //! and results are accumulated into the final joint histogram.
@@ -20,7 +20,7 @@ use crate::metric::histogram::parzen::direct;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
 
 impl<B: Backend> ParzenJointHistogram<B> {
@@ -54,7 +54,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         cached_points: Option<Tensor<B, 2>>,
     ) -> Tensor<B, 2> {
         let device = fixed.data().device();
-        let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+        let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
         let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
         let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
@@ -124,8 +124,8 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let have_all_points = use_sampling == SamplingMode::Dense;
 
         for i in 0..num_chunks {
-            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
             let chunk_range = start..end;
 
             let chunk_fixed_points = if have_all_points {
@@ -289,12 +289,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
         n: usize,
     ) -> Tensor<B, 2> {
         let device = fixed.data().device();
-        let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+        let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
         let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
-            let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-            let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+            let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+            let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
             let chunk_range = start..end;
             #[allow(clippy::single_range_in_vec_init)]
             let chunk_fixed_points = fixed_points.clone().slice([chunk_range.clone()]);

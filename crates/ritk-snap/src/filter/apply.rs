@@ -1,11 +1,11 @@
 use crate::filter::promote::promote_2d_to_3d;
 use crate::filter::FilterKind;
 use crate::viewer::{Study, ViewerCore, ViewerEvent};
-use ritk_core::filter::{
+use ritk_filter::{
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter,
     BinaryMorphologicalClosing, BinaryMorphologicalOpening, BinaryThresholdImageFilter,
-    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConnectedComponentsFilter,
+    BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
     Connectivity, ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter,
     FlipImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
@@ -13,15 +13,16 @@ use ritk_core::filter::{
     GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, MultiOtsuThreshold, NormalizeImageFilter,
-    Padding, PermuteAxesImageFilter, RegionOfInterestImageFilter, RelabelComponentFilter,
+    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
+    Padding, PermuteAxesImageFilter, RegionOfInterestImageFilter,
     RescaleIntensityFilter, ShiftScaleImageFilter, ShrinkImageFilter,
     SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
     ZeroCrossingImageFilter,
 };
-use ritk_core::image::Image;
-use ritk_core::segmentation::region_growing::{
+use ritk_segmentation::{ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter};
+use ritk_image::Image;
+use ritk_segmentation::region_growing::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
 };
 
@@ -90,11 +91,11 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 connectivity,
                 background_value,
             } => {
-                let connectivity_n = match connectivity {
-                    Connectivity::Face6 => 6u32,
-                    Connectivity::Vertex26 => 26u32,
+                let seg_connectivity = match connectivity {
+                    Connectivity::Face6 => ritk_segmentation::labeling::Connectivity::Six,
+                    Connectivity::Vertex26 => ritk_segmentation::labeling::Connectivity::TwentySix,
                 };
-                let filter = ConnectedComponentsFilter::with_connectivity(connectivity_n)
+                let filter = ConnectedComponentsFilter::with_connectivity(seg_connectivity)
                     .with_background(*background_value);
                 let (label_image, _stats) = filter.apply(&study.image);
                 Ok(label_image)

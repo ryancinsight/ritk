@@ -39,7 +39,7 @@
 //! The outer Z loop is parallelised with \[`rayon`\]; each Z-slice is independent.
 
 use crate::filter::ops::{extract_vec, rebuild};
-use crate::image::Image;
+use ritk_image::Image;
 use anyhow::{anyhow, Result};
 use burn::tensor::backend::Backend;
 

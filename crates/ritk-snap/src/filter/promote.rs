@@ -1,4 +1,4 @@
-use ritk_core::image::Image;
+use ritk_image::Image;
 
 /// Promote a 2-D `Image<B, 2>` to 3-D `Image<B, 3>` by prepending a Z axis
 /// with extent 1, spacing 1.0, and origin 0.0.
@@ -22,8 +22,8 @@ pub(crate) fn promote_2d_to_3d<B: burn::tensor::backend::Backend>(
         .expect("promote_2d_to_3d requires f32 backend");
     let td_3d = burn::tensor::TensorData::new(vals, burn::tensor::Shape::new([1, nr, nc]));
     let tensor_3d = burn::tensor::Tensor::<B, 3>::from_data(td_3d, &device);
-    let origin_3d = ritk_core::spatial::Point::new([0.0, origin_2d[0], origin_2d[1]]);
-    let spacing_3d = ritk_core::spatial::Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);
-    let dir_3d = ritk_core::spatial::Direction::identity();
+    let origin_3d = ritk_spatial::Point::new([0.0, origin_2d[0], origin_2d[1]]);
+    let spacing_3d = ritk_spatial::Spacing::new([1.0, spacing_2d[0], spacing_2d[1]]);
+    let dir_3d = ritk_spatial::Direction::identity();
     Ok(Image::new(tensor_3d, origin_3d, spacing_3d, dir_3d))
 }

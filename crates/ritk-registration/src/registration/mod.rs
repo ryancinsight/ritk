@@ -11,7 +11,7 @@
 use crate::progress::EarlyStoppingCallback;
 use burn::module::AutodiffModule;
 use burn::tensor::backend::AutodiffBackend;
-use ritk_core::transform::Transform;
+use ritk_transform::Transform;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -20,14 +20,15 @@ use crate::optimizer::Optimizer;
 use crate::progress::ProgressTracker;
 
 pub mod config;
-pub mod dl_registration_loss;
+pub mod dl;
 pub mod dl_ssm_registration;
 pub mod engine;
 pub mod summary;
 
 pub use config::{EarlyStoppingPolicy, RegistrationConfig};
-pub use dl_registration_loss::{
-    RegistrationLoss, RegistrationLossConfig, RegularizationType, SimilarityMetric,
+pub use dl::{
+    GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss, RegistrationLoss,
+    RegistrationLossConfig, RegularizationType, SimilarityMetric,
 };
 pub use summary::{RegistrationSummary, StopReason};
 

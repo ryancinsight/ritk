@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use tracing::info;
 
-use ritk_core::segmentation::{
+use ritk_segmentation::{
     multi_otsu_threshold, otsu_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };

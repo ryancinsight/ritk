@@ -18,9 +18,9 @@
 | SSOT-362-02 | `ritk-io::ImageFormat` enum + `from_path` resolver; replace CLI `infer_format` (20L) and Python `io/mod.rs` if-chains (27L) [minor] | Planned |
 | DRY-362-03 | Remove `FftDir` shim from `filter/fft/convolution/helpers.rs`; update all call sites to `ForwardFft`/`InverseFft` ZSTs [patch] | Planned |
 | DRY-362-04 | `UnaryImageFilter<Op>` + `UnaryPixelOp` sealed trait; collapse abs/sqrt/exp/log/square ~570L → ~100L; type aliases preserve public names; `D=3` → `const D` [minor] | Planned |
-| DRY-362-05 | `ConvergenceFlag` consolidation: `adaptive_stochastic_gd` + `regular_step_gd/optimizer` → shared `optimizer/convergence.rs` [patch] | Planned |
+| DRY-362-05 | `ConvergenceFlag` consolidation: `adaptive_stochastic_gd` + `regular_step_gd/optimizer` → shared `optimizer/convergence.rs` [patch] | **Done** |
 | DRY-362-06 | Complete `SamplingConfig` migration: `MutualInformation.sampling_percentage: Option<f32>` + `CorrelationRatio` + `compute_image/mod.rs` [patch] | Planned |
-| DRY-362-07 | Rename `preprocessing::NormalizationMode` → `IntensityRescaleMode`; resolves name collision with `metric::trait_::NormalizationMode` [minor] | Planned |
+| DRY-362-07 | Rename `preprocessing::NormalizationMode` → `IntensityRescaleMode`; resolves name collision with `metric::trait_::NormalizationMode` [minor] | **Done** |
 | DRY-362-08 | `SharedCache<T>` newtype in `metric/cache_slot.rs`; adopt in Parzen (×3) + MutualInformation [patch] | Planned |
 | SRP-362-09 | `bspline_ffd/basis.rs` (445L) → `basis/{scalar,cache,evaluate}.rs` [patch] | Planned |
 | SRP-362-10 | `dl_registration_loss.rs` → `dl/losses/{lncc,grad,combined,mod}.rs` (6 concerns separated) [patch] | Planned |
@@ -58,7 +58,7 @@
 | ID | Description | Priority |
 |----|-------------|----------|
 | ARCH-361-07 | `Arc<Mutex<Option<T>>>` → typestate lifecycle in Parzen/LNCC/MI | [arch] |
-| ARCH-362-29 | `Image<B,T,D>` scalar phantom type parameter | [arch] |
+| ARCH-362-29 | Add `PhantomData<T>` scalar dtype parameter to `Image<B,T,D>` — f32 assumed throughout; dtype safety requires phantom marker | [arch] | Residual |
 | TYPESTATE-01 | `BSplineTransform<B,D>`: `Raw` vs `WithCoefficients` typestate | [arch] |
 | TYPESTATE-02 | `NyulUdupaLandmarkNormalizer`: `Untrained` vs `Trained` typestate | [arch] |
 

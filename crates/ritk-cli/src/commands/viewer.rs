@@ -10,9 +10,8 @@
 
 use anyhow::{Context, Result};
 use burn::tensor::backend::Backend as BurnBackend;
-use burn_ndarray::NdArray;
 use clap::Parser;
-use ritk_core::image::Image;
+use ritk_image::Image;
 use ritk_io::{
     load_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
     DicomSliceMetadata,
@@ -20,8 +19,8 @@ use ritk_io::{
 use ritk_snap::{GeometrySummary, Study, ViewerBackend, ViewerCore, ViewerEvent, ViewerState};
 use std::path::PathBuf;
 
-/// CPU backend used by the CLI viewer.
-type Backend = NdArray<f32>;
+/// CPU backend for the CLI viewer — inherits the type defined in `commands/mod.rs`.
+use super::Backend;
 
 /// Inspect a DICOM study from the command line.
 #[derive(Debug, Clone, Parser)]

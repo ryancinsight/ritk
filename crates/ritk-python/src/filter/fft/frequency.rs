@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{FftFilterKind, FrequencyDomainFilter};
+use ritk_filter::{FftFilterKind, FrequencyDomainFilter};
 use std::sync::Arc;
 
 /// Apply ideal low-pass filter in the frequency domain.
@@ -27,7 +27,7 @@ pub fn fft_ideal_low_pass(py: Python<'_>, image: &PyImage, cutoff: f64) -> RitkR
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(img.as_ref(), FftFilterKind::IdealLowPass, cutoff, 2)
+            .apply(img.as_ref(), FftFilterKind::IdealLowPass, cutoff, 2)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -54,7 +54,7 @@ pub fn fft_ideal_high_pass(py: Python<'_>, image: &PyImage, cutoff: f64) -> Ritk
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(img.as_ref(), FftFilterKind::IdealHighPass, cutoff, 2)
+            .apply(img.as_ref(), FftFilterKind::IdealHighPass, cutoff, 2)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -87,7 +87,7 @@ pub fn fft_butterworth_low_pass(
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(
+            .apply(
                 img.as_ref(),
                 FftFilterKind::ButterworthLowPass,
                 cutoff,
@@ -125,7 +125,7 @@ pub fn fft_butterworth_high_pass(
     let img = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FrequencyDomainFilter::new()
-            .apply_3d(
+            .apply(
                 img.as_ref(),
                 FftFilterKind::ButterworthHighPass,
                 cutoff,

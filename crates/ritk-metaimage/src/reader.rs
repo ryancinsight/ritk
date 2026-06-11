@@ -3,7 +3,7 @@ use anyhow::{anyhow, Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_core::spatial::Point;
+use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;

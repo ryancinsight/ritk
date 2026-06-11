@@ -32,7 +32,7 @@
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 
 // ── Constants ─────────────────────────────────────────────────────────────────

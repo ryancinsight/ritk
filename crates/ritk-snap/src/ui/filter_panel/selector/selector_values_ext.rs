@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::Connectivity;
+use ritk_filter::Connectivity;
 
 /// Second portion of the ComboBox selectable_value entries (FlipZ
 /// through ConstantPad).
@@ -76,7 +76,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::ZeroCrossing {
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
                 background_value: 0.0,
             },
             "Zero Crossing",
@@ -84,7 +84,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .clicked()
     {
         *active_filter = FilterKind::ZeroCrossing {
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
             background_value: 0.0,
         };
     }
@@ -141,7 +141,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryContour {
                 connectivity: Connectivity::Face6,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
             },
             "Binary Contour",
         )
@@ -149,7 +149,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
     {
         *active_filter = FilterKind::BinaryContour {
             connectivity: Connectivity::Face6,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
         };
     }
     if ui
@@ -175,7 +175,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 radius: 1,
                 birth_threshold: 1,
                 survival_threshold: 1,
-                foreground_value: ritk_core::filter::ForegroundValue::ONE,
+                foreground_value: ritk_filter::ForegroundValue::ONE,
                 background_value: 0.0,
             },
             "Voting Binary",
@@ -186,7 +186,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             radius: 1,
             birth_threshold: 1,
             survival_threshold: 1,
-            foreground_value: ritk_core::filter::ForegroundValue::ONE,
+            foreground_value: ritk_filter::ForegroundValue::ONE,
             background_value: 0.0,
         };
     }

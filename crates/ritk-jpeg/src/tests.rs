@@ -2,7 +2,7 @@ use super::{read_jpeg, write_jpeg};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 type TestBackend = NdArray<f32>;

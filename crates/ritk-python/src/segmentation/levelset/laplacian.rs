@@ -3,8 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::edge::GaussianSigma;
-use ritk_core::segmentation::LaplacianLevelSet;
+use ritk_filter::edge::GaussianSigma;
+use ritk_segmentation::LaplacianLevelSet;
 use std::sync::Arc;
 
 /// Configuration options for [`laplacian_level_set_segment`].

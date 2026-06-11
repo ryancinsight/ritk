@@ -8,8 +8,8 @@ use crate::validation::{
 };
 use burn::optim::GradientsParams;
 use burn::tensor::ElementConversion;
-use ritk_core::image::Image;
-use ritk_core::transform::Transform;
+use ritk_image::Image;
+use ritk_transform::Transform;
 
 use super::config::{EarlyStoppingPolicy, RegistrationConfig};
 use super::summary::StopReason;

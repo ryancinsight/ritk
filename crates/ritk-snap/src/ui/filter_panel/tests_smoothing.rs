@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::Connectivity;
+use ritk_filter::Connectivity;
 
 // Verify that the default `FilterKind` values exposed by the panel are
 // within the analytically valid clamped ranges — Smoothing, Segmentation,
@@ -79,7 +79,7 @@ fn unsharp_mask_defaults_in_range() {
         sigma: 1.0,
         amount: 0.5,
         threshold: 0.0,
-        clamp: ritk_core::filter::ClampPolicy::ClampToInputRange,
+        clamp: ritk_filter::ClampPolicy::ClampToInputRange,
     };
     if let FilterKind::UnsharpMask {
         sigma,
@@ -101,7 +101,7 @@ fn unsharp_mask_defaults_in_range() {
             "default threshold {threshold} out of range [0.0, 100.0]"
         );
         assert!(
-            matches!(clamp, ritk_core::filter::ClampPolicy::ClampToInputRange),
+            matches!(clamp, ritk_filter::ClampPolicy::ClampToInputRange),
             "default clamp should be ClampToInputRange"
         );
     } else {
@@ -240,7 +240,7 @@ fn multi_otsu_threshold_defaults_are_valid() {
 fn binary_erode_defaults_are_valid() {
     let fk = FilterKind::BinaryErode {
         radius: 1,
-        foreground_value: ritk_core::filter::ForegroundValue::ONE,
+        foreground_value: ritk_filter::ForegroundValue::ONE,
     };
     if let FilterKind::BinaryErode {
         radius,
@@ -262,7 +262,7 @@ fn binary_erode_defaults_are_valid() {
 fn binary_dilate_defaults_are_valid() {
     let fk = FilterKind::BinaryDilate {
         radius: 1,
-        foreground_value: ritk_core::filter::ForegroundValue::ONE,
+        foreground_value: ritk_filter::ForegroundValue::ONE,
     };
     if let FilterKind::BinaryDilate {
         radius,
@@ -284,7 +284,7 @@ fn binary_dilate_defaults_are_valid() {
 fn binary_closing_defaults_are_valid() {
     let fk = FilterKind::BinaryClosing {
         radius: 1,
-        foreground_value: ritk_core::filter::ForegroundValue::ONE,
+        foreground_value: ritk_filter::ForegroundValue::ONE,
     };
     if let FilterKind::BinaryClosing {
         radius,
@@ -306,7 +306,7 @@ fn binary_closing_defaults_are_valid() {
 fn binary_opening_defaults_are_valid() {
     let fk = FilterKind::BinaryOpening {
         radius: 1,
-        foreground_value: ritk_core::filter::ForegroundValue::ONE,
+        foreground_value: ritk_filter::ForegroundValue::ONE,
     };
     if let FilterKind::BinaryOpening {
         radius,
@@ -327,7 +327,7 @@ fn binary_opening_defaults_are_valid() {
 #[test]
 fn binary_fillhole_defaults_are_valid() {
     let fk = FilterKind::BinaryFillhole {
-        foreground_value: ritk_core::filter::ForegroundValue::ONE,
+        foreground_value: ritk_filter::ForegroundValue::ONE,
     };
     if let FilterKind::BinaryFillhole { foreground_value } = fk {
         assert_eq!(

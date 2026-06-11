@@ -4,7 +4,7 @@
 
 use super::{analyze_jacobian, jacobian_determinant};
 use crate::filter::ops::extract_vec;
-use crate::image::Image;
+use ritk_image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;

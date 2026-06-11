@@ -1,6 +1,6 @@
 //! LDDMM configuration and result types.
 
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 /// Parameters for LDDMM registration.
 #[derive(Debug, Clone)]

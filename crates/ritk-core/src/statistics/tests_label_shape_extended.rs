@@ -4,7 +4,7 @@
 //! Verifies centroid, perimeter, elongation, flatness, roundness, Feret diameter,
 //! and principal moments for known geometries.
 
-use crate::image::Image;
+use ritk_image::Image;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;

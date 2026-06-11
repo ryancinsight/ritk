@@ -1,6 +1,6 @@
 //! Shared configuration and result types for Demons-family registration.
 
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 /// Variant selector for Demons registration algorithms.
 ///

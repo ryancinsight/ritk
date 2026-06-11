@@ -11,9 +11,9 @@ fn masked_cache_reuses_weights_on_same_key() {
     // without recomputing fixed-image weights.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
@@ -117,9 +117,9 @@ fn masked_cache_different_key_recomputes() {
     // (cache miss with new key).
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
@@ -202,9 +202,9 @@ fn masked_no_cache_key_matches_uncached() {
     // as the original uncached path.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
@@ -308,9 +308,9 @@ fn cache_invalidate_clears_image_cache() {
     // populated by a prior compute_image_joint_histogram call.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();
@@ -390,9 +390,9 @@ fn cache_invalidate_clears_masked_cache() {
     // populated by a prior compute_masked_joint_histogram call with a cache_key.
     use burn::tensor::{Shape, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::interpolation::LinearInterpolator;
+    use ritk_interpolation::LinearInterpolator;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_transform::TranslationTransform;
 
     type B = burn_ndarray::NdArray<f32>;
     let device: <B as burn::tensor::backend::Backend>::Device = Default::default();

@@ -10,8 +10,8 @@ use super::{read_image, write_image_inferred, Backend, FilterArgs};
 /// spatial dimensions. The `GaussianFilter` implementation skips any
 /// dimension whose sigma is ≤ 1e-6, so `--sigma 0.0` is a valid no-op.
 pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::GaussianFilter;
-    use ritk_core::filter::GaussianSigma;
+    use ritk_filter::GaussianFilter;
+    use ritk_filter::GaussianSigma;
 
     let image = read_image(&args.input)?;
 
@@ -46,8 +46,8 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
 
 // ── N4 bias field correction ──────────────────────────────────────────────────
 pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::bias::N4Config;
-    use ritk_core::filter::N4BiasFieldCorrectionFilter;
+    use ritk_filter::bias::N4Config;
+    use ritk_filter::N4BiasFieldCorrectionFilter;
 
     let image = read_image(&args.input)?;
 
@@ -81,9 +81,9 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
 
 // ── Anisotropic diffusion ─────────────────────────────────────────────────────
 pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
-    use ritk_core::filter::AnisotropicDiffusionFilter;
-    use ritk_core::filter::ExponentialConductance;
+    use ritk_filter::diffusion::{ConductanceFunction, DiffusionConfig};
+    use ritk_filter::AnisotropicDiffusionFilter;
+    use ritk_filter::ExponentialConductance;
 
     let image = read_image(&args.input)?;
 
@@ -118,7 +118,7 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
 
 // -- Curvature anisotropic diffusion ------------------------------------------
 pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::diffusion::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
+    use ritk_filter::diffusion::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
 
     let image = read_image(&args.input)?;
 
@@ -145,15 +145,11 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
 
 // -- Sato line filter ---------------------------------------------------------
 pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::vesselness::{SatoConfig, SatoLineFilter};
+    use ritk_filter::vesselness::{SatoConfig, SatoLineFilter};
 
     let image = read_image(&args.input)?;
 
-    let scales: Vec<f64> = args
-        .scales
-        .split(',')
-        .filter_map(|s| s.trim().parse::<f64>().ok())
-        .collect();
+    let scales = args.scales.clone();
     let scales = if scales.is_empty() {
         vec![1.0, 2.0, 3.0]
     } else {
@@ -163,7 +159,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     let config = SatoConfig {
         scales,
         alpha: args.alpha,
-        polarity: ritk_core::filter::vesselness::VesselPolarity::Bright,
+        polarity: ritk_filter::vesselness::VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
     let filtered = filter.apply(&image)?;
@@ -183,7 +179,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
-    use ritk_core::filter::DiscreteGaussianFilter;
+    use ritk_filter::DiscreteGaussianFilter;
 
     let image = read_image(&args.input)?;
 
@@ -212,7 +208,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image};
-    use ritk_core::filter::SpacingMode;
+    use ritk_filter::SpacingMode;
     use tempfile::tempdir;
 
     // ── Positive: Gaussian creates output file ────────────────────────────
@@ -420,7 +416,7 @@ mod tests {
         ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
         let mut args = default_args(input, output.clone(), "sato");
-        args.scales = "1.0".to_string();
+        args.scales = vec![1.0];
         let result = run_sato(&args);
         assert!(result.is_ok(), "sato must succeed: {:?}", result.err());
         assert!(output.exists(), "sato must write output file");

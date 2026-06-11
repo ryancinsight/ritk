@@ -18,6 +18,6 @@ pub(super) use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 pub(super) use dicom::object::meta::FileMetaTableBuilder;
 pub(super) use dicom::object::InMemDicomObject;
 pub(super) use ritk_core::image::Image;
-pub(super) use ritk_core::spatial::{Direction, Point, Spacing};
+pub(super) use ritk_spatial::{Direction, Point, Spacing};
 
 pub(super) type B = NdArray<f32>;

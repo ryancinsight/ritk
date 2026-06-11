@@ -32,7 +32,7 @@
 //! to group voxel indices, and one parallel map over labels.
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use crate::spatial::Point;
 use burn::tensor::backend::Backend;
 use std::collections::HashMap;

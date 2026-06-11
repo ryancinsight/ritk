@@ -11,7 +11,7 @@ use super::math::{
 use super::viz::{ncc_bar, save_comparison_png};
 use super::RireData;
 
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 use ritk_io::read_metaimage;
 use ritk_registration::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 

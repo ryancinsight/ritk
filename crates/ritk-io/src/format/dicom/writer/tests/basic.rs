@@ -4,7 +4,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
 fn test_writer_rejects_zero_dimension() {

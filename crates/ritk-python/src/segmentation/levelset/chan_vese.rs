@@ -3,7 +3,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::segmentation::ChanVeseSegmentation;
+use ritk_segmentation::ChanVeseSegmentation;
 use std::sync::Arc;
 
 /// Configuration options for [`chan_vese_segment`].
@@ -60,7 +60,7 @@ impl PyChanVeseOptions {
 
 /// Segment a 3D image via Chan-Vese level set evolution.
 ///
-/// Delegates to `ritk_core::segmentation::ChanVeseSegmentation` (Active
+/// Delegates to `ritk_segmentation::ChanVeseSegmentation` (Active
 /// Contours Without Edges, Chan & Vese 2001). Evolves a level set function
 /// under an energy functional driven by region statistics (no edges required).
 ///

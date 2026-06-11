@@ -1,7 +1,7 @@
 //! Regular Step Gradient Descent optimizer struct and Optimizer impl.
 
 use super::config::RegularStepGdConfig;
-use super::convergence::ConvergenceReason;
+use super::convergence::{ConvergenceFlag, ConvergenceReason};
 use super::grad_norm::GradientNormVisitor;
 use super::step_mapper::RsgdStepMapper;
 use crate::optimizer::{Optimizer, OptimizerTelemetry};
@@ -9,18 +9,6 @@ use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
 use std::marker::PhantomData;
-
-// ─── Convergence State ───────────────────────────────────────────────────────
-
-/// Internal convergence state for the regular step gradient descent optimizer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-enum ConvergenceFlag {
-    /// Optimizer is still iterating.
-    #[default]
-    Iterating,
-    /// Convergence criterion was satisfied.
-    Converged,
-}
 
 /// Regular Step Gradient Descent optimizer (ITK `RegularStepGradientDescentOptimizerv4`).
 ///

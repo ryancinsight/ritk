@@ -32,7 +32,7 @@
 //! purely tensor-native operations (element-wise arithmetic, reductions) callers
 //! must prefer `Tensor::map` / `Tensor::elementwise_*` to avoid the round-trip.
 
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use num_traits::Float;

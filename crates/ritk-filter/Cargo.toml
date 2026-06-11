@@ -1,0 +1,29 @@
+[package]
+name = "ritk-filter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
+ritk-spatial = { path = "../ritk-spatial" }
+burn = { workspace = true }
+ritk-interpolation = { path = "../ritk-interpolation" }
+ritk-transform = { path = "../ritk-transform" }
+anyhow = { workspace = true }
+num-traits = { workspace = true }
+nalgebra = { workspace = true }
+rustfft = { workspace = true }
+gaia = { workspace = true }
+rand = { workspace = true }
+moirai = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "cpr_path"
+harness = false

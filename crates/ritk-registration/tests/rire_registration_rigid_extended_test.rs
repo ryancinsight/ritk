@@ -14,7 +14,7 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::RegularStepGdConfig;
 use ritk_registration::{GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType};
@@ -86,7 +86,7 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
 
     let initial_translation =
         Tensor::<B, 1>::from_data(TensorData::from([GT_TZ + 3.0_f32, GT_TY, GT_TX]), &device);
-    let initial_t = ritk_core::transform::TranslationTransform::<B, 3>::new(initial_translation);
+    let initial_t = ritk_transform::TranslationTransform::<B, 3>::new(initial_translation);
 
     // Sanity-check: initial TRE should be ~3 mm.
     let mut m_init = identity_m4();

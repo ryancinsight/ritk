@@ -111,8 +111,8 @@ mod tests {
     use super::*;
     use burn::tensor::backend::Backend as BurnBackend;
     use burn::tensor::{Shape, Tensor, TensorData};
-    use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     use crate::commands::Backend;

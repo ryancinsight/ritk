@@ -21,9 +21,7 @@ use ritk_model::{
         TransMorphConfig,
     },
 };
-use ritk_registration::registration::dl_registration_loss::{
-    GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss,
-};
+use ritk_registration::registration::dl::{GlobalNCCLoss, GradLoss, GradientPenalty, LocalNCCLoss};
 use std::time::Instant;
 
 #[derive(Module, Debug)]

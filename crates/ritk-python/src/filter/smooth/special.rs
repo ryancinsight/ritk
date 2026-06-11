@@ -2,8 +2,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::bias::N4Config;
-use ritk_core::filter::{
+use ritk_filter::bias::N4Config;
+use ritk_filter::{
     BilateralFilter, BinShrinkImageFilter, MedianFilter, N4BiasFieldCorrectionFilter,
 };
 

@@ -5,10 +5,10 @@
 
 use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
-use ritk_core::filter::pyramid::MultiResolutionPyramid;
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::pyramid::MultiResolutionPyramid;
+use ritk_filter::GaussianSigma;
 use ritk_core::image::Image;
-use ritk_core::transform::RigidTransform;
+use ritk_transform::RigidTransform;
 
 use super::super::transforms::estimate_intensity_range;
 use super::config::CmaMiConfig;

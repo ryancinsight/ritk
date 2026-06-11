@@ -53,6 +53,7 @@ pub mod error;
 pub mod lddmm;
 pub mod metric;
 pub mod multires;
+pub mod ngf_rigid;
 pub mod optimizer;
 pub(crate) mod parallel;
 pub mod progress;
@@ -61,7 +62,6 @@ pub mod regularization;
 pub mod types;
 pub mod validation;
 pub(crate) mod wgpu_compat;
-
 // ============================================================================
 // Re-exports — SSOT for quality metrics
 // ============================================================================
@@ -125,6 +125,11 @@ pub use classical::{
 };
 
 // ============================================================================
+// Re-exports — NGF (Normalized Gradient Fields) cross-modal rigid registration
+// ============================================================================
+pub use ngf_rigid::{register_rigid_ngf, NgfRigidConfig, NgfRigidResult};
+
+// ============================================================================
 // Re-exports — ML-based registration
 // ============================================================================
 pub use registration::{
@@ -136,5 +141,6 @@ pub use registration::{
 // ============================================================================
 pub mod preprocessing;
 pub use preprocessing::{
-    ct_brain_mask, CtBrainMaskConfig, NormalizationMode, PreprocessingPipeline, PreprocessingStep,
+    ct_brain_mask, CtBrainMaskConfig, IntensityRescaleMode, PreprocessingPipeline,
+    PreprocessingStep,
 };

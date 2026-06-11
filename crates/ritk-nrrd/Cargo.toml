@@ -7,6 +7,8 @@ repository = "https://github.com/ryancinsight/ritk"
 
 [dependencies]
 ritk-core = { workspace = true }
+ritk-image = { path = "../ritk-image" }
+ritk-spatial = { path = "../ritk-spatial" }
 burn = { workspace = true }
 anyhow = { workspace = true }
 nalgebra = { workspace = true }

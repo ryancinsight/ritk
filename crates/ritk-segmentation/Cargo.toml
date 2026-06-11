@@ -1,0 +1,16 @@
+[package]
+name = "ritk-segmentation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-filter = { path = "../ritk-filter" }
+burn = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+moirai = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }

@@ -49,8 +49,8 @@ use common::{
     compute_tre, downsample_stride, find_rire_dir, identity_m4, ncc, normalize_minmax,
     resample_mri_into_ct_ritk, B,
 };
-use ritk_core::filter::GaussianSigma;
-use ritk_core::transform::RigidTransform;
+use ritk_filter::GaussianSigma;
+use ritk_transform::RigidTransform;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::RegularStepGdConfig;
 use ritk_registration::{GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType};
@@ -357,7 +357,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
 
     // Run translation-only registration
     println!("\n── Running 3-DOF translation GlobalMiRegistration (shrink [4], 200 iters) ──");
-    let initial_t = ritk_core::transform::TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros(
+    let initial_t = ritk_transform::TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros(
         [3],
         &device,
     ));

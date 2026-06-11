@@ -33,11 +33,11 @@ impl PreprocessingPipeline {
 #[cfg(test)]
 mod tests {
     use super::PreprocessingPipeline;
-    use crate::preprocessing::{NormalizationMode, PreprocessingStep};
+    use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
     use burn::tensor::{Shape, Tensor, TensorData};
     use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 
@@ -82,7 +82,7 @@ mod tests {
         });
         assert_eq!(p1.step_count(), 1);
         let p2 = p1.add_step(PreprocessingStep::IntensityNormalization {
-            mode: NormalizationMode::ZScore,
+            mode: IntensityRescaleMode::ZScore,
         });
         assert_eq!(p2.step_count(), 2);
     }
@@ -100,7 +100,7 @@ mod tests {
                 upper: 10.0,
             })
             .add_step(PreprocessingStep::IntensityNormalization {
-                mode: NormalizationMode::MinMax {
+                mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
                     out_max: 1.0,
                 },

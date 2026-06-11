@@ -17,7 +17,7 @@ use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{PixelSignedness, TransferSyntaxKind};
 #[test]
 fn test_decode_pixel_bytes_unsigned_16bit_identity_rescale() {

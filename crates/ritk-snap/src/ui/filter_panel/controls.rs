@@ -104,12 +104,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             ui.horizontal(|ui| {
                 ui.label("Clamp:");
                 let mut clamp_bool =
-                    matches!(*clamp, ritk_core::filter::ClampPolicy::ClampToInputRange);
+                    matches!(*clamp, ritk_filter::ClampPolicy::ClampToInputRange);
                 if ui.checkbox(&mut clamp_bool, "").changed() {
                     *clamp = if clamp_bool {
-                        ritk_core::filter::ClampPolicy::ClampToInputRange
+                        ritk_filter::ClampPolicy::ClampToInputRange
                     } else {
-                        ritk_core::filter::ClampPolicy::NoClamp
+                        ritk_filter::ClampPolicy::NoClamp
                     };
                 }
             });
@@ -153,18 +153,18 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 ui.label("Connectivity:");
                 egui::ComboBox::from_id_source("connected_components_connectivity")
                     .selected_text(match connectivity {
-                        ritk_core::filter::Connectivity::Face6 => "6-connected (default)",
-                        ritk_core::filter::Connectivity::Vertex26 => "26-connected",
+                        ritk_filter::Connectivity::Face6 => "6-connected (default)",
+                        ritk_filter::Connectivity::Vertex26 => "26-connected",
                     })
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
                             connectivity,
-                            ritk_core::filter::Connectivity::Face6,
+                            ritk_filter::Connectivity::Face6,
                             "6-connected (default)",
                         );
                         ui.selectable_value(
                             connectivity,
-                            ritk_core::filter::Connectivity::Vertex26,
+                            ritk_filter::Connectivity::Vertex26,
                             "26-connected",
                         );
                     });

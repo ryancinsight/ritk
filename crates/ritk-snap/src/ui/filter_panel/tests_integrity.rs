@@ -1,5 +1,5 @@
 use crate::FilterKind;
-use ritk_core::filter::ForegroundValue;
+use ritk_filter::ForegroundValue;
 
 // Verify that the default `FilterKind` values exposed by the panel are
 // within the analytically valid clamped ranges — GrayscaleMorph (remaining),

@@ -4,7 +4,7 @@
 use super::VelocityField;
 use super::{trilinear_interpolate, VectorField3D, VectorFieldMut3D};
 use crate::parallel::CellSlice;
-use ritk_core::spatial::VolumeDims;
+use ritk_spatial::VolumeDims;
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
 ///

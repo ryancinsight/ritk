@@ -4,7 +4,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::segmentation::{
+use ritk_segmentation::{
     connected_threshold as core_connected_threshold, ConfidenceConnectedFilter,
     NeighborhoodConnectedFilter,
 };
@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 /// Segment a region by connected-threshold flood-fill from a seed voxel.
 ///
-/// Delegates to `ritk_core::segmentation::connected_threshold`. Grows a
+/// Delegates to `ritk_segmentation::connected_threshold`. Grows a
 /// 6-connected region from `seed` including all reachable voxels with
 /// intensity in [lower, upper].
 ///

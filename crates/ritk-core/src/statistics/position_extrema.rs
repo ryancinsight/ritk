@@ -23,7 +23,7 @@
 //! 4-byte (or 8-byte) running extremum and the returned `[usize; D]`.
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 
 /// Return the multi-index of the **minimum** voxel value.

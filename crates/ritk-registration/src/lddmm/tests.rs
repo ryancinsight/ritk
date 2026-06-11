@@ -3,7 +3,7 @@
 use super::{
     adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration,
 };
-use ritk_core::filter::edge::GaussianSigma;
+use ritk_filter::edge::GaussianSigma;
 use crate::deformable_field_ops::VectorField3D;
 use crate::error::RegistrationError;
 

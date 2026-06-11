@@ -3,8 +3,8 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::GaussianSigma;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_filter::GaussianSigma;
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_registration::demons::{
     DemonsConfig, DiffeomorphicDemonsRegistration, SymmetricDemonsRegistration,
     ThirionDemonsRegistration,

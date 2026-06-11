@@ -5,7 +5,7 @@ use anyhow::Result;
 use burn::tensor::backend::Backend;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::io::Write;
 use tempfile::tempdir;
 

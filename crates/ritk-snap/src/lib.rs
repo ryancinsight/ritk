@@ -176,10 +176,10 @@ mod tests {
         let mut core = ViewerCore::<Backend, 3>::new();
         core.load_study(Study::new(image));
 
-        let config = ritk_core::filter::BedSeparationConfig {
+        let config = ritk_filter::BedSeparationConfig {
             body_threshold: -500.0,
             background_threshold: -700.0,
-            component_policy: ritk_core::filter::ComponentPolicy::All,
+            component_policy: ritk_filter::ComponentPolicy::All,
             closing_radius: 0,
             opening_radius: 0,
             outside_value: -2048.0,

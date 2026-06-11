@@ -2,7 +2,7 @@ use crate::format::dicom::reader::DicomReadMetadata;
 use arrayvec::ArrayString;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 
 pub(super) type Backend = burn_ndarray::NdArray<f32>;

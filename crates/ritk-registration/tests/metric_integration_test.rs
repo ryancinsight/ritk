@@ -8,7 +8,7 @@ use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_core::transform::{RigidTransform, TranslationTransform};
+use ritk_transform::{RigidTransform, TranslationTransform};
 use ritk_registration::metric::{
     CorrelationDirection, CorrelationRatio, Metric, MutualInformation, MutualInformationVariant,
     NormalizationMethod,

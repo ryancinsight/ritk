@@ -22,10 +22,10 @@
 use super::trait_::Metric;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
-use ritk_core::image::grid;
-use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
-use ritk_core::transform::Transform;
+use ritk_image::grid;
+use ritk_image::Image;
+use ritk_interpolation::{Interpolator, LinearInterpolator};
+use ritk_transform::Transform;
 
 /// Normalized Cross Correlation Metric.
 ///
@@ -70,7 +70,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
 
         // 2. Process in chunks to respect GPU dispatch limits while maintaining single-pass
         // Compute the 5 raw statistical moments in a single pass:
-        let (s_f, s_m, s_ff, s_mm, s_fm) = if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
+        let (s_f, s_m, s_ff, s_mm, s_fm) = if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             let fixed_points = fixed.index_to_world_tensor(fixed_indices.clone());
             let moving_points = transform.transform_points(fixed_points);
             let moving_indices = moving.world_to_index_tensor(moving_points);
@@ -86,7 +86,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
                 (f * m).sum(),
             )
         } else {
-            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+            let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
 
             let mut acc_f = Tensor::zeros([1], &device);
             let mut acc_m = Tensor::zeros([1], &device);
@@ -97,8 +97,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
             let fixed_values_flat = fixed.data().clone().reshape([n]);
 
             for i in 0..num_chunks {
-                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+                let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
 
                 let chunk_range = start..end;
                 let chunk_indices = fixed_indices.clone().slice([chunk_range.clone()]);
@@ -148,8 +148,8 @@ mod tests {
     use super::*;
     use burn::tensor::{Shape, TensorData};
     use burn_ndarray::NdArray;
-    use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_core::transform::TranslationTransform;
+    use ritk_spatial::{Direction, Point, Spacing};
+    use ritk_transform::TranslationTransform;
 
     type B = NdArray<f32>;
 

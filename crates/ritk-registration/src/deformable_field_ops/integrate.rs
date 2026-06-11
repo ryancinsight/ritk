@@ -2,7 +2,7 @@
 
 use super::compose::compose_fields_into;
 use super::{VectorField3D, VectorFieldMut3D, VelocityField};
-use ritk_core::spatial::VolumeDims;
+use ritk_spatial::VolumeDims;
 
 /// Compute the exponential map `exp(v)` of a stationary velocity field `v`
 /// via the scaling-and-squaring algorithm.

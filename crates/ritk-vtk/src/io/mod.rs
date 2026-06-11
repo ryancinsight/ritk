@@ -43,7 +43,7 @@ pub use reader::read_vtk;
 pub use writer::write_vtk;
 
 use burn::tensor::backend::Backend;
-use ritk_core::image::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// Simple wrapper for reading VTK legacy structured-points images.

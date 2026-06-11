@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
-use ritk_core::segmentation::connected_threshold;
+use ritk_segmentation::connected_threshold;
 
 use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
@@ -83,7 +83,7 @@ pub(super) fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
 // -- Confidence-connected region growing --------------------------------------
 
 pub(super) fn run_confidence_connected(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::ConfidenceConnectedFilter;
+    use ritk_segmentation::ConfidenceConnectedFilter;
 
     let lower = args
         .lower
@@ -135,7 +135,7 @@ pub(super) fn run_confidence_connected(args: &SegmentArgs) -> Result<()> {
 // -- Neighbourhood-connected region growing -----------------------------------
 
 pub(super) fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
-    use ritk_core::segmentation::NeighborhoodConnectedFilter;
+    use ritk_segmentation::NeighborhoodConnectedFilter;
 
     let lower = args
         .lower

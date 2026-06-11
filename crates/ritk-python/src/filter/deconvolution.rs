@@ -7,7 +7,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{
+use ritk_filter::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
 };
 
@@ -39,7 +39,7 @@ pub fn wiener_deconvolution(
     let ker_ref = kernel.inner.clone();
     let result = py.allow_threads(|| {
         WienerDeconvolution::new(noise_to_signal)
-            .apply_3d(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -73,7 +73,7 @@ pub fn tikhonov_deconvolution(
     let ker_ref = kernel.inner.clone();
     let result = py.allow_threads(|| {
         TikhonovDeconvolution::new(lambda)
-            .apply_3d(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -113,7 +113,7 @@ pub fn richardson_lucy_deconvolution(
         RichardsonLucyDeconvolution::new()
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply_3d(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))
@@ -154,7 +154,7 @@ pub fn landweber_deconvolution(
             .with_step_size(step_size)
             .with_max_iterations(max_iterations)
             .with_tolerance(tolerance)
-            .apply_3d(img_ref.as_ref(), ker_ref.as_ref())
+            .apply(img_ref.as_ref(), ker_ref.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
     Ok(into_py_image(result))

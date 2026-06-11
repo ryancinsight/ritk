@@ -99,7 +99,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
 
     let input = read_image(&args.input)?;
 
-    let normalized: ritk_core::image::Image<Backend, 3> = match args.method.as_str() {
+    let normalized: ritk_image::Image<Backend, 3> = match args.method.as_str() {
         "histogram-match" => {
             let ref_path = args.reference.as_ref().ok_or_else(|| {
                 anyhow!("--reference is required for the 'histogram-match' method")
@@ -151,14 +151,14 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             info!(
                 "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
                 result.mu,
-                result.sigma.get(),
+                result.sigma,
                 result.wm_peak,
                 result.stripe_size
             );
             println!(
                 "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
                 result.mu,
-                result.sigma.get(),
+                result.sigma,
                 result.wm_peak,
                 result.stripe_size
             );

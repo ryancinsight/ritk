@@ -1,7 +1,7 @@
 //! Configuration types for global MI registration.
 
 use crate::optimizer::RegularStepGdConfig;
-use ritk_core::filter::GaussianSigma;
+use ritk_filter::GaussianSigma;
 
 // ─── Transform Type ───────────────────────────────────────────────────────────
 

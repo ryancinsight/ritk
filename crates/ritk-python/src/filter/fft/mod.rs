@@ -1,6 +1,6 @@
 //! Python-exposed FFT filter functions.
 //!
-//! All filters delegate to `ritk_core::filter::fft` (SSOT).
+//! All filters delegate to `ritk_filter::fft` (SSOT).
 //!
 //! # Complex image convention
 //!
@@ -24,7 +24,7 @@ pub use frequency::{
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
-use ritk_core::filter::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
+use ritk_filter::{FftShiftFilter, ForwardFftFilter, InverseFftFilter};
 use std::sync::Arc;
 
 /// Apply the forward FFT to a 3-D medical image.
@@ -53,7 +53,7 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         ForwardFftFilter::new()
-            .apply_3d(image.as_ref())
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -80,7 +80,7 @@ pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         InverseFftFilter::new()
-            .apply_3d(image.as_ref())
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -108,7 +108,7 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = Arc::clone(&image.inner);
     py.allow_threads(|| {
         FftShiftFilter::new()
-            .apply_3d(image.as_ref())
+            .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

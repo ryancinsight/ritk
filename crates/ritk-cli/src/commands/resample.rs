@@ -8,11 +8,11 @@ use anyhow::{bail, Result};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use clap;
-use ritk_core::filter::resample::ResampleImageFilter;
-use ritk_core::interpolation::{
+use ritk_filter::resample::ResampleImageFilter;
+use ritk_interpolation::{
     BSplineInterpolator, Lanczos4Interpolator, LinearInterpolator, NearestNeighborInterpolator,
 };
-use ritk_core::transform::TranslationTransform;
+use ritk_transform::TranslationTransform;
 use std::path::PathBuf;
 use tracing::info;
 
@@ -87,7 +87,7 @@ pub fn run(args: ResampleArgs) -> Result<()> {
         .round()
         .max(1.0) as usize;
 
-    use ritk_core::spatial::Spacing;
+    use ritk_spatial::Spacing;
     let new_spacing = Spacing::new([new_sz, new_sy, new_sx]);
     let device: <Backend as BurnBackend>::Device = Default::default();
     let zero_t =
@@ -148,8 +148,8 @@ pub fn run(args: ResampleArgs) -> Result<()> {
 mod tests {
     use super::*;
     use burn::tensor::{Shape, Tensor, TensorData};
-    use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_image::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     fn write_test_nifti(path: &std::path::Path, data: Vec<f32>, shape: [usize; 3], sp: [f64; 3]) {

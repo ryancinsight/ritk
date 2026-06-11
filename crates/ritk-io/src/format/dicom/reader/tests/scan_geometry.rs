@@ -19,13 +19,13 @@ use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
 };
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
 #[test]
 fn test_scan_directory_warns_on_inconsistent_iop() {
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
 
@@ -172,7 +172,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
 fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     use burn::tensor::{Shape, Tensor, TensorData};
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::NdArray<f32>;
 
@@ -320,7 +320,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // cols=[N̂, F_c, F_r]: point(1,0,0) = origin + 1*Δz*N̂.
     use burn::tensor::{Shape, Tensor, TensorData};
     use nalgebra::SMatrix;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::NdArray<f32>;
     const TOL: f64 = 1e-10;
 

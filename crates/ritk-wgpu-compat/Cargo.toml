@@ -1,0 +1,10 @@
+[package]
+name = "ritk-wgpu-compat"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+burn = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }

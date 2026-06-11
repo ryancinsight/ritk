@@ -3,7 +3,7 @@ use burn::tensor::{Tensor, TensorData};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_core::transform::TranslationTransform;
+use ritk_transform::TranslationTransform;
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;

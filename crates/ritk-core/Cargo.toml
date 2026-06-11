@@ -5,29 +5,19 @@ edition = "2021"
 
 [dependencies]
 burn = { workspace = true }
-nalgebra = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-ritk-macros = { path = "../ritk-macros" }
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
 moirai = { workspace = true }
-gaia = { workspace = true }
-rustfft = { workspace = true }
 num-traits = { workspace = true }
-rand = { workspace = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }
-tempfile = { workspace = true }
+nalgebra = { workspace = true }
 proptest = { workspace = true }
-criterion = { workspace = true }
 
-[[bench]]
-name = "bspline_interpolation"
-harness = false
-
-[[bench]]
-name = "cpr_path"
-harness = false

@@ -1,8 +1,8 @@
-//! `NormalizationMode` and `PreprocessingStep` — step type definitions.
+//! `IntensityRescaleMode` and `PreprocessingStep` — step type definitions.
 
-/// Intensity normalization mode.
+/// Intensity normalization (rescaling) mode for the preprocessing pipeline.
 #[derive(Debug, Clone)]
-pub enum NormalizationMode {
+pub enum IntensityRescaleMode {
     /// z-score: (x - mu) / sigma.  Constant images produce all-zero output.
     ZScore,
     /// Min-max rescale to [out_min, out_max].
@@ -17,7 +17,7 @@ pub enum PreprocessingStep {
         n_fitting_levels: u32,
     },
     IntensityNormalization {
-        mode: NormalizationMode,
+        mode: IntensityRescaleMode,
     },
     Clamp {
         lower: f32,

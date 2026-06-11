@@ -1,7 +1,7 @@
 //! Image gradient computation via finite differences.
 
 use super::{flat, VelocityField};
-use ritk_core::spatial::VolumeDims;
+use ritk_spatial::VolumeDims;
 
 /// Write the gradient of `data` into caller-provided buffers.
 ///

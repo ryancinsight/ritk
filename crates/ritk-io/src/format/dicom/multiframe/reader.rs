@@ -7,7 +7,7 @@ use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use nalgebra::SMatrix;
 use ritk_core::image::Image;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,

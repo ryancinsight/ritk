@@ -5,14 +5,14 @@ use crate::image::{into_py_image, Backend, PyImage};
 use burn::tensor::backend::Backend as BurnBackend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use pyo3::prelude::*;
-use ritk_core::filter::ResampleImageFilter;
-use ritk_core::interpolation::LinearInterpolator;
-use ritk_core::interpolation::{
+use ritk_filter::ResampleImageFilter;
+use ritk_interpolation::LinearInterpolator;
+use ritk_interpolation::{
     BSplineInterpolator, Lanczos4Interpolator, NearestNeighborInterpolator,
 };
-use ritk_core::segmentation::DistanceTransform;
-use ritk_core::spatial::Spacing as CoreSpacing;
-use ritk_core::transform::affine::translation::TranslationTransform;
+use ritk_segmentation::DistanceTransform;
+use ritk_spatial::Spacing as CoreSpacing;
+use ritk_transform::affine::translation::TranslationTransform;
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
 ///

@@ -1,0 +1,19 @@
+[package]
+name = "ritk-transform"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ritk-core = { path = "../ritk-core" }
+ritk-image = { path = "../ritk-image" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
+ritk-spatial = { path = "../ritk-spatial" }
+ritk-interpolation = { path = "../ritk-interpolation" }
+burn = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+burn-ndarray = { workspace = true }
+tempfile = { workspace = true }
+

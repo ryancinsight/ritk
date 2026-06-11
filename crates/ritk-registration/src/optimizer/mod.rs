@@ -28,5 +28,7 @@ pub use cma_es::{
 };
 pub use gradient_descent::GradientDescent;
 pub use momentum::Momentum;
-pub use regular_step_gd::{ConvergenceReason, RegularStepGdConfig, RegularStepGradientDescent};
+pub use regular_step_gd::{
+    ConvergenceFlag, ConvergenceReason, RegularStepGdConfig, RegularStepGradientDescent,
+};
 pub use trait_::{LearningRateScheduler, Optimizer, OptimizerTelemetry, StepDecay};

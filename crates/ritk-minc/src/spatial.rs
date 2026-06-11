@@ -12,7 +12,7 @@ use crate::{
 };
 use anyhow::{bail, Result};
 use nalgebra::SMatrix;
-use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 
 // ── Canonical direction cosines ───────────────────────────────────────────────
 

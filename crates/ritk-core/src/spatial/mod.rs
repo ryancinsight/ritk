@@ -1,28 +1,3 @@
-//! Spatial types for representing points, vectors, spacing, and direction matrices.
-//!
-//! This module provides the fundamental spatial types used throughout ritk.
-//! All types are based on nalgebra for efficient linear algebra operations.
+//! Spatial types re-exported from the `ritk-spatial` crate.
 
-pub mod direction;
-pub mod point;
-pub mod spacing;
-pub mod vector;
-pub mod volume_dims;
-pub mod voxel_index;
-
-pub use direction::Direction;
-pub use point::Point;
-pub use spacing::{InvalidSpacing, Spacing};
-pub use vector::Vector;
-pub use volume_dims::VolumeDims;
-pub use voxel_index::VoxelIndex;
-
-// Common type aliases for 2D and 3D
-pub type Point2 = Point<2>;
-pub type Point3 = Point<3>;
-pub type Vector2 = Vector<2>;
-pub type Vector3 = Vector<3>;
-pub type Spacing2 = Spacing<2>;
-pub type Spacing3 = Spacing<3>;
-pub type Direction2 = Direction<2>;
-pub type Direction3 = Direction<3>;
+pub use ritk_spatial::*;

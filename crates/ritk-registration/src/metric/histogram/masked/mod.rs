@@ -3,7 +3,7 @@ use super::parzen::ParzenJointHistogram;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
 
 mod masked_chunked;
@@ -95,7 +95,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             return Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
         }
 
-        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
+        if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──────────────────────────────────────────────
 
             // Convert fixed world coords → fixed voxel indices, then sample.
@@ -300,12 +300,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
             }
 
             // No cache key — fall through to the original uncached chunked path.
-            let num_chunks = n.div_ceil(crate::wgpu_compat::WGPU_CHUNK_SIZE);
+            let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
             let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
 
             for i in 0..num_chunks {
-                let start = i * crate::wgpu_compat::WGPU_CHUNK_SIZE;
-                let end = std::cmp::min(start + crate::wgpu_compat::WGPU_CHUNK_SIZE, n);
+                let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
+                let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n);
                 #[allow(clippy::single_range_in_vec_init)]
                 let chunk_fixed_world = fixed_world_points.clone().slice([start..end]);
                 let chunk_fixed_idx = fixed.world_to_index_tensor(chunk_fixed_world.clone());

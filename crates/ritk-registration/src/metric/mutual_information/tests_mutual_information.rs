@@ -38,8 +38,8 @@ fn test_mutual_information_consolidation() {
 #[test]
 fn test_sampling_clamp() {
     let m = MutualInformation::<B>::standard_default(&Default::default()).with_sampling(1.5);
-    assert_eq!(m.sampling_percentage, None); // Clamps to 1.0, which disables stochastic branch
+    assert_eq!(m.sampling.percentage, None); // Clamps to 1.0, which disables stochastic branch
 
     let m = MutualInformation::<B>::standard_default(&Default::default()).with_sampling(-0.5);
-    assert_eq!(m.sampling_percentage, Some(1e-4)); // Clamps to 1e-4
+    assert_eq!(m.sampling.percentage, Some(1e-4)); // Clamps to 1e-4
 }

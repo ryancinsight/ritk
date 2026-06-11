@@ -49,7 +49,7 @@ fn build_label_surface_mesh(
     spacing: [f64; 3],
     origin: [f64; 3],
 ) -> gaia::IndexedMesh<f64> {
-    ritk_core::filter::surface::MarchingCubesFilter::new()
+    ritk_filter::surface::MarchingCubesFilter::new()
         .with_isovalue(0.5)
         .with_spacing(spacing)
         .with_origin(origin)

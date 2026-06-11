@@ -4,16 +4,17 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use ritk_core::segmentation::{
-    connected_components as core_connected_components, ConnectedComponentsFilter,
-    KMeansSegmentation, MarkerControlledWatershed, SlicConfig, SlicSuperpixelFilter,
-    WatershedSegmentation,
+use ritk_segmentation::{
+    connected_components as core_connected_components,
+    labeling::Connectivity as SegConnectivity,
+    ConnectedComponentsFilter, KMeansSegmentation, MarkerControlledWatershed, SlicConfig,
+    SlicSuperpixelFilter, WatershedSegmentation,
 };
 use std::sync::Arc;
 
 /// Label connected components in a binary mask.
 ///
-/// Delegates to `ritk_core::segmentation::connected_components` (Hoshen-Kopelman
+/// Delegates to `ritk_segmentation::connected_components` (Hoshen-Kopelman
 /// two-pass labeling).  Foreground voxels (value > 0.5) receive consecutive
 /// integer labels [1, K] cast to f32; background voxels remain 0.0.
 ///
@@ -40,8 +41,10 @@ pub fn connected_components(
     }
 
     let mask = Arc::clone(&mask.inner);
-    let (label_image, num_components) =
-        py.allow_threads(|| core_connected_components(mask.as_ref(), connectivity));
+    let (label_image, num_components) = {
+        let seg_conn = if connectivity == 6 { SegConnectivity::Six } else { SegConnectivity::TwentySix };
+        py.allow_threads(|| core_connected_components(mask.as_ref(), seg_conn))
+    };
     Ok((into_py_image(label_image), num_components))
 }
 
@@ -77,7 +80,8 @@ pub fn label_shape_statistics(
     }
     let mask_arc = Arc::clone(&mask.inner);
     let (_label_image, stats) = py.allow_threads(|| {
-        ConnectedComponentsFilter::with_connectivity(connectivity).apply(mask_arc.as_ref())
+        let seg_conn = if connectivity == 6 { SegConnectivity::Six } else { SegConnectivity::TwentySix };
+        ConnectedComponentsFilter::with_connectivity(seg_conn).apply(mask_arc.as_ref())
     });
     let list = PyList::empty_bound(py);
     for s in &stats {
@@ -98,7 +102,7 @@ pub fn label_shape_statistics(
 
 /// Segment a 3D image via Lloyd's K-Means clustering.
 ///
-/// Delegates to `ritk_core::segmentation::KMeansSegmentation`. Voxel intensities
+/// Delegates to `ritk_segmentation::KMeansSegmentation`. Voxel intensities
 /// are treated as 1-D feature vectors; centroids are initialized via k-means++.
 ///
 /// Args:
@@ -142,7 +146,7 @@ pub fn kmeans_segment(
 
 /// Segment a 3D image via Meyer's flooding watershed algorithm.
 ///
-/// Delegates to `ritk_core::segmentation::WatershedSegmentation`. The input
+/// Delegates to `ritk_segmentation::WatershedSegmentation`. The input
 /// should be a gradient magnitude image. Each output voxel receives a basin
 /// label (≥ 1) or 0 for watershed boundaries.
 ///
@@ -164,7 +168,7 @@ pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage>
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.
 ///
-/// Delegates to `ritk_core::segmentation::MarkerControlledWatershed`.
+/// Delegates to `ritk_segmentation::MarkerControlledWatershed`.
 ///
 /// Priority-queue flooding (Meyer algorithm): voxels are processed in
 /// ascending gradient order. Each unlabeled voxel is assigned the label of

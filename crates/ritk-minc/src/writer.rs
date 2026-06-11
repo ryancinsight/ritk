@@ -119,7 +119,7 @@ mod tests {
     use burn_ndarray::NdArray;
     use nalgebra::SMatrix;
     use ritk_core::image::Image;
-    use ritk_core::spatial::{Direction, Point, Spacing};
+    use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 

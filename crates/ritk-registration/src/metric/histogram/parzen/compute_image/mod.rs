@@ -25,7 +25,7 @@ use super::ParzenJointHistogram;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::image::Image;
-use ritk_core::interpolation::{Interpolator, LinearInterpolator};
+use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_core::transform::Transform;
 
 // `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).
@@ -72,7 +72,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             }
         };
 
-        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
+        if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──
             let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
                 .then(|| {
@@ -247,7 +247,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             fixed.index_to_world_tensor(indices)
         };
 
-        if n <= crate::wgpu_compat::WGPU_CHUNK_SIZE {
+        if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──────────────────────────────────────────────
             let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
                 let moving_points = transform.transform_points(fixed_points);

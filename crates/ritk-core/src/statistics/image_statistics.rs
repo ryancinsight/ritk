@@ -14,7 +14,7 @@
 //! - p75     = V_sorted[⌊3n/4⌋]
 
 use crate::filter::ops::extract_vec_infallible;
-use crate::image::Image;
+use ritk_image::Image;
 use burn::tensor::backend::Backend;
 
 /// Descriptive statistics over image intensities.
