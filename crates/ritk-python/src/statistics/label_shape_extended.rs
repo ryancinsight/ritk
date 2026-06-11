@@ -53,7 +53,7 @@ pub fn extended_label_shape_statistics_py(
         dict.set_item("elongation", s.elongation)?;
         let moments: Vec<f64> = s.principal_moments.to_vec();
         dict.set_item("principal_moments", moments)?;
-        let centroid: Vec<f64> = s.centroid.to_vec();
+        let centroid: Vec<f64> = s.centroid.to_array().to_vec();
         dict.set_item("centroid", centroid)?;
         dict.set_item("feret_diameter", s.feret_diameter)?;
 

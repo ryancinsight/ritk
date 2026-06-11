@@ -19,6 +19,7 @@ use ritk_dicom::{
 
 use super::color_common::{optional_u16, required_string, RGB_CHANNELS};
 use super::multiframe::{read_multiframe_info, MultiFrameInfo};
+use super::reader::geometry::{SliceCoverage, SpacingUniformity};
 
 /// Read an interleaved RGB DICOM multiframe object into a rank-4 color volume.
 ///
@@ -225,7 +226,9 @@ fn spacing_z_from_info(info: &MultiFrameInfo) -> Result<f64> {
                     .collect::<Option<Vec<f64>>>();
                 if let Some(positions) = positions {
                     let report = super::reader::analyze_slice_spacing(&positions);
-                    if report.is_nonuniform || report.has_missing_slices {
+                    if report.spacing_uniformity == SpacingUniformity::Nonuniform
+                        || report.slice_coverage == SliceCoverage::HasMissingSlices
+                    {
                         bail!(
                             "DICOM RGB multiframe color loader requires uniform frame spacing; nominal={} max_relative_deviation={} missing_gaps={}",
                             report.nominal_spacing,

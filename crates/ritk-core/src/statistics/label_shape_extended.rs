@@ -33,6 +33,7 @@
 
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
+use crate::spatial::Point;
 use burn::tensor::backend::Backend;
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -58,8 +59,8 @@ pub struct LabelShapeStatisticsExtended {
     pub feret_diameter: f64,
     /// Principal moments of inertia [λ_0, λ_1, λ_2] ascending, physical units².
     pub principal_moments: [f64; 3],
-    /// Centroid [z, y, x] in voxel coordinates.
-    pub centroid: [f64; 3],
+    /// Centroid in voxel coordinates.
+    pub centroid: Point<3>,
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
@@ -350,7 +351,7 @@ pub fn compute_label_shape_statistics_extended_from_slices(
                 elongation,
                 feret_diameter: feret,
                 principal_moments: eigs,
-                centroid: [cz, cy, cx],
+                centroid: Point::new([cz, cy, cx]),
             }
         })
         .collect();

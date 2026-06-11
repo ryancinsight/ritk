@@ -4,8 +4,8 @@ use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{into_py_image, with_tensor_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_core::filter::{
-    CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
-    SobelFilter,
+    edge::GaussianSigma, CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter,
+    LaplacianOfGaussianFilter, SobelFilter,
 };
 
 /// Compute the gradient magnitude |∇I| via central finite differences.
@@ -91,7 +91,11 @@ pub fn canny_edge_detect(
 ) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
-        let filter = CannyEdgeDetector::new(sigma, low_threshold, high_threshold);
+        let filter = CannyEdgeDetector::new(
+            GaussianSigma::new_unchecked(sigma),
+            low_threshold,
+            high_threshold,
+        );
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))
@@ -120,7 +124,7 @@ pub fn canny_edge_detect(
 pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
-        let filter = LaplacianOfGaussianFilter::new(sigma);
+        let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(sigma));
         filter
             .apply(image.as_ref())
             .map_err(|e| RitkPyError::runtime(e.to_string()))

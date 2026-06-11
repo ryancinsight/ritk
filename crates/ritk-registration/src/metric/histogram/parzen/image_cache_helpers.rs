@@ -49,6 +49,9 @@ pub(crate) fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
     num_bins: usize,
     sigma_sq_fix: f32,
 ) -> Option<super::direct::SparseWFixedT> {
+    if B::ad_enabled() {
+        return None;
+    }
     let cache = cache_guard.as_mut()?;
     if !cache_matches_image(cache, fixed) {
         return None;

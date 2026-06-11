@@ -118,6 +118,7 @@ pub(crate) fn gaussian_smooth_with_scratch(
 ///
 /// Equivalent to calling [`gaussian_smooth_inplace`] on each component,
 /// but reuses the same scratch buffer across all three calls.
+#[cfg(test)]
 pub(crate) fn gaussian_smooth_field_inplace(
     fz: &mut [f32],
     fy: &mut [f32],

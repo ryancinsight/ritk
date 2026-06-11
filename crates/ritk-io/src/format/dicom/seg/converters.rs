@@ -5,6 +5,15 @@ use crate::format::dicom::reader::types::literal_arraystring;
 
 use super::types::{DicomSegmentInfo, DicomSegmentation};
 
+/// Bit-depth encoding for a DICOM SEG pixel data frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SegEncoding {
+    /// 1 bit per pixel (binary: 0 or 1).
+    Binary,
+    /// 8 bits per pixel (fractional: 0–255).
+    Fractional,
+}
+
 /// Convert a `ritk_core` `LabelMap` with spatial metadata to a `DicomSegmentation`.
 ///
 /// # Mathematical Specification
@@ -24,7 +33,7 @@ pub fn label_map_to_dicom_seg(
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
-    use_binary: bool,
+    encoding: SegEncoding,
 ) -> Result<DicomSegmentation> {
     if label_map.shape[0] == 0 || label_map.shape[1] == 0 || label_map.shape[2] == 0 {
         bail!("label_map has zero dimension: {:?}", label_map.shape);
@@ -45,10 +54,11 @@ pub fn label_map_to_dicom_seg(
     let n_pixels_per_frame = rows * cols;
     let n_frames = foreground_labels.len() * nz;
 
-    let mut segments = Vec::new();
-    let mut frame_segment_numbers = Vec::new();
-    let mut pixel_data = Vec::new();
-    let mut image_position_per_frame = Vec::new();
+    let n_segments = foreground_labels.len();
+    let mut segments = Vec::with_capacity(n_segments);
+    let mut frame_segment_numbers = Vec::with_capacity(n_frames);
+    let mut pixel_data = Vec::with_capacity(n_frames);
+    let mut image_position_per_frame = Vec::with_capacity(n_frames);
 
     for (segment_idx, &label_id) in foreground_labels.iter().enumerate() {
         let segment_number = (segment_idx + 1) as u16;
@@ -97,11 +107,13 @@ pub fn label_map_to_dicom_seg(
         }
     }
 
-    let bits_allocated = if use_binary { 1u16 } else { 8u16 };
-    let segmentation_type = if use_binary {
-        literal_arraystring("BINARY")
-    } else {
-        literal_arraystring("FRACTIONAL")
+    let bits_allocated = match encoding {
+        SegEncoding::Binary => 1u16,
+        SegEncoding::Fractional => 8u16,
+    };
+    let segmentation_type = match encoding {
+        SegEncoding::Binary => literal_arraystring("BINARY"),
+        SegEncoding::Fractional => literal_arraystring("FRACTIONAL"),
     };
 
     // Convert 3×3 direction matrix to 6-element image orientation (row, then column direction)
@@ -350,10 +362,10 @@ pub fn dicom_seg_to_label_map(seg: &DicomSegmentation) -> Result<ritk_core::anno
         .map_err(|e| anyhow::anyhow!("failed to build LabelMap from DICOM-SEG: {e}"))
 }
 
-pub(super) fn segment_color(label_id: u32) -> [u8; 4] {
+pub(super) fn segment_color(label_id: u32) -> ritk_core::annotation::RgbaU8 {
     let seed = label_id.wrapping_mul(0x9E37_79B9);
     let r = 40 + ((seed & 0x7F) as u8);
     let g = 40 + (((seed >> 8) & 0x7F) as u8);
     let b = 40 + (((seed >> 16) & 0x7F) as u8);
-    [r, g, b, 180]
+    ritk_core::annotation::RgbaU8::new(r, g, b, 180)
 }

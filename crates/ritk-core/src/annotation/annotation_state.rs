@@ -10,6 +10,7 @@
 //! Points are stored as [x, y, z] physical-space coordinates in mm.
 //! Contours and polylines require >= 2 points; single-point paths are rejected.
 
+use crate::spatial::Point;
 use serde::{Deserialize, Serialize};
 
 use super::error::AnnotationError;
@@ -17,25 +18,25 @@ use super::error::AnnotationError;
 /// A single 3-D point annotation with an optional label association.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PointAnnotation {
-    /// Physical-space [x, y, z] coordinate in mm.
-    pub position: [f64; 3],
+    /// Physical-space coordinate in mm.
+    pub position: Point<3>,
     /// Optional label ID this point belongs to (e.g., a seed for region growing).
     pub label_id: Option<u32>,
 }
 
 impl PointAnnotation {
     /// Construct a point annotation with no label association.
-    pub fn new(position: [f64; 3]) -> Self {
+    pub fn new(position: impl Into<Point<3>>) -> Self {
         Self {
-            position,
+            position: position.into(),
             label_id: None,
         }
     }
 
     /// Construct a point annotation bound to a label ID.
-    pub fn with_label(position: [f64; 3], label_id: u32) -> Self {
+    pub fn with_label(position: impl Into<Point<3>>, label_id: u32) -> Self {
         Self {
-            position,
+            position: position.into(),
             label_id: Some(label_id),
         }
     }
@@ -47,9 +48,9 @@ pub struct AnnotationState {
     /// Seed/landmark points.
     pub points: Vec<PointAnnotation>,
     /// Closed contours (each has >= 2 points).
-    pub contours: Vec<Vec<[f64; 3]>>,
+    pub contours: Vec<Vec<Point<3>>>,
     /// Open polylines (each has >= 2 points).
-    pub polylines: Vec<Vec<[f64; 3]>>,
+    pub polylines: Vec<Vec<Point<3>>>,
 }
 
 impl AnnotationState {
@@ -64,7 +65,7 @@ impl AnnotationState {
     }
 
     /// Add a closed contour. Returns `Err` if the contour has fewer than 2 points.
-    pub fn add_contour(&mut self, points: Vec<[f64; 3]>) -> Result<(), AnnotationError> {
+    pub fn add_contour(&mut self, points: Vec<Point<3>>) -> Result<(), AnnotationError> {
         if points.len() < 2 {
             return Err(AnnotationError::TooFewPoints {
                 kind: "contour",
@@ -76,7 +77,7 @@ impl AnnotationState {
     }
 
     /// Add an open polyline. Returns `Err` if the polyline has fewer than 2 points.
-    pub fn add_polyline(&mut self, points: Vec<[f64; 3]>) -> Result<(), AnnotationError> {
+    pub fn add_polyline(&mut self, points: Vec<Point<3>>) -> Result<(), AnnotationError> {
         if points.len() < 2 {
             return Err(AnnotationError::TooFewPoints {
                 kind: "polyline",
@@ -100,12 +101,12 @@ impl AnnotationState {
     }
 
     /// Remove the last added contour. Returns the removed contour if present.
-    pub fn pop_contour(&mut self) -> Option<Vec<[f64; 3]>> {
+    pub fn pop_contour(&mut self) -> Option<Vec<Point<3>>> {
         self.contours.pop()
     }
 
     /// Remove the last added polyline. Returns the removed polyline if present.
-    pub fn pop_polyline(&mut self) -> Option<Vec<[f64; 3]>> {
+    pub fn pop_polyline(&mut self) -> Option<Vec<Point<3>>> {
         self.polylines.pop()
     }
 
@@ -115,7 +116,7 @@ impl AnnotationState {
     }
 
     /// Collect all seed points for a given label ID.
-    pub fn seeds_for_label(&self, label_id: u32) -> Vec<[f64; 3]> {
+    pub fn seeds_for_label(&self, label_id: u32) -> Vec<Point<3>> {
         self.points
             .iter()
             .filter(|p| p.label_id == Some(label_id))
@@ -153,14 +154,18 @@ mod tests {
         let ann = PointAnnotation::with_label([1.0, 2.0, 3.0], 5);
         state.add_point(ann);
         assert_eq!(state.points.len(), 1);
-        assert_eq!(state.points[0].position, [1.0, 2.0, 3.0]);
+        assert_eq!(state.points[0].position, Point::new([1.0, 2.0, 3.0]));
         assert_eq!(state.points[0].label_id, Some(5));
     }
 
     #[test]
     fn test_add_contour_valid() {
         let mut state = AnnotationState::new();
-        let pts = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]];
+        let pts = vec![
+            Point::new([0.0, 0.0, 0.0]),
+            Point::new([1.0, 0.0, 0.0]),
+            Point::new([0.5, 1.0, 0.0]),
+        ];
         state.add_contour(pts.clone()).unwrap();
         assert_eq!(state.contours.len(), 1);
         assert_eq!(state.contours[0], pts);
@@ -169,7 +174,7 @@ mod tests {
     #[test]
     fn test_add_contour_too_short() {
         let mut state = AnnotationState::new();
-        let result = state.add_contour(vec![[0.0, 0.0, 0.0]]);
+        let result = state.add_contour(vec![Point::new([0.0, 0.0, 0.0])]);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
@@ -189,10 +194,10 @@ mod tests {
     fn test_add_polyline_valid() {
         let mut state = AnnotationState::new();
         let pts = vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [2.0, 0.0, 0.0],
-            [3.0, 0.0, 0.0],
+            Point::new([0.0, 0.0, 0.0]),
+            Point::new([1.0, 0.0, 0.0]),
+            Point::new([2.0, 0.0, 0.0]),
+            Point::new([3.0, 0.0, 0.0]),
         ];
         state.add_polyline(pts.clone()).unwrap();
         assert_eq!(state.polylines.len(), 1);
@@ -202,7 +207,7 @@ mod tests {
     #[test]
     fn test_add_polyline_too_short() {
         let mut state = AnnotationState::new();
-        let result = state.add_polyline(vec![[0.0, 0.0, 0.0]]);
+        let result = state.add_polyline(vec![Point::new([0.0, 0.0, 0.0])]);
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
@@ -223,10 +228,16 @@ mod tests {
         let mut state = AnnotationState::new();
         state.add_point(PointAnnotation::new([0.0, 0.0, 0.0]));
         state
-            .add_contour(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+            .add_contour(vec![
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+            ])
             .unwrap();
         state
-            .add_polyline(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])
+            .add_polyline(vec![
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+            ])
             .unwrap();
         state.clear();
         assert_eq!(state.total_count(), 0);
@@ -243,11 +254,11 @@ mod tests {
         state.add_point(PointAnnotation::with_label([3.0, 0.0, 0.0], 2));
         let seeds1 = state.seeds_for_label(1);
         assert_eq!(seeds1.len(), 2);
-        assert_eq!(seeds1[0], [1.0, 0.0, 0.0]);
-        assert_eq!(seeds1[1], [2.0, 0.0, 0.0]);
+        assert_eq!(seeds1[0], Point::new([1.0, 0.0, 0.0]));
+        assert_eq!(seeds1[1], Point::new([2.0, 0.0, 0.0]));
         let seeds2 = state.seeds_for_label(2);
         assert_eq!(seeds2.len(), 1);
-        assert_eq!(seeds2[0], [3.0, 0.0, 0.0]);
+        assert_eq!(seeds2[0], Point::new([3.0, 0.0, 0.0]));
     }
 
     #[test]
@@ -255,15 +266,22 @@ mod tests {
         let mut state = AnnotationState::new();
         state.add_point(PointAnnotation::with_label([10.0, 20.0, 30.0], 3));
         state
-            .add_contour(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]])
+            .add_contour(vec![
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.5, 1.0, 0.0]),
+            ])
             .unwrap();
         state
-            .add_polyline(vec![[5.0, 5.0, 5.0], [6.0, 5.0, 5.0]])
+            .add_polyline(vec![
+                Point::new([5.0, 5.0, 5.0]),
+                Point::new([6.0, 5.0, 5.0]),
+            ])
             .unwrap();
         let json = state.to_json().expect("serialization must succeed");
         let restored = AnnotationState::from_json(&json).expect("deserialization must succeed");
         assert_eq!(restored.points.len(), state.points.len());
-        assert_eq!(restored.points[0].position, [10.0, 20.0, 30.0]);
+        assert_eq!(restored.points[0].position, Point::new([10.0, 20.0, 30.0]));
         assert_eq!(restored.points[0].label_id, Some(3));
         assert_eq!(restored.contours.len(), 1);
         assert_eq!(restored.contours[0].len(), 3);

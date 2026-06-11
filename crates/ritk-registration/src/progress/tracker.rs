@@ -14,7 +14,7 @@ pub struct ProgressTracker {
 impl Default for ProgressTracker {
     fn default() -> Self {
         Self {
-            callbacks: Vec::new(),
+            callbacks: Vec::with_capacity(4),
             start_time: OnceLock::new(),
         }
     }

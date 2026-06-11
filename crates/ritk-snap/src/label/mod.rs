@@ -18,12 +18,12 @@
 //! - A no-op paint/erase does not create a new undo history entry.
 //! - Out-of-bounds brush centers are rejected before touching the label map.
 
-use ritk_core::annotation::Visibility;
 use ritk_core::annotation::{LabelMap, LabelTable, UndoRedoStack};
+use ritk_core::annotation::{RgbaU8, Visibility};
 
 const DEFAULT_LABEL_ID: u32 = 1;
 const DEFAULT_LABEL_NAME: &str = "Label 1";
-const DEFAULT_LABEL_COLOR: [u8; 4] = [255, 0, 0, 180];
+const DEFAULT_LABEL_COLOR: RgbaU8 = RgbaU8([255, 0, 0, 180]);
 
 /// Application-level segmentation editor for a single 3-D label map.
 #[derive(Debug, Clone)]
@@ -100,7 +100,7 @@ impl LabelEditor {
     /// Add a label to the current table and make it active.
     ///
     /// The ID is the smallest positive integer absent from the current table.
-    pub fn add_label(&mut self, name: impl Into<String>, color: [u8; 4]) -> Result<u32, String> {
+    pub fn add_label(&mut self, name: impl Into<String>, color: RgbaU8) -> Result<u32, String> {
         let mut next = self.current_map().clone();
         let label_id = next.table.next_free_id();
         next.table.add_label(label_id, name, color)?;

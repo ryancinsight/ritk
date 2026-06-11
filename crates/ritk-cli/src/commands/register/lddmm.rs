@@ -8,6 +8,7 @@ use super::*;
 /// The initial velocity field parameterizes the geodesic; the deformation
 /// phi_1 at t=1 warps the moving image.
 pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
+    use ritk_core::filter::GaussianSigma;
     use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 
     let fixed_img = super::super::read_image(&args.fixed)?;
@@ -19,7 +20,7 @@ pub(super) fn run_lddmm(args: &RegisterArgs) -> Result<()> {
     let config = LddmmConfig {
         max_iterations: args.iterations,
         num_time_steps: args.num_time_steps,
-        kernel_sigma: args.kernel_sigma,
+        kernel_sigma: GaussianSigma::new_unchecked(args.kernel_sigma),
         learning_rate: args.learning_rate,
         ..Default::default()
     };

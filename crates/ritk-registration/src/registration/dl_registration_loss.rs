@@ -79,6 +79,7 @@ impl<B: Backend> LocalNCCLoss<B> {
 #[derive(Module, Debug)]
 pub struct GlobalNCCLoss<B: Backend> {
     epsilon: Ignored<f32>,
+    // BURN-forced: Module derive requires invariant B for correct gradient tracking.
     phantom: PhantomData<B>,
 }
 
@@ -123,6 +124,7 @@ impl<B: Backend> GlobalNCCLoss<B> {
 #[derive(Module, Debug)]
 pub struct GradLoss<B: Backend> {
     penalty: Ignored<GradientPenalty>,
+    // BURN-forced: Module derive requires invariant B for correct gradient tracking.
     phantom: PhantomData<B>,
 }
 

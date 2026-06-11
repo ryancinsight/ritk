@@ -1,5 +1,106 @@
 # CHANGELOG
 
+## [0.57.0] - 2026-06-10 — Sprint 360 (×5)
+
+**ritk-core**: 0.7.0 → 0.8.0 | **ritk-registration**: 0.51.0 → 0.52.0
+
+### Fixed
+- **FIX-360-CONT-01**: `AffineTransform` migration — 8 call sites in `engine/registration.rs`, `global_mi/registration.rs`, `global_mi/multistart.rs`, `cma_mi/registration.rs` wrapped with `AffineTransform(matrix)` to match the Sprint 359 newtype.
+- **FIX-360-CONT-02**: `VolumeDims` migration — `evaluate_bspline_displacement_fast` call site wrapped; `metric.rs` uses `dims.into()`; `warp.rs` + `registration.rs` AffineTransform wrappers updated.
+- **FIX-360-CONT-03**: `ritk-io` — removed useless `.into()` on `RgbaU8` in `converters.rs`.
+- **FIX-360-CONT-04**: `tests_canny.rs` — `CannyEdgeDetector::new(f64)` → `new(GaussianSigma::new_unchecked(f64))`.
+
+### Changed (Breaking — API)
+- **PRIM-360-CONT-05**: `UnsharpMaskFilter.sigmas: Vec<GaussianSigma>`** — changed from `Vec<f64>`; all callers in `ritk-snap` updated.
+- **PRIM-360-CONT-06**: `LddmmConfig.kernel_sigma: GaussianSigma`** — changed from `f64`; `lddmm/registration.rs`, `ritk-cli`, `ritk-python` updated.
+- **PRIM-360-CONT-07**: `LocalNormalizedCrossCorrelation::new(kernel_sigma: GaussianSigma)`** — parameter and internal field changed from `f64`.
+
+### Changed (Non-breaking)
+- **ARCH-360-CONT-08**: `VolumeDims` promoted to `ritk_core::spatial::VolumeDims` — canonical definition moved from `ritk-registration`; `ritk-registration` re-exports from `ritk-core`.
+- **PRIM-360-CONT-09**: `CedScratch.cached_sigma: Option<GaussianSigma>` — sentinel changed from `-1.0 f64` to `None`; expresses "no kernel built" state without magic value.
+
+### Structural (SRP)
+- `interpolation/dispatch.rs` 612L → 407L — tests extracted to `tests_dispatch.rs`.
+- `interpolation/kernel/linear/mod.rs` 552L → 134L — tests extracted to `tests_linear.rs`.
+- `filter/transform/pad.rs` 474L → 329L — tests extracted to `tests_pad.rs`.
+- `statistics/normalization/histogram_matching.rs` 462L → 183L — tests extracted to `tests_histogram_matching.rs`.
+- `metric/mutual_information/mod.rs` — `tests.rs` renamed to `tests_mutual_information.rs`.
+- `demons/multires.rs` 424L → reduced — tests extracted to `demons/multires/tests_multires.rs`.
+- `filter/edge/separable_gradient/mod.rs` 430L → reduced — tests extracted to `tests_separable_gradient.rs`.
+
+### Performance
+- `BoolStructure::dilate` and `iterate_structure` changed to consuming signatures — eliminates internal `Vec<bool>` clone on every morphological iteration step.
+- `clahe/interpolate.rs` — `scratch.output.clone()` replaced with `std::mem::take(&mut scratch.output)` — zero-copy output extraction.
+- `ritk-io/dicom/networking/context.rs` — `Vec::new()` → `Vec::with_capacity(32)` for `presentation_contexts` in `AssociationConfig::default()`.
+
+
+### Changed (Breaking — API)
+
+- **PRIM-360-01: `GaussianSigma` in `WhiteStripeResult.sigma`** — `WhiteStripeResult.sigma: f64` → `GaussianSigma`; all call sites updated (CLI, Python, tests).
+- **PRIM-360-15: `GaussianSigma` in `CannyEdgeDetector` public API** — `new(sigma: f64, ...)` → `new(sigma: GaussianSigma, ...)`; `with_sigma(sigma: f64)` → `with_sigma(sigma: GaussianSigma)`.
+- **PRIM-360-16: `GaussianSigma` in `LaplacianOfGaussianFilter` public API** — `new(sigma: f64)` → `new(sigma: GaussianSigma)`; `with_sigma(sigma: f64)` → `with_sigma(sigma: GaussianSigma)`.
+- **PRIM-360-17: `GaussianSigma` in `GaussianFilter` sigmas field** — `sigmas: Vec<f64>` → `sigmas: Vec<GaussianSigma>`; `new(sigmas: Vec<f64>)` → `new(sigmas: Vec<GaussianSigma>)`.
+- **PRIM-360-14: `VolumeDims` adoption in bspline_ffd function signatures** — `registration.rs`, `warp.rs`, `basis.rs`, `metric.rs` now take `VolumeDims` instead of `dims: [usize; 3]` at public boundaries.
+
+### Changed (Non-breaking)
+
+- **BOOL-360-02: `DicomAssociationState` enum** — `Association.active: bool` → `state: DicomAssociationState { Inactive, Active }`.
+- **BOOL-360-03: `PixelSignedness` enum** — Test helper `layout(signed: bool)` → `layout(signed: PixelSignedness { Unsigned, Signed })` in ritk-codecs.
+- **BOOL-360-04: `DcmPresenceFlags` struct** — 7 individual bool fields in `ClinicalDistributionSummary` consolidated into `presence: DcmPresenceFlags`.
+- **BOOL-360-05: `PyConductanceKind` enum** — Python `anisotropic_diffusion(exponential: bool)` → `(conductance_kind: "exponential"|"quadratic")`.
+- **BOOL-360-06: `PyDistanceMetric` enum** — Python `distance_transform(squared: bool)` → `(metric: "euclidean"|"squared")`.
+- **BOOL-360-07: `PyVesselPolarity` enum** — Python `frangi_vesselness(bright_vessels: bool)` and `sato_line_filter(bright_tubes: bool)` → `(polarity: "bright"|"dark")`.
+- **BOOL-360-08: `PyCleaningPolicy` enum** — Python `anonymize_dicom_dir(clean_pixel_data: bool, clean_private_tags: bool)` → `(cleaning: "none"|"pixel"|"private"|"all")`.
+- **BOOL-360-09: `PyInverseConsistency` enum** — Python `PyMultiresSynOptions.inverse_consistency: bool` → `inverse_consistency: PyInverseConsistency { Relaxed, Enforced }`.
+- **BOOL-360-10: `PyInitStrategy` enum** — Python `PyCmaMiOptions.use_com_init: bool` → `init_strategy: PyInitStrategy { Manual, CenterOfMass }`.
+
+### Structural
+
+- **SRP-360-11: `ritk-macros/src/lib.rs` (895L → ~200L)** — Split into `parse.rs` (parser struct), `prelude.rs` (4 prelude generators), `mask.rs` (4 mask generators).
+- **SRP-360-12: `ritk-python/src/segmentation/levelset.rs` (473L → 6 files)** — Split into `levelset/{mod,chan_vese,geodesic,shape_detection,threshold,laplacian}.rs`.
+- **SRP-360-13: `ritk-python/src/filter/fft.rs` (465L → 4 files)** — Split into `fft/{mod,convolution,correlation,frequency}.rs`.
+
+### Performance
+
+- **CAP-360-18: `Vec::with_capacity` in DICOM networking** — 20+ `Vec::new()` → `Vec::with_capacity(N)` across PDU codec, user-info, presentation-context, association, command, DIMSE, echo, find, SCP handler, store modules.
+
+### Fixed
+
+- **FIX-360-20: Doc link errors** — Fixed 5 unresolved/private rustdoc links in `interpolation/dispatch.rs`.
+- **FIX-360-20: Clippy `single_range_in_vec_init`** — Added `#[allow(clippy::single_range_in_vec_init)]` with justification comments in `transform/affine/rigid.rs` (Burn API requires array-of-ranges).
+- **FIX-360-20: Test compile error** — `tests_labeling.rs` centroid comparison now uses `.into()` for `Point<3>` construction.
+
+---
+
+## [0.56.0] - 2026-06-10
+
+### Fixed
+- **FIX-359-01: `gaussian_smooth_field_inplace` dead code** — Annotated the function and its re-export as `#[cfg(test)]` in `deformable_field_ops/smooth.rs` and `mod.rs`; resolves the workspace clippy `dead_code` + `unused_imports` errors.
+
+### Changed (Breaking — API)
+- **BOOL-359-02: `DicomRole` enum** — `ScpScuRoleSelectionSubItem.scu_role: bool` + `.scp_role: bool` replaced by `.role: DicomRole { Neither, ScuOnly, ScpOnly, Both }` with `from_bits(scu, scp)`, `scu_bit()`, `scp_bit()` helpers. Wire encoding unchanged.
+- **BOOL-359-03: `SpacingUniformity` + `SliceCoverage` enums** — `SliceGeometryReport.is_nonuniform: bool` → `spacing_uniformity: SpacingUniformity` and `has_missing_slices: bool` → `slice_coverage: SliceCoverage`; internal struct only (`pub(in crate::format::dicom)`).
+- **PRIM-359-05: `CoherenceConfig.sigma: GaussianSigma`** — `CoherenceEnhancingDiffusionFilter` config field changed from `f64` to `GaussianSigma`; all call sites updated (CLI, Python binding, tests).
+- **PRIM-359-06: `GaussianSigma` in 3 level-set configs** — `GeodesicActiveContourSegmentation.sigma`, `LaplacianLevelSet.sigma`, and `ShapeDetectionSegmentation.sigma` changed from `f64` to `GaussianSigma`; all call sites updated.
+- **PRIM-359-07: `ControlGridDims` newtype** — New `bspline_ffd::ControlGridDims([usize; 3])` companion to `VolumeDims`; `BSplineFFDResult.control_grid_dims` and `MetricGradientScratch` APIs migrated.
+- **BOOL-359-14: `RasValidity` enum** — `derive_image_geometry(valid_ras: bool, …)` → `derive_image_geometry(ras_validity: RasValidity, …)` in `ritk-mgh`.
+
+### Changed (Non-breaking)
+- **ARCH-359-04: `GaussianSigma` re-exported from `filter::mod.rs`** — Accessible as `ritk_core::filter::GaussianSigma` and `crate::filter::GaussianSigma`.
+- **PRIM-359-13: `RecursiveGaussianFilter.sigma` uses `GaussianSigma` internally** — Public `new(sigma: f64)` API unchanged; internal field is now `GaussianSigma`.
+- **BOOL-359-16: `ConvergenceFlag` enum** — Internal `converged: bool` field replaced with `convergence: ConvergenceFlag` in `AdaptiveStochasticGradientDescent` and `RegularStepGradientDescent`.
+- **BOOL-359-17: `EarlyStopSignal` enum** — Internal `should_stop: bool` replaced with `stop_signal: EarlyStopSignal` in `EarlyStopping`.
+
+### Performance
+- **CAP-359-10: `pyramid_schedule` capacity hints** — 3 `Vec::new()` → `Vec::with_capacity(4)` in `CmaMiConfig` default constructors.
+- **CAP-359-18: `Vec::with_capacity` in progress subsystem** — `HistoryCallback` (100), `ProgressTracker` (4), `HistogramPool` (8).
+
+### Structural
+- **SRP-359-09: `binary_ops.rs` test extraction** — Tests moved from `filter/intensity/binary_ops.rs` to `filter/intensity/binary_ops/tests_binary_ops.rs`; file reduced from 467 L to 228 L.
+
+---
+
+
 ## [0.55.0] - 2026-06-10
 
 ### Performance

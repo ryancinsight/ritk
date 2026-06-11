@@ -27,6 +27,7 @@ use super::trait_::Metric;
 use burn::tensor::backend::Backend;
 use burn::tensor::Tensor;
 use ritk_core::filter::gaussian::GaussianFilter;
+use ritk_core::filter::GaussianSigma;
 use ritk_core::image::grid;
 use ritk_core::image::Image;
 use ritk_core::interpolation::{Interpolator, LinearInterpolator};
@@ -51,12 +52,10 @@ struct LnccCache<B: Backend> {
 #[derive(Clone, Debug)]
 pub struct LocalNormalizedCrossCorrelation<B: Backend> {
     interpolator: LinearInterpolator,
-    kernel_sigma: f64,
+    kernel_sigma: GaussianSigma,
     epsilon: f64,
     // dyn exception: lazy-initialized cache that may be invalidated, requires Mutex for cross-thread Sync
     cache: Arc<Mutex<Option<LnccCache<B>>>>,
-    // Covariant over B: only used to drive tensor creation, never stored.
-    _b: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
@@ -64,13 +63,12 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
     ///
     /// # Arguments
     /// * `kernel_sigma` - Standard deviation of the Gaussian kernel (mm) defining the local window size.
-    pub fn new(kernel_sigma: f64) -> Self {
+    pub fn new(kernel_sigma: GaussianSigma) -> Self {
         Self {
             interpolator: LinearInterpolator::new(),
             kernel_sigma,
             epsilon: 1e-5,
             cache: Arc::new(Mutex::new(None)),
-            _b: std::marker::PhantomData,
         }
     }
 
@@ -250,7 +248,7 @@ mod tests {
 
     #[test]
     fn lncc_name() {
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.0);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
         assert_eq!(
             <LocalNormalizedCrossCorrelation<B> as Metric<B, 3>>::name(&metric),
             "LocalNormalizedCrossCorrelation"
@@ -281,7 +279,7 @@ mod tests {
         let transform =
             TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
         let loss = metric.forward(&image, &image, &transform);
         let loss_val = loss.into_scalar();
 
@@ -314,7 +312,7 @@ mod tests {
         let transform =
             TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
         let loss = metric.forward(&fixed, &moving, &transform);
         let loss_val = loss.into_scalar();
 
@@ -342,7 +340,7 @@ mod tests {
         let transform =
             TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.5);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
 
         let loss1 = metric.forward(&image, &image, &transform).into_scalar();
         let loss2 = metric.forward(&image, &image, &transform).into_scalar();
@@ -369,7 +367,7 @@ mod tests {
         let transform =
             TranslationTransform::<B, 3>::new(burn::tensor::Tensor::<B, 1>::zeros([3], &device));
 
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.0);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
         let loss_val = metric.forward(&image, &image, &transform).into_scalar();
 
         assert!(

@@ -57,7 +57,7 @@ pub use rt_struct::{
 };
 pub use seg::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
-    DicomSegmentInfo, DicomSegmentation,
+    DicomSegmentInfo, DicomSegmentation, SegEncoding,
 };
 // Re-export series types and functions from the series submodule.
 pub use series::{

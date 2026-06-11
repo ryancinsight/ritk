@@ -39,17 +39,9 @@ pub(crate) fn sort_discovered_series(series_list: &mut [DicomSeriesInfo]) {
             .then_with(|| a.series_description.cmp(&b.series_description))
             .then_with(|| a.series_instance_uid.cmp(&b.series_instance_uid))
             .then_with(|| {
-                let a_first = a
-                    .file_paths
+                a.file_paths
                     .first()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                let b_first = b
-                    .file_paths
-                    .first()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                a_first.cmp(&b_first)
+                    .cmp(&b.file_paths.first())
             })
     });
 }

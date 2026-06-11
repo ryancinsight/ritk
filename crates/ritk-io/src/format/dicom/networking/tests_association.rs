@@ -113,7 +113,7 @@ fn test_find_context() {
         ],
         next_context_id: 7,
         remote_max_pdu_length: 16384,
-        active: true,
+        state: crate::format::dicom::networking::association::DicomAssociationState::Active,
     };
     assert_eq!(
         a.find_context(sop_class::VERIFICATION)

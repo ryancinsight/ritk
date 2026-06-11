@@ -12,6 +12,7 @@
 //! -  returns min { k in N | k not in dom(T) }, guaranteed >= 1
 //!    (so auto-assigned IDs never collide with existing entries).
 
+use super::color::RgbaU8;
 use super::overlay::Visibility;
 use serde::{Deserialize, Serialize};
 
@@ -23,14 +24,14 @@ pub struct LabelEntry {
     /// Human-readable name (e.g., Left Ventricle).
     pub name: String,
     /// RGBA color \[R, G, B, A\] each in \[0, 255\].
-    pub color: [u8; 4],
+    pub color: RgbaU8,
     /// Whether this label is currently visible in overlays.
     pub visible: Visibility,
 }
 
 impl LabelEntry {
     /// Construct a new fully-visible label entry.
-    pub fn new(id: u32, name: impl Into<String>, color: [u8; 4]) -> Self {
+    pub fn new(id: u32, name: impl Into<String>, color: RgbaU8) -> Self {
         Self {
             id,
             name: name.into(),
@@ -59,7 +60,7 @@ impl LabelTable {
         &mut self,
         id: u32,
         name: impl Into<String>,
-        color: [u8; 4],
+        color: RgbaU8,
     ) -> Result<(), String> {
         if self.entries.iter().any(|e| e.id == id) {
             return Err(format!("label id {} already exists", id));
@@ -135,19 +136,23 @@ mod tests {
     #[test]
     fn test_label_table_add_and_get() {
         let mut table = LabelTable::new();
-        table.add_label(1, "Brain", [255, 0, 0, 255]).unwrap();
+        table
+            .add_label(1, "Brain", RgbaU8::new(255, 0, 0, 255))
+            .unwrap();
         let entry = table.get_label(1).expect("entry must be present");
         assert_eq!(entry.id, 1);
         assert_eq!(entry.name, "Brain");
-        assert_eq!(entry.color, [255, 0, 0, 255]);
+        assert_eq!(entry.color, RgbaU8::new(255, 0, 0, 255));
         assert_eq!(entry.visible, Visibility::Visible);
     }
 
     #[test]
     fn test_label_table_duplicate_id_error() {
         let mut table = LabelTable::new();
-        table.add_label(1, "Brain", [255, 0, 0, 255]).unwrap();
-        let result = table.add_label(1, "Duplicate", [0, 0, 0, 255]);
+        table
+            .add_label(1, "Brain", RgbaU8::new(255, 0, 0, 255))
+            .unwrap();
+        let result = table.add_label(1, "Duplicate", RgbaU8::new(0, 0, 0, 255));
         assert!(result.is_err(), "duplicate id must return Err");
         let msg = result.unwrap_err();
         assert!(msg.contains("1"), "error message must mention the id");
@@ -156,7 +161,9 @@ mod tests {
     #[test]
     fn test_label_table_remove_present() {
         let mut table = LabelTable::new();
-        table.add_label(3, "Liver", [0, 255, 0, 255]).unwrap();
+        table
+            .add_label(3, "Liver", RgbaU8::new(0, 255, 0, 255))
+            .unwrap();
         let removed = table.remove_label(3);
         assert!(removed, "remove must return true for present label");
         assert!(
@@ -175,7 +182,9 @@ mod tests {
     #[test]
     fn test_label_table_set_visibility() {
         let mut table = LabelTable::new();
-        table.add_label(2, "Kidney", [0, 0, 255, 255]).unwrap();
+        table
+            .add_label(2, "Kidney", RgbaU8::new(0, 0, 255, 255))
+            .unwrap();
         let ok = table.set_visibility(2, Visibility::Hidden);
         assert!(ok, "set_visibility must return true for present label");
         assert_eq!(
@@ -198,9 +207,9 @@ mod tests {
     #[test]
     fn test_label_table_next_free_id_with_gaps() {
         let mut table = LabelTable::new();
-        table.add_label(1, "A", [0, 0, 0, 255]).unwrap();
-        table.add_label(3, "B", [0, 0, 0, 255]).unwrap();
-        table.add_label(4, "C", [0, 0, 0, 255]).unwrap();
+        table.add_label(1, "A", RgbaU8::new(0, 0, 0, 255)).unwrap();
+        table.add_label(3, "B", RgbaU8::new(0, 0, 0, 255)).unwrap();
+        table.add_label(4, "C", RgbaU8::new(0, 0, 0, 255)).unwrap();
         // IDs present: {1, 3, 4}; smallest positive absent: 2
         assert_eq!(
             table.next_free_id(),
@@ -214,7 +223,9 @@ mod tests {
         let mut table = LabelTable::new();
         assert!(table.is_empty(), "new table must be empty");
         assert_eq!(table.len(), 0);
-        table.add_label(5, "Spleen", [128, 0, 128, 255]).unwrap();
+        table
+            .add_label(5, "Spleen", RgbaU8::new(128, 0, 128, 255))
+            .unwrap();
         assert!(!table.is_empty(), "table must be non-empty after add");
         assert_eq!(table.len(), 1);
     }

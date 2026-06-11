@@ -81,18 +81,27 @@ pub(crate) fn is_jpeg2000_codestream(fragment: &[u8]) -> bool {
     fragment.len() >= 2 && fragment[0] == (SOC >> 8) as u8 && fragment[1] == (SOC & 0xFF) as u8
 }
 
+/// Pixel signedness, replacing `signed: bool`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PixelSignedness {
+    /// Unsigned pixel representation.
+    Unsigned,
+    /// Signed (two's complement) pixel representation.
+    Signed,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use test_support::encode_grayscale_j2k;
 
-    fn layout(rows: usize, cols: usize, bits: u16, signed: bool) -> PixelLayout {
+    fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> PixelLayout {
         PixelLayout {
             rows,
             cols,
             samples_per_pixel: 1,
             bits_allocated: bits,
-            pixel_representation: u16::from(signed),
+            pixel_representation: u16::from(matches!(signed, PixelSignedness::Signed)),
             rescale_slope: 1.0,
             rescale_intercept: 0.0,
         }
@@ -153,7 +162,8 @@ mod tests {
     #[test]
     fn decode_returns_error_for_non_soc_prefix() {
         let fragment = [0xFF_u8, 0xD8, 0xFF, 0xF7, 0x00, 0x0B];
-        let err = decode_jpeg2000_fragment(&fragment, layout(2, 2, 8, false)).unwrap_err();
+        let err = decode_jpeg2000_fragment(&fragment, layout(2, 2, 8, PixelSignedness::Unsigned))
+            .unwrap_err();
         let msg = format!("{:#}", err);
         assert!(
             msg.contains("SOC") || msg.contains("0xFF4F") || msg.contains("FF4F"),
@@ -165,7 +175,8 @@ mod tests {
     #[test]
     fn decode_returns_error_for_truncated_codestream() {
         let truncated = [0xFF_u8, 0x4F, 0x00];
-        let err = decode_jpeg2000_fragment(&truncated, layout(4, 4, 8, false)).unwrap_err();
+        let err = decode_jpeg2000_fragment(&truncated, layout(4, 4, 8, PixelSignedness::Unsigned))
+            .unwrap_err();
         let msg = format!("{:#}", err);
         assert!(
             msg.contains("decode") || msg.contains("JPEG 2000") || msg.contains("Unknown format"),
@@ -187,7 +198,7 @@ mod tests {
             &j2k[..j2k.len().min(4)]
         );
 
-        let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, false))
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("lossless JPEG 2000 round-trip must succeed");
 
         assert_eq!(decoded.len(), (rows * cols) as usize);
@@ -206,7 +217,7 @@ mod tests {
         let pixels: Vec<i32> = (0..8).collect();
         let j2k = encode_grayscale_j2k(&pixels, rows, cols, 8, false);
 
-        let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, false))
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
 
         assert_eq!(decoded.len(), pixels.len());
@@ -220,7 +231,7 @@ mod tests {
         let pixels = [-4, -1, 0, 3];
         let j2k = encode_grayscale_j2k(&pixels, 2, 2, 8, true);
 
-        let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, true))
+        let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed lossless JPEG 2000 round-trip must succeed");
 
         assert_eq!(decoded, vec![-4.0, -1.0, 0.0, 3.0]);
@@ -230,7 +241,7 @@ mod tests {
     fn decode_jpeg2000_lossless_rescale_applied_correctly() {
         let pixels = [100i32];
         let j2k = encode_grayscale_j2k(&pixels, 1, 1, 8, false);
-        let mut pixel_layout = layout(1, 1, 8, false);
+        let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
         pixel_layout.rescale_slope = 2.0;
         pixel_layout.rescale_intercept = -1024.0;
 

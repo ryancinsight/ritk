@@ -131,7 +131,7 @@ fn test_statistics_centroid_single_voxel() {
     let filter = ConnectedComponentsFilter::with_connectivity(6);
     let (_, stats) = filter.apply(&mask);
     assert_eq!(stats.len(), 1);
-    assert_eq!(stats[0].centroid, [2.0, 3.0, 4.0]);
+    assert_eq!(stats[0].centroid, Point::new([2.0, 3.0, 4.0]));
 }
 
 #[test]

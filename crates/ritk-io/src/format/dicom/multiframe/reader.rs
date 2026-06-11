@@ -16,6 +16,7 @@ use std::path::Path;
 
 use super::per_frame::extract_functional_groups;
 use super::types::MultiFrameInfo;
+use crate::format::dicom::reader::geometry::{SliceCoverage, SpacingUniformity};
 use crate::format::dicom::reader::types::{cs_to_arraystring, uid_to_arraystring};
 
 /// Parse a `\`-separated DICOM Decimal String (DS) field into a fixed-size array.
@@ -327,7 +328,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
             .collect();
         let report = super::super::reader::analyze_slice_spacing(&src_positions);
 
-        if report.is_nonuniform {
+        if report.spacing_uniformity == SpacingUniformity::Nonuniform {
             tracing::warn!(
                 max_relative_deviation = report.max_relative_deviation,
                 nominal_spacing_mm = report.nominal_spacing,
@@ -340,7 +341,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
                 report.nominal_spacing,
             );
         }
-        if report.has_missing_slices {
+        if report.slice_coverage == SliceCoverage::HasMissingSlices {
             tracing::warn!(
                 missing_between = ?report.missing_between,
                 nominal_spacing_mm = report.nominal_spacing,
@@ -353,7 +354,9 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
             );
         }
 
-        if report.is_nonuniform || report.has_missing_slices {
+        if report.spacing_uniformity == SpacingUniformity::Nonuniform
+            || report.slice_coverage == SliceCoverage::HasMissingSlices
+        {
             let frame_pixels = info.rows * info.cols;
             let src_frames: Vec<Vec<f32>> = floats
                 .chunks(frame_pixels)

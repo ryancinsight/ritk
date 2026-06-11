@@ -2,6 +2,7 @@
 mod tests {
     use burn::tensor::{Distribution, Shape, Tensor};
     use burn_ndarray::NdArray;
+    use ritk_core::filter::GaussianSigma;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_core::transform::TranslationTransform;
@@ -30,7 +31,7 @@ mod tests {
         let transform = TranslationTransform::new(Tensor::from_floats([0.0, 0.0, 0.0], &device));
 
         // Kernel sigma 1.0 mm
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.0);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
 
         let score = metric.forward(&fixed, &moving, &transform);
         let value = score.into_scalar();
@@ -51,7 +52,7 @@ mod tests {
         let device = Default::default();
         let transform = TranslationTransform::new(Tensor::from_floats([0.5, 0.0, 0.0], &device));
 
-        let metric = LocalNormalizedCrossCorrelation::<B>::new(1.0);
+        let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
 
         let score = metric.forward(&fixed, &moving, &transform);
         let value = score.into_scalar();

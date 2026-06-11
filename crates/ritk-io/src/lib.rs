@@ -28,7 +28,7 @@ pub use format::dicom::{
     MultiFrameWriterConfig, NetworkingError, PatientPosition, RtBeamInfo, RtContour, RtDoseGrid,
     RtFractionGroup, RtPlanInfo, RtRoiInfo, RtStructureSet, ScannedDicomSeries, ScpConfig,
     StoreResponse, StoreScp, StoreScpHandle, StoredInstance, TagAction, TransferSyntaxKind,
-    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
+    RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID, SegEncoding,
 };
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
 pub use format::jpeg::{read_jpeg, write_jpeg, JpegReader, JpegWriter};

@@ -203,8 +203,8 @@ impl<const D: usize> BoolStructure<D> {
     /// The Rust implementation works in the equivalent "flipped" coordinate
     /// frame used by scipy's C kernel to keep the gather formula a flat
     /// `i + q_flip − c_flip − o_neg` (no negation in front of `i`).
-    pub fn dilate(&self, kernel: &BoolStructure<D>, iterations: usize) -> BoolStructure<D> {
-        let mut result = self.clone();
+    pub fn dilate(self, kernel: &BoolStructure<D>, iterations: usize) -> BoolStructure<D> {
+        let mut result = self;
         for _ in 0..iterations {
             result = dilate_once(&result, kernel);
         }
@@ -334,11 +334,11 @@ fn dilate_once<const D: usize>(
 /// # Returns
 /// A new `BoolStructure<D>` with the iterated shape and contents.
 pub fn iterate_structure<const D: usize>(
-    structure: &BoolStructure<D>,
+    structure: BoolStructure<D>,
     iterations: usize,
 ) -> BoolStructure<D> {
     if iterations < 2 {
-        return structure.clone();
+        return structure;
     }
 
     let ni = iterations - 1;
@@ -350,10 +350,10 @@ pub fn iterate_structure<const D: usize>(
     let mut out = BoolStructure::from_data(out_shape, vec![false; total]);
 
     // Stamp input at pos
-    stamp(&mut out, &pos, structure);
+    stamp(&mut out, &pos, &structure);
 
     // Dilate by structure, ni times
-    out.dilate(structure, ni)
+    out.dilate(&structure, ni)
 }
 
 /// Iterate a structure, also returning the scaled origin.
@@ -367,12 +367,12 @@ pub fn iterate_structure<const D: usize>(
 /// A tuple `(iterated_structure, new_origin)` where
 /// `new_origin[k] = iterations * origin[k]`.
 pub fn iterate_structure_with_origin<const D: usize>(
-    structure: &BoolStructure<D>,
+    structure: BoolStructure<D>,
     iterations: usize,
     origin: [usize; D],
 ) -> (BoolStructure<D>, [usize; D]) {
-    let result = iterate_structure(structure, iterations);
     let new_origin: [usize; D] = std::array::from_fn(|k| iterations * origin[k]);
+    let result = iterate_structure(structure, iterations);
     (result, new_origin)
 }
 

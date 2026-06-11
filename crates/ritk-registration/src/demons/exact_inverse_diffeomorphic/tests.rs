@@ -1,8 +1,7 @@
 //! Unit tests for inverse-consistent diffeomorphic Demons registration.
 
-use super::registration::{
-    InverseConsistentDemonsConfig, InverseConsistentDiffeomorphicDemonsRegistration,
-};
+use super::engine::InverseConsistentDiffeomorphicDemonsRegistration;
+use super::types::InverseConsistentDemonsConfig;
 use crate::demons::config::DemonsConfig;
 use crate::demons::diffeomorphic::DiffeomorphicDemonsRegistration;
 

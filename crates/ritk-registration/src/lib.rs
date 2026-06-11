@@ -58,6 +58,7 @@ pub(crate) mod parallel;
 pub mod progress;
 pub mod registration;
 pub mod regularization;
+pub mod types;
 pub mod validation;
 pub(crate) mod wgpu_compat;
 
@@ -69,6 +70,7 @@ pub use progress::{
     ConsoleProgressCallback, ConvergenceChecker, EarlyStoppingCallback, HistoryCallback,
     ProgressCallback, ProgressDisplay, ProgressInfo, ProgressTracker,
 };
+pub use types::AffineTransform;
 pub use validation::{NumericalCheck, ShapeValidation, ValidationConfig};
 
 // ============================================================================

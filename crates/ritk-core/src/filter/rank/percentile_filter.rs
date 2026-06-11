@@ -67,10 +67,10 @@ impl PercentileFilter {
         self.percentile
     }
 
-    /// Structuring element (clone of the SE; cheap).
+    /// Structuring element reference.
     #[inline]
-    pub fn structuring_element(&self) -> StructuringElement {
-        self.se.clone()
+    pub fn structuring_element(&self) -> &StructuringElement {
+        &self.se
     }
 
     /// Apply the percentile filter to a 3-D image.

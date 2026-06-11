@@ -1,6 +1,7 @@
 //! Result type for global MI registration.
 
 use crate::optimizer::ConvergenceReason;
+use crate::types::AffineTransform;
 
 /// Whether the multi-resolution MI registration converged at every level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,7 +16,7 @@ pub enum ConvergenceStatus {
 #[derive(Debug, Clone)]
 pub struct GlobalMiResult<const D: usize> {
     /// 4×4 homogeneous matrix representation of the final transform.
-    pub matrix: [f64; 16],
+    pub matrix: AffineTransform,
     /// Final Mattes MI value (positive; negated from the loss).
     pub final_mi: f64,
     /// Per-level convergence reasons.

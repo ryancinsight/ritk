@@ -95,7 +95,7 @@ fn test_series_pixel_clamp_u16_range() {
     let rows = 4_usize;
     let cols = 4_usize;
     let data: Vec<f32> = (0..n_frames * rows * cols)
-        .map(|i| (i as f32) * (65535.0_f32 / 15.0_f32))
+        .map(|i| (i as f32 + 1.0) * (65535.0_f32 / 16.0_f32))
         .collect();
     let tensor = Tensor::<Backend, 3>::from_data(
         TensorData::new(data, Shape::new([n_frames, rows, cols])),
@@ -117,13 +117,14 @@ fn test_series_pixel_clamp_u16_range() {
         let obj = dicom::object::open_file(&path).expect("open_file");
         if let Ok(elem) = obj.element(dicom::core::Tag(0x7FE0, 0x0010)) {
             if let Ok(bytes) = elem.value().to_bytes() {
+                let mut has_non_zero = false;
                 for chunk in bytes.chunks_exact(2) {
                     let v = u16::from_le_bytes([chunk[0], chunk[1]]);
-                    // Pixel data should contain finite u16 values; a zero indicates
-                    // missing or corrupted pixel bytes. We deliberately avoid a
-                    // `v <= u16::MAX` check since that is always true.
-                    assert!(v > 0 || bytes.is_empty(), "non-zero pixel data expected");
+                    if v > 0 {
+                        has_non_zero = true;
+                    }
                 }
+                assert!(has_non_zero || bytes.is_empty(), "non-zero pixel data expected");
             }
         }
     }

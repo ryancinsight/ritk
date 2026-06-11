@@ -5,7 +5,7 @@
 //! required when constructing the tensor.
 
 use crate::binary::{read_f32_be, read_i16_be, read_i32_be};
-use crate::spatial::derive_image_geometry;
+use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::bytes_per_voxel;
 use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
@@ -100,7 +100,11 @@ fn read_mgh_from_reader<B: Backend, R: Read>(
     let ny = height as usize;
     let nz = depth as usize;
     let (spacing, direction, origin) = derive_image_geometry(
-        good_ras_flag == 1,
+        if good_ras_flag == 1 {
+            RasValidity::Valid
+        } else {
+            RasValidity::Synthetic
+        },
         [nx, ny, nz],
         spacing_xyz,
         direction_columns,

@@ -185,7 +185,7 @@ pub fn label_map_to_rt_struct(
     for &label_id in &foreground_ids {
         let entry = label_map.table.get_label(label_id);
         let roi_name = entry.map(|e| e.name.clone()).unwrap_or_default();
-        let display_color = entry.map(|e| [e.color[0], e.color[1], e.color[2]]);
+        let display_color = entry.map(|e| [e.color.r(), e.color.g(), e.color.b()]);
 
         let mut contours: Vec<RtContour> = Vec::new();
 
@@ -322,8 +322,20 @@ mod tests {
 
     fn make_small_label_map() -> ritk_core::annotation::LabelMap {
         let mut table = ritk_core::annotation::LabelTable::new();
-        table.add_label(1, "Tumor", [255, 0, 0, 255]).unwrap();
-        table.add_label(2, "Organ", [0, 255, 0, 255]).unwrap();
+        table
+            .add_label(
+                1,
+                "Tumor",
+                ritk_core::annotation::RgbaU8::new(255, 0, 0, 255),
+            )
+            .unwrap();
+        table
+            .add_label(
+                2,
+                "Organ",
+                ritk_core::annotation::RgbaU8::new(0, 255, 0, 255),
+            )
+            .unwrap();
         let mut lm = ritk_core::annotation::LabelMap::new([2, 4, 4], table);
         // Label 1: voxels [z=0, y=1..2, x=1..2]
         for y in 1..3 {
@@ -417,7 +429,13 @@ mod tests {
     #[test]
     fn label_map_to_rt_struct_contour_physical_positions() {
         let mut table = ritk_core::annotation::LabelTable::new();
-        table.add_label(1, "ROI", [255; 4]).unwrap();
+        table
+            .add_label(
+                1,
+                "ROI",
+                ritk_core::annotation::RgbaU8::new(255, 255, 255, 255),
+            )
+            .unwrap();
         let mut lm = ritk_core::annotation::LabelMap::new([1, 3, 3], table);
         // Single voxel at row=1, col=1 on slice 0
         lm.set_label_at([0, 1, 1], 1);

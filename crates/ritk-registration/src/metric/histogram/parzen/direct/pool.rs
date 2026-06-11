@@ -35,8 +35,9 @@ impl HistogramPool {
     /// Create a new empty pool for histograms of size `num_bins²`.
     pub fn new(num_bins_sq: usize) -> Self {
         Self {
-            // Capacity: start empty; use new_with_capacity for pre-allocated pools
-            buffers: Mutex::new(Vec::new()),
+            // Capacity: pre-size for typical thread count (4–16); pool grows beyond
+            // this if more threads check out simultaneously.
+            buffers: Mutex::new(Vec::with_capacity(8)),
             num_bins_sq,
         }
     }

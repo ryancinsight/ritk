@@ -79,8 +79,8 @@ pub mod edge;
 pub mod vesselness;
 
 pub use edge::{
-    CannyEdgeDetector, GradientMagnitudeFilter, LaplacianFilter, LaplacianOfGaussianFilter,
-    SobelFilter,
+    CannyEdgeDetector, GaussianSigma, GradientMagnitudeFilter, LaplacianFilter,
+    LaplacianOfGaussianFilter, SobelFilter,
 };
 pub use vesselness::{
     FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter, VesselPolarity,
@@ -119,8 +119,9 @@ pub use projection::{
 pub use pyramid::MultiResolutionPyramid;
 pub use resample::ResampleImageFilter;
 pub use transform::{
-    ConstantPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter, PasteImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter, WrapPadImageFilter,
+    ConstantPadImageFilter, FlipImageFilter, FlipPolicy, MirrorPadImageFilter, Padding,
+    PasteImageFilter, PermuteAxesImageFilter, RegionOfInterestImageFilter, ShrinkImageFilter,
+    WrapPadImageFilter,
 };
 
 // ── Surface & distance ───────────────────────────────────────────────────────

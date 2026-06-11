@@ -1,4 +1,5 @@
 use crate::progress::{ProgressCallback, ProgressInfo};
+use std::borrow::Cow;
 
 /// Whether the console progress callback renders a progress bar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -51,17 +52,19 @@ impl ProgressCallback for ConsoleProgressCallback {
         {
             let progress = info.progress_percent().unwrap_or(0.0);
             let elapsed = format!("{:.2}s", info.elapsed.as_secs_f64());
-            let remaining = info
+            let remaining: Cow<str> = info
                 .estimated_remaining
-                .map(|d| format!("{:.2}s", d.as_secs_f64()))
-                .unwrap_or_else(|| "N/A".to_string());
+                .map(|d| Cow::Owned(format!("{:.2}s", d.as_secs_f64())))
+                .unwrap_or(Cow::Borrowed("N/A"));
+            let total_str: Cow<str> = info
+                .total_iterations
+                .map(|n| Cow::Owned(n.to_string()))
+                .unwrap_or(Cow::Borrowed("?"));
 
             tracing::info!(
                 "Iter {}/{} ({:.1}%) | Loss: {:.6} | LR: {:.2e} | Elapsed: {} | ETA: {}",
                 info.iteration,
-                info.total_iterations
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| "?".to_string()),
+                total_str,
                 progress,
                 info.loss,
                 info.learning_rate,

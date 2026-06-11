@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use ritk_core::filter::bias::N4Config;
 use ritk_core::filter::diffusion::{CoherenceConfig, CurvatureConfig};
 use ritk_core::filter::diffusion::{ConductanceFunction, DiffusionConfig};
+use ritk_core::filter::edge::GaussianSigma;
 use ritk_core::filter::recursive_gaussian::DerivativeOrder;
 use ritk_core::filter::{
     BilateralFilter, BinShrinkImageFilter, CoherenceEnhancingDiffusionFilter,
@@ -30,7 +31,7 @@ use ritk_core::filter::{
 pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> PyImage {
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
-        let filter = GaussianFilter::<Backend>::new(vec![sigma, sigma, sigma]);
+        let filter = GaussianFilter::<Backend>::new(vec![GaussianSigma::new_unchecked(sigma); 3]);
         filter.apply(image.as_ref())
     });
     into_py_image(result)
@@ -184,48 +185,68 @@ pub fn n4_bias_correction(
     .map(into_py_image)
 }
 
+/// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PyConductanceKind {
+    /// Quadratic conductance: c(s) = 1/(1+(s/K)²)
+    Quadratic,
+    /// Exponential conductance: c(s) = exp(-(s/K)²)
+    Exponential,
+}
+
+impl From<PyConductanceKind> for ConductanceFunction {
+    fn from(kind: PyConductanceKind) -> Self {
+        match kind {
+            PyConductanceKind::Quadratic => ConductanceFunction::Quadratic,
+            PyConductanceKind::Exponential => ConductanceFunction::Exponential,
+        }
+    }
+}
+
+impl<'a> From<Option<&'a str>> for PyConductanceKind {
+    fn from(s: Option<&'a str>) -> Self {
+        match s.map(|v| v.to_lowercase()).as_deref() {
+            Some("quadratic") | Some("q") => PyConductanceKind::Quadratic,
+            _ => PyConductanceKind::Exponential,
+        }
+    }
+}
 /// Apply Perona-Malik anisotropic diffusion for edge-preserving smoothing.
 ///
 /// Reduces noise while preserving edges via the PDE:
 /// ∂I/∂t = div(c(|∇I|) · ∇I)
 ///
 /// Args:
-///     image: Input PyImage.
-///     iterations: Number of explicit Euler time steps (default 20).
-///     conductance: Edge-stopping parameter K (default 3.0; larger = more smoothing).
-///     time_step: Euler step size Δt (default 0.0625; must be ≤ 1/6 for 3-D stability).
-///     exponential: If `True`, use exponential conductance c(s) = exp(-(s/K)²)
-///         (maps to [`ConductanceFunction::Exponential`][ritk_core::filter::diffusion::ConductanceFunction::Exponential]);
-///         `False` uses quadratic c(s) = 1/(1+(s/K)²)
-///         (maps to [`ConductanceFunction::Quadratic`][ritk_core::filter::diffusion::ConductanceFunction::Quadratic]).
-///         Default `True`.
+/// image: Input PyImage.
+/// iterations: Number of explicit Euler time steps (default 20).
+/// conductance: Edge-stopping parameter K (default 3.0; larger = more smoothing).
+/// time_step: Euler step size Δt (default 0.0625; must be ≤ 1/6 for 3-D stability).
+/// conductance_kind: Conductance function kind — "exponential" (default) or "quadratic".
+/// Exponential maps to c(s) = exp(-(s/K)²), quadratic to c(s) = 1/(1+(s/K)²).
 ///
 /// Returns:
-///     Smoothed PyImage with identical shape and spatial metadata.
+/// Smoothed PyImage with identical shape and spatial metadata.
 ///
 /// Raises:
-///     RuntimeError: on tensor extraction failure.
+/// RuntimeError: on tensor extraction failure.
 #[pyfunction]
-#[pyo3(signature = (image, iterations=20, conductance=3.0, time_step=0.0625, exponential=true))]
+#[pyo3(signature = (image, iterations=20, conductance=3.0, time_step=0.0625, conductance_kind="exponential"))]
 pub fn anisotropic_diffusion(
     py: Python<'_>,
     image: &PyImage,
     iterations: usize,
     conductance: f64,
     time_step: f64,
-    exponential: bool,
+    conductance_kind: Option<&str>,
 ) -> RitkResult<PyImage> {
+    let function: ConductanceFunction = PyConductanceKind::from(conductance_kind).into();
     let image = std::sync::Arc::clone(&image.inner);
     py.allow_threads(|| {
         let config = DiffusionConfig {
             num_iterations: iterations,
             conductance: conductance as f32,
             time_step: time_step as f32,
-            function: if exponential {
-                ConductanceFunction::Exponential
-            } else {
-                ConductanceFunction::Quadratic
-            },
+            function,
         };
         config
             .apply(image.as_ref())
@@ -349,7 +370,7 @@ pub fn coherence_enhancing_diffusion(
     let image = std::sync::Arc::clone(&image.inner);
     let result = py.allow_threads(|| {
         let config = CoherenceConfig {
-            sigma,
+            sigma: GaussianSigma::new_unchecked(sigma),
             contrast,
             alpha,
             time_step,

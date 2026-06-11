@@ -1,6 +1,7 @@
 use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
+use ritk_core::filter::GaussianSigma;
 use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 
 use super::shared::{load_matching_inputs, to_py_warped_and_displacement};
@@ -57,7 +58,7 @@ pub fn lddmm_register(
         let config = LddmmConfig {
             max_iterations: opts.max_iterations,
             num_time_steps: opts.num_time_steps,
-            kernel_sigma: opts.kernel_sigma,
+            kernel_sigma: GaussianSigma::new_unchecked(opts.kernel_sigma),
             learning_rate: opts.learning_rate,
             regularization_weight: opts.regularization_weight,
             ..Default::default()

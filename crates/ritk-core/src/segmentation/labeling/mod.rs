@@ -28,6 +28,7 @@
 
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
+use crate::spatial::Point;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 pub mod relabel;
@@ -85,8 +86,8 @@ pub struct LabelStatistics {
     pub label: u32,
     /// Number of foreground voxels in this component.
     pub voxel_count: usize,
-    /// Physical centroid in image-index coordinates [z, y, x].
-    pub centroid: [f64; 3],
+    /// Physical centroid in image-index coordinates.
+    pub centroid: Point<3>,
     /// Axis-aligned bounding box: (min_corner, max_corner) in [z, y, x] index space.
     pub bounding_box: ([usize; 3], [usize; 3]),
 }
@@ -363,7 +364,7 @@ fn hoshen_kopelman(
         stats.push(LabelStatistics {
             label: lbl as u32,
             voxel_count: counts[lbl],
-            centroid: [sum_z[lbl] / c, sum_y[lbl] / c, sum_x[lbl] / c],
+            centroid: Point::new([sum_z[lbl] / c, sum_y[lbl] / c, sum_x[lbl] / c]),
             bounding_box: (bb_min[lbl], bb_max[lbl]),
         });
     }

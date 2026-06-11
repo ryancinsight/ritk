@@ -7,11 +7,15 @@ pub mod direction;
 pub mod point;
 pub mod spacing;
 pub mod vector;
+pub mod volume_dims;
+pub mod voxel_index;
 
 pub use direction::Direction;
 pub use point::Point;
 pub use spacing::{InvalidSpacing, Spacing};
 pub use vector::Vector;
+pub use volume_dims::VolumeDims;
+pub use voxel_index::VoxelIndex;
 
 // Common type aliases for 2D and 3D
 pub type Point2 = Point<2>;

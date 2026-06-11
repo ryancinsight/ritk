@@ -4,8 +4,9 @@ use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
 use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
-    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace, scaling_and_squaring,
-    scaling_and_squaring_into, warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
+    scaling_and_squaring, scaling_and_squaring_into, warp_image_into, VectorField3D,
+    VectorFieldMut3D, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -91,6 +92,8 @@ impl DiffeomorphicDemonsRegistration {
         let mut scratch_ss_y = vec![0.0_f32; n];
         let mut scratch_ss_x = vec![0.0_f32; n];
         let mut m_warped = vec![0.0_f32; n];
+        // Pre-hoisted scratch: reused by the smooth call, eliminates 3×n f32 allocs per iter.
+        let mut smooth_tmp = vec![0.0_f32; n];
 
         let grad = compute_gradient(fixed, dims, spacing);
 
@@ -151,12 +154,13 @@ impl DiffeomorphicDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_field_inplace(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut vel_z,
                     &mut vel_y,
                     &mut vel_x,
                     dims,
                     self.config.sigma_diffusion,
+                    &mut smooth_tmp,
                 );
             }
 

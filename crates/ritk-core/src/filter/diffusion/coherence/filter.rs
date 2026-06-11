@@ -1,3 +1,4 @@
+use crate::filter::edge::GaussianSigma;
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -10,9 +11,9 @@ use super::scratch::CedScratch;
 /// CED configuration.
 #[derive(Debug, Clone)]
 pub struct CoherenceConfig {
-    /// Gaussian sigma for structure tensor smoothing (integration scale ρ).
-    /// Default: 3.0.
-    pub sigma: f64,
+    /// Integration scale ρ — standard deviation of the Gaussian structure-tensor
+    /// pre-smoothing kernel. Must be > 0.  Default: 3.0.
+    pub sigma: GaussianSigma,
     /// Contrast parameter C. Default: 1e-10.
     pub contrast: f64,
     /// Smoothing parameter α in flat regions. Default: 0.001.
@@ -26,7 +27,7 @@ pub struct CoherenceConfig {
 impl Default for CoherenceConfig {
     fn default() -> Self {
         Self {
-            sigma: 3.0,
+            sigma: GaussianSigma::new_unchecked(3.0),
             contrast: 1e-10,
             alpha: 0.001,
             time_step: 0.0625,

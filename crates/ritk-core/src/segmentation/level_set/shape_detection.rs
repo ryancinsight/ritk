@@ -36,7 +36,10 @@
 //!   "Shape Modeling with Front Propagation: A Level Set Approach."
 //!   *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 17(2).
 
+use std::borrow::Cow;
+
 use super::helpers;
+use crate::filter::edge::GaussianSigma;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
@@ -57,7 +60,7 @@ pub struct ShapeDetectionSegmentation {
     /// Edge stopping sensitivity parameter `k`.
     pub edge_k: f64,
     /// Gaussian pre-smoothing standard deviation for the input image.
-    pub sigma: f64,
+    pub sigma: GaussianSigma,
     /// Euler forward time step.
     pub dt: f64,
     /// Maximum number of PDE iterations.
@@ -85,7 +88,7 @@ impl ShapeDetectionSegmentation {
             propagation_weight: 1.0,
             advection_weight: 1.0,
             edge_k: 1.0,
-            sigma: 1.0,
+            sigma: GaussianSigma::new_unchecked(1.0),
             dt: 0.05,
             max_iterations: 200,
             tolerance: 1e-3,
@@ -118,15 +121,19 @@ impl ShapeDetectionSegmentation {
 
         let device = image.data().device();
 
-        let (img_f32, _) = extract_vec(image)?;
-        let (phi_f32, _) = extract_vec(initial_phi)?;
-        let img_f64: Vec<f64> = img_f32.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
+        let (img_vals, _) = extract_vec(image)?;
+        let (phi_init, _) = extract_vec(initial_phi)?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
-        let smoothed = if self.sigma > 0.0 {
-            helpers::gaussian_smooth_3d(&img_f64, dims, self.sigma)
+        let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
+            Cow::Owned(helpers::gaussian_smooth_3d(
+                &img_wide,
+                dims,
+                self.sigma.get(),
+            ))
         } else {
-            img_f64.clone()
+            Cow::Borrowed(&img_wide)
         };
 
         let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
@@ -346,7 +353,7 @@ mod tests {
         ls.curvature_weight = 0.2;
         ls.advection_weight = 0.5;
         ls.edge_k = 5.0;
-        ls.sigma = 1.0;
+        ls.sigma = GaussianSigma::new_unchecked(1.0);
         ls.max_iterations = 200;
 
         let result = ls.apply(&image, &phi).unwrap();

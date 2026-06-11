@@ -15,6 +15,7 @@ pub mod growcut;
 pub mod neighborhood_connected;
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
+use crate::spatial::VoxelIndex;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 
 pub use confidence_connected::{confidence_connected, ConfidenceConnectedFilter};
@@ -30,7 +31,7 @@ use std::collections::VecDeque;
 /// within the closed interval [lower, upper].
 pub struct ConnectedThresholdFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: [usize; 3],
+    pub seed: VoxelIndex,
     /// Inclusive lower intensity bound.
     pub lower: f32,
     /// Inclusive upper intensity bound.
@@ -42,12 +43,16 @@ impl ConnectedThresholdFilter {
     ///
     /// # Panics
     /// Panics if `lower > upper`.
-    pub fn new(seed: [usize; 3], lower: f32, upper: f32) -> Self {
+    pub fn new(seed: impl Into<VoxelIndex>, lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
             "lower bound {lower} must be ≤ upper bound {upper}"
         );
-        Self { seed, lower, upper }
+        Self {
+            seed: seed.into(),
+            lower,
+            upper,
+        }
     }
 
     /// Apply region growing to `image`.
@@ -74,7 +79,7 @@ impl ConnectedThresholdFilter {
 /// Panics if `lower > upper` or if `seed` is out of bounds for `image`.
 pub fn connected_threshold<B: Backend>(
     image: &Image<B, 3>,
-    seed: [usize; 3],
+    seed: impl Into<VoxelIndex>,
     lower: f32,
     upper: f32,
 ) -> Image<B, 3> {
@@ -83,13 +88,14 @@ pub fn connected_threshold<B: Backend>(
         "lower bound {lower} must be ≤ upper bound {upper}"
     );
 
+    let seed = seed.into();
     let shape = image.shape();
     let (nz, ny, nx) = (shape[0], shape[1], shape[2]);
 
     assert!(
         seed[0] < nz && seed[1] < ny && seed[2] < nx,
         "seed {:?} is out of bounds for image shape {:?}",
-        seed,
+        seed.as_array(),
         shape
     );
 
@@ -118,7 +124,7 @@ pub fn connected_threshold<B: Backend>(
 fn flood_fill(
     data: &[f32],
     dims: [usize; 3],
-    seed: [usize; 3],
+    seed: VoxelIndex,
     lower: f32,
     upper: f32,
 ) -> Vec<f32> {

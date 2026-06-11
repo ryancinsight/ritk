@@ -51,6 +51,7 @@ use ritk_core::image::Image;
 use ritk_core::transform::RigidTransform;
 
 use super::registration::GlobalMiRegistration;
+use crate::types::AffineTransform;
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ impl Default for MultiStartConfig {
 #[derive(Debug, Clone)]
 pub struct MultiStartResult {
     /// 4×4 homogeneous matrix of the best-found rigid transform.
-    pub matrix: [f64; 16],
+    pub matrix: AffineTransform,
 
     /// Mutual information achieved by the best start (higher is better).
     pub best_mi: f64,
@@ -265,7 +266,7 @@ impl MultiStartMiRegistration {
         let matrix = super::transforms::rigid_matrix_to_homogeneous(&best_transform);
 
         let ms_result = MultiStartResult {
-            matrix,
+            matrix: AffineTransform::new(matrix),
             best_mi,
             best_start_index: best_start,
             per_start_mi,

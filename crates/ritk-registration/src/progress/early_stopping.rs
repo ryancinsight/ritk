@@ -1,11 +1,21 @@
 use crate::progress::{ProgressCallback, ProgressInfo};
 use std::sync::{Arc, Mutex};
 
+/// Whether early stopping has been triggered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum EarlyStopSignal {
+    /// Continue iterating.
+    #[default]
+    Continue,
+    /// Early stopping criterion was met — halt iteration.
+    Stop,
+}
+
 #[derive(Debug)]
 struct EarlyStoppingState {
     counter: usize,
     best_loss: f64,
-    should_stop: bool,
+    stop_signal: EarlyStopSignal,
 }
 
 /// Early stopping callback.
@@ -30,7 +40,7 @@ impl EarlyStoppingCallback {
             state: Arc::new(Mutex::new(EarlyStoppingState {
                 counter: 0,
                 best_loss: f64::INFINITY,
-                should_stop: false,
+                stop_signal: EarlyStopSignal::default(),
             })),
         }
     }
@@ -46,7 +56,8 @@ impl EarlyStoppingCallback {
         self.state
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .should_stop
+            .stop_signal
+            == EarlyStopSignal::Stop
     }
 
     /// Reset early stopping state.
@@ -54,7 +65,7 @@ impl EarlyStoppingCallback {
         let mut s = self.state.lock().unwrap_or_else(|e| e.into_inner());
         s.counter = 0;
         s.best_loss = f64::INFINITY;
-        s.should_stop = false;
+        s.stop_signal = EarlyStopSignal::default();
     }
 }
 
@@ -66,7 +77,7 @@ impl ProgressCallback for EarlyStoppingCallback {
                 self.state
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
-                    .should_stop = true;
+                    .stop_signal = EarlyStopSignal::Stop;
                 tracing::info!(
                     "Early stopping: loss {} reached minimum threshold {}",
                     info.loss,
@@ -86,7 +97,7 @@ impl ProgressCallback for EarlyStoppingCallback {
             s.counter += 1;
         }
         if s.counter >= self.patience {
-            s.should_stop = true;
+            s.stop_signal = EarlyStopSignal::Stop;
             tracing::info!(
                 "Early stopping: no improvement for {} iterations (best loss: {:.6}, current: {:.6})",
                 self.patience,

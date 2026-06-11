@@ -16,7 +16,7 @@ pub struct ProgressInfo {
     /// Current learning rate.
     pub learning_rate: f64,
     /// Additional metrics.
-    pub metrics: Vec<(String, f64)>,
+    pub metrics: Vec<(std::borrow::Cow<'static, str>, f64)>,
 }
 
 impl ProgressInfo {
@@ -59,7 +59,7 @@ impl ProgressInfo {
     }
 
     /// Add a custom metric.
-    pub fn add_metric(&mut self, name: impl Into<String>, value: f64) {
+    pub fn add_metric(&mut self, name: impl Into<std::borrow::Cow<'static, str>>, value: f64) {
         self.metrics.push((name.into(), value));
     }
 }

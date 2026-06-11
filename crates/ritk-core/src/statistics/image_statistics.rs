@@ -108,21 +108,21 @@ pub fn compute_from_values(values: &[f32]) -> ImageStatistics {
 
     // Accumulate in f64: sequential f32 sum saturates for n > ~10^7 elements
     // when the running total exceeds the f32 ULP of individual values.
-    let sum_f64: f64 = values.iter().map(|&v| v as f64).sum::<f64>();
-    let mean_f64: f64 = sum_f64 / n as f64;
-    let mean: f32 = mean_f64 as f32;
+    let sum_wide: f64 = values.iter().map(|&v| v as f64).sum::<f64>();
+    let mean_wide: f64 = sum_wide / n as f64;
+    let mean: f32 = mean_wide as f32;
 
     // Two-pass f64 variance: squared deviations sum to ~10^13 for CT-scale
     // data, exceeding f32 representable precision per element at n > ~10^7.
-    let var_f64: f64 = values
+    let var_wide: f64 = values
         .iter()
         .map(|&v| {
-            let d = v as f64 - mean_f64;
+            let d = v as f64 - mean_wide;
             d * d
         })
         .sum::<f64>()
         / n as f64;
-    let std = var_f64.sqrt() as f32;
+    let std = var_wide.sqrt() as f32;
 
     // Floor-division percentile indices as specified in the module contract.
     let p25 = values[n / 4];

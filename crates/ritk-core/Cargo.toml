@@ -1,6 +1,6 @@
 [package]
 name = "ritk-core"
-version = "0.6.0"
+version = "0.8.0"
 edition = "2021"
 
 [dependencies]
@@ -8,6 +8,7 @@ burn = { workspace = true }
 nalgebra = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+ritk-macros = { path = "../ritk-macros" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

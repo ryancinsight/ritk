@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
 use ritk_core::filter::bias::N4Config;
-use ritk_core::filter::{GaussianFilter, N4BiasFieldCorrectionFilter};
+use ritk_core::filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
 use ritk_core::image::Image;
 
 use super::pipeline::PreprocessingPipeline;
@@ -102,7 +102,10 @@ impl PreprocessingPipeline {
                 }
 
                 PreprocessingStep::Smoothing { sigma } => {
-                    GaussianFilter::new(vec![*sigma as f64; 3]).apply(&image)
+                    let s_val = *sigma as f64;
+                    let g_sigma = GaussianSigma::new(s_val)
+                        .unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9));
+                    GaussianFilter::new(vec![g_sigma; 3]).apply(&image)
                 }
             };
         }

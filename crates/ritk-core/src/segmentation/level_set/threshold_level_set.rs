@@ -108,13 +108,13 @@ impl ThresholdLevelSet {
         let n: usize = nz * ny * nx;
 
         // Extract f32 tensor data and convert to f64 for PDE pipeline.
-        let (img_f32, _) = extract_vec(image)?;
-        let (phi_f32, _) = extract_vec(initial_phi)?;
-        let img_f64: Vec<f64> = img_f32.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
+        let (img_vals, _) = extract_vec(image)?;
+        let (phi_init, _) = extract_vec(initial_phi)?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
         // Precompute threshold speed field T(I).
-        let threshold_speed: Vec<f64> = img_f64
+        let threshold_speed: Vec<f64> = img_wide
             .iter()
             .map(|&v| {
                 if self.lower_threshold <= v && v <= self.upper_threshold {

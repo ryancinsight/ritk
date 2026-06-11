@@ -254,7 +254,7 @@ fn run_global_mi_register(
         });
 
     // ── 6. Convert result matrix to Vec<f32> ─────────────────────────────
-    let matrix_vec: Vec<f32> = matrix.iter().map(|&v| v as f32).collect();
+    let matrix_vec: Vec<f32> = matrix.0.iter().map(|&v| v as f32).collect();
 
     // ── 7. Build convergence info dict ───────────────────────────────────
     let convergence_strs: Vec<String> = convergence_history

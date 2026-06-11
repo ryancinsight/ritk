@@ -123,7 +123,7 @@ pub(super) fn clahe_2d_with_scratch(
         }
     }
 
-    scratch.output.clone()
+    std::mem::take(&mut scratch.output)
 }
 
 // ── Legacy allocating path (used by 2D unit tests) ──────────────────────────

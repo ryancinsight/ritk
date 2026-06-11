@@ -1,4 +1,5 @@
 use super::super::basis::init_control_grid;
+use super::super::volume_dims::VolumeDims;
 use super::super::warp_image_bspline;
 use super::make_test_image;
 use crate::deformable_field_ops::{flat, trilinear_interpolate};
@@ -8,14 +9,22 @@ fn zero_control_displacements_produce_identity_warp() {
     let dims = [8, 10, 12];
     let image = make_test_image(dims);
     let ctrl_spacing = [4.0, 4.0, 4.0];
-    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let ctrl_dims = init_control_grid(VolumeDims(dims), &ctrl_spacing);
     let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
 
     let cp_z = vec![0.0_f32; cn];
     let cp_y = vec![0.0_f32; cn];
     let cp_x = vec![0.0_f32; cn];
 
-    let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+    let warped = warp_image_bspline(
+        &image,
+        VolumeDims(dims),
+        &cp_z,
+        &cp_y,
+        &cp_x,
+        &ctrl_dims,
+        &ctrl_spacing,
+    );
 
     for i in 0..image.len() {
         assert!(
@@ -32,7 +41,7 @@ fn zero_control_displacements_produce_identity_warp() {
 fn constant_displacement_translates_image() {
     let dims = [8, 10, 12];
     let ctrl_spacing = [4.0, 4.0, 4.0];
-    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let ctrl_dims = init_control_grid(VolumeDims(dims), &ctrl_spacing);
     let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
 
     // Set all control points to constant displacement of +2 voxels in x.
@@ -44,7 +53,15 @@ fn constant_displacement_translates_image() {
     let [nz, ny, nx] = dims;
     let image: Vec<f32> = (0..nz * ny * nx).map(|fi| (fi % nx) as f32).collect();
 
-    let warped = warp_image_bspline(&image, dims, &cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing);
+    let warped = warp_image_bspline(
+        &image,
+        VolumeDims(dims),
+        &cp_z,
+        &cp_y,
+        &cp_x,
+        &ctrl_dims,
+        &ctrl_spacing,
+    );
 
     // At interior voxels (away from boundary clamping), warped(z,y,x) ≈
     // moving(z, y, x + 2) = (x + 2). Near the right boundary, clamping

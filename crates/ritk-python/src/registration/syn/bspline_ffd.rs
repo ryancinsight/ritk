@@ -1,7 +1,7 @@
 use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
-use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration};
+use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
 use super::shared::{load_matching_inputs, to_py_moving};
 
@@ -69,7 +69,7 @@ pub fn bspline_ffd_register(
         BSplineFFDRegistration::register(
             &inputs.fixed_vals,
             &inputs.moving_vals,
-            inputs.fixed_shape,
+            VolumeDims(inputs.fixed_shape),
             [1.0, 1.0, 1.0],
             &config,
         )

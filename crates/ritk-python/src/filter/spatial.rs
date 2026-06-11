@@ -14,6 +14,32 @@ use ritk_core::segmentation::DistanceTransform;
 use ritk_core::spatial::Spacing as CoreSpacing;
 use ritk_core::transform::affine::translation::TranslationTransform;
 
+/// Distance metric variant for distance transform, replacing `squared: bool`.
+///
+/// Eliminates boolean blindness: `metric="euclidean"` vs `metric="squared"` is
+/// self-documenting compared to `squared=True/False`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PyDistanceMetric {
+    /// Euclidean distance (sqrt of sum of squares).
+    Euclidean,
+    /// Squared Euclidean distance (no sqrt; faster, preserves differentiability).
+    Squared,
+}
+
+impl<'py> FromPyObject<'py> for PyDistanceMetric {
+    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+        let s: String = ob.extract()?;
+        match s.to_lowercase().as_str() {
+            "euclidean" => Ok(Self::Euclidean),
+            "squared" => Ok(Self::Squared),
+            other => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Unknown distance metric '{}'. Choices: euclidean, squared",
+                other
+            ))),
+        }
+    }
+}
+
 /// Resample a 3-D image to new voxel spacing.
 ///
 /// Output size N_d_prime = max(1, round(N_d * S_d / S_d_prime)).
@@ -121,31 +147,32 @@ pub fn resample_image(
 /// Compute the Euclidean (or squared Euclidean) distance transform of a binary image.
 ///
 /// For each background voxel the output is the distance to the nearest foreground
-/// voxel (in physical units, respecting image spacing).  Foreground voxels receive 0.0.
+/// voxel (in physical units, respecting image spacing). Foreground voxels receive 0.0.
 /// Implements the exact O(N) Meijster et al. (2000) algorithm.
 ///
 /// Args:
-///     image:                Input binary image (foreground > foreground_threshold).
-///     foreground_threshold: Threshold above which a voxel is foreground (default 0.5).
-///     squared:              If True, return squared distances (no sqrt; default False).
+/// image: Input binary image (foreground > foreground_threshold).
+/// foreground_threshold: Threshold above which a voxel is foreground (default 0.5).
+/// metric: Distance metric: "euclidean" (default) or "squared".
+///     "euclidean" returns true Euclidean distances (with sqrt).
+///     "squared" returns squared distances (no sqrt; faster, preserves differentiability).
 ///
 /// Returns:
-///     Distance image with identical shape and spatial metadata.
+/// Distance image with identical shape and spatial metadata.
 #[pyfunction]
-#[pyo3(signature = (image, foreground_threshold=0.5_f32, squared=false))]
+#[pyo3(signature = (image, foreground_threshold=0.5_f32, metric=PyDistanceMetric::Euclidean))]
 pub fn distance_transform(
     py: Python<'_>,
     image: &PyImage,
     foreground_threshold: f32,
-    squared: bool,
+    metric: PyDistanceMetric,
 ) -> PyImage {
     let arc = std::sync::Arc::clone(&image.inner);
-    let result = py.allow_threads(|| {
-        if squared {
-            DistanceTransform::squared(arc.as_ref(), foreground_threshold)
-        } else {
+    let result = py.allow_threads(|| match metric {
+        PyDistanceMetric::Euclidean => {
             DistanceTransform::transform(arc.as_ref(), foreground_threshold)
         }
+        PyDistanceMetric::Squared => DistanceTransform::squared(arc.as_ref(), foreground_threshold),
     });
     into_py_image(result)
 }

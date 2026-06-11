@@ -8,13 +8,13 @@ use ritk_core::filter::{
     BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter, ConnectedComponentsFilter,
     Connectivity, ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter,
     CurvatureFlowConfig, CurvatureFlowImageFilter, DistanceTransformImageFilter, ExpImageFilter,
-    FlipImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-    GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
-    GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
+    FlipImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
+    GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
+    GrayscaleFillholeFilter, GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
     InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
     MeanImageFilter, MedianFilter, MirrorPadImageFilter, MultiOtsuThreshold, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RelabelComponentFilter,
+    Padding, PermuteAxesImageFilter, RegionOfInterestImageFilter, RelabelComponentFilter,
     RescaleIntensityFilter, ShiftScaleImageFilter, ShrinkImageFilter,
     SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     TanImageFilter, UnsharpMaskFilter, VotingBinaryImageFilter, WrapPadImageFilter,
@@ -51,7 +51,10 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
             FilterKind::Gaussian { sigma } => {
                 // GaussianFilter takes physical-unit sigmas per dimension.
                 // Broadcasting a single sigma across all three axes.
-                Ok(GaussianFilter::<B>::new(vec![f64::from(*sigma); 3]).apply(&study.image))
+                let s_val = f64::from(*sigma);
+                let g_sigma =
+                    GaussianSigma::new(s_val).unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9));
+                Ok(GaussianFilter::<B>::new(vec![g_sigma; 3]).apply(&study.image))
             }
             FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&study.image),
             FilterKind::Clahe {
@@ -67,7 +70,7 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 threshold,
                 clamp,
             } => UnsharpMaskFilter::new(
-                vec![f64::from(*sigma)],
+                vec![GaussianSigma::new_unchecked(f64::from(*sigma))],
                 f64::from(*amount),
                 f64::from(*threshold),
                 *clamp,
@@ -262,8 +265,8 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 pad_upper_x,
                 constant,
             } => ConstantPadImageFilter::new(
-                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                 *constant,
             )
             .apply(&study.image),
@@ -275,8 +278,8 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 pad_upper_y,
                 pad_upper_x,
             } => MirrorPadImageFilter::new(
-                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
             )
             .apply(&study.image),
             FilterKind::WrapPad {
@@ -287,8 +290,8 @@ impl<B: burn::tensor::backend::Backend> ViewerCore<B, 3> {
                 pad_upper_y,
                 pad_upper_x,
             } => WrapPadImageFilter::new(
-                [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
             )
             .apply(&study.image),
             FilterKind::GrayscaleErode { radius } => {

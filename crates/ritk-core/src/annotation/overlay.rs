@@ -7,6 +7,7 @@
 //! ContourOverlay: every contour >= 2 points
 //! MaskOverlay : data.len() == dims\[0\]\*dims\[1\]\*dims\[2\]
 
+use super::color::RgbaF32;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -125,7 +126,7 @@ pub struct ContourOverlay {
     pub name: String,
     pub label_id: u32,
     pub contours: Vec<Vec<[f64; 3]>>,
-    pub color: [f32; 4],
+    pub color: RgbaF32,
     pub line_width: f32,
     pub visible: Visibility,
 }
@@ -135,7 +136,7 @@ impl ContourOverlay {
             name: name.into(),
             label_id,
             contours: Vec::new(),
-            color: [1.0, 1.0, 1.0, 1.0],
+            color: RgbaF32::new(1.0, 1.0, 1.0, 1.0),
             line_width: 1.0,
             visible: Visibility::Visible,
         }
@@ -148,7 +149,7 @@ impl ContourOverlay {
         self.contours.push(pts);
         Ok(())
     }
-    pub fn with_color(mut self, v: [f32; 4]) -> Self {
+    pub fn with_color(mut self, v: RgbaF32) -> Self {
         self.color = v;
         self
     }
@@ -196,7 +197,7 @@ impl MaskOverlay {
         self.data
             .iter()
             .filter(|&&v| v != 0)
-            .cloned()
+            .copied()
             .collect::<HashSet<u32>>()
             .len()
     }

@@ -11,11 +11,16 @@ use super::{read_image, write_image_inferred, Backend, FilterArgs};
 /// dimension whose sigma is ≤ 1e-6, so `--sigma 0.0` is a valid no-op.
 pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     use ritk_core::filter::GaussianFilter;
+    use ritk_core::filter::GaussianSigma;
 
     let image = read_image(&args.input)?;
 
+    let g_sigma = GaussianSigma::new(args.sigma)
+        .unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9));
+
     // Isotropic sigma applied to all three spatial dimensions.
-    let filter: GaussianFilter<Backend> = GaussianFilter::new(vec![args.sigma; 3]);
+    let filter: GaussianFilter<Backend> =
+        GaussianFilter::new(vec![g_sigma; 3]);
     let filtered = filter.apply(&image);
 
     write_image_inferred(&args.output, &filtered)?;

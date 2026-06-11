@@ -53,7 +53,10 @@
 //! - Sethian, J. A. (1999). *Level Set Methods and Fast Marching Methods*.
 //!   Cambridge University Press.
 
+use std::borrow::Cow;
+
 use super::helpers;
+use crate::filter::edge::GaussianSigma;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
@@ -80,7 +83,7 @@ pub struct LaplacianLevelSet {
     /// Weight `w_c` on the curvature regularisation term.
     pub curvature_weight: f64,
     /// Standard deviation for Gaussian pre-smoothing of the input image.
-    pub sigma: f64,
+    pub sigma: GaussianSigma,
     /// Forward-Euler time step `dt`.
     pub dt: f64,
     /// Maximum number of PDE iterations.
@@ -95,7 +98,7 @@ impl LaplacianLevelSet {
         Self {
             propagation_weight: 1.0,
             curvature_weight: 0.2,
-            sigma: 1.0,
+            sigma: GaussianSigma::new_unchecked(1.0),
             dt: 0.05,
             max_iterations: 200,
             tolerance: 1e-3,
@@ -126,16 +129,20 @@ impl LaplacianLevelSet {
         let [nz, ny, nx] = dims;
         let n: usize = nz * ny * nx;
 
-        let (img_f32, _) = extract_vec(image)?;
-        let (phi_f32, _) = extract_vec(initial_phi)?;
-        let img_f64: Vec<f64> = img_f32.iter().map(|&v| v as f64).collect();
-        let mut phi: Vec<f64> = phi_f32.iter().map(|&v| v as f64).collect();
+        let (img_vals, _) = extract_vec(image)?;
+        let (phi_init, _) = extract_vec(initial_phi)?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
 
         // Optional Gaussian pre-smoothing of the input image.
-        let smoothed = if self.sigma > 0.0 {
-            helpers::gaussian_smooth_3d(&img_f64, dims, self.sigma)
+        let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
+            Cow::Owned(helpers::gaussian_smooth_3d(
+                &img_wide,
+                dims,
+                self.sigma.get(),
+            ))
         } else {
-            img_f64.clone()
+            Cow::Borrowed(&img_wide)
         };
 
         // L(I)[i] = d2I/dz2 + d2I/dy2 + d2I/dx2  (central diffs, clamped BC).
@@ -411,7 +418,7 @@ mod tests {
         let mut ls = LaplacianLevelSet::new();
         ls.propagation_weight = 1.0;
         ls.curvature_weight = 0.1;
-        ls.sigma = 0.5;
+        ls.sigma = GaussianSigma::new_unchecked(0.5);
         ls.max_iterations = 200;
         let result = ls.apply(&image, &phi).unwrap();
         let final_fg = count_foreground(&result);

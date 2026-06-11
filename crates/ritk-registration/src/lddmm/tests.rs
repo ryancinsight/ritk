@@ -3,6 +3,7 @@
 use super::{
     adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration,
 };
+use ritk_core::filter::edge::GaussianSigma;
 use crate::deformable_field_ops::VectorField3D;
 use crate::error::RegistrationError;
 
@@ -34,7 +35,7 @@ fn identity_registration_low_mse() {
     let reg = LddmmRegistration::new(LddmmConfig {
         max_iterations: 5,
         num_time_steps: 2,
-        kernel_sigma: 1.0,
+        kernel_sigma: GaussianSigma::new_unchecked(1.0),
         learning_rate: 0.01,
         regularization_weight: 1.0,
         convergence_threshold: 1e-12,
@@ -88,7 +89,7 @@ fn metric_improves_over_iterations() {
     let reg = LddmmRegistration::new(LddmmConfig {
         max_iterations: 30,
         num_time_steps: 2,
-        kernel_sigma: 1.0,
+        kernel_sigma: GaussianSigma::new_unchecked(1.0),
         learning_rate: 0.1,
         regularization_weight: 0.01,
         convergence_threshold: 1e-12,
@@ -110,7 +111,7 @@ fn displacement_field_is_finite() {
     let reg = LddmmRegistration::new(LddmmConfig {
         max_iterations: 3,
         num_time_steps: 2,
-        kernel_sigma: 1.0,
+        kernel_sigma: GaussianSigma::new_unchecked(1.0),
         ..LddmmConfig::default()
     });
     let result = reg.register(&img, &img, dims, [1.0; 3]).unwrap();

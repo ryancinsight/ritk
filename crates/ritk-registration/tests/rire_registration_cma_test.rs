@@ -115,7 +115,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     println!("\n── Running CMA-ES rigid registration (shrink=8, 30% sampling, sigma0=0.7) ──");
     let (final_transform, result) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
-    let (tre_final, tre_max) = compute_tre(&result.matrix);
+    let (tre_final, tre_max) = compute_tre(result.matrix.as_array());
 
     let rot_data = final_transform.rotation().into_data();
     let rot = rot_data.as_slice::<f32>().unwrap();
@@ -273,7 +273,7 @@ fn test_multistart_rigid_on_rire_patient001() {
     {
         println!("  Start {i}: MI = {mi:.6e}, iters = {iters}");
     }
-    let (tre_best, tre_best_max) = compute_tre(&ms_result.matrix);
+    let (tre_best, tre_best_max) = compute_tre(ms_result.matrix.as_array());
     println!("  TRE best transform: {tre_best:.3} mm (max {tre_best_max:.3} mm)");
 
     // ── Assertions ────────────────────────────────────────────────────────────

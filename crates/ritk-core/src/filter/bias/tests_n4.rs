@@ -132,7 +132,9 @@ fn histogram_sharpen_continuous_bimodal_reduces_spread() {
         w.push(mode_b_lo + t * (mode_b_hi - mode_b_lo));
     }
 
-    let w_sharp = histogram_sharpen(&w, 200, 0.087).expect("histogram_sharpen failed");
+    let mut scratch = HistogramSharpenScratch::new(200, w.len());
+    histogram_sharpen(&w, 200, 0.087, &mut scratch).expect("histogram_sharpen failed");
+    let w_sharp = scratch.w_sharp;
     assert_eq!(w_sharp.len(), w.len());
 
     let centre_a = 0.5 * (mode_a_lo + mode_a_hi);
@@ -287,6 +289,18 @@ fn rms_diff_identity_and_positive() {
     assert!((d - 1.0).abs() < 1e-6, "expected rms=1.0, got {d}");
 }
 
+fn dft_real(data: &[f64], n: usize) -> Vec<(f64, f64)> {
+    let mut out = vec![(0.0, 0.0); n];
+    dft_real_into(data, n, &mut out);
+    out
+}
+
+fn idft_real(freq: &[(f64, f64)], n: usize) -> Vec<f64> {
+    let mut out = vec![0.0; n];
+    idft_real_into(freq, n, &mut out);
+    out
+}
+
 /// DFT round-trip: IDFT(DFT(x)) ≈ x for a short real sequence.
 #[test]
 fn dft_round_trip() {
@@ -306,7 +320,9 @@ fn dft_round_trip() {
 #[test]
 fn histogram_sharpen_passthrough_for_constant_input() {
     let w = vec![2.71f32; 64];
-    let out = histogram_sharpen(&w, 100, 0.01).unwrap();
+    let mut scratch = HistogramSharpenScratch::new(100, w.len());
+    histogram_sharpen(&w, 100, 0.01, &mut scratch).unwrap();
+    let out = scratch.w_sharp;
     for (&o, &i) in out.iter().zip(w.iter()) {
         assert_eq!(o, i);
     }

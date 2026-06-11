@@ -141,6 +141,24 @@ impl<const D: usize> std::ops::Index<usize> for Point<D> {
     }
 }
 
+impl<const D: usize> Default for Point<D> {
+    fn default() -> Self {
+        Self::origin()
+    }
+}
+
+impl From<[f64; 3]> for Point<3> {
+    fn from(coords: [f64; 3]) -> Self {
+        Self::new(coords)
+    }
+}
+
+impl From<Point<3>> for [f64; 3] {
+    fn from(p: Point<3>) -> Self {
+        p.to_array()
+    }
+}
+
 impl<const D: usize> std::ops::IndexMut<usize> for Point<D> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0.coords[index]

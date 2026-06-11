@@ -1,3 +1,4 @@
+use crate::filter::edge::GaussianSigma;
 use crate::image::Image;
 use crate::spatial::Spacing;
 use crate::wgpu_compat::apply_row_chunks;
@@ -10,7 +11,7 @@ use burn::tensor::{Shape, Tensor};
 /// Applies a Gaussian smoothing filter to an image using separable 1D convolutions.
 /// This implementation respects the physical spacing of the image.
 pub struct GaussianFilter<B: Backend> {
-    sigmas: Vec<f64>,
+    sigmas: Vec<GaussianSigma>,
     max_kernel_width: usize,
     _b: std::marker::PhantomData<fn() -> B>,
 }
@@ -20,7 +21,7 @@ impl<B: Backend> GaussianFilter<B> {
     ///
     /// # Arguments
     /// * `sigmas` - Standard deviation for each dimension in physical units (mm).
-    pub fn new(sigmas: Vec<f64>) -> Self {
+    pub fn new(sigmas: Vec<GaussianSigma>) -> Self {
         Self {
             sigmas,
             max_kernel_width: 32, // Default max kernel width to prevent excessive computation
@@ -57,9 +58,9 @@ impl<B: Backend> GaussianFilter<B> {
         // Apply 1D convolution along each dimension
         for d in 0..D {
             let sigma = if d < self.sigmas.len() {
-                self.sigmas[d]
+                self.sigmas[d].get()
             } else {
-                self.sigmas[0]
+                self.sigmas[0].get()
             };
             let spacing_val = spacing[d];
 
@@ -239,7 +240,7 @@ mod tests {
     #[test]
     fn gaussian_kernel_sums_to_one() {
         let size = 15usize;
-        let filter = GaussianFilter::<B>::new(vec![1.0]);
+        let filter = GaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)]);
         let img = make_image(vec![3.0_f32; size * size * size], [size, size, size]);
         let out = filter.apply(&img);
         let vals = voxels(&out);
@@ -260,7 +261,7 @@ mod tests {
     /// convolution entirely. The output tensor must be identical to the input.
     #[test]
     fn zero_sigma_skips_smoothing() {
-        let filter = GaussianFilter::<B>::new(vec![0.0]);
+        let filter = GaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1e-9)]);
         let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let img = make_image(data.clone(), [2, 2, 2]);
         let out = filter.apply(&img);
@@ -276,7 +277,7 @@ mod tests {
     /// Spatial metadata (origin, spacing, direction) is preserved.
     #[test]
     fn gaussian_preserves_metadata() {
-        let filter = GaussianFilter::<B>::new(vec![0.5]);
+        let filter = GaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(0.5)]);
         let sp = Spacing::new([2.0, 3.0, 4.0]);
         let device = Default::default();
         let t = Tensor::<B, 3>::from_data(
@@ -292,7 +293,7 @@ mod tests {
     /// Output shape must equal input shape after smoothing (padding=kernel_size/2).
     #[test]
     fn gaussian_preserves_shape() {
-        let filter = GaussianFilter::<B>::new(vec![1.5]);
+        let filter = GaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.5)]);
         let img = make_image(vec![1.0_f32; 5 * 6 * 7], [5, 6, 7]);
         let out = filter.apply(&img);
         assert_eq!(

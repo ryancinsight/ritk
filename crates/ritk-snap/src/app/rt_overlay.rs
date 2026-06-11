@@ -286,10 +286,10 @@ impl SnapApp {
                     egui::Rect::from_min_size(egui::pos2(x0, y0), egui::vec2(cell_w, cell_h)),
                     0.0,
                     egui::Color32::from_rgba_unmultiplied(
-                        entry.color[0],
-                        entry.color[1],
-                        entry.color[2],
-                        entry.color[3],
+                        entry.color.r(),
+                        entry.color.g(),
+                        entry.color.b(),
+                        entry.color.a(),
                     ),
                 );
             }

@@ -119,7 +119,7 @@ impl LddmmRegistration {
                 dims,
                 spacing,
                 cfg.num_time_steps,
-                cfg.kernel_sigma,
+                cfg.kernel_sigma.get(),
                 &mut dz,
                 &mut dy,
                 &mut dx,
@@ -174,7 +174,7 @@ impl LddmmRegistration {
                 &mut bf_y,
                 &mut bf_x,
                 dims,
-                cfg.kernel_sigma,
+                cfg.kernel_sigma.get(),
                 &mut smooth_tmp,
             );
 
@@ -193,7 +193,7 @@ impl LddmmRegistration {
             dims,
             spacing,
             cfg.num_time_steps,
-            cfg.kernel_sigma,
+            cfg.kernel_sigma.get(),
             &mut dz,
             &mut dy,
             &mut dx,

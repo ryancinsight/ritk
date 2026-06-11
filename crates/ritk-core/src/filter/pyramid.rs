@@ -1,5 +1,6 @@
 use super::downsample::DownsampleFilter;
 use super::gaussian::GaussianFilter;
+use crate::filter::edge::GaussianSigma;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 
@@ -53,11 +54,15 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
 
             // 1. Smooth
             // Only smooth if sigmas are significant. GaussianFilter::new takes
-            // a `Vec<f64>`, so we materialise the per-axis sigmas into a small
-            // D-entry Vec here — one allocation per pyramid level, not a hot
-            // path. Future Sprint could plumb `[f64; D]` through the filter API.
+            // a `Vec<GaussianSigma>`, so we materialise the per-axis sigmas into
+            // a small D-entry Vec here — one allocation per pyramid level, not a hot
+            // path.
             let smoothed = if !is_identity_smooth {
-                let smoother = GaussianFilter::new(sigmas.to_vec());
+                let sigmas_val: Vec<GaussianSigma> = sigmas
+                    .iter()
+                    .map(|&s| GaussianSigma::new(s).unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9)))
+                    .collect();
+                let smoother = GaussianFilter::new(sigmas_val);
                 smoother.apply(input)
             } else {
                 input.clone()

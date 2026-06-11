@@ -44,7 +44,7 @@ fn test_uniform_image_no_edges() {
     let vals = vec![100.0_f32; dims[0] * dims[1] * dims[2]];
     let img = make_image(vals, dims, [1.0, 1.0, 1.0]);
 
-    let detector = CannyEdgeDetector::new(1.0, 0.1, 0.2);
+    let detector = CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 0.1, 0.2);
     let result = detector.apply(&img).unwrap();
     let out = extract_vals(&result);
 
@@ -96,7 +96,7 @@ fn test_step_edge_produces_edges() {
 
     // Use a small sigma and thresholds that comfortably detect the 100-unit
     // step while ignoring noise.
-    let detector = CannyEdgeDetector::new(1.0, 2.0, 10.0);
+    let detector = CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 2.0, 10.0);
     let result = detector.apply(&img).unwrap();
     let out = extract_vals(&result);
 
@@ -139,5 +139,5 @@ fn test_step_edge_produces_edges() {
 #[test]
 #[should_panic(expected = "low_threshold")]
 fn test_invalid_thresholds() {
-    let _ = CannyEdgeDetector::new(1.0, 5.0, 2.0);
+    let _ = CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 5.0, 2.0);
 }

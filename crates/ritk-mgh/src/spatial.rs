@@ -3,14 +3,24 @@
 use nalgebra::{SMatrix, Vector3};
 use ritk_core::spatial::{Direction, Point, Spacing};
 
+/// Whether the RAS (Right-Anterior-Superior) spatial metadata in the MGH
+/// header is valid and should be used to derive image geometry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RasValidity {
+    /// RAS fields are valid — use them to compute origin, spacing, direction.
+    Valid,
+    /// RAS fields are absent or unreliable — fall back to identity geometry.
+    Synthetic,
+}
+
 pub(crate) fn derive_image_geometry(
-    valid_ras: bool,
+    ras_validity: RasValidity,
     dims: [usize; 3],
     spacing_xyz: [f32; 3],
     direction_columns: [[f32; 3]; 3],
     c_ras: [f32; 3],
 ) -> (Spacing<3>, Direction<3>, Point<3>) {
-    if !valid_ras {
+    if ras_validity == RasValidity::Synthetic {
         return (
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),

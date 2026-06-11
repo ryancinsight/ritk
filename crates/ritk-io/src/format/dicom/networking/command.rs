@@ -126,7 +126,7 @@ pub enum CommandElementValue<'a> {
 /// ]);
 /// ```
 pub fn build_command_pdu(elements: &[(u32, CommandElementValue)]) -> Vec<u8> {
-    let mut buf = Vec::new();
+    let mut buf = Vec::with_capacity(256);
     build_command_pdu_into(&mut buf, elements);
     buf
 }
@@ -307,7 +307,7 @@ pub fn parse_command_response(data: &[u8]) -> Result<CommandResponse, Networking
 ///
 /// Used to decode C-FIND response datasets.
 pub fn parse_dataset_ivr_le(data: &[u8]) -> Vec<((u16, u16), Vec<u8>)> {
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(32);
     let mut cursor = 0usize;
     while cursor + 8 <= data.len() {
         let group = u16::from_le_bytes([data[cursor], data[cursor + 1]]);

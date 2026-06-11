@@ -24,6 +24,7 @@
 
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
+use crate::spatial::VoxelIndex;
 use burn::tensor::backend::Backend;
 
 /// Paste a source image into a destination image at a given index.
@@ -33,12 +34,14 @@ use burn::tensor::backend::Backend;
 #[derive(Debug, Clone)]
 pub struct PasteImageFilter {
     /// Starting voxel index in the destination: `[z, y, x]`.
-    pub dest_start: [usize; 3],
+    pub dest_start: VoxelIndex,
 }
 
 impl PasteImageFilter {
-    pub fn new(dest_start: [usize; 3]) -> Self {
-        Self { dest_start }
+    pub fn new(dest_start: impl Into<VoxelIndex>) -> Self {
+        Self {
+            dest_start: dest_start.into(),
+        }
     }
 
     /// Apply the paste: returns a copy of `dest` with `source` written at
@@ -52,7 +55,7 @@ impl PasteImageFilter {
     ) -> anyhow::Result<Image<B, 3>> {
         let [dz, dy, dx] = dest.shape();
         let [sz, sy, sx] = source.shape();
-        let [sdz, sdy, sdx] = self.dest_start;
+        let [sdz, sdy, sdx]: [usize; 3] = self.dest_start.into();
 
         if sdz + sz > dz {
             anyhow::bail!(

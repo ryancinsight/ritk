@@ -44,7 +44,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 use super::Backend;
-use ritk_core::filter::GaussianFilter;
+use ritk_core::filter::{GaussianFilter, GaussianSigma};
 use ritk_core::image::Image;
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
 use ritk_registration::classical::spatial;

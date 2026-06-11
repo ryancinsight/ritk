@@ -334,7 +334,7 @@ impl SnapApp {
             return;
         };
 
-        match ritk_io::label_map_to_dicom_seg(map, origin, spacing, direction, true) {
+        match ritk_io::label_map_to_dicom_seg(map, origin, spacing, direction, ritk_io::SegEncoding::Binary) {
             Ok(seg) => match ritk_io::write_dicom_seg(&path, &seg) {
                 Ok(()) => {
                     self.status_message = format!("Saved DICOM-SEG to {}", path.display());

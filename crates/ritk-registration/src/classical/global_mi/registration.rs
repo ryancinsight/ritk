@@ -8,13 +8,16 @@ use super::transforms::{
 };
 use crate::metric::{Metric, MutualInformation};
 use crate::optimizer::{ConvergenceReason, Optimizer, RegularStepGradientDescent};
+use crate::types::AffineTransform;
+
 use burn::module::AutodiffModule;
 use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
 use ritk_core::filter::pyramid::MultiResolutionPyramid;
 use ritk_core::image::Image;
 use ritk_core::transform::{
-    AffineTransform, Resampleable, RigidTransform, Transform, TranslationTransform,
+    AffineTransform as CoreAffineTransform, Resampleable, RigidTransform, Transform,
+    TranslationTransform,
 };
 
 /// Multi-resolution Mattes MI + RSGD global registration pipeline.
@@ -37,7 +40,7 @@ impl GlobalMiRegistration {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = rigid_matrix_to_homogeneous(&final_transform);
+        result.matrix = AffineTransform::new(rigid_matrix_to_homogeneous(&final_transform));
         (final_transform, result)
     }
 
@@ -46,13 +49,13 @@ impl GlobalMiRegistration {
     pub fn register_affine_full<B: AutodiffBackend>(
         fixed: &Image<B, 3>,
         moving: &Image<B, 3>,
-        initial_transform: AffineTransform<B, 3>,
+        initial_transform: CoreAffineTransform<B, 3>,
         config: &GlobalMiConfig,
-    ) -> (AffineTransform<B, 3>, GlobalMiResult<3>) {
+    ) -> (CoreAffineTransform<B, 3>, GlobalMiResult<3>) {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = affine_matrix_to_homogeneous(&final_transform);
+        result.matrix = AffineTransform::new(affine_matrix_to_homogeneous(&final_transform));
         (final_transform, result)
     }
 
@@ -67,7 +70,7 @@ impl GlobalMiRegistration {
         config.validate().expect("GlobalMiConfig validation failed");
         let (final_transform, mut result) =
             Self::execute_multires(fixed, moving, initial_transform, config);
-        result.matrix = translation_matrix_to_homogeneous(&final_transform);
+        result.matrix = AffineTransform::new(translation_matrix_to_homogeneous(&final_transform));
         (final_transform, result)
     }
 
@@ -86,9 +89,9 @@ impl GlobalMiRegistration {
     pub fn register_affine<B: AutodiffBackend>(
         fixed: &Image<B, 3>,
         moving: &Image<B, 3>,
-        initial_transform: AffineTransform<B, 3>,
+        initial_transform: CoreAffineTransform<B, 3>,
         config: &GlobalMiConfig,
-    ) -> (AffineTransform<B, 3>, GlobalMiResult<3>) {
+    ) -> (CoreAffineTransform<B, 3>, GlobalMiResult<3>) {
         Self::register_affine_full(fixed, moving, initial_transform, config)
     }
 
@@ -105,22 +108,24 @@ impl GlobalMiRegistration {
     // ─── Matrix Extraction Delegates ─────────────────────────────────────
 
     /// Compute the 4×4 homogeneous matrix from a rigid transform result.
-    pub fn rigid_result_matrix<B: AutodiffBackend>(transform: &RigidTransform<B, 3>) -> [f64; 16] {
-        rigid_matrix_to_homogeneous(transform)
+    pub fn rigid_result_matrix<B: AutodiffBackend>(
+        transform: &RigidTransform<B, 3>,
+    ) -> AffineTransform {
+        AffineTransform::new(rigid_matrix_to_homogeneous(transform))
     }
 
     /// Compute the 4×4 homogeneous matrix from an affine transform result.
     pub fn affine_result_matrix<B: AutodiffBackend>(
-        transform: &AffineTransform<B, 3>,
-    ) -> [f64; 16] {
-        affine_matrix_to_homogeneous(transform)
+        transform: &CoreAffineTransform<B, 3>,
+    ) -> AffineTransform {
+        AffineTransform::new(affine_matrix_to_homogeneous(transform))
     }
 
     /// Compute the 4×4 homogeneous matrix from a translation transform result.
     pub fn translation_result_matrix<B: AutodiffBackend>(
         transform: &TranslationTransform<B, 3>,
-    ) -> [f64; 16] {
-        translation_matrix_to_homogeneous(transform)
+    ) -> AffineTransform {
+        AffineTransform::new(translation_matrix_to_homogeneous(transform))
     }
 
     /// Compute the physical center of an image.
@@ -291,12 +296,7 @@ impl GlobalMiRegistration {
         let final_mi = -final_loss_val;
 
         // extract_homogeneous_matrix is a placeholder; typed entry points override matrix.
-        let matrix = [
-            1.0, 0.0, 0.0, 0.0, //
-            0.0, 1.0, 0.0, 0.0, //
-            0.0, 0.0, 1.0, 0.0, //
-            0.0, 0.0, 0.0, 1.0,
-        ];
+        let matrix = AffineTransform::IDENTITY;
 
         let all_converged = convergence_history
             .iter()

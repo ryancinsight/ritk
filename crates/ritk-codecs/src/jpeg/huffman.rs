@@ -17,14 +17,10 @@ use anyhow::{bail, Result};
 /// Canonical Huffman decode table (T.81 §C.1).
 #[derive(Debug, Clone)]
 pub(crate) struct HuffmanTable {
-    /// Largest canonical code of length `i+1`; −1 if no codes of that length.
-    maxcode: [i32; 16],
-    /// Smallest canonical code of length `i+1`.
-    mincode: [i32; 16],
-    /// Index into `huffval` where length-`i+1` codes start.
-    valptr: [usize; 16],
-    /// Decoded symbols in canonical order (by ascending length, then by code).
-    huffval: [u8; 256],
+    pub(crate) maxcode: [i32; 16],
+    pub(crate) mincode: [i32; 16],
+    pub(crate) valptr: [usize; 16],
+    pub(crate) huffval: [u8; 256],
 }
 
 impl HuffmanTable {
@@ -95,10 +91,10 @@ impl HuffmanTable {
 /// 0xFF followed by 0xD0–0xD7 is a restart marker → reset DC predictors.
 /// 0xFF 0xD9 is EOI → end of data.
 pub(crate) struct BitReader<'a> {
-    data: &'a [u8],
-    pos: usize,
-    buf: u32,
-    avail: u8,
+    pub(crate) data: &'a [u8],
+    pub(crate) pos: usize,
+    pub(crate) buf: u32,
+    pub(crate) avail: u8,
 }
 
 impl<'a> BitReader<'a> {
@@ -115,12 +111,14 @@ impl<'a> BitReader<'a> {
     /// Returns `None` when the entropy stream ends (marker boundary or EOF).
     fn next_entropy_byte(&mut self) -> Option<u8> {
         if self.pos >= self.data.len() {
+            println!("next_entropy_byte: EOF reached at pos {}, data.len() = {}", self.pos, self.data.len());
             return None;
         }
         let b = self.data[self.pos];
         self.pos += 1;
         if b == 0xFF {
             if self.pos >= self.data.len() {
+                println!("next_entropy_byte: Trailing 0xFF at EOF");
                 return None;
             }
             let next = self.data[self.pos];
@@ -133,6 +131,7 @@ impl<'a> BitReader<'a> {
                 return Some(0xFF); // Treat the restart as a boundary fill byte.
             } else {
                 // Non-stuffed marker (e.g. EOI) — back up.
+                println!("next_entropy_byte: Found marker 0xFF{:02X} at pos {}, data.len() = {}", next, self.pos, self.data.len());
                 self.pos -= 1;
                 return None;
             }
@@ -140,10 +139,10 @@ impl<'a> BitReader<'a> {
         Some(b)
     }
 
-    /// Ensure `avail >= 1` bit in `buf`.
+    /// Ensure `avail >= n` bits in `buf`.
     #[inline]
-    fn fill(&mut self) -> Result<()> {
-        while self.avail < 8 {
+    fn fill(&mut self, n: u8) -> Result<()> {
+        while self.avail < n {
             match self.next_entropy_byte() {
                 Some(byte) => {
                     self.buf = (self.buf << 8) | u32::from(byte);
@@ -163,7 +162,7 @@ impl<'a> BitReader<'a> {
     #[inline]
     pub(crate) fn read_bit(&mut self) -> Result<u8> {
         if self.avail == 0 {
-            self.fill()?;
+            self.fill(1)?;
         }
         self.avail -= 1;
         Ok(((self.buf >> self.avail) & 1) as u8)
@@ -176,8 +175,8 @@ impl<'a> BitReader<'a> {
         if n == 0 {
             return Ok(0);
         }
-        while self.avail < n {
-            self.fill()?;
+        if self.avail < n {
+            self.fill(n)?;
         }
         self.avail -= n;
         Ok((self.buf >> self.avail) & ((1u32 << n) - 1))

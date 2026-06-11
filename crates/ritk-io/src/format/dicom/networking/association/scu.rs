@@ -28,7 +28,7 @@ impl Association {
         let ctx = self.context_for_sop_class(sop_class_uid, &[transfer_syntax::IMPLICIT_VR_LE])?;
         let msg = DimseMessage::c_find_rq(self.next_message_id(), sop_class_uid, identifier);
         self.send_message(ctx, &msg)?;
-        let mut matches = Vec::new();
+        let mut matches = Vec::with_capacity(4);
         let final_status;
         loop {
             let (_, rsp) = self.recv_message()?;

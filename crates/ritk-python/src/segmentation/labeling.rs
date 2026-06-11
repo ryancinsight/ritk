@@ -84,7 +84,7 @@ pub fn label_shape_statistics(
         let dict = PyDict::new_bound(py);
         dict.set_item("label", s.label)?;
         dict.set_item("voxel_count", s.voxel_count)?;
-        let centroid: Vec<f64> = s.centroid.to_vec();
+        let centroid: Vec<f64> = s.centroid.to_array().to_vec();
         dict.set_item("centroid", centroid)?;
         let (bb_min, bb_max) = s.bounding_box;
         let bb_min_list: Vec<i64> = bb_min.iter().map(|&v| v as i64).collect();

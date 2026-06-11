@@ -46,6 +46,8 @@ use std::collections::VecDeque;
 /// estimation via central differences, non-maximum suppression along the
 /// gradient direction, and double hysteresis thresholding with BFS
 /// connectivity.
+///
+/// The `sigma` parameter is a [`GaussianSigma`] newtype enforcing `sigma > 0`.
 #[derive(Debug, Clone)]
 pub struct CannyEdgeDetector {
     /// Standard deviation of the pre-smoothing Gaussian (physical units, mm).
@@ -61,29 +63,29 @@ impl CannyEdgeDetector {
     ///
     /// # Arguments
     ///
-    /// * `sigma` — Standard deviation of the Gaussian smoothing kernel
-    ///   (physical units).
+    /// * `sigma` — Standard deviation of the Gaussian smoothing kernel,
+    ///   wrapped in [`GaussianSigma`] (physical units).
     /// * `low_threshold` — Lower hysteresis threshold on gradient magnitude.
     /// * `high_threshold` — Upper hysteresis threshold on gradient magnitude.
     ///
     /// # Panics
     ///
     /// Panics if `low_threshold > high_threshold`.
-    pub fn new(sigma: f64, low_threshold: f64, high_threshold: f64) -> Self {
+    pub fn new(sigma: GaussianSigma, low_threshold: f64, high_threshold: f64) -> Self {
         assert!(
             low_threshold <= high_threshold,
             "CannyEdgeDetector: low_threshold ({low_threshold}) must be <= high_threshold ({high_threshold})"
         );
         Self {
-            sigma: GaussianSigma::new_unchecked(sigma),
+            sigma,
             low_threshold,
             high_threshold,
         }
     }
 
     /// Set the Gaussian sigma.
-    pub fn with_sigma(mut self, sigma: f64) -> Self {
-        self.sigma = GaussianSigma::new_unchecked(sigma);
+    pub fn with_sigma(mut self, sigma: GaussianSigma) -> Self {
+        self.sigma = sigma;
         self
     }
 
@@ -125,11 +127,8 @@ impl CannyEdgeDetector {
 
         // ── Stage 1: Gaussian smoothing ───────────────────────────────────
         let smoothed = {
-            let gauss = crate::filter::GaussianFilter::<B>::new(vec![
-                self.sigma.get(),
-                self.sigma.get(),
-                self.sigma.get(),
-            ]);
+            let gauss =
+                crate::filter::GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
             gauss.apply(image)
         };
 

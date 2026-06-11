@@ -1,6 +1,7 @@
 use super::super::config::BSplineFFDConfig;
 use super::super::metric::compute_ncc;
 use super::super::registration::BSplineFFDRegistration;
+use super::super::volume_dims::VolumeDims;
 use super::make_test_image;
 use crate::deformable_field_ops::{flat, trilinear_interpolate};
 use crate::error::RegistrationError;
@@ -36,7 +37,9 @@ fn metric_improves_after_iterations() {
 
     let initial_ncc = compute_ncc(&fixed, &moving);
 
-    let result = BSplineFFDRegistration::register(&fixed, &moving, dims, spacing, &config).unwrap();
+    let result =
+        BSplineFFDRegistration::register(&fixed, &moving, VolumeDims(dims), spacing, &config)
+            .unwrap();
 
     assert!(
         result.final_metric >= initial_ncc - 1e-6,
@@ -46,7 +49,7 @@ fn metric_improves_after_iterations() {
     );
     assert_eq!(result.warped_moving.len(), n);
     assert_eq!(
-        result.control_grid_dims[0] * result.control_grid_dims[1] * result.control_grid_dims[2],
+        result.control_grid_dims.num_nodes(),
         result.control_points.0.len()
     );
 }
@@ -56,7 +59,8 @@ fn mismatched_fixed_length_returns_error() {
     let config = BSplineFFDConfig::default();
     let fixed = vec![0.0_f32; 100];
     let moving = vec![0.0_f32; 8];
-    let result = BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
+    let result =
+        BSplineFFDRegistration::register(&fixed, &moving, VolumeDims([2, 2, 2]), [1.0; 3], &config);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -71,7 +75,8 @@ fn mismatched_moving_length_returns_error() {
     let config = BSplineFFDConfig::default();
     let fixed = vec![0.0_f32; 8];
     let moving = vec![0.0_f32; 100];
-    let result = BSplineFFDRegistration::register(&fixed, &moving, [2, 2, 2], [1.0; 3], &config);
+    let result =
+        BSplineFFDRegistration::register(&fixed, &moving, VolumeDims([2, 2, 2]), [1.0; 3], &config);
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
@@ -88,7 +93,8 @@ fn zero_levels_returns_invalid_configuration() {
         ..Default::default()
     };
     let img = vec![0.0_f32; 8];
-    let result = BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
+    let result =
+        BSplineFFDRegistration::register(&img, &img, VolumeDims([2, 2, 2]), [1.0; 3], &config);
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
@@ -103,7 +109,8 @@ fn zero_spacing_returns_invalid_configuration() {
         ..Default::default()
     };
     let img = vec![0.0_f32; 8];
-    let result = BSplineFFDRegistration::register(&img, &img, [2, 2, 2], [1.0; 3], &config);
+    let result =
+        BSplineFFDRegistration::register(&img, &img, VolumeDims([2, 2, 2]), [1.0; 3], &config);
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),

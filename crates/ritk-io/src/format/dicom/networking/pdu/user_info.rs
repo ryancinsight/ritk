@@ -67,11 +67,50 @@ pub struct AsynchronousOperationsWindowSubItem {
     pub maximum_number_operations_performed: u16,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+/// DICOM SCU/SCP role selection for a Presentation Context.
+///
+/// Encodes the two-bit role negotiation from DICOM PS3.8 §D.3.3.4:
+/// each bit is independent — an association requestor may request both,
+/// either, or neither role.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DicomRole {
+    /// Neither SCU nor SCP role is requested/supported.
+    #[default]
+    Neither,
+    /// Service Class User role only.
+    ScuOnly,
+    /// Service Class Provider role only.
+    ScpOnly,
+    /// Both SCU and SCP roles are supported.
+    Both,
+}
+
+impl DicomRole {
+    /// Construct from the wire-format SCU and SCP octets.
+    pub fn from_bits(scu: u8, scp: u8) -> Self {
+        match (scu != 0, scp != 0) {
+            (false, false) => Self::Neither,
+            (true, false) => Self::ScuOnly,
+            (false, true) => Self::ScpOnly,
+            (true, true) => Self::Both,
+        }
+    }
+
+    /// Wire-format SCU byte (0 or 1).
+    pub fn scu_bit(self) -> u8 {
+        matches!(self, Self::ScuOnly | Self::Both) as u8
+    }
+
+    /// Wire-format SCP byte (0 or 1).
+    pub fn scp_bit(self) -> u8 {
+        matches!(self, Self::ScpOnly | Self::Both) as u8
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScpScuRoleSelectionSubItem {
     pub sop_class_uid: ArrayString<64>,
-    pub scu_role: bool,
-    pub scp_role: bool,
+    pub role: DicomRole,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -105,11 +144,11 @@ fn ver_from_bytes(d: &[u8]) -> ArrayString<16> {
 // ── Encode / Decode ──────────────────────────────────────────────────────────
 
 pub(crate) fn enc_ui(ui: &UserInformation) -> Vec<u8> {
-    let mut b = Vec::new();
-    let mut ml = Vec::new();
+    let mut b = Vec::with_capacity(128);
+    let mut ml = Vec::with_capacity(4);
     w32(&mut ml, ui.maximum_length.maximum_length_received);
     w_item(&mut b, SI_MAX_LEN, &ml);
-    let mut ic = Vec::new();
+    let mut ic = Vec::with_capacity(64);
     ic.extend_from_slice(
         ui.implementation_class_uid
             .implementation_class_uid
@@ -117,32 +156,32 @@ pub(crate) fn enc_ui(ui: &UserInformation) -> Vec<u8> {
     );
     w_item(&mut b, SI_IMPL_UID, &ic);
     if let Some(ref v) = ui.implementation_version_name {
-        let mut iv = Vec::new();
+        let mut iv = Vec::with_capacity(16);
         iv.extend_from_slice(v.implementation_version_name.as_bytes());
         w_item(&mut b, SI_IMPL_VER, &iv);
     }
     if let Some(ref aw) = ui.async_operations_window {
-        let mut a = Vec::new();
+        let mut a = Vec::with_capacity(4);
         w16(&mut a, aw.maximum_number_operations_invoked);
         w16(&mut a, aw.maximum_number_operations_performed);
         w_item(&mut b, SI_ASYNC, &a);
     }
     for rs in &ui.role_selections {
-        let mut r = Vec::new();
+        let mut r = Vec::with_capacity(68);
         r.extend_from_slice(rs.sop_class_uid.as_bytes());
         r.push(0x00);
-        r.push(rs.scu_role as u8);
-        r.push(rs.scp_role as u8);
+        r.push(rs.role.scu_bit());
+        r.push(rs.role.scp_bit());
         w_item(&mut b, SI_ROLE, &r);
     }
     for en in &ui.extended_negotiations {
-        let mut e = Vec::new();
+        let mut e = Vec::with_capacity(64);
         e.extend_from_slice(en.sop_class_uid.as_bytes());
         e.extend_from_slice(&en.service_class_application_information);
         w_item(&mut b, SI_EXT_NEG, &e);
     }
     if let Some(ref uid) = ui.user_identity {
-        let mut u = Vec::new();
+        let mut u = Vec::with_capacity(32);
         u.push(uid.identity_type as u8);
         w16(&mut u, uid.primary_field.len() as u16);
         w16(&mut u, uid.secondary_field.len() as u16);
@@ -192,8 +231,7 @@ pub(crate) fn dec_ui(data: &[u8]) -> Result<UserInformation> {
                 let ue = d.len() - 3;
                 ui.role_selections.push(ScpScuRoleSelectionSubItem {
                     sop_class_uid: uid_from_bytes_64(&d[..ue]),
-                    scu_role: d[ue + 1] != 0,
-                    scp_role: d[ue + 2] != 0,
+                    role: DicomRole::from_bits(d[ue + 1], d[ue + 2]),
                 })
             }
             SI_EXT_NEG => {

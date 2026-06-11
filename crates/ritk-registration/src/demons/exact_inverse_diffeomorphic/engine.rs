@@ -1,65 +1,14 @@
-//! Inverse-consistent diffeomorphic Demons registration.
+//! Inverse-consistent diffeomorphic Demons registration engine.
 
-use super::super::config::DemonsConfig;
 use super::super::inverse::invert_velocity_field_into;
 use super::super::thirion::thirion_forces_into;
 use super::ic_residual::compute_ic_residual;
+use super::types::{InverseConsistentDemonsConfig, InverseConsistentDemonsResult};
 use crate::deformable_field_ops::{
-    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
     scaling_and_squaring_into, warp_image_into, VectorField3D, VectorFieldMut3D,
 };
 use crate::error::RegistrationError;
-
-/// Configuration for InverseConsistentDiffeomorphicDemonsRegistration.
-#[derive(Debug, Clone)]
-pub struct InverseConsistentDemonsConfig {
-    /// Shared Demons parameters.
-    pub demons: DemonsConfig,
-    /// Weight of the backward (inverse) force. Range `[0, 1]`. Default 0.5.
-    pub inverse_consistency_weight: f64,
-    /// Scaling-and-squaring steps for exp(v). Default 6.
-    pub n_squarings: usize,
-}
-
-impl Default for InverseConsistentDemonsConfig {
-    fn default() -> Self {
-        Self {
-            demons: DemonsConfig::default(),
-            inverse_consistency_weight: 0.5,
-            n_squarings: 6,
-        }
-    }
-}
-
-/// Result of InverseConsistentDiffeomorphicDemonsRegistration.
-pub struct InverseConsistentDemonsResult {
-    /// Moving image warped onto fixed using phi_fwd = exp(v).
-    pub warped: Vec<f32>,
-    /// Forward displacement phi_fwd = exp(v), z-component.
-    pub disp_z: Vec<f32>,
-    /// Forward displacement phi_fwd = exp(v), y-component.
-    pub disp_y: Vec<f32>,
-    /// Forward displacement phi_fwd = exp(v), x-component.
-    pub disp_x: Vec<f32>,
-    /// Exact inverse displacement phi_inv = exp(-v), z-component.
-    pub inv_disp_z: Vec<f32>,
-    /// Exact inverse displacement phi_inv = exp(-v), y-component.
-    pub inv_disp_y: Vec<f32>,
-    /// Exact inverse displacement phi_inv = exp(-v), x-component.
-    pub inv_disp_x: Vec<f32>,
-    /// Stationary velocity field, z-component.
-    pub vel_z: Vec<f32>,
-    /// Stationary velocity field, y-component.
-    pub vel_y: Vec<f32>,
-    /// Stationary velocity field, x-component.
-    pub vel_x: Vec<f32>,
-    /// Final MSE(F, M o phi_fwd) at convergence.
-    pub final_mse: f64,
-    /// Number of iterations executed.
-    pub num_iterations: usize,
-    /// IC residual: mean‖φ_fwd(φ_inv(x)) − x‖₂.
-    pub inverse_consistency_residual: f64,
-}
 
 /// Inverse-consistent diffeomorphic Demons registration.
 ///
@@ -68,12 +17,12 @@ pub struct InverseConsistentDemonsResult {
 ///
 /// # Bilateral Objective
 ///
-///   E(v) = (1−w)·‖F − M∘exp(v)‖² + w·‖M − F∘exp(−v)‖²
+/// E(v) = (1−w)·‖F − M∘exp(v)‖² + w·‖M − F∘exp(−v)‖²
 ///
 /// # Update Rule (first-order BCH)
 ///
-///   v ← v + (1−w)·u_fwd − w·u_bwd
-///   v ← G_{σ_diff} ∗ v
+/// v ← v + (1−w)·u_fwd − w·u_bwd
+/// v ← G_{σ_diff} ∗ v
 #[derive(Debug, Clone)]
 pub struct InverseConsistentDiffeomorphicDemonsRegistration {
     pub config: InverseConsistentDemonsConfig,
@@ -145,6 +94,8 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
         let mut scratch_ss_x = vec![0.0_f32; n];
         let mut m_warped = vec![0.0_f32; n];
         let mut f_warped = vec![0.0_f32; n];
+        // Pre-hoisted scratch: reused by the smooth call, eliminates 3×n f32 allocs per iter.
+        let mut smooth_tmp = vec![0.0_f32; n];
 
         let mut final_mse: f64 = fixed
             .iter()
@@ -238,12 +189,13 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             }
 
             if cfg.sigma_diffusion > 0.0 {
-                gaussian_smooth_field_inplace(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut vel_z,
                     &mut vel_y,
                     &mut vel_x,
                     dims,
                     cfg.sigma_diffusion,
+                    &mut smooth_tmp,
                 );
             }
 

@@ -45,6 +45,24 @@ pub(in crate::format::dicom) fn slice_normal_from_iop(iop: [f64; 6]) -> Option<[
     normalize_3d(cross_3d(r, c))
 }
 
+/// Spacing uniformity classification for a DICOM series.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::format::dicom) enum SpacingUniformity {
+    /// All inter-slice gaps are within the uniformity threshold.
+    Uniform,
+    /// At least one gap deviates beyond `NONUNIFORM_SPACING_THRESHOLD`.
+    Nonuniform,
+}
+
+/// Slice coverage classification for a DICOM series.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::format::dicom) enum SliceCoverage {
+    /// No gap larger than 1.5 × nominal spacing detected.
+    Complete,
+    /// One or more gaps larger than 1.5 × nominal spacing detected.
+    HasMissingSlices,
+}
+
 /// Result of analyzing per-slice spacing uniformity.
 ///
 /// Derived from sorted projected positions `p[0] ≤ p[1] ≤ … ≤ p[N-1]`:
@@ -57,8 +75,8 @@ pub(in crate::format::dicom) struct SliceGeometryReport {
     pub nominal_spacing: f64,
     pub max_relative_deviation: f64,
     pub missing_between: Vec<usize>,
-    pub is_nonuniform: bool,
-    pub has_missing_slices: bool,
+    pub spacing_uniformity: SpacingUniformity,
+    pub slice_coverage: SliceCoverage,
 }
 
 /// Analyze per-slice projected positions for spacing uniformity.
@@ -86,8 +104,8 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
             nominal_spacing: 1.0,
             max_relative_deviation: 0.0,
             missing_between: Vec::new(),
-            is_nonuniform: false,
-            has_missing_slices: false,
+            spacing_uniformity: SpacingUniformity::Uniform,
+            slice_coverage: SliceCoverage::Complete,
         };
     }
 
@@ -109,8 +127,16 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
         nominal_spacing: nominal,
         max_relative_deviation: max_rel_dev,
         missing_between,
-        is_nonuniform,
-        has_missing_slices,
+        spacing_uniformity: if is_nonuniform {
+            SpacingUniformity::Nonuniform
+        } else {
+            SpacingUniformity::Uniform
+        },
+        slice_coverage: if has_missing_slices {
+            SliceCoverage::HasMissingSlices
+        } else {
+            SliceCoverage::Complete
+        },
     }
 }
 

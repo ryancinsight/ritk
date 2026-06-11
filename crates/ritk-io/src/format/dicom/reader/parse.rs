@@ -27,6 +27,23 @@ use crate::format::dicom::object_model::{
 };
 use arrayvec::ArrayString;
 
+/// Parse a backslash-delimited DICOM string of floating-point values into a fixed-size array.
+/// Returns `Some([v0..vN])` if at least `N` values parsed successfully, else `None`.
+fn parse_ds_array<const N: usize>(s: &str) -> Option<[f64; N]> {
+    let mut out = [0.0_f64; N];
+    let mut count = 0usize;
+    for part in s.split('\\') {
+        if count >= N {
+            break;
+        }
+        if let Ok(v) = part.trim().parse::<f64>() {
+            out[count] = v;
+            count += 1;
+        }
+    }
+    if count >= N { Some(out) } else { None }
+}
+
 /// Parse a single DICOM Part-10 file, populating `first` with series-level
 /// first-seen fields and returning the per-slice metadata, per-file image
 /// dimensions, and per-file SeriesInstanceUID.
@@ -139,27 +156,17 @@ fn extract_dicom_metadata(
     }
     if let Ok(elem) = obj.element(Tag(0x0020, 0x0032)) {
         if let Ok(s) = elem.to_str() {
-            let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
-            if parts.len() >= 3 {
-                slice_meta.image_position_patient = Some([parts[0], parts[1], parts[2]]);
-            }
+            slice_meta.image_position_patient = parse_ds_array::<3>(&s);
         }
     }
     if let Ok(elem) = obj.element(Tag(0x0020, 0x0037)) {
         if let Ok(s) = elem.to_str() {
-            let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
-            if parts.len() >= 6 {
-                slice_meta.image_orientation_patient =
-                    Some([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]]);
-            }
+            slice_meta.image_orientation_patient = parse_ds_array::<6>(&s);
         }
     }
     if let Ok(elem) = obj.element(Tag(0x0028, 0x0030)) {
         if let Ok(s) = elem.to_str() {
-            let parts: Vec<f64> = s.split('\\').flat_map(|p| p.parse()).collect();
-            if parts.len() >= 2 {
-                slice_meta.pixel_spacing = Some([parts[0], parts[1]]);
-            }
+            slice_meta.pixel_spacing = parse_ds_array::<2>(&s);
         }
     }
     if let Ok(elem) = obj.element(Tag(0x0018, 0x0050)) {

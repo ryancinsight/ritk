@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn iterations_zero_returns_copy() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 0);
+    let r = iterate_structure(s.clone(), 0);
     assert_eq!(r, s);
     assert_eq!(r.shape(), s.shape());
 }
@@ -15,7 +15,7 @@ fn iterations_zero_returns_copy() {
 #[test]
 fn iterations_one_returns_copy() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 1);
+    let r = iterate_structure(s.clone(), 1);
     assert_eq!(r, s);
     assert_eq!(r.shape(), s.shape());
 }
@@ -25,7 +25,7 @@ fn iterations_one_returns_copy() {
 #[test]
 fn cross_2d_iterations_2_is_5x5_diamond() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = struct_2d(&[
         &[0, 0, 1, 0, 0],
         &[0, 1, 1, 1, 0],
@@ -40,7 +40,7 @@ fn cross_2d_iterations_2_is_5x5_diamond() {
 #[test]
 fn cross_2d_iterations_3_is_7x7_diamond() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 3);
+    let r = iterate_structure(s, 3);
     let expected = struct_2d(&[
         &[0, 0, 0, 1, 0, 0, 0],
         &[0, 0, 1, 1, 1, 0, 0],
@@ -57,7 +57,7 @@ fn cross_2d_iterations_3_is_7x7_diamond() {
 #[test]
 fn cross_2d_iterations_4_is_9x9_diamond() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 4);
+    let r = iterate_structure(s, 4);
     let expected = struct_2d(&[
         &[0, 0, 0, 0, 1, 0, 0, 0, 0],
         &[0, 0, 0, 1, 1, 1, 0, 0, 0],
@@ -77,7 +77,7 @@ fn cross_2d_iterations_4_is_9x9_diamond() {
 fn cross_2d_iterations_5_is_11x11_diamond() {
     // scipy v1.17.1 reference
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let r = iterate_structure(&s, 5);
+    let r = iterate_structure(s, 5);
     let expected = struct_2d(&[
         &[0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
         &[0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
@@ -104,7 +104,7 @@ fn cross_3d_iterations_2_is_5x5x5_diamond() {
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
         &[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]],
     ]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = struct_3d(&[
         &[
             &[0, 0, 1, 0, 0],
@@ -155,7 +155,7 @@ fn cube_3d_iterations_2_is_5x5x5_cube() {
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
     ]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = struct_3d(&[&[&[1u8; 5]; 5]; 5]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[5, 5, 5]);
@@ -168,7 +168,7 @@ fn cube_3d_iterations_3_is_7x7x7_cube() {
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
     ]);
-    let r = iterate_structure(&s, 3);
+    let r = iterate_structure(s, 3);
     let expected = struct_3d(&[&[&[1u8; 7]; 7]; 7]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[7, 7, 7]);
@@ -181,7 +181,7 @@ fn cube_3d_iterations_4_is_9x9x9_cube() {
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
     ]);
-    let r = iterate_structure(&s, 4);
+    let r = iterate_structure(s, 4);
     let expected = struct_3d(&[&[&[1u8; 9]; 9]; 9]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[9, 9, 9]);
@@ -193,7 +193,7 @@ fn cube_3d_iterations_4_is_9x9x9_cube() {
 fn asymmetric_2d_iterations_2() {
     // 2×3 structure: only top-right 2×2 block is true
     let s = struct_2d(&[&[0, 1, 1], &[0, 1, 1]]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     assert_eq!(r.shape(), &[3, 5]);
     // After stamping + 1 scipy dilation: the 2×2 block (rows 0-1,
     // columns 2-3 of the 3×5 canvas) spreads to columns 2-4 in rows
@@ -213,7 +213,7 @@ fn l_shape_3d_iterations_2() {
         &[&[0, 0, 0], &[0, 0, 0], &[0, 0, 0]],
         &[&[0, 0, 0], &[0, 0, 0], &[0, 0, 1]],
     ]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     assert_eq!(r.shape(), &[5, 5, 5]);
     // Three True voxels along the main diagonal.
     let mut exp_data = vec![false; 125];
@@ -234,7 +234,7 @@ fn line_1d_iterations_2() {
     // [F, T, F] is identity (structure center is the only true voxel),
     // so the result is the single pixel at index 2.
     let s = BoolStructure::<1>::from_data([3], vec![false, true, false]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = BoolStructure::<1>::from_data([5], vec![false, false, true, false, false]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[5]);
@@ -243,7 +243,7 @@ fn line_1d_iterations_2() {
 #[test]
 fn line_1d_iterations_3() {
     let s = BoolStructure::<1>::from_data([3], vec![false, true, false]);
-    let r = iterate_structure(&s, 3);
+    let r = iterate_structure(s, 3);
     let expected =
         BoolStructure::<1>::from_data([7], vec![false, false, false, true, false, false, false]);
     assert_eq!(r, expected);
@@ -255,7 +255,7 @@ fn line_1d_all_true_iterations_2() {
     // 1D [T, T, T] structure: full interval. Iterating grows it to
     // length 5 (1 + 1 * 2 on each side, ni=1).
     let s = BoolStructure::<1>::from_data([3], vec![true, true, true]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = BoolStructure::<1>::from_data([5], vec![true, true, true, true, true]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[5]);
@@ -265,7 +265,7 @@ fn line_1d_all_true_iterations_2() {
 fn line_1d_all_true_iterations_4() {
     // 1D [T, T, T] structure iterations=4: length 9, all True.
     let s = BoolStructure::<1>::from_data([3], vec![true, true, true]);
-    let r = iterate_structure(&s, 4);
+    let r = iterate_structure(s, 4);
     let expected = BoolStructure::<1>::from_data([9], vec![true; 9]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[9]);
@@ -278,7 +278,7 @@ fn line_1d_two_pixels_iterations_2() {
     // to a length-3 interval [T, T, T] in the centre of the length-5
     // output.
     let s = BoolStructure::<1>::from_data([3], vec![true, false, true]);
-    let r = iterate_structure(&s, 2);
+    let r = iterate_structure(s, 2);
     let expected = BoolStructure::<1>::from_data([5], vec![true, false, true, false, true]);
     assert_eq!(r, expected);
     assert_eq!(r.shape(), &[5]);
@@ -295,7 +295,7 @@ fn two_by_two_all_true_iterations_3() {
     // 1st dilation: upper-left 3x3. 2nd dilation: upper-left 2x2 (even offset
     // makes dilation asymmetric — only stamps backward).
     let s = struct_2d(&[&[1, 1], &[1, 1]]);
-    let r = iterate_structure(&s, 3);
+    let r = iterate_structure(s, 3);
     assert_eq!(r.shape(), &[4, 4]);
     let expected = struct_2d(&[&[1, 1, 0, 0], &[1, 1, 0, 0], &[0, 0, 0, 0], &[0, 0, 0, 0]]);
     assert_eq!(r, expected);
@@ -312,7 +312,7 @@ fn origin_tracking_cross_center() {
         (4, [4, 4]),
         (5, [5, 5]),
     ] {
-        let (_r, o) = iterate_structure_with_origin(&s, it, [1, 1]);
+        let (_r, o) = iterate_structure_with_origin(s.clone(), it, [1, 1]);
         assert_eq!(o, expected_origin, "iterations = {}", it);
     }
 }
@@ -320,14 +320,14 @@ fn origin_tracking_cross_center() {
 #[test]
 fn origin_tracking_zero_origin() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let (_r, o) = iterate_structure_with_origin(&s, 3, [0, 0]);
+    let (_r, o) = iterate_structure_with_origin(s, 3, [0, 0]);
     assert_eq!(o, [0, 0]);
 }
 
 #[test]
 fn origin_tracking_iterations_below_2() {
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let (_r, o) = iterate_structure_with_origin(&s, 1, [1, 1]);
+    let (_r, o) = iterate_structure_with_origin(s, 1, [1, 1]);
     // scipy still scales: new_origin = iterations * origin = 1 * [1, 1]
     assert_eq!(o, [1, 1]);
 }
@@ -339,7 +339,7 @@ fn origin_tracking_3d_cross_center() {
         &[&[1, 1, 1], &[1, 1, 1], &[1, 1, 1]],
         &[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]],
     ]);
-    let (_r, o) = iterate_structure_with_origin(&s, 2, [1, 1, 1]);
+    let (_r, o) = iterate_structure_with_origin(s, 2, [1, 1, 1]);
     assert_eq!(o, [2, 2, 2]);
 }
 
@@ -348,7 +348,7 @@ fn origin_tracking_2d_zero_iter2() {
     // scipy reference: iterate_structure(cross_2d, 2, origin=(0, 0))
     // → returns (the 5x5 diamond, [0, 0])
     let s = struct_2d(&[&[0, 1, 0], &[1, 1, 1], &[0, 1, 0]]);
-    let (r, o) = iterate_structure_with_origin(&s, 2, [0, 0]);
+    let (r, o) = iterate_structure_with_origin(s, 2, [0, 0]);
     assert_eq!(o, [0, 0]);
     assert_eq!(r.shape(), &[5, 5]);
 }

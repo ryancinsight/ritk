@@ -1,15 +1,16 @@
 [package]
 name = "ritk-registration"
-version = "0.50.95"
+version = "0.52.0"
 edition = "2021"
 
 [features]
-default = ["direct-parzen"]
+default = ["direct-parzen", "serde"]
 # Use direct (sparse-loop) histogram computation for NdArray backends.
 # ~6× faster than the tensor-based path on CPU. Disable for GPU/autodiff
-# backends where the tensor matmul path is preferred, or when the
-# Parzen weight matrices must remain in the autodiff graph.
+# backends where the tensor matmul path is preferred, or when the Parzen
+# weight matrices must remain in the autodiff graph.
 direct-parzen = []
+serde = ["dep:serde"]
 
 [dependencies]
 ritk-core = { path = "../ritk-core" }
@@ -21,6 +22,7 @@ tracing = { workspace = true }
 ndarray = { workspace = true }
 nalgebra = { workspace = true }
 moirai = { workspace = true }
+serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 burn-ndarray = { workspace = true }

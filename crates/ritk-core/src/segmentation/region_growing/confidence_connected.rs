@@ -40,6 +40,7 @@
 
 use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
+use crate::spatial::VoxelIndex;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::collections::VecDeque;
 
@@ -51,7 +52,7 @@ use std::collections::VecDeque;
 /// running mean and standard deviation of the current region.
 pub struct ConfidenceConnectedFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: [usize; 3],
+    pub seed: VoxelIndex,
     /// Initial lower bound for first iteration when σ = 0.
     pub initial_lower: f32,
     /// Initial upper bound for first iteration when σ = 0.
@@ -72,13 +73,13 @@ impl ConfidenceConnectedFilter {
     ///
     /// # Panics
     /// Panics if `initial_lower > initial_upper`.
-    pub fn new(seed: [usize; 3], initial_lower: f32, initial_upper: f32) -> Self {
+    pub fn new(seed: impl Into<VoxelIndex>, initial_lower: f32, initial_upper: f32) -> Self {
         assert!(
             initial_lower <= initial_upper,
             "initial_lower {initial_lower} must be ≤ initial_upper {initial_upper}"
         );
         Self {
-            seed,
+            seed: seed.into(),
             initial_lower,
             initial_upper,
             multiplier: 2.5,
@@ -142,7 +143,7 @@ impl ConfidenceConnectedFilter {
 /// Panics if `initial_lower > initial_upper` or if `seed` is out of bounds.
 pub fn confidence_connected<B: Backend>(
     image: &Image<B, 3>,
-    seed: [usize; 3],
+    seed: impl Into<VoxelIndex>,
     initial_lower: f32,
     initial_upper: f32,
     multiplier: f32,
@@ -152,12 +153,13 @@ pub fn confidence_connected<B: Backend>(
         initial_lower <= initial_upper,
         "initial_lower {initial_lower} must be ≤ initial_upper {initial_upper}"
     );
+    let seed = seed.into();
     let shape = image.shape();
     let (nz, ny, nx) = (shape[0], shape[1], shape[2]);
     assert!(
         seed[0] < nz && seed[1] < ny && seed[2] < nx,
         "seed {:?} is out of bounds for image shape {:?}",
-        seed,
+        seed.as_array(),
         shape
     );
 
@@ -192,7 +194,7 @@ pub fn confidence_connected<B: Backend>(
 fn grow_region(
     data: &[f32],
     dims: [usize; 3],
-    seed: [usize; 3],
+    seed: VoxelIndex,
     initial_lower: f32,
     initial_upper: f32,
     multiplier: f32,
@@ -217,6 +219,8 @@ fn grow_region(
     // Track region voxels for statistics recomputation: stores flat indices.
     // Heuristic: region typically covers a small fraction of the volume.
     let mut region_voxels: Vec<usize> = Vec::with_capacity(n / 16);
+    // Buffer for collecting new voxels each iteration (hoisted to avoid per-iteration heap allocation).
+    let mut new_voxels: Vec<usize> = Vec::with_capacity(queue.capacity().min(n / 16));
 
     let seed_flat = flat(seed[0], seed[1], seed[2]);
     visited[seed_flat] = true;
@@ -255,8 +259,7 @@ fn grow_region(
         };
 
         // Collect new voxels to add this iteration.
-        // Pre-allocate to current frontier size as a reasonable estimate.
-        let mut new_voxels: Vec<usize> = Vec::with_capacity(queue.capacity().min(n / 16));
+        new_voxels.clear();
         // Process BFS queue with current interval criteria.
         let mut _frontier_processed = false;
 

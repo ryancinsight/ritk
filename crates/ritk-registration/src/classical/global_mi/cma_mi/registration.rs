@@ -9,6 +9,7 @@ use super::super::registration::GlobalMiRegistration;
 use super::super::transforms::rigid_matrix_to_homogeneous;
 use super::config::{CmaMiConfig, CmaMiResult, InitStrategy};
 use super::helpers::run_cma_level;
+use crate::types::AffineTransform;
 
 /// CMA-ES → RSGD cascade rigid registration pipeline.
 ///
@@ -260,7 +261,7 @@ impl CmaMiRegistration {
         let final_mi = -cma_result.best_f; // negate: CMA-ES minimises −MI
 
         let result = CmaMiResult {
-            matrix,
+            matrix: AffineTransform::new(matrix),
             final_mi,
             cma_generations: cma_result.generations,
             cma_stop_reason: cma_result.stop_reason,

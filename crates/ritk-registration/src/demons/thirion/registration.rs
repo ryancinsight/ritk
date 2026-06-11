@@ -3,8 +3,8 @@
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::forces::thirion_forces_into;
 use crate::deformable_field_ops::{
-    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace, warp_image_into,
-    VectorField3D, VectorFieldMut3D, VelocityField,
+    compute_gradient, compute_mse_streaming, gaussian_smooth_field_inplace_with_scratch,
+    warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -73,6 +73,8 @@ impl ThirionDemonsRegistration {
         let mut fz = vec![0.0_f32; n];
         let mut fy = vec![0.0_f32; n];
         let mut fx = vec![0.0_f32; n];
+        // Pre-hoisted scratch: reused by both smooth calls, eliminates 3×n f32 allocs per iter.
+        let mut smooth_tmp = vec![0.0_f32; n];
 
         for it in 0..self.config.max_iterations {
             iter = it + 1;
@@ -96,12 +98,13 @@ impl ThirionDemonsRegistration {
             );
 
             if self.config.sigma_fluid > 0.0 {
-                gaussian_smooth_field_inplace(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut fz,
                     &mut fy,
                     &mut fx,
                     dims,
                     self.config.sigma_fluid,
+                    &mut smooth_tmp,
                 );
             }
 
@@ -112,12 +115,13 @@ impl ThirionDemonsRegistration {
             }
 
             if self.config.sigma_diffusion > 0.0 {
-                gaussian_smooth_field_inplace(
+                gaussian_smooth_field_inplace_with_scratch(
                     &mut disp_z,
                     &mut disp_y,
                     &mut disp_x,
                     dims,
                     self.config.sigma_diffusion,
+                    &mut smooth_tmp,
                 );
             }
 

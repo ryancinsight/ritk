@@ -27,9 +27,11 @@ pub(crate) use compose::compose_fields_into;
 pub(crate) use gradient::{compute_gradient, compute_gradient_into};
 pub(crate) use integrate::{scaling_and_squaring, scaling_and_squaring_into};
 pub(crate) use normalize::normalize_forces_into;
+#[cfg(test)]
+pub(crate) use smooth::gaussian_smooth_field_inplace;
 pub(crate) use smooth::{
-    gaussian_smooth_field_inplace, gaussian_smooth_field_inplace_with_scratch,
-    gaussian_smooth_inplace, gaussian_smooth_with_scratch,
+    gaussian_smooth_field_inplace_with_scratch, gaussian_smooth_inplace,
+    gaussian_smooth_with_scratch,
 };
 pub(crate) use warp::{compute_mse_streaming, warp_image, warp_image_into};
 

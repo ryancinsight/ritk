@@ -2,6 +2,7 @@
 
 use crate::metric::{MutualInformationVariant, NormalizationMethod};
 use crate::optimizer::{HistoryPolicy, PopulationEval, StopReason};
+use crate::types::AffineTransform;
 
 use super::super::config::GlobalMiConfig;
 
@@ -185,7 +186,7 @@ impl Default for CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
-            pyramid_schedule: Vec::new(),
+            pyramid_schedule: Vec::with_capacity(4),
         }
     }
 }
@@ -226,7 +227,7 @@ impl CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
-            pyramid_schedule: Vec::new(),
+            pyramid_schedule: Vec::with_capacity(4),
         }
     }
 
@@ -258,7 +259,7 @@ impl CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
-            pyramid_schedule: Vec::new(),
+            pyramid_schedule: Vec::with_capacity(4),
         }
     }
 
@@ -377,7 +378,7 @@ impl CmaMiConfig {
 #[derive(Debug, Clone)]
 pub struct CmaMiResult {
     /// 4×4 homogeneous matrix of the final transform (row-major, f64).
-    pub matrix: [f64; 16],
+    pub matrix: AffineTransform,
 
     /// Final MI value (positive; negated from the CMA-ES loss).
     /// Reflects the CMA-ES coarse-level MI, not the full-resolution value

@@ -133,9 +133,9 @@ impl BedSeparationFilter {
         };
         let binary = binary_closing(&binary, dims, self.config.closing_radius);
         let binary = binary_opening(&binary, dims, self.config.opening_radius);
-        let mask_f32: Vec<f32> = binary.into_iter().map(|v| v as f32).collect();
+        let mask: Vec<f32> = binary.into_iter().map(|v| v as f32).collect();
 
-        Ok(rebuild(mask_f32, dims, image))
+        Ok(rebuild(mask, dims, image))
     }
 }
 

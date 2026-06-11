@@ -99,49 +99,74 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
         if D == 3 {
             // Euler angles: x (alpha), y (beta), z (gamma)
             // R = R_z(gamma) * R_y(beta) * R_x(alpha)
-            let r_data = r.into_data();
-            let r_slice = r_data
-                .as_slice::<f32>()
-                .expect("rotation tensor must be contiguous f32");
-            let alpha = r_slice[0] as f64;
-            let beta = r_slice[1] as f64;
-            let gamma = r_slice[2] as f64;
+            // Clippy single_range_in_vec_init: single-element range array is
+            // intentional — Burn `slice` requires an array of ranges.
+            #[allow(clippy::single_range_in_vec_init)]
+            let alpha = r.clone().slice([0..1]);
+            #[allow(clippy::single_range_in_vec_init)]
+            let beta = r.clone().slice([1..2]);
+            #[allow(clippy::single_range_in_vec_init)]
+            let gamma = r.clone().slice([2..3]);
 
-            let (cx, sx) = (alpha.cos(), alpha.sin());
-            let (cy, sy) = (beta.cos(), beta.sin());
-            let (cz, sz) = (gamma.cos(), gamma.sin());
+            let cx = alpha.clone().cos();
+            let sx = alpha.sin();
+            let cy = beta.clone().cos();
+            let sy = beta.sin();
+            let cz = gamma.clone().cos();
+            let sz = gamma.sin();
 
             // Row 1: R_z * R_y * R_x
-            let r11 = cz * cy;
-            let r12 = cz * sy * sx - sz * cx;
-            let r13 = cz * sy * cx + sz * sx;
+            let r11 = cz.clone() * cy.clone();
+            let r12 = cz.clone() * sy.clone() * sx.clone() - sz.clone() * cx.clone();
+            let r13 = cz.clone() * sy.clone() * cx.clone() + sz.clone() * sx.clone();
             // Row 2
-            let r21 = sz * cy;
-            let r22 = sz * sy * sx + cz * cx;
-            let r23 = sz * sy * cx - cz * sx;
+            let r21 = sz.clone() * cy.clone();
+            let r22 = sz.clone() * sy.clone() * sx.clone() + cz.clone() * cx.clone();
+            let r23 = sz.clone() * sy.clone() * cx.clone() - cz.clone() * sx.clone();
             // Row 3
-            let r31 = -sy;
-            let r32 = cy * sx;
-            let r33 = cy * cx;
+            let r31 = -sy.clone();
+            let r32 = cy.clone() * sx.clone();
+            let r33 = cy.clone() * cx.clone();
 
-            Tensor::<B, 2>::from_floats(
-                [
-                    [r11 as f32, r12 as f32, r13 as f32],
-                    [r21 as f32, r22 as f32, r23 as f32],
-                    [r31 as f32, r32 as f32, r33 as f32],
+            let row1 = Tensor::cat(
+                vec![
+                    r11.reshape([1, 1]),
+                    r12.reshape([1, 1]),
+                    r13.reshape([1, 1]),
                 ],
-                &dev,
-            )
-        } else if D == 2 {
-            let r_data = r.into_data();
-            let r_slice = r_data
-                .as_slice::<f32>()
-                .expect("rotation tensor must be contiguous f32");
-            let theta = r_slice[0] as f64;
-            let c = theta.cos() as f32;
-            let s = theta.sin() as f32;
+                1,
+            );
+            let row2 = Tensor::cat(
+                vec![
+                    r21.reshape([1, 1]),
+                    r22.reshape([1, 1]),
+                    r23.reshape([1, 1]),
+                ],
+                1,
+            );
+            let row3 = Tensor::cat(
+                vec![
+                    r31.reshape([1, 1]),
+                    r32.reshape([1, 1]),
+                    r33.reshape([1, 1]),
+                ],
+                1,
+            );
 
-            Tensor::<B, 2>::from_floats([[c, -s], [s, c]], &dev)
+            Tensor::cat(vec![row1, row2, row3], 0)
+        } else if D == 2 {
+            #[allow(clippy::single_range_in_vec_init)]
+            let theta = r.clone().slice([0..1]);
+            let c = theta.clone().cos();
+            let s = theta.sin();
+
+            let row1 = Tensor::cat(
+                vec![c.clone().reshape([1, 1]), (-s.clone()).reshape([1, 1])],
+                1,
+            );
+            let row2 = Tensor::cat(vec![s.reshape([1, 1]), c.reshape([1, 1])], 1);
+
+            Tensor::cat(vec![row1, row2], 0)
         } else if D == 1 || D == 4 {
             // For 1D and 4D, return identity rotation matrix.
             // 4D rotation optimization is not yet supported.

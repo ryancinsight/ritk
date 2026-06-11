@@ -60,15 +60,13 @@ pub struct LaplacianOfGaussianFilter {
 
 impl LaplacianOfGaussianFilter {
     /// Create a new LoG filter with the given sigma (physical units).
-    pub fn new(sigma: f64) -> Self {
-        Self {
-            sigma: GaussianSigma::new_unchecked(sigma),
-        }
+    pub fn new(sigma: GaussianSigma) -> Self {
+        Self { sigma }
     }
 
     /// Set the Gaussian sigma.
-    pub fn with_sigma(mut self, sigma: f64) -> Self {
-        self.sigma = GaussianSigma::new_unchecked(sigma);
+    pub fn with_sigma(mut self, sigma: GaussianSigma) -> Self {
+        self.sigma = sigma;
         self
     }
 
@@ -88,8 +86,7 @@ impl LaplacianOfGaussianFilter {
         let sp = *image.spacing();
 
         // Stage 1: Gaussian smoothing
-        let gauss =
-            GaussianFilter::<B>::new(vec![self.sigma.get(), self.sigma.get(), self.sigma.get()]);
+        let gauss = GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
         let smoothed = gauss.apply(image);
 
         // Stage 2: Laplacian via second-order finite differences
@@ -139,7 +136,7 @@ mod tests {
         let vals = vec![c; dims[0] * dims[1] * dims[2]];
         let img = make_image(vals, dims, [1.0, 1.0, 1.0]);
 
-        let filter = LaplacianOfGaussianFilter::new(1.5);
+        let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(1.5));
         let result = filter.apply(&img).unwrap();
         let out = extract_vals(&result);
 
@@ -199,7 +196,7 @@ mod tests {
         let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
 
         // Use a sigma close to the blob scale for maximum LoG response
-        let filter = LaplacianOfGaussianFilter::new(3.0);
+        let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(3.0));
         let result = filter.apply(&img).unwrap();
         let out = extract_vals(&result);
 
@@ -238,7 +235,7 @@ mod tests {
             .collect();
         let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
 
-        let filter = LaplacianOfGaussianFilter::new(1.5);
+        let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(1.5));
         let result = filter.apply(&img).unwrap();
         let out = extract_vals(&result);
 

@@ -59,6 +59,15 @@ pub struct MoveResult {
 
 // -- Association -----------------------------------------------------------
 
+/// Association lifecycle state, replacing `active: bool`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DicomAssociationState {
+    /// No association established yet or has been released/aborted.
+    Inactive,
+    /// Association is active (A-ASSOCIATE-AC received).
+    Active,
+}
+
 pub struct Association {
     stream: TcpStream,
     #[allow(dead_code)]
@@ -66,7 +75,7 @@ pub struct Association {
     negotiated_contexts: Vec<NegotiatedContext>,
     next_context_id: u8,
     pub remote_max_pdu_length: u32,
-    active: bool,
+    state: DicomAssociationState,
 }
 
 impl Association {
@@ -122,7 +131,7 @@ impl Association {
             negotiated_contexts: Vec::with_capacity(num_contexts),
             next_context_id: next_id,
             remote_max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
-            active: false,
+            state: DicomAssociationState::Inactive,
         };
 
         assoc.send_pdu(&rq)?;
@@ -144,7 +153,7 @@ impl Association {
                 }
                 assoc.remote_max_pdu_length =
                     ac.user_information.maximum_length.maximum_length_received;
-                assoc.active = true;
+                assoc.state = DicomAssociationState::Active;
                 Ok(assoc)
             }
             Pdu::AssociateRj(rj) => bail!(
@@ -158,7 +167,7 @@ impl Association {
     }
 
     pub fn release(mut self) -> Result<()> {
-        if !self.active {
+        if self.state != DicomAssociationState::Active {
             return Ok(());
         }
         self.send_pdu(&Pdu::ReleaseRq(ReleaseRqPdu))?;
@@ -166,18 +175,18 @@ impl Association {
             Pdu::ReleaseRp(_) => {}
             o => bail!("expected A-RELEASE-RP, got {:?}", o),
         }
-        self.active = false;
+        self.state = DicomAssociationState::Inactive;
         Ok(())
     }
 
     pub fn abort(mut self) -> Result<()> {
-        if !self.active {
+        if self.state != DicomAssociationState::Active {
             return Ok(());
         }
         let _ = self.send_pdu(&Pdu::Abort(AbortPdu {
             source: AbortSource::DicomUlServiceUser,
         }));
-        self.active = false;
+        self.state = DicomAssociationState::Inactive;
         Ok(())
     }
 
@@ -253,7 +262,7 @@ impl Association {
     }
 
     fn recv_message(&mut self) -> Result<(u8, DimseMessage)> {
-        let (mut cmd, mut data) = (Vec::with_capacity(256), Vec::new());
+        let (mut cmd, mut data) = (Vec::with_capacity(256), Vec::with_capacity(4096));
         let mut cid: u8 = 0;
         let mut cmd_last = false;
         loop {

@@ -72,7 +72,7 @@ pub fn scan_folder_for_series<P: AsRef<Path>>(folder: P) -> Result<SeriesTree> {
         .filter(|e| e.file_type().is_dir())
         .map(|e| e.path().to_path_buf())
         .collect();
-    subdirs.sort_by(|a, b| a.to_string_lossy().cmp(&b.to_string_lossy()));
+    subdirs.sort();
 
     for dir in subdirs {
         try_add(&dir, &mut entries, &mut seen_folders);
@@ -111,6 +111,6 @@ pub(super) fn sort_series_entries_deterministically(entries: &mut [SeriesEntry])
             .then_with(|| a.modality.cmp(&b.modality))
             .then_with(|| a.series_description.cmp(&b.series_description))
             .then_with(|| a.series_uid.cmp(&b.series_uid))
-            .then_with(|| a.folder.to_string_lossy().cmp(&b.folder.to_string_lossy()))
+            .then_with(|| a.folder.cmp(&b.folder))
     });
 }

@@ -64,9 +64,13 @@ pub(super) fn ensure_scalar_samples_per_pixel(
 }
 
 pub(super) fn read_slice_pixels(slice: &DicomSliceMetadata) -> Result<Vec<f32>> {
+    println!("read_slice_pixels: before parse_file_with: {:?}", slice.path);
     let obj = parse_file_with::<DicomRsBackend, _>(&slice.path)
         .with_context(|| format!("failed to open DICOM slice {:?}", slice.path))?;
-    decode_pixels_from_object(&obj, slice)
+    println!("read_slice_pixels: after parse_file_with: {:?}", slice.path);
+    let res = decode_pixels_from_object(&obj, slice);
+    println!("read_slice_pixels: after decode_pixels_from_object: {:?}", slice.path);
+    res
 }
 
 /// Decode pixels from in-memory Part-10 bytes (zero-disk path for SCP-received instances).
@@ -84,11 +88,13 @@ fn decode_pixels_from_object(
     obj: &DefaultDicomObject,
     slice: &DicomSliceMetadata,
 ) -> Result<Vec<f32>> {
+    println!("decode_pixels_from_object: start: {:?}", slice.path);
     let ts = slice
         .transfer_syntax_uid
         .as_deref()
         .map(TransferSyntaxKind::from_uid)
         .unwrap_or(TransferSyntaxKind::ImplicitVrLittleEndian);
+    println!("decode_pixels_from_object: transfer syntax: {:?}", ts);
 
     let rows = obj
         .element(Tag(0x0028, 0x0010))
@@ -107,6 +113,7 @@ fn decode_pixels_from_object(
         .trim()
         .parse::<usize>()
         .with_context(|| format!("Columns (0028,0011) invalid in {:?}", slice.path))?;
+    println!("decode_pixels_from_object: rows = {}, cols = {}", rows, cols);
 
     let samples_per_pixel = obj
         .element(Tag(0x0028, 0x0002))
@@ -117,6 +124,7 @@ fn decode_pixels_from_object(
 
     ensure_scalar_samples_per_pixel(samples_per_pixel, slice.path.display())?;
 
+    println!("decode_pixels_from_object: before decode_frame_with");
     let data = decode_frame_with::<DicomRsBackend>(
         obj,
         DecodeFrameRequest {
@@ -135,6 +143,7 @@ fn decode_pixels_from_object(
     )
     .with_context(|| format!("DICOM backend decode failed for slice {:?}", slice.path))?
     .pixels;
+    println!("decode_pixels_from_object: after decode_frame_with, pixels.len = {}", data.len());
 
     if data.is_empty() {
         bail!(

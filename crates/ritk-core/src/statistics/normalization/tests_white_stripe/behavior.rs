@@ -38,9 +38,9 @@ fn test_trimodal_t1_wm_peak_detection() {
         result.mu
     );
     assert!(
-        result.sigma < 0.1,
+        result.sigma.get() < 0.1,
         "sigma_ws must be small, got {}",
-        result.sigma
+        result.sigma.get()
     );
 }
 
@@ -57,7 +57,7 @@ fn test_normalized_white_stripe_mean_zero_std_one() {
     let norm_vals = get_values(&result.normalized);
 
     let _mu_ws = result.mu;
-    let sigma_ws = result.sigma;
+    let sigma_ws = result.sigma.get();
 
     let mut sorted_fg: Vec<f64> = data
         .iter()
@@ -169,7 +169,10 @@ fn test_default_config_non_degenerate() {
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
 
     assert!(result.stripe_size > 0, "stripe_size must be > 0");
-    assert!(result.sigma > 0.0, "sigma must be > 0 for multi-modal data");
+    assert!(
+        result.sigma.get() > 0.0,
+        "sigma must be > 0 for multi-modal data"
+    );
     assert!(result.mu > 0.0, "mu must be > 0 for positive intensities");
     assert_eq!(result.normalized.shape(), [1, 1, total]);
 }
@@ -186,9 +189,9 @@ fn test_uniform_image_sigma_near_zero() {
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
 
     assert!(
-        result.sigma < 1e-6,
+        result.sigma.get() < 1e-6,
         "uniform image sigma must be ≈ 0, got {}",
-        result.sigma
+        result.sigma.get()
     );
 
     let vals = get_values(&result.normalized);

@@ -235,7 +235,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
         &cma_config,
     );
 
-    let (tre_cma, tre_cma_max) = compute_tre(&reg_result.matrix);
+    let (tre_cma, tre_cma_max) = compute_tre(reg_result.matrix.as_array());
 
     let rot_data = final_transform.rotation().into_data();
     let rot = rot_data.as_slice::<f32>().unwrap();
@@ -306,7 +306,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
         &data.mri_data,
         data.mri_shape,
         mri_spacing_zyx,
-        &reg_result.matrix,
+        reg_result.matrix.as_array(),
     );
     let registered_norm = normalize_minmax(&registered_mri);
     let ncc_registered = ncc(&data.ct_norm, &registered_norm);

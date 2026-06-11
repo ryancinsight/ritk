@@ -1,4 +1,5 @@
 use super::*;
+use crate::filter::edge::GaussianSigma;
 use crate::spatial::{Direction, Point, Spacing};
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -103,7 +104,7 @@ fn test_step_edge_contour_expands_to_edge() {
     gac.curvature_weight = 0.0;
     gac.advection_weight = 0.0;
     gac.edge_k = 50.0;
-    gac.sigma = 0.5;
+    gac.sigma = GaussianSigma::new_unchecked(0.5);
     gac.dt = 0.05;
     gac.max_iterations = 500;
 

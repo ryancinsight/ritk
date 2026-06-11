@@ -109,11 +109,11 @@ pub fn compute_label_intensity_statistics_from_slices(
                 0.0_f64,
                 0_usize,
             ));
-            let v_f64 = intensity as f64;
+            let v = intensity as f64;
             entry.0 = entry.0.min(intensity);
             entry.1 = entry.1.max(intensity);
-            entry.2 += v_f64;
-            entry.3 += v_f64 * v_f64;
+            entry.2 += v;
+            entry.3 += v * v;
             entry.4 += 1;
             acc
         },
@@ -136,10 +136,10 @@ pub fn compute_label_intensity_statistics_from_slices(
         .into_iter()
         .map(|(label, (min, max, sum, sum_sq, count))| {
             let n = count as f64;
-            let mean_f64 = sum / n;
-            let mean = mean_f64 as f32;
+            let mean_wide = sum / n;
+            let mean = mean_wide as f32;
             // Population variance: E[X^2] - E[X]^2; .max(0.0) absorbs f64 cancellation.
-            let variance = ((sum_sq / n) - mean_f64 * mean_f64).max(0.0) as f32;
+            let variance = ((sum_sq / n) - mean_wide * mean_wide).max(0.0) as f32;
             let std = variance.sqrt();
             LabelIntensityStatistics {
                 label,

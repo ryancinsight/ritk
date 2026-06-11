@@ -14,7 +14,7 @@
 
 use burn_ndarray::NdArray;
 use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};
-use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration};
+use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
 type B = NdArray<f32>;
 
@@ -327,7 +327,7 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
         convergence_threshold: 1e-5,
     };
 
-    let result = BSplineFFDRegistration::register(&fixed, &moving, ds_dims, unit_spacing, &config)
+    let result = BSplineFFDRegistration::register(&fixed, &moving, VolumeDims(ds_dims), unit_spacing, &config)
         .expect("BSpline FFD registration must succeed on downsampled CT volume");
 
     let ncc_after = result.final_metric;

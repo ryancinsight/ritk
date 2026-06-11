@@ -168,10 +168,15 @@ pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
 /// `--sigma` controls pre-smoothing, `--low` and `--high` set the
 /// hysteresis thresholds on gradient magnitude.
 pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::edge::GaussianSigma;
     use ritk_core::filter::CannyEdgeDetector;
 
     let image = read_image(&args.input)?;
-    let detector = CannyEdgeDetector::new(args.sigma, args.low as f64, args.high as f64);
+    let detector = CannyEdgeDetector::new(
+        GaussianSigma::new_unchecked(args.sigma),
+        args.low as f64,
+        args.high as f64,
+    );
     let filtered = detector.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 
@@ -228,10 +233,11 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
 /// Computes G_σ * ∇²I by smoothing with Gaussian of standard deviation σ
 /// then computing the discrete Laplacian.
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
+    use ritk_core::filter::edge::GaussianSigma;
     use ritk_core::filter::LaplacianOfGaussianFilter;
 
     let image = read_image(&args.input)?;
-    let filter = LaplacianOfGaussianFilter::new(args.sigma);
+    let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(args.sigma));
     let filtered = filter.apply(&image)?;
     write_image_inferred(&args.output, &filtered)?;
 

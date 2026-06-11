@@ -86,7 +86,7 @@ fn test_brain_masked_registration_tre_on_rire_patient001() {
     let (_tfm_a, res_a) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0; 3], None, &config);
     let dt_a = t0.elapsed();
-    let (tre_a, tre_a_max) = compute_tre(&res_a.matrix);
+    let (tre_a, tre_a_max) = compute_tre(res_a.matrix.as_array());
     println!(
         "  Time: {:.1}s, MI: {:.6e}, TRE: {tre_a:.3} mm (max {tre_a_max:.3})",
         dt_a.as_secs_f64(),
@@ -105,7 +105,7 @@ fn test_brain_masked_registration_tre_on_rire_patient001() {
         Some(&brain_mask),
     );
     let dt_b = t1.elapsed();
-    let (tre_b, tre_b_max) = compute_tre(&res_b.matrix);
+    let (tre_b, tre_b_max) = compute_tre(res_b.matrix.as_array());
     println!(
         "  Time: {:.1}s, MI: {:.6e}, TRE: {tre_b:.3} mm (max {tre_b_max:.3})",
         dt_b.as_secs_f64(),

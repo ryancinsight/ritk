@@ -49,14 +49,14 @@ impl Pdu {
     }
 
     fn enc_assoc_rq(rq: &AssociateRqPdu) -> Vec<u8> {
-        let mut b = Vec::new();
+        let mut b = Vec::with_capacity(256);
         w16(&mut b, rq.protocol_version);
         b.push(0x00);
         b.push(0x00);
         b.extend_from_slice(&pad_ae(&rq.called_ae_title));
         b.extend_from_slice(&pad_ae(&rq.calling_ae_title));
         b.extend_from_slice(&[0u8; 32]);
-        let mut ac = Vec::new();
+        let mut ac = Vec::with_capacity(64);
         ac.extend_from_slice(rq.application_context_name.as_bytes());
         w_item(&mut b, IT_APP_CTX, &ac);
         for pc in &rq.presentation_contexts {
@@ -71,14 +71,14 @@ impl Pdu {
     }
 
     fn enc_assoc_ac(ac: &AssociateAcPdu) -> Vec<u8> {
-        let mut b = Vec::new();
+        let mut b = Vec::with_capacity(256);
         w16(&mut b, ac.protocol_version);
         b.push(0x00);
         b.push(0x00);
         b.extend_from_slice(&pad_ae(&ac.called_ae_title));
         b.extend_from_slice(&pad_ae(&ac.calling_ae_title));
         b.extend_from_slice(&[0u8; 32]);
-        let mut app = Vec::new();
+        let mut app = Vec::with_capacity(64);
         app.extend_from_slice(ac.application_context_name.as_bytes());
         w_item(&mut b, IT_APP_CTX, &app);
         for pc in &ac.presentation_contexts {
@@ -141,7 +141,7 @@ impl Pdu {
         let (ver, ca, cg) = Self::dec_assoc_hdr(p)?;
         let mut off = 68usize;
         let mut app = ArrayString::new();
-        let mut pcs = Vec::new();
+        let mut pcs = Vec::with_capacity(4);
         let mut ui = UserInformation::default();
         while off + 4 <= p.len() {
             let it = p[off];
@@ -171,7 +171,7 @@ impl Pdu {
         let (ver, ca, cg) = Self::dec_assoc_hdr(p)?;
         let mut off = 68usize;
         let mut app = ArrayString::new();
-        let mut pcs = Vec::new();
+        let mut pcs = Vec::with_capacity(4);
         let mut ui = UserInformation::default();
         while off + 4 <= p.len() {
             let it = p[off];
@@ -221,7 +221,7 @@ impl Pdu {
     }
 
     fn dec_pdata(p: &[u8]) -> Result<Self> {
-        let mut items = Vec::new();
+        let mut items = Vec::with_capacity(8);
         let mut off = 0usize;
         while off + 4 <= p.len() {
             let pl = u32::from_be_bytes([p[off], p[off + 1], p[off + 2], p[off + 3]]) as usize;

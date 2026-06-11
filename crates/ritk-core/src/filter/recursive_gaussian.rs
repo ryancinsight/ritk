@@ -40,6 +40,7 @@
 //! - van Vliet, L.J., Young, I.T., Verbeek, P.W. (1998). Recursive Gaussian
 //!   derivative filters. *Proc. 14th ICPR*, pp. 509–514.
 
+use crate::filter::edge::GaussianSigma;
 use crate::filter::ops::extract_vec;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -94,7 +95,7 @@ pub enum DerivativeOrder {
 #[derive(Debug, Clone)]
 pub struct RecursiveGaussianFilter {
     /// Standard deviation of the Gaussian in physical units (mm).
-    sigma: f64,
+    sigma: GaussianSigma,
     /// Which derivative order to approximate.
     derivative_order: DerivativeOrder,
     /// Scale normalization policy.
@@ -108,7 +109,7 @@ impl RecursiveGaussianFilter {
     /// Defaults to smoothing (order 0), no scale normalization.
     pub fn new(sigma: f64) -> Self {
         Self {
-            sigma,
+            sigma: GaussianSigma::new_unchecked(sigma),
             derivative_order: DerivativeOrder::Zero,
             scale_normalization: ScaleNormalization::Skip,
         }
@@ -141,7 +142,7 @@ impl RecursiveGaussianFilter {
 
         // Stage 1: Smooth all axes separably via the two-pass IIR
         for dim in 0..3 {
-            let pixel_sigma = self.sigma / spacing[dim];
+            let pixel_sigma = self.sigma.get() / spacing[dim];
             if pixel_sigma < 0.2 {
                 continue;
             }
@@ -168,8 +169,8 @@ impl RecursiveGaussianFilter {
         if let ScaleNormalization::Normalize = self.scale_normalization {
             let scale_factor = match self.derivative_order {
                 DerivativeOrder::Zero => 1.0,
-                DerivativeOrder::First => self.sigma,
-                DerivativeOrder::Second => self.sigma * self.sigma,
+                DerivativeOrder::First => self.sigma.get(),
+                DerivativeOrder::Second => self.sigma.get() * self.sigma.get(),
             };
             if (scale_factor - 1.0).abs() > 1e-12 {
                 let sf = scale_factor as f32;

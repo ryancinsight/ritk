@@ -25,11 +25,11 @@ pub struct PresentationContextItemAc {
 
 pub(crate) fn enc_pc_rq(pc: &PresentationContextItemRq) -> Vec<u8> {
     let mut b = vec![pc.presentation_context_id, 0x00, 0x00, 0x00];
-    let mut asb = Vec::new();
+    let mut asb = Vec::with_capacity(64);
     asb.extend_from_slice(pc.abstract_syntax_uid.as_bytes());
     w_item(&mut b, IT_ABS_SYN, &asb);
     for ts in &pc.transfer_syntax_uids {
-        let mut tsb = Vec::new();
+        let mut tsb = Vec::with_capacity(64);
         tsb.extend_from_slice(ts.as_bytes());
         w_item(&mut b, IT_XFER_SYN, &tsb);
     }
@@ -41,7 +41,7 @@ pub(crate) fn dec_pc_rq(data: &[u8]) -> Result<PresentationContextItemRq> {
     let id = r8(data, &mut o)?;
     o += 3;
     let mut asyn = ArrayString::new();
-    let mut tsyns = Vec::new();
+    let mut tsyns = Vec::with_capacity(4);
     while o + 4 <= data.len() {
         let it = data[o];
         o += 2;
@@ -62,7 +62,7 @@ pub(crate) fn dec_pc_rq(data: &[u8]) -> Result<PresentationContextItemRq> {
 
 pub(crate) fn enc_pc_ac(pc: &PresentationContextItemAc) -> Vec<u8> {
     let mut b = vec![pc.presentation_context_id, 0x00, pc.result_reason, 0x00];
-    let mut tsb = Vec::new();
+    let mut tsb = Vec::with_capacity(64);
     tsb.extend_from_slice(pc.transfer_syntax_uid.as_bytes());
     w_item(&mut b, IT_XFER_SYN, &tsb);
     b

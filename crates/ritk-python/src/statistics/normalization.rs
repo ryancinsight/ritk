@@ -208,7 +208,7 @@ pub fn white_stripe_normalize(
     Ok((
         into_py_image(result.normalized),
         result.mu,
-        result.sigma,
+        result.sigma.get(),
         result.wm_peak,
         result.stripe_size,
     ))

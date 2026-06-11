@@ -82,7 +82,7 @@ pub(super) fn receive_command_pdv(
     assoc: &mut dicom_ul::association::client::ClientAssociation<TcpStream>,
     ctx_id: u8,
 ) -> Result<Vec<u8>, NetworkingError> {
-    let mut buf = Vec::new();
+    let mut buf = Vec::with_capacity(256);
     loop {
         let pdu = assoc
             .receive()
@@ -115,7 +115,7 @@ pub(super) fn receive_data_pdv(
     assoc: &mut dicom_ul::association::client::ClientAssociation<TcpStream>,
     ctx_id: u8,
 ) -> Result<Vec<u8>, NetworkingError> {
-    let mut buf = Vec::new();
+    let mut buf = Vec::with_capacity(4096);
     loop {
         let pdu = assoc
             .receive()

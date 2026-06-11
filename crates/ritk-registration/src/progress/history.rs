@@ -12,7 +12,7 @@ impl HistoryCallback {
     /// Create a new history callback.
     pub fn new() -> Self {
         Self {
-            history: Arc::new(Mutex::new(Vec::new())),
+            history: Arc::new(Mutex::new(Vec::with_capacity(100))),
         }
     }
 

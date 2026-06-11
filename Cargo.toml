@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "crates/ritk-vtk",
+  "crates/ritk-macros",
   "crates/ritk-core",
   "crates/ritk-dicom",
   "crates/ritk-codecs",

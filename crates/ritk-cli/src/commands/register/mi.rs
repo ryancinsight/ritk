@@ -12,7 +12,8 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // GaussianFilter skips any dimension whose sigma ≤ 1e-6, so sigma=0.0
     // is a safe no-op.
     let (fixed_img, moving_img) = if args.sigma_fixed > 1e-12 {
-        let filter: GaussianFilter<Backend> = GaussianFilter::new(vec![args.sigma_fixed; 3]);
+        let filter: GaussianFilter<Backend> =
+            GaussianFilter::new(vec![GaussianSigma::new_unchecked(args.sigma_fixed); 3]);
         (filter.apply(&fixed_img), filter.apply(&moving_img))
     } else {
         (fixed_img, moving_img)
@@ -32,20 +33,15 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     let reg = ImageRegistration::with_config(config, metric);
 
     // Identity 4×4 homogeneous matrix as the initial transform.
-    let identity: [f64; 16] = [
-        1.0, 0.0, 0.0, 0.0, //
-        0.0, 1.0, 0.0, 0.0, //
-        0.0, 0.0, 1.0, 0.0, //
-        0.0, 0.0, 0.0, 1.0,
-    ];
+    let initial_transform = ritk_registration::AffineTransform::IDENTITY;
 
     // ── 5. Run registration ────────────────────────────────────────────────
     let result = match args.method.as_str() {
         "rigid-mi" => reg
-            .rigid_registration_mutual_info(&moving_arr, &fixed_arr, &identity)
+            .rigid_registration_mutual_info(&moving_arr, &fixed_arr, &initial_transform)
             .with_context(|| "rigid MI registration failed")?,
         "affine-mi" => reg
-            .affine_registration_mutual_info(&moving_arr, &fixed_arr, &identity)
+            .affine_registration_mutual_info(&moving_arr, &fixed_arr, &initial_transform)
             .with_context(|| "affine MI registration failed")?,
         _ => unreachable!("run_mi_registration called with non-MI method"),
     };
@@ -55,7 +51,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // output preserves the full-resolution signal.
     let moving_orig = super::super::read_image(&args.moving)?;
     let moving_orig_arr = image_to_array3(&moving_orig);
-    let warped_arr = spatial::apply_transform(&moving_orig_arr, &result.transform);
+    let warped_arr = spatial::apply_transform(&moving_orig_arr, result.transform.as_array());
 
     // ── 7. Convert warped array back to Image and write output ─────────────
     // Spatial metadata comes from the fixed image (the output lives in the
@@ -65,7 +61,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 
     // ── 8. Optionally write transform JSON ─────────────────────────────────
     if let Some(ref tx_path) = args.output_transform {
-        let json = serde_json::to_string_pretty(&result.transform)
+        let json = serde_json::to_string_pretty(result.transform.as_array())
             .context("Failed to serialise transform to JSON")?;
         std::fs::write(tx_path, &json)
             .with_context(|| format!("Failed to write transform to {}", tx_path.display()))?;
@@ -75,18 +71,18 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     // ── 9. Print summary ───────────────────────────────────────────────────
     let q = &result.quality;
     println!(
-        "Registered {} \u{2192} {} (method={}, iterations={}, converged={}, MI={:.6}, cost={:.6})",
+        "Registered {} \u{2192} {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
         args.moving.display(),
         args.output.display(),
         args.method,
         q.iterations,
-        q.converged,
+        q.convergence,
         q.mutual_information,
         q.final_cost,
     );
     info!(
-        "register: MI registration complete method={} iterations={} converged={} mi={} final_cost={}",
-        args.method, q.iterations, q.converged, q.mutual_information, q.final_cost
+        "register: MI registration complete method={} iterations={} converged={:?} mi={} final_cost={}",
+        args.method, q.iterations, q.convergence, q.mutual_information, q.final_cost
     );
 
     Ok(())

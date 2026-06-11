@@ -58,7 +58,7 @@ impl StoredInstance {
 
         // Build File Meta Information (group 0002) in Explicit VR Little Endian.
         // Tags are written in ascending order per PS3.5.
-        let mut meta = Vec::new();
+        let mut meta = Vec::with_capacity(256);
 
         // (0002,0000) File Meta Information Group Length — placeholder, filled below.
         // The group length value will be corrected after all meta elements are written.

@@ -18,7 +18,7 @@ use super::{py_image_to_autodiff_image, AutodiffBackend};
 /// - `"brain_default"` — Single-level CMA-ES, shrink=8, NMI, sigma0=0.7, 200 gen.
 /// - `"brain_multiscale"` — 3-level cascade [16→8→4], NMI, recommended for typical brain CT.
 /// - `"brain_multiscale_thin_slab"` — 3-level anisotropic cascade [[1,16,16]→...], NMI,
-///   recommended for RIRE-style thin CT (≤50 z-slices at ≥2 mm spacing).
+/// recommended for RIRE-style thin CT (≤50 z-slices at ≥2 mm spacing).
 /// - `"fast_exploratory"` — Single-level, shrink=16, Mattes MI, fast but coarse.
 /// - `"custom"` — Build config from individual fields below.
 ///
@@ -30,7 +30,10 @@ use super::{py_image_to_autodiff_image, AutodiffBackend};
 /// - `rotation_range_rad`: Half-range for rotation search in radians (default π/4).
 /// - `sigma0`: CMA-ES initial step size in normalised space (default 0.7).
 /// - `max_generations`: Maximum CMA-ES generations (default 200).
-/// - `use_com_init`: Use center-of-mass translation initialisation (default false).
+/// - `init_strategy`: Initialization strategy: "manual" (default) or "center_of_mass".
+///   "center_of_mass" automatically computes a pre-alignment translation from
+///   the image centers of mass (unreliable for CT↔MRI T1 cross-modal).
+///   "manual" uses the provided initial transform or identity.
 #[pyclass(name = "CmaMiOptions")]
 #[derive(Clone)]
 pub struct PyCmaMiOptions {
@@ -51,7 +54,53 @@ pub struct PyCmaMiOptions {
     #[pyo3(get, set)]
     pub max_generations: usize,
     #[pyo3(get, set)]
-    pub use_com_init: bool,
+    pub init_strategy: PyInitStrategy,
+}
+
+/// Initialization strategy for CMA-ES registration, replacing `use_com_init: bool`.
+///
+/// Eliminates boolean blindness: `init_strategy="center_of_mass"` vs
+/// `init_strategy="manual"` is self-documenting compared to `use_com_init=True/False`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PyInitStrategy {
+    /// Skip automatic pre-alignment; use the provided initial transform or identity (default).
+    #[default]
+    Manual,
+    /// Use center-of-mass of images as initial translation.
+    /// Note: unreliable for CT↔MRI T1 cross-modal registration.
+    CenterOfMass,
+}
+
+impl<'py> FromPyObject<'py> for PyInitStrategy {
+    fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
+        let s: String = ob.extract()?;
+        match s.to_lowercase().as_str() {
+            "manual" => Ok(Self::Manual),
+            "center_of_mass" | "com" => Ok(Self::CenterOfMass),
+            other => Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "Unknown init strategy '{}'. Choices: manual, center_of_mass",
+                other
+            ))),
+        }
+    }
+}
+
+impl IntoPy<PyObject> for PyInitStrategy {
+    fn into_py(self, py: Python<'_>) -> PyObject {
+        match self {
+            Self::Manual => "manual".into_py(py),
+            Self::CenterOfMass => "center_of_mass".into_py(py),
+        }
+    }
+}
+
+impl From<PyInitStrategy> for InitStrategy {
+    fn from(val: PyInitStrategy) -> Self {
+        match val {
+            PyInitStrategy::Manual => InitStrategy::Manual,
+            PyInitStrategy::CenterOfMass => InitStrategy::CenterOfMass,
+        }
+    }
 }
 
 impl Default for PyCmaMiOptions {
@@ -65,7 +114,7 @@ impl Default for PyCmaMiOptions {
             rotation_range_rad: std::f64::consts::FRAC_PI_4,
             sigma0: 0.7,
             max_generations: 200,
-            use_com_init: false,
+            init_strategy: PyInitStrategy::Manual,
         }
     }
 }
@@ -93,11 +142,7 @@ pub(crate) fn build_cma_config(opts: &PyCmaMiOptions) -> RitkResult<CmaMiConfig>
                 sampling_percentage: opts.sampling_percentage,
                 translation_range_mm: opts.translation_range_mm,
                 rotation_range_rad: opts.rotation_range_rad,
-                init_strategy: if opts.use_com_init {
-                    InitStrategy::CenterOfMass
-                } else {
-                    InitStrategy::Manual
-                },
+                init_strategy: InitStrategy::from(opts.init_strategy),
                 cma_config: ritk_registration::optimizer::CmaEsConfig {
                     sigma0: opts.sigma0,
                     max_generations: opts.max_generations,
@@ -215,7 +260,7 @@ pub fn cma_mi_register(
     });
 
     // Convert result matrix to Vec<f32>
-    let matrix_vec: Vec<f32> = matrix.iter().map(|&v| v as f32).collect();
+    let matrix_vec: Vec<f32> = matrix.0.iter().map(|&v| v as f32).collect();
 
     // Build info dict
     let info = pyo3::types::PyDict::new_bound(py);

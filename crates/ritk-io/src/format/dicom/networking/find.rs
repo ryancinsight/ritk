@@ -43,7 +43,7 @@ impl FindQuery {
     pub fn new(level: FindLevel) -> Self {
         Self {
             level,
-            keys: Vec::new(),
+            keys: Vec::with_capacity(8),
         }
     }
 
@@ -114,7 +114,7 @@ pub fn find(
         })
         .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
 
-    let mut results = Vec::new();
+    let mut results = Vec::with_capacity(8);
     loop {
         let rsp_cmd_bytes = receive_command_pdv(&mut assoc, ctx_id)?;
         let rsp = parse_command_response(&rsp_cmd_bytes)?;

@@ -177,8 +177,8 @@ enum ScpMessageResult {
 /// [`ScpMessageResult`], not as errors. Fragmented command and dataset PDVs
 /// spread across multiple P-DATA-TF PDUs are transparently reassembled.
 fn recv_dimse_message(stream: &mut TcpStream) -> Result<ScpMessageResult, NetworkingError> {
-    let mut cmd_buf: Vec<u8> = Vec::new();
-    let mut data_buf: Vec<u8> = Vec::new();
+    let mut cmd_buf: Vec<u8> = Vec::with_capacity(256);
+    let mut data_buf: Vec<u8> = Vec::with_capacity(4096);
     let mut cid: u8 = 0;
     let mut cmd_complete = false;
 

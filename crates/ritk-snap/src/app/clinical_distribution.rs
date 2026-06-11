@@ -22,6 +22,22 @@ pub(crate) struct ClinicalDistributionExportSummary {
     pub mpr_failed: usize,
 }
 
+/// DICOM metadata presence flags for clinical distribution reports.
+///
+/// Replaces 7 individual `bool` fields in `ClinicalDistributionSummary`,
+/// eliminating boolean blindness at construction and call sites.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct DcmPresenceFlags {
+    pub patient_name: bool,
+    pub patient_id: bool,
+    pub study_date: bool,
+    pub series_description: bool,
+    pub source: bool,
+    pub segmentation: bool,
+    pub rt_struct: bool,
+    pub rt_dose: bool,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ClinicalDistributionSummary<'a> {
     pub modality: Option<&'a str>,
@@ -37,14 +53,7 @@ pub(crate) struct ClinicalDistributionSummary<'a> {
     pub colormap_label: &'a str,
     pub active_tool_label: &'a str,
     pub annotation_count: usize,
-    pub patient_name_present: bool,
-    pub patient_id_present: bool,
-    pub study_date_present: bool,
-    pub series_description_present: bool,
-    pub source_present: bool,
-    pub segmentation_present: bool,
-    pub rt_struct_present: bool,
-    pub rt_dose_present: bool,
+    pub presence: DcmPresenceFlags,
 }
 
 pub(crate) fn distribution_root(base: &Path) -> PathBuf {
@@ -170,22 +179,22 @@ pub(crate) fn build_clinical_distribution_report(
     writeln!(&mut report).unwrap();
 
     writeln!(&mut report, "## Protected identifiers").unwrap();
-    write_redacted_line(&mut report, "Patient name", summary.patient_name_present);
-    write_redacted_line(&mut report, "Patient ID", summary.patient_id_present);
-    write_redacted_line(&mut report, "Study date", summary.study_date_present);
+    write_redacted_line(&mut report, "Patient name", summary.presence.patient_name);
+    write_redacted_line(&mut report, "Patient ID", summary.presence.patient_id);
+    write_redacted_line(&mut report, "Study date", summary.presence.study_date);
     write_redacted_line(
         &mut report,
         "Series description",
-        summary.series_description_present,
+        summary.presence.series_description,
     );
-    write_redacted_line(&mut report, "Source path", summary.source_present);
+    write_redacted_line(&mut report, "Source path", summary.presence.source);
     writeln!(&mut report).unwrap();
 
     writeln!(&mut report, "## Associated overlays").unwrap();
     writeln!(
         &mut report,
         "- Segmentation: {}",
-        if summary.segmentation_present {
+        if summary.presence.segmentation {
             "present"
         } else {
             "absent"
@@ -195,7 +204,7 @@ pub(crate) fn build_clinical_distribution_report(
     writeln!(
         &mut report,
         "- RT-STRUCT overlay: {}",
-        if summary.rt_struct_present {
+        if summary.presence.rt_struct {
             "present"
         } else {
             "absent"
@@ -205,7 +214,7 @@ pub(crate) fn build_clinical_distribution_report(
     writeln!(
         &mut report,
         "- RT-DOSE overlay: {}",
-        if summary.rt_dose_present {
+        if summary.presence.rt_dose {
             "present"
         } else {
             "absent"
@@ -265,14 +274,16 @@ pub(crate) fn summary_from_loaded_volume<'a>(
         colormap_label: colormap.label(),
         active_tool_label: active_tool.label(),
         annotation_count,
-        patient_name_present: volume.patient_name.is_some(),
-        patient_id_present: volume.patient_id.is_some(),
-        study_date_present: volume.study_date.is_some(),
-        series_description_present: volume.series_description.is_some(),
-        source_present: volume.source.is_some(),
-        segmentation_present,
-        rt_struct_present,
-        rt_dose_present,
+        presence: DcmPresenceFlags {
+            patient_name: volume.patient_name.is_some(),
+            patient_id: volume.patient_id.is_some(),
+            study_date: volume.study_date.is_some(),
+            series_description: volume.series_description.is_some(),
+            source: volume.source.is_some(),
+            segmentation: segmentation_present,
+            rt_struct: rt_struct_present,
+            rt_dose: rt_dose_present,
+        },
     }
 }
 

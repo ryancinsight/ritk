@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
-    compose_fields_into, compute_gradient_into, gaussian_smooth_field_inplace,
+    compose_fields_into, compute_gradient_into, gaussian_smooth_field_inplace_with_scratch,
     normalize_forces_into, scaling_and_squaring, scaling_and_squaring_into, warp_image,
     warp_image_into, VectorField3D, VectorFieldMut3D, VelocityField,
 };
@@ -159,6 +159,8 @@ impl super::MultiResSyNRegistration {
             let mut scratch_ss_z = vec![0.0_f32; ln];
             let mut scratch_ss_y = vec![0.0_f32; ln];
             let mut scratch_ss_x = vec![0.0_f32; ln];
+            // Pre-hoisted smooth scratch: reused across all inner iterations, eliminates 3×ln allocs per iter.
+            let mut smooth_tmp = vec![0.0_f32; ln];
 
             for _ in 0..self.config.iterations_per_level[level] {
                 total_iter += 1;
@@ -218,19 +220,21 @@ impl super::MultiResSyNRegistration {
                     v2x[i] += u2x[i];
                 }
                 if self.config.sigma_smooth > 0.0 {
-                    gaussian_smooth_field_inplace(
+                    gaussian_smooth_field_inplace_with_scratch(
                         &mut v1z,
                         &mut v1y,
                         &mut v1x,
                         ld,
                         self.config.sigma_smooth,
+                        &mut smooth_tmp,
                     );
-                    gaussian_smooth_field_inplace(
+                    gaussian_smooth_field_inplace_with_scratch(
                         &mut v2z,
                         &mut v2y,
                         &mut v2x,
                         ld,
                         self.config.sigma_smooth,
+                        &mut smooth_tmp,
                     );
                 }
                 if self.config.enforce_inverse_consistency == InverseConsistency::Enforced {

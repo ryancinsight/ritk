@@ -36,6 +36,7 @@
 
 pub mod basis;
 mod config;
+mod ctrl_dims;
 mod metric;
 mod pyramid;
 mod registration;
@@ -47,6 +48,7 @@ mod warp;
 mod tests;
 
 pub use config::{BSplineFFDConfig, BSplineFFDResult};
+pub use ctrl_dims::ControlGridDims;
 pub use registration::BSplineFFDRegistration;
 pub use regularization::bending_energy;
 pub use volume_dims::VolumeDims;

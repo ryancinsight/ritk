@@ -47,6 +47,7 @@
 //! - `stripe_size` in the result is always > 0 for valid inputs with at least one
 //!   foreground voxel.
 
+use crate::filter::edge::GaussianSigma;
 use crate::filter::ops::{extract_vec_infallible, rebuild};
 use crate::image::Image;
 use burn::tensor::backend::Backend;
@@ -114,7 +115,9 @@ pub struct WhiteStripeResult<B: Backend> {
     /// White stripe mean (μ_ws).
     pub mu: f64,
     /// White stripe standard deviation (σ_ws), population std.
-    pub sigma: f64,
+    ///
+    /// Guaranteed > 0 by construction (var_ws + ε under sqrt).
+    pub sigma: GaussianSigma,
     /// Detected white matter peak intensity.
     pub wm_peak: f64,
     /// Number of voxels in the white stripe.
@@ -261,7 +264,8 @@ impl WhiteStripeNormalizer {
         WhiteStripeResult {
             normalized,
             mu: mu_ws,
-            sigma: sigma_ws,
+            sigma: GaussianSigma::new(sigma_ws)
+                .unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9)),
             wm_peak,
             stripe_size,
         }

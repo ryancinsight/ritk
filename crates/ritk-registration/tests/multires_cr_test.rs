@@ -12,6 +12,7 @@ type B = Autodiff<NdArray<f32>>;
 
 #[test]
 fn test_multires_cr_registration() {
+    let _ = tracing_subscriber::fmt::try_init();
     let device = Default::default();
 
     // 1. Create larger 3D images (40x40x40)

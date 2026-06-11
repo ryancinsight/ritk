@@ -1,5 +1,7 @@
 //! LDDMM configuration and result types.
 
+use ritk_core::filter::GaussianSigma;
+
 /// Parameters for LDDMM registration.
 #[derive(Debug, Clone)]
 pub struct LddmmConfig {
@@ -7,8 +9,8 @@ pub struct LddmmConfig {
     pub max_iterations: usize,
     /// Number of Euler steps for geodesic integration (N\_t).
     pub num_time_steps: usize,
-    /// Standard deviation (voxels) of Gaussian kernel K\_σ for the Sobolev norm.
-    pub kernel_sigma: f64,
+    /// Standard deviation (voxels) of Gaussian kernel K_σ for the Sobolev norm.
+    pub kernel_sigma: GaussianSigma,
     /// Gradient-descent step size.
     pub learning_rate: f64,
     /// Weight λ on the regularisation term ‖v₀‖²\_V.
@@ -22,7 +24,7 @@ impl Default for LddmmConfig {
         Self {
             max_iterations: 50,
             num_time_steps: 10,
-            kernel_sigma: 2.0,
+            kernel_sigma: GaussianSigma::new_unchecked(2.0),
             learning_rate: 0.1,
             regularization_weight: 1.0,
             convergence_threshold: 1e-5,

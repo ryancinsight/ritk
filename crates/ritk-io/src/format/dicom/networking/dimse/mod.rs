@@ -191,7 +191,7 @@ impl DimseMessage {
     /// Decode a command set from Explicit VR Little Endian bytes.
     /// Returns `DimseMessage` with `data_set` = None (caller attaches data set).
     pub fn decode_command_set(data: &[u8]) -> Result<Self> {
-        let mut elements = Vec::new();
+        let mut elements = Vec::with_capacity(16);
         let mut cursor = 0usize;
 
         while cursor + 6 <= data.len() {

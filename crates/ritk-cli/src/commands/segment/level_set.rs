@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use ritk_core::filter::edge::GaussianSigma;
 use tracing::info;
 
 use ritk_core::segmentation::{ChanVeseSegmentation, LaplacianLevelSet};
@@ -25,7 +26,7 @@ pub(super) fn run_shape_detection(args: &SegmentArgs) -> Result<()> {
     seg.propagation_weight = args.propagation_weight as f64;
     seg.advection_weight = args.advection_weight as f64;
     seg.edge_k = args.edge_k as f64;
-    seg.sigma = args.sigma as f64;
+    seg.sigma = GaussianSigma::new_unchecked(args.sigma as f64);
     seg.dt = args.dt as f64;
     seg.max_iterations = args.level_set_max_iterations;
     seg.tolerance = args.tolerance as f64;
@@ -123,7 +124,7 @@ pub(super) fn run_laplacian_level_set(args: &SegmentArgs) -> Result<()> {
     let mut seg = LaplacianLevelSet::new();
     seg.propagation_weight = args.propagation_weight as f64;
     seg.curvature_weight = args.curvature_weight as f64;
-    seg.sigma = args.sigma as f64;
+    seg.sigma = GaussianSigma::new_unchecked(args.sigma as f64);
     seg.dt = args.dt as f64;
     seg.max_iterations = args.level_set_max_iterations;
     seg.tolerance = args.tolerance as f64;
@@ -192,7 +193,7 @@ pub(super) fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
     seg.curvature_weight = args.curvature_weight as f64;
     seg.advection_weight = args.advection_weight as f64;
     seg.edge_k = args.edge_k as f64;
-    seg.sigma = args.sigma as f64;
+    seg.sigma = GaussianSigma::new_unchecked(args.sigma as f64);
     seg.dt = args.dt as f64;
     seg.max_iterations = args.level_set_max_iterations;
     seg.tolerance = args.tolerance as f64;

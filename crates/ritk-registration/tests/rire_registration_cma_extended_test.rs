@@ -83,7 +83,7 @@ fn test_cma_mi_multiscale_on_rire_patient001() {
 
     let (final_transform, result) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
-    let (tre_final, tre_max) = compute_tre(&result.matrix);
+    let (tre_final, tre_max) = compute_tre(result.matrix.as_array());
 
     let rot_data = final_transform.rotation().into_data();
     let rot = rot_data.as_slice::<f32>().unwrap();
@@ -223,7 +223,7 @@ fn test_cma_mi_thin_slab_multiscale_on_rire_patient001() {
 
     let (final_transform, result) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
-    let (tre_final, tre_max) = compute_tre(&result.matrix);
+    let (tre_final, tre_max) = compute_tre(result.matrix.as_array());
 
     let rot_data = final_transform.rotation().into_data();
     let rot = rot_data.as_slice::<f32>().unwrap();

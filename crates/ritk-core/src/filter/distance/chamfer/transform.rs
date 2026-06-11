@@ -1,6 +1,7 @@
 //! Image-binding filter struct (see [`ChamferDistanceTransform`]).
 
 use super::kernel::{cdt_3d_dispatch, ChamferMetric, INF};
+use crate::filter::ops::extract_vec_infallible;
 use crate::image::Image;
 use burn::tensor::backend::Backend;
 use burn::tensor::{Shape, Tensor, TensorData};
@@ -86,11 +87,7 @@ impl ChamferDistanceTransform {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
-        let td = image.data().clone().into_data();
-        let vals: Vec<f32> = td
-            .into_vec::<f32>()
-            .map_err(|e| anyhow::anyhow!("ChamferDistanceTransform requires f32 data: {:?}", e))?;
-
+        let (vals, _shape) = extract_vec_infallible(image);
         let fg: Vec<bool> = vals.iter().map(|&v| v > self.threshold).collect();
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
@@ -104,14 +101,14 @@ impl ChamferDistanceTransform {
 
         let result = cdt_3d_dispatch(&fg, dims, weights, self.metric);
 
-        let s_min_f = s_min as f32;
-        let result_f32: Vec<f32> = result
+        let scale = s_min as f32;
+        let scaled: Vec<f32> = result
             .iter()
-            .map(|&v| if v == INF { -1.0 } else { v as f32 * s_min_f })
+            .map(|&v| if v == INF { -1.0 } else { v as f32 * scale })
             .collect();
 
         let device = image.data().device();
-        let td_out = TensorData::new(result_f32, Shape::new([nz, ny, nx]));
+        let td_out = TensorData::new(scaled, Shape::new([nz, ny, nx]));
         let tensor = Tensor::<B, 3>::from_data(td_out, &device);
         Ok(Image::new(
             tensor,

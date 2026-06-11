@@ -10,6 +10,18 @@ use burn::optim::GradientsParams;
 use burn::tensor::backend::AutodiffBackend;
 use std::marker::PhantomData;
 
+// ─── Convergence State ───────────────────────────────────────────────────────
+
+/// Internal convergence state for the regular step gradient descent optimizer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ConvergenceFlag {
+    /// Optimizer is still iterating.
+    #[default]
+    Iterating,
+    /// Convergence criterion was satisfied.
+    Converged,
+}
+
 /// Regular Step Gradient Descent optimizer (ITK `RegularStepGradientDescentOptimizerv4`).
 ///
 /// Steps in the negative normalized-gradient direction with a step length
@@ -31,7 +43,7 @@ pub struct RegularStepGradientDescent<M: AutodiffModule<B>, B: AutodiffBackend> 
     /// Number of accepted (non-reverted) optimization steps.
     steps: usize,
     /// Whether the optimizer has converged.
-    converged: bool,
+    convergence: ConvergenceFlag,
     /// Why the optimizer converged, if it has.
     convergence_reason: Option<ConvergenceReason>,
     _phantom: PhantomData<(M, B)>,
@@ -50,7 +62,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> RegularStepGradientDescent<M, B> 
             current_loss: None,
             prev_loss: None,
             steps: 0,
-            converged: false,
+            convergence: ConvergenceFlag::default(),
             convergence_reason: None,
             _phantom: PhantomData,
         }
@@ -72,7 +84,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> RegularStepGradientDescent<M, B> 
 
     /// Whether the optimizer has converged.
     pub fn converged(&self) -> bool {
-        self.converged
+        self.convergence == ConvergenceFlag::Converged
     }
 
     /// The convergence reason, if the optimizer has converged.
@@ -110,14 +122,14 @@ where
     B: AutodiffBackend,
 {
     fn step(&mut self, module: M, mut gradients: GradientsParams) -> M {
-        if self.converged {
+        if self.convergence == ConvergenceFlag::Converged {
             return module;
         }
 
         let grad_norm = Self::compute_gradient_norm(&module, &gradients);
 
         if grad_norm < self.config.gradient_tolerance {
-            self.converged = true;
+            self.convergence = ConvergenceFlag::Converged;
             self.convergence_reason = Some(ConvergenceReason::GradientConvergence);
             tracing::info!(
                 "RSGD: gradient convergence (‖g‖ = {:.2e} < tol = {:.2e})",
@@ -152,7 +164,7 @@ where
             );
 
             if self.current_step_length < self.config.minimum_step_length {
-                self.converged = true;
+                self.convergence = ConvergenceFlag::Converged;
                 self.convergence_reason = Some(ConvergenceReason::StepConvergence);
                 tracing::info!(
                     "RSGD: step convergence (Δ = {:.2e} < min = {:.2e})",
@@ -174,7 +186,7 @@ where
             );
 
             if self.steps >= self.config.maximum_iterations {
-                self.converged = true;
+                self.convergence = ConvergenceFlag::Converged;
                 self.convergence_reason = Some(ConvergenceReason::MaximumIterations);
                 tracing::info!(
                     "RSGD: maximum iterations reached ({})",

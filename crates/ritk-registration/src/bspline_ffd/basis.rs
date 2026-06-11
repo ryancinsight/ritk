@@ -22,6 +22,7 @@
 //! and skips all bounds checks, eliminating ~1B branch instructions for a
 //! 256³ volume.
 
+use super::volume_dims::VolumeDims;
 use crate::deformable_field_ops::{flat, VelocityField};
 
 /// Evaluate the four cubic B-spline basis values at parameter `t ∈ [0, 1]`.
@@ -93,11 +94,12 @@ pub struct BasisCache {
 
 impl BasisCache {
     /// Build the basis cache for the given image dimensions and control spacing.
-    pub fn new(dims: [usize; 3], ctrl_spacing: &[f64; 3]) -> Self {
+    pub fn new(dims: VolumeDims, ctrl_spacing: &[f64; 3]) -> Self {
+        let [nz, ny, nx] = dims.as_array();
         Self {
-            z: AxisBasis::new(dims[0], ctrl_spacing[0]),
-            y: AxisBasis::new(dims[1], ctrl_spacing[1]),
-            x: AxisBasis::new(dims[2], ctrl_spacing[2]),
+            z: AxisBasis::new(nz, ctrl_spacing[0]),
+            y: AxisBasis::new(ny, ctrl_spacing[1]),
+            x: AxisBasis::new(nx, ctrl_spacing[2]),
         }
     }
 
@@ -156,10 +158,11 @@ impl BasisCache {
 /// The `+3` accounts for one point before the domain origin and two points
 /// after the far boundary, providing the four-point support stencil at every
 /// image voxel.
-pub fn init_control_grid(dims: [usize; 3], ctrl_spacing: &[f64; 3]) -> [usize; 3] {
+pub fn init_control_grid(dims: VolumeDims, ctrl_spacing: &[f64; 3]) -> [usize; 3] {
+    let d = dims.as_array();
     let mut ctrl_dims = [0usize; 3];
-    for d in 0..3 {
-        ctrl_dims[d] = (dims[d] as f64 / ctrl_spacing[d]).ceil() as usize + 3;
+    for axis in 0..3 {
+        ctrl_dims[axis] = (d[axis] as f64 / ctrl_spacing[axis]).ceil() as usize + 3;
     }
     ctrl_dims
 }
@@ -179,10 +182,10 @@ pub(super) fn evaluate_bspline_displacement(
     cp_x: &[f32],
     ctrl_dims: &[usize; 3],
     ctrl_spacing: &[f64; 3],
-    dims: [usize; 3],
+    dims: VolumeDims,
 ) -> VelocityField {
     let cache = BasisCache::new(dims, ctrl_spacing);
-    evaluate_bspline_displacement_fast(cp_z, cp_y, cp_x, ctrl_dims, dims, &cache)
+    evaluate_bspline_displacement_fast(cp_z, cp_y, cp_x, ctrl_dims, dims.as_array(), &cache)
 }
 
 /// Evaluate the dense displacement field using a pre-computed [`BasisCache`].
@@ -215,7 +218,7 @@ pub fn evaluate_bspline_displacement_fast(
     let mut dy = vec![0.0_f32; n];
     let mut dx = vec![0.0_f32; n];
     evaluate_bspline_displacement_fast_into(
-        cp_z, cp_y, cp_x, ctrl_dims, dims, cache, &mut dz, &mut dy, &mut dx,
+        cp_z, cp_y, cp_x, ctrl_dims, VolumeDims(dims), cache, &mut dz, &mut dy, &mut dx,
     );
     VelocityField {
         z: dz,
@@ -239,13 +242,13 @@ pub fn evaluate_bspline_displacement_fast_into(
     cp_y: &[f32],
     cp_x: &[f32],
     ctrl_dims: &[usize; 3],
-    dims: [usize; 3],
+    dims: VolumeDims,
     cache: &BasisCache,
     dz: &mut [f32],
     dy: &mut [f32],
     dx: &mut [f32],
 ) {
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.as_array();
     let n = nz * ny * nx;
     let [cnz, cny, cnx] = *ctrl_dims;
 

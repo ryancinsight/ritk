@@ -15,7 +15,8 @@ use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_dicom::TransferSyntaxKind;
 
 use super::geometry::{
-    analyze_slice_spacing, dot_3d, resample_frames_linear, slice_normal_from_iop,
+    analyze_slice_spacing, dot_3d, resample_frames_linear, slice_normal_from_iop, SliceCoverage,
+    SpacingUniformity,
 };
 use super::pixel::{read_slice_pixels, read_slice_pixels_from_bytes};
 use super::scan::scan_dicom_directory;
@@ -56,6 +57,7 @@ pub(crate) fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
     device: &B::Device,
 ) -> Result<(Image<B, 3>, DicomReadMetadata)> {
+    println!("load_from_series: entering function");
     let mut metadata = series.metadata;
     let slices = std::mem::take(&mut metadata.slices);
 
@@ -121,7 +123,7 @@ pub(crate) fn load_from_series<B: Backend>(
                 .map(|p| p.expect("all slice positions verified non-None above"))
                 .collect();
             let report = analyze_slice_spacing(&positions);
-            if report.is_nonuniform {
+            if report.spacing_uniformity == SpacingUniformity::Nonuniform {
                 tracing::warn!(
                     max_relative_deviation = report.max_relative_deviation,
                     nominal_spacing_mm = report.nominal_spacing,
@@ -133,7 +135,7 @@ pub(crate) fn load_from_series<B: Backend>(
                     report.nominal_spacing,
                 );
             }
-            if report.has_missing_slices {
+            if report.slice_coverage == SliceCoverage::HasMissingSlices {
                 tracing::warn!(
                     missing_between = ?report.missing_between,
                     nominal_spacing_mm = report.nominal_spacing,
@@ -145,7 +147,8 @@ pub(crate) fn load_from_series<B: Backend>(
                 );
             }
             (
-                report.is_nonuniform || report.has_missing_slices,
+                report.spacing_uniformity == SpacingUniformity::Nonuniform
+                    || report.slice_coverage == SliceCoverage::HasMissingSlices,
                 report.nominal_spacing,
                 Some(positions),
             )
@@ -157,14 +160,18 @@ pub(crate) fn load_from_series<B: Backend>(
     };
 
     let frame_len = rows * cols;
+    println!("load_from_series: needs_resample = {}", needs_resample);
     let (volume, final_depth) = if needs_resample {
+        println!("load_from_series: entering resample branch, slices.len() = {}", slices.len());
         // Irregular z-spacing: decode to frame vectors then resample to uniform grid.
         #[cfg(not(target_arch = "wasm32"))]
         let decoded: Vec<Vec<f32>> = {
+            println!("load_from_series: before resample parallel map_collect");
             use moirai::ParallelSlice;
             let decoded: Result<Vec<Vec<f32>>, anyhow::Error> = slices
                 .par()
                 .map_collect(|slice| {
+                    println!("load_from_series: mapping resample slice {:?}", slice.path);
                     let data = if let Some(ref bytes) = slice.part10_bytes {
                         read_slice_pixels_from_bytes(bytes, slice)
                     } else {
@@ -219,15 +226,18 @@ pub(crate) fn load_from_series<B: Backend>(
         }
         (volume, new_depth)
     } else {
+        println!("load_from_series: entering direct-decode branch");
         // Uniform z-spacing: decode directly into a preallocated contiguous volume.
         let mut volume = vec![0f32; frame_len * depth];
 
         #[cfg(not(target_arch = "wasm32"))]
         {
+            println!("load_from_series: before direct parallel map_collect, slices.len() = {}", slices.len());
             use moirai::ParallelSlice;
             // Decode slices in parallel (fallible), then write into the volume
             // sequentially (cheap memcpy) so the first decode error propagates.
             let decoded: Vec<Result<Vec<f32>>> = slices.par().map_collect(|slice| {
+                println!("load_from_series: mapping direct slice {:?}", slice.path);
                 let data = if let Some(ref bytes) = slice.part10_bytes {
                     read_slice_pixels_from_bytes(bytes, slice)
                 } else {
@@ -288,5 +298,6 @@ pub(crate) fn load_from_series<B: Backend>(
         Direction(SMatrix::<f64, 3, 3>::from_column_slice(&metadata.direction)),
     );
 
+    metadata.slices = slices;
     Ok((image, metadata))
 }

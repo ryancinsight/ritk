@@ -68,6 +68,7 @@
 //!   *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 16(6), 641-647.
 
 use crate::image::Image;
+use crate::spatial::VoxelIndex;
 use burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use std::collections::VecDeque;
 
@@ -82,7 +83,7 @@ use std::collections::VecDeque;
 /// by requiring local neighborhood consistency before voxel inclusion.
 pub struct NeighborhoodConnectedFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: [usize; 3],
+    pub seed: VoxelIndex,
     /// Inclusive lower intensity bound.
     pub lower: f32,
     /// Inclusive upper intensity bound.
@@ -99,13 +100,13 @@ impl NeighborhoodConnectedFilter {
     ///
     /// # Panics
     /// Panics if `lower > upper`.
-    pub fn new(seed: [usize; 3], lower: f32, upper: f32) -> Self {
+    pub fn new(seed: impl Into<VoxelIndex>, lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
             "lower bound {lower} must be ≤ upper bound {upper}"
         );
         Self {
-            seed,
+            seed: seed.into(),
             lower,
             upper,
             radius: [1, 1, 1],
@@ -154,7 +155,7 @@ impl NeighborhoodConnectedFilter {
 /// Panics if `lower > upper` or if `seed` is out of bounds for `image`.
 pub fn neighborhood_connected<B: Backend>(
     image: &Image<B, 3>,
-    seed: [usize; 3],
+    seed: impl Into<VoxelIndex>,
     lower: f32,
     upper: f32,
     radius: [usize; 3],
@@ -164,13 +165,14 @@ pub fn neighborhood_connected<B: Backend>(
         "lower bound {lower} must be ≤ upper bound {upper}"
     );
 
+    let seed = seed.into();
     let shape = image.shape();
     let (nz, ny, nx) = (shape[0], shape[1], shape[2]);
 
     assert!(
         seed[0] < nz && seed[1] < ny && seed[2] < nx,
         "seed {:?} is out of bounds for image shape {:?}",
-        seed,
+        seed.as_array(),
         shape
     );
 
@@ -242,7 +244,7 @@ fn is_neighborhood_admissible(
 fn grow_neighborhood(
     data: &[f32],
     dims: [usize; 3],
-    seed: [usize; 3],
+    seed: VoxelIndex,
     lower: f32,
     upper: f32,
     radius: [usize; 3],
@@ -253,7 +255,7 @@ fn grow_neighborhood(
     let flat = |z: usize, y: usize, x: usize| z * ny * nx + y * nx + x;
 
     // Check seed neighborhood admissibility.
-    if !is_neighborhood_admissible(data, dims, seed, lower, upper, radius) {
+    if !is_neighborhood_admissible(data, dims, seed.into(), lower, upper, radius) {
         return vec![0.0_f32; n];
     }
 

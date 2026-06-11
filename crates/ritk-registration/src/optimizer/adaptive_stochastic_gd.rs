@@ -42,6 +42,18 @@ use burn::tensor::backend::AutodiffBackend;
 use burn::tensor::{ElementConversion, Tensor};
 use std::marker::PhantomData;
 
+// ─── Convergence State ───────────────────────────────────────────────────────
+
+/// Internal convergence state for the adaptive step-size gradient descent optimizer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum ConvergenceFlag {
+    /// Optimizer is still iterating.
+    #[default]
+    Iterating,
+    /// Convergence criterion was satisfied.
+    Converged,
+}
+
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 /// Configuration for [`AdaptiveStochasticGradientDescent`].
@@ -220,10 +232,10 @@ pub struct AdaptiveStochasticGradientDescent<M: AutodiffModule<B>, B: AutodiffBa
     /// Number of steps taken.
     steps: usize,
     /// Whether the optimizer has converged.
-    converged: bool,
+    convergence: ConvergenceFlag,
     /// Why the optimizer converged, if it has.
     convergence_reason: Option<ConvergenceReason>,
-    _phantom: PhantomData<(M, B)>,
+    _phantom: PhantomData<fn() -> (M, B)>,
 }
 
 impl<M: AutodiffModule<B>, B: AutodiffBackend> AdaptiveStochasticGradientDescent<M, B> {
@@ -236,7 +248,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> AdaptiveStochasticGradientDescent
             t_k: 0.0,
             prev_grad: None,
             steps: 0,
-            converged: false,
+            convergence: ConvergenceFlag::default(),
             convergence_reason: None,
             _phantom: PhantomData,
         }
@@ -249,7 +261,7 @@ impl<M: AutodiffModule<B>, B: AutodiffBackend> AdaptiveStochasticGradientDescent
 
     /// Whether the optimizer has converged.
     pub fn converged(&self) -> bool {
-        self.converged
+        self.convergence == ConvergenceFlag::Converged
     }
 
     /// The convergence reason, if the optimizer has converged.
@@ -274,7 +286,7 @@ where
     B: AutodiffBackend,
 {
     fn step(&mut self, module: M, mut gradients: GradientsParams) -> M {
-        if self.converged {
+        if self.convergence == ConvergenceFlag::Converged {
             return module;
         }
 
@@ -285,7 +297,7 @@ where
 
         // ── 2. Gradient convergence check ──────────────────────────────
         if grad_norm < self.config.gradient_tolerance {
-            self.converged = true;
+            self.convergence = ConvergenceFlag::Converged;
             self.convergence_reason = Some(ConvergenceReason::GradientConvergence);
             tracing::info!(
                 "ASGD: gradient convergence (‖g‖ = {:.2e} < tol = {:.2e})",
@@ -301,7 +313,7 @@ where
         // ── 4. Apply step ──────────────────────────────────────────────
         let new_module = {
             let mut mapper = AsgdStepMapper::<B>::new(&mut gradients, a_tk);
-            module.clone().map(&mut mapper)
+            module.map(&mut mapper)
         };
 
         // ── 5. Compute dot product and update t_k ──────────────────────
@@ -340,7 +352,7 @@ where
         self.steps += 1;
 
         if self.steps >= self.config.maximum_iterations {
-            self.converged = true;
+            self.convergence = ConvergenceFlag::Converged;
             self.convergence_reason = Some(ConvergenceReason::MaximumIterations);
             tracing::info!(
                 "ASGD: maximum iterations reached ({})",

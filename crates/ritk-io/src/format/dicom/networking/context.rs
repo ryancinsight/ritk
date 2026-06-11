@@ -59,7 +59,7 @@ impl Default for AssociationConfig {
             port: 104,
             max_pdu_length: DEFAULT_MAXIMUM_LENGTH,
             timeout: Duration::from_secs(30),
-            presentation_contexts: Vec::new(),
+            presentation_contexts: Vec::with_capacity(32),
             user_identity: None,
         }
     }

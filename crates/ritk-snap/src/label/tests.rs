@@ -1,5 +1,5 @@
 use super::*;
-use ritk_core::annotation::Visibility;
+use ritk_core::annotation::{RgbaU8, Visibility};
 
 #[test]
 fn new_editor_has_default_foreground_label_and_background_volume() {
@@ -16,7 +16,7 @@ fn new_editor_has_default_foreground_label_and_background_volume() {
         .get_label(1)
         .expect("default label must be present");
     assert_eq!(entry.name, "Label 1");
-    assert_eq!(entry.color, [255, 0, 0, 180]);
+    assert_eq!(entry.color, RgbaU8::new(255, 0, 0, 180));
     assert_eq!(entry.visible, Visibility::Visible);
 }
 
@@ -88,7 +88,7 @@ fn add_label_uses_next_free_id_sets_active_and_updates_visibility() {
     let mut editor = LabelEditor::new([1, 2, 3]);
 
     let id = editor
-        .add_label("Tumor", [0, 255, 0, 200])
+        .add_label("Tumor", RgbaU8::new(0, 255, 0, 200))
         .expect("adding a second label must succeed");
     assert_eq!(id, 2);
     assert_eq!(editor.active_label_id(), 2);
@@ -113,7 +113,9 @@ fn add_label_uses_next_free_id_sets_active_and_updates_visibility() {
 #[test]
 fn custom_table_rejects_background_or_absent_active_label() {
     let mut table = LabelTable::new();
-    table.add_label(7, "Kidney", [0, 0, 255, 180]).unwrap();
+    table
+        .add_label(7, "Kidney", RgbaU8::new(0, 0, 255, 180))
+        .unwrap();
 
     assert!(LabelEditor::with_table([1, 1, 1], table.clone(), 0).is_err());
     assert!(LabelEditor::with_table([1, 1, 1], table.clone(), 8).is_err());
@@ -162,7 +164,9 @@ fn from_label_map_preserves_voxel_data() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "A", [255, 0, 0, 180]).unwrap();
+    table
+        .add_label(1, "A", RgbaU8::new(255, 0, 0, 180))
+        .unwrap();
 
     let data: Vec<u32> = (0..8u32).map(|i| if i % 2 == 0 { 1 } else { 0 }).collect();
     let map = LabelMap::from_data([2, 2, 2], data.clone(), table).unwrap();
@@ -211,7 +215,9 @@ fn from_label_map_starts_with_zero_history_depth() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "X", [0, 255, 0, 180]).unwrap();
+    table
+        .add_label(1, "X", RgbaU8::new(0, 255, 0, 180))
+        .unwrap();
     let map = LabelMap::new([3, 3, 3], table);
     let editor = LabelEditor::from_label_map(map);
 

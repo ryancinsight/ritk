@@ -28,6 +28,7 @@
 //! Emission is streamed directly into the builder (no temporary global soup buffer),
 //! reducing peak memory to O(1) additional storage per active cube.
 
+use crate::spatial::Point;
 use nalgebra::Point3;
 
 use super::mesh::{Mesh, MeshBuilder};
@@ -43,8 +44,8 @@ pub struct MarchingCubesFilter {
     ///
     /// Voxels with value > isovalue are considered "inside" (above the surface).
     pub isovalue: f32,
-    /// Physical origin `[ox, oy, oz]` of the first voxel in mm.
-    pub origin: [f64; 3],
+    /// Physical origin of the first voxel in mm.
+    pub origin: Point<3>,
     /// Voxel spacing `[sx, sy, sz]` in mm.
     pub spacing: [f64; 3],
 }
@@ -53,7 +54,7 @@ impl Default for MarchingCubesFilter {
     fn default() -> Self {
         Self {
             isovalue: 0.5,
-            origin: [0.0; 3],
+            origin: Point::origin(),
             spacing: [1.0; 3],
         }
     }
@@ -75,8 +76,8 @@ impl MarchingCubesFilter {
     }
 
     /// Set the physical origin of voxel (0, 0, 0) in mm.
-    pub fn with_origin(mut self, origin: [f64; 3]) -> Self {
-        self.origin = origin;
+    pub fn with_origin(mut self, origin: impl Into<Point<3>>) -> Self {
+        self.origin = origin.into();
         self
     }
 

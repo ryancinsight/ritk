@@ -1,4 +1,5 @@
 use super::*;
+use ndarray::{Array2, Array3};
 
 #[test]
 fn test_rigid_landmark_identity() {

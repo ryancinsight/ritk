@@ -35,7 +35,7 @@ pub fn store(config: &AssociationConfig, path: &Path) -> Result<StoreResponse, N
 
     let inner: &dicom::object::InMemDicomObject = &file_obj;
     let ts = EXPLICIT_VR_LITTLE_ENDIAN.erased();
-    let mut dataset_bytes = Vec::new();
+    let mut dataset_bytes = Vec::with_capacity(4096);
     inner
         .write_dataset_with_ts(&mut dataset_bytes, &ts)
         .map_err(|e| NetworkingError::Protocol(format!("failed to encode dataset: {}", e)))?;

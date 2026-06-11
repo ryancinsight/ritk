@@ -9,7 +9,7 @@ impl SnapApp {
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
             ClaheFilter, ConnectedComponentsFilter, Connectivity, CprConfig, CprImageFilter,
-            ExpImageFilter, GaussianFilter, GradientAnisotropicDiffusionFilter,
+            ExpImageFilter, GaussianFilter, GaussianSigma, GradientAnisotropicDiffusionFilter,
             GradientDiffusionConfig, GrayscaleClosingFilter, GrayscaleFillholeFilter,
             GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
             HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
@@ -47,10 +47,12 @@ impl SnapApp {
                 crate::FilterKind::BedSeparation(config) => {
                     BedSeparationFilter::new(*config).apply(&image)
                 }
-                crate::FilterKind::Gaussian { sigma } => Ok(GaussianFilter::<LoadBackend>::new(
-                    vec![f64::from(*sigma); 3],
-                )
-                .apply(&image)),
+                crate::FilterKind::Gaussian { sigma } => {
+                    let s_val = f64::from(*sigma);
+                    let g_sigma = GaussianSigma::new(s_val)
+                        .unwrap_or_else(|| GaussianSigma::new_unchecked(1e-9));
+                    Ok(GaussianFilter::<LoadBackend>::new(vec![g_sigma; 3]).apply(&image))
+                }
                 crate::FilterKind::Median { radius } => MedianFilter::new(*radius).apply(&image),
                 crate::FilterKind::Clahe {
                     tile_grid_size,
@@ -65,7 +67,7 @@ impl SnapApp {
                     threshold,
                     clamp,
                 } => UnsharpMaskFilter::new(
-                    vec![f64::from(*sigma)],
+                    vec![GaussianSigma::new_unchecked(f64::from(*sigma))],
                     f64::from(*amount),
                     f64::from(*threshold),
                     *clamp,
@@ -282,8 +284,8 @@ impl SnapApp {
                     pad_upper_x,
                     constant,
                 } => ritk_core::filter::ConstantPadImageFilter::new(
-                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                     *constant,
                 )
                 .apply(&image),
@@ -295,8 +297,8 @@ impl SnapApp {
                     pad_upper_y,
                     pad_upper_x,
                 } => ritk_core::filter::MirrorPadImageFilter::new(
-                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                 )
                 .apply(&image),
                 crate::FilterKind::WrapPad {
@@ -307,8 +309,8 @@ impl SnapApp {
                     pad_upper_y,
                     pad_upper_x,
                 } => ritk_core::filter::WrapPadImageFilter::new(
-                    [*pad_lower_z, *pad_lower_y, *pad_lower_x],
-                    [*pad_upper_z, *pad_upper_y, *pad_upper_x],
+                    ritk_core::filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
+                    ritk_core::filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
                 )
                 .apply(&image),
                 crate::FilterKind::GrayscaleErode { radius } => {

@@ -1,4 +1,5 @@
 use super::*;
+use crate::filter::edge::GaussianSigma;
 use crate::image::Image;
 use burn::tensor::{Shape, Tensor, TensorData};
 use burn_ndarray::NdArray;
@@ -55,7 +56,7 @@ fn test_constant_image_unchanged() {
     let img = make_image(vals.clone(), dims);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -95,7 +96,7 @@ fn test_linear_image_unchanged() {
     let img = make_image(vals.clone(), [nz, ny, nx]);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -150,7 +151,7 @@ fn test_noise_reduction() {
     let img = make_image(noisy.clone(), dims);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.5,
+        sigma: GaussianSigma::new_unchecked(1.5),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -225,7 +226,7 @@ fn test_step_edge() {
     let img = make_image(vals.clone(), [nz, ny, nx]);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-8,
         alpha: 0.001,
         time_step: 0.0625,
@@ -266,7 +267,7 @@ fn test_stability() {
     let img = make_image(vals, dims);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -294,7 +295,7 @@ fn test_determinism() {
     let img2 = make_image(vals, dims);
 
     let config = CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -327,7 +328,7 @@ fn test_metadata_preservation() {
     let img = make_image_with_metadata(vals, dims, origin, spacing);
 
     let filter = CoherenceEnhancingDiffusionFilter::new(CoherenceConfig {
-        sigma: 1.0,
+        sigma: GaussianSigma::new_unchecked(1.0),
         contrast: 1e-10,
         alpha: 0.001,
         time_step: 0.0625,
@@ -356,9 +357,9 @@ fn test_metadata_preservation() {
 fn test_default_config() {
     let cfg = CoherenceConfig::default();
     assert!(
-        (cfg.sigma - 3.0).abs() < 1e-10,
+        (cfg.sigma.get() - 3.0).abs() < 1e-10,
         "default sigma: expected 3.0, got {}",
-        cfg.sigma
+        cfg.sigma.get()
     );
     assert!(
         (cfg.contrast - 1e-10).abs() < 1e-20,

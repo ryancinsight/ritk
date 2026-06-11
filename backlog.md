@@ -4,6 +4,63 @@
 
 ---
 
+## Sprint 359 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×4)
+
+**Status**: Complete
+**Version**: 0.56.0
+**Phase**: FIX + BOOL-ELIM + PRIM-OBJ + ARCH + SRP + CAP
+
+### Tracks
+
+| Track ID | Description | Status |
+|----------|-------------|--------|
+| FIX-359-01 | `gaussian_smooth_field_inplace` → `#[cfg(test)]` — fixes workspace clippy [patch] | **Done** |
+| BOOL-359-02 | `DicomRole` enum for `ScpScuRoleSelectionSubItem` (replaces 2 bools) [minor] | **Done** |
+| BOOL-359-03 | `SpacingUniformity` + `SliceCoverage` enums for `SliceGeometryReport` (internal) [patch] | **Done** |
+| ARCH-359-04 | `GaussianSigma` added to `filter::mod.rs` re-exports [patch] | **Done** |
+| PRIM-359-05 | `GaussianSigma` in `CoherenceConfig.sigma` + all CLI/Python/test call sites [minor] | **Done** |
+| PRIM-359-06 | `GaussianSigma` in 3 level-set configs + all call sites [minor] | **Done** |
+| PRIM-359-07 | `ControlGridDims` newtype; `BSplineFFDResult` + `MetricGradientScratch` migrated [minor] | **Done** |
+| SRP-359-09 | `binary_ops.rs` 467L → 228L (tests extracted to subdir) [patch] | **Done** |
+| CAP-359-10 | `pyramid_schedule Vec::with_capacity(4)` in CmaMi config (3 sites) [patch] | **Done** |
+| PRIM-359-13 | `RecursiveGaussianFilter.sigma` internal field → `GaussianSigma` [patch] | **Done** |
+| BOOL-359-14 | `RasValidity` enum for `derive_image_geometry` in ritk-mgh [minor] | **Done** |
+| BOOL-359-16 | `ConvergenceFlag` enum in ASGD + RSGD optimizers [patch] | **Done** |
+| BOOL-359-17 | `EarlyStopSignal` enum in `EarlyStopping` [patch] | **Done** |
+| CAP-359-18 | `Vec::with_capacity` in progress/history (100), tracker (4), pool (8) [patch] | **Done** |
+
+### Architecture
+
+- `GaussianSigma` is now re-exported from `ritk_core::filter` (was only `filter::edge`); enables seamless adoption across filter, diffusion, and segmentation subsystems.
+- `ControlGridDims` completes the `VolumeDims`/`ControlGridDims` newtype pair for B-spline FFD; eliminates the remaining raw `[usize; 3]` fields at API boundaries in `BSplineFFDResult` and `MetricGradientScratch`.
+- `DicomRole` eliminates the 4-state boolean-pair pattern in the DICOM PDU role negotiation sub-item.
+- `RasValidity` enum in `ritk-mgh` eliminates the bare `valid_ras: bool` parameter.
+
+### Residual (next sprint)
+
+| ID | Description | Priority |
+|----|-------------|----------|
+| PRIM-360-01 | `GaussianSigma` adoption in `ChanVeseSegmentation` sigma (if present) and `WhiteStripeConfig.sigma` | Medium |
+| PRIM-360-02 | `VolumeDims` migration for raw `[usize; 3]` dims in bspline_ffd internal `registration.rs` line 35 | Medium |
+| BOOL-360-03 | `ScpScuRoleSelectionSubItem` — check if `DicomRole` needs Python binding exposure | Low |
+| ARCH-360-04 | `GaussianSigma` adoption in `unsharp_mask.rs sigmas: Vec<f64>` — needs `Vec<GaussianSigma>` | Low |
+| SRP-360-05 | `macros/src/lib.rs` (474L) — split proc-macro groups into subfiles | Low |
+
+### Verification
+
+| Component | Result |
+|-----------|--------|
+| `cargo clippy --workspace --all-targets -- -D warnings` | 0 warnings |
+| `RUSTDOCFLAGS="-D warnings" cargo doc ...` | 0 warnings |
+| `cargo test -p ritk-core --lib` | 1581/0/1 |
+| `cargo test -p ritk-registration --lib` | 583/0/1 |
+| `cargo test -p ritk-codecs --lib` | 102/0/0 |
+| `cargo test -p ritk-nrrd --lib` | 23/0/0 |
+
+---
+
+
+
 ## Sprint 358 — Phase 21 Cleanup & Optimization (20 Cycles, Repeat ×3)
 
 **Status**: Complete

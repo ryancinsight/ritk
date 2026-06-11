@@ -1,6 +1,8 @@
 //! NCC similarity metric and its gradient w.r.t. control-point displacements.
 
 use super::basis::BasisCache;
+use super::ctrl_dims::ControlGridDims;
+use super::volume_dims::VolumeDims;
 use crate::deformable_field_ops::{compute_gradient_into, flat};
 
 /// Compute global normalized cross-correlation between two images.
@@ -96,9 +98,10 @@ impl MetricGradientScratch {
     ///
     /// `dims` is `[nz, ny, nx]` (voxel count); `ctrl_dims` is `[cnz, cny, cnx]`
     /// (control-point count).
-    pub fn new(dims: [usize; 3], ctrl_dims: [usize; 3]) -> Self {
-        let n = dims[0] * dims[1] * dims[2];
-        let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+    pub fn new(dims: VolumeDims, ctrl_dims: ControlGridDims) -> Self {
+        let [nz, ny, nx] = dims.as_array();
+        let n = nz * ny * nx;
+        let cn = ctrl_dims.num_nodes();
         Self {
             acc_z: vec![0.0_f64; cn],
             acc_y: vec![0.0_f64; cn],
@@ -114,9 +117,10 @@ impl MetricGradientScratch {
 
     /// Re-size scratch buffers when the control grid changes between
     /// multi-resolution levels.
-    pub fn resize(&mut self, dims: [usize; 3], ctrl_dims: [usize; 3]) {
-        let n = dims[0] * dims[1] * dims[2];
-        let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
+    pub fn resize(&mut self, dims: VolumeDims, ctrl_dims: ControlGridDims) {
+        let [nz, ny, nx] = dims.as_array();
+        let n = nz * ny * nx;
+        let cn = ctrl_dims.num_nodes();
         self.acc_z.resize(cn, 0.0);
         self.acc_y.resize(cn, 0.0);
         self.acc_x.resize(cn, 0.0);
@@ -132,22 +136,20 @@ impl MetricGradientScratch {
 /// Compute NCC gradient w.r.t. control points, writing into pre-allocated
 /// scratch buffers.
 ///
-/// This is the zero-allocation variant of [`compute_metric_gradient_fast`].
-/// All intermediate and output buffers are provided by `scratch`, which
-/// should be reused across iteration steps to avoid per-iteration heap
-/// allocations.
+/// This is the allocation-free implementation; reuse `scratch` across
+/// iteration steps to avoid per-iteration heap allocations.
 pub(super) fn compute_metric_gradient_fast_into(
     fixed: &[f32],
     warped: &[f32],
-    ctrl_dims: &[usize; 3],
-    dims: [usize; 3],
+    ctrl_dims: ControlGridDims,
+    dims: VolumeDims,
     spacing: [f64; 3],
     cache: &BasisCache,
     scratch: &mut MetricGradientScratch,
 ) {
-    let [cnz, cny, cnx] = *ctrl_dims;
+    let [cnz, cny, cnx] = ctrl_dims.as_array();
     let cn = cnz * cny * cnx;
-    let [nz, ny, nx] = dims;
+    let [nz, ny, nx] = dims.as_array();
     let n = nz * ny * nx;
 
     // Zero accumulators for this iteration.
@@ -181,7 +183,7 @@ pub(super) fn compute_metric_gradient_fast_into(
     // Compute spatial gradient of the warped image into scratch buffers.
     compute_gradient_into(
         warped,
-        dims,
+        dims.as_array(),
         spacing,
         &mut scratch.gw_z,
         &mut scratch.gw_y,
@@ -307,28 +309,4 @@ pub(super) fn compute_metric_gradient_fast_into(
         scratch.grad_y[i] = scratch.acc_y[i] as f32;
         scratch.grad_x[i] = scratch.acc_x[i] as f32;
     }
-}
-
-/// Compute NCC gradient w.r.t. control-point displacements, returning owned
-/// vectors.
-///
-/// Prefer [`compute_metric_gradient_fast_into`] with a reused
-/// [`MetricGradientScratch`] in hot loops to eliminate per-iteration
-/// allocations.
-#[allow(dead_code)]
-pub(super) fn compute_metric_gradient_fast(
-    fixed: &[f32],
-    warped: &[f32],
-    ctrl_dims: &[usize; 3],
-    dims: [usize; 3],
-    spacing: [f64; 3],
-    cache: &BasisCache,
-) -> (Vec<f32>, Vec<f32>, Vec<f32>) {
-    let mut scratch = MetricGradientScratch::new(dims, *ctrl_dims);
-    compute_metric_gradient_fast_into(fixed, warped, ctrl_dims, dims, spacing, cache, &mut scratch);
-    (
-        scratch.grad_z.clone(),
-        scratch.grad_y.clone(),
-        scratch.grad_x.clone(),
-    )
 }

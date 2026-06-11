@@ -1,3 +1,4 @@
+use crate::filter::edge::GaussianSigma;
 use moirai::ParallelSliceMut;
 
 use super::pde::{compute_divergence_into, gaussian_smooth_1d, make_gaussian_kernel_1d};
@@ -90,13 +91,13 @@ pub struct CedScratch {
     /// in `smooth_structure_tensor_into` to avoid per-component allocation.
     smooth_buf: Vec<f64>,
 
-    /// Previously configured sigma (to detect when kernel must be rebuilt).
-    sigma: f64,
+    /// Cached sigma from the last kernel build; `None` until first `ensure_capacity` call.
+    cached_sigma: Option<GaussianSigma>,
 }
 
 impl CedScratch {
     /// Ensure all buffers are sized for a volume of `n` voxels.
-    pub fn ensure_capacity(&mut self, n: usize, sigma: f64) {
+    pub fn ensure_capacity(&mut self, n: usize, sigma: GaussianSigma) {
         if self.grad_z.len() != n {
             self.grad_z = vec![0.0; n];
             self.grad_y = vec![0.0; n];
@@ -117,9 +118,9 @@ impl CedScratch {
         if self.smooth_buf.len() != n {
             self.smooth_buf = vec![0.0; n];
         }
-        if (self.sigma - sigma).abs() > f64::EPSILON || self.kernel.is_empty() {
-            self.kernel = make_gaussian_kernel_1d(sigma);
-            self.sigma = sigma;
+        if self.cached_sigma != Some(sigma) || self.kernel.is_empty() {
+            self.kernel = make_gaussian_kernel_1d(sigma.get());
+            self.cached_sigma = Some(sigma);
         }
     }
 
@@ -201,7 +202,7 @@ impl Default for CedScratch {
             current: Vec::with_capacity(0),
             smooth_buf: Vec::with_capacity(0),
             kernel: Vec::with_capacity(0),
-            sigma: -1.0,
+            cached_sigma: None,
         }
     }
 }

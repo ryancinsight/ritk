@@ -39,7 +39,6 @@ use burn::tensor::Tensor;
 use ritk_core::image::Image;
 use ritk_core::interpolation::LinearInterpolator;
 use ritk_core::transform::Transform;
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use crate::metric::histogram::cache::WFixedCache;
@@ -73,7 +72,6 @@ pub struct MutualInformation<B: Backend> {
     /// calls hit the cache and skip the O(N × num_bins) Parzen weight
     /// recomputation. Shared across clones via `Arc`.
     cached_w_fixed_t: Arc<Mutex<Option<WFixedCache<B>>>>,
-    _phantom: PhantomData<fn() -> B>,
 }
 
 impl<B: Backend> MutualInformation<B> {
@@ -107,7 +105,6 @@ impl<B: Backend> MutualInformation<B> {
             interpolator: LinearInterpolator::new_zero_pad(),
             fixed_mask_points: None,
             cached_w_fixed_t: Arc::new(Mutex::new(None)),
-            _phantom: PhantomData,
         }
     }
 
@@ -438,4 +435,4 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
 }
 
 #[cfg(test)]
-mod tests;
+mod tests_mutual_information;

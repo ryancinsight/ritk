@@ -150,11 +150,17 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             let result = WhiteStripeNormalizer::normalize(&input, None, &config);
             info!(
                 "white-stripe: mu={:.4} sigma={:.4} wm_peak={:.4} stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
+                result.mu,
+                result.sigma.get(),
+                result.wm_peak,
+                result.stripe_size
             );
             println!(
                 "white-stripe stats: mu={:.4}, sigma={:.4}, wm_peak={:.4}, stripe_size={}",
-                result.mu, result.sigma, result.wm_peak, result.stripe_size
+                result.mu,
+                result.sigma.get(),
+                result.wm_peak,
+                result.stripe_size
             );
             result.normalized
         }

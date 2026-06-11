@@ -14,6 +14,15 @@ pub use shape::*;
 // All registration quality metrics are defined here and re-exported.
 // Duplication of these types elsewhere in the codebase is a violation of SSOT.
 
+/// Whether a registration converged within the iteration budget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConvergenceStatus {
+    /// The optimizer met the convergence criterion before exhausting iterations.
+    Converged,
+    /// The optimizer exhausted all iterations without meeting the criterion.
+    MaxIterationsReached,
+}
+
 /// Quality metrics for temporal synchronization.
 #[derive(Debug, Clone)]
 pub struct TemporalQualityMetrics {
@@ -40,8 +49,8 @@ pub struct RegistrationQualityMetrics {
     pub correlation_coefficient: f64,
     /// Normalized cross-correlation
     pub normalized_cross_correlation: f64,
-    /// Registration convergence flag
-    pub converged: bool,
+    /// Registration convergence status
+    pub convergence: ConvergenceStatus,
     /// Number of iterations for optimization
     pub iterations: usize,
     /// Final cost function value

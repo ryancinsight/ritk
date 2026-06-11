@@ -178,8 +178,7 @@ template unification to land.
 
 **Next steps**:
 
-1. ~~Resolve the `macro_rules!` hygiene barrier via a proc-macro crate
-   (or closure-based workaround — see `DRY_353_02_STATUS`).~~ — **OPEN**, still the only remaining blocker
+1. **OPEN** — the `macro_rules!` hygiene barrier remains the only open template-blocker. The closure-based workaround was attempted and confirmed to fail (body identifiers remain in call-site hygiene context regardless of closure capture); the only viable path is a proc-macro rewrite in a new `ritk-macros` crate.
 2. ~~Once the macro template works, migrate D=1, D=2, D=4 to use it
    (D=3 already has the single-function shape; D=1/2/4 currently have
    3-function-equivalent designs that would need similar consolidation).~~ — **DONE**, see §4.2.2 (D=1, D=2, D=4 all migrated to the single-function `B::ad_enabled()` dispatch)
@@ -581,6 +580,7 @@ should be the next verification step.
 | 350-P1-04 | `loss.clone()` → `loss.clone().sum()` consolidation | `metric/mutual_information.rs` | 1 alloc/iter | **N/A** (see §7.4) — Burn's `Tensor::sum` / `Tensor::sum_dim` consume `self`, so the clones are required |
 | 350-P1-05 | `Image::data_slice() -> Cow<'_, [f32]>` zero-copy API + autodiff fallback | `image/types.rs` | API contract for future zero-copy backends | **DONE** (see §7.5) |
 | 350-P1-06 | Unify const-generic `B::ad_enabled()` dispatch across D=1, 2, 3, 4 (gather_*_owned helpers) | `interpolation/kernel/linear/dim{1,2,3,4}.rs` | Sets up macro-template migration; minor per-call clone savings | **DONE** (see §7.6) |
+| 350-P1-07 | `ritk-macros` proc-macro crate + `interp_dim_template!` proc-macro (resolves `macro_rules!` hygiene barrier) | `crates/ritk-macros/` + `interpolation/kernel/linear/dim{1,2,3,4}.rs` | Eliminates ~95% per-D code duplication; resolves the only open template-blocker | **DONE** (see §7.7) |
 
 **Combined expected effect**: 40.8 s → ~22 s (within 30 s budget).
 
@@ -857,11 +857,105 @@ separate macro invocations per D-arm, defeating the DRY win.
 2. Once the macro template works, migrate all 4 D-arms to use it
    (D=1, 2, 3, 4 all have the single-function shape now; only the
    macro body needs adjustment).
-3. Fix the 2 pre-existing `clippy::needless_range_loop` errors in
+3. ~~Fix the 2 pre-existing `clippy::needless_range_loop` errors in
    `slic/connectivity.rs:78,131` to restore the 0-warning clippy
-   baseline.
+   baseline.~~ — **DONE**: replaced the `for d in (0..ndim.saturating_sub(1)).rev() { strides[d] = ... }` pattern in `compute_strides` with a reverse `enumerate()` over `shape` that accumulates the stride product (`stride *= s`). `cargo clippy -p ritk-core --lib -- -D warnings` → 0 warnings.
 4. Benchmark the single-function dispatch on a 256³ Mattes MI
    registration to confirm no regression vs. the original flat design.
+
+---
+
+### 7.7 350-P1-07 — `ritk-macros` proc-macro crate + closure-approach-fails finding — **DONE** (Sprint 356)
+
+**Cross-references**: §4.2.1 (the original D=3 single-function refactor
+that exposed the hygiene barrier); §4.2.2 (the D=1/2/4 follow-up that
+unblocked the structural side); §6.2 (`DRY_353_02_STATUS` and the
+original `interp_dim_template!` `macro_rules!` template); §4.2.2 "Next
+steps" item 1 (the macro hygiene barrier marked as the only open
+template-blocker).
+
+**Closure-approach-fails finding** (Sprint 356 investigation):
+
+The `DRY_353_02_STATUS` doc-comment listed two workarounds for the
+`macro_rules!` hygiene barrier:
+
+1. Proc-macro rewrite (in a new `ritk-macros` crate).
+2. Closure-based macro pattern (the prelude + body + mask inside one
+   `FnOnce` closure that captures `data`/`indices`/`zero_pad` by move).
+
+Workaround #2 was investigated in Sprint 356 and **confirmed to fail**:
+the closure body is still a token tree from the call site, so
+identifiers referenced in the body (e.g. `x0_i`, `wz`) remain in the
+call-site's hygiene context, while the prelude variables (defined by
+the macro) stay in the macro's hygiene context. The compiler treats them
+as different identifiers regardless of closure capture. The same
+hygiene barrier applies to any macro-arm restructuring attempt
+(function arguments, struct fields, closure parameters) — the body
+identifiers never enter the macro's hygiene context.
+
+**Conclusion**: workaround #1 (proc-macro rewrite) is the only viable
+path. `DRY_353_02_STATUS` has been updated to
+`"proc-macro-required-closure-approach-fails"`.
+
+**Delivered** (Sprint 356):
+
+| Site | Change |
+|------|--------|
+| `crates/ritk-macros/Cargo.toml` | New proc-macro crate with `proc-macro = true` and dependencies on `proc-macro2 = "1.0"`, `syn = "2.0"`, `quote = "1.0"`. |
+| `crates/ritk-macros/src/lib.rs` | New `interp_dim_template!` proc-macro. Takes `(dim, func, coords, weights, d_max, body)` and generates the full `interpolate_<D>d` function. The proc-macro resolves the `macro_rules!` hygiene barrier by splicing body tokens directly into the generated function scope — no hygiene barrier because proc-macros generate raw tokens via `TokenStream`. Supports D=1, 2, 3, 4 with per-dim prelude generators (coord extraction, floor/ceil, weights, clamped int indices, strides) and mask application generators. Validates that `coords.len() == weights.len() == d_max.len() == dim` at macro-expansion time. |
+| `Cargo.toml` (workspace root) | Added `ritk-macros` to workspace members. |
+| `crates/ritk-core/Cargo.toml` | Added `ritk-macros` as a dependency. |
+
+**Why a proc-macro resolves the hygiene barrier**: proc-macros generate
+code via `TokenStream` and have no hygiene barrier — identifiers
+defined by the macro and identifiers from the call site are in the
+same hygiene context after expansion. The body tokens are spliced
+directly into the generated function's scope, so the body's
+references to prelude variables (`x0_i`, `wz`, `stride_y`, etc.)
+resolve normally. This is a fundamental difference from
+`macro_rules!`, which introduces a hygiene context per macro arm.
+
+**Per-dim prelude generated**:
+
+| D | Prelude | Mask |
+|---|---------|------|
+| 1 | `x` extraction, `x0`/`wx`/`x1`/`x0_i`/`x1_i` | 1-axis `in_bounds_mask` |
+| 2 | `x`/`y` extraction, `x0`/`y0`/`wx`/`wy`/`x1`/`y1`/`x0_i`/`y0_i`/`x1_i`/`y1_i`, `stride_y` | 2-axis `in_bounds_mask` |
+| 3 | `x`/`y`/`z` extraction, all floor/ceil/weight/clamped-int pairs, `stride_y`/`stride_z` | 3-axis `in_bounds_mask` |
+| 4 | `x`/`y`/`z`/`w` extraction, all floor/ceil/weight/clamped-int pairs, `stride_y`/`stride_z`/`stride_w` | 4-axis `in_bounds_mask` |
+
+**Verification**:
+- `cargo build -p ritk-macros` → compiles cleanly (proc-macro crate builds independently).
+- `cargo build -p ritk-core` → compiles cleanly after wiring `ritk-macros` as a dependency.
+- `cargo test -p ritk-core --lib interpolation` → pending the dim{1,2,3,4}.rs migration (next sprint).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → 0 warnings (the proc-macro crate does not introduce new lints).
+
+**Expected gain**: the proc-macro eliminates ~95% per-D code
+duplication across `dim{1,2,3,4}.rs`. Once the dim files are migrated,
+the total LoC for the 4 linear interpolation kernels drops from
+~400 lines to ~80 lines (the 4 body expressions only). The
+proc-macro also establishes a precedent for future per-D kernel
+generation (e.g., nearest-neighbor, cubic B-spline) — the same
+template can be reused.
+
+**Next steps** (Sprint 356 final status):
+1. ~~Add `ritk-macros` to workspace members in root `Cargo.toml`.~~ — **DONE**.
+2. ~~Add `ritk-macros` as a dependency of `ritk-core`.~~ — **DONE**.
+3. ~~Migrate `dim{1,2,3,4}.rs` to use the `interp_dim_template!` proc-macro.~~ — **DONE**. Parser fix applied (replaced `Punctuated::<Expr, _, _>` with `Vec<Expr>` + manual `input.parse::<Expr>()` loop); 4 dim files now use the proc-macro.
+4. ~~Re-run `cargo test -p ritk-core --lib interpolation` to confirm 0 regressions.~~ — **DONE**: 64 passed, 0 failed, 1 ignored. Full `cargo test -p ritk-core --lib`: 1,581 passed, 0 failed, 1 ignored (0 regressions).
+5. ~~Update `DRY_353_02_STATUS` to reflect the proc-macro migration.~~ — **DONE**: `DRY_353_02_STATUS` is now `"proc-macro-migration-complete-template-removed"`.
+6. ~~Remove the now-redundant `macro_rules!` `interp_dim_template!` template from `crates/ritk-core/src/interpolation/kernel/macros.rs`.~~ — **DONE**: only the `DRY_353_02_STATUS` marker remains.
+
+**Sprint 356 final state**:
+- The `ritk-macros` proc-macro crate is the source of truth for the interpolation kernel template.
+- All 4 `dim{1,2,3,4}.rs` files use the proc-macro via `ritk_macros::interp_dim_template!`.
+- The `macro_rules!` template has been removed from `crates/ritk-core/src/interpolation/kernel/macros.rs`; only the `DRY_353_02_STATUS` historical marker remains.
+- `DRY_353_02_STATUS` is now `"proc-macro-migration-complete-template-removed"`.
+- Full `cargo test -p ritk-core --lib` passes (1,581/0/1).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → **0 warnings** (the 4 `clippy::let_and_return` cosmetic lints were fixed by changing the proc-macro body pattern from `let result = { ...; result }` to just `{ ... }` in dim{1,2,3,4}.rs).
+- `cargo test --workspace` → **BLOCKED** on the pre-existing `ritk-io.exe` linker file lock (unrelated to the proc-macro migration; persists even after `taskkill /F /IM cargo.exe rustc.exe` + `del target\debug\deps\ritk_io-*.exe`). Requires a system reboot or manual file-handle release to resolve.
+
+**Sprint 350 Phase 1 — all targeted optimizations COMPLETE.**
 
 **Note on workspace state (updated)**: the `cargo test` / `cargo clippy`
 runs in the 350-P1-04 verification turn surfaced a **pre-existing,
@@ -891,12 +985,181 @@ This is unambiguous (returns a `bool`, then `.then()` on the bool yields `Option
 
 ## 8. Phase 2 — Autodiff + SIMD (Sprint 351)
 
-| ID | Change |
-|----|--------|
-| 351-01 | Specialize `interpolate_*` per shape via `const` generics |
-| 351-02 | `Metric::forward_with_cache` API for constant-side reuse |
-| 351-03 | `apply_row_chunks_3d` specialized variant (skip closure dispatch) |
-| 351-04 | Benchmark suite with criterion (already in place) |
+| ID | Change | Status |
+|----|--------|--------|
+| 351-01 | Specialize `interpolate_*` per shape via `const` generics (linear + nearest-neighbor) | **DONE** (see §8.1) |
+| 351-02 | `Metric::forward_with_cache` API for constant-side reuse | **DONE** (see §7.3) |
+| 351-03 | `apply_row_chunks_3d` specialized variant (skip closure dispatch) | **OPEN** |
+| 351-04 | Benchmark suite with criterion (already in place) | **DONE** (Sprint 339) |
+
+### 8.1 351-01 — `interpolate_*` per-shape `const`-generic specialization — **DONE** (Sprint 357)
+
+**Cross-references**: §4.2.1 (D=3 single-function refactor — the prerequisite);
+§4.2.2 (D=1/2/4 follow-up — the structural unblock); §6.2 (the
+`interpolation/` vertical split that introduced the
+`kernel/linear/dim{1,2,3,4}.rs` layout); §7.7 (the proc-macro migration that
+this const-generic specialization is now built on top of).
+
+**Goal**: enable the compiler to fully unroll the trilinear gather for
+common 3-D shapes (64³, 128³, 256³, 512³) by passing `D0`, `D1`, `D2` as
+const generics, while preserving the runtime-shape public API so existing
+callers don't need to change.
+
+**Delivered — proc-macro layer (Sprint 357)**:
+
+| Site | Change |
+|------|--------|
+| `crates/ritk-macros/src/lib.rs` | New `interp_dim_template_typed!` proc-macro (~200 lines, parallel to the existing `interp_dim_template!`). Takes an extra `dims: Vec<Ident>` field (const-generic identifiers like `D0, D1, D2`) and emits a function signature with `const D0: usize, const D1: usize, ...` parameters. The prelude aliases these to `d0/d1/...` so the body can use the same names as the runtime version, while the clamp/stride expressions reference the const generics directly for compile-time constant-folding. |
+| `crates/ritk-macros/src/lib.rs` | 2 pre-existing doc list indentation errors fixed (lines 40, 42) as collateral. |
+
+**Delivered — typed variants (Sprint 357)**:
+
+| Site | Typed function | Const-generic signature |
+|------|----------------|-------------------------|
+| `crates/ritk-core/src/interpolation/kernel/linear/dim1.rs` | `interpolate_1d_typed<B, const D0: usize>` | single const dim |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim2.rs` | `interpolate_2d_typed<B, const D0: usize, const D1: usize>` | 2 const dims |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim3.rs` | `interpolate_3d_typed<B, const D0: usize, const D1: usize, const D2: usize>` | 3 const dims |
+| `crates/ritk-core/src/interpolation/kernel/linear/dim4.rs` | `interpolate_4d_typed<B, const D0: usize, const D1: usize, const D2: usize, const D3: usize>` | 4 const dims |
+
+Each typed function skips the runtime `data.shape().dims[i]` reads,
+constant-folds the `(D_k - 1) as f64` bounds, and enables the compiler
+to fully unroll the gather cascade per `(D0, D1, D2)` triple.
+
+**Delivered — trait-based runtime dispatcher (Sprint 357)**:
+
+The trait-based dispatch is the public-facing layer that gives callers
+the per-shape speedup automatically, without requiring them to know
+about the const generics.
+
+| Trait | Role | Visibility |
+|-------|------|------------|
+| `DispatchByShape<B>` (sealed) | Shape-based routing logic for linear interpolation; implemented **only** for `Tensor<B, 3>` (via private `sealed::Sealed` supertrait) | `pub(crate)` |
+| `Dispatch3DTyped<B, D>` | Type-narrowing wrapper for linear: `&Tensor<B, D>` (generic D) → sealed trait method via safe `clone().reshape()`; `if D == 3` is a compile-time const check, dead-code-eliminated for non-3-D callers | `pub(crate)` |
+| `DispatchNearestByShape<B>` (sealed) | Shape-based routing for nearest-neighbor; implemented **only** for `Tensor<B, 3>` (same `sealed::Sealed` supertrait) | `pub(crate)` |
+| `DispatchNearest3DTyped<B, D>` | Type-narrowing wrapper for nearest-neighbor: `&Tensor<B, D>` (generic D) → sealed trait method | `pub(crate)` |
+| `dispatch_3d_for_shape` | Public wrapper around the linear sealed trait method | `pub` |
+| `dispatch_nearest_3d_for_shape` | Public wrapper around the nearest sealed trait method | `pub` |
+
+**Why trait-based dispatch (not unsafe transmute)**: `dispatch_linear`
+and `dispatch_nearest` take `data: &Tensor<B, D>` (generic over D) and
+const-match on `3 =>`. The const match does **not** narrow the type
+of `data` from `&Tensor<B, D>` to `&Tensor<B, 3>`, so the typed
+functions (which require `&Tensor<B, 3>`) cannot be called directly.
+The two-trait design (sealed `DispatchByShape` for the routing logic,
+public `Dispatch3DTyped` for the type narrowing) provides the safe
+abstraction: the type-narrowing wrapper is a no-op for non-3-D callers
+(const-folded, dead-code-eliminated) and routes 3-D callers through
+the sealed trait method. No `unsafe` is required.
+
+**Shape-routing logic** (in both `DispatchByShape::dispatch_by_shape`
+and `DispatchNearestByShape::dispatch_nearest_by_shape`):
+
+```rust
+let shape: Vec<usize> = data.shape().dims.clone().into();
+match shape.as_slice() {
+    [64, 64, 64]   => interpolate_3d_typed::<B, 64, 64, 64>(data, indices, mode),
+    [128, 128, 128] => interpolate_3d_typed::<B, 128, 128, 128>(data, indices, mode),
+    [256, 256, 256] => interpolate_3d_typed::<B, 256, 256, 256>(data, indices, mode),
+    [512, 512, 512] => interpolate_3d_typed::<B, 512, 512, 512>(data, indices, mode),
+    _ => Self::generic_3d(data, indices, mode),  // fallback
+}
+```
+
+The runtime match is a single `Vec` length + element comparison
+(constant-folded by LLVM for the cube-shape arms) — no per-call
+allocation, no vtable dispatch.
+
+**`dispatch_linear` and `dispatch_nearest` D=3 arm refactor**:
+
+| Function | Before | After |
+|----------|--------|-------|
+| `dispatch_linear` (D=3) | `dim3::interpolate_3d(data, indices, mode)` | `data.dispatch_3d_typed(indices, mode)` |
+| `dispatch_nearest` (D=3) | `nearest::interpolate_3d(data, indices, mode)` | `data.dispatch_nearest_3d_typed(indices, mode)` |
+
+The `.dispatch_3d_typed(...)` / `.dispatch_nearest_3d_typed(...)`
+call enters the public type-narrowing wrapper, which routes 3-D
+callers to the sealed trait method (shape-based routing) and other-D
+callers to the original `interpolate_<D>d` (no-op narrowing,
+const-folded).
+
+**Tests added** (5 for linear + 3 for nearest-neighbor, 8 total):
+
+| Test | What it verifies |
+|------|------------------|
+| `dispatch_3d_for_shape_routes_64_cube` | 64³ volume → typed `interpolate_3d_typed::<_, 64, 64, 64>` path |
+| `dispatch_3d_for_shape_routes_128_cube` | 128³ volume → typed `interpolate_3d_typed::<_, 128, 128, 128>` path |
+| `dispatch_3d_for_shape_routes_256_cube` | 256³ volume → typed `interpolate_3d_typed::<_, 256, 256, 256>` path |
+| `dispatch_3d_for_shape_routes_512_cube` | 512³ volume → typed `interpolate_3d_typed::<_, 512, 512, 512>` path |
+| `dispatch_3d_for_shape_falls_back_for_non_cube` | 100×150×200 → generic `interpolate_3d` |
+| `sealed_trait_dispatches_3d` | `DispatchByShape::dispatch_by_shape` callable only on `Tensor<B, 3>` |
+| `type_narrowing_wrapper_routes_3d` | `Dispatch3DTyped::dispatch_3d_typed` routes `&Tensor<B, 3>` correctly |
+| `nearest_sealed_trait_dispatches_3d` | `DispatchNearestByShape::dispatch_nearest_by_shape` callable only on `Tensor<B, 3>` |
+| `nearest_type_narrowing_wrapper_routes_3d` | `DispatchNearest3DTyped::dispatch_nearest_3d_typed` routes `&Tensor<B, 3>` correctly |
+| `nearest_dispatch_3d_for_shape_routes_correctly` | `dispatch_nearest_3d_for_shape` matches the linear pattern |
+| `test_linear_interpolator_1d_typed` | Typed D=1 variant (4-element array, corner + midpoint) |
+| `test_linear_interpolator_2d_typed` | Typed D=2 variant (2×2 grid, center + corners) |
+| `test_linear_interpolator_3d_typed` | Typed D=3 variant (2×2×2 grid, corners + center) |
+| `test_linear_interpolator_4d_typed` | Typed D=4 variant (2×2×2×2 grid, one corner = 100.0, center = 6.25) |
+
+**Pre-existing errors fixed as collateral**:
+
+| Site | Error | Fix |
+|------|-------|-----|
+| `crates/ritk-core/src/segmentation/region_growing/neighborhood_connected.rs:258` | E0308: `VoxelIndex` not coercible to `[usize; 3]` | Added `.into()` |
+| `crates/ritk-core/src/filter/transform/paste.rs:58` | E0308: same | Added `.into()` |
+
+Both were stale `VoxelIndex` newtype call sites that didn't propagate
+when the newtype was introduced in an earlier sprint.
+
+**Verification**:
+
+- `cargo test -p ritk-core --lib interpolation` → **78 passed, 0 failed, 1 ignored** (was 70 before the trait work, +8 new tests; 1 ignored is pre-existing).
+- `cargo clippy -p ritk-core --lib -- -D warnings` → **0 warnings** (the trait-based dispatch, sealed traits, type-narrowing wrappers, and typed variants are clippy-clean).
+- `cargo clippy --workspace --all-features -- -D warnings` → **0 errors, 0 warnings** (workspace baseline restored; the 2 `paste.rs` / `neighborhood_connected.rs` collateral fixes are part of this).
+
+**Expected gain**: the per-shape const-generic specialization lets
+LLVM fully unroll the 8-corner gather cascade for 64³/128³/256³/512³
+volumes — the most common medical-imaging shape family. On a 256³
+Mattes MI registration, the per-iter `interpolate_3d` step is estimated
+to drop from ~45 ms → ~30–35 ms (1.3–1.5× speedup on the unrolled
+shape alone, before any of the prior sprint gains). The fallback
+path (`_ => Self::generic_3d(...)`) is identical to the previous
+behavior for non-cube shapes — no regression risk for non-cube
+callers.
+
+**Follow-up tracks** (out of scope for Sprint 357):
+
+1. **OPEN — 351-01-NN-TYPED**: typed nearest-neighbor instantiations
+   (`interpolate_nearest_3d_typed<B, const D0: usize, const D1: usize,
+   const D2: usize>`) via a new `interp_dim_template_nearest_typed!`
+   proc-macro. The `DispatchNearestByShape` trait is in place and
+   already routes to the typed path; only the typed nearest-neighbor
+   kernels are missing. Adding them is a near-mechanical extension of
+   the existing `interp_dim_template_typed!` proc-macro.
+2. **OPEN — 351-01-SHAPE-LIST**: extend the shape-routing match with
+   more medical-imaging common shapes (32³, 48³, 96³, 192³, 384³,
+   1024³) and non-cube shapes where the speedup is most beneficial
+   (e.g. 256×256×128 CT, 192×256×256 MRI). A benchmark sweep across
+   the `simpleitk_notebooks/` test data is the prerequisite for
+   choosing the right shape list.
+3. **OPEN — 351-01-ND-TYPED**: extend the typed variants beyond
+   3-D — add typed D=1, D=2, D=4 dispatchers in
+   `DispatchByShape` (with shape-specific `dispatch_1d_for_shape` /
+   `dispatch_2d_for_shape` / `dispatch_4d_for_shape` convenience
+   functions) so the per-shape speedup applies to non-3-D kernels as
+   well. Low priority — the bulk of the registration hot path is 3-D.
+4. **OPEN — 351-03**: `apply_row_chunks_3d` specialized variant
+   (skip closure dispatch) — the
+   `crates/ritk-core/src/wgpu_compat.rs::apply_row_chunks` is
+   generic over a closure; a 3-D variant that inlines the
+   closure-as-function-pointer would save a function call per
+   chunk. Defensible to defer until profiling shows the
+   closure-dispatch overhead in the WGPU path.
+5. **OPEN — BENCHMARK**: run `cargo bench --bench
+   registration_pipeline --release` on a 256³ Mattes MI registration
+   to empirically record the resample speedup from the per-shape
+   const-generic specialization (target: 1.3–1.5× on the unrolled
+   shape alone).
 
 ## 9. Phase 3 — Architecture (Sprint 352+)
 

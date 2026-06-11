@@ -4,7 +4,9 @@
 //! association from the SCU side via `Association::connect`, sends a
 //! C-STORE-RQ, and asserts a Success (0x0000) C-STORE-RSP round-trip.
 
-use crate::format::dicom::networking::association::{transfer_syntax, Association};
+use crate::format::dicom::networking::association::{
+    transfer_syntax, Association, DicomAssociationState,
+};
 use crate::format::dicom::networking::context::{AssociationConfig, RequestedPresentationContext};
 use crate::format::dicom::networking::dimse::{CommandField, DimseMessage, DimseStatus};
 use crate::format::dicom::networking::pdu::{
@@ -244,7 +246,10 @@ fn test_c_store_loopback_success() {
     };
 
     let mut assoc = Association::connect(config).expect("SCU connect");
-    assert!(assoc.active, "association should be active after connect");
+    assert!(
+        assoc.state == DicomAssociationState::Active,
+        "association should be active after connect"
+    );
 
     let status = assoc
         .c_store(CT_IMAGE_STORAGE, TEST_INSTANCE_UID, dataset)

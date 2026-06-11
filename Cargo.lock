@@ -6323,7 +6323,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-core"
-version = "0.6.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6334,6 +6334,7 @@ dependencies = [
  "nalgebra",
  "proptest",
  "rand 0.9.2",
+ "ritk-macros",
  "rustfft",
  "serde",
  "serde_json",
@@ -6357,7 +6358,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-io"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6418,6 +6419,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ritk-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
+]
+
+[[package]]
 name = "ritk-metaimage"
 version = "0.1.0"
 dependencies = [
@@ -6431,7 +6441,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-mgh"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6533,7 +6543,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-registration"
-version = "0.50.95"
+version = "0.52.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -6548,6 +6558,7 @@ dependencies = [
  "ritk-core",
  "ritk-io",
  "ritk-model",
+ "serde",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",

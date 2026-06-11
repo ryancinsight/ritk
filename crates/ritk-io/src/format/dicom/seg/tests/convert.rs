@@ -1,28 +1,34 @@
 use super::super::{
     dicom_seg_to_label_map, label_map_to_dicom_seg, read_dicom_seg, write_dicom_seg,
-    DicomSegmentInfo, DicomSegmentation,
+    DicomSegmentInfo, DicomSegmentation, SegEncoding,
 };
 use arrayvec::ArrayString;
+use ritk_core::annotation::RgbaU8;
 
 #[test]
 fn test_label_map_to_dicom_seg_identity_single_label() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "Label 1", [255, 0, 0, 255]).unwrap();
+    table
+        .add_label(1, "Label 1", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
 
     let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
     let origin = [0.0, 0.0, 0.0];
     let spacing = [1.0, 1.0, 1.0];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary)
         .expect("label_map_to_dicom_seg");
 
     assert_eq!(seg.rows, 2, "rows must equal ny");
     assert_eq!(seg.cols, 2, "cols must equal nx");
     assert_eq!(seg.n_frames, 2, "nz=2 frames, one per Z-slice per segment");
-    assert_eq!(seg.bits_allocated, 1, "use_binary=true → bits_allocated=1");
+    assert_eq!(
+        seg.bits_allocated, 1,
+        "SegEncoding::Binary → bits_allocated=1"
+    );
     assert_eq!(seg.segmentation_type.as_str(), "BINARY");
     assert_eq!(seg.segments.len(), 1, "one segment");
     assert_eq!(seg.segments[0].segment_label, "Label 1");
@@ -36,8 +42,12 @@ fn test_label_map_to_dicom_seg_multi_label() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "Foreground", [255, 0, 0, 255]).unwrap();
-    table.add_label(2, "Other", [0, 255, 0, 255]).unwrap();
+    table
+        .add_label(1, "Foreground", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
+    table
+        .add_label(2, "Other", RgbaU8::new(0, 255, 0, 255))
+        .unwrap();
 
     let data = vec![1, 1, 1, 1, 2, 2, 2, 2];
     let map = LabelMap::from_data([2, 2, 2], data, table).unwrap();
@@ -45,7 +55,7 @@ fn test_label_map_to_dicom_seg_multi_label() {
     let spacing = [1.0, 1.0, 1.0];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary)
         .expect("label_map_to_dicom_seg");
 
     assert_eq!(seg.n_frames, 4, "2 segments × 2 z-slices = 4 frames");
@@ -82,7 +92,9 @@ fn test_label_map_to_dicom_seg_background_excluded() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "Lesion", [255, 0, 0, 255]).unwrap();
+    table
+        .add_label(1, "Lesion", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
 
     let data = vec![0, 0, 1, 1];
     let map = LabelMap::from_data([1, 2, 2], data, table).unwrap();
@@ -90,7 +102,7 @@ fn test_label_map_to_dicom_seg_background_excluded() {
     let spacing = [1.0, 1.0, 1.0];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary)
         .expect("label_map_to_dicom_seg");
 
     assert_eq!(seg.n_frames, 1, "1 foreground label × 1 z-slice = 1 frame");
@@ -106,14 +118,16 @@ fn test_label_map_to_dicom_seg_spatial_metadata() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
+    table
+        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
 
     let map = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
     let origin = [10.0, 20.0, 30.0];
     let spacing = [2.0, 0.5, 1.5];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, true)
+    let seg = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary)
         .expect("label_map_to_dicom_seg");
 
     assert_eq!(
@@ -154,7 +168,7 @@ fn test_label_map_to_dicom_seg_error_empty_geometry() {
     let spacing = [1.0, 1.0, 1.0];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
+    let result = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary);
     assert!(result.is_err(), "all-background map should return Err");
 }
 
@@ -169,7 +183,7 @@ fn test_label_map_to_dicom_seg_error_no_foreground() {
     let spacing = [1.0, 1.0, 1.0];
     let direction = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
-    let result = label_map_to_dicom_seg(&map, origin, spacing, direction, true);
+    let result = label_map_to_dicom_seg(&map, origin, spacing, direction, SegEncoding::Binary);
     assert!(result.is_err(), "all-background map should return Err");
 }
 
@@ -178,7 +192,9 @@ fn test_dicom_seg_to_label_map_roundtrip_single_label() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "Label 1", [255, 0, 0, 255]).unwrap();
+    table
+        .add_label(1, "Label 1", [255, 0, 0, 255].into())
+        .unwrap();
     let original = LabelMap::from_data([2, 2, 2], vec![1u32; 8], table).unwrap();
 
     let seg = label_map_to_dicom_seg(
@@ -186,7 +202,7 @@ fn test_dicom_seg_to_label_map_roundtrip_single_label() {
         [0.0, 0.0, 0.0],
         [1.0, 1.0, 1.0],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        true,
+        SegEncoding::Binary,
     )
     .expect("label_map_to_dicom_seg");
 
@@ -204,8 +220,12 @@ fn test_dicom_seg_to_label_map_roundtrip_multi_label() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
-    table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
+    table
+        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
+    table
+        .add_label(2, "B", RgbaU8::new(0, 255, 0, 255))
+        .unwrap();
     let original = LabelMap::from_data([2, 2, 2], vec![1, 1, 0, 2, 2, 0, 1, 2], table).unwrap();
 
     let seg = label_map_to_dicom_seg(
@@ -213,7 +233,7 @@ fn test_dicom_seg_to_label_map_roundtrip_multi_label() {
         [0.0, 0.0, 0.0],
         [1.0, 1.0, 1.0],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        true,
+        SegEncoding::Binary,
     )
     .expect("label_map_to_dicom_seg");
 
@@ -333,8 +353,12 @@ fn test_label_map_dicom_seg_file_roundtrip_identity() {
     use ritk_core::annotation::{LabelMap, LabelTable};
 
     let mut table = LabelTable::new();
-    table.add_label(1, "A", [255, 0, 0, 255]).unwrap();
-    table.add_label(2, "B", [0, 255, 0, 255]).unwrap();
+    table
+        .add_label(1, "A", RgbaU8::new(255, 0, 0, 255))
+        .unwrap();
+    table
+        .add_label(2, "B", RgbaU8::new(0, 255, 0, 255))
+        .unwrap();
     let original =
         LabelMap::from_data([2, 3, 2], vec![1, 0, 2, 0, 1, 2, 2, 1, 0, 1, 0, 2], table).unwrap();
 
@@ -343,7 +367,7 @@ fn test_label_map_dicom_seg_file_roundtrip_identity() {
         [2.0, 3.0, 4.0],
         [1.5, 0.75, 0.5],
         [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-        true,
+        SegEncoding::Binary,
     )
     .expect("label_map_to_dicom_seg");
 

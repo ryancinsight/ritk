@@ -2,6 +2,7 @@
 
 use super::super::geometry::{
     analyze_slice_spacing, dot_3d, normalize_3d, resample_frames_linear, slice_normal_from_iop,
+    SpacingUniformity, SliceCoverage,
 };
 use super::super::loader::{
     load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
@@ -35,8 +36,8 @@ fn test_analyze_slice_spacing_uniform() {
         "max_relative_deviation={}",
         report.max_relative_deviation
     );
-    assert!(!report.is_nonuniform);
-    assert!(!report.has_missing_slices);
+    assert_eq!(report.spacing_uniformity, SpacingUniformity::Uniform);
+    assert_eq!(report.slice_coverage, SliceCoverage::Complete);
     assert!(report.missing_between.is_empty());
 }
 
@@ -57,9 +58,9 @@ fn test_analyze_slice_spacing_nonuniform() {
         "max_relative_deviation={}",
         report.max_relative_deviation
     );
-    assert!(report.is_nonuniform);
+    assert_eq!(report.spacing_uniformity, SpacingUniformity::Nonuniform);
     // gap[1]=1.2 < 1.5 × 1.0: no missing slices
-    assert!(!report.has_missing_slices);
+    assert_eq!(report.slice_coverage, SliceCoverage::Complete);
 }
 
 #[test]
@@ -73,11 +74,11 @@ fn test_analyze_slice_spacing_missing_slice() {
         "nominal_spacing={}",
         report.nominal_spacing
     );
-    assert!(report.has_missing_slices);
+    assert_eq!(report.slice_coverage, SliceCoverage::HasMissingSlices);
     // gap[1] = 2.0 > 1.5 × 1.0
     assert_eq!(report.missing_between, vec![1_usize]);
     // max relative deviation = 1.0 (100%) — also nonuniform
-    assert!(report.is_nonuniform);
+    assert_eq!(report.spacing_uniformity, SpacingUniformity::Nonuniform);
 }
 
 #[test]

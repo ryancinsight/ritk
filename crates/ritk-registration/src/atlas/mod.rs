@@ -30,7 +30,7 @@
 pub mod label_fusion;
 
 use crate::deformable_field_ops::{
-    gaussian_smooth_field_inplace, scaling_and_squaring, warp_image, VelocityField,
+    gaussian_smooth_field_inplace_with_scratch, scaling_and_squaring, warp_image, VelocityField,
 };
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 use crate::error::RegistrationError;
@@ -169,6 +169,8 @@ impl AtlasRegistration {
         let mut convergence_history = Vec::with_capacity(self.config.max_iterations);
         // Capacity: one result per atlas subject
         let mut subject_results: Vec<SubjectResult> = Vec::with_capacity(n_subjects);
+        // Pre-hoisted scratch: reused by the template-sharpening smooth call each iteration.
+        let mut smooth_tmp = vec![0.0_f32; n_voxels];
 
         // ── Step 2: Iterative refinement ──────────────────────────────────
         for k in 0..self.config.max_iterations {
@@ -219,12 +221,13 @@ impl AtlasRegistration {
                 *v = -*v;
             }
             //     Smooth the negated velocity for diffeomorphism regularity.
-            gaussian_smooth_field_inplace(
+            gaussian_smooth_field_inplace_with_scratch(
                 &mut mean_vz,
                 &mut mean_vy,
                 &mut mean_vx,
                 dims,
                 self.config.syn_config.sigma_smooth,
+                &mut smooth_tmp,
             );
             //     Exponentiate via scaling-and-squaring → displacement field.
             let phi = scaling_and_squaring(

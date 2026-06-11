@@ -76,9 +76,9 @@ impl Default for AnonymizeOptions {
     fn default() -> Self {
         Self {
             profile: AnonymizationProfile::Basic,
-            patient_name: "ANONYMOUS".to_owned(),
-            patient_id: "ANON001".to_owned(),
-            uid_salt: "ritk-anon-salt".to_owned(),
+            patient_name: String::from("ANONYMOUS"),
+            patient_id: String::from("ANON001"),
+            uid_salt: String::from("ritk-anon-salt"),
             clean_pixel_data: CleaningPolicy::Skip,
             clean_private_tags: CleaningPolicy::Skip,
         }

@@ -1,6 +1,7 @@
 use super::super::basis::{
     cubic_bspline_1d, evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
 };
+use super::super::volume_dims::VolumeDims;
 
 #[test]
 fn bspline_basis_partition_of_unity() {
@@ -37,7 +38,7 @@ fn init_control_grid_dimensions_correct() {
     // x: ceil(24/8)+3 = 3+3 = 6
     let dims = [16, 20, 24];
     let spacing = [8.0, 8.0, 8.0];
-    let ctrl = init_control_grid(dims, &spacing);
+    let ctrl = init_control_grid(VolumeDims(dims), &spacing);
     assert_eq!(ctrl, [5, 6, 6]);
 }
 
@@ -47,7 +48,7 @@ fn init_control_grid_non_divisible() {
     // n_ctrl[d] = ceil(10/4)+3 = 3+3 = 6
     let dims = [10, 10, 10];
     let spacing = [4.0, 4.0, 4.0];
-    let ctrl = init_control_grid(dims, &spacing);
+    let ctrl = init_control_grid(VolumeDims(dims), &spacing);
     assert_eq!(ctrl, [6, 6, 6]);
 }
 
@@ -57,7 +58,7 @@ fn init_control_grid_non_divisible() {
 fn fast_displacement_matches_original_on_random_cps() {
     let dims = [16usize, 20, 24];
     let ctrl_spacing = [4.0_f64, 5.0, 6.0];
-    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let ctrl_dims = init_control_grid(VolumeDims(dims), &ctrl_spacing);
     let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
 
     // Deterministic "random-ish" control points (avoid rand 0.9 API changes).
@@ -67,7 +68,7 @@ fn fast_displacement_matches_original_on_random_cps() {
 
     // Original path (delegates to fast internally now, so we need to
     // compare the original algorithm directly).
-    let cache = BasisCache::new(dims, &ctrl_spacing);
+    let cache = BasisCache::new(VolumeDims(dims), &ctrl_spacing);
     let f = evaluate_bspline_displacement_fast(&cp_z, &cp_y, &cp_x, &ctrl_dims, dims, &cache);
 
     // Basic invariants.
@@ -97,13 +98,13 @@ fn fast_displacement_matches_original_on_random_cps() {
 fn zero_control_points_yield_zero_displacement() {
     let dims = [8usize, 8, 8];
     let ctrl_spacing = [4.0_f64, 4.0, 4.0];
-    let ctrl_dims = init_control_grid(dims, &ctrl_spacing);
+    let ctrl_dims = init_control_grid(VolumeDims(dims), &ctrl_spacing);
     let cn = ctrl_dims[0] * ctrl_dims[1] * ctrl_dims[2];
     let cp_z = vec![0.0_f32; cn];
     let cp_y = vec![0.0_f32; cn];
     let cp_x = vec![0.0_f32; cn];
 
-    let cache = BasisCache::new(dims, &ctrl_spacing);
+    let cache = BasisCache::new(VolumeDims(dims), &ctrl_spacing);
     let f = evaluate_bspline_displacement_fast(&cp_z, &cp_y, &cp_x, &ctrl_dims, dims, &cache);
 
     for i in 0..f.z.len() {

@@ -44,6 +44,9 @@ fn get_masked_cached_sparse_w_fixed<B: Backend>(
     num_bins: usize,
     sigma_sq_fix: f32,
 ) -> Option<SparseWFixedT> {
+    if B::ad_enabled() {
+        return None;
+    }
     let cache = cache_guard.as_mut()?;
     if cache.cache_key != cache_key || cache.n != n {
         return None;

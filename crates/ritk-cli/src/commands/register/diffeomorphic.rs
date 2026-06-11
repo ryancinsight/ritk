@@ -55,7 +55,7 @@ pub(super) fn run_syn(args: &RegisterArgs) -> Result<()> {
 /// and bending-energy regularization. Control-point spacing halves at each
 /// successive level.
 pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
-    use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration};
+    use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
     let fixed_img = super::super::read_image(&args.fixed)?;
     let moving_img = super::super::read_image(&args.moving)?;
@@ -78,7 +78,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
     let result = BSplineFFDRegistration::register(
         &fixed_vals,
         &moving_vals,
-        fixed_shape,
+        VolumeDims(fixed_shape),
         [1.0, 1.0, 1.0],
         &config,
     )

@@ -1,3 +1,5 @@
+use super::ctrl_dims::ControlGridDims;
+
 /// Configuration for B-Spline FFD registration.
 #[derive(Debug, Clone)]
 pub struct BSplineFFDConfig {
@@ -34,10 +36,10 @@ impl Default for BSplineFFDConfig {
 #[derive(Debug, Clone)]
 pub struct BSplineFFDResult {
     /// Control-point displacements for each spatial component (dz, dy, dx).
-    /// Each `Vec<f32>` has length `control_grid_dims[0] * control_grid_dims[1] * control_grid_dims[2]`.
+    /// Each `Vec<f32>` has length `control_grid_dims.num_nodes()`.
     pub control_points: (Vec<f32>, Vec<f32>, Vec<f32>),
     /// Control grid dimensions `[depth_ctrl, rows_ctrl, cols_ctrl]`.
-    pub control_grid_dims: [usize; 3],
+    pub control_grid_dims: ControlGridDims,
     /// Control-point spacing at the finest level `[δz, δy, δx]` in voxels.
     pub control_spacing: [f64; 3],
     /// Moving image warped to the fixed image domain.
